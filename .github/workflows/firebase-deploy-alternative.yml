@@ -1,0 +1,94 @@
+# Alternative Firebase Deployment Workflow
+# Use this if the main workflow continues to fail
+
+name: Deploy to Production (Alternative)
+on:
+  workflow_dispatch:  # Manual trigger only
+  
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build web app
+        run: npx nx build web --configuration=production
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+
+      - name: Build functions
+        run: npx nx build functions --configuration=production
+
+      - name: Deploy hosting only (first)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_CODE_INSIGHTS_QUIZ_AI }}'
+          projectId: code-insights-quiz-ai
+          channelId: live
+
+      - name: Setup Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          service_account_key: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CODE_INSIGHTS_QUIZ_AI }}
+          project_id: code-insights-quiz-ai
+
+      - name: Deploy functions with gcloud
+        run: |
+          cd functions
+          gcloud functions deploy generateQuiz \
+            --gen2 \
+            --runtime=nodejs22 \
+            --region=us-central1 \
+            --source=. \
+            --entry-point=generateQuiz \
+            --trigger=https \
+            --allow-unauthenticated=false
+            
+          gcloud functions deploy getQuiz \
+            --gen2 \
+            --runtime=nodejs22 \
+            --region=us-central1 \
+            --source=. \
+            --entry-point=getQuiz \
+            --trigger=https \
+            --allow-unauthenticated=true
+            
+          gcloud functions deploy getUserQuizzes \
+            --gen2 \
+            --runtime=nodejs22 \
+            --region=us-central1 \
+            --source=. \
+            --entry-point=getUserQuizzes \
+            --trigger=https \
+            --allow-unauthenticated=false
+            
+          gcloud functions deploy getRecentQuizzes \
+            --gen2 \
+            --runtime=nodejs22 \
+            --region=us-central1 \
+            --source=. \
+            --entry-point=getRecentQuizzes \
+            --trigger=https \
+            --allow-unauthenticated=true

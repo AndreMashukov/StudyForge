@@ -84,7 +84,14 @@ jobs:
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_CODE_INSIGHTS_QUIZ_AI }}' > /tmp/service-account.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/service-account.json
-          firebase deploy --project code-insights-quiz-ai
+          
+          # Verify authentication
+          echo "🔍 Verifying authentication..."
+          firebase auth:list --project code-insights-quiz-ai || true
+          
+          # Deploy with explicit project and debug info
+          echo "🚀 Starting deployment..."
+          firebase deploy --project code-insights-quiz-ai --debug
         
       - name: Cleanup
         if: always()
