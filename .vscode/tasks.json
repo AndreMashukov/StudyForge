@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Setup Shell Integration",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/shell-integration/setup.sh",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "detail": "Sets up VS Code shell integration for the current user"
+    },
+    {
+      "label": "Show Shell Integration Status",
+      "type": "shell",
+      "command": "echo",
+      "args": [
+        "Shell Integration Status:\n- TERM_PROGRAM: ${env:TERM_PROGRAM}\n- VS Code Integration: ${env:VSCODE_SHELL_INTEGRATION}\n- Current Shell: ${env:SHELL}"
+      ],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

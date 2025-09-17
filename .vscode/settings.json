@@ -1,3 +1,17 @@
 {
-  "nxConsole.generateAiAgentRules": true
+  "nxConsole.generateAiAgentRules": true,
+  "terminal.integrated.shellIntegration.enabled": true,
+  "terminal.integrated.shellIntegration.decorationsEnabled": "both",
+  "terminal.integrated.shellIntegration.showCommandGuide": true,
+  "terminal.integrated.stickyScroll.enabled": true,
+  "terminal.integrated.suggest.enabled": true,
+  "terminal.integrated.suggest.quickSuggestions": {"other": true, "comments": false, "strings": true},
+  "terminal.integrated.suggest.runOnEnter": "never",
+  "terminal.integrated.suggest.selectionMode": "always",
+  "terminal.integrated.suggest.showStatusBar": true,
+  "terminal.integrated.shellIntegration.history": 100,
+  "terminal.integrated.commandsToSkipShell": [
+    "workbench.action.terminal.runRecentCommand",
+    "workbench.action.terminal.goToRecentDirectory"
+  ]
 }

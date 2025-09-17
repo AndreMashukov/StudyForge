@@ -42,6 +42,10 @@
     "vite": "^7.0.0",
     "vitest": "^3.0.0"
   },
+  "scripts": {
+    "setup-shell-integration": "scripts/shell-integration/setup.sh",
+    "shell-integration-status": "echo \"Shell Integration Status:\nTERM_PROGRAM: $TERM_PROGRAM\nVSCODE_SHELL_INTEGRATION: $VSCODE_SHELL_INTEGRATION\nCurrent Shell: $SHELL\""
+  },
   "dependencies": {
     "react": "19.0.0",
     "react-dom": "19.0.0",

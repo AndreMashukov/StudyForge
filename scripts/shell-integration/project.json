@@ -1,0 +1,43 @@
+{
+  "name": "shell-integration",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "scripts/shell-integration",
+  "targets": {
+    "setup": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "chmod +x scripts/shell-integration/setup.sh && scripts/shell-integration/setup.sh",
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "production": {
+          "command": "scripts/shell-integration/setup.sh",
+          "cwd": "{workspaceRoot}"
+        }
+      }
+    },
+    "status": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "echo 'Shell Integration Status:'",
+          "echo 'TERM_PROGRAM:' $TERM_PROGRAM",
+          "echo 'VSCODE_SHELL_INTEGRATION:' $VSCODE_SHELL_INTEGRATION",
+          "echo 'Current Shell:' $SHELL",
+          "echo ''",
+          "echo 'Available Integration Scripts:'",
+          "ls -la scripts/shell-integration/*.{sh,zsh,fish,ps1} 2>/dev/null || echo 'No scripts found'"
+        ],
+        "parallel": false
+      }
+    },
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "echo 'Run: nx run shell-integration:setup' && echo 'Or manually source the appropriate script for your shell from scripts/shell-integration/'"
+      }
+    }
+  },
+  "tags": ["scope:tooling", "type:utility"]
+}

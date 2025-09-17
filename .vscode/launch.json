@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Demo Shell Integration",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "${workspaceFolder}/scripts/shell-integration/demo.sh",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
