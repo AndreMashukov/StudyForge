@@ -93,6 +93,78 @@ gcloud iam service-accounts add-iam-policy-binding \
 - **Tried:** Combined deployment approach
 - **Result:** All approaches fail with same IAM error
 
+## 🚨 **BREAKTHROUGH: Root Cause Identified**
+
+**Latest Failure Analysis (Run #16 - 2025-09-17T12:34:13):**
+
+### Debug Logs Reveal the Real Issues:
+
+#### 1. **Missing Cloud Functions Permissions** ❌
+The GitHub Actions service account is missing essential Cloud Functions permissions:
+```
+cloudfunctions.functions.create
+cloudfunctions.functions.delete
+cloudfunctions.functions.get
+cloudfunctions.functions.list
+cloudfunctions.functions.update
+cloudfunctions.operations.get
+datastore.indexes.create
+datastore.indexes.delete
+datastore.indexes.update
+```
+
+#### 2. **Service Account Impersonation Failed** ❌  
+Debug logs show empty response when testing `iam.serviceAccounts.actAs` permission:
+```
+POST https://iam.googleapis.com/v1/projects/***/serviceAccounts/***@appspot.gserviceaccount.com:testIamPermissions
+Response: {} (empty - no permissions granted)
+```
+
+#### 3. **What Actually Works** ✅
+Current service account has only these permissions:
+- `datastore.indexes.list`
+- `firebase.projects.get`
+- `firebasehosting.sites.update`
+
+### **The Real Solution**
+
+The service account needs **Cloud Functions Developer** role, not just Service Account User role.
+
+## 💡 **CORRECT FIX COMMANDS**
+
+Run these commands to properly fix the issue:
+
+### Fix 1: Grant Cloud Functions Developer Role
+```bash
+gcloud projects add-iam-policy-binding code-insights-quiz-ai \
+  --member="serviceAccount:github-action-1057960904@code-insights-quiz-ai.iam.gserviceaccount.com" \
+  --role="roles/cloudfunctions.developer"
+```
+
+### Fix 2: Grant Firebase Admin Role (Alternative)
+```bash
+gcloud projects add-iam-policy-binding code-insights-quiz-ai \
+  --member="serviceAccount:github-action-1057960904@code-insights-quiz-ai.iam.gserviceaccount.com" \
+  --role="roles/firebase.admin"
+```
+
+### Fix 3: Re-apply Service Account User (with proper scope)
+```bash
+# Remove existing binding first
+gcloud iam service-accounts remove-iam-policy-binding \
+  code-insights-quiz-ai@appspot.gserviceaccount.com \
+  --member="serviceAccount:github-action-1057960904@code-insights-quiz-ai.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser" \
+  --project=code-insights-quiz-ai
+
+# Re-add with proper scope
+gcloud iam service-accounts add-iam-policy-binding \
+  code-insights-quiz-ai@appspot.gserviceaccount.com \
+  --member="serviceAccount:github-action-1057960904@code-insights-quiz-ai.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser" \
+  --project=code-insights-quiz-ai
+```
+
 ## 📊 Latest Failure Details
 
 **Workflow Run:** #14 (ID: 17797061100)  
