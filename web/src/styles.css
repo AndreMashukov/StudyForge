@@ -127,4 +127,40 @@
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
+  
+  /* Fix placeholder colors to use clean grays */
+  input::placeholder {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+  
+  /* Ensure form inputs use clean colors */
+  input[type="email"], 
+  input[type="password"], 
+  input[type="text"] {
+    background-color: hsl(var(--input)) !important;
+    color: hsl(var(--foreground)) !important;
+    border-color: hsl(var(--border)) !important;
+  }
+  
+  /* Focus states for inputs */
+  input:focus {
+    ring-color: hsl(var(--ring)) !important;
+    border-color: hsl(var(--ring)) !important;
+  }
+  
+  /* Force clean button colors */
+  button[type="submit"] {
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+  
+  /* Override any residual purple/brown colors */
+  * {
+    --tw-ring-color: hsl(var(--ring)) !important;
+  }
+  
+  /* Ensure labels are clean */
+  label {
+    color: hsl(var(--foreground)) !important;
+  }
 }
