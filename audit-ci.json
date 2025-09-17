@@ -1,0 +1,10 @@
+{
+  "moderate": true,
+  "high": true,
+  "critical": true,
+  "allowlist": [],
+  "report-type": "important",
+  "pass-enoaudit": false,
+  "show-found": true,
+  "show-not-found": false
+}

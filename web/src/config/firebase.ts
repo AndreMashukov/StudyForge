@@ -4,14 +4,14 @@ import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 // Your web app's Firebase configuration
-// For local development with emulators, we use demo project settings
+// Uses environment variables for production, fallback to demo values for local emulator development
 const firebaseConfig = {
-  apiKey: "demo-api-key-for-emulator",
-  authDomain: "demo-code-insights-quiz-ai.firebaseapp.com",
-  projectId: "demo-code-insights-quiz-ai",
-  storageBucket: "demo-code-insights-quiz-ai.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:demo-app-id"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-api-key-for-emulator",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "demo-code-insights-quiz-ai.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-code-insights-quiz-ai",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "demo-code-insights-quiz-ai.appspot.com",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "123456789012",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:123456789012:web:demo-app-id"
 };
 
 // Initialize Firebase
