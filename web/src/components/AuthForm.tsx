@@ -85,6 +85,16 @@ export const AuthForm: React.FC = () => {
             <div className="mb-6 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm">
               <p className="font-medium">Authentication Error</p>
               <p className="text-destructive/80 mt-1">{error.message}</p>
+              <details className="mt-2">
+                <summary className="text-xs cursor-pointer text-destructive/60">Debug Details</summary>
+                <pre className="text-xs mt-2 p-2 bg-destructive/5 rounded overflow-auto">
+                  {JSON.stringify({
+                    code: error.code,
+                    message: error.message,
+                    name: error.name
+                  }, null, 2)}
+                </pre>
+              </details>
             </div>
           )}
 

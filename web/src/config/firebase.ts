@@ -22,33 +22,39 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const functions = getFunctions(app, 'asia-east1');
 
-// Connect to emulators in development
-if (typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+// Connect to emulators based on environment variable
+// Set VITE_USE_FIREBASE_EMULATOR=true in your .env.local to use emulators
+// Set VITE_USE_FIREBASE_EMULATOR=false or omit it to use production Firebase
+const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
+
+if (typeof window !== 'undefined' && useEmulator) {
+  console.log('🔧 Connecting to Firebase Emulators...');
   
   // Auth emulator
   try {
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    console.log('✅ Auth Emulator connected');
   } catch (error) {
-    // Emulator already connected
-    console.log('Auth emulator already connected or error:', error);
+    console.log('⚠️ Auth emulator already connected or error:', error);
   }
   
   // Firestore emulator
   try {
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
+    console.log('✅ Firestore Emulator connected');
   } catch (error) {
-    // Emulator already connected
-    console.log('Firestore emulator already connected or error:', error);
+    console.log('⚠️ Firestore emulator already connected or error:', error);
   }
   
   // Functions emulator
   try {
     connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+    console.log('✅ Functions Emulator connected');
   } catch (error) {
-    // Emulator already connected
-    console.log('Functions emulator already connected or error:', error);
+    console.log('⚠️ Functions emulator already connected or error:', error);
   }
+} else {
+  console.log('☁️ Using Production Firebase Services');
 }
 
 export default app;
