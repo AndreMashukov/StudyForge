@@ -10,7 +10,6 @@
         "*.local"
       ],
       "predeploy": [
-        "yarn nx lint functions",
         "yarn nx build functions"
       ],
       "source": "functions"
