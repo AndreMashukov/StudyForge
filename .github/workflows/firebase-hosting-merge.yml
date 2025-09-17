@@ -87,7 +87,7 @@ jobs:
           
           # Verify authentication
           echo "🔍 Verifying authentication..."
-          firebase auth:list --project code-insights-quiz-ai || true
+          firebase projects:list || true
           
           # Deploy with explicit project and debug info
           echo "🚀 Starting deployment..."

@@ -25,31 +25,37 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:$GITHUB_SA" \
   --role="roles/iam.serviceAccountTokenCreator"
 
-# 3. CRITICAL: Grant Cloud Functions Developer role (you're missing this!)
-echo "🎯 Granting Cloud Functions Developer role..."
+# 3. CRITICAL: Grant Cloud Functions Admin role (for full deployment permissions)
+echo "🎯 Granting Cloud Functions Admin role..."
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:$GITHUB_SA" \
-  --role="roles/cloudfunctions.developer"
+  --role="roles/cloudfunctions.admin"
 
-# 4. CRITICAL: Grant Firebase Rules Admin role
+# 4. CRITICAL: Grant Firestore Admin role (for datastore.indexes permissions)
+echo "🎯 Granting Firestore Admin role..."
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$GITHUB_SA" \
+  --role="roles/datastore.owner"
+
+# 5. CRITICAL: Grant Firebase Rules Admin role  
 echo "🎯 Granting Firebase Rules Admin role..."
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:$GITHUB_SA" \
   --role="roles/firebaserules.admin"
 
-# 5. CRITICAL: Grant Cloud Build Editor role (needed for Functions v2)
+# 6. CRITICAL: Grant Cloud Build Editor role (needed for Functions v2)
 echo "🎯 Granting Cloud Build Editor role..."
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:$GITHUB_SA" \
   --role="roles/cloudbuild.builds.editor"
 
-# 6. CRITICAL: Grant Artifact Registry Writer role (needed for Functions v2)
+# 7. CRITICAL: Grant Artifact Registry Writer role (needed for Functions v2)
 echo "🎯 Granting Artifact Registry Writer role..."
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:$GITHUB_SA" \
   --role="roles/artifactregistry.writer"
 
-# 7. CRITICAL: Grant the SA permission to act as the App Engine SA
+# 8. CRITICAL: Grant the SA permission to act as the App Engine SA
 echo "🎯 Granting impersonation permissions on App Engine SA..."
 gcloud iam service-accounts add-iam-policy-binding \
   $APPENGINE_SA \
@@ -57,15 +63,23 @@ gcloud iam service-accounts add-iam-policy-binding \
   --role="roles/iam.serviceAccountUser" \
   --project=$PROJECT_ID
 
-# 8. CRITICAL: Grant the SA permission to create tokens for App Engine SA
+# 9. CRITICAL: Grant the SA permission to create tokens for App Engine SA
 echo "🎯 Granting token creation permissions on App Engine SA..."
+gcloud iam service-accounts add-iam-policy-binding \
+  $APPENGINE_SA \
+  --member="serviceAccount:$GITHUB_SA" \
+  --role="roles/iam.serviceAccountUser" \
+  --project=$PROJECT_ID
+
+# 10. CRITICAL: Also grant actAs permission directly on the App Engine SA
+echo "🎯 Granting direct actAs permissions on App Engine SA..."
 gcloud iam service-accounts add-iam-policy-binding \
   $APPENGINE_SA \
   --member="serviceAccount:$GITHUB_SA" \
   --role="roles/iam.serviceAccountTokenCreator" \
   --project=$PROJECT_ID
 
-# 9. Enable required APIs (just in case)
+# 11. Enable required APIs (just in case)
 echo "🔌 Enabling required APIs..."
 gcloud services enable cloudfunctions.googleapis.com --project=$PROJECT_ID
 gcloud services enable cloudbuild.googleapis.com --project=$PROJECT_ID
