@@ -53,12 +53,10 @@ See [Shell Integration Setup](./scripts/shell-integration/README.md) for detaile
 
 ## 🔧 Deployment Status
 - ✅ Firebase project configured and connected
-- 🔄 GitHub Actions deployment: **ADVANCED PERMISSION FIX APPLIED**
-  - ✅ Cloud Functions Developer role (roles/cloudfunctions.developer)
-  - ✅ Service Account User role (roles/iam.serviceAccountUser)  
-  - ✅ **NEW: Token Creator role** (roles/iam.serviceAccountTokenCreator)
-  - ✅ **NEW: Cloud Functions Service Agent** (roles/cloudfunctions.serviceAgent)
-  - Fixed service account impersonation chain issue
+- ✅ GitHub Actions deployment: **WEB APP ONLY**
+  - ✅ Firebase Hosting deployment configured
+  - 🚫 Firebase Functions deployment **REMOVED** (permission issues)
+  - Simplified to hosting-only pipeline for reliable deployment
 - ✅ NX monorepo integration working correctly
-- ✅ Build artifacts verified and functioning (1.34s build time)
-- 🧪 **Ready for deployment testing** - All identified permission issues addressed
+- ✅ Build artifacts verified and functioning
+- 🚀 **Ready for web app deployment** - Clean hosting-only pipeline

@@ -37,58 +37,10 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
 
-      - name: Build functions
-        run: npx nx build functions --configuration=production
-
-      - name: Deploy hosting only (first)
+      - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_CODE_INSIGHTS_QUIZ_AI }}'
           projectId: code-insights-quiz-ai
           channelId: live
-
-      - name: Setup Google Cloud CLI
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          service_account_key: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CODE_INSIGHTS_QUIZ_AI }}
-          project_id: code-insights-quiz-ai
-
-      - name: Deploy functions with gcloud
-        run: |
-          cd functions
-          gcloud functions deploy generateQuiz \
-            --gen2 \
-            --runtime=nodejs22 \
-            --region=us-central1 \
-            --source=. \
-            --entry-point=generateQuiz \
-            --trigger=https \
-            --allow-unauthenticated=false
-            
-          gcloud functions deploy getQuiz \
-            --gen2 \
-            --runtime=nodejs22 \
-            --region=us-central1 \
-            --source=. \
-            --entry-point=getQuiz \
-            --trigger=https \
-            --allow-unauthenticated=true
-            
-          gcloud functions deploy getUserQuizzes \
-            --gen2 \
-            --runtime=nodejs22 \
-            --region=us-central1 \
-            --source=. \
-            --entry-point=getUserQuizzes \
-            --trigger=https \
-            --allow-unauthenticated=false
-            
-          gcloud functions deploy getRecentQuizzes \
-            --gen2 \
-            --runtime=nodejs22 \
-            --region=us-central1 \
-            --source=. \
-            --entry-point=getRecentQuizzes \
-            --trigger=https \
-            --allow-unauthenticated=true
