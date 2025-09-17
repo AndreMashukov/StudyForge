@@ -3,6 +3,8 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { AuthForm } from '../components/AuthForm';
 import { UserProfile } from '../components/UserProfile';
 import { Icon } from '../components/ui/icon';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 
 const AppContent = () => {
   const { user, loading } = useAuth();
@@ -142,8 +144,8 @@ const AppContent = () => {
                     
                     {/* Feature Cards Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-                      <div className="group bg-card rounded-xl p-6 shadow-sm border border-border hover:shadow-md hover:border-border/80 transition-all duration-200">
-                        <div className="space-y-4">
+                      <Card className="group hover:shadow-md hover:border-border/80 transition-all duration-200">
+                        <CardContent className="p-6 space-y-4">
                           <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/15 transition-colors">
                             <Icon size={24} className="text-primary">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -153,14 +155,14 @@ const AppContent = () => {
                             <h3 className="text-lg font-semibold text-foreground">Create Quiz</h3>
                             <p className="text-muted-foreground text-sm leading-relaxed">Generate a new quiz from any web URL using AI-powered content analysis.</p>
                           </div>
-                          <button className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm">
+                          <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
                             Start Creating
-                          </button>
-                        </div>
-                      </div>
+                          </Button>
+                        </CardContent>
+                      </Card>
                       
-                      <div className="group bg-card rounded-xl p-6 shadow-sm border border-border hover:shadow-md hover:border-border/80 transition-all duration-200">
-                        <div className="space-y-4">
+                      <Card className="group hover:shadow-md hover:border-border/80 transition-all duration-200">
+                        <CardContent className="p-6 space-y-4">
                           <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center group-hover:bg-accent/15 transition-colors">
                             <Icon size={24} className="text-accent-foreground">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
@@ -170,28 +172,33 @@ const AppContent = () => {
                             <h3 className="text-lg font-semibold text-foreground">My Quizzes</h3>
                             <p className="text-muted-foreground text-sm leading-relaxed">View and manage all your previously created quizzes in one place.</p>
                           </div>
-                          <button className="w-full py-2.5 px-4 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors font-medium text-sm">
+                          <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90 transition-colors">
                             View Quizzes
-                          </button>
-                        </div>
-                      </div>
+                          </Button>
+                        </CardContent>
+                      </Card>
                       
-                      <div className="group bg-card rounded-xl p-6 shadow-sm border border-border hover:shadow-md hover:border-border/80 transition-all duration-200">
-                        <div className="space-y-4">
+                      <Card className="group hover:shadow-md hover:border-border/80 transition-all duration-200">
+                        <CardContent className="p-6 space-y-4">
+                                                
+                      <Card className="group hover:shadow-md hover:border-border/80 transition-all duration-200">
+                        <CardContent className="p-6 space-y-4">
                           <div className="w-12 h-12 bg-secondary/50 rounded-xl flex items-center justify-center group-hover:bg-secondary/60 transition-colors">
                             <Icon size={24} className="text-foreground">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                             </Icon>
                           </div>
                           <div className="space-y-2">
                             <h3 className="text-lg font-semibold text-foreground">Analytics</h3>
                             <p className="text-muted-foreground text-sm leading-relaxed">Track quiz performance and user engagement with detailed analytics.</p>
                           </div>
-                          <button className="w-full py-2.5 px-4 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors font-medium text-sm">
+                          <Button variant="secondary" className="w-full hover:bg-secondary/80 transition-colors">
                             View Stats
-                          </button>
-                        </div>
-                      </div>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                        </CardContent>
+                      </Card>
                     </div>
 
                     {/* User Profile Section */}

@@ -47,6 +47,7 @@
     "shell-integration-status": "echo \"Shell Integration Status:\nTERM_PROGRAM: $TERM_PROGRAM\nVSCODE_SHELL_INTEGRATION: $VSCODE_SHELL_INTEGRATION\nCurrent Shell: $SHELL\""
   },
   "dependencies": {
+    "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-slot": "^1.2.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

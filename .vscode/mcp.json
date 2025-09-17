@@ -11,6 +11,10 @@
     "browsermcp": {
       "command": "npx",
       "args": ["@browsermcp/mcp@latest"]
-    }
+    },
+    "nx-mcp": {
+      "command": "npx",
+      "args": ["-y", "nx-mcp@latest", "."]
+    },
   }
 }

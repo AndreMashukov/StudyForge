@@ -3,6 +3,7 @@ import { useSignInWithEmailAndPassword, useCreateUserWithEmailAndPassword } from
 import { auth } from '../config/firebase';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Icon } from './ui/icon';
 
@@ -100,10 +101,10 @@ export const AuthForm: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
+                <Label htmlFor="email" className="text-foreground">
                   Email Address
-                </label>
-                <div className="relative">
+                </Label>
+                <div className="relative mt-2">
                   <Input
                     id="email"
                     type="email"
@@ -120,10 +121,10 @@ export const AuthForm: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
+                <Label htmlFor="password" className="text-foreground">
                   Password
-                </label>
-                <div className="relative">
+                </Label>
+                <div className="relative mt-2">
                   <Input
                     id="password"
                     type="password"
