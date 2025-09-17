@@ -13,5 +13,11 @@
   "terminal.integrated.commandsToSkipShell": [
     "workbench.action.terminal.runRecentCommand",
     "workbench.action.terminal.goToRecentDirectory"
-  ]
+  ],
+  "mcpServers": {
+    "browsermcp": {
+      "command": "npx",
+      "args": ["@browsermcp/mcp@latest"]
+    }
+  }
 }
