@@ -2,36 +2,36 @@
 
 @layer base {
   :root {
-    /* Modern, clean color palette inspired by GitHub and VS Code */
-    --background: 13 17 23; /* Dark but not too dark #0D1117 */
-    --foreground: 248 248 242; /* Soft white #F8F8F2 */
+    /* Cursor-inspired modern color palette */
+    --background: 0 0 0; /* True black like Cursor #000000 */
+    --foreground: 255 255 255; /* Pure white text */
 
-    --card: 22 27 34; /* Card background #161B22 */
-    --card-foreground: 248 248 242;
+    --card: 17 17 17; /* Very dark gray for cards #111111 */
+    --card-foreground: 255 255 255;
 
-    --popover: 22 27 34;
-    --popover-foreground: 248 248 242;
+    --popover: 17 17 17;
+    --popover-foreground: 255 255 255;
 
-    --primary: 88 166 255; /* GitHub blue #58A6FF */
-    --primary-foreground: 13 17 23;
+    --primary: 139 92 246; /* Purple for primary actions #8B5CF6 */
+    --primary-foreground: 255 255 255;
 
-    --secondary: 33 38 45; /* Slightly lighter gray #21262D */
-    --secondary-foreground: 248 248 242;
+    --secondary: 39 39 42; /* Dark secondary #27272A */
+    --secondary-foreground: 255 255 255;
 
-    --muted: 33 38 45;
-    --muted-foreground: 139 148 158; /* Muted text #8B949E */
+    --muted: 39 39 42;
+    --muted-foreground: 161 161 170; /* Muted text #A1A1AA */
 
-    --accent: 163 190 140; /* GitHub green #A3BE8C */
-    --accent-foreground: 13 17 23;
+    --accent: 34 197 94; /* Green accent like Cursor #22C55E */
+    --accent-foreground: 0 0 0; /* Black text on green */
 
-    --destructive: 248 81 73; /* GitHub red #F85149 */
-    --destructive-foreground: 248 248 242;
+    --destructive: 239 68 68; /* Red for errors #EF4444 */
+    --destructive-foreground: 255 255 255;
 
-    --border: 48 54 61; /* Subtle border #30363D */
-    --input: 33 38 45;
-    --ring: 88 166 255; /* Focus rings */
+    --border: 39 39 42; /* Subtle borders #27272A */
+    --input: 28 28 30; /* Dark input backgrounds #1C1C1E */
+    --ring: 139 92 246; /* Purple focus rings */
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 
   * {
@@ -68,6 +68,15 @@
   .h-5 { height: 1.25rem !important; }
   .w-4 { width: 1rem !important; }
   .h-4 { height: 1rem !important; }
+  
+  /* Cursor-inspired gradient backgrounds */
+  .cursor-gradient {
+    background: linear-gradient(135deg, #8B5CF6 0%, #3B82F6 30%, #22C55E 100%);
+  }
+  
+  .cursor-gradient-subtle {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 30%, rgba(34, 197, 94, 0.1) 100%);
+  }
   
   /* Modern gradient */
   .modern-gradient {
