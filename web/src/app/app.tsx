@@ -3,8 +3,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { AuthForm } from '../components/AuthForm';
 import { UserProfile } from '../components/UserProfile';
 import { Icon } from '../components/ui/icon';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 
 const AppContent = () => {
   const { user, loading } = useAuth();
@@ -46,9 +45,9 @@ const AppContent = () => {
             
             {/* Linear-style navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground linear-transition">Product</a>
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground linear-transition">Pricing</a>
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground linear-transition">Docs</a>
+              <button className="text-sm text-muted-foreground hover:text-foreground linear-transition">Product</button>
+              <button className="text-sm text-muted-foreground hover:text-foreground linear-transition">Pricing</button>
+              <button className="text-sm text-muted-foreground hover:text-foreground linear-transition">Docs</button>
             </nav>
             
             {user ? (
