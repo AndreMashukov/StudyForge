@@ -47,8 +47,10 @@
     "shell-integration-status": "echo \"Shell Integration Status:\nTERM_PROGRAM: $TERM_PROGRAM\nVSCODE_SHELL_INTEGRATION: $VSCODE_SHELL_INTEGRATION\nCurrent Shell: $SHELL\""
   },
   "dependencies": {
+    "firebase": "^12.2.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "react-firebase-hooks": "^5.1.1",
     "react-router-dom": "6.29.0"
   }
 }
