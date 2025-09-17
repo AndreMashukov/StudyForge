@@ -66,96 +66,73 @@ export const AuthForm: React.FC = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-8">
-      <Card className="bg-card border-border shadow-lg">
-        <CardHeader className="text-center">
-          <div className="mx-auto w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
-            <Icon size={24} className="text-primary-foreground">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-            </Icon>
-          </div>
-          <CardTitle className="text-2xl font-bold text-foreground mb-2">
-            {isSignUp ? 'Create Your Account' : 'Welcome Back'}
+    <div className="max-w-md mx-auto">
+      <Card className="linear-glass border border-border/30">
+        <CardHeader className="text-center pt-8 pb-6">
+          <CardTitle className="text-xl font-semibold text-foreground mb-3">
+            {isSignUp ? 'Create your account' : 'Welcome back'}
           </CardTitle>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {isSignUp 
-              ? 'Join us to start generating AI-powered quizzes' 
+              ? 'Start generating AI-powered quizzes today' 
               : 'Sign in to access your quiz dashboard'
             }
           </p>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-8 pb-8">
           {error && (
-            <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg flex items-center">
-              <Icon size={18} className="text-destructive mr-3 flex-shrink-0" style={{fill: 'currentColor'}}>
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"></path>
-              </Icon>
-              <div>
-                <p className="font-medium">Authentication Error</p>
-                <p className="text-sm text-destructive/80">{error.message}</p>
-              </div>
+            <div className="mb-6 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm">
+              <p className="font-medium">Authentication Error</p>
+              <p className="text-destructive/80 mt-1">{error.message}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-4">
               <div>
-                <Label htmlFor="email" className="text-foreground">
+                <Label htmlFor="email" className="text-sm text-foreground font-medium">
                   Email Address
                 </Label>
-                <div className="relative mt-2">
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    required
-                    className="pl-10 bg-input"
-                  />
-                  <Icon size={18} className="text-muted-foreground absolute left-3 top-3">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path>
-                  </Icon>
-                </div>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                  className="mt-1.5 bg-input border-border/50 focus:border-primary/50 linear-transition"
+                />
               </div>
 
               <div>
-                <Label htmlFor="password" className="text-foreground">
+                <Label htmlFor="password" className="text-sm text-foreground font-medium">
                   Password
                 </Label>
-                <div className="relative mt-2">
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    required
-                    className="pl-10 bg-input"
-                  />
-                  <Icon size={18} className="text-muted-foreground absolute left-3 top-3">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                  </Icon>
-                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  className="mt-1.5 bg-input border-border/50 focus:border-primary/50 linear-transition"
+                />
               </div>
             </div>
 
             <Button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full bg-primary hover:bg-primary/90 smooth-transition shadow-md"
+              className="w-full mt-6 linear-button linear-glow-hover"
             >
               {loading ? (
                 <div className="flex items-center justify-center">
-                  <Icon size={18} className="animate-spin -ml-1 mr-3">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </Icon>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
                   Processing...
                 </div>
               ) : (
-                isSignUp ? 'Create Account' : 'Sign In'
+                isSignUp ? 'Create account' : 'Sign in'
               )}
             </Button>
           </form>
@@ -163,24 +140,23 @@ export const AuthForm: React.FC = () => {
           <div className="mt-6 text-center">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border"></div>
+                <div className="w-full border-t border-border/30"></div>
               </div>
-              <div className="relative flex justify-center text-sm">
+              <div className="relative flex justify-center text-xs">
                 <span className="px-3 bg-card text-muted-foreground">or</span>
               </div>
             </div>
             
-            <Button
+            <button
               type="button"
-              variant="ghost"
               onClick={() => setIsSignUp(!isSignUp)}
-              className="mt-4 text-primary hover:text-primary/80 smooth-transition"
+              className="mt-4 text-sm text-muted-foreground hover:text-foreground linear-transition"
             >
               {isSignUp 
                 ? 'Already have an account? Sign in' 
                 : "Don't have an account? Create one"
               }
-            </Button>
+            </button>
           </div>
         </CardContent>
       </Card>

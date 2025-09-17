@@ -4,36 +4,36 @@
 
 @layer base {
   :root {
-    /* Cursor-inspired modern color palette */
-    --background: 0 0 0; /* True black like Cursor #000000 */
+    /* Linear-inspired modern color palette */
+    --background: 11 11 11; /* Very dark background like Linear #0B0B0B */
     --foreground: 255 255 255; /* Pure white text */
 
-    --card: 17 17 17; /* Very dark gray for cards #111111 */
+    --card: 16 16 16; /* Dark card background #101010 */
     --card-foreground: 255 255 255;
 
-    --popover: 17 17 17;
+    --popover: 16 16 16;
     --popover-foreground: 255 255 255;
 
-    --primary: 139 92 246; /* Purple for primary actions #8B5CF6 */
+    --primary: 79 70 229; /* Linear's signature indigo #4F46E5 */
     --primary-foreground: 255 255 255;
 
-    --secondary: 39 39 42; /* Dark secondary #27272A */
+    --secondary: 20 20 20; /* Subtle dark secondary #141414 */
     --secondary-foreground: 255 255 255;
 
-    --muted: 39 39 42;
-    --muted-foreground: 161 161 170; /* Muted text #A1A1AA */
+    --muted: 24 24 24; /* Muted backgrounds #181818 */
+    --muted-foreground: 163 163 163; /* Subtle muted text #A3A3A3 */
 
-    --accent: 34 197 94; /* Green accent like Cursor #22C55E */
-    --accent-foreground: 0 0 0; /* Black text on green */
+    --accent: 79 70 229; /* Accent matches primary for consistency */
+    --accent-foreground: 255 255 255;
 
-    --destructive: 239 68 68; /* Red for errors #EF4444 */
+    --destructive: 220 38 38; /* Professional red #DC2626 */
     --destructive-foreground: 255 255 255;
 
-    --border: 39 39 42; /* Subtle borders #27272A */
-    --input: 28 28 30; /* Dark input backgrounds #1C1C1E */
-    --ring: 139 92 246; /* Purple focus rings */
+    --border: 39 39 42; /* Very subtle borders #27272A */
+    --input: 20 20 20; /* Input backgrounds #141414 */
+    --ring: 79 70 229; /* Indigo focus rings */
 
-    --radius: 0.75rem;
+    --radius: 0.5rem; /* Slightly smaller radius like Linear */
   }
 
   * {
@@ -48,13 +48,34 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-    line-height: 1.6;
+    line-height: 1.5;
+    font-size: 14px;
+    antialiased: true;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   
   h1, h2, h3, h4, h5, h6 {
     font-weight: 600;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.04em; /* Tighter letter spacing like Linear */
     color: hsl(var(--foreground));
+    line-height: 1.2;
+  }
+  
+  h1 {
+    font-size: 3.5rem;
+    font-weight: 700;
+    letter-spacing: -0.05em;
+  }
+  
+  h2 {
+    font-size: 2.5rem;
+    font-weight: 600;
+  }
+  
+  h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
   }
   
   /* Ensure SVGs don't become huge */
@@ -63,39 +84,47 @@
     vertical-align: middle;
   }
   
-  /* Fix for SVG sizing issues */
-  .w-6 { width: 1.5rem !important; }
-  .h-6 { height: 1.5rem !important; }
-  .w-5 { width: 1.25rem !important; }
-  .h-5 { height: 1.25rem !important; }
-  .w-4 { width: 1rem !important; }
-  .h-4 { height: 1rem !important; }
-  
-  /* Cursor-inspired gradient backgrounds */
-  .cursor-gradient {
-    background: linear-gradient(135deg, #8B5CF6 0%, #3B82F6 30%, #22C55E 100%);
+  /* Linear's clean professional gradients */
+  .linear-gradient {
+    background: linear-gradient(135deg, #4F46E5 0%, #6366F1 50%, #7C3AED 100%);
   }
   
-  .cursor-gradient-subtle {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 30%, rgba(34, 197, 94, 0.1) 100%);
+  .linear-gradient-subtle {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(99, 102, 241, 0.08) 50%, rgba(124, 58, 237, 0.06) 100%);
   }
   
-  /* Modern gradient */
-  .modern-gradient {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  /* Linear-style glow effects */
+  .linear-glow {
+    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.1), 0 1px 3px rgba(0, 0, 0, 0.4);
   }
   
-  /* Subtle glow */
-  .modern-glow {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  .linear-glow-hover:hover {
+    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.2), 0 4px 12px rgba(79, 70, 229, 0.15);
   }
   
-  .modern-glow-hover:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  /* Linear-style button effects */
+  .linear-button {
+    background: rgba(79, 70, 229, 0.1);
+    border: 1px solid rgba(79, 70, 229, 0.2);
+    backdrop-filter: blur(12px);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   
-  /* Better transitions */
-  .smooth-transition {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  .linear-button:hover {
+    background: rgba(79, 70, 229, 0.15);
+    border-color: rgba(79, 70, 229, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  /* Smooth transitions like Linear */
+  .linear-transition {
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  /* Linear-style glass effect */
+  .linear-glass {
+    background: rgba(16, 16, 16, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 }
