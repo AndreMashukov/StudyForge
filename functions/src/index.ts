@@ -1,32 +1,300 @@
 /**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
+ * Firebase Functions for Code Insights AI Quiz Generator
+ * 
+ * Phase 3: Core Backend Functionality
+ * - Web scraping for article content
+ * - Gemini 2.5 Pro integration for quiz generation
+ * - Firestore data operations
+ * - API endpoints: generateQuiz and getQuiz
  */
 
-import {setGlobalOptions} from "firebase-functions";
-import {onRequest} from "firebase-functions/https";
-import * as logger from "firebase-functions/logger";
+import { setGlobalOptions } from "firebase-functions";
+import { onRequest, onCall } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
+// Services
+import { WebScraperService } from "./services/scraper";
+import { GeminiService } from "./services/gemini";
+import { FirestoreService } from "./services/firestore";
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+// Types
+import { 
+  GenerateQuizRequest, 
+  GenerateQuizResponse, 
+  GetQuizResponse,
+  ApiResponse
+} from "../../libs/shared-types/src";
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+// Configure global options
+setGlobalOptions({
+  maxInstances: 10,
+  region: "us-central1",
+});
+
+// Define secrets
+const geminiApiKey = defineSecret("GEMINI_API_KEY");
+
+/**
+ * Generate Quiz from URL
+ * POST /generateQuiz
+ */
+export const generateQuiz = onCall(
+  {
+    cors: true,
+    secrets: [geminiApiKey],
+    maxInstances: 5,
+    timeoutSeconds: 300,
+    memory: "1GiB",
+  },
+  async (request): Promise<ApiResponse<GenerateQuizResponse>> => {
+    try {
+      const { url } = request.data as GenerateQuizRequest;
+      const userId = request.auth?.uid;
+
+      if (!url) {
+        throw new Error("URL is required");
+      }
+
+      // Validate URL format
+      if (!WebScraperService.isValidUrl(url)) {
+        throw new Error("Invalid URL format");
+      }
+
+      console.log(`Starting quiz generation for URL: ${url}`);
+
+      // Step 1: Check if we already have this URL content
+      let urlContent = await FirestoreService.findUrlByString(url, userId);
+      
+      if (!urlContent) {
+        // Step 2: Scrape the URL content
+        console.log("Scraping URL content...");
+        const scrapedContent = await WebScraperService.extractContent(url);
+        
+        // Step 3: Save URL content to Firestore
+        urlContent = await FirestoreService.saveUrlContent(url, scrapedContent, userId);
+      } else {
+        console.log("Using cached URL content");
+      }
+
+      // Step 4: Check if we already have a quiz for this URL
+      const existingQuiz = await FirestoreService.findExistingQuiz(urlContent.id, userId);
+      
+      if (existingQuiz) {
+        console.log("Returning existing quiz");
+        return {
+          success: true,
+          data: {
+            quizId: existingQuiz.id,
+            quiz: existingQuiz,
+          },
+        };
+      }
+
+      // Step 5: Validate content for quiz generation
+      const scrapedContent = {
+        title: urlContent.title,
+        content: urlContent.content,
+        wordCount: urlContent.content.split(/\s+/).length,
+      };
+
+      GeminiService.validateContentForQuiz(scrapedContent);
+
+      // Step 6: Generate quiz with Gemini AI
+      console.log("Generating quiz with Gemini AI...");
+      const geminiQuiz = await GeminiService.generateQuiz(scrapedContent);
+
+      // Step 7: Save quiz to Firestore
+      const savedQuiz = await FirestoreService.saveQuiz(urlContent.id, geminiQuiz, userId);
+
+      console.log(`Successfully generated quiz: ${savedQuiz.id}`);
+
+      return {
+        success: true,
+        data: {
+          quizId: savedQuiz.id,
+          quiz: savedQuiz,
+        },
+      };
+
+    } catch (error) {
+      console.error("Error in generateQuiz:", error);
+      
+      return {
+        success: false,
+        error: {
+          code: "GENERATION_FAILED",
+          message: error instanceof Error ? error.message : "Failed to generate quiz",
+        },
+      };
+    }
+  }
+);
+
+/**
+ * Get Quiz by ID
+ * Callable function: getQuiz
+ */
+export const getQuiz = onCall(
+  {
+    cors: true,
+  },
+  async (request): Promise<ApiResponse<GetQuizResponse>> => {
+    try {
+      const { quizId } = request.data;
+      
+      if (!quizId) {
+        throw new Error("Quiz ID is required");
+      }
+
+      console.log(`Fetching quiz: ${quizId}`);
+
+      const quiz = await FirestoreService.getQuiz(quizId);
+      
+      if (!quiz) {
+        return {
+          success: false,
+          error: {
+            code: "NOT_FOUND",
+            message: "Quiz not found",
+          },
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          quiz,
+        },
+      };
+
+    } catch (error) {
+      console.error("Error in getQuiz:", error);
+      
+      return {
+        success: false,
+        error: {
+          code: "FETCH_FAILED",
+          message: error instanceof Error ? error.message : "Failed to fetch quiz",
+        },
+      };
+    }
+  }
+);
+
+/**
+ * Get User's Quizzes
+ * Requires authentication
+ */
+export const getUserQuizzes = onCall(
+  {
+    cors: true,
+  },
+  async (request): Promise<ApiResponse<{ quizzes: any[] }>> => {
+    try {
+      const userId = request.auth?.uid;
+      
+      if (!userId) {
+        return {
+          success: false,
+          error: {
+            code: "UNAUTHENTICATED",
+            message: "Authentication required",
+          },
+        };
+      }
+
+      console.log(`Fetching quizzes for user: ${userId}`);
+
+      const quizzes = await FirestoreService.getUserQuizzes(userId);
+
+      return {
+        success: true,
+        data: {
+          quizzes,
+        },
+      };
+
+    } catch (error) {
+      console.error("Error in getUserQuizzes:", error);
+      
+      return {
+        success: false,
+        error: {
+          code: "FETCH_FAILED",
+          message: error instanceof Error ? error.message : "Failed to fetch user quizzes",
+        },
+      };
+    }
+  }
+);
+
+/**
+ * Get Recent Public Quizzes
+ */
+export const getRecentQuizzes = onCall(
+  {
+    cors: true,
+  },
+  async (request): Promise<ApiResponse<{ quizzes: any[] }>> => {
+    try {
+      const { limit = 20 } = request.data || {};
+
+      console.log(`Fetching ${limit} recent quizzes`);
+
+      const quizzes = await FirestoreService.getRecentQuizzes(limit);
+
+      return {
+        success: true,
+        data: {
+          quizzes,
+        },
+      };
+
+    } catch (error) {
+      console.error("Error in getRecentQuizzes:", error);
+      
+      return {
+        success: false,
+        error: {
+          code: "FETCH_FAILED",
+          message: error instanceof Error ? error.message : "Failed to fetch recent quizzes",
+        },
+      };
+    }
+  }
+);
+
+/**
+ * Health check endpoint (HTTP for monitoring)
+ */
+export const healthCheck = onRequest(
+  {
+    cors: true,
+  },
+  async (req, res) => {
+    try {
+      // Check Gemini AI availability
+      const geminiInfo = await GeminiService.getModelInfo();
+      
+      // Get basic stats
+      const stats = await FirestoreService.getStats();
+
+      res.json({
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+        services: {
+          firestore: "available",
+          gemini: geminiInfo.available ? "available" : "unavailable",
+        },
+        stats,
+      });
+    } catch (error) {
+      console.error("Health check failed:", error);
+      res.status(500).json({
+        status: "unhealthy",
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);

@@ -42,6 +42,40 @@ export interface GetUserQuizzesResponse {
   quizzes: Quiz[];
 }
 
+// API Error Types
+export interface ApiError {
+  code: string;
+  message: string;
+}
+
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: ApiError;
+}
+
+// Gemini Integration Types
+export interface GeminiQuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation?: string;
+}
+
+export interface GeminiQuizResponse {
+  title: string;
+  questions: GeminiQuizQuestion[];
+}
+
+// Web Scraping Types
+export interface ScrapedContent {
+  title: string;
+  content: string;
+  author?: string;
+  publishDate?: string;
+  wordCount: number;
+}
+
 // Auth Types
 export interface User {
   uid: string;
