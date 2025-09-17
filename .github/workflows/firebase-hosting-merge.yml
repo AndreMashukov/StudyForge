@@ -80,24 +80,12 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
-      - name: Authenticate with Firebase
+      - name: Deploy to Firebase
         run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_CODE_INSIGHTS_QUIZ_AI }}' > /tmp/firebase-service-account.json
-          export GOOGLE_APPLICATION_CREDENTIALS="/tmp/firebase-service-account.json"
-          firebase use code-insights-quiz-ai
-
-      - name: Deploy Functions to Firebase
-        run: |
-          export GOOGLE_APPLICATION_CREDENTIALS="/tmp/firebase-service-account.json"
-          firebase deploy --only functions --project code-insights-quiz-ai
-
-      - name: Deploy Hosting to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CODE_INSIGHTS_QUIZ_AI }}
-          channelId: live
-          projectId: code-insights-quiz-ai
-
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_CODE_INSIGHTS_QUIZ_AI }}' > /tmp/service-account.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/service-account.json
+          firebase deploy --project code-insights-quiz-ai
+        
       - name: Cleanup
-        run: rm -f /tmp/firebase-service-account.json
+        if: always()
+        run: rm -f /tmp/service-account.json
