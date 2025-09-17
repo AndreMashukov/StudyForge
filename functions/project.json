@@ -9,7 +9,8 @@
       "options": {
         "command": "yarn build",
         "cwd": "functions"
-      }
+      },
+      "dependsOn": ["^build"]
     },
     "lint": {
       "executor": "nx:run-commands",
@@ -40,5 +41,6 @@
       }
     }
   },
-  "tags": ["type:app", "platform:firebase", "scope:backend"]
+  "tags": ["type:app", "platform:firebase", "scope:backend"],
+  "implicitDependencies": ["shared-types"]
 }
