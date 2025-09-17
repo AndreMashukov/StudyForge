@@ -2,6 +2,8 @@
 
 AI-powered code insights and analysis platform built with modern web technologies.
 
+> **Status:** ✅ Firebase Functions deployment permissions fixed - Testing in progress
+
 ## Quick Start
 
 1. **Install dependencies:**
