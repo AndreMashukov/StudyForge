@@ -5,7 +5,7 @@ import {
   QuizQuestion, 
   GeminiQuizResponse, 
   ScrapedContent 
-} from "../../../libs/shared-types/src";
+} from "shared-types";
 import * as functions from "firebase-functions";
 
 /**

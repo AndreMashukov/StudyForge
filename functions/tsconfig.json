@@ -10,7 +10,11 @@
     "strict": false,
     "target": "es2017",
     "skipLibCheck": true,
-    "types": []
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "shared-types": ["../libs/shared-types/src/index.ts"]
+    }
   },
   "compileOnSave": true,
   "include": [

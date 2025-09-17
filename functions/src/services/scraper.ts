@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import { JSDOM } from "jsdom";
 import fetch from "node-fetch";
-import { ScrapedContent } from "../../../libs/shared-types/src";
+import { ScrapedContent } from "shared-types";
 import * as functions from "firebase-functions";
 
 /**
@@ -73,10 +73,10 @@ export class WebScraperService {
     $("script, style, nav, header, footer, aside, .advertisement, .ads, .social-share").remove();
 
     // Try different strategies to extract the main content
-    let title = this.extractTitle($);
+    const title = this.extractTitle($);
     let content = this.extractMainContent($);
-    let author = this.extractAuthor($);
-    let publishDate = this.extractPublishDate($);
+    const author = this.extractAuthor($);
+    const publishDate = this.extractPublishDate($);
 
     // Clean up content
     content = this.cleanContent(content);

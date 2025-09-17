@@ -22,8 +22,9 @@ import {
   GenerateQuizRequest, 
   GenerateQuizResponse, 
   GetQuizResponse,
-  ApiResponse
-} from "../../libs/shared-types/src";
+  ApiResponse,
+  Quiz
+} from "shared-types";
 
 // Configure global options
 setGlobalOptions({
@@ -189,7 +190,7 @@ export const getUserQuizzes = onCall(
   {
     cors: true,
   },
-  async (request): Promise<ApiResponse<{ quizzes: any[] }>> => {
+  async (request): Promise<ApiResponse<{ quizzes: Quiz[] }>> => {
     try {
       const userId = request.auth?.uid;
       
@@ -235,7 +236,7 @@ export const getRecentQuizzes = onCall(
   {
     cors: true,
   },
-  async (request): Promise<ApiResponse<{ quizzes: any[] }>> => {
+  async (request): Promise<ApiResponse<{ quizzes: Quiz[] }>> => {
     try {
       const { limit = 20 } = request.data || {};
 

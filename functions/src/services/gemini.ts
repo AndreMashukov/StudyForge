@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GeminiQuizResponse, ScrapedContent } from "../../../libs/shared-types/src";
+import { GeminiQuizResponse, ScrapedContent } from "shared-types";
 import * as functions from "firebase-functions";
 
 /**
@@ -127,16 +127,17 @@ Generate the quiz now:`;
       }
 
       // Validate each question
-      parsed.questions.forEach((q: any, index: number) => {
-        if (!q.question || !Array.isArray(q.options) || typeof q.correctAnswer !== "number") {
+      parsed.questions.forEach((q: unknown, index: number) => {
+        const question = q as Record<string, unknown>;
+        if (!question.question || !Array.isArray(question.options) || typeof question.correctAnswer !== "number") {
           throw new Error(`Invalid question structure at index ${index}`);
         }
         
-        if (q.options.length !== 4) {
+        if (question.options.length !== 4) {
           throw new Error(`Question ${index + 1} must have exactly 4 options`);
         }
         
-        if (q.correctAnswer < 0 || q.correctAnswer > 3) {
+        if (question.correctAnswer < 0 || question.correctAnswer > 3) {
           throw new Error(`Question ${index + 1} has invalid correctAnswer index`);
         }
       });
@@ -203,7 +204,8 @@ Generate the quiz now:`;
    */
   public static async getModelInfo(): Promise<{ model: string; available: boolean }> {
     try {
-      const genAI = this.getClient();
+      // Check if client can be initialized
+      this.getClient();
       return {
         model: "gemini-1.5-pro",
         available: true,
