@@ -1,0 +1,23 @@
+{
+  "name": "shared-types",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared-types/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p tsconfig.lib.json",
+        "cwd": "libs/shared-types"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands", 
+      "options": {
+        "command": "eslint . --ext .ts",
+        "cwd": "libs/shared-types"
+      }
+    }
+  },
+  "tags": ["type:lib", "scope:shared"]
+}
