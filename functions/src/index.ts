@@ -29,7 +29,7 @@ import {
 // Configure global options
 setGlobalOptions({
   maxInstances: 10,
-  region: "us-central1",
+  region: "asia-east1",
 });
 
 // Define secrets

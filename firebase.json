@@ -5,6 +5,11 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "functions": {
+    "source": ".",
+    "runtime": "nodejs22",
+    "region": "asia-east1"
+  },
   "hosting": {
     "public": "dist/web",
     "ignore": [

@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "source": ".",
+    "runtime": "nodejs22",
+    "region": "asia-east1"
+  }
+}
