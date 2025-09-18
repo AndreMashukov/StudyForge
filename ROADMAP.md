@@ -69,7 +69,7 @@ A Firebase-based web application that generates multiple-choice quizzes from art
 - [ ] Implement loading states and error handling
 - [ ] Add quiz taking functionality
 - [ ] Create results/scoring display
-- [ ] Implement quiz history (user's generated quizzes)
+- [x] Implement quiz history (user's generated quizzes) ✅ **COMPLETED** - Full implementation with getUserQuizzes backend function and HomePage UI
 
 ### Phase 5: Integration & Testing (Week 5)
 - [ ] Connect frontend to Firebase Functions

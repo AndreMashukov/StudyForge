@@ -160,8 +160,8 @@ Generate the quiz now:`;
       throw new Error("Content is empty or invalid");
     }
 
-    if (content.wordCount < 100) {
-      throw new Error("Content is too short for meaningful quiz generation (minimum 100 words)");
+    if (content.wordCount < 20) {
+      throw new Error("Content is too short for meaningful quiz generation (minimum 20 words)");
     }
 
     if (content.wordCount > 10000) {

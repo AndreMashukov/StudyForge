@@ -22,8 +22,7 @@
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "yarn serve",
-        "cwd": "functions"
+        "command": "cd functions && yarn build && cd .. && npx firebase emulators:start"
       }
     },
     "deploy": {

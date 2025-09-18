@@ -59,8 +59,8 @@
   - `healthCheck` - Service health monitoring (HTTP)
 
 **Live URLs:**
-- **Base URL**: `https://us-central1-code-insights-quiz-ai.cloudfunctions.net/`
-- **Health Check**: https://us-central1-code-insights-quiz-ai.cloudfunctions.net/healthCheck
+- **Base URL**: `https://asia-east1-code-insights-quiz-ai.cloudfunctions.net/`
+- **Health Check**: https://asia-east1-code-insights-quiz-ai.cloudfunctions.net/healthCheck
 - **All callable functions**: Available via Firebase SDK
 
 ### 5. Type Definitions (Updated `libs/shared-types`)

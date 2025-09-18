@@ -69,7 +69,7 @@ export class FirestoreService {
         title: scrapedContent.title,
         content: scrapedContent.content,
         extractedAt: new Date(),
-        userId,
+        ...(userId && { userId }), // Only include userId if it's defined
       };
 
       if (existingDoc) {
@@ -181,7 +181,7 @@ export class FirestoreService {
         title: geminiQuiz.title,
         questions,
         createdAt: new Date(),
-        userId,
+        ...(userId && { userId }), // Only include userId if it's defined
       };
 
       await quizzesCollection.doc(quizData.id).set(quizData);

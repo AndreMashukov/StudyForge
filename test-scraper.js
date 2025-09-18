@@ -1,22 +1,33 @@
-import * as cheerio from "cheerio";
-import { CheerioAPI } from "cheerio";
-import { JSDOM } from "jsdom";
-import fetch from "node-fetch";
-import { ScrapedContent } from "shared-types";
-import * as functions from "firebase-functions";
+#!/usr/bin/env node
 
 /**
- * Web scraping service for extracting article content from URLs
+ * Local scraper test script
+ * Run with: node test-scraper.js <url>
+ * Example: node test-scraper.js "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.html"
  */
 
-export class WebScraperService {
-  private static readonly USER_AGENT = "Mozilla/5.0 (compatible; QuizBot/1.0)";
-  private static readonly TIMEOUT = 10000; // 10 seconds
+const cheerio = require("cheerio");
+const { JSDOM } = require("jsdom");
+const fetch = require("node-fetch");
+
+// Mock functions logger for local testing
+const functions = {
+  logger: {
+    info: (msg, data) => console.log(`[INFO] ${msg}`, data || ''),
+    warn: (msg, data) => console.warn(`[WARN] ${msg}`, data || ''),
+    error: (msg, data) => console.error(`[ERROR] ${msg}`, data || ''),
+    debug: (msg, data) => console.log(`[DEBUG] ${msg}`, data || '')
+  }
+};
+
+class LocalWebScraperService {
+  static USER_AGENT = "Mozilla/5.0 (compatible; QuizBot/1.0)";
+  static TIMEOUT = 10000; // 10 seconds
 
   /**
-   * Extract content from a URL
+   * Extract content from a URL (local version)
    */
-  public static async extractContent(url: string): Promise<ScrapedContent> {
+  static async extractContent(url) {
     try {
       // Validate URL
       const parsedUrl = new URL(url);
@@ -62,28 +73,14 @@ export class WebScraperService {
 
     } catch (error) {
       functions.logger.error(`Error scraping URL ${url}:`, error);
-      
-      // Provide more specific error messages
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new Error(`Request timeout: URL took too long to respond (>${this.TIMEOUT}ms)`);
-        }
-        if (error.message.includes('HTTP error!')) {
-          throw new Error(`HTTP error accessing URL: ${error.message}`);
-        }
-        if (error.message.includes('too short')) {
-          throw new Error(`Content extraction failed: ${error.message}. The webpage may not contain readable article content.`);
-        }
-      }
-      
-      throw new Error(`Failed to scrape content from URL: ${error}`);
+      throw error;
     }
   }
 
   /**
    * Extract content from HTML using Cheerio
    */
-  private static extractContentFromHtml($: cheerio.CheerioAPI, url: string): ScrapedContent {
+  static extractContentFromHtml($, url) {
     // Remove unwanted elements
     $("script, style, nav, header, footer, aside, .advertisement, .ads, .social-share").remove();
 
@@ -94,7 +91,7 @@ export class WebScraperService {
     const publishDate = this.extractPublishDate($);
 
     functions.logger.info(`Raw extracted content length: ${content.length} characters`);
-    functions.logger.info(`Content preview: ${content.substring(0, 200)}...`);
+    functions.logger.info(`Content preview: ${content.substring(0, 500)}...`);
 
     // Clean up content
     content = this.cleanContent(content);
@@ -125,7 +122,7 @@ export class WebScraperService {
   /**
    * Extract title from various HTML elements
    */
-  private static extractTitle($: cheerio.CheerioAPI): string {
+  static extractTitle($) {
     // Try multiple selectors for title
     const titleSelectors = [
       "h1",
@@ -147,18 +144,17 @@ export class WebScraperService {
     return "";
   }
 
-    /**
+  /**
    * Extract main content from article
    */
-  private static extractMainContent($: CheerioAPI): string {
-    // Try multiple selectors for main content (AWS selectors prioritized first)
+  static extractMainContent($) {
+    // Try multiple selectors for main content (prioritized order)
     const contentSelectors = [
-      // AWS documentation specific selectors (highest priority)
+      // AWS documentation specific selectors (prioritized)
       '#main-content',
-      '#main-col-body',
+      '#main-col-body', 
       '.awsdocs-view',
       '#awsdocs-content',
-      // Common article selectors
       'article',
       '.entry-content',
       '.post-content',
@@ -179,7 +175,7 @@ export class WebScraperService {
       '.doc-content',
       '.documentation-content',
       '.guide-content',
-      // Generic content selector (moved to end to avoid feedback forms)
+      // Generic selector (moved to end to avoid feedback forms)
       '.content',
     ];
 
@@ -198,9 +194,9 @@ export class WebScraperService {
           .map((_, el) => $(el).text().trim())
           .get()
           .filter((text) => text.length > 10) // More lenient filter
-          .join("\n\n");
+          .join("\\n\\n");
         
-        functions.logger.info(`Selector "${selector}" found ${content.length} characters, sample: "${content.substring(0, 200)}..."`);
+        functions.logger.info(`Selector "${selector}" found ${content.length} characters, sample: "${content.substring(0, 300)}..."`);
         
         if (content && content.length > 50) { // Lower threshold
           return content;
@@ -217,7 +213,7 @@ export class WebScraperService {
       .map((_, el) => $(el).text().trim())
       .get()
       .filter((text) => text.length > 10) // More lenient
-      .join("\n\n");
+      .join("\\n\\n");
 
     if (paragraphs && paragraphs.length > 50) {
       functions.logger.info(`Paragraph fallback found ${paragraphs.length} characters`);
@@ -245,7 +241,7 @@ export class WebScraperService {
       .map((_, el) => $(el).text().trim())
       .get()
       .filter((text) => text.length > 10)
-      .join("\n\n");
+      .join("\\n\\n");
 
     functions.logger.info(`Body text fallback found ${bodyText.length} characters`);
     return bodyText;
@@ -254,7 +250,7 @@ export class WebScraperService {
   /**
    * Extract author information
    */
-  private static extractAuthor($: cheerio.CheerioAPI): string | undefined {
+  static extractAuthor($) {
     const authorSelectors = [
       ".author",
       ".byline",
@@ -276,19 +272,25 @@ export class WebScraperService {
   /**
    * Extract publish date
    */
-  private static extractPublishDate($: cheerio.CheerioAPI): string | undefined {
+  static extractPublishDate($) {
     const dateSelectors = [
       "time[datetime]",
       ".publish-date",
       ".article-date",
+      ".post-date",
       "[data-testid='publish-date']",
     ];
 
     for (const selector of dateSelectors) {
-      const element = $(selector).first();
-      const datetime = element.attr("datetime") || element.text().trim();
-      if (datetime) {
-        return datetime;
+      const dateElement = $(selector).first();
+      const date = dateElement.attr("datetime") || dateElement.text().trim();
+      
+      if (date) {
+        // Try to parse and validate the date
+        const parsedDate = new Date(date);
+        if (!isNaN(parsedDate.getTime())) {
+          return parsedDate.toISOString();
+        }
       }
     }
 
@@ -296,45 +298,71 @@ export class WebScraperService {
   }
 
   /**
-   * Clean and normalize content text
+   * Clean up extracted content
    */
-  private static cleanContent(content: string): string {
+  static cleanContent(content) {
     return content
-      .replace(/\s+/g, " ") // Replace multiple whitespace with single space
-      .replace(/\n\s*\n/g, "\n\n") // Normalize paragraph breaks
-      .trim();
+      .replace(/\\s+/g, " ") // Replace multiple whitespace with single space
+      .replace(/\\n\\s*\\n/g, "\\n\\n") // Normalize paragraph breaks
+      .replace(/^\\s+|\\s+$/g, "") // Trim whitespace
+      .replace(/\\u00A0/g, " "); // Replace non-breaking spaces
   }
 
   /**
    * Extract title from URL as fallback
    */
-  private static extractTitleFromUrl(url: string): string {
+  static extractTitleFromUrl(url) {
     try {
-      const parsedUrl = new URL(url);
-      const pathname = parsedUrl.pathname;
-      const segments = pathname.split("/").filter((segment) => segment.length > 0);
-      const lastSegment = segments[segments.length - 1] || "";
+      const urlPath = new URL(url).pathname;
+      const segments = urlPath.split("/").filter(segment => segment.length > 0);
+      const lastSegment = segments[segments.length - 1];
       
+      // Remove file extensions and convert to readable format
       return lastSegment
-        .replace(/[-_]/g, " ")
-        .replace(/\.(html|htm|php|asp|aspx)$/i, "")
-        .split(" ")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
+        .replace(/\\.[^.]*$/, "") // Remove file extension
+        .replace(/[-_]/g, " ") // Replace dashes and underscores with spaces
+        .replace(/\\b\\w/g, char => char.toUpperCase()); // Title case
     } catch {
-      return "Untitled Article";
-    }
-  }
-
-  /**
-   * Validate if URL is scrapeable
-   */
-  public static isValidUrl(url: string): boolean {
-    try {
-      const parsedUrl = new URL(url);
-      return ["http:", "https:"].includes(parsedUrl.protocol);
-    } catch {
-      return false;
+      return "Untitled";
     }
   }
 }
+
+// Main execution
+async function main() {
+  const url = process.argv[2];
+  
+  if (!url) {
+    console.log("Usage: node test-scraper.js <url>");
+    console.log("Example: node test-scraper.js \"https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.html\"");
+    process.exit(1);
+  }
+
+  try {
+    console.log(`\\n🔍 Testing scraper with URL: ${url}\\n`);
+    
+    const result = await LocalWebScraperService.extractContent(url);
+    
+    console.log("\\n📊 SCRAPING RESULTS:");
+    console.log("====================");
+    console.log(`Title: ${result.title}`);
+    console.log(`Author: ${result.author || 'Not found'}`);
+    console.log(`Publish Date: ${result.publishDate || 'Not found'}`);
+    console.log(`Word Count: ${result.wordCount}`);
+    console.log(`Content Length: ${result.content.length} characters`);
+    console.log("\\n📝 Content Preview (first 1000 characters):");
+    console.log("=" .repeat(50));
+    console.log(result.content.substring(0, 1000) + (result.content.length > 1000 ? '...' : ''));
+    
+    if (result.wordCount < 50) {
+      console.log("\\n⚠️  WARNING: Content is short. This might not generate a good quiz.");
+    } else {
+      console.log("\\n✅ Content looks good for quiz generation!");
+    }
+    
+  } catch (error) {
+    console.error("\\n❌ Error:", error.message);
+  }
+}
+
+main();
