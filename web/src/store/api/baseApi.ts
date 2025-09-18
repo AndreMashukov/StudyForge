@@ -1,5 +1,6 @@
 import { createApi, BaseQueryFn } from '@reduxjs/toolkit/query/react';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../config/firebase';
 
 // Custom base query that uses Firebase callable functions
 const firebaseCallableBaseQuery: BaseQueryFn<
@@ -11,7 +12,6 @@ const firebaseCallableBaseQuery: BaseQueryFn<
   unknown
 > = async ({ functionName, data }) => {
   try {
-    const functions = getFunctions();
     const callable = httpsCallable(functions, functionName);
     
     const result = await callable(data || {});
