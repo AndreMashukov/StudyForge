@@ -1,18 +1,16 @@
 import React from 'react';
+import { IIcon } from "./IIcon"
+import { iconStyles } from "./Icon.styles"
 
-interface IconProps {
-	size?: number;
-	className?: string;
-	children: React.ReactNode;
-	style?: React.CSSProperties;
-}
-
-export const Icon: React.FC<IconProps> = ({ size = 24, className = '', children, style }) => {
+/**
+ * Icon component: SVG icon wrapper.
+ */
+export const Icon: React.FC<IIcon> = ({ size = 24, className = '', children, style }) => {
 	return (
 		<svg
 			width={size}
 			height={size}
-			className={`inline-block ${className}`}
+			className={`${iconStyles.base} ${className}`}
 			fill="none"
 			stroke="currentColor"
 			viewBox="0 0 24 24"

@@ -1,10 +1,10 @@
 import React from 'react';
 import { useHomePageContext } from '../context/HomePageContext';
-import { Button } from '../../../components/ui/button';
-import { Input } from '../../../components/ui/input';
-import { Label } from '../../../components/ui/label';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/card';
-import { Icon } from '../../../components/ui/icon';
+import { Button } from '../../../components/ui/Button';
+import { Input } from '../../../components/ui/Input';
+import { Label } from '../../../components/ui/Label';
+import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
+import { Icon } from '../../../components/ui/Icon';
 
 export const HomePageContainer = () => {
   const { urlForm, userQuizzes, recentQuizzes, handlers } = useHomePageContext();

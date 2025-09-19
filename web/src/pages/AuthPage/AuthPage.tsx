@@ -1,6 +1,6 @@
 import React from 'react';
 import { AuthForm } from '../../components/AuthForm';
-import { Icon } from '../../components/ui/icon';
+import { Icon } from '../../components/ui/Icon';
 
 export const AuthPage: React.FC = () => {
   return (

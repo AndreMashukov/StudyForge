@@ -233,6 +233,21 @@ This structure ensures clear separation, easier maintenance, and scalability for
   export * from "./IComponentName";
   ```
 
+#### UI Component Directory Pattern
+For each UI component (shadcn/ui or custom), use this directory structure under `web/src/components/ui/ComponentName/`:
+```
+ComponentName/
+├── index.ts           # Re-exports: export * from './ComponentName'
+├── ComponentName.tsx  # Main component implementation using interface
+├── IComponentName.ts  # Props interface (e.g., IButton, ILabel)
+└── ComponentName.styles.ts # Component-specific styles or CVA variants
+```
+Responsibilities:
+- index.ts: Central export for easy imports.
+- ComponentName.tsx: Implements the component, imports props from IComponentName and styles/variants from ComponentName.styles.
+- IComponentName.ts: Defines the component's props interface for type safety and clarity.
+- ComponentName.styles.ts: Contains Tailwind/CVA classes or CSS modules for styling and variants.
+
 - **IComponentName.ts**: Defines the component's props interface
   ```typescript
   export interface IComponentName {

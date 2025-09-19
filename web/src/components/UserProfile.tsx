@@ -2,9 +2,9 @@ import React from 'react';
 import { useSignOut } from 'react-firebase-hooks/auth';
 import { auth } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from './ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
-import { Icon } from './ui/icon';
+import { Button } from './ui/Button';
+import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
+import { Icon } from './ui/Icon';
 
 export const UserProfile: React.FC = () => {
   const { user } = useAuth();

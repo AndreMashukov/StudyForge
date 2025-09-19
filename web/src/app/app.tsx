@@ -19,7 +19,7 @@ export function App() {
 }
 
 const AppContent = () => {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
   if (loading) {
     return (
@@ -32,38 +32,36 @@ const AppContent = () => {
     );
   }
 
-  // Show auth page if user is not authenticated
-  if (!user) {
-    return (
-      <Routes>
-        <Route path="*" element={<AuthPage />} />
-      </Routes>
-    );
-  }
-
-  // Show main app if user is authenticated
   return (
-    <MainLayout>
-      <Routes>
-        <Route 
-          path="/" 
-          element={
+    <Routes>
+      {/* Auth route - accessible when not authenticated */}
+      <Route path="/auth" element={<AuthPage />} />
+      
+      {/* Protected routes - wrapped in MainLayout */}
+      <Route 
+        path="/" 
+        element={
+          <MainLayout>
             <ProtectedRoute>
               <HomePage />
             </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/quiz/:quizId" 
-          element={
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/quiz/:quizId" 
+        element={
+          <MainLayout>
             <ProtectedRoute>
               <QuizPage />
             </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/profile" 
-          element={
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/profile" 
+        element={
+          <MainLayout>
             <ProtectedRoute>
               <div className="max-w-2xl mx-auto px-6 py-16">
                 <div className="text-center mb-8">
@@ -77,10 +75,10 @@ const AppContent = () => {
                 </div>
               </div>
             </ProtectedRoute>
-          } 
-        />
-      </Routes>
-    </MainLayout>
+          </MainLayout>
+        } 
+      />
+    </Routes>
   );
 };
 

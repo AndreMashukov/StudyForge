@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSignInWithEmailAndPassword, useCreateUserWithEmailAndPassword } from 'react-firebase-hooks/auth';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { auth } from '../config/firebase';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
-import { Icon } from './ui/icon';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Label } from './ui/Label';
+import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
+import { Icon } from './ui/Icon';
 
 export const AuthForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [
     signInWithEmailAndPassword,
@@ -39,6 +42,16 @@ export const AuthForm: React.FC = () => {
   const error = signInError || signUpError;
   const user = signInUser || signUpUser;
 
+  // Navigate to home page after successful authentication
+  useEffect(() => {
+    if (user) {
+      // Get the intended destination from location state, or default to home
+      const locationState = location.state as { from?: { pathname: string } } | null;
+      const from = locationState?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, location]);
+
   if (user) {
     return (
       <div className="max-w-md mx-auto mt-8">
@@ -50,14 +63,14 @@ export const AuthForm: React.FC = () => {
               </Icon>
             </div>
             <h2 className="text-xl font-semibold text-foreground mb-2">
-              Welcome Back!
+              Redirecting...
             </h2>
             <p className="text-muted-foreground mb-4">
               Successfully signed in as <span className="font-medium">{user.user.email}</span>
             </p>
             <div className="inline-flex items-center px-3 py-2 bg-accent/10 rounded-lg text-sm text-accent-foreground">
               <div className="w-2 h-2 bg-accent rounded-full mr-2 animate-pulse"></div>
-              Connected to Firebase Auth
+              Taking you to your dashboard...
             </div>
           </CardContent>
         </Card>
