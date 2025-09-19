@@ -25,10 +25,19 @@ export class GeminiService {
 
   /**
    * Generate quiz from scraped content using Gemini Pro
+   * Includes fallback for local development in unsupported regions
    */
   public static async generateQuiz(content: ScrapedContent): Promise<GeminiQuizResponse> {
     try {
       functions.logger.info(`Generating quiz for content: ${content.title}`);
+
+      // Check if we're running in local emulator
+      const isLocalEmulator = this.isRunningInEmulator();
+      
+      if (isLocalEmulator && this.shouldUseMockForLocal()) {
+        functions.logger.info("Using mock quiz generation for local development (geographic restrictions)");
+        return this.generateMockQuiz(content);
+      }
 
       const genAI = this.getClient();
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
@@ -50,6 +59,13 @@ export class GeminiService {
 
     } catch (error) {
       functions.logger.error("Error generating quiz with Gemini AI:", error);
+      
+      // If we get a geographic restriction error in local development, use mock
+      if (this.isGeographicRestrictionError(error) && this.isRunningInEmulator()) {
+        functions.logger.warn("Geographic restriction detected in local emulator, falling back to mock quiz");
+        return this.generateMockQuiz(content);
+      }
+      
       throw new Error(`Failed to generate quiz: ${error}`);
     }
   }
@@ -200,10 +216,119 @@ Generate the quiz now:`;
   }
 
   /**
+   * Check if we're running in the Firebase emulator
+   */
+  private static isRunningInEmulator(): boolean {
+    return process.env.FUNCTIONS_EMULATOR === "true" || 
+           process.env.FIREBASE_EMULATOR_HUB !== undefined ||
+           process.env.GCLOUD_PROJECT === undefined;
+  }
+
+  /**
+   * Check if we should use mock responses for local development
+   */
+  private static shouldUseMockForLocal(): boolean {
+    // Use environment variable to control mock usage
+    return process.env.USE_GEMINI_MOCK_LOCAL === "true" || 
+           process.env.NX_ENVIRONMENT === "development";
+  }
+
+  /**
+   * Check if the error is due to geographic restrictions
+   */
+  private static isGeographicRestrictionError(error: any): boolean {
+    const errorMessage = error?.message || error?.toString() || "";
+    return errorMessage.includes("User location is not supported for the API use") ||
+           errorMessage.includes("GoogleGenerativeAI Error") && errorMessage.includes("400 Bad Request");
+  }
+
+  /**
+   * Generate a mock quiz for local development
+   */
+  private static generateMockQuiz(content: ScrapedContent): GeminiQuizResponse {
+    functions.logger.info("Generating mock quiz for local development");
+    
+    const words = content.content.split(/\s+/).slice(0, 50); // Use first 50 words for variety
+    const title = content.title || "Sample Article";
+    
+    // Create realistic mock questions based on content
+    const mockQuestions = [
+      {
+        question: `What is the main topic of "${title}"?`,
+        options: [
+          words.slice(0, 3).join(" ") + " and related concepts",
+          "Unrelated topic A",
+          "Unrelated topic B", 
+          "Unrelated topic C"
+        ],
+        correctAnswer: 0,
+        explanation: "This question tests understanding of the main topic discussed in the article."
+      },
+      {
+        question: `According to the article, which of the following is mentioned?`,
+        options: [
+          "Something not in the article",
+          words.slice(5, 8).join(" "),
+          "Another unrelated concept",
+          "Yet another wrong option"
+        ],
+        correctAnswer: 1,
+        explanation: "This tests specific details mentioned in the content."
+      },
+      {
+        question: `What can be inferred from the article about ${words[10] || "the subject"}?`,
+        options: [
+          "Incorrect inference A",
+          "Incorrect inference B",
+          `It relates to ${words.slice(15, 18).join(" ")}`,
+          "Incorrect inference C"
+        ],
+        correctAnswer: 2,
+        explanation: "This tests reading comprehension and inference skills."
+      },
+      {
+        question: `The article primarily focuses on which aspect?`,
+        options: [
+          `${words.slice(20, 23).join(" ")} concepts`,
+          "Unrelated focus area",
+          "Another wrong focus",
+          "Different subject entirely"
+        ],
+        correctAnswer: 0,
+        explanation: "This evaluates understanding of the article's primary focus."
+      },
+      {
+        question: `Based on the content, what would be a logical conclusion?`,
+        options: [
+          "Illogical conclusion A",
+          "Illogical conclusion B", 
+          "Illogical conclusion C",
+          `${words.slice(25, 30).join(" ")} represents key insights`
+        ],
+        correctAnswer: 3,
+        explanation: "This tests analytical thinking based on the article content."
+      }
+    ];
+
+    return {
+      title: `Quiz: ${title} (Development Mode)`,
+      questions: mockQuestions
+    };
+  }
+
+  /**
    * Get Gemini model information
    */
   public static async getModelInfo(): Promise<{ model: string; available: boolean }> {
     try {
+      // If running in emulator and geographic restrictions apply, report as available with mock
+      if (this.isRunningInEmulator() && this.shouldUseMockForLocal()) {
+        return {
+          model: "gemini-1.5-pro (mock for local development)",
+          available: true,
+        };
+      }
+
       // Check if client can be initialized
       this.getClient();
       return {
@@ -212,6 +337,15 @@ Generate the quiz now:`;
       };
     } catch (error) {
       functions.logger.error("Gemini AI not available:", error);
+      
+      // If it's a geographic restriction in emulator, we can still work with mock
+      if (this.isGeographicRestrictionError(error) && this.isRunningInEmulator()) {
+        return {
+          model: "gemini-1.5-pro (mock fallback)",
+          available: true,
+        };
+      }
+      
       return {
         model: "gemini-1.5-pro",
         available: false,

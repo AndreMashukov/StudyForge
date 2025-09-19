@@ -30,6 +30,7 @@ This allows both `NX_PUBLIC_` and `VITE_` prefixed variables to be accessible vi
 ### Server-side Environment Variables (NX_ prefix)
 - `NX_FIREBASE_REGION` - Firebase functions region (default: asia-east1)  
 - `NX_ENVIRONMENT` - Set to `development` for emulator, `production` for deployed services
+- `USE_GEMINI_MOCK_LOCAL` - Set to `true` to force mock quiz generation in local development (for geographic restrictions)
 
 ### Public Environment Variables (NX_PUBLIC_ prefix)
 These are accessible in both server-side and client-side code:
@@ -42,6 +43,7 @@ These are accessible in both server-side and client-side code:
 ### Client-side Only (VITE_ prefix)
 These are only available in Vite-based applications (web):
 - `VITE_FIREBASE_API_KEY` - Firebase API key (sensitive, client-side only)
+- `VITE_GEMINI_API_KEY` - Gemini API key (for AI features)
 
 ## Usage in Node.js Scripts
 
@@ -108,3 +110,28 @@ This pattern allows you to:
 - `VITE_` - Client-side only (exposed to browser in Vite applications)
 
 **Security Note**: Both `NX_PUBLIC_` and `VITE_` prefixed variables are exposed to the browser, so avoid including sensitive data in these variables.
+
+## Geographic Restrictions for Gemini API
+
+The Google Gemini API has geographic restrictions and may not be available in all regions. If you encounter the error "User location is not supported for the API use" when running locally:
+
+### Automatic Fallback
+The application automatically detects when running in the Firebase emulator and will use mock quiz generation if geographic restrictions are encountered. This allows you to:
+- Continue developing and testing locally
+- Test the complete quiz generation flow with realistic mock data
+- Deploy to production where the API works from supported cloud regions
+
+### Manual Configuration
+You can explicitly enable mock mode by setting:
+```bash
+export USE_GEMINI_MOCK_LOCAL=true
+# OR
+export NX_ENVIRONMENT=development
+```
+
+### Production Deployment
+- ✅ Works in Firebase Functions (cloud deployment)
+- ❌ May not work in local emulator (depending on your location)
+- 🔄 Automatic fallback to mock quiz generation for local development
+
+The mock quiz generator creates realistic questions based on the scraped content, allowing you to test the complete application flow even when the Gemini API is not accessible locally.

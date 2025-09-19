@@ -16,6 +16,38 @@ export class FirestoreService {
   private static db: admin.firestore.Firestore;
 
   /**
+   * Safely check if a value is a Firestore Timestamp
+   */
+  private static isFirestoreTimestamp(value: any): boolean {
+    try {
+      // Check if it's a Firestore Timestamp object
+      return value && 
+             typeof value === 'object' && 
+             typeof value.toDate === 'function' &&
+             (value.constructor?.name === 'Timestamp' || 
+              value._delegate?.constructor?.name === 'Timestamp' ||
+              (admin.firestore.Timestamp && value instanceof admin.firestore.Timestamp));
+    } catch (error) {
+      // If instanceof check fails, fall back to duck typing
+      return value && typeof value.toDate === 'function';
+    }
+  }
+
+  /**
+   * Convert Firestore timestamp to Date safely
+   */
+  private static convertTimestamp(value: any): Date {
+    if (this.isFirestoreTimestamp(value)) {
+      return value.toDate();
+    }
+    if (value instanceof Date) {
+      return value;
+    }
+    // If it's a string or number, try to convert to Date
+    return new Date(value);
+  }
+
+  /**
    * Initialize Firestore database
    */
   public static initialize(): void {
@@ -110,9 +142,7 @@ export class FirestoreService {
       return {
         ...data,
         id: doc.id,
-        extractedAt: data.extractedAt instanceof admin.firestore.Timestamp 
-          ? data.extractedAt.toDate() 
-          : data.extractedAt,
+        extractedAt: this.convertTimestamp(data.extractedAt),
       };
     } catch (error) {
       functions.logger.error(`Error getting URL content ${urlId}:`, error);
@@ -144,9 +174,7 @@ export class FirestoreService {
       return {
         ...data,
         id: doc.id,
-        extractedAt: data.extractedAt instanceof admin.firestore.Timestamp 
-          ? data.extractedAt.toDate() 
-          : data.extractedAt,
+        extractedAt: this.convertTimestamp(data.extractedAt),
       };
     } catch (error) {
       functions.logger.error(`Error finding URL ${url}:`, error);
@@ -211,9 +239,7 @@ export class FirestoreService {
       return {
         ...data,
         id: doc.id,
-        createdAt: data.createdAt instanceof admin.firestore.Timestamp 
-          ? data.createdAt.toDate() 
-          : data.createdAt,
+        createdAt: this.convertTimestamp(data.createdAt),
       };
     } catch (error) {
       functions.logger.error(`Error getting quiz ${quizId}:`, error);
@@ -239,9 +265,7 @@ export class FirestoreService {
         return {
           ...data,
           id: doc.id,
-          createdAt: data.createdAt instanceof admin.firestore.Timestamp 
-            ? data.createdAt.toDate() 
-            : data.createdAt,
+          createdAt: this.convertTimestamp(data.createdAt),
         };
       });
     } catch (error) {
@@ -267,9 +291,7 @@ export class FirestoreService {
         return {
           ...data,
           id: doc.id,
-          createdAt: data.createdAt instanceof admin.firestore.Timestamp 
-            ? data.createdAt.toDate() 
-            : data.createdAt,
+          createdAt: this.convertTimestamp(data.createdAt),
         };
       });
     } catch (error) {
@@ -355,9 +377,7 @@ export class FirestoreService {
       return {
         ...data,
         id: doc.id,
-        createdAt: data.createdAt instanceof admin.firestore.Timestamp 
-          ? data.createdAt.toDate() 
-          : data.createdAt,
+        createdAt: this.convertTimestamp(data.createdAt),
       };
     } catch (error) {
       functions.logger.error(`Error finding existing quiz for URL ${urlId}:`, error);
