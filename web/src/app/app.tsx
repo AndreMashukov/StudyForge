@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from '../store';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { MainLayout } from '../components/MainLayout';
 import { ProtectedRoute } from '../utils/ProtectedRoute';
 import { HomePage } from '../pages/HomePage';
@@ -11,22 +12,39 @@ import { QuizPage } from '../pages/QuizPage';
 export function App() {
   return (
     <Provider store={store}>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ThemeProvider>
     </Provider>
   );
 }
 
 const AppContent = () => {
   const { loading } = useAuth();
+  const { currentTheme } = useTheme();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: currentTheme.colors.background }}
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-muted border-t-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground font-medium">Initializing...</p>
+          <div 
+            className="animate-spin rounded-full h-12 w-12 border-4 mx-auto"
+            style={{ 
+              borderColor: currentTheme.colors.muted,
+              borderTopColor: currentTheme.colors.primary,
+            }}
+          ></div>
+          <p 
+            className="mt-4 font-medium"
+            style={{ color: currentTheme.colors.mutedForeground }}
+          >
+            Initializing...
+          </p>
         </div>
       </div>
     );

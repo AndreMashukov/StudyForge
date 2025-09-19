@@ -5,6 +5,7 @@ import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import { Icon } from '../../../components/ui/Icon';
+import { ThemeToggle } from '../../../components/ThemeToggle';
 
 export const HomePageContainer = () => {
   const { urlForm, userQuizzes, recentQuizzes, handlers } = useHomePageContext();
@@ -22,6 +23,11 @@ export const HomePageContainer = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-16 space-y-12">
+      {/* Theme Toggle */}
+      <div className="flex justify-end">
+        <ThemeToggle />
+      </div>
+
       {/* Header Section */}
       <div className="text-center space-y-6">
         <div className="space-y-4">
