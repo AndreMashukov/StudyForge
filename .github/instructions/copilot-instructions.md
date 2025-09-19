@@ -184,20 +184,31 @@ All source code should reside in the `web/src` directory:
 - **Utils**: `web/src/lib/`
 - **App**: `web/src/app/`
 
+
 ### Component Structure
-Components are organized in a flat structure in `web/src/components/`:
+Each component should have its own directory in `web/src/components/`:
 ```
-web/src/components/
-├── ui/                         # shadcn/ui components
-│   ├── button.tsx             # Button component with variants
-│   ├── card.tsx               # Card components (Card, CardHeader, etc.)
-│   ├── input.tsx              # Input component
-│   ├── label.tsx              # Label component
-│   └── icon.tsx               # Icon wrapper component
-├── AuthForm.tsx               # Authentication form
-├── UserProfile.tsx            # User profile component
-└── [ComponentName.tsx]        # Other application components
+web/src/components/ComponentName/
+├── index.ts                    # Exports from the component directory
+├── ComponentName.tsx           # Main component implementation
+├── IComponentName.ts           # TypeScript interface for component props
+└── ComponentName.styles.ts     # Component-specific styles using MUI or Tailwind styling
 ```
+
+For shadcn/ui components, each UI component (e.g., Button, Label, Card) should also be placed in its own directory under `web/src/components/ui/`:
+```
+web/src/components/ui/Button/
+├── index.ts
+├── Button.tsx
+├── IButton.ts
+└── Button.styles.ts
+web/src/components/ui/Label/
+├── index.ts
+├── Label.tsx
+├── ILabel.ts
+└── Label.styles.ts
+```
+This structure ensures clear separation, easier maintenance, and scalability for all UI and application components.
 
 ### File Responsibilities
 
