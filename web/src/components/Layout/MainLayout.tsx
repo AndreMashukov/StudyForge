@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSignOut } from 'react-firebase-hooks/auth';
 import { auth } from '../../config/firebase';
-import { Icon } from '../ui/icon';
-import { Button } from '../ui/button';
+import { Icon } from '../ui/Icon';
+import { Button } from '../ui/Button';
 
 interface IMainLayout {
   children: ReactNode;
