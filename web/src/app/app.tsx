@@ -2,7 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from '../store';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { MainLayout } from '../components/Layout';
+import { MainLayout } from '../components/MainLayout';
 import { ProtectedRoute } from '../utils/ProtectedRoute';
 import { HomePage } from '../pages/HomePage';
 import { AuthPage } from '../pages/AuthPage';
