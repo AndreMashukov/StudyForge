@@ -1,16 +1,9 @@
 import React from 'react';
-import { Card, CardContent } from '../../../components/ui/Card';
-import { cn } from '../../../lib/utils';
+import { Card, CardContent } from '../../../../components/ui/Card';
+import { cn } from '../../../../lib/utils';
+import { IProgressBar } from './IProgressBar';
 
-interface IProgressBarProps {
-  progress: number;
-  currentQuestion: number;
-  totalQuestions: number;
-  score: number;
-  className?: string;
-}
-
-export const ProgressBar: React.FC<IProgressBarProps> = ({
+export const ProgressBar: React.FC<IProgressBar> = ({
   progress,
   currentQuestion,
   totalQuestions,

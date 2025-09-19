@@ -1,17 +1,11 @@
 import React from 'react';
 import { Play } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
-import { Button } from '../../../components/ui/Button';
-import { cn } from '../../../lib/utils';
-import { IQuizQuestion } from '../types/IQuizTypes';
+import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
+import { Button } from '../../../../components/ui/Button';
+import { cn } from '../../../../lib/utils';
+import { IQuizStartCard } from './IQuizStartCard';
 
-interface IQuizStartCardProps {
-  questions: IQuizQuestion[];
-  onStartQuiz: () => void;
-  className?: string;
-}
-
-export const QuizStartCard: React.FC<IQuizStartCardProps> = ({
+export const QuizStartCard: React.FC<IQuizStartCard> = ({
   questions,
   onStartQuiz,
   className,

@@ -1,15 +1,10 @@
 import React from 'react';
 import { Trophy, Clock, Target, RotateCcw, Check, X } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
-import { Button } from '../../../components/ui/Button';
-import { cn } from '../../../lib/utils';
-import { IQuizStats, IQuizAnswer } from '../types/IQuizTypes';
-
-interface IScoreCardProps {
-  stats: IQuizStats;
-  onResetQuiz: () => void;
-  className?: string;
-}
+import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
+import { Button } from '../../../../components/ui/Button';
+import { cn } from '../../../../lib/utils';
+import { IQuizAnswer } from '../../types/IQuizTypes';
+import { IScoreCard } from './IScoreCard';
 
 const getScoreColor = (percentage: number) => {
   if (percentage >= 80) return 'text-green-400';
@@ -23,7 +18,7 @@ const formatTime = (milliseconds: number) => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-export const ScoreCard: React.FC<IScoreCardProps> = ({
+export const ScoreCard: React.FC<IScoreCard> = ({
   stats,
   onResetQuiz,
   className,

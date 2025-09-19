@@ -1,21 +1,11 @@
 import React from 'react';
 import { Check, X } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
-import { Button } from '../../../components/ui/Button';
-import { cn } from '../../../lib/utils';
-import { IQuizQuestion } from '../types/IQuizTypes';
+import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
+import { Button } from '../../../../components/ui/Button';
+import { cn } from '../../../../lib/utils';
+import { IQuestionCard } from './IQuestionCard';
 
-interface IQuestionCardProps {
-  question: IQuizQuestion;
-  selectedAnswer: number | null;
-  showExplanation: boolean;
-  onAnswerSelect: (answerIndex: number) => void;
-  onNextQuestion: () => void;
-  isLastQuestion: boolean;
-  className?: string;
-}
-
-export const QuestionCard: React.FC<IQuestionCardProps> = ({
+export const QuestionCard: React.FC<IQuestionCard> = ({
   question,
   selectedAnswer,
   showExplanation,
