@@ -14,6 +14,9 @@ module.exports = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter Variable', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'sans-serif'],
+      },
       colors: {
         // Keep CSS variable fallbacks for compatibility
         border: "hsl(var(--border))",
