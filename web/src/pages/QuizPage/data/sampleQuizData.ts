@@ -11,6 +11,7 @@ export const sampleQuizData: IQuizQuestion[] = [
       "Software VPN appliances running on EC2 instances in each region"
     ],
     correct: 1,
+    correctAnswer: 1,
     explanation: "AWS VPN CloudHub is specifically designed for this hub-and-spoke scenario where multiple remote sites need to connect to AWS and communicate with each other. It uses a single Virtual Private Gateway with multiple Customer Gateways, creating a cost-effective solution that enables branch-to-branch communication through AWS."
   },
   {
@@ -23,6 +24,7 @@ export const sampleQuizData: IQuizQuestion[] = [
       "Site-to-Site VPN connections with Transit Gateway attachments"
     ],
     correct: 1,
+    correctAnswer: 1,
     explanation: "Direct Connect Gateway with Transit Gateways in each region provides the most scalable solution. A single Direct Connect Gateway can connect to multiple regions, and Transit Gateway can efficiently handle multiple VPC attachments within each region."
   },
   {
@@ -35,6 +37,7 @@ export const sampleQuizData: IQuizQuestion[] = [
       "Customer Gateway device compatibility and IPsec configuration"
     ],
     correct: 0,
+    correctAnswer: 0,
     explanation: "Software VPN appliances create a single point of failure since they run on individual EC2 instances, and the customer is responsible for all operating system and software updates, patching, and maintenance."
   },
   {
@@ -47,6 +50,7 @@ export const sampleQuizData: IQuizQuestion[] = [
       "Create Gateway VPC Endpoints for both S3 and DynamoDB"
     ],
     correct: 3,
+    correctAnswer: 3,
     explanation: "Both S3 and DynamoDB support Gateway VPC Endpoints, which provide private connectivity without requiring an internet gateway or NAT device and have no additional charges for data processing or hourly usage."
   },
   {
@@ -59,6 +63,7 @@ export const sampleQuizData: IQuizQuestion[] = [
       "Accounts B and C must create their own Direct Connect Gateways and peer them with Account A"
     ],
     correct: 2,
+    correctAnswer: 2,
     explanation: "Cross-account Direct Connect Gateway sharing works through association proposals. Accounts B and C must send association proposals to Account A (the gateway owner), who can then accept these proposals and optionally configure allowed prefixes."
   }
 ];

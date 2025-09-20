@@ -31,7 +31,7 @@ export const QuizPageProvider = ({ children }: IQuizPageProvider) => {
   const progress = useSelector(selectProgress);
   const stats = useSelector(selectQuizStats);
   const isLoading = useSelector(selectIsLoading) || quizData.isLoading;
-  const error = useSelector(selectError) || quizData.error;
+  const error = useSelector(selectError) || (quizData.error ? String(quizData.error) : null);
 
   // Hooks
   const handlers = useQuizHandlers();
