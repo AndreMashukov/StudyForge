@@ -165,12 +165,12 @@ export const AuthForm: React.FC = () => {
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border/30"></div>
               </div>
-              <div className="relative flex justify-center text-xs">
+              {/* <div className="relative flex justify-center text-xs">
                 <span className="px-3 bg-card text-muted-foreground">or</span>
-              </div>
+              </div> */}
             </div>
             
-            <button
+            {/* <button
               type="button"
               onClick={() => setIsSignUp(!isSignUp)}
               className="mt-4 text-sm text-muted-foreground hover:text-foreground linear-transition"
@@ -179,7 +179,7 @@ export const AuthForm: React.FC = () => {
                 ? 'Already have an account? Sign in' 
                 : "Don't have an account? Create one"
               }
-            </button>
+            </button> */}
           </div>
         </CardContent>
       </Card>

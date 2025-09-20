@@ -37,32 +37,32 @@ export const themes: Record<ThemeId, Theme> = {
     name: 'Lumen',
     id: 'light',
     colors: {
-      background: 'rgb(255 255 255)', // #FFFFFF
-      foreground: 'rgb(9 9 11)', // #09090B
+      background: 'rgb(255 255 255)', // #FFFFFF - Pure white
+      foreground: 'rgb(15 23 42)', // #0F172A - Very dark slate for maximum contrast
       card: 'rgb(255 255 255)', // #FFFFFF
-      cardForeground: 'rgb(9 9 11)', // #09090B
+      cardForeground: 'rgb(15 23 42)', // #0F172A
       popover: 'rgb(255 255 255)', // #FFFFFF
-      popoverForeground: 'rgb(9 9 11)', // #09090B
+      popoverForeground: 'rgb(15 23 42)', // #0F172A
       primary: 'rgb(79 70 229)', // #4F46E5
       primaryForeground: 'rgb(255 255 255)', // #FFFFFF
-      secondary: 'rgb(244 244 245)', // #F4F4F5
-      secondaryForeground: 'rgb(9 9 11)', // #09090B
-      muted: 'rgb(244 244 245)', // #F4F4F5
-      mutedForeground: 'rgb(113 113 122)', // #71717A
+      secondary: 'rgb(248 250 252)', // #F8FAFC - Very light slate
+      secondaryForeground: 'rgb(15 23 42)', // #0F172A
+      muted: 'rgb(248 250 252)', // #F8FAFC
+      mutedForeground: 'rgb(51 65 85)', // #334155 - Dark slate-600 for better contrast
       accent: 'rgb(79 70 229)', // #4F46E5
       accentForeground: 'rgb(255 255 255)', // #FFFFFF
       destructive: 'rgb(220 38 38)', // #DC2626
       destructiveForeground: 'rgb(255 255 255)', // #FFFFFF
-      border: 'rgb(228 228 231)', // #E4E4E7
-      input: 'rgb(244 244 245)', // #F4F4F5
+      border: 'rgb(226 232 240)', // #E2E8F0 - Slate-200
+      input: 'rgb(248 250 252)', // #F8FAFC
       ring: 'rgb(79 70 229)', // #4F46E5
       radius: '0.5rem',
       // Advanced design tokens
-      sidebar: 'rgb(248 248 249)', // #F8F8F9 - Slightly darker than background
-      dropdown: 'rgb(255 255 255)', // #FFFFFF - White dropdown
-      overlay: 'rgba(0 0 0 / 0.5)', // Light overlay
-      glass: 'rgba(255 255 255 / 0.8)', // Glass effect background
-      glow: 'rgba(79 70 229 / 0.1)', // Primary color glow
+      sidebar: 'rgb(251 251 252)', // #FBFBFC - Slightly off-white
+      dropdown: 'rgb(255 255 255)', // #FFFFFF - Pure white dropdown
+      overlay: 'rgba(15 23 42 / 0.6)', // Dark overlay with better opacity
+      glass: 'rgba(255 255 255 / 0.9)', // More opaque glass effect
+      glow: 'rgba(79 70 229 / 0.15)', // Primary color glow
     },
   },
   linear: {

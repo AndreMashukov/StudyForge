@@ -5,6 +5,7 @@ import { useSignOut } from 'react-firebase-hooks/auth';
 import { auth } from '../../config/firebase';
 import { Icon } from '../ui/Icon';
 import { Button } from '../ui/Button';
+import { ThemeToggle } from '../ThemeToggle';
 import { IMainLayout } from './IMainLayout';
 
 export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
@@ -70,6 +71,9 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
             {/* User Menu */}
             {user ? (
               <div className="flex items-center space-x-4">
+                {/* Theme Toggle */}
+                <ThemeToggle />
+                
                 <div className="hidden sm:block text-right">
                   <p className="text-sm font-medium text-foreground">Welcome back</p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
@@ -90,6 +94,9 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
               </div>
             ) : (
               <div className="flex items-center space-x-3">
+                {/* Theme Toggle for non-authenticated users */}
+                <ThemeToggle />
+                
                 <Link 
                   to="/auth" 
                   className="text-sm text-muted-foreground hover:text-foreground linear-transition"
@@ -133,6 +140,12 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
                   </Icon>
                   <span>Profile</span>
                 </Link>
+              </li>
+              <li>
+                {/* Theme Toggle in mobile navigation */}
+                <div className="flex items-center">
+                  <ThemeToggle />
+                </div>
               </li>
             </ul>
           </nav>

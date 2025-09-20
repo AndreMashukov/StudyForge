@@ -225,4 +225,22 @@
     background: var(--foreground);
     opacity: 0.6;
   }
+  
+  /* Theme-specific text contrast utilities */
+  .text-high-contrast {
+    color: var(--foreground);
+  }
+  
+  .text-medium-contrast {
+    color: var(--muted-foreground);
+  }
+  
+  /* Ensure proper contrast in light themes */
+  .light .text-muted-foreground {
+    color: rgb(51 65 85); /* Force dark text in light theme */
+  }
+  
+  .light .bg-muted {
+    background-color: rgb(248 250 252); /* Ensure light background in light theme */
+  }
 }
