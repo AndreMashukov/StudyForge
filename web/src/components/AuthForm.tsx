@@ -11,7 +11,7 @@ import { Icon } from './ui/Icon';
 export const AuthForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp,] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
