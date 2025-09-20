@@ -19,6 +19,12 @@ export interface ThemeColors {
   input: string;
   ring: string;
   radius: string;
+  // Advanced design tokens
+  sidebar: string;
+  dropdown: string;
+  overlay: string;
+  glass: string;
+  glow: string;
 }
 
 export interface Theme {
@@ -27,7 +33,7 @@ export interface Theme {
   colors: ThemeColors;
 }
 
-export type ThemeId = 'dark' | 'light' | 'linear';
+export type ThemeId = 'dark' | 'light' | 'linear' | 'semidark';
 
 export interface ThemeContextType {
   currentTheme: Theme;

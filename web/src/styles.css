@@ -9,6 +9,8 @@
   
   html {
     color-scheme: dark;
+    /* Theme transition support */
+    transition: color-scheme 0.3s ease;
   }
   
   body {
@@ -17,6 +19,19 @@
     font-size: 14px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Smooth theme transitions for all elements */
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  /* Theme transition for all elements */
+  * {
+    transition: 
+      background-color 0.3s ease,
+      border-color 0.3s ease,
+      color 0.3s ease,
+      fill 0.3s ease,
+      stroke 0.3s ease,
+      box-shadow 0.3s ease;
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -89,5 +104,125 @@
     background: rgba(16, 16, 16, 0.8);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  /* Advanced utility classes */
+  .transition-quick {
+    transition-duration: 200ms;
+    transition-timing-function: ease;
+  }
+  
+  .transition-smooth {
+    transition-duration: 300ms;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  .glass-effect {
+    background: var(--glass);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+  }
+  
+  .glow-effect {
+    box-shadow: 0 0 20px var(--glow);
+  }
+  
+  .sidebar-bg {
+    background: var(--sidebar);
+  }
+  
+  .dropdown-bg {
+    background: var(--dropdown);
+  }
+  
+  .overlay-bg {
+    background: var(--overlay);
+  }
+  
+  /* Theme-aware scrollbars */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted-foreground) transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--muted-foreground);
+    border-radius: 4px;
+    opacity: 0.5;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--foreground);
+    opacity: 0.8;
+  }
+  
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Menu-specific scrollbars */
+  .scrollbar-menu {
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted-foreground) transparent;
+  }
+  
+  .scrollbar-menu::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-menu::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-menu::-webkit-scrollbar-thumb {
+    background: var(--muted-foreground);
+    border-radius: 3px;
+    opacity: 0.4;
+  }
+  
+  .scrollbar-menu::-webkit-scrollbar-thumb:hover {
+    background: var(--foreground);
+    opacity: 0.7;
+  }
+  
+  /* Custom select scrollbars */
+  .scrollbar-select {
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted-foreground) transparent;
+  }
+  
+  .scrollbar-select::-webkit-scrollbar {
+    width: 2px;
+    height: 2px;
+  }
+  
+  .scrollbar-select::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-select::-webkit-scrollbar-thumb {
+    background: var(--muted-foreground);
+    border-radius: 1px;
+    opacity: 0.3;
+  }
+  
+  .scrollbar-select::-webkit-scrollbar-thumb:hover {
+    background: var(--foreground);
+    opacity: 0.6;
   }
 }

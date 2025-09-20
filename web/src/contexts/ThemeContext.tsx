@@ -18,11 +18,17 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const currentTheme = themes[currentThemeId];
 
   const setTheme = (themeId: ThemeId) => {
-    setCurrentThemeId(themeId);
-    localStorage.setItem('theme', themeId);
+    try {
+      setCurrentThemeId(themeId);
+      localStorage.setItem('theme', themeId);
+    } catch (error) {
+      console.error('Failed to save theme preference:', error);
+      // Continue with theme change even if localStorage fails
+      setCurrentThemeId(themeId);
+    }
   };
 
-  const isDark = currentThemeId === 'dark' || currentThemeId === 'linear';
+  const isDark = currentThemeId === 'dark' || currentThemeId === 'linear' || currentThemeId === 'semidark';
 
   // Apply theme to document root for CSS custom properties if needed
   useEffect(() => {
@@ -31,18 +37,35 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     // Apply theme colors as CSS custom properties for compatibility
     Object.entries(currentTheme.colors).forEach(([key, value]) => {
       const cssVarName = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
-      root.style.setProperty(cssVarName, value);
+      
+      // Convert RGB string to space-separated values for CSS variables
+      // e.g., "rgb(255 255 255)" -> "255 255 255"
+      // Handle both "rgb(255 255 255)" and "rgba(255 255 255 / 0.5)" formats
+      let rgbValues = value;
+      if (value.startsWith('rgb(') || value.startsWith('rgba(')) {
+        rgbValues = value.replace(/rgba?\(([^)]+)\)/, '$1');
+      }
+      root.style.setProperty(cssVarName, rgbValues);
     });
 
-    // Update the class for dark mode detection
+    // Remove all theme classes first
+    root.classList.remove('dark', 'light', 'semidark', 'linear');
+    
+    // Add the current theme class for theme-specific styling
+    root.classList.add(currentThemeId);
+    
+    // Update the class for dark mode detection (for compatibility)
     if (isDark) {
       root.classList.add('dark');
       root.classList.remove('light');
+      // Update color-scheme for better browser integration
+      root.style.colorScheme = 'dark';
     } else {
       root.classList.add('light');
       root.classList.remove('dark');
+      root.style.colorScheme = 'light';
     }
-  }, [currentTheme, isDark]);
+  }, [currentTheme, currentThemeId, isDark]);
 
   const value: ThemeContextType = {
     currentTheme,
