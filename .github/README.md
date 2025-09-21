@@ -52,7 +52,6 @@ This directory contains GitHub-specific configuration files for the Code Insight
 
 - Review `DEPLOYMENT.md` for setup instructions
 - Check `BRANCH_PROTECTION.md` for security configuration
-- See `MONITORING.md` for observability setup
 - Contact @AndreMashukov for access and permissions
 
 ## Maintenance
