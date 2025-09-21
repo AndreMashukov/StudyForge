@@ -1,12 +1,17 @@
 import { baseApi } from '../baseApi';
 import { 
   DocumentEnhanced, 
-  ListDocumentsResponse,
   CreateDocumentRequest,
   CreateDocumentFromUrlRequest,
   UpdateDocumentRequest,
   DeleteDocumentRequest
-} from 'shared-types';
+} from "@shared-types";
+
+interface ListDocumentsResponse {
+  documents: DocumentEnhanced[];
+  total: number;
+  hasMore: boolean;
+}
 
 export const documentsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -15,6 +20,13 @@ export const documentsApi = baseApi.injectEndpoints({
         functionName: 'getUserDocuments',
         data: {}
       }),
+      transformResponse: (response: { success: boolean; documents: DocumentEnhanced[]; total: number; hasMore: boolean }) => {
+        return {
+          documents: response.documents,
+          total: response.total,
+          hasMore: response.hasMore,
+        };
+      },
       providesTags: ['Document'],
     }),
     
@@ -23,6 +35,9 @@ export const documentsApi = baseApi.injectEndpoints({
         functionName: 'getDocument',
         data: { documentId }
       }),
+      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) => {
+        return response.document;
+      },
       providesTags: (result, error, documentId) => [
         { type: 'Document', id: documentId }
       ],
@@ -33,6 +48,9 @@ export const documentsApi = baseApi.injectEndpoints({
         functionName: 'createDocument',
         data
       }),
+      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) => {
+        return response.document;
+      },
       invalidatesTags: ['Document'],
     }),
     
@@ -41,10 +59,13 @@ export const documentsApi = baseApi.injectEndpoints({
         functionName: 'createDocumentFromUrl',
         data
       }),
+      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) => {
+        return response.document;
+      },
       invalidatesTags: ['Document'],
     }),
     
-    updateDocument: builder.mutation<DocumentEnhanced, UpdateDocumentRequest>({
+    updateDocument: builder.mutation<DocumentEnhanced, UpdateDocumentRequest & { documentId: string }>({
       query: (data) => ({
         functionName: 'updateDocument',
         data

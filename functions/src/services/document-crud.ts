@@ -115,14 +115,25 @@ export class DocumentCrudService {
       }
 
       const document = docSnap.data() as Document;
+      
+      // Ensure document has an ID from the Firestore document ID
+      const documentWithId = {
+        ...document,
+        id: docSnap.id, // Use Firestore document ID
+      };
 
       // Verify ownership
-      if (document.userId !== userId) {
+      if (documentWithId.userId !== userId) {
         throw new Error('Unauthorized: Document belongs to different user');
       }
 
-      logger.info('Document retrieved successfully', { userId, documentId });
-      return document;
+      logger.info('Document retrieved successfully', { 
+        userId, 
+        documentId: docSnap.id,
+        hasId: !!documentWithId.id,
+        title: documentWithId.title 
+      });
+      return documentWithId;
     } catch (error) {
       logger.error('Failed to retrieve document', {
         userId,
@@ -354,7 +365,21 @@ export class DocumentCrudService {
 
       // Execute query
       const snapshot = await query.get();
-      const documents = snapshot.docs.map(doc => doc.data() as Document);
+      const documents = snapshot.docs.map(doc => {
+        const data = doc.data() as Document;
+        // Ensure document has an ID from the Firestore document ID
+        const documentWithId = {
+          ...data,
+          id: doc.id, // Use Firestore document ID
+        };
+        logger.info('Document retrieved from Firestore', { 
+          userId, 
+          documentId: doc.id,
+          hasId: !!documentWithId.id,
+          title: documentWithId.title 
+        });
+        return documentWithId;
+      });
 
       // Check if there are more documents
       const hasMore = documents.length > limit;

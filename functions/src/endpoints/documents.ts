@@ -160,7 +160,8 @@ export const getDocument = onCall(
       const userId = await validateAuth(request);
       const { documentId } = request.data as { documentId: string };
 
-      if (!documentId || typeof documentId !== 'string') {
+      // Additional validation to catch "undefined" string
+      if (!documentId || typeof documentId !== 'string' || documentId === 'undefined' || documentId.trim() === '') {
         throw new Error('Document ID is required');
       }
 

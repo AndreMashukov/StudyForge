@@ -6,6 +6,26 @@ import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
 import { Plus, Search, FileText, Calendar, Eye, Brain, Trash2 } from 'lucide-react';
+import { DocumentEnhanced } from "@shared-types";
+
+const formatDate = (date: Date | { toDate(): Date } | string): string => {
+  try {
+    if (date instanceof Date) {
+      return date.toLocaleDateString();
+    }
+    if (typeof date === 'object' && date !== null && 'toDate' in date && typeof date.toDate === 'function') {
+      return date.toDate().toLocaleDateString();
+    }
+    if (typeof date === 'string') {
+      return new Date(date).toLocaleDateString();
+    }
+    // Fallback
+    return new Date().toLocaleDateString();
+  } catch (error) {
+    console.warn('Error formatting date:', error, date);
+    return 'Invalid date';
+  }
+};
 
 export const DocumentsPageContainer = () => {
   const { 
@@ -90,7 +110,7 @@ export const DocumentsPageContainer = () => {
           </Card>
         ) : (
           <div className={documentsPageStyles.documentsGrid}>
-            {documents.map((document) => (
+            {documents.map((document: DocumentEnhanced) => (
               <Card key={document.id} className={documentsPageStyles.documentCard}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
@@ -103,7 +123,7 @@ export const DocumentsPageContainer = () => {
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar size={14} />
-                          {new Date(document.createdAt).toLocaleDateString()}
+                          {formatDate(document.createdAt)}
                         </span>
                       </div>
                     </div>
@@ -120,7 +140,7 @@ export const DocumentsPageContainer = () => {
 
                     {/* Content Preview */}
                     <p className="text-sm text-muted-foreground line-clamp-2">
-                      {document.content.substring(0, 120)}...
+                      {document.description || `Document with ${document.wordCount} words`}
                     </p>
 
                     {/* Actions */}
