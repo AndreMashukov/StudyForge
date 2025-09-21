@@ -9,7 +9,7 @@ import {
   UpdateDocumentRequest, 
   DocumentSourceType,
   DocumentStatus,
-} from "shared-types";
+} from "@shared-types";
 
 /**
  * Authentication middleware for callable functions
@@ -299,6 +299,43 @@ export const deleteDocument = onCall(
         documentId: request.data?.documentId,
       });
       throw new Error(`Failed to delete document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+);
+
+/**
+ * Get user documents (alias for listDocuments for frontend compatibility)
+ */
+export const getUserDocuments = onCall(
+  { 
+    region: 'asia-east1',
+    cors: true,
+  },
+  async (request) => {
+    try {
+      const userId = await validateAuth(request);
+      const options = request.data || {};
+
+      logger.info('Getting user documents', { 
+        userId,
+        limit: options.limit,
+        sourceType: options.sourceType,
+        status: options.status,
+      });
+
+      const result = await DocumentCrudService.listDocuments(userId, options);
+
+      return { 
+        success: true, 
+        ...result,
+      };
+
+    } catch (error) {
+      logger.error('Failed to get user documents', { 
+        error: error instanceof Error ? error.message : String(error),
+        options: request.data,
+      });
+      throw new Error(`Failed to get user documents: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 );

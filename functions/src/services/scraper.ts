@@ -2,7 +2,7 @@ import * as cheerio from "cheerio";
 import { CheerioAPI } from "cheerio";
 import { JSDOM } from "jsdom";
 import fetch from "node-fetch";
-import { ScrapedContent } from "shared-types";
+import { ScrapedContent } from "@shared-types";
 import * as functions from "firebase-functions";
 import { GeminiService } from "./gemini.js";
 

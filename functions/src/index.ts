@@ -24,7 +24,7 @@ import {
   GetQuizResponse,
   ApiResponse,
   Quiz
-} from "shared-types";
+} from "@shared-types";
 
 // Configure global options
 setGlobalOptions({
@@ -333,6 +333,7 @@ export {
   getDocumentWithContent,
   updateDocument,
   deleteDocument,
+  getUserDocuments,
   listDocuments,
   searchDocuments,
   getDocumentStats,

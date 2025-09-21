@@ -1,5 +1,5 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GeminiQuizResponse, ScrapedContent } from "shared-types";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, SchemaType } from "@google/generative-ai";
+import { GeminiQuizResponse, ScrapedContent } from "@shared-types";
 import * as functions from "firebase-functions";
 
 /**
