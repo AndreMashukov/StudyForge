@@ -11,7 +11,10 @@ import {
   Settings, 
   User,
   FileText,
-  BarChart3
+  BarChart3,
+  FolderOpen,
+  Plus,
+  Brain
 } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
@@ -39,30 +42,43 @@ const sidebarSections: SidebarSection[] = [
         path: '/',
         icon: Home,
       },
+    ],
+  },
+  {
+    id: 'content',
+    title: 'Content',
+    icon: FolderOpen,
+    items: [
       {
-        id: 'analytics',
-        title: 'Analytics',
-        path: '/analytics',
-        icon: BarChart3,
+        id: 'documents',
+        title: 'Documents Library',
+        path: '/documents',
+        icon: FileText,
+      },
+      {
+        id: 'create-document',
+        title: 'Create Document',
+        path: '/documents/create',
+        icon: Plus,
       },
     ],
   },
   {
-    id: 'learning',
-    title: 'Learning',
-    icon: BookOpen,
+    id: 'quizzes',
+    title: 'Quizzes',
+    icon: Brain,
     items: [
       {
-        id: 'quiz',
-        title: 'Quiz',
-        path: '/quiz',
+        id: 'my-quizzes',
+        title: 'My Quizzes',
+        path: '/quizzes',
         icon: BookOpen,
       },
       {
-        id: 'lessons',
-        title: 'Lessons',
-        path: '/lessons',
-        icon: FileText,
+        id: 'quiz-results',
+        title: 'Results',
+        path: '/quizzes/results',
+        icon: BarChart3,
       },
     ],
   },

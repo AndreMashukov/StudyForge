@@ -1,0 +1,15 @@
+export const fileUploadFormStyles = {
+  container: "space-y-6",
+  formGroup: "space-y-2",
+  label: "text-sm font-medium",
+  input: "w-full",
+  helpText: "text-sm text-muted-foreground",
+  submitButton: "w-full flex items-center justify-center gap-2",
+  uploadArea: "border-2 border-dashed border-muted-foreground/20 rounded-lg p-8 text-center transition-colors hover:border-muted-foreground/40",
+  uploadAreaActive: "border-primary bg-primary/5",
+  uploadIcon: "mx-auto mb-4 text-muted-foreground",
+  uploadText: "text-sm text-muted-foreground",
+  fileInfo: "mt-4 p-3 bg-muted rounded-md",
+  fileName: "font-medium text-sm",
+  fileSize: "text-xs text-muted-foreground",
+} as const;

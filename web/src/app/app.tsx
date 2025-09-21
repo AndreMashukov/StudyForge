@@ -9,6 +9,9 @@ import { HomePage } from '../pages/HomePage';
 import { AuthPage } from '../pages/AuthPage';
 import { QuizPage } from '../pages/QuizPage';
 import { ProfilePage } from '../pages/ProfilePage';
+import { DocumentsPage } from '../pages/DocumentsPage';
+import { CreateDocumentPage } from '../pages/CreateDocumentPage';
+import { DocumentViewerPage } from '../pages/DocumentViewerPage';
 import { Page } from '../components/Page';
 
 export function App() {
@@ -88,6 +91,73 @@ const AppContent = () => {
           </MainLayout>
         } 
       />
+
+      {/* Document Management Routes */}
+      <Route 
+        path="/documents" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <DocumentsPage />
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/documents/create" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <CreateDocumentPage />
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/document/:documentId" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <DocumentViewerPage />
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+
+      {/* Quiz Management Routes */}
+      <Route 
+        path="/quizzes" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <Page showSidebar={true}>
+                <div className="max-w-4xl mx-auto">
+                  <div className="text-center text-muted-foreground">
+                    My Quizzes page coming soon...
+                  </div>
+                </div>
+              </Page>
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/quizzes/results" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <Page showSidebar={true}>
+                <div className="max-w-4xl mx-auto">
+                  <div className="text-center text-muted-foreground">
+                    Quiz Results page coming soon...
+                  </div>
+                </div>
+              </Page>
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+      
       <Route 
         path="/settings" 
         element={
@@ -97,38 +167,6 @@ const AppContent = () => {
                 <div className="max-w-2xl mx-auto">
                   <div className="text-center text-muted-foreground">
                     Settings page coming soon...
-                  </div>
-                </div>
-              </Page>
-            </ProtectedRoute>
-          </MainLayout>
-        } 
-      />
-      <Route 
-        path="/analytics" 
-        element={
-          <MainLayout>
-            <ProtectedRoute>
-              <Page showSidebar={true}>
-                <div className="max-w-4xl mx-auto">
-                  <div className="text-center text-muted-foreground">
-                    Analytics dashboard coming soon...
-                  </div>
-                </div>
-              </Page>
-            </ProtectedRoute>
-          </MainLayout>
-        } 
-      />
-      <Route 
-        path="/lessons" 
-        element={
-          <MainLayout>
-            <ProtectedRoute>
-              <Page showSidebar={true}>
-                <div className="max-w-4xl mx-auto">
-                  <div className="text-center text-muted-foreground">
-                    Lessons page coming soon...
                   </div>
                 </div>
               </Page>

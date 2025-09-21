@@ -3,12 +3,14 @@ import { baseApi } from './api/baseApi';
 import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
 import quizPageReducer from './slices/quizPageSlice';
+import documentsPageReducer from './slices/documentsPageSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     ui: uiReducer,
     quizPage: quizPageReducer,
+    documentsPage: documentsPageReducer,
     [baseApi.reducerPath]: baseApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>

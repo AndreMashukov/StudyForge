@@ -205,7 +205,8 @@ export class FirestoreService {
 
       const quizData: Quiz = {
         id: quizzesCollection.doc().id,
-        urlId,
+        documentId: urlId, // For legacy URL-based quizzes, use urlId as documentId
+        urlId, // Keep for backward compatibility
         title: geminiQuiz.title,
         questions,
         createdAt: new Date(),

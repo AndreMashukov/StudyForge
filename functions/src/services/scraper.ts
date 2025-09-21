@@ -4,6 +4,7 @@ import { JSDOM } from "jsdom";
 import fetch from "node-fetch";
 import { ScrapedContent } from "shared-types";
 import * as functions from "firebase-functions";
+import { GeminiService } from "./gemini.js";
 
 /**
  * Web scraping service for extracting article content from URLs
@@ -12,6 +13,119 @@ import * as functions from "firebase-functions";
 export class WebScraperService {
   private static readonly USER_AGENT = "Mozilla/5.0 (compatible; QuizBot/1.0)";
   private static readonly TIMEOUT = 10000; // 10 seconds
+
+  /**
+   * Extract and convert content to clean markdown format
+   * @param url - The URL to scrape
+   * @returns ScrapedContent with clean markdown formatting
+   */
+  public static async extractContentAsMarkdown(url: string): Promise<ScrapedContent & { markdownContent: string }> {
+    try {
+      functions.logger.info(`Scraping URL for markdown conversion: ${url}`);
+
+      // First extract raw content using existing method
+      const rawContent = await this.extractContent(url);
+
+      functions.logger.info(`Raw content extracted, converting to markdown...`);
+
+      // Use Gemini to convert and clean the content to proper markdown
+      const markdownContent = await this.convertToMarkdown(rawContent);
+
+      return {
+        ...rawContent,
+        markdownContent,
+      };
+
+    } catch (error) {
+      functions.logger.error(`Error extracting content as markdown from ${url}:`, error);
+      throw new Error(`Failed to extract markdown content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Convert scraped content to clean, well-structured markdown
+   * @param content - The raw scraped content
+   * @returns Clean markdown content
+   */
+  private static async convertToMarkdown(content: ScrapedContent): Promise<string> {
+    try {
+      const prompt = `Please convert the following scraped web content into clean, well-structured markdown format. Follow these guidelines:
+
+1. Create a proper title using # heading
+2. Add the author and publication date if available
+3. Structure the content with appropriate headings (##, ###, etc.)
+4. Clean up any formatting artifacts or duplicate content
+5. Ensure paragraphs are properly separated
+6. Remove any navigation text, advertisements, or irrelevant content
+7. Keep the core informational content intact
+8. Add appropriate line breaks for readability
+9. If there are lists, format them properly with - or numbered lists
+10. Ensure the markdown is clean and follows standard conventions
+
+Original Content:
+Title: ${content.title}
+Author: ${content.author || 'Unknown'}
+Publish Date: ${content.publishDate || 'Unknown'}
+Word Count: ${content.wordCount}
+
+Content:
+${content.content}
+
+Please return only the clean markdown content, starting with the title heading:`;
+
+      const response = await GeminiService.generateContent(prompt);
+      
+      if (!response || response.trim().length === 0) {
+        throw new Error('Gemini returned empty response for markdown conversion');
+      }
+
+      functions.logger.info(`Markdown conversion completed, length: ${response.length} characters`);
+      return response.trim();
+
+    } catch (error) {
+      functions.logger.error('Failed to convert content to markdown:', error);
+      
+      // Fallback: Create basic markdown manually if Gemini fails
+      functions.logger.info('Using fallback markdown conversion...');
+      return this.createFallbackMarkdown(content);
+    }
+  }
+
+  /**
+   * Create basic markdown as fallback if Gemini conversion fails
+   * @param content - The raw scraped content
+   * @returns Basic markdown content
+   */
+  private static createFallbackMarkdown(content: ScrapedContent): string {
+    let markdown = `# ${content.title}\n\n`;
+
+    if (content.author) {
+      markdown += `**Author:** ${content.author}\n\n`;
+    }
+
+    if (content.publishDate) {
+      markdown += `**Published:** ${content.publishDate}\n\n`;
+    }
+
+    markdown += `---\n\n`;
+
+    // Convert content to basic paragraphs
+    const paragraphs = content.content
+      .split('\n\n')
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
+
+    for (const paragraph of paragraphs) {
+      // Simple heuristic to detect headings (if paragraph is short and title-case)
+      if (paragraph.length < 100 && paragraph.match(/^[A-Z][^.]*[^.]$/)) {
+        markdown += `## ${paragraph}\n\n`;
+      } else {
+        markdown += `${paragraph}\n\n`;
+      }
+    }
+
+    return markdown;
+  }
 
   /**
    * Extract content from a URL

@@ -71,6 +71,42 @@ export class GeminiService {
   }
 
   /**
+   * Generate general content using Gemini AI
+   * Used for markdown conversion and other text generation tasks
+   */
+  public static async generateContent(prompt: string): Promise<string> {
+    try {
+      functions.logger.info('Generating content with Gemini AI');
+
+      const client = this.getClient();
+      const model = client.getGenerativeModel({ 
+        model: "gemini-1.5-pro",
+        generationConfig: {
+          temperature: 0.3,
+          topP: 1,
+          topK: 40,
+          maxOutputTokens: 8192,
+        },
+      });
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      if (!text) {
+        throw new Error('Empty response from Gemini API');
+      }
+
+      functions.logger.info('Content generated successfully', { length: text.length });
+      return text;
+
+    } catch (error) {
+      functions.logger.error('Error generating content with Gemini AI:', error);
+      throw new Error(`Failed to generate content: ${error}`);
+    }
+  }
+
+  /**
    * Build the prompt for quiz generation
    */
   private static buildQuizPrompt(content: ScrapedContent): string {
