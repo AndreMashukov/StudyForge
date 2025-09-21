@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cva } from "class-variance-authority";
-import { ITheme } from "../../../types/theme";
+import { Theme } from "../../../types/theme";
 
 export const buttonVariants = cva(
 	"inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -29,7 +29,7 @@ export const buttonVariants = cva(
 );
 
 // Define theme-aware styles based on variant
-export const getVariantStyles = (variant: string | null | undefined, currentTheme: ITheme): React.CSSProperties => {
+export const getVariantStyles = (variant: string | null | undefined, currentTheme: Theme): React.CSSProperties => {
 	const colors = currentTheme.colors;
 	
 	switch (variant) {
