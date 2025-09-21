@@ -12,6 +12,14 @@
       },
       "dependsOn": ["^build"]
     },
+    "build-with-deps": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "nx run shared-types:build && yarn build",
+        "cwd": "functions"
+      },
+      "dependsOn": ["shared-types:build"]
+    },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
@@ -22,15 +30,17 @@
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "cd functions && yarn build && cd .. && npx firebase emulators:start"
-      }
+        "command": "nx run shared-types:build && cd functions && yarn build && cd .. && npx firebase emulators:start"
+      },
+      "dependsOn": ["shared-types:build"]
     },
     "deploy": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "yarn deploy",
+        "command": "nx run shared-types:build && yarn deploy",
         "cwd": "functions"
-      }
+      },
+      "dependsOn": ["shared-types:build"]
     },
     "shell": {
       "executor": "nx:run-commands",
