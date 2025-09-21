@@ -17,7 +17,7 @@ export default defineConfig(() => ({
   },
   plugins: [react(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
   // Configure Vite to load environment variables with NX_PUBLIC_ prefix
-  envPrefix: ['VITE_', 'NX_PUBLIC_'],
+  envPrefix: ['NX_PUBLIC_', 'NX_PUBLIC_'],
   css: {
     postcss: {
       plugins: [
