@@ -61,11 +61,33 @@ export class DocumentService {
       // Get file metadata for response
       const [fileMetadata] = await file.getMetadata();
 
-      // Generate signed URL for download (24 hours expiry)
-      const [downloadUrl] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-      });
+      // Generate download URL - use different approach for emulator vs production
+      let downloadUrl: string;
+      
+      // Check if running in emulator environment
+      const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true' || 
+                        process.env.NODE_ENV === 'development';
+      
+      if (isEmulator) {
+        // For emulator, use public URL or direct access URL
+        // Note: This is for development only, production should use signed URLs
+        downloadUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+        logger.info('Using emulator-compatible URL for development', { filePath });
+      } else {
+        // Production: Generate signed URL for download (24 hours expiry)
+        try {
+          const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+          });
+          downloadUrl = signedUrl;
+        } catch (signedUrlError) {
+          logger.warn('Failed to generate signed URL, falling back to public URL', {
+            error: signedUrlError instanceof Error ? signedUrlError.message : String(signedUrlError)
+          });
+          downloadUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+        }
+      }
 
       const storageFile: StorageFile = {
         path: filePath,
