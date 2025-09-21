@@ -17,9 +17,9 @@ export const HomePageProvider: React.FC<IHomePageProviderProps> = ({ children })
   // Enhance handlers with form actions
   const enhancedHandlers = {
     ...handlers,
-    handleGenerateQuiz: async (url: string) => {
+    handleGenerateQuiz: async (documentId: string) => {
       actions.setGenerating(true);
-      const result = await handlers.handleGenerateQuiz(url);
+      const result = await handlers.handleGenerateQuiz(documentId);
       actions.setGenerating(false);
       
       if (!result.success) {

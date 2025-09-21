@@ -1,11 +1,16 @@
 import { 
   DocumentEnhanced, 
-  ListDocumentsResponse,
   CreateDocumentRequest,
   CreateDocumentFromUrlRequest,
   UpdateDocumentRequest,
   DeleteDocumentRequest
 } from '@shared-types';
+
+interface ListDocumentsResponse {
+  documents: DocumentEnhanced[];
+  total: number;
+  hasMore: boolean;
+}
 
 export interface IDocumentsApi {
   // Document CRUD operations

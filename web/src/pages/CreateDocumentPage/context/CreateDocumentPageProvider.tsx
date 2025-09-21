@@ -57,7 +57,6 @@ export const CreateDocumentPageProvider: React.FC<CreateDocumentPageProviderProp
           title: data.title || data.file.name.replace(/\.md$/, ''),
           content,
           sourceType: DocumentSourceType.UPLOAD,
-          fileName: data.file.name,
         }).unwrap();
         
         // Navigate to the created document
