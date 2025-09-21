@@ -18,7 +18,7 @@ export class FirestoreService {
   /**
    * Safely check if a value is a Firestore Timestamp
    */
-  private static isFirestoreTimestamp(value: any): boolean {
+  private static isFirestoreTimestamp(value: unknown): boolean {
     try {
       // Check if it's a Firestore Timestamp object
       return value && 
@@ -27,7 +27,7 @@ export class FirestoreService {
              (value.constructor?.name === 'Timestamp' || 
               value._delegate?.constructor?.name === 'Timestamp' ||
               (admin.firestore.Timestamp && value instanceof admin.firestore.Timestamp));
-    } catch (error) {
+    } catch {
       // If instanceof check fails, fall back to duck typing
       return value && typeof value.toDate === 'function';
     }
@@ -36,9 +36,9 @@ export class FirestoreService {
   /**
    * Convert Firestore timestamp to Date safely
    */
-  private static convertTimestamp(value: any): Date {
+  private static convertTimestamp(value: unknown): Date {
     if (this.isFirestoreTimestamp(value)) {
-      return value.toDate();
+      return (value as { toDate(): Date }).toDate();
     }
     if (value instanceof Date) {
       return value;

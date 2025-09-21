@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, SchemaType } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GeminiQuizResponse, ScrapedContent } from "../../libs/shared-types/src/index";
 import * as functions from "firebase-functions";
 
@@ -272,8 +272,8 @@ Generate the quiz now:`;
   /**
    * Check if the error is due to geographic restrictions
    */
-  private static isGeographicRestrictionError(error: any): boolean {
-    const errorMessage = error?.message || error?.toString() || "";
+  private static isGeographicRestrictionError(error: unknown): boolean {
+    const errorMessage = (error as Error)?.message || String(error);
     return errorMessage.includes("User location is not supported for the API use") ||
            errorMessage.includes("GoogleGenerativeAI Error") && errorMessage.includes("400 Bad Request");
   }

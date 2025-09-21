@@ -3,8 +3,6 @@
  * Run with: node test-scraper-local.js <url>
  */
 
-const path = require('path');
-
 // Import the built scraper service
 const { WebScraperService } = require('./lib/functions/src/services/scraper.js');
 

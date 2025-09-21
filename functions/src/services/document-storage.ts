@@ -1,5 +1,5 @@
 import { getStorage } from 'firebase-admin/storage';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import { DocumentEnhanced as Document, DocumentMetadataEnhanced as DocumentMetadata, StorageFile, StorageMetadata } from "../../libs/shared-types/src/index";
 import { logger } from 'firebase-functions/v2';
 
@@ -211,7 +211,7 @@ export class DocumentService {
   static async getDownloadUrl(
     userId: string,
     documentId: string,
-    expiresInMinutes: number = 60
+    expiresInMinutes = 60
   ): Promise<string> {
     try {
       const bucket = this.storage.bucket();

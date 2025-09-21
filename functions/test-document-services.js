@@ -1,6 +1,6 @@
 import * as admin from 'firebase-admin';
-import { DocumentService } from '../src/services/document-storage.js';
-import { DocumentCrudService } from '../src/services/document-crud.js';
+import { DocumentService } from './lib/src/services/document-storage.js';
+import { DocumentCrudService } from './lib/src/services/document-crud.js';
 
 // Initialize Firebase Admin SDK for testing
 if (!admin.apps.length) {
@@ -89,7 +89,7 @@ More content here to test the word count functionality.
     try {
       DocumentService.validateDocumentContent('');
       console.log('❌ Empty content validation failed');
-    } catch (error) {
+    } catch {
       console.log('✅ Empty content properly rejected');
     }
 
@@ -119,7 +119,7 @@ More content here to test the word count functionality.
     try {
       await DocumentService.getDocumentContent(testUserId, testDocumentId);
       console.log('❌ Document still exists after deletion');
-    } catch (error) {
+    } catch {
       console.log('✅ Document properly deleted');
     }
 
@@ -218,11 +218,11 @@ Lorem ipsum content for word count testing.
     try {
       await DocumentCrudService.getDocument(testUserId, documentId);
       console.log('❌ Document still exists after deletion');
-    } catch (error) {
+    } catch {
       console.log('✅ Document properly deleted from Firestore');
     }
 
-  } catch (error) {
+  } catch {
     console.error('❌ CRUD test failed:', error.message);
     console.error('Stack:', error.stack);
   }

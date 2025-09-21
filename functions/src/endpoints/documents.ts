@@ -1,7 +1,5 @@
-import { onRequest } from 'firebase-functions/v2/https';
 import { onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { getAuth } from 'firebase-admin/auth';
 import { DocumentCrudService } from '../services/document-crud.js';
 import { WebScraperService } from '../services/scraper.js';
 import { 
@@ -14,7 +12,7 @@ import {
 /**
  * Authentication middleware for callable functions
  */
-async function validateAuth(context: any): Promise<string> {
+async function validateAuth(context: { auth?: { uid?: string } }): Promise<string> {
   if (!context.auth || !context.auth.uid) {
     throw new Error('Unauthenticated: User must be logged in');
   }
