@@ -8,6 +8,8 @@ import { ProtectedRoute } from '../utils/ProtectedRoute';
 import { HomePage } from '../pages/HomePage';
 import { AuthPage } from '../pages/AuthPage';
 import { QuizPage } from '../pages/QuizPage';
+import { ProfilePage } from '../pages/ProfilePage';
+import { Page } from '../components/Page';
 
 export function App() {
   return (
@@ -81,17 +83,55 @@ const AppContent = () => {
         element={
           <MainLayout>
             <ProtectedRoute>
-              <div className="max-w-2xl mx-auto px-6 py-16">
-                <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold text-foreground mb-2">
-                    User Profile
-                  </h2>
-                  <p className="text-muted-foreground">Manage your account settings and preferences</p>
+              <ProfilePage />
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/settings" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <Page showSidebar={true}>
+                <div className="max-w-2xl mx-auto">
+                  <div className="text-center text-muted-foreground">
+                    Settings page coming soon...
+                  </div>
                 </div>
-                <div className="text-center text-muted-foreground">
-                  Profile page coming soon...
+              </Page>
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/analytics" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <Page showSidebar={true}>
+                <div className="max-w-4xl mx-auto">
+                  <div className="text-center text-muted-foreground">
+                    Analytics dashboard coming soon...
+                  </div>
                 </div>
-              </div>
+              </Page>
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/lessons" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <Page showSidebar={true}>
+                <div className="max-w-4xl mx-auto">
+                  <div className="text-center text-muted-foreground">
+                    Lessons page coming soon...
+                  </div>
+                </div>
+              </Page>
             </ProtectedRoute>
           </MainLayout>
         } 

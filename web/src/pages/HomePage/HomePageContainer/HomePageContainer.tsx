@@ -21,7 +21,7 @@ export const HomePageContainer = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-16 space-y-12">
+    <div className="max-w-6xl mx-auto space-y-12">
       {/* Header Section */}
       <div className="text-center space-y-6">
         <div className="space-y-4">

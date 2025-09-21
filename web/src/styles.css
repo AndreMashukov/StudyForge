@@ -243,4 +243,37 @@
   .light .bg-muted {
     background-color: rgb(248 250 252); /* Ensure light background in light theme */
   }
+
+  /* Scrollbar utilities */
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  
+  .scrollbar-track-muted::-webkit-scrollbar-track {
+    background: var(--muted);
+  }
+  
+  .scrollbar-thumb-muted-foreground::-webkit-scrollbar-thumb {
+    background: var(--muted-foreground);
+    border-radius: 2px;
+  }
+  
+  .scrollbar-thumb-muted-foreground::-webkit-scrollbar-thumb:hover {
+    background: var(--foreground);
+    opacity: 0.8;
+  }
 }
