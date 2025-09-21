@@ -1,4 +1,4 @@
-import { DocumentEnhanced } from "shared-types";
+import { DocumentEnhanced } from "@shared-types";
 
 export interface IDocumentsPageHandlers {
   handleCreateDocument: () => void;

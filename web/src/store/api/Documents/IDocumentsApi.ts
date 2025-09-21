@@ -5,7 +5,7 @@ import {
   CreateDocumentFromUrlRequest,
   UpdateDocumentRequest,
   DeleteDocumentRequest
-} from 'shared-types';
+} from '@shared-types';
 
 export interface IDocumentsApi {
   // Document CRUD operations

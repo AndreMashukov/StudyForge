@@ -5,6 +5,7 @@ import { ICreateDocumentPageContext } from '../types/ICreateDocumentPageContext'
 import { IUrlScrapingFormData } from '../components/UrlScrapingForm/IUrlScrapingForm';
 import { IFileUploadFormData } from '../components/FileUploadForm/IFileUploadForm';
 import { useCreateDocumentFromUrlMutation, useCreateDocumentMutation } from '../../../store/api/Documents';
+import { DocumentSourceType } from '@shared-types';
 
 interface CreateDocumentPageProviderProps {
   children: React.ReactNode;
@@ -55,7 +56,7 @@ export const CreateDocumentPageProvider: React.FC<CreateDocumentPageProviderProp
         const result = await createDocument({
           title: data.title || data.file.name.replace(/\.md$/, ''),
           content,
-          sourceType: 'upload',
+          sourceType: DocumentSourceType.UPLOAD,
           fileName: data.file.name,
         }).unwrap();
         

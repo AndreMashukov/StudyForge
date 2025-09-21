@@ -27,7 +27,7 @@ export interface IHomePageContext {
 
   // Handler functions
   handlers: {
-    handleGenerateQuiz: (url: string) => Promise<{ success: boolean; data?: GenerateQuizResponse; error?: string }>;
+    handleGenerateQuiz: (documentId: string) => Promise<{ success: boolean; data?: GenerateQuizResponse; error?: string }>;
     handleNavigateToQuiz: (quizId: string) => void;
     handleDeleteQuiz: (quizId: string) => Promise<{ success: boolean }>;
   };

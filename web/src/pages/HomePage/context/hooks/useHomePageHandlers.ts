@@ -8,9 +8,9 @@ export const useHomePageHandlers = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  const handleGenerateQuiz = async (url: string) => {
+  const handleGenerateQuiz = async (documentId: string) => {
     try {
-      const result = await generateQuiz({ url }).unwrap();
+      const result = await generateQuiz({ documentId }).unwrap();
       
       if (result.success && result.data) {
         dispatch(showToast({

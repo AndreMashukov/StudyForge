@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useGetUserDocumentsQuery, useSearchDocumentsQuery } from '../../../../../store/api/Documents';
 
 export const useFetchDocuments = (searchQuery?: string) => {
-  const shouldSearchQuery = searchQuery && searchQuery.trim().length > 0;
+  const shouldSearchQuery = Boolean(searchQuery && searchQuery.trim().length > 0);
   
   const {
     data: allDocuments,
