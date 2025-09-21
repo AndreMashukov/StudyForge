@@ -8,7 +8,7 @@ import {
   UpdateDocumentRequest,
   DocumentSourceType,
   DocumentStatus,
-} from "@shared-types";
+} from "../../libs/shared-types/src/index";
 
 /**
  * Comprehensive Document CRUD Service

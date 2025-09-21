@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "module": "NodeNext",
+    "module": "commonjs",
     "esModuleInterop": true,
-    "moduleResolution": "nodenext",
+    "moduleResolution": "node",
     "noImplicitReturns": true,
     "noUnusedLocals": false,
     "outDir": "lib",
@@ -10,11 +10,7 @@
     "strict": false,
     "target": "es2017",
     "skipLibCheck": true,
-    "types": [],
-    "baseUrl": ".",
-    "paths": {
-      "@shared-types": ["../libs/shared-types/src/index.ts"]
-    }
+    "types": []
   },
   "compileOnSave": true,
   "include": [

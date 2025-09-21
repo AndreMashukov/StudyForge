@@ -24,7 +24,7 @@ import {
   GetQuizResponse,
   ApiResponse,
   Quiz
-} from "@shared-types";
+} from "../libs/shared-types/src/index";
 
 // Configure global options
 setGlobalOptions({

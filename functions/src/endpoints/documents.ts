@@ -9,7 +9,7 @@ import {
   UpdateDocumentRequest, 
   DocumentSourceType,
   DocumentStatus,
-} from "@shared-types";
+} from "../../libs/shared-types/src/index";
 
 /**
  * Authentication middleware for callable functions
