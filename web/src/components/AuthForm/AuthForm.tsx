@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useSignInWithEmailAndPassword, useCreateUserWithEmailAndPassword } from 'react-firebase-hooks/auth';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { auth } from '../config/firebase';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import { Label } from './ui/Label';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
-import { Icon } from './ui/Icon';
+import { auth } from '../../config/firebase';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { Label } from '../ui/Label';
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
+import { Icon } from '../ui/Icon';
+import { authFormStyles } from './AuthForm.styles';
 
-export const AuthForm: React.FC = () => {
+export const AuthForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp,] = useState(false);
@@ -54,22 +55,22 @@ export const AuthForm: React.FC = () => {
 
   if (user) {
     return (
-      <div className="max-w-md mx-auto mt-8">
-        <Card className="bg-card border-border shadow-lg">
-          <CardContent className="text-center p-8">
-            <div className="mx-auto w-14 h-14 bg-accent rounded-xl flex items-center justify-center mb-4">
+      <div className={authFormStyles.container}>
+        <Card className={authFormStyles.successCard}>
+          <CardContent className={authFormStyles.successContent}>
+            <div className={authFormStyles.successIcon}>
               <Icon size={24} className="text-accent-foreground">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
               </Icon>
             </div>
-            <h2 className="text-xl font-semibold text-foreground mb-2">
+            <h2 className={authFormStyles.successTitle}>
               Redirecting...
             </h2>
-            <p className="text-muted-foreground mb-4">
+            <p className={authFormStyles.successSubtitle}>
               Successfully signed in as <span className="font-medium">{user.user.email}</span>
             </p>
-            <div className="inline-flex items-center px-3 py-2 bg-accent/10 rounded-lg text-sm text-accent-foreground">
-              <div className="w-2 h-2 bg-accent rounded-full mr-2 animate-pulse"></div>
+            <div className={authFormStyles.successStatus}>
+              <div className={authFormStyles.successIndicator}></div>
               Taking you to your dashboard...
             </div>
           </CardContent>
@@ -79,13 +80,13 @@ export const AuthForm: React.FC = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto">
-      <Card className="linear-glass border border-border/30">
-        <CardHeader className="text-center pt-8 pb-6">
-          <CardTitle className="text-xl font-semibold text-foreground mb-3">
+    <div className={authFormStyles.container}>
+      <Card className={authFormStyles.card}>
+        <CardHeader className={authFormStyles.header}>
+          <CardTitle className={authFormStyles.title}>
             {isSignUp ? 'Create your account' : 'Welcome back'}
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className={authFormStyles.subtitle}>
             {isSignUp 
               ? 'Start generating AI-powered quizzes today' 
               : 'Sign in to access your quiz dashboard'
@@ -93,14 +94,14 @@ export const AuthForm: React.FC = () => {
           </p>
         </CardHeader>
 
-        <CardContent className="px-8 pb-8">
+        <CardContent className={authFormStyles.content}>
           {error && (
-            <div className="mb-6 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm">
-              <p className="font-medium">Authentication Error</p>
-              <p className="text-destructive/80 mt-1">{error.message}</p>
-              <details className="mt-2">
-                <summary className="text-xs cursor-pointer text-destructive/60">Debug Details</summary>
-                <pre className="text-xs mt-2 p-2 bg-destructive/5 rounded overflow-auto">
+            <div className={authFormStyles.errorContainer}>
+              <p className={authFormStyles.errorTitle}>Authentication Error</p>
+              <p className={authFormStyles.errorMessage}>{error.message}</p>
+              <details className={authFormStyles.errorDetails}>
+                <summary className={authFormStyles.errorSummary}>Debug Details</summary>
+                <pre className={authFormStyles.errorPre}>
                   {JSON.stringify({
                     code: error.code,
                     message: error.message,
@@ -111,10 +112,10 @@ export const AuthForm: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="email" className="text-sm text-foreground font-medium">
+          <form onSubmit={handleSubmit} className={authFormStyles.form}>
+            <div className={authFormStyles.formFields}>
+              <div className={authFormStyles.fieldContainer}>
+                <Label htmlFor="email" className={authFormStyles.label}>
                   Email Address
                 </Label>
                 <Input
@@ -124,12 +125,12 @@ export const AuthForm: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
                   required
-                  className="mt-1.5 bg-input border-border/50 focus:border-primary/50 linear-transition"
+                  className={authFormStyles.input}
                 />
               </div>
 
-              <div>
-                <Label htmlFor="password" className="text-sm text-foreground font-medium">
+              <div className={authFormStyles.fieldContainer}>
+                <Label htmlFor="password" className={authFormStyles.label}>
                   Password
                 </Label>
                 <Input
@@ -139,7 +140,7 @@ export const AuthForm: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   required
-                  className="mt-1.5 bg-input border-border/50 focus:border-primary/50 linear-transition"
+                  className={authFormStyles.input}
                 />
               </div>
             </div>
@@ -147,11 +148,11 @@ export const AuthForm: React.FC = () => {
             <Button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full mt-6 linear-button linear-glow-hover"
+              className={authFormStyles.submitButton}
             >
               {loading ? (
                 <div className="flex items-center justify-center">
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
+                  <div className={authFormStyles.loadingSpinner}></div>
                   Processing...
                 </div>
               ) : (
@@ -160,26 +161,12 @@ export const AuthForm: React.FC = () => {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/30"></div>
+          <div className={authFormStyles.divider}>
+            <div className={authFormStyles.dividerLine}>
+              <div className={authFormStyles.dividerLineInner}>
+                <div className={authFormStyles.dividerBorder}></div>
               </div>
-              {/* <div className="relative flex justify-center text-xs">
-                <span className="px-3 bg-card text-muted-foreground">or</span>
-              </div> */}
             </div>
-            
-            {/* <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="mt-4 text-sm text-muted-foreground hover:text-foreground linear-transition"
-            >
-              {isSignUp 
-                ? 'Already have an account? Sign in' 
-                : "Don't have an account? Create one"
-              }
-            </button> */}
           </div>
         </CardContent>
       </Card>

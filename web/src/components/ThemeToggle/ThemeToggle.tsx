@@ -1,24 +1,16 @@
 import React, { useState } from 'react';
-import { useTheme } from '../contexts/ThemeContext';
-import { Button } from './ui/Button/Button';
-import { ThemeId, Theme } from '../types/theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { Button } from '../ui/Button/Button';
+import { ThemeId } from '../../types/theme';
+import { IThemePreview } from './IThemeToggle';
+import { themeToggleStyles, getThemePreviewClasses, getExpandIconClasses } from './ThemeToggle.styles';
 
-interface ThemePreviewProps {
-  theme: Theme;
-  isActive: boolean;
-  onClick: () => void;
-}
-
-const ThemePreview: React.FC<ThemePreviewProps> = ({ theme, isActive, onClick }) => {
+const ThemePreview: React.FC<IThemePreview> = ({ theme, isActive, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   
   return (
     <button
-      className={`
-        relative group flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-300
-        ${isActive ? 'border-primary scale-105' : 'border-border hover:border-muted-foreground'}
-        ${isHovered ? 'transform hover:scale-102' : ''}
-      `}
+      className={getThemePreviewClasses(isActive, isHovered)}
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -28,23 +20,23 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ theme, isActive, onClick })
       }}
     >
       {/* Theme color preview */}
-      <div className="flex gap-1 mb-1">
+      <div className={themeToggleStyles.themeColors}>
         <div 
-          className="w-4 h-4 rounded-full border"
+          className={themeToggleStyles.themeColorDot}
           style={{ 
             backgroundColor: theme.colors.background,
             borderColor: theme.colors.border 
           }}
         />
         <div 
-          className="w-4 h-4 rounded-full border"
+          className={themeToggleStyles.themeColorDot}
           style={{ 
             backgroundColor: theme.colors.primary,
             borderColor: theme.colors.border 
           }}
         />
         <div 
-          className="w-4 h-4 rounded-full border"
+          className={themeToggleStyles.themeColorDot}
           style={{ 
             backgroundColor: theme.colors.card,
             borderColor: theme.colors.border 
@@ -54,7 +46,7 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ theme, isActive, onClick })
       
       {/* Theme name */}
       <span 
-        className="text-sm font-medium transition-colors"
+        className={themeToggleStyles.themeName}
         style={{ 
           color: isActive ? theme.colors.primary : theme.colors.foreground 
         }}
@@ -65,7 +57,7 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ theme, isActive, onClick })
       {/* Active indicator */}
       {isActive && (
         <div 
-          className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2"
+          className={themeToggleStyles.activeIndicator}
           style={{ 
             backgroundColor: theme.colors.primary,
             borderColor: theme.colors.background
@@ -76,7 +68,7 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ theme, isActive, onClick })
       {/* Hover glow effect */}
       {isHovered && !isActive && (
         <div 
-          className="absolute inset-0 rounded-lg opacity-20 transition-opacity"
+          className={themeToggleStyles.hoverGlow}
           style={{ 
             boxShadow: `0 0 20px ${theme.colors.primary}` 
           }}
@@ -101,36 +93,36 @@ export const ThemeToggle = () => {
   };
 
   return (
-    <div className="relative">
+    <div className={themeToggleStyles.container}>
       {/* Compact view */}
       {!isExpanded && (
         <Button
           variant="outline"
           size="sm"
           onClick={toggleExpanded}
-          className="flex items-center gap-2 transition-all duration-300"
+          className={themeToggleStyles.compactButton}
         >
-          <div className="flex gap-1">
+          <div className={themeToggleStyles.colorPreviewContainer}>
             <div 
-              className="w-3 h-3 rounded-full border"
+              className={themeToggleStyles.colorPreview}
               style={{ 
                 backgroundColor: currentTheme.colors.background,
                 borderColor: currentTheme.colors.border 
               }}
             />
             <div 
-              className="w-3 h-3 rounded-full border"
+              className={themeToggleStyles.colorPreview}
               style={{ 
                 backgroundColor: currentTheme.colors.primary,
                 borderColor: currentTheme.colors.border 
               }}
             />
           </div>
-          <span className="text-sm font-medium">
+          <span className={themeToggleStyles.compactButtonText}>
             {currentTheme.name}
           </span>
           <svg 
-            className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+            className={getExpandIconClasses(isExpanded)}
             fill="none" 
             stroke="currentColor" 
             viewBox="0 0 24 24"
@@ -142,21 +134,23 @@ export const ThemeToggle = () => {
 
       {/* Expanded preview grid */}
       {isExpanded && (
-        <div className="absolute top-0 left-0 z-50 p-4 rounded-lg border shadow-lg transition-all duration-300"
-             style={{ 
-               backgroundColor: currentTheme.colors.popover,
-               borderColor: currentTheme.colors.border 
-             }}>
-          <div className="flex items-center justify-between mb-4">
+        <div 
+          className={themeToggleStyles.popover}
+          style={{ 
+            backgroundColor: currentTheme.colors.popover,
+            borderColor: currentTheme.colors.border 
+          }}
+        >
+          <div className={themeToggleStyles.popoverHeader}>
             <h3 
-              className="text-lg font-semibold"
+              className={themeToggleStyles.popoverTitle}
               style={{ color: currentTheme.colors.foreground }}
             >
               Choose Theme
             </h3>
             <button
               onClick={toggleExpanded}
-              className="p-1 rounded transition-colors"
+              className={themeToggleStyles.closeButton}
               style={{ 
                 color: currentTheme.colors.mutedForeground,
                 backgroundColor: 'transparent'
@@ -168,13 +162,13 @@ export const ThemeToggle = () => {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={themeToggleStyles.closeIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
           
-          <div className="grid grid-cols-2 gap-3 min-w-[280px]">
+          <div className={themeToggleStyles.themeGrid}>
             {Object.values(themes).map((theme) => (
               <ThemePreview
                 key={theme.id}
@@ -187,7 +181,7 @@ export const ThemeToggle = () => {
           
           {/* Description */}
           <p 
-            className="text-xs mt-3 text-center opacity-70"
+            className={themeToggleStyles.description}
             style={{ color: currentTheme.colors.mutedForeground }}
           >
             Themes are applied instantly and saved automatically
@@ -198,7 +192,7 @@ export const ThemeToggle = () => {
       {/* Backdrop */}
       {isExpanded && (
         <div 
-          className="fixed inset-0 z-40 transition-opacity duration-300"
+          className={themeToggleStyles.backdrop}
           style={{ backgroundColor: currentTheme.colors.overlay }}
           onClick={toggleExpanded}
         />

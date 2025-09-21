@@ -1,1 +1,0 @@
-Original implementation was in ui/label.tsx. Move logic and tests here.
