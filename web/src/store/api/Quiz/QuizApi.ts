@@ -5,6 +5,8 @@ import {
   GenerateQuizResponse,
   GetQuizResponse,
   GetUserQuizzesResponse,
+  GetDocumentQuizzesRequest,
+  GetDocumentQuizzesResponse,
   ApiResponse
 } from '@shared-types';
 
@@ -16,7 +18,11 @@ export const quizApi = baseApi.injectEndpoints({
         functionName: 'generateQuiz',
         data,
       }),
-      invalidatesTags: ['UserQuizzes', 'RecentQuizzes'],
+      invalidatesTags: (result, error, arg) => [
+        'UserQuizzes', 
+        'RecentQuizzes',
+        { type: 'DocumentQuizzes', id: arg.documentId },
+      ],
     }),
 
     // Get a specific quiz by ID
@@ -46,6 +52,18 @@ export const quizApi = baseApi.injectEndpoints({
       providesTags: ['RecentQuizzes'],
     }),
 
+    // Get all quizzes for a specific document
+    getDocumentQuizzes: builder.query<ApiResponse<GetDocumentQuizzesResponse>, GetDocumentQuizzesRequest>({
+      query: (data) => ({
+        functionName: 'getDocumentQuizzes',
+        data,
+      }),
+      providesTags: (result, error, arg) => [
+        { type: 'DocumentQuizzes', id: arg.documentId },
+        'UserQuizzes',
+      ],
+    }),
+
     // Delete a quiz (if we implement this later)
     deleteQuiz: builder.mutation<ApiResponse<{ success: boolean }>, { quizId: string }>({
       query: (data) => ({
@@ -65,5 +83,6 @@ export const {
   useGetQuizQuery,
   useGetUserQuizzesQuery,
   useGetRecentQuizzesQuery,
+  useGetDocumentQuizzesQuery,
   useDeleteQuizMutation,
 } = quizApi;

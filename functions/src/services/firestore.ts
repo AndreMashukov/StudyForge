@@ -245,6 +245,34 @@ export class FirestoreService {
   }
 
   /**
+   * Get all quizzes for a specific document
+   */
+  public static async getDocumentQuizzes(documentId: string, userId?: string): Promise<Quiz[]> {
+    try {
+      const db = this.getDb();
+      let query = db.collection("quizzes").where("documentId", "==", documentId);
+      
+      if (userId) {
+        query = query.where("userId", "==", userId);
+      }
+
+      const snapshot = await query.orderBy("createdAt", "desc").get();
+      
+      return snapshot.docs.map((doc) => {
+        const data = doc.data() as Quiz;
+        return {
+          ...data,
+          id: doc.id,
+          createdAt: this.convertTimestamp(data.createdAt),
+        };
+      });
+    } catch (error) {
+      functions.logger.error(`Error getting quizzes for document ${documentId}:`, error);
+      throw new Error(`Failed to get document quizzes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Get document metadata from documents collection
    */
   public static async getDocument(userId: string, documentId: string): Promise<{ id: string; title: string; wordCount?: number }> {

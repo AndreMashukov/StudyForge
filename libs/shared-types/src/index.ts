@@ -96,6 +96,14 @@ export interface GetUserQuizzesResponse {
   quizzes: Quiz[];
 }
 
+export interface GetDocumentQuizzesRequest {
+  documentId: string;
+}
+
+export interface GetDocumentQuizzesResponse {
+  quizzes: Quiz[];
+}
+
 // Enhanced Document API Types
 export interface CreateDocumentRequest {
   title: string;

@@ -255,6 +255,65 @@ export const getRecentQuizzes = onCall(
 );
 
 /**
+ * Get Document Quizzes
+ * Get all quizzes for a specific document
+ * Requires authentication
+ */
+export const getDocumentQuizzes = onCall(
+  {
+    cors: true,
+  },
+  async (request): Promise<ApiResponse<{ quizzes: Quiz[] }>> => {
+    try {
+      const userId = request.auth?.uid;
+      const { documentId } = request.data;
+      
+      if (!userId) {
+        return {
+          success: false,
+          error: {
+            code: "UNAUTHENTICATED",
+            message: "Authentication required",
+          },
+        };
+      }
+
+      if (!documentId) {
+        return {
+          success: false,
+          error: {
+            code: "MISSING_PARAMETER",
+            message: "documentId is required",
+          },
+        };
+      }
+
+      console.log(`Fetching quizzes for document: ${documentId}, user: ${userId}`);
+
+      const quizzes = await FirestoreService.getDocumentQuizzes(documentId, userId);
+
+      return {
+        success: true,
+        data: {
+          quizzes,
+        },
+      };
+
+    } catch (error) {
+      console.error("Error in getDocumentQuizzes:", error);
+      
+      return {
+        success: false,
+        error: {
+          code: "FETCH_FAILED",
+          message: error instanceof Error ? error.message : "Failed to fetch document quizzes",
+        },
+      };
+    }
+  }
+);
+
+/**
  * Health check endpoint (HTTP for monitoring)
  */
 export const healthCheck = onRequest(

@@ -198,7 +198,7 @@ export interface Quiz {
 
 ---
 
-### **Phase 2: Frontend Integration (Week 2-3)** ✅ **PARTIALLY COMPLETED**
+### **Phase 2: Frontend Integration (Week 2-3)** ✅ **COMPLETED**
 *User interface updates and document-quiz workflow*
 
 #### **2.1 Documents Page Enhancement** ✅ **COMPLETED**
@@ -303,6 +303,40 @@ generateQuiz: builder.mutation<ApiResponse<GenerateQuizResponse>, GenerateQuizRe
 - ✅ API calls use documentId as primary parameter
 - ✅ Proper cache management for document-quiz relationships
 - ✅ Error handling specific to document-based generation
+
+#### **2.4 Quiz History Display** ✅ **COMPLETED**
+```typescript
+// Priority: MEDIUM | Effort: 2 days
+
+Files: web/src/components/DocumentQuizHistory/
+       web/src/store/api/Quiz/QuizApi.ts
+       functions/src/index.ts
+```
+- [x] **2.4.1** Add getDocumentQuizzes API endpoint ✅
+- [x] **2.4.2** Create DocumentQuizHistory component ✅
+- [x] **2.4.3** Display quiz history on document cards ✅
+- [x] **2.4.4** Handle quiz navigation from history ✅
+
+**Implementation Details:**
+```typescript
+// Backend API Endpoint - IMPLEMENTED ✅
+export const getDocumentQuizzes = onCall(async (request) => {
+  const { documentId } = request.data;
+  const userId = request.auth?.uid;
+  
+  const quizzes = await FirestoreService.getDocumentQuizzes(documentId, userId);
+  return { success: true, data: { quizzes } };
+});
+
+// Frontend Component - IMPLEMENTED ✅
+<DocumentQuizHistory documentId={document.id} className="border-t pt-3" />
+```
+
+**Acceptance Criteria:**
+- ✅ Users can see all quizzes created from each document
+- ✅ Quiz history shows creation time and question count
+- ✅ One-click navigation to quiz from history
+- ✅ Real-time updates when new quizzes are generated
 
 ### **Phase 3: Advanced Features (Week 3-4)**
 *Enhanced functionality and user experience improvements*
