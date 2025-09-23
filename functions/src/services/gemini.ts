@@ -127,7 +127,34 @@ ${content.content}
 5. Include questions about main ideas, supporting details, conclusions, and implications
 6. Avoid overly specific details that aren't central to the article's main points
 7. Make incorrect options plausible but clearly wrong to someone who understood the content
-8. Provide a brief explanation for why the correct answer is right (optional but preferred)
+8. **MANDATORY**: Each question MUST include a brief explanation of why the correct answer is right
+
+**ANSWER DISTRIBUTION RULES (CRITICAL):**
+
+**1. Balanced Distribution Requirements**:
+   - ✅ **ENSURE**: Each option (A, B, C, D) should be correct roughly equal times
+   - ✅ **TARGET**: For 10 questions: each option correct 2-3 times
+   - ✅ **TARGET**: For 8 questions: each option correct 2 times
+   - ✅ **TARGET**: For 12 questions: each option correct 3 times
+
+**2. Anti-Clustering Rules**:
+   - ❌ **AVOID**: No more than 2 consecutive questions with same correct answer
+   - ❌ **AVOID**: No single option being correct more than 40% of total questions
+   - ❌ **AVOID**: Any option being correct less than 20% of total questions
+   
+**3. Quality Check Process**:
+   - **Step 1**: After generating all questions, count correct answers by option
+   - **Step 2**: If distribution is uneven (example: A-1, B-7, C-1, D-1), REBALANCE
+   - **Step 3**: Redistribute by moving questions between options while maintaining answer accuracy
+   - **Step 4**: Verify no more than 2 consecutive questions have same correct answer
+   
+**4. Example BAD Distribution** (to avoid):
+   Question sequence: Q1-B, Q2-C, Q3-B, Q4-A, Q5-B, Q6-B, Q7-B, Q8-B, Q9-B, Q10-B
+   Count: Option A: 1, Option B: 7, Option C: 1, Option D: 0
+   
+**5. Example GOOD Distribution** (target):
+   Question sequence: Q1-A, Q2-C, Q3-B, Q4-D, Q5-A, Q6-C, Q7-B, Q8-D, Q9-A, Q10-C
+   Count: Option A: 3, Option B: 2, Option C: 3, Option D: 2
 
 **REQUIRED JSON FORMAT:**
 {
@@ -137,7 +164,7 @@ ${content.content}
       "question": "Question text here?",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctAnswer": 0,
-      "explanation": "Brief explanation of why this answer is correct (optional)"
+      "explanation": "Brief explanation of why this answer is correct (MANDATORY)"
     }
   ]
 }
@@ -148,6 +175,8 @@ ${content.content}
 - The correctAnswer field should be an integer (0, 1, 2, or 3) indicating the index of the correct option
 - Make sure questions are clear, concise, and grammatically correct
 - Ensure all options are roughly the same length and complexity
+- **VERIFY** answer distribution follows the rules above before finalizing
+- **MANDATORY**: Every question must have an explanation field
 
 Generate the quiz now:`;
 
@@ -192,7 +221,15 @@ Generate the quiz now:`;
         if (question.correctAnswer < 0 || question.correctAnswer > 3) {
           throw new Error(`Question ${index + 1} has invalid correctAnswer index`);
         }
+        
+        // Validate mandatory explanation
+        if (!question.explanation || typeof question.explanation !== "string" || question.explanation.trim().length === 0) {
+          throw new Error(`Question ${index + 1} is missing required explanation`);
+        }
       });
+
+      // Validate answer distribution
+      this.validateAnswerDistribution(parsed.questions as Array<{ correctAnswer: number }>);
 
       functions.logger.info(`Parsed quiz with ${parsed.questions.length} questions`);
       
@@ -202,6 +239,59 @@ Generate the quiz now:`;
       functions.logger.error("Error parsing Gemini AI response:", { error, responseText });
       throw new Error(`Failed to parse quiz response: ${error}`);
     }
+  }
+
+  /**
+   * Validate answer distribution follows the balanced distribution rules
+   */
+  private static validateAnswerDistribution(questions: Array<{ correctAnswer: number }>): void {
+    const totalQuestions = questions.length;
+    if (totalQuestions === 0) return;
+
+    // Count occurrences of each correct answer option
+    const answerCounts = [0, 0, 0, 0]; // A, B, C, D
+    questions.forEach(q => {
+      if (q.correctAnswer >= 0 && q.correctAnswer <= 3) {
+        answerCounts[q.correctAnswer]++;
+      }
+    });
+
+    // Calculate expected distribution
+    const idealCount = totalQuestions / 4;
+    const minCount = Math.floor(totalQuestions * 0.2); // 20% minimum
+    const maxCount = Math.ceil(totalQuestions * 0.4);  // 40% maximum
+
+    // Check distribution balance
+    for (let i = 0; i < 4; i++) {
+      const optionLetter = ['A', 'B', 'C', 'D'][i];
+      if (answerCounts[i] < minCount) {
+        functions.logger.warn(`Answer distribution warning: Option ${optionLetter} appears only ${answerCounts[i]} times (minimum: ${minCount})`);
+      }
+      if (answerCounts[i] > maxCount) {
+        functions.logger.warn(`Answer distribution warning: Option ${optionLetter} appears ${answerCounts[i]} times (maximum: ${maxCount})`);
+      }
+    }
+
+    // Check for consecutive patterns (no more than 2 in a row)
+    for (let i = 0; i < questions.length - 2; i++) {
+      if (questions[i].correctAnswer === questions[i + 1].correctAnswer && 
+          questions[i + 1].correctAnswer === questions[i + 2].correctAnswer) {
+        const optionLetter = ['A', 'B', 'C', 'D'][questions[i].correctAnswer];
+        functions.logger.warn(`Answer clustering detected: Option ${optionLetter} appears 3 times consecutively at questions ${i + 1}-${i + 3}`);
+      }
+    }
+
+    // Log distribution for debugging
+    functions.logger.info('Answer distribution validation:', {
+      totalQuestions,
+      distribution: {
+        A: answerCounts[0],
+        B: answerCounts[1], 
+        C: answerCounts[2],
+        D: answerCounts[3]
+      },
+      idealCount: idealCount.toFixed(1)
+    });
   }
 
   /**

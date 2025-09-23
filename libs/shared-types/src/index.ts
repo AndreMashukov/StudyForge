@@ -16,7 +16,7 @@ export interface QuizQuestion {
   question: string;
   options: string[]; // 4 options
   correctAnswer: number; // index of correct option
-  explanation?: string; // Added explanation support from Gemini
+  explanation: string; // Mandatory explanation for the correct answer
 }
 
 // Document Types (New document-centric data model)

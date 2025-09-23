@@ -21,7 +21,7 @@ export const useFetchQuizData = () => {
       options: question.options,
       correct: question.correctAnswer,
       correctAnswer: question.correctAnswer, // Keep both for compatibility
-      explanation: `This is the correct answer for question ${index + 1}.`, // Could be added to Firestore schema later
+      explanation: question.explanation, // Use actual explanation from API
     }));
   }, []);
 

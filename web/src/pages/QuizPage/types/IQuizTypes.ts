@@ -3,11 +3,11 @@ import { Quiz, QuizQuestion } from '@shared-types';
 // Re-export types from shared-types for consistency
 export type { Quiz, QuizQuestion } from '@shared-types';
 
-// Quiz question data structure (extending shared type for explanation support)
+// Quiz question data structure (extending shared type for UI management)
 export interface IQuizQuestion extends QuizQuestion {
   id: number; // Add numeric ID for UI state management
   correct: number; // Add correct property for UI consistency (maps to correctAnswer)
-  explanation?: string; // Add explanation for educational value
+  // explanation is now mandatory from shared types
 }
 
 // User's answer to a question
