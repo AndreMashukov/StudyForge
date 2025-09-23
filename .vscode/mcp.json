@@ -8,10 +8,10 @@
     }
   ],
   "servers": {
-    "browsermcp": {
+    "playwright": {
       "command": "npx",
       "args": [
-        "@browsermcp/mcp@latest"
+        "@playwright/mcp@latest"
       ]
     }
   }
