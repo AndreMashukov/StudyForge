@@ -18,18 +18,24 @@ export class FirestoreService {
   /**
    * Safely check if a value is a Firestore Timestamp
    */
-  private static isFirestoreTimestamp(value: unknown): boolean {
+  private static isFirestoreTimestamp(value: unknown): value is { toDate(): Date } {
     try {
       // Check if it's a Firestore Timestamp object
-      return value && 
+      return value !== null && 
+             value !== undefined &&
              typeof value === 'object' && 
-             typeof value.toDate === 'function' &&
-             (value.constructor?.name === 'Timestamp' || 
-              value._delegate?.constructor?.name === 'Timestamp' ||
+             'toDate' in value &&
+             typeof (value as any).toDate === 'function' &&
+             ((value as any).constructor?.name === 'Timestamp' || 
+              (value as any)._delegate?.constructor?.name === 'Timestamp' ||
               (admin.firestore.Timestamp && value instanceof admin.firestore.Timestamp));
     } catch {
       // If instanceof check fails, fall back to duck typing
-      return value && typeof value.toDate === 'function';
+      return value !== null && 
+             value !== undefined &&
+             typeof value === 'object' &&
+             'toDate' in value &&
+             typeof (value as any).toDate === 'function';
     }
   }
 
@@ -38,13 +44,17 @@ export class FirestoreService {
    */
   private static convertTimestamp(value: unknown): Date {
     if (this.isFirestoreTimestamp(value)) {
-      return (value as { toDate(): Date }).toDate();
+      return value.toDate();
     }
     if (value instanceof Date) {
       return value;
     }
     // If it's a string or number, try to convert to Date
-    return new Date(value);
+    if (typeof value === 'string' || typeof value === 'number') {
+      return new Date(value);
+    }
+    // Fallback to current date if value is not convertible
+    return new Date();
   }
 
   /**
