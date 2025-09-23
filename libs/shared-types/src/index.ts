@@ -1,13 +1,15 @@
-// Quiz Types (Updated for document-centric architecture)
+// Quiz Types (Document-centric architecture)
 export interface Quiz {
   id: string;
-  documentId: string; // Reference to the source document (replaces urlId)
+  documentId: string; // Primary reference to the source document
   title: string;
   questions: QuizQuestion[];
   createdAt: Date;
   userId?: string;
-  // Legacy support for backward compatibility
-  urlId?: string; // @deprecated - use documentId instead
+  
+  // New fields for document-based architecture
+  generationAttempt?: number; // Track multiple generations per document
+  documentTitle?: string; // Cache for performance
 }
 
 export interface QuizQuestion {
@@ -76,24 +78,9 @@ export interface DocumentMetadata {
   quizCount?: number; // Number of quizzes created from this document
 }
 
-// URL Types (Legacy - kept for backward compatibility)
-export interface UrlContent {
-  id: string;
-  url: string;
-  title: string;
-  content: string;
-  extractedAt: Date;
-  userId?: string;
-}
-
-// API Types (Updated for document-centric architecture)
+// API Types (Document-centric architecture)
 export interface GenerateQuizRequest {
-  documentId: string; // Changed from url to documentId
-}
-
-// Legacy support
-export interface LegacyGenerateQuizRequest {
-  url: string; // @deprecated - use documentId instead
+  documentId: string;
 }
 
 export interface GenerateQuizResponse {

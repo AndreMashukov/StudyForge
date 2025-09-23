@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { DocumentsPageContext } from './DocumentsPageContext';
 import { IDocumentsPageContext } from '../types/IDocumentsPageContext';
 import { useFetchDocuments } from './hooks/api/useFetchDocuments';
@@ -11,6 +12,7 @@ interface DocumentsPageProviderProps {
 
 export const DocumentsPageProvider: React.FC<DocumentsPageProviderProps> = ({ children }) => {
   const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { documents, isLoading, error: fetchError } = useFetchDocuments(
     localSearchQuery.trim() || undefined
@@ -18,6 +20,24 @@ export const DocumentsPageProvider: React.FC<DocumentsPageProviderProps> = ({ ch
   
   const { deleteDocument } = useDeleteDocument();
   const baseHandlers = useDocumentsPageHandlers();
+
+  // Handle URL parameters for auto-quiz generation
+  useEffect(() => {
+    const highlightDocId = searchParams.get('highlight');
+    const action = searchParams.get('action');
+    
+    if (highlightDocId && action === 'generate-quiz' && documents && documents.length > 0) {
+      const documentExists = documents.find(doc => doc.id === highlightDocId);
+      if (documentExists) {
+        // Auto-trigger quiz generation for the highlighted document
+        console.log('Auto-triggering quiz generation for document:', highlightDocId);
+        baseHandlers.handleCreateQuizFromDocument(highlightDocId);
+        
+        // Clear the URL parameters after processing
+        setSearchParams({}); 
+      }
+    }
+  }, [documents, searchParams, setSearchParams, baseHandlers]);
 
   const handlers = useMemo(() => ({
     ...baseHandlers,

@@ -36,6 +36,8 @@ export const DocumentsPageContainer = () => {
     handlers 
   } = useDocumentsPageContext();
 
+  const { isGeneratingQuiz } = handlers;
+
   // Early returns for loading and error states
   if (isLoading) {
     return (
@@ -158,10 +160,11 @@ export const DocumentsPageContainer = () => {
                         variant="default"
                         size="sm"
                         onClick={() => handlers.handleCreateQuizFromDocument(document.id)}
+                        disabled={isGeneratingQuiz}
                         className="flex-1"
                       >
                         <Brain size={14} />
-                        Create Quiz
+                        {isGeneratingQuiz ? 'Generating...' : 'Create Quiz'}
                       </Button>
                       <Button
                         variant="outline"

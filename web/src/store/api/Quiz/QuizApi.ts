@@ -10,7 +10,7 @@ import {
 
 export const quizApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Generate a quiz from a URL
+    // Generate a quiz from a document
     generateQuiz: builder.mutation<ApiResponse<GenerateQuizResponse>, GenerateQuizRequest>({
       query: (data) => ({
         functionName: 'generateQuiz',

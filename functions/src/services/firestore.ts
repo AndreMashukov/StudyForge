@@ -1,10 +1,8 @@
 import * as admin from "firebase-admin";
 import { 
   Quiz, 
-  UrlContent, 
   QuizQuestion, 
-  GeminiQuizResponse, 
-  ScrapedContent 
+  GeminiQuizResponse
 } from "../../libs/shared-types/src/index";
 import * as functions from "firebase-functions";
 
@@ -77,162 +75,7 @@ export class FirestoreService {
     return this.db;
   }
 
-  // ========== URLs Collection Operations ==========
-
-  /**
-   * Save scraped URL content to Firestore
-   */
-  public static async saveUrlContent(
-    url: string, 
-    scrapedContent: ScrapedContent, 
-    userId?: string
-  ): Promise<UrlContent> {
-    try {
-      const db = this.getDb();
-      const urlsCollection = db.collection("urls");
-
-      // Check if URL already exists for this user
-      let existingDoc = null;
-      if (userId) {
-        const existingQuery = await urlsCollection
-          .where("url", "==", url)
-          .where("userId", "==", userId)
-          .limit(1)
-          .get();
-        
-        if (!existingQuery.empty) {
-          existingDoc = existingQuery.docs[0];
-        }
-      }
-
-      const urlData: UrlContent = {
-        id: existingDoc?.id || urlsCollection.doc().id,
-        url,
-        title: scrapedContent.title,
-        content: scrapedContent.content,
-        extractedAt: new Date(),
-        ...(userId && { userId }), // Only include userId if it's defined
-      };
-
-      if (existingDoc) {
-        // Update existing document
-        await existingDoc.ref.update({
-          title: urlData.title,
-          content: urlData.content,
-          extractedAt: urlData.extractedAt,
-        });
-        
-        functions.logger.info(`Updated existing URL content: ${url}`);
-      } else {
-        // Create new document
-        await urlsCollection.doc(urlData.id).set(urlData);
-        functions.logger.info(`Saved new URL content: ${url}`);
-      }
-
-      return urlData;
-    } catch (error) {
-      functions.logger.error("Error saving URL content:", error);
-      throw new Error(`Failed to save URL content: ${error}`);
-    }
-  }
-
-  /**
-   * Get URL content by ID
-   */
-  public static async getUrlContent(urlId: string): Promise<UrlContent | null> {
-    try {
-      const db = this.getDb();
-      const doc = await db.collection("urls").doc(urlId).get();
-      
-      if (!doc.exists) {
-        return null;
-      }
-
-      const data = doc.data() as UrlContent;
-      return {
-        ...data,
-        id: doc.id,
-        extractedAt: this.convertTimestamp(data.extractedAt),
-      };
-    } catch (error) {
-      functions.logger.error(`Error getting URL content ${urlId}:`, error);
-      throw new Error(`Failed to get URL content: ${error}`);
-    }
-  }
-
-  /**
-   * Find URL content by URL string
-   */
-  public static async findUrlByString(url: string, userId?: string): Promise<UrlContent | null> {
-    try {
-      const db = this.getDb();
-      let query = db.collection("urls").where("url", "==", url);
-      
-      if (userId) {
-        query = query.where("userId", "==", userId);
-      }
-
-      const snapshot = await query.limit(1).get();
-      
-      if (snapshot.empty) {
-        return null;
-      }
-
-      const doc = snapshot.docs[0];
-      const data = doc.data() as UrlContent;
-      
-      return {
-        ...data,
-        id: doc.id,
-        extractedAt: this.convertTimestamp(data.extractedAt),
-      };
-    } catch (error) {
-      functions.logger.error(`Error finding URL ${url}:`, error);
-      throw new Error(`Failed to find URL: ${error}`);
-    }
-  }
-
   // ========== Quizzes Collection Operations ==========
-
-  /**
-   * Save generated quiz to Firestore
-   */
-  public static async saveQuiz(
-    urlId: string,
-    geminiQuiz: GeminiQuizResponse,
-    userId?: string
-  ): Promise<Quiz> {
-    try {
-      const db = this.getDb();
-      const quizzesCollection = db.collection("quizzes");
-
-      // Convert Gemini questions to Quiz questions
-      const questions: QuizQuestion[] = geminiQuiz.questions.map((q) => ({
-        question: q.question,
-        options: q.options,
-        correctAnswer: q.correctAnswer,
-      }));
-
-      const quizData: Quiz = {
-        id: quizzesCollection.doc().id,
-        documentId: urlId, // For legacy URL-based quizzes, use urlId as documentId
-        urlId, // Keep for backward compatibility
-        title: geminiQuiz.title,
-        questions,
-        createdAt: new Date(),
-        ...(userId && { userId }), // Only include userId if it's defined
-      };
-
-      await quizzesCollection.doc(quizData.id).set(quizData);
-      
-      functions.logger.info(`Saved quiz: ${quizData.id} with ${questions.length} questions`);
-      
-      return quizData;
-    } catch (error) {
-      functions.logger.error("Error saving quiz:", error);
-      throw new Error(`Failed to save quiz: ${error}`);
-    }
-  }
 
   /**
    * Get quiz by ID
@@ -367,10 +210,15 @@ export class FirestoreService {
   /**
    * Check if quiz exists for a specific URL and user
    */
-  public static async findExistingQuiz(urlId: string, userId?: string): Promise<Quiz | null> {
+  // ========== Document-based Quiz Operations ==========
+
+  /**
+   * Find existing quiz for a document
+   */
+  public static async findExistingQuizByDocument(documentId: string, userId?: string): Promise<Quiz | null> {
     try {
       const db = this.getDb();
-      let query = db.collection("quizzes").where("urlId", "==", urlId);
+      let query = db.collection("quizzes").where("documentId", "==", documentId);
       
       if (userId) {
         query = query.where("userId", "==", userId);
@@ -391,8 +239,107 @@ export class FirestoreService {
         createdAt: this.convertTimestamp(data.createdAt),
       };
     } catch (error) {
-      functions.logger.error(`Error finding existing quiz for URL ${urlId}:`, error);
+      functions.logger.error(`Error finding existing quiz for document ${documentId}:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Get document metadata from documents collection
+   */
+  public static async getDocument(userId: string, documentId: string): Promise<{ id: string; title: string; wordCount?: number }> {
+    try {
+      const db = this.getDb();
+      const docRef = db.collection("documents").doc(documentId);
+      const doc = await docRef.get();
+      
+      if (!doc.exists) {
+        throw new Error("Document not found");
+      }
+
+      const data = doc.data();
+      if (!data) {
+        throw new Error("Document data is empty");
+      }
+
+      // Verify user has access to this document
+      if (data.userId !== userId) {
+        throw new Error("Access denied: Document belongs to another user");
+      }
+      
+      return {
+        id: doc.id,
+        title: data.title,
+        wordCount: data.wordCount,
+      };
+    } catch (error) {
+      functions.logger.error(`Error getting document ${documentId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get document content from storage via DocumentCrudService
+   */
+  public static async getDocumentContent(userId: string, documentId: string): Promise<string> {
+    try {
+      // Import DocumentService here to avoid circular dependency
+      const { DocumentService } = await import('./document-storage.js');
+      return await DocumentService.getDocumentContent(userId, documentId);
+    } catch (error) {
+      functions.logger.error(`Error getting document content ${documentId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Save quiz generated from a document
+   */
+  public static async saveQuizFromDocument(
+    documentId: string,
+    geminiQuiz: GeminiQuizResponse,
+    userId?: string
+  ): Promise<Quiz> {
+    try {
+      const db = this.getDb();
+      const quizzesCollection = db.collection("quizzes");
+
+      // Get document metadata for quiz title
+      const document = await this.getDocument(userId!, documentId);
+      
+      // Count existing quizzes for this document to determine generation attempt
+      const existingQuizzesSnapshot = await quizzesCollection
+        .where("documentId", "==", documentId)
+        .where("userId", "==", userId)
+        .get();
+      
+      const generationAttempt = existingQuizzesSnapshot.size + 1;
+
+      const quiz: Quiz = {
+        id: "",
+        documentId: documentId,
+        title: `${document.title} - Quiz ${generationAttempt}`,
+        questions: geminiQuiz.questions.map((q: any): QuizQuestion => ({
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          explanation: q.explanation,
+        })),
+        createdAt: new Date(),
+        userId: userId,
+        // Add generation metadata
+        generationAttempt: generationAttempt,
+        documentTitle: document.title,
+      };
+
+      const docRef = await quizzesCollection.add(quiz);
+      quiz.id = docRef.id;
+
+      functions.logger.info(`Quiz saved from document: ${docRef.id} (document: ${documentId}, attempt: ${generationAttempt})`);
+      return quiz;
+    } catch (error) {
+      functions.logger.error("Error saving quiz from document:", error);
+      throw new Error(`Failed to save quiz: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

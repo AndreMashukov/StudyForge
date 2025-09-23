@@ -13,7 +13,6 @@ import { onRequest, onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 
 // Services
-import { WebScraperService } from "./services/scraper";
 import { GeminiService } from "./services/gemini";
 import { FirestoreService } from "./services/firestore";
 
@@ -49,98 +48,63 @@ export const generateQuiz = onCall(
   },
   async (request): Promise<ApiResponse<GenerateQuizResponse>> => {
     try {
-      // Support both new documentId-based requests and legacy URL requests
-      const requestData = request.data as GenerateQuizRequest | { url: string };
+      // Only support documentId-based requests
+      const requestData = request.data as GenerateQuizRequest;
       const userId = request.auth?.uid;
 
-      let documentId: string | undefined;
-      let url: string | undefined;
-
-      // Check if this is a new documentId-based request
-      if ('documentId' in requestData && requestData.documentId) {
-        documentId = requestData.documentId;
-      } 
-      // Check if this is a legacy URL-based request
-      else if ('url' in requestData && requestData.url) {
-        url = requestData.url;
-      } else {
-        throw new Error("Either documentId or url is required");
+      if (!requestData.documentId) {
+        throw new Error("documentId is required");
       }
 
-      // Handle documentId-based requests (new approach)
-      if (documentId) {
-        console.log(`Generating quiz from document: ${documentId}`);
-        // TODO: Implement document-based quiz generation
-        // For now, throw an error to indicate this isn't implemented yet
-        throw new Error("Document-based quiz generation not yet implemented. Please use URL-based generation for now.");
-      }
+      const documentId = requestData.documentId;
 
-      // Handle URL-based requests (legacy approach)
-      if (url) {
-        // Validate URL format
-        if (!WebScraperService.isValidUrl(url)) {
-          throw new Error("Invalid URL format");
-        }
-
-        console.log(`Starting legacy quiz generation for URL: ${url}`);
-
-        // Step 1: Check if we already have this URL content
-        let urlContent = await FirestoreService.findUrlByString(url, userId);
-        
-        if (!urlContent) {
-          // Step 2: Scrape the URL content
-          console.log("Scraping URL content...");
-          const scrapedContent = await WebScraperService.extractContent(url);
-          
-          // Step 3: Save URL content to Firestore
-          urlContent = await FirestoreService.saveUrlContent(url, scrapedContent, userId);
-        } else {
-          console.log("Using cached URL content");
-        }
-
-        // Step 4: Check if we already have a quiz for this URL
-        const existingQuiz = await FirestoreService.findExistingQuiz(urlContent.id, userId);
-        
-        if (existingQuiz) {
-          console.log("Returning existing quiz");
-          return {
-            success: true,
-            data: {
-              quizId: existingQuiz.id,
-              quiz: existingQuiz,
-            },
-          };
-        }
-
-        // Step 5: Validate content for quiz generation
-        const scrapedContent = {
-          title: urlContent.title,
-          content: urlContent.content,
-          wordCount: urlContent.content.split(/\s+/).length,
-        };
-
-        GeminiService.validateContentForQuiz(scrapedContent);
-
-        // Step 6: Generate quiz with Gemini AI
-        console.log("Generating quiz with Gemini AI...");
-        const geminiQuiz = await GeminiService.generateQuiz(scrapedContent);
-
-        // Step 7: Save quiz to Firestore
-        const savedQuiz = await FirestoreService.saveQuiz(urlContent.id, geminiQuiz, userId);
-
-        console.log(`Successfully generated quiz: ${savedQuiz.id}`);
-
+      console.log(`Generating quiz from document: ${documentId}`);
+      
+      // Step 1: Get document metadata
+      const document = await FirestoreService.getDocument(userId!, documentId);
+      
+      // Step 2: Retrieve document content from Storage
+      const content = await FirestoreService.getDocumentContent(userId!, documentId);
+      
+      // Step 3: Validate content for quiz generation
+      const documentContent = {
+        title: document.title,
+        content: content,
+        wordCount: document.wordCount || content.split(/\s+/).length,
+      };
+      
+      GeminiService.validateContentForQuiz(documentContent);
+      
+      // Step 4: Check if we already have a quiz for this document
+      const existingQuiz = await FirestoreService.findExistingQuizByDocument(documentId, userId!);
+      
+      if (existingQuiz) {
+        console.log("Returning existing quiz for document");
         return {
           success: true,
           data: {
-            quizId: savedQuiz.id,
-            quiz: savedQuiz,
+            quizId: existingQuiz.id,
+            quiz: existingQuiz,
           },
         };
       }
-
-      // This should never be reached, but just in case
-      throw new Error("No valid request parameters provided");
+      
+      // Step 5: Generate quiz with Gemini AI (allowing multiple per document)
+      console.log("Generating quiz with Gemini AI for document...");
+      const geminiQuiz = await GeminiService.generateQuiz(documentContent);
+      
+      // Step 6: Save quiz with document reference
+      const savedQuiz = await FirestoreService.saveQuizFromDocument(documentId, geminiQuiz, userId!);
+      
+      console.log(`Successfully generated quiz from document: ${savedQuiz.id}`);
+      
+      return {
+        success: true,
+        data: {
+          quizId: savedQuiz.id,
+          quiz: savedQuiz,
+        },
+      };
 
     } catch (error) {
       console.error("Error in generateQuiz:", error);

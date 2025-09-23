@@ -33,8 +33,8 @@ export const CreateDocumentPageProvider: React.FC<CreateDocumentPageProviderProp
           title: data.title,
         }).unwrap();
         
-        // Navigate to the created document or documents library
-        navigate(`/document/${result.id}`);
+        // Phase 2.2: Redirect to documents page with generation option
+        navigate(`/documents?highlight=${result.id}&action=generate-quiz`);
       } catch (err) {
         console.error('Error creating document from URL:', err);
         setError('Failed to create document from URL. Please check the URL and try again.');
