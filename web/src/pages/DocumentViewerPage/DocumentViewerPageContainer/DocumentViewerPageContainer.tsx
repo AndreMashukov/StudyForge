@@ -1,8 +1,9 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Page } from '../../../components/Page';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { ActionsDropdown } from '../../../components/ui/ActionsDropdown';
 import { useGetDocumentQuery } from '../../../store/api/Documents';
 import { ArrowLeft, Brain, Calendar, FileText } from 'lucide-react';
 
@@ -27,10 +28,15 @@ const formatDate = (date: Date | { toDate(): Date } | string): string => {
 
 export const DocumentViewerPageContainer = () => {
   const { documentId } = useParams<{ documentId: string }>();
+  const navigate = useNavigate();
   
   const { data: document, isLoading, error } = useGetDocumentQuery(documentId || '', {
     skip: !documentId,
   });
+
+  const handleCreateQuizFromDocument = (docId: string) => {
+    navigate(`/quiz/create?documentId=${docId}`);
+  };
 
   // Early returns for loading and error states
   if (!documentId) {
@@ -94,10 +100,24 @@ export const DocumentViewerPageContainer = () => {
             <ArrowLeft size={16} />
             Back
           </Button>
-          <Button className="flex items-center gap-2">
-            <Brain size={16} />
-            Create Quiz
-          </Button>
+          <ActionsDropdown
+            items={[
+              {
+                id: 'create-quiz',
+                label: 'Create Quiz',
+                icon: <Brain size={16} />,
+                onClick: () => documentId && handleCreateQuizFromDocument(documentId),
+              },
+              // Future actions can be added here:
+              // {
+              //   id: 'create-flashcards',
+              //   label: 'Create Flashcards',
+              //   icon: <BookOpen size={16} />,
+              //   onClick: () => documentId && handleCreateFlashcardsFromDocument(documentId),
+              //   disabled: true, // Coming soon
+              // },
+            ]}
+          />
         </div>
 
         {/* Document Header */}

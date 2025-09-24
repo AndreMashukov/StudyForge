@@ -6,7 +6,6 @@ export interface IDocumentsPageHandlers {
   handleDeleteDocument: (documentId: string) => void;
   handleCreateQuizFromDocument: (documentId: string) => void;
   handleSearchChange: (query: string) => void;
-  isGeneratingQuiz: boolean;
 }
 
 export interface IDocumentsApi {

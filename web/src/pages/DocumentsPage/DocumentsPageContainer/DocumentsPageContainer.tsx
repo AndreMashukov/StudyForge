@@ -6,6 +6,7 @@ import { Page } from '../../../components/Page';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
+import { ActionsDropdown } from '../../../components/ui/ActionsDropdown';
 import { DocumentQuizHistory } from '../../../components/DocumentQuizHistory';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
 import { Plus, Search, FileText, Calendar, Eye, Brain, Trash2 } from 'lucide-react';
@@ -38,8 +39,6 @@ export const DocumentsPageContainer = () => {
 
   const { documents, isLoading, error } = documentsApi;
   const searchQuery = useSelector(selectSearchQuery);
-
-  const { isGeneratingQuiz } = handlers;
 
   // Early returns for loading and error states
   if (isLoading) {
@@ -162,16 +161,25 @@ export const DocumentsPageContainer = () => {
                         <Eye size={14} />
                         View
                       </Button>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handlers.handleCreateQuizFromDocument(document.id)}
-                        disabled={isGeneratingQuiz}
+                      <ActionsDropdown
+                        items={[
+                          {
+                            id: 'create-quiz',
+                            label: 'Create Quiz',
+                            icon: <Brain size={14} />,
+                            onClick: () => handlers.handleCreateQuizFromDocument(document.id),
+                          },
+                          // Future actions can be added here:
+                          // {
+                          //   id: 'create-flashcards',
+                          //   label: 'Create Flashcards',
+                          //   icon: <BookOpen size={14} />,
+                          //   onClick: () => handlers.handleCreateFlashcardsFromDocument(document.id),
+                          //   disabled: true, // Coming soon
+                          // },
+                        ]}
                         className="flex-1"
-                      >
-                        <Brain size={14} />
-                        {isGeneratingQuiz ? 'Generating...' : 'Create Quiz'}
-                      </Button>
+                      />
                       <Button
                         variant="outline"
                         size="sm"

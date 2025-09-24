@@ -76,14 +76,14 @@ This roadmap outlines the enhancement of the Documents Library page to make quiz
 - **Estimated Time**: 1-2 days
 
 #### Tasks:
-- [ ] Replace single "Create Quiz" button with "Actions" dropdown:
+- [x] Replace single "Create Quiz" button with "Actions" dropdown:
   - Primary actions: "Create Quiz"
   - Future-ready for "Create Flashcards" and other actions
   - Maintain existing "View" and "Delete" as separate buttons
-- [ ] Update `DocumentsPageContainer`:
+- [x] Update `DocumentsPageContainer`:
   - Implement new actions menu structure
   - Update handlers to work with new routing
-- [ ] Ensure consistent styling with existing design system
+- [x] Ensure consistent styling with existing design system
 
 ---
 

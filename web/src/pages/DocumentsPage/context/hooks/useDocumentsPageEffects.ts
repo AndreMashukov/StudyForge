@@ -5,7 +5,7 @@ import { DocumentEnhanced } from '@shared-types';
 interface IUseDocumentsPageEffects {
   documents: DocumentEnhanced[] | undefined;
   handlers: {
-    handleCreateQuizFromDocument: (documentId: string) => Promise<void>;
+    handleCreateQuizFromDocument: (documentId: string) => void;
   };
 }
 
