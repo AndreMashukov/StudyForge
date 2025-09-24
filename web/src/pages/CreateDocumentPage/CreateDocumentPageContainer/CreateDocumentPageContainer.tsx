@@ -11,10 +11,10 @@ import { FileUploadForm } from '../components/FileUploadForm';
 
 export const CreateDocumentPageContainer = () => {
   const { 
-    isLoading,
-    error,
     handlers 
   } = useCreateDocumentPageContext();
+  
+  const { isLoading, error } = handlers;
   
   const [activeTab, setActiveTab] = useState<'url' | 'upload'>('url');
 

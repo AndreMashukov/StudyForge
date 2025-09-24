@@ -3,12 +3,12 @@ import { IFileUploadFormData } from '../components/FileUploadForm/IFileUploadFor
 
 export interface ICreateDocumentPageHandlers {
   handleGoBack: () => void;
-  handleCreateFromUrl: (data: IUrlScrapingFormData) => void;
-  handleCreateFromFile: (data: IFileUploadFormData) => void;
+  handleCreateFromUrl: (data: IUrlScrapingFormData) => Promise<void>;
+  handleCreateFromFile: (data: IFileUploadFormData) => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
 }
 
 export interface ICreateDocumentPageContext {
-  isLoading: boolean;
-  error: string | null;
   handlers: ICreateDocumentPageHandlers;
 }
