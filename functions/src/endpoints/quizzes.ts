@@ -27,7 +27,7 @@ export const generateQuiz = onCall(
   },
   async (request): Promise<ApiResponse<GenerateQuizResponse>> => {
     try {
-      // Only support documentId-based requests
+      // Support documentId-based requests with optional quiz name and additional prompt
       const requestData = request.data as GenerateQuizRequest;
       const userId = request.auth?.uid;
 
@@ -35,9 +35,12 @@ export const generateQuiz = onCall(
         throw new Error("documentId is required");
       }
 
-      const documentId = requestData.documentId;
+      const { documentId, quizName, additionalPrompt } = requestData;
 
-      console.log(`Generating quiz from document: ${documentId}`);
+      console.log(`Generating quiz from document: ${documentId}`, {
+        customQuizName: !!quizName,
+        hasAdditionalPrompt: !!additionalPrompt
+      });
       
       // Step 1: Get document metadata
       const document = await FirestoreService.getDocument(userId!, documentId);
@@ -70,9 +73,17 @@ export const generateQuiz = onCall(
       
       // Step 5: Generate quiz with Gemini AI (allowing multiple per document)
       console.log("Generating quiz with Gemini AI for document...");
-      const geminiQuiz = await GeminiService.generateQuiz(documentContent);
+      const geminiQuiz = await GeminiService.generateQuiz(documentContent, additionalPrompt);
       
-      // Step 6: Save quiz with document reference
+      // Step 6: Apply custom quiz name if provided
+      if (quizName && quizName.trim()) {
+        geminiQuiz.title = quizName.trim();
+      } else {
+        // Use default naming: "Quiz from [Document Title]"
+        geminiQuiz.title = `Quiz from ${document.title}`;
+      }
+      
+      // Step 7: Save quiz with document reference
       const savedQuiz = await FirestoreService.saveQuizFromDocument(documentId, geminiQuiz, userId!);
       
       console.log(`Successfully generated quiz from document: ${savedQuiz.id}`);

@@ -8,6 +8,7 @@ import { ProtectedRoute } from '../utils/ProtectedRoute';
 import { HomePage } from '../pages/HomePage';
 import { AuthPage } from '../pages/AuthPage';
 import { QuizPage } from '../pages/QuizPage';
+import { CreateQuizPage } from '../pages/CreateQuizPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { DocumentsPage } from '../pages/DocumentsPage';
 import { CreateDocumentPage } from '../pages/CreateDocumentPage';
@@ -67,6 +68,16 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <HomePage />
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/quiz/create" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <CreateQuizPage />
             </ProtectedRoute>
           </MainLayout>
         } 

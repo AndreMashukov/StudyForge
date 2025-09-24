@@ -27,7 +27,7 @@ export class GeminiService {
    * Generate quiz from scraped content using Gemini Pro
    * Includes fallback for local development in unsupported regions
    */
-  public static async generateQuiz(content: ScrapedContent): Promise<GeminiQuizResponse> {
+  public static async generateQuiz(content: ScrapedContent, additionalPrompt?: string): Promise<GeminiQuizResponse> {
     try {
       functions.logger.info(`Generating quiz for content: ${content.title}`);
 
@@ -36,13 +36,13 @@ export class GeminiService {
       
       if (isLocalEmulator && this.shouldUseMockForLocal()) {
         functions.logger.info("Using mock quiz generation for local development (geographic restrictions)");
-        return this.generateMockQuiz(content);
+        return this.generateMockQuiz(content, additionalPrompt);
       }
 
       const genAI = this.getClient();
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
-      const prompt = this.buildQuizPrompt(content);
+      const prompt = this.buildQuizPrompt(content, additionalPrompt);
       
       functions.logger.debug("Sending request to Gemini AI", { contentLength: content.content.length });
 
@@ -109,7 +109,7 @@ export class GeminiService {
   /**
    * Build the prompt for quiz generation
    */
-  private static buildQuizPrompt(content: ScrapedContent): string {
+  private static buildQuizPrompt(content: ScrapedContent, additionalPrompt?: string): string {
     const prompt = `
 You are an expert quiz creator. Generate a comprehensive multiple-choice quiz based on the following article content.
 
@@ -155,6 +155,14 @@ ${content.content}
 **5. Example GOOD Distribution** (target):
    Question sequence: Q1-A, Q2-C, Q3-B, Q4-D, Q5-A, Q6-C, Q7-B, Q8-D, Q9-A, Q10-C
    Count: Option A: 3, Option B: 2, Option C: 3, Option D: 2
+
+**ADDITIONAL INSTRUCTIONS:**
+${additionalPrompt ? `
+**CUSTOM REQUIREMENTS FROM USER:**
+${additionalPrompt}
+
+Please incorporate these additional requirements into your quiz generation while following all the rules above.
+` : ''}
 
 **REQUIRED JSON FORMAT:**
 {
@@ -371,7 +379,7 @@ Generate the quiz now:`;
   /**
    * Generate a mock quiz for local development
    */
-  private static generateMockQuiz(content: ScrapedContent): GeminiQuizResponse {
+  private static generateMockQuiz(content: ScrapedContent, additionalPrompt?: string): GeminiQuizResponse {
     functions.logger.info("Generating mock quiz for local development");
     
     const words = content.content.split(/\s+/).slice(0, 50); // Use first 50 words for variety

@@ -81,6 +81,8 @@ export interface DocumentMetadata {
 // API Types (Document-centric architecture)
 export interface GenerateQuizRequest {
   documentId: string;
+  quizName?: string; // Optional custom name, defaults to "Quiz from [Document Title]"
+  additionalPrompt?: string; // Optional additional instructions for quiz generation
 }
 
 export interface GenerateQuizResponse {

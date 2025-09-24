@@ -2,13 +2,11 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setSelectedDocumentId, setSearchQuery } from '../../../../store/slices/documentsPageSlice';
-import { useGenerateQuizMutation } from '../../../../store/api/Quiz/QuizApi';
 import { useDeleteDocument } from './api/useDeleteDocument';
 
 export const useDocumentsPageHandlers = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [generateQuiz, { isLoading: isGeneratingQuiz }] = useGenerateQuizMutation();
   const { deleteDocument } = useDeleteDocument();
 
   const handleCreateDocument = useCallback(() => {
@@ -20,26 +18,11 @@ export const useDocumentsPageHandlers = () => {
     navigate(`/document/${documentId}`);
   }, [navigate, dispatch]);
 
-  const handleCreateQuizFromDocument = useCallback(async (documentId: string) => {
-    try {
-      console.log('Generating quiz for document:', documentId);
-      
-      // Generate quiz using the documentId
-      const result = await generateQuiz({ documentId }).unwrap();
-      
-      if (result.success && result.data) {
-        console.log('Quiz generated successfully:', result.data.quizId);
-        // Navigate to the generated quiz
-        navigate(`/quiz/${result.data.quizId}`);
-      } else {
-        console.error('Failed to generate quiz:', result.error);
-        // TODO: Show error message to user (implement notification system)
-      }
-    } catch (error) {
-      console.error('Error generating quiz:', error);
-      // TODO: Show error message to user (implement notification system)
-    }
-  }, [generateQuiz, navigate]);
+  const handleCreateQuizFromDocument = useCallback((documentId: string) => {
+    console.log('Navigating to create quiz page for document:', documentId);
+    // Navigate to create quiz page with pre-selected document
+    navigate(`/quiz/create?documentId=${documentId}`);
+  }, [navigate]);
 
   const handleDeleteDocument = useCallback(async (documentId: string) => {
     // Use window.confirm with explicit declaration
@@ -59,6 +42,5 @@ export const useDocumentsPageHandlers = () => {
     handleDeleteDocument,
     handleCreateQuizFromDocument,
     handleSearchChange,
-    isGeneratingQuiz,
   };
 };

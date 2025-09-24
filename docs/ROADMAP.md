@@ -14,11 +14,11 @@ This roadmap outlines the enhancement of the Documents Library page to make quiz
 - **Estimated Time**: 1-2 days
 
 #### Tasks:
-- [ ] Create `Textarea` component in `web/src/components/ui/Textarea/`
+- [x] Create `Textarea` component in `web/src/components/ui/Textarea/`
   - Follow existing shadcn/ui pattern with proper styling
   - Include validation and character counting capabilities
   - Support for placeholder text and error states
-- [ ] Create `ActionsDropdown` component in `web/src/components/ui/ActionsDropdown/`
+- [x] Create `ActionsDropdown` component in `web/src/components/ui/ActionsDropdown/`
   - Reusable dropdown menu for document actions
   - Support for icons and disabled states
   - Extensible for future actions (flashcards, etc.)
@@ -28,7 +28,7 @@ This roadmap outlines the enhancement of the Documents Library page to make quiz
 - **Estimated Time**: 1 day
 
 #### Tasks:
-- [ ] Create `/quiz/create` page structure
+- [x] Create `/quiz/create` page structure
   - `web/src/pages/CreateQuizPage/`
   - Follow existing page architecture pattern (Provider → Container → Context)
   - Include proper TypeScript interfaces
