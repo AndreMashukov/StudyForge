@@ -1,6 +1,6 @@
 import { Quiz, GenerateQuizResponse } from "@shared-types";
 
-export interface IHomePageContext {
+export interface IHomePageHandlers {
   // URL Form state
   urlForm: {
     url: string;
@@ -26,9 +26,11 @@ export interface IHomePageContext {
   };
 
   // Handler functions
-  handlers: {
-    handleGenerateQuiz: (documentId: string) => Promise<{ success: boolean; data?: GenerateQuizResponse; error?: string }>;
-    handleNavigateToQuiz: (quizId: string) => void;
-    handleDeleteQuiz: (quizId: string) => Promise<{ success: boolean }>;
-  };
+  handleGenerateQuiz: (documentId: string) => Promise<{ success: boolean; data?: GenerateQuizResponse; error?: string }>;
+  handleNavigateToQuiz: (quizId: string) => void;
+  handleDeleteQuiz: (quizId: string) => Promise<{ success: boolean }>;
+}
+
+export interface IHomePageContext {
+  handlers: IHomePageHandlers;
 }

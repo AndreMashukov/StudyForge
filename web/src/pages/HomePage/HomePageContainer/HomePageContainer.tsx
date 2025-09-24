@@ -2,10 +2,12 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
-import { Plus, FileText, Brain, BarChart3, Globe, Upload } from 'lucide-react';
+import { Plus, FileText, Brain, BarChart3, Globe, Upload, Clock, Loader2 } from 'lucide-react';
+import { useHomePageContext } from '../context/HomePageContext';
 
 export const HomePageContainer = () => {
   const navigate = useNavigate();
+  const { handlers } = useHomePageContext();
 
   const quickActions = [
     {
@@ -123,21 +125,152 @@ export const HomePageContainer = () => {
         </Card>
       </div>
 
-      {/* Recent Activity Placeholder */}
+      {/* Quick Quiz Generator */}
       <Card className="border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BarChart3 size={20} />
-            Recent Activity
+            <Brain size={20} />
+            Quick Quiz Generator
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <p>Your recent documents and quizzes will appear here.</p>
-            <p className="text-sm mt-2">Create your first document to get started!</p>
+          <div className="space-y-4">
+            <p className="text-muted-foreground">
+              Enter a URL to quickly generate a quiz from web content
+            </p>
+            <div className="flex gap-3">
+              <input
+                type="url"
+                placeholder="https://example.com/article"
+                value={handlers.urlForm.url}
+                onChange={(e) => handlers.urlForm.setUrl(e.target.value)}
+                className="flex-1 px-3 py-2 border rounded-md bg-background"
+                disabled={handlers.urlForm.isGenerating}
+              />
+              <Button 
+                onClick={() => handlers.handleGenerateQuiz('')}
+                disabled={handlers.urlForm.isGenerating || !handlers.urlForm.url.trim()}
+              >
+                {handlers.urlForm.isGenerating ? (
+                  <Loader2 className="animate-spin h-4 w-4" />
+                ) : (
+                  'Generate Quiz'
+                )}
+              </Button>
+            </div>
+            {handlers.urlForm.error && (
+              <p className="text-sm text-destructive">{handlers.urlForm.error}</p>
+            )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Recent Quizzes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Quizzes */}
+        <Card className="border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 size={20} />
+              Recent Quizzes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {handlers.recentQuizzes.isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
+              </div>
+            ) : handlers.recentQuizzes.data && handlers.recentQuizzes.data.length > 0 ? (
+              <div className="space-y-3">
+                {handlers.recentQuizzes.data.slice(0, 3).map((quiz) => (
+                  <div 
+                    key={quiz.id} 
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                    onClick={() => handlers.handleNavigateToQuiz(quiz.id)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{quiz.title}</p>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Clock size={12} />
+                        {new Date(quiz.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      Take Quiz
+                    </Button>
+                  </div>
+                ))}
+                {handlers.recentQuizzes.data.length > 3 && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => navigate('/quizzes')}
+                  >
+                    View All Quizzes
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No quizzes created yet.</p>
+                <p className="text-sm mt-2">Create a document and generate your first quiz!</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Your Quiz History */}
+        <Card className="border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain size={20} />
+              Your Quiz History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {handlers.userQuizzes.isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
+              </div>
+            ) : handlers.userQuizzes.data && handlers.userQuizzes.data.length > 0 ? (
+              <div className="space-y-3">
+                {handlers.userQuizzes.data.slice(0, 3).map((quiz) => (
+                  <div 
+                    key={quiz.id} 
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                    onClick={() => handlers.handleNavigateToQuiz(quiz.id)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{quiz.title}</p>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Clock size={12} />
+                        {new Date(quiz.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      Review
+                    </Button>
+                  </div>
+                ))}
+                {handlers.userQuizzes.data.length > 3 && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => navigate('/quizzes')}
+                  >
+                    View All History
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No quiz history yet.</p>
+                <p className="text-sm mt-2">Take some quizzes to see your progress!</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
