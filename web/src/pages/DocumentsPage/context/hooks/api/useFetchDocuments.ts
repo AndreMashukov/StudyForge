@@ -1,7 +1,10 @@
 import { useMemo } from 'react';
+import { useSelector } from 'react-redux';
 import { useGetUserDocumentsQuery, useSearchDocumentsQuery } from '../../../../../store/api/Documents';
+import { selectSearchQuery } from '../../../../../store/slices/documentsPageSlice';
 
-export const useFetchDocuments = (searchQuery?: string) => {
+export const useFetchDocuments = () => {
+  const searchQuery = useSelector(selectSearchQuery);
   const shouldSearchQuery = Boolean(searchQuery && searchQuery.trim().length > 0);
   
   const {

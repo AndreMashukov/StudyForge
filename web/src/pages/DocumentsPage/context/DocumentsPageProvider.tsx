@@ -15,9 +15,7 @@ export const DocumentsPageProvider: React.FC<DocumentsPageProviderProps> = ({ ch
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = useSelector(selectSearchQuery);
 
-  const { documents, isLoading, error: fetchError } = useFetchDocuments(
-    searchQuery.trim() || undefined
-  );
+  const { documents, isLoading, error: fetchError } = useFetchDocuments();
   
   const handlers = useDocumentsPageHandlers();
 
