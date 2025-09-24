@@ -1,10 +1,8 @@
 import { useEffect } from 'react';
-import { ReadonlyURLSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { DocumentEnhanced } from '@shared-types';
 
 interface IUseDocumentsPageEffects {
-  searchParams: ReadonlyURLSearchParams;
-  setSearchParams: (params: Record<string, string>) => void;
   documents: DocumentEnhanced[] | undefined;
   handlers: {
     handleCreateQuizFromDocument: (documentId: string) => Promise<void>;
@@ -12,11 +10,11 @@ interface IUseDocumentsPageEffects {
 }
 
 export const useDocumentsPageEffects = ({
-  searchParams,
-  setSearchParams,
   documents,
   handlers,
 }: IUseDocumentsPageEffects) => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // Handle URL parameters for auto-quiz generation
   useEffect(() => {
     const highlightDocId = searchParams.get('highlight');

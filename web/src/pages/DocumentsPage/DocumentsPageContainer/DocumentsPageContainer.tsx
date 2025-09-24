@@ -115,7 +115,7 @@ export const DocumentsPageContainer = () => {
           </Card>
         ) : (
           <div className={documentsPageStyles.documentsGrid}>
-            {documents.map((document: DocumentEnhanced) => (
+            {documents?.map((document: DocumentEnhanced) => (
               <Card key={document.id} className={documentsPageStyles.documentCard}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">

@@ -1213,11 +1213,17 @@ export const FeatureNamePage = () => {
 5. **Redux Integration**: Direct access with useSelector/useDispatch
 
 ### Hook Responsibilities
-- **API Hooks**: RTK Query + refetch logic + fetch-related useEffect
-- **Handlers**: Business logic, mutations, user feedback (NO useEffect)
-- **Effects**: Non-fetch useEffect logic only
-- **Form Hooks**: React Hook Form integration
-- **Schema Hooks**: Zod validation schemas
+- **API Hooks**: RTK Query + refetch logic + fetch-related useEffect + direct Redux access
+- **Handler Hooks**: Business logic, mutations, user feedback (NO useEffect) + direct Redux dispatch
+- **Effect Hooks**: Non-fetch useEffect logic only (not related to API) + manage own dependencies (URL params, timers, events)
+- **Form Hooks**: React Hook Form integration + validation
+- **Schema Hooks**: Zod validation schemas + reusable validation patterns
+
+### Hook Self-Containment Rules
+- **API Hooks**: Access Redux state directly, no parameters needed for filters/search
+- **Handler Hooks**: Access Redux dispatch directly, no callback parameters
+- **Effect Hooks**: Import their own dependencies (useSearchParams, etc.), minimal parameters
+- **All Hooks**: Should be self-contained and manage their own state/dependencies
 
 ### API Query Hooks (context/hooks/api/useFetchFeaturePageData.ts)
 
@@ -1410,69 +1416,47 @@ export const useFeaturePageEffects = ({
 };
 ```
 
-### Context Integration with Proper Architecture
+### Context Provider Best Practices - Keep Providers Clean and DRY
+
+#### Core Principles for Context Providers:
+1. **Pure Orchestration**: Providers should only orchestrate hooks, never contain business logic
+2. **No Local State**: All state should be in Redux or managed by specialized hooks
+3. **No Direct Effects**: Move all useEffect logic to dedicated effect hooks
+4. **No Destructuring**: Pass complete API objects to maintain clean interfaces
+5. **Minimal Context**: Only include data that can't be accessed elsewhere (exclude Redux state)
+
+#### Clean Provider Pattern:
 
 ```typescript
-// context/FeatureNamePageProvider.tsx
-import React, { createContext, ReactNode } from "react";
-import { useFetchFeaturePageData } from "./hooks/api/useFetchFeaturePageData";
-import { useFetchUserProfile } from "./hooks/api/useFetchUserProfile";
-import { useFeaturePageForm } from "./hooks/useFeaturePageForm";
-import { useFeaturePageHandlers } from "./hooks/useFeaturePageHandlers";
-import { useFeaturePageEffects } from "./hooks/useFeaturePageEffects";
-import { IFeatureNamePageContext } from "../types/IFeatureNamePageContext";
+// context/FeatureNamePageProvider.tsx - CLEAN & DRY Example
+import React from 'react';
+import { FeatureNamePageContext } from './FeatureNamePageContext';
+import { IFeatureNamePageContext } from '../types/IFeatureNamePageContext';
+import { useFetchFeatureNameData } from './hooks/api/useFetchFeatureNameData';
+import { useFeatureNamePageHandlers } from './hooks/useFeatureNamePageHandlers';
+import { useFeatureNamePageEffects } from './hooks/useFeatureNamePageEffects';
 
-export const FeatureNamePageContext = createContext<IFeatureNamePageContext | undefined>(undefined);
-
-interface IFeatureNamePageProvider {
-  children: ReactNode;
+interface FeatureNamePageProviderProps {
+  children: React.ReactNode;
 }
 
-export const FeatureNamePageProvider = ({ children }: IFeatureNamePageProvider) => {
-  // API hooks (only fetch operations)
-  const companiesData = useFetchFeaturePageData();
-  const userProfile = useFetchUserProfile();
+export const FeatureNamePageProvider: React.FC<FeatureNamePageProviderProps> = ({ children }) => {
+  // API hooks - self-contained, access Redux internally
+  const featureApi = useFetchFeatureNameData();
+  
+  // Handler hooks - self-contained business logic
+  const handlers = useFeatureNamePageHandlers();
 
-  // Form hooks
-  const form = useFeaturePageForm();
-
-  // Handlers (mutations, business logic, no useEffect)
-  const handlers = useFeaturePageHandlers();
-
-  // Effects (non-fetch related useEffect logic only)
-  useFeaturePageEffects({
-    onUserActivity: () => {
-      // Handle user activity tracking
-      console.log("User is active");
-    },
-    onTimerExpiry: () => {
-      // Handle timer expiry (e.g., session timeout warning)
-      handlers.handleShowTimeoutWarning();
-    },
-    onExternalEvent: () => {
-      // Handle external events (e.g., localStorage changes)
-      handlers.handleExternalDataChange();
-    },
+  // Effect hooks - self-contained side effects, manage their own dependencies
+  useFeatureNamePageEffects({
+    data: featureApi.data,
+    handlers,
   });
 
   const contextValue: IFeatureNamePageContext = {
-    // API data
-    companies: {
-      data: companiesData.data,
-      isLoading: companiesData.isLoading,
-      error: companiesData.error,
-      refetch: companiesData.refetch,
-    },
-    userProfile: {
-      data: userProfile.data,
-      isLoading: userProfile.isLoading,
-      error: userProfile.error,
-      refetch: userProfile.refetch,
-    },
-    // Form
-    form,
-    // Handlers (includes all mutations and business logic)
-    handlers,
+    featureApi,    // Complete API object (no destructuring)
+    handlers,      // Complete handlers object
+    // DON'T include Redux state - components access directly with useSelector
   };
 
   return (
@@ -1481,6 +1465,77 @@ export const FeatureNamePageProvider = ({ children }: IFeatureNamePageProvider) 
     </FeatureNamePageContext.Provider>
   );
 };
+```
+
+#### Hook Self-Containment Rules:
+
+**API Hooks** - Manage their own data dependencies:
+```typescript
+export const useFetchFeatureNameData = () => {
+  const searchQuery = useSelector(selectSearchQuery);  // Access Redux directly
+  const filters = useSelector(selectFilters);          // No parameters needed
+  
+  return useGetFeatureDataQuery({ searchQuery, filters });
+};
+```
+
+**Handler Hooks** - Manage their own business logic:
+```typescript
+export const useFeatureNamePageHandlers = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  
+  return {
+    handleAction: useCallback(() => {
+      dispatch(setSearchQuery(query));  // Direct Redux access
+    }, [dispatch]),
+  };
+};
+```
+
+**Effect Hooks** - Manage their own side effects and dependencies:
+```typescript
+export const useFeatureNamePageEffects = ({ data, handlers }) => {
+  const [searchParams, setSearchParams] = useSearchParams();  // Own dependencies
+  
+  useEffect(() => {
+    // Handle URL parameters, timers, event listeners, etc.
+  }, [searchParams, data, handlers]);
+};
+```
+
+#### Context Interface - Minimal and Clean:
+
+```typescript
+interface IFeatureNamePageContext {
+  featureApi: {
+    data: FeatureData[] | undefined;
+    isLoading: boolean;
+    error: unknown;
+    total?: number;
+  };
+  handlers: {
+    handleAction: () => void;
+    handleNavigation: (id: string) => void;
+    isProcessing: boolean;
+  };
+  // DON'T include: searchQuery, filters, etc. (use Redux selectors instead)
+}
+```
+
+#### What NOT to Do in Providers:
+- ❌ `const [localState, setLocalState] = useState()` - Use Redux instead
+- ❌ `const searchQuery = useSelector(selectSearchQuery)` - Let components access directly
+- ❌ `useEffect(() => { /* side effects */ })` - Move to effect hooks
+- ❌ `const { data, isLoading } = apiHook()` - Pass complete objects
+- ❌ Complex mapping or transformation logic - Keep providers simple
+
+#### Benefits of Clean Providers:
+1. **Single Responsibility**: Only orchestrates hooks
+2. **No Duplication**: Each concern handled once in specialized hooks
+3. **Better Testing**: Each hook can be tested independently
+4. **Easier Debugging**: Clear separation of responsibilities
+5. **Scalable**: Easy to add new hooks without complexity
 ```
 
 ## Error Handling
