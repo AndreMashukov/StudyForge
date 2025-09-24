@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { IQuizEffects } from '../../types/IQuizHandlers';
 
-export const useQuizEffects = ({
+export const useQuizPageEffects = ({
   onQuizStart,
   onQuestionChange,
   onAnswerSubmit,

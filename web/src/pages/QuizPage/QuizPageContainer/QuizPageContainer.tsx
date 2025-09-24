@@ -17,13 +17,7 @@ export const QuizPageContainer: React.FC = () => {
   const currentQuestion = useSelector(selectCurrentQuestion);
   const formState = useSelector(selectFormState);
   
-  const {
-    progress,
-    stats,
-    handlers,
-    isLoading,
-    error,
-  } = useQuizPageContext();
+  const { handlers } = useQuizPageContext();
 
   const handleAnswerSelect = (answerIndex: number) => {
     if (formState.selectedAnswer === null && currentQuestion) {
@@ -39,29 +33,30 @@ export const QuizPageContainer: React.FC = () => {
     }
   };
 
-  if (isLoading) {
+  if (handlers.isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-16">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading quiz...</p>
+      <div className="quiz-container quiz-container--loading">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading quiz...</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (handlers.error) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-16">
-        <div className="text-center">
-          <p className="text-destructive mb-4">
-            {typeof error === 'string' ? error : 'Failed to load quiz'}
+      <div className="quiz-container quiz-container--error">
+        <div className="error-message">
+          <h2>Error Loading Quiz</h2>
+          <p>
+            {typeof handlers.error === 'string' ? handlers.error : 'Failed to load quiz'}
           </p>
           <button 
             onClick={() => window.location.reload()} 
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+            className="retry-button"
           >
-            Try Again
+            Retry
           </button>
         </div>
       </div>
@@ -73,7 +68,7 @@ export const QuizPageContainer: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto px-6 py-16">
         <ScoreCard
-          stats={stats}
+          stats={handlers.stats}
           onResetQuiz={handlers.handleResetQuiz}
         />
       </div>
@@ -103,7 +98,7 @@ export const QuizPageContainer: React.FC = () => {
     <div className="max-w-4xl mx-auto px-6 py-16 space-y-8">
       {/* Progress Bar */}
       <ProgressBar
-        progress={progress}
+        progress={handlers.progress}
         currentQuestion={quizState.currentQuestionIndex + 1}
         totalQuestions={quizState.questions.length}
         score={quizState.score}
