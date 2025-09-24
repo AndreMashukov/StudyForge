@@ -1,25 +1,25 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { DocumentsPageContext } from './DocumentsPageContext';
 import { IDocumentsPageContext } from '../types/IDocumentsPageContext';
 import { useFetchDocuments } from './hooks/api/useFetchDocuments';
-import { useDeleteDocument } from './hooks/api/useDeleteDocument';
 import { useDocumentsPageHandlers } from './hooks/useDocumentsPageHandlers';
+import { selectSearchQuery } from '../../../store/slices/documentsPageSlice';
 
 interface DocumentsPageProviderProps {
   children: React.ReactNode;
 }
 
 export const DocumentsPageProvider: React.FC<DocumentsPageProviderProps> = ({ children }) => {
-  const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = useSelector(selectSearchQuery);
 
   const { documents, isLoading, error: fetchError } = useFetchDocuments(
-    localSearchQuery.trim() || undefined
+    searchQuery.trim() || undefined
   );
   
-  const { deleteDocument } = useDeleteDocument();
-  const baseHandlers = useDocumentsPageHandlers();
+  const handlers = useDocumentsPageHandlers();
 
   // Handle URL parameters for auto-quiz generation
   useEffect(() => {
@@ -31,31 +31,17 @@ export const DocumentsPageProvider: React.FC<DocumentsPageProviderProps> = ({ ch
       if (documentExists) {
         // Auto-trigger quiz generation for the highlighted document
         console.log('Auto-triggering quiz generation for document:', highlightDocId);
-        baseHandlers.handleCreateQuizFromDocument(highlightDocId);
+        handlers.handleCreateQuizFromDocument(highlightDocId);
         
         // Clear the URL parameters after processing
         setSearchParams({}); 
       }
     }
-  }, [documents, searchParams, setSearchParams, baseHandlers]);
-
-  const handlers = useMemo(() => ({
-    ...baseHandlers,
-    handleDeleteDocument: async (documentId: string) => {
-      // Use window.confirm with explicit declaration
-      const confirmDelete = window.confirm('Are you sure you want to delete this document? This action cannot be undone.');
-      if (confirmDelete) {
-        await deleteDocument(documentId);
-      }
-    },
-    handleSearchChange: (query: string) => {
-      setLocalSearchQuery(query);
-    },
-  }), [baseHandlers, deleteDocument]);
+  }, [documents, searchParams, setSearchParams, handlers]);
 
   const contextValue: IDocumentsPageContext = {
     documents: documents || [],
-    searchQuery: localSearchQuery,
+    searchQuery,
     isLoading,
     error: fetchError ? 'Failed to load documents' : null,
     handlers,

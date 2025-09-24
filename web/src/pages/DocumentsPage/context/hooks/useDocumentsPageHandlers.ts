@@ -1,13 +1,15 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setSelectedDocumentId } from '../../../../store/slices/documentsPageSlice';
+import { setSelectedDocumentId, setSearchQuery } from '../../../../store/slices/documentsPageSlice';
 import { useGenerateQuizMutation } from '../../../../store/api/Quiz/QuizApi';
+import { useDeleteDocument } from './api/useDeleteDocument';
 
 export const useDocumentsPageHandlers = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [generateQuiz, { isLoading: isGeneratingQuiz }] = useGenerateQuizMutation();
+  const { deleteDocument } = useDeleteDocument();
 
   const handleCreateDocument = useCallback(() => {
     navigate('/documents/create');
@@ -40,14 +42,16 @@ export const useDocumentsPageHandlers = () => {
   }, [generateQuiz, navigate]);
 
   const handleDeleteDocument = useCallback(async (documentId: string) => {
-    // This will be handled by the component using useDeleteDocument hook
-    console.log('Delete document:', documentId);
-  }, []);
+    // Use window.confirm with explicit declaration
+    const confirmDelete = window.confirm('Are you sure you want to delete this document? This action cannot be undone.');
+    if (confirmDelete) {
+      await deleteDocument(documentId);
+    }
+  }, [deleteDocument]);
 
   const handleSearchChange = useCallback((query: string) => {
-    // This will be handled by the search state management
-    console.log('Search query:', query);
-  }, []);
+    dispatch(setSearchQuery(query));
+  }, [dispatch]);
 
   return {
     handleCreateDocument,
