@@ -7,7 +7,7 @@ import { RefreshCw, Brain, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const MyQuizzesPageContainer: React.FC = () => {
-  const { groupedQuizzes, isLoading, error, handlers } = useMyQuizzesPageContext();
+  const { quizzesApi, handlers, groupedQuizzes } = useMyQuizzesPageContext();
   const navigate = useNavigate();
 
   // Get document groups sorted by most recent quiz
@@ -19,7 +19,7 @@ export const MyQuizzesPageContainer: React.FC = () => {
 
   const totalQuizzes = Object.values(groupedQuizzes).flat().length;
 
-  if (isLoading) {
+  if (quizzesApi.isLoading) {
     return (
       <Page showSidebar={true}>
         <div className="max-w-4xl mx-auto">
@@ -32,13 +32,13 @@ export const MyQuizzesPageContainer: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (quizzesApi.error) {
     return (
       <Page showSidebar={true}>
         <div className="max-w-4xl mx-auto">
           <div className="text-center py-12">
-            <p className="text-destructive mb-4">{error}</p>
-            <Button onClick={handlers.handleRefresh} variant="outline">
+            <p className="text-destructive mb-4">{quizzesApi.error}</p>
+            <Button onClick={() => quizzesApi.refetch()} variant="outline">
               <RefreshCw size={16} className="mr-2" />
               Try Again
             </Button>
@@ -89,7 +89,7 @@ export const MyQuizzesPageContainer: React.FC = () => {
           </div>
           <div className="flex gap-2">
             <Button
-              onClick={handlers.handleRefresh}
+              onClick={() => quizzesApi.refetch()}
               variant="outline"
               size="sm"
             >

@@ -1,67 +1,29 @@
 import React, { ReactNode, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { MyQuizzesPageContext } from './MyQuizzesPageContext';
-import { useGetUserQuizzesQuery, useDeleteQuizMutation } from '../../../store/api/Quiz/QuizApi';
+import { useFetchMyQuizzesData } from './hooks/api/useFetchMyQuizzesData';
+import { useMyQuizzesPageHandlers } from './hooks/useMyQuizzesPageHandlers';
+import { useMyQuizzesPageEffects } from './hooks/useMyQuizzesPageEffects';
 import { GroupedQuizzes } from '../types/IMyQuizzesPageTypes';
-import { Quiz } from '@shared-types';
 
 interface IMyQuizzesPageProvider {
   children: ReactNode;
 }
 
 export const MyQuizzesPageProvider: React.FC<IMyQuizzesPageProvider> = ({ children }) => {
-  const navigate = useNavigate();
+  // API hooks - self-contained, access Redux internally
+  const quizzesApi = useFetchMyQuizzesData();
   
-  // Fetch user quizzes
-  const {
-    data: userQuizzesData,
-    isLoading: isLoadingQuizzes,
-    error: quizzesError,
-    refetch: refetchQuizzes,
-  } = useGetUserQuizzesQuery();
+  // Handler hooks - self-contained business logic
+  const handlers = useMyQuizzesPageHandlers();
 
-  // Delete quiz mutation
-  const [deleteQuizMutation, { isLoading: isDeletingQuiz }] = useDeleteQuizMutation();
+  // Effect hooks - self-contained side effects, manage their own dependencies
+  useMyQuizzesPageEffects({
+    refetchQuizzes: quizzesApi.refetch,
+  });
 
-  const quizzes: Quiz[] = userQuizzesData?.data?.quizzes || [];
-  const error = quizzesError ? 'Failed to load quizzes' : null;
-  const isLoading = isLoadingQuizzes || isDeletingQuiz;
-
-  // Handlers
-  const handleQuizClick = (quizId: string) => {
-    navigate(`/quiz/${quizId}`);
-  };
-
-  const handleDeleteQuiz = async (quizId: string) => {
-    if (window.confirm('Are you sure you want to delete this quiz? This action cannot be undone.')) {
-      try {
-        const result = await deleteQuizMutation({ quizId }).unwrap();
-        if (result.success) {
-          // Refetch quizzes after successful deletion
-          refetchQuizzes();
-        }
-        // Success feedback could be added here (toast notification, etc.)
-      } catch (error) {
-        // Error feedback could be added here
-        console.error('Failed to delete quiz:', error);
-        alert('Failed to delete quiz. Please try again.');
-      }
-    }
-  };
-
-  const handleRefresh = () => {
-    refetchQuizzes();
-  };
-
-  const handlers = {
-    handleQuizClick,
-    handleDeleteQuiz,
-    handleRefresh,
-  };
-
-  // Group quizzes by document title
+  // Group quizzes by document title - computed data that can't be accessed elsewhere
   const groupedQuizzes: GroupedQuizzes = useMemo(() => {
-    return quizzes.reduce((acc, quiz) => {
+    return quizzesApi.quizzes.reduce((acc, quiz) => {
       const documentTitle = quiz.documentTitle || 'Unknown Document';
       if (!acc[documentTitle]) {
         acc[documentTitle] = [];
@@ -69,14 +31,12 @@ export const MyQuizzesPageProvider: React.FC<IMyQuizzesPageProvider> = ({ childr
       acc[documentTitle].push(quiz);
       return acc;
     }, {} as GroupedQuizzes);
-  }, [quizzes]);
+  }, [quizzesApi.quizzes]);
 
   const contextValue = {
-    quizzes,
-    groupedQuizzes,
-    isLoading,
-    error,
-    handlers,
+    quizzesApi,    // Complete API object (no destructuring)
+    handlers,      // Complete handlers object
+    groupedQuizzes, // Computed data that can't be accessed elsewhere
   };
 
   return (

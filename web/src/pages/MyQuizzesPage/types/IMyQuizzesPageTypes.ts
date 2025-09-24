@@ -1,18 +1,22 @@
 import { Quiz } from '@shared-types';
 
 export interface IMyQuizzesPageContext {
-  // Data
-  quizzes: Quiz[];
-  groupedQuizzes: GroupedQuizzes;
-  isLoading: boolean;
-  error: string | null;
-
-  // Handlers
+  // API data (complete objects, no destructuring)
+  quizzesApi: {
+    quizzes: Quiz[];
+    isLoading: boolean;
+    error: string | null;
+    refetch: () => void;
+  };
+  
+  // Handlers (complete object)
   handlers: {
     handleQuizClick: (quizId: string) => void;
-    handleDeleteQuiz: (quizId: string) => void;
-    handleRefresh: () => void;
+    handleDeleteQuiz: (quizId: string) => Promise<{ success: boolean; error?: string }>;
   };
+  
+  // Computed data (can't be accessed elsewhere)
+  groupedQuizzes: GroupedQuizzes;
 }
 
 export interface GroupedQuizzes {
