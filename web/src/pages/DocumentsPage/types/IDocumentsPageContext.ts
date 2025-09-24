@@ -9,10 +9,14 @@ export interface IDocumentsPageHandlers {
   isGeneratingQuiz: boolean;
 }
 
-export interface IDocumentsPageContext {
-  documents: DocumentEnhanced[];
-  searchQuery: string;
+export interface IDocumentsApi {
+  documents: DocumentEnhanced[] | undefined;
   isLoading: boolean;
-  error: string | null;
+  error: unknown;
+  total?: number;
+}
+
+export interface IDocumentsPageContext {
+  documentsApi: IDocumentsApi;
   handlers: IDocumentsPageHandlers;
 }

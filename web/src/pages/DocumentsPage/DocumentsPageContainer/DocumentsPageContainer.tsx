@@ -1,5 +1,7 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
 import { useDocumentsPageContext } from '../context/hooks/useDocumentsPageContext';
+import { selectSearchQuery } from '../../../store/slices/documentsPageSlice';
 import { Page } from '../../../components/Page';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
@@ -30,12 +32,12 @@ const formatDate = (date: Date | { toDate(): Date } | string): string => {
 
 export const DocumentsPageContainer = () => {
   const { 
-    documents, 
-    searchQuery, 
-    isLoading, 
-    error,
+    documentsApi,
     handlers 
   } = useDocumentsPageContext();
+
+  const { documents, isLoading, error } = documentsApi;
+  const searchQuery = useSelector(selectSearchQuery);
 
   const { isGeneratingQuiz } = handlers;
 
@@ -97,7 +99,7 @@ export const DocumentsPageContainer = () => {
         </div>
 
         {/* Documents Grid */}
-        {documents.length === 0 ? (
+        {!documents || documents.length === 0 ? (
           <Card className={documentsPageStyles.emptyState}>
             <CardContent className="text-center p-8">
               <FileText size={48} className="mx-auto mb-4 text-muted-foreground" />
