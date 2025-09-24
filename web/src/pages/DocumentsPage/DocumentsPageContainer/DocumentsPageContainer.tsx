@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { ActionsDropdown } from '../../../components/ui/ActionsDropdown';
-import { DocumentQuizHistory } from '../../../components/DocumentQuizHistory';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
 import { Plus, Search, FileText, Calendar, Eye, Brain, Trash2 } from 'lucide-react';
 import { DocumentEnhanced } from "@shared-types";
@@ -146,9 +145,6 @@ export const DocumentsPageContainer = () => {
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {document.description || `Document with ${document.wordCount} words`}
                     </p>
-
-                    {/* Quiz History */}
-                    <DocumentQuizHistory documentId={document.id} className="border-t pt-3" />
 
                     {/* Actions */}
                     <div className="flex gap-2 pt-2">

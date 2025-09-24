@@ -13,6 +13,7 @@ import { ProfilePage } from '../pages/ProfilePage';
 import { DocumentsPage } from '../pages/DocumentsPage';
 import { CreateDocumentPage } from '../pages/CreateDocumentPage';
 import { DocumentViewerPage } from '../pages/DocumentViewerPage';
+import { MyQuizzesPage } from '../pages/MyQuizzesPage';
 import { Page } from '../components/Page';
 
 export function App() {
@@ -141,13 +142,7 @@ const AppContent = () => {
         element={
           <MainLayout>
             <ProtectedRoute>
-              <Page showSidebar={true}>
-                <div className="max-w-4xl mx-auto">
-                  <div className="text-center text-muted-foreground">
-                    My Quizzes page coming soon...
-                  </div>
-                </div>
-              </Page>
+              <MyQuizzesPage />
             </ProtectedRoute>
           </MainLayout>
         } 
