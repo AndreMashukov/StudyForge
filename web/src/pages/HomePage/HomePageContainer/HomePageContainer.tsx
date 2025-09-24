@@ -125,46 +125,6 @@ export const HomePageContainer = () => {
         </Card>
       </div>
 
-      {/* Quick Quiz Generator */}
-      <Card className="border">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain size={20} />
-            Quick Quiz Generator
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <p className="text-muted-foreground">
-              Enter a URL to quickly generate a quiz from web content
-            </p>
-            <div className="flex gap-3">
-              <input
-                type="url"
-                placeholder="https://example.com/article"
-                value={handlers.urlForm.url}
-                onChange={(e) => handlers.urlForm.setUrl(e.target.value)}
-                className="flex-1 px-3 py-2 border rounded-md bg-background"
-                disabled={handlers.urlForm.isGenerating}
-              />
-              <Button 
-                onClick={() => handlers.handleGenerateQuiz('')}
-                disabled={handlers.urlForm.isGenerating || !handlers.urlForm.url.trim()}
-              >
-                {handlers.urlForm.isGenerating ? (
-                  <Loader2 className="animate-spin h-4 w-4" />
-                ) : (
-                  'Generate Quiz'
-                )}
-              </Button>
-            </div>
-            {handlers.urlForm.error && (
-              <p className="text-sm text-destructive">{handlers.urlForm.error}</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Recent Quizzes */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Quizzes */}
