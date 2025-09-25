@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams } from 'react-router-dom';
 import { useEffect } from 'react';
-import { ICreateQuizFormData } from '../../../store/slices/createQuizPageSlice';
+import { ICreateQuizFormData } from '../../types/ICreateQuizPageTypes';
 import { useCreateQuizPageSchema } from './useCreateQuizPageSchema';
 
 export const useCreateQuizPageForm = () => {

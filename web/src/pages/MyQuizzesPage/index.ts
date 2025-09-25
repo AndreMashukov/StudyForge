@@ -5,7 +5,7 @@ export { MyQuizzesPageProvider } from './context/MyQuizzesPageProvider';
 export { useMyQuizzesPageContext } from './context/hooks/useMyQuizzesPageContext';
 export type { 
   IMyQuizzesPageContext, 
-  GroupedQuizzes, 
-  QuizCardProps, 
-  DocumentGroupProps 
+  IGroupedQuizzes as GroupedQuizzes, 
+  IQuizCard as QuizCardProps, 
+  IDocumentGroup as DocumentGroupProps 
 } from './types/IMyQuizzesPageTypes';

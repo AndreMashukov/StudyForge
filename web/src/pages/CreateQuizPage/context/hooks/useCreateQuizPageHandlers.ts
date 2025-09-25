@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { UseFormReturn } from 'react-hook-form';
 import { useDispatch } from 'react-redux';
 import { useGenerateQuizMutation } from '../../../../store/api/Quiz/QuizApi';
-import { ICreateQuizFormData } from '../../../../store/slices/createQuizPageSlice';
+import { ICreateQuizFormData } from '../../types/ICreateQuizPageTypes';
 import { showToast } from '../../../../store/slices/uiSlice';
 
 interface UseCreateQuizPageHandlersProps {

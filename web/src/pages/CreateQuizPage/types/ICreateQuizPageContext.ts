@@ -1,5 +1,5 @@
 import { UseFormReturn } from 'react-hook-form';
-import { ICreateQuizFormData } from '../../../store/slices/createQuizPageSlice';
+import { ICreateQuizFormData } from './ICreateQuizPageTypes';
 
 export interface ICreateQuizPageContext {
   documentsApi: {
