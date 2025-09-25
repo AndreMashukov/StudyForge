@@ -1,9 +1,9 @@
 import React from 'react';
 import { QuizCard } from './QuizCard';
-import { DocumentGroupProps } from '../types/IMyQuizzesPageTypes';
+import { IDocumentGroup } from '../types/IMyQuizzesPageTypes';
 import { FileText } from 'lucide-react';
 
-export const DocumentGroup: React.FC<DocumentGroupProps> = ({
+export const DocumentGroup: React.FC<IDocumentGroup> = ({
   documentTitle,
   quizzes,
   onQuizClick,

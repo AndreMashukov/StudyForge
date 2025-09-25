@@ -3,7 +3,7 @@ import { MyQuizzesPageContext } from './MyQuizzesPageContext';
 import { useFetchMyQuizzesData } from './hooks/api/useFetchMyQuizzesData';
 import { useMyQuizzesPageHandlers } from './hooks/useMyQuizzesPageHandlers';
 import { useMyQuizzesPageEffects } from './hooks/useMyQuizzesPageEffects';
-import { GroupedQuizzes } from '../types/IMyQuizzesPageTypes';
+import { IGroupedQuizzes } from '../types/IMyQuizzesPageTypes';
 
 interface IMyQuizzesPageProvider {
   children: ReactNode;
@@ -20,7 +20,7 @@ export const MyQuizzesPageProvider: React.FC<IMyQuizzesPageProvider> = ({ childr
   useMyQuizzesPageEffects();
 
   // Group quizzes by document title - computed data that can't be accessed elsewhere
-  const groupedQuizzes: GroupedQuizzes = useMemo(() => {
+  const groupedQuizzes: IGroupedQuizzes = useMemo(() => {
     return quizzesApi.quizzes.reduce((acc, quiz) => {
       const documentTitle = quiz.documentTitle || 'Unknown Document';
       if (!acc[documentTitle]) {
@@ -28,7 +28,7 @@ export const MyQuizzesPageProvider: React.FC<IMyQuizzesPageProvider> = ({ childr
       }
       acc[documentTitle].push(quiz);
       return acc;
-    }, {} as GroupedQuizzes);
+    }, {} as IGroupedQuizzes);
   }, [quizzesApi.quizzes]);
 
   const contextValue = {

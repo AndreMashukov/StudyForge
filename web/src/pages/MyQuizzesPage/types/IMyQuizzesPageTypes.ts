@@ -16,20 +16,20 @@ export interface IMyQuizzesPageContext {
   };
   
   // Computed data (can't be accessed elsewhere)
-  groupedQuizzes: GroupedQuizzes;
+  groupedQuizzes: IGroupedQuizzes;
 }
 
-export interface GroupedQuizzes {
+export interface IGroupedQuizzes {
   [documentTitle: string]: Quiz[];
 }
 
-export interface QuizCardProps {
+export interface IQuizCard {
   quiz: Quiz;
   onQuizClick: (quizId: string) => void;
   onDeleteQuiz: (quizId: string) => void;
 }
 
-export interface DocumentGroupProps {
+export interface IDocumentGroup {
   documentTitle: string;
   quizzes: Quiz[];
   onQuizClick: (quizId: string) => void;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
-import { QuizCardProps } from '../types/IMyQuizzesPageTypes';
+import { IQuizCard } from '../types/IMyQuizzesPageTypes';
 import { Play, Trash2, Calendar, Hash } from 'lucide-react';
 
 const formatDate = (date: Date | { toDate(): Date } | string): string => {
@@ -22,7 +22,7 @@ const formatDate = (date: Date | { toDate(): Date } | string): string => {
   }
 };
 
-export const QuizCard: React.FC<QuizCardProps> = ({ quiz, onQuizClick, onDeleteQuiz }) => {
+export const QuizCard: React.FC<IQuizCard> = ({ quiz, onQuizClick, onDeleteQuiz }) => {
   return (
     <Card className="hover:shadow-md transition-shadow cursor-pointer">
       <CardContent className="p-4">

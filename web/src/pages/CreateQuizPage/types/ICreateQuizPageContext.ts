@@ -3,9 +3,18 @@ import { ICreateQuizFormData } from '../../../store/slices/createQuizPageSlice';
 
 export interface ICreateQuizPageContext {
   documentsApi: {
-    data: unknown;
+    data?: {
+      documents: Array<{
+        id: string;
+        title: string;
+        content?: string;
+      }>;
+      total: number;
+      hasMore: boolean;
+    };
     isLoading: boolean;
-    error: unknown;
+    error?: unknown;
+    refetch: () => void;
   };
   form: UseFormReturn<ICreateQuizFormData>;
   handlers: {
