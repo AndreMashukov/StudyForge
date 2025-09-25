@@ -17,9 +17,7 @@ export const MyQuizzesPageProvider: React.FC<IMyQuizzesPageProvider> = ({ childr
   const handlers = useMyQuizzesPageHandlers();
 
   // Effect hooks - self-contained side effects, manage their own dependencies
-  useMyQuizzesPageEffects({
-    refetchQuizzes: quizzesApi.refetch,
-  });
+  useMyQuizzesPageEffects();
 
   // Group quizzes by document title - computed data that can't be accessed elsewhere
   const groupedQuizzes: GroupedQuizzes = useMemo(() => {
