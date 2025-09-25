@@ -23,6 +23,14 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "title", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "quizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
