@@ -57,25 +57,11 @@ export const generateQuiz = onCall(
       
       GeminiService.validateContentForQuiz(documentContent);
       
-      // Step 4: Check if we already have a quiz for this document
-      const existingQuiz = await FirestoreService.findExistingQuizByDocument(documentId, userId!);
-      
-      if (existingQuiz) {
-        console.log("Returning existing quiz for document");
-        return {
-          success: true,
-          data: {
-            quizId: existingQuiz.id,
-            quiz: existingQuiz,
-          },
-        };
-      }
-      
-      // Step 5: Generate quiz with Gemini AI (allowing multiple per document)
+      // Step 4: Generate quiz with Gemini AI (allowing multiple per document)
       console.log("Generating quiz with Gemini AI for document...");
       const geminiQuiz = await GeminiService.generateQuiz(documentContent, additionalPrompt);
       
-      // Step 6: Apply custom quiz name if provided
+      // Step 5: Apply custom quiz name if provided
       if (quizName && quizName.trim()) {
         geminiQuiz.title = quizName.trim();
       } else {
@@ -83,7 +69,7 @@ export const generateQuiz = onCall(
         geminiQuiz.title = `Quiz from ${document.title}`;
       }
       
-      // Step 7: Save quiz with document reference
+      // Step 6: Save quiz with document reference
       const savedQuiz = await FirestoreService.saveQuizFromDocument(documentId, geminiQuiz, userId!);
       
       console.log(`Successfully generated quiz from document: ${savedQuiz.id}`);
