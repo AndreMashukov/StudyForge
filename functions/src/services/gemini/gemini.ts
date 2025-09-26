@@ -43,7 +43,7 @@ export class GeminiService {
       JsonSanitizer.validateContentForSafeGeneration(content.content);
 
       const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
       const prompt = PromptBuilder.buildQuizPrompt(content, additionalPrompt);
       functions.logger.debug('Sending request to Gemini AI', { contentLength: content.content.length });
@@ -84,7 +84,7 @@ export class GeminiService {
 
       const client = this.getClient();
       const model = client.getGenerativeModel({ 
-        model: "gemini-1.5-pro",
+        model: "gemini-2.0-flash",
         generationConfig: {
           temperature: 0.3,
           topK: 40,
@@ -320,7 +320,7 @@ export class GeminiService {
 
       // Test connectivity with a simple request
       const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
       // Make a simple test request to verify the API is working
       const result = await model.generateContent("Test");
@@ -328,7 +328,7 @@ export class GeminiService {
       if (result.response) {
         return {
           available: true,
-          model: "gemini-1.5-pro"
+          model: "gemini-2.0-flash"
         };
       } else {
         return {
