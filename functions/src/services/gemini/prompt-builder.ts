@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import { ScrapedContent } from '../../../libs/shared-types/src/index';
 
 /**
