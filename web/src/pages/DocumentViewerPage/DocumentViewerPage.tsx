@@ -1,6 +1,6 @@
 import React from 'react';
 import { ProtectedRoute } from '../../utils/ProtectedRoute';
-import { DocumentViewerPageProvider } from './context/DocumentViewerPageProvider';
+import { DocumentViewerPageProvider } from './context';
 import { DocumentViewerPageContainer } from './DocumentViewerPageContainer';
 
 export const DocumentViewerPage = () => {

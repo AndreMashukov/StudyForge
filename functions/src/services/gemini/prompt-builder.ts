@@ -1,4 +1,4 @@
-import { ScrapedContent } from '../../types/scraped-content';
+import { ScrapedContent } from '../../../libs/shared-types/src/index';
 
 /**
  * Prompt Builder for Gemini AI Quiz Generation

@@ -77,4 +77,5 @@ export {
   listDocuments,
   searchDocuments,
   getDocumentStats,
+  getDocumentContent,
 } from "./endpoints/documents.js";

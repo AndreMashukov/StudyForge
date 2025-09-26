@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as functions from 'firebase-functions';
-import { ScrapedContent } from '../../types/scraped-content';
+import { ScrapedContent } from '../../../libs/shared-types/src/index';
 import { JsonSanitizer } from './json-sanitizer';
 import { PromptBuilder } from './prompt-builder';
 
@@ -274,5 +274,75 @@ export class GeminiService {
         }
       ]
     };
+  }
+
+  /**
+   * Validate content for quiz generation
+   * @param content - The content to validate
+   */
+  public static validateContentForQuiz(content: { title: string; content: string; wordCount: number }): void {
+    if (!content.title || content.title.trim().length === 0) {
+      throw new Error('Content must have a title');
+    }
+
+    if (!content.content || content.content.trim().length === 0) {
+      throw new Error('Content cannot be empty');
+    }
+
+    if (content.wordCount < 50) {
+      throw new Error('Content is too short for quiz generation (minimum 50 words required)');
+    }
+
+    if (content.wordCount > 10000) {
+      functions.logger.warn(`Content is very long (${content.wordCount} words), quiz generation may take longer`);
+    }
+
+    // Check for potentially problematic patterns
+    if (content.content.includes('```') || content.content.includes('{') || content.content.includes('}')) {
+      functions.logger.info('Content contains code-like patterns, will sanitize during generation');
+    }
+  }
+
+  /**
+   * Get model information and availability
+   * @returns Model info including availability status
+   */
+  public static async getModelInfo(): Promise<{ available: boolean; model?: string; error?: string }> {
+    try {
+      const apiKey = functions.config().gemini?.api_key || process.env.GEMINI_API_KEY;
+      
+      if (!apiKey) {
+        return {
+          available: false,
+          error: 'Gemini API key not configured'
+        };
+      }
+
+      // Test connectivity with a simple request
+      const genAI = this.getClient();
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
+      // Make a simple test request to verify the API is working
+      const result = await model.generateContent("Test");
+      
+      if (result.response) {
+        return {
+          available: true,
+          model: "gemini-1.5-pro"
+        };
+      } else {
+        return {
+          available: false,
+          error: 'API test failed - no response'
+        };
+      }
+
+    } catch (error) {
+      functions.logger.error('Gemini API test failed:', error);
+      return {
+        available: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
   }
 }

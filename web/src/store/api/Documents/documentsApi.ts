@@ -92,6 +92,19 @@ export const documentsApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Document'],
     }),
+
+    getDocumentContent: builder.query<{ content: string }, string>({
+      query: (documentId) => ({
+        functionName: 'getDocumentContent',
+        data: { documentId }
+      }),
+      transformResponse: (response: { success: boolean; content: string }) => {
+        return { content: response.content };
+      },
+      providesTags: (result, error, documentId) => [
+        { type: 'Document', id: `${documentId}-content` }
+      ],
+    }),
   }),
   overrideExisting: false,
 });
@@ -101,6 +114,8 @@ export const {
   useLazyGetUserDocumentsQuery,
   useGetDocumentQuery,
   useLazyGetDocumentQuery,
+  useGetDocumentContentQuery,
+  useLazyGetDocumentContentQuery,
   useCreateDocumentMutation,
   useCreateDocumentFromUrlMutation,
   useUpdateDocumentMutation,

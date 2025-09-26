@@ -451,3 +451,42 @@ export const getDocumentStats = onCall(
     }
   }
 );
+
+/**
+ * Get document content for viewing/rendering
+ */
+export const getDocumentContent = onCall(
+  { 
+    region: 'asia-east1',
+    cors: true,
+  },
+  async (request) => {
+    try {
+      const userId = await validateAuth(request);
+      const { documentId } = request.data as { documentId: string };
+
+      if (!documentId || documentId.trim().length === 0) {
+        throw new Error('Document ID is required');
+      }
+
+      logger.info('Getting document content', { 
+        userId,
+        documentId,
+      });
+
+      const documentWithContent = await DocumentCrudService.getDocumentWithContent(userId, documentId);
+
+      return { 
+        success: true, 
+        content: documentWithContent.content,
+      };
+
+    } catch (error) {
+      logger.error('Failed to get document content', { 
+        error: error instanceof Error ? error.message : String(error),
+        documentId: request.data?.documentId,
+      });
+      throw new Error(`Failed to get document content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+);
