@@ -43,10 +43,10 @@ export const generateQuiz = onCall(
       });
       
       // Step 1: Get document metadata
-      const document = await FirestoreService.getDocument(userId!, documentId);
+      const document = await FirestoreService.getDocument(userId, documentId);
       
       // Step 2: Retrieve document content from Storage
-      const content = await FirestoreService.getDocumentContent(userId!, documentId);
+      const content = await FirestoreService.getDocumentContent(userId, documentId);
       
       // Step 3: Validate content for quiz generation
       const documentContent = {
@@ -70,7 +70,7 @@ export const generateQuiz = onCall(
       }
       
       // Step 6: Save quiz with document reference
-      const savedQuiz = await FirestoreService.saveQuizFromDocument(documentId, geminiQuiz, userId!);
+      const savedQuiz = await FirestoreService.saveQuizFromDocument(documentId, geminiQuiz, userId);
       
       console.log(`Successfully generated quiz from document: ${savedQuiz.id}`);
       

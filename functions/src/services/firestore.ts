@@ -23,9 +23,9 @@ export class FirestoreService {
              value !== undefined &&
              typeof value === 'object' && 
              'toDate' in value &&
-             typeof (value as any).toDate === 'function' &&
-             ((value as any).constructor?.name === 'Timestamp' || 
-              (value as any)._delegate?.constructor?.name === 'Timestamp' ||
+             typeof (value as { toDate?: unknown }).toDate === 'function' &&
+             ((value as { constructor?: { name?: string } }).constructor?.name === 'Timestamp' || 
+              (value as { _delegate?: { constructor?: { name?: string } } })._delegate?.constructor?.name === 'Timestamp' ||
               (admin.firestore.Timestamp && value instanceof admin.firestore.Timestamp));
     } catch {
       // If instanceof check fails, fall back to duck typing
@@ -33,7 +33,7 @@ export class FirestoreService {
              value !== undefined &&
              typeof value === 'object' &&
              'toDate' in value &&
-             typeof (value as any).toDate === 'function';
+             typeof (value as { toDate?: unknown }).toDate === 'function';
     }
   }
 
@@ -333,7 +333,7 @@ export class FirestoreService {
       const quizzesCollection = db.collection("quizzes");
 
       // Get document metadata for quiz title
-      const document = await this.getDocument(userId!, documentId);
+      const document = await this.getDocument(userId, documentId);
       
       // Count existing quizzes for this document to determine generation attempt
       const existingQuizzesSnapshot = await quizzesCollection
@@ -347,7 +347,7 @@ export class FirestoreService {
         id: "",
         documentId: documentId,
         title: `${document.title} - Quiz ${generationAttempt}`,
-        questions: geminiQuiz.questions.map((q: any): QuizQuestion => ({
+        questions: geminiQuiz.questions.map((q: { question: string; options: string[]; correctAnswer: number; explanation?: string }): QuizQuestion => ({
           question: q.question,
           options: q.options,
           correctAnswer: q.correctAnswer,

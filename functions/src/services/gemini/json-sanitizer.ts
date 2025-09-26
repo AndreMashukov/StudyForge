@@ -107,7 +107,7 @@ export class JsonSanitizer {
     
     // Handle escaped quotes in JSON string values
     cleanText = cleanText.replace(/\\"/g, "'");
-    cleanText = cleanText.replace(/\\\"/g, "'");
+    cleanText = cleanText.replace(/\\"/g, "'");
     cleanText = cleanText.replace(/&quot;/g, '"');
     cleanText = cleanText.replace(/\\\\"/g, '\\"');
     cleanText = cleanText.replace(/\s\\"\s/g, " ' ");
@@ -208,7 +208,7 @@ export class JsonSanitizer {
   /**
    * Attempt parsing with multiple fallback strategies
    */
-  static tryFallbackParsing(cleanText: string): any {
+  static tryFallbackParsing(cleanText: string): unknown {
     const strategies = this.getFallbackStrategies();
 
     for (const strategy of strategies) {
@@ -229,7 +229,7 @@ export class JsonSanitizer {
   /**
    * Log detailed error information for debugging
    */
-  static logParsingError(error: any, responseText: string, cleanText: string): void {
+  static logParsingError(error: unknown, responseText: string, cleanText: string): void {
     const errorMessage = error instanceof Error ? error.message : String(error);
     
     // Extract position information if it's a JSON parsing error

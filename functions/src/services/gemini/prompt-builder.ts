@@ -118,7 +118,7 @@ Please incorporate these additional requirements into your quiz generation while
 - **NEVER use unquoted text in JSON**
 - **NEVER use double quotes (") inside JSON string values**
 - **NEVER use backticks inside JSON string values**
-- **NEVER use escaped quotes (\\\") inside JSON string values**
+- **NEVER use escaped quotes (\") inside JSON string values**
 
 **ARRAY VALUES - CRITICAL:**
 - ❌ WRONG: ["Option 1", Send(), "Option 3"] (unquoted function name)
@@ -127,9 +127,9 @@ Please incorporate these additional requirements into your quiz generation while
 - ✅ CORRECT: ["Option 1", "Some Value", "Option 3"] (all quoted)
 
 **FOR CODE/FUNCTION REFERENCES - USE THESE ALTERNATIVES:**
-- ❌ WRONG: "What does the \\"GetUser()\\" function do?"
-- ❌ WRONG: "The \\"main\\" function handles..."  
-- ❌ WRONG: "What is the purpose of the \\\`setTimeout\\\` method?"
+- ❌ WRONG: "What does the \"GetUser()\" function do?"
+- ❌ WRONG: "The \"main\" function handles..."  
+- ❌ WRONG: "What is the purpose of the \`setTimeout\` method?"
 - ✅ CORRECT: "What does the GetUser() function do?"
 - ✅ CORRECT: "The main function handles..."
 - ✅ CORRECT: "What is the purpose of the setTimeout method?"

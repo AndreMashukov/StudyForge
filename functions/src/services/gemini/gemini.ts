@@ -160,7 +160,7 @@ export class GeminiService {
   /**
    * Validate the quiz structure and content
    */
-  private static validateQuizStructure(parsed: any): void {
+  private static validateQuizStructure(parsed: { title?: unknown; questions?: unknown }): void {
     if (!parsed.title || !Array.isArray(parsed.questions)) {
       throw new Error("Invalid quiz structure: missing title or questions array");
     }
