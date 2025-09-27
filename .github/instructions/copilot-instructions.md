@@ -1714,6 +1714,213 @@ test('renders component correctly', () => {
 });
 ```
 
+## Date Formatting and Handling
+
+### Date Utilities with date-fns
+
+This project uses `date-fns` library for all date formatting and manipulation. A centralized date utility system handles Firebase Timestamp objects and various date formats.
+
+#### Installation and Setup
+
+```bash
+# Install date-fns at workspace root
+yarn add date-fns
+```
+
+#### Core Date Utilities (`web/src/utils/dateUtils.ts`)
+
+The project provides two main date formatting functions:
+
+```typescript
+import { formatDate, formatDateWithOptions } from '../utils/dateUtils';
+
+// Basic date formatting (M/d/yyyy format)
+const displayDate = formatDate(firebaseTimestamp); // "12/15/2023"
+
+// Custom date formatting with date-fns format strings
+const customDate = formatDateWithOptions(firebaseTimestamp, 'MMM d, yyyy'); // "Dec 15, 2023"
+const fullDate = formatDateWithOptions(firebaseTimestamp, 'EEEE, MMMM d, yyyy'); // "Friday, December 15, 2023"
+```
+
+#### Supported Date Formats
+
+The date utilities handle multiple input formats automatically:
+
+1. **Firebase Timestamp Objects** (with `toDate()` method)
+2. **Raw Firebase Timestamps** (with `_seconds` and `_nanoseconds` properties)
+3. **JavaScript Date Objects**
+4. **ISO Date Strings**
+5. **Unix Timestamps** (numbers)
+6. **Null/Undefined Values** (graceful fallbacks)
+
+#### Firebase Timestamp Handling
+
+Firebase Firestore returns timestamps in different formats depending on the context:
+
+```typescript
+// Standard Firebase Timestamp (has toDate method)
+const standardTimestamp = {
+  toDate: () => new Date('2023-12-15')
+};
+
+// Raw Firebase Timestamp (from API responses)
+const rawTimestamp = {
+  _seconds: 1702598400,
+  _nanoseconds: 27000000
+};
+
+// Both formats are handled automatically
+formatDate(standardTimestamp); // "12/15/2023"
+formatDate(rawTimestamp);      // "12/15/2023"
+```
+
+#### Usage Patterns
+
+##### In Components
+```typescript
+// DocumentsPage example
+import { formatDate } from '../../../utils/dateUtils';
+
+export const DocumentCard = ({ document }: { document: DocumentEnhanced }) => {
+  return (
+    <Card>
+      <CardContent>
+        <div className="flex items-center gap-1">
+          <Calendar size={14} />
+          {formatDate(document.createdAt)}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+```
+
+##### In Document Viewer
+```typescript
+// DocumentViewerPage example
+import { formatDateWithOptions } from '../../../utils/dateUtils';
+
+export const DocumentHeader = ({ document }: { document: DocumentEnhanced }) => {
+  return (
+    <div className="flex items-center gap-6 text-sm text-muted-foreground">
+      <span className="flex items-center gap-1.5">
+        <Calendar size={14} />
+        Created {formatDateWithOptions(document.createdAt)}
+      </span>
+      <span className="flex items-center gap-1.5">
+        <Calendar size={14} />
+        Updated {formatDateWithOptions(document.updatedAt)}
+      </span>
+    </div>
+  );
+};
+```
+
+#### Common Format Patterns
+
+```typescript
+// Common date-fns format strings
+const commonFormats = {
+  short: 'M/d/yyyy',           // "12/15/2023"
+  medium: 'MMM d, yyyy',       // "Dec 15, 2023"
+  long: 'MMMM d, yyyy',        // "December 15, 2023"
+  full: 'EEEE, MMMM d, yyyy',  // "Friday, December 15, 2023"
+  time: 'h:mm a',              // "2:30 PM"
+  datetime: 'MMM d, yyyy h:mm a', // "Dec 15, 2023 2:30 PM"
+  iso: 'yyyy-MM-dd',           // "2023-12-15"
+};
+
+// Usage examples
+formatDateWithOptions(date, commonFormats.medium);
+formatDateWithOptions(date, commonFormats.datetime);
+```
+
+#### Error Handling and Fallbacks
+
+The date utilities provide graceful error handling:
+
+```typescript
+// Invalid dates return fallback strings
+formatDate(null);           // "Unknown"
+formatDate(undefined);      // "Unknown"
+formatDate("invalid");      // "Unknown"
+
+formatDateWithOptions(null, 'MMM d, yyyy'); // "Invalid date"
+```
+
+#### Type Safety
+
+All date utilities are fully typed for Firebase Timestamp compatibility:
+
+```typescript
+type DateInput = 
+  | Date 
+  | { toDate(): Date } 
+  | { _seconds: number; _nanoseconds: number } 
+  | string 
+  | number 
+  | null 
+  | undefined;
+
+// Functions accept all Firebase date formats
+export const formatDate = (date: DateInput): string => { /* ... */ };
+export const formatDateWithOptions = (date: DateInput, format?: string): string => { /* ... */ };
+```
+
+#### Best Practices
+
+1. **Always use the centralized utilities** - Never format dates manually
+2. **Import from utils/dateUtils** - Consistent across the application
+3. **Use appropriate format strings** - Choose based on context and space
+4. **Handle null cases** - The utilities provide safe fallbacks
+5. **Test with Firebase data** - Ensure compatibility with Firestore timestamps
+
+#### Testing Date Utilities
+
+```typescript
+// Test with various Firebase timestamp formats
+describe('Date Utilities', () => {
+  it('handles Firebase timestamps with toDate method', () => {
+    const timestamp = { toDate: () => new Date('2023-12-15') };
+    expect(formatDate(timestamp)).toBe('12/15/2023');
+  });
+
+  it('handles raw Firebase timestamps', () => {
+    const rawTimestamp = { _seconds: 1702598400, _nanoseconds: 0 };
+    expect(formatDate(rawTimestamp)).toBe('12/15/2023');
+  });
+
+  it('provides fallbacks for invalid dates', () => {
+    expect(formatDate(null)).toBe('Unknown');
+    expect(formatDate('invalid')).toBe('Unknown');
+  });
+});
+```
+
+#### Migration from Manual Date Formatting
+
+When updating existing code, replace manual date formatting:
+
+```typescript
+// ❌ Before - Manual formatting
+new Date(document.createdAt).toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'short', 
+  day: 'numeric'
+})
+
+// ✅ After - Using date utilities
+formatDateWithOptions(document.createdAt, 'MMM d, yyyy')
+
+// ❌ Before - Complex Firebase handling
+typeof document.createdAt === 'object' && 'toDate' in document.createdAt 
+  ? document.createdAt.toDate().toLocaleDateString()
+  : new Date(document.createdAt).toLocaleDateString()
+
+// ✅ After - Simple utility call
+formatDate(document.createdAt)
+```
+
 ## Security Guidelines
 
 - Sanitize user inputs to prevent XSS attacks
