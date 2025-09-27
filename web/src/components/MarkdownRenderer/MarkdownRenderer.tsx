@@ -17,18 +17,30 @@ const generateTocFromContent = (content: string): TocItem[] => {
   while ((match = headingRegex.exec(content)) !== null) {
     const level = match[1].length;
     const title = match[2].trim();
-    const id = title
+    
+    // Improved ID generation to handle special characters and ensure uniqueness
+    const baseId = title
       .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
+      .replace(/[^\w\s-]/g, '') // Remove special characters except word chars, spaces, and hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+    
+    // Ensure unique IDs by checking for duplicates
+    let id = baseId;
+    let counter = 1;
+    while (headings.some(h => h.id === id)) {
+      id = `${baseId}-${counter}`;
+      counter++;
+    }
     
     headings.push({ level, title, id });
   }
 
-  // Convert flat array to nested structure
+  // Convert flat array to properly nested structure
   const buildNestedToc = (items: typeof headings): TocItem[] => {
+    if (items.length === 0) return [];
+    
     const result: TocItem[] = [];
     const stack: TocItem[] = [];
 
@@ -40,14 +52,16 @@ const generateTocFromContent = (content: string): TocItem[] => {
         children: [],
       };
 
-      // Find the appropriate parent
+      // Remove items from stack that are at same or deeper level
       while (stack.length > 0 && stack[stack.length - 1].level >= item.level) {
         stack.pop();
       }
 
+      // If stack is empty or this is a top-level item, add to result
       if (stack.length === 0) {
         result.push(tocItem);
       } else {
+        // Add as child to the last item in stack
         const parent = stack[stack.length - 1];
         if (!parent.children) {
           parent.children = [];
@@ -55,6 +69,7 @@ const generateTocFromContent = (content: string): TocItem[] => {
         parent.children.push(tocItem);
       }
 
+      // Add current item to stack for potential children
       stack.push(tocItem);
     }
 

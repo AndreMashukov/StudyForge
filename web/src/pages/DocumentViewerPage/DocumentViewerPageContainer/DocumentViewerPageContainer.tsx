@@ -3,16 +3,62 @@ import { useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Page } from '../../../components/Page';
 import { ActionsDropdown } from '../../../components/ui/ActionsDropdown';
-import { MarkdownRenderer } from '../../../components/MarkdownRenderer';
+import { MarkdownRenderer, TocItem } from '../../../components/MarkdownRenderer';
 import { Button } from '../../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
-import { Brain, ArrowLeft, Download, List, X, Calendar, User, Hash } from 'lucide-react';
+import { Brain, ArrowLeft, Download, List, X, Calendar } from 'lucide-react';
 import { useDocumentViewerPageContext } from '../context';
 import { 
   selectTocItems, 
   selectShowToc, 
   selectIsExporting 
 } from '../../../store/slices/documentViewerPageSlice';
+
+// Recursive component to render nested TOC items
+const TocItemComponent: React.FC<{
+  item: TocItem;
+  onItemClick: (id: string) => void;
+  depth?: number;
+}> = ({ item, onItemClick, depth = 0 }) => {
+  const getTextSize = (level: number) => {
+    switch (level) {
+      case 1: return "text-sm font-medium";
+      case 2: return "text-sm font-normal";
+      case 3: return "text-xs font-normal";
+      default: return "text-xs font-light";
+    }
+  };
+
+  const getOpacity = (depth: number) => {
+    return depth > 2 ? "opacity-75" : "opacity-100";
+  };
+
+  return (
+    <div className="space-y-0.5">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onItemClick(item.id)}
+        className={`w-full justify-start h-auto py-1.5 px-2 hover:bg-muted/70 transition-colors ${getTextSize(item.level)} ${getOpacity(depth)}`}
+        style={{ paddingLeft: `${depth * 0.75 + 0.5}rem` }}
+      >
+        <span className="truncate text-left leading-relaxed">{item.title}</span>
+      </Button>
+      {item.children && item.children.length > 0 && (
+        <div className="space-y-0.5">
+          {item.children.map((child) => (
+            <TocItemComponent
+              key={child.id}
+              item={child}
+              onItemClick={onItemClick}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const DocumentViewerPageContainer = () => {
   const { documentId } = useParams<{ documentId: string }>();
@@ -83,123 +129,171 @@ export const DocumentViewerPageContainer = () => {
     <Page showSidebar={true}>
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => window.history.back()}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft size={16} />
-            Go Back
-          </Button>
-          
-          <div className="flex items-center gap-2">
-            {/* TOC Toggle */}
-            {tocItems.length > 0 && (
-              <Button
-                variant={showToc ? "default" : "outline"}
-                size="sm"
-                onClick={handlers.handleToggleToc}
-              >
-                <List size={16} className="mr-2" />
-                {showToc ? 'Hide TOC' : 'Show TOC'}
-              </Button>
-            )}
+        <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 border-b">
+          <div className="flex items-center justify-between p-4">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => window.history.back()}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft size={16} />
+              Go Back
+            </Button>
             
-            {/* Export PDF */}
-            {contentApi.data?.content && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlers.handleExportPDF}
-                disabled={isExporting}
-              >
-                <Download size={16} className="mr-2" />
-                {isExporting ? 'Exporting...' : 'Export PDF'}
-              </Button>
-            )}
-            
-            {/* Actions Dropdown */}
-            <ActionsDropdown
-              items={[
-                {
-                  id: 'create-quiz',
-                  label: 'Create Quiz',
-                  icon: <Brain size={16} />,
-                  onClick: () => documentId && handlers.handleCreateQuizFromDocument(documentId),
-                },
-              ]}
-            />
+            <div className="flex items-center gap-2">
+              {/* TOC Toggle */}
+              {tocItems.length > 0 && (
+                <Button
+                  variant={showToc ? "default" : "outline"}
+                  size="sm"
+                  onClick={handlers.handleToggleToc}
+                >
+                  <List size={16} className="mr-2" />
+                  {showToc ? 'Hide TOC' : 'Show TOC'}
+                </Button>
+              )}
+              
+              {/* Export PDF */}
+              {contentApi.data?.content && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlers.handleExportPDF}
+                  disabled={isExporting}
+                >
+                  <Download size={16} className="mr-2" />
+                  {isExporting ? 'Exporting...' : 'Export PDF'}
+                </Button>
+              )}
+              
+              {/* Actions Dropdown */}
+              <ActionsDropdown
+                items={[
+                  {
+                    id: 'create-quiz',
+                    label: 'Create Quiz',
+                    icon: <Brain size={16} />,
+                    onClick: () => documentId && handlers.handleCreateQuizFromDocument(documentId),
+                  },
+                ]}
+              />
+            </div>
           </div>
         </div>
 
         {/* Document Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{documentApi.data.title}</CardTitle>
-            {documentApi.data.description && (
-              <p className="text-muted-foreground">{documentApi.data.description}</p>
-            )}
+        <Card className="border-0 shadow-none">
+          <CardHeader className="pb-3">
+            <div className="space-y-2">
+              <CardTitle className="text-2xl font-bold leading-tight">
+                {documentApi.data.title}
+              </CardTitle>
+              {documentApi.data.description && (
+                <p className="text-muted-foreground text-base leading-relaxed">
+                  {documentApi.data.description}
+                </p>
+              )}
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
+          <CardContent className="pt-0">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5">
                 <Calendar size={14} />
-                Created: {new Date(documentApi.data.created).toLocaleDateString()}
+                Created {new Date(
+                  typeof documentApi.data.createdAt === 'object' && 'toDate' in documentApi.data.createdAt 
+                    ? documentApi.data.createdAt.toDate() 
+                    : documentApi.data.createdAt
+                ).toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric' 
+                })}
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1.5">
                 <Calendar size={14} />
-                Updated: {new Date(documentApi.data.updated).toLocaleDateString()}
-              </span>
-              <span className="flex items-center gap-1">
-                <User size={14} />
-                Author: {documentApi.data.author}
-              </span>
-              <span className="flex items-center gap-1">
-                <Hash size={14} />
-                ID: {documentApi.data.id}
+                Updated {new Date(
+                  typeof documentApi.data.updatedAt === 'object' && 'toDate' in documentApi.data.updatedAt 
+                    ? documentApi.data.updatedAt.toDate() 
+                    : documentApi.data.updatedAt
+                ).toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric' 
+                })}
               </span>
             </div>
           </CardContent>
         </Card>
 
         {/* Main Content Area */}
-        <div className="flex gap-6">
+        <div className="flex gap-6 relative">
           {/* TOC Sidebar */}
           {showToc && tocItems.length > 0 && (
-            <div className="w-64 flex-shrink-0">
-              <Card className="sticky top-4">
+            <div className="w-72 flex-shrink-0 hidden lg:block">
+              <Card className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-hidden border shadow-sm">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Table of Contents</CardTitle>
+                    <CardTitle className="text-base font-semibold">Table of Contents</CardTitle>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={handlers.handleToggleToc}
-                      className="h-6 w-6 p-0"
+                      className="h-6 w-6 p-0 hover:bg-muted"
                     >
                       <X size={14} />
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <nav className="space-y-1">
+                <CardContent className="pt-0 overflow-y-auto max-h-[calc(100vh-12rem)] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                  <nav className="space-y-0.5">
                     {tocItems.map((item) => (
-                      <Button
+                      <TocItemComponent
                         key={item.id}
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handlers.handleTocItemClick(item.id)}
-                        className="w-full justify-start text-sm font-normal h-auto py-1"
-                        style={{ paddingLeft: `${(item.level - 1) * 0.75 + 0.5}rem` }}
-                      >
-                        {item.text}
-                      </Button>
+                        item={item}
+                        onItemClick={handlers.handleTocItemClick}
+                      />
                     ))}
                   </nav>
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* Mobile TOC Overlay */}
+          {showToc && tocItems.length > 0 && (
+            <div className="lg:hidden fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+              <div className="fixed left-4 top-20 bottom-4 w-80 max-w-[calc(100vw-2rem)]">
+                <Card className="h-full overflow-hidden border shadow-lg">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base font-semibold">Table of Contents</CardTitle>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handlers.handleToggleToc}
+                        className="h-6 w-6 p-0 hover:bg-muted"
+                      >
+                        <X size={14} />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                    <nav className="space-y-0.5">
+                      {tocItems.map((item) => (
+                        <TocItemComponent
+                          key={item.id}
+                          item={item}
+                          onItemClick={(id) => {
+                            handlers.handleTocItemClick(id);
+                            handlers.handleToggleToc(); // Close TOC on mobile after clicking
+                          }}
+                        />
+                      ))}
+                    </nav>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
 

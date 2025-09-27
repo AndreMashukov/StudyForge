@@ -22,6 +22,6 @@ export interface IDocumentViewerPageContext {
     handleTocItemClick: (id: string) => void;
     isExporting: boolean;
   };
-  contentRef: React.RefObject<HTMLDivElement>;
+  contentRef: React.RefObject<HTMLDivElement | null>;
   // DON'T include: tocItems, showToc (access through Redux selectors)
 }

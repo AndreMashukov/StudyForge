@@ -5,13 +5,13 @@ export const markdownStyles = {
   container: "prose prose-invert max-w-none dark:prose-invert",
   
   // Typography
-  heading: "scroll-mt-6 font-semibold text-foreground",
-  h1: "text-3xl font-bold text-foreground mb-4 mt-6 first:mt-0 border-b border-border pb-2",
-  h2: "text-2xl font-semibold text-foreground mb-3 mt-5 border-b border-border pb-2",
-  h3: "text-xl font-medium text-foreground mb-2 mt-4",
-  h4: "text-lg font-medium text-foreground mb-2 mt-3",
-  h5: "text-base font-medium text-foreground mb-1 mt-2",
-  h6: "text-sm font-medium text-foreground mb-1 mt-2",
+  heading: "scroll-mt-20 font-semibold text-foreground", // Increased scroll margin for sticky header
+  h1: "text-3xl font-bold text-foreground mb-6 mt-8 first:mt-0 border-b border-border pb-3 scroll-mt-20",
+  h2: "text-2xl font-semibold text-foreground mb-4 mt-6 border-b border-border/50 pb-2 scroll-mt-20",
+  h3: "text-xl font-medium text-foreground mb-3 mt-5 scroll-mt-20",
+  h4: "text-lg font-medium text-foreground mb-2 mt-4 scroll-mt-20",
+  h5: "text-base font-medium text-foreground mb-2 mt-3 scroll-mt-20",
+  h6: "text-sm font-medium text-foreground mb-1 mt-2 scroll-mt-20",
   
   // Text elements
   paragraph: "text-muted-foreground leading-7 mb-4",

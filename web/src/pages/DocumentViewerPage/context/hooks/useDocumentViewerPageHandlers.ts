@@ -5,6 +5,7 @@ import { TocItem, exportToPDF } from '../../../../components/MarkdownRenderer';
 import { DocumentEnhanced } from "@shared-types";
 import { 
   setTocItems, 
+  setShowToc,
   toggleToc, 
   setIsExporting,
   selectIsExporting 
@@ -12,7 +13,7 @@ import {
 
 interface UseDocumentViewerPageHandlersProps {
   document: DocumentEnhanced | undefined;
-  contentRef: React.RefObject<HTMLDivElement>;
+  contentRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export const useDocumentViewerPageHandlers = ({ 
@@ -29,6 +30,13 @@ export const useDocumentViewerPageHandlers = ({
 
   const handleTocGenerated = useCallback((toc: TocItem[]) => {
     dispatch(setTocItems(toc));
+    // Automatically show TOC if it has items and isn't already shown
+    if (toc.length > 0) {
+      // Only auto-show if there are multiple headings to make TOC useful
+      if (toc.length >= 2) {
+        dispatch(setShowToc(true));
+      }
+    }
   }, [dispatch]);
 
   const handleExportPDF = useCallback(async () => {
@@ -57,7 +65,22 @@ export const useDocumentViewerPageHandlers = ({
   const handleTocItemClick = useCallback((id: string) => {
     const element = window.document.getElementById(id);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+      // Calculate offset to account for sticky header
+      const headerHeight = 80; // Approximate height of sticky header
+      const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+      const offsetPosition = elementPosition - headerHeight;
+      
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+      
+      // Add a subtle highlight effect
+      element.style.transition = 'background-color 0.3s ease';
+      element.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+      setTimeout(() => {
+        element.style.backgroundColor = '';
+      }, 1000);
     }
   }, []);
 
