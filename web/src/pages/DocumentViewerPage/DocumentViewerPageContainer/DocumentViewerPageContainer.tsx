@@ -13,6 +13,7 @@ import {
   selectShowToc, 
   selectIsExporting 
 } from '../../../store/slices/documentViewerPageSlice';
+import { formatDateWithOptions } from '../../../utils/dateUtils';
 
 // Recursive component to render nested TOC items
 const TocItemComponent: React.FC<{
@@ -200,27 +201,11 @@ export const DocumentViewerPageContainer = () => {
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Calendar size={14} />
-                Created {new Date(
-                  typeof documentApi.data.createdAt === 'object' && 'toDate' in documentApi.data.createdAt 
-                    ? documentApi.data.createdAt.toDate() 
-                    : documentApi.data.createdAt
-                ).toLocaleDateString('en-US', { 
-                  year: 'numeric', 
-                  month: 'short', 
-                  day: 'numeric' 
-                })}
+                Created {formatDateWithOptions(documentApi.data.createdAt)}
               </span>
               <span className="flex items-center gap-1.5">
                 <Calendar size={14} />
-                Updated {new Date(
-                  typeof documentApi.data.updatedAt === 'object' && 'toDate' in documentApi.data.updatedAt 
-                    ? documentApi.data.updatedAt.toDate() 
-                    : documentApi.data.updatedAt
-                ).toLocaleDateString('en-US', { 
-                  year: 'numeric', 
-                  month: 'short', 
-                  day: 'numeric' 
-                })}
+                Updated {formatDateWithOptions(documentApi.data.updatedAt)}
               </span>
             </div>
           </CardContent>
