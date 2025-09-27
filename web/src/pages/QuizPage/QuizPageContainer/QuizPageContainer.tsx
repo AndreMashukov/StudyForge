@@ -1,11 +1,9 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { useQuizPageContext } from '../context';
-import { 
-  ProgressBar, 
-  QuestionCard, 
-  ScoreCard 
-} from '../components';
+import { ProgressBar } from './ProgressBar';
+import { QuestionCard } from './QuestionCard';
+import { ScoreCard } from './ScoreCard';
 import {
   selectQuizState,
   selectCurrentQuestion,

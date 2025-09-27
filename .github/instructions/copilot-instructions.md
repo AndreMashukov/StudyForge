@@ -210,6 +210,31 @@ web/src/components/ui/Label/
 ```
 This structure ensures clear separation, easier maintenance, and scalability for all UI and application components.
 
+### Container Component Structure
+Components that are specifically used within a page container should be placed in the container's directory:
+```
+web/src/pages/FeatureNamePage/FeatureNamePageContainer/
+├── index.ts                    # Exports container and its components
+├── FeatureNamePageContainer.tsx # Main container component
+├── ComponentA/                 # Container-specific component
+│   ├── index.ts
+│   ├── ComponentA.tsx
+│   ├── IComponentA.ts
+│   └── ComponentA.styles.ts
+├── ComponentB/                 # Another container-specific component
+│   ├── index.ts
+│   ├── ComponentB.tsx
+│   ├── IComponentB.ts
+│   └── ComponentB.styles.ts
+```
+
+**Container Component Rules:**
+- Components used only within a specific page container should be placed in that container's directory
+- Each component follows the same directory structure as global components
+- Import container components using relative paths: `import { ComponentA } from './ComponentA'`
+- Export all container components through the container's index.ts file
+- Use container components for page-specific UI that won't be reused elsewhere
+
 ### File Responsibilities
 
 - **Component files**: Direct exports with TypeScript interfaces inline
@@ -1683,6 +1708,12 @@ interface IAuthState {
 - **Handlers**: Only for business logic + mutations (no useEffect)
 - **Effects**: Only for non-fetch useEffect logic
 - **Form object naming**: Always name the form object `form`
+
+### Component Organization Rules
+- **Container-specific components**: Place in the container's directory, not in global components
+- **Global components**: Only in `web/src/components/` for reusable components across the app
+- **Relative imports**: Use `./ComponentName` for container-specific components
+- **Container index.ts**: Export all container components for clean imports
 
 ### Code Quality Rules
 - Always use TypeScript with strict typing
