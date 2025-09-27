@@ -10,14 +10,24 @@ import {
   selectQuizState,
   selectCurrentQuestion,
   selectFormState,
+  selectProgress,
+  selectQuizStats,
+  selectIsLoading,
+  selectError,
 } from '../../../store/slices/quizPageSlice';
 
 export const QuizPageContainer: React.FC = () => {
+  // Access Redux state directly (following architecture rules)
   const quizState = useSelector(selectQuizState);
   const currentQuestion = useSelector(selectCurrentQuestion);
   const formState = useSelector(selectFormState);
+  const progress = useSelector(selectProgress);
+  const stats = useSelector(selectQuizStats);
+  const isLoading = useSelector(selectIsLoading);
+  const error = useSelector(selectError);
   
-  const { handlers } = useQuizPageContext();
+  // Only get handlers and API from context
+  const { handlers, quizApi } = useQuizPageContext();
 
   const handleAnswerSelect = (answerIndex: number) => {
     if (formState.selectedAnswer === null && currentQuestion) {
@@ -33,28 +43,27 @@ export const QuizPageContainer: React.FC = () => {
     }
   };
 
-  if (handlers.isLoading) {
+  // Early returns for loading and error states
+  if (isLoading || quizApi.isLoading) {
     return (
-      <div className="quiz-container quiz-container--loading">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading quiz...</p>
-        </div>
+      <div className="flex justify-center items-center p-8">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        <p className="ml-4">Loading quiz...</p>
       </div>
     );
   }
 
-  if (handlers.error) {
+  if (error || quizApi.error) {
     return (
-      <div className="quiz-container quiz-container--error">
-        <div className="error-message">
-          <h2>Error Loading Quiz</h2>
-          <p>
-            {typeof handlers.error === 'string' ? handlers.error : 'Failed to load quiz'}
+      <div className="max-w-4xl mx-auto px-6 py-16">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-destructive mb-4">Error Loading Quiz</h2>
+          <p className="text-muted-foreground mb-6">
+            {typeof error === 'string' ? error : 'Failed to load quiz'}
           </p>
           <button 
-            onClick={() => window.location.reload()} 
-            className="retry-button"
+            onClick={() => quizApi.refetch()} 
+            className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
           >
             Retry
           </button>
@@ -68,7 +77,7 @@ export const QuizPageContainer: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto px-6 py-16">
         <ScoreCard
-          stats={handlers.stats}
+          stats={stats}
           onResetQuiz={handlers.handleResetQuiz}
         />
       </div>
@@ -98,7 +107,7 @@ export const QuizPageContainer: React.FC = () => {
     <div className="max-w-4xl mx-auto px-6 py-16 space-y-8">
       {/* Progress Bar */}
       <ProgressBar
-        progress={handlers.progress}
+        progress={progress}
         currentQuestion={quizState.currentQuestionIndex + 1}
         totalQuestions={quizState.questions.length}
         score={quizState.score}

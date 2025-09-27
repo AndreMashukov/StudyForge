@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useCallback } from 'react';
+import { useDispatch } from 'react-redux';
 import {
   loadQuiz,
   startQuiz,
@@ -8,47 +8,16 @@ import {
   completeQuiz,
   resetQuiz,
   skipQuestion,
-  selectCurrentQuestion,
-  selectProgress,
-  selectQuizStats,
-  selectIsLoading,
-  selectError,
 } from '../../../../store/slices/quizPageSlice';
-import { useFetchQuizData } from './api/useFetchQuizData';
 import { useQuizForm } from './useQuizForm';
 import { IQuizQuestion } from '../../types/IQuizTypes';
 import { Quiz } from '@shared-types';
 
 export const useQuizPageHandlers = () => {
   const dispatch = useDispatch();
-  const loadedQuizIdRef = useRef<string | null>(null);
-
-  // API data fetching
-  const quizData = useFetchQuizData();
   
   // Form handlers
   const formHandlers = useQuizForm();
-
-  // Redux state selectors
-  const currentQuestion = useSelector(selectCurrentQuestion);
-  const progress = useSelector(selectProgress);
-  const stats = useSelector(selectQuizStats);
-  const isLoading = useSelector(selectIsLoading) || quizData.isLoading;
-  const error = useSelector(selectError) || (quizData.error ? String(quizData.error) : null);
-
-  // Load quiz data when it becomes available (fetch-related effect)
-  useEffect(() => {
-    if (quizData.firestoreQuiz && 
-        quizData.questions.length > 0 && 
-        loadedQuizIdRef.current !== quizData.firestoreQuiz.id) {
-      
-      loadedQuizIdRef.current = quizData.firestoreQuiz.id;
-      dispatch(loadQuiz({ 
-        quiz: quizData.firestoreQuiz, 
-        questions: quizData.questions 
-      }));
-    }
-  }, [quizData.firestoreQuiz, quizData.questions, dispatch]);
 
   // Quiz action handlers
   const handleLoadQuiz = useCallback((firestoreQuiz: Quiz, questions: IQuizQuestion[]) => {
@@ -69,7 +38,6 @@ export const useQuizPageHandlers = () => {
 
   const handleResetQuiz = useCallback(() => {
     dispatch(resetQuiz());
-    loadedQuizIdRef.current = null;
   }, [dispatch]);
 
   const handleCompleteQuiz = useCallback(() => {
@@ -81,14 +49,7 @@ export const useQuizPageHandlers = () => {
   }, [dispatch]);
 
   return {
-    // Quiz data (computed from Redux state)
-    currentQuestion,
-    progress,
-    stats,
-    isLoading,
-    error,
-
-    // Quiz handlers
+    // Quiz handlers (business logic only, no state)
     handleLoadQuiz,
     handleAnswerSelect,
     handleNextQuestion,

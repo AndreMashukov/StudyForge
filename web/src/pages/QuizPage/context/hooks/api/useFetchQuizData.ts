@@ -1,11 +1,15 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { useGetQuizQuery } from '../../../../../store/api/Quiz/QuizApi';
+import { loadQuiz } from '../../../../../store/slices/quizPageSlice';
 import { Quiz } from '@shared-types';
 import { IQuizQuestion } from '../../../types/IQuizTypes';
 
 export const useFetchQuizData = () => {
   const { quizId } = useParams<{ quizId: string }>();
+  const dispatch = useDispatch();
+  const loadedQuizIdRef = useRef<string | null>(null);
   
   // RTK Query hook to fetch quiz data
   const queryResult = useGetQuizQuery(
@@ -25,13 +29,27 @@ export const useFetchQuizData = () => {
     }));
   }, []);
 
-  // Computed values
-  const transformedQuestions = queryResult.data?.data?.quiz 
-    ? transformQuizData(queryResult.data.data.quiz)
-    : [];
-
+  // Computed values with useMemo to prevent unnecessary re-renders
   const firestoreQuiz = queryResult.data?.data?.quiz || null;
+  
+  const transformedQuestions = useMemo(() => {
+    return firestoreQuiz ? transformQuizData(firestoreQuiz) : [];
+  }, [firestoreQuiz, transformQuizData]);
   const refetchFn = queryResult.refetch;
+
+  // Load quiz data into Redux when it becomes available (fetch-related effect)
+  useEffect(() => {
+    if (firestoreQuiz && 
+        transformedQuestions.length > 0 && 
+        loadedQuizIdRef.current !== firestoreQuiz.id) {
+      
+      loadedQuizIdRef.current = firestoreQuiz.id;
+      dispatch(loadQuiz({ 
+        quiz: firestoreQuiz, 
+        questions: transformedQuestions 
+      }));
+    }
+  }, [firestoreQuiz, transformedQuestions, dispatch]);
 
   // Auto-refetch when page becomes visible (fetch-related effect)
   useEffect(() => {

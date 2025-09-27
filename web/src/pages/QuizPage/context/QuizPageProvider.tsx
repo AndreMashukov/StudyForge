@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { QuizPageContext } from './QuizPageContext';
+import { useFetchQuizData } from './hooks/api/useFetchQuizData';
 import { useQuizPageHandlers } from './hooks/useQuizPageHandlers';
 import { useQuizPageEffects } from './hooks/useQuizPageEffects';
 import { IQuizPageContext } from '../types/IQuizPageContext';
@@ -9,31 +10,19 @@ interface IQuizPageProvider {
 }
 
 export const QuizPageProvider = ({ children }: IQuizPageProvider) => {
+  // API hooks - self-contained, access Redux internally
+  const quizApi = useFetchQuizData();
+  
   // Handler hooks - self-contained business logic
   const handlers = useQuizPageHandlers();
 
-  // Effect hooks - self-contained side effects
-  useQuizPageEffects({
-    onQuizStart: () => {
-      console.log('Quiz started');
-    },
-    onQuestionChange: (questionIndex: number) => {
-      console.log(`Question changed to index: ${questionIndex}`);
-    },
-    onAnswerSubmit: (answer) => {
-      console.log('Answer submitted:', answer);
-    },
-    onQuizComplete: (quizStats) => {
-      console.log('Quiz completed with stats:', quizStats);
-    },
-    onTimeUpdate: (currentTime) => {
-      // Could dispatch time updates to Redux if needed
-      // console.log('Time update:', currentTime);
-    },
-  });
+  // Effect hooks - self-contained side effects, manage their own dependencies
+  useQuizPageEffects();
 
   const contextValue: IQuizPageContext = {
-    handlers,
+    quizApi,    // Complete API object (no destructuring)
+    handlers,   // Complete handlers object
+    // DON'T include Redux state - components access directly with useSelector
   };
 
   return (

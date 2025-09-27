@@ -1,50 +1,25 @@
 import { useEffect } from 'react';
-import { IQuizEffects } from '../../types/IQuizHandlers';
 
-export const useQuizPageEffects = ({
-  onQuizStart,
-  onQuestionChange,
-  onAnswerSubmit,
-  onQuizComplete,
-  onTimeUpdate,
-}: IQuizEffects) => {
-  
-  // Quiz start effect
-  useEffect(() => {
-    if (onQuizStart) {
-      onQuizStart();
-    }
-  }, [onQuizStart]);
+export const useQuizPageEffects = () => {
 
-  // Timer effect for tracking time
-  useEffect(() => {
-    if (onTimeUpdate) {
-      const timer = setInterval(() => {
-        onTimeUpdate(Date.now());
-      }, 1000); // Update every second
-
-      return () => clearInterval(timer);
-    }
-  }, [onTimeUpdate]);
-
-  // Keyboard navigation effect
+  // Keyboard navigation effect (manages its own dependencies)
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       // Allow keyboard navigation
       if (event.key >= '1' && event.key <= '9') {
         const answerIndex = parseInt(event.key) - 1;
-        // This would need to be connected to handlers
+        // This would need to be connected to handlers via custom events or Redux
         console.log(`Keyboard shortcut for answer ${answerIndex}`);
       }
       
       if (event.key === 'Enter') {
         // Submit answer or go to next question
-        console.log('Enter pressed');
+        console.log('Enter pressed - could dispatch Redux action');
       }
       
       if (event.key === 'Escape') {
         // Maybe exit quiz or show menu
-        console.log('Escape pressed');
+        console.log('Escape pressed - could navigate away');
       }
     };
 

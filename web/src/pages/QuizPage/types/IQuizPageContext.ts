@@ -1,15 +1,9 @@
-import { IQuizStats, IQuizQuestion } from './IQuizTypes';
+import { Quiz } from '@shared-types';
 import { IQuizHandlers, IQuizFormHandlers } from './IQuizHandlers';
+import { IQuizQuestion } from './IQuizTypes';
 
 export interface IQuizPageHandlers {
-  // Quiz data (computed from Redux state)
-  currentQuestion: IQuizQuestion | null;
-  progress: number;
-  stats: IQuizStats;
-  isLoading: boolean;
-  error: string | null;
-
-  // Quiz handlers
+  // Quiz handlers (business logic only, no state)
   handleLoadQuiz: IQuizHandlers['handleLoadQuiz'];
   handleAnswerSelect: IQuizHandlers['handleAnswerSelect'];
   handleNextQuestion: IQuizHandlers['handleNextQuestion'];
@@ -24,7 +18,31 @@ export interface IQuizPageHandlers {
   clearFormErrors: IQuizFormHandlers['clearFormErrors'];
 }
 
+export interface IQuizApi {
+  // Original quiz data from Firestore
+  firestoreQuiz: Quiz | null;
+  
+  // Transformed data for UI
+  questions: IQuizQuestion[];
+  
+  // Query state
+  isLoading: boolean;
+  isFetching: boolean;
+  error: unknown;
+  isError: boolean;
+  isSuccess: boolean;
+  
+  // Actions
+  refetch: () => void;
+  
+  // Validation
+  hasValidQuizId: boolean;
+  quizId: string | undefined;
+}
+
 // Main quiz page context interface - clean pattern
 export interface IQuizPageContext {
-  handlers: IQuizPageHandlers;
+  quizApi: IQuizApi;    // Complete API object (no destructuring)
+  handlers: IQuizPageHandlers; // Complete handlers object
+  // DON'T include Redux state - components access directly with useSelector
 }
