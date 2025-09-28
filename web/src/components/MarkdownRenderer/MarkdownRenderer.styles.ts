@@ -2,7 +2,7 @@ import { cn } from "../../lib/utils";
 
 export const markdownStyles = {
   // Main container
-  container: "prose prose-invert max-w-none dark:prose-invert",
+  container: "prose prose-invert max-w-none dark:prose-invert overflow-x-auto",
   
   // Typography
   heading: "scroll-mt-20 font-semibold text-foreground", // Increased scroll margin for sticky header

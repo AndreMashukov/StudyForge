@@ -145,8 +145,14 @@ export class GeminiService {
         throw new Error('Empty response from Gemini API for followup generation');
       }
 
-      functions.logger.info('Quiz followup generated successfully', { length: text.length });
-      return text;
+      // Validate and potentially fix the followup content format
+      const validatedContent = this.validateAndFixFollowupContent(text);
+
+      functions.logger.info('Quiz followup generated successfully', { 
+        length: validatedContent.length,
+        wasFixed: validatedContent !== text
+      });
+      return validatedContent;
 
     } catch (error) {
       functions.logger.error('Error generating quiz followup with Gemini AI:', error);
@@ -344,6 +350,139 @@ export class GeminiService {
     if (content.content.includes('```') || content.content.includes('{') || content.content.includes('}')) {
       functions.logger.info('Content contains code-like patterns, will sanitize during generation');
     }
+  }
+
+  /**
+   * Validate and fix followup content to ensure proper ASCII diagram formatting
+   * @param content - Generated followup content to validate and fix
+   * @returns Fixed content
+   */
+  private static validateAndFixFollowupContent(content: string): string {
+    try {
+      let processedContent = content;
+      
+      // First, check if the entire content is wrapped in a markdown code block and remove it
+      const markdownCodeBlockRegex = /^```markdown\s*\n([\s\S]*?)\n```$/;
+      const markdownMatch = processedContent.match(markdownCodeBlockRegex);
+      if (markdownMatch) {
+        processedContent = markdownMatch[1];
+        functions.logger.info('Removed markdown code block wrapper from followup content');
+      }
+      
+      // Also check for other code block wrappers that might be used
+      const genericCodeBlockRegex = /^```\s*\n([\s\S]*?)\n```$/;
+      const genericMatch = processedContent.match(genericCodeBlockRegex);
+      if (genericMatch && !markdownMatch) {
+        // Only remove if it wasn't already processed as markdown
+        processedContent = genericMatch[1];
+        functions.logger.info('Removed generic code block wrapper from followup content');
+      }
+      
+      // Check for required sections
+      const requiredSections = [
+        '# Question Analysis',
+        '## Core Concept Explanation',
+        '## Answer Analysis',
+        '## Diagram 1:',
+        '## Diagram 2:',
+        '## Key Takeaways',
+        '## Connection to Original Document'
+      ];
+
+      const missingSections = requiredSections.filter(section => 
+        !processedContent.includes(section)
+      );
+
+      if (missingSections.length > 0) {
+        functions.logger.warn('Missing sections in followup content:', missingSections);
+      }
+
+      // Check for ASCII diagrams in code blocks
+      const codeBlockRegex = /```[\s\S]*?```/g;
+      const codeBlocks = processedContent.match(codeBlockRegex);
+      
+      if (!codeBlocks || codeBlocks.length < 2) {
+        functions.logger.warn('Less than 2 code blocks found in followup content. ASCII diagrams may not be properly formatted.');
+        
+        // Attempt to fix common ASCII diagram formatting issues
+        const fixedContent = this.fixAsciiDiagramFormatting(processedContent);
+        if (fixedContent !== processedContent) {
+          functions.logger.info('Applied ASCII diagram formatting fixes');
+          return fixedContent; // Return fixed content
+        }
+      }
+
+      // Check if ASCII diagrams contain proper symbols
+      if (codeBlocks) {
+        const hasAsciiSymbols = codeBlocks.some(block => 
+          /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐]/.test(block)
+        );
+        
+        if (!hasAsciiSymbols) {
+          functions.logger.warn('No ASCII symbols detected in code blocks. Diagrams may be improperly formatted.');
+        }
+      }
+      
+      functions.logger.info('Followup content validation passed');
+      return processedContent; // Content is properly formatted
+      
+    } catch (error) {
+      functions.logger.error('Error validating followup content:', error);
+      return content; // Return original content on error
+    }
+  }
+
+  /**
+   * Attempt to fix common ASCII diagram formatting issues
+   * @param content - Content with potential formatting issues
+   * @returns Fixed content
+   */
+  private static fixAsciiDiagramFormatting(content: string): string {
+    let fixedContent = content;
+
+    // Look for ASCII art that's not in code blocks and wrap it
+    const asciiRegex = /^[+\-|═╔╗╚╝║┌┐└┘│─→←↑↓✅❌⚠️🔄⭐\s]+$/gm;
+    const lines = fixedContent.split('\n');
+    const result: string[] = [];
+    let inAsciiBlock = false;
+    let asciiBuffer: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Check if line contains ASCII art characters
+      const hasAsciiChars = /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐+\-|]/.test(line);
+      const isCodeBlock = line.startsWith('```');
+      
+      if (hasAsciiChars && !isCodeBlock && !inAsciiBlock) {
+        // Start of ASCII block
+        inAsciiBlock = true;
+        result.push('```');
+        asciiBuffer = [lines[i]];
+      } else if (inAsciiBlock) {
+        if (hasAsciiChars || line === '') {
+          // Continue ASCII block
+          asciiBuffer.push(lines[i]);
+        } else {
+          // End of ASCII block
+          result.push(...asciiBuffer);
+          result.push('```');
+          result.push(lines[i]);
+          inAsciiBlock = false;
+          asciiBuffer = [];
+        }
+      } else {
+        result.push(lines[i]);
+      }
+    }
+
+    // Handle case where ASCII block goes to end of content
+    if (inAsciiBlock && asciiBuffer.length > 0) {
+      result.push(...asciiBuffer);
+      result.push('```');
+    }
+
+    return result.join('\n');
   }
 
   /**

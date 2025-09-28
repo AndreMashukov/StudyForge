@@ -42,7 +42,7 @@ export const CodeBlock = ({
   };
 
   return (
-    <div className={cn("relative group mb-4", className)}>
+    <div className={cn("relative group mb-4 overflow-hidden", className)}>
       {showCopyButton && (
         <Button
           variant="outline"
@@ -82,6 +82,7 @@ export const CodeBlock = ({
             background: 'transparent',
             color: 'hsl(var(--foreground))',
             fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+            whiteSpace: 'pre',
           }
         }}
       >
