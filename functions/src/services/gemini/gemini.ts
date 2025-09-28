@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as functions from 'firebase-functions';
-import { ScrapedContent } from '../../../libs/shared-types/src/index';
+import { ScrapedContent, QuizFollowupContext } from '../../../libs/shared-types/src/index';
 import { JsonSanitizer } from './json-sanitizer';
 import { PromptBuilder } from './prompt-builder';
 
@@ -108,6 +108,49 @@ export class GeminiService {
     } catch (error) {
       functions.logger.error('Error generating content with Gemini AI:', error);
       throw new Error(`Failed to generate content: ${error}`);
+    }
+  }
+
+  /**
+   * Generate comprehensive followup explanation for quiz question
+   * @param context - Complete context including original document and question details
+   * @returns Generated markdown content with ASCII diagrams
+   */
+  public static async generateQuizFollowup(context: QuizFollowupContext): Promise<string> {
+    try {
+      functions.logger.info('Generating quiz followup explanation with Gemini AI');
+
+      const genAI = this.getClient();
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.0-flash",
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+        },
+      });
+
+      const prompt = PromptBuilder.buildFollowupPrompt(context);
+      functions.logger.debug('Sending followup request to Gemini AI', { 
+        questionLength: context.question.text.length,
+        documentLength: context.originalDocument.content.length,
+      });
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      if (!text) {
+        throw new Error('Empty response from Gemini API for followup generation');
+      }
+
+      functions.logger.info('Quiz followup generated successfully', { length: text.length });
+      return text;
+
+    } catch (error) {
+      functions.logger.error('Error generating quiz followup with Gemini AI:', error);
+      throw new Error(`Failed to generate followup: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

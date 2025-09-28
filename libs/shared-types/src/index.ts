@@ -38,7 +38,8 @@ export interface Document {
 // Document Enums
 export enum DocumentSourceType {
   URL = 'url',
-  UPLOAD = 'upload'
+  UPLOAD = 'upload',
+  GENERATED = 'generated'
 }
 
 export enum DocumentStatus {
@@ -269,6 +270,38 @@ export interface UploadValidationResult {
     size: number;
     type: string;
     extension: string;
+  };
+}
+
+// Quiz Followup API Types
+export interface GenerateFollowupRequest {
+  documentId: string;
+  questionText: string;
+  userSelectedAnswer: string;
+  correctAnswer?: string;
+  questionOptions?: string[];
+  quizTitle?: string;
+}
+
+export interface GenerateFollowupResponse {
+  documentId: string;
+  title: string;
+  content: string;
+}
+
+export interface QuizFollowupContext {
+  originalDocument: {
+    title: string;
+    content: string;
+  };
+  question: {
+    text: string;
+    options: string[];
+    userAnswer: string;
+    correctAnswer?: string;
+  };
+  quiz: {
+    title: string;
   };
 }
 

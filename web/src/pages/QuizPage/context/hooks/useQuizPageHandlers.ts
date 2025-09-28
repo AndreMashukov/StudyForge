@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   loadQuiz,
   startQuiz,
@@ -8,13 +8,24 @@ import {
   completeQuiz,
   resetQuiz,
   skipQuestion,
+  setFollowupGenerating,
+  setFollowupGenerated,
+  setFollowupError,
+  selectCurrentQuestion,
+  selectQuizState,
+  selectFormState,
 } from '../../../../store/slices/quizPageSlice';
 import { useQuizForm } from './useQuizForm';
 import { IQuizQuestion } from '../../types/IQuizTypes';
 import { Quiz } from '@shared-types';
+import { useGenerateQuizFollowupMutation } from '../../../../store/api/QuizFollowup/QuizFollowupApi';
+import { IGenerateFollowupRequest } from '../../../../store/api/QuizFollowup/IQuizFollowupApi';
 
 export const useQuizPageHandlers = () => {
   const dispatch = useDispatch();
+  const currentQuestion = useSelector(selectCurrentQuestion);
+  const quizState = useSelector(selectQuizState);
+  const formState = useSelector(selectFormState);
   
   // Form handlers
   const formHandlers = useQuizForm();
@@ -48,6 +59,42 @@ export const useQuizPageHandlers = () => {
     dispatch(skipQuestion());
   }, [dispatch]);
 
+  // Followup generation handler
+  const [generateFollowup] = useGenerateQuizFollowupMutation();
+
+  const handleGenerateFollowup = useCallback(async () => {
+    try {
+      if (!currentQuestion || formState.selectedAnswer === null) {
+        return;
+      }
+
+      dispatch(setFollowupGenerating(true));
+
+      const requestData: IGenerateFollowupRequest = {
+        documentId: quizState.firestoreQuiz?.documentId || '',
+        questionText: currentQuestion.question,
+        userSelectedAnswer: currentQuestion.options[formState.selectedAnswer],
+        correctAnswer: currentQuestion.options[currentQuestion.correct],
+        questionOptions: currentQuestion.options,
+        quizTitle: quizState.firestoreQuiz?.title,
+      };
+
+      const result = await generateFollowup(requestData).unwrap();
+      
+      if (result.success) {
+        dispatch(setFollowupGenerated({ 
+          questionIndex: quizState.currentQuestionIndex 
+        }));
+      } else {
+        dispatch(setFollowupError('Failed to generate followup explanation'));
+      }
+
+    } catch (error) {
+      const errorMessage = (error as { data?: string })?.data || "Failed to generate followup explanation";
+      dispatch(setFollowupError(errorMessage));
+    }
+  }, [dispatch, generateFollowup, currentQuestion, formState, quizState]);
+
   return {
     // Quiz handlers (business logic only, no state)
     handleLoadQuiz,
@@ -57,6 +104,7 @@ export const useQuizPageHandlers = () => {
     handleStartQuiz,
     handleCompleteQuiz,
     handleSkipQuestion,
+    handleGenerateFollowup,
 
     // Form handlers
     handleSubmitAnswer: formHandlers.handleSubmitAnswer,

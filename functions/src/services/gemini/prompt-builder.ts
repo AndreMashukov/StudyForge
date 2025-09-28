@@ -1,5 +1,5 @@
 /* eslint-disable no-useless-escape */
-import { ScrapedContent } from '../../../libs/shared-types/src/index';
+import { ScrapedContent, QuizFollowupContext } from '../../../libs/shared-types/src/index';
 
 /**
  * Prompt Builder for Gemini AI Quiz Generation
@@ -187,5 +187,72 @@ Generate the quiz now:`;
     return `${prompt}
 
 **IMPORTANT**: Provide your response as clean, well-formatted text without any markdown code blocks or special formatting.`;
+  }
+
+  /**
+   * Build comprehensive followup explanation prompt
+   */
+  static buildFollowupPrompt(context: QuizFollowupContext): string {
+    return `You are an expert educator creating comprehensive followup explanations for quiz questions. 
+
+ORIGINAL DOCUMENT CONTEXT:
+Title: "${context.originalDocument.title}"
+Content: 
+${context.originalDocument.content}
+
+QUIZ CONTEXT:
+Quiz Title: "${context.quiz.title}"
+Question: "${context.question.text}"
+Available Options: ${context.question.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}
+User's Answer: "${context.question.userAnswer}"
+${context.question.correctAnswer ? `Correct Answer: "${context.question.correctAnswer}"` : ''}
+
+TASK:
+Generate a comprehensive educational explanation in markdown format that:
+
+1. **Explains the core concept** being tested in the question
+2. **Provides detailed analysis** of why each answer option is correct/incorrect
+3. **Includes exactly 2 ASCII diagrams**:
+   - Diagram 1: Conceptual overview showing the main concept visually
+   - Diagram 2: Detailed process/implementation showing step-by-step breakdown
+4. **Connects to the original document** by referencing specific sections
+5. **Offers practical insights** and memory aids for understanding
+
+FORMATTING REQUIREMENTS:
+- Use proper markdown structure with clear headings
+- Include exactly 2 ASCII diagrams with explanatory text
+- Use code blocks (\`\`\`) for ASCII diagrams
+- Follow the ascii-diagram-rule patterns for visual clarity
+- Create educational content suitable for deep learning
+
+DIAGRAM REQUIREMENTS:
+- Use boxes, arrows, and symbols: → ↑ ↓ ← ✅ ❌ ⚠️ 🔄 ⭐
+- Make diagrams informative and easy to understand  
+- Explain each diagram after showing it
+- Ensure diagrams complement the textual explanation
+
+ASCII DIAGRAM SYMBOLS TO USE:
+\`\`\`
+╔═══════════════╗     ┌─────────────┐     +-------------+
+║ Important Box ║     │ Regular Box │     | Simple Box  |
+╚═══════════════╝     └─────────────┘     +-------------+
+
+Process A ──→ Process B ──→ Result
+    │              ↑
+    └──→ Alt Path ──┘
+
+✅ Correct    ❌ Incorrect    ⚠️ Warning    🔄 Loop    ⭐ Key Point
+\`\`\`
+
+CONTENT STRUCTURE:
+1. **# Question Analysis**
+2. **## Core Concept Explanation**  
+3. **## Answer Analysis**
+4. **## Diagram 1: Conceptual Overview**
+5. **## Diagram 2: Detailed Process**
+6. **## Key Takeaways**
+7. **## Connection to Original Document**
+
+Generate comprehensive, educational markdown content that helps the learner deeply understand the topic.`;
   }
 }

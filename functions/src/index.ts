@@ -65,6 +65,11 @@ export {
   getDocumentQuizzes,
 } from "./endpoints/quizzes.js";
 
+// Export quiz followup functions
+export {
+  generateQuizFollowup,
+} from "./endpoints/quiz-followup.js";
+
 // Export document management functions
 export {
   createDocument,

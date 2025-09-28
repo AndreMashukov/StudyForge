@@ -13,6 +13,9 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
   onNextQuestion,
   isLastQuestion,
   className,
+  onGenerateFollowup,
+  isGeneratingFollowup = false,
+  isFollowupGenerated = false,
 }) => {
   const getOptionButtonClass = (optionIndex: number) => {
     const baseClass = "w-full text-left p-4 rounded-xl border transition-all duration-200 hover:scale-[1.01] transform ";
@@ -79,15 +82,40 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
           </Card>
         )}
 
-        {/* Next Button */}
+        {/* Action Buttons */}
         {showExplanation && (
-          <Button
-            onClick={onNextQuestion}
-            className="w-full mt-6"
-            size="lg"
-          >
-            {isLastQuestion ? 'View Results' : 'Next Question'}
-          </Button>
+          <div className="space-y-3 mt-6">
+            {/* Next Question Button */}
+            <Button
+              onClick={onNextQuestion}
+              className="w-full"
+              size="lg"
+            >
+              {isLastQuestion ? 'View Results' : 'Next Question'}
+            </Button>
+
+            {/* Followup Button */}
+            {onGenerateFollowup && (
+              <Button
+                onClick={onGenerateFollowup}
+                variant="outline"
+                className="w-full"
+                size="lg"
+                disabled={isFollowupGenerated || isGeneratingFollowup}
+              >
+                {isGeneratingFollowup ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2"></div>
+                    Generating Followup...
+                  </>
+                ) : isFollowupGenerated ? (
+                  'Followup Generated'
+                ) : (
+                  'Generate Detailed Explanation'
+                )}
+              </Button>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

@@ -12,6 +12,9 @@ import {
   selectQuizStats,
   selectIsLoading,
   selectError,
+  selectIsGeneratingFollowup,
+  selectFollowupGenerated,
+  selectFollowupError,
 } from '../../../store/slices/quizPageSlice';
 
 export const QuizPageContainer: React.FC = () => {
@@ -23,6 +26,9 @@ export const QuizPageContainer: React.FC = () => {
   const stats = useSelector(selectQuizStats);
   const isLoading = useSelector(selectIsLoading);
   const error = useSelector(selectError);
+  const isGeneratingFollowup = useSelector(selectIsGeneratingFollowup);
+  const followupGenerated = useSelector(selectFollowupGenerated);
+  const followupError = useSelector(selectFollowupError);
   
   // Only get handlers and API from context
   const { handlers, quizApi } = useQuizPageContext();
@@ -39,6 +45,10 @@ export const QuizPageContainer: React.FC = () => {
     } else {
       handlers.handleNextQuestion();
     }
+  };
+
+  const handleGenerateFollowup = () => {
+    handlers.handleGenerateFollowup();
   };
 
   // Early returns for loading and error states
@@ -100,6 +110,9 @@ export const QuizPageContainer: React.FC = () => {
 
   // Quiz in progress
   const isLastQuestion = quizState.currentQuestionIndex === quizState.questions.length - 1;
+  
+  // Check if current question has followup generated
+  const isCurrentFollowupGenerated = followupGenerated[quizState.currentQuestionIndex] || false;
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-16 space-y-8">
@@ -118,8 +131,18 @@ export const QuizPageContainer: React.FC = () => {
         showExplanation={quizState.showExplanation}
         onAnswerSelect={handleAnswerSelect}
         onNextQuestion={handleNextQuestion}
+        onGenerateFollowup={handleGenerateFollowup}
+        isGeneratingFollowup={isGeneratingFollowup}
+        isFollowupGenerated={isCurrentFollowupGenerated}
         isLastQuestion={isLastQuestion}
       />
+
+      {/* Error Display for Followup */}
+      {followupError && (
+        <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+          <p className="text-destructive text-sm">{followupError}</p>
+        </div>
+      )}
     </div>
   );
 };
