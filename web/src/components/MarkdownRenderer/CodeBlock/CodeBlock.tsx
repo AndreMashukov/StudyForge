@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useTheme } from '../../../contexts/ThemeContext';
+import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { ICodeBlock } from './ICodeBlock';
@@ -13,6 +14,7 @@ export const CodeBlock = ({
   showCopyButton = true 
 }: ICodeBlock) => {
   const [isCopied, setIsCopied] = useState(false);
+  const { isDark } = useTheme();
 
   const handleCopy = async () => {
     try {
@@ -24,10 +26,12 @@ export const CodeBlock = ({
     }
   };
 
+  const syntaxTheme = isDark ? vscDarkPlus : vs;
+
   const customStyle = {
-    ...tomorrow,
+    ...syntaxTheme,
     'pre[class*="language-"]': {
-      ...tomorrow['pre[class*="language-"]'],
+      ...syntaxTheme['pre[class*="language-"]'],
       background: 'hsl(var(--muted))',
       border: '1px solid hsl(var(--border))',
       borderRadius: '0.375rem',
@@ -35,7 +39,7 @@ export const CodeBlock = ({
       padding: '1rem',
     },
     'code[class*="language-"]': {
-      ...tomorrow['code[class*="language-"]'],
+      ...syntaxTheme['code[class*="language-"]'],
       background: 'transparent',
       color: 'hsl(var(--foreground))',
     },
