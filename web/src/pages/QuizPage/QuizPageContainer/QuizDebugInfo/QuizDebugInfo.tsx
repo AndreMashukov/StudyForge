@@ -21,8 +21,12 @@ export const QuizDebugInfo: React.FC = () => {
   const progress = useSelector(selectProgress);
   const stats = useSelector(selectQuizStats);
 
-  // ✅ CORRECT: Only get handlers and API from context
-  const { handlers, quizApi } = useQuizPageContext();
+  // ✅ CORRECT: Only get API from context (handlers not needed in this component)
+  const { quizApi } = useQuizPageContext();
+
+  // Calculate correct/incorrect from answers breakdown
+  const correctAnswers = stats.answersBreakdown.filter(answer => answer.isCorrect).length;
+  const incorrectAnswers = stats.answersBreakdown.filter(answer => !answer.isCorrect).length;
 
   const debugInfo = {
     // Redux State
@@ -32,8 +36,8 @@ export const QuizDebugInfo: React.FC = () => {
       score: quizState.score,
       totalQuestions: quizState.questions.length,
       progress: progress,
-      statsCorrect: stats.correct,
-      statsIncorrect: stats.incorrect,
+      statsCorrect: correctAnswers,
+      statsIncorrect: incorrectAnswers,
       currentQuestionId: currentQuestion?.id || 'none',
     },
     
