@@ -23,7 +23,7 @@ export class GeminiService {
    * Get the Gemini AI client instance
    */
   private static getClient(): GoogleGenerativeAI {
-    const apiKey = functions.config().gemini?.api_key || process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     
     if (!apiKey) {
       throw new Error('Gemini API key not found. Please configure GEMINI_API_KEY in environment variables.');
