@@ -1,18 +1,34 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { useCreateDocumentFromUrlMutation, useCreateDocumentMutation } from '../../../../store/api/Documents';
 import { IUrlScrapingFormData } from '../../components/UrlScrapingForm/IUrlScrapingForm';
 import { IFileUploadFormData } from '../../components/FileUploadForm/IFileUploadForm';
 import { DocumentSourceType } from '@shared-types';
+import { 
+  setError, 
+  clearError, 
+  setUrlFormLoading, 
+  setFileFormLoading,
+  selectCreateDocumentPageError,
+  selectUrlFormLoading,
+  selectFileFormLoading 
+} from '../../../../store/slices/createDocumentPageSlice';
+import type { RootState } from '../../../../store';
 
 export const useCreateDocumentPageHandlers = () => {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
+  const dispatch = useDispatch();
   
-  const [createDocumentFromUrl, { isLoading: isLoadingUrl }] = useCreateDocumentFromUrlMutation();
-  const [createDocument, { isLoading: isLoadingFile }] = useCreateDocumentMutation();
+  // Redux selectors
+  const error = useSelector((state: RootState) => selectCreateDocumentPageError(state));
+  const isUrlLoading = useSelector((state: RootState) => selectUrlFormLoading(state));
+  const isFileLoading = useSelector((state: RootState) => selectFileFormLoading(state));
   
-  const isLoading = isLoadingUrl || isLoadingFile;
+  const [createDocumentFromUrl] = useCreateDocumentFromUrlMutation();
+  const [createDocument] = useCreateDocumentMutation();
+  
+  const isLoading = isUrlLoading || isFileLoading;
 
   const handleGoBack = useCallback(() => {
     navigate('/documents');
@@ -20,7 +36,9 @@ export const useCreateDocumentPageHandlers = () => {
 
   const handleCreateFromUrl = useCallback(async (data: IUrlScrapingFormData) => {
     try {
-      setError(null);
+      dispatch(clearError());
+      dispatch(setUrlFormLoading(true));
+      
       const result = await createDocumentFromUrl({
         url: data.url,
         title: data.title,
@@ -30,13 +48,16 @@ export const useCreateDocumentPageHandlers = () => {
       navigate(`/documents?highlight=${result.id}&action=generate-quiz`);
     } catch (err) {
       console.error('Error creating document from URL:', err);
-      setError('Failed to create document from URL. Please check the URL and try again.');
+      dispatch(setError('Failed to create document from URL. Please check the URL and try again.'));
+    } finally {
+      dispatch(setUrlFormLoading(false));
     }
-  }, [createDocumentFromUrl, navigate]);
+  }, [createDocumentFromUrl, navigate, dispatch]);
 
   const handleCreateFromFile = useCallback(async (data: IFileUploadFormData) => {
     try {
-      setError(null);
+      dispatch(clearError());
+      dispatch(setFileFormLoading(true));
       
       // Read file content
       const content = await new Promise<string>((resolve, reject) => {
@@ -56,9 +77,11 @@ export const useCreateDocumentPageHandlers = () => {
       navigate(`/document/${result.id}`);
     } catch (err) {
       console.error('Error creating document from file:', err);
-      setError('Failed to create document from file. Please try again.');
+      dispatch(setError('Failed to create document from file. Please try again.'));
+    } finally {
+      dispatch(setFileFormLoading(false));
     }
-  }, [createDocument, navigate]);
+  }, [createDocument, navigate, dispatch]);
 
   return {
     handleGoBack,

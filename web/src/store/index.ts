@@ -5,6 +5,7 @@ import uiReducer from './slices/uiSlice';
 import quizPageReducer from './slices/quizPageSlice';
 import documentsPageReducer from './slices/documentsPageSlice';
 import documentViewerPageReducer from './slices/documentViewerPageSlice';
+import createDocumentPageReducer from './slices/createDocumentPageSlice';
 
 export const store = configureStore({
   reducer: {
@@ -13,6 +14,7 @@ export const store = configureStore({
     quizPage: quizPageReducer,
     documentsPage: documentsPageReducer,
     documentViewerPage: documentViewerPageReducer,
+    createDocumentPage: createDocumentPageReducer,
     [baseApi.reducerPath]: baseApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
