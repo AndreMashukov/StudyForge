@@ -415,7 +415,7 @@ export class GeminiService {
       // Check if ASCII diagrams contain proper symbols
       if (codeBlocks) {
         const hasAsciiSymbols = codeBlocks.some(block => 
-          /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐]/.test(block)
+          /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐]/u.test(block)
         );
         
         if (!hasAsciiSymbols) {
@@ -438,10 +438,7 @@ export class GeminiService {
    * @returns Fixed content
    */
   private static fixAsciiDiagramFormatting(content: string): string {
-    let fixedContent = content;
-
-    // Look for ASCII art that's not in code blocks and wrap it
-    const asciiRegex = /^[+\-|═╔╗╚╝║┌┐└┘│─→←↑↓✅❌⚠️🔄⭐\s]+$/gm;
+    const fixedContent = content;
     const lines = fixedContent.split('\n');
     const result: string[] = [];
     let inAsciiBlock = false;
@@ -451,7 +448,7 @@ export class GeminiService {
       const line = lines[i].trim();
       
       // Check if line contains ASCII art characters
-      const hasAsciiChars = /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐+\-|]/.test(line);
+      const hasAsciiChars = /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐+\-|]/u.test(line);
       const isCodeBlock = line.startsWith('```');
       
       if (hasAsciiChars && !isCodeBlock && !inAsciiBlock) {
