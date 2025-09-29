@@ -1,3 +1,4 @@
+/* eslint-disable no-misleading-character-class */
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as functions from 'firebase-functions';
 import { ScrapedContent, QuizFollowupContext } from '../../../libs/shared-types/src/index';
