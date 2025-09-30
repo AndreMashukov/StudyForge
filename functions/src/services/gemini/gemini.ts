@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as functions from 'firebase-functions';
 import { ScrapedContent, QuizFollowupContext } from '../../../libs/shared-types/src/index';
 import { JsonSanitizer } from './json-sanitizer';
-import { PromptBuilder } from './prompt-builder';
+import { QuizPromptBuilder, FollowupPromptBuilder } from './prompt-builder';
 
 export interface GeminiQuizResponse {
   title: string;
@@ -46,7 +46,7 @@ export class GeminiService {
       const genAI = this.getClient();
       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-      const prompt = PromptBuilder.buildQuizPrompt(content, additionalPrompt);
+      const prompt = QuizPromptBuilder.buildQuizPrompt(content, additionalPrompt);
       functions.logger.debug('Sending request to Gemini AI', { contentLength: content.content.length });
 
       const result = await model.generateContent(prompt);
@@ -94,7 +94,7 @@ export class GeminiService {
         },
       });
 
-      const fullPrompt = PromptBuilder.buildContentPrompt(prompt);
+      const fullPrompt = QuizPromptBuilder.buildContentPrompt(prompt);
       const result = await model.generateContent(fullPrompt);
       const response = await result.response;
       const text = response.text();
@@ -132,7 +132,7 @@ export class GeminiService {
         },
       });
 
-      const prompt = PromptBuilder.buildFollowupPrompt(context);
+      const prompt = FollowupPromptBuilder.buildFollowupPrompt(context);
       functions.logger.debug('Sending followup request to Gemini AI', { 
         questionLength: context.question.text.length,
         documentLength: context.originalDocument.content.length,
