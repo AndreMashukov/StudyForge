@@ -2,7 +2,7 @@ import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { SourceCard } from './SourceCard';
 import { setSelectedSource, selectSelectedSource } from '../../../../store/slices/createDocumentPageSlice';
-import { SourceType } from '../../../types/ISourceTypes';
+import { SourceType } from '../../types/ISourceTypes';
 import { sourceSelectorStyles } from './SourceSelector.styles';
 import type { RootState } from '../../../../store';
 

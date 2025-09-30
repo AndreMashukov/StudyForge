@@ -6,8 +6,8 @@ import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { createDocumentPageStyles } from './CreateDocumentPageContainer.styles';
 import { ArrowLeft } from 'lucide-react';
-import { SourceSelector } from '../components/SourceSelector';
-import { FormRenderer } from '../components/FormRenderer';
+import { SourceSelector } from './SourceSelector';
+import { FormRenderer } from './FormRenderer';
 import { 
   selectSelectedSource, 
   selectCreateDocumentPageError,
