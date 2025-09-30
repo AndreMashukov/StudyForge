@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import component-specific animations */
+@import './pages/CreateDocumentPage/components/SourceSelector/animations.css';
+
 @layer base {
   * {
     border-color: transparent;

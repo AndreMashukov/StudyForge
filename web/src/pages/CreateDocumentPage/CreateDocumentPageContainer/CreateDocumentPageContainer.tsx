@@ -1,22 +1,39 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useSelector } from 'react-redux';
 import { useCreateDocumentPageContext } from '../context/hooks/useCreateDocumentPageContext';
 import { Page } from '../../../components/Page';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
+import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/Tabs';
 import { createDocumentPageStyles } from './CreateDocumentPageContainer.styles';
-import { Globe, Upload, ArrowLeft } from 'lucide-react';
-import { UrlScrapingForm } from '../components/UrlScrapingForm';
-import { FileUploadForm } from '../components/FileUploadForm';
+import { ArrowLeft } from 'lucide-react';
+import { SourceSelector } from '../components/SourceSelector';
+import { FormRenderer } from '../components/FormRenderer';
+import { 
+  selectSelectedSource, 
+  selectCreateDocumentPageError,
+  selectUrlFormLoading,
+  selectFileFormLoading,
+  clearSelection 
+} from '../../../store/slices/createDocumentPageSlice';
+import { useDispatch } from 'react-redux';
+import { cn } from '../../../lib/utils';
+import type { RootState } from '../../../store';
 
 export const CreateDocumentPageContainer = () => {
-  const { 
-    handlers 
-  } = useCreateDocumentPageContext();
+  const dispatch = useDispatch();
+  const { handlers } = useCreateDocumentPageContext();
   
-  const { isLoading, error } = handlers;
+  // Redux selectors
+  const selectedSource = useSelector((state: RootState) => selectSelectedSource(state));
+  const error = useSelector((state: RootState) => selectCreateDocumentPageError(state));
+  const isUrlLoading = useSelector((state: RootState) => selectUrlFormLoading(state));
+  const isFileLoading = useSelector((state: RootState) => selectFileFormLoading(state));
   
-  const [activeTab, setActiveTab] = useState<'url' | 'upload'>('url');
+  const isFormVisible = Boolean(selectedSource);
+
+  const handleBackToSources = () => {
+    dispatch(clearSelection());
+  };
 
   return (
     <Page showSidebar={true}>
@@ -34,7 +51,10 @@ export const CreateDocumentPageContainer = () => {
           <div className={createDocumentPageStyles.headerContent}>
             <h1 className={createDocumentPageStyles.title}>Create Document</h1>
             <p className={createDocumentPageStyles.subtitle}>
-              Add content from a URL or upload a markdown file
+              {isFormVisible 
+                ? 'Configure your document source and create your content'
+                : 'Choose how you\'d like to create your document'
+              }
             </p>
           </div>
         </div>
@@ -49,39 +69,29 @@ export const CreateDocumentPageContainer = () => {
         )}
 
         {/* Main Content */}
-        <Card className={createDocumentPageStyles.mainCard}>
-          <CardHeader>
-            <CardTitle>Choose Content Source</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'url' | 'upload')}>
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="url" className="flex items-center gap-2">
-                  <Globe size={16} />
-                  From URL
-                </TabsTrigger>
-                <TabsTrigger value="upload" className="flex items-center gap-2">
-                  <Upload size={16} />
-                  Upload File
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="url" className="mt-0">
-                <UrlScrapingForm 
-                  isLoading={isLoading}
-                  onSubmit={handlers.handleCreateFromUrl}
-                />
-              </TabsContent>
-
-              <TabsContent value="upload" className="mt-0">
-                <FileUploadForm
-                  isLoading={isLoading}
-                  onSubmit={handlers.handleCreateFromFile}
-                />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+        <div className={createDocumentPageStyles.contentSection}>
+          {/* Source Selector Section */}
+          <div 
+            className={cn(
+              createDocumentPageStyles.sourceSelectorSection,
+              createDocumentPageStyles.cardsContainer,
+              isFormVisible ? createDocumentPageStyles.cardsDimmed : createDocumentPageStyles.cardsActive
+            )}
+          >
+            <SourceSelector />
+          </div>
+          
+          {/* Form Section */}
+          <div className={createDocumentPageStyles.formSection}>
+            <FormRenderer
+              onSubmitUrl={handlers.handleCreateFromUrl}
+              onSubmitFile={handlers.handleCreateFromFile}
+              isUrlLoading={isUrlLoading}
+              isFileLoading={isFileLoading}
+              onBack={handleBackToSources}
+            />
+          </div>
+        </div>
       </div>
     </Page>
   );
