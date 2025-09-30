@@ -2,8 +2,8 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useCreateDocumentFromUrlMutation, useCreateDocumentMutation } from '../../../../store/api/Documents';
-import { IUrlScrapingFormData } from '../../components/UrlScrapingForm/IUrlScrapingForm';
-import { IFileUploadFormData } from '../../components/FileUploadForm/IFileUploadForm';
+import { IUrlScrapingFormData } from '../../CreateDocumentPageContainer/UrlScrapingForm/IUrlScrapingForm';
+import { IFileUploadFormData } from '../../CreateDocumentPageContainer/FileUploadForm/IFileUploadForm';
 import { DocumentSourceType } from '@shared-types';
 import { 
   setError, 

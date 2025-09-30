@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '../../../../../components/ui/Button';
-import { ISourceCard } from '../../types/ISourceTypes';
+import { ISourceCard } from '../../../types/ISourceTypes';
 import { sourceCardStyles } from './SourceCard.styles';
 import { cn } from '../../../../../lib/utils';
 

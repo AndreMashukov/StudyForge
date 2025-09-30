@@ -1,5 +1,5 @@
-import { IUrlScrapingFormData } from '../components/UrlScrapingForm/IUrlScrapingForm';
-import { IFileUploadFormData } from '../components/FileUploadForm/IFileUploadForm';
+import { IUrlScrapingFormData } from '../CreateDocumentPageContainer/UrlScrapingForm/IUrlScrapingForm';
+import { IFileUploadFormData } from '../CreateDocumentPageContainer/FileUploadForm/IFileUploadForm';
 
 export interface ICreateDocumentPageHandlers {
   handleGoBack: () => void;
