@@ -1,4 +1,3 @@
-/* eslint-disable no-useless-escape */
 import { QuizFollowupContext } from '../../../../libs/shared-types/src/index';
 
 /**
