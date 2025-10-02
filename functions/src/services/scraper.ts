@@ -4,7 +4,7 @@ import { JSDOM } from "jsdom";
 import fetch from "node-fetch";
 import { ScrapedContent } from "../../libs/shared-types/src/index";
 import * as functions from "firebase-functions";
-import { GeminiService } from "./gemini/gemini.js";
+import { GeminiService } from "./gemini/gemini";
 
 /**
  * Web scraping service for extracting article content from URLs

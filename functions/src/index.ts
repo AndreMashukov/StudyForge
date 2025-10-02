@@ -63,12 +63,12 @@ export {
   getUserQuizzes,
   getRecentQuizzes,
   getDocumentQuizzes,
-} from "./endpoints/quizzes.js";
+} from "./endpoints/quizzes";
 
 // Export quiz followup functions
 export {
   generateQuizFollowup,
-} from "./endpoints/quiz-followup.js";
+} from "./endpoints/quiz-followup";
 
 // Export document management functions
 export {
@@ -83,4 +83,4 @@ export {
   searchDocuments,
   getDocumentStats,
   getDocumentContent,
-} from "./endpoints/documents.js";
+} from "./endpoints/documents";

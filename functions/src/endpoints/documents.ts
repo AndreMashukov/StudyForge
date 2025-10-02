@@ -1,7 +1,7 @@
 import { onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { DocumentCrudService } from '../services/document-crud.js';
-import { WebScraperService } from '../services/scraper.js';
+import { DocumentCrudService } from '../services/document-crud';
+import { WebScraperService } from '../services/scraper';
 import { 
   CreateDocumentRequest, 
   UpdateDocumentRequest, 

@@ -1,6 +1,6 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
-import { DocumentService } from './document-storage.js';
+import { DocumentService } from './document-storage';
 import { 
   DocumentEnhanced as Document, 
   DocumentMetadataEnhanced as DocumentMetadata, 

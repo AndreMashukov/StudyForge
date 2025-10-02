@@ -1,8 +1,8 @@
 import { onCall } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
-import { DocumentCrudService } from '../services/document-crud.js';
-import { GeminiService } from '../services/gemini/gemini.js';
+import { DocumentCrudService } from '../services/document-crud';
+import { GeminiService } from '../services/gemini/gemini';
 import { 
   GenerateFollowupRequest, 
   GenerateFollowupResponse,
