@@ -32,9 +32,9 @@
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "nx run shared-types:build && cd functions && yarn build && cd .. && npx firebase emulators:start"
+        "command": "nx run functions:build && npx firebase emulators:start"
       },
-      "dependsOn": ["shared-types:build"]
+      "dependsOn": ["build"]
     },
     "deploy": {
       "executor": "nx:run-commands",

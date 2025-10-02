@@ -11,6 +11,6 @@
     "node": ">=20"
   },
   "main": "lib/src/index.js",
-  "types": "./src/index.d.ts",
+  "types": "./functions/src/index.d.ts",
   "type": "commonjs"
 }

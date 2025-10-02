@@ -7,8 +7,7 @@
   },
   "functions": {
     "source": "functions",
-    "runtime": "nodejs22",
-    "region": "asia-east1"
+    "runtime": "nodejs22"
   },
   "storage": {
     "rules": "storage.rules"

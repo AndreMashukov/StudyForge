@@ -1,4 +1,5 @@
 import { onCall } from 'firebase-functions/v2/https';
+import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { DocumentCrudService } from '../services/document-crud.js';
 import { GeminiService } from '../services/gemini/gemini.js';
@@ -10,6 +11,9 @@ import {
   DocumentSourceType,
   DocumentStatus,
 } from "../../libs/shared-types/src/index";
+
+// Define secrets
+const geminiApiKey = defineSecret("GEMINI_API_KEY");
 
 /**
  * Authentication middleware for callable functions
@@ -28,6 +32,7 @@ export const generateQuizFollowup = onCall(
   { 
     region: 'asia-east1',
     cors: true,
+    secrets: [geminiApiKey],
     timeoutSeconds: 300,
     memory: "1GiB",
   },
