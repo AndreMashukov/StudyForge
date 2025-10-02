@@ -162,6 +162,21 @@ export interface UploadDocumentRequest {
   title?: string; // Optional override for document title
 }
 
+export interface GenerateFromPromptRequest {
+  prompt: string; // User's text prompt (max 1000 characters)
+}
+
+export interface GenerateFromPromptResponse {
+  documentId: string;
+  title: string;
+  content: string;
+  wordCount: number;
+  metadata: {
+    originalPrompt: string;
+    generatedAt: string;
+  };
+}
+
 export interface CreateDocumentResponse {
   documentId: string;
   document: Document;

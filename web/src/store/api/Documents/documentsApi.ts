@@ -4,7 +4,9 @@ import {
   CreateDocumentRequest,
   CreateDocumentFromUrlRequest,
   UpdateDocumentRequest,
-  DeleteDocumentRequest
+  DeleteDocumentRequest,
+  GenerateFromPromptRequest,
+  GenerateFromPromptResponse
 } from "@shared-types";
 
 interface ListDocumentsResponse {
@@ -61,6 +63,23 @@ export const documentsApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: { success: boolean; document: DocumentEnhanced }) => {
         return response.document;
+      },
+      invalidatesTags: ['Document'],
+    }),
+    
+    generateFromPrompt: builder.mutation<GenerateFromPromptResponse, GenerateFromPromptRequest>({
+      query: (data) => ({
+        functionName: 'generateFromPrompt',
+        data
+      }),
+      transformResponse: (response: { success: boolean } & GenerateFromPromptResponse) => {
+        return {
+          documentId: response.documentId,
+          title: response.title,
+          content: response.content,
+          wordCount: response.wordCount,
+          metadata: response.metadata,
+        };
       },
       invalidatesTags: ['Document'],
     }),
@@ -138,6 +157,7 @@ export const {
   useLazyGetDocumentContentQuery,
   useCreateDocumentMutation,
   useCreateDocumentFromUrlMutation,
+  useGenerateFromPromptMutation,
   useUpdateDocumentMutation,
   useDeleteDocumentMutation,
   useSearchDocumentsQuery,

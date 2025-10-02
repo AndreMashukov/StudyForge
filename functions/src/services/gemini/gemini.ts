@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as functions from 'firebase-functions';
 import { ScrapedContent, QuizFollowupContext } from '../../../libs/shared-types/src/index';
 import { JsonSanitizer } from './json-sanitizer';
-import { QuizPromptBuilder, FollowupPromptBuilder } from './prompt-builder';
+import { QuizPromptBuilder, FollowupPromptBuilder, DocumentPromptBuilder } from './prompt-builder';
 
 export interface GeminiQuizResponse {
   title: string;
@@ -109,6 +109,56 @@ export class GeminiService {
     } catch (error) {
       functions.logger.error('Error generating content with Gemini AI:', error);
       throw new Error(`Failed to generate content: ${error}`);
+    }
+  }
+
+  /**
+   * Generate a comprehensive document from a user text prompt
+   * Creates structured markdown with tables, ASCII diagrams, and detailed content
+   * @param userPrompt - The user's text prompt describing what document to generate
+   * @returns Generated markdown document content
+   */
+  public static async generateDocumentFromPrompt(userPrompt: string): Promise<string> {
+    try {
+      functions.logger.info('Generating document from prompt with Gemini AI', { 
+        promptLength: userPrompt.length 
+      });
+
+      const genAI = this.getClient();
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.0-flash",
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 16384, // Higher limit for comprehensive documents
+        },
+      });
+
+      const prompt = DocumentPromptBuilder.buildDocumentPrompt(userPrompt);
+      functions.logger.debug('Sending document generation request to Gemini AI');
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      if (!text) {
+        throw new Error('Empty response from Gemini API for document generation');
+      }
+
+      // Validate and clean the generated content
+      const validatedContent = this.validateAndFixDocumentContent(text);
+
+      functions.logger.info('Document generated successfully', { 
+        length: validatedContent.length,
+        wasFixed: validatedContent !== text
+      });
+
+      return validatedContent;
+
+    } catch (error) {
+      functions.logger.error('Error generating document from prompt with Gemini AI:', error);
+      throw new Error(`Failed to generate document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -481,6 +531,88 @@ export class GeminiService {
     }
 
     return result.join('\n');
+  }
+
+  /**
+   * Validate and fix document content to ensure proper formatting
+   * @param content - Generated document content to validate and fix
+   * @returns Fixed content
+   */
+  private static validateAndFixDocumentContent(content: string): string {
+    try {
+      let processedContent = content;
+      
+      // Remove markdown code block wrapper if present
+      const markdownCodeBlockRegex = /^```markdown\s*\n([\s\S]*?)\n```$/;
+      const markdownMatch = processedContent.match(markdownCodeBlockRegex);
+      if (markdownMatch) {
+        processedContent = markdownMatch[1];
+        functions.logger.info('Removed markdown code block wrapper from document content');
+      }
+      
+      // Remove generic code block wrapper if present
+      const genericCodeBlockRegex = /^```\s*\n([\s\S]*?)\n```$/;
+      const genericMatch = processedContent.match(genericCodeBlockRegex);
+      if (genericMatch && !markdownMatch) {
+        processedContent = genericMatch[1];
+        functions.logger.info('Removed generic code block wrapper from document content');
+      }
+      
+      // Check for required sections
+      const requiredSections = [
+        '## Glossary',
+        '## Core Concepts',
+        '## Examples',
+        '## Summary'
+      ];
+
+      const missingSections = requiredSections.filter(section => 
+        !processedContent.includes(section)
+      );
+
+      if (missingSections.length > 0) {
+        functions.logger.warn('Missing sections in document content:', missingSections);
+      }
+
+      // Check for tables
+      const tableRegex = /\|.*\|.*\n\|[-:| ]+\|/g;
+      const tables = processedContent.match(tableRegex);
+      
+      if (!tables || tables.length === 0) {
+        functions.logger.warn('No markdown tables found in document content');
+      } else {
+        functions.logger.info(`Found ${tables.length} table(s) in document`);
+      }
+
+      // Check for ASCII diagrams in code blocks
+      const codeBlockRegex = /```[\s\S]*?```/g;
+      const codeBlocks = processedContent.match(codeBlockRegex);
+      
+      if (!codeBlocks || codeBlocks.length < 2) {
+        functions.logger.warn('Less than 2 code blocks found in document content. ASCII diagrams may not be properly formatted.');
+      } else {
+        // Count blocks that contain ASCII art characters
+        const asciiBlocks = codeBlocks.filter(block => 
+          /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐]/u.test(block)
+        );
+        functions.logger.info(`Found ${asciiBlocks.length} ASCII diagram(s) in document`);
+      }
+
+      // Check word count (approximate)
+      const wordCount = processedContent.split(/\s+/).length;
+      functions.logger.info(`Document word count: ${wordCount}`);
+      
+      if (wordCount < 1000) {
+        functions.logger.warn(`Document word count (${wordCount}) is below minimum requirement (1000)`);
+      }
+      
+      functions.logger.info('Document content validation passed');
+      return processedContent;
+      
+    } catch (error) {
+      functions.logger.error('Error validating document content:', error);
+      return content; // Return original content on error
+    }
   }
 
   /**

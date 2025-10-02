@@ -3,11 +3,13 @@ import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import { DocumentCrudService } from '../services/document-crud';
 import { WebScraperService } from '../services/scraper';
+import { GeminiService } from '../services/gemini';
 import { 
   CreateDocumentRequest, 
   UpdateDocumentRequest, 
   DocumentSourceType,
   DocumentStatus,
+  GenerateFromPromptRequest,
 } from "../../libs/shared-types/src/index";
 
 // Define the Gemini API key secret for markdown conversion
@@ -520,6 +522,125 @@ export const getDocumentContent = onCall(
         documentId: request.data?.documentId,
       });
       throw new Error(`Failed to get document content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+);
+
+/**
+ * Generate a document from a text prompt using Gemini AI
+ */
+export const generateFromPrompt = onCall(
+  { 
+    region: 'asia-east1',
+    cors: true,
+    secrets: [geminiApiKey],
+    timeoutSeconds: 540, // 9 minutes for document generation
+  },
+  async (request) => {
+    try {
+      const userId = await validateAuth(request);
+      const data = request.data as GenerateFromPromptRequest;
+
+      logger.info('Generating document from prompt', { 
+        userId,
+        promptLength: data.prompt?.length,
+      });
+
+      // Validate prompt
+      if (!data.prompt || typeof data.prompt !== 'string') {
+        throw new Error('Prompt is required and must be a string');
+      }
+
+      const trimmedPrompt = data.prompt.trim();
+
+      if (trimmedPrompt.length === 0) {
+        throw new Error('Prompt cannot be empty');
+      }
+
+      if (trimmedPrompt.length > 1000) {
+        throw new Error('Prompt cannot exceed 1000 characters');
+      }
+
+      if (trimmedPrompt.length < 10) {
+        throw new Error('Prompt must be at least 10 characters long');
+      }
+
+      logger.info('Calling Gemini AI to generate document', { 
+        userId,
+        promptLength: trimmedPrompt.length,
+      });
+
+      // Generate document content using Gemini AI
+      const generatedContent = await GeminiService.generateDocumentFromPrompt(trimmedPrompt);
+
+      // Extract title from the first H1 heading or generate from prompt
+      let title = 'Generated Document';
+      const titleMatch = generatedContent.match(/^#\s+(.+)$/m);
+      if (titleMatch && titleMatch[1]) {
+        title = titleMatch[1].trim();
+      } else {
+        // Generate title from prompt if no H1 found
+        title = trimmedPrompt.length > 50 
+          ? `${trimmedPrompt.substring(0, 50)}...` 
+          : trimmedPrompt;
+      }
+
+      // Calculate word count
+      const wordCount = generatedContent.split(/\s+/).length;
+
+      // Validate generated content meets minimum requirements
+      if (wordCount < 1000) {
+        logger.warn('Generated content below minimum word count', { 
+          wordCount,
+          required: 1000,
+        });
+        // Don't throw error, but log warning - Gemini may have generated quality content
+      }
+
+      logger.info('Creating document from generated content', { 
+        userId,
+        title,
+        wordCount,
+      });
+
+      // Create document in Firestore
+      const document = await DocumentCrudService.createDocument(userId, {
+        title,
+        description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? '...' : ''}`,
+        content: generatedContent,
+        sourceType: DocumentSourceType.GENERATED,
+        status: DocumentStatus.ACTIVE,
+        tags: ['ai-generated', 'prompt-based'],
+      });
+
+      // Add custom metadata to document (stored in Firestore)
+      const generatedAt = new Date().toISOString();
+      
+      logger.info('Document generated and created successfully', { 
+        userId,
+        documentId: document.id,
+        title: document.title,
+        wordCount,
+      });
+
+      return { 
+        success: true,
+        documentId: document.id,
+        title: document.title,
+        content: generatedContent,
+        wordCount,
+        metadata: {
+          originalPrompt: trimmedPrompt,
+          generatedAt,
+        },
+      };
+
+    } catch (error) {
+      logger.error('Failed to generate document from prompt', { 
+        error: error instanceof Error ? error.message : String(error),
+        prompt: request.data?.prompt?.substring(0, 50),
+      });
+      throw new Error(`Failed to generate document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 );

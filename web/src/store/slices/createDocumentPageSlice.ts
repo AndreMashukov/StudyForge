@@ -8,12 +8,16 @@ export interface ICreateDocumentPageState {
   isAnimating: boolean;
   error: string | null;
   
-  // Form-specific states (existing functionality)
+  // Form-specific states
   urlForm: {
     isLoading: boolean;
   };
   fileForm: {
     isLoading: boolean;
+  };
+  textPromptForm: {
+    isLoading: boolean;
+    progress: number; // 0-100 for progress indication
   };
 }
 
@@ -27,6 +31,10 @@ const initialState: ICreateDocumentPageState = {
   },
   fileForm: {
     isLoading: false,
+  },
+  textPromptForm: {
+    isLoading: false,
+    progress: 0,
   },
 };
 
@@ -59,6 +67,12 @@ const createDocumentPageSlice = createSlice({
     setFileFormLoading: (state, action: PayloadAction<boolean>) => {
       state.fileForm.isLoading = action.payload;
     },
+    setTextPromptFormLoading: (state, action: PayloadAction<boolean>) => {
+      state.textPromptForm.isLoading = action.payload;
+    },
+    setTextPromptFormProgress: (state, action: PayloadAction<number>) => {
+      state.textPromptForm.progress = action.payload;
+    },
     clearSelection: (state) => {
       state.selectedSource = null;
       state.isFormVisible = false;
@@ -78,6 +92,8 @@ export const {
   clearError,
   setUrlFormLoading,
   setFileFormLoading,
+  setTextPromptFormLoading,
+  setTextPromptFormProgress,
   clearSelection,
   resetCreateDocumentPage,
 } = createDocumentPageSlice.actions;
@@ -95,5 +111,9 @@ export const selectUrlFormLoading = (state: { createDocumentPage: ICreateDocumen
   state.createDocumentPage.urlForm.isLoading;
 export const selectFileFormLoading = (state: { createDocumentPage: ICreateDocumentPageState }) => 
   state.createDocumentPage.fileForm.isLoading;
+export const selectTextPromptFormLoading = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.textPromptForm.isLoading;
+export const selectTextPromptFormProgress = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.textPromptForm.progress;
 
 export default createDocumentPageSlice.reducer;

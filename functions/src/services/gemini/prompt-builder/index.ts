@@ -7,9 +7,11 @@
 
 export { QuizPromptBuilder } from './quiz-prompt-builder';
 export { FollowupPromptBuilder } from './followup-prompt-builder';
+export { DocumentPromptBuilder } from './document-prompt-builder';
 
 import { QuizPromptBuilder } from './quiz-prompt-builder';
 import { FollowupPromptBuilder } from './followup-prompt-builder';
+import { DocumentPromptBuilder } from './document-prompt-builder';
 
 // Re-export for backward compatibility
 export class PromptBuilder {
