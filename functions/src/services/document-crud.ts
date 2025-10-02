@@ -271,7 +271,7 @@ export class DocumentCrudService {
   }
 
   /**
-   * Delete a document (both metadata and content)
+changes   * Delete a document (both metadata and content) and all associated quizzes
    * @param userId - The authenticated user's ID
    * @param documentId - The document identifier
    */
@@ -281,6 +281,42 @@ export class DocumentCrudService {
 
       // Verify ownership first
       await this.getDocument(userId, documentId);
+
+      // Delete all associated quizzes first
+      try {
+        const { FirestoreService } = await import('./firestore.js');
+        const quizzes = await FirestoreService.getDocumentQuizzes(documentId, userId);
+        
+        logger.info('Found quizzes to delete', { 
+          userId, 
+          documentId, 
+          quizCount: quizzes.length,
+          quizIds: quizzes.map(q => q.id),
+        });
+
+        // Delete each quiz
+        for (const quiz of quizzes) {
+          await FirestoreService.deleteQuiz(quiz.id, userId);
+          logger.info('Quiz deleted', { 
+            userId, 
+            documentId, 
+            quizId: quiz.id,
+          });
+        }
+
+        logger.info('All quizzes deleted', { 
+          userId, 
+          documentId, 
+          deletedCount: quizzes.length,
+        });
+      } catch (error) {
+        logger.error('Failed to delete associated quizzes', {
+          userId,
+          documentId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Continue with document deletion even if quiz deletion fails
+      }
 
       // Delete content from storage
       await DocumentService.deleteDocument(userId, documentId);
