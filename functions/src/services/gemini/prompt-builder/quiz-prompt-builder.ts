@@ -11,12 +11,30 @@ import { ScrapedContent } from '../../../../libs/shared-types/src/index';
 export class QuizPromptBuilder {
   
   /**
+   * Generate random correct answer indices for quiz questions
+   * @param questionCount - Number of questions (max 30)
+   * @returns Array of random indices (0-3) for correct answers
+   */
+  static generateRandomCorrectAnswers(questionCount: number): number[] {
+    const maxQuestions = Math.min(questionCount, 30);
+    const randomAnswers: number[] = [];
+    
+    for (let i = 0; i < maxQuestions; i++) {
+      // Generate random number from 0 to 3 (4 answer options: A, B, C, D)
+      const randomIndex = Math.floor(Math.random() * 4);
+      randomAnswers.push(randomIndex);
+    }
+    
+    return randomAnswers;
+  }
+
+  /**
    * Build the comprehensive prompt for quiz generation
    */
-  static buildQuizPrompt(content: ScrapedContent, additionalPrompt?: string): string {
+  static buildQuizPrompt(content: ScrapedContent, additionalPrompt?: string, randomCorrectAnswers: number[] = []): string {
     const basePrompt = this.getBaseInstructions();
     const contentSection = this.formatContentSection(content);
-    const answerDistributionRules = this.getAnswerDistributionRules();
+    const answerDistributionRules = this.getRandomAnswerDistributionRules(randomCorrectAnswers);
     const additionalSection = additionalPrompt ? this.formatAdditionalRequirements(additionalPrompt) : '';
     const jsonFormatRules = this.getJsonFormatRules();
     const exampleStructure = this.getExampleStructure();
@@ -121,36 +139,39 @@ ${content.content}
   }
 
   /**
-   * Answer distribution rules to ensure balanced quizzes
+   * Generate random answer distribution rules with specific pattern
+   * @param randomAnswers - Array of random correct answer indices (0-3)
    */
-  private static getAnswerDistributionRules(): string {
+  private static getRandomAnswerDistributionRules(randomAnswers: number[]): string {
+    // Convert indices to letter options (0 -> A, 1 -> B, 2 -> C, 3 -> D)
+    const answerLetters = randomAnswers.map(index => String.fromCharCode(65 + index)); // 65 is 'A'
+    
+    // Format the answer sequence
+    const answerSequence = answerLetters.map((letter, idx) => `Q${idx + 1}-${letter}`).join(', ');
+    
     return `**ANSWER DISTRIBUTION RULES (CRITICAL):**
 
-**1. Balanced Distribution Requirements**:
-   - ✅ **ENSURE**: Each option (A, B, C, D) should be correct roughly equal times
-   - ✅ **TARGET**: For 10 questions: each option correct 2-3 times
-   - ✅ **TARGET**: For 8 questions: each option correct 2 times
-   - ✅ **TARGET**: For 12 questions: each option correct 3 times
+**MANDATORY CORRECT ANSWER PATTERN:**
+You MUST use the following pre-determined pattern for correct answers to ensure random distribution:
 
-**2. Anti-Clustering Rules**:
-   - ❌ **AVOID**: No more than 2 consecutive questions with same correct answer
-   - ❌ **AVOID**: No single option being correct more than 40% of total questions
-   - ❌ **AVOID**: Any option being correct less than 20% of total questions
-   
-**3. Quality Check Process**:
-   - **Step 1**: After generating all questions, count correct answers by option
-   - **Step 2**: If distribution is uneven (example: A-1, B-7, C-1, D-1), REBALANCE
-   - **Step 3**: Redistribute by moving questions between options while maintaining answer accuracy
-   - **Step 4**: Verify no more than 2 consecutive questions have same correct answer
-   
-**4. Example BAD Distribution** (to avoid):
-   Question sequence: Q1-B, Q2-C, Q3-B, Q4-A, Q5-B, Q6-B, Q7-B, Q8-B, Q9-B, Q10-B
-   Count: Option A: 1, Option B: 7, Option C: 1, Option D: 0
-   
-**5. Example GOOD Distribution** (target):
-   Question sequence: Q1-A, Q2-C, Q3-B, Q4-D, Q5-A, Q6-C, Q7-B, Q8-D, Q9-A, Q10-C
-   Count: Option A: 3, Option B: 2, Option C: 3, Option D: 2`;
+${answerSequence}
+
+**INSTRUCTIONS:**
+- For Question 1, make option ${answerLetters[0]} the correct answer
+- For Question 2, make option ${answerLetters[1]} the correct answer
+- For Question 3, make option ${answerLetters[2]} the correct answer
+${randomAnswers.length > 3 ? `- For Question 4, make option ${answerLetters[3]} the correct answer` : ''}
+${randomAnswers.length > 4 ? `- Continue following the pattern above for all ${randomAnswers.length} questions` : ''}
+
+**IMPLEMENTATION PROCESS:**
+1. **Generate the question content** first (question text, all 4 options, explanation)
+2. **Identify which option should be correct** based on the pattern above (e.g., if pattern says "Q1-B", then option B must be correct)
+3. **Ensure the content of that designated option is factually correct** and the other 3 options are plausible but incorrect
+4. **Set the correctAnswer field** to match the pattern (0=A, 1=B, 2=C, 3=D)
+
+**CRITICAL:** You MUST follow this exact pattern. This pattern has been randomly generated to ensure fair distribution of correct answers across all options.`;
   }
+
 
   /**
    * Format additional user requirements

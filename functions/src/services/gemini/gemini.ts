@@ -46,7 +46,16 @@ export class GeminiService {
       const genAI = this.getClient();
       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-      const prompt = QuizPromptBuilder.buildQuizPrompt(content, additionalPrompt);
+      // Generate random correct answer pattern (up to 30 questions)
+      // Assuming typical quiz length of 8-12 questions, we generate 30 to cover all cases
+      const randomCorrectAnswers = QuizPromptBuilder.generateRandomCorrectAnswers(30);
+      
+      functions.logger.info('Generated random correct answer pattern', { 
+        patternLength: randomCorrectAnswers.length,
+        pattern: randomCorrectAnswers.slice(0, 12).join(',') // Log first 12 for debugging
+      });
+
+      const prompt = QuizPromptBuilder.buildQuizPrompt(content, additionalPrompt, randomCorrectAnswers);
       functions.logger.debug('Sending request to Gemini AI', { contentLength: content.content.length });
 
       const result = await model.generateContent(prompt);
