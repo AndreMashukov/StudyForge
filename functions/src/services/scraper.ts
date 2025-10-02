@@ -97,34 +97,85 @@ Please return only the clean markdown content, starting with the title heading:`
    * @returns Basic markdown content
    */
   private static createFallbackMarkdown(content: ScrapedContent): string {
+    functions.logger.info('Creating fallback markdown structure');
+    
     let markdown = `# ${content.title}\n\n`;
 
+    // Add metadata section
+    const metadata: string[] = [];
     if (content.author) {
-      markdown += `**Author:** ${content.author}\n\n`;
+      metadata.push(`**Author:** ${content.author}`);
     }
-
     if (content.publishDate) {
-      markdown += `**Published:** ${content.publishDate}\n\n`;
+      metadata.push(`**Published:** ${content.publishDate}`);
+    }
+    metadata.push(`**Word Count:** ${content.wordCount}`);
+
+    if (metadata.length > 0) {
+      markdown += metadata.join('  \n') + '\n\n---\n\n';
     }
 
-    markdown += `---\n\n`;
-
-    // Convert content to basic paragraphs
-    const paragraphs = content.content
-      .split('\n\n')
-      .map(p => p.trim())
-      .filter(p => p.length > 0);
-
-    for (const paragraph of paragraphs) {
-      // Simple heuristic to detect headings (if paragraph is short and title-case)
-      if (paragraph.length < 100 && paragraph.match(/^[A-Z][^.]*[^.]$/)) {
-        markdown += `## ${paragraph}\n\n`;
+    // Convert content to structured markdown with better paragraph detection
+    const lines = content.content.split('\n').map(line => line.trim());
+    let currentParagraph = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Skip empty lines between paragraphs
+      if (line.length === 0) {
+        if (currentParagraph.length > 0) {
+          markdown += this.formatParagraph(currentParagraph) + '\n\n';
+          currentParagraph = '';
+        }
+        continue;
+      }
+      
+      // Detect potential headings (short lines with title case, no ending punctuation)
+      const isHeading = line.length < 100 && 
+                       line.match(/^[A-Z]/) && 
+                       !line.match(/[.!?]$/) &&
+                       line.split(' ').length <= 10;
+      
+      if (isHeading && currentParagraph.length === 0) {
+        markdown += `## ${line}\n\n`;
       } else {
-        markdown += `${paragraph}\n\n`;
+        // Accumulate text into paragraphs
+        currentParagraph += (currentParagraph.length > 0 ? ' ' : '') + line;
       }
     }
+    
+    // Add any remaining paragraph
+    if (currentParagraph.length > 0) {
+      markdown += this.formatParagraph(currentParagraph) + '\n\n';
+    }
 
+    functions.logger.info('Fallback markdown created', { 
+      length: markdown.length,
+      paragraphCount: (markdown.match(/\n\n/g) || []).length 
+    });
+    
     return markdown;
+  }
+
+  /**
+   * Format a paragraph with basic markdown enhancements
+   * @param paragraph - Raw paragraph text
+   * @returns Formatted paragraph
+   */
+  private static formatParagraph(paragraph: string): string {
+    // Detect and format lists
+    if (paragraph.match(/^\d+\.\s/)) {
+      // Numbered list
+      return paragraph;
+    }
+    if (paragraph.match(/^[-•]\s/)) {
+      // Bullet list
+      return paragraph.replace(/^[-•]\s/, '- ');
+    }
+    
+    // Regular paragraph - ensure proper spacing
+    return paragraph.trim();
   }
 
   /**

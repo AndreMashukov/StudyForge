@@ -1,5 +1,6 @@
 import { onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
+import { defineSecret } from 'firebase-functions/params';
 import { DocumentCrudService } from '../services/document-crud';
 import { WebScraperService } from '../services/scraper';
 import { 
@@ -8,6 +9,9 @@ import {
   DocumentSourceType,
   DocumentStatus,
 } from "../../libs/shared-types/src/index";
+
+// Define the Gemini API key secret for markdown conversion
+const geminiApiKey = defineSecret("GEMINI_API_KEY");
 
 /**
  * Authentication middleware for callable functions
@@ -82,6 +86,7 @@ export const createDocumentFromUrl = onCall(
   { 
     region: 'asia-east1',
     cors: true,
+    secrets: [geminiApiKey], // Make the Gemini API key available to this function
   },
   async (request) => {
     try {
@@ -99,8 +104,36 @@ export const createDocumentFromUrl = onCall(
         throw new Error('Invalid URL format');
       }
 
+      logger.info('Starting content scraping and markdown conversion', { url });
+
       // Scrape content and convert to markdown
       const scrapedContent = await WebScraperService.extractContentAsMarkdown(url);
+
+      logger.info('Content scraped successfully', { 
+        url,
+        title: scrapedContent.title,
+        contentLength: scrapedContent.content?.length || 0,
+        markdownLength: scrapedContent.markdownContent?.length || 0,
+        hasMarkdown: !!scrapedContent.markdownContent,
+      });
+
+      // Validate that we got markdown content, not just plain text
+      if (!scrapedContent.markdownContent || scrapedContent.markdownContent.length === 0) {
+        logger.error('Markdown conversion returned empty content', { 
+          url,
+          rawContentLength: scrapedContent.content?.length || 0,
+        });
+        throw new Error('Failed to convert content to markdown: empty result');
+      }
+
+      // Check if markdown is just plain text (no markdown formatting)
+      const hasMarkdownFormatting = /[#*\-_`\[\]]/g.test(scrapedContent.markdownContent);
+      if (!hasMarkdownFormatting && scrapedContent.markdownContent.length > 100) {
+        logger.warn('Markdown content may be plain text without formatting', {
+          url,
+          contentPreview: scrapedContent.markdownContent.substring(0, 200),
+        });
+      }
 
       // Prepare document request
       const documentRequest: CreateDocumentRequest = {
