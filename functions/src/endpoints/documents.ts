@@ -129,7 +129,7 @@ export const createDocumentFromUrl = onCall(
       }
 
       // Check if markdown is just plain text (no markdown formatting)
-      const hasMarkdownFormatting = /[#*\-_`\[\]]/g.test(scrapedContent.markdownContent);
+      const hasMarkdownFormatting = /[#*\-_`[\]]/g.test(scrapedContent.markdownContent);
       if (!hasMarkdownFormatting && scrapedContent.markdownContent.length > 100) {
         logger.warn('Markdown content may be plain text without formatting', {
           url,
