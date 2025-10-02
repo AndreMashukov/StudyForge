@@ -70,9 +70,10 @@ export const documentsApi = baseApi.injectEndpoints({
     generateFromPrompt: builder.mutation<GenerateFromPromptResponse, GenerateFromPromptRequest>({
       query: (data) => ({
         functionName: 'generateFromPrompt',
-        data
+        data: data
       }),
-      transformResponse: (response: { success: boolean } & GenerateFromPromptResponse) => {
+      transformResponse: (response: any) => {
+        // Firebase Functions return data wrapped in the response
         return {
           documentId: response.documentId,
           title: response.title,

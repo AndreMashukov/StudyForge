@@ -74,6 +74,7 @@ export {
 export {
   createDocument,
   createDocumentFromUrl,
+  generateFromPrompt,
   getDocument,
   getDocumentWithContent,
   updateDocument,
