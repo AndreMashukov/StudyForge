@@ -28,7 +28,7 @@ const sourceCards = [
     icon: '📝',
     title: 'Text Prompt',
     description: 'Create from description',
-    status: 'coming-soon' as const,
+    status: 'active' as const,
     order: 3,
   },
   {

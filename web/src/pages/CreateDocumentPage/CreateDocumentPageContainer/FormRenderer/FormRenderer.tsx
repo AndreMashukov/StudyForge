@@ -3,19 +3,24 @@ import { useSelector } from 'react-redux';
 import { selectSelectedSource } from '../../../../store/slices/createDocumentPageSlice';
 import { UrlScrapingForm } from '../UrlScrapingForm';
 import { FileUploadForm } from '../FileUploadForm';
+import { TextPromptForm } from '../TextPromptForm';
 import { FormContainer } from '../FormContainer';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
-import { Globe, Upload, ArrowLeft } from 'lucide-react';
+import { Globe, Upload, ArrowLeft, Sparkles } from 'lucide-react';
 import { Button } from '../../../../components/ui/Button';
 import { IUrlScrapingFormData } from '../UrlScrapingForm/IUrlScrapingForm';
 import { IFileUploadFormData } from '../FileUploadForm/IFileUploadForm';
+import { ITextPromptFormData } from '../TextPromptForm/ITextPromptForm';
 import type { RootState } from '../../../../store';
 
 interface IFormRendererProps {
   onSubmitUrl: (data: IUrlScrapingFormData) => Promise<void>;
   onSubmitFile: (data: IFileUploadFormData) => Promise<void>;
+  onSubmitTextPrompt: (data: ITextPromptFormData) => Promise<void>;
   isUrlLoading: boolean;
   isFileLoading: boolean;
+  isTextPromptLoading: boolean;
+  textPromptProgress?: number;
   onBack?: () => void;
 }
 
@@ -25,6 +30,8 @@ const getFormIcon = (sourceType: string) => {
       return <Globe size={20} />;
     case 'file':
       return <Upload size={20} />;
+    case 'textPrompt':
+      return <Sparkles size={20} />;
     default:
       return null;
   }
@@ -36,6 +43,8 @@ const getFormTitle = (sourceType: string) => {
       return 'Website Content Scraper';
     case 'file':
       return 'File Upload Center';
+    case 'textPrompt':
+      return 'AI Document Generator';
     default:
       return 'Create Document';
   }
@@ -44,8 +53,11 @@ const getFormTitle = (sourceType: string) => {
 export const FormRenderer = ({
   onSubmitUrl,
   onSubmitFile,
+  onSubmitTextPrompt,
   isUrlLoading,
   isFileLoading,
+  isTextPromptLoading,
+  textPromptProgress,
   onBack,
 }: IFormRendererProps) => {
   const selectedSource = useSelector((state: RootState) => selectSelectedSource(state));
@@ -93,7 +105,15 @@ export const FormRenderer = ({
             />
           )}
           
-          {(selectedSource === 'textPrompt' || selectedSource === 'videoUrl') && (
+          {selectedSource === 'textPrompt' && (
+            <TextPromptForm
+              isLoading={isTextPromptLoading}
+              progress={textPromptProgress}
+              onSubmit={onSubmitTextPrompt}
+            />
+          )}
+          
+          {selectedSource === 'videoUrl' && (
             <div className="text-center py-12">
               <span role="img" aria-label="Under construction" className="text-4xl mb-4 block">
                 🚧

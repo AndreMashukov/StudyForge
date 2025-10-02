@@ -1,18 +1,27 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { useCreateDocumentFromUrlMutation, useCreateDocumentMutation } from '../../../../store/api/Documents';
+import { 
+  useCreateDocumentFromUrlMutation, 
+  useCreateDocumentMutation,
+  useGenerateFromPromptMutation 
+} from '../../../../store/api/Documents';
 import { IUrlScrapingFormData } from '../../CreateDocumentPageContainer/UrlScrapingForm/IUrlScrapingForm';
 import { IFileUploadFormData } from '../../CreateDocumentPageContainer/FileUploadForm/IFileUploadForm';
+import { ITextPromptFormData } from '../../CreateDocumentPageContainer/TextPromptForm/ITextPromptForm';
 import { DocumentSourceType } from '@shared-types';
 import { 
   setError, 
   clearError, 
   setUrlFormLoading, 
   setFileFormLoading,
+  setTextPromptFormLoading,
+  setTextPromptFormProgress,
   selectCreateDocumentPageError,
   selectUrlFormLoading,
-  selectFileFormLoading 
+  selectFileFormLoading,
+  selectTextPromptFormLoading,
+  selectTextPromptFormProgress 
 } from '../../../../store/slices/createDocumentPageSlice';
 import type { RootState } from '../../../../store';
 
@@ -24,11 +33,14 @@ export const useCreateDocumentPageHandlers = () => {
   const error = useSelector((state: RootState) => selectCreateDocumentPageError(state));
   const isUrlLoading = useSelector((state: RootState) => selectUrlFormLoading(state));
   const isFileLoading = useSelector((state: RootState) => selectFileFormLoading(state));
+  const isTextPromptLoading = useSelector((state: RootState) => selectTextPromptFormLoading(state));
+  const textPromptProgress = useSelector((state: RootState) => selectTextPromptFormProgress(state));
   
   const [createDocumentFromUrl] = useCreateDocumentFromUrlMutation();
   const [createDocument] = useCreateDocumentMutation();
+  const [generateFromPrompt] = useGenerateFromPromptMutation();
   
-  const isLoading = isUrlLoading || isFileLoading;
+  const isLoading = isUrlLoading || isFileLoading || isTextPromptLoading;
 
   const handleGoBack = useCallback(() => {
     navigate('/documents');
@@ -83,11 +95,53 @@ export const useCreateDocumentPageHandlers = () => {
     }
   }, [createDocument, navigate, dispatch]);
 
+  const handleCreateFromTextPrompt = useCallback(async (data: ITextPromptFormData) => {
+    let progressInterval: NodeJS.Timeout | undefined;
+    let currentProgress = 0;
+    
+    try {
+      dispatch(clearError());
+      dispatch(setTextPromptFormLoading(true));
+      dispatch(setTextPromptFormProgress(0));
+      
+      // Simulate progress updates
+      progressInterval = setInterval(() => {
+        currentProgress = Math.min(currentProgress + 10, 90);
+        dispatch(setTextPromptFormProgress(currentProgress));
+      }, 2000);
+      
+      const result = await generateFromPrompt({
+        prompt: data.prompt,
+      }).unwrap();
+      
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+      dispatch(setTextPromptFormProgress(100));
+      
+      // Navigate to the created document
+      navigate(`/document/${result.documentId}`);
+    } catch (err: any) {
+      console.error('Error generating document from prompt:', err);
+      const errorMessage = err?.data?.message || 'Failed to generate document. Please try again.';
+      dispatch(setError(errorMessage));
+    } finally {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+      dispatch(setTextPromptFormLoading(false));
+      dispatch(setTextPromptFormProgress(0));
+    }
+  }, [generateFromPrompt, navigate, dispatch]);
+
   return {
     handleGoBack,
     handleCreateFromUrl,
     handleCreateFromFile,
+    handleCreateFromTextPrompt,
     isLoading,
+    isTextPromptLoading,
+    textPromptProgress,
     error,
   };
 };
