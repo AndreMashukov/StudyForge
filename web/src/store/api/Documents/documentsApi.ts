@@ -81,8 +81,28 @@ export const documentsApi = baseApi.injectEndpoints({
         data
       }),
       invalidatesTags: (result, error, arg) => [
-        { type: 'Document', id: arg.documentId }
+        { type: 'Document', id: arg.documentId },
+        'Document', // Invalidate the general tag to refetch the documents list
       ],
+      // Optimistically update the cache to immediately remove the document
+      async onQueryStarted({ documentId }, { dispatch, queryFulfilled }) {
+        // Optimistically update getUserDocuments cache
+        const patchResult = dispatch(
+          documentsApi.util.updateQueryData('getUserDocuments', undefined, (draft) => {
+            if (draft && draft.documents) {
+              draft.documents = draft.documents.filter(doc => doc.id !== documentId);
+              draft.total = Math.max(0, (draft.total || 0) - 1);
+            }
+          })
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          // If the mutation fails, undo the optimistic update
+          patchResult.undo();
+        }
+      },
     }),
     
     searchDocuments: builder.query<ListDocumentsResponse, string>({
