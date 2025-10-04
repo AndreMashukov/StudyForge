@@ -6,7 +6,7 @@ import { ITextPromptFormProps } from './ITextPromptForm';
 import { textPromptFormStyles } from './TextPromptForm.styles';
 import { cn } from '../../../../lib/utils';
 
-const MAX_CHARACTERS = 1000;
+const MAX_CHARACTERS = 10000;
 const MIN_CHARACTERS = 10;
 
 export const TextPromptForm = ({ isLoading, progress = 0, onSubmit }: ITextPromptFormProps) => {
