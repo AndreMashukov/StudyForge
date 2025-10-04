@@ -544,6 +544,7 @@ export const generateFromPrompt = onCall(
       logger.info('Generating document from prompt', { 
         userId,
         promptLength: data.prompt?.length,
+        filesCount: data.files?.length || 0,
       });
 
       // Validate prompt
@@ -557,21 +558,56 @@ export const generateFromPrompt = onCall(
         throw new Error('Prompt cannot be empty');
       }
 
-      if (trimmedPrompt.length > 1000) {
-        throw new Error('Prompt cannot exceed 1000 characters');
+      if (trimmedPrompt.length > 10000) {
+        throw new Error('Prompt cannot exceed 10,000 characters');
       }
 
       if (trimmedPrompt.length < 10) {
         throw new Error('Prompt must be at least 10 characters long');
       }
 
+      // Validate files if provided
+      if (data.files) {
+        if (!Array.isArray(data.files)) {
+          throw new Error('Files must be an array');
+        }
+
+        if (data.files.length > 5) {
+          throw new Error('Cannot attach more than 5 files');
+        }
+
+        // Validate each file
+        data.files.forEach((file, index) => {
+          if (!file.filename || !file.content || typeof file.size !== 'number') {
+            throw new Error(`Invalid file structure at index ${index}`);
+          }
+
+          if (file.size > 5 * 1024 * 1024) {
+            throw new Error(`File "${file.filename}" exceeds 5MB size limit`);
+          }
+
+          if (file.content.trim().length === 0) {
+            throw new Error(`File "${file.filename}" is empty`);
+          }
+        });
+
+        logger.info('Context files validated', {
+          filesCount: data.files.length,
+          totalSize: data.files.reduce((sum, f) => sum + f.size, 0),
+        });
+      }
+
       logger.info('Calling Gemini AI to generate document', { 
         userId,
         promptLength: trimmedPrompt.length,
+        withContextFiles: !!(data.files && data.files.length > 0),
       });
 
-      // Generate document content using Gemini AI
-      const generatedContent = await GeminiService.generateDocumentFromPrompt(trimmedPrompt);
+      // Generate document content using Gemini AI with optional context files
+      const generatedContent = await GeminiService.generateDocumentFromPrompt(
+        trimmedPrompt,
+        data.files
+      );
 
       // Extract title from the first H1 heading or generate from prompt
       let title = 'Generated Document';
@@ -632,6 +668,7 @@ export const generateFromPrompt = onCall(
         metadata: {
           originalPrompt: trimmedPrompt,
           generatedAt,
+          filesUsed: data.files?.length || 0,
         },
       };
 

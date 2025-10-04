@@ -1,9 +1,10 @@
 /* eslint-disable no-misleading-character-class */
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as functions from 'firebase-functions';
-import { ScrapedContent, QuizFollowupContext } from '../../../libs/shared-types/src/index';
+import { ScrapedContent, QuizFollowupContext, IFileContent } from '../../../libs/shared-types/src/index';
 import { JsonSanitizer } from './json-sanitizer';
 import { QuizPromptBuilder, FollowupPromptBuilder, DocumentPromptBuilder } from './prompt-builder';
+import { buildPromptWithContextFiles, validateContextFiles, estimateContextTokens } from './prompt-builder/withContextFiles';
 
 export interface GeminiQuizResponse {
   title: string;
@@ -125,13 +126,28 @@ export class GeminiService {
    * Generate a comprehensive document from a user text prompt
    * Creates structured markdown with tables, ASCII diagrams, and detailed content
    * @param userPrompt - The user's text prompt describing what document to generate
+   * @param files - Optional array of reference documents to use as context
    * @returns Generated markdown document content
    */
-  public static async generateDocumentFromPrompt(userPrompt: string): Promise<string> {
+  public static async generateDocumentFromPrompt(
+    userPrompt: string, 
+    files?: IFileContent[]
+  ): Promise<string> {
     try {
       functions.logger.info('Generating document from prompt with Gemini AI', { 
-        promptLength: userPrompt.length 
+        promptLength: userPrompt.length,
+        filesCount: files?.length || 0,
       });
+
+      // Validate context files if provided
+      if (files && files.length > 0) {
+        validateContextFiles(files);
+        const estimatedTokens = estimateContextTokens(files);
+        functions.logger.info('Context files validated', {
+          filesCount: files.length,
+          estimatedTokens,
+        });
+      }
 
       const genAI = this.getClient();
       const model = genAI.getGenerativeModel({ 
@@ -144,8 +160,15 @@ export class GeminiService {
         },
       });
 
-      const prompt = DocumentPromptBuilder.buildDocumentPrompt(userPrompt);
-      functions.logger.debug('Sending document generation request to Gemini AI');
+      // Use context-aware prompt builder if files provided
+      const prompt = files && files.length > 0
+        ? buildPromptWithContextFiles(userPrompt, files)
+        : DocumentPromptBuilder.buildDocumentPrompt(userPrompt);
+        
+      functions.logger.debug('Sending document generation request to Gemini AI', {
+        promptLength: prompt.length,
+        hasContextFiles: !!(files && files.length > 0),
+      });
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
@@ -160,7 +183,8 @@ export class GeminiService {
 
       functions.logger.info('Document generated successfully', { 
         length: validatedContent.length,
-        wasFixed: validatedContent !== text
+        wasFixed: validatedContent !== text,
+        withContext: !!(files && files.length > 0),
       });
 
       return validatedContent;

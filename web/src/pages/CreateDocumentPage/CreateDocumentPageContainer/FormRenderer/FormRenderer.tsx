@@ -1,6 +1,12 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import { selectSelectedSource } from '../../../../store/slices/createDocumentPageSlice';
+import { 
+  selectSelectedSource,
+  selectAttachedFiles,
+  selectTotalContextSize,
+  selectContextSizeError,
+  selectCanAttachMore,
+} from '../../../../store/slices/createDocumentPageSlice';
 import { UrlScrapingForm } from '../UrlScrapingForm';
 import { FileUploadForm } from '../FileUploadForm';
 import { TextPromptForm } from '../TextPromptForm';
@@ -12,6 +18,7 @@ import { IUrlScrapingFormData } from '../UrlScrapingForm/IUrlScrapingForm';
 import { IFileUploadFormData } from '../FileUploadForm/IFileUploadForm';
 import { ITextPromptFormData } from '../TextPromptForm/ITextPromptForm';
 import type { RootState } from '../../../../store';
+import { useFileUpload } from '../../context/hooks/useFileUpload';
 
 interface IFormRendererProps {
   onSubmitUrl: (data: IUrlScrapingFormData) => Promise<void>;
@@ -61,6 +68,13 @@ export const FormRenderer = ({
   onBack,
 }: IFormRendererProps) => {
   const selectedSource = useSelector((state: RootState) => selectSelectedSource(state));
+  
+  // File upload hook and selectors
+  const fileUpload = useFileUpload();
+  const attachedFiles = useSelector((state: RootState) => selectAttachedFiles(state));
+  const totalContextSize = useSelector((state: RootState) => selectTotalContextSize(state));
+  const contextSizeError = useSelector((state: RootState) => selectContextSizeError(state));
+  const canAttachMore = useSelector((state: RootState) => selectCanAttachMore(state));
 
   if (!selectedSource) {
     return null;
@@ -110,6 +124,12 @@ export const FormRenderer = ({
               isLoading={isTextPromptLoading}
               progress={textPromptProgress}
               onSubmit={onSubmitTextPrompt}
+              attachedFiles={attachedFiles}
+              onFilesSelected={fileUpload.handleFileAdd}
+              onFileRemove={fileUpload.handleFileRemove}
+              canAttachMore={canAttachMore}
+              totalTokens={fileUpload.getTotalTokens()}
+              contextSizeError={contextSizeError}
             />
           )}
           

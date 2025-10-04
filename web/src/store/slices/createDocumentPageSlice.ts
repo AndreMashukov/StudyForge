@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { IAttachedFile } from '../../types/fileUpload';
 
 export type SourceType = 'website' | 'file' | 'textPrompt' | 'videoUrl';
 
@@ -18,6 +19,9 @@ export interface ICreateDocumentPageState {
   textPromptForm: {
     isLoading: boolean;
     progress: number; // 0-100 for progress indication
+    attachedFiles: IAttachedFile[];
+    totalContextSize: number; // Total characters across all files
+    contextSizeError: string | null;
   };
 }
 
@@ -35,6 +39,9 @@ const initialState: ICreateDocumentPageState = {
   textPromptForm: {
     isLoading: false,
     progress: 0,
+    attachedFiles: [],
+    totalContextSize: 0,
+    contextSizeError: null,
   },
 };
 
@@ -73,6 +80,49 @@ const createDocumentPageSlice = createSlice({
     setTextPromptFormProgress: (state, action: PayloadAction<number>) => {
       state.textPromptForm.progress = action.payload;
     },
+    // File attachment actions
+    addFile: (state, action: PayloadAction<IAttachedFile>) => {
+      state.textPromptForm.attachedFiles.push(action.payload);
+      // Recalculate total context size
+      state.textPromptForm.totalContextSize = state.textPromptForm.attachedFiles.reduce(
+        (sum, file) => sum + file.characterCount,
+        0
+      );
+    },
+    removeFile: (state, action: PayloadAction<string>) => {
+      state.textPromptForm.attachedFiles = state.textPromptForm.attachedFiles.filter(
+        file => file.id !== action.payload
+      );
+      // Recalculate total context size
+      state.textPromptForm.totalContextSize = state.textPromptForm.attachedFiles.reduce(
+        (sum, file) => sum + file.characterCount,
+        0
+      );
+      // Clear context size error if files are removed
+      if (state.textPromptForm.attachedFiles.length === 0) {
+        state.textPromptForm.contextSizeError = null;
+      }
+    },
+    updateFileStatus: (
+      state,
+      action: PayloadAction<{ id: string; status: IAttachedFile['status']; error?: string }>
+    ) => {
+      const file = state.textPromptForm.attachedFiles.find(f => f.id === action.payload.id);
+      if (file) {
+        file.status = action.payload.status;
+        if (action.payload.error) {
+          file.error = action.payload.error;
+        }
+      }
+    },
+    clearFiles: (state) => {
+      state.textPromptForm.attachedFiles = [];
+      state.textPromptForm.totalContextSize = 0;
+      state.textPromptForm.contextSizeError = null;
+    },
+    setContextSizeError: (state, action: PayloadAction<string | null>) => {
+      state.textPromptForm.contextSizeError = action.payload;
+    },
     clearSelection: (state) => {
       state.selectedSource = null;
       state.isFormVisible = false;
@@ -94,6 +144,11 @@ export const {
   setFileFormLoading,
   setTextPromptFormLoading,
   setTextPromptFormProgress,
+  addFile,
+  removeFile,
+  updateFileStatus,
+  clearFiles,
+  setContextSizeError,
   clearSelection,
   resetCreateDocumentPage,
 } = createDocumentPageSlice.actions;
@@ -115,5 +170,17 @@ export const selectTextPromptFormLoading = (state: { createDocumentPage: ICreate
   state.createDocumentPage.textPromptForm.isLoading;
 export const selectTextPromptFormProgress = (state: { createDocumentPage: ICreateDocumentPageState }) => 
   state.createDocumentPage.textPromptForm.progress;
+
+// File attachment selectors
+export const selectAttachedFiles = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.textPromptForm.attachedFiles;
+export const selectTotalContextSize = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.textPromptForm.totalContextSize;
+export const selectContextSizeError = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.textPromptForm.contextSizeError;
+export const selectCanAttachMore = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.textPromptForm.attachedFiles.length < 5;
+export const selectAttachedFilesCount = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.textPromptForm.attachedFiles.length;
 
 export default createDocumentPageSlice.reducer;

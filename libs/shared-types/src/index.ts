@@ -162,8 +162,17 @@ export interface UploadDocumentRequest {
   title?: string; // Optional override for document title
 }
 
+// File Content Type for Text Prompt Context
+export interface IFileContent {
+  filename: string;
+  content: string;
+  size: number;
+  type: 'text/plain' | 'text/markdown';
+}
+
 export interface GenerateFromPromptRequest {
-  prompt: string; // User's text prompt (max 1000 characters)
+  prompt: string; // User's text prompt (max 10000 characters)
+  files?: IFileContent[]; // Optional reference documents (max 5 files)
 }
 
 export interface GenerateFromPromptResponse {
@@ -174,6 +183,7 @@ export interface GenerateFromPromptResponse {
   metadata: {
     originalPrompt: string;
     generatedAt: string;
+    filesUsed?: number; // Number of context files used
   };
 }
 

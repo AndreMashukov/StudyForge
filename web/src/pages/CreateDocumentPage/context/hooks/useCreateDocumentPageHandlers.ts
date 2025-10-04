@@ -21,9 +21,11 @@ import {
   selectUrlFormLoading,
   selectFileFormLoading,
   selectTextPromptFormLoading,
-  selectTextPromptFormProgress 
+  selectTextPromptFormProgress,
+  clearFiles,
 } from '../../../../store/slices/createDocumentPageSlice';
 import type { RootState } from '../../../../store';
+import { useFileUpload } from './useFileUpload';
 
 export const useCreateDocumentPageHandlers = () => {
   const navigate = useNavigate();
@@ -39,6 +41,9 @@ export const useCreateDocumentPageHandlers = () => {
   const [createDocumentFromUrl] = useCreateDocumentFromUrlMutation();
   const [createDocument] = useCreateDocumentMutation();
   const [generateFromPrompt] = useGenerateFromPromptMutation();
+  
+  // File upload hook
+  const fileUpload = useFileUpload();
   
   const isLoading = isUrlLoading || isFileLoading || isTextPromptLoading;
 
@@ -104,14 +109,24 @@ export const useCreateDocumentPageHandlers = () => {
       dispatch(setTextPromptFormLoading(true));
       dispatch(setTextPromptFormProgress(0));
       
+      // Validate context size before submission
+      if (!fileUpload.isContextSizeValid()) {
+        dispatch(setError('Total context size exceeds limit. Please remove some files.'));
+        return;
+      }
+      
       // Simulate progress updates
       progressInterval = setInterval(() => {
         currentProgress = Math.min(currentProgress + 10, 90);
         dispatch(setTextPromptFormProgress(currentProgress));
       }, 2000);
       
+      // Get files ready for submission
+      const files = fileUpload.getFilesForSubmission();
+      
       const result = await generateFromPrompt({
         prompt: data.prompt,
+        files: files.length > 0 ? files : undefined,
       }).unwrap();
       
       if (progressInterval) {
@@ -119,12 +134,16 @@ export const useCreateDocumentPageHandlers = () => {
       }
       dispatch(setTextPromptFormProgress(100));
       
+      // Clear files after successful submission
+      dispatch(clearFiles());
+      
       // Navigate to the created document
       navigate(`/document/${result.documentId}`);
     } catch (err: any) {
       console.error('Error generating document from prompt:', err);
       const errorMessage = err?.data?.message || 'Failed to generate document. Please try again.';
       dispatch(setError(errorMessage));
+      // Don't clear files on error - keep them for retry
     } finally {
       if (progressInterval) {
         clearInterval(progressInterval);
@@ -132,7 +151,7 @@ export const useCreateDocumentPageHandlers = () => {
       dispatch(setTextPromptFormLoading(false));
       dispatch(setTextPromptFormProgress(0));
     }
-  }, [generateFromPrompt, navigate, dispatch]);
+  }, [generateFromPrompt, navigate, dispatch, fileUpload]);
 
   return {
     handleGoBack,
@@ -143,5 +162,7 @@ export const useCreateDocumentPageHandlers = () => {
     isTextPromptLoading,
     textPromptProgress,
     error,
+    // File upload handlers
+    fileUpload,
   };
 };
