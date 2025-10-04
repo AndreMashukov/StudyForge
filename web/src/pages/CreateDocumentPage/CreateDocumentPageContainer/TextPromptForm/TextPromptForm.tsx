@@ -7,6 +7,8 @@ import { textPromptFormStyles } from './TextPromptForm.styles';
 import { cn } from '../../../../lib/utils';
 import { FileUploadZone } from './FileUploadZone';
 import { AttachedFilesList } from './AttachedFilesList';
+import { SourceTabs, SourceTabType } from './SourceTabs';
+import { DocumentSelector } from './DocumentSelector';
 import { FILE_UPLOAD_CONSTRAINTS } from '../../../../types/fileUpload';
 
 const MAX_CHARACTERS = 10000;
@@ -22,8 +24,13 @@ export const TextPromptForm = ({
   canAttachMore,
   totalTokens,
   contextSizeError,
+  userDocuments,
+  selectedDocumentIds,
+  onDocumentToggle,
+  isLoadingDocuments,
 }: ITextPromptFormProps) => {
   const [prompt, setPrompt] = useState('');
+  const [activeTab, setActiveTab] = useState<SourceTabType>('upload');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,17 +53,43 @@ export const TextPromptForm = ({
                     !isLoading && 
                     !isContextOverLimit;
 
+  // Calculate counts for tab badges
+  const uploadCount = attachedFiles.filter(f => f.source === 'upload').length;
+  const libraryCount = attachedFiles.filter(f => f.source === 'library').length;
+
   return (
     <form onSubmit={handleSubmit} className={textPromptFormStyles.container}>
-      {/* File Upload Zone */}
-      <FileUploadZone
-        onFilesSelected={onFilesSelected}
-        canAttachMore={canAttachMore}
-        maxFiles={FILE_UPLOAD_CONSTRAINTS.MAX_FILES}
+      {/* Source Tabs */}
+      <SourceTabs
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        uploadCount={uploadCount}
+        libraryCount={libraryCount}
         disabled={isLoading}
       />
 
-      {/* Attached Files List */}
+      {/* Tab Content */}
+      <div className="mt-4">
+        {activeTab === 'upload' ? (
+          <FileUploadZone
+            onFilesSelected={onFilesSelected}
+            canAttachMore={canAttachMore}
+            maxFiles={FILE_UPLOAD_CONSTRAINTS.MAX_FILES}
+            disabled={isLoading}
+          />
+        ) : (
+          <DocumentSelector
+            documents={userDocuments}
+            selectedDocumentIds={selectedDocumentIds}
+            onDocumentToggle={onDocumentToggle}
+            canSelectMore={canAttachMore}
+            isLoading={isLoadingDocuments}
+            disabled={isLoading}
+          />
+        )}
+      </div>
+
+      {/* Attached Files List - Always Visible */}
       <AttachedFilesList
         files={attachedFiles}
         onRemoveFile={onFileRemove}
@@ -83,7 +116,11 @@ export const TextPromptForm = ({
         </div>
         <textarea
           id="prompt"
-          placeholder={`Example: "Explain DynamoDB provisioned capacity"\n\nDescribe what you want to learn about. Be specific for better results.${attachedFiles.length > 0 ? '\n\nAttached files will be used as context.' : ''}`}
+          placeholder={
+            attachedFiles.length > 0
+              ? `Example: "Summarize the key concepts from the attached documents"\n\nDescribe what you want to learn. The AI will use your attached ${uploadCount > 0 && libraryCount > 0 ? 'files and documents' : uploadCount > 0 ? 'files' : 'documents'} as context.`
+              : `Example: "Explain DynamoDB provisioned capacity"\n\nDescribe what you want to learn about. Be specific for better results.`
+          }
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           className={cn(
@@ -114,8 +151,18 @@ export const TextPromptForm = ({
         )}
         {!isOverLimit && !isUnderMinimum && !isContextOverLimit && (
           <p className={textPromptFormStyles.helpText}>
-            Describe your topic clearly. The AI will generate a comprehensive document with tables, diagrams, and detailed explanations.
-            {attachedFiles.length > 0 && ' Attached files will provide additional context.'}
+            {attachedFiles.length > 0 ? (
+              <>
+                The AI will use your {uploadCount} uploaded file{uploadCount !== 1 ? 's' : ''} 
+                {uploadCount > 0 && libraryCount > 0 ? ' and ' : ''}
+                {libraryCount > 0 && `${libraryCount} library document${libraryCount !== 1 ? 's' : ''}`} 
+                {' '}as context to generate a comprehensive, detailed document.
+              </>
+            ) : (
+              <>
+                Describe your topic clearly. The AI will generate a comprehensive document with tables, diagrams, and detailed explanations.
+              </>
+            )}
           </p>
         )}
       </div>

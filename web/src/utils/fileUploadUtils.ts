@@ -194,6 +194,7 @@ export async function processFile(file: File): Promise<Omit<IAttachedFile, 'id'>
       characterCount,
       estimatedTokens,
       status: 'ready',
+      source: 'upload', // Mark as uploaded file
     };
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : FILE_UPLOAD_ERRORS.FILE_READ_ERROR);
@@ -210,6 +211,8 @@ export function convertToFileContent(files: IAttachedFile[]): Array<{
   content: string;
   size: number;
   type: 'text/plain' | 'text/markdown';
+  source?: 'upload' | 'library';
+  documentId?: string;
 }> {
   return files
     .filter(file => file.status === 'ready' && file.content)
@@ -218,6 +221,8 @@ export function convertToFileContent(files: IAttachedFile[]): Array<{
       content: file.content,
       size: file.size,
       type: file.filename.endsWith('.md') ? 'text/markdown' : 'text/plain',
+      source: file.source,
+      documentId: file.documentId,
     }));
 }
 

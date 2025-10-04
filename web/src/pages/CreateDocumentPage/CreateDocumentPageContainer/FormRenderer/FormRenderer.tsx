@@ -3,10 +3,11 @@ import { useSelector } from 'react-redux';
 import { 
   selectSelectedSource,
   selectAttachedFiles,
-  selectTotalContextSize,
   selectContextSizeError,
   selectCanAttachMore,
+  selectSelectedDocumentIds,
 } from '../../../../store/slices/createDocumentPageSlice';
+import { useGetUserDocumentsQuery } from '../../../../store/api/Documents';
 import { UrlScrapingForm } from '../UrlScrapingForm';
 import { FileUploadForm } from '../FileUploadForm';
 import { TextPromptForm } from '../TextPromptForm';
@@ -17,13 +18,20 @@ import { Button } from '../../../../components/ui/Button';
 import { IUrlScrapingFormData } from '../UrlScrapingForm/IUrlScrapingForm';
 import { IFileUploadFormData } from '../FileUploadForm/IFileUploadForm';
 import { ITextPromptFormData } from '../TextPromptForm/ITextPromptForm';
+import { IFileContent } from '@shared-types';
 import type { RootState } from '../../../../store';
 import { useFileUpload } from '../../context/hooks/useFileUpload';
 
 interface IFormRendererProps {
   onSubmitUrl: (data: IUrlScrapingFormData) => Promise<void>;
   onSubmitFile: (data: IFileUploadFormData) => Promise<void>;
-  onSubmitTextPrompt: (data: ITextPromptFormData) => Promise<void>;
+  onSubmitTextPrompt: (
+    data: ITextPromptFormData,
+    fileUploadHelpers: {
+      isContextSizeValid: () => boolean;
+      getFilesForSubmission: () => IFileContent[];
+    }
+  ) => Promise<void>;
   isUrlLoading: boolean;
   isFileLoading: boolean;
   isTextPromptLoading: boolean;
@@ -69,12 +77,26 @@ export const FormRenderer = ({
 }: IFormRendererProps) => {
   const selectedSource = useSelector((state: RootState) => selectSelectedSource(state));
   
-  // File upload hook and selectors
-  const fileUpload = useFileUpload();
+  // Fetch user documents for library selector
+  const { data: documentsData, isLoading: isLoadingDocuments } = useGetUserDocumentsQuery();
+  const userDocuments = documentsData?.documents || [];
+  
+  // File upload hook with documents
+  const fileUpload = useFileUpload(userDocuments);
+  
+  // Redux selectors
   const attachedFiles = useSelector((state: RootState) => selectAttachedFiles(state));
-  const totalContextSize = useSelector((state: RootState) => selectTotalContextSize(state));
   const contextSizeError = useSelector((state: RootState) => selectContextSizeError(state));
   const canAttachMore = useSelector((state: RootState) => selectCanAttachMore(state));
+  const selectedDocumentIds = useSelector((state: RootState) => selectSelectedDocumentIds(state));
+
+  // Handle text prompt submission with file upload helpers
+  const handleTextPromptSubmit = async (data: ITextPromptFormData) => {
+    await onSubmitTextPrompt(data, {
+      isContextSizeValid: fileUpload.isContextSizeValid,
+      getFilesForSubmission: fileUpload.getFilesForSubmission,
+    });
+  };
 
   if (!selectedSource) {
     return null;
@@ -123,13 +145,17 @@ export const FormRenderer = ({
             <TextPromptForm
               isLoading={isTextPromptLoading}
               progress={textPromptProgress}
-              onSubmit={onSubmitTextPrompt}
+              onSubmit={handleTextPromptSubmit}
               attachedFiles={attachedFiles}
               onFilesSelected={fileUpload.handleFileAdd}
               onFileRemove={fileUpload.handleFileRemove}
               canAttachMore={canAttachMore}
               totalTokens={fileUpload.getTotalTokens()}
               contextSizeError={contextSizeError}
+              userDocuments={userDocuments}
+              selectedDocumentIds={selectedDocumentIds}
+              onDocumentToggle={fileUpload.handleDocumentToggle}
+              isLoadingDocuments={isLoadingDocuments}
             />
           )}
           

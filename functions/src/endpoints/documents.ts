@@ -541,10 +541,17 @@ export const generateFromPrompt = onCall(
       const userId = await validateAuth(request);
       const data = request.data as GenerateFromPromptRequest;
 
+      // Count files by source type
+      const uploadFilesCount = data.files?.filter(f => f.source === 'upload' || !f.source).length || 0;
+      const libraryFilesCount = data.files?.filter(f => f.source === 'library').length || 0;
+
       logger.info('Generating document from prompt', { 
         userId,
         promptLength: data.prompt?.length,
         filesCount: data.files?.length || 0,
+        uploadFilesCount,
+        libraryFilesCount,
+        hasMixedSources: uploadFilesCount > 0 && libraryFilesCount > 0,
       });
 
       // Validate prompt
@@ -576,10 +583,16 @@ export const generateFromPrompt = onCall(
           throw new Error('Cannot attach more than 5 files');
         }
 
-        // Validate each file
+        // Validate each file and track sources
+        const sourceStats = {
+          upload: 0,
+          library: 0,
+          libraryDocumentIds: [] as string[],
+        };
+
         data.files.forEach((file, index) => {
-          if (!file.filename || !file.content || typeof file.size !== 'number') {
-            throw new Error(`Invalid file structure at index ${index}`);
+          if (!file.filename || !file.content || typeof file.size !== 'number' || !file.type) {
+            throw new Error(`Invalid file structure at index ${index} for file: ${file.filename || 'unknown'}`);
           }
 
           if (file.size > 5 * 1024 * 1024) {
@@ -589,11 +602,29 @@ export const generateFromPrompt = onCall(
           if (file.content.trim().length === 0) {
             throw new Error(`File "${file.filename}" is empty`);
           }
+
+          if (!['text/plain', 'text/markdown'].includes(file.type)) {
+            throw new Error(`File "${file.filename}" has an unsupported type: ${file.type}. Only text/plain and text/markdown are allowed.`);
+          }
+
+          // Track source type
+          if (file.source === 'library') {
+            sourceStats.library++;
+            if (file.documentId) {
+              sourceStats.libraryDocumentIds.push(file.documentId);
+            }
+          } else {
+            sourceStats.upload++;
+          }
         });
 
         logger.info('Context files validated', {
           filesCount: data.files.length,
           totalSize: data.files.reduce((sum, f) => sum + f.size, 0),
+          uploadedFiles: sourceStats.upload,
+          libraryDocuments: sourceStats.library,
+          libraryDocumentIds: sourceStats.libraryDocumentIds,
+          hasMixedSources: sourceStats.upload > 0 && sourceStats.library > 0,
         });
       }
 
@@ -601,6 +632,11 @@ export const generateFromPrompt = onCall(
         userId,
         promptLength: trimmedPrompt.length,
         withContextFiles: !!(data.files && data.files.length > 0),
+        contextSources: {
+          hasUploadedFiles: uploadFilesCount > 0,
+          hasLibraryDocuments: libraryFilesCount > 0,
+          isMixedSource: uploadFilesCount > 0 && libraryFilesCount > 0,
+        },
       });
 
       // Generate document content using Gemini AI with optional context files
@@ -657,6 +693,11 @@ export const generateFromPrompt = onCall(
         documentId: document.id,
         title: document.title,
         wordCount,
+        contextUsed: {
+          totalFiles: data.files?.length || 0,
+          uploadedFiles: uploadFilesCount,
+          libraryDocuments: libraryFilesCount,
+        },
       });
 
       return { 

@@ -4,23 +4,42 @@
  */
 
 import React from 'react';
-import { FileText, Loader2, AlertCircle, X } from 'lucide-react';
+import { FileText, Loader2, AlertCircle, X, BookOpen } from 'lucide-react';
 import { IAttachedFileItemProps } from './IAttachedFileItem';
 import { attachedFileItemStyles } from './AttachedFileItem.styles';
 import { cn } from '../../../../../../lib/utils';
 import { formatFileSize, formatTokenCount } from '../../../../../../utils/fileUploadUtils';
 
 export const AttachedFileItem = ({ file, onRemove }: IAttachedFileItemProps) => {
+  const isLibraryDocument = file.source === 'library';
+  
   const getStatusIcon = () => {
-    switch (file.status) {
-      case 'ready':
-        return <FileText className={cn(attachedFileItemStyles.icon, attachedFileItemStyles.iconReady)} />;
-      case 'reading':
-        return <Loader2 className={cn(attachedFileItemStyles.icon, attachedFileItemStyles.iconReading)} />;
-      case 'error':
-        return <AlertCircle className={cn(attachedFileItemStyles.icon, attachedFileItemStyles.iconError)} />;
-      default:
-        return <FileText className={attachedFileItemStyles.icon} />;
+    const iconClass = attachedFileItemStyles.icon;
+    
+    if (isLibraryDocument) {
+      // Library document icons (purple)
+      switch (file.status) {
+        case 'ready':
+          return <BookOpen className={cn(iconClass, 'text-purple-500')} />;
+        case 'reading':
+          return <Loader2 className={cn(iconClass, 'text-purple-500 animate-spin')} />;
+        case 'error':
+          return <AlertCircle className={cn(iconClass, attachedFileItemStyles.iconError)} />;
+        default:
+          return <BookOpen className={iconClass} />;
+      }
+    } else {
+      // Uploaded file icons (green)
+      switch (file.status) {
+        case 'ready':
+          return <FileText className={cn(iconClass, attachedFileItemStyles.iconReady)} />;
+        case 'reading':
+          return <Loader2 className={cn(iconClass, attachedFileItemStyles.iconReading)} />;
+        case 'error':
+          return <AlertCircle className={cn(iconClass, attachedFileItemStyles.iconError)} />;
+        default:
+          return <FileText className={iconClass} />;
+      }
     }
   };
 

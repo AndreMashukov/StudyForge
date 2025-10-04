@@ -9,7 +9,7 @@ import {
 import { IUrlScrapingFormData } from '../../CreateDocumentPageContainer/UrlScrapingForm/IUrlScrapingForm';
 import { IFileUploadFormData } from '../../CreateDocumentPageContainer/FileUploadForm/IFileUploadForm';
 import { ITextPromptFormData } from '../../CreateDocumentPageContainer/TextPromptForm/ITextPromptForm';
-import { DocumentSourceType } from '@shared-types';
+import { DocumentSourceType, IFileContent } from '@shared-types';
 import { 
   setError, 
   clearError, 
@@ -25,7 +25,6 @@ import {
   clearFiles,
 } from '../../../../store/slices/createDocumentPageSlice';
 import type { RootState } from '../../../../store';
-import { useFileUpload } from './useFileUpload';
 
 export const useCreateDocumentPageHandlers = () => {
   const navigate = useNavigate();
@@ -41,9 +40,6 @@ export const useCreateDocumentPageHandlers = () => {
   const [createDocumentFromUrl] = useCreateDocumentFromUrlMutation();
   const [createDocument] = useCreateDocumentMutation();
   const [generateFromPrompt] = useGenerateFromPromptMutation();
-  
-  // File upload hook
-  const fileUpload = useFileUpload();
   
   const isLoading = isUrlLoading || isFileLoading || isTextPromptLoading;
 
@@ -100,7 +96,13 @@ export const useCreateDocumentPageHandlers = () => {
     }
   }, [createDocument, navigate, dispatch]);
 
-  const handleCreateFromTextPrompt = useCallback(async (data: ITextPromptFormData) => {
+  const handleCreateFromTextPrompt = useCallback(async (
+    data: ITextPromptFormData,
+    fileUploadHelpers: {
+      isContextSizeValid: () => boolean;
+      getFilesForSubmission: () => IFileContent[];
+    }
+  ) => {
     let progressInterval: NodeJS.Timeout | undefined;
     let currentProgress = 0;
     
@@ -110,7 +112,7 @@ export const useCreateDocumentPageHandlers = () => {
       dispatch(setTextPromptFormProgress(0));
       
       // Validate context size before submission
-      if (!fileUpload.isContextSizeValid()) {
+      if (!fileUploadHelpers.isContextSizeValid()) {
         dispatch(setError('Total context size exceeds limit. Please remove some files.'));
         return;
       }
@@ -122,7 +124,7 @@ export const useCreateDocumentPageHandlers = () => {
       }, 2000);
       
       // Get files ready for submission
-      const files = fileUpload.getFilesForSubmission();
+      const files = fileUploadHelpers.getFilesForSubmission();
       
       const result = await generateFromPrompt({
         prompt: data.prompt,
@@ -151,7 +153,7 @@ export const useCreateDocumentPageHandlers = () => {
       dispatch(setTextPromptFormLoading(false));
       dispatch(setTextPromptFormProgress(0));
     }
-  }, [generateFromPrompt, navigate, dispatch, fileUpload]);
+  }, [generateFromPrompt, navigate, dispatch]);
 
   return {
     handleGoBack,
@@ -162,7 +164,5 @@ export const useCreateDocumentPageHandlers = () => {
     isTextPromptLoading,
     textPromptProgress,
     error,
-    // File upload handlers
-    fileUpload,
   };
 };

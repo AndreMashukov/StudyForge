@@ -1,649 +1,858 @@
-# Text Prompt File Attachment Feature - Implementation Roadmap
+# Document Library Selection Feature - Implementation Roadmap
 
 ## 📋 Feature Overview
 
-Add file attachment capability to the Text Prompt form, allowing users to upload reference documents (.txt, .md) that provide context for AI-generated educational content.
+Add document library selection capability to the Text Prompt form, allowing users to select existing documents from their library as context alongside uploaded files.
 
 ### Key Requirements
-- **Max Files**: 5 files per request
-- **File Types**: `.txt`, `.md` (text/markdown)
-- **Max Size**: 5MB per file
-- **Max Context**: 200K tokens (~800K characters) total
-- **Upload Strategy**: Client-side file reading (Option B)
-- **Prompt Structure**: Full prompt engineering (Option C)
-- **Character Limit**: 10,000 chars for user prompt only (files counted separately)
+- **Tab Interface**: Upload Files | Library Documents (with icons)
+- **Max Items**: 5 total (uploaded + library combined)
+- **Max Context**: 200K tokens total
+- **Auto-add**: Documents added immediately on checkbox selection
+- **Visual**: Different icon and color for library documents
+- **Content Fetching**: Frontend fetches content, backend validates ownership
 
 ---
 
 ## 🎯 Implementation Phases
 
-### **Phase 1: Type Definitions & Shared Types** 
+### **Phase 1: Type Definitions & Interface Updates**
+**Estimated Time**: 1-2 hours
+
+#### Tasks:
+
+1. **Update IAttachedFile interface** (`web/src/types/fileUpload.ts`)
+   - [ ] Add `source: 'upload' | 'library'` field
+   - [ ] Add `documentId?: string` field for library documents
+   - [ ] Keep file optional (`file?: File`) for library docs
+   
+   ```typescript
+   export interface IAttachedFile {
+     id: string;
+     file?: File; // Optional for library docs
+     filename: string;
+     size: number;
+     content: string;
+     characterCount: number;
+     estimatedTokens: number;
+     status: 'reading' | 'ready' | 'error';
+     error?: string;
+     source: 'upload' | 'library'; // NEW
+     documentId?: string; // NEW - for library docs
+   }
+   ```
+
+2. **Update API types** (`libs/shared-types/src/index.ts`)
+   - [ ] Extend `IFileContent` with optional `documentId`
+   - [ ] Add `source` field for backend logging/validation
+   
+   ```typescript
+   export interface IFileContent {
+     filename: string;
+     content: string;
+     size: number;
+     type: 'text/plain' | 'text/markdown';
+     source?: 'upload' | 'library'; // Optional for backend
+     documentId?: string; // For ownership validation
+   }
+   ```
+
+3. **Create document selector types** (`web/src/types/documentSelector.ts`)
+   - [ ] Define `IDocumentSelectorItem` interface
+   - [ ] Define selection state types
+   
+   ```typescript
+   export interface IDocumentSelectorItem {
+     id: string;
+     title: string;
+     wordCount: number;
+     isSelected: boolean;
+   }
+   ```
+
+**Files to Create/Modify:**
+- `web/src/types/fileUpload.ts` (modify)
+- `web/src/types/documentSelector.ts` (create)
+- `libs/shared-types/src/index.ts` (modify)
+
+---
+
+### **Phase 2: Redux State Updates**
 **Estimated Time**: 1 hour
 
 #### Tasks:
-1. **Update shared types** (`libs/shared-types/src/index.ts`)
-   - [ ] Add `IFileContent` interface
-     ```typescript
-     export interface IFileContent {
-       filename: string;
-       content: string;
-       size: number;
-       type: 'text/plain' | 'text/markdown';
-     }
-     ```
-   
-   - [ ] Update `GenerateFromPromptRequest` interface
-     ```typescript
-     export interface GenerateFromPromptRequest {
-       prompt: string;
-       files?: IFileContent[]; // Optional for backward compatibility
-     }
-     ```
 
-2. **Create frontend type definitions**
-   - [ ] Create `web/src/types/fileUpload.ts`
-   - [ ] Define validation constants
-   - [ ] Define error types
+1. **Update createDocumentPageSlice** (`web/src/store/slices/createDocumentPageSlice.ts`)
+   - [ ] Add `selectedDocumentIds` array to track library selections
+   - [ ] Add `documentSelectorLoading` state
+   - [ ] Update `addFile` action to handle library documents
+   - [ ] Create `toggleDocumentSelection` action
+   - [ ] Create selectors:
+     - `selectSelectedDocumentIds`
+     - `selectDocumentSelectorLoading`
+     - `selectCanSelectMoreDocuments`
 
-**Files to Create/Modify:**
-- `libs/shared-types/src/index.ts`
-- `web/src/types/fileUpload.ts`
-
----
-
-### **Phase 2: Backend Implementation**
-**Estimated Time**: 3-4 hours
-
-#### Tasks:
-
-1. **Update Gemini Service** (`functions/src/services/gemini/`)
-   - [ ] Modify `generateDocumentFromPrompt()` to accept optional files
-   - [ ] Implement prompt engineering structure (Option C)
-   - [ ] Add token counting for combined content
-   - [ ] Add validation for total context size
-
-2. **Update Document Endpoint** (`functions/src/endpoints/documents.ts`)
-   - [ ] Modify `generateFromPrompt` function (line 532-646)
-   - [ ] Validate incoming file data
-   - [ ] Pass files to GeminiService
-   - [ ] Add error handling for context size limits
-   - [ ] Update logging to include file metadata
-
-3. **Create Prompt Builder** (`functions/src/services/gemini/prompt-builder/`)
-   - [ ] Create `withContextFiles.ts` for Option C structure
-   - [ ] Implement structured prompt template
-   - [ ] Add reference document formatting
-   - [ ] Add generation guidelines section
-
-**Prompt Template Structure:**
-```markdown
-You are an expert educational content creator specializing in comprehensive learning materials. Use the provided reference documents to create detailed, accurate educational content.
-
-=== REFERENCE DOCUMENTS ===
-
-### Document 1: {filename}
-{content}
-
-### Document 2: {filename}
-{content}
-
-=== TASK ===
-{user's prompt}
-
-=== GENERATION GUIDELINES ===
-- Synthesize information from all reference documents above
-- Create comprehensive content with proper structure
-- Include tables, diagrams (using mermaid/ASCII), and examples where appropriate
-- Ensure accuracy by referencing the provided context
-- Maintain educational tone with clear explanations
-- Organize content with proper headings and sections
+**State Structure:**
+```typescript
+textPromptForm: {
+  isLoading: boolean;
+  progress: number;
+  attachedFiles: IAttachedFile[]; // Mixed upload + library
+  totalContextSize: number;
+  contextSizeError: string | null;
+  selectedDocumentIds: string[]; // Track checkbox state
+  documentSelectorLoading: boolean;
+}
 ```
-
-**Files to Create/Modify:**
-- `functions/src/services/gemini/gemini.ts`
-- `functions/src/services/gemini/prompt-builder/withContextFiles.ts`
-- `functions/src/endpoints/documents.ts`
-
----
-
-### **Phase 3: Redux State Management**
-**Estimated Time**: 2 hours
-
-#### Tasks:
-
-1. **Update Redux Slice** (`web/src/store/slices/createDocumentPageSlice.ts`)
-   - [ ] Add `attachedFiles` state array
-   - [ ] Add `totalContextSize` state
-   - [ ] Create actions:
-     - `addFile(file: IAttachedFile)`
-     - `removeFile(index: number)`
-     - `clearFiles()`
-     - `setContextSizeError(error: string | null)`
-   - [ ] Add selectors:
-     - `selectAttachedFiles`
-     - `selectTotalContextSize`
-     - `selectCanAttachMore`
-     - `selectContextSizeError`
-
-2. **Create Attached File Type**
-   ```typescript
-   interface IAttachedFile {
-     id: string; // unique identifier
-     file: File;
-     filename: string;
-     size: number;
-     content: string; // read file content
-     characterCount: number;
-     status: 'reading' | 'ready' | 'error';
-     error?: string;
-   }
-   ```
 
 **Files to Modify:**
 - `web/src/store/slices/createDocumentPageSlice.ts`
 
 ---
 
-### **Phase 4: API Integration**
+### **Phase 3: Utility Functions**
 **Estimated Time**: 1-2 hours
 
 #### Tasks:
 
-1. **Update RTK Query Mutation** (`web/src/store/api/Documents.ts`)
-   - [ ] Modify `generateFromPromptMutation` to accept files
-   - [ ] Update request body structure
-   - [ ] Add proper TypeScript types
+1. **Create document fetch utilities** (`web/src/utils/documentSelectorUtils.ts`)
+   - [ ] `fetchDocumentContent(documentId): Promise<string>` - Get content via API
+   - [ ] `convertDocumentToAttachedFile(doc, content): IAttachedFile` - Convert format
+   - [ ] `validateDocumentSize(wordCount): boolean` - Check if too large
+   - [ ] `estimateDocumentTokens(content): number` - Token calculation
 
-**Files to Modify:**
-- `web/src/store/api/Documents.ts`
+2. **Update fileUploadUtils** (`web/src/utils/fileUploadUtils.ts`)
+   - [ ] Update `convertToFileContent()` to handle library documents
+   - [ ] Ensure token calculation works for both sources
+
+**New Utility Functions:**
+```typescript
+export async function fetchDocumentContent(documentId: string): Promise<string> {
+  // Call getDocumentContent API
+  // Return markdown content
+}
+
+export function convertDocumentToAttachedFile(
+  document: DocumentEnhanced,
+  content: string
+): Omit<IAttachedFile, 'id'> {
+  return {
+    filename: `${document.title}.md`,
+    size: content.length,
+    content,
+    characterCount: content.length,
+    estimatedTokens: calculateTokenCount(content),
+    status: 'ready',
+    source: 'library',
+    documentId: document.id,
+  };
+}
+
+export function validateDocumentSize(wordCount: number): {
+  isValid: boolean;
+  warning?: string;
+} {
+  // Warn if document > 50K words
+  // Error if would exceed token limit
+}
+```
+
+**Files to Create/Modify:**
+- `web/src/utils/documentSelectorUtils.ts` (create)
+- `web/src/utils/fileUploadUtils.ts` (modify)
 
 ---
 
-### **Phase 5: Utility Functions**
+### **Phase 4: Components - Tab Interface**
 **Estimated Time**: 2-3 hours
 
 #### Tasks:
 
-1. **Create File Upload Utils** (`web/src/utils/fileUploadUtils.ts`)
-   - [ ] `validateFileType(file: File): boolean`
-   - [ ] `validateFileSize(file: File, maxSize: number): boolean`
-   - [ ] `readFileAsText(file: File): Promise<string>`
-   - [ ] `calculateTokenCount(text: string): number` (rough estimate)
-   - [ ] `formatFileSize(bytes: number): string`
-   - [ ] `generateFileId(): string`
-
-2. **Create Validation Constants**
-   ```typescript
-   export const FILE_UPLOAD_CONSTRAINTS = {
-     MAX_FILES: 5,
-     MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
-     MAX_TOTAL_TOKENS: 200000, // ~800K characters
-     ALLOWED_TYPES: ['.txt', '.md'],
-     ALLOWED_MIME_TYPES: ['text/plain', 'text/markdown'],
-   } as const;
-   ```
-
-**Files to Create:**
-- `web/src/utils/fileUploadUtils.ts`
-- `web/src/utils/fileUploadConstants.ts`
-
----
-
-### **Phase 6: UI Components**
-**Estimated Time**: 4-5 hours
-
-#### Tasks:
-
-1. **Create FileUploadZone Component**
-   - [ ] Create `web/src/pages/CreateDocumentPage/CreateDocumentPageContainer/TextPromptForm/FileUploadZone/`
-   - [ ] Implement drag & drop functionality
-   - [ ] Add file input button
-   - [ ] Show upload status
-   - [ ] Create component files:
-     - `FileUploadZone.tsx`
-     - `IFileUploadZone.ts`
-     - `FileUploadZone.styles.ts`
-     - `index.ts`
-
-2. **Create AttachedFilesList Component**
-   - [ ] Create `web/src/pages/CreateDocumentPage/CreateDocumentPageContainer/TextPromptForm/AttachedFilesList/`
-   - [ ] Display list of attached files
-   - [ ] Show filename, size, status
-   - [ ] Add remove button per file
-   - [ ] Show total context size
-   - [ ] Create component files:
-     - `AttachedFilesList.tsx`
-     - `IAttachedFilesList.ts`
-     - `AttachedFilesList.styles.ts`
-     - `index.ts`
-
-3. **Create AttachedFileItem Component** (child of AttachedFilesList)
-   - [ ] Create `web/src/pages/CreateDocumentPage/CreateDocumentPageContainer/TextPromptForm/AttachedFilesList/AttachedFileItem/`
-   - [ ] Display individual file info
-   - [ ] Remove button with icon
-   - [ ] Status indicator (loading, ready, error)
-   - [ ] Create component files:
-     - `AttachedFileItem.tsx`
-     - `IAttachedFileItem.ts`
-     - `AttachedFileItem.styles.ts`
-     - `index.ts`
+1. **Create SourceTabs Component** 
+   - Location: `web/src/pages/CreateDocumentPage/CreateDocumentPageContainer/TextPromptForm/SourceTabs/`
+   - [ ] Create tab navigation (Upload | Library)
+   - [ ] Icons: Upload icon + "Upload Files", BookOpen icon + "Library"
+   - [ ] Active tab indicator
+   - [ ] Preserve selections across tab switches
+   - [ ] Files:
+     - `SourceTabs.tsx` - Main component
+     - `ISourceTabs.ts` - Props interface
+     - `SourceTabs.styles.ts` - Styles
+     - `index.ts` - Exports
 
 **Component Structure:**
-```
-TextPromptForm/
-├── FileUploadZone/
-│   ├── index.ts
-│   ├── FileUploadZone.tsx
-│   ├── IFileUploadZone.ts
-│   └── FileUploadZone.styles.ts
-├── AttachedFilesList/
-│   ├── index.ts
-│   ├── AttachedFilesList.tsx
-│   ├── IAttachedFilesList.ts
-│   ├── AttachedFilesList.styles.ts
-│   └── AttachedFileItem/
-│       ├── index.ts
-│       ├── AttachedFileItem.tsx
-│       ├── IAttachedFileItem.ts
-│       └── AttachedFileItem.styles.ts
-├── TextPromptForm.tsx (modify)
-├── ITextPromptForm.ts (modify)
-└── TextPromptForm.styles.ts (modify)
-```
-
-**Files to Create:**
-- `FileUploadZone/` - 4 files
-- `AttachedFilesList/` - 4 files
-- `AttachedFilesList/AttachedFileItem/` - 4 files
-
-**Files to Modify:**
-- `TextPromptForm.tsx`
-- `ITextPromptForm.ts`
-- `TextPromptForm.styles.ts`
-
----
-
-### **Phase 7: Hook Updates**
-**Estimated Time**: 2-3 hours
-
-#### Tasks:
-
-1. **Update Handlers Hook** (`web/src/pages/CreateDocumentPage/context/hooks/useCreateDocumentPageHandlers.ts`)
-   - [ ] Add `handleFileSelect` - Process selected files
-   - [ ] Add `handleFileRemove` - Remove file by index
-   - [ ] Add `handleFileDrop` - Handle drag & drop
-   - [ ] Update `handleCreateFromTextPrompt` to include files
-   - [ ] Add validation logic for:
-     - File type
-     - File size
-     - Total context size
-     - Max files limit
-
-2. **Create File Upload Hook** (`web/src/pages/CreateDocumentPage/context/hooks/useFileUpload.ts`)
-   - [ ] Encapsulate file reading logic
-   - [ ] Handle file validation
-   - [ ] Track upload progress
-   - [ ] Calculate token counts
-   - [ ] Return file operations
-
-**New Hook Structure:**
 ```typescript
-export const useFileUpload = () => {
-  const dispatch = useDispatch();
-  const attachedFiles = useSelector(selectAttachedFiles);
-  
-  const handleFileAdd = async (files: FileList) => {
-    // Read files, validate, dispatch to Redux
-  };
-  
-  const handleFileRemove = (fileId: string) => {
-    // Remove from Redux state
-  };
-  
-  const calculateTotalTokens = () => {
-    // Estimate total token count
-  };
-  
-  return {
-    attachedFiles,
-    handleFileAdd,
-    handleFileRemove,
-    totalTokens: calculateTotalTokens(),
-    canAttachMore: attachedFiles.length < MAX_FILES,
-  };
+interface ISourceTabsProps {
+  activeTab: 'upload' | 'library';
+  onTabChange: (tab: 'upload' | 'library') => void;
+  uploadCount: number;
+  libraryCount: number;
+}
+
+export const SourceTabs = ({ 
+  activeTab, 
+  onTabChange,
+  uploadCount,
+  libraryCount 
+}: ISourceTabsProps) => {
+  return (
+    <div className="flex gap-1 border-b">
+      <button 
+        className={activeTab === 'upload' ? 'active' : ''}
+        onClick={() => onTabChange('upload')}
+      >
+        <Upload size={16} />
+        Upload Files
+        {uploadCount > 0 && <span>({uploadCount})</span>}
+      </button>
+      <button 
+        className={activeTab === 'library' ? 'active' : ''}
+        onClick={() => onTabChange('library')}
+      >
+        <BookOpen size={16} />
+        Library
+        {libraryCount > 0 && <span>({libraryCount})</span>}
+      </button>
+    </div>
+  );
 };
 ```
 
 **Files to Create:**
-- `web/src/pages/CreateDocumentPage/context/hooks/useFileUpload.ts`
-
-**Files to Modify:**
-- `web/src/pages/CreateDocumentPage/context/hooks/useCreateDocumentPageHandlers.ts`
-
----
-
-### **Phase 8: Form Integration**
-**Estimated Time**: 2 hours
-
-#### Tasks:
-
-1. **Update TextPromptForm Component**
-   - [ ] Import FileUploadZone and AttachedFilesList
-   - [ ] Position FileUploadZone above textarea
-   - [ ] Display AttachedFilesList when files present
-   - [ ] Update form submission to include files
-   - [ ] Add context size warning/error display
-   - [ ] Update validation to check total context
-   - [ ] Disable submit if context exceeds limit
-
-2. **Update Form Props Interface**
-   ```typescript
-   interface ITextPromptFormProps {
-     isLoading: boolean;
-     progress?: number;
-     onSubmit: (data: ITextPromptFormData) => void;
-     attachedFiles: IAttachedFile[];
-     onFileAdd: (files: FileList) => void;
-     onFileRemove: (fileId: string) => void;
-     totalContextSize: number;
-     contextSizeError: string | null;
-   }
-   ```
-
-**Layout Structure:**
-```
-TextPromptForm
-├── FileUploadZone (if can attach more)
-├── AttachedFilesList (if files present)
-├── Textarea (prompt input)
-├── Character counter
-├── Progress bar (if loading)
-└── Submit button
-```
-
-**Files to Modify:**
-- `web/src/pages/CreateDocumentPage/CreateDocumentPageContainer/TextPromptForm/TextPromptForm.tsx`
-- `web/src/pages/CreateDocumentPage/CreateDocumentPageContainer/TextPromptForm/ITextPromptForm.ts`
+- `SourceTabs/SourceTabs.tsx`
+- `SourceTabs/ISourceTabs.ts`
+- `SourceTabs/SourceTabs.styles.ts`
+- `SourceTabs/index.ts`
 
 ---
 
-### **Phase 9: Error Handling & Validation**
-**Estimated Time**: 2 hours
-
-#### Tasks:
-
-1. **Client-Side Validation**
-   - [ ] File type validation (only .txt, .md)
-   - [ ] File size validation (max 5MB per file)
-   - [ ] Max files validation (max 5 files)
-   - [ ] Total context size validation (max 200K tokens)
-   - [ ] File read error handling
-
-2. **Error Messages**
-   - [ ] Create error message constants
-   - [ ] Display inline errors in UI
-   - [ ] Show toast notifications for critical errors
-   - [ ] Add helpful error recovery suggestions
-
-3. **Server-Side Validation**
-   - [ ] Validate request structure
-   - [ ] Validate file content is present
-   - [ ] Validate total context size
-   - [ ] Return meaningful error messages
-
-**Error Message Examples:**
-```typescript
-const ERROR_MESSAGES = {
-  INVALID_FILE_TYPE: 'Only .txt and .md files are supported',
-  FILE_TOO_LARGE: 'File size cannot exceed 5MB',
-  MAX_FILES_REACHED: 'You can attach up to 5 files',
-  CONTEXT_TOO_LARGE: 'Total context size exceeds 200K tokens. Please remove some files.',
-  FILE_READ_ERROR: 'Failed to read file. Please try again.',
-};
-```
-
-**Files to Create:**
-- `web/src/utils/fileUploadErrors.ts`
-
----
-
-### **Phase 10: Styling & UI Polish**
-**Estimated Time**: 2-3 hours
-
-#### Tasks:
-
-1. **FileUploadZone Styling**
-   - [ ] Drag & drop visual feedback
-   - [ ] Hover states
-   - [ ] Active/dragging states
-   - [ ] Disabled state (when max files reached)
-   - [ ] Upload icon and instructions
-
-2. **AttachedFilesList Styling**
-   - [ ] File list container
-   - [ ] File item card styling
-   - [ ] Remove button hover effects
-   - [ ] Status indicators (loading spinner, checkmark, error)
-   - [ ] Context size meter/progress bar
-
-3. **Responsive Design**
-   - [ ] Mobile layout adjustments
-   - [ ] Tablet optimizations
-   - [ ] Desktop enhancements
-
-4. **Accessibility**
-   - [ ] ARIA labels for file upload
-   - [ ] Keyboard navigation
-   - [ ] Screen reader support
-   - [ ] Focus management
-
-**Style Classes to Create:**
-```typescript
-export const fileUploadZoneStyles = {
-  container: "border-2 border-dashed border-input rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors",
-  dragging: "border-primary bg-primary/5",
-  disabled: "opacity-50 cursor-not-allowed",
-  icon: "w-12 h-12 mx-auto mb-4 text-muted-foreground",
-  text: "text-sm text-muted-foreground",
-};
-
-export const attachedFilesListStyles = {
-  container: "space-y-3 mb-4",
-  fileItem: "flex items-center justify-between p-3 border rounded-lg bg-card",
-  fileInfo: "flex-1 flex items-center gap-3",
-  fileName: "text-sm font-medium",
-  fileSize: "text-xs text-muted-foreground",
-  removeButton: "text-destructive hover:bg-destructive/10 rounded p-1",
-  contextMeter: "mt-2 p-2 border rounded bg-muted/20",
-};
-```
-
----
-
-### **Phase 11: Testing**
+### **Phase 5: Components - Document Selector**
 **Estimated Time**: 3-4 hours
 
 #### Tasks:
 
-1. **Unit Tests**
-   - [ ] Test file validation functions
-   - [ ] Test token counting logic
-   - [ ] Test Redux actions and selectors
-   - [ ] Test utility functions
+1. **Create DocumentSelector Component**
+   - Location: `web/src/pages/CreateDocumentPage/CreateDocumentPageContainer/TextPromptForm/DocumentSelector/`
+   - [ ] Fetch user documents from Redux
+   - [ ] Scrollable list with checkboxes
+   - [ ] Auto-add on checkbox change
+   - [ ] Show word count for each document
+   - [ ] Empty state ("No documents in your library yet. Create some first!")
+   - [ ] Loading state while fetching
+   - [ ] Disable checkboxes if limit reached
+   - [ ] Files:
+     - `DocumentSelector.tsx` - Main component
+     - `IDocumentSelector.ts` - Props interface
+     - `DocumentSelector.styles.ts` - Styles
+     - `index.ts` - Exports
 
-2. **Component Tests**
-   - [ ] Test FileUploadZone interactions
-   - [ ] Test AttachedFilesList rendering
-   - [ ] Test file removal
-   - [ ] Test drag & drop functionality
+**Component Structure:**
+```typescript
+interface IDocumentSelectorProps {
+  documents: DocumentEnhanced[];
+  selectedDocumentIds: string[];
+  onDocumentToggle: (documentId: string) => void;
+  canSelectMore: boolean;
+  isLoading: boolean;
+}
 
-3. **Integration Tests**
-   - [ ] Test complete file upload flow
-   - [ ] Test form submission with files
-   - [ ] Test error scenarios
-   - [ ] Test backend integration
+export const DocumentSelector = ({
+  documents,
+  selectedDocumentIds,
+  onDocumentToggle,
+  canSelectMore,
+  isLoading
+}: IDocumentSelectorProps) => {
+  if (isLoading) {
+    return <LoadingState />;
+  }
 
-4. **Manual Testing Scenarios**
-   - [ ] Upload 1 file, generate document
-   - [ ] Upload 5 files (max), generate document
-   - [ ] Try uploading 6th file (should fail)
-   - [ ] Upload file > 5MB (should fail)
-   - [ ] Upload invalid file type (should fail)
-   - [ ] Remove files and re-add
-   - [ ] Drag & drop multiple files
-   - [ ] Test with large files (approaching context limit)
-   - [ ] Test with empty files
-   - [ ] Test with special characters in filenames
-   - [ ] Test form submission failure (files retained)
-   - [ ] Test mobile responsiveness
+  if (documents.length === 0) {
+    return (
+      <EmptyState message="No documents in your library yet. Create some first!" />
+    );
+  }
 
-**Test Files to Create:**
-- `web/src/utils/fileUploadUtils.test.ts`
-- `web/src/pages/CreateDocumentPage/CreateDocumentPageContainer/TextPromptForm/FileUploadZone/FileUploadZone.test.tsx`
+  return (
+    <div className="max-h-96 overflow-y-auto space-y-2">
+      {documents.map(doc => (
+        <label key={doc.id} className="flex items-center gap-3 p-3 border rounded hover:bg-muted cursor-pointer">
+          <input
+            type="checkbox"
+            checked={selectedDocumentIds.includes(doc.id)}
+            onChange={() => onDocumentToggle(doc.id)}
+            disabled={!canSelectMore && !selectedDocumentIds.includes(doc.id)}
+          />
+          <div className="flex-1">
+            <p className="font-medium">{doc.title}</p>
+            <p className="text-sm text-muted-foreground">
+              {doc.wordCount.toLocaleString()} words
+            </p>
+          </div>
+        </label>
+      ))}
+    </div>
+  );
+};
+```
+
+2. **Create DocumentSelectorItem Component** (Optional sub-component)
+   - Location: `DocumentSelector/DocumentSelectorItem/`
+   - [ ] Individual checkbox item
+   - [ ] Document metadata display
+   - [ ] Disabled state styling
+
+**Files to Create:**
+- `DocumentSelector/DocumentSelector.tsx`
+- `DocumentSelector/IDocumentSelector.ts`
+- `DocumentSelector/DocumentSelector.styles.ts`
+- `DocumentSelector/index.ts`
 
 ---
 
-### **Phase 12: Documentation & Deployment**
+### **Phase 6: Visual Differentiation**
+**Estimated Time**: 1 hour
+
+#### Tasks:
+
+1. **Update AttachedFileItem** (`AttachedFilesList/AttachedFileItem/`)
+   - [ ] Add icon selection logic based on `source`
+     - Upload: `FileText` icon (green when ready)
+     - Library: `BookOpen` icon (purple/violet when ready)
+   - [ ] Update color coding:
+     - Upload ready: `text-green-500`
+     - Library ready: `text-purple-500`
+   - [ ] Ensure remove button works for both types
+
+**Icon & Color Decisions:**
+- **Library Icon**: `BookOpen` from lucide-react
+- **Library Color**: Purple/Violet (`text-purple-500`, `text-purple-600`)
+- **Upload Icon**: `FileText` (existing)
+- **Upload Color**: Green (existing)
+
+**Updated Icon Logic:**
+```typescript
+const getStatusIcon = () => {
+  const iconClass = cn(attachedFileItemStyles.icon);
+  
+  if (file.source === 'library') {
+    switch (file.status) {
+      case 'ready':
+        return <BookOpen className={cn(iconClass, 'text-purple-500')} />;
+      case 'reading':
+        return <Loader2 className={cn(iconClass, 'text-purple-500 animate-spin')} />;
+      case 'error':
+        return <AlertCircle className={cn(iconClass, 'text-destructive')} />;
+    }
+  } else {
+    // Existing upload file logic
+    switch (file.status) {
+      case 'ready':
+        return <FileText className={cn(iconClass, 'text-green-500')} />;
+      // ... rest
+    }
+  }
+};
+```
+
+**Files to Modify:**
+- `AttachedFilesList/AttachedFileItem/AttachedFileItem.tsx`
+
+---
+
+### **Phase 7: Hook Updates**
+**Estimated Time**: 3-4 hours
+
+#### Tasks:
+
+1. **Update useFileUpload Hook** (`web/src/pages/CreateDocumentPage/context/hooks/useFileUpload.ts`)
+   - [ ] Add `handleDocumentToggle(documentId)` function
+   - [ ] Fetch document content when selected
+   - [ ] Add to attachedFiles with `source: 'library'`
+   - [ ] Remove from attachedFiles when deselected
+   - [ ] Update token calculation for library docs
+   - [ ] Handle loading state during content fetch
+   - [ ] Error handling for fetch failures
+
+**New Function:**
+```typescript
+const handleDocumentToggle = useCallback(async (documentId: string) => {
+  const isSelected = attachedFiles.some(f => f.documentId === documentId);
+  
+  if (isSelected) {
+    // Remove document
+    const fileToRemove = attachedFiles.find(f => f.documentId === documentId);
+    if (fileToRemove) {
+      dispatch(removeFile(fileToRemove.id));
+    }
+    return;
+  }
+  
+  // Add document
+  const fileId = generateFileId();
+  
+  // Add with loading state
+  dispatch(addFile({
+    id: fileId,
+    filename: 'Loading...',
+    size: 0,
+    content: '',
+    characterCount: 0,
+    estimatedTokens: 0,
+    status: 'reading',
+    source: 'library',
+    documentId,
+  }));
+  
+  try {
+    // Fetch document details
+    const document = documents.find(d => d.id === documentId);
+    if (!document) throw new Error('Document not found');
+    
+    // Fetch content
+    const content = await fetchDocumentContent(documentId);
+    
+    // Convert to attached file
+    const attachedFile = convertDocumentToAttachedFile(document, content);
+    
+    // Update with full data
+    dispatch(removeFile(fileId));
+    dispatch(addFile({
+      id: fileId,
+      ...attachedFile,
+    }));
+    
+    // Validate context size
+    // ... existing validation logic
+    
+  } catch (error) {
+    dispatch(updateFileStatus({
+      id: fileId,
+      status: 'error',
+      error: 'Failed to load document',
+    }));
+  }
+}, [attachedFiles, documents, dispatch]);
+```
+
+2. **Return new handlers**
+   - [ ] Add `handleDocumentToggle` to return value
+   - [ ] Add `selectedDocumentIds` to return value
+
+**Files to Modify:**
+- `web/src/pages/CreateDocumentPage/context/hooks/useFileUpload.ts`
+
+---
+
+### **Phase 8: Form Integration**
+**Estimated Time**: 2-3 hours
+
+#### Tasks:
+
+1. **Update TextPromptForm Component** (`TextPromptForm/TextPromptForm.tsx`)
+   - [ ] Add tab state: `useState<'upload' | 'library'>('upload')`
+   - [ ] Integrate SourceTabs component
+   - [ ] Conditional rendering based on active tab:
+     - Upload tab: Show FileUploadZone
+     - Library tab: Show DocumentSelector
+   - [ ] Keep AttachedFilesList always visible (below tabs)
+   - [ ] Pass document toggle handler to DocumentSelector
+
+**Component Structure:**
+```typescript
+export const TextPromptForm = ({ ... }: ITextPromptFormProps) => {
+  const [activeTab, setActiveTab] = useState<'upload' | 'library'>('upload');
+  
+  const uploadCount = attachedFiles.filter(f => f.source === 'upload').length;
+  const libraryCount = attachedFiles.filter(f => f.source === 'library').length;
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Tab Interface */}
+      <SourceTabs
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        uploadCount={uploadCount}
+        libraryCount={libraryCount}
+      />
+      
+      {/* Tab Content */}
+      {activeTab === 'upload' ? (
+        <FileUploadZone
+          onFilesSelected={onFilesSelected}
+          canAttachMore={canAttachMore}
+          maxFiles={FILE_UPLOAD_CONSTRAINTS.MAX_FILES}
+          disabled={isLoading}
+        />
+      ) : (
+        <DocumentSelector
+          documents={userDocuments}
+          selectedDocumentIds={selectedDocumentIds}
+          onDocumentToggle={onDocumentToggle}
+          canSelectMore={canAttachMore}
+          isLoading={isLoadingDocuments}
+        />
+      )}
+      
+      {/* Attached Files List - Always Visible */}
+      <AttachedFilesList
+        files={attachedFiles}
+        onRemoveFile={onFileRemove}
+        totalTokens={totalTokens}
+        maxTokens={FILE_UPLOAD_CONSTRAINTS.MAX_TOTAL_TOKENS}
+        contextSizeError={contextSizeError}
+      />
+      
+      {/* Rest of form ... */}
+    </form>
+  );
+};
+```
+
+2. **Update ITextPromptForm interface**
+   - [ ] Add document-related props
+   
+   ```typescript
+   interface ITextPromptFormProps {
+     // ... existing props
+     // Document selector props
+     userDocuments: DocumentEnhanced[];
+     selectedDocumentIds: string[];
+     onDocumentToggle: (documentId: string) => void;
+     isLoadingDocuments: boolean;
+   }
+   ```
+
+**Files to Modify:**
+- `TextPromptForm/TextPromptForm.tsx`
+- `TextPromptForm/ITextPromptForm.ts`
+
+---
+
+### **Phase 9: Container Integration**
 **Estimated Time**: 1-2 hours
 
 #### Tasks:
 
-1. **Code Documentation**
-   - [ ] Add JSDoc comments to utility functions
-   - [ ] Document complex logic
-   - [ ] Add inline comments for prompt structure
+1. **Update FormRenderer** (`FormRenderer/FormRenderer.tsx`)
+   - [ ] Fetch user documents using `useGetUserDocumentsQuery`
+   - [ ] Get selected document IDs from Redux
+   - [ ] Pass to TextPromptForm
+   
+   ```typescript
+   const { data: documentsData, isLoading: isLoadingDocuments } = 
+     useGetUserDocumentsQuery();
+   const selectedDocumentIds = useSelector(selectSelectedDocumentIds);
+   
+   <TextPromptForm
+     // ... existing props
+     userDocuments={documentsData?.documents || []}
+     selectedDocumentIds={selectedDocumentIds}
+     onDocumentToggle={fileUpload.handleDocumentToggle}
+     isLoadingDocuments={isLoadingDocuments}
+   />
+   ```
 
-2. **User Documentation**
-   - [ ] Add tooltips/help text in UI
-   - [ ] Create usage guide (if needed)
-   - [ ] Update README with new feature
+**Files to Modify:**
+- `FormRenderer/FormRenderer.tsx`
 
-3. **Backend Deployment**
-   - [ ] Deploy updated Firebase Functions
-   - [ ] Test in production environment
-   - [ ] Monitor logs for errors
+---
 
-4. **Frontend Deployment**
-   - [ ] Build production bundle
-   - [ ] Deploy to hosting
-   - [ ] Verify feature works in production
+### **Phase 10: Backend Validation**
+**Estimated Time**: 1-2 hours
+
+#### Tasks:
+
+1. **Update documents endpoint** (`functions/src/endpoints/documents.ts`)
+   - [ ] Update `generateFromPrompt` function
+   - [ ] Validate ownership for library documents
+   - [ ] Add logging to distinguish sources
+   
+   ```typescript
+   // Validate files if provided
+   if (data.files) {
+     data.files.forEach((file, index) => {
+       // ... existing validation
+       
+       // Validate library document ownership
+       if (file.source === 'library' && file.documentId) {
+         logger.info('Validating library document ownership', {
+           userId,
+           documentId: file.documentId,
+         });
+         
+         // Note: Content already validated on frontend fetch
+         // Backend receives content, not just ID
+         // Additional validation could check document exists
+       }
+     });
+   }
+   ```
+
+2. **Update logging**
+   - [ ] Log source type for analytics
+   - [ ] Track library vs upload usage
+
+**Files to Modify:**
+- `functions/src/endpoints/documents.ts`
+
+---
+
+### **Phase 11: Error Handling & Edge Cases**
+**Estimated Time**: 2 hours
+
+#### Tasks:
+
+1. **Handle edge cases in useFileUpload**
+   - [ ] Document content fetch failure
+   - [ ] Document deleted during selection
+   - [ ] Network errors
+   - [ ] Concurrent selections
+
+2. **Add user feedback**
+   - [ ] Loading state during document fetch
+   - [ ] Error messages for fetch failures
+   - [ ] Disable checkboxes when limit reached
+   - [ ] Warning for large documents (> 50K words)
+
+3. **Validation checks**
+   - [ ] Ensure combined limit (5 items total)
+   - [ ] Ensure combined token limit (200K)
+   - [ ] Warn before exceeding limits
+
+**Warning Logic:**
+```typescript
+const getDocumentWarning = (wordCount: number): string | null => {
+  if (wordCount > 50000) {
+    return 'This document is very large and may exceed context limits';
+  }
+  if (wordCount > 25000) {
+    return 'This document is large, monitor your context size';
+  }
+  return null;
+};
+```
+
+---
+
+### **Phase 12: Testing & Polish**
+**Estimated Time**: 2-3 hours
+
+#### Tasks:
+
+1. **Manual Testing Scenarios**
+   - [ ] Select document from library, verify it appears in list
+   - [ ] Upload file, then select document (mixed sources)
+   - [ ] Reach limit with uploads, verify library disabled
+   - [ ] Reach limit with library, verify upload disabled
+   - [ ] Remove library document, verify checkbox unchecked
+   - [ ] Switch tabs, verify selections persist
+   - [ ] Submit form with mixed sources
+   - [ ] Submit form with only library documents
+   - [ ] Submit form with only uploaded files
+   - [ ] Test empty library state
+   - [ ] Test document fetch failure
+   - [ ] Test large document warning
+   - [ ] Test context size limit
+   - [ ] Mobile responsive testing
+
+2. **UI Polish**
+   - [ ] Tab transitions smooth
+   - [ ] Loading states clear
+   - [ ] Empty states helpful
+   - [ ] Error states informative
+   - [ ] Colors consistent with design system
+
+3. **Accessibility**
+   - [ ] Keyboard navigation through tabs
+   - [ ] Checkbox keyboard control
+   - [ ] Screen reader labels
+   - [ ] Focus management
 
 ---
 
 ## 📊 Implementation Summary
 
-### Total Estimated Time: **28-35 hours**
+### Total Estimated Time: **20-25 hours**
 
 ### Phase Breakdown:
 | Phase | Description | Time | Priority |
 |-------|-------------|------|----------|
-| 1 | Type Definitions | 1h | Critical |
-| 2 | Backend Implementation | 3-4h | Critical |
-| 3 | Redux State | 2h | Critical |
-| 4 | API Integration | 1-2h | Critical |
-| 5 | Utility Functions | 2-3h | Critical |
-| 6 | UI Components | 4-5h | Critical |
-| 7 | Hook Updates | 2-3h | Critical |
-| 8 | Form Integration | 2h | Critical |
-| 9 | Error Handling | 2h | High |
-| 10 | Styling & Polish | 2-3h | High |
-| 11 | Testing | 3-4h | High |
-| 12 | Documentation | 1-2h | Medium |
+| 1 | Type Definitions | 1-2h | Critical |
+| 2 | Redux State | 1h | Critical |
+| 3 | Utility Functions | 1-2h | Critical |
+| 4 | Tab Interface | 2-3h | Critical |
+| 5 | Document Selector | 3-4h | Critical |
+| 6 | Visual Differentiation | 1h | High |
+| 7 | Hook Updates | 3-4h | Critical |
+| 8 | Form Integration | 2-3h | Critical |
+| 9 | Container Integration | 1-2h | Critical |
+| 10 | Backend Validation | 1-2h | High |
+| 11 | Error Handling | 2h | High |
+| 12 | Testing & Polish | 2-3h | High |
 
 ---
 
 ## 🚀 Development Order (Recommended)
 
-### Sprint 1: Core Functionality (Days 1-2)
+### Sprint 1: Foundation (Days 1-2)
 1. Phase 1: Type Definitions
-2. Phase 5: Utility Functions
-3. Phase 3: Redux State
-4. Phase 2: Backend Implementation
-5. Phase 4: API Integration
+2. Phase 2: Redux State
+3. Phase 3: Utility Functions
 
-### Sprint 2: UI Implementation (Days 3-4)
-6. Phase 6: UI Components
+### Sprint 2: UI Components (Days 2-3)
+4. Phase 4: Tab Interface
+5. Phase 5: Document Selector
+6. Phase 6: Visual Differentiation
+
+### Sprint 3: Integration (Days 3-4)
 7. Phase 7: Hook Updates
 8. Phase 8: Form Integration
-9. Phase 9: Error Handling
+9. Phase 9: Container Integration
 
-### Sprint 3: Polish & Testing (Day 5)
-10. Phase 10: Styling & UI Polish
-11. Phase 11: Testing
-12. Phase 12: Documentation & Deployment
+### Sprint 4: Validation & Polish (Day 5)
+10. Phase 10: Backend Validation
+11. Phase 11: Error Handling
+12. Phase 12: Testing & Polish
 
 ---
 
 ## 🎯 Success Criteria
 
 ### Functional Requirements
-- ✅ Users can attach up to 5 text/markdown files
-- ✅ Files are validated for type and size
-- ✅ Total context size is monitored and enforced
-- ✅ Drag & drop works smoothly
-- ✅ Files are retained on submission failure
-- ✅ Generated documents use file context intelligently
+- ✅ Users can switch between Upload and Library tabs
+- ✅ Selections persist across tab switches
+- ✅ Documents auto-add on checkbox selection
+- ✅ Combined limit of 5 items enforced
+- ✅ Combined token limit of 200K enforced
+- ✅ Library documents visually differentiated (icon + color)
+- ✅ Empty state shown for empty library
+- ✅ Loading state during document fetch
+- ✅ Error handling for fetch failures
+- ✅ Backend validates document ownership
+- ✅ Works with mixed sources (upload + library)
 
 ### Non-Functional Requirements
-- ✅ File reading is fast (<1s for typical files)
-- ✅ UI is responsive and intuitive
-- ✅ Error messages are clear and actionable
-- ✅ Feature works on mobile devices
-- ✅ Backward compatible (works without files)
+- ✅ Fast document content fetch (<2s)
+- ✅ Smooth tab switching
+- ✅ Responsive on all devices
+- ✅ Accessible (keyboard + screen reader)
+- ✅ Consistent with existing design
+- ✅ No performance degradation
 
 ---
 
 ## 🔧 Technical Debt & Future Enhancements
 
 ### Known Limitations
-- Token counting is estimated (not exact Gemini tokenization)
-- Files are read client-side (memory constraints for very large files)
-- No file content preview
+- No document search/filter in library selector
+- No document preview before selection
+- No "recently used" documents
+- Large document warning is static threshold
+- Cannot select excerpts from large documents
 
-### Future Improvements (Post-MVP)
-- [ ] Add support for PDF files
-- [ ] Implement exact token counting via API
-- [ ] Add file content search/preview
-- [ ] Support for images as context
-- [ ] Batch file processing for very large contexts
-- [ ] File compression for network optimization
-- [ ] Save file attachments with document metadata
-- [ ] Template system for common document types
-
----
-
-## 📝 Notes
-
-### Important Considerations
-1. **Token Counting**: We use rough estimation (1 token ≈ 4 characters). This may not be 100% accurate but provides good UX feedback.
-
-2. **File Reading**: All files are read into memory on client side. For very large files (approaching 5MB), this may cause brief UI lag.
-
-3. **Context Size**: 200K token limit leaves plenty of room for Gemini's response (we have 1M total input + 8K output).
-
-4. **Backward Compatibility**: The `files` parameter is optional in backend, so existing functionality continues to work.
-
-5. **Error Recovery**: If file reading fails partially, we allow retry or removal of problematic files rather than blocking entire form.
-
-### Prompt Engineering Notes
-- The Option C prompt structure is optimized for educational content generation
-- Guidelines section can be customized per use case in future
-- Reference document formatting helps model distinguish between multiple sources
-- Clear task separation improves output quality
+### Future Improvements
+- [ ] Add search/filter in document selector
+- [ ] Add document preview modal
+- [ ] Add "recently used" section
+- [ ] Smart truncation for large documents
+- [ ] Allow selecting specific sections
+- [ ] Save frequently used document sets
+- [ ] Drag & drop documents from library
+- [ ] Bulk select/deselect options
 
 ---
 
-## 📚 References
+## 📝 Component Architecture
 
-- [Gemini API Documentation](https://ai.google.dev/gemini-api/docs)
-- [Gemini Token Limits](https://ai.google.dev/gemini-api/docs/tokens)
-- [React File Upload Best Practices](https://web.dev/file-handling/)
-- [shadcn/ui Components](https://ui.shadcn.com/)
+```
+TextPromptForm
+├── SourceTabs (NEW)
+│   ├── Upload Tab (icon + label)
+│   └── Library Tab (icon + label)
+├── Tab Content (conditional)
+│   ├── FileUploadZone (existing - tab 1)
+│   └── DocumentSelector (NEW - tab 2)
+│       ├── Loading State
+│       ├── Empty State
+│       └── Document List
+│           └── Checkbox Items (auto-add)
+├── AttachedFilesList (existing - always visible)
+│   └── AttachedFileItem (updated)
+│       ├── Upload files (FileText, green)
+│       └── Library docs (BookOpen, purple)
+├── Textarea (existing)
+└── Submit Button (existing)
+```
 
 ---
 
-**Last Updated**: 2025-10-04
-**Status**: 📋 Planning
-**Owner**: Development Team
-**Priority**: High
+## 🎨 Visual Design
+
+### Color Scheme:
+- **Upload Files**: 
+  - Icon: `FileText`
+  - Color: `text-green-500` (ready), `text-blue-500` (reading)
+  
+- **Library Documents**:
+  - Icon: `BookOpen`
+  - Color: `text-purple-500` (ready), `text-purple-500` (reading)
+
+### Tab Design:
+```
+┌─────────────────┬──────────────────┐
+│ 📤 Upload Files │ 📖 Library      │
+│      (2)        │      (1)         │
+└─────────────────┴──────────────────┘
+    ▲ Active tab with underline/bg
+```
+
+### Document Selector:
+```
+┌──────────────────────────────────────┐
+│ ☐ My First Document (1,234 words)   │
+│ ☑ AWS DynamoDB Guide (5,678 words)  │ ← Selected
+│ ☐ React Patterns (3,456 words)      │
+│ ...                                  │
+└──────────────────────────────────────┘
+     ▲ Scrollable if many documents
+```
+
+---
+
+## 📚 API Flow
+
+### Document Selection Flow:
+```
+1. User checks checkbox in DocumentSelector
+   ↓
+2. handleDocumentToggle(documentId) called
+   ↓
+3. Add file with 'reading' status to Redux
+   ↓
+4. Fetch document content via getDocumentContent API
+   ↓
+5. Convert to IAttachedFile with source: 'library'
+   ↓
+6. Update Redux with full content and 'ready' status
+   ↓
+7. AttachedFilesList shows library doc (purple BookOpen icon)
+   ↓
+8. User submits form
+   ↓
+9. Both upload + library files sent to backend
+   ↓
+10. Backend validates ownership (implicit via content fetch)
+   ↓
+11. Gemini generates document with all context
+```
+
+---
+
+**Last Updated**: 2025-10-04  
+**Status**: 📋 Planning  
+**Owner**: Development Team  
+**Priority**: High  
+**Estimated Completion**: 5 working days
+
 

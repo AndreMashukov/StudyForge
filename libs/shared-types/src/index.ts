@@ -168,6 +168,8 @@ export interface IFileContent {
   content: string;
   size: number;
   type: 'text/plain' | 'text/markdown';
+  source?: 'upload' | 'library'; // Optional: track source for logging
+  documentId?: string; // Optional: document ID for library documents (ownership validation)
 }
 
 export interface GenerateFromPromptRequest {

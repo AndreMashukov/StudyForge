@@ -15,7 +15,7 @@ export const FILE_UPLOAD_CONSTRAINTS = {
 // Attached File State
 export interface IAttachedFile {
   id: string; // Unique identifier
-  file: File; // Original File object
+  file?: File; // Original File object (optional for library documents)
   filename: string;
   size: number; // Size in bytes
   content: string; // Read file content
@@ -23,6 +23,8 @@ export interface IAttachedFile {
   estimatedTokens: number;
   status: 'reading' | 'ready' | 'error';
   error?: string;
+  source: 'upload' | 'library'; // Source type: uploaded file or library document
+  documentId?: string; // Document ID for library documents
 }
 
 // File Validation Result

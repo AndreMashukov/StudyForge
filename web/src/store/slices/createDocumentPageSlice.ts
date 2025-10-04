@@ -22,6 +22,8 @@ export interface ICreateDocumentPageState {
     attachedFiles: IAttachedFile[];
     totalContextSize: number; // Total characters across all files
     contextSizeError: string | null;
+    selectedDocumentIds: string[]; // Track library document selections
+    documentSelectorLoading: boolean; // Loading state for fetching library documents
   };
 }
 
@@ -42,6 +44,8 @@ const initialState: ICreateDocumentPageState = {
     attachedFiles: [],
     totalContextSize: 0,
     contextSizeError: null,
+    selectedDocumentIds: [],
+    documentSelectorLoading: false,
   },
 };
 
@@ -119,9 +123,40 @@ const createDocumentPageSlice = createSlice({
       state.textPromptForm.attachedFiles = [];
       state.textPromptForm.totalContextSize = 0;
       state.textPromptForm.contextSizeError = null;
+      state.textPromptForm.selectedDocumentIds = [];
     },
     setContextSizeError: (state, action: PayloadAction<string | null>) => {
       state.textPromptForm.contextSizeError = action.payload;
+    },
+    // Document selector actions
+    toggleDocumentSelection: (state, action: PayloadAction<string>) => {
+      const documentId = action.payload;
+      const index = state.textPromptForm.selectedDocumentIds.indexOf(documentId);
+      
+      if (index > -1) {
+        // Remove from selection
+        state.textPromptForm.selectedDocumentIds.splice(index, 1);
+      } else {
+        // Add to selection (if under limit)
+        if (state.textPromptForm.attachedFiles.length < 5) {
+          state.textPromptForm.selectedDocumentIds.push(documentId);
+        }
+      }
+    },
+    setDocumentSelectorLoading: (state, action: PayloadAction<boolean>) => {
+      state.textPromptForm.documentSelectorLoading = action.payload;
+    },
+    clearDocumentSelections: (state) => {
+      state.textPromptForm.selectedDocumentIds = [];
+      // Remove library documents from attachedFiles
+      state.textPromptForm.attachedFiles = state.textPromptForm.attachedFiles.filter(
+        file => file.source !== 'library'
+      );
+      // Recalculate total context size
+      state.textPromptForm.totalContextSize = state.textPromptForm.attachedFiles.reduce(
+        (sum, file) => sum + file.characterCount,
+        0
+      );
     },
     clearSelection: (state) => {
       state.selectedSource = null;
@@ -149,6 +184,9 @@ export const {
   updateFileStatus,
   clearFiles,
   setContextSizeError,
+  toggleDocumentSelection,
+  setDocumentSelectorLoading,
+  clearDocumentSelections,
   clearSelection,
   resetCreateDocumentPage,
 } = createDocumentPageSlice.actions;
@@ -182,5 +220,17 @@ export const selectCanAttachMore = (state: { createDocumentPage: ICreateDocument
   state.createDocumentPage.textPromptForm.attachedFiles.length < 5;
 export const selectAttachedFilesCount = (state: { createDocumentPage: ICreateDocumentPageState }) => 
   state.createDocumentPage.textPromptForm.attachedFiles.length;
+
+// Document selector selectors
+export const selectSelectedDocumentIds = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.textPromptForm.selectedDocumentIds;
+export const selectDocumentSelectorLoading = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.textPromptForm.documentSelectorLoading;
+export const selectCanSelectMoreDocuments = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.textPromptForm.attachedFiles.length < 5;
+export const selectUploadedFilesCount = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.textPromptForm.attachedFiles.filter(f => f.source === 'upload').length;
+export const selectLibraryDocumentsCount = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.textPromptForm.attachedFiles.filter(f => f.source === 'library').length;
 
 export default createDocumentPageSlice.reducer;
