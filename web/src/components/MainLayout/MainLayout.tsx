@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSignOut } from 'react-firebase-hooks/auth';
 import { auth } from '../../config/firebase';
@@ -7,11 +8,34 @@ import { Icon } from '../ui/Icon';
 import { Button } from '../ui/Button';
 import { ThemeToggle } from '../ThemeToggle';
 import { IMainLayout } from './IMainLayout';
+import { selectSidebarIsOpen, toggleSidebar } from '../../store/slices/uiSlice';
+import { Menu } from 'lucide-react';
 
 export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
   const { user, loading } = useAuth();
   const [signOut] = useSignOut(auth);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const sidebarIsOpen = useSelector(selectSidebarIsOpen);
+  
+  // Calculate header margin and width based on sidebar state
+  const sidebarWidth = sidebarIsOpen ? 200 : 64;
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const handleToggleSidebar = () => {
+    dispatch(toggleSidebar());
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -32,9 +56,27 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="linear-glass border-b border-border/30 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6">
+      <header 
+        className="linear-glass border-b border-border/30 fixed top-0 z-[1100] transition-all duration-300"
+        style={{
+          marginLeft: isMobile ? '0px' : `${sidebarWidth}px`,
+          width: isMobile ? '100%' : `calc(100% - ${sidebarWidth}px)`,
+        }}
+      >
+        <div className="px-6">
           <div className="flex items-center justify-between h-16">
+            {/* Mobile Hamburger Menu */}
+            {isMobile && user && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleToggleSidebar}
+                className="mr-2"
+              >
+                <Menu size={20} />
+              </Button>
+            )}
+
             {/* Logo */}
             <Link to="/" className="flex items-center space-x-3 hover:opacity-80 linear-transition">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -109,8 +151,10 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content with Toolbar spacer */}
       <main className="flex-1">
+        {/* Toolbar spacer to prevent content hiding under fixed header */}
+        <div className="h-16" />
         {children}
       </main>
 

@@ -111,6 +111,20 @@ export const Sidebar = ({ className }: ISidebar) => {
   const isOpen = useSelector(selectSidebarIsOpen);
   const openSections = useSelector(selectSidebarOpenSections);
   const activeSection = useSelector(selectSidebarActiveSection);
+  
+  // Mobile detection
+  const [isMobile, setIsMobile] = React.useState(false);
+  
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Initialize open sections on mount - only when expanded
   React.useEffect(() => {
@@ -137,19 +151,41 @@ export const Sidebar = ({ className }: ISidebar) => {
   const handleNavigateToItem = (path: string, sectionId: string) => {
     dispatch(setSidebarActiveSection(sectionId));
     navigate(path);
+    
+    // Close sidebar on mobile after navigation
+    if (isMobile) {
+      dispatch(toggleSidebar());
+    }
   };
 
   const isSectionOpen = (sectionId: string) => openSections.includes(sectionId);
   const isItemActive = (path: string) => location.pathname === path;
 
+  // Don't render sidebar on mobile when closed
+  if (isMobile && !isOpen) {
+    return null;
+  }
+
   return (
-    <aside
-      className={cn(
-        sidebarStyles.container,
-        isOpen ? sidebarStyles.expanded : sidebarStyles.collapsed,
-        className
+    <>
+      {/* Mobile overlay backdrop */}
+      {isMobile && isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-[1199]"
+          onClick={handleToggleSidebar}
+          aria-hidden="true"
+        />
       )}
-    >
+      
+      <aside
+        className={cn(
+          sidebarStyles.container,
+          isOpen ? sidebarStyles.expanded : sidebarStyles.collapsed,
+          // Mobile: full overlay when open
+          isMobile && isOpen && "w-[280px]",
+          className
+        )}
+      >
       {/* Header with toggle button */}
       <div className={cn(
         sidebarStyles.header,
@@ -355,5 +391,6 @@ export const Sidebar = ({ className }: ISidebar) => {
         })}
       </div>
     </aside>
+    </>
   );
 };

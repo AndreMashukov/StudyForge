@@ -2,7 +2,7 @@ import { cn } from "../../lib/utils";
 
 export const sidebarStyles = {
   container: cn(
-    "sticky top-0 h-[calc(100vh-4rem)] overflow-x-hidden overflow-y-auto text-xs duration-300 scrollbar-hidden",
+    "fixed top-0 left-0 h-screen overflow-x-hidden overflow-y-auto text-xs duration-300 scrollbar-hidden z-[1200]",
     "bg-card border-r border-border flex flex-col"
   ),
   expanded: "w-[200px]",
