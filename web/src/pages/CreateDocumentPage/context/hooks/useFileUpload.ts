@@ -106,6 +106,7 @@ export const useFileUpload = (documents: DocumentEnhanced[] = []) => {
           estimatedTokens: 0,
           status: 'error',
           error: validation.errors[0], // Show first error
+          source: 'upload',
         }));
         continue;
       }
@@ -120,6 +121,7 @@ export const useFileUpload = (documents: DocumentEnhanced[] = []) => {
         characterCount: 0,
         estimatedTokens: 0,
         status: 'reading',
+        source: 'upload',
       }));
 
       // Process file asynchronously
@@ -300,11 +302,12 @@ export const useFileUpload = (documents: DocumentEnhanced[] = []) => {
 
       if (result.error) {
         // Handle specific error types
-        const errorMessage = result.error.status === 404 
+        const error = result.error as any;
+        const errorMessage = error?.status === 404 
           ? 'Document not found or has been deleted'
-          : result.error.status === 403
+          : error?.status === 403
           ? 'You do not have permission to access this document'
-          : result.error.data?.message || 'Failed to fetch document content';
+          : error?.data?.message || 'Failed to fetch document content';
         throw new Error(errorMessage);
       }
 

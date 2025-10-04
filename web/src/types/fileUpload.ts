@@ -47,11 +47,11 @@ export const FILE_UPLOAD_ERRORS = {
 // Type guards
 export const isTextFile = (file: File): boolean => {
   const extension = `.${file.name.split('.').pop()?.toLowerCase()}`;
-  return FILE_UPLOAD_CONSTRAINTS.ALLOWED_EXTENSIONS.includes(extension);
+  return FILE_UPLOAD_CONSTRAINTS.ALLOWED_EXTENSIONS.includes(extension as '.txt' | '.md');
 };
 
 export const isMimeTypeValid = (file: File): boolean => {
-  return FILE_UPLOAD_CONSTRAINTS.ALLOWED_MIME_TYPES.includes(file.type) || 
+  return FILE_UPLOAD_CONSTRAINTS.ALLOWED_MIME_TYPES.includes(file.type as 'text/plain' | 'text/markdown') || 
          file.type === '';
 };
 

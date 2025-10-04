@@ -10,7 +10,7 @@ import { FILE_UPLOAD_CONSTRAINTS, FILE_UPLOAD_ERRORS, IAttachedFile, IFileValida
  * @returns Validation result
  */
 export function validateFileType(file: File): IFileValidationResult {
-  const extension = `.${file.name.split('.').pop()?.toLowerCase()}`;
+  const extension = `.${file.name.split('.').pop()?.toLowerCase()}` as '.txt' | '.md';
   const errors: string[] = [];
 
   // Check extension
@@ -19,7 +19,7 @@ export function validateFileType(file: File): IFileValidationResult {
   }
 
   // Check MIME type (if provided)
-  if (file.type && !FILE_UPLOAD_CONSTRAINTS.ALLOWED_MIME_TYPES.includes(file.type)) {
+  if (file.type && !FILE_UPLOAD_CONSTRAINTS.ALLOWED_MIME_TYPES.includes(file.type as 'text/plain' | 'text/markdown')) {
     errors.push(FILE_UPLOAD_ERRORS.INVALID_FILE_TYPE);
   }
 

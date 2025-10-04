@@ -1,12 +1,19 @@
 import { IUrlScrapingFormData } from '../CreateDocumentPageContainer/UrlScrapingForm/IUrlScrapingForm';
 import { IFileUploadFormData } from '../CreateDocumentPageContainer/FileUploadForm/IFileUploadForm';
 import { ITextPromptFormData } from '../CreateDocumentPageContainer/TextPromptForm/ITextPromptForm';
+import { IFileContent } from '@shared-types';
 
 export interface ICreateDocumentPageHandlers {
   handleGoBack: () => void;
   handleCreateFromUrl: (data: IUrlScrapingFormData) => Promise<void>;
   handleCreateFromFile: (data: IFileUploadFormData) => Promise<void>;
-  handleCreateFromTextPrompt: (data: ITextPromptFormData) => Promise<void>;
+  handleCreateFromTextPrompt: (
+    data: ITextPromptFormData,
+    fileUploadHelpers: {
+      isContextSizeValid: () => boolean;
+      getFilesForSubmission: () => IFileContent[];
+    }
+  ) => Promise<void>;
   isLoading: boolean;
   isTextPromptLoading: boolean;
   textPromptProgress: number;
