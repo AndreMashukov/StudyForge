@@ -288,3 +288,61 @@ export const getDocumentQuizzes = onCall(
     }
   }
 );
+
+/**
+ * Delete Quiz
+ * Delete a quiz by ID (requires authentication)
+ */
+export const deleteQuiz = onCall(
+  {
+    cors: true,
+  },
+  async (request): Promise<ApiResponse<{ success: boolean }>> => {
+    try {
+      const userId = request.auth?.uid;
+      const { quizId } = request.data;
+      
+      if (!userId) {
+        return {
+          success: false,
+          error: {
+            code: "UNAUTHENTICATED",
+            message: "Authentication required",
+          },
+        };
+      }
+
+      if (!quizId) {
+        return {
+          success: false,
+          error: {
+            code: "MISSING_PARAMETER",
+            message: "quizId is required",
+          },
+        };
+      }
+
+      console.log(`Deleting quiz: ${quizId} for user: ${userId}`);
+
+      await FirestoreService.deleteQuiz(quizId, userId);
+
+      return {
+        success: true,
+        data: {
+          success: true,
+        },
+      };
+
+    } catch (error) {
+      console.error("Error in deleteQuiz:", error);
+      
+      return {
+        success: false,
+        error: {
+          code: "DELETE_FAILED",
+          message: error instanceof Error ? error.message : "Failed to delete quiz",
+        },
+      };
+    }
+  }
+);

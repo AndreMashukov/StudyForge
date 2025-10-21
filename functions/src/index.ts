@@ -63,6 +63,7 @@ export {
   getUserQuizzes,
   getRecentQuizzes,
   getDocumentQuizzes,
+  deleteQuiz,
 } from "./endpoints/quizzes";
 
 // Export quiz followup functions
