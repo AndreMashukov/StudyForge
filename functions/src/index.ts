@@ -86,3 +86,16 @@ export {
   getDocumentStats,
   getDocumentContent,
 } from "./endpoints/documents";
+
+// Export directory management functions
+export {
+  createDirectory,
+  getDirectory,
+  updateDirectory,
+  deleteDirectory,
+  getDirectoryTree,
+  getDirectoryContents,
+  getDirectoryAncestors,
+  moveDirectory,
+  getDirectoryByPath,
+} from "./endpoints/directories";
