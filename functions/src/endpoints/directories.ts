@@ -13,7 +13,7 @@ import {
   MoveDirectoryResponse,
   DeleteDirectoryResponse,
   ApiResponse,
-} from '../../../libs/shared-types/src/index';
+} from '../../libs/shared-types/src/index';
 
 /**
  * Helper function to verify authentication

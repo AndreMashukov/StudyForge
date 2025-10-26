@@ -1,4 +1,5 @@
-import { firestore } from './firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import * as logger from 'firebase-functions/logger';
 import {
   Directory,
   DirectoryTreeNode,
@@ -13,9 +14,9 @@ import {
   MoveDirectoryResponse,
   DeleteDirectoryResponse,
   DocumentEnhanced,
-} from '@code-insights-ai/shared-types';
-import { FieldValue } from 'firebase-admin/firestore';
-import * as logger from 'firebase-functions/logger';
+} from '../../libs/shared-types/src/index';
+
+const firestore = getFirestore();
 
 export class DirectoryService {
   private readonly COLLECTION = 'directories';
@@ -562,7 +563,7 @@ export class DirectoryService {
       );
     }
 
-    if (DIRECTORY_CONSTRAINTS.RESERVED_NAMES.includes(name.toLowerCase())) {
+    if (DIRECTORY_CONSTRAINTS.RESERVED_NAMES.includes(name.toLowerCase() as any)) {
       errors.push('Directory name is reserved');
     }
 
