@@ -104,7 +104,7 @@ const DirectoryTreeNode: React.FC<IDirectoryTreeNodeProps> = ({
       {/* Render children if expanded */}
       {isExpanded && hasChildren && (
         <div>
-          {node.children.map((child) => (
+          {node.children.map((child: IDirectoryTreeNodeProps['node']) => (
             <DirectoryTreeNodeWrapper
               key={child.directory.id}
               node={child}

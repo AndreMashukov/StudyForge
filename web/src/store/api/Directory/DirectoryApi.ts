@@ -13,15 +13,14 @@ import {
   GetDirectoryAncestorsResponse,
   MoveDirectoryResponse,
   DeleteDirectoryResponse,
-} from '../../../../../libs/shared-types/src/index';
+} from '@shared-types';
 
 export const directoryApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Create a new directory
     createDirectory: builder.mutation<CreateDirectoryResponse, CreateDirectoryRequest>({
       query: (data) => ({
-        url: '/directories',
-        method: 'POST',
+        functionName: 'createDirectory',
         data,
       }),
       invalidatesTags: [{ type: 'Directory', id: 'TREE' }, { type: 'Directory', id: 'LIST' }],
@@ -30,8 +29,8 @@ export const directoryApi = baseApi.injectEndpoints({
     // Get a single directory
     getDirectory: builder.query<Directory, string>({
       query: (directoryId) => ({
-        url: `/directories/${directoryId}`,
-        method: 'GET',
+        functionName: 'getDirectory',
+        data: { directoryId },
       }),
       transformResponse: (response: GetDirectoryResponse) => response.directory,
       providesTags: (result, error, id) => [{ type: 'Directory', id }],
@@ -40,9 +39,8 @@ export const directoryApi = baseApi.injectEndpoints({
     // Update a directory
     updateDirectory: builder.mutation<Directory, { id: string; data: UpdateDirectoryRequest }>({
       query: ({ id, data }) => ({
-        url: `/directories/${id}`,
-        method: 'PUT',
-        data,
+        functionName: 'updateDirectory',
+        data: { directoryId: id, ...data },
       }),
       transformResponse: (response: GetDirectoryResponse) => response.directory,
       invalidatesTags: (result, error, { id }) => [
@@ -55,8 +53,8 @@ export const directoryApi = baseApi.injectEndpoints({
     // Delete a directory
     deleteDirectory: builder.mutation<DeleteDirectoryResponse, string>({
       query: (directoryId) => ({
-        url: `/directories/${directoryId}`,
-        method: 'DELETE',
+        functionName: 'deleteDirectory',
+        data: { directoryId },
       }),
       invalidatesTags: [
         { type: 'Directory', id: 'TREE' },
@@ -68,8 +66,7 @@ export const directoryApi = baseApi.injectEndpoints({
     // Get directory tree
     getDirectoryTree: builder.query<GetDirectoryTreeResponse, void>({
       query: () => ({
-        url: '/directories/tree',
-        method: 'GET',
+        functionName: 'getDirectoryTree',
       }),
       providesTags: [{ type: 'Directory', id: 'TREE' }],
       keepUnusedDataFor: 300, // 5 minutes
@@ -78,10 +75,8 @@ export const directoryApi = baseApi.injectEndpoints({
     // Get directory contents
     getDirectoryContents: builder.query<GetDirectoryContentsResponse, string | null>({
       query: (directoryId) => ({
-        url: directoryId 
-          ? `/directories/${directoryId}/contents`
-          : '/directories/root/contents',
-        method: 'GET',
+        functionName: 'getDirectoryContents',
+        data: { directoryId },
       }),
       providesTags: (result, error, directoryId) => [
         { type: 'Directory', id: directoryId || 'ROOT' },
@@ -92,8 +87,8 @@ export const directoryApi = baseApi.injectEndpoints({
     // Get directory ancestors (breadcrumb)
     getDirectoryAncestors: builder.query<GetDirectoryAncestorsResponse, string>({
       query: (directoryId) => ({
-        url: `/directories/${directoryId}/ancestors`,
-        method: 'GET',
+        functionName: 'getDirectoryAncestors',
+        data: { directoryId },
       }),
       providesTags: (result, error, directoryId) => [
         { type: 'Directory', id: `ANCESTORS_${directoryId}` },
@@ -103,9 +98,8 @@ export const directoryApi = baseApi.injectEndpoints({
     // Move a directory
     moveDirectory: builder.mutation<MoveDirectoryResponse, { id: string; data: MoveDirectoryRequest }>({
       query: ({ id, data }) => ({
-        url: `/directories/${id}/move`,
-        method: 'POST',
-        data,
+        functionName: 'moveDirectory',
+        data: { directoryId: id, ...data },
       }),
       invalidatesTags: [
         { type: 'Directory', id: 'TREE' },
@@ -117,9 +111,8 @@ export const directoryApi = baseApi.injectEndpoints({
     // Get directory by path
     getDirectoryByPath: builder.query<Directory, string>({
       query: (path) => ({
-        url: `/directories/by-path`,
-        method: 'GET',
-        params: { path },
+        functionName: 'getDirectoryByPath',
+        data: { path },
       }),
       transformResponse: (response: GetDirectoryResponse) => response.directory,
       providesTags: (result) => 
@@ -129,9 +122,8 @@ export const directoryApi = baseApi.injectEndpoints({
     // Move a document to a directory
     moveDocument: builder.mutation<void, { documentId: string; targetDirectoryId: string | null }>({
       query: ({ documentId, targetDirectoryId }) => ({
-        url: `/documents/${documentId}/move`,
-        method: 'POST',
-        data: { targetDirectoryId } as MoveDocumentRequest,
+        functionName: 'moveDocument',
+        data: { documentId, targetDirectoryId } as MoveDocumentRequest,
       }),
       invalidatesTags: [
         'Documents',
