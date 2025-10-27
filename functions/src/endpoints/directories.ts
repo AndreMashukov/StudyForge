@@ -1,4 +1,4 @@
-import { onRequest } from 'firebase-functions/v2/https';
+import { onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { directoryService } from '../services/directory';
 import {
@@ -12,444 +12,248 @@ import {
   GetDirectoryAncestorsResponse,
   MoveDirectoryResponse,
   DeleteDirectoryResponse,
-  ApiResponse,
 } from '../../libs/shared-types/src/index';
 
 /**
- * Helper function to verify authentication
+ * Authentication middleware for callable functions
  */
-function verifyAuth(req: any): string {
-  const userId = req.headers['x-user-id'] || req.headers['authorization']?.replace('Bearer ', '');
-  
-  if (!userId) {
-    throw new Error('Unauthorized: Missing user ID');
+async function validateAuth(context: { auth?: { uid?: string } }): Promise<string> {
+  if (!context.auth || !context.auth.uid) {
+    throw new Error('Unauthenticated: User must be logged in');
   }
-  
-  return userId as string;
+  return context.auth.uid;
 }
 
-/**
- * Helper function to send JSON response
- */
-function sendResponse<T>(res: any, statusCode: number, data: ApiResponse<T>) {
-  res.status(statusCode).json(data);
-}
-
-/**
- * Helper function to handle errors
- */
-function handleError(res: any, error: unknown) {
-  logger.error('API error', { 
-    error: error instanceof Error ? error.message : String(error),
-    stack: error instanceof Error ? error.stack : undefined,
-  });
-
-  const message = error instanceof Error ? error.message : 'Internal server error';
-  const statusCode = message.includes('not found') ? 404 
-    : message.includes('Unauthorized') ? 401
-    : message.includes('already exists') ? 409
-    : 400;
-
-  sendResponse(res, statusCode, {
-    success: false,
-    error: {
-      code: statusCode === 404 ? 'NOT_FOUND' 
-        : statusCode === 401 ? 'UNAUTHORIZED'
-        : statusCode === 409 ? 'CONFLICT'
-        : 'BAD_REQUEST',
-      message,
-    },
-  });
-}
 
 /**
  * Create a new directory
- * POST /api/directories
  */
-export const createDirectory = onRequest(
-  { cors: true },
-  async (req, res) => {
+export const createDirectory = onCall(
+  async (request) => {
     try {
-      if (req.method !== 'POST') {
-        res.status(405).json({ 
-          success: false, 
-          error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } 
-        });
-        return;
-      }
-
-      const userId = verifyAuth(req);
-      const request: CreateDirectoryRequest = req.body;
+      const userId = await validateAuth(request);
+      const data = request.data as CreateDirectoryRequest;
 
       // Validate request
-      if (!request.name || request.name.trim().length === 0) {
-        res.status(400).json({
-          success: false,
-          error: { code: 'INVALID_REQUEST', message: 'Directory name is required' },
-        });
-        return;
+      if (!data.name || data.name.trim().length === 0) {
+        throw new Error('Directory name is required');
       }
 
-      logger.info('Creating directory via API', { userId, name: request.name });
+      logger.info('Creating directory', { userId, name: data.name });
 
-      const directory = await directoryService.createDirectory(userId, request);
+      const directory = await directoryService.createDirectory(userId, data);
 
       const response: CreateDirectoryResponse = {
         directoryId: directory.id,
         directory,
       };
 
-      sendResponse<CreateDirectoryResponse>(res, 201, {
-        success: true,
-        data: response,
-      });
+      return response;
     } catch (error) {
-      handleError(res, error);
+      logger.error('Error creating directory', { error });
+      throw error;
     }
   }
 );
 
+
 /**
  * Get a directory by ID
- * GET /api/directories/:id
  */
-export const getDirectory = onRequest(
-  { cors: true },
-  async (req, res) => {
+export const getDirectory = onCall(
+  async (request) => {
     try {
-      if (req.method !== 'GET') {
-        res.status(405).json({ 
-          success: false, 
-          error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } 
-        });
-        return;
-      }
-
-      const userId = verifyAuth(req);
-      const directoryId = req.path.split('/').pop();
+      const userId = await validateAuth(request);
+      const { directoryId } = request.data as { directoryId: string };
 
       if (!directoryId) {
-        res.status(400).json({
-          success: false,
-          error: { code: 'INVALID_REQUEST', message: 'Directory ID is required' },
-        });
-        return;
+        throw new Error('Directory ID is required');
       }
 
-      logger.info('Getting directory via API', { userId, directoryId });
+      logger.info('Getting directory', { userId, directoryId });
 
       const directory = await directoryService.getDirectory(userId, directoryId);
 
       if (!directory) {
-        res.status(404).json({
-          success: false,
-          error: { code: 'NOT_FOUND', message: 'Directory not found' },
-        });
-        return;
+        throw new Error('Directory not found');
       }
 
       const response: GetDirectoryResponse = { directory };
-
-      sendResponse<GetDirectoryResponse>(res, 200, {
-        success: true,
-        data: response,
-      });
+      return response;
     } catch (error) {
-      handleError(res, error);
+      logger.error('Error getting directory', { error });
+      throw error;
     }
   }
 );
 
 /**
  * Update a directory
- * PUT /api/directories/:id
  */
-export const updateDirectory = onRequest(
-  { cors: true },
-  async (req, res) => {
+export const updateDirectory = onCall(
+  async (request) => {
     try {
-      if (req.method !== 'PUT') {
-        res.status(405).json({ 
-          success: false, 
-          error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } 
-        });
-        return;
-      }
-
-      const userId = verifyAuth(req);
-      const directoryId = req.path.split('/').pop();
-      const request: UpdateDirectoryRequest = req.body;
+      const userId = await validateAuth(request);
+      const { directoryId, ...updateData } = request.data as { directoryId: string } & UpdateDirectoryRequest;
 
       if (!directoryId) {
-        res.status(400).json({
-          success: false,
-          error: { code: 'INVALID_REQUEST', message: 'Directory ID is required' },
-        });
-        return;
+        throw new Error('Directory ID is required');
       }
 
-      logger.info('Updating directory via API', { userId, directoryId });
+      logger.info('Updating directory', { userId, directoryId });
 
-      const directory = await directoryService.updateDirectory(userId, directoryId, request);
+      const directory = await directoryService.updateDirectory(userId, directoryId, updateData);
 
       const response: GetDirectoryResponse = { directory };
-
-      sendResponse<GetDirectoryResponse>(res, 200, {
-        success: true,
-        data: response,
-      });
+      return response;
     } catch (error) {
-      handleError(res, error);
+      logger.error('Error updating directory', { error });
+      throw error;
     }
   }
 );
 
 /**
  * Delete a directory and all its contents
- * DELETE /api/directories/:id
  */
-export const deleteDirectory = onRequest(
-  { cors: true },
-  async (req, res) => {
+export const deleteDirectory = onCall(
+  async (request) => {
     try {
-      if (req.method !== 'DELETE') {
-        res.status(405).json({ 
-          success: false, 
-          error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } 
-        });
-        return;
-      }
-
-      const userId = verifyAuth(req);
-      const directoryId = req.path.split('/').pop();
+      const userId = await validateAuth(request);
+      const { directoryId } = request.data as { directoryId: string };
 
       if (!directoryId) {
-        res.status(400).json({
-          success: false,
-          error: { code: 'INVALID_REQUEST', message: 'Directory ID is required' },
-        });
-        return;
+        throw new Error('Directory ID is required');
       }
 
-      logger.info('Deleting directory via API', { userId, directoryId });
+      logger.info('Deleting directory', { userId, directoryId });
 
       const result = await directoryService.deleteDirectory(userId, directoryId);
-
-      sendResponse<DeleteDirectoryResponse>(res, 200, {
-        success: true,
-        data: result,
-      });
+      return result;
     } catch (error) {
-      handleError(res, error);
+      logger.error('Error deleting directory', { error });
+      throw error;
     }
   }
 );
 
 /**
  * Get directory tree for the user
- * GET /api/directories/tree
  */
-export const getDirectoryTree = onRequest(
-  { cors: true },
-  async (req, res) => {
+export const getDirectoryTree = onCall(
+  async (request) => {
     try {
-      if (req.method !== 'GET') {
-        res.status(405).json({ 
-          success: false, 
-          error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } 
-        });
-        return;
-      }
+      const userId = await validateAuth(request);
 
-      const userId = verifyAuth(req);
-
-      logger.info('Getting directory tree via API', { userId });
+      logger.info('Getting directory tree', { userId });
 
       const result = await directoryService.getDirectoryTree(userId);
-
-      sendResponse<GetDirectoryTreeResponse>(res, 200, {
-        success: true,
-        data: result,
-      });
+      return result;
     } catch (error) {
-      handleError(res, error);
+      logger.error('Error getting directory tree', { error });
+      throw error;
     }
   }
 );
 
 /**
  * Get directory contents (subdirectories and documents)
- * GET /api/directories/:id/contents
- * GET /api/directories/root/contents (for root directory)
  */
-export const getDirectoryContents = onRequest(
-  { cors: true },
-  async (req, res) => {
+export const getDirectoryContents = onCall(
+  async (request) => {
     try {
-      if (req.method !== 'GET') {
-        res.status(405).json({ 
-          success: false, 
-          error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } 
-        });
-        return;
-      }
+      const userId = await validateAuth(request);
+      const { directoryId } = request.data as { directoryId?: string | null };
 
-      const userId = verifyAuth(req);
-      const pathParts = req.path.split('/');
-      const directoryIdOrRoot = pathParts[pathParts.length - 2]; // Get the ID before 'contents'
-      
-      const directoryId = directoryIdOrRoot === 'root' ? null : directoryIdOrRoot;
+      logger.info('Getting directory contents', { userId, directoryId });
 
-      logger.info('Getting directory contents via API', { userId, directoryId });
-
-      const result = await directoryService.getDirectoryContents(userId, directoryId);
-
-      sendResponse<GetDirectoryContentsResponse>(res, 200, {
-        success: true,
-        data: result,
-      });
+      const result = await directoryService.getDirectoryContents(userId, directoryId || null);
+      return result;
     } catch (error) {
-      handleError(res, error);
+      logger.error('Error getting directory contents', { error });
+      throw error;
     }
   }
 );
 
 /**
  * Get directory ancestors (breadcrumb path)
- * GET /api/directories/:id/ancestors
  */
-export const getDirectoryAncestors = onRequest(
-  { cors: true },
-  async (req, res) => {
+export const getDirectoryAncestors = onCall(
+  async (request) => {
     try {
-      if (req.method !== 'GET') {
-        res.status(405).json({ 
-          success: false, 
-          error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } 
-        });
-        return;
-      }
-
-      const userId = verifyAuth(req);
-      const pathParts = req.path.split('/');
-      const directoryId = pathParts[pathParts.length - 2]; // Get the ID before 'ancestors'
+      const userId = await validateAuth(request);
+      const { directoryId } = request.data as { directoryId: string };
 
       if (!directoryId) {
-        res.status(400).json({
-          success: false,
-          error: { code: 'INVALID_REQUEST', message: 'Directory ID is required' },
-        });
-        return;
+        throw new Error('Directory ID is required');
       }
 
-      logger.info('Getting directory ancestors via API', { userId, directoryId });
+      logger.info('Getting directory ancestors', { userId, directoryId });
 
       const result = await directoryService.getDirectoryAncestors(userId, directoryId);
-
-      sendResponse<GetDirectoryAncestorsResponse>(res, 200, {
-        success: true,
-        data: result,
-      });
+      return result;
     } catch (error) {
-      handleError(res, error);
+      logger.error('Error getting directory ancestors', { error });
+      throw error;
     }
   }
 );
 
 /**
  * Move a directory to a new parent
- * POST /api/directories/:id/move
  */
-export const moveDirectory = onRequest(
-  { cors: true },
-  async (req, res) => {
+export const moveDirectory = onCall(
+  async (request) => {
     try {
-      if (req.method !== 'POST') {
-        res.status(405).json({ 
-          success: false, 
-          error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } 
-        });
-        return;
-      }
-
-      const userId = verifyAuth(req);
-      const pathParts = req.path.split('/');
-      const directoryId = pathParts[pathParts.length - 2]; // Get the ID before 'move'
-      const request: MoveDirectoryRequest = req.body;
+      const userId = await validateAuth(request);
+      const { directoryId, ...moveData } = request.data as { directoryId: string } & MoveDirectoryRequest;
 
       if (!directoryId) {
-        res.status(400).json({
-          success: false,
-          error: { code: 'INVALID_REQUEST', message: 'Directory ID is required' },
-        });
-        return;
+        throw new Error('Directory ID is required');
       }
 
-      logger.info('Moving directory via API', { 
+      logger.info('Moving directory', { 
         userId, 
         directoryId,
-        targetParentId: request.targetParentId,
+        targetParentId: moveData.targetParentId,
       });
 
-      const result = await directoryService.moveDirectory(userId, directoryId, request);
-
-      sendResponse<MoveDirectoryResponse>(res, 200, {
-        success: true,
-        data: result,
-      });
+      const result = await directoryService.moveDirectory(userId, directoryId, moveData);
+      return result;
     } catch (error) {
-      handleError(res, error);
+      logger.error('Error moving directory', { error });
+      throw error;
     }
   }
 );
 
 /**
  * Get directory by path
- * GET /api/directories/by-path?path=/Projects/Web
  */
-export const getDirectoryByPath = onRequest(
-  { cors: true },
-  async (req, res) => {
+export const getDirectoryByPath = onCall(
+  async (request) => {
     try {
-      if (req.method !== 'GET') {
-        res.status(405).json({ 
-          success: false, 
-          error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } 
-        });
-        return;
-      }
-
-      const userId = verifyAuth(req);
-      const path = req.query.path as string;
+      const userId = await validateAuth(request);
+      const { path } = request.data as { path: string };
 
       if (!path) {
-        res.status(400).json({
-          success: false,
-          error: { code: 'INVALID_REQUEST', message: 'Path parameter is required' },
-        });
-        return;
+        throw new Error('Path parameter is required');
       }
 
-      logger.info('Getting directory by path via API', { userId, path });
+      logger.info('Getting directory by path', { userId, path });
 
       const directory = await directoryService.getDirectoryByPath(userId, path);
 
       if (!directory) {
-        res.status(404).json({
-          success: false,
-          error: { code: 'NOT_FOUND', message: 'Directory not found' },
-        });
-        return;
+        throw new Error('Directory not found');
       }
 
       const response: GetDirectoryResponse = { directory };
-
-      sendResponse<GetDirectoryResponse>(res, 200, {
-        success: true,
-        data: response,
-      });
+      return response;
     } catch (error) {
-      handleError(res, error);
+      logger.error('Error getting directory by path', { error });
+      throw error;
     }
   }
 );

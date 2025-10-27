@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setSelectedDocumentId, setSearchQuery } from '../../../../store/slices/documentsPageSlice';
+import { setSelectedDocumentId, setSearchQuery, setSelectedDirectoryId } from '../../../../store/slices/documentsPageSlice';
 import { useDeleteDocument } from './api/useDeleteDocument';
 
 export const useDocumentsPageHandlers = () => {
@@ -36,11 +36,16 @@ export const useDocumentsPageHandlers = () => {
     dispatch(setSearchQuery(query));
   }, [dispatch]);
 
+  const handleSelectDirectory = useCallback((directoryId: string | null) => {
+    dispatch(setSelectedDirectoryId(directoryId));
+  }, [dispatch]);
+
   return {
     handleCreateDocument,
     handleViewDocument,
     handleDeleteDocument,
     handleCreateQuizFromDocument,
     handleSearchChange,
+    handleSelectDirectory,
   };
 };
