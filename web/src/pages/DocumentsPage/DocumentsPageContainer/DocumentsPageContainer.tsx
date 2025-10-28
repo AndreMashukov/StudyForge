@@ -38,6 +38,7 @@ export const DocumentsPageContainer = () => {
   // Local state for dialogs
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createDialogParentId, setCreateDialogParentId] = useState<string | null>(null);
   const [editDialog, setEditDialog] = useState<{ open: boolean; directory: Directory | null }>({
     open: false,
     directory: null,
@@ -46,6 +47,11 @@ export const DocumentsPageContainer = () => {
     open: false,
     directory: null,
   });
+
+  const handleCreateDirectory = (parentId: string | null) => {
+    setCreateDialogParentId(parentId);
+    setCreateDialogOpen(true);
+  };
 
   const isLoading = documentsApi.isLoading || isLoadingContents;
   const error = documentsApi.error || contentsError;
@@ -82,7 +88,10 @@ export const DocumentsPageContainer = () => {
         {/* Left Sidebar - Directory Tree */}
         <div className="w-64 border-r bg-background overflow-y-auto">
           <div className="p-4">
-            <DirectoryTree onSelectDirectory={handlers.handleSelectDirectory} />
+            <DirectoryTree 
+              onSelectDirectory={handlers.handleSelectDirectory}
+              onCreateDirectory={handleCreateDirectory}
+            />
           </div>
         </div>
 
@@ -109,7 +118,7 @@ export const DocumentsPageContainer = () => {
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => setCreateDialogOpen(true)}
+                  onClick={() => handleCreateDirectory(selectedDirectoryId)}
                 >
                   <FolderPlus size={16} />
                   New Folder
@@ -169,7 +178,7 @@ export const DocumentsPageContainer = () => {
                     }
                   </p>
                   <div className="flex gap-2 justify-center">
-                    <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
+                    <Button variant="outline" onClick={() => handleCreateDirectory(selectedDirectoryId)}>
                       <FolderPlus size={16} />
                       New Folder
                     </Button>
@@ -279,11 +288,15 @@ export const DocumentsPageContainer = () => {
       {/* Dialogs */}
       <CreateDirectoryDialog
         isOpen={createDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
-        parentId={selectedDirectoryId}
+        onClose={() => {
+          setCreateDialogOpen(false);
+          setCreateDialogParentId(null);
+        }}
+        parentId={createDialogParentId}
         onSuccess={(directoryId) => {
           // Optionally navigate to the new directory
           handlers.handleSelectDirectory(directoryId);
+          setCreateDialogParentId(null);
         }}
       />
 

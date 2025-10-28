@@ -174,7 +174,10 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
 
   const handleContextMenu = (e: React.MouseEvent, directoryId: string) => {
     e.preventDefault();
-    // Context menu handling will be implemented with the dialogs
+    // Select the directory first
+    handleSelect(directoryId);
+    // Context menu handling - for now, we'll use the handlers passed from parent
+    // Future: implement actual context menu UI here
   };
 
   if (isLoading) {
@@ -200,7 +203,7 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
           No folders yet
         </div>
         <Button
-          onClick={() => onCreateDirectory?.(null)}
+          onClick={() => onCreateDirectory?.(selectedDirectoryId)}
           variant="outline"
           size="sm"
           className="w-full"
@@ -246,16 +249,16 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
         />
       ))}
 
-      {/* Create new folder button */}
+      {/* Create new folder button - creates subfolder if a directory is selected */}
       <div className="mt-4 px-2">
         <Button
-          onClick={() => onCreateDirectory?.(null)}
+          onClick={() => onCreateDirectory?.(selectedDirectoryId)}
           variant="ghost"
           size="sm"
           className="w-full justify-start"
         >
           <Plus className="w-4 h-4 mr-2" />
-          New Folder
+          {selectedDirectoryId ? 'New Subfolder' : 'New Folder'}
         </Button>
       </div>
     </div>

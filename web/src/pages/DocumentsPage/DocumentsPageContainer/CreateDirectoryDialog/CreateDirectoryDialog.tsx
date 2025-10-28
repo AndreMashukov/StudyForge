@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import { ICreateDirectoryDialog, CreateDirectoryFormData } from "./ICreateDirectoryDialog";
 import { createDirectorySchema } from "./createDirectorySchema";
@@ -45,11 +45,21 @@ export const CreateDirectoryDialog = ({
     description: "",
     color: FOLDER_COLORS[0].value,
     icon: FOLDER_ICONS[0].name,
-    parentId: parentId || null,
+    parentId: null, // Will be set by useEffect when dialog opens
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [createDirectory, { isLoading }] = useCreateDirectoryMutation();
+
+  // Update parentId when it changes (when dialog opens with different parent)
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(prev => ({
+        ...prev,
+        parentId: parentId || null,
+      }));
+    }
+  }, [isOpen, parentId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +71,7 @@ export const CreateDirectoryDialog = ({
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
-        error.errors.forEach((err: z.ZodIssue) => {
+        error.issues.forEach((err) => {
           if (err.path[0]) {
             fieldErrors[err.path[0] as string] = err.message;
           }
@@ -73,12 +83,18 @@ export const CreateDirectoryDialog = ({
 
     // Create directory
     try {
-      const result = await createDirectory({
+      const directoryData = {
         name: formData.name,
         color: formData.color,
         icon: formData.icon,
         parentId: formData.parentId,
-      }).unwrap();
+      };
+      
+      console.log('Creating directory with data:', directoryData);
+      console.log('ParentId from prop:', parentId);
+      console.log('ParentId from formData:', formData.parentId);
+      
+      const result = await createDirectory(directoryData).unwrap();
 
       onSuccess(result.directoryId);
       handleClose();
@@ -94,7 +110,7 @@ export const CreateDirectoryDialog = ({
       description: "",
       color: FOLDER_COLORS[0].value,
       icon: FOLDER_ICONS[0].name,
-      parentId: parentId || null,
+      parentId: null, // Reset to null, will be updated by useEffect when reopened
     });
     setErrors({});
     onClose();
@@ -104,9 +120,14 @@ export const CreateDirectoryDialog = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Create New Folder</DialogTitle>
+          <DialogTitle>
+            {formData.parentId ? 'Create New Subfolder' : 'Create New Folder'}
+          </DialogTitle>
           <DialogDescription>
-            Create a new folder to organize your documents.
+            {formData.parentId 
+              ? 'Create a new subfolder inside the selected folder.'
+              : 'Create a new folder to organize your documents.'
+            }
           </DialogDescription>
         </DialogHeader>
 
