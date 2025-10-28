@@ -191,94 +191,99 @@ export const DocumentsPageContainer = () => {
               </Card>
             )}
 
-            {/* Folders Grid */}
-            {subdirectories.length > 0 && (
-              <div className="px-6">
-                <h2 className="text-lg font-semibold mb-3">Folders</h2>
-                <div className={documentsPageStyles.documentsGrid}>
-                  {subdirectories.map((dir: Directory) => (
-                    <FolderCard
-                      key={dir.id}
-                      directory={dir}
-                      onClick={() => handlers.handleSelectDirectory(dir.id)}
-                      onEdit={() => setEditDialog({ open: true, directory: dir })}
-                      onDelete={() => setDeleteDialog({ open: true, directory: dir })}
-                      viewMode={viewMode}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Content Section - Folders and Documents */}
+            {(subdirectories.length > 0 || documents.length > 0) && (
+              <div className="space-y-6">
+                {/* Folders Section */}
+                {subdirectories.length > 0 && (
+                  <div className="px-6">
+                    <h2 className="text-lg font-semibold mb-3">Folders</h2>
+                    <div className={documentsPageStyles.documentsGrid}>
+                      {subdirectories.map((dir: Directory) => (
+                        <FolderCard
+                          key={dir.id}
+                          directory={dir}
+                          onClick={() => handlers.handleSelectDirectory(dir.id)}
+                          onEdit={() => setEditDialog({ open: true, directory: dir })}
+                          onDelete={() => setDeleteDialog({ open: true, directory: dir })}
+                          viewMode={viewMode}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {/* Documents Grid */}
-            {documents.length > 0 && (
-              <div className="px-6 mt-6">
-                <h2 className="text-lg font-semibold mb-3">Documents</h2>
-                <div className={documentsPageStyles.documentsGrid}>
-                  {documents.map((document: DocumentEnhanced) => (
-                    <Card key={document.id} className={documentsPageStyles.documentCard}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg truncate">{document.title}</CardTitle>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-                              <span className="flex items-center gap-1">
-                                <FileText size={14} />
-                                {document.wordCount} words
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Calendar size={14} />
-                                {formatDate(document.createdAt)}
-                              </span>
+                {/* Documents Section */}
+                {documents.length > 0 && (
+                  <div className="px-6">
+                    <h2 className="text-lg font-semibold mb-3">Documents</h2>
+                    <div className={documentsPageStyles.documentsGrid}>
+                      {documents.map((document: DocumentEnhanced) => (
+                        <Card key={document.id} className={documentsPageStyles.documentCard}>
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <CardTitle className="text-lg truncate">{document.title}</CardTitle>
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
+                                  <span className="flex items-center gap-1">
+                                    <FileText size={14} />
+                                    {document.wordCount} words
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Calendar size={14} />
+                                    {formatDate(document.createdAt)}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          <div className="text-sm text-muted-foreground">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md">
-                              {document.sourceType === 'url' ? '🌐 URL' : '📁 Upload'}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {document.description || `Document with ${document.wordCount} words`}
-                          </p>
-                          <div className="flex gap-2 pt-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handlers.handleViewDocument(document.id)}
-                              className="flex-1"
-                            >
-                              <Eye size={14} />
-                              View
-                            </Button>
-                            <ActionsDropdown
-                              items={[
-                                {
-                                  id: 'create-quiz',
-                                  label: 'Create Quiz',
-                                  icon: <Brain size={14} />,
-                                  onClick: () => handlers.handleCreateQuizFromDocument(document.id),
-                                },
-                              ]}
-                              className="flex-1"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handlers.handleDeleteDocument(document.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 size={14} />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              <div className="text-sm text-muted-foreground">
+                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md">
+                                  {document.sourceType === 'url' ? '🌐 URL' : '📁 Upload'}
+                                </span>
+                              </div>
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {document.description || `Document with ${document.wordCount} words`}
+                              </p>
+                              <div className="flex gap-2 pt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handlers.handleViewDocument(document.id)}
+                                  className="flex-1"
+                                >
+                                  <Eye size={14} />
+                                  View
+                                </Button>
+                                <ActionsDropdown
+                                  items={[
+                                    {
+                                      id: 'create-quiz',
+                                      label: 'Create Quiz',
+                                      icon: <Brain size={14} />,
+                                      onClick: () => handlers.handleCreateQuizFromDocument(document.id),
+                                    },
+                                  ]}
+                                  className="flex-1"
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handlers.handleDeleteDocument(document.id)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 size={14} />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
