@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { setSelectedDocument, setSearchQuery, setSelectedDirectory, selectSelectedDirectoryId } from '../../../../store/slices/directorySlice';
 import { useDeleteDocument } from './api/useDeleteDocument';
@@ -9,6 +9,7 @@ export const useDocumentsPageHandlers = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { deleteDocument } = useDeleteDocument();
+  const [, setSearchParams] = useSearchParams();
   
   // Get current directory ID from Redux
   const currentDirectoryId = useSelector((state: RootState) => selectSelectedDirectoryId(state));
@@ -47,7 +48,14 @@ export const useDocumentsPageHandlers = () => {
 
   const handleSelectDirectory = useCallback((directoryId: string | null) => {
     dispatch(setSelectedDirectory(directoryId));
-  }, [dispatch]);
+    
+    // Update URL params
+    if (directoryId) {
+      setSearchParams({ directoryId });
+    } else {
+      setSearchParams({});
+    }
+  }, [dispatch, setSearchParams]);
 
   return {
     handleCreateDocument,
