@@ -82,7 +82,7 @@ export const DocumentsPageContainer = () => {
         {/* Left Sidebar - Directory Tree */}
         <div className="w-64 border-r bg-background overflow-y-auto">
           <div className="p-4">
-            <DirectoryTree />
+            <DirectoryTree onSelectDirectory={handlers.handleSelectDirectory} />
           </div>
         </div>
 

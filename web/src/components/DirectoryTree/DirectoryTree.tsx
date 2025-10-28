@@ -159,8 +159,13 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
   const { data, isLoading, error } = useGetDirectoryTreeQuery();
 
   const handleSelect = (directoryId: string) => {
-    dispatch(setSelectedDirectory(directoryId));
-    onSelectDirectory?.(directoryId);
+    if (onSelectDirectory) {
+      // If parent provides a handler, use that (it will handle Redux + URL)
+      onSelectDirectory(directoryId);
+    } else {
+      // Fallback: only update Redux
+      dispatch(setSelectedDirectory(directoryId));
+    }
   };
 
   const handleToggleExpand = (directoryId: string) => {
@@ -216,8 +221,13 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
           !selectedDirectoryId && 'bg-primary/10 hover:bg-primary/15'
         )}
         onClick={() => {
-          dispatch(setSelectedDirectory(null));
-          onSelectDirectory?.(null);
+          if (onSelectDirectory) {
+            // If parent provides a handler, use that (it will handle Redux + URL)
+            onSelectDirectory(null);
+          } else {
+            // Fallback: only update Redux
+            dispatch(setSelectedDirectory(null));
+          }
         }}
       >
         <Folder className="w-4 h-4 text-muted-foreground ml-4" />
