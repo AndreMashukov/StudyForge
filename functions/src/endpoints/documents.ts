@@ -93,9 +93,13 @@ export const createDocumentFromUrl = onCall(
   async (request) => {
     try {
       const userId = await validateAuth(request);
-      const { url, title: customTitle } = request.data as { url: string; title?: string };
+      const { url, title: customTitle, directoryId } = request.data as { 
+        url: string; 
+        title?: string;
+        directoryId?: string;
+      };
 
-      logger.info('Creating document from URL', { userId, url });
+      logger.info('Creating document from URL', { userId, url, directoryId });
 
       // Validate URL
       if (!url || typeof url !== 'string') {
@@ -146,6 +150,7 @@ export const createDocumentFromUrl = onCall(
         sourceUrl: url,
         status: DocumentStatus.ACTIVE,
         tags: ['scraped', 'article'],
+        directoryId: directoryId || undefined, // Pass through directoryId if provided
       };
 
       // Create document

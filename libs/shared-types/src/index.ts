@@ -253,6 +253,7 @@ export interface DocumentMetadataEnhanced {
 export interface CreateDocumentFromUrlRequest {
   url: string;
   title?: string; // Optional override for document title
+  directoryId?: string; // Optional directory placement
 }
 
 export interface UploadDocumentRequest {
