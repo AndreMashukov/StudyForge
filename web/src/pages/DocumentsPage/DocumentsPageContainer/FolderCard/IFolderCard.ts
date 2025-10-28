@@ -6,5 +6,4 @@ export interface IFolderCard {
   onEdit?: () => void;
   onDelete?: () => void;
   onMove?: () => void;
-  viewMode: "grid" | "list";
 }

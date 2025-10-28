@@ -15,7 +15,7 @@ import { CreateDirectoryDialog } from './CreateDirectoryDialog';
 import { EditDirectoryDialog } from './EditDirectoryDialog';
 import { DeleteDirectoryDialog } from './DeleteDirectoryDialog';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
-import { Plus, Search, FileText, Calendar, Eye, Brain, Trash2, FolderPlus, Grid, List } from 'lucide-react';
+import { Plus, Search, FileText, Calendar, Eye, Brain, Trash2, FolderPlus } from 'lucide-react';
 import { DocumentEnhanced, Directory } from "@shared-types";
 import { formatDate } from '../../../utils/dateUtils';
 
@@ -36,7 +36,6 @@ export const DocumentsPageContainer = () => {
   } = useGetDirectoryContentsQuery(selectedDirectoryId || null);
 
   // Local state for dialogs
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createDialogParentId, setCreateDialogParentId] = useState<string | null>(null);
   const [editDialog, setEditDialog] = useState<{ open: boolean; directory: Directory | null }>({
@@ -133,7 +132,7 @@ export const DocumentsPageContainer = () => {
               </div>
             </div>
 
-            {/* Search and View Controls */}
+            {/* Search */}
             <div className={documentsPageStyles.searchContainer}>
               <div className="relative flex-1 max-w-md">
                 <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
@@ -144,22 +143,6 @@ export const DocumentsPageContainer = () => {
                   onChange={(e) => handlers.handleSearchChange(e.target.value)}
                   className="pl-10"
                 />
-              </div>
-              <div className="flex gap-1 border rounded-md p-1">
-                <Button
-                  variant={viewMode === "grid" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("grid")}
-                >
-                  <Grid size={16} />
-                </Button>
-                <Button
-                  variant={viewMode === "list" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                >
-                  <List size={16} />
-                </Button>
               </div>
             </div>
 
@@ -206,7 +189,6 @@ export const DocumentsPageContainer = () => {
                           onClick={() => handlers.handleSelectDirectory(dir.id)}
                           onEdit={() => setEditDialog({ open: true, directory: dir })}
                           onDelete={() => setDeleteDialog({ open: true, directory: dir })}
-                          viewMode={viewMode}
                         />
                       ))}
                     </div>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { IFolderCard } from "./IFolderCard";
-import { getFolderCardClassName, getIconClassName, folderCardStyles } from "./FolderCard.styles";
+import { folderCardStyles } from "./FolderCard.styles";
 import { Folder, FolderOpen, Briefcase, Target, Zap, Rocket, FileText, FolderTree, Edit, Trash2, Move } from "lucide-react";
 import { Button } from "../../../../components/ui/Button";
 import { ContextMenu, ContextMenuItem } from "../../../../components/ui/ContextMenu";
@@ -20,7 +20,6 @@ export const FolderCard = ({
   onEdit,
   onDelete,
   onMove,
-  viewMode,
 }: IFolderCard) => {
   const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; x: number; y: number }>({
     isOpen: false,
@@ -67,7 +66,7 @@ export const FolderCard = ({
   return (
     <>
       <div
-        className={getFolderCardClassName(viewMode)}
+        className={folderCardStyles.card}
         onClick={onClick}
         onContextMenu={handleContextMenu}
         role="button"
@@ -80,9 +79,9 @@ export const FolderCard = ({
         }}
       >
         {/* Icon */}
-        <div className={getIconClassName(viewMode)}>
+        <div className={folderCardStyles.iconContainer}>
           <IconComponent
-            size={viewMode === "grid" ? 48 : 32}
+            size={48}
             color={directory.color || "#6b7280"}
           />
         </div>
