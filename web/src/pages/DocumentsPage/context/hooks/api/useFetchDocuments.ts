@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useGetUserDocumentsQuery, useSearchDocumentsQuery } from '../../../../../store/api/Documents';
-import { selectSearchQuery } from '../../../../../store/slices/documentsPageSlice';
+import { selectSearchQuery } from '../../../../../store/slices/directorySlice';
 
 export const useFetchDocuments = () => {
   const searchQuery = useSelector(selectSearchQuery);

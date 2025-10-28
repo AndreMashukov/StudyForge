@@ -3,7 +3,6 @@ import { baseApi } from './api/baseApi';
 import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
 import quizPageReducer from './slices/quizPageSlice';
-import documentsPageReducer from './slices/documentsPageSlice';
 import documentViewerPageReducer from './slices/documentViewerPageSlice';
 import createDocumentPageReducer from './slices/createDocumentPageSlice';
 import directoryReducer from './slices/directorySlice';
@@ -13,7 +12,6 @@ export const store = configureStore({
     auth: authReducer,
     ui: uiReducer,
     quizPage: quizPageReducer,
-    documentsPage: documentsPageReducer,
     documentViewerPage: documentViewerPageReducer,
     createDocumentPage: createDocumentPageReducer,
     directory: directoryReducer,

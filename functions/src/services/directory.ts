@@ -329,7 +329,9 @@ export class DirectoryService {
     if (directoryId) {
       directory = await this.getDirectory(userId, directoryId);
       if (!directory) {
-        throw new Error('Directory not found');
+        // If directory not found, log a warning and return root directory contents instead
+        logger.warn('Directory not found, falling back to root', { userId, directoryId });
+        directoryId = null; // Treat as root directory request
       }
     }
 

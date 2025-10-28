@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useDocumentsPageContext } from '../context/hooks/useDocumentsPageContext';
-import { selectSearchQuery, selectSelectedDirectoryId } from '../../../store/slices/documentsPageSlice';
+import { selectSearchQuery, selectSelectedDirectoryId } from '../../../store/slices/directorySlice';
 import { useGetDirectoryContentsQuery } from '../../../store/api/Directory/DirectoryApi';
 import { Page } from '../../../components/Page';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setSelectedDocumentId, setSearchQuery, setSelectedDirectoryId } from '../../../../store/slices/documentsPageSlice';
+import { setSelectedDocument, setSearchQuery, setSelectedDirectory } from '../../../../store/slices/directorySlice';
 import { useDeleteDocument } from './api/useDeleteDocument';
 
 export const useDocumentsPageHandlers = () => {
@@ -14,7 +14,7 @@ export const useDocumentsPageHandlers = () => {
   }, [navigate]);
 
   const handleViewDocument = useCallback((documentId: string) => {
-    dispatch(setSelectedDocumentId(documentId));
+    dispatch(setSelectedDocument(documentId));
     navigate(`/document/${documentId}`);
   }, [navigate, dispatch]);
 
@@ -37,7 +37,7 @@ export const useDocumentsPageHandlers = () => {
   }, [dispatch]);
 
   const handleSelectDirectory = useCallback((directoryId: string | null) => {
-    dispatch(setSelectedDirectoryId(directoryId));
+    dispatch(setSelectedDirectory(directoryId));
   }, [dispatch]);
 
   return {
