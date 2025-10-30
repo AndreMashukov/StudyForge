@@ -103,6 +103,8 @@ export const documentsApi = baseApi.injectEndpoints({
       invalidatesTags: (result, error, arg) => [
         { type: 'Document', id: arg.documentId },
         'Document', // Invalidate the general tag to refetch the documents list
+        { type: 'Directory', id: 'CONTENTS' }, // Invalidate directory contents
+        { type: 'Directory', id: 'LIST' }, // Invalidate directory list
       ],
       // Optimistically update the cache to immediately remove the document
       async onQueryStarted({ documentId }, { dispatch, queryFulfilled }) {
