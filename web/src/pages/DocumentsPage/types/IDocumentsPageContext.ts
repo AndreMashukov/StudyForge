@@ -5,7 +5,6 @@ export interface IDocumentsPageHandlers {
   handleViewDocument: (documentId: string) => void;
   handleDeleteDocument: (documentId: string) => void;
   handleCreateQuizFromDocument: (documentId: string) => void;
-  handleSearchChange: (query: string) => void;
   handleSelectDirectory: (directoryId: string | null) => void;
 }
 

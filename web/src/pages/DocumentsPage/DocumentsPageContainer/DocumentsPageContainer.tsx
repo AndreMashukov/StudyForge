@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useDocumentsPageContext } from '../context/hooks/useDocumentsPageContext';
-import { selectSearchQuery, selectSelectedDirectoryId } from '../../../store/slices/directorySlice';
+import { selectSelectedDirectoryId } from '../../../store/slices/directorySlice';
 import { useGetDirectoryContentsQuery } from '../../../store/api/Directory/DirectoryApi';
 import { Page } from '../../../components/Page';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
-import { Input } from '../../../components/ui/Input';
 import { ActionsDropdown } from '../../../components/ui/ActionsDropdown';
 import { DirectoryTree } from '../../../components/DirectoryTree';
 import { BreadcrumbNav } from '../../../components/BreadcrumbNav';
@@ -15,7 +14,7 @@ import { CreateDirectoryDialog } from './CreateDirectoryDialog';
 import { EditDirectoryDialog } from './EditDirectoryDialog';
 import { DeleteDirectoryDialog } from './DeleteDirectoryDialog';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
-import { Plus, Search, FileText, Calendar, Eye, Brain, Trash2, FolderPlus } from 'lucide-react';
+import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus } from 'lucide-react';
 import { DocumentEnhanced, Directory } from "@shared-types";
 import { formatDate } from '../../../utils/dateUtils';
 
@@ -25,7 +24,6 @@ export const DocumentsPageContainer = () => {
     handlers 
   } = useDocumentsPageContext();
 
-  const searchQuery = useSelector(selectSearchQuery);
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
 
   // Directory contents (folders + documents in current directory)
@@ -129,20 +127,6 @@ export const DocumentsPageContainer = () => {
                   <Plus size={16} />
                   Create Document
                 </Button>
-              </div>
-            </div>
-
-            {/* Search */}
-            <div className={documentsPageStyles.searchContainer}>
-              <div className="relative flex-1 max-w-md">
-                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search documents..."
-                  value={searchQuery}
-                  onChange={(e) => handlers.handleSearchChange(e.target.value)}
-                  className="pl-10"
-                />
               </div>
             </div>
 
