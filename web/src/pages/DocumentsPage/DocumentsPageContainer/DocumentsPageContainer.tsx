@@ -14,15 +14,27 @@ import { CreateDirectoryDialog } from './CreateDirectoryDialog';
 import { EditDirectoryDialog } from './EditDirectoryDialog';
 import { DeleteDirectoryDialog } from './DeleteDirectoryDialog';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
-import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus } from 'lucide-react';
+import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus, Menu } from 'lucide-react';
 import { DocumentEnhanced, Directory } from "@shared-types";
 import { formatDate } from '../../../utils/dateUtils';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 
 export const DocumentsPageContainer = () => {
   const { 
     documentsApi,
     handlers 
   } = useDocumentsPageContext();
+
+  // Mobile state
+  const isMobile = useIsMobile();
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Auto-close mobile sidebar when switching to desktop
+  React.useEffect(() => {
+    if (!isMobile) {
+      setIsMobileSidebarOpen(false);
+    }
+  }, [isMobile]);
 
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
 
@@ -82,24 +94,64 @@ export const DocumentsPageContainer = () => {
   return (
     <Page showSidebar={true}>
       <div className="flex h-full">
-        {/* Left Sidebar - Directory Tree */}
-        <div className="w-64 border-r bg-background overflow-y-auto">
-          <div className="p-4">
-            <DirectoryTree 
-              onSelectDirectory={handlers.handleSelectDirectory}
-              onCreateDirectory={handleCreateDirectory}
+        {/* Mobile Sidebar Overlay */}
+        {isMobile && isMobileSidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={() => setIsMobileSidebarOpen(false)}
             />
+            {/* Sidebar */}
+            <div className="fixed inset-y-0 left-0 w-64 bg-background border-r z-50 overflow-y-auto">
+              <div className="p-4">
+                <DirectoryTree 
+                  onSelectDirectory={(id) => {
+                    handlers.handleSelectDirectory(id);
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  onCreateDirectory={handleCreateDirectory}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Desktop Sidebar - Directory Tree */}
+        {!isMobile && (
+          <div className="w-64 border-r bg-background overflow-y-auto">
+            <div className="p-4">
+              <DirectoryTree 
+                onSelectDirectory={handlers.handleSelectDirectory}
+                onCreateDirectory={handleCreateDirectory}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto">
           <div className={documentsPageStyles.container}>
+            {/* Mobile Header with Menu Button */}
+            {isMobile && (
+              <div className="px-4 pt-4 pb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsMobileSidebarOpen(true)}
+                  className="mb-2"
+                >
+                  <Menu size={16} />
+                  Folders
+                </Button>
+              </div>
+            )}
+
             {/* Breadcrumb Navigation */}
             <BreadcrumbNav
               directoryId={selectedDirectoryId}
               onNavigate={(directoryId) => handlers.handleSelectDirectory(directoryId)}
-              className="px-6 pt-6"
+              className="px-4 md:px-6 pt-4 md:pt-6"
             />
 
             {/* Header */}
@@ -112,20 +164,23 @@ export const DocumentsPageContainer = () => {
                   {subdirectories.length} folder(s), {documents.length} document(s)
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   variant="outline"
                   onClick={() => handleCreateDirectory(selectedDirectoryId)}
+                  className="w-full sm:w-auto"
                 >
                   <FolderPlus size={16} />
-                  New Folder
+                  <span className="hidden sm:inline">New Folder</span>
+                  <span className="sm:hidden">Folder</span>
                 </Button>
                 <Button
                   onClick={handlers.handleCreateDocument}
                   className={documentsPageStyles.createButton}
                 >
                   <Plus size={16} />
-                  Create Document
+                  <span className="hidden sm:inline">Create Document</span>
+                  <span className="sm:hidden">Document</span>
                 </Button>
               </div>
             </div>
@@ -133,23 +188,30 @@ export const DocumentsPageContainer = () => {
             {/* Empty State */}
             {subdirectories.length === 0 && documents.length === 0 && (
               <Card className={documentsPageStyles.emptyState}>
-                <CardContent className="text-center p-8">
+                <CardContent className="text-center p-6 md:p-8">
                   <FileText size={48} className="mx-auto mb-4 text-muted-foreground" />
                   <h3 className="text-lg font-semibold mb-2">
                     {selectedDirectoryId ? 'Empty folder' : 'No documents yet'}
                   </h3>
-                  <p className="text-muted-foreground mb-4">
+                  <p className="text-muted-foreground mb-4 text-sm md:text-base">
                     {selectedDirectoryId 
                       ? 'Add documents or create subfolders to organize your content'
                       : 'Create your first document from a URL or by uploading a markdown file'
                     }
                   </p>
-                  <div className="flex gap-2 justify-center">
-                    <Button variant="outline" onClick={() => handleCreateDirectory(selectedDirectoryId)}>
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleCreateDirectory(selectedDirectoryId)}
+                      className="w-full sm:w-auto"
+                    >
                       <FolderPlus size={16} />
                       New Folder
                     </Button>
-                    <Button onClick={handlers.handleCreateDocument}>
+                    <Button 
+                      onClick={handlers.handleCreateDocument}
+                      className="w-full sm:w-auto"
+                    >
                       <Plus size={16} />
                       Create Document
                     </Button>
@@ -163,7 +225,7 @@ export const DocumentsPageContainer = () => {
               <div className="space-y-6">
                 {/* Folders Section */}
                 {subdirectories.length > 0 && (
-                  <div className="px-6">
+                  <div className="px-4 md:px-6">
                     <h2 className="text-lg font-semibold mb-3">Folders</h2>
                     <div className={documentsPageStyles.documentsGrid}>
                       {subdirectories.map((dir: Directory) => (
@@ -181,7 +243,7 @@ export const DocumentsPageContainer = () => {
 
                 {/* Documents Section */}
                 {documents.length > 0 && (
-                  <div className="px-6">
+                  <div className="px-4 md:px-6">
                     <h2 className="text-lg font-semibold mb-3">Documents</h2>
                     <div className={documentsPageStyles.documentsGrid}>
                       {documents.map((document: DocumentEnhanced) => (
@@ -189,8 +251,8 @@ export const DocumentsPageContainer = () => {
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
-                                <CardTitle className="text-lg truncate">{document.title}</CardTitle>
-                                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
+                                <CardTitle className="text-base md:text-lg truncate">{document.title}</CardTitle>
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-2">
                                   <span className="flex items-center gap-1">
                                     <FileText size={14} />
                                     {document.wordCount} words
@@ -206,22 +268,22 @@ export const DocumentsPageContainer = () => {
                           <CardContent>
                             <div className="space-y-3">
                               <div className="text-sm text-muted-foreground">
-                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md">
+                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md text-xs">
                                   {document.sourceType === 'url' ? '🌐 URL' : '📁 Upload'}
                                 </span>
                               </div>
-                              <p className="text-sm text-muted-foreground line-clamp-2">
+                              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
                                 {document.description || `Document with ${document.wordCount} words`}
                               </p>
-                              <div className="flex gap-2 pt-2">
+                              <div className="flex flex-col sm:flex-row gap-2 pt-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handlers.handleViewDocument(document.id)}
-                                  className="flex-1"
+                                  className="flex-1 w-full"
                                 >
                                   <Eye size={14} />
-                                  View
+                                  <span className="ml-1">View</span>
                                 </Button>
                                 <ActionsDropdown
                                   items={[
@@ -232,15 +294,16 @@ export const DocumentsPageContainer = () => {
                                       onClick: () => handlers.handleCreateQuizFromDocument(document.id),
                                     },
                                   ]}
-                                  className="flex-1"
+                                  className="flex-1 w-full sm:w-auto"
                                 />
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handlers.handleDeleteDocument(document.id)}
-                                  className="text-destructive hover:text-destructive"
+                                  className="text-destructive hover:text-destructive w-full sm:w-auto"
                                 >
                                   <Trash2 size={14} />
+                                  <span className="ml-1 sm:hidden">Delete</span>
                                 </Button>
                               </div>
                             </div>
