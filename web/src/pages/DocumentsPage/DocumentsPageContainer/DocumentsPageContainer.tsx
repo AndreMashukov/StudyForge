@@ -30,7 +30,7 @@ export const DocumentsPageContainer = () => {
   const { 
     data: directoryContents, 
     isLoading: isLoadingContents,
-    error: contentsError 
+    error: contentsError
   } = useGetDirectoryContentsQuery(selectedDirectoryId || null);
 
   // Local state for dialogs

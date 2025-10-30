@@ -23,7 +23,12 @@ export const directoryApi = baseApi.injectEndpoints({
         functionName: 'createDirectory',
         data,
       }),
-      invalidatesTags: [{ type: 'Directory', id: 'TREE' }, { type: 'Directory', id: 'LIST' }],
+      invalidatesTags: (result, error, arg) => [
+        { type: 'Directory', id: 'TREE' },
+        { type: 'Directory', id: 'LIST' },
+        { type: 'Directory', id: 'CONTENTS' },
+        { type: 'Directory', id: arg.parentId || 'ROOT' }, // Invalidate parent directory's contents
+      ],
     }),
 
     // Get a single directory
@@ -47,6 +52,7 @@ export const directoryApi = baseApi.injectEndpoints({
         { type: 'Directory', id },
         { type: 'Directory', id: 'TREE' },
         { type: 'Directory', id: 'LIST' },
+        { type: 'Directory', id: 'CONTENTS' },
       ],
     }),
 
@@ -59,6 +65,7 @@ export const directoryApi = baseApi.injectEndpoints({
       invalidatesTags: [
         { type: 'Directory', id: 'TREE' },
         { type: 'Directory', id: 'LIST' },
+        { type: 'Directory', id: 'CONTENTS' },
         'Documents',
       ],
     }),
@@ -82,6 +89,8 @@ export const directoryApi = baseApi.injectEndpoints({
         { type: 'Directory', id: directoryId || 'ROOT' },
         { type: 'Directory', id: 'CONTENTS' },
       ],
+      // Always refetch when the directory ID changes (don't rely on stale cache)
+      keepUnusedDataFor: 0, // Don't cache directory contents for long
     }),
 
     // Get directory ancestors (breadcrumb)
