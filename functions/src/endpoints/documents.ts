@@ -688,6 +688,7 @@ export const generateFromPrompt = onCall(
         sourceType: DocumentSourceType.GENERATED,
         status: DocumentStatus.ACTIVE,
         tags: ['ai-generated', 'prompt-based'],
+        directoryId: data.directoryId || null, // Use provided directoryId or null for root
       });
 
       // Add custom metadata to document (stored in Firestore)

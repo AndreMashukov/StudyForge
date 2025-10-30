@@ -133,6 +133,7 @@ export const useCreateDocumentPageHandlers = () => {
       const result = await generateFromPrompt({
         prompt: data.prompt,
         files: files.length > 0 ? files : undefined,
+        directoryId: directoryId || null, // 🆕 Pass directoryId to API
       }).unwrap();
       
       if (progressInterval) {
@@ -157,7 +158,7 @@ export const useCreateDocumentPageHandlers = () => {
       dispatch(setTextPromptFormLoading(false));
       dispatch(setTextPromptFormProgress(0));
     }
-  }, [generateFromPrompt, navigate, dispatch]);
+  }, [generateFromPrompt, navigate, dispatch, directoryId]);
 
   return {
     handleGoBack,

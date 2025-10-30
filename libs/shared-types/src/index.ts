@@ -275,6 +275,7 @@ export interface IFileContent {
 export interface GenerateFromPromptRequest {
   prompt: string; // User's text prompt (max 10000 characters)
   files?: IFileContent[]; // Optional reference documents (max 5 files)
+  directoryId?: string | null; // Optional directory to place the generated document
 }
 
 export interface GenerateFromPromptResponse {

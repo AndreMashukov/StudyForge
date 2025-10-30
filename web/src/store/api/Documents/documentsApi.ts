@@ -53,7 +53,11 @@ export const documentsApi = baseApi.injectEndpoints({
       transformResponse: (response: { success: boolean; document: DocumentEnhanced }) => {
         return response.document;
       },
-      invalidatesTags: ['Document'],
+      invalidatesTags: [
+        'Document',
+        { type: 'Directory', id: 'CONTENTS' }, // Invalidate directory contents
+        { type: 'Directory', id: 'LIST' }, // Invalidate directory list
+      ],
     }),
     
     createDocumentFromUrl: builder.mutation<DocumentEnhanced, CreateDocumentFromUrlRequest>({
@@ -64,7 +68,11 @@ export const documentsApi = baseApi.injectEndpoints({
       transformResponse: (response: { success: boolean; document: DocumentEnhanced }) => {
         return response.document;
       },
-      invalidatesTags: ['Document'],
+      invalidatesTags: [
+        'Document',
+        { type: 'Directory', id: 'CONTENTS' }, // Invalidate directory contents
+        { type: 'Directory', id: 'LIST' }, // Invalidate directory list
+      ],
     }),
     
     generateFromPrompt: builder.mutation<GenerateFromPromptResponse, GenerateFromPromptRequest>({
@@ -72,7 +80,18 @@ export const documentsApi = baseApi.injectEndpoints({
         functionName: 'generateFromPrompt',
         data: data
       }),
-      transformResponse: (response: any) => {
+      transformResponse: (response: { 
+        success: boolean;
+        documentId: string;
+        title: string;
+        content: string;
+        wordCount: number;
+        metadata: {
+          originalPrompt: string;
+          generatedAt: string;
+          filesUsed?: number;
+        };
+      }) => {
         // Firebase Functions return data wrapped in the response
         return {
           documentId: response.documentId,
@@ -82,7 +101,11 @@ export const documentsApi = baseApi.injectEndpoints({
           metadata: response.metadata,
         };
       },
-      invalidatesTags: ['Document'],
+      invalidatesTags: [
+        'Document',
+        { type: 'Directory', id: 'CONTENTS' }, // Invalidate directory contents
+        { type: 'Directory', id: 'LIST' }, // Invalidate directory list
+      ],
     }),
     
     updateDocument: builder.mutation<DocumentEnhanced, UpdateDocumentRequest & { documentId: string }>({
