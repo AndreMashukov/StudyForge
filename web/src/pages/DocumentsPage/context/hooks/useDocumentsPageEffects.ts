@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { DocumentEnhanced } from '@shared-types';
+import { setSelectedDirectory } from '../../../../store/slices/directorySlice';
 
 interface IUseDocumentsPageEffects {
   documents: DocumentEnhanced[] | undefined;
@@ -14,6 +16,18 @@ export const useDocumentsPageEffects = ({
   handlers,
 }: IUseDocumentsPageEffects) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const dispatch = useDispatch();
+
+  // Sync URL params with Redux state on page load
+  useEffect(() => {
+    const directoryId = searchParams.get('directoryId');
+    if (directoryId) {
+      dispatch(setSelectedDirectory(directoryId));
+    } else {
+      dispatch(setSelectedDirectory(null));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount to read initial URL params
 
   // Handle URL parameters for auto-quiz generation
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { useDeleteDocumentMutation } from '../../../../../store/api/Documents';
 import { useDispatch } from 'react-redux';
-import { setIsDeletingDocument, setError } from '../../../../../store/slices/documentsPageSlice';
+import { setIsDeletingDocument, setError } from '../../../../../store/slices/directorySlice';
 
 export const useDeleteDocument = () => {
   const dispatch = useDispatch();

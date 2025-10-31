@@ -45,7 +45,8 @@ export const Page = ({
       >
         {/* Main Content */}
         <main className={cn(
-          "flex-1 p-6 overflow-y-auto",
+          "flex-1 overflow-y-auto",
+          "p-0 md:p-6",
           "scrollbar-thin scrollbar-track-muted scrollbar-thumb-muted-foreground"
         )}>
           {children}

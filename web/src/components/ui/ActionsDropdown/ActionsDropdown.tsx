@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
+import * as Popover from '@radix-ui/react-popover';
 import { cn } from "../../../lib/utils";
 import { IActionsDropdown, IActionsDropdownItem } from './IActionsDropdown';
 import { actionsDropdownStyles } from './ActionsDropdown.styles';
@@ -11,41 +12,9 @@ export const ActionsDropdown = ({
   disabled = false,
   className 
 }: IActionsDropdown) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isOpen]);
-
-  // Close dropdown on escape key
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
-    }
-  }, [isOpen]);
-
   const handleItemClick = (item: IActionsDropdownItem) => {
     if (!item.disabled) {
       item.onClick();
-      setIsOpen(false);
     }
   };
 
@@ -60,21 +29,17 @@ export const ActionsDropdown = ({
   );
 
   return (
-    <div className="relative inline-block" ref={dropdownRef}>
-      <div
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        className="cursor-pointer"
-      >
+    <Popover.Root>
+      <Popover.Trigger asChild disabled={disabled}>
         {trigger || defaultTrigger}
-      </div>
+      </Popover.Trigger>
 
-      {isOpen && (
-        <div 
-          className={cn(
-            actionsDropdownStyles.content,
-            align === 'end' ? 'right-0' : 'left-0',
-            'absolute top-full mt-1'
-          )}
+      <Popover.Portal>
+        <Popover.Content
+          className={cn(actionsDropdownStyles.content)}
+          align={align}
+          sideOffset={4}
+          collisionPadding={10}
           role="menu"
           aria-orientation="vertical"
         >
@@ -99,8 +64,8 @@ export const ActionsDropdown = ({
               {item.label}
             </div>
           ))}
-        </div>
-      )}
-    </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 };
