@@ -19,7 +19,7 @@ import { DocumentEnhanced, Directory } from "@shared-types";
 import { formatDate } from '../../../utils/dateUtils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 
-export const DocumentsPageContainer = () => {
+export const DocumentsPageContainer = (): React.JSX.Element => {
   const { 
     documentsApi,
     handlers 
