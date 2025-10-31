@@ -70,10 +70,10 @@ export const EditDirectoryDialog = ({
     try {
       updateSchema.parse(formData);
       setErrors({});
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
-        error.errors.forEach((err: z.ZodIssue) => {
+        error.issues.forEach((err) => {
           if (err.path[0]) {
             fieldErrors[err.path[0] as string] = err.message;
           }
