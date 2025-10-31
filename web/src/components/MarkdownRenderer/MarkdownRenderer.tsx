@@ -27,9 +27,10 @@ const generateTocFromContent = (content: string): TocItem[] => {
       .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
     
     // Ensure unique IDs by checking for duplicates
+    const existingIds = new Set(headings.map(h => h.id));
     let id = baseId;
     let counter = 1;
-    while (headings.some(h => h.id === id)) {
+    while (existingIds.has(id)) {
       id = `${baseId}-${counter}`;
       counter++;
     }
@@ -44,7 +45,8 @@ const generateTocFromContent = (content: string): TocItem[] => {
     const result: TocItem[] = [];
     const stack: TocItem[] = [];
 
-    for (const item of items) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       const tocItem: TocItem = {
         id: item.id,
         title: item.title,

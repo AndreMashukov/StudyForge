@@ -1,4 +1,4 @@
-import { DirectoryTreeNode } from '../../../../../../libs/shared-types/src/index';
+import { DirectoryTreeNode } from '@shared-types';
 
 export interface IDirectoryTree {
   className?: string;

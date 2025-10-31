@@ -1,7 +1,6 @@
 import { baseApi } from '../baseApi';
 import {
   Directory,
-  DirectoryTreeNode,
   CreateDirectoryRequest,
   UpdateDirectoryRequest,
   MoveDirectoryRequest,

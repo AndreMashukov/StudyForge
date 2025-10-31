@@ -34,13 +34,13 @@ export function toDocumentSelectorItem(
 }
 
 // Type guard for DocumentEnhanced
-export function isDocumentEnhanced(obj: any): obj is DocumentEnhanced {
+export function isDocumentEnhanced(obj: unknown): obj is DocumentEnhanced {
   return (
     typeof obj === 'object' &&
     obj !== null &&
-    typeof obj.id === 'string' &&
-    typeof obj.title === 'string' &&
-    typeof obj.wordCount === 'number'
+    typeof (obj as DocumentEnhanced).id === 'string' &&
+    typeof (obj as DocumentEnhanced).title === 'string' &&
+    typeof (obj as DocumentEnhanced).wordCount === 'number'
   );
 }
 

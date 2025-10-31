@@ -302,7 +302,7 @@ export const useFileUpload = (documents: DocumentEnhanced[] = []) => {
 
       if (result.error) {
         // Handle specific error types
-        const error = result.error as any;
+        const error = result.error as { status?: number; data?: { message?: string } };
         const errorMessage = error?.status === 404 
           ? 'Document not found or has been deleted'
           : error?.status === 403
