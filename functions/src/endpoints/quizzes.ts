@@ -8,7 +8,7 @@ import {
   GetQuizResponse,
   ApiResponse,
   Quiz
-} from "../../libs/shared-types/src/index";
+} from "@shared-types";
 
 // Define secrets
 const geminiApiKey = defineSecret("GEMINI_API_KEY");

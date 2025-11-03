@@ -1,7 +1,7 @@
 /* eslint-disable no-misleading-character-class */
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as functions from 'firebase-functions';
-import { ScrapedContent, QuizFollowupContext, IFileContent } from '../../../libs/shared-types/src/index';
+import { ScrapedContent, QuizFollowupContext, IFileContent } from '@shared-types';
 import { JsonSanitizer } from './json-sanitizer';
 import { QuizPromptBuilder, FollowupPromptBuilder, DocumentPromptBuilder } from './prompt-builder';
 import { buildPromptWithContextFiles, validateContextFiles, estimateContextTokens } from './prompt-builder/withContextFiles';

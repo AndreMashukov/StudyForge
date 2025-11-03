@@ -3,6 +3,7 @@
   "compilerOptions": {
     "module": "commonjs",
     "outDir": "lib",
+    "rootDir": "src",
     "target": "es2017",
     "strict": false,
     "skipLibCheck": true,
@@ -10,7 +11,11 @@
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": "..",
+    "paths": {
+      "@shared-types": ["dist/out-tsc/libs/shared-types/src/index.d.ts"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "lib", "**/*.spec.ts"]

@@ -10,7 +10,7 @@ import {
   CreateDocumentRequest,
   DocumentSourceType,
   DocumentStatus,
-} from "../../libs/shared-types/src/index";
+} from "@shared-types";
 
 // Define secrets
 const geminiApiKey = defineSecret("GEMINI_API_KEY");

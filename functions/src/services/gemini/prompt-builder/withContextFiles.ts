@@ -5,7 +5,7 @@
  * approach for generating educational content with reference documents.
  */
 
-import { IFileContent } from '../../../../libs/shared-types/src/index';
+import { IFileContent } from '@shared-types';
 
 /**
  * Build comprehensive document generation prompt with context files

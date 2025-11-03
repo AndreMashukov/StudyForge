@@ -1,4 +1,4 @@
-import { QuizFollowupContext } from '../../../../libs/shared-types/src/index';
+import { QuizFollowupContext } from '@shared-types';
 
 /**
  * Followup Prompt Builder for Gemini AI

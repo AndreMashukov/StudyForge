@@ -86,3 +86,18 @@ export {
   getDocumentStats,
   getDocumentContent,
 } from "./endpoints/documents";
+
+// Export rules management functions
+export {
+  createRuleEndpoint as createRule,
+  getRuleEndpoint as getRule,
+  getRulesEndpoint as getRules,
+  updateRuleEndpoint as updateRule,
+  deleteRuleEndpoint as deleteRule,
+  attachRuleToDirectoryEndpoint as attachRuleToDirectory,
+  detachRuleFromDirectoryEndpoint as detachRuleFromDirectory,
+  getDirectoryRulesEndpoint as getDirectoryRules,
+  getApplicableRulesEndpoint as getApplicableRules,
+  formatRulesForPromptEndpoint as formatRulesForPrompt,
+  getRuleTagsEndpoint as getRuleTags,
+} from "./endpoints/rules";

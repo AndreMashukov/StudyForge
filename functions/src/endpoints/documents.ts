@@ -10,7 +10,7 @@ import {
   DocumentSourceType,
   DocumentStatus,
   GenerateFromPromptRequest,
-} from "../../libs/shared-types/src/index";
+} from "@shared-types";
 
 // Define the Gemini API key secret for markdown conversion
 const geminiApiKey = defineSecret("GEMINI_API_KEY");

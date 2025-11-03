@@ -3,7 +3,7 @@ import {
   Quiz, 
   QuizQuestion, 
   GeminiQuizResponse
-} from "../../libs/shared-types/src/index";
+} from "@shared-types";
 import * as functions from "firebase-functions";
 
 /**

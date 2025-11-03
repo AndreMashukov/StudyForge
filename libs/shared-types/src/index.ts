@@ -344,3 +344,145 @@ export interface AuthState {
   loading: boolean;
   error: string | null;
 }
+
+// Rules Feature Types
+export enum RuleApplicability {
+  SCRAPING = 'scraping',
+  UPLOAD = 'upload',
+  PROMPT = 'prompt',
+  QUIZ = 'quiz',
+  FOLLOWUP = 'followup',
+}
+
+export enum RuleColor {
+  RED = 'red',
+  ORANGE = 'orange',
+  YELLOW = 'yellow',
+  GREEN = 'green',
+  BLUE = 'blue',
+  INDIGO = 'indigo',
+  PURPLE = 'purple',
+  PINK = 'pink',
+  GRAY = 'gray',
+}
+
+export interface Directory {
+  id: string;
+  userId: string;
+  name: string;
+  path: string;
+  parentId: string | null;
+  ruleIds: string[]; // Denormalized for quick access
+  createdAt: Date | { toDate(): Date };
+  updatedAt: Date | { toDate(): Date };
+}
+
+export interface Rule {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  content: string; // Markdown content, max 10,000 chars
+  color: RuleColor;
+  tags: string[];
+  applicableTo: RuleApplicability[];
+  isDefault: boolean; // Auto-selected for operations
+  directoryIds: string[]; // Directories this rule is attached to
+  createdAt: Date | { toDate(): Date };
+  updatedAt: Date | { toDate(): Date };
+}
+
+// Rule API Types
+export interface CreateRuleRequest {
+  name: string;
+  description?: string;
+  content: string;
+  color: RuleColor;
+  tags: string[];
+  applicableTo: RuleApplicability[];
+  isDefault?: boolean;
+}
+
+export interface UpdateRuleRequest {
+  ruleId: string;
+  name?: string;
+  description?: string;
+  content?: string;
+  color?: RuleColor;
+  tags?: string[];
+  applicableTo?: RuleApplicability[];
+  isDefault?: boolean;
+}
+
+export interface DeleteRuleRequest {
+  ruleId: string;
+}
+
+export interface DeleteRuleResponse {
+  success: boolean;
+  error?: string; // Error message if rule is attached to directories
+}
+
+export interface AttachRuleToDirectoryRequest {
+  ruleId: string;
+  directoryId: string;
+}
+
+export interface DetachRuleFromDirectoryRequest {
+  ruleId: string;
+  directoryId: string;
+}
+
+export interface GetDirectoryRulesRequest {
+  directoryId: string;
+  includeAncestors?: boolean; // For cascading
+}
+
+export interface GetDirectoryRulesResponse {
+  rules: Rule[];
+  inheritanceMap: {
+    [directoryId: string]: Rule[];
+  };
+}
+
+export interface GetApplicableRulesRequest {
+  directoryId: string;
+  operation: RuleApplicability;
+}
+
+export interface GetApplicableRulesResponse {
+  rules: Rule[];
+}
+
+export interface FormatRulesForPromptRequest {
+  ruleIds: string[];
+}
+
+export interface FormatRulesForPromptResponse {
+  formattedRules: string;
+}
+
+export interface GetRulesResponse {
+  rules: Rule[];
+}
+
+export interface GetRuleResponse {
+  rule: Rule;
+}
+
+export interface CreateRuleResponse {
+  ruleId: string;
+  rule: Rule;
+}
+
+export interface UpdateRuleResponse {
+  rule: Rule;
+}
+
+export interface AttachRuleResponse {
+  success: boolean;
+}
+
+export interface DetachRuleResponse {
+  success: boolean;
+}
