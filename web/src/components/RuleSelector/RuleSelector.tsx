@@ -3,6 +3,7 @@ import { RotateCcw, Settings } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { useGetApplicableRulesQuery } from "../../store/api/Rules/rulesApi";
+import { RuleListSkeleton } from "../LoadingSkeletons";
 import { IRuleSelector } from "./IRuleSelector";
 import { cn } from "../../lib/utils";
 
@@ -46,8 +47,11 @@ export const RuleSelector = ({
 
   if (isLoading) {
     return (
-      <div className="border rounded-lg p-4">
-        <p className="text-sm text-muted-foreground">Loading rules...</p>
+      <div className={cn("border rounded-lg", compact ? "p-3" : "p-4")}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium">📋 Rules</h3>
+        </div>
+        <RuleListSkeleton count={compact ? 2 : 3} />
       </div>
     );
   }

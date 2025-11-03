@@ -3,6 +3,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { DocumentCrudService } from '../services/document-crud';
 import { GeminiService } from '../services/gemini/gemini';
+import { promptBuilder } from '../services/promptBuilder';
 import { 
   GenerateFollowupRequest, 
   GenerateFollowupResponse,
@@ -45,6 +46,7 @@ export const generateQuizFollowup = onCall(
         userId,
         documentId: data.documentId,
         questionLength: data.questionText?.length,
+        followupRuleCount: data.followupRuleIds?.length || 0,
       });
 
       // Validate request
@@ -71,6 +73,19 @@ export const generateQuizFollowup = onCall(
           title: data.quizTitle || `Quiz from ${originalDocument.title}`,
         },
       };
+
+      // Inject followup rules if provided
+      if (data.followupRuleIds && data.followupRuleIds.length > 0) {
+        logger.info('Injecting followup rules into context', { 
+          ruleCount: data.followupRuleIds.length,
+        });
+        const baseFollowupPrompt = 'Generate a detailed followup explanation for this quiz question.';
+        followupContext.customInstructions = await promptBuilder.injectRules(
+          baseFollowupPrompt,
+          data.followupRuleIds,
+          userId
+        );
+      }
 
       // Generate followup content with Gemini
       const followupContent = await GeminiService.generateQuizFollowup(followupContext);

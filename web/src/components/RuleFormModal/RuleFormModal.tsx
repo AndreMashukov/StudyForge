@@ -18,6 +18,8 @@ import {
   useCreateRuleMutation,
   useUpdateRuleMutation,
 } from "../../store/api/Rules/rulesApi";
+import { RuleFormSkeleton } from "../LoadingSkeletons";
+import { useToast } from "../Toast";
 import { IRuleFormModal } from "./IRuleFormModal";
 import { RuleApplicability, RuleColor, CreateRuleRequest } from "@shared-types";
 import { cn } from "../../lib/utils";
@@ -48,6 +50,7 @@ export const RuleFormModal = ({
   onSuccess,
 }: IRuleFormModal) => {
   const isEditMode = !!ruleId;
+  const { showToast } = useToast();
 
   // Fetch existing rule for edit mode
   const { data: existingRule } = useGetRuleQuery(ruleId!, {
@@ -121,6 +124,7 @@ export const RuleFormModal = ({
           }
         });
         setErrors(fieldErrors);
+        showToast("Please fix validation errors before submitting", "error");
         return;
       }
     }
@@ -131,15 +135,19 @@ export const RuleFormModal = ({
           ruleId,
           ...formData,
         }).unwrap();
+        showToast(`Rule "${formData.name}" updated successfully`, "success");
         onSuccess?.(updatedRule);
       } else {
         const newRule = await createRule(formData as CreateRuleRequest).unwrap();
+        showToast(`Rule "${formData.name}" created successfully`, "success");
         onSuccess?.(newRule);
       }
       onClose();
     } catch (error) {
       console.error("Failed to save rule:", error);
-      setErrors({ submit: "Failed to save rule. Please try again." });
+      const errorMessage = `Failed to ${isEditMode ? "update" : "create"} rule. Please try again.`;
+      setErrors({ submit: errorMessage });
+      showToast(errorMessage, "error");
     }
   };
 
@@ -184,6 +192,9 @@ export const RuleFormModal = ({
     { value: RuleColor.GRAY, label: "Gray", class: "bg-gray-500" },
   ];
 
+  // Loading state for edit mode
+  const isLoadingRule = isEditMode && !existingRule && open;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -193,8 +204,13 @@ export const RuleFormModal = ({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <DialogBody className="space-y-6">
+        {isLoadingRule ? (
+          <DialogBody>
+            <RuleFormSkeleton />
+          </DialogBody>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <DialogBody className="space-y-6">
             {/* Rule Name */}
             <div className="space-y-2">
               <Label htmlFor="name">
@@ -409,6 +425,10 @@ export const RuleFormModal = ({
                 : isEditMode
                 ? "Update Rule"
                 : "Create Rule"}
+            </Button>
+          </DialogFooter>
+        </form>
+        )}
             </Button>
           </DialogFooter>
         </form>

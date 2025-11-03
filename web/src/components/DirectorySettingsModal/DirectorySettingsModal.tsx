@@ -24,6 +24,7 @@ import {
 } from "../../store/api/Rules/rulesApi";
 import { AttachRuleModal } from "../AttachRuleModal";
 import { RuleFormModal } from "../RuleFormModal";
+import { useToast } from "../Toast";
 import { IDirectorySettingsModal } from "./IDirectorySettingsModal";
 import { Rule, RuleApplicability } from "@shared-types";
 import { cn } from "../../lib/utils";
@@ -33,6 +34,7 @@ export const DirectorySettingsModal = ({
   open,
   onClose,
 }: IDirectorySettingsModal) => {
+  const { showToast } = useToast();
   const [attachModalOpen, setAttachModalOpen] = useState(false);
   const [editRuleId, setEditRuleId] = useState<string | null>(null);
   const [createRuleModalOpen, setCreateRuleModalOpen] = useState(false);
@@ -50,14 +52,16 @@ export const DirectorySettingsModal = ({
     useDetachRuleFromDirectoryMutation();
   const [updateRule, { isLoading: isUpdating }] = useUpdateRuleMutation();
 
-  const handleDetach = async (ruleId: string) => {
+  const handleDetach = async (ruleId: string, ruleName: string) => {
     try {
       await detachRule({
         ruleId,
         directoryId: directory.id,
       }).unwrap();
+      showToast(`Rule "${ruleName}" detached from "${directory.name}"`, "success");
     } catch (error) {
       console.error("Failed to detach rule:", error);
+      showToast("Failed to detach rule. Please try again.", "error");
     }
   };
 
@@ -67,8 +71,13 @@ export const DirectorySettingsModal = ({
         ruleId: rule.id,
         isDefault: !rule.isDefault,
       }).unwrap();
+      showToast(
+        `Rule "${rule.name}" ${!rule.isDefault ? "set as" : "removed from"} default`,
+        "success"
+      );
     } catch (error) {
       console.error("Failed to toggle default:", error);
+      showToast("Failed to update default status. Please try again.", "error");
     }
   };
 
@@ -209,7 +218,7 @@ export const DirectorySettingsModal = ({
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            onClick={() => handleDetach(rule.id)}
+                            onClick={() => handleDetach(rule.id, rule.name)}
                             disabled={isDetaching}
                             className="text-destructive"
                           >

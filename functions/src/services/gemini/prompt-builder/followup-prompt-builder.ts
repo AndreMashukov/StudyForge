@@ -13,7 +13,8 @@ export class FollowupPromptBuilder {
    * Build comprehensive followup explanation prompt
    */
   static buildFollowupPrompt(context: QuizFollowupContext): string {
-    return `You are an expert educator creating comprehensive followup explanations for quiz questions. 
+    // Base prompt components
+    const basePrompt = `You are an expert educator creating comprehensive followup explanations for quiz questions. 
 
 ORIGINAL DOCUMENT CONTEXT:
 Title: "${context.originalDocument.title}"
@@ -101,5 +102,12 @@ CONTENT STRUCTURE:
 - This is critical for proper markdown rendering
 
 Generate comprehensive, educational markdown content that helps the learner deeply understand the topic.`;
+
+    // If custom instructions are provided (from rules), prepend them
+    if (context.customInstructions) {
+      return `${context.customInstructions}\n\n${basePrompt}`;
+    }
+
+    return basePrompt;
   }
 }

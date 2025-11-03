@@ -84,6 +84,8 @@ export interface GenerateQuizRequest {
   documentId: string;
   quizName?: string; // Optional custom name, defaults to "Quiz from [Document Title]"
   additionalPrompt?: string; // Optional additional instructions for quiz generation
+  quizRuleIds?: string[]; // Optional rule IDs for quiz generation
+  followupRuleIds?: string[]; // Optional rule IDs for followup generation
 }
 
 export interface GenerateQuizResponse {
@@ -308,6 +310,7 @@ export interface GenerateFollowupRequest {
   correctAnswer?: string;
   questionOptions?: string[];
   quizTitle?: string;
+  followupRuleIds?: string[]; // Optional rule IDs for followup generation
 }
 
 export interface GenerateFollowupResponse {
@@ -330,6 +333,7 @@ export interface QuizFollowupContext {
   quiz: {
     title: string;
   };
+  customInstructions?: string; // Optional custom rules/instructions to inject
 }
 
 // Auth Types

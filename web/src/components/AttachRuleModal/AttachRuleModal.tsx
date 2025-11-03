@@ -15,6 +15,7 @@ import {
   useGetRulesQuery,
   useAttachRuleToDirectoryMutation,
 } from "../../store/api/Rules/rulesApi";
+import { useToast } from "../Toast";
 import { IAttachRuleModal } from "./IAttachRuleModal";
 import { Rule, RuleApplicability } from "@shared-types";
 import { cn } from "../../lib/utils";
@@ -25,6 +26,7 @@ export const AttachRuleModal = ({
   onClose,
   onCreateNew,
 }: IAttachRuleModal) => {
+  const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
   const [filterApplicability, setFilterApplicability] =
@@ -72,10 +74,16 @@ export const AttachRuleModal = ({
           directoryId: directory.id,
         }).unwrap();
       }
+      const count = selectedRuleIds.length;
+      showToast(
+        `Successfully attached ${count} rule${count > 1 ? "s" : ""} to "${directory.name}"`,
+        "success"
+      );
       setSelectedRuleIds([]);
       onClose();
     } catch (error) {
       console.error("Failed to attach rules:", error);
+      showToast("Failed to attach rules. Please try again.", "error");
     }
   };
 
