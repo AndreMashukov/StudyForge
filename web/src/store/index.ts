@@ -7,7 +7,6 @@ import documentsPageReducer from './slices/documentsPageSlice';
 import documentViewerPageReducer from './slices/documentViewerPageSlice';
 import createDocumentPageReducer from './slices/createDocumentPageSlice';
 import rulesReducer from './slices/rulesSlice';
-import directoryReducer from './slices/directorySlice';
 
 export const store = configureStore({
   reducer: {
@@ -18,7 +17,6 @@ export const store = configureStore({
     documentViewerPage: documentViewerPageReducer,
     createDocumentPage: createDocumentPageReducer,
     rules: rulesReducer,
-    directory: directoryReducer,
     [baseApi.reducerPath]: baseApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
