@@ -8,6 +8,17 @@
  * - API endpoints: generateQuiz and getQuiz
  */
 
+// Register TypeScript path mappings for runtime module resolution
+import { register } from "tsconfig-paths";
+import { resolve } from "path";
+
+register({
+  baseUrl: resolve(__dirname, "../../../"), // Resolve to workspace root (functions/lib/src -> workspace root)
+  paths: {
+    "@shared-types": ["dist/out-tsc/libs/shared-types/src/index.js"],
+  },
+});
+
 import { setGlobalOptions } from "firebase-functions";
 import { onRequest } from "firebase-functions/v2/https";
 
