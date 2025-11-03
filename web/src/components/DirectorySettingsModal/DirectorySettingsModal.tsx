@@ -23,6 +23,7 @@ import {
   useUpdateRuleMutation,
 } from "../../store/api/Rules/rulesApi";
 import { AttachRuleModal } from "../AttachRuleModal";
+import { RuleFormModal } from "../RuleFormModal";
 import { IDirectorySettingsModal } from "./IDirectorySettingsModal";
 import { Rule, RuleApplicability } from "@shared-types";
 import { cn } from "../../lib/utils";
@@ -34,6 +35,7 @@ export const DirectorySettingsModal = ({
 }: IDirectorySettingsModal) => {
   const [attachModalOpen, setAttachModalOpen] = useState(false);
   const [editRuleId, setEditRuleId] = useState<string | null>(null);
+  const [createRuleModalOpen, setCreateRuleModalOpen] = useState(false);
 
   // Fetch rules directly attached to this directory (not cascading)
   const { data: rulesData, isLoading } = useGetDirectoryRulesQuery(
@@ -72,7 +74,6 @@ export const DirectorySettingsModal = ({
 
   const handleEditRule = (ruleId: string) => {
     setEditRuleId(ruleId);
-    // TODO: Open RuleFormModal with existing rule data
   };
 
   const getApplicabilityBadges = (applicableTo: RuleApplicability[]) => {
@@ -269,8 +270,30 @@ export const DirectorySettingsModal = ({
         onClose={() => setAttachModalOpen(false)}
         onCreateNew={() => {
           setAttachModalOpen(false);
-          // TODO: Open RuleFormModal for creating new rule
-          console.log("Create new rule");
+          setCreateRuleModalOpen(true);
+        }}
+      />
+
+      {/* Edit Rule Modal */}
+      {editRuleId && (
+        <RuleFormModal
+          ruleId={editRuleId}
+          open={!!editRuleId}
+          onClose={() => setEditRuleId(null)}
+          onSuccess={() => {
+            setEditRuleId(null);
+            // Rules will auto-refresh via RTK Query cache invalidation
+          }}
+        />
+      )}
+
+      {/* Create New Rule Modal */}
+      <RuleFormModal
+        open={createRuleModalOpen}
+        onClose={() => setCreateRuleModalOpen(false)}
+        onSuccess={() => {
+          setCreateRuleModalOpen(false);
+          // Rules will auto-refresh via RTK Query cache invalidation
         }}
       />
     </>
