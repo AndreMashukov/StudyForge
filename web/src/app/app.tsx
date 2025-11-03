@@ -15,6 +15,7 @@ import { DocumentsPage } from '../pages/DocumentsPage';
 import { CreateDocumentPage } from '../pages/CreateDocumentPage';
 import { DocumentViewerPage } from '../pages/DocumentViewerPage';
 import { MyQuizzesPage } from '../pages/MyQuizzesPage';
+import { RulesPage } from '../pages/RulesPage';
 import { Page } from '../components/Page';
 
 export function App() {
@@ -163,6 +164,18 @@ const AppContent = () => {
                   </div>
                 </div>
               </Page>
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+
+      {/* Rules Management Route */}
+      <Route 
+        path="/rules" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <RulesPage />
             </ProtectedRoute>
           </MainLayout>
         } 

@@ -429,9 +429,6 @@ export const RuleFormModal = ({
           </DialogFooter>
         </form>
         )}
-            </Button>
-          </DialogFooter>
-        </form>
       </DialogContent>
     </Dialog>
   );

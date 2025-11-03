@@ -14,7 +14,8 @@ import {
   BarChart3,
   FolderOpen,
   Plus,
-  Brain
+  Brain,
+  Sparkles
 } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
@@ -79,6 +80,19 @@ const sidebarSections: SidebarSection[] = [
         title: 'Results',
         path: '/quizzes/results',
         icon: BarChart3,
+      },
+    ],
+  },
+  {
+    id: 'rules',
+    title: 'AI Rules',
+    icon: Sparkles,
+    items: [
+      {
+        id: 'rules-manager',
+        title: 'Rules Manager',
+        path: '/rules',
+        icon: Sparkles,
       },
     ],
   },
