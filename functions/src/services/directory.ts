@@ -81,6 +81,7 @@ export class DirectoryService {
       icon: request.icon,
       documentCount: 0,
       childCount: 0,
+      ruleIds: [],
       createdAt: now,
       updatedAt: now,
     };

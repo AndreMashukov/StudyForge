@@ -6,6 +6,7 @@ import {
   DocumentMetadataEnhanced as DocumentMetadata, 
   CreateDocumentRequest, 
   UpdateDocumentRequest,
+  MoveDocumentRequest,
   DocumentSourceType,
   DocumentStatus,
 } from "@shared-types";
