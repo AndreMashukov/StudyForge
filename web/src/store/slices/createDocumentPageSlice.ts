@@ -8,6 +8,7 @@ export interface ICreateDocumentPageState {
   isFormVisible: boolean;
   isAnimating: boolean;
   error: string | null;
+  directoryId: string | null; // 🆕 Directory to place new document in
   
   // Form-specific states
   urlForm: {
@@ -32,6 +33,7 @@ const initialState: ICreateDocumentPageState = {
   isFormVisible: false,
   isAnimating: false,
   error: null,
+  directoryId: null, // 🆕 Initialize directoryId
   urlForm: {
     isLoading: false,
   },
@@ -163,6 +165,9 @@ const createDocumentPageSlice = createSlice({
       state.isFormVisible = false;
       state.isAnimating = false;
     },
+    setDirectoryId: (state, action: PayloadAction<string | null>) => {
+      state.directoryId = action.payload;
+    },
     resetCreateDocumentPage: (state) => {
       return initialState;
     },
@@ -188,6 +193,7 @@ export const {
   setDocumentSelectorLoading,
   clearDocumentSelections,
   clearSelection,
+  setDirectoryId,
   resetCreateDocumentPage,
 } = createDocumentPageSlice.actions;
 
@@ -200,6 +206,8 @@ export const selectIsAnimating = (state: { createDocumentPage: ICreateDocumentPa
   state.createDocumentPage.isAnimating;
 export const selectCreateDocumentPageError = (state: { createDocumentPage: ICreateDocumentPageState }) => 
   state.createDocumentPage.error;
+export const selectDirectoryId = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.directoryId;
 export const selectUrlFormLoading = (state: { createDocumentPage: ICreateDocumentPageState }) => 
   state.createDocumentPage.urlForm.isLoading;
 export const selectFileFormLoading = (state: { createDocumentPage: ICreateDocumentPageState }) => 

@@ -22,6 +22,7 @@ import {
   selectFileFormLoading,
   selectTextPromptFormLoading,
   selectTextPromptFormProgress,
+  selectDirectoryId,
   clearFiles,
 } from '../../../../store/slices/createDocumentPageSlice';
 import type { RootState } from '../../../../store';
@@ -36,6 +37,7 @@ export const useCreateDocumentPageHandlers = () => {
   const isFileLoading = useSelector((state: RootState) => selectFileFormLoading(state));
   const isTextPromptLoading = useSelector((state: RootState) => selectTextPromptFormLoading(state));
   const textPromptProgress = useSelector((state: RootState) => selectTextPromptFormProgress(state));
+  const directoryId = useSelector((state: RootState) => selectDirectoryId(state)); // 🆕 Get directoryId from state
   
   const [createDocumentFromUrl] = useCreateDocumentFromUrlMutation();
   const [createDocument] = useCreateDocumentMutation();
@@ -55,6 +57,7 @@ export const useCreateDocumentPageHandlers = () => {
       const result = await createDocumentFromUrl({
         url: data.url,
         title: data.title,
+        directoryId: directoryId || undefined, // 🆕 Pass directoryId to API
       }).unwrap();
       
       // Phase 2.2: Redirect to documents page with generation option
@@ -65,7 +68,7 @@ export const useCreateDocumentPageHandlers = () => {
     } finally {
       dispatch(setUrlFormLoading(false));
     }
-  }, [createDocumentFromUrl, navigate, dispatch]);
+  }, [createDocumentFromUrl, navigate, dispatch, directoryId]);
 
   const handleCreateFromFile = useCallback(async (data: IFileUploadFormData) => {
     try {
@@ -84,6 +87,7 @@ export const useCreateDocumentPageHandlers = () => {
         title: data.title || data.file.name.replace(/\.md$/, ''),
         content,
         sourceType: DocumentSourceType.UPLOAD,
+        directoryId: directoryId || undefined, // 🆕 Pass directoryId to API
       }).unwrap();
       
       // Navigate to the created document
@@ -94,7 +98,7 @@ export const useCreateDocumentPageHandlers = () => {
     } finally {
       dispatch(setFileFormLoading(false));
     }
-  }, [createDocument, navigate, dispatch]);
+  }, [createDocument, navigate, dispatch, directoryId]);
 
   const handleCreateFromTextPrompt = useCallback(async (
     data: ITextPromptFormData,
@@ -129,6 +133,7 @@ export const useCreateDocumentPageHandlers = () => {
       const result = await generateFromPrompt({
         prompt: data.prompt,
         files: files.length > 0 ? files : undefined,
+        directoryId: directoryId || null, // 🆕 Pass directoryId to API
       }).unwrap();
       
       if (progressInterval) {
@@ -141,9 +146,9 @@ export const useCreateDocumentPageHandlers = () => {
       
       // Navigate to the created document
       navigate(`/document/${result.documentId}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error generating document from prompt:', err);
-      const errorMessage = err?.data?.message || 'Failed to generate document. Please try again.';
+      const errorMessage = (err as { data?: { message?: string } })?.data?.message || 'Failed to generate document. Please try again.';
       dispatch(setError(errorMessage));
       // Don't clear files on error - keep them for retry
     } finally {
@@ -153,7 +158,7 @@ export const useCreateDocumentPageHandlers = () => {
       dispatch(setTextPromptFormLoading(false));
       dispatch(setTextPromptFormProgress(0));
     }
-  }, [generateFromPrompt, navigate, dispatch]);
+  }, [generateFromPrompt, navigate, dispatch, directoryId]);
 
   return {
     handleGoBack,

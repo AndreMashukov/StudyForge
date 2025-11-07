@@ -13,7 +13,7 @@ import { calculateTokenCount } from './fileUploadUtils';
  * This function is a helper for type checking and processing
  */
 export async function fetchDocumentContent(
-  fetchContentFn: (documentId: string) => Promise<{ data?: { content: string }; error?: any }>,
+  fetchContentFn: (documentId: string) => Promise<{ data?: { content: string }; error?: { message?: string } }>,
   documentId: string
 ): Promise<string> {
   try {

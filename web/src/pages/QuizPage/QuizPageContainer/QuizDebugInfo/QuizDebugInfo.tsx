@@ -99,7 +99,9 @@ export const QuizDebugInfo: React.FC = () => {
       </div>
       
       <div className="mt-4 p-2 bg-primary/10 rounded text-xs">
-        <h4 className="font-medium mb-1">✅ Architecture Rules Followed:</h4>
+        <h4 className="font-medium mb-1">
+          <span role="img" aria-label="checkmark">✅</span> Architecture Rules Followed:
+        </h4>
         <ul className="space-y-1 text-primary">
           <li>• Components access Redux state directly with useSelector</li>
           <li>• Context provides only handlers and API objects</li>

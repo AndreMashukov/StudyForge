@@ -61,9 +61,107 @@ export interface DocumentEnhanced {
   storageUrl: string;
   storagePath: string;
   tags: string[];
+  directoryId?: string; // Optional directory reference
   createdAt: Date | { toDate(): Date }; // Can be Date or Firestore Timestamp
   updatedAt: Date | { toDate(): Date }; // Can be Date or Firestore Timestamp
 }
+
+// Directory Types
+export interface Directory {
+  id: string;
+  userId: string;
+  name: string;
+  parentId: string | null; // null for root directories
+  path: string; // Computed path for breadcrumb navigation (e.g., "/Projects/Web")
+  level: number; // Tree depth level (0 for root)
+  color?: string; // Optional color for visual organization
+  icon?: string; // Optional icon name
+  documentCount: number; // Cached count of documents in this directory
+  childCount: number; // Cached count of child directories
+  createdAt: Date | { toDate(): Date };
+  updatedAt: Date | { toDate(): Date };
+}
+
+// Directory Tree Node for UI rendering
+export interface DirectoryTreeNode {
+  directory: Directory;
+  children: DirectoryTreeNode[];
+  isExpanded?: boolean;
+  isSelected?: boolean;
+}
+
+// Directory API Request Types
+export interface CreateDirectoryRequest {
+  name: string;
+  parentId?: string | null;
+  color?: string;
+  icon?: string;
+}
+
+export interface UpdateDirectoryRequest {
+  name?: string;
+  color?: string;
+  icon?: string;
+}
+
+export interface MoveDirectoryRequest {
+  targetParentId: string | null;
+}
+
+export interface MoveDocumentRequest {
+  targetDirectoryId: string | null;
+}
+
+// Directory API Response Types
+export interface CreateDirectoryResponse {
+  directoryId: string;
+  directory: Directory;
+}
+
+export interface GetDirectoryResponse {
+  directory: Directory;
+}
+
+export interface GetDirectoryTreeResponse {
+  tree: DirectoryTreeNode[];
+  totalDirectories: number;
+}
+
+export interface GetDirectoryContentsResponse {
+  directory: Directory;
+  subdirectories: Directory[];
+  documents: DocumentEnhanced[];
+  totalCount: number;
+}
+
+export interface GetDirectoryAncestorsResponse {
+  ancestors: Directory[];
+}
+
+export interface MoveDirectoryResponse {
+  directory: Directory;
+  affectedDescendants: number;
+}
+
+export interface DeleteDirectoryResponse {
+  success: boolean;
+  deletedDocumentCount: number;
+  deletedDirectoryCount: number;
+}
+
+// Directory Validation Types
+export interface DirectoryValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+// Directory Constants
+export const DIRECTORY_CONSTRAINTS = {
+  MAX_NAME_LENGTH: 100,
+  MAX_DEPTH: 10,
+  MAX_CHILDREN: 500,
+  RESERVED_NAMES: ['root', 'system', 'admin'],
+} as const;
 
 // Document metadata for UI display
 export interface DocumentMetadata {
@@ -118,6 +216,7 @@ export interface CreateDocumentRequest {
   sourceUrl?: string;
   status?: DocumentStatus;
   tags?: string[];
+  directoryId?: string; // Optional directory placement
 }
 
 export interface UpdateDocumentRequest {
@@ -156,6 +255,7 @@ export interface DocumentMetadataEnhanced {
 export interface CreateDocumentFromUrlRequest {
   url: string;
   title?: string; // Optional override for document title
+  directoryId?: string; // Optional directory placement
 }
 
 export interface UploadDocumentRequest {
@@ -177,6 +277,7 @@ export interface IFileContent {
 export interface GenerateFromPromptRequest {
   prompt: string; // User's text prompt (max 10000 characters)
   files?: IFileContent[]; // Optional reference documents (max 5 files)
+  directoryId?: string | null; // Optional directory to place the generated document
 }
 
 export interface GenerateFromPromptResponse {

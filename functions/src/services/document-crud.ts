@@ -1,4 +1,4 @@
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { DocumentService } from './document-storage';
 import { 
@@ -73,6 +73,7 @@ export class DocumentCrudService {
         storageUrl: storageFile.downloadUrl,
         storagePath: storageFile.path,
         tags: request.tags || [],
+        directoryId: request.directoryId || null,
         createdAt: Timestamp.fromDate(metadata.createdAt),
         updatedAt: Timestamp.fromDate(metadata.updatedAt),
       };
@@ -80,10 +81,16 @@ export class DocumentCrudService {
       // Save to Firestore
       await docRef.set(document);
 
+      // Update directory document count if document is in a directory
+      if (request.directoryId) {
+        await this.updateDirectoryDocumentCount(request.directoryId, 1);
+      }
+
       logger.info('Document created successfully', { 
         userId, 
         documentId,
         title: document.title,
+        directoryId: request.directoryId,
       });
 
       return document;
@@ -271,7 +278,7 @@ export class DocumentCrudService {
   }
 
   /**
-changes   * Delete a document (both metadata and content) and all associated quizzes
+   * Delete a document (both metadata and content) and all associated quizzes
    * @param userId - The authenticated user's ID
    * @param documentId - The document identifier
    */
@@ -279,8 +286,8 @@ changes   * Delete a document (both metadata and content) and all associated qui
     try {
       logger.info('Deleting document', { userId, documentId });
 
-      // Verify ownership first
-      await this.getDocument(userId, documentId);
+      // Get document first to check directory
+      const document = await this.getDocument(userId, documentId);
 
       // Delete all associated quizzes first
       try {
@@ -318,6 +325,11 @@ changes   * Delete a document (both metadata and content) and all associated qui
         // Continue with document deletion even if quiz deletion fails
       }
 
+      // Update directory document count if document was in a directory
+      if (document.directoryId) {
+        await this.updateDirectoryDocumentCount(document.directoryId, -1);
+      }
+
       // Delete content from storage
       await DocumentService.deleteDocument(userId, documentId);
 
@@ -325,7 +337,11 @@ changes   * Delete a document (both metadata and content) and all associated qui
       const docRef = this.db.collection(this.COLLECTION_NAME).doc(documentId);
       await docRef.delete();
 
-      logger.info('Document deleted successfully', { userId, documentId });
+      logger.info('Document deleted successfully', { 
+        userId, 
+        documentId,
+        directoryId: document.directoryId,
+      });
     } catch (error) {
       logger.error('Failed to delete document', {
         userId,
@@ -350,6 +366,7 @@ changes   * Delete a document (both metadata and content) and all associated qui
       sourceType?: DocumentSourceType;
       status?: DocumentStatus;
       tags?: string[];
+      directoryId?: string | null; // Filter by directory, null for root documents
       sortBy?: 'createdAt' | 'updatedAt' | 'title';
       sortOrder?: 'asc' | 'desc';
     } = {}
@@ -362,6 +379,7 @@ changes   * Delete a document (both metadata and content) and all associated qui
           sourceType: options.sourceType,
           status: options.status,
           tagsCount: options.tags?.length,
+          directoryId: options.directoryId,
         },
       });
 
@@ -380,6 +398,11 @@ changes   * Delete a document (both metadata and content) and all associated qui
 
       if (options.tags && options.tags.length > 0) {
         query = query.where('tags', 'array-contains-any', options.tags);
+      }
+
+      // Filter by directory
+      if (options.directoryId !== undefined) {
+        query = query.where('directoryId', '==', options.directoryId);
       }
 
       // Apply sorting
@@ -428,6 +451,7 @@ changes   * Delete a document (both metadata and content) and all associated qui
         count: documents.length,
         total,
         hasMore,
+        directoryId: options.directoryId,
       });
 
       return {
@@ -613,5 +637,88 @@ changes   * Delete a document (both metadata and content) and all associated qui
       throw new Error('Unauthorized: Document belongs to different user');
     }
     return true;
+  }
+
+  /**
+   * Move a document to a different directory
+   * @param userId - The authenticated user's ID
+   * @param documentId - The document identifier
+   * @param request - Move request with target directory ID
+   * @returns The updated document
+   */
+  static async moveDocument(
+    userId: string,
+    documentId: string,
+    request: MoveDocumentRequest
+  ): Promise<Document> {
+    try {
+      logger.info('Moving document', { 
+        userId, 
+        documentId,
+        targetDirectoryId: request.targetDirectoryId,
+      });
+
+      // Get current document
+      const currentDocument = await this.getDocument(userId, documentId);
+      const docRef = this.db.collection(this.COLLECTION_NAME).doc(documentId);
+
+      // Update old directory document count
+      if (currentDocument.directoryId) {
+        await this.updateDirectoryDocumentCount(currentDocument.directoryId, -1);
+      }
+
+      // Update document
+      await docRef.update({
+        directoryId: request.targetDirectoryId || null,
+        updatedAt: Timestamp.now(),
+      });
+
+      // Update new directory document count
+      if (request.targetDirectoryId) {
+        await this.updateDirectoryDocumentCount(request.targetDirectoryId, 1);
+      }
+
+      // Get updated document
+      const updatedDocument = await this.getDocument(userId, documentId);
+
+      logger.info('Document moved successfully', { 
+        userId, 
+        documentId,
+        fromDirectoryId: currentDocument.directoryId,
+        toDirectoryId: request.targetDirectoryId,
+      });
+
+      return updatedDocument;
+    } catch (error) {
+      logger.error('Failed to move document', {
+        userId,
+        documentId,
+        targetDirectoryId: request.targetDirectoryId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(`Failed to move document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update directory document count
+   * @param directoryId - The directory identifier
+   * @param delta - The change in document count (+1 or -1)
+   */
+  private static async updateDirectoryDocumentCount(directoryId: string, delta: number): Promise<void> {
+    try {
+      const dirRef = this.db.collection('directories').doc(directoryId);
+      await dirRef.update({
+        documentCount: FieldValue.increment(delta),
+        updatedAt: Timestamp.now(),
+      });
+    } catch (error) {
+      logger.warn('Failed to update directory document count', {
+        directoryId,
+        delta,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Don't throw error - this is a non-critical operation
+    }
   }
 }

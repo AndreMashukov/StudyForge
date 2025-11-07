@@ -1,20 +1,30 @@
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { setSelectedDocumentId, setSearchQuery } from '../../../../store/slices/documentsPageSlice';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { setSelectedDocument, setSelectedDirectory, selectSelectedDirectoryId } from '../../../../store/slices/directorySlice';
 import { useDeleteDocument } from './api/useDeleteDocument';
+import type { RootState } from '../../../../store';
 
 export const useDocumentsPageHandlers = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { deleteDocument } = useDeleteDocument();
+  const [, setSearchParams] = useSearchParams();
+  
+  // Get current directory ID from Redux
+  const currentDirectoryId = useSelector((state: RootState) => selectSelectedDirectoryId(state));
 
   const handleCreateDocument = useCallback(() => {
-    navigate('/documents/create');
-  }, [navigate]);
+    // Pass directoryId as query parameter if one is selected
+    if (currentDirectoryId) {
+      navigate(`/documents/create?directoryId=${currentDirectoryId}`);
+    } else {
+      navigate('/documents/create');
+    }
+  }, [navigate, currentDirectoryId]);
 
   const handleViewDocument = useCallback((documentId: string) => {
-    dispatch(setSelectedDocumentId(documentId));
+    dispatch(setSelectedDocument(documentId));
     navigate(`/document/${documentId}`);
   }, [navigate, dispatch]);
 
@@ -32,15 +42,22 @@ export const useDocumentsPageHandlers = () => {
     }
   }, [deleteDocument]);
 
-  const handleSearchChange = useCallback((query: string) => {
-    dispatch(setSearchQuery(query));
-  }, [dispatch]);
+  const handleSelectDirectory = useCallback((directoryId: string | null) => {
+    dispatch(setSelectedDirectory(directoryId));
+    
+    // Update URL params
+    if (directoryId) {
+      setSearchParams({ directoryId });
+    } else {
+      setSearchParams({});
+    }
+  }, [dispatch, setSearchParams]);
 
   return {
     handleCreateDocument,
     handleViewDocument,
     handleDeleteDocument,
     handleCreateQuizFromDocument,
-    handleSearchChange,
+    handleSelectDirectory,
   };
 };
