@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Rule } from '@shared-types';
+import { Rule, RuleApplicability } from '@shared-types';
 import { RulesPageFilters } from '../../types/IRulesPageContext';
 
 export const useRulesPageFilters = (rules: Rule[] | undefined) => {
@@ -40,7 +40,7 @@ export const useRulesPageFilters = (rules: Rule[] | undefined) => {
       // Applicable to filter
       if (filters.applicableTo.length > 0) {
         const hasMatchingApplicability = filters.applicableTo.some(filterApp => 
-          rule.applicableTo.includes(filterApp as any)
+          rule.applicableTo.includes(filterApp as RuleApplicability)
         );
         if (!hasMatchingApplicability) return false;
       }

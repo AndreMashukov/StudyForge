@@ -53,7 +53,7 @@ export const RuleFormModal = ({
   const { showToast } = useToast();
 
   // Fetch existing rule for edit mode
-  const { data: existingRule } = useGetRuleQuery(ruleId!, {
+  const { data: existingRule } = useGetRuleQuery(ruleId ?? '', {
     skip: !isEditMode || !open,
   });
 
@@ -118,9 +118,9 @@ export const RuleFormModal = ({
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            fieldErrors[err.path[0] as string] = err.message;
+        error.issues.forEach((issue) => {
+          if (issue.path[0]) {
+            fieldErrors[issue.path[0] as string] = issue.message;
           }
         });
         setErrors(fieldErrors);
@@ -198,7 +198,7 @@ export const RuleFormModal = ({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader onClose={onClose}>
+        <DialogHeader>
           <DialogTitle>
             {isEditMode ? "Edit Rule" : "Create New Rule"}
           </DialogTitle>

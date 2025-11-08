@@ -26,21 +26,18 @@ export const useRulesPageHandlers = () => {
       const result = await deleteRule({ ruleId }).unwrap();
       
       if (result.success) {
-        showToast({
-          message: 'Rule deleted successfully',
-          type: 'success',
-        });
+        showToast('Rule deleted successfully', 'success');
       } else {
-        showToast({
-          message: result.error || 'Failed to delete rule',
-          type: 'error',
-        });
+        showToast(result.error || 'Failed to delete rule', 'error');
       }
-    } catch (error: any) {
-      showToast({
-        message: error?.data?.error || 'Failed to delete rule',
-        type: 'error',
-      });
+    } catch (error) {
+      const errorMessage = error && typeof error === 'object' && 'data' in error && 
+        typeof error.data === 'object' && error.data && 'error' in error.data && 
+        typeof error.data.error === 'string'
+        ? error.data.error 
+        : 'Failed to delete rule';
+      
+      showToast(errorMessage, 'error');
     }
   }, [deleteRule, showToast]);
 

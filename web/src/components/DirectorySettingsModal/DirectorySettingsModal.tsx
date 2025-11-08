@@ -129,8 +129,8 @@ export const DirectorySettingsModal = ({
     <>
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl">
-        <DialogHeader onClose={onClose}>
-          <DialogTitle>📁 Directory Settings: {directory.name}</DialogTitle>
+        <DialogHeader>
+          <DialogTitle><span role="img" aria-label="folder">📁</span> Directory Settings: {directory.name}</DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
             Path: {directory.path}
           </p>
@@ -151,7 +151,7 @@ export const DirectorySettingsModal = ({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">
-                📋 Rules ({rulesData?.rules.length || 0} attached)
+                <span role="img" aria-label="rules">📋</span> Rules ({rulesData?.rules.length || 0} attached)
               </h3>
               <Button
                 size="sm"
@@ -243,7 +243,7 @@ export const DirectorySettingsModal = ({
                     {/* Tags */}
                     {rule.tags.length > 0 && (
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-muted-foreground">🏷️</span>
+                        <span className="text-xs text-muted-foreground" role="img" aria-label="tags">🏷️</span>
                         {rule.tags.map((tag) => (
                           <Badge key={tag} variant="outline" className="text-xs">
                             {tag}

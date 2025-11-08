@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { RotateCcw, Settings } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
@@ -20,7 +20,7 @@ export const RuleSelector = ({
   });
 
   const rules = data?.rules || [];
-  const defaultRuleIds = data?.defaultRuleIds || [];
+  const defaultRuleIds = useMemo(() => data?.defaultRuleIds || [], [data?.defaultRuleIds]);
 
   // Initialize with default rules on first load
   useEffect(() => {
@@ -61,7 +61,7 @@ export const RuleSelector = ({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium flex items-center gap-2">
-          📋 Rules ({selectedRuleIds.length})
+          <span role="img" aria-label="rules">📋</span> Rules ({selectedRuleIds.length})
         </h3>
         <Button variant="ghost" size="sm" className="h-auto p-1">
           <Settings size={14} />
@@ -118,7 +118,7 @@ export const RuleSelector = ({
           ))
         ) : (
           <p className="text-sm text-muted-foreground text-center py-4">
-            No rules available for this operation
+            <span role="img" aria-label="info">📭</span> No rules available for this operation
           </p>
         )}
       </div>

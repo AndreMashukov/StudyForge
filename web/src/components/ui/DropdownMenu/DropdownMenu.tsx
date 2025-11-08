@@ -12,7 +12,10 @@ export const DropdownMenu = ({ children }: IDropdownMenu) => {
     <div className="relative inline-block">
       {React.Children.map(children, (child) => {
         if (React.isValidElement(child)) {
-          return React.cloneElement(child as React.ReactElement<any>, {
+          return React.cloneElement(child as React.ReactElement<{
+            open?: boolean;
+            setOpen?: (open: boolean) => void;
+          }>, {
             open,
             setOpen,
           });
@@ -41,7 +44,9 @@ export const DropdownMenuTrigger = ({
   };
 
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement<any>, {
+    return React.cloneElement(children as React.ReactElement<{
+      onClick?: () => void;
+    }>, {
       onClick: handleClick,
     });
   }

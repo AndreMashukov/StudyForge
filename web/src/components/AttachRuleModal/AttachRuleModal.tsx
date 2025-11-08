@@ -17,7 +17,7 @@ import {
 } from "../../store/api/Rules/rulesApi";
 import { useToast } from "../Toast";
 import { IAttachRuleModal } from "./IAttachRuleModal";
-import { Rule, RuleApplicability } from "@shared-types";
+import { RuleApplicability } from "@shared-types";
 import { cn } from "../../lib/utils";
 
 export const AttachRuleModal = ({
@@ -29,7 +29,7 @@ export const AttachRuleModal = ({
   const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
-  const [filterApplicability, setFilterApplicability] =
+  const [filterApplicability] =
     useState<RuleApplicability | null>(null);
 
   const { data: allRules, isLoading } = useGetRulesQuery(undefined, {
@@ -133,7 +133,7 @@ export const AttachRuleModal = ({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
-        <DialogHeader onClose={onClose}>
+        <DialogHeader>
           <DialogTitle>Attach Rules to {directory.name}</DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
             Select rules to attach to this directory
@@ -223,7 +223,7 @@ export const AttachRuleModal = ({
 
                   {rule.tags.length > 0 && (
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-muted-foreground">🏷️</span>
+                      <span className="text-xs text-muted-foreground" role="img" aria-label="tags">🏷️</span>
                       {rule.tags.map((tag) => (
                         <Badge key={tag} variant="outline" className="text-xs">
                           {tag}

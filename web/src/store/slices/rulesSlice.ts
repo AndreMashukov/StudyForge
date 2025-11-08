@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { RuleApplicability, RuleColor } from '../../../../libs/shared-types/src';
+import { RuleApplicability } from '@shared-types';
 
 interface RulesState {
   // Rule management

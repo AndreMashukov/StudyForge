@@ -11,7 +11,6 @@ import {
   GetDirectoryRulesResponse,
   GetApplicableRulesRequest,
   FormatRulesForPromptRequest,
-  RuleApplicability,
 } from '@shared-types';
 import { GetApplicableRulesWithDefaultsResponse } from './IRulesApi';
 

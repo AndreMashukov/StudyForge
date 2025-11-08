@@ -1,4 +1,4 @@
-import { Component, ErrorInfo, ReactNode } from "react";
+import { Component, ErrorInfo } from "react";
 import { Button } from "../ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
 import { IErrorBoundary } from "./IErrorBoundary";
@@ -67,7 +67,7 @@ export class ErrorBoundary extends Component<IErrorBoundary, IErrorBoundaryState
           <Card className="max-w-2xl w-full border-destructive">
             <CardHeader>
               <CardTitle className="text-destructive flex items-center gap-2">
-                <span className="text-2xl">⚠️</span>
+                <span className="text-2xl" role="img" aria-label="warning">⚠️</span>
                 Something went wrong
               </CardTitle>
             </CardHeader>
