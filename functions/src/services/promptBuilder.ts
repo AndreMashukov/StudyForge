@@ -1,7 +1,7 @@
 import * as logger from 'firebase-functions/logger';
 import { getRule, getRulesByIds } from './rule-crud';
 import { formatRulesForPrompt } from './rule-resolution';
-import { Rule } from '../../libs/shared-types/src/index';
+import { Rule } from "@shared-types";
 
 /**
  * PromptBuilder Service
