@@ -39,10 +39,12 @@ export const TextPromptForm = ({
   isLoadingDocuments,
 }: ITextPromptFormProps) => {
   const dispatch = useDispatch();
-  
+
   // Redux selectors
   const directoryId = useSelector((state: RootState) => selectDirectoryId(state));
   const selectedRuleIds = useSelector((state: RootState) => selectPromptRules(state));
+    
+  console.log('TextPromptForm render start', { directoryId, selectedRuleIds });
   
   console.log('TextPromptForm render', { directoryId, selectedRuleIds });
   

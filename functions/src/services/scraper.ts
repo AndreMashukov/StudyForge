@@ -5,6 +5,7 @@ import fetch from "node-fetch";
 import { ScrapedContent } from "@shared-types";
 import * as functions from "firebase-functions";
 import { GeminiService } from "./gemini/gemini";
+import { promptBuilder } from "./promptBuilder";
 
 /**
  * Web scraping service for extracting article content from URLs
@@ -17,11 +18,20 @@ export class WebScraperService {
   /**
    * Extract and convert content to clean markdown format
    * @param url - The URL to scrape
+   * @param ruleIds - Optional rule IDs to inject into markdown conversion prompt
+   * @param userId - User ID for rule resolution
    * @returns ScrapedContent with clean markdown formatting
    */
-  public static async extractContentAsMarkdown(url: string): Promise<ScrapedContent & { markdownContent: string }> {
+  public static async extractContentAsMarkdown(
+    url: string, 
+    ruleIds?: string[], 
+    userId?: string
+  ): Promise<ScrapedContent & { markdownContent: string }> {
     try {
-      functions.logger.info(`Scraping URL for markdown conversion: ${url}`);
+      functions.logger.info(`Scraping URL for markdown conversion: ${url}`, {
+        withRules: !!(ruleIds && ruleIds.length > 0),
+        ruleCount: ruleIds?.length || 0,
+      });
 
       // First extract raw content using existing method
       const rawContent = await this.extractContent(url);
@@ -29,7 +39,7 @@ export class WebScraperService {
       functions.logger.info(`Raw content extracted, converting to markdown...`);
 
       // Use Gemini to convert and clean the content to proper markdown
-      const markdownContent = await this.convertToMarkdown(rawContent);
+      const markdownContent = await this.convertToMarkdown(rawContent, ruleIds, userId);
 
       return {
         ...rawContent,
@@ -45,11 +55,17 @@ export class WebScraperService {
   /**
    * Convert scraped content to clean, well-structured markdown
    * @param content - The raw scraped content
+   * @param ruleIds - Optional rule IDs to inject into conversion prompt
+   * @param userId - User ID for rule resolution
    * @returns Clean markdown content
    */
-  private static async convertToMarkdown(content: ScrapedContent): Promise<string> {
+  private static async convertToMarkdown(
+    content: ScrapedContent, 
+    ruleIds?: string[], 
+    userId?: string
+  ): Promise<string> {
     try {
-      const prompt = `Please convert the following scraped web content into clean, well-structured markdown format. Follow these guidelines:
+      const basePrompt = `Please convert the following scraped web content into clean, well-structured markdown format. Follow these guidelines:
 
 1. Create a proper title using # heading
 2. Add the author and publication date if available
@@ -73,7 +89,14 @@ ${content.content}
 
 Please return only the clean markdown content, starting with the title heading:`;
 
-      const response = await GeminiService.generateContent(prompt);
+      // Inject rules if provided
+      let finalPrompt = basePrompt;
+      if (userId && ruleIds && ruleIds.length > 0) {
+        functions.logger.info('Injecting rules into scraping prompt', { ruleCount: ruleIds.length });
+        finalPrompt = await promptBuilder.injectRules(basePrompt, ruleIds, userId);
+      }
+
+      const response = await GeminiService.generateContent(finalPrompt);
       
       if (!response || response.trim().length === 0) {
         throw new Error('Gemini returned empty response for markdown conversion');
