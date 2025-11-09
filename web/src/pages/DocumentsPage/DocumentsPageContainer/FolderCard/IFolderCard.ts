@@ -6,4 +6,5 @@ export interface IFolderCard {
   onEdit?: () => void;
   onDelete?: () => void;
   onMove?: () => void;
+  onManageRules?: () => void;
 }

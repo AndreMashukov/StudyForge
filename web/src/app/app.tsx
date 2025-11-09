@@ -16,6 +16,7 @@ import { CreateDocumentPage } from '../pages/CreateDocumentPage';
 import { DocumentViewerPage } from '../pages/DocumentViewerPage';
 import { MyQuizzesPage } from '../pages/MyQuizzesPage';
 import { RulesPage } from '../pages/RulesPage';
+import { DirectoryRulesPage } from '../pages/DirectoryRulesPage';
 import { Page } from '../components/Page';
 
 export function App() {
@@ -176,6 +177,18 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <RulesPage />
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+      
+      {/* Directory Rules Management Route */}
+      <Route 
+        path="/directories/:directoryId/rules" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <DirectoryRulesPage />
             </ProtectedRoute>
           </MainLayout>
         } 

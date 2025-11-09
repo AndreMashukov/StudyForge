@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { IFolderCard } from "./IFolderCard";
 import { folderCardStyles } from "./FolderCard.styles";
-import { Folder, FolderOpen, Briefcase, Target, Zap, Rocket, FileText, FolderTree, Edit, Trash2, Move } from "lucide-react";
+import { Folder, FolderOpen, Briefcase, Target, Zap, Rocket, FileText, FolderTree, Edit, Trash2, Move, FileCode } from "lucide-react";
 import { Button } from "../../../../components/ui/Button";
 import { ContextMenu, ContextMenuItem } from "../../../../components/ui/ContextMenu";
 
@@ -20,6 +20,7 @@ export const FolderCard = ({
   onEdit,
   onDelete,
   onMove,
+  onManageRules,
 }: IFolderCard) => {
   const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; x: number; y: number }>({
     isOpen: false,
@@ -45,6 +46,13 @@ export const FolderCard = ({
       icon: Edit,
       onClick: () => onEdit?.(),
       disabled: !onEdit,
+    },
+    {
+      id: "manage-rules",
+      label: "Manage Rules",
+      icon: FileCode,
+      onClick: () => onManageRules?.(),
+      disabled: !onManageRules,
     },
     {
       id: "move",

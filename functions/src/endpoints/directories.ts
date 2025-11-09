@@ -7,11 +7,11 @@ import {
   MoveDirectoryRequest,
   CreateDirectoryResponse,
   GetDirectoryResponse,
-  GetDirectoryTreeResponse,
-  GetDirectoryContentsResponse,
-  GetDirectoryAncestorsResponse,
-  MoveDirectoryResponse,
-  DeleteDirectoryResponse,
+  // GetDirectoryTreeResponse,
+  // GetDirectoryContentsResponse,
+  // GetDirectoryAncestorsResponse,
+  // MoveDirectoryResponse,
+  // DeleteDirectoryResponse,
 } from '../../libs/shared-types/src/index';
 
 /**
@@ -29,6 +29,10 @@ async function validateAuth(context: { auth?: { uid?: string } }): Promise<strin
  * Create a new directory
  */
 export const createDirectory = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
   async (request) => {
     try {
       const userId = await validateAuth(request);
@@ -50,8 +54,11 @@ export const createDirectory = onCall(
 
       return response;
     } catch (error) {
-      logger.error('Error creating directory', { error });
-      throw error;
+      logger.error('Error creating directory', { 
+        error: error instanceof Error ? error.message : String(error),
+        data: request.data,
+      });
+      throw new Error(`Failed to create directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 );
@@ -61,6 +68,10 @@ export const createDirectory = onCall(
  * Get a directory by ID
  */
 export const getDirectory = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
   async (request) => {
     try {
       const userId = await validateAuth(request);
@@ -81,8 +92,10 @@ export const getDirectory = onCall(
       const response: GetDirectoryResponse = { directory };
       return response;
     } catch (error) {
-      logger.error('Error getting directory', { error });
-      throw error;
+      logger.error('Error getting directory', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      throw new Error(`Failed to get directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 );
@@ -91,6 +104,10 @@ export const getDirectory = onCall(
  * Update a directory
  */
 export const updateDirectory = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
   async (request) => {
     try {
       const userId = await validateAuth(request);
@@ -107,8 +124,10 @@ export const updateDirectory = onCall(
       const response: GetDirectoryResponse = { directory };
       return response;
     } catch (error) {
-      logger.error('Error updating directory', { error });
-      throw error;
+      logger.error('Error updating directory', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      throw new Error(`Failed to update directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 );
@@ -117,6 +136,10 @@ export const updateDirectory = onCall(
  * Delete a directory and all its contents
  */
 export const deleteDirectory = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
   async (request) => {
     try {
       const userId = await validateAuth(request);
@@ -131,8 +154,10 @@ export const deleteDirectory = onCall(
       const result = await directoryService.deleteDirectory(userId, directoryId);
       return result;
     } catch (error) {
-      logger.error('Error deleting directory', { error });
-      throw error;
+      logger.error('Error deleting directory', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      throw new Error(`Failed to delete directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 );
@@ -141,6 +166,10 @@ export const deleteDirectory = onCall(
  * Get directory tree for the user
  */
 export const getDirectoryTree = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
   async (request) => {
     try {
       const userId = await validateAuth(request);
@@ -150,8 +179,10 @@ export const getDirectoryTree = onCall(
       const result = await directoryService.getDirectoryTree(userId);
       return result;
     } catch (error) {
-      logger.error('Error getting directory tree', { error });
-      throw error;
+      logger.error('Error getting directory tree', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      throw new Error(`Failed to get directory tree: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 );
@@ -160,6 +191,10 @@ export const getDirectoryTree = onCall(
  * Get directory contents (subdirectories and documents)
  */
 export const getDirectoryContents = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
   async (request) => {
     try {
       const userId = await validateAuth(request);
@@ -170,8 +205,10 @@ export const getDirectoryContents = onCall(
       const result = await directoryService.getDirectoryContents(userId, directoryId || null);
       return result;
     } catch (error) {
-      logger.error('Error getting directory contents', { error });
-      throw error;
+      logger.error('Error getting directory contents', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      throw new Error(`Failed to get directory contents: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 );
@@ -180,6 +217,10 @@ export const getDirectoryContents = onCall(
  * Get directory ancestors (breadcrumb path)
  */
 export const getDirectoryAncestors = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
   async (request) => {
     try {
       const userId = await validateAuth(request);
@@ -194,8 +235,10 @@ export const getDirectoryAncestors = onCall(
       const result = await directoryService.getDirectoryAncestors(userId, directoryId);
       return result;
     } catch (error) {
-      logger.error('Error getting directory ancestors', { error });
-      throw error;
+      logger.error('Error getting directory ancestors', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      throw new Error(`Failed to get directory ancestors: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 );
@@ -204,6 +247,10 @@ export const getDirectoryAncestors = onCall(
  * Move a directory to a new parent
  */
 export const moveDirectory = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
   async (request) => {
     try {
       const userId = await validateAuth(request);
@@ -222,8 +269,10 @@ export const moveDirectory = onCall(
       const result = await directoryService.moveDirectory(userId, directoryId, moveData);
       return result;
     } catch (error) {
-      logger.error('Error moving directory', { error });
-      throw error;
+      logger.error('Error moving directory', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      throw new Error(`Failed to move directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 );
@@ -232,6 +281,10 @@ export const moveDirectory = onCall(
  * Get directory by path
  */
 export const getDirectoryByPath = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
   async (request) => {
     try {
       const userId = await validateAuth(request);
@@ -252,8 +305,10 @@ export const getDirectoryByPath = onCall(
       const response: GetDirectoryResponse = { directory };
       return response;
     } catch (error) {
-      logger.error('Error getting directory by path', { error });
-      throw error;
+      logger.error('Error getting directory by path', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      throw new Error(`Failed to get directory by path: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 );

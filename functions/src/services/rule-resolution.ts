@@ -60,8 +60,6 @@ async function getDirectory(
   directoryId: string
 ): Promise<Directory | null> {
   const dirDoc = await db
-    .collection('users')
-    .doc(userId)
     .collection('directories')
     .doc(directoryId)
     .get();
@@ -71,7 +69,14 @@ async function getDirectory(
   }
 
   const data = dirDoc.data();
+  
+  // Verify ownership
+  if (data?.userId !== userId) {
+    return null;
+  }
+
   return {
+    id: dirDoc.id,
     ...data,
     createdAt: data?.createdAt?.toDate() || new Date(),
     updatedAt: data?.updatedAt?.toDate() || new Date(),
