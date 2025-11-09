@@ -37,6 +37,9 @@ interface IFormRendererProps {
   isTextPromptLoading: boolean;
   textPromptProgress?: number;
   onBack?: () => void;
+  directoryId: string | null;
+  selectedRuleIds: string[];
+  onRuleIdsChange: (ruleIds: string[]) => void;
 }
 
 const getFormIcon = (sourceType: string) => {
@@ -74,6 +77,9 @@ export const FormRenderer = ({
   isTextPromptLoading,
   textPromptProgress,
   onBack,
+  directoryId,
+  selectedRuleIds,
+  onRuleIdsChange,
 }: IFormRendererProps) => {
   const selectedSource = useSelector((state: RootState) => selectSelectedSource(state));
   
@@ -156,6 +162,9 @@ export const FormRenderer = ({
               selectedDocumentIds={selectedDocumentIds}
               onDocumentToggle={fileUpload.handleDocumentToggle}
               isLoadingDocuments={isLoadingDocuments}
+              directoryId={directoryId}
+              selectedRuleIds={selectedRuleIds}
+              onRuleIdsChange={onRuleIdsChange}
             />
           )}
           

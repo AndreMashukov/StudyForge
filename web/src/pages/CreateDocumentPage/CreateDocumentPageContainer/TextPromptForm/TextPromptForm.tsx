@@ -9,7 +9,9 @@ import { FileUploadZone } from './FileUploadZone';
 import { AttachedFilesList } from './AttachedFilesList';
 import { SourceTabs, SourceTabType } from './SourceTabs';
 import { DocumentSelector } from './DocumentSelector';
+import { CompactRuleSelector } from '../../../../components/CompactRuleSelector';
 import { FILE_UPLOAD_CONSTRAINTS } from '../../../../types/fileUpload';
+import { RuleApplicability } from '@shared-types';
 
 const MAX_CHARACTERS = 10000;
 const MIN_CHARACTERS = 10;
@@ -28,6 +30,9 @@ export const TextPromptForm = ({
   selectedDocumentIds,
   onDocumentToggle,
   isLoadingDocuments,
+  directoryId,
+  selectedRuleIds,
+  onRuleIdsChange,
 }: ITextPromptFormProps) => {
   const [prompt, setPrompt] = useState('');
   const [activeTab, setActiveTab] = useState<SourceTabType>('upload');
@@ -38,6 +43,7 @@ export const TextPromptForm = ({
     
     onSubmit({
       prompt: prompt.trim(),
+      ruleIds: selectedRuleIds,
     });
   };
 
@@ -166,6 +172,19 @@ export const TextPromptForm = ({
           </p>
         )}
       </div>
+
+      {/* Rule Selection */}
+      {directoryId && (
+        <div className={textPromptFormStyles.formGroup}>
+          <CompactRuleSelector
+            directoryId={directoryId}
+            operation={RuleApplicability.PROMPT}
+            selectedRuleIds={selectedRuleIds}
+            onSelectionChange={onRuleIdsChange}
+            label="Content Generation Rules"
+          />
+        </div>
+      )}
 
       {isLoading && progress > 0 && (
         <div className={textPromptFormStyles.progressContainer}>

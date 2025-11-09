@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateQuizPageContext } from '../context/hooks/useCreateQuizPageContext';
 import { Page } from '../../../components/Page';
@@ -7,11 +7,15 @@ import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
+import { CompactRuleSelector } from '../../../components/CompactRuleSelector';
 import { createQuizPageStyles } from './CreateQuizPageContainer.styles';
 import { ArrowLeft, Brain } from 'lucide-react';
+import { RuleApplicability } from '@shared-types';
 
 export const CreateQuizPageContainer = () => {
   const navigate = useNavigate();
+  const [quizRuleIds, setQuizRuleIds] = useState<string[]>([]);
+  const [followupRuleIds, setFollowupRuleIds] = useState<string[]>([]);
 
   const { 
     documentsApi,
@@ -26,12 +30,28 @@ export const CreateQuizPageContainer = () => {
 
   const { data: documentsResponse, isLoading } = documentsApi;
   const documents = documentsResponse?.documents || [];
-  const { register, watch, formState: { errors } } = form;
+  const { register, watch, setValue, formState: { errors } } = form;
   const watchedDocumentId = watch('documentId');
   const watchedQuizName = watch('quizName');
 
   const handleBack = () => {
     navigate('/documents');
+  };
+
+  // Get selected document's directoryId (safely access with optional chaining)
+  const selectedDocument = documents.find(d => d.id === watchedDocumentId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const directoryId = (selectedDocument as any)?.directoryId || null;
+
+  // Update form values when rules change
+  const handleQuizRulesChange = (ruleIds: string[]) => {
+    setQuizRuleIds(ruleIds);
+    setValue('quizRuleIds', ruleIds);
+  };
+
+  const handleFollowupRulesChange = (ruleIds: string[]) => {
+    setFollowupRuleIds(ruleIds);
+    setValue('followupRuleIds', ruleIds);
   };
 
   return (
@@ -125,6 +145,32 @@ export const CreateQuizPageContainer = () => {
                     <p className="text-sm text-destructive">{errors.additionalPrompt.message}</p>
                   )}
                 </div>
+
+                {/* Quiz Rules */}
+                {directoryId && (
+                  <div className={createQuizPageStyles.formField}>
+                    <CompactRuleSelector
+                      directoryId={directoryId}
+                      operation={RuleApplicability.QUIZ}
+                      selectedRuleIds={quizRuleIds}
+                      onSelectionChange={handleQuizRulesChange}
+                      label="Quiz Generation Rules"
+                    />
+                  </div>
+                )}
+
+                {/* Followup Rules */}
+                {directoryId && (
+                  <div className={createQuizPageStyles.formField}>
+                    <CompactRuleSelector
+                      directoryId={directoryId}
+                      operation={RuleApplicability.FOLLOWUP}
+                      selectedRuleIds={followupRuleIds}
+                      onSelectionChange={handleFollowupRulesChange}
+                      label="Followup Explanation Rules"
+                    />
+                  </div>
+                )}
 
                 {/* Form Actions */}
                 <div className={createQuizPageStyles.formActions}>

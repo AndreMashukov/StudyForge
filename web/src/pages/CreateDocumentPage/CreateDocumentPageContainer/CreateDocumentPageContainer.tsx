@@ -23,7 +23,7 @@ import type { RootState } from '../../../store';
 
 export const CreateDocumentPageContainer = () => {
   const dispatch = useDispatch();
-  const { handlers } = useCreateDocumentPageContext();
+  const { handlers, directoryId, selectedRuleIds } = useCreateDocumentPageContext();
   
   // Redux selectors
   const selectedSource = useSelector((state: RootState) => selectSelectedSource(state));
@@ -96,6 +96,9 @@ export const CreateDocumentPageContainer = () => {
               isTextPromptLoading={isTextPromptLoading}
               textPromptProgress={textPromptProgress}
               onBack={handleBackToSources}
+              directoryId={directoryId}
+              selectedRuleIds={selectedRuleIds}
+              onRuleIdsChange={handlers.handleRuleIdsChange}
             />
           </div>
         </div>

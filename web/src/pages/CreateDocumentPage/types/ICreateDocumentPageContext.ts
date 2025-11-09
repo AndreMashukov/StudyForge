@@ -14,6 +14,7 @@ export interface ICreateDocumentPageHandlers {
       getFilesForSubmission: () => IFileContent[];
     }
   ) => Promise<void>;
+  handleRuleIdsChange: (ruleIds: string[]) => void;
   isLoading: boolean;
   isTextPromptLoading: boolean;
   textPromptProgress: number;
@@ -22,4 +23,6 @@ export interface ICreateDocumentPageHandlers {
 
 export interface ICreateDocumentPageContext {
   handlers: ICreateDocumentPageHandlers;
+  directoryId: string | null;
+  selectedRuleIds: string[];
 }

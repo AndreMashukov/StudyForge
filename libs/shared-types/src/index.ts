@@ -10,6 +10,9 @@ export interface Quiz {
   // New fields for document-based architecture
   generationAttempt?: number; // Track multiple generations per document
   documentTitle?: string; // Cache for performance
+  
+  // Rule tracking for followup generation
+  followupRuleIds?: string[]; // Rules to use when generating followup explanations
 }
 
 export interface QuizQuestion {
@@ -182,7 +185,8 @@ export interface GenerateQuizRequest {
   documentId: string;
   quizName?: string; // Optional custom name, defaults to "Quiz from [Document Title]"
   additionalPrompt?: string; // Optional additional instructions for quiz generation
-  ruleIds?: string[]; // Optional rules for quiz generation (Section 6)
+  quizRuleIds?: string[]; // Optional rules for quiz generation
+  followupRuleIds?: string[]; // Optional rules for followup generation
 }
 
 export interface GenerateQuizResponse {
@@ -279,7 +283,7 @@ export interface GenerateFromPromptRequest {
   prompt: string; // User's text prompt (max 10000 characters)
   files?: IFileContent[]; // Optional reference documents (max 5 files)
   directoryId?: string | null; // Optional directory to place the generated document
-  ruleIds?: string[]; // Optional rules for content generation (Section 6)
+  ruleIds?: string[]; // Optional rules for content generation
 }
 
 export interface GenerateFromPromptResponse {

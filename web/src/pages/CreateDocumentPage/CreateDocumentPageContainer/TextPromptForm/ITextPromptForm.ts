@@ -3,6 +3,7 @@ import { DocumentEnhanced } from '@shared-types';
 
 export interface ITextPromptFormData {
   prompt: string;
+  ruleIds?: string[];
 }
 
 export interface ITextPromptFormProps {
@@ -23,5 +24,10 @@ export interface ITextPromptFormProps {
   selectedDocumentIds: string[];
   onDocumentToggle: (documentId: string) => void;
   isLoadingDocuments: boolean;
+  
+  // Rule selector props
+  directoryId: string | null;
+  selectedRuleIds: string[];
+  onRuleIdsChange: (ruleIds: string[]) => void;
 }
 

@@ -90,8 +90,13 @@ export const generateQuiz = onCall(
         geminiQuiz.title = `Quiz from ${document.title}`;
       }
       
-      // Step 6: Save quiz with document reference
-      const savedQuiz = await FirestoreService.saveQuizFromDocument(documentId, geminiQuiz, userId);
+      // Step 6: Save quiz with document reference and followup rules
+      const savedQuiz = await FirestoreService.saveQuizFromDocument(
+        documentId, 
+        geminiQuiz, 
+        userId,
+        followupRuleIds
+      );
       
       console.log(`Successfully generated quiz from document: ${savedQuiz.id}`);
       

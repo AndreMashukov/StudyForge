@@ -23,11 +23,13 @@ export const useCreateQuizPageHandlers = ({ form }: UseCreateQuizPageHandlersPro
     try {
       console.log('Generating quiz with data:', formData);
       
-      // Use enhanced API structure with quiz name and additional prompt
+      // Use enhanced API structure with quiz name, additional prompt, and rules
       const result = await generateQuiz({ 
         documentId: formData.documentId,
         quizName: formData.quizName?.trim() || undefined,
-        additionalPrompt: formData.additionalPrompt?.trim() || undefined
+        additionalPrompt: formData.additionalPrompt?.trim() || undefined,
+        quizRuleIds: formData.quizRuleIds || [],
+        followupRuleIds: formData.followupRuleIds || []
       }).unwrap();
       
       if (result.success && result.data) {

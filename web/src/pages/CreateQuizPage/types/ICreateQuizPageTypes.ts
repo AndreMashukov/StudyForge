@@ -3,4 +3,6 @@ export interface ICreateQuizFormData {
   documentId: string;
   quizName?: string;
   additionalPrompt?: string;
+  quizRuleIds?: string[];
+  followupRuleIds?: string[];
 }
