@@ -32,7 +32,7 @@ const ruleFormSchema = z.object({
   content: z
     .string()
     .min(1, "Content is required")
-    .max(10000, "Content must be 10,000 characters or less"),
+    .max(15000, "Content must be 15,000 characters or less"),
   color: z.nativeEnum(RuleColor),
   tags: z.array(z.string()),
   applicableTo: z
@@ -377,7 +377,7 @@ export const RuleFormModal = ({
               )}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
-                  Characters: {formData.content.length} / 10,000
+                  Characters: {formData.content.length} / 15,000
                 </span>
                 {errors.content && (
                   <p className="text-sm text-destructive">{errors.content}</p>

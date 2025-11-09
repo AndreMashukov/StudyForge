@@ -69,8 +69,8 @@ export const createRuleEndpoint = onCall(
         throw new Error('Rule content is required');
       }
 
-      if (data.content.length > 10000) {
-        throw new Error('Rule content cannot exceed 10,000 characters');
+      if (data.content.length > 15000) {
+        throw new Error('Rule content cannot exceed 15,000 characters');
       }
 
       if (!data.applicableTo || data.applicableTo.length === 0) {
@@ -201,8 +201,8 @@ export const updateRuleEndpoint = onCall(
         throw new Error('Rule name cannot exceed 100 characters');
       }
 
-      if (data.content !== undefined && data.content.length > 10000) {
-        throw new Error('Rule content cannot exceed 10,000 characters');
+      if (data.content !== undefined && data.content.length > 15000) {
+        throw new Error('Rule content cannot exceed 15,000 characters');
       }
 
       if (data.applicableTo !== undefined && data.applicableTo.length === 0) {
