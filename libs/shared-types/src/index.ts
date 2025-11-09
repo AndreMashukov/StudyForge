@@ -182,8 +182,7 @@ export interface GenerateQuizRequest {
   documentId: string;
   quizName?: string; // Optional custom name, defaults to "Quiz from [Document Title]"
   additionalPrompt?: string; // Optional additional instructions for quiz generation
-  quizRuleIds?: string[]; // Optional rule IDs for quiz generation
-  followupRuleIds?: string[]; // Optional rule IDs for followup generation
+  ruleIds?: string[]; // Optional rules for quiz generation (Section 6)
 }
 
 export interface GenerateQuizResponse {
@@ -256,12 +255,14 @@ export interface CreateDocumentFromUrlRequest {
   url: string;
   title?: string; // Optional override for document title
   directoryId?: string; // Optional directory placement
+  ruleIds?: string[]; // Optional rules for content processing (Section 6)
 }
 
 export interface UploadDocumentRequest {
   fileName: string;
   content: string; // Base64 encoded markdown content
   title?: string; // Optional override for document title
+  ruleIds?: string[]; // Optional rules for content processing (Section 6)
 }
 
 // File Content Type for Text Prompt Context
@@ -278,6 +279,7 @@ export interface GenerateFromPromptRequest {
   prompt: string; // User's text prompt (max 10000 characters)
   files?: IFileContent[]; // Optional reference documents (max 5 files)
   directoryId?: string | null; // Optional directory to place the generated document
+  ruleIds?: string[]; // Optional rules for content generation (Section 6)
 }
 
 export interface GenerateFromPromptResponse {

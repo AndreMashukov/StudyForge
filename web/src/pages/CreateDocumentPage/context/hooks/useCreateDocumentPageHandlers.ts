@@ -58,6 +58,7 @@ export const useCreateDocumentPageHandlers = () => {
         url: data.url,
         title: data.title,
         directoryId: directoryId || undefined, // 🆕 Pass directoryId to API
+        ruleIds: data.ruleIds, // Section 6: Pass selected rules to API
       }).unwrap();
       
       // Phase 2.2: Redirect to documents page with generation option
@@ -88,6 +89,7 @@ export const useCreateDocumentPageHandlers = () => {
         content,
         sourceType: DocumentSourceType.UPLOAD,
         directoryId: directoryId || undefined, // 🆕 Pass directoryId to API
+        ruleIds: data.ruleIds, // Section 6: Pass selected rules to API
       }).unwrap();
       
       // Navigate to the created document
