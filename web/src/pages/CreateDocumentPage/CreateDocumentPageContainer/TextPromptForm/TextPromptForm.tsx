@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '../../../../components/ui/Button';
 import { Label } from '../../../../components/ui/Label';
 import { Sparkles, Loader2 } from 'lucide-react';
@@ -12,6 +13,12 @@ import { DocumentSelector } from './DocumentSelector';
 import { CompactRuleSelector } from '../../../../components/CompactRuleSelector';
 import { FILE_UPLOAD_CONSTRAINTS } from '../../../../types/fileUpload';
 import { RuleApplicability } from '@shared-types';
+import { 
+  selectDirectoryId,
+  selectPromptRules,
+  setPromptRules,
+} from '../../../../store/slices/createDocumentPageSlice';
+import type { RootState } from '../../../../store';
 
 const MAX_CHARACTERS = 10000;
 const MIN_CHARACTERS = 10;
@@ -30,13 +37,21 @@ export const TextPromptForm = ({
   selectedDocumentIds,
   onDocumentToggle,
   isLoadingDocuments,
-  directoryId,
-  selectedRuleIds,
-  onRuleIdsChange,
 }: ITextPromptFormProps) => {
+  const dispatch = useDispatch();
+  
+  // Redux selectors
+  const directoryId = useSelector((state: RootState) => selectDirectoryId(state));
+  const selectedRuleIds = useSelector((state: RootState) => selectPromptRules(state));
+  
   console.log('TextPromptForm render', { directoryId, selectedRuleIds });
+  
   const [prompt, setPrompt] = useState('');
   const [activeTab, setActiveTab] = useState<SourceTabType>('upload');
+
+  const handleRuleSelectionChange = (ruleIds: string[]) => {
+    dispatch(setPromptRules(ruleIds));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,7 +196,7 @@ export const TextPromptForm = ({
             directoryId={directoryId}
             operation={RuleApplicability.PROMPT}
             selectedRuleIds={selectedRuleIds}
-            onSelectionChange={onRuleIdsChange}
+            onSelectionChange={handleRuleSelectionChange}
             label="Content Generation Rules"
           />
         </div>

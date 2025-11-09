@@ -24,10 +24,5 @@ export interface ITextPromptFormProps {
   selectedDocumentIds: string[];
   onDocumentToggle: (documentId: string) => void;
   isLoadingDocuments: boolean;
-  
-  // Rule selector props
-  directoryId: string | null;
-  selectedRuleIds: string[];
-  onRuleIdsChange: (ruleIds: string[]) => void;
 }
 
