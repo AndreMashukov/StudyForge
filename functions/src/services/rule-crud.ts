@@ -250,9 +250,8 @@ export async function attachRuleToDirectory(
     .collection('rules')
     .doc(ruleId);
 
+  // Directories are at root level, not under users
   const directoryRef = db
-    .collection('users')
-    .doc(userId)
     .collection('directories')
     .doc(directoryId);
 
@@ -301,9 +300,8 @@ export async function detachRuleFromDirectory(
     .collection('rules')
     .doc(ruleId);
 
+  // Directories are at root level, not under users
   const directoryRef = db
-    .collection('users')
-    .doc(userId)
     .collection('directories')
     .doc(directoryId);
 
