@@ -34,6 +34,7 @@ export const TextPromptForm = ({
   selectedRuleIds,
   onRuleIdsChange,
 }: ITextPromptFormProps) => {
+  console.log('TextPromptForm render', { directoryId, selectedRuleIds });
   const [prompt, setPrompt] = useState('');
   const [activeTab, setActiveTab] = useState<SourceTabType>('upload');
 

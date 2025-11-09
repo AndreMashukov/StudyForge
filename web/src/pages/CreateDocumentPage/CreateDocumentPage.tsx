@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ProtectedRoute } from '../../utils/ProtectedRoute';
 import { CreateDocumentPageProvider } from './context/CreateDocumentPageProvider';
 import { CreateDocumentPageContainer } from './CreateDocumentPageContainer';
-import { setDirectoryId } from '../../store/slices/createDocumentPageSlice';
+import { setSelectedDirectory } from '../../store/slices/directorySlice';
 
 export const CreateDocumentPage = () => {
   const dispatch = useDispatch();
@@ -13,7 +13,7 @@ export const CreateDocumentPage = () => {
   // Initialize directoryId from URL query parameter
   useEffect(() => {
     const directoryIdParam = searchParams.get('directoryId');
-    dispatch(setDirectoryId(directoryIdParam));
+    dispatch(setSelectedDirectory(directoryIdParam));
   }, [searchParams, dispatch]);
 
   return (
