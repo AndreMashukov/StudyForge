@@ -153,3 +153,7 @@ vitest.config.*.timestamp*
 .github/instructions/examples/*
 .github/instructions/*
 docs/*
+
+# Firebase backups (contain sensitive data)
+backups/
+*.backup
