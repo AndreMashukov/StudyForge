@@ -25,41 +25,87 @@ The backup system consists of three main scripts:
    - List and read Firebase Authentication users
    - Read Firestore database collections and documents
 
+## Quick Start
+
+**Two Simple Commands:**
+
+```bash
+# Backup everything (Auth users + Firestore + Rules)
+yarn backup:all
+
+# Restore everything from the latest backup
+yarn restore:latest
+```
+
+That's it! These two commands handle all your Firebase backup and restore needs.
+
 ## Usage
 
-### Complete Backup (Recommended)
-
-Backs up both Authentication users and Firestore database:
+### Backup Everything
 
 ```bash
-# Using npm script
-yarn backup:firebase
+# Backup all Firebase data (Auth users, Firestore, Rules)
+yarn backup:all
 
 # Or directly with tsx
-npx tsx scripts/backup-firebase.ts
-
-# With custom output directory
-npx tsx scripts/backup-firebase.ts ./my-backup-dir
+npx tsx scripts/backup-firebase.ts [output-dir]
 ```
 
-### Authentication Users Only
+This creates a complete backup with:
+- Firebase Authentication users
+- Firestore database (all collections and documents)
+- Firebase Security Rules (Firestore and Storage)
+
+### Restore Latest Backup
 
 ```bash
-# Using npm script
-yarn backup:auth
+# Restore everything from the most recent backup
+yarn restore:latest
 
-# Or directly
+# Dry run first (recommended)
+yarn restore:latest --dry-run
+
+# List all available backups
+yarn restore:latest --list
+```
+
+This automatically:
+- Finds the backup with the latest timestamp
+- Restores Authentication users
+- Restores Firestore database
+- Restores Security Rules
+
+## Advanced Usage
+
+If you need more control, you can run the individual scripts directly:
+
+### Individual Backup Scripts
+
+```bash
+# Backup only Authentication users
 npx tsx scripts/backup-firebase-auth.ts [output-dir]
+
+# Backup only Firestore database
+npx tsx scripts/backup-firestore.ts [output-dir]
+
+# Backup only Security Rules
+npx tsx scripts/backup-firebase-rules.ts [output-dir]
 ```
 
-### Firestore Database Only
+### Individual Restore Scripts
 
 ```bash
-# Using npm script
-yarn backup:firestore
+# Restore from a specific backup directory
+npx tsx scripts/restore-firebase.ts <backup-directory-path> [--dry-run]
 
-# Or directly
-npx tsx scripts/backup-firestore.ts [output-dir]
+# Restore only Authentication users
+npx tsx scripts/restore-firebase-auth.ts <backup-file-path> [--dry-run]
+
+# Restore only Firestore database
+npx tsx scripts/restore-firestore.ts <backup-directory-path> [--dry-run]
+
+# Restore only Security Rules
+npx tsx scripts/restore-firebase-rules.ts <backup-directory-path> [--dry-run]
 ```
 
 ## Backup Structure
@@ -73,13 +119,16 @@ backups/
     ├── auth/
     │   ├── metadata.json           # Auth backup metadata
     │   └── users.json              # All authentication users
-    └── firestore/
-        ├── metadata.json           # Firestore backup metadata
-        ├── statistics.json         # Collection statistics
-        └── collections/
-            ├── collection1.json   # Collection documents
-            ├── collection2.json
-            └── ...
+    ├── firestore/
+    │   ├── metadata.json           # Firestore backup metadata
+    │   ├── statistics.json         # Collection statistics
+    │   └── collections/
+    │       ├── collection1.json   # Collection documents
+    │       ├── collection2.json
+    │       └── ...
+    └── rules/
+        ├── firestore.rules         # Firestore security rules
+        └── storage.rules           # Storage security rules
 ```
 
 ### Authentication Backup Format
@@ -201,9 +250,9 @@ gcloud auth application-default login
 
 ## Restoring Backups
 
-This project includes restore scripts that can restore Firebase Authentication users and Firestore data from backups.
+This project includes restore scripts that can restore Firebase Authentication users, Firestore data, and Security Rules from backups.
 
-### Restore Latest Backup (Quick Restore)
+### Restore Latest Backup (Recommended)
 
 Automatically finds and restores the most recent backup:
 
@@ -218,30 +267,28 @@ yarn restore:latest --dry-run
 yarn restore:latest --list
 ```
 
-This is the quickest way to restore - it automatically finds the backup with the latest timestamp and restores it.
+This is the quickest way to restore - it automatically finds the backup with the latest timestamp and restores:
+- Authentication users
+- Firestore database
+- Security Rules
 
-### Complete Restore (Recommended)
+### Restore from Specific Backup Directory
 
-Restores both Authentication users and Firestore database:
+Restores from a specific backup directory:
 
 ```bash
-# Using npm script
-yarn restore:firebase <backup-directory-path>
-
-# Or directly with tsx
+# Restore from a specific backup
 npx tsx scripts/restore-firebase.ts backups/firebase-backup-2024-01-01_12-00-00
 
 # Dry run (preview what would be restored)
 npx tsx scripts/restore-firebase.ts backups/firebase-backup-2024-01-01_12-00-00 --dry-run
 ```
 
-### Restoring Authentication Users Only
+### Restoring Individual Components
+
+**Authentication Users Only:**
 
 ```bash
-# Using npm script
-yarn restore:auth <backup-file-path>
-
-# Or directly
 npx tsx scripts/restore-firebase-auth.ts backups/firebase-backup-2024-01-01_12-00-00/auth/users.json
 
 # Dry run
@@ -254,17 +301,19 @@ npx tsx scripts/restore-firebase-auth.ts backups/firebase-backup-2024-01-01_12-0
 - Email verification status is preserved
 - Custom claims are restored automatically
 
-### Restoring Firestore Database Only
+**Firestore Database Only:**
 
 ```bash
-# Using npm script
-yarn restore:firestore <backup-directory-path>
-
-# Or directly
 npx tsx scripts/restore-firestore.ts backups/firebase-backup-2024-01-01_12-00-00/firestore
 
 # Dry run
 npx tsx scripts/restore-firestore.ts backups/firebase-backup-2024-01-01_12-00-00/firestore --dry-run
+```
+
+**Security Rules Only:**
+
+```bash
+npx tsx scripts/restore-firebase-rules.ts backups/firebase-backup-2024-01-01_12-00-00
 ```
 
 **Features:**

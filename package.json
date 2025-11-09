@@ -48,12 +48,7 @@
   "scripts": {
     "setup-shell-integration": "scripts/shell-integration/setup.sh",
     "shell-integration-status": "echo \"Shell Integration Status:\nTERM_PROGRAM: $TERM_PROGRAM\nVSCODE_SHELL_INTEGRATION: $VSCODE_SHELL_INTEGRATION\nCurrent Shell: $SHELL\"",
-    "backup:firebase": "tsx scripts/backup-firebase.ts",
-    "backup:auth": "tsx scripts/backup-firebase-auth.ts",
-    "backup:firestore": "tsx scripts/backup-firestore.ts",
-    "restore:firebase": "tsx scripts/restore-firebase.ts",
-    "restore:auth": "tsx scripts/restore-firebase-auth.ts",
-    "restore:firestore": "tsx scripts/restore-firestore.ts",
+    "backup:all": "tsx scripts/backup-firebase.ts",
     "restore:latest": "tsx scripts/restore-firebase-latest.ts"
   },
   "dependencies": {
