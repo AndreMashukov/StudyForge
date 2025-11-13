@@ -14,7 +14,8 @@
  * The script will:
  * 1. Restore Firebase Authentication users
  * 2. Restore Firestore database
- * 3. Create a restore report
+ * 3. Restore Firebase Security Rules
+ * 4. Create a restore report
  */
 
 import * as fs from 'fs';
@@ -22,6 +23,7 @@ import * as path from 'path';
 import { config } from 'dotenv';
 import { restoreAuthUsers } from './restore-firebase-auth';
 import { restoreFirestore } from './restore-firestore';
+import { restoreFirebaseRules } from './restore-firebase-rules';
 
 // Load environment variables from .env.local
 config({ path: path.join(process.cwd(), '.env.local') });
@@ -37,6 +39,11 @@ interface RestoreReport {
   firestoreRestore: {
     collectionsDir: string;
     totalCollections: number;
+    success: boolean;
+  };
+  rulesRestore: {
+    rulesDir: string;
+    rulesRestored: number;
     success: boolean;
   };
 }
@@ -74,6 +81,11 @@ async function restoreFirebase(backupDir: string, dryRun: boolean = false): Prom
       console.log(`   Auth Users: ${backupReport.authBackup?.totalUsers || 0}`);
       console.log(`   Firestore Collections: ${backupReport.firestoreBackup?.totalCollections || 0}`);
       console.log(`   Firestore Documents: ${backupReport.firestoreBackup?.totalDocuments || 0}`);
+      if (backupReport.rulesBackup) {
+        const rulesBackup = backupReport.rulesBackup as { firestoreRules?: { exists?: boolean }; storageRules?: { exists?: boolean } };
+        const rulesCount = [rulesBackup.firestoreRules?.exists, rulesBackup.storageRules?.exists].filter(Boolean).length;
+        console.log(`   Security Rules: ${rulesCount} files`);
+      }
       console.log('');
     }
 
@@ -92,6 +104,11 @@ async function restoreFirebase(backupDir: string, dryRun: boolean = false): Prom
       firestoreRestore: {
         collectionsDir: '',
         totalCollections: 0,
+        success: false,
+      },
+      rulesRestore: {
+        rulesDir: '',
+        rulesRestored: 0,
         success: false,
       },
     };
@@ -164,10 +181,44 @@ async function restoreFirebase(backupDir: string, dryRun: boolean = false): Prom
       console.log(`   Skipping Firestore restore...`);
     }
 
-    // Step 3: Create restore report
+    console.log('\n');
+
+    // Step 3: Restore Security Rules
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('STEP 3: Restoring Firebase Security Rules');
+    console.log('═══════════════════════════════════════════════════════\n');
+
+    const rulesBackupDir = path.join(backupDir, 'rules');
+
+    if (fs.existsSync(rulesBackupDir)) {
+      try {
+        // Count rules files in backup
+        const rulesFiles = fs.readdirSync(rulesBackupDir)
+          .filter(file => file.endsWith('.rules'));
+        const rulesCount = rulesFiles.length;
+
+        restoreReport.rulesRestore.rulesDir = rulesBackupDir;
+        restoreReport.rulesRestore.rulesRestored = rulesCount;
+
+        await restoreFirebaseRules(rulesBackupDir, dryRun);
+        restoreReport.rulesRestore.success = true;
+        console.log(`\n✅ Rules restore completed: ${rulesCount} rules files`);
+      } catch (error) {
+        console.error(`\n❌ Rules restore failed:`, error);
+        restoreReport.rulesRestore.success = false;
+        if (!dryRun) {
+          throw error;
+        }
+      }
+    } else {
+      console.log(`⚠️  Rules backup not found: ${rulesBackupDir}`);
+      console.log(`   Skipping Rules restore...`);
+    }
+
+    // Step 4: Create restore report
     console.log('\n');
     console.log('═══════════════════════════════════════════════════════');
-    console.log('STEP 3: Creating restore report');
+    console.log('STEP 4: Creating restore report');
     console.log('═══════════════════════════════════════════════════════\n');
 
     const reportPath = path.join(backupDir, 'restore-report.json');
@@ -183,12 +234,13 @@ async function restoreFirebase(backupDir: string, dryRun: boolean = false): Prom
     console.log(`   📁 Backup directory: ${backupDir}`);
     console.log(`   👥 Auth users: ${restoreReport.authRestore.totalUsers} ${restoreReport.authRestore.success ? '✅' : '❌'}`);
     console.log(`   📚 Firestore collections: ${restoreReport.firestoreRestore.totalCollections} ${restoreReport.firestoreRestore.success ? '✅' : '❌'}`);
+    console.log(`   📋 Security Rules: ${restoreReport.rulesRestore.rulesRestored} ${restoreReport.rulesRestore.success ? '✅' : '❌'}`);
     console.log(`   📄 Restore report: ${reportPath}`);
 
     if (dryRun) {
       console.log('\n💡 This was a dry run. Run without --dry-run to actually restore data.');
     } else {
-      const allSuccess = restoreReport.authRestore.success && restoreReport.firestoreRestore.success;
+      const allSuccess = restoreReport.authRestore.success && restoreReport.firestoreRestore.success && restoreReport.rulesRestore.success;
       if (!allSuccess) {
         console.log('\n⚠️  Some restore operations failed. Check the errors above.');
       } else {

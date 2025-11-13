@@ -112,6 +112,12 @@ export {
   formatRulesForPromptEndpoint as formatRulesForPrompt,
   getRuleTagsEndpoint as getRuleTags,
 } from "./endpoints/rules";
+
+// Export debug functions (temporary for troubleshooting)
+export {
+  debugDirectoryRules,
+} from "./endpoints/debug-rules";
+
 // Export directory management functions
 export {
   createDirectory,

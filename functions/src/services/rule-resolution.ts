@@ -65,6 +65,7 @@ async function getDirectory(
     .get();
 
   if (!dirDoc.exists) {
+    console.log(`Directory ${directoryId} not found`);
     return null;
   }
 
@@ -72,15 +73,27 @@ async function getDirectory(
   
   // Verify ownership
   if (data?.userId !== userId) {
+    console.log(`Directory ${directoryId} belongs to different user`);
     return null;
   }
 
-  return {
+  const directory = {
     id: dirDoc.id,
     ...data,
     createdAt: data?.createdAt?.toDate() || new Date(),
     updatedAt: data?.updatedAt?.toDate() || new Date(),
   } as Directory;
+
+  // DEBUG: Log directory data
+  console.log(`Retrieved directory ${directoryId}:`, {
+    id: directory.id,
+    name: directory.name,
+    path: directory.path,
+    parentId: directory.parentId,
+    ruleIds: directory.ruleIds || [],
+  });
+
+  return directory;
 }
 
 /**
@@ -99,19 +112,53 @@ export async function resolveRulesForDirectory(
   const ruleIdsByDirectory: { [directoryId: string]: string[] } = {};
   const allRuleIds = new Set<string>();
 
+  // DEBUG: Log directory hierarchy
+  console.log('=== RULE RESOLUTION DEBUG ===');
+  console.log('Target directory:', {
+    id: hierarchy.directory.id,
+    name: hierarchy.directory.name,
+    path: hierarchy.directory.path,
+    ruleIds: hierarchy.directory.ruleIds || [],
+  });
+  console.log('Ancestors:', hierarchy.ancestors.map(d => ({
+    id: d.id,
+    name: d.name,
+    path: d.path,
+    ruleIds: d.ruleIds || [],
+  })));
+
   for (const dir of allDirectories) {
     const ruleIds = dir.ruleIds || [];
     ruleIdsByDirectory[dir.id] = ruleIds;
     ruleIds.forEach(id => allRuleIds.add(id));
+    
+    // DEBUG: Log which rules are being collected from each directory
+    console.log(`Collecting ${ruleIds.length} rule IDs from directory: ${dir.name} (${dir.id}):`, ruleIds);
   }
+
+  console.log('Total unique rule IDs collected:', Array.from(allRuleIds));
 
   // Fetch all rules
   const allRules = await getRulesByIds(userId, Array.from(allRuleIds));
+
+  // DEBUG: Log fetched rules with their directory associations
+  console.log('Fetched rules:', allRules.map(r => ({
+    id: r.id,
+    name: r.name,
+    directoryIds: r.directoryIds,
+    applicableTo: r.applicableTo,
+  })));
 
   // Filter by operation type if provided
   const filteredRules = operation
     ? allRules.filter(rule => rule.applicableTo.includes(operation))
     : allRules;
+  
+  console.log(`Filtered rules for operation "${operation || 'all'}":`, filteredRules.map(r => ({
+    id: r.id,
+    name: r.name,
+  })));
+  console.log('=== END DEBUG ===');
 
   // Create inheritance map
   const inheritanceMap: { [directoryId: string]: Rule[] } = {};

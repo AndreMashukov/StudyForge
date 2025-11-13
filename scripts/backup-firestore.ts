@@ -150,35 +150,56 @@ function convertTimestamp(value: unknown): string | unknown {
 
 /**
  * Export a single document with its subcollections
+ * 
+ * IMPORTANT: Handles documents that have no fields but have subcollections.
+ * Firestore's get() doesn't return these documents, but listCollections() can find them.
  */
 async function exportDocument(
   docRef: admin.firestore.DocumentReference,
   collectionName: string
 ): Promise<DocumentBackup> {
+  // First, check if document has subcollections (even if it has no fields)
+  const subcollections = await docRef.listCollections();
+  
+  // Try to get the document data
   const doc = await docRef.get();
   
-  if (!doc.exists) {
+  let data: Record<string, unknown> = {};
+  let createTime: string | undefined;
+  let updateTime: string | undefined;
+  
+  if (doc.exists) {
+    // Document has fields
+    data = doc.data() || {};
+    createTime = doc.createTime?.toDate().toISOString();
+    updateTime = doc.updateTime?.toDate().toISOString();
+  } else if (subcollections.length > 0) {
+    // Document has no fields but has subcollections
+    // This is a valid document that exists only as a container for subcollections
+    // We'll create an empty document backup
+    data = {};
+    // No timestamps available for documents with no fields
+  } else {
+    // Document doesn't exist and has no subcollections
     throw new Error(`Document ${docRef.path} does not exist`);
   }
 
-  const data = doc.data() || {};
   const convertedData = convertTimestamp(data) as Record<string, unknown>;
 
   const documentBackup: DocumentBackup = {
-    id: doc.id,
+    id: docRef.id,
     data: convertedData,
-    createTime: doc.createTime?.toDate().toISOString(),
-    updateTime: doc.updateTime?.toDate().toISOString(),
+    createTime: createTime,
+    updateTime: updateTime,
   };
 
-  // Get subcollections
-  const subcollections = await docRef.listCollections();
+  // Get subcollections (we already have this from above)
   if (subcollections.length > 0) {
     documentBackup.subcollections = {};
     
     for (const subcollection of subcollections) {
       const subcollectionName = subcollection.id;
-      const subcollectionDocs = await exportCollection(subcollection, `${collectionName}/${doc.id}/${subcollectionName}`);
+      const subcollectionDocs = await exportCollection(subcollection, `${collectionName}/${docRef.id}/${subcollectionName}`);
       documentBackup.subcollections[subcollectionName] = subcollectionDocs;
     }
   }
@@ -188,6 +209,9 @@ async function exportDocument(
 
 /**
  * Export a collection with all its documents
+ * 
+ * IMPORTANT: Firestore's get() doesn't return documents that have no fields
+ * but have subcollections. We need to check for subcollections separately.
  */
 async function exportCollection(
   collectionRef: admin.firestore.CollectionReference,
@@ -198,21 +222,104 @@ async function exportCollection(
 
   console.log(`   📄 Exporting collection: ${collectionPath} (${snapshot.size} documents)`);
 
-  // Process documents in batches to avoid memory issues
-  const batchSize = 50;
-  const docs = snapshot.docs;
+  // Get all documents that have fields
+  const docsWithFields = snapshot.docs;
+  const processedDocIds = new Set<string>();
   
-  for (let i = 0; i < docs.length; i += batchSize) {
-    const batch = docs.slice(i, i + batchSize);
-    const batchPromises = batch.map(doc => exportDocument(doc.ref, collectionPath));
+  // Process documents with fields in batches
+  const batchSize = 50;
+  for (let i = 0; i < docsWithFields.length; i += batchSize) {
+    const batch = docsWithFields.slice(i, i + batchSize);
+    const batchPromises = batch.map(doc => {
+      processedDocIds.add(doc.id);
+      return exportDocument(doc.ref, collectionPath);
+    });
     const batchResults = await Promise.all(batchPromises);
     documents.push(...batchResults);
     
-    if (i + batchSize < docs.length) {
-      console.log(`      Processed ${Math.min(i + batchSize, docs.length)}/${docs.length} documents...`);
+    if (i + batchSize < docsWithFields.length) {
+      console.log(`      Processed ${Math.min(i + batchSize, docsWithFields.length)}/${docsWithFields.length} documents...`);
     }
   }
 
+  // IMPORTANT: Firestore's get() doesn't return documents that have no fields
+  // but have subcollections. We need to discover these documents.
+  //
+  // Solution: Use collection group queries to find all documents in subcollections
+  // of this collection, then extract parent document IDs from their paths.
+  const db = collectionRef.firestore;
+  const parentDocIds = new Set<string>();
+  
+  // Find all documents in subcollections of this collection using collection group query
+  // Collection group queries search across all collections with the same ID
+  // We'll query for subcollections that belong to this collection
+  try {
+    // Get all subcollections by checking each document reference
+    // Actually, a better approach: Try to discover parent documents by checking
+    // if subcollections exist. We can do this by trying common patterns or
+    // by using collection group queries on known subcollection names.
+    
+    // For now, let's check if we can discover documents by trying to list
+    // subcollections on document references. But we need document IDs...
+    
+    // The best solution: Use collection group queries to find all documents
+    // in subcollections, then extract parent document IDs from paths.
+    // Example path: "users/{userId}/rules/{ruleId}" -> parent is "{userId}"
+    
+    // Try to discover parent documents by checking subcollections
+    // We'll check for common subcollection names or use collection group queries
+    const commonSubcollectionNames = ['rules', 'subcollections', 'items', 'data'];
+    
+    for (const subcolName of commonSubcollectionNames) {
+      try {
+        // Use collection group query to find all documents in this subcollection
+        const collectionGroupRef = db.collectionGroup(subcolName);
+        const subcolSnapshot = await collectionGroupRef.get();
+        
+        for (const subcolDoc of subcolSnapshot.docs) {
+          // Extract parent document ID from path
+          // Path format: "collection/{parentId}/subcollection/{docId}"
+          // For top-level collections, collectionPath is just "users"
+          const pathParts = subcolDoc.ref.path.split('/');
+          const collectionName = collectionPath.split('/')[0]; // Get top-level collection name
+          
+          // Check if this subcollection document belongs to our collection
+          // Path should be: "{collectionName}/{parentId}/{subcollectionName}/{docId}"
+          if (pathParts.length >= 4 && pathParts[0] === collectionName && pathParts[2] === subcolName) {
+            const parentDocId = pathParts[1];
+            if (!processedDocIds.has(parentDocId)) {
+              parentDocIds.add(parentDocId);
+            }
+          }
+        }
+      } catch (error) {
+        // Collection group query might fail or return no results, that's OK
+        // Continue to next subcollection name
+      }
+    }
+    
+    // Process discovered parent documents that have subcollections but no fields
+    if (parentDocIds.size > 0) {
+      console.log(`   🔍 Found ${parentDocIds.size} document(s) with subcollections but no fields`);
+      
+      for (const docId of parentDocIds) {
+        const docRef = collectionRef.doc(docId);
+        try {
+          const emptyDocBackup = await exportDocument(docRef, collectionPath);
+          documents.push(emptyDocBackup);
+          console.log(`      ✅ Exported document: ${docId} (has subcollections but no fields)`);
+        } catch (error) {
+          // Document might not exist or might have been deleted, skip it
+          console.log(`      ⚠️  Could not export document ${docId}: ${error}`);
+        }
+      }
+    }
+  } catch (error) {
+    // Collection group queries might not be available or might fail
+    // That's OK, we'll just export what we can
+    console.log(`   ⚠️  Could not discover documents with subcollections only: ${error}`);
+  }
+  
   return documents;
 }
 

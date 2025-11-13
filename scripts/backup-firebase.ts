@@ -22,6 +22,7 @@ import * as path from 'path';
 import { config } from 'dotenv';
 import { backupAuthUsers } from './backup-firebase-auth';
 import { backupFirestore } from './backup-firestore';
+import { backupFirebaseRules } from './backup-firebase-rules';
 
 // Load environment variables from .env.local
 config({ path: path.join(process.cwd(), '.env.local') });
@@ -38,6 +39,11 @@ interface CompleteBackupMetadata {
     directory: string;
     totalCollections: number;
     totalDocuments: number;
+  };
+  rulesBackup?: {
+    directory: string;
+    firestoreRules: { exists: boolean };
+    storageRules: { exists: boolean };
   };
 }
 
@@ -168,10 +174,23 @@ async function backupFirebase(outputDir?: string): Promise<void> {
     const firestoreTotalCollections = (firestoreMetadata?.collections?.length as number) || 0;
     const firestoreTotalDocuments = (firestoreMetadata?.totalDocuments as number) || 0;
 
-    // Step 3: Create combined backup report
+    console.log('\n');
+
+    // Step 3: Backup Security Rules
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('STEP 3: Backing up Firebase Security Rules');
+    console.log('═══════════════════════════════════════════════════════\n');
+    
+    const rulesBackupDir = path.join(mainBackupDir, 'rules');
+    const rulesMetadata = await backupFirebaseRules(rulesBackupDir);
+    
+    const firestoreRulesExists = rulesMetadata?.firestoreRules?.exists || false;
+    const storageRulesExists = rulesMetadata?.storageRules?.exists || false;
+
+    // Step 4: Create combined backup report
     console.log('\n');
     console.log('═══════════════════════════════════════════════════════');
-    console.log('STEP 3: Creating backup report');
+    console.log('STEP 4: Creating backup report');
     console.log('═══════════════════════════════════════════════════════\n');
 
     const completeMetadata: CompleteBackupMetadata = {
@@ -186,6 +205,11 @@ async function backupFirebase(outputDir?: string): Promise<void> {
         directory: firestoreBackupDir,
         totalCollections: firestoreTotalCollections,
         totalDocuments: firestoreTotalDocuments,
+      },
+      rulesBackup: {
+        directory: rulesBackupDir,
+        firestoreRules: { exists: firestoreRulesExists },
+        storageRules: { exists: storageRulesExists },
       },
     };
 
