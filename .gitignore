@@ -146,9 +146,14 @@ vite.config.ts.timestamp-*
 .nx/workspace-data
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
+.github/*-instructions.md
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
 
 .github/instructions/examples/*
 .github/instructions/*
 docs/*
+
+# Firebase backups (contain sensitive data)
+backups/
+*.backup

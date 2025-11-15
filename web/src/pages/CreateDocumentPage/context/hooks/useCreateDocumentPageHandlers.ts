@@ -22,9 +22,9 @@ import {
   selectFileFormLoading,
   selectTextPromptFormLoading,
   selectTextPromptFormProgress,
-  selectDirectoryId,
   clearFiles,
 } from '../../../../store/slices/createDocumentPageSlice';
+import { selectSelectedDirectoryId } from '../../../../store/slices/directorySlice';
 import type { RootState } from '../../../../store';
 
 export const useCreateDocumentPageHandlers = () => {
@@ -37,7 +37,7 @@ export const useCreateDocumentPageHandlers = () => {
   const isFileLoading = useSelector((state: RootState) => selectFileFormLoading(state));
   const isTextPromptLoading = useSelector((state: RootState) => selectTextPromptFormLoading(state));
   const textPromptProgress = useSelector((state: RootState) => selectTextPromptFormProgress(state));
-  const directoryId = useSelector((state: RootState) => selectDirectoryId(state)); // 🆕 Get directoryId from state
+  const directoryId = useSelector((state: RootState) => selectSelectedDirectoryId(state)); // 🆕 Get directoryId from global directory selection
   
   const [createDocumentFromUrl] = useCreateDocumentFromUrlMutation();
   const [createDocument] = useCreateDocumentMutation();
@@ -58,6 +58,7 @@ export const useCreateDocumentPageHandlers = () => {
         url: data.url,
         title: data.title,
         directoryId: directoryId || undefined, // 🆕 Pass directoryId to API
+        ruleIds: data.ruleIds, // Section 6: Pass selected rules to API
       }).unwrap();
       
       // Phase 2.2: Redirect to documents page with generation option
@@ -88,6 +89,7 @@ export const useCreateDocumentPageHandlers = () => {
         content,
         sourceType: DocumentSourceType.UPLOAD,
         directoryId: directoryId || undefined, // 🆕 Pass directoryId to API
+        ruleIds: data.ruleIds, // Section 6: Pass selected rules to API
       }).unwrap();
       
       // Navigate to the created document
@@ -134,6 +136,7 @@ export const useCreateDocumentPageHandlers = () => {
         prompt: data.prompt,
         files: files.length > 0 ? files : undefined,
         directoryId: directoryId || null, // 🆕 Pass directoryId to API
+        ruleIds: data.ruleIds || [], // 🆕 Pass ruleIds to API
       }).unwrap();
       
       if (progressInterval) {

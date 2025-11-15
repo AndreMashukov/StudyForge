@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '../../../../components/ui/Button';
 import { Label } from '../../../../components/ui/Label';
 import { Sparkles, Loader2 } from 'lucide-react';
@@ -9,7 +10,15 @@ import { FileUploadZone } from './FileUploadZone';
 import { AttachedFilesList } from './AttachedFilesList';
 import { SourceTabs, SourceTabType } from './SourceTabs';
 import { DocumentSelector } from './DocumentSelector';
+import { CompactRuleSelector } from '../../../../components/CompactRuleSelector';
 import { FILE_UPLOAD_CONSTRAINTS } from '../../../../types/fileUpload';
+import { RuleApplicability } from '@shared-types';
+import { 
+  selectDirectoryId,
+  selectPromptRules,
+  setPromptRules,
+} from '../../../../store/slices/createDocumentPageSlice';
+import type { RootState } from '../../../../store';
 
 const MAX_CHARACTERS = 10000;
 const MIN_CHARACTERS = 10;
@@ -29,8 +38,22 @@ export const TextPromptForm = ({
   onDocumentToggle,
   isLoadingDocuments,
 }: ITextPromptFormProps) => {
+  const dispatch = useDispatch();
+
+  // Redux selectors
+  const directoryId = useSelector((state: RootState) => selectDirectoryId(state));
+  const selectedRuleIds = useSelector((state: RootState) => selectPromptRules(state));
+    
+  console.log('TextPromptForm render start', { directoryId, selectedRuleIds });
+  
+  console.log('TextPromptForm render', { directoryId, selectedRuleIds });
+  
   const [prompt, setPrompt] = useState('');
   const [activeTab, setActiveTab] = useState<SourceTabType>('upload');
+
+  const handleRuleSelectionChange = (ruleIds: string[]) => {
+    dispatch(setPromptRules(ruleIds));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +61,7 @@ export const TextPromptForm = ({
     
     onSubmit({
       prompt: prompt.trim(),
+      ruleIds: selectedRuleIds,
     });
   };
 
@@ -166,6 +190,19 @@ export const TextPromptForm = ({
           </p>
         )}
       </div>
+
+      {/* Rule Selection */}
+      {directoryId && (
+        <div className={textPromptFormStyles.formGroup}>
+          <CompactRuleSelector
+            directoryId={directoryId}
+            operation={RuleApplicability.PROMPT}
+            selectedRuleIds={selectedRuleIds}
+            onSelectionChange={handleRuleSelectionChange}
+            label="Content Generation Rules"
+          />
+        </div>
+      )}
 
       {isLoading && progress > 0 && (
         <div className={textPromptFormStyles.progressContainer}>

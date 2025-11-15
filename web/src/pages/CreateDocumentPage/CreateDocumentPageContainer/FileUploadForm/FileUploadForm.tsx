@@ -1,20 +1,38 @@
 import React, { useState, useRef } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
 import { Label } from '../../../../components/ui/Label';
 import { Upload, FileText, Loader2, AlertCircle } from 'lucide-react';
+import { RuleSelector } from '../../../../components/RuleSelector';
+import { RuleApplicability } from '@shared-types';
+import { 
+  selectDirectoryId, 
+  selectUploadRules,
+  setUploadRules 
+} from '../../../../store/slices/createDocumentPageSlice';
 import { IFileUploadFormProps } from './IFileUploadForm';
 import { fileUploadFormStyles } from './FileUploadForm.styles';
 import { cn } from '../../../../lib/utils';
+import type { RootState } from '../../../../store';
 
 export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) => {
+  const dispatch = useDispatch();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Redux selectors
+  const directoryId = useSelector((state: RootState) => selectDirectoryId(state));
+  const selectedRuleIds = useSelector((state: RootState) => selectUploadRules(state));
+
   const MAX_FILE_SIZE = 100 * 1024; // 100KB in bytes
+
+  const handleRuleSelectionChange = (ruleIds: string[]) => {
+    dispatch(setUploadRules(ruleIds));
+  };
 
   const validateFile = (file: File): string | null => {
     // Check file type
@@ -81,6 +99,7 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
     onSubmit({
       file: selectedFile,
       title: title.trim() || undefined,
+      ruleIds: selectedRuleIds.length > 0 ? selectedRuleIds : undefined,
     });
   };
 
@@ -91,7 +110,9 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
   const canSubmit = selectedFile && !fileError;
 
   return (
-    <form onSubmit={handleSubmit} className={fileUploadFormStyles.container}>
+    <div className="grid grid-cols-1 md:grid-cols-[7fr_3fr] gap-6">
+      {/* Form Section (70%) */}
+      <form onSubmit={handleSubmit} className={fileUploadFormStyles.container}>
       {/* File Upload Area */}
       <div className={fileUploadFormStyles.formGroup}>
         <Label className={fileUploadFormStyles.label}>
@@ -192,5 +213,34 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
         )}
       </Button>
     </form>
+
+      {/* Rule Selector Section (30%) */}
+      <div className="space-y-4">
+        {directoryId ? (
+          <RuleSelector
+            directoryId={directoryId}
+            operation={RuleApplicability.UPLOAD}
+            selectedRuleIds={selectedRuleIds}
+            onSelectionChange={handleRuleSelectionChange}
+            compact={true}
+          />
+        ) : (
+          <div className="border rounded-lg p-4 bg-muted/30">
+            <p className="text-sm text-muted-foreground text-center">
+              <span role="img" aria-label="folder">📁</span> Select a directory to load applicable rules
+            </p>
+          </div>
+        )}
+        
+        <div className="text-xs text-muted-foreground p-3 bg-accent/10 rounded-md border">
+          <p className="font-medium mb-1">
+            <span role="img" aria-label="info">ℹ️</span> About Rules
+          </p>
+          <p>
+            Rules guide how content is processed and validated during upload.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };

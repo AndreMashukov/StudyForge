@@ -1,0 +1,67 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules for Code Insights AI
+// Implements secure document storage with user isolation
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Users can only access their own documents
+    match /users/{userId}/documents/{documentId}/{fileName} {
+      allow read, write: if request.auth != null 
+                      && request.auth.uid == userId
+                      && validDocumentFileName(fileName);
+    }
+    
+    // Specific validation for markdown content files
+    match /users/{userId}/documents/{documentId}/content.md {
+      allow read: if request.auth != null 
+                  && request.auth.uid == userId;
+      
+      allow write: if request.auth != null 
+                  && request.auth.uid == userId
+                  && validateMarkdownUpload(request.resource);
+    }
+    
+    // Metadata files (if stored separately from Firestore)
+    match /users/{userId}/documents/{documentId}/metadata.json {
+      allow read, write: if request.auth != null 
+                      && request.auth.uid == userId
+                      && request.resource.size < 10 * 1024; // 10KB max for metadata
+    }
+    
+    // Future: Version history (not implemented in Phase 1)
+    match /users/{userId}/documents/{documentId}/versions/{versionFile} {
+      allow read: if request.auth != null 
+                  && request.auth.uid == userId;
+      
+      // Version creation should be handled through Firebase Functions only
+      allow write: if false; // Versions created via Functions only
+    }
+    
+    // Deny all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// Validation function for document file names
+function validDocumentFileName(fileName) {
+  return fileName.matches('(content\\.md|metadata\\.json)')
+      || fileName.matches('versions/v\\d+\\.md');
+}
+
+// Validation function for markdown file uploads
+function validateMarkdownUpload(resource) {
+  return resource != null
+      && resource.size > 0
+      && resource.size < 100 * 1024 // 100KB max size
+      && resource.contentType in ['text/markdown', 'text/plain']
+      && hasValidContent(resource);
+}
+
+// Basic content validation
+function hasValidContent(resource) {
+  // Additional validation could be added here
+  // For now, just ensure the file isn't empty
+  return resource.size > 0;
+}

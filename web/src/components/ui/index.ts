@@ -7,3 +7,6 @@ export * from './Icon';
 export * from './Tabs';
 export * from './Textarea';
 export * from './ActionsDropdown';
+export * from './Dialog';
+export * from './Badge';
+export * from './DropdownMenu';

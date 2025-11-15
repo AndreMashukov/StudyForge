@@ -3,7 +3,7 @@ import {
   Quiz, 
   QuizQuestion, 
   GeminiQuizResponse
-} from "../../libs/shared-types/src/index";
+} from "@shared-types";
 import * as functions from "firebase-functions";
 
 /**
@@ -326,7 +326,8 @@ export class FirestoreService {
   public static async saveQuizFromDocument(
     documentId: string,
     geminiQuiz: GeminiQuizResponse,
-    userId?: string
+    userId?: string,
+    followupRuleIds?: string[]
   ): Promise<Quiz> {
     try {
       const db = this.getDb();
@@ -358,6 +359,8 @@ export class FirestoreService {
         // Add generation metadata
         generationAttempt: generationAttempt,
         documentTitle: document.title,
+        // Store followup rules for later use
+        followupRuleIds: followupRuleIds || [],
       };
 
       const docRef = await quizzesCollection.add(quiz);

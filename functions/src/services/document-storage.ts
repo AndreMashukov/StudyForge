@@ -1,6 +1,6 @@
 import { getStorage } from 'firebase-admin/storage';
 import { getFirestore } from 'firebase-admin/firestore';
-import { DocumentEnhanced as Document, DocumentMetadataEnhanced as DocumentMetadata, StorageFile, StorageMetadata } from "../../libs/shared-types/src/index";
+import { DocumentEnhanced as Document, DocumentMetadataEnhanced as DocumentMetadata, StorageFile, StorageMetadata } from "@shared-types";
 import { logger } from 'firebase-functions/v2';
 
 /**

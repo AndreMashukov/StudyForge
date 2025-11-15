@@ -3,6 +3,7 @@ import { DocumentEnhanced } from '@shared-types';
 
 export interface ITextPromptFormData {
   prompt: string;
+  ruleIds?: string[];
 }
 
 export interface ITextPromptFormProps {

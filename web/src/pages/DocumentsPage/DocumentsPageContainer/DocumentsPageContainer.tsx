@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { useDocumentsPageContext } from '../context/hooks/useDocumentsPageContext';
 import { selectSelectedDirectoryId } from '../../../store/slices/directorySlice';
 import { useGetDirectoryContentsQuery } from '../../../store/api/Directory/DirectoryApi';
@@ -20,6 +21,7 @@ import { formatDate } from '../../../utils/dateUtils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 
 export const DocumentsPageContainer = (): React.JSX.Element => {
+  const navigate = useNavigate();
   const { 
     documentsApi,
     handlers 
@@ -235,6 +237,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                           onClick={() => handlers.handleSelectDirectory(dir.id)}
                           onEdit={() => setEditDialog({ open: true, directory: dir })}
                           onDelete={() => setDeleteDialog({ open: true, directory: dir })}
+                          onManageRules={() => navigate(`/directories/${dir.id}/rules`)}
                         />
                       ))}
                     </div>

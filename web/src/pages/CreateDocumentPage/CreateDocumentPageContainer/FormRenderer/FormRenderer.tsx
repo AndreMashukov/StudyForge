@@ -6,8 +6,13 @@ import {
   selectContextSizeError,
   selectCanAttachMore,
   selectSelectedDocumentIds,
+  selectUrlFormLoading,
+  selectFileFormLoading,
+  selectTextPromptFormLoading,
+  selectTextPromptFormProgress,
 } from '../../../../store/slices/createDocumentPageSlice';
 import { useGetUserDocumentsQuery } from '../../../../store/api/Documents';
+import { useCreateDocumentPageContext } from '../../context/hooks/useCreateDocumentPageContext';
 import { UrlScrapingForm } from '../UrlScrapingForm';
 import { FileUploadForm } from '../FileUploadForm';
 import { TextPromptForm } from '../TextPromptForm';
@@ -15,27 +20,11 @@ import { FormContainer } from '../FormContainer';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
 import { Globe, Upload, ArrowLeft, Sparkles } from 'lucide-react';
 import { Button } from '../../../../components/ui/Button';
-import { IUrlScrapingFormData } from '../UrlScrapingForm/IUrlScrapingForm';
-import { IFileUploadFormData } from '../FileUploadForm/IFileUploadForm';
 import { ITextPromptFormData } from '../TextPromptForm/ITextPromptForm';
-import { IFileContent } from '@shared-types';
 import type { RootState } from '../../../../store';
 import { useFileUpload } from '../../context/hooks/useFileUpload';
 
 interface IFormRendererProps {
-  onSubmitUrl: (data: IUrlScrapingFormData) => Promise<void>;
-  onSubmitFile: (data: IFileUploadFormData) => Promise<void>;
-  onSubmitTextPrompt: (
-    data: ITextPromptFormData,
-    fileUploadHelpers: {
-      isContextSizeValid: () => boolean;
-      getFilesForSubmission: () => IFileContent[];
-    }
-  ) => Promise<void>;
-  isUrlLoading: boolean;
-  isFileLoading: boolean;
-  isTextPromptLoading: boolean;
-  textPromptProgress?: number;
   onBack?: () => void;
 }
 
@@ -65,17 +54,19 @@ const getFormTitle = (sourceType: string) => {
   }
 };
 
-export const FormRenderer = ({
-  onSubmitUrl,
-  onSubmitFile,
-  onSubmitTextPrompt,
-  isUrlLoading,
-  isFileLoading,
-  isTextPromptLoading,
-  textPromptProgress,
-  onBack,
-}: IFormRendererProps) => {
+export const FormRenderer = ({ onBack }: IFormRendererProps) => {
+  const { handlers } = useCreateDocumentPageContext();
+  
+  // Redux selectors for state
   const selectedSource = useSelector((state: RootState) => selectSelectedSource(state));
+  const isUrlLoading = useSelector((state: RootState) => selectUrlFormLoading(state));
+  const isFileLoading = useSelector((state: RootState) => selectFileFormLoading(state));
+  const isTextPromptLoading = useSelector((state: RootState) => selectTextPromptFormLoading(state));
+  const textPromptProgress = useSelector((state: RootState) => selectTextPromptFormProgress(state));
+  const attachedFiles = useSelector((state: RootState) => selectAttachedFiles(state));
+  const contextSizeError = useSelector((state: RootState) => selectContextSizeError(state));
+  const canAttachMore = useSelector((state: RootState) => selectCanAttachMore(state));
+  const selectedDocumentIds = useSelector((state: RootState) => selectSelectedDocumentIds(state));
   
   // Fetch user documents for library selector
   const { data: documentsData, isLoading: isLoadingDocuments } = useGetUserDocumentsQuery();
@@ -83,16 +74,10 @@ export const FormRenderer = ({
   
   // File upload hook with documents
   const fileUpload = useFileUpload(userDocuments);
-  
-  // Redux selectors
-  const attachedFiles = useSelector((state: RootState) => selectAttachedFiles(state));
-  const contextSizeError = useSelector((state: RootState) => selectContextSizeError(state));
-  const canAttachMore = useSelector((state: RootState) => selectCanAttachMore(state));
-  const selectedDocumentIds = useSelector((state: RootState) => selectSelectedDocumentIds(state));
 
   // Handle text prompt submission with file upload helpers
   const handleTextPromptSubmit = async (data: ITextPromptFormData) => {
-    await onSubmitTextPrompt(data, {
+    await handlers.handleCreateFromTextPrompt(data, {
       isContextSizeValid: fileUpload.isContextSizeValid,
       getFilesForSubmission: fileUpload.getFilesForSubmission,
     });
@@ -130,14 +115,14 @@ export const FormRenderer = ({
           {selectedSource === 'website' && (
             <UrlScrapingForm
               isLoading={isUrlLoading}
-              onSubmit={onSubmitUrl}
+              onSubmit={handlers.handleCreateFromUrl}
             />
           )}
           
           {selectedSource === 'file' && (
             <FileUploadForm
               isLoading={isFileLoading}
-              onSubmit={onSubmitFile}
+              onSubmit={handlers.handleCreateFromFile}
             />
           )}
           

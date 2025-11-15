@@ -11,10 +11,6 @@ import { FormRenderer } from './FormRenderer';
 import { 
   selectSelectedSource, 
   selectCreateDocumentPageError,
-  selectUrlFormLoading,
-  selectFileFormLoading,
-  selectTextPromptFormLoading,
-  selectTextPromptFormProgress,
   clearSelection 
 } from '../../../store/slices/createDocumentPageSlice';
 import { useDispatch } from 'react-redux';
@@ -28,10 +24,6 @@ export const CreateDocumentPageContainer = () => {
   // Redux selectors
   const selectedSource = useSelector((state: RootState) => selectSelectedSource(state));
   const error = useSelector((state: RootState) => selectCreateDocumentPageError(state));
-  const isUrlLoading = useSelector((state: RootState) => selectUrlFormLoading(state));
-  const isFileLoading = useSelector((state: RootState) => selectFileFormLoading(state));
-  const isTextPromptLoading = useSelector((state: RootState) => selectTextPromptFormLoading(state));
-  const textPromptProgress = useSelector((state: RootState) => selectTextPromptFormProgress(state));
   
   const isFormVisible = Boolean(selectedSource);
 
@@ -87,16 +79,7 @@ export const CreateDocumentPageContainer = () => {
           
           {/* Form Section */}
           <div className={createDocumentPageStyles.formSection}>
-            <FormRenderer
-              onSubmitUrl={handlers.handleCreateFromUrl}
-              onSubmitFile={handlers.handleCreateFromFile}
-              onSubmitTextPrompt={handlers.handleCreateFromTextPrompt}
-              isUrlLoading={isUrlLoading}
-              isFileLoading={isFileLoading}
-              isTextPromptLoading={isTextPromptLoading}
-              textPromptProgress={textPromptProgress}
-              onBack={handleBackToSources}
-            />
+            <FormRenderer onBack={handleBackToSources} />
           </div>
         </div>
       </div>

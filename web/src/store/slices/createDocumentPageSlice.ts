@@ -10,6 +10,13 @@ export interface ICreateDocumentPageState {
   error: string | null;
   directoryId: string | null; // 🆕 Directory to place new document in
   
+  // Rule selection state (Section 6)
+  selectedRuleIds: {
+    scraping: string[];
+    upload: string[];
+    prompt: string[];
+  };
+  
   // Form-specific states
   urlForm: {
     isLoading: boolean;
@@ -34,6 +41,11 @@ const initialState: ICreateDocumentPageState = {
   isAnimating: false,
   error: null,
   directoryId: null, // 🆕 Initialize directoryId
+  selectedRuleIds: {
+    scraping: [],
+    upload: [],
+    prompt: [],
+  },
   urlForm: {
     isLoading: false,
   },
@@ -168,6 +180,16 @@ const createDocumentPageSlice = createSlice({
     setDirectoryId: (state, action: PayloadAction<string | null>) => {
       state.directoryId = action.payload;
     },
+    // Rule selection actions (Section 6)
+    setScrapingRules: (state, action: PayloadAction<string[]>) => {
+      state.selectedRuleIds.scraping = action.payload;
+    },
+    setUploadRules: (state, action: PayloadAction<string[]>) => {
+      state.selectedRuleIds.upload = action.payload;
+    },
+    setPromptRules: (state, action: PayloadAction<string[]>) => {
+      state.selectedRuleIds.prompt = action.payload;
+    },
     resetCreateDocumentPage: (state) => {
       return initialState;
     },
@@ -194,6 +216,9 @@ export const {
   clearDocumentSelections,
   clearSelection,
   setDirectoryId,
+  setScrapingRules,
+  setUploadRules,
+  setPromptRules,
   resetCreateDocumentPage,
 } = createDocumentPageSlice.actions;
 
@@ -240,5 +265,13 @@ export const selectUploadedFilesCount = (state: { createDocumentPage: ICreateDoc
   state.createDocumentPage.textPromptForm.attachedFiles.filter(f => f.source === 'upload').length;
 export const selectLibraryDocumentsCount = (state: { createDocumentPage: ICreateDocumentPageState }) => 
   state.createDocumentPage.textPromptForm.attachedFiles.filter(f => f.source === 'library').length;
+
+// Rule selection selectors (Section 6)
+export const selectScrapingRules = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.selectedRuleIds.scraping;
+export const selectUploadRules = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.selectedRuleIds.upload;
+export const selectPromptRules = (state: { createDocumentPage: ICreateDocumentPageState }) => 
+  state.createDocumentPage.selectedRuleIds.prompt;
 
 export default createDocumentPageSlice.reducer;

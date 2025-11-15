@@ -2,13 +2,14 @@ import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { FirestoreService } from "../services/firestore";
+import { promptBuilder } from "../services/promptBuilder";
 import { 
   GenerateQuizRequest, 
   GenerateQuizResponse, 
   GetQuizResponse,
   ApiResponse,
   Quiz
-} from "../../libs/shared-types/src/index";
+} from "@shared-types";
 
 // Define secrets
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
@@ -35,11 +36,13 @@ export const generateQuiz = onCall(
         throw new Error("documentId is required");
       }
 
-      const { documentId, quizName, additionalPrompt } = requestData;
+      const { documentId, quizName, additionalPrompt, quizRuleIds, followupRuleIds } = requestData;
 
       console.log(`Generating quiz from document: ${documentId}`, {
         customQuizName: !!quizName,
-        hasAdditionalPrompt: !!additionalPrompt
+        hasAdditionalPrompt: !!additionalPrompt,
+        quizRuleCount: quizRuleIds?.length || 0,
+        followupRuleCount: followupRuleIds?.length || 0,
       });
       
       // Step 1: Get document metadata
@@ -57,9 +60,27 @@ export const generateQuiz = onCall(
       
       GeminiService.validateContentForQuiz(documentContent);
       
+      // Step 3.5: Inject rules into prompt if provided
+      let enhancedPrompt = additionalPrompt || '';
+      if (userId && (quizRuleIds?.length || followupRuleIds?.length)) {
+        console.log("Injecting rules into quiz generation prompt...");
+        const { quizPrompt, followupPrompt } = await promptBuilder.injectQuizRules(
+          enhancedPrompt,
+          quizRuleIds || [],
+          followupRuleIds || [],
+          userId
+        );
+        enhancedPrompt = quizPrompt;
+        // Store followup prompt for later use (TODO: Add to quiz metadata)
+        console.log("Rules injected successfully", {
+          quizPromptLength: quizPrompt.length,
+          followupPromptLength: followupPrompt.length,
+        });
+      }
+      
       // Step 4: Generate quiz with Gemini AI (allowing multiple per document)
       console.log("Generating quiz with Gemini AI for document...");
-      const geminiQuiz = await GeminiService.generateQuiz(documentContent, additionalPrompt);
+      const geminiQuiz = await GeminiService.generateQuiz(documentContent, enhancedPrompt);
       
       // Step 5: Apply custom quiz name if provided
       if (quizName && quizName.trim()) {
@@ -69,8 +90,13 @@ export const generateQuiz = onCall(
         geminiQuiz.title = `Quiz from ${document.title}`;
       }
       
-      // Step 6: Save quiz with document reference
-      const savedQuiz = await FirestoreService.saveQuizFromDocument(documentId, geminiQuiz, userId);
+      // Step 6: Save quiz with document reference and followup rules
+      const savedQuiz = await FirestoreService.saveQuizFromDocument(
+        documentId, 
+        geminiQuiz, 
+        userId,
+        followupRuleIds
+      );
       
       console.log(`Successfully generated quiz from document: ${savedQuiz.id}`);
       

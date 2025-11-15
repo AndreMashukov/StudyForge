@@ -77,6 +77,7 @@ export const useQuizPageHandlers = () => {
         correctAnswer: currentQuestion.options[currentQuestion.correct],
         questionOptions: currentQuestion.options,
         quizTitle: quizState.firestoreQuiz?.title,
+        followupRuleIds: quizState.firestoreQuiz?.followupRuleIds || [], // Use stored rules
       };
 
       const result = await generateFollowup(requestData).unwrap();

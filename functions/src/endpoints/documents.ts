@@ -4,13 +4,14 @@ import { defineSecret } from 'firebase-functions/params';
 import { DocumentCrudService } from '../services/document-crud';
 import { WebScraperService } from '../services/scraper';
 import { GeminiService } from '../services/gemini';
+import { promptBuilder } from '../services/promptBuilder';
 import { 
   CreateDocumentRequest, 
   UpdateDocumentRequest, 
   DocumentSourceType,
   DocumentStatus,
   GenerateFromPromptRequest,
-} from "../../libs/shared-types/src/index";
+} from "@shared-types";
 
 // Define the Gemini API key secret for markdown conversion
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
@@ -93,13 +94,19 @@ export const createDocumentFromUrl = onCall(
   async (request) => {
     try {
       const userId = await validateAuth(request);
-      const { url, title: customTitle, directoryId } = request.data as { 
+      const { url, title: customTitle, directoryId, ruleIds } = request.data as { 
         url: string; 
         title?: string;
         directoryId?: string;
+        ruleIds?: string[];
       };
 
-      logger.info('Creating document from URL', { userId, url, directoryId });
+      logger.info('Creating document from URL', { 
+        userId, 
+        url, 
+        directoryId,
+        ruleCount: ruleIds?.length || 0,
+      });
 
       // Validate URL
       if (!url || typeof url !== 'string') {
@@ -112,8 +119,8 @@ export const createDocumentFromUrl = onCall(
 
       logger.info('Starting content scraping and markdown conversion', { url });
 
-      // Scrape content and convert to markdown
-      const scrapedContent = await WebScraperService.extractContentAsMarkdown(url);
+      // Scrape content and convert to markdown (with optional rule injection)
+      const scrapedContent = await WebScraperService.extractContentAsMarkdown(url, ruleIds, userId);
 
       logger.info('Content scraped successfully', { 
         url,
@@ -633,9 +640,22 @@ export const generateFromPrompt = onCall(
         });
       }
 
+      // Inject rules into prompt if provided
+      let finalPrompt = trimmedPrompt;
+      if (data.ruleIds && data.ruleIds.length > 0) {
+        logger.info('Injecting rules into document generation prompt', { 
+          ruleCount: data.ruleIds.length,
+          userId,
+        });
+        finalPrompt = await promptBuilder.injectRules(trimmedPrompt, data.ruleIds, userId);
+      }
+
       logger.info('Calling Gemini AI to generate document', { 
         userId,
-        promptLength: trimmedPrompt.length,
+        promptLength: finalPrompt.length,
+        originalPromptLength: trimmedPrompt.length,
+        withRules: data.ruleIds && data.ruleIds.length > 0,
+        ruleCount: data.ruleIds?.length || 0,
         withContextFiles: !!(data.files && data.files.length > 0),
         contextSources: {
           hasUploadedFiles: uploadFilesCount > 0,
@@ -646,7 +666,7 @@ export const generateFromPrompt = onCall(
 
       // Generate document content using Gemini AI with optional context files
       const generatedContent = await GeminiService.generateDocumentFromPrompt(
-        trimmedPrompt,
+        finalPrompt,
         data.files
       );
 

@@ -1,5 +1,5 @@
 /* eslint-disable no-useless-escape */
-import { ScrapedContent } from '../../../../libs/shared-types/src/index';
+import { ScrapedContent } from '@shared-types';
 
 /**
  * Quiz Prompt Builder for Gemini AI

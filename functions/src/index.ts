@@ -8,6 +8,17 @@
  * - API endpoints: generateQuiz and getQuiz
  */
 
+// Register TypeScript path mappings for runtime module resolution
+import { register } from "tsconfig-paths";
+import { resolve } from "path";
+
+register({
+  baseUrl: resolve(__dirname, "../../../"), // Resolve to workspace root (functions/lib/src -> workspace root)
+  paths: {
+    "@shared-types": ["dist/out-tsc/libs/shared-types/src/index.js"],
+  },
+});
+
 import { setGlobalOptions } from "firebase-functions";
 import { onRequest } from "firebase-functions/v2/https";
 
@@ -86,6 +97,26 @@ export {
   getDocumentStats,
   getDocumentContent,
 } from "./endpoints/documents";
+
+// Export rules management functions
+export {
+  createRuleEndpoint as createRule,
+  getRuleEndpoint as getRule,
+  getRulesEndpoint as getRules,
+  updateRuleEndpoint as updateRule,
+  deleteRuleEndpoint as deleteRule,
+  attachRuleToDirectoryEndpoint as attachRuleToDirectory,
+  detachRuleFromDirectoryEndpoint as detachRuleFromDirectory,
+  getDirectoryRulesEndpoint as getDirectoryRules,
+  getApplicableRulesEndpoint as getApplicableRules,
+  formatRulesForPromptEndpoint as formatRulesForPrompt,
+  getRuleTagsEndpoint as getRuleTags,
+} from "./endpoints/rules";
+
+// Export debug functions (temporary for troubleshooting)
+export {
+  debugDirectoryRules,
+} from "./endpoints/debug-rules";
 
 // Export directory management functions
 export {

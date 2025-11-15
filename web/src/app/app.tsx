@@ -3,6 +3,7 @@ import { Provider } from 'react-redux';
 import { store } from '../store';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
+import { ToastProvider, ToastContainer } from '../components/Toast';
 import { MainLayout } from '../components/MainLayout';
 import { ProtectedRoute } from '../utils/ProtectedRoute';
 import { HomePage } from '../pages/HomePage';
@@ -14,6 +15,8 @@ import { DocumentsPage } from '../pages/DocumentsPage';
 import { CreateDocumentPage } from '../pages/CreateDocumentPage';
 import { DocumentViewerPage } from '../pages/DocumentViewerPage';
 import { MyQuizzesPage } from '../pages/MyQuizzesPage';
+import { RulesPage } from '../pages/RulesPage';
+import { DirectoryRulesPage } from '../pages/DirectoryRulesPage';
 import { Page } from '../components/Page';
 
 export function App() {
@@ -21,7 +24,10 @@ export function App() {
     <Provider store={store}>
       <ThemeProvider>
         <AuthProvider>
-          <AppContent />
+          <ToastProvider>
+            <AppContent />
+            <ToastContainer />
+          </ToastProvider>
         </AuthProvider>
       </ThemeProvider>
     </Provider>
@@ -159,6 +165,30 @@ const AppContent = () => {
                   </div>
                 </div>
               </Page>
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+
+      {/* Rules Management Route */}
+      <Route 
+        path="/rules" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <RulesPage />
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+      
+      {/* Directory Rules Management Route */}
+      <Route 
+        path="/directories/:directoryId/rules" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <DirectoryRulesPage />
             </ProtectedRoute>
           </MainLayout>
         } 

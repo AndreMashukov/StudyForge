@@ -10,6 +10,9 @@ export interface Quiz {
   // New fields for document-based architecture
   generationAttempt?: number; // Track multiple generations per document
   documentTitle?: string; // Cache for performance
+  
+  // Rule tracking for followup generation
+  followupRuleIds?: string[]; // Rules to use when generating followup explanations
 }
 
 export interface QuizQuestion {
@@ -182,6 +185,8 @@ export interface GenerateQuizRequest {
   documentId: string;
   quizName?: string; // Optional custom name, defaults to "Quiz from [Document Title]"
   additionalPrompt?: string; // Optional additional instructions for quiz generation
+  quizRuleIds?: string[]; // Optional rules for quiz generation
+  followupRuleIds?: string[]; // Optional rules for followup generation
 }
 
 export interface GenerateQuizResponse {
@@ -254,12 +259,14 @@ export interface CreateDocumentFromUrlRequest {
   url: string;
   title?: string; // Optional override for document title
   directoryId?: string; // Optional directory placement
+  ruleIds?: string[]; // Optional rules for content processing (Section 6)
 }
 
 export interface UploadDocumentRequest {
   fileName: string;
   content: string; // Base64 encoded markdown content
   title?: string; // Optional override for document title
+  ruleIds?: string[]; // Optional rules for content processing (Section 6)
 }
 
 // File Content Type for Text Prompt Context
@@ -276,6 +283,7 @@ export interface GenerateFromPromptRequest {
   prompt: string; // User's text prompt (max 10000 characters)
   files?: IFileContent[]; // Optional reference documents (max 5 files)
   directoryId?: string | null; // Optional directory to place the generated document
+  ruleIds?: string[]; // Optional rules for content generation
 }
 
 export interface GenerateFromPromptResponse {
@@ -409,6 +417,7 @@ export interface GenerateFollowupRequest {
   correctAnswer?: string;
   questionOptions?: string[];
   quizTitle?: string;
+  followupRuleIds?: string[]; // Optional rule IDs for followup generation
 }
 
 export interface GenerateFollowupResponse {
@@ -431,6 +440,7 @@ export interface QuizFollowupContext {
   quiz: {
     title: string;
   };
+  customInstructions?: string; // Optional custom rules/instructions to inject
 }
 
 // Auth Types
@@ -444,4 +454,146 @@ export interface AuthState {
   user: User | null;
   loading: boolean;
   error: string | null;
+}
+
+// Rules Feature Types
+export enum RuleApplicability {
+  SCRAPING = 'scraping',
+  UPLOAD = 'upload',
+  PROMPT = 'prompt',
+  QUIZ = 'quiz',
+  FOLLOWUP = 'followup',
+}
+
+export enum RuleColor {
+  RED = 'red',
+  ORANGE = 'orange',
+  YELLOW = 'yellow',
+  GREEN = 'green',
+  BLUE = 'blue',
+  INDIGO = 'indigo',
+  PURPLE = 'purple',
+  PINK = 'pink',
+  GRAY = 'gray',
+}
+
+export interface Directory {
+  id: string;
+  userId: string;
+  name: string;
+  path: string;
+  parentId: string | null;
+  ruleIds: string[]; // Denormalized for quick access
+  createdAt: Date | { toDate(): Date };
+  updatedAt: Date | { toDate(): Date };
+}
+
+export interface Rule {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  content: string; // Markdown content, max 10,000 chars
+  color: RuleColor;
+  tags: string[];
+  applicableTo: RuleApplicability[];
+  isDefault: boolean; // Auto-selected for operations
+  directoryIds: string[]; // Directories this rule is attached to
+  createdAt: Date | { toDate(): Date };
+  updatedAt: Date | { toDate(): Date };
+}
+
+// Rule API Types
+export interface CreateRuleRequest {
+  name: string;
+  description?: string;
+  content: string;
+  color: RuleColor;
+  tags: string[];
+  applicableTo: RuleApplicability[];
+  isDefault?: boolean;
+}
+
+export interface UpdateRuleRequest {
+  ruleId: string;
+  name?: string;
+  description?: string;
+  content?: string;
+  color?: RuleColor;
+  tags?: string[];
+  applicableTo?: RuleApplicability[];
+  isDefault?: boolean;
+}
+
+export interface DeleteRuleRequest {
+  ruleId: string;
+}
+
+export interface DeleteRuleResponse {
+  success: boolean;
+  error?: string; // Error message if rule is attached to directories
+}
+
+export interface AttachRuleToDirectoryRequest {
+  ruleId: string;
+  directoryId: string;
+}
+
+export interface DetachRuleFromDirectoryRequest {
+  ruleId: string;
+  directoryId: string;
+}
+
+export interface GetDirectoryRulesRequest {
+  directoryId: string;
+  includeAncestors?: boolean; // For cascading
+}
+
+export interface GetDirectoryRulesResponse {
+  rules: Rule[];
+  inheritanceMap: {
+    [directoryId: string]: Rule[];
+  };
+}
+
+export interface GetApplicableRulesRequest {
+  directoryId: string;
+  operation: RuleApplicability;
+}
+
+export interface GetApplicableRulesResponse {
+  rules: Rule[];
+}
+
+export interface FormatRulesForPromptRequest {
+  ruleIds: string[];
+}
+
+export interface FormatRulesForPromptResponse {
+  formattedRules: string;
+}
+
+export interface GetRulesResponse {
+  rules: Rule[];
+}
+
+export interface GetRuleResponse {
+  rule: Rule;
+}
+
+export interface CreateRuleResponse {
+  ruleId: string;
+  rule: Rule;
+}
+
+export interface UpdateRuleResponse {
+  rule: Rule;
+}
+
+export interface AttachRuleResponse {
+  success: boolean;
+}
+
+export interface DetachRuleResponse {
+  success: boolean;
 }

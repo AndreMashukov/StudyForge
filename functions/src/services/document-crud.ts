@@ -6,10 +6,10 @@ import {
   DocumentMetadataEnhanced as DocumentMetadata, 
   CreateDocumentRequest, 
   UpdateDocumentRequest,
+  MoveDocumentRequest,
   DocumentSourceType,
   DocumentStatus,
-  MoveDocumentRequest,
-} from "../../libs/shared-types/src/index";
+} from "@shared-types";
 
 /**
  * Comprehensive Document CRUD Service
