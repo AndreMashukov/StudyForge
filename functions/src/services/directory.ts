@@ -183,7 +183,9 @@ export class DirectoryService {
       // Recalculate path if name changed
       if (directory.parentId) {
         const parent = await this.getDirectory(userId, directory.parentId);
-        updateData.path = `${parent!.path}/${request.name}`;
+        if (parent) {
+          updateData.path = `${parent.path}/${request.name}`;
+        }
       } else {
         updateData.path = `/${request.name}`;
       }
@@ -204,8 +206,8 @@ export class DirectoryService {
       .update(updateData);
 
     // If name changed, update paths of all descendants
-    if (request.name && request.name !== directory.name) {
-      await this.updateDescendantPaths(userId, directoryId, updateData.path!);
+    if (request.name && request.name !== directory.name && updateData.path) {
+      await this.updateDescendantPaths(userId, directoryId, updateData.path);
     }
 
     logger.info('Directory updated', { directoryId });
@@ -464,8 +466,12 @@ export class DirectoryService {
 
     if (request.targetParentId) {
       const targetParent = await this.getDirectory(userId, request.targetParentId);
-      newPath = `${targetParent!.path}/${directory.name}`;
-      newLevel = targetParent!.level + 1;
+      if (targetParent) {
+        newPath = `${targetParent.path}/${directory.name}`;
+        newLevel = targetParent.level + 1;
+      } else {
+        throw new Error('Target parent directory not found');
+      }
     } else {
       newPath = `/${directory.name}`;
       newLevel = 0;
@@ -566,7 +572,8 @@ export class DirectoryService {
       );
     }
 
-    if (DIRECTORY_CONSTRAINTS.RESERVED_NAMES.includes(name.toLowerCase() as any)) {
+    const reservedNames = DIRECTORY_CONSTRAINTS.RESERVED_NAMES as readonly string[];
+    if (reservedNames.includes(name.toLowerCase())) {
       errors.push('Directory name is reserved');
     }
 
@@ -625,11 +632,16 @@ export class DirectoryService {
 
     // Build tree
     directories.forEach(dir => {
-      const node = nodeMap.get(dir.id)!;
-      if (dir.parentId && nodeMap.has(dir.parentId)) {
-        nodeMap.get(dir.parentId)!.children.push(node);
-      } else {
-        rootNodes.push(node);
+      const node = nodeMap.get(dir.id);
+      if (node) {
+        if (dir.parentId && nodeMap.has(dir.parentId)) {
+          const parentNode = nodeMap.get(dir.parentId);
+          if (parentNode) {
+            parentNode.children.push(node);
+          }
+        } else {
+          rootNodes.push(node);
+        }
       }
     });
 

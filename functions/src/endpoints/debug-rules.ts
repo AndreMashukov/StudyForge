@@ -1,4 +1,4 @@
-import { onCall } from 'firebase-functions/v2/https';
+import { onCall, CallableRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { getFirestore } from 'firebase-admin/firestore';
 import { Rule } from '@shared-types';
@@ -8,7 +8,7 @@ const db = getFirestore();
 /**
  * Validate authentication and return user ID
  */
-async function validateAuth(request: any): Promise<string> {
+async function validateAuth(request: CallableRequest): Promise<string> {
   if (!request.auth) {
     throw new Error('Authentication required');
   }

@@ -1,7 +1,5 @@
 import * as logger from 'firebase-functions/logger';
-import { getRule, getRulesByIds } from './rule-crud';
 import { formatRulesForPrompt } from './rule-resolution';
-import { Rule } from "@shared-types";
 
 /**
  * PromptBuilder Service
@@ -93,7 +91,7 @@ Focus on helping the user understand the concept thoroughly.`;
   /**
    * Validate that required rules are present for an operation
    */
-  static validateRules(ruleIds: string[], operation: string, minRequired: number = 1): boolean {
+  static validateRules(ruleIds: string[], operation: string, minRequired = 1): boolean {
     if (!ruleIds || ruleIds.length < minRequired) {
       logger.warn('Insufficient rules provided', {
         operation,

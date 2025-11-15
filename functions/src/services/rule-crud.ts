@@ -2,9 +2,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { 
   Rule, 
   CreateRuleRequest, 
-  UpdateRuleRequest,
-  RuleApplicability,
-  RuleColor 
+  UpdateRuleRequest
 } from '@shared-types';
 
 const db = getFirestore();
@@ -174,7 +172,7 @@ export async function updateRule(
     throw new Error('Rule must be applicable to at least one operation type');
   }
 
-  const updateData: any = {
+  const updateData: Partial<Record<string, unknown>> = {
     updatedAt: FieldValue.serverTimestamp(),
   };
 
