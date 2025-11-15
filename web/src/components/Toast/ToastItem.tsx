@@ -1,9 +1,9 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { X, CheckCircle, XCircle, Info, AlertTriangle } from "lucide-react";
 import { IToastItem, ToastVariant } from "./IToast";
 import { cn } from "../../lib/utils";
 
-const variantStyles: Record<ToastVariant, { bg: string; border: string; icon: JSX.Element }> = {
+const variantStyles: Record<ToastVariant, { bg: string; border: string; icon: React.ReactElement }> = {
   success: {
     bg: "bg-green-500/10 border-green-500",
     border: "border-green-500",

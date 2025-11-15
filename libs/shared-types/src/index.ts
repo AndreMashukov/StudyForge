@@ -220,6 +220,7 @@ export interface CreateDocumentRequest {
   status?: DocumentStatus;
   tags?: string[];
   directoryId?: string; // Optional directory placement
+  ruleIds?: string[]; // Optional rule IDs for document generation
 }
 
 export interface UpdateDocumentRequest {
