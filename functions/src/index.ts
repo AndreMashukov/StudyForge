@@ -13,9 +13,9 @@ import { register } from "tsconfig-paths";
 import { resolve } from "path";
 
 register({
-  baseUrl: resolve(__dirname, "../../../"), // Resolve to workspace root (functions/lib/src -> workspace root)
+  baseUrl: resolve(__dirname, "../"), // Resolve to functions/lib (where shared-types is compiled)
   paths: {
-    "@shared-types": ["dist/out-tsc/libs/shared-types/src/index.js"],
+    "@shared-types": ["libs/shared-types/src/index.js"],
   },
 });
 
