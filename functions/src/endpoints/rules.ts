@@ -42,7 +42,6 @@ async function validateAuth(context: { auth?: { uid?: string } }): Promise<strin
  */
 export const createRuleEndpoint = onCall(
   {
-    region: 'asia-east1',
     cors: true,
   },
   async (request) => {
@@ -112,7 +111,6 @@ export const createRuleEndpoint = onCall(
  */
 export const getRuleEndpoint = onCall(
   {
-    region: 'asia-east1',
     cors: true,
   },
   async (request) => {
@@ -150,7 +148,6 @@ export const getRuleEndpoint = onCall(
  */
 export const getRulesEndpoint = onCall(
   {
-    region: 'asia-east1',
     cors: true,
   },
   async (request) => {
@@ -179,7 +176,6 @@ export const getRulesEndpoint = onCall(
  */
 export const updateRuleEndpoint = onCall(
   {
-    region: 'asia-east1',
     cors: true,
   },
   async (request) => {
@@ -237,7 +233,6 @@ export const updateRuleEndpoint = onCall(
  */
 export const deleteRuleEndpoint = onCall(
   {
-    region: 'asia-east1',
     cors: true,
   },
   async (request) => {
@@ -292,7 +287,6 @@ export const deleteRuleEndpoint = onCall(
  */
 export const attachRuleToDirectoryEndpoint = onCall(
   {
-    region: 'asia-east1',
     cors: true,
   },
   async (request) => {
@@ -337,7 +331,6 @@ export const attachRuleToDirectoryEndpoint = onCall(
  */
 export const detachRuleFromDirectoryEndpoint = onCall(
   {
-    region: 'asia-east1',
     cors: true,
   },
   async (request) => {
@@ -382,7 +375,6 @@ export const detachRuleFromDirectoryEndpoint = onCall(
  */
 export const getDirectoryRulesEndpoint = onCall(
   {
-    region: 'asia-east1',
     cors: true,
   },
   async (request) => {
@@ -434,7 +426,6 @@ export const getDirectoryRulesEndpoint = onCall(
  */
 export const getApplicableRulesEndpoint = onCall(
   {
-    region: 'asia-east1',
     cors: true,
   },
   async (request) => {
@@ -473,7 +464,6 @@ export const getApplicableRulesEndpoint = onCall(
  */
 export const formatRulesForPromptEndpoint = onCall(
   {
-    region: 'asia-east1',
     cors: true,
   },
   async (request) => {
@@ -507,7 +497,6 @@ export const formatRulesForPromptEndpoint = onCall(
  */
 export const getRuleTagsEndpoint = onCall(
   {
-    region: 'asia-east1',
     cors: true,
   },
   async (request) => {
