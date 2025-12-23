@@ -45,7 +45,7 @@ export class GeminiService {
       JsonSanitizer.validateContentForSafeGeneration(content.content);
 
       const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
 
       // Generate random correct answer pattern (up to 30 questions)
       // Assuming typical quiz length of 8-12 questions, we generate 30 to cover all cases
