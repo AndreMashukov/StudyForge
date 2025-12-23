@@ -4,11 +4,12 @@ This directory contains scripts for backing up Firebase Authentication users and
 
 ## Overview
 
-The backup system consists of three main scripts:
+The backup system consists of several main scripts:
 
 1. **`backup-firebase-auth.ts`** - Backs up Firebase Authentication users
 2. **`backup-firestore.ts`** - Backs up Firestore database collections and documents
 3. **`backup-firebase.ts`** - Complete backup script that runs both auth and firestore backups
+4. **`clear-firestore.ts`** - ⚠️ Clears all data from Firestore (use with caution!)
 
 ## Prerequisites
 
@@ -396,6 +397,151 @@ gcloud firestore export gs://your-bucket-name
 ```
 
 These CLI commands are more efficient for very large datasets and can be automated with Cloud Functions or Cloud Scheduler.
+
+## Clearing Firestore Database
+
+⚠️ **WARNING: This operation is DESTRUCTIVE and will DELETE ALL DATA from Firestore!**
+
+The `clear-firestore.ts` script provides a safe way to clear all data from your Firestore database. This is useful for:
+- Resetting test/development environments
+- Starting fresh after migration
+- Cleaning up before restoring from a backup
+
+### Safety Features
+
+The clear script includes multiple safety mechanisms:
+- **Confirmation prompt**: Requires typing "DELETE ALL DATA" to confirm
+- **Dry run mode**: Preview what will be deleted without actually deleting
+- **Force mode**: Skip confirmation for automation (use with extreme caution)
+- **Detailed logging**: See exactly what is being deleted
+
+### Usage
+
+**Dry Run (Safe - Just Preview):**
+```bash
+npx tsx scripts/clear-firestore.ts --dry-run
+```
+
+**Clear with Confirmation Prompt (Recommended):**
+```bash
+npx tsx scripts/clear-firestore.ts
+```
+
+You will be prompted:
+```
+⚠️  ========================================
+⚠️  WARNING: DESTRUCTIVE OPERATION
+⚠️  ========================================
+⚠️  You are about to DELETE ALL DATA from Firestore!
+⚠️  Project ID: your-project-id
+⚠️  This action CANNOT be undone!
+⚠️  ========================================
+
+Are you absolutely sure you want to continue? Type "DELETE ALL DATA" to confirm:
+```
+
+**Force Mode (No Confirmation - Dangerous!):**
+```bash
+npx tsx scripts/clear-firestore.ts --force
+```
+
+**Help:**
+```bash
+npx tsx scripts/clear-firestore.ts --help
+```
+
+### What Gets Deleted
+
+The script recursively deletes:
+- ✅ All top-level collections
+- ✅ All documents in each collection
+- ✅ All subcollections and their documents
+- ✅ Everything from Firestore database
+
+### Best Practices
+
+1. **Always create a backup first:**
+   ```bash
+   # Create backup before clearing
+   npx tsx scripts/backup-firestore.ts
+   
+   # Then clear
+   npx tsx scripts/clear-firestore.ts
+   ```
+
+2. **Use dry run first:**
+   ```bash
+   # Preview what will be deleted
+   npx tsx scripts/clear-firestore.ts --dry-run
+   
+   # Review the output, then proceed
+   npx tsx scripts/clear-firestore.ts
+   ```
+
+3. **For production environments:**
+   - Always backup first
+   - Use the confirmation prompt (never use --force)
+   - Consider using Firestore emulator for testing
+   - Verify you're connected to the correct project
+
+4. **For CI/CD automation:**
+   ```bash
+   # Use force mode only in non-production environments
+   if [ "$ENVIRONMENT" != "production" ]; then
+     npx tsx scripts/clear-firestore.ts --force
+   fi
+   ```
+
+### Clear Summary
+
+After completion, you'll see a summary like:
+```
+✅ CLEAR COMPLETED SUCCESSFULLY
+   📚 Collections deleted: 5
+   📄 Total documents deleted: 1,234
+   📁 Subcollections deleted: 89
+
+📊 Collection Statistics:
+   users: 456 documents, 12 subcollections
+   posts: 678 documents, 45 subcollections
+   ...
+
+⚠️  All data has been permanently deleted from Firestore!
+
+💡 Tip: Always create a backup before clearing data:
+   npx tsx scripts/backup-firestore.ts
+```
+
+### Environment Variables
+
+The script respects the same environment variables as other Firebase scripts:
+
+**For Production:**
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
+```
+
+**For Emulator:**
+```bash
+export FIRESTORE_EMULATOR_HOST=localhost:8080
+export GCLOUD_PROJECT=your-project-id
+```
+
+### Troubleshooting
+
+**Error: "Permission denied"**
+- Ensure your service account has Firestore delete permissions
+- Required IAM role: `Cloud Datastore User` or `Firestore Admin`
+
+**Timeout or slow deletion:**
+- For very large databases, the script processes documents in batches of 500
+- Consider using Firestore batch operations or Cloud Functions for massive deletions
+- Alternative: `gcloud firestore databases delete --database=(default)`
+
+**Want to delete only specific collections:**
+- Modify the script or use Firebase Console
+- Use Firestore delete collection functionality
+- Write a custom script targeting specific collections
 
 ## License
 
