@@ -101,7 +101,6 @@
     "jws": "^4.0.1",
     "chalk": "^4.1.2",
     "strip-ansi": "^6.0.1",
-    "string-width": "^4.2.3",
     "wrap-ansi": "^7.0.0",
     "ansi-styles": "^4.3.0"
   }
