@@ -34,16 +34,16 @@ jobs:
         run: yarn install --frozen-lockfile --ignore-engines
 
       - name: Lint affected projects
-        run: npx nx affected -t lint --parallel=3
+        run: yarn nx affected -t lint --parallel=3
 
       - name: Type check affected projects
-        run: npx nx affected -t typecheck --parallel=3
+        run: yarn nx affected -t typecheck --parallel=3
 
       - name: Test affected projects
-        run: npx nx affected -t test --parallel=3 --coverage
+        run: yarn nx affected -t test --parallel=3 --coverage
 
       - name: Build affected projects
-        run: npx nx affected -t build --parallel=3
+        run: yarn nx affected -t build --parallel=3
 
       - name: Upload coverage reports
         if: always()
@@ -71,4 +71,4 @@ jobs:
         run: yarn audit --level moderate
 
       - name: Run dependency check
-        run: npx nx graph --file=dependency-graph.json || true
+        run: yarn nx graph --file=dependency-graph.json || true
