@@ -95,7 +95,7 @@ export class GeminiService {
 
       const client = this.getClient();
       const model = client.getGenerativeModel({ 
-        model: "gemini-2.0-flash",
+        model: "gemini-3-pro-preview",
         generationConfig: {
           temperature: 0.3,
           topK: 40,
@@ -151,7 +151,7 @@ export class GeminiService {
 
       const genAI = this.getClient();
       const model = genAI.getGenerativeModel({ 
-        model: "gemini-2.0-flash",
+        model: "gemini-3-pro-preview",
         generationConfig: {
           temperature: 0.7,
           topK: 40,
@@ -206,7 +206,7 @@ export class GeminiService {
 
       const genAI = this.getClient();
       const model = genAI.getGenerativeModel({ 
-        model: "gemini-2.0-flash",
+        model: "gemini-3-pro-preview",
         generationConfig: {
           temperature: 0.7,
           topK: 40,
@@ -665,7 +665,7 @@ export class GeminiService {
 
       // Test connectivity with a simple request
       const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
 
       // Make a simple test request to verify the API is working
       const result = await model.generateContent("Test");
@@ -673,7 +673,7 @@ export class GeminiService {
       if (result.response) {
         return {
           available: true,
-          model: "gemini-2.0-flash"
+          model: "gemini-3-pro-preview"
         };
       } else {
         return {
