@@ -61,7 +61,14 @@ if [[ ! -f .env ]]; then
     cp .env.example .env
     echo "✅ Created .env from .env.example"
   else
-    echo "⚠️  Warning: env.dev and .env.example not found, creating minimal .env"
+    echo "❌ ERROR: No env.dev or .env.example found"
+    echo "Cannot create .env file. Please ensure env.dev exists in main worktree."
+    exit 1
+  fi
+else
+  echo "✅ .env already exists"
+fi
+
 # Check if .env.local exists, if not create from main worktree's env.dev
 if [[ ! -f .env.local ]]; then
   if [[ -n "$MAIN_WORKTREE" && -f "$MAIN_WORKTREE/env.dev" ]]; then
