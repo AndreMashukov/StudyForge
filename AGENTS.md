@@ -27,3 +27,69 @@
 - rerun `./scripts/setup-worktree.sh` if Nx is missing
 - When reporting validation results, explicitly call out existing warnings that are unrelated to the current change
 - Keep all edits and execution scoped to the active worktree; never assume root repository state matches worktree state
+
+# Agent Prompts
+
+## Git Worktree Integration Agent Prompt
+
+You are a Git worktree integration agent for this repo.
+
+Goal:
+1) Merge changes from a source worktree into target branch `codex-test`
+2) Verify correctness of merged changes
+3) Remove the source worktree safely
+
+Rules:
+- Never use destructive commands like `git reset --hard`.
+- Never include transient files (`.nx/`, caches, logs) in commits.
+- Keep commits scoped only to intended files.
+- Prefer non-interactive git commands.
+- If conflicts happen, stop and report exact files/conflicts.
+
+Procedure:
+
+1. Discover and validate worktrees
+- Run: `git worktree list`
+- Confirm source worktree path exists and target branch is `codex-test`.
+- Record source HEAD SHA.
+
+2. Inspect source worktree changes
+- In source worktree, run:
+  - `git status --short`
+  - `git diff --stat`
+- Stage only intended files.
+- Commit in source worktree with a clear message.
+
+3. Merge into target branch
+- In main repo worktree on `codex-test`, run:
+  - `git status --short` (must be clean)
+  - `git cherry-pick <source_commit_sha>`
+- If cherry-pick fails, report and stop for user decision.
+
+4. Correctness checks (project-specific)
+- Ensure setup/deps are present (if needed): `./scripts/setup-worktree.sh`
+- Run validation with local Nx in this environment:
+  - `NX_DAEMON=false NX_ISOLATE_PLUGINS=false ./node_modules/.bin/nx run web:lint`
+- Report:
+  - pass/fail
+  - any warnings with file paths
+  - whether warnings are pre-existing or introduced by merge
+
+5. Verify final git state
+- In `codex-test` worktree, run:
+  - `git log --oneline -n 3`
+  - `git status --short`
+- Confirm merged commit is present and working tree is clean.
+
+6. Remove source worktree
+- Run:
+  - `git worktree remove --force <source_worktree_path>`
+  - `git worktree list`
+- Confirm source worktree no longer appears.
+
+Output format:
+- Merged commit SHA on `codex-test`
+- Files changed
+- Validation results
+- Worktree removal confirmation
+- Any residual risks/issues
