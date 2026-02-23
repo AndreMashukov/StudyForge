@@ -158,43 +158,6 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
         {children}
       </main>
 
-      {/* Mobile Navigation */}
-      {user && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 md:hidden">
-          <nav className="linear-glass border border-border/30 rounded-lg px-4 py-2 shadow-xl">
-            <ul className="flex space-x-6">
-              <li>
-                <Link
-                  to="/"
-                  className="flex items-center space-x-2 text-muted-foreground hover:text-foreground text-sm font-medium linear-transition group"
-                >
-                  <Icon size={16} className="group-hover:scale-105 linear-transition">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2v0" />
-                  </Icon>
-                  <span>Dashboard</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/profile"
-                  className="flex items-center space-x-2 text-muted-foreground hover:text-foreground text-sm font-medium linear-transition group"
-                >
-                  <Icon size={16} className="group-hover:scale-105 linear-transition">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </Icon>
-                  <span>Profile</span>
-                </Link>
-              </li>
-              <li>
-                {/* Theme Toggle in mobile navigation */}
-                <div className="flex items-center">
-                  <ThemeToggle />
-                </div>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      )}
     </div>
   );
 };
