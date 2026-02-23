@@ -1,11 +1,12 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { Page } from '../../../components/Page';
 import { ActionsDropdown } from '../../../components/ui/ActionsDropdown';
 import { MarkdownRenderer, TocItem } from '../../../components/MarkdownRenderer';
 import { Button } from '../../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
+import { BreadcrumbNav } from '../../../components/BreadcrumbNav';
 import { Brain, ArrowLeft, Download, List, X, Calendar } from 'lucide-react';
 import { useDocumentViewerPageContext } from '../context';
 import { 
@@ -13,6 +14,7 @@ import {
   selectShowToc, 
   selectIsExporting 
 } from '../../../store/slices/documentViewerPageSlice';
+import { setSelectedDirectory } from '../../../store/slices/directorySlice';
 import { formatDateWithOptions } from '../../../utils/dateUtils';
 
 // Recursive component to render nested TOC items
@@ -63,6 +65,8 @@ const TocItemComponent: React.FC<{
 
 export const DocumentViewerPageContainer = () => {
   const { documentId } = useParams<{ documentId: string }>();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const {
     documentApi,
     contentApi,
@@ -74,6 +78,15 @@ export const DocumentViewerPageContainer = () => {
   const tocItems = useSelector(selectTocItems);
   const showToc = useSelector(selectShowToc);
   const isExporting = useSelector(selectIsExporting);
+
+  const handleBreadcrumbNavigate = (directoryId: string | null) => {
+    dispatch(setSelectedDirectory(directoryId));
+    if (directoryId) {
+      navigate(`/documents?directoryId=${directoryId}`);
+      return;
+    }
+    navigate('/documents');
+  };
 
   // Early returns for loading and error states
   if (!documentId) {
@@ -180,6 +193,12 @@ export const DocumentViewerPageContainer = () => {
                 ]}
               />
             </div>
+          </div>
+          <div className="px-4 pb-3">
+            <BreadcrumbNav
+              directoryId={documentApi.data.directoryId || null}
+              onNavigate={handleBreadcrumbNavigate}
+            />
           </div>
         </div>
 

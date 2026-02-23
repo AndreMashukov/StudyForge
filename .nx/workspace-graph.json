@@ -1,0 +1,476 @@
+{
+  "graph": {
+    "nodes": {
+      "shell-integration": {
+        "name": "shell-integration",
+        "type": "app",
+        "data": {
+          "root": "scripts/shell-integration",
+          "name": "shell-integration",
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "projectType": "application",
+          "sourceRoot": "scripts/shell-integration",
+          "tags": [
+            "scope:tooling",
+            "type:utility"
+          ],
+          "targets": {
+            "setup": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "chmod +x scripts/shell-integration/setup.sh && scripts/shell-integration/setup.sh",
+                "cwd": ""
+              },
+              "configurations": {
+                "production": {
+                  "command": "scripts/shell-integration/setup.sh",
+                  "cwd": ""
+                }
+              },
+              "parallelism": true
+            },
+            "status": {
+              "executor": "nx:run-commands",
+              "options": {
+                "commands": [
+                  "echo 'Shell Integration Status:'",
+                  "echo 'TERM_PROGRAM:' $TERM_PROGRAM",
+                  "echo 'VSCODE_SHELL_INTEGRATION:' $VSCODE_SHELL_INTEGRATION",
+                  "echo 'Current Shell:' $SHELL",
+                  "echo ''",
+                  "echo 'Available Integration Scripts:'",
+                  "ls -la scripts/shell-integration/*.{sh,zsh,fish,ps1} 2>/dev/null || echo 'No scripts found'"
+                ],
+                "parallel": false
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "install": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "echo 'Run: nx run shell-integration:setup' && echo 'Or manually source the appropriate script for your shell from scripts/shell-integration/'"
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "implicitDependencies": []
+        }
+      },
+      "shared-types": {
+        "name": "shared-types",
+        "type": "lib",
+        "data": {
+          "root": "libs/shared-types",
+          "targets": {
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint . --ext .ts",
+                "cwd": "libs/shared-types"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p tsconfig.lib.json",
+                "cwd": "libs/shared-types"
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "name": "shared-types",
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "libs/shared-types/src",
+          "projectType": "library",
+          "tags": [
+            "type:lib",
+            "scope:shared"
+          ],
+          "implicitDependencies": []
+        }
+      },
+      "functions": {
+        "name": "functions",
+        "type": "app",
+        "data": {
+          "root": "functions",
+          "targets": {
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "options": {
+                "lintFilePatterns": [
+                  "functions/src/**/*.{ts,tsx}"
+                ]
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "logs": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "logs"
+              },
+              "metadata": {
+                "scriptContent": "npx firebase functions:log",
+                "runCommand": "yarn logs"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "@nx/js:tsc",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputPath": "functions/lib",
+                "main": "functions/src/index.ts",
+                "tsConfig": "functions/tsconfig.json",
+                "assets": []
+              },
+              "dependsOn": [
+                "^build"
+              ],
+              "configurations": {},
+              "parallelism": true
+            },
+            "build-with-deps": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "nx run shared-types:build && nx run functions:build"
+              },
+              "dependsOn": [
+                "shared-types:build"
+              ],
+              "configurations": {},
+              "parallelism": true
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "nx run functions:build && npx firebase emulators:start"
+              },
+              "dependsOn": [
+                "build"
+              ],
+              "configurations": {},
+              "parallelism": true
+            },
+            "deploy": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "nx run shared-types:build && yarn deploy",
+                "cwd": "functions"
+              },
+              "dependsOn": [
+                "shared-types:build"
+              ],
+              "configurations": {},
+              "parallelism": true
+            },
+            "shell": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "yarn shell",
+                "cwd": "functions"
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "name": "functions",
+          "tags": [
+            "npm:private",
+            "type:app",
+            "platform:firebase",
+            "scope:backend"
+          ],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": [
+                "logs"
+              ]
+            },
+            "js": {
+              "packageName": "functions",
+              "packageMain": "lib/src/index.js",
+              "isInPackageManagerWorkspaces": false
+            }
+          },
+          "$schema": "../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "functions/src",
+          "projectType": "application",
+          "implicitDependencies": [
+            "shared-types"
+          ]
+        }
+      },
+      "web": {
+        "name": "web",
+        "type": "app",
+        "data": {
+          "root": "web",
+          "targets": {
+            "lint": {
+              "cache": true,
+              "options": {
+                "cwd": "web",
+                "command": "eslint ."
+              },
+              "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/eslint.config.mjs",
+                "{workspaceRoot}/web/eslint.config.mjs",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                {
+                  "externalDependencies": [
+                    "eslint"
+                  ]
+                }
+              ],
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "metadata": {
+                "technologies": [
+                  "eslint"
+                ],
+                "description": "Runs ESLint on project",
+                "help": {
+                  "command": "yarn eslint --help",
+                  "example": {
+                    "options": {
+                      "max-warnings": 0
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "options": {
+                "cwd": "web",
+                "command": "vite build"
+              },
+              "cache": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "default",
+                "^default",
+                {
+                  "externalDependencies": [
+                    "vite"
+                  ]
+                }
+              ],
+              "outputs": [
+                "{workspaceRoot}/dist/web"
+              ],
+              "metadata": {
+                "technologies": [
+                  "vite"
+                ],
+                "description": "Run Vite build",
+                "help": {
+                  "command": "yarn vite build --help",
+                  "example": {
+                    "options": {
+                      "sourcemap": true,
+                      "manifest": "manifest.json"
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "serve": {
+              "continuous": true,
+              "options": {
+                "cwd": "web",
+                "command": "vite"
+              },
+              "metadata": {
+                "technologies": [
+                  "vite"
+                ],
+                "description": "Starts Vite dev server",
+                "help": {
+                  "command": "yarn vite --help",
+                  "example": {
+                    "options": {
+                      "port": 3000
+                    }
+                  }
+                },
+                "deprecated": "Use devTargetName instead. This option will be removed in Nx 22."
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "dev": {
+              "continuous": true,
+              "options": {
+                "cwd": "web",
+                "command": "vite"
+              },
+              "metadata": {
+                "technologies": [
+                  "vite"
+                ],
+                "description": "Starts Vite dev server",
+                "help": {
+                  "command": "yarn vite --help",
+                  "example": {
+                    "options": {
+                      "port": 3000
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "preview": {
+              "continuous": true,
+              "dependsOn": [
+                "build"
+              ],
+              "options": {
+                "cwd": "web",
+                "command": "vite preview"
+              },
+              "metadata": {
+                "technologies": [
+                  "vite"
+                ],
+                "description": "Locally preview Vite production build",
+                "help": {
+                  "command": "yarn vite preview --help",
+                  "example": {
+                    "options": {
+                      "port": 3000
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "serve-static": {
+              "continuous": true,
+              "executor": "@nx/web:file-server",
+              "options": {
+                "buildTarget": "build",
+                "spa": true
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "typecheck": {
+              "cache": true,
+              "inputs": [
+                "default",
+                "^default",
+                {
+                  "externalDependencies": [
+                    "typescript"
+                  ]
+                }
+              ],
+              "options": {
+                "cwd": "web",
+                "command": "tsc --noEmit -p tsconfig.app.json"
+              },
+              "metadata": {
+                "description": "Runs type-checking for the project.",
+                "technologies": [
+                  "typescript"
+                ],
+                "help": {
+                  "command": "yarn tsc -p tsconfig.app.json --help",
+                  "example": {
+                    "options": {
+                      "noEmit": true
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "build-deps": {
+              "dependsOn": [
+                "^build"
+              ],
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "executor": "nx:noop"
+            },
+            "watch-deps": {
+              "continuous": true,
+              "dependsOn": [
+                "build-deps"
+              ],
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "yarn nx watch --projects web --includeDependentProjects -- yarn nx build-deps web"
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "projectType": "application",
+          "metadata": {},
+          "name": "web",
+          "$schema": "../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "web/src",
+          "tags": [],
+          "implicitDependencies": []
+        }
+      }
+    },
+    "dependencies": {
+      "shell-integration": [],
+      "shared-types": [],
+      "functions": [
+        {
+          "source": "functions",
+          "target": "shared-types",
+          "type": "implicit"
+        },
+        {
+          "source": "functions",
+          "target": "shared-types",
+          "type": "static"
+        }
+      ],
+      "web": [
+        {
+          "source": "web",
+          "target": "shared-types",
+          "type": "static"
+        }
+      ]
+    }
+  }
+}
