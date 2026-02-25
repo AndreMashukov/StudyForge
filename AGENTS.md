@@ -93,3 +93,67 @@ Output format:
 - Validation results
 - Worktree removal confirmation
 - Any residual risks/issues
+
+## Cursor Cloud specific instructions
+
+### Architecture
+
+NX monorepo with two apps (`web`, `functions`) and one shared library (`shared-types`). The `functions` app depends on `shared-types`, so always build via NX from the workspace root — never `cd` into app directories to run commands.
+
+### Running commands
+
+All tasks must be run from `/workspace` via NX:
+
+```bash
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false npx nx run <project>:<target>
+```
+
+Available targets per project (see `nx show project <name>` for full list):
+- **web**: `lint`, `build`, `dev`, `serve`, `typecheck`
+- **functions**: `lint`, `build`, `build-with-deps`, `serve` (builds + starts emulators)
+- **shared-types**: `build`, `lint`
+
+There is no `test` target configured for any project currently.
+
+### Environment files
+
+- Root `.env` — NX_PUBLIC_* vars consumed by the Vite dev server (web app). Copy from `.env.example` and set `NX_PUBLIC_USE_FIREBASE_EMULATOR=true` for local dev.
+- `functions/.env` — `GEMINI_API_KEY`, `FIREBASE_PROJECT_ID`. Copy from `functions/.env.example`.
+
+### Firebase Emulators
+
+The app requires Firebase emulators for local development (Auth:9099, Firestore:8080, Functions:5001, Storage:9199, Hosting:5002). Start them with:
+
+```bash
+npx firebase emulators:start --project demo-project
+```
+
+Or via NX: `npx nx run functions:serve` (builds functions first, then starts emulators).
+
+Java (JDK 21+) is required for the Firestore emulator — it is pre-installed in the Cloud VM.
+
+### User initialization for login
+
+Firebase Auth emulator starts empty. To log in to the web app, you must first create a user in the Auth emulator:
+
+```bash
+curl -s -X POST 'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-api-key' \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"test@example.com","password":"Test1234!","returnSecureToken":true}'
+```
+
+Alternatively, use the Firebase Emulator UI at `http://localhost:4000` to create users, or restore a backup.
+
+### Web dev server
+
+```bash
+npx nx run web:dev
+```
+
+Starts on `http://localhost:4200`. Requires the `.env` file with Firebase config (uses `NX_PUBLIC_` prefix for Vite).
+
+### Known warnings
+
+- `web:lint` produces 1 pre-existing warning in `RuleSelector.tsx` (accessible-emoji).
+- `web:build` shows a PostCSS `@import` order warning in `styles.css` — cosmetic, does not block the build.
+- Documents page shows "Error loading content" when no documents exist in Firestore — this is expected empty-state behavior, not a bug.
