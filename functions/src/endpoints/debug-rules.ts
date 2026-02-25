@@ -1,9 +1,7 @@
 import { onCall, CallableRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import { getFirestore } from 'firebase-admin/firestore';
 import { Rule } from '@shared-types';
-
-const db = getFirestore();
+import { FirestorePaths } from '../lib/firestore-paths';
 
 /**
  * Validate authentication and return user ID
@@ -36,24 +34,16 @@ export const debugDirectoryRules = onCall(
       logger.info('Debug: Analyzing directory rules', { userId, directoryId });
 
       // Get the directory
-      const dirDoc = await db.collection('directories').doc(directoryId).get();
+      const dirDoc = await FirestorePaths.directory(userId, directoryId).get();
       
       if (!dirDoc.exists) {
         throw new Error('Directory not found');
       }
 
       const dirData = dirDoc.data();
-      
-      if (dirData?.userId !== userId) {
-        throw new Error('Access denied');
-      }
 
       // Get all rules for this user
-      const rulesSnapshot = await db
-        .collection('users')
-        .doc(userId)
-        .collection('rules')
-        .get();
+      const rulesSnapshot = await FirestorePaths.rules(userId).get();
 
       const allRules: Rule[] = rulesSnapshot.docs.map(doc => ({
         id: doc.id,
@@ -84,7 +74,7 @@ export const debugDirectoryRules = onCall(
       let currentParentId = dirData?.parentId;
       
       while (currentParentId) {
-        const parentDoc = await db.collection('directories').doc(currentParentId).get();
+        const parentDoc = await FirestorePaths.directory(userId, currentParentId).get();
         if (!parentDoc.exists) break;
         
         const parentData = parentDoc.data();

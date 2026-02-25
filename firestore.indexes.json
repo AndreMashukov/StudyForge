@@ -4,7 +4,6 @@
       "collectionGroup": "documents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
     },
@@ -12,7 +11,6 @@
       "collectionGroup": "documents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -20,7 +18,6 @@
       "collectionGroup": "documents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "title", "order": "ASCENDING" }
       ]
     },
@@ -28,7 +25,6 @@
       "collectionGroup": "documents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "directoryId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
@@ -37,7 +33,14 @@
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "quizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "documentId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -45,39 +48,13 @@
       "collectionGroup": "rules",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "rules",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "name", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "rules",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "tags", "arrayConfig": "CONTAINS" }
-      ]
-    },
-    {
-      "collectionGroup": "rules",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "applicableTo", "arrayConfig": "CONTAINS" }
       ]
     },
     {
       "collectionGroup": "directories",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "path", "order": "ASCENDING" }
       ]
     },
@@ -85,7 +62,6 @@
       "collectionGroup": "directories",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "parentId", "order": "ASCENDING" },
         { "fieldPath": "name", "order": "ASCENDING" }
       ]
@@ -94,7 +70,6 @@
       "collectionGroup": "directories",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "name", "order": "ASCENDING" },
         { "fieldPath": "parentId", "order": "ASCENDING" }
       ]

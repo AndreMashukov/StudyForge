@@ -5,6 +5,7 @@ import {
   GeminiQuizResponse
 } from "@shared-types";
 import * as functions from "firebase-functions";
+import { FirestorePaths } from '../lib/firestore-paths';
 
 /**
  * Firestore service for managing URLs and Quizzes collections
@@ -80,10 +81,12 @@ export class FirestoreService {
   /**
    * Get quiz by ID
    */
-  public static async getQuiz(quizId: string): Promise<Quiz | null> {
+  public static async getQuiz(quizId: string, userId?: string): Promise<Quiz | null> {
     try {
-      const db = this.getDb();
-      const doc = await db.collection("quizzes").doc(quizId).get();
+      if (!userId) {
+        throw new Error('userId is required to fetch quiz');
+      }
+      const doc = await FirestorePaths.quiz(userId, quizId).get();
       
       if (!doc.exists) {
         return null;
@@ -106,10 +109,7 @@ export class FirestoreService {
    */
   public static async getUserQuizzes(userId: string, limit = 50): Promise<Quiz[]> {
     try {
-      const db = this.getDb();
-      const snapshot = await db
-        .collection("quizzes")
-        .where("userId", "==", userId)
+      const snapshot = await FirestorePaths.quizzes(userId)
         .orderBy("createdAt", "desc")
         .limit(limit)
         .get();
@@ -129,13 +129,13 @@ export class FirestoreService {
   }
 
   /**
-   * Get recent quizzes (public/anonymous)
+   * Get recent quizzes (public/anonymous) using collection group query
    */
   public static async getRecentQuizzes(limit = 20): Promise<Quiz[]> {
     try {
       const db = this.getDb();
       const snapshot = await db
-        .collection("quizzes")
+        .collectionGroup("quizzes")
         .orderBy("createdAt", "desc")
         .limit(limit)
         .get();
@@ -159,20 +159,14 @@ export class FirestoreService {
    */
   public static async deleteQuiz(quizId: string, userId?: string): Promise<void> {
     try {
-      const db = this.getDb();
-      const quizRef = db.collection("quizzes").doc(quizId);
+      if (!userId) {
+        throw new Error('userId is required to delete quiz');
+      }
+      const quizRef = FirestorePaths.quiz(userId, quizId);
       
-      if (userId) {
-        // Verify ownership before deletion
-        const doc = await quizRef.get();
-        if (!doc.exists) {
-          throw new Error("Quiz not found");
-        }
-        
-        const data = doc.data() as Quiz;
-        if (data.userId !== userId) {
-          throw new Error("Unauthorized to delete this quiz");
-        }
+      const doc = await quizRef.get();
+      if (!doc.exists) {
+        throw new Error("Quiz not found");
       }
 
       await quizRef.delete();
@@ -194,7 +188,7 @@ export class FirestoreService {
       
       const [urlsSnapshot, quizzesSnapshot] = await Promise.all([
         db.collection("urls").count().get(),
-        db.collection("quizzes").count().get(),
+        db.collectionGroup("quizzes").count().get(),
       ]);
 
       return {
@@ -217,14 +211,14 @@ export class FirestoreService {
    */
   public static async findExistingQuizByDocument(documentId: string, userId?: string): Promise<Quiz | null> {
     try {
-      const db = this.getDb();
-      let query = db.collection("quizzes").where("documentId", "==", documentId);
-      
-      if (userId) {
-        query = query.where("userId", "==", userId);
+      if (!userId) {
+        throw new Error('userId is required to find quiz by document');
       }
-
-      const snapshot = await query.orderBy("createdAt", "desc").limit(1).get();
+      const snapshot = await FirestorePaths.quizzes(userId)
+        .where("documentId", "==", documentId)
+        .orderBy("createdAt", "desc")
+        .limit(1)
+        .get();
       
       if (snapshot.empty) {
         return null;
@@ -249,14 +243,13 @@ export class FirestoreService {
    */
   public static async getDocumentQuizzes(documentId: string, userId?: string): Promise<Quiz[]> {
     try {
-      const db = this.getDb();
-      let query = db.collection("quizzes").where("documentId", "==", documentId);
-      
-      if (userId) {
-        query = query.where("userId", "==", userId);
+      if (!userId) {
+        throw new Error('userId is required to get document quizzes');
       }
-
-      const snapshot = await query.orderBy("createdAt", "desc").get();
+      const snapshot = await FirestorePaths.quizzes(userId)
+        .where("documentId", "==", documentId)
+        .orderBy("createdAt", "desc")
+        .get();
       
       return snapshot.docs.map((doc) => {
         const data = doc.data() as Quiz;
@@ -277,9 +270,7 @@ export class FirestoreService {
    */
   public static async getDocument(userId: string, documentId: string): Promise<{ id: string; title: string; wordCount?: number }> {
     try {
-      const db = this.getDb();
-      const docRef = db.collection("documents").doc(documentId);
-      const doc = await docRef.get();
+      const doc = await FirestorePaths.document(userId, documentId).get();
       
       if (!doc.exists) {
         throw new Error("Document not found");
@@ -288,11 +279,6 @@ export class FirestoreService {
       const data = doc.data();
       if (!data) {
         throw new Error("Document data is empty");
-      }
-
-      // Verify user has access to this document
-      if (data.userId !== userId) {
-        throw new Error("Access denied: Document belongs to another user");
       }
       
       return {
@@ -330,8 +316,10 @@ export class FirestoreService {
     followupRuleIds?: string[]
   ): Promise<Quiz> {
     try {
-      const db = this.getDb();
-      const quizzesCollection = db.collection("quizzes");
+      if (!userId) {
+        throw new Error('userId is required to save quiz');
+      }
+      const quizzesCollection = FirestorePaths.quizzes(userId);
 
       // Get document metadata for quiz title
       const document = await this.getDocument(userId, documentId);
@@ -339,7 +327,6 @@ export class FirestoreService {
       // Count existing quizzes for this document to determine generation attempt
       const existingQuizzesSnapshot = await quizzesCollection
         .where("documentId", "==", documentId)
-        .where("userId", "==", userId)
         .get();
       
       const generationAttempt = existingQuizzesSnapshot.size + 1;

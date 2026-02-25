@@ -133,14 +133,19 @@ export const getQuiz = onCall(
   async (request): Promise<ApiResponse<GetQuizResponse>> => {
     try {
       const { quizId } = request.data;
+      const userId = request.auth?.uid;
       
       if (!quizId) {
         throw new Error("Quiz ID is required");
       }
 
+      if (!userId) {
+        throw new Error("Authentication required");
+      }
+
       console.log(`Fetching quiz: ${quizId}`);
 
-      const quiz = await FirestoreService.getQuiz(quizId);
+      const quiz = await FirestoreService.getQuiz(quizId, userId);
       
       if (!quiz) {
         return {

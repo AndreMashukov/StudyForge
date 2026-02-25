@@ -1,7 +1,7 @@
 import { getStorage } from 'firebase-admin/storage';
-import { getFirestore } from 'firebase-admin/firestore';
 import { DocumentEnhanced as Document, DocumentMetadataEnhanced as DocumentMetadata, StorageFile, StorageMetadata } from "@shared-types";
 import { logger } from 'firebase-functions/v2';
+import { FirestorePaths } from '../lib/firestore-paths';
 
 /**
  * Service for managing document storage in Firebase Storage
@@ -9,7 +9,6 @@ import { logger } from 'firebase-functions/v2';
  */
 export class DocumentService {
   private static storage = getStorage();
-  private static db = getFirestore();
 
   /**
    * Upload markdown content to Firebase Storage
@@ -316,7 +315,7 @@ export class DocumentService {
   ): Promise<StorageFile> {
     try {
       // Get current metadata from Firestore to merge with updates
-      const docRef = this.db.collection('documents').doc(documentId);
+      const docRef = FirestorePaths.document(userId, documentId);
       const docSnap = await docRef.get();
       
       if (!docSnap.exists) {
@@ -324,11 +323,6 @@ export class DocumentService {
       }
 
       const currentDoc = docSnap.data() as Document;
-      
-      // Verify ownership
-      if (currentDoc.userId !== userId) {
-        throw new Error('Unauthorized: Document belongs to different user');
-      }
 
       // Merge metadata
       const mergedMetadata: DocumentMetadata = {
