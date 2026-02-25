@@ -38,7 +38,7 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-interface MigrationStats {
+interface IMigrationStats {
   directories: { total: number; migrated: number; errors: number };
   documents: { total: number; migrated: number; errors: number };
   quizzes: { total: number; migrated: number; errors: number };
@@ -64,6 +64,7 @@ async function migrateCollection(
 
   let batch = db.batch();
   let batchCount = 0;
+  const migratedDocRefs: FirebaseFirestore.DocumentReference[] = [];
 
   for (const doc of snapshot.docs) {
     const data = doc.data();
@@ -89,6 +90,7 @@ async function migrateCollection(
 
     batch.set(targetRef, data);
     batchCount++;
+    migratedDocRefs.push(doc.ref);
 
     if (batchCount >= BATCH_LIMIT) {
       await batch.commit();
@@ -105,27 +107,16 @@ async function migrateCollection(
     console.log(`  Committed final batch of ${batchCount}`);
   }
 
-  // Optionally delete old documents
-  if (deleteOld && !dryRun) {
-    console.log(`  Deleting old root-level ${sourceName}...`);
-    let deleteBatch = db.batch();
-    let deleteCount = 0;
+  // Only delete documents that were successfully migrated
+  if (deleteOld && !dryRun && migratedDocRefs.length > 0) {
+    console.log(`  Deleting ${migratedDocRefs.length} migrated root-level ${sourceName}...`);
 
-    for (const doc of snapshot.docs) {
-      deleteBatch.delete(doc.ref);
-      deleteCount++;
-
-      if (deleteCount >= BATCH_LIMIT) {
-        await deleteBatch.commit();
-        console.log(`  Deleted batch of ${deleteCount}`);
-        deleteBatch = db.batch();
-        deleteCount = 0;
-      }
-    }
-
-    if (deleteCount > 0) {
+    for (let i = 0; i < migratedDocRefs.length; i += BATCH_LIMIT) {
+      const chunk = migratedDocRefs.slice(i, i + BATCH_LIMIT);
+      const deleteBatch = db.batch();
+      chunk.forEach(ref => deleteBatch.delete(ref));
       await deleteBatch.commit();
-      console.log(`  Deleted final batch of ${deleteCount}`);
+      console.log(`  Deleted batch of ${chunk.length}`);
     }
   }
 
@@ -144,7 +135,7 @@ async function main(): Promise<void> {
   console.log(`Delete old: ${deleteOld}`);
   console.log(`Emulator: ${isEmulator}`);
 
-  const stats: MigrationStats = {
+  const stats: IMigrationStats = {
     directories: { total: 0, migrated: 0, errors: 0 },
     documents: { total: 0, migrated: 0, errors: 0 },
     quizzes: { total: 0, migrated: 0, errors: 0 },

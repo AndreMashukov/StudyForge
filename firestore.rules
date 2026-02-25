@@ -26,14 +26,18 @@ service cloud.firestore {
 
       // Directories subcollection
       match /directories/{directoryId} {
+        function isValidDirectory() {
+          return request.resource.data.name is string &&
+                 request.resource.data.name.size() > 0 &&
+                 request.resource.data.name.size() <= 100 &&
+                 request.resource.data.level >= 0 &&
+                 request.resource.data.level <= 10;
+        }
+
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId) &&
-                        request.resource.data.name is string &&
-                        request.resource.data.name.size() > 0 &&
-                        request.resource.data.name.size() <= 100 &&
-                        request.resource.data.level >= 0 &&
-                        request.resource.data.level <= 10;
-        allow update, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidDirectory();
+        allow update: if isOwner(userId) && isValidDirectory();
+        allow delete: if isOwner(userId);
       }
 
       // Rules subcollection

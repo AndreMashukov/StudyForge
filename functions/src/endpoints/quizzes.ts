@@ -32,6 +32,10 @@ export const generateQuiz = onCall(
       const requestData = request.data as GenerateQuizRequest;
       const userId = request.auth?.uid;
 
+      if (!userId) {
+        throw new Error("Authentication required");
+      }
+
       if (!requestData.documentId) {
         throw new Error("documentId is required");
       }

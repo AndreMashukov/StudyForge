@@ -220,7 +220,7 @@ export class DirectoryService {
     const descendants = await this.getDescendants(userId, directoryId);
     const allDirectoryIds = [directoryId, ...descendants.map(d => d.id)];
 
-    // Count documents in all directories
+    // Delete documents (Firestore metadata + Storage content) in all directories
     let deletedDocumentCount = 0;
     const db = FirestorePaths.documents(userId).firestore;
     for (const dirId of allDirectoryIds) {
@@ -230,21 +230,37 @@ export class DirectoryService {
 
       deletedDocumentCount += docsSnapshot.size;
 
-      // Delete documents
-      const batch = db.batch();
-      docsSnapshot.docs.forEach(doc => {
-        batch.delete(doc.ref);
-      });
-      await batch.commit();
+      // Delete Storage content for each document
+      const { DocumentService } = await import('./document-storage.js');
+      for (const doc of docsSnapshot.docs) {
+        try {
+          await DocumentService.deleteDocument(userId, doc.id);
+        } catch (storageErr) {
+          logger.warn('Failed to delete storage for document during directory deletion', {
+            documentId: doc.id, directoryId: dirId,
+            error: storageErr instanceof Error ? storageErr.message : String(storageErr),
+          });
+        }
+      }
+
+      // Delete Firestore metadata in chunks of 500
+      for (let i = 0; i < docsSnapshot.docs.length; i += 500) {
+        const chunk = docsSnapshot.docs.slice(i, i + 500);
+        const batch = db.batch();
+        chunk.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+      }
     }
 
-    // Delete all directories
-    const dirBatch = db.batch();
-    allDirectoryIds.forEach(dirId => {
-      const dirRef = FirestorePaths.directory(userId, dirId);
-      dirBatch.delete(dirRef);
-    });
-    await dirBatch.commit();
+    // Delete all directories in chunks of 500
+    for (let i = 0; i < allDirectoryIds.length; i += 500) {
+      const chunk = allDirectoryIds.slice(i, i + 500);
+      const dirBatch = db.batch();
+      chunk.forEach(dirId => {
+        dirBatch.delete(FirestorePaths.directory(userId, dirId));
+      });
+      await dirBatch.commit();
+    }
 
     // Update parent's child count
     if (directory.parentId) {

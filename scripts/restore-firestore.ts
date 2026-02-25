@@ -49,7 +49,13 @@ function initializeFirebase(): void {
     
     if (useEmulator) {
       // Initialize for emulator - NO CREDENTIALS NEEDED!
-      const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || '[REDACTED]';
+      const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+      if (!projectId) {
+        throw new Error(
+          'GCLOUD_PROJECT or GCP_PROJECT environment variable must be set when using emulators. ' +
+          'Add GCLOUD_PROJECT=your-project-id to your .env.local file.'
+        );
+      }
       
       // Set emulator environment variables if not already set
       if (!process.env.FIRESTORE_EMULATOR_HOST) {

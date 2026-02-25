@@ -1,4 +1,4 @@
-import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { Timestamp, FieldValue, Query } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { DocumentService } from './document-storage';
 import { FirestorePaths } from '../lib/firestore-paths';
@@ -378,7 +378,7 @@ export class DocumentCrudService {
         },
       });
 
-      let query = FirestorePaths.documents(userId) as FirebaseFirestore.Query;
+      let query: Query = FirestorePaths.documents(userId);
 
       // Apply filters
       if (options.sourceType) {
@@ -484,7 +484,7 @@ export class DocumentCrudService {
         options,
       });
 
-      let query = FirestorePaths.documents(userId) as FirebaseFirestore.Query;
+      let query: Query = FirestorePaths.documents(userId);
 
       // Apply filters
       if (options.sourceType) {

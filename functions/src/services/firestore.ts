@@ -81,11 +81,8 @@ export class FirestoreService {
   /**
    * Get quiz by ID
    */
-  public static async getQuiz(quizId: string, userId?: string): Promise<Quiz | null> {
+  public static async getQuiz(quizId: string, userId: string): Promise<Quiz | null> {
     try {
-      if (!userId) {
-        throw new Error('userId is required to fetch quiz');
-      }
       const doc = await FirestorePaths.quiz(userId, quizId).get();
       
       if (!doc.exists) {
@@ -157,11 +154,8 @@ export class FirestoreService {
   /**
    * Delete quiz by ID
    */
-  public static async deleteQuiz(quizId: string, userId?: string): Promise<void> {
+  public static async deleteQuiz(quizId: string, userId: string): Promise<void> {
     try {
-      if (!userId) {
-        throw new Error('userId is required to delete quiz');
-      }
       const quizRef = FirestorePaths.quiz(userId, quizId);
       
       const doc = await quizRef.get();
@@ -209,11 +203,8 @@ export class FirestoreService {
   /**
    * Find existing quiz for a document
    */
-  public static async findExistingQuizByDocument(documentId: string, userId?: string): Promise<Quiz | null> {
+  public static async findExistingQuizByDocument(documentId: string, userId: string): Promise<Quiz | null> {
     try {
-      if (!userId) {
-        throw new Error('userId is required to find quiz by document');
-      }
       const snapshot = await FirestorePaths.quizzes(userId)
         .where("documentId", "==", documentId)
         .orderBy("createdAt", "desc")
@@ -241,11 +232,8 @@ export class FirestoreService {
   /**
    * Get all quizzes for a specific document
    */
-  public static async getDocumentQuizzes(documentId: string, userId?: string): Promise<Quiz[]> {
+  public static async getDocumentQuizzes(documentId: string, userId: string): Promise<Quiz[]> {
     try {
-      if (!userId) {
-        throw new Error('userId is required to get document quizzes');
-      }
       const snapshot = await FirestorePaths.quizzes(userId)
         .where("documentId", "==", documentId)
         .orderBy("createdAt", "desc")
@@ -312,13 +300,10 @@ export class FirestoreService {
   public static async saveQuizFromDocument(
     documentId: string,
     geminiQuiz: GeminiQuizResponse,
-    userId?: string,
+    userId: string,
     followupRuleIds?: string[]
   ): Promise<Quiz> {
     try {
-      if (!userId) {
-        throw new Error('userId is required to save quiz');
-      }
       const quizzesCollection = FirestorePaths.quizzes(userId);
 
       // Get document metadata for quiz title

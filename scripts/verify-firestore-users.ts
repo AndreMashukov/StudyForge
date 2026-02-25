@@ -83,7 +83,7 @@ async function verifyUsersCollection(): Promise<void> {
       console.log(`   👤 User: ${userId}`);
       
       if (Object.keys(userData).length > 0) {
-        console.log(`      Profile data: ${JSON.stringify(userData, null, 2).split('\n').join('\n      ')}`);
+        console.log(`      Profile fields: ${Object.keys(userData).join(', ')}`);
       } else {
         console.log(`      Profile data: (empty - container document)`);
       }
