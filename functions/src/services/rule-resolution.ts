@@ -1,12 +1,10 @@
-import { getFirestore } from 'firebase-admin/firestore';
 import {
   Rule,
   RuleApplicability,
   Directory,
 } from '@shared-types';
 import { getRulesByIds } from './rule-crud';
-
-const db = getFirestore();
+import { FirestorePaths } from '../lib/firestore-paths';
 
 /**
  * Rule Resolution Service
@@ -59,10 +57,7 @@ async function getDirectory(
   userId: string,
   directoryId: string
 ): Promise<Directory | null> {
-  const dirDoc = await db
-    .collection('directories')
-    .doc(directoryId)
-    .get();
+  const dirDoc = await FirestorePaths.directory(userId, directoryId).get();
 
   if (!dirDoc.exists) {
     console.log(`Directory ${directoryId} not found`);
@@ -70,12 +65,6 @@ async function getDirectory(
   }
 
   const data = dirDoc.data();
-  
-  // Verify ownership
-  if (data?.userId !== userId) {
-    console.log(`Directory ${directoryId} belongs to different user`);
-    return null;
-  }
 
   const directory = {
     id: dirDoc.id,

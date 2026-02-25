@@ -1,4 +1,4 @@
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import * as logger from 'firebase-functions/logger';
 import {
   Directory,
@@ -15,12 +15,9 @@ import {
   DeleteDirectoryResponse,
   DocumentEnhanced,
 } from '../../libs/shared-types/src/index';
-
-const firestore = getFirestore();
+import { FirestorePaths } from '../lib/firestore-paths';
 
 export class DirectoryService {
-  private readonly COLLECTION = 'directories';
-  private readonly DOCUMENTS_COLLECTION = 'documents';
 
   /**
    * Create a new directory
@@ -86,15 +83,12 @@ export class DirectoryService {
       updatedAt: now,
     };
 
-    const docRef = await firestore
-      .collection(this.COLLECTION)
+    const docRef = await FirestorePaths.directories(userId)
       .add(directoryData);
 
     // Update parent's child count
     if (parentDirectory) {
-      await firestore
-        .collection(this.COLLECTION)
-        .doc(parentDirectory.id)
+      await FirestorePaths.directory(userId, parentDirectory.id)
         .update({
           childCount: FieldValue.increment(1),
           updatedAt: now,
@@ -115,21 +109,13 @@ export class DirectoryService {
   async getDirectory(userId: string, directoryId: string): Promise<Directory | null> {
     logger.info('Getting directory', { userId, directoryId });
 
-    const doc = await firestore
-      .collection(this.COLLECTION)
-      .doc(directoryId)
-      .get();
+    const doc = await FirestorePaths.directory(userId, directoryId).get();
 
     if (!doc.exists) {
       return null;
     }
 
     const data = doc.data() as Omit<Directory, 'id'>;
-
-    // Verify ownership
-    if (data.userId !== userId) {
-      throw new Error('Access denied: Directory belongs to another user');
-    }
 
     return {
       id: doc.id,
@@ -200,9 +186,7 @@ export class DirectoryService {
     }
 
     // Update directory
-    await firestore
-      .collection(this.COLLECTION)
-      .doc(directoryId)
+    await FirestorePaths.directory(userId, directoryId)
       .update(updateData);
 
     // If name changed, update paths of all descendants
@@ -236,38 +220,51 @@ export class DirectoryService {
     const descendants = await this.getDescendants(userId, directoryId);
     const allDirectoryIds = [directoryId, ...descendants.map(d => d.id)];
 
-    // Count documents in all directories
+    // Delete documents (Firestore metadata + Storage content) in all directories
     let deletedDocumentCount = 0;
+    const db = FirestorePaths.documents(userId).firestore;
     for (const dirId of allDirectoryIds) {
-      const docsSnapshot = await firestore
-        .collection(this.DOCUMENTS_COLLECTION)
-        .where('userId', '==', userId)
+      const docsSnapshot = await FirestorePaths.documents(userId)
         .where('directoryId', '==', dirId)
         .get();
 
       deletedDocumentCount += docsSnapshot.size;
 
-      // Delete documents
-      const batch = firestore.batch();
-      docsSnapshot.docs.forEach(doc => {
-        batch.delete(doc.ref);
-      });
-      await batch.commit();
+      // Delete Storage content for each document
+      const { DocumentService } = await import('./document-storage.js');
+      for (const doc of docsSnapshot.docs) {
+        try {
+          await DocumentService.deleteDocument(userId, doc.id);
+        } catch (storageErr) {
+          logger.warn('Failed to delete storage for document during directory deletion', {
+            documentId: doc.id, directoryId: dirId,
+            error: storageErr instanceof Error ? storageErr.message : String(storageErr),
+          });
+        }
+      }
+
+      // Delete Firestore metadata in chunks of 500
+      for (let i = 0; i < docsSnapshot.docs.length; i += 500) {
+        const chunk = docsSnapshot.docs.slice(i, i + 500);
+        const batch = db.batch();
+        chunk.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+      }
     }
 
-    // Delete all directories
-    const dirBatch = firestore.batch();
-    allDirectoryIds.forEach(dirId => {
-      const dirRef = firestore.collection(this.COLLECTION).doc(dirId);
-      dirBatch.delete(dirRef);
-    });
-    await dirBatch.commit();
+    // Delete all directories in chunks of 500
+    for (let i = 0; i < allDirectoryIds.length; i += 500) {
+      const chunk = allDirectoryIds.slice(i, i + 500);
+      const dirBatch = db.batch();
+      chunk.forEach(dirId => {
+        dirBatch.delete(FirestorePaths.directory(userId, dirId));
+      });
+      await dirBatch.commit();
+    }
 
     // Update parent's child count
     if (directory.parentId) {
-      await firestore
-        .collection(this.COLLECTION)
-        .doc(directory.parentId)
+      await FirestorePaths.directory(userId, directory.parentId)
         .update({
           childCount: FieldValue.increment(-1),
           updatedAt: new Date(),
@@ -294,9 +291,7 @@ export class DirectoryService {
     logger.info('Getting directory tree', { userId });
 
     // Get all directories for user
-    const snapshot = await firestore
-      .collection(this.COLLECTION)
-      .where('userId', '==', userId)
+    const snapshot = await FirestorePaths.directories(userId)
       .orderBy('path', 'asc')
       .get();
 
@@ -339,9 +334,7 @@ export class DirectoryService {
     }
 
     // Get subdirectories
-    const subdirSnapshot = await firestore
-      .collection(this.COLLECTION)
-      .where('userId', '==', userId)
+    const subdirSnapshot = await FirestorePaths.directories(userId)
       .where('parentId', '==', directoryId)
       .orderBy('name', 'asc')
       .get();
@@ -352,9 +345,7 @@ export class DirectoryService {
     } as Directory));
 
     // Get documents in this directory
-    const docsSnapshot = await firestore
-      .collection(this.DOCUMENTS_COLLECTION)
-      .where('userId', '==', userId)
+    const docsSnapshot = await FirestorePaths.documents(userId)
       .where('directoryId', '==', directoryId)
       .orderBy('createdAt', 'desc')
       .get();
@@ -479,9 +470,7 @@ export class DirectoryService {
 
     // Update old parent's child count
     if (directory.parentId) {
-      await firestore
-        .collection(this.COLLECTION)
-        .doc(directory.parentId)
+      await FirestorePaths.directory(userId, directory.parentId)
         .update({
           childCount: FieldValue.increment(-1),
           updatedAt: new Date(),
@@ -490,9 +479,7 @@ export class DirectoryService {
 
     // Update new parent's child count
     if (request.targetParentId) {
-      await firestore
-        .collection(this.COLLECTION)
-        .doc(request.targetParentId)
+      await FirestorePaths.directory(userId, request.targetParentId)
         .update({
           childCount: FieldValue.increment(1),
           updatedAt: new Date(),
@@ -500,9 +487,7 @@ export class DirectoryService {
     }
 
     // Update directory
-    await firestore
-      .collection(this.COLLECTION)
-      .doc(directoryId)
+    await FirestorePaths.directory(userId, directoryId)
       .update({
         parentId: request.targetParentId || null,
         path: newPath,
@@ -536,9 +521,7 @@ export class DirectoryService {
   async getDirectoryByPath(userId: string, path: string): Promise<Directory | null> {
     logger.info('Getting directory by path', { userId, path });
 
-    const snapshot = await firestore
-      .collection(this.COLLECTION)
-      .where('userId', '==', userId)
+    const snapshot = await FirestorePaths.directories(userId)
       .where('path', '==', path)
       .limit(1)
       .get();
@@ -596,9 +579,7 @@ export class DirectoryService {
     name: string,
     parentId: string | null
   ): Promise<Directory | null> {
-    const snapshot = await firestore
-      .collection(this.COLLECTION)
-      .where('userId', '==', userId)
+    const snapshot = await FirestorePaths.directories(userId)
       .where('name', '==', name)
       .where('parentId', '==', parentId)
       .limit(1)
@@ -655,11 +636,9 @@ export class DirectoryService {
     const directory = await this.getDirectory(userId, directoryId);
     if (!directory) return [];
 
-    const snapshot = await firestore
-      .collection(this.COLLECTION)
-      .where('userId', '==', userId)
+    const snapshot = await FirestorePaths.directories(userId)
       .where('path', '>=', directory.path + '/')
-      .where('path', '<', directory.path + '0') // '0' is next character after '/'
+      .where('path', '<', directory.path + '0')
       .get();
 
     return snapshot.docs.map(doc => ({
@@ -699,7 +678,8 @@ export class DirectoryService {
     const descendants = await this.getDescendants(userId, directoryId);
     if (descendants.length === 0) return 0;
 
-    const batch = firestore.batch();
+    const db = FirestorePaths.directories(userId).firestore;
+    const batch = db.batch();
     const oldPath = directory.path;
 
     descendants.forEach(desc => {
@@ -707,7 +687,7 @@ export class DirectoryService {
       const pathParts = updatedPath.split('/').filter(p => p.length > 0);
       const updatedLevel = pathParts.length;
 
-      batch.update(firestore.collection(this.COLLECTION).doc(desc.id), {
+      batch.update(FirestorePaths.directory(userId, desc.id), {
         path: updatedPath,
         level: updatedLevel,
         updatedAt: new Date(),

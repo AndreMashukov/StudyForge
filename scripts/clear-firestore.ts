@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 /**
- * Firestore Database Clear Script
+ * Firestore Database Clear Script (User-Scoped Collections)
  * 
- * ⚠️  WARNING: This script will DELETE ALL DATA from Firestore! ⚠️
+ * ⚠️  WARNING: This script will DELETE user-scoped data from Firestore! ⚠️
  * 
- * This script recursively deletes all collections and documents from Firestore.
- * Use with extreme caution, especially in production environments.
+ * This script clears the user-scoped subcollections under each user:
+ *   - users/{userId}/documents
+ *   - users/{userId}/quizzes
+ *   - users/{userId}/directories
+ *   - users/{userId}/rules
  * 
  * Usage:
  *   # Dry run (preview what will be deleted)
@@ -19,10 +22,10 @@
  * 
  * The script will:
  * 1. Initialize Firebase Admin SDK
- * 2. List all top-level collections
- * 3. Recursively delete all documents and subcollections
+ * 2. List all user documents under users/
+ * 3. For each user, recursively delete documents, quizzes, directories, and rules subcollections
  * 4. Provide progress updates during deletion
- * 5. Summary of deleted collections and documents
+ * 5. Summary of deleted subcollections and documents
  * 
  * Safety Features:
  * - Requires explicit confirmation before deletion (unless --force is used)
@@ -59,7 +62,7 @@ function initializeFirebase(projectId?: string): void {
     
     if (useEmulator) {
       // Initialize for emulator
-      const finalProjectId = projectId || process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'code-insights-quiz-ai';
+      const finalProjectId = projectId || process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || '[REDACTED]';
       
       // Set emulator environment variables if not already set
       if (!process.env.FIRESTORE_EMULATOR_HOST) {
@@ -75,7 +78,7 @@ function initializeFirebase(projectId?: string): void {
       console.log(`   Firestore Emulator: ${process.env.FIRESTORE_EMULATOR_HOST}`);
     } else {
       // Initialize with default credentials (for production)
-      const finalProjectId = projectId || 'code-insights-quiz-ai';
+      const finalProjectId = projectId || '[REDACTED]';
       
       try {
         admin.initializeApp({
@@ -105,7 +108,7 @@ function initializeFirebase(projectId?: string): void {
         console.error('   2. Set emulator environment variables in .env.local:');
         console.error('      FIREBASE_AUTH_EMULATOR_HOST=localhost:9099');
         console.error('      FIRESTORE_EMULATOR_HOST=localhost:8080');
-        console.error('      GCLOUD_PROJECT=code-insights-quiz-ai');
+        console.error('      GCLOUD_PROJECT=[REDACTED]');
         throw error;
       }
     }
@@ -223,13 +226,20 @@ async function confirmDeletion(projectId: string): Promise<boolean> {
   });
 }
 
+// Subcollections to clear under each user document
+const USER_SUBCOLLECTIONS = ['documents', 'quizzes', 'directories', 'rules'];
+
 /**
  * Main clear function
+ * 
+ * Clears user-scoped subcollections:
+ *   users/{userId}/documents, users/{userId}/quizzes,
+ *   users/{userId}/directories, users/{userId}/rules
  */
 async function clearFirestore(dryRun = false, force = false): Promise<void> {
   try {
     // Initialize Firebase with explicit project ID
-    initializeFirebase('code-insights-quiz-ai');
+    initializeFirebase('[REDACTED]');
 
     const db = admin.firestore();
     const app = admin.app();
@@ -253,12 +263,15 @@ async function clearFirestore(dryRun = false, force = false): Promise<void> {
       console.log('\n⚡ FORCE MODE - Skipping confirmation\n');
     }
 
-    // List all top-level collections
-    const collections = await db.listCollections();
-    console.log(`\n📚 Found ${collections.length} top-level collections to delete`);
+    // List all user documents
+    const usersRef = db.collection('users');
+    const usersSnapshot = await usersRef.get();
 
-    if (collections.length === 0) {
-      console.log('✅ Firestore is already empty');
+    console.log(`\n👤 Found ${usersSnapshot.size} user(s)`);
+    console.log(`📚 Subcollections to clear: ${USER_SUBCOLLECTIONS.join(', ')}`);
+
+    if (usersSnapshot.size === 0) {
+      console.log('✅ No users found - nothing to clear');
       return;
     }
 
@@ -266,55 +279,62 @@ async function clearFirestore(dryRun = false, force = false): Promise<void> {
     let totalDocuments = 0;
     let totalSubcollections = 0;
 
-    // Delete each collection
-    for (const collectionRef of collections) {
-      const collectionName = collectionRef.id;
-      console.log(`\n🗑️  ${dryRun ? '[DRY RUN] Would delete' : 'Deleting'} collection: ${collectionName}`);
+    // For each user, delete their subcollections
+    for (const userDoc of usersSnapshot.docs) {
+      const userId = userDoc.id;
+      console.log(`\n👤 ${dryRun ? '[DRY RUN] Would clear' : 'Clearing'} user: ${userId}`);
 
-      try {
-        const { documentsDeleted, subcollectionsDeleted } = await deleteCollection(
-          db,
-          collectionName,
-          500,
-          dryRun
-        );
+      for (const subcollectionName of USER_SUBCOLLECTIONS) {
+        const subcollectionPath = `users/${userId}/${subcollectionName}`;
+        console.log(`   🗑️  ${dryRun ? '[DRY RUN] Would delete' : 'Deleting'}: ${subcollectionPath}`);
 
-        collectionStats.push({
-          name: collectionName,
-          documentsDeleted: documentsDeleted,
-          subcollectionsDeleted: subcollectionsDeleted,
-        });
+        try {
+          const { documentsDeleted, subcollectionsDeleted } = await deleteCollection(
+            db,
+            subcollectionPath,
+            500,
+            dryRun
+          );
 
-        totalDocuments += documentsDeleted;
-        totalSubcollections += subcollectionsDeleted;
+          collectionStats.push({
+            name: subcollectionPath,
+            documentsDeleted: documentsDeleted,
+            subcollectionsDeleted: subcollectionsDeleted,
+          });
 
-        if (dryRun) {
-          console.log(`   ✅ [DRY RUN] Would delete ${documentsDeleted} documents from ${collectionName}`);
-        } else {
-          console.log(`   ✅ Deleted ${documentsDeleted} documents from ${collectionName}`);
+          totalDocuments += documentsDeleted;
+          totalSubcollections += subcollectionsDeleted;
+
+          if (dryRun) {
+            console.log(`      ✅ [DRY RUN] Would delete ${documentsDeleted} documents`);
+          } else {
+            console.log(`      ✅ Deleted ${documentsDeleted} documents`);
+          }
+        } catch (error) {
+          console.error(`      ❌ Error deleting ${subcollectionPath}:`, error);
+          throw error;
         }
-      } catch (error) {
-        console.error(`   ❌ Error deleting collection ${collectionName}:`, error);
-        throw error;
       }
     }
 
     // Print summary
     console.log(`\n${dryRun ? '📋 DRY RUN SUMMARY' : '✅ CLEAR COMPLETED SUCCESSFULLY'}`);
-    console.log(`   📚 Collections ${dryRun ? 'that would be deleted' : 'deleted'}: ${collections.length}`);
+    console.log(`   👤 Users processed: ${usersSnapshot.size}`);
     console.log(`   📄 Total documents ${dryRun ? 'that would be deleted' : 'deleted'}: ${totalDocuments}`);
     console.log(`   📁 Subcollections ${dryRun ? 'that would be deleted' : 'deleted'}: ${totalSubcollections}`);
 
-    console.log(`\n📊 Collection Statistics:`);
+    console.log(`\n📊 Subcollection Statistics:`);
     for (const stat of collectionStats) {
-      console.log(`   ${stat.name}: ${stat.documentsDeleted} documents, ${stat.subcollectionsDeleted} subcollections`);
+      if (stat.documentsDeleted > 0) {
+        console.log(`   ${stat.name}: ${stat.documentsDeleted} documents, ${stat.subcollectionsDeleted} subcollections`);
+      }
     }
 
     if (dryRun) {
       console.log(`\n💡 This was a dry run. Run without --dry-run to actually delete data.`);
       console.log(`   Command: npx tsx scripts/clear-firestore.ts`);
     } else {
-      console.log(`\n⚠️  All data has been permanently deleted from Firestore!`);
+      console.log(`\n⚠️  All user-scoped data has been permanently deleted from Firestore!`);
       
       // Suggest creating a backup next time
       console.log(`\n💡 Tip: Always create a backup before clearing data:`);
@@ -335,9 +355,13 @@ if (require.main === module) {
 
   // Show help if requested
   if (args.includes('--help') || args.includes('-h')) {
-    console.log('Firestore Clear Script');
+    console.log('Firestore Clear Script (User-Scoped Collections)');
     console.log('');
-    console.log('⚠️  WARNING: This script will DELETE ALL DATA from Firestore! ⚠️');
+    console.log('⚠️  WARNING: This script will DELETE user-scoped data from Firestore! ⚠️');
+    console.log('');
+    console.log('Clears subcollections under each user:');
+    console.log('  users/{userId}/documents, users/{userId}/quizzes,');
+    console.log('  users/{userId}/directories, users/{userId}/rules');
     console.log('');
     console.log('Usage:');
     console.log('  npx tsx scripts/clear-firestore.ts [options]');

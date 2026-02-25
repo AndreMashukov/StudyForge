@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 /**
- * Firestore Database Restore Script
+ * Firestore Database Restore Script (User-Scoped Collections)
  * 
- * This script restores Firestore collections and documents from backup JSON files.
- * It recursively restores all collections and subcollections.
+ * This script restores user-scoped Firestore collections from backup JSON files.
+ * It restores the users collection with all subcollections:
+ *   - users/{userId}/documents
+ *   - users/{userId}/quizzes
+ *   - users/{userId}/directories
+ *   - users/{userId}/rules
  * 
  * Usage:
  *   npx tsx scripts/restore-firestore.ts <backup-directory-path>
@@ -12,9 +16,9 @@
  *   npx tsx scripts/restore-firestore.ts backups/firebase-backup-2024-01-01_12-00-00/firestore
  * 
  * The script will:
- * 1. Load collections from backup directory
+ * 1. Load the users collection backup from the backup directory
  * 2. Initialize Firebase Admin SDK
- * 3. Restore documents and subcollections recursively
+ * 3. Restore user documents and subcollections into users/{userId}/...
  * 4. Convert ISO timestamps back to Firestore Timestamps
  * 5. Handle GeoPoints and DocumentReferences
  */
@@ -45,7 +49,13 @@ function initializeFirebase(): void {
     
     if (useEmulator) {
       // Initialize for emulator - NO CREDENTIALS NEEDED!
-      const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'code-insights-quiz-ai';
+      const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+      if (!projectId) {
+        throw new Error(
+          'GCLOUD_PROJECT or GCP_PROJECT environment variable must be set when using emulators. ' +
+          'Add GCLOUD_PROJECT=your-project-id to your .env.local file.'
+        );
+      }
       
       // Set emulator environment variables if not already set
       if (!process.env.FIRESTORE_EMULATOR_HOST) {
@@ -163,7 +173,9 @@ async function restoreDocument(
 }
 
 /**
- * Restore a collection from backup file
+ * Restore the users collection from backup file.
+ * Each user document may have subcollections: documents, quizzes, directories, rules.
+ * Restores into users/{userId}/... structure.
  */
 async function restoreCollection(
   collectionName: string,
@@ -185,26 +197,29 @@ async function restoreCollection(
     throw new Error(`Collection backup file must contain an array of documents: ${collectionFilePath}`);
   }
 
-  console.log(`   Found ${documents.length} documents`);
+  console.log(`   Found ${documents.length} user document(s)`);
 
   const collectionRef = db.collection(collectionName);
   let documentCount = 0;
   let subcollectionCount = 0;
 
-  // Restore documents in batches
+  // Restore user documents in batches
   const batchSize = 500; // Firestore batch limit
   for (let i = 0; i < documents.length; i += batchSize) {
     const batch = documents.slice(i, i + batchSize);
     const batchNumber = Math.floor(i / batchSize) + 1;
     const totalBatches = Math.ceil(documents.length / batchSize);
 
-    console.log(`   Processing batch ${batchNumber}/${totalBatches} (${batch.length} documents)...`);
+    console.log(`   Processing batch ${batchNumber}/${totalBatches} (${batch.length} user documents)...`);
 
     if (dryRun) {
       documentCount += batch.length;
       batch.forEach(doc => {
         if (doc.subcollections && Object.keys(doc.subcollections).length > 0) {
           subcollectionCount++;
+          const subcolNames = Object.keys(doc.subcollections);
+          const subcolCounts = subcolNames.map(name => `${name}: ${doc.subcollections![name].length}`).join(', ');
+          console.log(`      [DRY RUN] User ${doc.id} → ${subcolCounts}`);
         }
       });
     } else {
@@ -226,17 +241,18 @@ async function restoreCollection(
 
       await firestoreBatch.commit();
       documentCount += batchDocCount;
-      console.log(`   ✅ Restored ${batchDocCount} documents`);
+      console.log(`   ✅ Restored ${batchDocCount} user documents`);
     }
   }
 
-  // Restore subcollections (must be done after parent documents exist)
+  // Restore subcollections (must be done after parent user documents exist)
   if (!dryRun) {
-    console.log(`   Restoring subcollections...`);
+    console.log(`   Restoring user subcollections (documents, quizzes, directories, rules)...`);
     for (const docBackup of documents) {
       if (docBackup.subcollections) {
         const docRef = collectionRef.doc(docBackup.id);
         for (const [subcollectionName, subcollectionDocs] of Object.entries(docBackup.subcollections)) {
+          console.log(`      👤 users/${docBackup.id}/${subcollectionName}: ${subcollectionDocs.length} documents`);
           const subcollectionRef = docRef.collection(subcollectionName);
           for (const subDoc of subcollectionDocs) {
             await restoreDocument(subDoc, subcollectionRef, dryRun);
@@ -251,6 +267,10 @@ async function restoreCollection(
 
 /**
  * Main restore function
+ * 
+ * Restores the user-scoped Firestore structure:
+ *   users/{userId}/documents, users/{userId}/quizzes,
+ *   users/{userId}/directories, users/{userId}/rules
  */
 async function restoreFirestore(backupDir: string, dryRun: boolean = false): Promise<void> {
   try {
@@ -269,20 +289,18 @@ async function restoreFirestore(backupDir: string, dryRun: boolean = false): Pro
       throw new Error(`Collections directory not found: ${collectionsDir}`);
     }
 
-    // Get list of collection files
-    const collectionFiles = fs.readdirSync(collectionsDir)
-      .filter(file => file.endsWith('.json'))
-      .map(file => ({
-        name: file.replace('.json', ''),
-        path: path.join(collectionsDir, file),
-      }));
-
-    if (collectionFiles.length === 0) {
-      throw new Error(`No collection backup files found in: ${collectionsDir}`);
+    // Look for the users.json backup file (user-scoped structure)
+    const usersBackupPath = path.join(collectionsDir, 'users.json');
+    if (!fs.existsSync(usersBackupPath)) {
+      throw new Error(
+        `users.json not found in ${collectionsDir}. ` +
+        `Expected user-scoped backup with users/{userId}/... structure.`
+      );
     }
 
     console.log(`📂 Backup directory: ${backupDir}`);
-    console.log(`📚 Found ${collectionFiles.length} collections to restore`);
+    console.log(`📚 Restoring user-scoped structure: users/{userId}/...`);
+    console.log(`   Subcollections: documents, quizzes, directories, rules`);
 
     if (dryRun) {
       console.log('\n🔍 DRY RUN MODE - No changes will be made\n');
@@ -291,27 +309,24 @@ async function restoreFirestore(backupDir: string, dryRun: boolean = false): Pro
     let totalDocuments = 0;
     let totalSubcollections = 0;
 
-    // Restore each collection
-    for (const collectionFile of collectionFiles) {
-      try {
-        const { documentCount, subcollectionCount } = await restoreCollection(
-          collectionFile.name,
-          collectionFile.path,
-          db,
-          dryRun
-        );
-        totalDocuments += documentCount;
-        totalSubcollections += subcollectionCount;
-      } catch (error) {
-        console.error(`   ❌ Error restoring collection ${collectionFile.name}:`, error);
-        throw error;
-      }
+    // Restore the users collection with all subcollections
+    try {
+      const { documentCount, subcollectionCount } = await restoreCollection(
+        'users',
+        usersBackupPath,
+        db,
+        dryRun
+      );
+      totalDocuments += documentCount;
+      totalSubcollections += subcollectionCount;
+    } catch (error) {
+      console.error(`   ❌ Error restoring users collection:`, error);
+      throw error;
     }
 
     console.log(`\n✅ Restore completed successfully!`);
-    console.log(`   📚 Collections restored: ${collectionFiles.length}`);
-    console.log(`   📄 Total documents: ${totalDocuments}`);
-    console.log(`   📁 Documents with subcollections: ${totalSubcollections}`);
+    console.log(`   👤 Users restored: ${totalDocuments}`);
+    console.log(`   📁 Users with subcollections: ${totalSubcollections}`);
 
     if (dryRun) {
       console.log(`\n💡 This was a dry run. Run without --dry-run to actually restore data.`);

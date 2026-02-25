@@ -1,6 +1,7 @@
-import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { Timestamp, FieldValue, Query } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { DocumentService } from './document-storage';
+import { FirestorePaths } from '../lib/firestore-paths';
 import { 
   DocumentEnhanced as Document, 
   DocumentMetadataEnhanced as DocumentMetadata, 
@@ -14,10 +15,9 @@ import {
 /**
  * Comprehensive Document CRUD Service
  * Manages documents across both Firestore (metadata) and Storage (content)
+ * All documents are stored under users/{userId}/documents/{documentId}
  */
 export class DocumentCrudService {
-  private static db = getFirestore();
-  private static readonly COLLECTION_NAME = 'documents';
 
   /**
    * Create a new document with content storage
@@ -38,7 +38,7 @@ export class DocumentCrudService {
       DocumentService.validateDocumentContent(request.content);
 
       // Generate document ID
-      const docRef = this.db.collection(this.COLLECTION_NAME).doc();
+      const docRef = FirestorePaths.documents(userId).doc();
       const documentId = docRef.id;
 
       // Count words in content
@@ -84,7 +84,7 @@ export class DocumentCrudService {
 
       // Update directory document count if document is in a directory
       if (request.directoryId) {
-        await this.updateDirectoryDocumentCount(request.directoryId, 1);
+        await this.updateDirectoryDocumentCount(userId, request.directoryId, 1);
       }
 
       logger.info('Document created successfully', { 
@@ -115,7 +115,7 @@ export class DocumentCrudService {
     try {
       logger.info('Retrieving document', { userId, documentId });
 
-      const docRef = this.db.collection(this.COLLECTION_NAME).doc(documentId);
+      const docRef = FirestorePaths.document(userId, documentId);
       const docSnap = await docRef.get();
 
       if (!docSnap.exists) {
@@ -124,16 +124,10 @@ export class DocumentCrudService {
 
       const document = docSnap.data() as Document;
       
-      // Ensure document has an ID from the Firestore document ID
       const documentWithId = {
         ...document,
-        id: docSnap.id, // Use Firestore document ID
+        id: docSnap.id,
       };
-
-      // Verify ownership
-      if (documentWithId.userId !== userId) {
-        throw new Error('Unauthorized: Document belongs to different user');
-      }
 
       logger.info('Document retrieved successfully', { 
         userId, 
@@ -208,7 +202,7 @@ export class DocumentCrudService {
 
       // Get current document
       const currentDocument = await this.getDocument(userId, documentId);
-      const docRef = this.db.collection(this.COLLECTION_NAME).doc(documentId);
+      const docRef = FirestorePaths.document(userId, documentId);
 
       let storageFile;
       let wordCount = currentDocument.wordCount;
@@ -328,14 +322,14 @@ export class DocumentCrudService {
 
       // Update directory document count if document was in a directory
       if (document.directoryId) {
-        await this.updateDirectoryDocumentCount(document.directoryId, -1);
+        await this.updateDirectoryDocumentCount(userId, document.directoryId, -1);
       }
 
       // Delete content from storage
       await DocumentService.deleteDocument(userId, documentId);
 
       // Delete metadata from Firestore
-      const docRef = this.db.collection(this.COLLECTION_NAME).doc(documentId);
+      const docRef = FirestorePaths.document(userId, documentId);
       await docRef.delete();
 
       logger.info('Document deleted successfully', { 
@@ -384,9 +378,7 @@ export class DocumentCrudService {
         },
       });
 
-      let query = this.db
-        .collection(this.COLLECTION_NAME)
-        .where('userId', '==', userId);
+      let query: Query = FirestorePaths.documents(userId);
 
       // Apply filters
       if (options.sourceType) {
@@ -492,11 +484,7 @@ export class DocumentCrudService {
         options,
       });
 
-      // Note: This is a basic implementation. For better search,
-      // consider using Algolia, Elasticsearch, or Firebase's full-text search
-      let query = this.db
-        .collection(this.COLLECTION_NAME)
-        .where('userId', '==', userId);
+      let query: Query = FirestorePaths.documents(userId);
 
       // Apply filters
       if (options.sourceType) {
@@ -554,10 +542,7 @@ export class DocumentCrudService {
     try {
       logger.info('Getting document statistics', { userId });
 
-      const snapshot = await this.db
-        .collection(this.COLLECTION_NAME)
-        .where('userId', '==', userId)
-        .get();
+      const snapshot = await FirestorePaths.documents(userId).get();
 
       const documents = snapshot.docs.map(doc => doc.data() as Document);
 
@@ -627,20 +612,6 @@ export class DocumentCrudService {
   }
 
   /**
-   * Validate document ownership
-   * @param userId - The requesting user's ID
-   * @param documentId - The document identifier
-   * @returns true if user owns document, throws error if not
-   */
-  private static async validateOwnership(userId: string, documentId: string): Promise<boolean> {
-    const document = await this.getDocument(userId, documentId);
-    if (document.userId !== userId) {
-      throw new Error('Unauthorized: Document belongs to different user');
-    }
-    return true;
-  }
-
-  /**
    * Move a document to a different directory
    * @param userId - The authenticated user's ID
    * @param documentId - The document identifier
@@ -661,11 +632,11 @@ export class DocumentCrudService {
 
       // Get current document
       const currentDocument = await this.getDocument(userId, documentId);
-      const docRef = this.db.collection(this.COLLECTION_NAME).doc(documentId);
+      const docRef = FirestorePaths.document(userId, documentId);
 
       // Update old directory document count
       if (currentDocument.directoryId) {
-        await this.updateDirectoryDocumentCount(currentDocument.directoryId, -1);
+        await this.updateDirectoryDocumentCount(userId, currentDocument.directoryId, -1);
       }
 
       // Update document
@@ -676,7 +647,7 @@ export class DocumentCrudService {
 
       // Update new directory document count
       if (request.targetDirectoryId) {
-        await this.updateDirectoryDocumentCount(request.targetDirectoryId, 1);
+        await this.updateDirectoryDocumentCount(userId, request.targetDirectoryId, 1);
       }
 
       // Get updated document
@@ -706,9 +677,9 @@ export class DocumentCrudService {
    * @param directoryId - The directory identifier
    * @param delta - The change in document count (+1 or -1)
    */
-  private static async updateDirectoryDocumentCount(directoryId: string, delta: number): Promise<void> {
+  private static async updateDirectoryDocumentCount(userId: string, directoryId: string, delta: number): Promise<void> {
     try {
-      const dirRef = this.db.collection('directories').doc(directoryId);
+      const dirRef = FirestorePaths.directory(userId, directoryId);
       await dirRef.update({
         documentCount: FieldValue.increment(delta),
         updatedAt: Timestamp.now(),

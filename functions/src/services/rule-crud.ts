@@ -1,11 +1,10 @@
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import { 
   Rule, 
   CreateRuleRequest, 
   UpdateRuleRequest
 } from '@shared-types';
-
-const db = getFirestore();
+import { FirestorePaths } from '../lib/firestore-paths';
 
 /**
  * Rule CRUD Service
@@ -29,7 +28,7 @@ export async function createRule(
     throw new Error('Rule must be applicable to at least one operation type');
   }
 
-  const ruleRef = db.collection('users').doc(userId).collection('rules').doc();
+  const ruleRef = FirestorePaths.rules(userId).doc();
   
   const now = FieldValue.serverTimestamp();
   
@@ -62,12 +61,7 @@ export async function createRule(
  * Get a single rule by ID
  */
 export async function getRule(userId: string, ruleId: string): Promise<Rule | null> {
-  const ruleDoc = await db
-    .collection('users')
-    .doc(userId)
-    .collection('rules')
-    .doc(ruleId)
-    .get();
+  const ruleDoc = await FirestorePaths.rule(userId, ruleId).get();
 
   if (!ruleDoc.exists) {
     return null;
@@ -85,10 +79,7 @@ export async function getRule(userId: string, ruleId: string): Promise<Rule | nu
  * Get all rules for a user
  */
 export async function getRules(userId: string): Promise<Rule[]> {
-  const rulesSnapshot = await db
-    .collection('users')
-    .doc(userId)
-    .collection('rules')
+  const rulesSnapshot = await FirestorePaths.rules(userId)
     .orderBy('createdAt', 'desc')
     .get();
 
@@ -123,10 +114,7 @@ export async function getRulesByIds(
   const rules: Rule[] = [];
 
   for (const chunk of chunks) {
-    const snapshot = await db
-      .collection('users')
-      .doc(userId)
-      .collection('rules')
+    const snapshot = await FirestorePaths.rules(userId)
       .where('id', 'in', chunk)
       .get();
 
@@ -150,11 +138,7 @@ export async function updateRule(
   userId: string,
   request: UpdateRuleRequest
 ): Promise<Rule> {
-  const ruleRef = db
-    .collection('users')
-    .doc(userId)
-    .collection('rules')
-    .doc(request.ruleId);
+  const ruleRef = FirestorePaths.rule(userId, request.ruleId);
 
   const ruleDoc = await ruleRef.get();
   
@@ -205,11 +189,7 @@ export async function deleteRule(
   userId: string,
   ruleId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const ruleRef = db
-    .collection('users')
-    .doc(userId)
-    .collection('rules')
-    .doc(ruleId);
+  const ruleRef = FirestorePaths.rule(userId, ruleId);
 
   const ruleDoc = await ruleRef.get();
   
@@ -240,18 +220,9 @@ export async function attachRuleToDirectory(
   ruleId: string,
   directoryId: string
 ): Promise<void> {
-  const batch = db.batch();
-
-  const ruleRef = db
-    .collection('users')
-    .doc(userId)
-    .collection('rules')
-    .doc(ruleId);
-
-  // Directories are at root level, not under users
-  const directoryRef = db
-    .collection('directories')
-    .doc(directoryId);
+  const ruleRef = FirestorePaths.rule(userId, ruleId);
+  const directoryRef = FirestorePaths.directory(userId, directoryId);
+  const batch = ruleRef.firestore.batch();
 
   // Verify both rule and directory exist
   const [ruleDoc, dirDoc] = await Promise.all([
@@ -290,18 +261,9 @@ export async function detachRuleFromDirectory(
   ruleId: string,
   directoryId: string
 ): Promise<void> {
-  const batch = db.batch();
-
-  const ruleRef = db
-    .collection('users')
-    .doc(userId)
-    .collection('rules')
-    .doc(ruleId);
-
-  // Directories are at root level, not under users
-  const directoryRef = db
-    .collection('directories')
-    .doc(directoryId);
+  const ruleRef = FirestorePaths.rule(userId, ruleId);
+  const directoryRef = FirestorePaths.directory(userId, directoryId);
+  const batch = ruleRef.firestore.batch();
 
   // Verify both rule and directory exist
   const [ruleDoc, dirDoc] = await Promise.all([

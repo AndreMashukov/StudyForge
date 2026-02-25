@@ -7,60 +7,43 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper function to check if user owns the resource
+    // Helper function to check if user owns the resource (path-based)
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Documents collection rules
-    match /documents/{documentId} {
-      // Allow users to read their own documents
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      
-      // Allow users to create documents with their own userId
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      
-      // Allow users to update their own documents
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      
-      // Allow users to delete their own documents
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
-    }
+    // All user-scoped collections under users/{userId}/
+    match /users/{userId} {
+      // Documents subcollection
+      match /documents/{documentId} {
+        allow read, write: if isOwner(userId);
+      }
 
-    // Quizzes collection rules
-    match /quizzes/{quizId} {
-      // Allow users to read their own quizzes
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      
-      // Allow users to create quizzes with their own userId
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      
-      // Allow users to update their own quizzes
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      
-      // Allow users to delete their own quizzes
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
-    }
+      // Quizzes subcollection
+      match /quizzes/{quizId} {
+        allow read, write: if isOwner(userId);
+      }
 
-    // Directories collection rules
-    match /directories/{directoryId} {
-      // Allow users to read their own directories
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      
-      // Allow users to create directories with their own userId
-      allow create: if isAuthenticated() && 
-                      request.resource.data.userId == request.auth.uid &&
-                      request.resource.data.name is string &&
-                      request.resource.data.name.size() > 0 &&
-                      request.resource.data.name.size() <= 100 &&
-                      request.resource.data.level >= 0 &&
-                      request.resource.data.level <= 10;
-      
-      // Allow users to update their own directories
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      
-      // Allow users to delete their own directories
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Directories subcollection
+      match /directories/{directoryId} {
+        function isValidDirectory() {
+          return request.resource.data.name is string &&
+                 request.resource.data.name.size() > 0 &&
+                 request.resource.data.name.size() <= 100 &&
+                 request.resource.data.level >= 0 &&
+                 request.resource.data.level <= 10;
+        }
+
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidDirectory();
+        allow update: if isOwner(userId) && isValidDirectory();
+        allow delete: if isOwner(userId);
+      }
+
+      // Rules subcollection
+      match /rules/{ruleId} {
+        allow read, write: if isOwner(userId);
+      }
     }
   }
 }
