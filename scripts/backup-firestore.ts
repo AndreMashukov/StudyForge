@@ -1,19 +1,22 @@
 #!/usr/bin/env node
 /**
- * Firestore Database Backup Script
+ * Firestore Database Backup Script (User-Scoped Collections)
  * 
- * This script exports all Firestore collections and documents to JSON files.
- * It recursively traverses all collections and subcollections to create a complete backup.
+ * This script exports the user-scoped Firestore structure to JSON files.
+ * All data lives under users/{userId}/ with subcollections:
+ *   - users/{userId}/documents
+ *   - users/{userId}/quizzes
+ *   - users/{userId}/directories
+ *   - users/{userId}/rules
  * 
  * Usage:
  *   npx tsx scripts/backup-firestore.ts [output-dir]
  * 
  * The script will:
  * 1. Initialize Firebase Admin SDK
- * 2. List all top-level collections
- * 3. Recursively export all documents and subcollections
- * 4. Save data to organized JSON files with timestamp
- * 5. Preserve document structure and metadata
+ * 2. Export the users collection with all subcollections recursively
+ * 3. Save data to organized JSON files with timestamp
+ * 4. Preserve document structure and metadata
  */
 
 import * as admin from 'firebase-admin';
@@ -57,7 +60,7 @@ function initializeFirebase(): void {
     
     if (useEmulator) {
       // Initialize for emulator - NO CREDENTIALS NEEDED!
-      const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'code-insights-quiz-ai';
+      const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || '[REDACTED]';
       
       // Set emulator environment variables if not already set
       if (!process.env.FIRESTORE_EMULATOR_HOST) {
@@ -103,7 +106,7 @@ function initializeFirebase(): void {
         console.error('   2. Set emulator environment variables in .env.local:');
         console.error('      FIREBASE_AUTH_EMULATOR_HOST=localhost:9099');
         console.error('      FIRESTORE_EMULATOR_HOST=localhost:8080');
-        console.error('      GCLOUD_PROJECT=code-insights-quiz-ai');
+        console.error('      GCLOUD_PROJECT=[REDACTED]');
         throw error;
       }
     }
@@ -268,7 +271,7 @@ async function exportCollection(
     
     // Try to discover parent documents by checking subcollections
     // We'll check for common subcollection names or use collection group queries
-    const commonSubcollectionNames = ['rules', 'subcollections', 'items', 'data'];
+    const commonSubcollectionNames = ['documents', 'quizzes', 'directories', 'rules', 'subcollections', 'items', 'data'];
     
     for (const subcolName of commonSubcollectionNames) {
       try {
@@ -324,75 +327,78 @@ async function exportCollection(
 }
 
 /**
- * List all top-level collections
- */
-async function listCollections(db: admin.firestore.Firestore): Promise<string[]> {
-  const collections = await db.listCollections();
-  return collections.map(col => col.id);
-}
-
-/**
- * Export all Firestore data
+ * Export all Firestore data from user-scoped collections
+ * 
+ * In the new structure, all data lives under users/{userId}/:
+ *   - users/{userId}/documents
+ *   - users/{userId}/quizzes
+ *   - users/{userId}/directories
+ *   - users/{userId}/rules
  */
 async function exportAllFirestoreData(
   db: admin.firestore.Firestore,
   backupDir: string
 ): Promise<{ collections: CollectionStats[]; totalDocuments: number }> {
-  const collections = await db.listCollections();
   const collectionStats: CollectionStats[] = [];
   let totalDocuments = 0;
 
-  console.log(`\n📚 Found ${collections.length} top-level collections`);
+  const usersCollectionRef = db.collection('users');
 
-  for (const collectionRef of collections) {
-    const collectionName = collectionRef.id;
-    console.log(`\n📦 Exporting collection: ${collectionName}`);
+  console.log(`\n📚 Exporting users collection with all subcollections`);
+  console.log(`   Expected subcollections: documents, quizzes, directories, rules`);
 
-    try {
-      const documents = await exportCollection(collectionRef, collectionName);
-      
-      // Save collection to file
-      const collectionDir = path.join(backupDir, 'collections');
-      if (!fs.existsSync(collectionDir)) {
-        fs.mkdirSync(collectionDir, { recursive: true });
-      }
+  try {
+    const documents = await exportCollection(usersCollectionRef, 'users');
 
-      const collectionFile = path.join(collectionDir, `${collectionName}.json`);
-      fs.writeFileSync(
-        collectionFile,
-        JSON.stringify(documents, null, 2),
-        'utf-8'
-      );
+    // Save collection to file
+    const collectionDir = path.join(backupDir, 'collections');
+    if (!fs.existsSync(collectionDir)) {
+      fs.mkdirSync(collectionDir, { recursive: true });
+    }
 
-      // Count documents including subcollections
-      const countDocuments = (docs: DocumentBackup[]): number => {
-        let count = docs.length;
-        for (const doc of docs) {
-          if (doc.subcollections) {
-            for (const subcol of Object.values(doc.subcollections)) {
-              count += countDocuments(subcol);
-            }
+    const collectionFile = path.join(collectionDir, 'users.json');
+    fs.writeFileSync(
+      collectionFile,
+      JSON.stringify(documents, null, 2),
+      'utf-8'
+    );
+
+    // Count documents including subcollections
+    const countDocuments = (docs: DocumentBackup[]): number => {
+      let count = docs.length;
+      for (const doc of docs) {
+        if (doc.subcollections) {
+          for (const subcol of Object.values(doc.subcollections)) {
+            count += countDocuments(subcol);
           }
         }
-        return count;
-      };
+      }
+      return count;
+    };
 
-      const docCount = countDocuments(documents);
-      const subcollectionCount = documents.filter(doc => doc.subcollections && Object.keys(doc.subcollections).length > 0).length;
+    const docCount = countDocuments(documents);
+    const subcollectionCount = documents.filter(doc => doc.subcollections && Object.keys(doc.subcollections).length > 0).length;
 
-      collectionStats.push({
-        name: collectionName,
-        documentCount: docCount,
-        subcollectionCount: subcollectionCount,
-      });
+    collectionStats.push({
+      name: 'users',
+      documentCount: docCount,
+      subcollectionCount: subcollectionCount,
+    });
 
-      totalDocuments += docCount;
+    totalDocuments += docCount;
 
-      console.log(`   ✅ Exported ${docCount} documents from ${collectionName}`);
-    } catch (error) {
-      console.error(`   ❌ Error exporting collection ${collectionName}:`, error);
-      throw error;
+    // Print per-user statistics
+    for (const userDoc of documents) {
+      const subcols = userDoc.subcollections || {};
+      const subcolNames = Object.keys(subcols);
+      const subcolCounts = subcolNames.map(name => `${name}: ${subcols[name].length}`).join(', ');
+      console.log(`   👤 User ${userDoc.id}: ${subcolCounts || 'no subcollections'}`);
     }
+
+    console.log(`\n   ✅ Exported ${documents.length} user(s) with ${docCount} total documents`);
+  } catch (error) {
+    console.error(`   ❌ Error exporting users collection:`, error);
+    throw error;
   }
 
   return { collections: collectionStats, totalDocuments };

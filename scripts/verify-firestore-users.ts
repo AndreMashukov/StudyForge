@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 /**
- * Verify Firestore Users Collection
+ * Verify Firestore Users Collection (User-Scoped Structure)
  * 
- * This script checks what's actually in the Firestore users collection
- * and verifies the backup script can see it.
+ * This script verifies the user-scoped Firestore structure:
+ *   - users/{userId}/documents
+ *   - users/{userId}/quizzes
+ *   - users/{userId}/directories
+ *   - users/{userId}/rules
  */
 
 import * as admin from 'firebase-admin';
@@ -12,6 +15,9 @@ import { config } from 'dotenv';
 
 // Load environment variables from .env.local
 config({ path: path.join(process.cwd(), '.env.local') });
+
+// Expected subcollections under each user document
+const EXPECTED_SUBCOLLECTIONS = ['documents', 'quizzes', 'directories', 'rules'];
 
 function initializeFirebase(): void {
   if (admin.apps.length === 0) {
@@ -22,7 +28,7 @@ function initializeFirebase(): void {
 
     if (useEmulator) {
       // Emulator mode - no credentials needed
-      const projectId = process.env.NX_PUBLIC_FIREBASE_PROJECT_ID || 'demo-code-insights-quiz-ai';
+      const projectId = process.env.NX_PUBLIC_FIREBASE_PROJECT_ID || 'demo-[REDACTED]';
       admin.initializeApp({
         projectId: projectId,
       });
@@ -41,56 +47,94 @@ async function verifyUsersCollection(): Promise<void> {
     
     const db = admin.firestore();
     
-    console.log('\n🔍 Checking Firestore collections...\n');
+    console.log('\n🔍 Verifying user-scoped Firestore structure...\n');
+    console.log(`   Expected structure: users/{userId}/{${EXPECTED_SUBCOLLECTIONS.join(', ')}}\n`);
     
     // List all collections
     const collections = await db.listCollections();
-    console.log(`📚 Found ${collections.length} top-level collections:`);
+    console.log(`📚 Found ${collections.length} top-level collection(s):`);
     collections.forEach(col => {
       console.log(`   - ${col.id}`);
     });
     
-    // Check users collection specifically
+    // Verify users collection exists
+    const hasUsersCollection = collections.some(col => col.id === 'users');
+    console.log(`\n✅ listCollections() sees users collection: ${hasUsersCollection ? 'YES' : 'NO'}`);
+    
+    // Check users collection
     console.log('\n🔍 Checking users collection...\n');
     const usersRef = db.collection('users');
     const usersSnapshot = await usersRef.get();
     
-    console.log(`📄 Users collection has ${usersSnapshot.size} documents`);
+    console.log(`👤 Users collection has ${usersSnapshot.size} document(s)`);
     
     if (usersSnapshot.size === 0) {
       console.log('⚠️  Users collection is empty!');
-      console.log('   This explains why users.json is empty in the backup.');
-    } else {
-      console.log('\n📋 User documents:');
-      usersSnapshot.forEach(doc => {
-        console.log(`\n   Document ID: ${doc.id}`);
-        console.log(`   Data:`, JSON.stringify(doc.data(), null, 2));
-        
-        // Check for subcollections
-        doc.ref.listCollections().then(subcollections => {
-          if (subcollections.length > 0) {
-            console.log(`   📁 Subcollections: ${subcollections.map(sc => sc.id).join(', ')}`);
-            
-            // Check rules subcollection specifically
-            const rulesRef = doc.ref.collection('rules');
-            rulesRef.get().then(rulesSnapshot => {
-              console.log(`      - rules: ${rulesSnapshot.size} documents`);
-              if (rulesSnapshot.size > 0) {
-                rulesSnapshot.forEach(ruleDoc => {
-                  console.log(`        * ${ruleDoc.id}`);
-                });
-              }
-            });
-          } else {
-            console.log(`   📁 No subcollections`);
-          }
-        });
-      });
+      console.log('   No user-scoped data to verify.');
+      return;
     }
     
-    // Verify listCollections sees it
-    const hasUsersCollection = collections.some(col => col.id === 'users');
-    console.log(`\n✅ listCollections() sees users collection: ${hasUsersCollection ? 'YES' : 'NO'}`);
+    // Verify each user's subcollections
+    console.log('\n📋 User documents and subcollections:\n');
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const userId = userDoc.id;
+      const userData = userDoc.data();
+      console.log(`   👤 User: ${userId}`);
+      
+      if (Object.keys(userData).length > 0) {
+        console.log(`      Profile data: ${JSON.stringify(userData, null, 2).split('\n').join('\n      ')}`);
+      } else {
+        console.log(`      Profile data: (empty - container document)`);
+      }
+      
+      // List actual subcollections
+      const subcollections = await userDoc.ref.listCollections();
+      const subcollectionNames = subcollections.map(sc => sc.id);
+      console.log(`      📁 Subcollections found: ${subcollectionNames.length > 0 ? subcollectionNames.join(', ') : 'none'}`);
+      
+      // Check each expected subcollection
+      for (const expectedSubcol of EXPECTED_SUBCOLLECTIONS) {
+        const subcolRef = userDoc.ref.collection(expectedSubcol);
+        const subcolSnapshot = await subcolRef.get();
+        const exists = subcollectionNames.includes(expectedSubcol);
+        const icon = exists ? '✅' : '⚠️';
+        
+        console.log(`         ${icon} ${expectedSubcol}: ${subcolSnapshot.size} document(s)`);
+        
+        // Show first few document IDs as a preview
+        if (subcolSnapshot.size > 0) {
+          const previewDocs = subcolSnapshot.docs.slice(0, 3);
+          for (const doc of previewDocs) {
+            console.log(`            • ${doc.id}`);
+          }
+          if (subcolSnapshot.size > 3) {
+            console.log(`            ... and ${subcolSnapshot.size - 3} more`);
+          }
+        }
+      }
+      
+      // Check for unexpected subcollections
+      const unexpectedSubcols = subcollectionNames.filter(name => !EXPECTED_SUBCOLLECTIONS.includes(name));
+      if (unexpectedSubcols.length > 0) {
+        console.log(`      ⚠️  Unexpected subcollections: ${unexpectedSubcols.join(', ')}`);
+      }
+      
+      console.log('');
+    }
+    
+    // Summary
+    console.log('📊 Summary:');
+    console.log(`   Users: ${usersSnapshot.size}`);
+    
+    let totalDocs = 0;
+    for (const userDoc of usersSnapshot.docs) {
+      for (const subcolName of EXPECTED_SUBCOLLECTIONS) {
+        const subcolSnapshot = await userDoc.ref.collection(subcolName).get();
+        totalDocs += subcolSnapshot.size;
+      }
+    }
+    console.log(`   Total documents across all subcollections: ${totalDocs}`);
     
     if (!hasUsersCollection && usersSnapshot.size > 0) {
       console.log('\n⚠️  WARNING: Users collection has documents but listCollections() did not return it!');
