@@ -1,14 +1,19 @@
 import { Home, ChevronRight } from "lucide-react";
 import { IBreadcrumbNav } from "./IBreadcrumbNav";
 import { breadcrumbNavStyles, getBreadcrumbClassName } from "./BreadcrumbNav.styles";
-import { useGetDirectoryAncestorsQuery } from "../../store/api/Directory/DirectoryApi";
+import {
+  useGetDirectoryAncestorsQuery,
+  useGetDirectoryQuery,
+} from "../../store/api/Directory/DirectoryApi";
 import { cn } from "../../lib/utils";
 
 export const BreadcrumbNav = ({ directoryId, onNavigate, className }: IBreadcrumbNav) => {
-  const { data: ancestors, isLoading } = useGetDirectoryAncestorsQuery(
-    directoryId || "",
-    { skip: !directoryId }
-  );
+  const { data: ancestorsData, isLoading: isLoadingAncestors } =
+    useGetDirectoryAncestorsQuery(directoryId || "", { skip: !directoryId });
+  const { data: currentDirectory, isLoading: isLoadingDirectory } =
+    useGetDirectoryQuery(directoryId || "", { skip: !directoryId });
+
+  const isLoading = isLoadingAncestors || (!!directoryId && isLoadingDirectory);
 
   // Loading state
   if (isLoading) {
@@ -23,8 +28,12 @@ export const BreadcrumbNav = ({ directoryId, onNavigate, className }: IBreadcrum
     );
   }
 
-  // Build breadcrumb path
-  const path = ancestors?.ancestors || [];
+  // Build breadcrumb path: ancestors + current directory (so full path is shown)
+  const ancestors = ancestorsData?.ancestors || [];
+  const path =
+    directoryId && currentDirectory
+      ? [...ancestors, currentDirectory]
+      : ancestors;
 
   return (
     <nav className={cn(breadcrumbNavStyles.container, className)}>
