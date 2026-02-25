@@ -105,7 +105,7 @@ NX monorepo with two apps (`web`, `functions`) and one shared library (`shared-t
 All tasks must be run from `/workspace` via NX:
 
 ```bash
-NX_DAEMON=false NX_ISOLATE_PLUGINS=false npx nx run <project>:<target>
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run <project>:<target>
 ```
 
 Available targets per project (see `nx show project <name>` for full list):
@@ -125,10 +125,10 @@ There is no `test` target configured for any project currently.
 The app requires Firebase emulators for local development (Auth:9099, Firestore:8080, Functions:5001, Storage:9199, Hosting:5002). Start them with:
 
 ```bash
-npx firebase emulators:start --project demo-project
+yarn firebase emulators:start --project demo-project
 ```
 
-Or via NX: `npx nx run functions:serve` (builds functions first, then starts emulators).
+Or via NX: `yarn nx run functions:serve` (builds functions first, then starts emulators).
 
 Java (JDK 21+) is required for the Firestore emulator — it is pre-installed in the Cloud VM.
 
@@ -147,7 +147,7 @@ Alternatively, use the Firebase Emulator UI at `http://localhost:4000` to create
 ### Web dev server
 
 ```bash
-npx nx run web:dev
+yarn nx run web:dev
 ```
 
 Starts on `http://localhost:4200`. Requires the `.env` file with Firebase config (uses `NX_PUBLIC_` prefix for Vite).
