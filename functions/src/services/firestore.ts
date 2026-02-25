@@ -139,11 +139,13 @@ export class FirestoreService {
 
       return snapshot.docs.map((doc) => {
         const data = doc.data() as Quiz;
+        // Strip userId from public response to avoid leaking user metadata
+        const { userId: _uid, ...publicData } = data;
         return {
-          ...data,
+          ...publicData,
           id: doc.id,
           createdAt: this.convertTimestamp(data.createdAt),
-        };
+        } as Quiz;
       });
     } catch (error) {
       functions.logger.error("Error getting recent quizzes:", error);
