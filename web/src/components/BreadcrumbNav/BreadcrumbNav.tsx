@@ -1,14 +1,19 @@
 import { Home, ChevronRight } from "lucide-react";
 import { IBreadcrumbNav } from "./IBreadcrumbNav";
 import { breadcrumbNavStyles, getBreadcrumbClassName } from "./BreadcrumbNav.styles";
-import { useGetDirectoryAncestorsQuery } from "../../store/api/Directory/DirectoryApi";
+import {
+  useGetDirectoryAncestorsQuery,
+  useGetDirectoryQuery,
+} from "../../store/api/Directory/DirectoryApi";
 import { cn } from "../../lib/utils";
 
 export const BreadcrumbNav = ({ directoryId, onNavigate, className }: IBreadcrumbNav) => {
-  const { data: ancestors, isLoading } = useGetDirectoryAncestorsQuery(
-    directoryId || "",
-    { skip: !directoryId }
-  );
+  const { data: ancestorsData, isLoading: isLoadingAncestors } =
+    useGetDirectoryAncestorsQuery(directoryId || "", { skip: !directoryId });
+  const { data: currentDirectory, isLoading: isLoadingDirectory } =
+    useGetDirectoryQuery(directoryId || "", { skip: !directoryId });
+
+  const isLoading = isLoadingAncestors || (!!directoryId && isLoadingDirectory);
 
   // Loading state
   if (isLoading) {
@@ -23,8 +28,16 @@ export const BreadcrumbNav = ({ directoryId, onNavigate, className }: IBreadcrum
     );
   }
 
-  // Build breadcrumb path
-  const path = ancestors?.ancestors || [];
+  // Build breadcrumb path: ancestors + current directory (so full path is shown)
+  const ancestors = ancestorsData?.ancestors || [];
+  const path =
+    directoryId && currentDirectory
+      ? [...ancestors, currentDirectory]
+      : ancestors;
+
+  // Only treat the last item as "current" when we have the full path.
+  // When currentDirectory is missing (fallback to ancestors only), all items stay clickable.
+  const isLastItemCurrent = !!(directoryId && currentDirectory);
 
   return (
     <nav className={cn(breadcrumbNavStyles.container, className)}>
@@ -41,15 +54,16 @@ export const BreadcrumbNav = ({ directoryId, onNavigate, className }: IBreadcrum
       {/* Directory path */}
       {path.map((dir, index) => {
         const isLast = index === path.length - 1;
+        const isCurrent = isLast && isLastItemCurrent;
         return (
           <div key={dir.id} className="flex items-center gap-2">
             <ChevronRight size={16} className={breadcrumbNavStyles.separator} />
             <button
-              onClick={() => !isLast && onNavigate(dir.id)}
-              className={getBreadcrumbClassName(isLast)}
+              onClick={() => !isCurrent && onNavigate(dir.id)}
+              className={getBreadcrumbClassName(isCurrent)}
               aria-label={`Navigate to ${dir.name}`}
-              aria-current={isLast ? "page" : undefined}
-              disabled={isLast}
+              aria-current={isCurrent ? "page" : undefined}
+              disabled={isCurrent}
             >
               {dir.name}
             </button>
