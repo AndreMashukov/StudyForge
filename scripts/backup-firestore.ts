@@ -78,10 +78,13 @@ function initializeFirebase(): void {
       console.log(`   Auth Emulator: ${process.env.FIREBASE_AUTH_EMULATOR_HOST || 'not set'}`);
     } else {
       // Initialize with default credentials (for production)
-      // Uses GOOGLE_APPLICATION_CREDENTIALS or Application Default Credentials
+      const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+      if (!projectId) {
+        console.error('GCLOUD_PROJECT or GCP_PROJECT must be set for production backup.');
+        throw new Error('Missing GCLOUD_PROJECT');
+      }
       try {
-        admin.initializeApp();
-        const projectId = admin.app().options.projectId || 'unknown-project';
+        admin.initializeApp({ projectId });
         console.log('✅ Firebase Admin SDK initialized (Production mode)');
         console.log(`   Project ID: ${projectId}`);
         

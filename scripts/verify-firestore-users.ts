@@ -28,14 +28,19 @@ function initializeFirebase(): void {
 
     if (useEmulator) {
       // Emulator mode - no credentials needed
-      const projectId = process.env.NX_PUBLIC_FIREBASE_PROJECT_ID || 'demo-[REDACTED]';
+      const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'demo-project';
       admin.initializeApp({
         projectId: projectId,
       });
       console.log('✅ Firebase Admin SDK initialized (Emulator mode)');
     } else {
-      // Production mode - need credentials
-      admin.initializeApp();
+      // Production mode - need credentials and project ID
+      const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+      if (!projectId) {
+        console.error('GCLOUD_PROJECT or GCP_PROJECT must be set for production.');
+        process.exit(1);
+      }
+      admin.initializeApp({ projectId });
       console.log('✅ Firebase Admin SDK initialized (Production mode)');
     }
   }

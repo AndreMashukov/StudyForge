@@ -27,12 +27,22 @@ const isEmulator =
   !!process.env.FIREBASE_AUTH_EMULATOR_HOST;
 
 if (!admin.apps.length) {
+  const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
   if (isEmulator) {
-    admin.initializeApp({ projectId: process.env.GCLOUD_PROJECT || 'demo-project' });
+    admin.initializeApp({ projectId: projectId || 'demo-project' });
     console.log('Initialized Firebase Admin SDK in emulator mode');
   } else {
-    admin.initializeApp();
-    console.log('Initialized Firebase Admin SDK with default credentials');
+    if (!projectId) {
+      console.error('GCLOUD_PROJECT or GCP_PROJECT must be set for production migration.');
+      console.error('Add GCLOUD_PROJECT=code-insights-quiz-ai to .env.local');
+      process.exit(1);
+    }
+    admin.initializeApp({ projectId });
+    console.log('Initialized Firebase Admin SDK for project:', projectId);
+    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      console.warn('GOOGLE_APPLICATION_CREDENTIALS not set - using Application Default Credentials');
+      console.warn('For production, use a service account: export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"');
+    }
   }
 }
 
