@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-02-17T12:44:49.859Z",
+  "projectId": "code-insights-quiz-ai",
+  "backupVersion": "1.0.0",
+  "authBackup": {
+    "directory": "/Users/andreymashukov/Desktop/projects/code-insights-ai/backups/firebase-backup-2026-02-17_12-44-48-113Z/auth",
+    "totalUsers": 0
+  },
+  "firestoreBackup": {
+    "directory": "/Users/andreymashukov/Desktop/projects/code-insights-ai/backups/firebase-backup-2026-02-17_12-44-48-113Z/firestore",
+    "totalCollections": 0,
+    "totalDocuments": 0
+  },
+  "rulesBackup": {
+    "directory": "/Users/andreymashukov/Desktop/projects/code-insights-ai/backups/firebase-backup-2026-02-17_12-44-48-113Z/rules",
+    "firestoreRules": {
+      "exists": false
+    },
+    "storageRules": {
+      "exists": false
+    }
+  }
+}

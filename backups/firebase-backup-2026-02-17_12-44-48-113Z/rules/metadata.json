@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-02-17T12:44:49.858Z",
+  "projectId": "code-insights-quiz-ai",
+  "backupVersion": "1.0.0",
+  "firestoreRules": {
+    "exists": true,
+    "size": 2696,
+    "path": "/Users/andreymashukov/Desktop/projects/code-insights-ai/firestore.rules"
+  },
+  "storageRules": {
+    "exists": true,
+    "size": 2359,
+    "path": "/Users/andreymashukov/Desktop/projects/code-insights-ai/storage.rules"
+  }
+}

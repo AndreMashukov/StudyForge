@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-02-25T13:43:50.776Z",
+  "projectId": "code-insights-quiz-ai",
+  "databaseId": "(default)",
+  "backupVersion": "1.0.0",
+  "collections": [
+    "users"
+  ],
+  "totalDocuments": 16
+}

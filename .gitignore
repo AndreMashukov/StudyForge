@@ -155,7 +155,6 @@ vitest.config.*.timestamp*
 docs/*
 
 # Firebase backups (contain sensitive data)
-backups/
 *.backup
 env.prod
 env.dev

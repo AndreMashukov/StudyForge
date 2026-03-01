@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-02-17T12:57:31.293Z",
+  "backupDirectory": "/Users/andreymashukov/Desktop/projects/code-insights-ai/backups/firebase-backup-2026-02-17_12-44-48-113Z",
+  "authRestore": {
+    "usersFile": "/Users/andreymashukov/Desktop/projects/code-insights-ai/backups/firebase-backup-2026-02-17_12-44-48-113Z/auth/users.json",
+    "totalUsers": 0,
+    "success": true
+  },
+  "firestoreRestore": {
+    "collectionsDir": "",
+    "totalCollections": 0,
+    "success": false
+  },
+  "rulesRestore": {
+    "rulesDir": "/Users/andreymashukov/Desktop/projects/code-insights-ai/backups/firebase-backup-2026-02-17_12-44-48-113Z/rules",
+    "rulesRestored": 2,
+    "success": true
+  }
+}
