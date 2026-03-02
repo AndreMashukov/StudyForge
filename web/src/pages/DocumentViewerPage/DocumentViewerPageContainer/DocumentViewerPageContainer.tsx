@@ -7,7 +7,8 @@ import { MarkdownRenderer, TocItem } from '../../../components/MarkdownRenderer'
 import { Button } from '../../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { BreadcrumbNav } from '../../../components/BreadcrumbNav';
-import { Brain, ArrowLeft, Download, List, X, Calendar } from 'lucide-react';
+import { Brain, ArrowLeft, Download, List, X, Calendar, Layers } from 'lucide-react';
+import { useGenerateFlashcardsMutation } from '../../../store/api/Flashcards/FlashcardsApi';
 import { useDocumentViewerPageContext } from '../context';
 import { 
   selectTocItems, 
@@ -67,6 +68,8 @@ export const DocumentViewerPageContainer = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const [generateFlashcards, { isLoading: isGeneratingFlashcards }] = useGenerateFlashcardsMutation();
+  
   const {
     documentApi,
     contentApi,
@@ -86,6 +89,30 @@ export const DocumentViewerPageContainer = () => {
       return;
     }
     navigate('/documents');
+  };
+
+  const handleCreateFlashcards = async () => {
+    console.log('handleCreateFlashcards called, documentId:', documentId);
+    if (!documentId) {
+      console.log('No documentId, returning early');
+      return;
+    }
+    
+    try {
+      console.log('Calling generateFlashcards API with documentId:', documentId);
+      const result = await generateFlashcards({ documentId }).unwrap();
+      console.log('generateFlashcards result:', result);
+      // Navigate to the newly created flashcard set
+      if (result.success && result.flashcardSetId) {
+        console.log('Navigating to flashcard:', result.flashcardSetId);
+        navigate(`/flashcards/${result.flashcardSetId}`);
+      } else {
+        console.log('Unexpected result format:', result);
+      }
+    } catch (error) {
+      console.error('Failed to generate flashcards:', error);
+      // TODO: Show error toast/notification to user
+    }
   };
 
   // Early returns for loading and error states
@@ -189,6 +216,13 @@ export const DocumentViewerPageContainer = () => {
                     label: 'Create Quiz',
                     icon: <Brain size={16} />,
                     onClick: () => documentId && handlers.handleCreateQuizFromDocument(documentId),
+                  },
+                  {
+                    id: 'create-flashcards',
+                    label: isGeneratingFlashcards ? 'Generating...' : 'Create Flashcards',
+                    icon: <Layers size={16} />,
+                    onClick: handleCreateFlashcards,
+                    disabled: isGeneratingFlashcards,
                   },
                 ]}
               />

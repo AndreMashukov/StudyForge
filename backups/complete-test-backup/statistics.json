@@ -1,0 +1,10 @@
+{
+  "collections": [
+    {
+      "name": "users",
+      "documentCount": 30,
+      "subcollectionCount": 2
+    }
+  ],
+  "totalDocuments": 30
+}

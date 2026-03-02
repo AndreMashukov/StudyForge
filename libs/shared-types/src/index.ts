@@ -1,3 +1,41 @@
+import { Timestamp } from 'firebase/firestore';
+
+// Flashcard Types
+export interface Flashcard {
+  id: string;    // Unique ID for each card
+  front: string; // The term or question
+  back: string;  // The definition or answer
+  explanation?: string; // Optional longer explanation
+}
+
+export interface FlashcardSet {
+  id: string;
+  userId: string;
+  documentId: string;
+  documentTitle: string;
+  title: string;
+  flashcards: Flashcard[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// Flashcard API Types
+export interface GenerateFlashcardsRequest {
+  documentId: string;
+  title?: string;
+}
+
+export interface GenerateFlashcardsResponse {
+  flashcardSetId: string;
+  flashcardSet: FlashcardSet;
+}
+
+export interface UpdateFlashcardSetRequest {
+  flashcardSetId: string;
+  title?: string;
+  flashcards?: Flashcard[];
+}
+
 // Quiz Types (Document-centric architecture)
 export interface Quiz {
   id: string;
