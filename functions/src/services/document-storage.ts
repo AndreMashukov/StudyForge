@@ -22,13 +22,13 @@ export class DocumentService {
     // which works for both emulator and production. Passing an explicit name avoids the
     // Admin SDK falling back to 'default-bucket' when no storageBucket was provided at
     // initializeApp() time.
-    const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
+    const bucketName = process.env.STORAGE_BUCKET;
 
     logger.info('[DocumentService] getBucket() resolved', {
       bucketName: bucketName || '(not set — will use Admin SDK default)',
       FIREBASE_STORAGE_EMULATOR_HOST: process.env.FIREBASE_STORAGE_EMULATOR_HOST || '(not set)',
       FUNCTIONS_EMULATOR: process.env.FUNCTIONS_EMULATOR || '(not set)',
-      FIREBASE_STORAGE_BUCKET: bucketName || '(not set)',
+      STORAGE_BUCKET: bucketName || '(not set)',
     });
 
     return this.storage.bucket(bucketName);
@@ -43,7 +43,7 @@ export class DocumentService {
     const env = {
       FIREBASE_STORAGE_EMULATOR_HOST: process.env.FIREBASE_STORAGE_EMULATOR_HOST || '(not set)',
       FUNCTIONS_EMULATOR: process.env.FUNCTIONS_EMULATOR || '(not set)',
-      FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET || '(not set)',
+      STORAGE_BUCKET: process.env.STORAGE_BUCKET || '(not set)',
       FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || '(not set)',
     };
 

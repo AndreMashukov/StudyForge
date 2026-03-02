@@ -29,14 +29,16 @@ export const FlashcardsPage = () => {
       return (
         <Card className="m-4 border-destructive">
           <CardContent className="p-6">
-            <p className="text-destructive mb-4">Error loading flashcard sets.</p>
-            <pre className="bg-muted p-2 rounded text-xs">{JSON.stringify(error, null, 2)}</pre>
+            <p className="text-destructive mb-4">Error loading flashcard sets. Please try again later.</p>
+            {import.meta.env.DEV && (
+              <pre className="bg-muted p-2 rounded text-xs mt-2 overflow-auto max-h-32">{JSON.stringify(error, null, 2)}</pre>
+            )}
           </CardContent>
         </Card>
       );
     }
 
-    if (!flashcardSets || flashcardSets.data?.length === 0) {
+    if (!flashcardSets || flashcardSets.length === 0) {
       return (
         <div className="text-center py-12 text-muted-foreground">
           <Layers size={48} className="mx-auto mb-4" />
@@ -48,7 +50,7 @@ export const FlashcardsPage = () => {
 
     return (
       <div className="space-y-4">
-        {flashcardSets.data?.map((set) => (
+        {flashcardSets.map((set) => (
           <Card key={set.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle className="text-lg">{set.title}</CardTitle>

@@ -1,15 +1,37 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
+import { z } from 'zod';
 import {
   Flashcard,
   FlashcardSet,
-  GenerateFlashcardsRequest,
-  UpdateFlashcardSetRequest
 } from '@shared-types';
 import { DocumentCrudService } from '../services/document-crud';
 import { DocumentService } from '../services/document-storage';
 import { GeminiService } from '../services/gemini/gemini';
+
+// Zod schemas for request payload validation
+const generateFlashcardsRequestSchema = z.object({
+  documentId: z.string().min(1, 'documentId is required'),
+});
+
+const flashcardSetIdRequestSchema = z.object({
+  flashcardSetId: z.string().min(1, 'flashcardSetId is required'),
+});
+
+const flashcardSchema = z.object({
+  id: z.string(),
+  front: z.string(),
+  back: z.string(),
+  explanation: z.string().optional(),
+});
+
+const updateFlashcardSetRequestSchema = z.object({
+  flashcardSetId: z.string().min(1, 'flashcardSetId is required'),
+  title: z.string().optional(),
+  flashcards: z.array(flashcardSchema).optional(),
+});
 
 // Helper to validate authentication
 const validateAuth = (context: { auth?: { uid?: string } }): string => {
@@ -18,6 +40,16 @@ const validateAuth = (context: { auth?: { uid?: string } }): string => {
     throw new HttpsError('unauthenticated', 'The function must be called while authenticated.');
   }
   return context.auth.uid;
+};
+
+// Helper to restrict to emulator-only (for debug endpoints)
+const requireEmulator = (): void => {
+  if (process.env.FUNCTIONS_EMULATOR !== 'true') {
+    throw new HttpsError(
+      'failed-precondition',
+      'This endpoint is only available when running in the Firebase emulator.'
+    );
+  }
 };
 
 // Helper function that contains the core generation logic
@@ -41,11 +73,12 @@ async function generateFlashcardsFromContent(content: string, title: string): Pr
 export const generateFlashcards = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
     const userId = validateAuth(request);
-    const { documentId } = request.data as GenerateFlashcardsRequest;
-
-    if (!documentId) {
-      throw new HttpsError('invalid-argument', 'The function must be called with a "documentId".');
+    const parseResult = generateFlashcardsRequestSchema.safeParse(request.data);
+    if (!parseResult.success) {
+      const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
+      throw new HttpsError('invalid-argument', msg);
     }
+    const { documentId } = parseResult.data;
 
     // Step 1: Function start
     logger.info(`[generateFlashcards] STEP 1: Function started.`, { userId, documentId });
@@ -75,8 +108,8 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true }, a
       userId,
       documentId,
       documentTitle: document.title,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     };
 
     // Step 6: Before Firestore add
@@ -107,7 +140,12 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true }, a
 export const getFlashcardSet = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
     const userId = validateAuth(request);
-    const { flashcardSetId } = request.data as { flashcardSetId: string };
+    const parseResult = flashcardSetIdRequestSchema.safeParse(request.data);
+    if (!parseResult.success) {
+      const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
+      throw new HttpsError('invalid-argument', msg);
+    }
+    const { flashcardSetId } = parseResult.data;
 
     const doc = await admin.firestore().collection('users').doc(userId).collection('flashcardSets').doc(flashcardSetId).get();
 
@@ -150,13 +188,23 @@ export const getUserFlashcardSets = onCall({ region: 'asia-east1', cors: true },
 export const updateFlashcardSet = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
     const userId = validateAuth(request);
-    const { flashcardSetId, title, flashcards } = request.data as UpdateFlashcardSetRequest;
+    const parseResult = updateFlashcardSetRequestSchema.safeParse(request.data);
+    if (!parseResult.success) {
+      const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
+      throw new HttpsError('invalid-argument', msg);
+    }
+    const { flashcardSetId, title, flashcards } = parseResult.data;
 
     const docRef = admin.firestore().collection('users').doc(userId).collection('flashcardSets').doc(flashcardSetId);
-    
-    const updateData: any = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
-    if (title) updateData.title = title;
-    if (flashcards) updateData.flashcards = flashcards;
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      throw new HttpsError('not-found', 'No flashcard set found with that ID.');
+    }
+
+    const updateData: Record<string, unknown> = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
+    if (title !== undefined) updateData.title = title;
+    if (flashcards !== undefined) updateData.flashcards = flashcards;
 
     await docRef.update(updateData);
 
@@ -175,9 +223,21 @@ export const updateFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
 export const deleteFlashcardSet = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
     const userId = validateAuth(request);
-    const { flashcardSetId } = request.data as { flashcardSetId: string };
+    const parseResult = flashcardSetIdRequestSchema.safeParse(request.data);
+    if (!parseResult.success) {
+      const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
+      throw new HttpsError('invalid-argument', msg);
+    }
+    const { flashcardSetId } = parseResult.data;
 
-    await admin.firestore().collection('users').doc(userId).collection('flashcardSets').doc(flashcardSetId).delete();
+    const docRef = admin.firestore().collection('users').doc(userId).collection('flashcardSets').doc(flashcardSetId);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      throw new HttpsError('not-found', 'No flashcard set found with that ID.');
+    }
+
+    await docRef.delete();
 
     return { success: true };
   } catch(error) {
@@ -190,15 +250,19 @@ export const deleteFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
 /**
  * Debug endpoint: returns the resolved bucket name and lists files in the emulator bucket.
  * Useful for diagnosing Storage emulator bucket name mismatches.
- * Remove or restrict this before production deployment.
+ * Restricted to authenticated users and emulator-only usage.
  */
-export const debugStorageBucket = onCall({ region: 'asia-east1', cors: true }, async (_request) => {
+export const debugStorageBucket = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
+    validateAuth(request);
+    requireEmulator();
+
     const result = await DocumentService.debugBucket();
     logger.info('debugStorageBucket result', result);
     return result;
   } catch (error) {
     logger.error('debugStorageBucket error:', error);
+    if (error instanceof HttpsError) throw error;
     throw new HttpsError('internal', String(error));
   }
 });

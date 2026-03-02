@@ -17,12 +17,12 @@ export const FlashcardSetPage = () => {
   const [isFlipped, setIsFlipped] = useState(false);
 
   const currentCard = useMemo(() => {
-    return flashcardSet?.data?.flashcards[currentIndex];
+    return flashcardSet?.flashcards?.[currentIndex];
   }, [flashcardSet, currentIndex]);
 
   const handleNext = () => {
     setIsFlipped(false); // Reset flip state on navigation
-    setCurrentIndex((prev) => Math.min(prev + 1, flashcardSet!.data!.flashcards.length - 1));
+    setCurrentIndex((prev) => Math.min(prev + 1, (flashcardSet?.flashcards?.length ?? 1) - 1));
   };
 
   const handlePrev = () => {
@@ -49,7 +49,7 @@ export const FlashcardSetPage = () => {
       );
     }
 
-    if (error || !flashcardSet?.data) {
+    if (error || !flashcardSet?.flashcards) {
       return (
         <Card className="m-4 border-destructive">
           <CardContent className="p-6">
@@ -60,7 +60,18 @@ export const FlashcardSetPage = () => {
       );
     }
 
-    const totalCards = flashcardSet.data.flashcards.length;
+    if (flashcardSet.flashcards.length === 0) {
+      return (
+        <Card className="m-4">
+          <CardContent className="p-6 text-center text-muted-foreground">
+            <p className="mb-4">This flashcard set is empty.</p>
+            <Button variant="outline" onClick={() => navigate('/flashcards')}>Back to List</Button>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    const totalCards = flashcardSet.flashcards.length;
 
     return (
       <div className="flex flex-col items-center">
@@ -110,7 +121,7 @@ export const FlashcardSetPage = () => {
     <Page showSidebar={true}>
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">{flashcardSet?.data?.title || 'Loading...'}</h1>
+            <h1 className="text-2xl font-bold">{flashcardSet?.title || 'Loading...'}</h1>
             <Button variant="ghost" onClick={() => navigate('/flashcards')}>
                 <Home className="mr-2 h-4 w-4" /> Back to All Sets
             </Button>

@@ -2,9 +2,10 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 
 // Your web app's Firebase configuration
-// Uses NX_PUBLIC_ environment variables (preferred) with NX_PUBLIC_ fallbacks for local development
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || import.meta.env.NX_PUBLIC_FIREBASE_API_KEY || "demo-api-key-for-emulator",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || import.meta.env.NX_PUBLIC_FIREBASE_AUTH_DOMAIN || "code-insights-quiz-ai.firebaseapp.com",
@@ -14,17 +15,13 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || import.meta.env.NX_PUBLIC_FIREBASE_APP_ID || "1:123456789012:web:demo-app-id"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const functions = getFunctions(app, 'asia-east1');
+export const storage = getStorage(app);
 
-// Connect to emulators based on environment variable or localhost detection
-// Set VITE_USE_FIREBASE_EMULATOR=true or NX_PUBLIC_USE_FIREBASE_EMULATOR=true in your .env files to use emulators
-// Also auto-detect localhost for development
 const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' || 
                      import.meta.env.NX_PUBLIC_USE_FIREBASE_EMULATOR === 'true' ||
                      (typeof window !== 'undefined' && window.location.hostname === 'localhost');
@@ -32,7 +29,6 @@ const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' ||
 if (typeof window !== 'undefined' && useEmulator) {
   console.log('🔧 Connecting to Firebase Emulators...');
   
-  // Auth emulator
   try {
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
     console.log('✅ Auth Emulator connected');
@@ -40,7 +36,6 @@ if (typeof window !== 'undefined' && useEmulator) {
     console.log('⚠️ Auth emulator already connected or error:', error);
   }
   
-  // Firestore emulator
   try {
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
     console.log('✅ Firestore Emulator connected');
@@ -48,12 +43,29 @@ if (typeof window !== 'undefined' && useEmulator) {
     console.log('⚠️ Firestore emulator already connected or error:', error);
   }
   
-  // Functions emulator
   try {
     connectFunctionsEmulator(functions, '127.0.0.1', 5001);
     console.log('✅ Functions Emulator connected');
   } catch (error) {
     console.log('⚠️ Functions emulator already connected or error:', error);
+  }
+
+  try {
+    connectStorageEmulator(storage, '127.0.0.1', 9199);
+    console.log('✅ Storage Emulator connected');
+  } catch (error) {
+    console.log('⚠️ Storage emulator already connected or error:', error);
+  }
+
+  try {
+    (globalThis as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider('6LeIxAcbAAAAAJc_3g8v_2kYv_3j_3j_3j_3j_3j'),
+      isTokenAutoRefreshEnabled: true,
+    });
+    console.log('✅ App Check Emulator connected');
+  } catch (error) {
+    console.error('🔥 Error connecting to App Check Emulator:', error);
   }
 } else {
   console.log('☁️ Using Production Firebase Services');
