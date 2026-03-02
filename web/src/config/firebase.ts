@@ -59,11 +59,16 @@ if (typeof window !== 'undefined' && useEmulator) {
 
   try {
     (globalThis as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-    initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider('6LeIxAcbAAAAAJc_3g8v_2kYv_3j_3j_3j_3j_3j'),
-      isTokenAutoRefreshEnabled: true,
-    });
-    console.log('✅ App Check Emulator connected');
+    const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY || import.meta.env.NX_PUBLIC_FIREBASE_APPCHECK_SITE_KEY;
+    if (!appCheckSiteKey) {
+      console.warn('⚠️ App Check: Set VITE_FIREBASE_APPCHECK_SITE_KEY or NX_PUBLIC_FIREBASE_APPCHECK_SITE_KEY in .env. Create a reCAPTCHA v3 key in the reCAPTCHA Admin Console for your dev domain. Skipping App Check init.');
+    } else {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(appCheckSiteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+      console.log('✅ App Check Emulator connected');
+    }
   } catch (error) {
     console.error('🔥 Error connecting to App Check Emulator:', error);
   }

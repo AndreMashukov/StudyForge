@@ -2,7 +2,11 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { createHash } from 'crypto';
 import { z } from 'zod';
+
+/** Redact identifier for info-level logs to reduce privacy/compliance risk. */
+const redactId = (id: string): string => createHash('sha256').update(id).digest('hex').slice(0, 8);
 import {
   Flashcard,
   FlashcardSet,
@@ -32,6 +36,10 @@ const updateFlashcardSetRequestSchema = z.object({
   title: z.string().optional(),
   flashcards: z.array(flashcardSchema).optional(),
 });
+
+const getUserFlashcardSetsRequestSchema = z.object({
+  limit: z.number().int().min(1).max(100).optional(),
+}).optional();
 
 // Helper to validate authentication
 const validateAuth = (context: { auth?: { uid?: string } }): string => {
@@ -80,28 +88,20 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true }, a
     }
     const { documentId } = parseResult.data;
 
-    // Step 1: Function start
-    logger.info(`[generateFlashcards] STEP 1: Function started.`, { userId, documentId });
+    const u = redactId(userId);
+    const d = redactId(documentId);
 
-    // Step 2: Before fetching document
-    logger.info(`[generateFlashcards] STEP 2: Calling DocumentCrudService.getDocumentWithContent.`, { userId, documentId });
-
+    logger.info(`[generateFlashcards] STEP 1: Function started.`, { userIdHash: u, documentIdHash: d });
     const document = await DocumentCrudService.getDocumentWithContent(userId, documentId);
-
-    // Step 3: After fetching document
-    logger.info(`[generateFlashcards] STEP 3: Document retrieved. Title: "${document?.title ?? 'N/A'}"`, { userId, documentId });
+    logger.info(`[generateFlashcards] STEP 2: Document retrieved. Title: "${document?.title ?? 'N/A'}"`, { userIdHash: u, documentIdHash: d });
 
     if (!document || !document.content) {
       throw new HttpsError('not-found', 'The specified document does not exist or has no content.');
     }
 
-    // Step 4: Before calling Gemini
-    logger.info(`[generateFlashcards] STEP 4: Calling generateFlashcardsFromContent (GeminiService).`, { userId, documentId, title: document.title });
-
+    logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (GeminiService).`, { userIdHash: u, documentIdHash: d });
     const generatedData = await generateFlashcardsFromContent(document.content, document.title);
-
-    // Step 5: After Gemini returns
-    logger.info(`[generateFlashcards] STEP 5: Flashcard generation complete. Flashcards created: ${generatedData.flashcards.length}`, { userId, documentId });
+    logger.info(`[generateFlashcards] STEP 4: Flashcard generation complete. Flashcards created: ${generatedData.flashcards.length}`, { userIdHash: u, documentIdHash: d });
 
     const newFlashcardSetData = {
       ...generatedData,
@@ -112,16 +112,9 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true }, a
       updatedAt: FieldValue.serverTimestamp(),
     };
 
-    // Step 6: Before Firestore add
-    logger.info(`[generateFlashcards] STEP 6: Adding new flashcard set to Firestore.`, { userId, documentId });
-
+    logger.info(`[generateFlashcards] STEP 5: Adding new flashcard set to Firestore.`, { userIdHash: u, documentIdHash: d });
     const docRef = await admin.firestore().collection('users').doc(userId).collection('flashcardSets').add(newFlashcardSetData);
-
-    // Step 7: After Firestore add
-    logger.info(`[generateFlashcards] STEP 7: Firestore add complete. New document ID: ${docRef.id}`, { userId, documentId });
-
-    // Step 8: Before return
-    logger.info(`[generateFlashcards] STEP 8: Returning success response.`, { userId, documentId, flashcardSetId: docRef.id });
+    logger.info(`[generateFlashcards] STEP 6: Firestore add complete. New document ID: ${redactId(docRef.id)}`, { userIdHash: u, documentIdHash: d });
 
     return { success: true, flashcardSetId: docRef.id };
 
@@ -152,7 +145,7 @@ export const getFlashcardSet = onCall({ region: 'asia-east1', cors: true }, asyn
     if (!doc.exists) {
       throw new HttpsError('not-found', 'No flashcard set found with that ID.');
     }
-    return { id: doc.id, ...doc.data() } as FlashcardSet;
+    return { ...doc.data(), id: doc.id } as FlashcardSet;
   } catch(error) {
     logger.error(`Error fetching flashcard set ${request.data?.flashcardSetId}:`, error);
     if (error instanceof HttpsError) throw error;
@@ -166,12 +159,18 @@ export const getFlashcardSet = onCall({ region: 'asia-east1', cors: true }, asyn
 export const getUserFlashcardSets = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
     const userId = validateAuth(request);
+    const parseResult = getUserFlashcardSetsRequestSchema.safeParse(request.data ?? {});
+    const limit = Math.min(parseResult.success ? (parseResult.data?.limit ?? 50) : 50, 100);
 
-    const snapshot = await admin.firestore().collection('users').doc(userId).collection('flashcardSets').orderBy('createdAt', 'desc').get();
-    
+    const snapshot = await admin.firestore()
+      .collection('users').doc(userId).collection('flashcardSets')
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+
     const flashcardSets: Partial<FlashcardSet>[] = [];
     snapshot.forEach(doc => {
-        flashcardSets.push({ id: doc.id, ...doc.data() });
+      flashcardSets.push({ ...doc.data(), id: doc.id });
     });
 
     return flashcardSets;
