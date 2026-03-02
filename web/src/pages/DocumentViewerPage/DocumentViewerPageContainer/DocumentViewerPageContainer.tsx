@@ -103,9 +103,9 @@ export const DocumentViewerPageContainer = () => {
       const result = await generateFlashcards({ documentId }).unwrap();
       console.log('generateFlashcards result:', result);
       // Navigate to the newly created flashcard set
-      if (result.success && result.flashcardSetId) {
-        console.log('Navigating to flashcard:', result.flashcardSetId);
-        navigate(`/flashcards/${result.flashcardSetId}`);
+      if (result.success && result.data?.flashcardSetId) {
+        console.log('Navigating to flashcard:', result.data.flashcardSetId);
+        navigate(`/flashcards/${result.data.flashcardSetId}`);
       } else {
         console.log('Unexpected result format:', result);
       }

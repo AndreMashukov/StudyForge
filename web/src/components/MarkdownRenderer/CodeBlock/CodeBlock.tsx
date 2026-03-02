@@ -69,7 +69,6 @@ export const CodeBlock = ({
         </Button>
       )}
       
-      {/* @ts-expect-error - SyntaxHighlighter type issue with React 19 */}
       <SyntaxHighlighter
         language={language || 'text'}
         style={customStyle}

@@ -27,7 +27,7 @@ export interface GenerateFlashcardsRequest {
 
 export interface GenerateFlashcardsResponse {
   flashcardSetId: string;
-  flashcardSet: FlashcardSet;
+  flashcardSet?: FlashcardSet;
 }
 
 export interface UpdateFlashcardSetRequest {

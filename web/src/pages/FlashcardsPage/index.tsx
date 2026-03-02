@@ -6,10 +6,12 @@ import { Button } from '../../components/ui/Button';
 import { useGetUserFlashcardSetsQuery } from '../../store/api/Flashcards/FlashcardsApi';
 import { formatDateWithOptions } from '../../utils/dateUtils';
 import { Layers, FileText } from 'lucide-react';
+import type { FlashcardSet } from '@shared-types';
 
 export const FlashcardsPage = () => {
   const navigate = useNavigate();
-  const { data: flashcardSets, error, isLoading, isFetching } = useGetUserFlashcardSetsQuery();
+  const { data: flashcardSetsResponse, error, isLoading, isFetching } = useGetUserFlashcardSetsQuery();
+  const flashcardSets = flashcardSetsResponse?.success ? flashcardSetsResponse.data : undefined;
 
   const handleViewFlashcardSet = (flashcardSetId: string) => {
     navigate(`/flashcards/${flashcardSetId}`);
@@ -50,7 +52,7 @@ export const FlashcardsPage = () => {
 
     return (
       <div className="space-y-4">
-        {flashcardSets.map((set) => (
+        {flashcardSets.map((set: Partial<FlashcardSet>) => (
           <Card key={set.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle className="text-lg">{set.title}</CardTitle>
@@ -63,9 +65,9 @@ export const FlashcardsPage = () => {
                     Source: {set.documentTitle}
                   </p>
                   <p>Created: {formatDateWithOptions(set.createdAt)}</p>
-                  <p>{set.flashcards.length} cards</p>
+                  <p>{set.flashcards?.length ?? 0} cards</p>
                 </div>
-                <Button onClick={() => handleViewFlashcardSet(set.id)}>
+                <Button onClick={() => set.id && handleViewFlashcardSet(set.id)}>
                   Study
                 </Button>
               </div>

@@ -116,7 +116,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true }, a
     const docRef = await admin.firestore().collection('users').doc(userId).collection('flashcardSets').add(newFlashcardSetData);
     logger.info(`[generateFlashcards] STEP 6: Firestore add complete. New document ID: ${redactId(docRef.id)}`, { userIdHash: u, documentIdHash: d });
 
-    return { success: true, flashcardSetId: docRef.id };
+    return { success: true, data: { flashcardSetId: docRef.id } };
 
   } catch (error) {
     logger.error('Error in generateFlashcards:', error);
@@ -145,7 +145,8 @@ export const getFlashcardSet = onCall({ region: 'asia-east1', cors: true }, asyn
     if (!doc.exists) {
       throw new HttpsError('not-found', 'No flashcard set found with that ID.');
     }
-    return { ...doc.data(), id: doc.id } as FlashcardSet;
+    const flashcardSet = { ...doc.data(), id: doc.id } as FlashcardSet;
+    return { success: true, data: flashcardSet };
   } catch(error) {
     logger.error(`Error fetching flashcard set ${request.data?.flashcardSetId}:`, error);
     if (error instanceof HttpsError) throw error;
@@ -173,7 +174,7 @@ export const getUserFlashcardSets = onCall({ region: 'asia-east1', cors: true },
       flashcardSets.push({ ...doc.data(), id: doc.id });
     });
 
-    return flashcardSets;
+    return { success: true, data: flashcardSets };
   } catch (error) {
     logger.error('Error listing user flashcard sets:', error);
     if (error instanceof HttpsError) throw error;

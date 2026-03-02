@@ -11,7 +11,8 @@ import './Flashcard.css';
 export const FlashcardSetPage = () => {
   const { flashcardSetId } = useParams<{ flashcardSetId: string }>();
   const navigate = useNavigate();
-  const { data: flashcardSet, error, isLoading } = useGetFlashcardSetQuery({ flashcardSetId: flashcardSetId! });
+  const { data: flashcardSetResponse, error, isLoading } = useGetFlashcardSetQuery({ flashcardSetId: flashcardSetId! });
+  const flashcardSet = flashcardSetResponse?.success ? flashcardSetResponse.data : undefined;
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
