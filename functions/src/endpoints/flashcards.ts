@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
+import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { createHash } from 'crypto';
@@ -14,6 +15,9 @@ import {
 import { DocumentCrudService } from '../services/document-crud';
 import { DocumentService } from '../services/document-storage';
 import { GeminiService } from '../services/gemini/gemini';
+
+// Define secrets
+const geminiApiKey = defineSecret('GEMINI_API_KEY');
 
 // Zod schemas for request payload validation
 const generateFlashcardsRequestSchema = z.object({
@@ -78,7 +82,7 @@ async function generateFlashcardsFromContent(content: string, title: string): Pr
 /**
  * Generates a new set of flashcards from a document.
  */
-export const generateFlashcards = onCall({ region: 'asia-east1', cors: true }, async (request) => {
+export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, secrets: [geminiApiKey] }, async (request) => {
   try {
     const userId = validateAuth(request);
     const parseResult = generateFlashcardsRequestSchema.safeParse(request.data);
