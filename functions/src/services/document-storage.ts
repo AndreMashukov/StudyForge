@@ -18,17 +18,33 @@ export class DocumentService {
   }
 
   private static getBucket() {
-    // Use the bucket name from FIREBASE_STORAGE_BUCKET env var (set in functions/.env),
-    // which works for both emulator and production. Passing an explicit name avoids the
-    // Admin SDK falling back to 'default-bucket' when no storageBucket was provided at
-    // initializeApp() time.
-    const bucketName = process.env.STORAGE_BUCKET;
+    const isEmulator = !!process.env.FUNCTIONS_EMULATOR || !!process.env.FIREBASE_STORAGE_EMULATOR_HOST;
+
+    // In production, prefer FIREBASE_CONFIG.storageBucket — Firebase injects this automatically
+    // at runtime and it always points to the correct default bucket
+    // (e.g. code-insights-quiz-ai.firebasestorage.app).
+    // In the emulator, FIREBASE_CONFIG may not be set or may differ, so fall back to
+    // STORAGE_BUCKET env var (which uses the .appspot.com form the emulator expects).
+    let bucketName: string | undefined;
+    if (!isEmulator && process.env.FIREBASE_CONFIG) {
+      try {
+        const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG) as { storageBucket?: string };
+        bucketName = firebaseConfig.storageBucket;
+      } catch {
+        // ignore parse errors — fall through to STORAGE_BUCKET
+      }
+    }
+    if (!bucketName) {
+      bucketName = process.env.STORAGE_BUCKET;
+    }
 
     logger.info('[DocumentService] getBucket() resolved', {
       bucketName: bucketName || '(not set — will use Admin SDK default)',
       FIREBASE_STORAGE_EMULATOR_HOST: process.env.FIREBASE_STORAGE_EMULATOR_HOST || '(not set)',
       FUNCTIONS_EMULATOR: process.env.FUNCTIONS_EMULATOR || '(not set)',
-      STORAGE_BUCKET: bucketName || '(not set)',
+      STORAGE_BUCKET: process.env.STORAGE_BUCKET || '(not set)',
+      isEmulator,
+      source: !isEmulator && process.env.FIREBASE_CONFIG ? 'FIREBASE_CONFIG' : 'STORAGE_BUCKET',
     });
 
     return this.storage.bucket(bucketName);
@@ -44,6 +60,7 @@ export class DocumentService {
       FIREBASE_STORAGE_EMULATOR_HOST: process.env.FIREBASE_STORAGE_EMULATOR_HOST || '(not set)',
       FUNCTIONS_EMULATOR: process.env.FUNCTIONS_EMULATOR || '(not set)',
       STORAGE_BUCKET: process.env.STORAGE_BUCKET || '(not set)',
+      FIREBASE_CONFIG_storageBucket: (() => { try { return (JSON.parse(process.env.FIREBASE_CONFIG || '{}') as { storageBucket?: string }).storageBucket || '(not set)'; } catch { return '(parse error)'; } })(),
       FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || '(not set)',
     };
 
