@@ -111,8 +111,26 @@ function convertFromBackupFormat(value: unknown): unknown {
     }
 
     if (typedValue._type === 'reference' && 'path' in typedValue) {
-      const db = admin.firestore();
-      return db.doc(typedValue.path as string);
+      if (typeof typedValue.path !== 'string') {
+        const plainMap: Record<string, unknown> = { path: typedValue.path };
+        if ('id' in typedValue) plainMap['id'] = typedValue['id'];
+        return plainMap;
+      }
+      const refPath = typedValue.path;
+      // Firestore document paths must have an even number of components
+      // (collection/doc/collection/doc...). Paths with odd components (like "/Machine Learning")
+      // are directory names, not real Firestore document references.
+      const parts = refPath.split('/').filter(p => p.length > 0);
+      if (parts.length > 0 && parts.length % 2 === 0) {
+        const canonicalPath = parts.join('/');
+        const db = admin.firestore();
+        return db.doc(canonicalPath);
+      }
+      // For non-document paths (odd components), return a plain map so that
+      // docRef.set() receives a valid object rather than a scalar string.
+      const plainMap: Record<string, unknown> = { path: refPath };
+      if ('id' in typedValue) plainMap['id'] = typedValue['id'];
+      return plainMap;
     }
   }
 

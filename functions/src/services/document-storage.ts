@@ -8,7 +8,60 @@ import { FirestorePaths } from '../lib/firestore-paths';
  * Handles markdown document upload, download, and management operations
  */
 export class DocumentService {
-  private static storage = getStorage();
+  private static _storage: ReturnType<typeof getStorage> | null = null;
+
+  private static get storage() {
+    if (!this._storage) {
+      this._storage = getStorage();
+    }
+    return this._storage;
+  }
+
+  private static getBucket() {
+    // Use the bucket name from FIREBASE_STORAGE_BUCKET env var (set in functions/.env),
+    // which works for both emulator and production. Passing an explicit name avoids the
+    // Admin SDK falling back to 'default-bucket' when no storageBucket was provided at
+    // initializeApp() time.
+    const bucketName = process.env.STORAGE_BUCKET;
+
+    logger.info('[DocumentService] getBucket() resolved', {
+      bucketName: bucketName || '(not set — will use Admin SDK default)',
+      FIREBASE_STORAGE_EMULATOR_HOST: process.env.FIREBASE_STORAGE_EMULATOR_HOST || '(not set)',
+      FUNCTIONS_EMULATOR: process.env.FUNCTIONS_EMULATOR || '(not set)',
+      STORAGE_BUCKET: bucketName || '(not set)',
+    });
+
+    return this.storage.bucket(bucketName);
+  }
+
+  /**
+   * Diagnostic helper: list all files in the bucket root to debug emulator bucket issues.
+   * Only useful in emulator mode. Call via debugStorageBucket() function.
+   */
+  static async debugBucket(): Promise<{ bucket: string; files: string[]; env: Record<string, string> }> {
+    const bucket = this.getBucket();
+    const env = {
+      FIREBASE_STORAGE_EMULATOR_HOST: process.env.FIREBASE_STORAGE_EMULATOR_HOST || '(not set)',
+      FUNCTIONS_EMULATOR: process.env.FUNCTIONS_EMULATOR || '(not set)',
+      STORAGE_BUCKET: process.env.STORAGE_BUCKET || '(not set)',
+      FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || '(not set)',
+    };
+
+    try {
+      const [files] = await bucket.getFiles({ maxResults: 50 });
+      return {
+        bucket: bucket.name,
+        files: files.map(f => f.name),
+        env,
+      };
+    } catch (err) {
+      return {
+        bucket: bucket.name,
+        files: [`ERROR listing files: ${err instanceof Error ? err.message : String(err)}`],
+        env,
+      };
+    }
+  }
 
   /**
    * Upload markdown content to Firebase Storage
@@ -25,7 +78,7 @@ export class DocumentService {
     metadata: DocumentMetadata
   ): Promise<StorageFile> {
     try {
-      const bucket = this.storage.bucket();
+      const bucket = this.getBucket();
       const filePath = `users/${userId}/documents/${documentId}/content.md`;
       const file = bucket.file(filePath);
 
@@ -125,7 +178,7 @@ export class DocumentService {
    */
   static async getDocumentContent(userId: string, documentId: string): Promise<string> {
     try {
-      const bucket = this.storage.bucket();
+      const bucket = this.getBucket();
       const filePath = `users/${userId}/documents/${documentId}/content.md`;
       const file = bucket.file(filePath);
 
@@ -169,7 +222,7 @@ export class DocumentService {
    */
   static async deleteDocument(userId: string, documentId: string): Promise<void> {
     try {
-      const bucket = this.storage.bucket();
+      const bucket = this.getBucket();
       const filePath = `users/${userId}/documents/${documentId}/content.md`;
       const file = bucket.file(filePath);
 
@@ -213,7 +266,7 @@ export class DocumentService {
     expiresInMinutes = 60
   ): Promise<string> {
     try {
-      const bucket = this.storage.bucket();
+      const bucket = this.getBucket();
       const filePath = `users/${userId}/documents/${documentId}/content.md`;
       const file = bucket.file(filePath);
 
@@ -255,7 +308,7 @@ export class DocumentService {
    */
   static async getDocumentMetadata(userId: string, documentId: string): Promise<StorageMetadata> {
     try {
-      const bucket = this.storage.bucket();
+      const bucket = this.getBucket();
       const filePath = `users/${userId}/documents/${documentId}/content.md`;
       const file = bucket.file(filePath);
 
@@ -413,7 +466,7 @@ export class DocumentService {
    */
   static async cleanupOrphanedFiles(userId: string, validDocumentIds: string[]): Promise<void> {
     try {
-      const bucket = this.storage.bucket();
+      const bucket = this.getBucket();
       const userFolder = `users/${userId}/documents/`;
       
       const [files] = await bucket.getFiles({

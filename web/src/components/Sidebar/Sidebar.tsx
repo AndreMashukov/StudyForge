@@ -15,7 +15,8 @@ import {
   FolderOpen,
   Plus,
   Brain,
-  Sparkles
+  Sparkles,
+  Layers
 } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
@@ -61,6 +62,12 @@ const sidebarSections: SidebarSection[] = [
         title: 'Create Document',
         path: '/documents/create',
         icon: Plus,
+      },
+      {
+        id: 'my-flashcards',
+        title: 'My Flashcards',
+        path: '/flashcards',
+        icon: Layers,
       },
     ],
   },

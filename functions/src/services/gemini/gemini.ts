@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as functions from 'firebase-functions';
 import { ScrapedContent, QuizFollowupContext, IFileContent } from '@shared-types';
 import { JsonSanitizer } from './json-sanitizer';
-import { QuizPromptBuilder, FollowupPromptBuilder, DocumentPromptBuilder } from './prompt-builder';
+import { QuizPromptBuilder, FollowupPromptBuilder, DocumentPromptBuilder, FlashcardPromptBuilder } from './prompt-builder';
 import { buildPromptWithContextFiles, validateContextFiles, estimateContextTokens } from './prompt-builder/withContextFiles';
 
 export interface GeminiQuizResponse {
@@ -242,6 +242,92 @@ export class GeminiService {
       functions.logger.error('Error generating quiz followup with Gemini AI:', error);
       throw new Error(`Failed to generate followup: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  /**
+   * Generate a set of flashcards from document content.
+   */
+  public static async generateFlashcards(content: string): Promise<{ front: string; back: string }[]> {
+    try {
+      functions.logger.info('Generating flashcards with Gemini AI...');
+
+      const genAI = this.getClient();
+      const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+
+      const prompt = FlashcardPromptBuilder.buildFlashcardPrompt(content);
+      functions.logger.debug('Sending flashcard generation request to Gemini AI', { contentLength: content.length });
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      if (!text) {
+        throw new Error('Empty response from Gemini API for flashcard generation');
+      }
+
+      const flashcards = this.parseFlashcardResponse(text);
+
+      // Basic validation of card structure
+      flashcards.forEach((card, index) => {
+        if (!card.front || !card.back) {
+          throw new Error(`Invalid flashcard object at index ${index}: missing 'front' or 'back' field.`);
+        }
+      });
+
+      functions.logger.info(`Generated ${flashcards.length} flashcards successfully.`);
+      return flashcards;
+
+    } catch (error) {
+      functions.logger.error('Error generating flashcards with Gemini AI:', error);
+      throw new Error(`Failed to generate flashcards: ${error}`);
+    }
+  }
+
+  /**
+   * Extract and parse a JSON array from a Gemini flashcard response.
+   * Handles markdown code fences, extra surrounding text, and both [] and {} top-level structures.
+   */
+  private static parseFlashcardResponse(responseText: string): { front: string; back: string }[] {
+    let text = responseText.trim();
+
+    // Strip markdown code fences (```json ... ``` or ``` ... ```)
+    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
+    // Try direct parse first (happy path)
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) return parsed;
+      throw new Error('Parsed value is not an array');
+    } catch {
+      // Fall through to extraction strategies
+    }
+
+    // Extract the first JSON array [...] from the response
+    const arrayMatch = text.match(/(\[[\s\S]*\])/);
+    if (arrayMatch) {
+      try {
+        const parsed = JSON.parse(arrayMatch[1]);
+        if (Array.isArray(parsed)) {
+          functions.logger.info('Extracted JSON array from flashcard response using array pattern');
+          return parsed;
+        }
+      } catch {
+        // Fall through
+      }
+    }
+
+    // Last resort: apply full sanitizer pipeline then look for an array
+    const sanitized = JsonSanitizer.initialCleanup(text);
+    const sanitizedArrayMatch = sanitized.match(/(\[[\s\S]*\])/);
+    if (sanitizedArrayMatch) {
+      const parsed = JSON.parse(sanitizedArrayMatch[1]);
+      if (Array.isArray(parsed)) {
+        functions.logger.info('Extracted JSON array from flashcard response after sanitization');
+        return parsed;
+      }
+    }
+
+    throw new Error('Could not extract a valid JSON array from the flashcard response');
   }
 
   /**
