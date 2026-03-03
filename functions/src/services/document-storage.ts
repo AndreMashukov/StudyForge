@@ -39,7 +39,7 @@ export class DocumentService {
     }
 
     logger.info('[DocumentService] getBucket() resolved', {
-      bucketName: bucketName || '(not set — will use Admin SDK default)',
+      bucketName: bucketName || '(not set)',
       FIREBASE_STORAGE_EMULATOR_HOST: process.env.FIREBASE_STORAGE_EMULATOR_HOST || '(not set)',
       FUNCTIONS_EMULATOR: process.env.FUNCTIONS_EMULATOR || '(not set)',
       STORAGE_BUCKET: process.env.STORAGE_BUCKET || '(not set)',
@@ -47,7 +47,7 @@ export class DocumentService {
       source: !isEmulator && process.env.FIREBASE_CONFIG ? 'FIREBASE_CONFIG' : 'STORAGE_BUCKET',
     });
 
-    return this.storage.bucket(bucketName);
+    return bucketName ? this.storage.bucket(bucketName) : this.storage.bucket();
   }
 
   /**
