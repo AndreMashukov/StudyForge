@@ -1,5 +1,5 @@
 /**
- * E2E test v2: Auth → Documents → Document Viewer → Create Flashcards → Flashcards page
+ * E2E test v2: Auth → Documents → Document Viewer → Generate Flashcards → Flashcards page
  *
  * Fixes over v1:
  * - waitForNavigation is initiated BEFORE the click that triggers navigation (no race condition)
@@ -163,9 +163,9 @@ async function runTest() {
     console.log('\n[9] Opening Actions menu …');
     await page.getByRole('button', { name: /actions/i }).click({ timeout: 15_000 });
 
-    // ── Step 10: Click "Create Flashcards" ───────────────────────────────────
-    console.log('\n[10] Clicking "Create Flashcards" …');
-    await page.getByRole('menuitem', { name: /create flashcards/i }).click({ timeout: 10_000 });
+    // ── Step 10: Click "Generate Flashcards" ───────────────────────────────────
+    console.log('\n[10] Clicking "Generate Flashcards" …');
+    await page.getByRole('menuitem', { name: /generate flashcards/i }).click({ timeout: 10_000 });
 
     // ── Step 11: Wait for the flashcards page (AI generation can be slow) ────
     // The app navigates to /flashcards/{flashcardSetId} after generation

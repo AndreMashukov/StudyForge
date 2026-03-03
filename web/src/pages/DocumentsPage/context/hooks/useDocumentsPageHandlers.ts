@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { setSelectedDocument, setSelectedDirectory, selectSelectedDirectoryId } from '../../../../store/slices/directorySlice';
 import { useDeleteDocument } from './api/useDeleteDocument';
+import { useGenerateFlashcardsMutation } from '../../../../store/api/Flashcards/FlashcardsApi';
 import type { RootState } from '../../../../store';
 
 export const useDocumentsPageHandlers = () => {
@@ -10,6 +11,8 @@ export const useDocumentsPageHandlers = () => {
   const dispatch = useDispatch();
   const { deleteDocument } = useDeleteDocument();
   const [, setSearchParams] = useSearchParams();
+  const [generateFlashcards, { isLoading: isGeneratingFlashcards }] = useGenerateFlashcardsMutation();
+  const [generatingDocumentId, setGeneratingDocumentId] = useState<string | null>(null);
   
   // Get current directory ID from Redux
   const currentDirectoryId = useSelector((state: RootState) => selectSelectedDirectoryId(state));
@@ -33,6 +36,20 @@ export const useDocumentsPageHandlers = () => {
     // Navigate to create quiz page with pre-selected document
     navigate(`/quiz/create?documentId=${documentId}`);
   }, [navigate]);
+
+  const handleGenerateFlashcardsFromDocument = useCallback(async (documentId: string) => {
+    setGeneratingDocumentId(documentId);
+    try {
+      const result = await generateFlashcards({ documentId }).unwrap();
+      if (result.success && result.data?.flashcardSetId) {
+        navigate(`/flashcards/${result.data.flashcardSetId}`);
+      }
+    } catch (error) {
+      console.error('Failed to generate flashcards:', error);
+    } finally {
+      setGeneratingDocumentId(null);
+    }
+  }, [generateFlashcards, navigate]);
 
   const handleDeleteDocument = useCallback(async (documentId: string) => {
     // Use window.confirm with explicit declaration
@@ -58,6 +75,9 @@ export const useDocumentsPageHandlers = () => {
     handleViewDocument,
     handleDeleteDocument,
     handleCreateQuizFromDocument,
+    handleGenerateFlashcardsFromDocument,
     handleSelectDirectory,
+    isGeneratingFlashcards,
+    generatingDocumentId,
   };
 };

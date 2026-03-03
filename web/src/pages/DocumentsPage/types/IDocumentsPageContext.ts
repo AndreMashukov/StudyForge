@@ -5,7 +5,10 @@ export interface IDocumentsPageHandlers {
   handleViewDocument: (documentId: string) => void;
   handleDeleteDocument: (documentId: string) => void;
   handleCreateQuizFromDocument: (documentId: string) => void;
+  handleGenerateFlashcardsFromDocument: (documentId: string) => void;
   handleSelectDirectory: (directoryId: string | null) => void;
+  isGeneratingFlashcards: boolean;
+  generatingDocumentId: string | null;
 }
 
 export interface IDocumentsApi {

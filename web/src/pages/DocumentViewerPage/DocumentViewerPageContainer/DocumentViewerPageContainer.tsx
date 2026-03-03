@@ -218,8 +218,8 @@ export const DocumentViewerPageContainer = () => {
                     onClick: () => documentId && handlers.handleCreateQuizFromDocument(documentId),
                   },
                   {
-                    id: 'create-flashcards',
-                    label: isGeneratingFlashcards ? 'Generating...' : 'Create Flashcards',
+                    id: 'generate-flashcards',
+                    label: isGeneratingFlashcards ? 'Generating...' : 'Generate Flashcards',
                     icon: <Layers size={16} />,
                     onClick: handleCreateFlashcards,
                     disabled: isGeneratingFlashcards,
