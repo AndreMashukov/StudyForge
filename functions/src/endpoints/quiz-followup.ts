@@ -1,6 +1,7 @@
 import { onCall } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
+import { validateAuth } from '../lib/auth';
 import { DocumentCrudService } from '../services/document-crud';
 import { GeminiService } from '../services/gemini/gemini';
 import { promptBuilder } from '../services/promptBuilder';
@@ -15,16 +16,6 @@ import {
 
 // Define secrets
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
-
-/**
- * Authentication middleware for callable functions
- */
-async function validateAuth(context: { auth?: { uid?: string } }): Promise<string> {
-  if (!context.auth?.uid) {
-    throw new Error('Authentication required');
-  }
-  return context.auth.uid;
-}
 
 /**
  * Generate comprehensive followup explanation for quiz question

@@ -26,16 +26,7 @@ import {
   formatRulesForPrompt,
   getDirectoryRules,
 } from '../services/rule-resolution';
-
-/**
- * Authentication middleware for callable functions
- */
-async function validateAuth(context: { auth?: { uid?: string } }): Promise<string> {
-  if (!context.auth || !context.auth.uid) {
-    throw new Error('Unauthenticated: User must be logged in');
-  }
-  return context.auth.uid;
-}
+import { validateAuth } from '../lib/auth';
 
 /**
  * Create a new rule

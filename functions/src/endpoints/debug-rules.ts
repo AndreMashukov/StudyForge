@@ -1,17 +1,8 @@
-import { onCall, CallableRequest } from 'firebase-functions/v2/https';
+import { onCall } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { Rule } from '@shared-types';
 import { FirestorePaths } from '../lib/firestore-paths';
-
-/**
- * Validate authentication and return user ID
- */
-async function validateAuth(request: CallableRequest): Promise<string> {
-  if (!request.auth) {
-    throw new Error('Authentication required');
-  }
-  return request.auth.uid;
-}
+import { validateAuth } from '../lib/auth';
 
 /**
  * Debug endpoint to diagnose rule attachment issues

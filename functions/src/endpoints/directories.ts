@@ -1,6 +1,7 @@
 import { onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { directoryService } from '../services/directory';
+import { validateAuth } from '../lib/auth';
 import {
   CreateDirectoryRequest,
   UpdateDirectoryRequest,
@@ -13,17 +14,6 @@ import {
   // MoveDirectoryResponse,
   // DeleteDirectoryResponse,
 } from '../../libs/shared-types/src/index';
-
-/**
- * Authentication middleware for callable functions
- */
-async function validateAuth(context: { auth?: { uid?: string } }): Promise<string> {
-  if (!context.auth || !context.auth.uid) {
-    throw new Error('Unauthenticated: User must be logged in');
-  }
-  return context.auth.uid;
-}
-
 
 /**
  * Create a new directory

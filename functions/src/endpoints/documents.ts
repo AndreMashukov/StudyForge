@@ -1,6 +1,7 @@
 import { onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
+import { validateAuth } from '../lib/auth';
 import { DocumentCrudService } from '../services/document-crud';
 import { WebScraperService } from '../services/scraper';
 import { GeminiService } from '../services/gemini';
@@ -15,16 +16,6 @@ import {
 
 // Define the Gemini API key secret for markdown conversion
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
-
-/**
- * Authentication middleware for callable functions
- */
-async function validateAuth(context: { auth?: { uid?: string } }): Promise<string> {
-  if (!context.auth || !context.auth.uid) {
-    throw new Error('Unauthenticated: User must be logged in');
-  }
-  return context.auth.uid;
-}
 
 /**
  * Create a new document from uploaded content or URL

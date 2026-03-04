@@ -15,6 +15,7 @@ import {
 import { DocumentCrudService } from '../services/document-crud';
 import { DocumentService } from '../services/document-storage';
 import { GeminiService } from '../services/gemini/gemini';
+import { validateAuth } from '../lib/auth';
 
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -44,15 +45,6 @@ const updateFlashcardSetRequestSchema = z.object({
 const getUserFlashcardSetsRequestSchema = z.object({
   limit: z.number().int().min(1).max(100).optional(),
 }).optional();
-
-// Helper to validate authentication
-const validateAuth = (context: { auth?: { uid?: string } }): string => {
-  if (!context.auth || !context.auth.uid) {
-    logger.error('Authentication error: User must be logged in.');
-    throw new HttpsError('unauthenticated', 'The function must be called while authenticated.');
-  }
-  return context.auth.uid;
-};
 
 // Helper to restrict to emulator-only (for debug endpoints)
 const requireEmulator = (): void => {
