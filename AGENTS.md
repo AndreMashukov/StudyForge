@@ -16,7 +16,7 @@
 # Worktree Playbook
 
 - Always verify active worktrees before doing any setup or task execution: `git worktree list`
-- Always execute commands from the target worktree root: `/Users/andreymashukov/.codex/worktrees/<id>/code-insights-ai`
+- Always execute commands from the workspace root: `/home/andrey/.openclaw/workspace/code-insights-ai`
 - For fresh or incomplete worktrees, run setup first: `./scripts/setup-worktree.sh`
 - Do not assume Nx is ready; verify local Nx availability with: `./node_modules/.bin/nx --version`
 - Always run project tasks via Nx (do not call underlying tools directly for build/lint/test/e2e tasks)
@@ -154,6 +154,23 @@ Starts on `http://localhost:4200`. Requires the `.env` file with Firebase config
 
 ### Known warnings
 
-- `web:lint` produces 1 pre-existing warning in `RuleSelector.tsx` (accessible-emoji).
+- `web:lint` produces 1 pre-existing warning in `RuleSelector.tsx` (accessible-emoji). Do NOT flag this as a new issue.
 - `web:build` shows a PostCSS `@import` order warning in `styles.css` — cosmetic, does not block the build.
 - Documents page shows "Error loading content" when no documents exist in Firestore — this is expected empty-state behavior, not a bug.
+
+### Post-Change Validation (mandatory before reporting done)
+
+Run in order, stop on first failure:
+
+```bash
+# 1. Type check (fastest — run first)
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run web:typecheck
+
+# 2. Lint
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run web:lint
+
+# 3. Build (only required for PRs and merges, skip for local dev iteration)
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run web:build
+```
+
+A change is **done** only when all required checks pass. Never report success based on sub-agent output alone — run the checks yourself.
