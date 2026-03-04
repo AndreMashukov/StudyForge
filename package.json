@@ -51,7 +51,8 @@
     "setup-shell-integration": "scripts/shell-integration/setup.sh",
     "shell-integration-status": "echo \"Shell Integration Status:\nTERM_PROGRAM: $TERM_PROGRAM\nVSCODE_SHELL_INTEGRATION: $VSCODE_SHELL_INTEGRATION\nCurrent Shell: $SHELL\"",
     "backup:all": "tsx scripts/backup-firebase.ts",
-    "restore:latest": "tsx scripts/restore-firebase-latest.ts"
+    "restore:latest": "tsx scripts/restore-firebase-latest.ts",
+    "test:storage-prod": "tsx scripts/test-storage-bucket-resolution.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
