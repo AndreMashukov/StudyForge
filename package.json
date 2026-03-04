@@ -45,14 +45,18 @@
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
     "vite": "^7.1.11",
-    "vitest": "^3.0.3"
+    "vitest": "^3.0.3",
+    "wait-on": "^9.0.4"
   },
   "scripts": {
     "setup-shell-integration": "scripts/shell-integration/setup.sh",
     "shell-integration-status": "echo \"Shell Integration Status:\nTERM_PROGRAM: $TERM_PROGRAM\nVSCODE_SHELL_INTEGRATION: $VSCODE_SHELL_INTEGRATION\nCurrent Shell: $SHELL\"",
     "backup:all": "tsx scripts/backup-firebase.ts",
     "restore:latest": "tsx scripts/restore-firebase-latest.ts",
-    "test:storage-prod": "tsx scripts/test-storage-bucket-resolution.ts"
+    "test:storage-prod": "tsx scripts/test-storage-bucket-resolution.ts",
+    "emulators:seed": "FIRESTORE_EMULATOR_HOST=localhost:8080 FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 FIREBASE_STORAGE_EMULATOR_HOST=localhost:9199 npx tsx scripts/seed.ts",
+    "emulators:dev": "bash scripts/emulators-dev.sh",
+    "emulators:dev:persist": "EXPORT_ON_EXIT=true bash scripts/emulators-dev.sh"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

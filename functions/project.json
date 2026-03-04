@@ -36,6 +36,14 @@
       },
       "dependsOn": ["build"]
     },
+    "serve:seeded": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash scripts/emulators-dev.sh",
+        "cwd": "{workspaceRoot}"
+      },
+      "dependsOn": ["build"]
+    },
     "deploy": {
       "executor": "nx:run-commands",
       "options": {
