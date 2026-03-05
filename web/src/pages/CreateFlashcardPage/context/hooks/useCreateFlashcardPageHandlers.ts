@@ -21,10 +21,12 @@ export const useCreateFlashcardPageHandlers = ({ form }: UseCreateFlashcardPageH
     }
 
     try {
-      const result = await generateFlashcards({ 
+      const trimmedTitle = formData.flashcardName?.trim();
+      const trimmedPrompt = formData.additionalPrompt?.trim();
+      const result = await generateFlashcards({
         documentId: formData.documentId,
-        title: formData.flashcardName?.trim() || undefined,
-        additionalPrompt: formData.additionalPrompt?.trim() || undefined,
+        ...(trimmedTitle ? { title: trimmedTitle } : {}),
+        ...(trimmedPrompt ? { additionalPrompt: trimmedPrompt } : {}),
         ruleIds: formData.ruleIds || [],
       }).unwrap();
       

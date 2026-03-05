@@ -24,8 +24,8 @@ const geminiApiKey = defineSecret('GEMINI_API_KEY');
 // Zod schemas for request payload validation
 const generateFlashcardsRequestSchema = z.object({
   documentId: z.string().min(1, 'documentId is required'),
-  title: z.string().max(100).optional(),
-  additionalPrompt: z.string().max(500).optional(),
+  title: z.string().max(100).nullish(),
+  additionalPrompt: z.string().max(500).nullish(),
   ruleIds: z.array(z.string()).optional(),
 });
 
