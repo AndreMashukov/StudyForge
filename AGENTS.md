@@ -118,7 +118,8 @@ There is no `test` target configured for any project currently.
 ### Environment files
 
 - Root `.env` — NX_PUBLIC_* vars consumed by the Vite dev server (web app). Copy from `.env.example` and set `NX_PUBLIC_USE_FIREBASE_EMULATOR=true` for local dev.
-- `functions/.env` — `GEMINI_API_KEY`, `FIREBASE_PROJECT_ID`. Copy from `functions/.env.example`.
+- `functions/.env` — `GEMINI_API_KEY`, `STORAGE_BUCKET`. Copy from `functions/.env.example`.
+- `functions/.env.local` — local-dev overrides (same keys as `functions/.env`). The `STORAGE_BUCKET` must use the `.appspot.com` form for the Storage emulator (e.g. `<project-id>.appspot.com`); the emulator treats `.appspot.com` and `.firebasestorage.app` as separate buckets.
 
 ### Firebase Emulators
 
@@ -142,9 +143,23 @@ Java (JDK 21+) is required for the Firestore emulator — it is pre-installed in
 
 In the Cloud VM, `NX_PUBLIC_*` secrets are injected as environment variables and override `.env` file values. You still need `web/.env` for Vite to expose them to `import.meta.env`, but the injected secrets take precedence.
 
-### User initialization for login
+### Seeding test data (user + document)
 
-Firebase Auth emulator starts empty. To log in to the web app, you must first create a user in the Auth emulator:
+Firebase Auth emulator starts empty. The recommended way to seed a user **and** a sample document is:
+
+```bash
+npx tsx scripts/e2e-setup/setup-e2e-data.ts
+```
+
+This script (run from the workspace root with emulators already running):
+1. Creates/updates an Auth user (`test@example.com` / `Test123456!`, fixed UID `4ZBsEPIUJ4jrlylcXkg7t3sFdPZv`)
+2. Writes the corresponding Firestore user document
+3. Injects a "Machine Learning" document (`perfect-doc-ml`) into Firestore
+4. Uploads the document's markdown content to the Storage emulator
+
+After running, you can log in at `http://localhost:4200` with the credentials above and browse/view the seeded document in the Documents Library.
+
+**Alternatively**, to create a bare user without a document (e.g. for quick login testing):
 
 ```bash
 curl -s -X POST "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=$NX_PUBLIC_FIREBASE_API_KEY" \
@@ -152,7 +167,7 @@ curl -s -X POST "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/account
   -d '{"email":"test@example.com","password":"Test1234!","returnSecureToken":true}'
 ```
 
-Alternatively, use the Firebase Emulator UI at `http://localhost:4000` to create users, or restore a backup.
+Or use the Firebase Emulator UI at `http://localhost:4000`.
 
 ### Web dev server
 
