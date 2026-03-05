@@ -8,7 +8,6 @@ import { Button } from '../../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { BreadcrumbNav } from '../../../components/BreadcrumbNav';
 import { Brain, ArrowLeft, Download, List, X, Calendar, Layers } from 'lucide-react';
-import { useGenerateFlashcardsMutation } from '../../../store/api/Flashcards/FlashcardsApi';
 import { useDocumentViewerPageContext } from '../context';
 import { 
   selectTocItems, 
@@ -68,8 +67,6 @@ export const DocumentViewerPageContainer = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [generateFlashcards, { isLoading: isGeneratingFlashcards }] = useGenerateFlashcardsMutation();
-  
   const {
     documentApi,
     contentApi,
@@ -91,28 +88,9 @@ export const DocumentViewerPageContainer = () => {
     navigate('/documents');
   };
 
-  const handleCreateFlashcards = async () => {
-    console.log('handleCreateFlashcards called, documentId:', documentId);
-    if (!documentId) {
-      console.log('No documentId, returning early');
-      return;
-    }
-    
-    try {
-      console.log('Calling generateFlashcards API with documentId:', documentId);
-      const result = await generateFlashcards({ documentId }).unwrap();
-      console.log('generateFlashcards result:', result);
-      // Navigate to the newly created flashcard set
-      if (result.success && result.data?.flashcardSetId) {
-        console.log('Navigating to flashcard:', result.data.flashcardSetId);
-        navigate(`/flashcards/${result.data.flashcardSetId}`);
-      } else {
-        console.log('Unexpected result format:', result);
-      }
-    } catch (error) {
-      console.error('Failed to generate flashcards:', error);
-      // TODO: Show error toast/notification to user
-    }
+  const handleCreateFlashcards = () => {
+    if (!documentId) return;
+    navigate(`/flashcards/create?documentId=${documentId}`);
   };
 
   // Early returns for loading and error states
@@ -219,10 +197,9 @@ export const DocumentViewerPageContainer = () => {
                   },
                   {
                     id: 'generate-flashcards',
-                    label: isGeneratingFlashcards ? 'Generating...' : 'Generate Flashcards',
+                    label: 'Generate Flashcards',
                     icon: <Layers size={16} />,
                     onClick: handleCreateFlashcards,
-                    disabled: isGeneratingFlashcards,
                   },
                 ]}
               />

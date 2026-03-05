@@ -19,6 +19,7 @@ import { RulesPage } from '../pages/RulesPage';
 import { DirectoryRulesPage } from '../pages/DirectoryRulesPage';
 import { FlashcardsPage } from '../pages/FlashcardsPage';
 import { FlashcardSetPage } from '../pages/FlashcardSetPage';
+import { CreateFlashcardPage } from '../pages/CreateFlashcardPage';
 import { Page } from '../components/Page';
 
 export function App() {
@@ -145,6 +146,16 @@ const AppContent = () => {
       />
 
       {/* Flashcard Management Routes */}
+      <Route 
+        path="/flashcards/create" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <CreateFlashcardPage />
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
       <Route 
         path="/flashcards" 
         element={
