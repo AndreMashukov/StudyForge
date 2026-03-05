@@ -131,7 +131,7 @@ export const generateSlideDeck = onCall(
         if (uploadedPaths.length > 0) {
           logger.warn(`[generateSlideDeck] Cleaning up ${uploadedPaths.length} orphaned files after failure.`);
           const bucket = admin.storage().bucket();
-          await Promise.allSettled(uploadedPaths.map(p => bucket.file(p).delete().catch(() => {})));
+          await Promise.allSettled(uploadedPaths.map(p => bucket.file(p).delete().catch(() => { /* ignore cleanup errors */ })));
         }
         throw innerError;
       }
