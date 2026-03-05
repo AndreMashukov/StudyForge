@@ -9,7 +9,7 @@ export const documentsPageStyles = {
   createButton: "flex items-center gap-2 w-full sm:w-auto justify-center",
   searchContainer: "flex items-center gap-4",
   documentsGrid: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4",
-  documentCard: "transition-all duration-200 hover:shadow-md border overflow-visible",
+  documentCard: "transition-all duration-200 hover:shadow-md border overflow-visible min-w-[240px]",
   emptyState: "max-w-md mx-4 md:mx-auto"
 } as const;
 

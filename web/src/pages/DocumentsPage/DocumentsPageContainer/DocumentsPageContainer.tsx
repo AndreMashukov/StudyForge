@@ -281,12 +281,11 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                               <div className="flex flex-col sm:flex-row gap-2 pt-2">
                                 <Button
                                   variant="outline"
-                                  size="sm"
+                                  size="icon"
                                   onClick={() => handlers.handleViewDocument(document.id)}
-                                  className="flex-1 w-full"
+                                  aria-label="View document"
                                 >
-                                  <Eye size={14} />
-                                  <span className="ml-1">View</span>
+                                  <Eye size={16} />
                                 </Button>
                                 <ActionsDropdown
                                   items={[
@@ -307,12 +306,12 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                                 />
                                 <Button
                                   variant="outline"
-                                  size="sm"
+                                  size="icon"
                                   onClick={() => handlers.handleDeleteDocument(document.id)}
-                                  className="text-destructive hover:text-destructive w-full sm:w-auto"
+                                  className="text-destructive hover:text-destructive"
+                                  aria-label="Delete document"
                                 >
-                                  <Trash2 size={14} />
-                                  <span className="ml-1 sm:hidden">Delete</span>
+                                  <Trash2 size={16} />
                                 </Button>
                               </div>
                             </div>

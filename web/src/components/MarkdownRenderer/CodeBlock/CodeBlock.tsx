@@ -32,8 +32,8 @@ export const CodeBlock = ({
     ...syntaxTheme,
     'pre[class*="language-"]': {
       ...syntaxTheme['pre[class*="language-"]'],
-      background: 'hsl(var(--muted))',
-      border: '1px solid hsl(var(--border))',
+      background: 'rgb(var(--muted))',
+      border: '1px solid rgb(var(--border))',
       borderRadius: '0.375rem',
       margin: 0,
       padding: '1rem',
@@ -41,7 +41,7 @@ export const CodeBlock = ({
     'code[class*="language-"]': {
       ...syntaxTheme['code[class*="language-"]'],
       background: 'transparent',
-      color: 'hsl(var(--foreground))',
+      color: 'rgb(var(--foreground))',
     },
   };
 
@@ -73,8 +73,8 @@ export const CodeBlock = ({
         language={language || 'text'}
         style={customStyle}
         customStyle={{
-          background: 'hsl(var(--muted))',
-          border: '1px solid hsl(var(--border))',
+          background: 'rgb(var(--muted))',
+          border: '1px solid rgb(var(--border))',
           borderRadius: '0.375rem',
           margin: 0,
           padding: '1rem',
@@ -83,7 +83,7 @@ export const CodeBlock = ({
         codeTagProps={{
           style: {
             background: 'transparent',
-            color: 'hsl(var(--foreground))',
+            color: 'rgb(var(--foreground))',
             fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
             whiteSpace: 'pre',
           }

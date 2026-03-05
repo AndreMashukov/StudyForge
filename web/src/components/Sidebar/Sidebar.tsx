@@ -11,7 +11,6 @@ import {
   Settings, 
   User,
   FileText,
-  BarChart3,
   FolderOpen,
   Plus,
   Brain,
@@ -63,17 +62,11 @@ const sidebarSections: SidebarSection[] = [
         path: '/documents/create',
         icon: Plus,
       },
-      {
-        id: 'my-flashcards',
-        title: 'My Flashcards',
-        path: '/flashcards',
-        icon: Layers,
-      },
     ],
   },
   {
     id: 'quizzes',
-    title: 'Quizzes',
+    title: 'Artifacts',
     icon: Brain,
     items: [
       {
@@ -83,10 +76,10 @@ const sidebarSections: SidebarSection[] = [
         icon: BookOpen,
       },
       {
-        id: 'quiz-results',
-        title: 'Results',
-        path: '/quizzes/results',
-        icon: BarChart3,
+        id: 'my-flashcards',
+        title: 'My Flashcards',
+        path: '/flashcards',
+        icon: Layers,
       },
     ],
   },
