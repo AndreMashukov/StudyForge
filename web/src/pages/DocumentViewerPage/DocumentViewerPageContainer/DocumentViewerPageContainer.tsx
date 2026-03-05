@@ -7,7 +7,7 @@ import { MarkdownRenderer, TocItem } from '../../../components/MarkdownRenderer'
 import { Button } from '../../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { BreadcrumbNav } from '../../../components/BreadcrumbNav';
-import { Brain, ArrowLeft, Download, List, X, Calendar, Layers } from 'lucide-react';
+import { Brain, ArrowLeft, Download, List, X, Calendar, Layers, Presentation } from 'lucide-react';
 import { useDocumentViewerPageContext } from '../context';
 import { 
   selectTocItems, 
@@ -91,6 +91,11 @@ export const DocumentViewerPageContainer = () => {
   const handleCreateFlashcards = () => {
     if (!documentId) return;
     navigate(`/flashcards/create?documentId=${documentId}`);
+  };
+
+  const handleCreateSlideDeck = () => {
+    if (!documentId) return;
+    navigate(`/slides/create?documentId=${documentId}`);
   };
 
   // Early returns for loading and error states
@@ -200,6 +205,12 @@ export const DocumentViewerPageContainer = () => {
                     label: 'Generate Flashcards',
                     icon: <Layers size={16} />,
                     onClick: handleCreateFlashcards,
+                  },
+                  {
+                    id: 'generate-slide-deck',
+                    label: 'Generate Slide Deck',
+                    icon: <Presentation size={16} />,
+                    onClick: handleCreateSlideDeck,
                   },
                 ]}
               />

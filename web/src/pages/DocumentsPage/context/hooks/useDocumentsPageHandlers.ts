@@ -38,6 +38,10 @@ export const useDocumentsPageHandlers = () => {
     navigate(`/flashcards/create?documentId=${documentId}`);
   }, [navigate]);
 
+  const handleGenerateSlideDeckFromDocument = useCallback((documentId: string) => {
+    navigate(`/slides/create?documentId=${documentId}`);
+  }, [navigate]);
+
   const handleDeleteDocument = useCallback(async (documentId: string) => {
     // Use window.confirm with explicit declaration
     const confirmDelete = window.confirm('Are you sure you want to delete this document? This action cannot be undone.');
@@ -63,6 +67,7 @@ export const useDocumentsPageHandlers = () => {
     handleDeleteDocument,
     handleCreateQuizFromDocument,
     handleGenerateFlashcardsFromDocument,
+    handleGenerateSlideDeckFromDocument,
     handleSelectDirectory,
   };
 };

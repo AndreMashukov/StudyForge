@@ -6,6 +6,7 @@ export interface IDocumentsPageHandlers {
   handleDeleteDocument: (documentId: string) => void;
   handleCreateQuizFromDocument: (documentId: string) => void;
   handleGenerateFlashcardsFromDocument: (documentId: string) => void;
+  handleGenerateSlideDeckFromDocument: (documentId: string) => void;
   handleSelectDirectory: (directoryId: string | null) => void;
 }
 

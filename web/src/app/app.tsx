@@ -20,6 +20,9 @@ import { DirectoryRulesPage } from '../pages/DirectoryRulesPage';
 import { FlashcardsPage } from '../pages/FlashcardsPage';
 import { FlashcardSetPage } from '../pages/FlashcardSetPage';
 import { CreateFlashcardPage } from '../pages/CreateFlashcardPage';
+import { CreateSlideDeckPage } from '../pages/CreateSlideDeckPage';
+import { SlideDecksPage } from '../pages/SlideDecksPage';
+import { SlideDeckPage } from '../pages/SlideDeckPage';
 import { Page } from '../components/Page';
 
 export function App() {
@@ -172,6 +175,38 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <FlashcardSetPage />
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+
+      {/* Slide Deck Management Routes */}
+      <Route 
+        path="/slides/create" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <CreateSlideDeckPage />
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/slides" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <SlideDecksPage />
+            </ProtectedRoute>
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/slides/:slideDeckId" 
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <SlideDeckPage />
             </ProtectedRoute>
           </MainLayout>
         } 

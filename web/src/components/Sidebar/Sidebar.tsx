@@ -15,7 +15,8 @@ import {
   Plus,
   Brain,
   Sparkles,
-  Layers
+  Layers,
+  Presentation
 } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
@@ -80,6 +81,12 @@ const sidebarSections: SidebarSection[] = [
         title: 'My Flashcards',
         path: '/flashcards',
         icon: Layers,
+      },
+      {
+        id: 'my-slides',
+        title: 'My Slide Decks',
+        path: '/slides',
+        icon: Presentation,
       },
     ],
   },

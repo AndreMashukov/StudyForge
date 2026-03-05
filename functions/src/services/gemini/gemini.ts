@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as functions from 'firebase-functions';
 import { ScrapedContent, QuizFollowupContext, IFileContent } from '@shared-types';
 import { JsonSanitizer } from './json-sanitizer';
-import { QuizPromptBuilder, FollowupPromptBuilder, DocumentPromptBuilder, FlashcardPromptBuilder } from './prompt-builder';
+import { QuizPromptBuilder, FollowupPromptBuilder, DocumentPromptBuilder, FlashcardPromptBuilder, SlideDeckPromptBuilder } from './prompt-builder';
 import { buildPromptWithContextFiles, validateContextFiles, estimateContextTokens } from './prompt-builder/withContextFiles';
 
 export interface GeminiQuizResponse {
@@ -738,6 +738,93 @@ export class GeminiService {
    * Get model information and availability
    * @returns Model info including availability status
    */
+  /**
+   * Generate a slide deck outline from document content.
+   * Returns structured slide data (title, content, speaker notes per slide).
+   */
+  public static async generateSlideDeckOutline(
+    content: string,
+    additionalPrompt?: string
+  ): Promise<Array<{ title: string; content: string; speakerNotes?: string }>> {
+    try {
+      functions.logger.info('Generating slide deck outline with Gemini AI...');
+
+      const genAI = this.getClient();
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash',
+        generationConfig: { temperature: 0.7, topK: 40, topP: 0.95 },
+      });
+
+      const prompt = SlideDeckPromptBuilder.buildSlideOutlinePrompt(content, additionalPrompt);
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      if (!text) {
+        throw new Error('Empty response from Gemini API for slide deck generation');
+      }
+
+      let cleanText = JsonSanitizer.initialCleanup(text);
+      cleanText = JsonSanitizer.sanitizeJsonText(cleanText);
+      cleanText = JsonSanitizer.applyComprehensiveCleanup(cleanText);
+      const slides = JSON.parse(cleanText) as Array<{
+        title: string;
+        content: string;
+        speakerNotes?: string;
+      }>;
+
+      if (!Array.isArray(slides) || slides.length === 0) {
+        throw new Error('Invalid slide deck response: expected non-empty array');
+      }
+
+      functions.logger.info(`Generated ${slides.length} slides successfully.`);
+      return slides;
+    } catch (error) {
+      functions.logger.error('Error generating slide deck outline:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate a slide image using Gemini image generation model.
+   * Returns base64-encoded PNG image data.
+   */
+  public static async generateSlideImage(
+    slideTitle: string,
+    slideContent: string
+  ): Promise<string | null> {
+    try {
+      const genAI = this.getClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash-preview-image-generation',
+        generationConfig: {
+          responseModalities: ['TEXT', 'IMAGE'],
+        } as any,
+      });
+
+      const prompt = SlideDeckPromptBuilder.buildSlideImagePrompt(slideTitle, slideContent);
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const parts = response.candidates?.[0]?.content?.parts;
+
+      if (!parts) return null;
+
+      for (const part of parts) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const inlineData = (part as any).inlineData;
+        if (inlineData?.data) {
+          return inlineData.data; // base64 string
+        }
+      }
+
+      return null;
+    } catch (error) {
+      functions.logger.warn('Slide image generation failed (non-fatal):', error);
+      return null;
+    }
+  }
+
   public static async getModelInfo(): Promise<{ available: boolean; model?: string; error?: string }> {
     try {
       const apiKey = functions.config().gemini?.api_key || process.env.GEMINI_API_KEY;
