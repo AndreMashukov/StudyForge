@@ -23,6 +23,8 @@ export interface FlashcardSet {
 export interface GenerateFlashcardsRequest {
   documentId: string;
   title?: string;
+  additionalPrompt?: string;
+  ruleIds?: string[];
 }
 
 export interface GenerateFlashcardsResponse {
@@ -502,6 +504,7 @@ export enum RuleApplicability {
   PROMPT = 'prompt',
   QUIZ = 'quiz',
   FOLLOWUP = 'followup',
+  FLASHCARD = 'flashcard',
 }
 
 export enum RuleColor {

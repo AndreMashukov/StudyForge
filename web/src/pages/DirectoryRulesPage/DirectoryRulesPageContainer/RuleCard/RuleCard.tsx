@@ -33,6 +33,7 @@ const getApplicabilityLabel = (applicability: RuleApplicability): string => {
     [RuleApplicability.PROMPT]: 'Prompt',
     [RuleApplicability.QUIZ]: 'Quiz',
     [RuleApplicability.FOLLOWUP]: 'Followup',
+    [RuleApplicability.FLASHCARD]: 'Flashcard',
   };
   return labels[applicability];
 };

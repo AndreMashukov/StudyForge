@@ -16,6 +16,7 @@ import { DocumentCrudService } from '../services/document-crud';
 import { DocumentService } from '../services/document-storage';
 import { GeminiService } from '../services/gemini/gemini';
 import { validateAuth } from '../lib/auth';
+import { promptBuilder } from '../services/promptBuilder';
 
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -23,6 +24,9 @@ const geminiApiKey = defineSecret('GEMINI_API_KEY');
 // Zod schemas for request payload validation
 const generateFlashcardsRequestSchema = z.object({
   documentId: z.string().min(1, 'documentId is required'),
+  title: z.string().max(100).optional(),
+  additionalPrompt: z.string().max(500).optional(),
+  ruleIds: z.array(z.string()).optional(),
 });
 
 const flashcardSetIdRequestSchema = z.object({
@@ -82,12 +86,18 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
       throw new HttpsError('invalid-argument', msg);
     }
-    const { documentId } = parseResult.data;
+    const { documentId, title: customTitle, additionalPrompt, ruleIds } = parseResult.data;
 
     const u = redactId(userId);
     const d = redactId(documentId);
 
-    logger.info(`[generateFlashcards] STEP 1: Function started.`, { userIdHash: u, documentIdHash: d });
+    logger.info(`[generateFlashcards] STEP 1: Function started.`, {
+      userIdHash: u,
+      documentIdHash: d,
+      hasCustomTitle: !!customTitle,
+      hasAdditionalPrompt: !!additionalPrompt,
+      ruleCount: ruleIds?.length || 0,
+    });
     const document = await DocumentCrudService.getDocumentWithContent(userId, documentId);
     logger.info(`[generateFlashcards] STEP 2: Document retrieved. Title: "${document?.title ?? 'N/A'}"`, { userIdHash: u, documentIdHash: d });
 
@@ -95,9 +105,24 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       throw new HttpsError('not-found', 'The specified document does not exist or has no content.');
     }
 
+    // Inject rules into prompt if provided
+    let enhancedContent = document.content;
+    if (ruleIds?.length) {
+      logger.info(`[generateFlashcards] STEP 2.5: Injecting rules into prompt.`, { userIdHash: u, ruleCount: ruleIds.length });
+      const rulesPrompt = await promptBuilder.injectRules(additionalPrompt || '', ruleIds, userId);
+      enhancedContent = `${rulesPrompt}\n\n${document.content}`;
+    } else if (additionalPrompt) {
+      enhancedContent = `Additional instructions: ${additionalPrompt}\n\n${document.content}`;
+    }
+
     logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (GeminiService).`, { userIdHash: u, documentIdHash: d });
-    const generatedData = await generateFlashcardsFromContent(document.content, document.title);
+    const generatedData = await generateFlashcardsFromContent(enhancedContent, document.title);
     logger.info(`[generateFlashcards] STEP 4: Flashcard generation complete. Flashcards created: ${generatedData.flashcards.length}`, { userIdHash: u, documentIdHash: d });
+
+    // Apply custom title if provided
+    if (customTitle?.trim()) {
+      generatedData.title = customTitle.trim();
+    }
 
     const newFlashcardSetData = {
       ...generatedData,

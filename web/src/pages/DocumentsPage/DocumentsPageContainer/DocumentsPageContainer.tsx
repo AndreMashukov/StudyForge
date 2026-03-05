@@ -298,12 +298,9 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                                     },
                                     {
                                       id: 'generate-flashcards',
-                                      label: handlers.generatingDocumentId === document.id
-                                        ? 'Generating...'
-                                        : 'Generate Flashcards',
+                                      label: 'Generate Flashcards',
                                       icon: <Layers size={14} />,
                                       onClick: () => handlers.handleGenerateFlashcardsFromDocument(document.id),
-                                      disabled: handlers.isGeneratingFlashcards,
                                     },
                                   ]}
                                   className="flex-1 w-full sm:w-auto"
