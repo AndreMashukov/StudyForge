@@ -764,18 +764,30 @@ export class GeminiService {
         throw new Error('Empty response from Gemini API for slide deck generation');
       }
 
-      let cleanText = JsonSanitizer.initialCleanup(text);
+      let cleanText = text.trim();
+      // Strip markdown code fences if present
+      cleanText = cleanText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
       cleanText = JsonSanitizer.sanitizeJsonText(cleanText);
-      cleanText = JsonSanitizer.applyComprehensiveCleanup(cleanText);
-      const slides = JSON.parse(cleanText) as Array<{
-        title: string;
-        content: string;
-        speakerNotes?: string;
-      }>;
 
-      if (!Array.isArray(slides) || slides.length === 0) {
+      const parsed = JSON.parse(cleanText);
+
+      if (!Array.isArray(parsed) || parsed.length === 0) {
         throw new Error('Invalid slide deck response: expected non-empty array');
       }
+
+      const slides = parsed.map((item: Record<string, unknown>, i: number) => {
+        if (typeof item.title !== 'string' || !item.title.trim()) {
+          throw new Error(`Slide ${i}: missing or empty "title"`);
+        }
+        if (typeof item.content !== 'string' || !item.content.trim()) {
+          throw new Error(`Slide ${i}: missing or empty "content"`);
+        }
+        return {
+          title: item.title,
+          content: item.content,
+          speakerNotes: typeof item.speakerNotes === 'string' ? item.speakerNotes : undefined,
+        };
+      });
 
       functions.logger.info(`Generated ${slides.length} slides successfully.`);
       return slides;

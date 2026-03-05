@@ -9,7 +9,7 @@ import { formatDateWithOptions } from '../../utils/dateUtils';
 
 export const SlideDecksPage = () => {
   const navigate = useNavigate();
-  const { data: response, isLoading } = useGetUserSlideDecksQuery();
+  const { data: response, isLoading, error } = useGetUserSlideDecksQuery();
   const [deleteSlideDeck] = useDeleteSlideDeckMutation();
   const slideDecks = response?.data || [];
 
@@ -37,7 +37,13 @@ export const SlideDecksPage = () => {
           <h1 className="text-2xl font-bold">My Slide Decks</h1>
         </div>
 
-        {slideDecks.length === 0 ? (
+        {error ? (
+          <Card className="border-destructive">
+            <CardContent className="p-8 text-center">
+              <p className="text-destructive">Failed to load slide decks. Please try again.</p>
+            </CardContent>
+          </Card>
+        ) : slideDecks.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center">
               <Presentation className="mx-auto mb-4 text-muted-foreground" size={48} />

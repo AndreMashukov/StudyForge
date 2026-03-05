@@ -45,6 +45,7 @@ export const generateSlideDeck = onCall(
 
       const u = redactId(userId);
       const d = redactId(documentId);
+      const uploadedPaths: string[] = [];
 
       logger.info('[generateSlideDeck] STEP 1: Function started.', {
         userIdHash: u,
@@ -54,91 +55,86 @@ export const generateSlideDeck = onCall(
         ruleCount: ruleIds?.length || 0,
       });
 
-      const document = await DocumentCrudService.getDocumentWithContent(userId, documentId);
-      logger.info(`[generateSlideDeck] STEP 2: Document retrieved. Title: "${document?.title ?? 'N/A'}"`, { userIdHash: u });
+      try {
+        const document = await DocumentCrudService.getDocumentWithContent(userId, documentId);
+        logger.info('[generateSlideDeck] STEP 2: Document retrieved.', { userIdHash: u, documentIdHash: d });
 
-      if (!document || !document.content) {
-        throw new HttpsError('not-found', 'The specified document does not exist or has no content.');
-      }
-
-      // Inject rules if provided
-      let enhancedPrompt = additionalPrompt || '';
-      if (ruleIds?.length) {
-        logger.info('[generateSlideDeck] STEP 2.5: Injecting rules.', { ruleCount: ruleIds.length });
-        enhancedPrompt = await promptBuilder.injectRules(enhancedPrompt, ruleIds, userId);
-      }
-
-      // Step 3: Generate slide outline
-      logger.info('[generateSlideDeck] STEP 3: Generating slide outline.', { userIdHash: u });
-      const slideOutline = await GeminiService.generateSlideDeckOutline(document.content, enhancedPrompt);
-      logger.info(`[generateSlideDeck] STEP 4: Outline generated. Slides: ${slideOutline.length}`, { userIdHash: u });
-
-      // Step 4: Generate images for each slide
-      const slides: Slide[] = [];
-      for (let i = 0; i < slideOutline.length; i++) {
-        const outline = slideOutline[i];
-        const slideId = admin.firestore().collection('tmp').doc().id;
-
-        logger.info(`[generateSlideDeck] STEP 5.${i}: Generating image for slide "${outline.title}"`, { userIdHash: u });
-        const imageBase64 = await GeminiService.generateSlideImage(outline.title, outline.content);
-
-        let imageStoragePath: string | undefined;
-        if (imageBase64) {
-          const path = `users/${userId}/slideDecks/temp-${slideId}/slide-${i}.png`;
-          const file = admin.storage().bucket().file(path);
-          await file.save(Buffer.from(imageBase64, 'base64'), {
-            metadata: { contentType: 'image/png' },
-            resumable: false,
-          });
-          imageStoragePath = path;
-          logger.info(`[generateSlideDeck] Image saved for slide ${i}`, { userIdHash: u });
+        if (!document || !document.content) {
+          throw new HttpsError('not-found', 'The specified document does not exist or has no content.');
         }
 
-        slides.push({
-          id: slideId,
+        // Inject rules if provided
+        let enhancedPrompt = additionalPrompt || '';
+        if (ruleIds?.length) {
+          logger.info('[generateSlideDeck] STEP 2.5: Injecting rules.', { ruleCount: ruleIds.length });
+          enhancedPrompt = await promptBuilder.injectRules(enhancedPrompt, ruleIds, userId);
+        }
+
+        // Step 3: Generate slide outline
+        logger.info('[generateSlideDeck] STEP 3: Generating slide outline.', { userIdHash: u });
+        const slideOutline = await GeminiService.generateSlideDeckOutline(document.content, enhancedPrompt);
+        logger.info(`[generateSlideDeck] STEP 4: Outline generated. Slides: ${slideOutline.length}`, { userIdHash: u });
+
+        // Step 5: Generate images with bounded concurrency (3 at a time)
+        const CONCURRENCY = 3;
+        const slides: Slide[] = slideOutline.map((outline) => ({
+          id: admin.firestore().collection('tmp').doc().id,
           title: outline.title,
           content: outline.content,
-          imageStoragePath,
           speakerNotes: outline.speakerNotes,
-        });
-      }
+        }));
 
-      // Step 5: Save to Firestore
-      const deckTitle = customTitle?.trim() || `Slides for "${document.title}"`;
-      const newSlideDeckData = {
-        title: deckTitle,
-        slides,
-        userId,
-        documentId,
-        documentTitle: document.title,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      };
+        for (let batch = 0; batch < slides.length; batch += CONCURRENCY) {
+          const chunk = slides.slice(batch, batch + CONCURRENCY);
+          const chunkIndices = chunk.map((_, ci) => batch + ci);
 
-      logger.info('[generateSlideDeck] STEP 6: Saving to Firestore.', { userIdHash: u });
-      const docRef = await admin.firestore()
-        .collection('users').doc(userId).collection('slideDecks')
-        .add(newSlideDeckData);
+          logger.info(`[generateSlideDeck] STEP 5: Generating images for slides ${chunkIndices.join(',')}`, { userIdHash: u });
 
-      // Update storage paths with actual deck ID
-      const batch = admin.firestore().batch();
-      const updatedSlides = slides.map((slide, i) => {
-        if (slide.imageStoragePath) {
-          const newPath = `users/${userId}/slideDecks/${docRef.id}/slide-${i}.png`;
-          // Move file in storage (copy + delete) is complex; keep temp path for now
-          return { ...slide, imageStoragePath: slide.imageStoragePath };
+          await Promise.all(chunk.map(async (slide, ci) => {
+            const i = batch + ci;
+            const imageBase64 = await GeminiService.generateSlideImage(slide.title, slide.content);
+            if (imageBase64) {
+              const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.png`;
+              const file = admin.storage().bucket().file(storagePath);
+              await file.save(Buffer.from(imageBase64, 'base64'), {
+                metadata: { contentType: 'image/png' },
+                resumable: false,
+              });
+              slide.imageStoragePath = storagePath;
+              uploadedPaths.push(storagePath);
+            }
+          }));
         }
-        return slide;
-      });
 
-      if (updatedSlides.some(s => s.imageStoragePath)) {
-        batch.update(docRef, { slides: updatedSlides });
-        await batch.commit();
+        // Step 6: Save to Firestore
+        const deckTitle = customTitle?.trim() || `Slides for "${document.title}"`;
+        const newSlideDeckData = {
+          title: deckTitle,
+          slides,
+          userId,
+          documentId,
+          documentTitle: document.title,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        logger.info('[generateSlideDeck] STEP 6: Saving to Firestore.', { userIdHash: u });
+        const docRef = await admin.firestore()
+          .collection('users').doc(userId).collection('slideDecks')
+          .add(newSlideDeckData);
+
+        logger.info(`[generateSlideDeck] STEP 7: Complete. Deck ID: ${redactId(docRef.id)}`, { userIdHash: u });
+
+        return { success: true, data: { slideDeckId: docRef.id } };
+      } catch (innerError) {
+        // Cleanup orphaned storage files on failure
+        if (uploadedPaths.length > 0) {
+          logger.warn(`[generateSlideDeck] Cleaning up ${uploadedPaths.length} orphaned files after failure.`);
+          const bucket = admin.storage().bucket();
+          await Promise.allSettled(uploadedPaths.map(p => bucket.file(p).delete().catch(() => {})));
+        }
+        throw innerError;
       }
-
-      logger.info(`[generateSlideDeck] STEP 7: Complete. Deck ID: ${redactId(docRef.id)}`, { userIdHash: u });
-
-      return { success: true, data: { slideDeckId: docRef.id } };
     } catch (error) {
       logger.error('Error in generateSlideDeck:', error);
       if (error instanceof HttpsError) throw error;

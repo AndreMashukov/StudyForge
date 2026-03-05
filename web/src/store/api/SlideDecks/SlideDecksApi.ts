@@ -37,7 +37,10 @@ export const slideDecksApi = baseApi.injectEndpoints({
         functionName: 'deleteSlideDeck',
         data,
       }),
-      invalidatesTags: ['UserSlideDecks'],
+      invalidatesTags: (result, error, arg) => [
+        'UserSlideDecks',
+        { type: 'SlideDeck', id: arg.slideDeckId },
+      ],
     }),
   }),
 });

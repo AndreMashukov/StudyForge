@@ -23,13 +23,8 @@ const createCreateSlideDeckPageSchema = () => z.object({
     .optional(),
 });
 
-export type CreateSlideDeckPageFormData = z.infer<ReturnType<typeof createCreateSlideDeckPageSchema>>;
-
 export const useCreateSlideDeckPageSchema = () => {
   const schema = useCallback(() => createCreateSlideDeckPageSchema(), []);
   
-  return {
-    schema: schema(),
-    type: {} as CreateSlideDeckPageFormData,
-  };
+  return { schema: schema() };
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Page } from '../../components/Page';
 import { Card, CardContent } from '../../components/ui/Card';
@@ -17,7 +17,16 @@ export const SlideDeckPage = () => {
 
   const slideDeck = response?.data;
   const slides = slideDeck?.slides || [];
-  const slide = slides[currentSlide];
+
+  // Clamp slide index when deck data changes
+  useEffect(() => {
+    if (slides.length > 0 && currentSlide >= slides.length) {
+      setCurrentSlide(slides.length - 1);
+    }
+  }, [slides.length, currentSlide]);
+
+  const safeIndex = slides.length > 0 ? Math.min(currentSlide, slides.length - 1) : 0;
+  const slide = slides.length > 0 ? slides[safeIndex] : undefined;
 
   if (isLoading) {
     return (
@@ -62,7 +71,7 @@ export const SlideDeckPage = () => {
               <h1 className="text-lg font-semibold">{slideDeck.title}</h1>
             </div>
             <div className="text-sm text-muted-foreground">
-              Slide {currentSlide + 1} of {slides.length}
+              {slides.length > 0 ? `Slide ${safeIndex + 1} of ${slides.length}` : 'No slides'}
             </div>
           </div>
         </header>
@@ -132,8 +141,8 @@ export const SlideDeckPage = () => {
 
             <Button
               variant="outline"
-              onClick={() => setCurrentSlide(Math.min(slides.length - 1, currentSlide + 1))}
-              disabled={currentSlide === slides.length - 1}
+              onClick={() => setCurrentSlide(Math.min(Math.max(slides.length - 1, 0), currentSlide + 1))}
+              disabled={slides.length === 0 || currentSlide >= slides.length - 1}
             >
               Next
               <ChevronRight size={20} className="ml-1" />
