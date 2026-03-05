@@ -118,31 +118,56 @@ There is no `test` target configured for any project currently.
 ### Environment files
 
 - Root `.env` — NX_PUBLIC_* vars consumed by the Vite dev server (web app). Copy from `.env.example` and set `NX_PUBLIC_USE_FIREBASE_EMULATOR=true` for local dev.
-- `functions/.env` — `GEMINI_API_KEY`, `FIREBASE_PROJECT_ID`. Copy from `functions/.env.example`.
+- `functions/.env` — `GEMINI_API_KEY`, `STORAGE_BUCKET`. Copy from `functions/.env.example`.
+- `functions/.env.local` — local-dev overrides (same keys as `functions/.env`). The `STORAGE_BUCKET` must use the `.appspot.com` form for the Storage emulator (e.g. `<project-id>.appspot.com`); the emulator treats `.appspot.com` and `.firebasestorage.app` as separate buckets.
 
 ### Firebase Emulators
 
 The app requires Firebase emulators for local development (Auth:9099, Firestore:8080, Functions:5001, Storage:9199, Hosting:5002). Start them with:
 
 ```bash
-yarn firebase emulators:start --project demo-project
+yarn firebase emulators:start --project "$NX_PUBLIC_FIREBASE_PROJECT_ID"
 ```
 
 Or via NX: `yarn nx run functions:serve` (builds functions first, then starts emulators).
 
+**CRITICAL**: The `--project` value MUST match the project ID the web app uses (from the `NX_PUBLIC_FIREBASE_PROJECT_ID` env var or the fallback in `web/src/config/firebase.ts`). If there is a mismatch, the Firebase Functions emulator will return 404 on CORS preflight requests and all callable functions will fail with CORS errors. In the Cloud VM, `NX_PUBLIC_FIREBASE_PROJECT_ID` is injected as a secret — always use `"$NX_PUBLIC_FIREBASE_PROJECT_ID"` (not a hardcoded `demo-project`) when starting emulators.
+
 Java (JDK 21+) is required for the Firestore emulator — it is pre-installed in the Cloud VM.
 
-### User initialization for login
+### Env files and Vite
 
-Firebase Auth emulator starts empty. To log in to the web app, you must first create a user in the Auth emulator:
+- Root `.env` — loaded by NX into `process.env`
+- `web/.env` — loaded by Vite into `import.meta.env` (Vite's root is `web/`, NOT workspace root)
+- `functions/.env` — loaded by Firebase Functions emulator
+
+In the Cloud VM, `NX_PUBLIC_*` secrets are injected as environment variables and override `.env` file values. You still need `web/.env` for Vite to expose them to `import.meta.env`, but the injected secrets take precedence.
+
+### Seeding test data (user + document)
+
+Firebase Auth emulator starts empty. The recommended way to seed a user **and** a sample document is:
 
 ```bash
-curl -s -X POST 'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-api-key' \
+npx tsx scripts/e2e-setup/setup-e2e-data.ts
+```
+
+This script (run from the workspace root with emulators already running):
+1. Creates/updates an Auth user (`test@example.com` / `Test123456!`, fixed UID `4ZBsEPIUJ4jrlylcXkg7t3sFdPZv`)
+2. Writes the corresponding Firestore user document
+3. Injects a "Machine Learning" document (`perfect-doc-ml`) into Firestore
+4. Uploads the document's markdown content to the Storage emulator
+
+After running, you can log in at `http://localhost:4200` with the credentials above and browse/view the seeded document in the Documents Library.
+
+**Alternatively**, to create a bare user without a document (e.g. for quick login testing):
+
+```bash
+curl -s -X POST "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=$NX_PUBLIC_FIREBASE_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"email":"test@example.com","password":"Test1234!","returnSecureToken":true}'
 ```
 
-Alternatively, use the Firebase Emulator UI at `http://localhost:4000` to create users, or restore a backup.
+Or use the Firebase Emulator UI at `http://localhost:4000`.
 
 ### Web dev server
 
@@ -156,7 +181,7 @@ Starts on `http://localhost:4200`. Requires the `.env` file with Firebase config
 
 - `web:lint` produces 1 pre-existing warning in `RuleSelector.tsx` (accessible-emoji). Do NOT flag this as a new issue.
 - `web:build` shows a PostCSS `@import` order warning in `styles.css` — cosmetic, does not block the build.
-- Documents page shows "Error loading content" when no documents exist in Firestore — this is expected empty-state behavior, not a bug.
+- Documents page shows "No documents yet" when the Firestore is empty — this is expected empty-state behavior. If it shows "Error loading content", the emulators are likely misconfigured (see Firebase Emulators section above for the project ID requirement).
 
 ### Post-Change Validation (mandatory before reporting done)
 
