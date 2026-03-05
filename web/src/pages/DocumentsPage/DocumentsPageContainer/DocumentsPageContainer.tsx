@@ -15,7 +15,7 @@ import { CreateDirectoryDialog } from './CreateDirectoryDialog';
 import { EditDirectoryDialog } from './EditDirectoryDialog';
 import { DeleteDirectoryDialog } from './DeleteDirectoryDialog';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
-import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus, Menu, Layers } from 'lucide-react';
+import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus, Menu, Layers, Presentation } from 'lucide-react';
 import { DocumentEnhanced, Directory } from "@shared-types";
 import { formatDate } from '../../../utils/dateUtils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -300,6 +300,12 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                                       label: 'Generate Flashcards',
                                       icon: <Layers size={14} />,
                                       onClick: () => handlers.handleGenerateFlashcardsFromDocument(document.id),
+                                    },
+                                    {
+                                      id: 'generate-slide-deck',
+                                      label: 'Generate Slide Deck',
+                                      icon: <Presentation size={14} />,
+                                      onClick: () => handlers.handleGenerateSlideDeckFromDocument(document.id),
                                     },
                                   ]}
                                   className="flex-1 w-full sm:w-auto"

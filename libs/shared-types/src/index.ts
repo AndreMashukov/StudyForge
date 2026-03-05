@@ -38,6 +38,45 @@ export interface UpdateFlashcardSetRequest {
   flashcards?: Flashcard[];
 }
 
+// Slide Deck Types
+export interface Slide {
+  id: string;
+  title: string;
+  content: string;
+  imageStoragePath?: string;
+  imageUrl?: string;
+  speakerNotes?: string;
+}
+
+export interface SlideDeck {
+  id: string;
+  userId: string;
+  documentId: string;
+  documentTitle: string;
+  title: string;
+  slides: Slide[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface GenerateSlideDeckRequest {
+  documentId: string;
+  title?: string;
+  additionalPrompt?: string;
+  ruleIds?: string[];
+}
+
+export interface GenerateSlideDeckResponse {
+  slideDeckId: string;
+  slideDeck?: SlideDeck;
+}
+
+export interface UpdateSlideDeckRequest {
+  slideDeckId: string;
+  title?: string;
+  slides?: Slide[];
+}
+
 // Quiz Types (Document-centric architecture)
 export interface Quiz {
   id: string;
@@ -505,6 +544,7 @@ export enum RuleApplicability {
   QUIZ = 'quiz',
   FOLLOWUP = 'followup',
   FLASHCARD = 'flashcard',
+  SLIDE_DECK = 'slide_deck',
 }
 
 export enum RuleColor {

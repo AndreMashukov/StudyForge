@@ -140,3 +140,11 @@ export {
   debugStorageBucket,
   deleteFlashcardSet,
 } from "./endpoints/flashcards";
+
+// Export slide deck management functions
+export {
+  generateSlideDeck,
+  getSlideDeck,
+  getUserSlideDecks,
+  deleteSlideDeck,
+} from "./endpoints/slide-decks";
