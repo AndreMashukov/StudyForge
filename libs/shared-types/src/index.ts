@@ -44,6 +44,7 @@ export interface Slide {
   title: string;
   content: string;
   imageStoragePath?: string;
+  imageUrl?: string;
   speakerNotes?: string;
 }
 

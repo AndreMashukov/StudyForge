@@ -797,7 +797,7 @@ export class GeminiService {
       const genAI = this.getClient();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-preview-image-generation',
+        model: 'gemini-2.5-flash-preview-image-generation',
         generationConfig: {
           responseModalities: ['TEXT', 'IMAGE'],
         } as any,

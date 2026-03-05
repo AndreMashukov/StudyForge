@@ -168,6 +168,25 @@ export const getSlideDeck = onCall({ region: 'asia-east1', cors: true }, async (
     }
 
     const slideDeck = { ...doc.data(), id: doc.id } as SlideDeck;
+
+    // Resolve storage paths to signed download URLs
+    if (slideDeck.slides) {
+      const bucket = admin.storage().bucket();
+      for (const slide of slideDeck.slides) {
+        if (slide.imageStoragePath) {
+          try {
+            const [url] = await bucket.file(slide.imageStoragePath).getSignedUrl({
+              action: 'read',
+              expires: Date.now() + 60 * 60 * 1000, // 1 hour
+            });
+            slide.imageUrl = url;
+          } catch (err) {
+            logger.warn(`Failed to get signed URL for ${slide.imageStoragePath}:`, err);
+          }
+        }
+      }
+    }
+
     return { success: true, data: slideDeck };
   } catch (error) {
     logger.error(`Error fetching slide deck:`, error);

@@ -71,23 +71,37 @@ export const SlideDeckPage = () => {
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-4xl">
             {slide && (
-              <Card className="aspect-[16/9] flex flex-col justify-center p-8 md:p-12 bg-card border-2">
-                <CardContent className="p-0 space-y-6">
-                  <h2 className="text-2xl md:text-4xl font-bold text-primary">
-                    {slide.title}
-                  </h2>
-                  <div className="text-base md:text-lg text-foreground whitespace-pre-line leading-relaxed">
-                    {slide.content}
-                  </div>
-                  {slide.speakerNotes && (
-                    <div className="mt-auto pt-4 border-t border-border">
-                      <p className="text-xs text-muted-foreground italic">
-                        Speaker notes: {slide.speakerNotes}
-                      </p>
+              <div className="space-y-4">
+                {/* Generated slide image (from Gemini image generation) */}
+                {slide.imageUrl && (
+                  <Card className="overflow-hidden border-2">
+                    <img
+                      src={slide.imageUrl}
+                      alt={`Slide: ${slide.title}`}
+                      className="w-full aspect-[16/9] object-contain bg-black"
+                    />
+                  </Card>
+                )}
+
+                {/* Text content fallback / always shown below image */}
+                <Card className={`flex flex-col justify-center p-8 md:p-12 bg-card border-2 ${!slide.imageUrl ? 'aspect-[16/9]' : ''}`}>
+                  <CardContent className="p-0 space-y-6">
+                    <h2 className="text-2xl md:text-4xl font-bold text-primary">
+                      {slide.title}
+                    </h2>
+                    <div className="text-base md:text-lg text-foreground whitespace-pre-line leading-relaxed">
+                      {slide.content}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                    {slide.speakerNotes && (
+                      <div className="mt-auto pt-4 border-t border-border">
+                        <p className="text-xs text-muted-foreground italic">
+                          Speaker notes: {slide.speakerNotes}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
         </div>
