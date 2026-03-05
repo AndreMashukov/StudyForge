@@ -90,7 +90,7 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
                 </Icon>
               </div>
               <h1 className="text-lg font-semibold text-foreground tracking-tight">
-                Quiz AI Generator
+                AI Learning Assistant
               </h1>
             </Link>
 
