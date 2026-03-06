@@ -20,7 +20,6 @@ import {
 } from '../../../../store/slices/createDocumentPageSlice';
 import type { RootState } from '../../../../store';
 
-const MAX_CHARACTERS = 10000;
 const MIN_CHARACTERS = 10;
 
 export const TextPromptForm = ({ 
@@ -66,14 +65,12 @@ export const TextPromptForm = ({
   };
 
   const characterCount = prompt.length;
-  const isOverLimit = characterCount > MAX_CHARACTERS;
   const isUnderMinimum = characterCount > 0 && characterCount < MIN_CHARACTERS;
   
   // Context size validation
   const isContextOverLimit = totalTokens > FILE_UPLOAD_CONSTRAINTS.MAX_TOTAL_TOKENS;
   
   const canSubmit = characterCount >= MIN_CHARACTERS && 
-                    characterCount <= MAX_CHARACTERS && 
                     !isLoading && 
                     !isContextOverLimit;
 
@@ -130,12 +127,12 @@ export const TextPromptForm = ({
           </Label>
           <span 
             className={cn(
-              isOverLimit || isUnderMinimum 
+              isUnderMinimum 
                 ? textPromptFormStyles.characterCounterError 
                 : textPromptFormStyles.characterCounter
             )}
           >
-            {characterCount} / {MAX_CHARACTERS}
+            {characterCount}
           </span>
         </div>
         <textarea
@@ -153,16 +150,11 @@ export const TextPromptForm = ({
             "placeholder:text-muted-foreground",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             "disabled:cursor-not-allowed disabled:opacity-50",
-            (isOverLimit || isUnderMinimum) && "border-destructive focus-visible:ring-destructive"
+            isUnderMinimum && "border-destructive focus-visible:ring-destructive"
           )}
           disabled={isLoading}
           rows={5}
         />
-        {isOverLimit && (
-          <p className={textPromptFormStyles.characterCounterError}>
-            Prompt cannot exceed {MAX_CHARACTERS} characters
-          </p>
-        )}
         {isUnderMinimum && (
           <p className={textPromptFormStyles.characterCounterError}>
             Prompt must be at least {MIN_CHARACTERS} characters
@@ -173,7 +165,7 @@ export const TextPromptForm = ({
             Context size exceeds limit. Please remove some files before submitting.
           </p>
         )}
-        {!isOverLimit && !isUnderMinimum && !isContextOverLimit && (
+        {!isUnderMinimum && !isContextOverLimit && (
           <p className={textPromptFormStyles.helpText}>
             {attachedFiles.length > 0 ? (
               <>

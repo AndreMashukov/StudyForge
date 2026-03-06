@@ -27,12 +27,11 @@ import { z } from "zod";
 
 // Zod validation schema
 const ruleFormSchema = z.object({
-  name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
+  name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
   content: z
     .string()
-    .min(1, "Content is required")
-    .max(15000, "Content must be 15,000 characters or less"),
+    .min(1, "Content is required"),
   color: z.nativeEnum(RuleColor),
   tags: z.array(z.string()),
   applicableTo: z
