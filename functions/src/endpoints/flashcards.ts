@@ -61,8 +61,8 @@ const requireEmulator = (): void => {
 };
 
 // Helper function that contains the core generation logic
-async function generateFlashcardsFromContent(content: string, title: string): Promise<Pick<FlashcardSet, 'title' | 'flashcards'>> {
-  const generatedFlashcards = await GeminiService.generateFlashcards(content);
+async function generateFlashcardsFromContent(content: string, title: string, rules?: string): Promise<Pick<FlashcardSet, 'title' | 'flashcards'>> {
+  const generatedFlashcards = await GeminiService.generateFlashcards(content, rules);
 
   const flashcardsWithIds: Flashcard[] = generatedFlashcards.map((card) => ({
     ...card,
@@ -105,18 +105,17 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       throw new HttpsError('not-found', 'The specified document does not exist or has no content.');
     }
 
-    // Inject rules into prompt if provided
-    let enhancedContent = document.content;
+    // Resolve rules to inject into the prompt
+    let injectedRules: string | undefined;
     if (ruleIds?.length) {
       logger.info(`[generateFlashcards] STEP 2.5: Injecting rules into prompt.`, { userIdHash: u, ruleCount: ruleIds.length });
-      const rulesPrompt = await promptBuilder.injectRules(additionalPrompt || '', ruleIds, userId);
-      enhancedContent = `${rulesPrompt}\n\n${document.content}`;
+      injectedRules = await promptBuilder.injectRules(additionalPrompt || '', ruleIds, userId);
     } else if (additionalPrompt) {
-      enhancedContent = `Additional instructions: ${additionalPrompt}\n\n${document.content}`;
+      injectedRules = `Additional instructions: ${additionalPrompt}`;
     }
 
     logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (GeminiService).`, { userIdHash: u, documentIdHash: d });
-    const generatedData = await generateFlashcardsFromContent(enhancedContent, document.title);
+    const generatedData = await generateFlashcardsFromContent(document.content, document.title, injectedRules);
     logger.info(`[generateFlashcards] STEP 4: Flashcard generation complete. Flashcards created: ${generatedData.flashcards.length}`, { userIdHash: u, documentIdHash: d });
 
     // Apply custom title if provided

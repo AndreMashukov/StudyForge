@@ -3,7 +3,7 @@ import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { z } from 'zod';
 
 import { Slide, SlideDeck } from '@shared-types';
@@ -19,8 +19,8 @@ const geminiApiKey = defineSecret('GEMINI_API_KEY');
 
 const generateSlideDeckRequestSchema = z.object({
   documentId: z.string().min(1, 'documentId is required'),
-  title: z.string().max(100).optional(),
-  additionalPrompt: z.string().max(500).optional(),
+  title: z.string().max(100).nullish(),
+  additionalPrompt: z.string().max(500).nullish(),
   ruleIds: z.array(z.string()).optional(),
 });
 
@@ -95,12 +95,17 @@ export const generateSlideDeck = onCall(
             const imageBase64 = await GeminiService.generateSlideImage(slide.title, slide.content);
             if (imageBase64) {
               const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.png`;
+              const downloadToken = randomUUID();
               const file = admin.storage().bucket().file(storagePath);
               await file.save(Buffer.from(imageBase64, 'base64'), {
-                metadata: { contentType: 'image/png' },
+                metadata: {
+                  contentType: 'image/png',
+                  metadata: { firebaseStorageDownloadTokens: downloadToken },
+                },
                 resumable: false,
               });
               slide.imageStoragePath = storagePath;
+              slide.imageDownloadToken = downloadToken;
               uploadedPaths.push(storagePath);
             }
           }));
@@ -168,14 +173,22 @@ export const getSlideDeck = onCall({ region: 'asia-east1', cors: true }, async (
     // Resolve storage paths to signed download URLs
     if (slideDeck.slides) {
       const bucket = admin.storage().bucket();
+      const emulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST;
       for (const slide of slideDeck.slides) {
         if (slide.imageStoragePath) {
           try {
-            const [url] = await bucket.file(slide.imageStoragePath).getSignedUrl({
-              action: 'read',
-              expires: Date.now() + 60 * 60 * 1000, // 1 hour
-            });
-            slide.imageUrl = url;
+            if (emulatorHost) {
+              // Storage emulator does not support signed URLs — use direct download URL
+              const encodedPath = encodeURIComponent(slide.imageStoragePath);
+              const token = slide.imageDownloadToken ? `&token=${slide.imageDownloadToken}` : '';
+              slide.imageUrl = `http://${emulatorHost}/v0/b/${bucket.name}/o/${encodedPath}?alt=media${token}`;
+            } else {
+              const [url] = await bucket.file(slide.imageStoragePath).getSignedUrl({
+                action: 'read',
+                expires: Date.now() + 60 * 60 * 1000, // 1 hour
+              });
+              slide.imageUrl = url;
+            }
           } catch (err) {
             logger.warn(`Failed to get signed URL for ${slide.imageStoragePath}:`, err);
           }

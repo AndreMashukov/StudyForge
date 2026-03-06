@@ -12,8 +12,8 @@
   },
   "main": "lib/src/index.js",
   "dependencies": {
+    "@google/genai": "^1.44.0",
     "@google/generative-ai": "^0.21.0",
-    "zod": "^4.1.9",
     "@types/node-fetch": "^2.6.11",
     "cheerio": "^1.0.0",
     "firebase": "^12.2.1",
@@ -21,7 +21,8 @@
     "firebase-functions": "^6.0.1",
     "jsdom": "^25.0.0",
     "node-fetch": "^3.3.2",
-    "tsconfig-paths": "^4.2.0"
+    "tsconfig-paths": "^4.2.0",
+    "zod": "^4.1.9"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.12.0",

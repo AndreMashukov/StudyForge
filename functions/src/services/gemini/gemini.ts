@@ -1,5 +1,6 @@
 /* eslint-disable no-misleading-character-class */
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import * as functions from 'firebase-functions';
 import { ScrapedContent, QuizFollowupContext, IFileContent } from '@shared-types';
 import { JsonSanitizer } from './json-sanitizer';
@@ -247,14 +248,14 @@ export class GeminiService {
   /**
    * Generate a set of flashcards from document content.
    */
-  public static async generateFlashcards(content: string): Promise<{ front: string; back: string }[]> {
+  public static async generateFlashcards(content: string, rules?: string): Promise<{ front: string; back: string }[]> {
     try {
       functions.logger.info('Generating flashcards with Gemini AI...');
 
       const genAI = this.getClient();
       const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
 
-      const prompt = FlashcardPromptBuilder.buildFlashcardPrompt(content);
+      const prompt = FlashcardPromptBuilder.buildFlashcardPrompt(content, rules);
       functions.logger.debug('Sending flashcard generation request to Gemini AI', { contentLength: content.length });
 
       const result = await model.generateContent(prompt);
@@ -775,16 +776,39 @@ export class GeminiService {
         throw new Error('Invalid slide deck response: expected non-empty array');
       }
 
+      functions.logger.info('Raw parsed slide outline:', { slideCount: parsed.length, firstSlideKeys: Object.keys(parsed[0] ?? {}) });
+
       const slides = parsed.map((item: Record<string, unknown>, i: number) => {
         if (typeof item.title !== 'string' || !item.title.trim()) {
           throw new Error(`Slide ${i}: missing or empty "title"`);
         }
-        if (typeof item.content !== 'string' || !item.content.trim()) {
-          throw new Error(`Slide ${i}: missing or empty "content"`);
+
+        // Resolve content from several possible field names Gemini may use
+        let resolvedContent: string | undefined;
+        if (typeof item.content === 'string' && item.content.trim()) {
+          resolvedContent = item.content;
+        } else if (Array.isArray(item.content)) {
+          resolvedContent = (item.content as unknown[]).map(String).join('\n');
+        } else if (typeof item.bullets === 'string' && item.bullets.trim()) {
+          resolvedContent = item.bullets;
+        } else if (Array.isArray(item.bullets)) {
+          resolvedContent = (item.bullets as unknown[]).map((b) => `• ${b}`).join('\n');
+        } else if (typeof item.body === 'string' && item.body.trim()) {
+          resolvedContent = item.body;
+        } else if (typeof item.points === 'string' && item.points.trim()) {
+          resolvedContent = item.points;
+        } else if (Array.isArray(item.points)) {
+          resolvedContent = (item.points as unknown[]).map((p) => `• ${p}`).join('\n');
         }
+
+        if (!resolvedContent) {
+          functions.logger.warn(`Slide ${i} has no recognisable content field. Keys: ${Object.keys(item).join(', ')}. Raw:`, item);
+          throw new Error(`Slide ${i}: missing or empty content (checked: content, bullets, body, points)`);
+        }
+
         return {
-          title: item.title,
-          content: item.content,
+          title: item.title.trim(),
+          content: resolvedContent.trim(),
           speakerNotes: typeof item.speakerNotes === 'string' ? item.speakerNotes : undefined,
         };
       });
@@ -798,7 +822,8 @@ export class GeminiService {
   }
 
   /**
-   * Generate a slide image using Gemini image generation model.
+   * Generate a slide image using Gemini Nano Banana 2 image generation model.
+   * Uses @google/genai SDK with gemini-3.1-flash-image-preview.
    * Returns base64-encoded PNG image data.
    */
   public static async generateSlideImage(
@@ -806,30 +831,30 @@ export class GeminiService {
     slideContent: string
   ): Promise<string | null> {
     try {
-      const genAI = this.getClient();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash-preview-image-generation',
-        generationConfig: {
-          responseModalities: ['TEXT', 'IMAGE'],
-        } as any,
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) throw new Error('GEMINI_API_KEY not set');
+
+      const client = new GoogleGenAI({ apiKey });
+      const prompt = SlideDeckPromptBuilder.buildSlideImagePrompt(slideTitle, slideContent);
+
+      const response = await client.models.generateContent({
+        model: 'gemini-3.1-flash-image-preview',
+        contents: prompt,
+        config: {
+          responseModalities: ['IMAGE'],
+        },
       });
 
-      const prompt = SlideDeckPromptBuilder.buildSlideImagePrompt(slideTitle, slideContent);
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
       const parts = response.candidates?.[0]?.content?.parts;
-
       if (!parts) return null;
 
       for (const part of parts) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const inlineData = (part as any).inlineData;
-        if (inlineData?.data) {
-          return inlineData.data; // base64 string
+        if (part.inlineData?.data) {
+          return part.inlineData.data; // base64 string
         }
       }
 
+      functions.logger.warn('Slide image: no inline image data in response.');
       return null;
     } catch (error) {
       functions.logger.warn('Slide image generation failed (non-fatal):', error);
