@@ -55,7 +55,7 @@ export const FlashcardSetPageContainer = () => {
 
   return (
     <Page showSidebar={true}>
-      <div className="flex flex-col h-full min-h-[calc(100vh-4rem)]">
+      <div className="flex flex-col">
 
         {/* ── Top header ─────────────────────────────────────────── */}
         <div className="px-6 pt-5 pb-3 border-b border-border bg-background">
@@ -94,11 +94,11 @@ export const FlashcardSetPageContainer = () => {
         </div>
 
         {/* ── Card area ──────────────────────────────────────────── */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
+        <div className="flex flex-col items-center justify-center px-6 py-6">
           {/* Perspective wrapper — hover glow lives here so it never touches the preserve-3d element */}
           <div
-            className="w-full max-w-2xl cursor-pointer hover:[filter:drop-shadow(0_0_14px_rgba(99,102,241,0.2))] transition-[filter] duration-300"
-            style={{ perspective: '1200px', height: 'clamp(280px, 40vh, 420px)' }}
+            className="w-full max-w-xl cursor-pointer hover:[filter:drop-shadow(0_0_14px_rgba(99,102,241,0.2))] transition-[filter] duration-300"
+            style={{ perspective: '1200px', height: 'clamp(220px, 32vh, 340px)' }}
             onClick={handleFlip}
           >
             {/* Flip element — preserve-3d must not have filter/overflow applied to it */}
