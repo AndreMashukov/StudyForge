@@ -12,6 +12,7 @@ export const slideDecksApi = baseApi.injectEndpoints({
       query: (data) => ({
         functionName: 'generateSlideDeck',
         data,
+        timeout: 310_000, // 310s — matches the server-side 300s timeout + buffer
       }),
       invalidatesTags: ['UserSlideDecks'],
     }),

@@ -7,14 +7,16 @@ const firebaseCallableBaseQuery: BaseQueryFn<
   {
     functionName: string;
     data?: unknown;
+    /** Override the default 70s client-side deadline (ms). Use for long-running functions. */
+    timeout?: number;
   },
   unknown,
   unknown
-> = async ({ functionName, data }) => {
+> = async ({ functionName, data, timeout }) => {
   try {
     console.log(`Firebase Callable - Starting: ${functionName}`);
 
-    const callable = httpsCallable(functions, functionName);
+    const callable = httpsCallable(functions, functionName, timeout ? { timeout } : undefined);
     
     const startTime = Date.now();
     const result = await callable(data || {});
