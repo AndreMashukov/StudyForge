@@ -568,10 +568,6 @@ export const generateFromPrompt = onCall(
         throw new Error('Prompt cannot be empty');
       }
 
-      if (trimmedPrompt.length > 10000) {
-        throw new Error('Prompt cannot exceed 10,000 characters');
-      }
-
       if (trimmedPrompt.length < 10) {
         throw new Error('Prompt must be at least 10 characters long');
       }
