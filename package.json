@@ -55,6 +55,7 @@
     "test:storage-prod": "tsx scripts/test-storage-bucket-resolution.ts"
   },
   "dependencies": {
+    "@google/genai": "^1.44.0",
     "@google/generative-ai": "^0.21.0",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-dialog": "^1.1.15",
