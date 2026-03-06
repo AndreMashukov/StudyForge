@@ -21,7 +21,9 @@ const generateSlideDeckRequestSchema = z.object({
   documentId: z.string().min(1, 'documentId is required'),
   title: z.string().max(100).nullish(),
   additionalPrompt: z.string().max(500).nullish(),
-  ruleIds: z.array(z.string()).optional(),
+  // Accept null/undefined elements gracefully and strip them out
+  ruleIds: z.array(z.string().nullable().optional()).optional()
+    .transform(arr => (arr ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0)),
 });
 
 const slideDeckIdRequestSchema = z.object({
@@ -38,7 +40,14 @@ export const generateSlideDeck = onCall(
       const userId = validateAuth(request);
       const parseResult = generateSlideDeckRequestSchema.safeParse(request.data);
       if (!parseResult.success) {
-        const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
+        const firstIssue = parseResult.error.issues[0];
+        const msg = firstIssue?.message ?? 'Invalid request payload.';
+        logger.warn('[generateSlideDeck] Validation failed', {
+          issues: parseResult.error.issues.map(i => ({
+            path: i.path.join('.'),
+            message: i.message,
+          })),
+        });
         throw new HttpsError('invalid-argument', msg);
       }
       const { documentId, title: customTitle, additionalPrompt, ruleIds } = parseResult.data;

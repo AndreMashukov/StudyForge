@@ -25,7 +25,7 @@ export const useCreateSlideDeckPageHandlers = ({ form }: UseCreateSlideDeckPageH
         documentId: formData.documentId,
         title: formData.slideDeckName?.trim() || undefined,
         additionalPrompt: formData.additionalPrompt?.trim() || undefined,
-        ruleIds: formData.ruleIds || [],
+        ruleIds: (formData.ruleIds ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0),
       }).unwrap();
 
       if (result.success && result.data) {
