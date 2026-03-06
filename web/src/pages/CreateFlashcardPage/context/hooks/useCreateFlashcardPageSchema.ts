@@ -21,6 +21,7 @@ const createCreateFlashcardPageSchema = () => z.object({
       "Additional prompt cannot be only whitespace"
     )
     .optional(),
+  ruleIds: z.array(z.string()).optional(),
 });
 
 export type CreateFlashcardPageFormData = z.infer<ReturnType<typeof createCreateFlashcardPageSchema>>;
