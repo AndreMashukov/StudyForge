@@ -186,12 +186,18 @@ export const getSlideDeck = onCall({ region: 'asia-east1', cors: true }, async (
       for (const slide of slideDeck.slides) {
         if (slide.imageStoragePath) {
           try {
+            const encodedPath = encodeURIComponent(slide.imageStoragePath);
             if (emulatorHost) {
               // Storage emulator does not support signed URLs — use direct download URL
-              const encodedPath = encodeURIComponent(slide.imageStoragePath);
               const token = slide.imageDownloadToken ? `&token=${slide.imageDownloadToken}` : '';
               slide.imageUrl = `http://${emulatorHost}/v0/b/${bucket.name}/o/${encodedPath}?alt=media${token}`;
+            } else if (slide.imageDownloadToken) {
+              // Use the Firebase Storage download token stored at upload time.
+              // This avoids the iam.serviceAccounts.signBlob permission requirement
+              // and produces a stable, permanent URL.
+              slide.imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media&token=${slide.imageDownloadToken}`;
             } else {
+              // Fallback: signed URL (requires signBlob IAM permission on the service account)
               const [url] = await bucket.file(slide.imageStoragePath).getSignedUrl({
                 action: 'read',
                 expires: Date.now() + 60 * 60 * 1000, // 1 hour
@@ -199,7 +205,7 @@ export const getSlideDeck = onCall({ region: 'asia-east1', cors: true }, async (
               slide.imageUrl = url;
             }
           } catch (err) {
-            logger.warn(`Failed to get signed URL for ${slide.imageStoragePath}:`, err);
+            logger.warn(`Failed to resolve image URL for ${slide.imageStoragePath}:`, err);
           }
         }
       }
