@@ -7,6 +7,8 @@ import { JsonSanitizer } from './json-sanitizer';
 import { QuizPromptBuilder, FollowupPromptBuilder, DocumentPromptBuilder, FlashcardPromptBuilder, SlideDeckPromptBuilder } from './prompt-builder';
 import { buildPromptWithContextFiles, validateContextFiles, estimateContextTokens } from './prompt-builder/withContextFiles';
 
+const GEMINI_PRO_MODEL = 'gemini-3.1-pro-preview';
+
 export interface GeminiQuizResponse {
   title: string;
   questions: Array<{
@@ -46,7 +48,7 @@ export class GeminiService {
       JsonSanitizer.validateContentForSafeGeneration(content.content);
 
       const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+      const model = genAI.getGenerativeModel({ model: GEMINI_PRO_MODEL });
 
       // Generate random correct answer pattern (up to 30 questions)
       // Assuming typical quiz length of 8-12 questions, we generate 30 to cover all cases
@@ -96,7 +98,7 @@ export class GeminiService {
 
       const client = this.getClient();
       const model = client.getGenerativeModel({ 
-        model: "gemini-3-pro-preview",
+        model: GEMINI_PRO_MODEL,
         generationConfig: {
           temperature: 0.3,
           topK: 40,
@@ -152,7 +154,7 @@ export class GeminiService {
 
       const genAI = this.getClient();
       const model = genAI.getGenerativeModel({ 
-        model: "gemini-3-pro-preview",
+        model: GEMINI_PRO_MODEL,
         generationConfig: {
           temperature: 0.7,
           topK: 40,
@@ -207,7 +209,7 @@ export class GeminiService {
 
       const genAI = this.getClient();
       const model = genAI.getGenerativeModel({ 
-        model: "gemini-3-pro-preview",
+        model: GEMINI_PRO_MODEL,
         generationConfig: {
           temperature: 0.7,
           topK: 40,
@@ -253,7 +255,7 @@ export class GeminiService {
       functions.logger.info('Generating flashcards with Gemini AI...');
 
       const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+      const model = genAI.getGenerativeModel({ model: GEMINI_PRO_MODEL });
 
       const prompt = FlashcardPromptBuilder.buildFlashcardPrompt(content, rules);
       functions.logger.debug('Sending flashcard generation request to Gemini AI', { contentLength: content.length });
@@ -875,7 +877,7 @@ export class GeminiService {
 
       // Test connectivity with a simple request
       const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+      const model = genAI.getGenerativeModel({ model: GEMINI_PRO_MODEL });
 
       // Make a simple test request to verify the API is working
       const result = await model.generateContent("Test");
@@ -883,7 +885,7 @@ export class GeminiService {
       if (result.response) {
         return {
           available: true,
-          model: "gemini-3-pro-preview"
+          model: GEMINI_PRO_MODEL
         };
       } else {
         return {
