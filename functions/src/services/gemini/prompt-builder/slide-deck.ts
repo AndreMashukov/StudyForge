@@ -33,13 +33,14 @@ Layout requirements:
 - 16:9 widescreen landscape orientation (wider than tall)
 - Dark background (deep navy or charcoal)
 - White/light text for readability
-- Professional typography hierarchy (large title, smaller bullets)
+- Title should be small and compact (not dominant) — use a modest font size, positioned at the top-left or top-center
+- Bullet points should be small and concise — use a compact font size, tightly spaced, occupying minimal vertical space
+- The text block (title + bullets) should take up no more than 30% of the slide area, leaving the majority of space for visuals
 - Subtle accent colors (purple or blue highlights)
-- Clean, minimal layout with adequate spacing
-- The text must be readable and accurately rendered on the slide
+- The diagram MUST occupy at least 50% of the slide area — make it large, detailed, and visually dominant
 
 Mandatory visual elements (both must appear on every slide):
-1. DIAGRAM — include a relevant diagram that best illustrates the slide content. Choose the most appropriate type for the topic: flowchart, mind map, timeline, bar/line chart, pie chart, Venn diagram, network graph, hierarchy tree, comparison table, or process loop. The diagram should be clean, labelled, and positioned to complement the text (e.g. right half or bottom section).
+1. DIAGRAM — include a relevant diagram that best illustrates the slide content. Choose the most appropriate type for the topic: flowchart, mind map, timeline, bar/line chart, pie chart, Venn diagram, network graph, hierarchy tree, comparison table, or process loop. The diagram must be large, clearly labelled, and take up at least half the slide (e.g. the right half, or the full lower two-thirds).
 2. THEMATIC IMAGE — include a small, thematic icon or illustration that visually represents the core concept of the slide (e.g. a brain for AI, gears for processes, a magnifying glass for analysis). Place it in a corner or alongside the title as a visual anchor.`;
   }
 }
