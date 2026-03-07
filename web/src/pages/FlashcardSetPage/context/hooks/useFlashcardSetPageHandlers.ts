@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IFlashcardSetPageHandlers } from '../../types/IFlashcardSetPageContext';
+import { useFullscreen } from '../../../../hooks/useFullscreen';
 
 export const useFlashcardSetPageHandlers = (): IFlashcardSetPageHandlers => {
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+  const { isFullscreen, handleToggleFullscreen } = useFullscreen();
 
   const handleGoBack = () => navigate('/flashcards');
 
@@ -26,5 +28,5 @@ export const useFlashcardSetPageHandlers = (): IFlashcardSetPageHandlers => {
     setCurrentIndex(0);
   };
 
-  return { currentIndex, isFlipped, handleGoBack, handleNext, handlePrev, handleFlip, handleRestart };
+  return { currentIndex, isFlipped, isFullscreen, handleGoBack, handleNext, handlePrev, handleFlip, handleRestart, handleToggleFullscreen };
 };

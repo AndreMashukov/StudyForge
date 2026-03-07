@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ISlideDeckPageHandlers } from '../../types/ISlideDeckPageHandlers';
+import { useFullscreen } from '../../../../hooks/useFullscreen';
 
 export const useSlideDeckPageHandlers = (): ISlideDeckPageHandlers => {
   const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const { isFullscreen, handleToggleFullscreen } = useFullscreen();
 
   const handleNavigateBack = useCallback(() => navigate('/slides'), [navigate]);
 
@@ -24,10 +26,12 @@ export const useSlideDeckPageHandlers = (): ISlideDeckPageHandlers => {
 
   return {
     currentSlide,
+    isFullscreen,
     handleNavigateBack,
     handleSlideChange,
     handlePrevSlide,
     handleNextSlide,
     handleClampSlide,
+    handleToggleFullscreen,
   };
 };

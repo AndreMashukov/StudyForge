@@ -3,17 +3,19 @@ import { useSlideDeckPageContext } from '../context/hooks/useSlideDeckPageContex
 import { Page } from '../../../components/Page';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
-import { ArrowLeft, ChevronLeft, ChevronRight, Presentation } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Presentation, Maximize2, Minimize2 } from 'lucide-react';
 
 export const SlideDeckPageContainer: React.FC = () => {
   const { slideDeckApi, handlers } = useSlideDeckPageContext();
   const { slideDeck, isLoading } = slideDeckApi;
   const {
     currentSlide,
+    isFullscreen,
     handleNavigateBack,
     handleSlideChange,
     handlePrevSlide,
     handleNextSlide,
+    handleToggleFullscreen,
   } = handlers;
 
   const slides = slideDeck?.slides || [];
@@ -48,26 +50,38 @@ export const SlideDeckPageContainer: React.FC = () => {
   return (
     <Page showSidebar={false}>
       <div className="min-h-screen bg-background flex flex-col">
-        <header className="sticky top-0 bg-background border-b px-6 py-3 z-10">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <header className="sticky top-0 bg-background border-b px-4 py-3 z-10">
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
             <button
               onClick={handleNavigateBack}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              aria-label="Back to Slide Decks"
             >
               <ArrowLeft size={20} />
-              Back to Slide Decks
+              <span className="hidden sm:inline text-sm">Back to Slide Decks</span>
             </button>
-            <div className="flex items-center gap-2">
-              <Presentation size={20} />
-              <h1 className="text-lg font-semibold">{slideDeck.title}</h1>
+
+            <div className="flex items-center gap-2 min-w-0">
+              <Presentation size={18} className="shrink-0" />
+              <h1 className="text-sm sm:text-lg font-semibold truncate">{slideDeck.title}</h1>
             </div>
-            <div className="text-sm text-muted-foreground">
-              {slides.length > 0 ? `Slide ${safeIndex + 1} of ${slides.length}` : 'No slides'}
+
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="hidden sm:block text-sm text-muted-foreground">
+                {slides.length > 0 ? `${safeIndex + 1} / ${slides.length}` : 'No slides'}
+              </span>
+              <button
+                onClick={handleToggleFullscreen}
+                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              >
+                {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              </button>
             </div>
           </div>
         </header>
 
-        <div className="flex items-center justify-center px-6 py-4">
+        <div className="flex-1 flex items-center justify-center px-4 py-4">
           <div className="w-full max-w-4xl">
             {slide && (
               <div>
@@ -80,12 +94,12 @@ export const SlideDeckPageContainer: React.FC = () => {
                     />
                   </Card>
                 ) : (
-                  <Card className="flex flex-col justify-center p-8 md:p-12 bg-card border-2 aspect-[16/9]">
-                    <CardContent className="p-0 space-y-6">
-                      <h2 className="text-2xl md:text-4xl font-bold text-primary">
+                  <Card className="flex flex-col justify-center p-6 md:p-12 bg-card border-2 aspect-[16/9]">
+                    <CardContent className="p-0 space-y-4">
+                      <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-primary">
                         {slide.title}
                       </h2>
-                      <div className="text-base md:text-lg text-foreground whitespace-pre-line leading-relaxed">
+                      <div className="text-sm sm:text-base md:text-lg text-foreground whitespace-pre-line leading-relaxed">
                         {slide.content}
                       </div>
                       {slide.speakerNotes && (
@@ -103,36 +117,44 @@ export const SlideDeckPageContainer: React.FC = () => {
           </div>
         </div>
 
-        <div className="border-t px-6 py-4">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <div className="border-t px-4 py-3">
+          <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
             <Button
               variant="outline"
               onClick={handlePrevSlide}
               disabled={currentSlide === 0}
+              className="px-3 sm:px-4"
             >
-              <ChevronLeft size={20} className="mr-1" />
-              Previous
+              <ChevronLeft size={20} />
+              <span className="hidden sm:inline ml-1">Previous</span>
             </Button>
 
-            <div className="flex gap-1.5">
-              {slides.map((_, i) => (
+            <div className="flex gap-1.5 flex-wrap justify-center max-w-xs overflow-hidden">
+              {slides.length <= 30 && slides.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => handleSlideChange(i)}
+                  aria-label={`Go to slide ${i + 1}`}
                   className={`w-2.5 h-2.5 rounded-full transition-colors ${
                     i === currentSlide ? 'bg-primary' : 'bg-muted hover:bg-muted-foreground/30'
                   }`}
                 />
               ))}
+              {slides.length > 30 && (
+                <span className="text-xs text-muted-foreground">
+                  {safeIndex + 1} / {slides.length}
+                </span>
+              )}
             </div>
 
             <Button
               variant="outline"
               onClick={() => handleNextSlide(Math.max(slides.length - 1, 0))}
               disabled={slides.length === 0 || currentSlide >= slides.length - 1}
+              className="px-3 sm:px-4"
             >
-              Next
-              <ChevronRight size={20} className="ml-1" />
+              <span className="hidden sm:inline mr-1">Next</span>
+              <ChevronRight size={20} />
             </Button>
           </div>
         </div>

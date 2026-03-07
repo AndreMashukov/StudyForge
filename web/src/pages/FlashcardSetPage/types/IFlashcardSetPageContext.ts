@@ -9,11 +9,13 @@ export interface IFlashcardSetPageApiState {
 export interface IFlashcardSetPageHandlers {
   currentIndex: number;
   isFlipped: boolean;
+  isFullscreen: boolean;
   handleNext: (totalCards: number) => void;
   handlePrev: () => void;
   handleFlip: () => void;
   handleRestart: () => void;
   handleGoBack: () => void;
+  handleToggleFullscreen: () => void;
 }
 
 export interface IFlashcardSetPageContext {
