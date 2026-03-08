@@ -1,6 +1,17 @@
 export class SlideDeckPromptBuilder {
-  static buildSlideOutlinePrompt(content: string, additionalPrompt?: string): string {
-    const extra = additionalPrompt ? `\n\nAdditional instructions: ${additionalPrompt}` : '';
+  static buildSlideOutlinePrompt(content: string, additionalPrompt?: string, rules?: string): string {
+    const hasRules = !!rules?.trim();
+
+    const slideCountInstruction = hasRules
+      ? `- The number of slides and their structure is determined by the injected rules — follow them exactly.
+- If the rules do not specify the number of slides, aim for 5-8 slides total.`
+      : `- Aim for 5-8 slides total.`;
+
+    const rulesSection = hasRules
+      ? `\nINJECTED RULES (take priority over default instructions):\n---\n${rules}\n---\n`
+      : '';
+
+    const extra = !hasRules && additionalPrompt ? `\n\nAdditional instructions: ${additionalPrompt}` : '';
 
     return `You are an expert presentation designer. Based on the following document content, create a slide deck outline as a JSON array.
 
@@ -12,23 +23,23 @@ Each slide object MUST have exactly these three string fields:
 Rules:
 - First slide should be a title/overview slide.
 - Last slide should be a summary/takeaways slide.
-- Aim for 5-8 slides total.
+${slideCountInstruction}
 - Keep bullet points concise (max 12 words each).
 - ALL three fields ("title", "content", "speakerNotes") must be non-empty strings in every slide object.
-- Return ONLY a valid JSON array, no markdown fences, no extra keys.${extra}
+- Return ONLY a valid JSON array, no markdown fences, no extra keys.${rulesSection}${extra}
 
 Document content:
 ${content}`;
   }
 
-  static buildSlideImagePrompt(slideTitle: string, slideContent: string): string {
-    return `Generate a visually appealing 16:9 landscape presentation slide image with a clean, modern, dark-themed design.
+  static buildSlideImagePrompt(slideTitle: string, slideContent: string, rules?: string): string {
+    const hasRules = !!rules?.trim();
 
-Slide title: "${slideTitle}"
+    const rulesSection = hasRules
+      ? `\nINJECTED RULES (take priority over default layout/visual instructions below):\n---\n${rules}\n---\n`
+      : '';
 
-Content to display on the slide:
-${slideContent}
-
+    const defaultLayout = hasRules ? '' : `
 Layout requirements:
 - 16:9 widescreen landscape orientation (wider than tall)
 - Dark background (deep navy or charcoal)
@@ -42,5 +53,12 @@ Layout requirements:
 Mandatory visual elements (both must appear on every slide):
 1. DIAGRAM — include a relevant diagram that best illustrates the slide content. Choose the most appropriate type for the topic: flowchart, mind map, timeline, bar/line chart, pie chart, Venn diagram, network graph, hierarchy tree, comparison table, or process loop. The diagram must be large, clearly labelled, and take up at least half the slide (e.g. the right half, or the full lower two-thirds).
 2. THEMATIC IMAGE — include a small, thematic icon or illustration that visually represents the core concept of the slide (e.g. a brain for AI, gears for processes, a magnifying glass for analysis). Place it in a corner or alongside the title as a visual anchor.`;
+
+    return `Generate a visually appealing 16:9 landscape presentation slide image with a clean, modern, dark-themed design.
+
+Slide title: "${slideTitle}"
+
+Content to display on the slide:
+${slideContent}${rulesSection}${defaultLayout}`;
   }
 }

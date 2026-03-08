@@ -73,15 +73,15 @@ export const generateSlideDeck = onCall(
         }
 
         // Inject rules if provided
-        let enhancedPrompt = additionalPrompt || '';
+        let injectedRules: string | undefined;
         if (ruleIds?.length) {
           logger.info('[generateSlideDeck] STEP 2.5: Injecting rules.', { ruleCount: ruleIds.length });
-          enhancedPrompt = await promptBuilder.injectRules(enhancedPrompt, ruleIds, userId);
+          injectedRules = await promptBuilder.injectRules(additionalPrompt || '', ruleIds, userId);
         }
 
         // Step 3: Generate slide outline
         logger.info('[generateSlideDeck] STEP 3: Generating slide outline.', { userIdHash: u });
-        const slideOutline = await GeminiService.generateSlideDeckOutline(document.content, enhancedPrompt);
+        const slideOutline = await GeminiService.generateSlideDeckOutline(document.content, additionalPrompt || undefined, injectedRules);
         logger.info(`[generateSlideDeck] STEP 4: Outline generated. Slides: ${slideOutline.length}`, { userIdHash: u });
 
         // Step 5: Generate images with bounded concurrency (3 at a time)
@@ -101,7 +101,7 @@ export const generateSlideDeck = onCall(
 
           await Promise.all(chunk.map(async (slide, ci) => {
             const i = batch + ci;
-            const imageBase64 = await GeminiService.generateSlideImage(slide.title, slide.content);
+            const imageBase64 = await GeminiService.generateSlideImage(slide.title, slide.content, injectedRules);
             if (imageBase64) {
               const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.png`;
               const downloadToken = randomUUID();

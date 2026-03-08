@@ -747,7 +747,8 @@ export class GeminiService {
    */
   public static async generateSlideDeckOutline(
     content: string,
-    additionalPrompt?: string
+    additionalPrompt?: string,
+    rules?: string
   ): Promise<Array<{ title: string; content: string; speakerNotes?: string }>> {
     try {
       functions.logger.info('Generating slide deck outline with Gemini AI...');
@@ -758,7 +759,7 @@ export class GeminiService {
         generationConfig: { temperature: 0.7, topK: 40, topP: 0.95 },
       });
 
-      const prompt = SlideDeckPromptBuilder.buildSlideOutlinePrompt(content, additionalPrompt);
+      const prompt = SlideDeckPromptBuilder.buildSlideOutlinePrompt(content, additionalPrompt, rules);
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
@@ -830,14 +831,15 @@ export class GeminiService {
    */
   public static async generateSlideImage(
     slideTitle: string,
-    slideContent: string
+    slideContent: string,
+    rules?: string
   ): Promise<string | null> {
     try {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error('GEMINI_API_KEY not set');
 
       const client = new GoogleGenAI({ apiKey });
-      const prompt = SlideDeckPromptBuilder.buildSlideImagePrompt(slideTitle, slideContent);
+      const prompt = SlideDeckPromptBuilder.buildSlideImagePrompt(slideTitle, slideContent, rules);
 
       const response = await client.models.generateContent({
         model: 'gemini-3.1-flash-image-preview',
