@@ -21,6 +21,7 @@ const createCreateSlideDeckPageSchema = () => z.object({
       "Additional prompt cannot be only whitespace"
     )
     .optional(),
+  ruleIds: z.array(z.string()).optional(),
 });
 
 export const useCreateSlideDeckPageSchema = () => {
