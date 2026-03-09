@@ -11,10 +11,7 @@ export const quizFollowupApi = baseApi.injectEndpoints({
         functionName: 'generateQuizFollowup',
         data,
       }),
-      invalidatesTags: (result, error, arg) => [
-        { type: 'Document', id: 'LIST' },
-        'Document',
-      ],
+      invalidatesTags: [],
     }),
   }),
 });

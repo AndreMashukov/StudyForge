@@ -9,9 +9,6 @@ import {
   GenerateFollowupRequest, 
   GenerateFollowupResponse,
   QuizFollowupContext,
-  CreateDocumentRequest,
-  DocumentSourceType,
-  DocumentStatus,
 } from "@shared-types";
 
 // Define secrets
@@ -81,31 +78,14 @@ export const generateQuizFollowup = onCall(
       // Generate followup content with Gemini
       const followupContent = await GeminiService.generateQuizFollowup(followupContext);
 
-      // Create followup document
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const followupTitle = `${originalDocument.title}-quiz-followup-${timestamp}`;
-
-      const createRequest: CreateDocumentRequest = {
-        title: followupTitle,
-        description: `Comprehensive followup explanation for quiz question from "${originalDocument.title}"`,
-        content: followupContent,
-        sourceType: DocumentSourceType.GENERATED,
-        status: DocumentStatus.ACTIVE,
-        tags: ['quiz-followup', 'explanation', 'generated'],
-      };
-
-      const followupDocument = await DocumentCrudService.createDocument(userId, createRequest);
-
-      logger.info('Quiz followup document created successfully', { 
-        followupDocId: followupDocument.id,
+      logger.info('Quiz followup explanation generated successfully', {
         originalDocId: data.documentId,
+        contentLength: followupContent.length,
       });
 
       return { 
         success: true, 
         data: {
-          documentId: followupDocument.id,
-          title: followupDocument.title,
           content: followupContent,
         } as GenerateFollowupResponse,
       };

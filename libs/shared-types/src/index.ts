@@ -502,8 +502,6 @@ export interface GenerateFollowupRequest {
 }
 
 export interface GenerateFollowupResponse {
-  documentId: string;
-  title: string;
   content: string;
 }
 
