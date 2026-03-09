@@ -104,9 +104,9 @@
   
   /* Linear-style glass effect */
   .linear-glass {
-    background: rgba(16, 16, 16, 0.8);
+    background: rgb(var(--background) / 0.85);
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid rgb(var(--border) / 0.3);
   }
   
   /* Advanced utility classes */
