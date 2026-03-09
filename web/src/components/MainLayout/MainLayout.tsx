@@ -10,6 +10,7 @@ import { ThemeToggle } from '../ThemeToggle';
 import { IMainLayout } from './IMainLayout';
 import { selectSidebarIsOpen, toggleSidebar } from '../../store/slices/uiSlice';
 import { Menu } from 'lucide-react';
+import { useAppFullscreen } from '../../contexts/FullscreenContext';
 
 export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -17,7 +18,8 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const sidebarIsOpen = useSelector(selectSidebarIsOpen);
-  
+  const { isAppFullscreen } = useAppFullscreen();
+
   // Calculate header margin and width based on sidebar state
   const sidebarWidth = sidebarIsOpen ? 200 : 64;
   const [isMobile, setIsMobile] = React.useState(false);
@@ -26,10 +28,10 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -55,12 +57,13 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header 
+      {/* Header — hidden during app fullscreen */}
+      <header
         className="linear-glass border-b border-border/30 fixed top-0 z-[1100] transition-all duration-300"
         style={{
           marginLeft: isMobile ? '0px' : `${sidebarWidth}px`,
           width: isMobile ? '100%' : `calc(100% - ${sidebarWidth}px)`,
+          display: isAppFullscreen ? 'none' : undefined,
         }}
       >
         <div className="px-6">
@@ -78,7 +81,10 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
             )}
 
             {/* Logo */}
-            <Link to="/" className="flex items-center space-x-3 hover:opacity-80 linear-transition">
+            <Link
+              to="/"
+              className="flex items-center space-x-3 hover:opacity-80 linear-transition"
+            >
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <Icon size={16} className="text-primary-foreground">
                   <path
@@ -96,14 +102,14 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 className="text-sm text-muted-foreground hover:text-foreground linear-transition"
               >
                 Dashboard
               </Link>
-              <Link 
-                to="/profile" 
+              <Link
+                to="/profile"
                 className="text-sm text-muted-foreground hover:text-foreground linear-transition"
               >
                 Profile
@@ -115,9 +121,11 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
               <div className="flex items-center space-x-4">
                 {/* Theme Toggle */}
                 <ThemeToggle />
-                
+
                 <div className="hidden sm:block text-right">
-                  <p className="text-sm font-medium text-foreground">Welcome back</p>
+                  <p className="text-sm font-medium text-foreground">
+                    Welcome back
+                  </p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
                 </div>
                 <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center border border-primary/20">
@@ -138,9 +146,9 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
               <div className="flex items-center space-x-3">
                 {/* Theme Toggle for non-authenticated users */}
                 <ThemeToggle />
-                
-                <Link 
-                  to="/auth" 
+
+                <Link
+                  to="/auth"
                   className="text-sm text-muted-foreground hover:text-foreground linear-transition"
                 >
                   Sign in
@@ -154,10 +162,9 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
       {/* Main Content with Toolbar spacer */}
       <main className="flex-1">
         {/* Toolbar spacer to prevent content hiding under fixed header */}
-        <div className="h-16" />
+        {!isAppFullscreen && <div className="h-16" />}
         {children}
       </main>
-
     </div>
   );
 };

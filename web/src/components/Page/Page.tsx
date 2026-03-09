@@ -4,39 +4,38 @@ import { cn } from '../../lib/utils';
 import { IPage } from './IPage';
 import { Sidebar } from '../Sidebar';
 import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
+import { useAppFullscreen } from '../../contexts/FullscreenContext';
 
-export const Page = ({ 
-  children, 
-  className, 
-  showSidebar = true
-}: IPage) => {
+export const Page = ({ children, className, showSidebar = true }: IPage) => {
   const sidebarIsOpen = useSelector(selectSidebarIsOpen);
+  const { isAppFullscreen } = useAppFullscreen();
   const [isMobile, setIsMobile] = React.useState(false);
-  
+
   React.useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-  
-  // Calculate left margin based on sidebar state (only on desktop)
+
+  // In app fullscreen mode, sidebar is hidden and no margin is applied
   const sidebarWidth = sidebarIsOpen ? 200 : 64;
-  const leftMargin = !isMobile && showSidebar ? sidebarWidth : 0;
+  const leftMargin =
+    !isMobile && showSidebar && !isAppFullscreen ? sidebarWidth : 0;
 
   return (
     <>
-      {/* Render Sidebar if needed */}
-      {showSidebar && <Sidebar />}
+      {/* Render Sidebar only when not in fullscreen */}
+      {showSidebar && !isAppFullscreen && <Sidebar />}
 
       {/* Main Content Area - adjusted for fixed sidebar */}
-      <div 
+      <div
         className={cn(
-          "flex flex-col min-h-screen transition-all duration-300",
+          'flex flex-col min-h-screen transition-all duration-300',
           className
         )}
         style={{
@@ -44,11 +43,13 @@ export const Page = ({
         }}
       >
         {/* Main Content */}
-        <main className={cn(
-          "flex-1 overflow-y-auto",
-          "p-0 md:p-6",
-          "scrollbar-thin scrollbar-track-muted scrollbar-thumb-muted-foreground"
-        )}>
+        <main
+          className={cn(
+            'flex-1 overflow-y-auto',
+            'p-0 md:p-6',
+            'scrollbar-thin scrollbar-track-muted scrollbar-thumb-muted-foreground'
+          )}
+        >
           {children}
         </main>
       </div>

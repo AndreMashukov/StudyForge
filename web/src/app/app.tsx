@@ -3,6 +3,7 @@ import { Provider } from 'react-redux';
 import { store } from '../store';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
+import { FullscreenProvider } from '../contexts/FullscreenContext';
 import { ToastProvider, ToastContainer } from '../components/Toast';
 import { MainLayout } from '../components/MainLayout';
 import { ProtectedRoute } from '../utils/ProtectedRoute';
@@ -30,10 +31,12 @@ export function App() {
     <Provider store={store}>
       <ThemeProvider>
         <AuthProvider>
-          <ToastProvider>
-            <AppContent />
-            <ToastContainer />
-          </ToastProvider>
+          <FullscreenProvider>
+            <ToastProvider>
+              <AppContent />
+              <ToastContainer />
+            </ToastProvider>
+          </FullscreenProvider>
         </AuthProvider>
       </ThemeProvider>
     </Provider>
@@ -46,19 +49,19 @@ const AppContent = () => {
 
   if (loading) {
     return (
-      <div 
+      <div
         className="min-h-screen flex items-center justify-center"
         style={{ backgroundColor: currentTheme.colors.background }}
       >
         <div className="text-center">
-          <div 
+          <div
             className="animate-spin rounded-full h-12 w-12 border-4 mx-auto"
-            style={{ 
+            style={{
               borderColor: currentTheme.colors.muted,
               borderTopColor: currentTheme.colors.primary,
             }}
           ></div>
-          <p 
+          <p
             className="mt-4 font-medium"
             style={{ color: currentTheme.colors.mutedForeground }}
           >
@@ -73,158 +76,158 @@ const AppContent = () => {
     <Routes>
       {/* Auth route - accessible when not authenticated */}
       <Route path="/auth" element={<AuthPage />} />
-      
+
       {/* Protected routes - wrapped in MainLayout */}
-      <Route 
-        path="/" 
+      <Route
+        path="/"
         element={
           <MainLayout>
             <ProtectedRoute>
               <HomePage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
-      <Route 
-        path="/quiz/create" 
+      <Route
+        path="/quiz/create"
         element={
           <MainLayout>
             <ProtectedRoute>
               <CreateQuizPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
-      <Route 
-        path="/quiz/:quizId" 
+      <Route
+        path="/quiz/:quizId"
         element={
           <MainLayout>
             <ProtectedRoute>
               <QuizPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
-      <Route 
-        path="/profile" 
+      <Route
+        path="/profile"
         element={
           <MainLayout>
             <ProtectedRoute>
               <ProfilePage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
 
       {/* Document Management Routes */}
-      <Route 
-        path="/documents" 
+      <Route
+        path="/documents"
         element={
           <MainLayout>
             <ProtectedRoute>
               <DocumentsPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
-      <Route 
-        path="/documents/create" 
+      <Route
+        path="/documents/create"
         element={
           <MainLayout>
             <ProtectedRoute>
               <CreateDocumentPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
-      <Route 
-        path="/document/:documentId" 
+      <Route
+        path="/document/:documentId"
         element={
           <MainLayout>
             <ProtectedRoute>
               <DocumentViewerPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
 
       {/* Flashcard Management Routes */}
-      <Route 
-        path="/flashcards/create" 
+      <Route
+        path="/flashcards/create"
         element={
           <MainLayout>
             <ProtectedRoute>
               <CreateFlashcardPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
-      <Route 
-        path="/flashcards" 
+      <Route
+        path="/flashcards"
         element={
           <MainLayout>
             <ProtectedRoute>
               <FlashcardsPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
-      <Route 
-        path="/flashcards/:flashcardSetId" 
+      <Route
+        path="/flashcards/:flashcardSetId"
         element={
           <MainLayout>
             <ProtectedRoute>
               <FlashcardSetPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
 
       {/* Slide Deck Management Routes */}
-      <Route 
-        path="/slides/create" 
+      <Route
+        path="/slides/create"
         element={
           <MainLayout>
             <ProtectedRoute>
               <CreateSlideDeckPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
-      <Route 
-        path="/slides" 
+      <Route
+        path="/slides"
         element={
           <MainLayout>
             <ProtectedRoute>
               <SlideDecksPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
-      <Route 
-        path="/slides/:slideDeckId" 
+      <Route
+        path="/slides/:slideDeckId"
         element={
           <MainLayout>
             <ProtectedRoute>
               <SlideDeckPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
 
       {/* Quiz Management Routes */}
-      <Route 
-        path="/quizzes" 
+      <Route
+        path="/quizzes"
         element={
           <MainLayout>
             <ProtectedRoute>
               <MyQuizzesPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
-      <Route 
-        path="/quizzes/results" 
+      <Route
+        path="/quizzes/results"
         element={
           <MainLayout>
             <ProtectedRoute>
@@ -237,35 +240,35 @@ const AppContent = () => {
               </Page>
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
 
       {/* Rules Management Route */}
-      <Route 
-        path="/rules" 
+      <Route
+        path="/rules"
         element={
           <MainLayout>
             <ProtectedRoute>
               <RulesPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
-      
+
       {/* Directory Rules Management Route */}
-      <Route 
-        path="/directories/:directoryId/rules" 
+      <Route
+        path="/directories/:directoryId/rules"
         element={
           <MainLayout>
             <ProtectedRoute>
               <DirectoryRulesPage />
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
-      
-      <Route 
-        path="/settings" 
+
+      <Route
+        path="/settings"
         element={
           <MainLayout>
             <ProtectedRoute>
@@ -278,7 +281,7 @@ const AppContent = () => {
               </Page>
             </ProtectedRoute>
           </MainLayout>
-        } 
+        }
       />
     </Routes>
   );

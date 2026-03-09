@@ -1,28 +1,25 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
+import { useAppFullscreen } from '../contexts/FullscreenContext';
 
 export const useFullscreen = () => {
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const { isAppFullscreen, toggleFullscreen, exitFullscreen } =
+    useAppFullscreen();
 
+  // Allow Escape key to exit fullscreen
   useEffect(() => {
-    const handleChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+    if (!isAppFullscreen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        exitFullscreen();
+      }
     };
-
-    document.addEventListener('fullscreenchange', handleChange);
-    return () => document.removeEventListener('fullscreenchange', handleChange);
-  }, []);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isAppFullscreen, exitFullscreen]);
 
   const handleToggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch((err: Error) => {
-        console.debug('Fullscreen request failed:', err.message);
-      });
-    } else {
-      document.exitFullscreen().catch((err: Error) => {
-        console.debug('Exit fullscreen failed:', err.message);
-      });
-    }
-  }, []);
+    toggleFullscreen();
+  }, [toggleFullscreen]);
 
-  return { isFullscreen, handleToggleFullscreen };
+  return { isFullscreen: isAppFullscreen, handleToggleFullscreen };
 };

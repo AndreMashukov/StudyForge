@@ -3,7 +3,14 @@ import { useSlideDeckPageContext } from '../context/hooks/useSlideDeckPageContex
 import { Page } from '../../../components/Page';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
-import { ArrowLeft, ChevronLeft, ChevronRight, Presentation, Maximize2, Minimize2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Presentation,
+  Maximize2,
+  Minimize2,
+} from 'lucide-react';
 
 export const SlideDeckPageContainer: React.FC = () => {
   const { slideDeckApi, handlers } = useSlideDeckPageContext();
@@ -19,7 +26,8 @@ export const SlideDeckPageContainer: React.FC = () => {
   } = handlers;
 
   const slides = slideDeck?.slides || [];
-  const safeIndex = slides.length > 0 ? Math.min(currentSlide, slides.length - 1) : 0;
+  const safeIndex =
+    slides.length > 0 ? Math.min(currentSlide, slides.length - 1) : 0;
   const slide = slides.length > 0 ? slides[safeIndex] : undefined;
 
   if (isLoading) {
@@ -38,11 +46,142 @@ export const SlideDeckPageContainer: React.FC = () => {
         <Card className="m-4 border-destructive">
           <CardContent className="p-6">
             <p className="text-destructive">Slide deck not found.</p>
-            <Button variant="outline" className="mt-4" onClick={handleNavigateBack}>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={handleNavigateBack}
+            >
               Back to Slide Decks
             </Button>
           </CardContent>
         </Card>
+      </Page>
+    );
+  }
+
+  // Shared slide content — used in both normal and fullscreen mode
+  const slideContent = slide && (
+    <div className="w-full max-w-4xl">
+      {slide.imageUrl ? (
+        <Card className="overflow-hidden border-2">
+          <img
+            src={slide.imageUrl}
+            alt={`Slide: ${slide.title}`}
+            className="w-full aspect-[16/9] object-contain bg-black"
+          />
+        </Card>
+      ) : (
+        <Card className="flex flex-col justify-center p-6 md:p-12 bg-card border-2 aspect-[16/9]">
+          <CardContent className="p-0 space-y-4">
+            <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-primary">
+              {slide.title}
+            </h2>
+            <div className="text-sm sm:text-base md:text-lg text-foreground whitespace-pre-line leading-relaxed">
+              {slide.content}
+            </div>
+            {slide.speakerNotes && (
+              <div className="mt-auto pt-4 border-t border-border">
+                <p className="text-xs text-muted-foreground italic">
+                  Speaker notes: {slide.speakerNotes}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+
+  // Shared navigation dots / counter
+  const navDots = (
+    <div className="flex gap-1.5 flex-wrap justify-center max-w-xs overflow-hidden">
+      {slides.length <= 30 &&
+        slides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => handleSlideChange(i)}
+            aria-label={`Go to slide ${i + 1}`}
+            className={`w-2.5 h-2.5 rounded-full transition-colors ${
+              i === currentSlide
+                ? 'bg-primary'
+                : 'bg-muted hover:bg-muted-foreground/30'
+            }`}
+          />
+        ))}
+      {slides.length > 30 && (
+        <span className="text-xs text-muted-foreground">
+          {safeIndex + 1} / {slides.length}
+        </span>
+      )}
+    </div>
+  );
+
+  // Fullscreen mode — covers the entire viewport
+  if (isFullscreen) {
+    return (
+      <Page showSidebar={false}>
+        <div className="fixed inset-0 z-[2000] bg-background flex flex-col">
+          {/* Fullscreen header */}
+          <header className="bg-background border-b px-4 py-3 shrink-0">
+            <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Presentation size={18} className="shrink-0" />
+                <h1 className="text-sm sm:text-lg font-semibold truncate">
+                  {slideDeck.title}
+                </h1>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-sm text-muted-foreground">
+                  {slides.length > 0
+                    ? `${safeIndex + 1} / ${slides.length}`
+                    : 'No slides'}
+                </span>
+                <button
+                  onClick={handleToggleFullscreen}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  aria-label="Exit fullscreen"
+                >
+                  <Minimize2 size={18} />
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* Slide area */}
+          <div className="flex-1 flex items-center justify-center px-4 py-4 overflow-hidden">
+            {slideContent}
+          </div>
+
+          {/* Navigation */}
+          <div className="border-t px-4 py-3 shrink-0">
+            <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
+              <Button
+                variant="outline"
+                onClick={handlePrevSlide}
+                disabled={currentSlide === 0}
+                className="px-3 sm:px-4"
+              >
+                <ChevronLeft size={20} />
+                <span className="hidden sm:inline ml-1">Previous</span>
+              </Button>
+
+              {navDots}
+
+              <Button
+                variant="outline"
+                onClick={() => handleNextSlide(Math.max(slides.length - 1, 0))}
+                disabled={
+                  slides.length === 0 || currentSlide >= slides.length - 1
+                }
+                className="px-3 sm:px-4"
+              >
+                <span className="hidden sm:inline mr-1">Next</span>
+                <ChevronRight size={20} />
+              </Button>
+            </div>
+          </div>
+        </div>
       </Page>
     );
   }
@@ -58,63 +197,43 @@ export const SlideDeckPageContainer: React.FC = () => {
               aria-label="Back to Slide Decks"
             >
               <ArrowLeft size={20} />
-              <span className="hidden sm:inline text-sm">Back to Slide Decks</span>
+              <span className="hidden sm:inline text-sm">
+                Back to Slide Decks
+              </span>
             </button>
 
             <div className="flex items-center gap-2 min-w-0">
               <Presentation size={18} className="shrink-0" />
-              <h1 className="text-sm sm:text-lg font-semibold truncate">{slideDeck.title}</h1>
+              <h1 className="text-sm sm:text-lg font-semibold truncate">
+                {slideDeck.title}
+              </h1>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
               <span className="hidden sm:block text-sm text-muted-foreground">
-                {slides.length > 0 ? `${safeIndex + 1} / ${slides.length}` : 'No slides'}
+                {slides.length > 0
+                  ? `${safeIndex + 1} / ${slides.length}`
+                  : 'No slides'}
               </span>
               <button
                 onClick={handleToggleFullscreen}
                 className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                aria-label={
+                  isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
+                }
               >
-                {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                {isFullscreen ? (
+                  <Minimize2 size={18} />
+                ) : (
+                  <Maximize2 size={18} />
+                )}
               </button>
             </div>
           </div>
         </header>
 
         <div className="flex-1 flex items-center justify-center px-4 py-4">
-          <div className="w-full max-w-4xl">
-            {slide && (
-              <div>
-                {slide.imageUrl ? (
-                  <Card className="overflow-hidden border-2">
-                    <img
-                      src={slide.imageUrl}
-                      alt={`Slide: ${slide.title}`}
-                      className="w-full aspect-[16/9] object-contain bg-black"
-                    />
-                  </Card>
-                ) : (
-                  <Card className="flex flex-col justify-center p-6 md:p-12 bg-card border-2 aspect-[16/9]">
-                    <CardContent className="p-0 space-y-4">
-                      <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-primary">
-                        {slide.title}
-                      </h2>
-                      <div className="text-sm sm:text-base md:text-lg text-foreground whitespace-pre-line leading-relaxed">
-                        {slide.content}
-                      </div>
-                      {slide.speakerNotes && (
-                        <div className="mt-auto pt-4 border-t border-border">
-                          <p className="text-xs text-muted-foreground italic">
-                            Speaker notes: {slide.speakerNotes}
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-          </div>
+          {slideContent}
         </div>
 
         <div className="border-t px-4 py-3">
@@ -129,28 +248,14 @@ export const SlideDeckPageContainer: React.FC = () => {
               <span className="hidden sm:inline ml-1">Previous</span>
             </Button>
 
-            <div className="flex gap-1.5 flex-wrap justify-center max-w-xs overflow-hidden">
-              {slides.length <= 30 && slides.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSlideChange(i)}
-                  aria-label={`Go to slide ${i + 1}`}
-                  className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                    i === currentSlide ? 'bg-primary' : 'bg-muted hover:bg-muted-foreground/30'
-                  }`}
-                />
-              ))}
-              {slides.length > 30 && (
-                <span className="text-xs text-muted-foreground">
-                  {safeIndex + 1} / {slides.length}
-                </span>
-              )}
-            </div>
+            {navDots}
 
             <Button
               variant="outline"
               onClick={() => handleNextSlide(Math.max(slides.length - 1, 0))}
-              disabled={slides.length === 0 || currentSlide >= slides.length - 1}
+              disabled={
+                slides.length === 0 || currentSlide >= slides.length - 1
+              }
               className="px-3 sm:px-4"
             >
               <span className="hidden sm:inline mr-1">Next</span>
