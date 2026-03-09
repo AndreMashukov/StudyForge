@@ -9,6 +9,7 @@ export interface IFlashcardsPageApiState {
 
 export interface IFlashcardsPageHandlers {
   handleViewFlashcardSet: (id: string) => void;
+  handleDeleteFlashcardSet: (id: string) => Promise<void>;
 }
 
 export interface IFlashcardsPageContext {
