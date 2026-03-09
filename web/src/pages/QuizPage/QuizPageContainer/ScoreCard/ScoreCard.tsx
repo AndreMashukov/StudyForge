@@ -88,15 +88,15 @@ export const ScoreCard: React.FC<IScoreCard> = ({
               className={cn(
                 'p-4 rounded-xl border',
                 answer.isCorrect 
-                  ? 'bg-green-900/20 border-green-800' 
-                  : 'bg-red-900/20 border-red-800'
+                  ? 'bg-green-100 dark:bg-green-900/20 border-green-600 dark:border-green-800' 
+                  : 'bg-red-100 dark:bg-red-900/20 border-red-600 dark:border-red-800'
               )}
             >
               <div className="flex items-center gap-3">
                 {answer.isCorrect ? (
-                  <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
+                  <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
                 ) : (
-                  <X className="w-5 h-5 text-red-400 flex-shrink-0" />
+                  <X className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
                 )}
                 <span className="text-sm text-foreground">
                   Question {index + 1}: {answer.isCorrect ? 'Correct' : 'Incorrect'}
