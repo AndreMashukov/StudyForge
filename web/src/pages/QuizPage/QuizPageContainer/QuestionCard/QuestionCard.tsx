@@ -3,6 +3,7 @@ import { Check, X } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
+import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 import { IQuestionCard } from './IQuestionCard';
 
 export const QuestionCard: React.FC<IQuestionCard> = ({
@@ -16,6 +17,7 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
   onGenerateFollowup,
   isGeneratingFollowup = false,
   isFollowupGenerated = false,
+  followupContent,
 }) => {
   const getOptionButtonClass = (optionIndex: number) => {
     const baseClass = "w-full text-left p-4 rounded-xl border transition-all duration-200 hover:scale-[1.01] transform ";
@@ -106,14 +108,28 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
                 {isGeneratingFollowup ? (
                   <>
                     <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2"></div>
-                    Generating Followup...
+                    Generating Detailed Explanation...
                   </>
                 ) : isFollowupGenerated ? (
-                  'Followup Generated'
+                  'Detailed Explanation Generated'
                 ) : (
                   'Generate Detailed Explanation'
                 )}
               </Button>
+            )}
+
+            {/* Inline followup explanation */}
+            {followupContent && (
+              <Card className="mt-4 bg-primary/5 border-primary/20">
+                <CardContent className="p-5">
+                  <h3 className="text-sm font-semibold text-primary mb-3">
+                    Detailed Explanation
+                  </h3>
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <MarkdownRenderer content={followupContent} />
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         )}

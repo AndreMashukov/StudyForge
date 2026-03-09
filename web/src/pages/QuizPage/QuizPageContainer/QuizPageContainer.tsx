@@ -14,6 +14,7 @@ import {
   selectError,
   selectIsGeneratingFollowup,
   selectFollowupGenerated,
+  selectFollowupContent,
   selectFollowupError,
 } from '../../../store/slices/quizPageSlice';
 
@@ -28,6 +29,7 @@ export const QuizPageContainer: React.FC = () => {
   const error = useSelector(selectError);
   const isGeneratingFollowup = useSelector(selectIsGeneratingFollowup);
   const followupGenerated = useSelector(selectFollowupGenerated);
+  const followupContent = useSelector(selectFollowupContent);
   const followupError = useSelector(selectFollowupError);
   
   // Only get handlers and API from context
@@ -134,6 +136,7 @@ export const QuizPageContainer: React.FC = () => {
         onGenerateFollowup={handleGenerateFollowup}
         isGeneratingFollowup={isGeneratingFollowup}
         isFollowupGenerated={isCurrentFollowupGenerated}
+        followupContent={followupContent[quizState.currentQuestionIndex]}
         isLastQuestion={isLastQuestion}
       />
 

@@ -24,7 +24,8 @@ interface QuizPageState {
   formErrors: Record<string, string>;
   
   // Followup state
-  followupGenerated: Record<number, boolean>; // Track which questions have followup generated
+  followupGenerated: Record<number, boolean>;
+  followupContent: Record<number, string>;
   isGeneratingFollowup: boolean;
   followupError: string | null;
 }
@@ -52,6 +53,7 @@ const initialState: QuizPageState = {
   
   // Followup state
   followupGenerated: {},
+  followupContent: {},
   isGeneratingFollowup: false,
   followupError: null,
 };
@@ -185,8 +187,9 @@ const quizPageSlice = createSlice({
       state.followupError = null;
     },
     
-    setFollowupGenerated: (state, action: PayloadAction<{ questionIndex: number }>) => {
+    setFollowupGenerated: (state, action: PayloadAction<{ questionIndex: number; content: string }>) => {
       state.followupGenerated[action.payload.questionIndex] = true;
+      state.followupContent[action.payload.questionIndex] = action.payload.content;
       state.isGeneratingFollowup = false;
     },
     
@@ -258,6 +261,7 @@ export const selectFormState = (state: { quizPage: QuizPageState }) => ({
 // Followup selectors
 export const selectIsGeneratingFollowup = (state: { quizPage: QuizPageState }) => state.quizPage.isGeneratingFollowup;
 export const selectFollowupGenerated = (state: { quizPage: QuizPageState }) => state.quizPage.followupGenerated;
+export const selectFollowupContent = (state: { quizPage: QuizPageState }) => state.quizPage.followupContent;
 export const selectFollowupError = (state: { quizPage: QuizPageState }) => state.quizPage.followupError;
 
 export default quizPageSlice.reducer;

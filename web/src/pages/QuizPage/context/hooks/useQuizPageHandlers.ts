@@ -82,9 +82,10 @@ export const useQuizPageHandlers = () => {
 
       const result = await generateFollowup(requestData).unwrap();
       
-      if (result.success) {
+      if (result.success && result.data?.content) {
         dispatch(setFollowupGenerated({ 
-          questionIndex: quizState.currentQuestionIndex 
+          questionIndex: quizState.currentQuestionIndex,
+          content: result.data.content,
         }));
       } else {
         dispatch(setFollowupError('Failed to generate followup explanation'));

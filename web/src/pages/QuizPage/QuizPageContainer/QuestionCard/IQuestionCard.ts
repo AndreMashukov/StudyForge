@@ -11,4 +11,5 @@ export interface IQuestionCard {
   onGenerateFollowup?: () => void;
   isGeneratingFollowup?: boolean;
   isFollowupGenerated?: boolean;
+  followupContent?: string;
 }
