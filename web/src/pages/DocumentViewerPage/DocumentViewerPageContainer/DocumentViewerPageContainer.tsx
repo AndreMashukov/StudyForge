@@ -7,7 +7,7 @@ import { MarkdownRenderer, TocItem } from '../../../components/MarkdownRenderer'
 import { Button } from '../../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { BreadcrumbNav } from '../../../components/BreadcrumbNav';
-import { Brain, ArrowLeft, Download, List, X, Calendar, Layers, Presentation } from 'lucide-react';
+import { Brain, ArrowLeft, Download, FileDown, List, X, Calendar, Layers, Presentation } from 'lucide-react';
 import { useDocumentViewerPageContext } from '../context';
 import { 
   selectTocItems, 
@@ -178,17 +178,32 @@ export const DocumentViewerPageContainer = () => {
                 </Button>
               )}
               
-              {/* Export PDF */}
+              {/* Export dropdown */}
               {contentApi.data?.content && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlers.handleExportPDF}
-                  disabled={isExporting}
-                >
-                  <Download size={16} className="mr-2" />
-                  {isExporting ? 'Exporting...' : 'Export PDF'}
-                </Button>
+                <ActionsDropdown
+                  align="end"
+                  trigger={
+                    <Button variant="outline" size="sm">
+                      <FileDown size={16} className="mr-2" />
+                      Export
+                    </Button>
+                  }
+                  items={[
+                    {
+                      id: 'download-md',
+                      label: 'Download MD',
+                      icon: <FileDown size={14} />,
+                      onClick: handlers.handleDownloadMd,
+                    },
+                    {
+                      id: 'export-pdf',
+                      label: isExporting ? 'Exporting...' : 'Export PDF',
+                      icon: <Download size={14} />,
+                      onClick: handlers.handleExportPDF,
+                      disabled: isExporting,
+                    },
+                  ]}
+                />
               )}
               
               {/* Actions Dropdown */}

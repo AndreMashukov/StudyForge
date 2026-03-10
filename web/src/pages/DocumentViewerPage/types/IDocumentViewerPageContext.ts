@@ -18,6 +18,7 @@ export interface IDocumentViewerPageContext {
     handleCreateQuizFromDocument: (docId: string) => void;
     handleTocGenerated: (toc: TocItem[]) => void;
     handleExportPDF: () => Promise<void>;
+    handleDownloadMd: () => void;
     handleToggleToc: () => void;
     handleTocItemClick: (id: string) => void;
     isExporting: boolean;

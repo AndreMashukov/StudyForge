@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { TocItem, exportToPDF } from '../../../../components/MarkdownRenderer';
+import { downloadMarkdownFile } from '../../../../utils/downloadUtils';
 import { DocumentEnhanced } from "@shared-types";
 import { 
   setTocItems, 
@@ -14,11 +15,13 @@ import {
 interface UseDocumentViewerPageHandlersProps {
   document: DocumentEnhanced | undefined;
   contentRef: React.RefObject<HTMLDivElement | null>;
+  content?: string;
 }
 
 export const useDocumentViewerPageHandlers = ({ 
   document, 
-  contentRef 
+  contentRef,
+  content,
 }: UseDocumentViewerPageHandlersProps) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -84,10 +87,16 @@ export const useDocumentViewerPageHandlers = ({
     }
   }, []);
 
+  const handleDownloadMd = useCallback(() => {
+    if (!content || !document) return;
+    downloadMarkdownFile(content, document.title);
+  }, [content, document]);
+
   return {
     handleCreateQuizFromDocument,
     handleTocGenerated,
     handleExportPDF,
+    handleDownloadMd,
     handleToggleToc,
     handleTocItemClick,
     isExporting,

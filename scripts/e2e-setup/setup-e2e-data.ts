@@ -5,8 +5,10 @@
  * Steps performed:
  *   1. Create / update Auth user with a fixed UID in the Auth emulator
  *   2. Ensure Firestore user document exists
- *   3. Inject a root-level "Machine Learning" document into Firestore
- *   4. Upload the document content file to the Storage emulator
+ *   3. Create "Study Materials" directory in Firestore
+ *   4. Create a general prompt rule and attach it to the directory
+ *   5. Inject a "Machine Learning" document into the directory in Firestore
+ *   6. Upload the document content file to the Storage emulator
  *
  * Usage:
  *   npx tsx scripts/e2e-setup/setup-e2e-data.ts
@@ -32,6 +34,12 @@ const TARGET_UID = '4ZBsEPIUJ4jrlylcXkg7t3sFdPZv';
 const TEST_EMAIL = 'test@example.com';
 const TEST_PASSWORD = 'Test123456!';
 const DOC_ID = 'perfect-doc-ml';
+const DIR_ID = 'e2e-study-materials';
+const RULE_ID = 'e2e-prompt-rule';
+
+const RULE_CONTENT = `Focus on key concepts and use clear, concise language in all responses.
+When summarising or generating content from this material, highlight the most important ideas first.
+Avoid unnecessary jargon and always explain technical terms when they first appear.`;
 
 const DOCUMENT_CONTENT = `# Machine Learning
 
@@ -132,17 +140,53 @@ async function main() {
   );
   console.log('   ✅ User document ready');
 
-  // ── Step 3: Firestore document metadata ─────────────────────────────────
-  console.log('\n[3] Injecting document into Firestore …');
+  // ── Step 3: Directory ──────────────────────────────────────────────────
+  console.log('\n[3] Creating "Study Materials" directory …');
+  const dirData = {
+    id: DIR_ID,
+    userId: TARGET_UID,
+    name: 'Study Materials',
+    parentId: null as string | null,
+    path: '/Study Materials',
+    level: 0,
+    color: 'blue',
+    documentCount: 1,
+    childCount: 0,
+    ruleIds: [RULE_ID],
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.doc(`users/${TARGET_UID}/directories/${DIR_ID}`).set(dirData);
+  console.log(`   ✅ Directory created: ${dirData.name} (ID: ${DIR_ID})`);
+
+  // ── Step 4: Rule ─────────────────────────────────────────────────────────
+  console.log('\n[4] Creating general prompt rule …');
+  const ruleData = {
+    id: RULE_ID,
+    userId: TARGET_UID,
+    name: 'General Study Rule',
+    description: 'Default prompt rule for study materials',
+    content: RULE_CONTENT,
+    color: 'blue',
+    tags: ['study', 'general'],
+    applicableTo: ['prompt'],
+    isDefault: true,
+    directoryIds: [DIR_ID],
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.doc(`users/${TARGET_UID}/rules/${RULE_ID}`).set(ruleData);
+  console.log(`   ✅ Rule created: ${ruleData.name} (ID: ${RULE_ID})`);
+
+  // ── Step 5: Firestore document metadata ─────────────────────────────────
+  console.log('\n[5] Injecting document into Firestore …');
   console.log(`   User: ${TARGET_UID}`);
   console.log(`   Document ID: ${DOC_ID}`);
 
-  // Root-level document: directoryId must be null so getDirectoryContents(null)
-  // picks it up when listing the root.
   const docData = {
     id: DOC_ID,
     userId: TARGET_UID,
-    directoryId: null as string | null,
+    directoryId: DIR_ID as string | null,
     title: 'Machine Learning',
     description: 'A comprehensive introduction to machine learning concepts and applications.',
     sourceType: 'generated',
@@ -158,8 +202,8 @@ async function main() {
   await db.doc(`users/${TARGET_UID}/documents/${DOC_ID}`).set(docData);
   console.log('   ✅ Document metadata written');
 
-  // ── Step 4: Storage content file ────────────────────────────────────────
-  console.log('\n[4] Uploading content to Storage emulator …');
+  // ── Step 6: Storage content file ────────────────────────────────────────
+  console.log('\n[6] Uploading content to Storage emulator …');
   const filePath = `users/${TARGET_UID}/documents/${DOC_ID}/content.md`;
   const file = admin.storage().bucket(STORAGE_BUCKET).file(filePath);
 

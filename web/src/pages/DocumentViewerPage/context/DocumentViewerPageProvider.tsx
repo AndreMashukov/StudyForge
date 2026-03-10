@@ -24,7 +24,8 @@ export const DocumentViewerPageProvider: React.FC<DocumentViewerPageProviderProp
   // Handler hooks - self-contained business logic
   const handlers = useDocumentViewerPageHandlers({ 
     document: documentApi.data, 
-    contentRef 
+    contentRef,
+    content: contentApi.data?.content,
   });
 
   // Effect hooks - self-contained side effects, manage their own dependencies
