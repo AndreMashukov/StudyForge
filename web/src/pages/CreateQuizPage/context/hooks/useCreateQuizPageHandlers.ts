@@ -30,7 +30,9 @@ export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPage
       additionalPrompt: formData.additionalPrompt?.trim() || undefined,
       quizRuleIds: formData.quizRuleIds || [],
       followupRuleIds: formData.followupRuleIds || [],
-    });
+    })
+      .unwrap()
+      .catch(() => showToast('Failed to generate quiz', 'error'));
 
     showToast('Quiz creation started', 'info');
 
