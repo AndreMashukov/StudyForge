@@ -27,12 +27,21 @@ const firebaseCallableBaseQuery: BaseQueryFn<
     return { data: result.data };
   } catch (error: unknown) {
     console.error(`Firebase Callable - Error: ${functionName}`, error);
+    console.error(`Firebase Callable - Error JSON:`, JSON.stringify(error, null, 2));
 
-    const firebaseError = error as { code?: string; message?: string };
+    const firebaseError = error as { code?: string; message?: string; details?: unknown };
+    console.error(`Firebase Callable - code: ${firebaseError.code}`);
+    console.error(`Firebase Callable - message: ${firebaseError.message}`);
+    console.error(`Firebase Callable - details:`, firebaseError.details);
+
     return {
       error: {
         status: firebaseError.code || 'UNKNOWN_ERROR',
-        data: firebaseError.message || 'An unknown error occurred',
+        data: {
+          message: firebaseError.details || firebaseError.message || 'An unknown error occurred',
+          code: firebaseError.code,
+          details: firebaseError.details,
+        },
       },
     };
   }

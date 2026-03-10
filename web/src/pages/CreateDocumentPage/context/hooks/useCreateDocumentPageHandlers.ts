@@ -131,13 +131,18 @@ export const useCreateDocumentPageHandlers = () => {
       
       // Get files ready for submission
       const files = fileUploadHelpers.getFilesForSubmission();
-      
-      const result = await generateFromPrompt({
+
+      const requestPayload = {
         prompt: data.prompt,
         files: files.length > 0 ? files : undefined,
-        directoryId: directoryId || null, // 🆕 Pass directoryId to API
-        ruleIds: data.ruleIds || [], // 🆕 Pass ruleIds to API
-      }).unwrap();
+        directoryId: directoryId || null,
+        ruleIds: data.ruleIds || [],
+      };
+      console.debug('[generateFromPrompt] Request payload:', requestPayload);
+      
+      const result = await generateFromPrompt(requestPayload).unwrap();
+
+      console.debug('[generateFromPrompt] Success response:', result);
       
       if (progressInterval) {
         clearInterval(progressInterval);
@@ -150,8 +155,13 @@ export const useCreateDocumentPageHandlers = () => {
       // Navigate to the created document
       navigate(`/document/${result.documentId}`);
     } catch (err: unknown) {
-      console.error('Error generating document from prompt:', err);
-      const errorMessage = (err as { data?: { message?: string } })?.data?.message || 'Failed to generate document. Please try again.';
+      console.error('[generateFromPrompt] Raw error object:', err);
+      console.error('[generateFromPrompt] Error JSON:', JSON.stringify(err, null, 2));
+      console.error('[generateFromPrompt] code:', (err as { code?: string })?.code);
+      console.error('[generateFromPrompt] message:', (err as { message?: string })?.message);
+      console.error('[generateFromPrompt] data:', (err as { data?: unknown })?.data);
+      const errData = (err as { data?: { message?: string } | string })?.data;
+      const errorMessage = (typeof errData === 'object' ? errData?.message : errData) || 'Failed to generate document. Please try again.';
       dispatch(setError(errorMessage));
       // Don't clear files on error - keep them for retry
     } finally {
