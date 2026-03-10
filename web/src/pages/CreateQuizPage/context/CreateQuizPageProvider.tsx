@@ -18,7 +18,8 @@ export const CreateQuizPageProvider: React.FC<CreateQuizPageProviderProps> = ({ 
   const form = useCreateQuizPageForm();
   
   // Handler hooks - self-contained business logic
-  const handlers = useCreateQuizPageHandlers({ form });
+  const documents = documentsApi.data?.documents || [];
+  const handlers = useCreateQuizPageHandlers({ form, documents });
 
   // Effect hooks - self-contained side effects, manage their own dependencies
   useCreateQuizPageEffects();

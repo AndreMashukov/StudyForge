@@ -24,8 +24,7 @@ export const CreateQuizPageContainer = () => {
   } = useCreateQuizPageContext();
 
   const { 
-    handleSubmit, 
-    isSubmitting 
+    handleSubmit,
   } = handlers;
 
   const { data: documentsResponse, isLoading } = documentsApi;
@@ -179,16 +178,15 @@ export const CreateQuizPageContainer = () => {
                     variant="outline"
                     onClick={handleBack}
                     className={createQuizPageStyles.cancelButton}
-                    disabled={isSubmitting}
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
                     className={createQuizPageStyles.submitButton}
-                    disabled={isSubmitting || !watchedDocumentId}
+                    disabled={!watchedDocumentId}
                   >
-                    {isSubmitting ? 'Generating Quiz...' : 'Generate Quiz'}
+                    Generate Quiz
                   </Button>
                 </div>
               </form>
