@@ -23,8 +23,7 @@ export const functions = getFunctions(app, 'asia-east1');
 export const storage = getStorage(app);
 
 const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' || 
-                     import.meta.env.NX_PUBLIC_USE_FIREBASE_EMULATOR === 'true' ||
-                     (typeof window !== 'undefined' && window.location.hostname === 'localhost');
+                     import.meta.env.NX_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
 
 if (typeof window !== 'undefined' && useEmulator) {
   console.log('🔧 Connecting to Firebase Emulators...');
