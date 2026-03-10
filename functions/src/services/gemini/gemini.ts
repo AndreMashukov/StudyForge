@@ -49,8 +49,7 @@ export class GeminiService {
    * Get the Gemini AI client instance
    */
   private static getClient(): GoogleGenAI {
-    const apiKey =
-      functions.config().gemini?.api_key || process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       throw new Error(
@@ -1076,8 +1075,7 @@ export class GeminiService {
     error?: string;
   }> {
     try {
-      const apiKey =
-        functions.config().gemini?.api_key || process.env.GEMINI_API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY;
 
       if (!apiKey) {
         return {
