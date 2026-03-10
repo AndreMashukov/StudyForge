@@ -1,11 +1,26 @@
-/* eslint-disable no-misleading-character-class */
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// Box-drawing and arrow characters used for ASCII diagram detection.
+// Multi-codepoint emoji are matched via explicit alternation (not character
+// classes) to stay compliant with Biome's noMisleadingCharacterClass rule.
 import { GoogleGenAI } from '@google/genai';
 import * as functions from 'firebase-functions';
-import { ScrapedContent, QuizFollowupContext, IFileContent } from '@shared-types';
+import {
+  ScrapedContent,
+  QuizFollowupContext,
+  IFileContent,
+} from '@shared-types';
 import { JsonSanitizer } from './json-sanitizer';
-import { QuizPromptBuilder, FollowupPromptBuilder, DocumentPromptBuilder, FlashcardPromptBuilder, SlideDeckPromptBuilder } from './prompt-builder';
-import { buildPromptWithContextFiles, validateContextFiles, estimateContextTokens } from './prompt-builder/withContextFiles';
+import {
+  QuizPromptBuilder,
+  FollowupPromptBuilder,
+  DocumentPromptBuilder,
+  FlashcardPromptBuilder,
+  SlideDeckPromptBuilder,
+} from './prompt-builder';
+import {
+  buildPromptWithContextFiles,
+  validateContextFiles,
+  estimateContextTokens,
+} from './prompt-builder/withContextFiles';
 
 const GEMINI_PRO_MODEL = 'gemini-3.1-pro-preview';
 
@@ -20,70 +35,100 @@ export interface GeminiQuizResponse {
 }
 
 /**
+ * Detects box-drawing / arrow characters that indicate an ASCII diagram.
+ * Multi-codepoint emoji (✅ ❌ ⚠️ 🔄 ⭐) are tested via explicit alternation
+ * rather than inside a character class to satisfy Biome noMisleadingCharacterClass.
+ */
+const ASCII_DIAGRAM_RE = /[╔╗╚╝║═┌┐└┘│─→←↑↓]|✅|❌|⚠️|🔄|⭐/u;
+
+/**
  * Service for interacting with Google's Gemini AI for quiz generation and content processing
  */
 export class GeminiService {
-  
   /**
    * Get the Gemini AI client instance
    */
-  private static getClient(): GoogleGenerativeAI {
-    const apiKey = process.env.GEMINI_API_KEY;
-    
+  private static getClient(): GoogleGenAI {
+    const apiKey =
+      functions.config().gemini?.api_key || process.env.GEMINI_API_KEY;
+
     if (!apiKey) {
-      throw new Error('Gemini API key not found. Please configure GEMINI_API_KEY in environment variables.');
+      throw new Error(
+        'Gemini API key not found. Please configure GEMINI_API_KEY in environment variables or Firebase runtime config (gemini.api_key).'
+      );
     }
-    
-    return new GoogleGenerativeAI(apiKey);
+
+    return new GoogleGenAI({ apiKey });
   }
 
   /**
    * Generate a quiz from scraped content using Gemini AI
    */
-  public static async generateQuiz(content: ScrapedContent, additionalPrompt?: string): Promise<GeminiQuizResponse> {
+  public static async generateQuiz(
+    content: ScrapedContent,
+    additionalPrompt?: string
+  ): Promise<GeminiQuizResponse> {
     try {
       functions.logger.info('Generating quiz with Gemini AI for document...');
 
       // Validate content for patterns that might cause JSON issues
       JsonSanitizer.validateContentForSafeGeneration(content.content);
 
-      const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({ model: GEMINI_PRO_MODEL });
+      const client = this.getClient();
 
       // Generate random correct answer pattern (up to 30 questions)
       // Assuming typical quiz length of 8-12 questions, we generate 30 to cover all cases
-      const randomCorrectAnswers = QuizPromptBuilder.generateRandomCorrectAnswers(30);
-      
-      functions.logger.info('Generated random correct answer pattern', { 
+      const randomCorrectAnswers =
+        QuizPromptBuilder.generateRandomCorrectAnswers(30);
+
+      functions.logger.info('Generated random correct answer pattern', {
         patternLength: randomCorrectAnswers.length,
-        pattern: randomCorrectAnswers.slice(0, 12).join(',') // Log first 12 for debugging
+        pattern: randomCorrectAnswers.slice(0, 12).join(','), // Log first 12 for debugging
       });
 
-      const prompt = QuizPromptBuilder.buildQuizPrompt(content, additionalPrompt, randomCorrectAnswers);
-      functions.logger.debug('Sending request to Gemini AI', { contentLength: content.content.length });
+      const prompt = QuizPromptBuilder.buildQuizPrompt(
+        content,
+        additionalPrompt,
+        randomCorrectAnswers
+      );
+      functions.logger.debug('Sending request to Gemini AI', {
+        contentLength: content.content.length,
+      });
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const response = await client.models.generateContent({
+        model: GEMINI_PRO_MODEL,
+        contents: prompt,
+      });
+
+      const text = response.text;
 
       if (!text) {
         throw new Error('Empty response from Gemini API');
       }
 
-      functions.logger.info('Quiz generated successfully', { length: text.length });
-      
+      functions.logger.info('Quiz generated successfully', {
+        length: text.length,
+      });
+
       // Parse the response with comprehensive error handling
       return this.parseQuizResponse(text);
-
     } catch (error) {
       functions.logger.error('Error generating quiz with Gemini AI:', error);
-      
-      // Handle geographic restrictions in development
-      if (error instanceof Error && error.message.includes('User location is not supported')) {
-        functions.logger.warn("Geographic restriction detected in local emulator, falling back to mock quiz");
+
+      // Handle geographic restrictions — fall back to mock data only in the
+      // local emulator, never in production.
+      const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+      if (
+        isEmulator &&
+        error instanceof Error &&
+        error.message.includes('User location is not supported')
+      ) {
+        functions.logger.warn(
+          'Geographic restriction detected in local emulator, falling back to mock quiz'
+        );
         return this.generateMockQuiz(content);
       }
-      
+
       throw new Error(`Failed to generate quiz: ${error}`);
     }
   }
@@ -97,9 +142,12 @@ export class GeminiService {
       functions.logger.info('Generating content with Gemini AI');
 
       const client = this.getClient();
-      const model = client.getGenerativeModel({ 
+
+      const fullPrompt = QuizPromptBuilder.buildContentPrompt(prompt);
+      const response = await client.models.generateContent({
         model: GEMINI_PRO_MODEL,
-        generationConfig: {
+        contents: fullPrompt,
+        config: {
           temperature: 0.3,
           topK: 40,
           topP: 0.95,
@@ -107,18 +155,16 @@ export class GeminiService {
         },
       });
 
-      const fullPrompt = QuizPromptBuilder.buildContentPrompt(prompt);
-      const result = await model.generateContent(fullPrompt);
-      const response = await result.response;
-      const text = response.text();
+      const text = response.text;
 
       if (!text) {
         throw new Error('Empty response from Gemini API');
       }
 
-      functions.logger.info('Content generated successfully', { length: text.length });
+      functions.logger.info('Content generated successfully', {
+        length: text.length,
+      });
       return text;
-
     } catch (error) {
       functions.logger.error('Error generating content with Gemini AI:', error);
       throw new Error(`Failed to generate content: ${error}`);
@@ -133,11 +179,11 @@ export class GeminiService {
    * @returns Generated markdown document content
    */
   public static async generateDocumentFromPrompt(
-    userPrompt: string, 
+    userPrompt: string,
     files?: IFileContent[]
   ): Promise<string> {
     try {
-      functions.logger.info('Generating document from prompt with Gemini AI', { 
+      functions.logger.info('Generating document from prompt with Gemini AI', {
         promptLength: userPrompt.length,
         filesCount: files?.length || 0,
       });
@@ -152,10 +198,26 @@ export class GeminiService {
         });
       }
 
-      const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({ 
+      const client = this.getClient();
+
+      // Use context-aware prompt builder if files provided
+      const prompt =
+        files && files.length > 0
+          ? buildPromptWithContextFiles(userPrompt, files)
+          : DocumentPromptBuilder.buildDocumentPrompt(userPrompt);
+
+      functions.logger.debug(
+        'Sending document generation request to Gemini AI',
+        {
+          promptLength: prompt.length,
+          hasContextFiles: !!(files && files.length > 0),
+        }
+      );
+
+      const response = await client.models.generateContent({
         model: GEMINI_PRO_MODEL,
-        generationConfig: {
+        contents: prompt,
+        config: {
           temperature: 0.7,
           topK: 40,
           topP: 0.95,
@@ -163,38 +225,34 @@ export class GeminiService {
         },
       });
 
-      // Use context-aware prompt builder if files provided
-      const prompt = files && files.length > 0
-        ? buildPromptWithContextFiles(userPrompt, files)
-        : DocumentPromptBuilder.buildDocumentPrompt(userPrompt);
-        
-      functions.logger.debug('Sending document generation request to Gemini AI', {
-        promptLength: prompt.length,
-        hasContextFiles: !!(files && files.length > 0),
-      });
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const text = response.text;
 
       if (!text) {
-        throw new Error('Empty response from Gemini API for document generation');
+        throw new Error(
+          'Empty response from Gemini API for document generation'
+        );
       }
 
       // Validate and clean the generated content
       const validatedContent = this.validateAndFixDocumentContent(text);
 
-      functions.logger.info('Document generated successfully', { 
+      functions.logger.info('Document generated successfully', {
         length: validatedContent.length,
         wasFixed: validatedContent !== text,
         withContext: !!(files && files.length > 0),
       });
 
       return validatedContent;
-
     } catch (error) {
-      functions.logger.error('Error generating document from prompt with Gemini AI:', error);
-      throw new Error(`Failed to generate document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      functions.logger.error(
+        'Error generating document from prompt with Gemini AI:',
+        error
+      );
+      throw new Error(
+        `Failed to generate document: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
     }
   }
 
@@ -203,14 +261,26 @@ export class GeminiService {
    * @param context - Complete context including original document and question details
    * @returns Generated markdown content with ASCII diagrams
    */
-  public static async generateQuizFollowup(context: QuizFollowupContext): Promise<string> {
+  public static async generateQuizFollowup(
+    context: QuizFollowupContext
+  ): Promise<string> {
     try {
-      functions.logger.info('Generating quiz followup explanation with Gemini AI');
+      functions.logger.info(
+        'Generating quiz followup explanation with Gemini AI'
+      );
 
-      const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({ 
+      const client = this.getClient();
+
+      const prompt = FollowupPromptBuilder.buildFollowupPrompt(context);
+      functions.logger.debug('Sending followup request to Gemini AI', {
+        questionLength: context.question.text.length,
+        documentLength: context.originalDocument.content.length,
+      });
+
+      const response = await client.models.generateContent({
         model: GEMINI_PRO_MODEL,
-        generationConfig: {
+        contents: prompt,
+        config: {
           temperature: 0.7,
           topK: 40,
           topP: 0.95,
@@ -218,54 +288,67 @@ export class GeminiService {
         },
       });
 
-      const prompt = FollowupPromptBuilder.buildFollowupPrompt(context);
-      functions.logger.debug('Sending followup request to Gemini AI', { 
-        questionLength: context.question.text.length,
-        documentLength: context.originalDocument.content.length,
-      });
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const text = response.text;
 
       if (!text) {
-        throw new Error('Empty response from Gemini API for followup generation');
+        throw new Error(
+          'Empty response from Gemini API for followup generation'
+        );
       }
 
       // Validate and potentially fix the followup content format
       const validatedContent = this.validateAndFixFollowupContent(text);
 
-      functions.logger.info('Quiz followup generated successfully', { 
+      functions.logger.info('Quiz followup generated successfully', {
         length: validatedContent.length,
-        wasFixed: validatedContent !== text
+        wasFixed: validatedContent !== text,
       });
       return validatedContent;
-
     } catch (error) {
-      functions.logger.error('Error generating quiz followup with Gemini AI:', error);
-      throw new Error(`Failed to generate followup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      functions.logger.error(
+        'Error generating quiz followup with Gemini AI:',
+        error
+      );
+      throw new Error(
+        `Failed to generate followup: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
     }
   }
 
   /**
    * Generate a set of flashcards from document content.
    */
-  public static async generateFlashcards(content: string, rules?: string): Promise<{ front: string; back: string }[]> {
+  public static async generateFlashcards(
+    content: string,
+    rules?: string
+  ): Promise<{ front: string; back: string }[]> {
     try {
       functions.logger.info('Generating flashcards with Gemini AI...');
 
-      const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({ model: GEMINI_PRO_MODEL });
+      const client = this.getClient();
 
-      const prompt = FlashcardPromptBuilder.buildFlashcardPrompt(content, rules);
-      functions.logger.debug('Sending flashcard generation request to Gemini AI', { contentLength: content.length });
+      const prompt = FlashcardPromptBuilder.buildFlashcardPrompt(
+        content,
+        rules
+      );
+      functions.logger.debug(
+        'Sending flashcard generation request to Gemini AI',
+        { contentLength: content.length }
+      );
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const response = await client.models.generateContent({
+        model: GEMINI_PRO_MODEL,
+        contents: prompt,
+      });
+
+      const text = response.text;
 
       if (!text) {
-        throw new Error('Empty response from Gemini API for flashcard generation');
+        throw new Error(
+          'Empty response from Gemini API for flashcard generation'
+        );
       }
 
       const flashcards = this.parseFlashcardResponse(text);
@@ -273,15 +356,21 @@ export class GeminiService {
       // Basic validation of card structure
       flashcards.forEach((card, index) => {
         if (!card.front || !card.back) {
-          throw new Error(`Invalid flashcard object at index ${index}: missing 'front' or 'back' field.`);
+          throw new Error(
+            `Invalid flashcard object at index ${index}: missing 'front' or 'back' field.`
+          );
         }
       });
 
-      functions.logger.info(`Generated ${flashcards.length} flashcards successfully.`);
+      functions.logger.info(
+        `Generated ${flashcards.length} flashcards successfully.`
+      );
       return flashcards;
-
     } catch (error) {
-      functions.logger.error('Error generating flashcards with Gemini AI:', error);
+      functions.logger.error(
+        'Error generating flashcards with Gemini AI:',
+        error
+      );
       throw new Error(`Failed to generate flashcards: ${error}`);
     }
   }
@@ -290,11 +379,16 @@ export class GeminiService {
    * Extract and parse a JSON array from a Gemini flashcard response.
    * Handles markdown code fences, extra surrounding text, and both [] and {} top-level structures.
    */
-  private static parseFlashcardResponse(responseText: string): { front: string; back: string }[] {
+  private static parseFlashcardResponse(
+    responseText: string
+  ): { front: string; back: string }[] {
     let text = responseText.trim();
 
     // Strip markdown code fences (```json ... ``` or ``` ... ```)
-    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    text = text
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/i, '')
+      .trim();
 
     // Try direct parse first (happy path)
     try {
@@ -311,7 +405,9 @@ export class GeminiService {
       try {
         const parsed = JSON.parse(arrayMatch[1]);
         if (Array.isArray(parsed)) {
-          functions.logger.info('Extracted JSON array from flashcard response using array pattern');
+          functions.logger.info(
+            'Extracted JSON array from flashcard response using array pattern'
+          );
           return parsed;
         }
       } catch {
@@ -325,12 +421,16 @@ export class GeminiService {
     if (sanitizedArrayMatch) {
       const parsed = JSON.parse(sanitizedArrayMatch[1]);
       if (Array.isArray(parsed)) {
-        functions.logger.info('Extracted JSON array from flashcard response after sanitization');
+        functions.logger.info(
+          'Extracted JSON array from flashcard response after sanitization'
+        );
         return parsed;
       }
     }
 
-    throw new Error('Could not extract a valid JSON array from the flashcard response');
+    throw new Error(
+      'Could not extract a valid JSON array from the flashcard response'
+    );
   }
 
   /**
@@ -341,7 +441,7 @@ export class GeminiService {
     try {
       // Initial cleanup
       cleanText = JsonSanitizer.initialCleanup(responseText);
-      
+
       // Apply sanitization to handle common problematic patterns
       cleanText = JsonSanitizer.sanitizeJsonText(cleanText);
 
@@ -358,14 +458,15 @@ export class GeminiService {
       // Validate the structure
       this.validateQuizStructure(parsed);
 
-      functions.logger.info(`Parsed quiz with ${parsed.questions.length} questions`);
-      
-      return parsed as GeminiQuizResponse;
+      functions.logger.info(
+        `Parsed quiz with ${parsed.questions.length} questions`
+      );
 
+      return parsed as GeminiQuizResponse;
     } catch (error) {
       // Log detailed error information
       JsonSanitizer.logParsingError(error, responseText, cleanText);
-      
+
       // Try fallback parsing strategies before giving up
       try {
         const fallbackResult = JsonSanitizer.tryFallbackParsing(cleanText);
@@ -374,7 +475,7 @@ export class GeminiService {
       } catch (fallbackError) {
         functions.logger.error('All parsing strategies failed:', fallbackError);
       }
-      
+
       throw new Error(`Failed to parse quiz response: ${error}`);
     }
   }
@@ -382,56 +483,87 @@ export class GeminiService {
   /**
    * Validate the quiz structure and content
    */
-  private static validateQuizStructure(parsed: { title?: unknown; questions?: unknown }): void {
+  private static validateQuizStructure(parsed: {
+    title?: unknown;
+    questions?: unknown;
+  }): void {
     if (!parsed.title || !Array.isArray(parsed.questions)) {
-      throw new Error("Invalid quiz structure: missing title or questions array");
+      throw new Error(
+        'Invalid quiz structure: missing title or questions array'
+      );
     }
 
     // Validate each question
     parsed.questions.forEach((q: unknown, index: number) => {
       const question = q as Record<string, unknown>;
-      if (!question.question || !Array.isArray(question.options) || typeof question.correctAnswer !== "number") {
+      if (
+        !question.question ||
+        !Array.isArray(question.options) ||
+        typeof question.correctAnswer !== 'number'
+      ) {
         throw new Error(`Invalid question structure at index ${index}`);
       }
-      
+
       if (question.options.length !== 4) {
         throw new Error(`Question ${index + 1} must have exactly 4 options`);
       }
-      
+
       if (question.correctAnswer < 0 || question.correctAnswer > 3) {
-        throw new Error(`Question ${index + 1} has invalid correctAnswer index`);
+        throw new Error(
+          `Question ${index + 1} has invalid correctAnswer index`
+        );
       }
-      
+
       // Validate mandatory explanation
-      if (!question.explanation || typeof question.explanation !== "string" || question.explanation.trim().length === 0) {
-        throw new Error(`Question ${index + 1} is missing required explanation`);
+      if (
+        !question.explanation ||
+        typeof question.explanation !== 'string' ||
+        question.explanation.trim().length === 0
+      ) {
+        throw new Error(
+          `Question ${index + 1} is missing required explanation`
+        );
       }
     });
 
     // Validate answer distribution
-    this.validateAnswerDistribution(parsed.questions as Array<{ correctAnswer: number }>);
+    this.validateAnswerDistribution(
+      parsed.questions as Array<{ correctAnswer: number }>
+    );
   }
 
   /**
    * Validate answer distribution follows the balanced distribution rules
    */
-  private static validateAnswerDistribution(questions: Array<{ correctAnswer: number }>): void {
+  private static validateAnswerDistribution(
+    questions: Array<{ correctAnswer: number }>
+  ): void {
     const totalQuestions = questions.length;
     if (totalQuestions === 0) return;
 
     const distribution = [0, 0, 0, 0]; // A, B, C, D
-    questions.forEach(q => distribution[q.correctAnswer]++);
+    questions.forEach((q) => distribution[q.correctAnswer]++);
 
     const minExpected = Math.floor(totalQuestions * 0.2); // 20%
-    const maxExpected = Math.ceil(totalQuestions * 0.4);  // 40%
+    const maxExpected = Math.ceil(totalQuestions * 0.4); // 40%
 
     distribution.forEach((count, index) => {
       const option = String.fromCharCode(65 + index); // A, B, C, D
       if (count < minExpected) {
-        functions.logger.warn(`Answer distribution warning: Option ${option} is correct only ${count} times (${((count/totalQuestions)*100).toFixed(1)}%). Consider rebalancing.`);
+        functions.logger.warn(
+          `Answer distribution warning: Option ${option} is correct only ${count} times (${(
+            (count / totalQuestions) *
+            100
+          ).toFixed(1)}%). Consider rebalancing.`
+        );
       }
       if (count > maxExpected) {
-        functions.logger.warn(`Answer distribution warning: Option ${option} is correct ${count} times (${((count/totalQuestions)*100).toFixed(1)}%). Consider rebalancing.`);
+        functions.logger.warn(
+          `Answer distribution warning: Option ${option} is correct ${count} times (${(
+            (count / totalQuestions) *
+            100
+          ).toFixed(1)}%). Consider rebalancing.`
+        );
       }
     });
 
@@ -439,7 +571,7 @@ export class GeminiService {
     let consecutiveCount = 1;
     let maxConsecutive = 1;
     for (let i = 1; i < questions.length; i++) {
-      if (questions[i].correctAnswer === questions[i-1].correctAnswer) {
+      if (questions[i].correctAnswer === questions[i - 1].correctAnswer) {
         consecutiveCount++;
         maxConsecutive = Math.max(maxConsecutive, consecutiveCount);
       } else {
@@ -448,7 +580,9 @@ export class GeminiService {
     }
 
     if (maxConsecutive > 2) {
-      functions.logger.warn(`Answer clustering detected: ${maxConsecutive} consecutive questions have the same correct answer. Consider rebalancing.`);
+      functions.logger.warn(
+        `Answer clustering detected: ${maxConsecutive} consecutive questions have the same correct answer. Consider rebalancing.`
+      );
     }
 
     functions.logger.info('Answer distribution analysis:', {
@@ -457,9 +591,9 @@ export class GeminiService {
         A: distribution[0],
         B: distribution[1],
         C: distribution[2],
-        D: distribution[3]
+        D: distribution[3],
       },
-      maxConsecutive
+      maxConsecutive,
     });
   }
 
@@ -468,33 +602,36 @@ export class GeminiService {
    */
   private static generateMockQuiz(content: ScrapedContent): GeminiQuizResponse {
     functions.logger.info('Generating mock quiz for development');
-    
+
     return {
       title: `Mock Quiz: ${content.title}`,
       questions: [
         {
-          question: "This is a mock question for development purposes. What should you do?",
+          question:
+            'This is a mock question for development purposes. What should you do?',
           options: [
-            "Configure Gemini API properly",
-            "Use a different region",
-            "Continue with mock data",
-            "Check geographic restrictions"
+            'Configure Gemini API properly',
+            'Use a different region',
+            'Continue with mock data',
+            'Check geographic restrictions',
           ],
           correctAnswer: 0,
-          explanation: "The Gemini API needs to be properly configured for your region."
+          explanation:
+            'The Gemini API needs to be properly configured for your region.',
         },
         {
-          question: "Why might you see this mock quiz?",
+          question: 'Why might you see this mock quiz?',
           options: [
-            "Internet connection issues",
-            "Geographic restrictions or API configuration issues", 
-            "Invalid content format",
-            "Server overload"
+            'Internet connection issues',
+            'Geographic restrictions or API configuration issues',
+            'Invalid content format',
+            'Server overload',
           ],
           correctAnswer: 1,
-          explanation: "Mock quizzes appear when there are geographic restrictions or API configuration issues."
-        }
-      ]
+          explanation:
+            'Mock quizzes appear when there are geographic restrictions or API configuration issues.',
+        },
+      ],
     };
   }
 
@@ -502,7 +639,11 @@ export class GeminiService {
    * Validate content for quiz generation
    * @param content - The content to validate
    */
-  public static validateContentForQuiz(content: { title: string; content: string; wordCount: number }): void {
+  public static validateContentForQuiz(content: {
+    title: string;
+    content: string;
+    wordCount: number;
+  }): void {
     if (!content.title || content.title.trim().length === 0) {
       throw new Error('Content must have a title');
     }
@@ -512,16 +653,26 @@ export class GeminiService {
     }
 
     if (content.wordCount < 50) {
-      throw new Error('Content is too short for quiz generation (minimum 50 words required)');
+      throw new Error(
+        'Content is too short for quiz generation (minimum 50 words required)'
+      );
     }
 
     if (content.wordCount > 10000) {
-      functions.logger.warn(`Content is very long (${content.wordCount} words), quiz generation may take longer`);
+      functions.logger.warn(
+        `Content is very long (${content.wordCount} words), quiz generation may take longer`
+      );
     }
 
     // Check for potentially problematic patterns
-    if (content.content.includes('```') || content.content.includes('{') || content.content.includes('}')) {
-      functions.logger.info('Content contains code-like patterns, will sanitize during generation');
+    if (
+      content.content.includes('```') ||
+      content.content.includes('{') ||
+      content.content.includes('}')
+    ) {
+      functions.logger.info(
+        'Content contains code-like patterns, will sanitize during generation'
+      );
     }
   }
 
@@ -533,24 +684,28 @@ export class GeminiService {
   private static validateAndFixFollowupContent(content: string): string {
     try {
       let processedContent = content;
-      
+
       // First, check if the entire content is wrapped in a markdown code block and remove it
       const markdownCodeBlockRegex = /^```markdown\s*\n([\s\S]*?)\n```$/;
       const markdownMatch = processedContent.match(markdownCodeBlockRegex);
       if (markdownMatch) {
         processedContent = markdownMatch[1];
-        functions.logger.info('Removed markdown code block wrapper from followup content');
+        functions.logger.info(
+          'Removed markdown code block wrapper from followup content'
+        );
       }
-      
+
       // Also check for other code block wrappers that might be used
       const genericCodeBlockRegex = /^```\s*\n([\s\S]*?)\n```$/;
       const genericMatch = processedContent.match(genericCodeBlockRegex);
       if (genericMatch && !markdownMatch) {
         // Only remove if it wasn't already processed as markdown
         processedContent = genericMatch[1];
-        functions.logger.info('Removed generic code block wrapper from followup content');
+        functions.logger.info(
+          'Removed generic code block wrapper from followup content'
+        );
       }
-      
+
       // Check for required sections
       const requiredSections = [
         '# Question Analysis',
@@ -559,24 +714,29 @@ export class GeminiService {
         '## Diagram 1:',
         '## Diagram 2:',
         '## Key Takeaways',
-        '## Connection to Original Document'
+        '## Connection to Original Document',
       ];
 
-      const missingSections = requiredSections.filter(section => 
-        !processedContent.includes(section)
+      const missingSections = requiredSections.filter(
+        (section) => !processedContent.includes(section)
       );
 
       if (missingSections.length > 0) {
-        functions.logger.warn('Missing sections in followup content:', missingSections);
+        functions.logger.warn(
+          'Missing sections in followup content:',
+          missingSections
+        );
       }
 
       // Check for ASCII diagrams in code blocks
       const codeBlockRegex = /```[\s\S]*?```/g;
       const codeBlocks = processedContent.match(codeBlockRegex);
-      
+
       if (!codeBlocks || codeBlocks.length < 2) {
-        functions.logger.warn('Less than 2 code blocks found in followup content. ASCII diagrams may not be properly formatted.');
-        
+        functions.logger.warn(
+          'Less than 2 code blocks found in followup content. ASCII diagrams may not be properly formatted.'
+        );
+
         // Attempt to fix common ASCII diagram formatting issues
         const fixedContent = this.fixAsciiDiagramFormatting(processedContent);
         if (fixedContent !== processedContent) {
@@ -587,18 +747,19 @@ export class GeminiService {
 
       // Check if ASCII diagrams contain proper symbols
       if (codeBlocks) {
-        const hasAsciiSymbols = codeBlocks.some(block => 
-          /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐]/u.test(block)
+        const hasAsciiSymbols = codeBlocks.some((block) =>
+          ASCII_DIAGRAM_RE.test(block)
         );
-        
+
         if (!hasAsciiSymbols) {
-          functions.logger.warn('No ASCII symbols detected in code blocks. Diagrams may be improperly formatted.');
+          functions.logger.warn(
+            'No ASCII symbols detected in code blocks. Diagrams may be improperly formatted.'
+          );
         }
       }
-      
+
       functions.logger.info('Followup content validation passed');
       return processedContent; // Content is properly formatted
-      
     } catch (error) {
       functions.logger.error('Error validating followup content:', error);
       return content; // Return original content on error
@@ -619,11 +780,13 @@ export class GeminiService {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
-      // Check if line contains ASCII art characters
-      const hasAsciiChars = /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐+\-|]/u.test(line);
+
+      // Check if line contains ASCII diagram characters (box-drawing / arrows /
+      // emoji only — plain +, -, | are excluded to avoid false positives on
+      // markdown lists and tables).
+      const hasAsciiChars = ASCII_DIAGRAM_RE.test(line);
       const isCodeBlock = line.startsWith('```');
-      
+
       if (hasAsciiChars && !isCodeBlock && !inAsciiBlock) {
         // Start of ASCII block
         inAsciiBlock = true;
@@ -663,43 +826,50 @@ export class GeminiService {
   private static validateAndFixDocumentContent(content: string): string {
     try {
       let processedContent = content;
-      
+
       // Remove markdown code block wrapper if present
       const markdownCodeBlockRegex = /^```markdown\s*\n([\s\S]*?)\n```$/;
       const markdownMatch = processedContent.match(markdownCodeBlockRegex);
       if (markdownMatch) {
         processedContent = markdownMatch[1];
-        functions.logger.info('Removed markdown code block wrapper from document content');
+        functions.logger.info(
+          'Removed markdown code block wrapper from document content'
+        );
       }
-      
+
       // Remove generic code block wrapper if present
       const genericCodeBlockRegex = /^```\s*\n([\s\S]*?)\n```$/;
       const genericMatch = processedContent.match(genericCodeBlockRegex);
       if (genericMatch && !markdownMatch) {
         processedContent = genericMatch[1];
-        functions.logger.info('Removed generic code block wrapper from document content');
+        functions.logger.info(
+          'Removed generic code block wrapper from document content'
+        );
       }
-      
+
       // Check for required sections
       const requiredSections = [
         '## Glossary',
         '## Core Concepts',
         '## Examples',
-        '## Summary'
+        '## Summary',
       ];
 
-      const missingSections = requiredSections.filter(section => 
-        !processedContent.includes(section)
+      const missingSections = requiredSections.filter(
+        (section) => !processedContent.includes(section)
       );
 
       if (missingSections.length > 0) {
-        functions.logger.warn('Missing sections in document content:', missingSections);
+        functions.logger.warn(
+          'Missing sections in document content:',
+          missingSections
+        );
       }
 
       // Check for tables
       const tableRegex = /\|.*\|.*\n\|[-:| ]+\|/g;
       const tables = processedContent.match(tableRegex);
-      
+
       if (!tables || tables.length === 0) {
         functions.logger.warn('No markdown tables found in document content');
       } else {
@@ -709,28 +879,33 @@ export class GeminiService {
       // Check for ASCII diagrams in code blocks
       const codeBlockRegex = /```[\s\S]*?```/g;
       const codeBlocks = processedContent.match(codeBlockRegex);
-      
+
       if (!codeBlocks || codeBlocks.length < 2) {
-        functions.logger.warn('Less than 2 code blocks found in document content. ASCII diagrams may not be properly formatted.');
+        functions.logger.warn(
+          'Less than 2 code blocks found in document content. ASCII diagrams may not be properly formatted.'
+        );
       } else {
         // Count blocks that contain ASCII art characters
-        const asciiBlocks = codeBlocks.filter(block => 
-          /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐]/u.test(block)
+        const asciiBlocks = codeBlocks.filter((block) =>
+          ASCII_DIAGRAM_RE.test(block)
         );
-        functions.logger.info(`Found ${asciiBlocks.length} ASCII diagram(s) in document`);
+        functions.logger.info(
+          `Found ${asciiBlocks.length} ASCII diagram(s) in document`
+        );
       }
 
       // Check word count (approximate)
       const wordCount = processedContent.split(/\s+/).length;
       functions.logger.info(`Document word count: ${wordCount}`);
-      
+
       if (wordCount < 1000) {
-        functions.logger.warn(`Document word count (${wordCount}) is below minimum requirement (1000)`);
+        functions.logger.warn(
+          `Document word count (${wordCount}) is below minimum requirement (1000)`
+        );
       }
-      
+
       functions.logger.info('Document content validation passed');
       return processedContent;
-      
     } catch (error) {
       functions.logger.error('Error validating document content:', error);
       return content; // Return original content on error
@@ -753,33 +928,46 @@ export class GeminiService {
     try {
       functions.logger.info('Generating slide deck outline with Gemini AI...');
 
-      const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({
+      const client = this.getClient();
+
+      const prompt = SlideDeckPromptBuilder.buildSlideOutlinePrompt(
+        content,
+        additionalPrompt,
+        rules
+      );
+      const response = await client.models.generateContent({
         model: 'gemini-2.0-flash',
-        generationConfig: { temperature: 0.7, topK: 40, topP: 0.95 },
+        contents: prompt,
+        config: { temperature: 0.7, topK: 40, topP: 0.95 },
       });
 
-      const prompt = SlideDeckPromptBuilder.buildSlideOutlinePrompt(content, additionalPrompt, rules);
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const text = response.text;
 
       if (!text) {
-        throw new Error('Empty response from Gemini API for slide deck generation');
+        throw new Error(
+          'Empty response from Gemini API for slide deck generation'
+        );
       }
 
       let cleanText = text.trim();
       // Strip markdown code fences if present
-      cleanText = cleanText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+      cleanText = cleanText
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/i, '');
       cleanText = JsonSanitizer.sanitizeJsonText(cleanText);
 
       const parsed = JSON.parse(cleanText);
 
       if (!Array.isArray(parsed) || parsed.length === 0) {
-        throw new Error('Invalid slide deck response: expected non-empty array');
+        throw new Error(
+          'Invalid slide deck response: expected non-empty array'
+        );
       }
 
-      functions.logger.info('Raw parsed slide outline:', { slideCount: parsed.length, firstSlideKeys: Object.keys(parsed[0] ?? {}) });
+      functions.logger.info('Raw parsed slide outline:', {
+        slideCount: parsed.length,
+        firstSlideKeys: Object.keys(parsed[0] ?? {}),
+      });
 
       const slides = parsed.map((item: Record<string, unknown>, i: number) => {
         if (typeof item.title !== 'string' || !item.title.trim()) {
@@ -795,24 +983,36 @@ export class GeminiService {
         } else if (typeof item.bullets === 'string' && item.bullets.trim()) {
           resolvedContent = item.bullets;
         } else if (Array.isArray(item.bullets)) {
-          resolvedContent = (item.bullets as unknown[]).map((b) => `• ${b}`).join('\n');
+          resolvedContent = (item.bullets as unknown[])
+            .map((b) => `• ${b}`)
+            .join('\n');
         } else if (typeof item.body === 'string' && item.body.trim()) {
           resolvedContent = item.body;
         } else if (typeof item.points === 'string' && item.points.trim()) {
           resolvedContent = item.points;
         } else if (Array.isArray(item.points)) {
-          resolvedContent = (item.points as unknown[]).map((p) => `• ${p}`).join('\n');
+          resolvedContent = (item.points as unknown[])
+            .map((p) => `• ${p}`)
+            .join('\n');
         }
 
         if (!resolvedContent) {
-          functions.logger.warn(`Slide ${i} has no recognisable content field. Keys: ${Object.keys(item).join(', ')}. Raw:`, item);
-          throw new Error(`Slide ${i}: missing or empty content (checked: content, bullets, body, points)`);
+          functions.logger.warn(
+            `Slide ${i} has no recognisable content field.`,
+            { slideIndex: i, keys: Object.keys(item) }
+          );
+          throw new Error(
+            `Slide ${i}: missing or empty content (checked: content, bullets, body, points)`
+          );
         }
 
         return {
           title: item.title.trim(),
           content: resolvedContent.trim(),
-          speakerNotes: typeof item.speakerNotes === 'string' ? item.speakerNotes : undefined,
+          speakerNotes:
+            typeof item.speakerNotes === 'string'
+              ? item.speakerNotes
+              : undefined,
         };
       });
 
@@ -825,7 +1025,7 @@ export class GeminiService {
   }
 
   /**
-   * Generate a slide image using Gemini Nano Banana 2 image generation model.
+   * Generate a slide image using Gemini image generation model.
    * Uses @google/genai SDK with gemini-3.1-flash-image-preview.
    * Returns base64-encoded PNG image data.
    */
@@ -835,11 +1035,12 @@ export class GeminiService {
     rules?: string
   ): Promise<string | null> {
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error('GEMINI_API_KEY not set');
-
-      const client = new GoogleGenAI({ apiKey });
-      const prompt = SlideDeckPromptBuilder.buildSlideImagePrompt(slideTitle, slideContent, rules);
+      const client = this.getClient();
+      const prompt = SlideDeckPromptBuilder.buildSlideImagePrompt(
+        slideTitle,
+        slideContent,
+        rules
+      );
 
       const response = await client.models.generateContent({
         model: 'gemini-3.1-flash-image-preview',
@@ -861,46 +1062,53 @@ export class GeminiService {
       functions.logger.warn('Slide image: no inline image data in response.');
       return null;
     } catch (error) {
-      functions.logger.warn('Slide image generation failed (non-fatal):', error);
+      functions.logger.warn(
+        'Slide image generation failed (non-fatal):',
+        error
+      );
       return null;
     }
   }
 
-  public static async getModelInfo(): Promise<{ available: boolean; model?: string; error?: string }> {
+  public static async getModelInfo(): Promise<{
+    available: boolean;
+    model?: string;
+    error?: string;
+  }> {
     try {
-      const apiKey = functions.config().gemini?.api_key || process.env.GEMINI_API_KEY;
-      
+      const apiKey =
+        functions.config().gemini?.api_key || process.env.GEMINI_API_KEY;
+
       if (!apiKey) {
         return {
           available: false,
-          error: 'Gemini API key not configured'
+          error: 'Gemini API key not configured',
         };
       }
 
       // Test connectivity with a simple request
-      const genAI = this.getClient();
-      const model = genAI.getGenerativeModel({ model: GEMINI_PRO_MODEL });
+      const client = this.getClient();
+      const response = await client.models.generateContent({
+        model: GEMINI_PRO_MODEL,
+        contents: 'Test',
+      });
 
-      // Make a simple test request to verify the API is working
-      const result = await model.generateContent("Test");
-      
-      if (result.response) {
+      if (response.text !== undefined) {
         return {
           available: true,
-          model: GEMINI_PRO_MODEL
+          model: GEMINI_PRO_MODEL,
         };
       } else {
         return {
           available: false,
-          error: 'API test failed - no response'
+          error: 'API test failed - no response',
         };
       }
-
     } catch (error) {
       functions.logger.error('Gemini API test failed:', error);
       return {
         available: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
