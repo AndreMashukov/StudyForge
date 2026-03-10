@@ -1,4 +1,6 @@
-/* eslint-disable no-misleading-character-class */
+// Box-drawing and arrow characters used for ASCII diagram detection.
+// Multi-codepoint emoji are matched via explicit alternation (not character
+// classes) to stay compliant with Biome's noMisleadingCharacterClass rule.
 import { GoogleGenAI } from '@google/genai';
 import * as functions from 'firebase-functions';
 import {
@@ -33,6 +35,13 @@ export interface GeminiQuizResponse {
 }
 
 /**
+ * Detects box-drawing / arrow characters that indicate an ASCII diagram.
+ * Multi-codepoint emoji (✅ ❌ ⚠️ 🔄 ⭐) are tested via explicit alternation
+ * rather than inside a character class to satisfy Biome noMisleadingCharacterClass.
+ */
+const ASCII_DIAGRAM_RE = /[╔╗╚╝║═┌┐└┘│─→←↑↓]|✅|❌|⚠️|🔄|⭐/u;
+
+/**
  * Service for interacting with Google's Gemini AI for quiz generation and content processing
  */
 export class GeminiService {
@@ -40,11 +49,12 @@ export class GeminiService {
    * Get the Gemini AI client instance
    */
   private static getClient(): GoogleGenAI {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey =
+      functions.config().gemini?.api_key || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       throw new Error(
-        'Gemini API key not found. Please configure GEMINI_API_KEY in environment variables.'
+        'Gemini API key not found. Please configure GEMINI_API_KEY in environment variables or Firebase runtime config (gemini.api_key).'
       );
     }
 
@@ -105,8 +115,11 @@ export class GeminiService {
     } catch (error) {
       functions.logger.error('Error generating quiz with Gemini AI:', error);
 
-      // Handle geographic restrictions in development
+      // Handle geographic restrictions — fall back to mock data only in the
+      // local emulator, never in production.
+      const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
       if (
+        isEmulator &&
         error instanceof Error &&
         error.message.includes('User location is not supported')
       ) {
@@ -735,7 +748,7 @@ export class GeminiService {
       // Check if ASCII diagrams contain proper symbols
       if (codeBlocks) {
         const hasAsciiSymbols = codeBlocks.some((block) =>
-          /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐]/u.test(block)
+          ASCII_DIAGRAM_RE.test(block)
         );
 
         if (!hasAsciiSymbols) {
@@ -768,8 +781,10 @@ export class GeminiService {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
 
-      // Check if line contains ASCII art characters
-      const hasAsciiChars = /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐+\-|]/u.test(line);
+      // Check if line contains ASCII diagram characters (box-drawing / arrows /
+      // emoji only — plain +, -, | are excluded to avoid false positives on
+      // markdown lists and tables).
+      const hasAsciiChars = ASCII_DIAGRAM_RE.test(line);
       const isCodeBlock = line.startsWith('```');
 
       if (hasAsciiChars && !isCodeBlock && !inAsciiBlock) {
@@ -872,7 +887,7 @@ export class GeminiService {
       } else {
         // Count blocks that contain ASCII art characters
         const asciiBlocks = codeBlocks.filter((block) =>
-          /[╔╗╚╝║═┌┐└┘│─→←↑↓✅❌⚠️🔄⭐]/u.test(block)
+          ASCII_DIAGRAM_RE.test(block)
         );
         functions.logger.info(
           `Found ${asciiBlocks.length} ASCII diagram(s) in document`
@@ -983,10 +998,8 @@ export class GeminiService {
 
         if (!resolvedContent) {
           functions.logger.warn(
-            `Slide ${i} has no recognisable content field. Keys: ${Object.keys(
-              item
-            ).join(', ')}. Raw:`,
-            item
+            `Slide ${i} has no recognisable content field.`,
+            { slideIndex: i, keys: Object.keys(item) }
           );
           throw new Error(
             `Slide ${i}: missing or empty content (checked: content, bullets, body, points)`
