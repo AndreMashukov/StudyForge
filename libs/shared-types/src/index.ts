@@ -522,6 +522,26 @@ export interface QuizFollowupContext {
   customInstructions?: string; // Optional custom rules/instructions to inject
 }
 
+// Document Question API Types
+export interface AskDocumentQuestionRequest {
+  documentId: string;
+  question: string;
+  ruleIds?: string[];
+}
+
+export interface AskDocumentQuestionResponse {
+  content: string;
+}
+
+export interface DocumentQuestionContext {
+  document: {
+    title: string;
+    content: string;
+  };
+  question: string;
+  customInstructions?: string;
+}
+
 // Auth Types
 export interface User {
   uid: string;
