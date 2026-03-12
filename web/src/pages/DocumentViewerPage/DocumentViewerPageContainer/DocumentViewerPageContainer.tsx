@@ -235,6 +235,7 @@ export const DocumentViewerPageContainer = () => {
             <BreadcrumbNav
               directoryId={documentApi.data.directoryId || null}
               onNavigate={handleBreadcrumbNavigate}
+              lastItemClickable
             />
           </div>
         </div>

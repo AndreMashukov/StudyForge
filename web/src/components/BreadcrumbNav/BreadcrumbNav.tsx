@@ -7,7 +7,7 @@ import {
 } from "../../store/api/Directory/DirectoryApi";
 import { cn } from "../../lib/utils";
 
-export const BreadcrumbNav = ({ directoryId, onNavigate, className }: IBreadcrumbNav) => {
+export const BreadcrumbNav = ({ directoryId, onNavigate, className, lastItemClickable = false }: IBreadcrumbNav) => {
   const { data: ancestorsData, isLoading: isLoadingAncestors } =
     useGetDirectoryAncestorsQuery(directoryId || "", { skip: !directoryId });
   const { data: currentDirectory, isLoading: isLoadingDirectory } =
@@ -35,9 +35,9 @@ export const BreadcrumbNav = ({ directoryId, onNavigate, className }: IBreadcrum
       ? [...ancestors, currentDirectory]
       : ancestors;
 
-  // Only treat the last item as "current" when we have the full path.
-  // When currentDirectory is missing (fallback to ancestors only), all items stay clickable.
-  const isLastItemCurrent = !!(directoryId && currentDirectory);
+  // Only treat the last item as "current" (non-clickable) when we have the
+  // full path AND the caller hasn't opted in to keeping it clickable.
+  const isLastItemCurrent = !!(directoryId && currentDirectory) && !lastItemClickable;
 
   return (
     <nav className={cn(breadcrumbNavStyles.container, className)}>
