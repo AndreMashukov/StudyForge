@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Page } from '../../../components/Page';
@@ -16,6 +16,7 @@ import {
   selectQuestionAnswer,
   selectIsAskingQuestion,
   selectQuestionError,
+  clearQuestionAnswer,
 } from '../../../store/slices/documentViewerPageSlice';
 import { setSelectedDirectory } from '../../../store/slices/directorySlice';
 import { formatDateWithOptions } from '../../../utils/dateUtils';
@@ -85,6 +86,11 @@ export const DocumentViewerPageContainer = () => {
   const questionAnswer = useSelector(selectQuestionAnswer);
   const isAskingQuestion = useSelector(selectIsAskingQuestion);
   const questionError = useSelector(selectQuestionError);
+
+  // Clear Q&A state when navigating to a different document
+  useEffect(() => {
+    dispatch(clearQuestionAnswer());
+  }, [documentId, dispatch]);
 
   const handleBreadcrumbNavigate = (directoryId: string | null) => {
     dispatch(setSelectedDirectory(directoryId));
