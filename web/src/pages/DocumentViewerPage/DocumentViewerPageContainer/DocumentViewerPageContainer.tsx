@@ -12,10 +12,14 @@ import { useDocumentViewerPageContext } from '../context';
 import { 
   selectTocItems, 
   selectShowToc, 
-  selectIsExporting 
+  selectIsExporting,
+  selectQuestionAnswer,
+  selectIsAskingQuestion,
+  selectQuestionError,
 } from '../../../store/slices/documentViewerPageSlice';
 import { setSelectedDirectory } from '../../../store/slices/directorySlice';
 import { formatDateWithOptions } from '../../../utils/dateUtils';
+import { DocumentQuestionForm } from './DocumentQuestionForm';
 
 // Recursive component to render nested TOC items
 const TocItemComponent: React.FC<{
@@ -78,6 +82,9 @@ export const DocumentViewerPageContainer = () => {
   const tocItems = useSelector(selectTocItems);
   const showToc = useSelector(selectShowToc);
   const isExporting = useSelector(selectIsExporting);
+  const questionAnswer = useSelector(selectQuestionAnswer);
+  const isAskingQuestion = useSelector(selectIsAskingQuestion);
+  const questionError = useSelector(selectQuestionError);
 
   const handleBreadcrumbNavigate = (directoryId: string | null) => {
     dispatch(setSelectedDirectory(directoryId));
@@ -385,6 +392,21 @@ export const DocumentViewerPageContainer = () => {
             </Card>
           </div>
         </div>
+
+        {/* Ask a Question */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold">Ask about this document</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DocumentQuestionForm
+              onSubmit={handlers.handleAskDocumentQuestion}
+              isLoading={isAskingQuestion}
+              answer={questionAnswer}
+              error={questionError}
+            />
+          </CardContent>
+        </Card>
       </div>
     </Page>
   );

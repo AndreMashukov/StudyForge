@@ -6,6 +6,7 @@ import * as functions from 'firebase-functions';
 import {
   ScrapedContent,
   QuizFollowupContext,
+  DocumentQuestionContext,
   IFileContent,
 } from '@shared-types';
 import { JsonSanitizer } from './json-sanitizer';
@@ -13,6 +14,7 @@ import {
   QuizPromptBuilder,
   FollowupPromptBuilder,
   DocumentPromptBuilder,
+  DocumentQuestionPromptBuilder,
   FlashcardPromptBuilder,
   SlideDeckPromptBuilder,
 } from './prompt-builder';
@@ -310,6 +312,65 @@ export class GeminiService {
       );
       throw new Error(
         `Failed to generate followup: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  /**
+   * Generate an answer to a user's question about a document
+   * @param context - Document content and user question
+   * @returns Generated markdown answer
+   */
+  public static async generateDocumentQuestionAnswer(
+    context: DocumentQuestionContext
+  ): Promise<string> {
+    try {
+      functions.logger.info(
+        'Generating document question answer with Gemini AI'
+      );
+
+      const client = this.getClient();
+
+      const prompt = DocumentQuestionPromptBuilder.buildPrompt(context);
+      functions.logger.debug('Sending document question to Gemini AI', {
+        questionLength: context.question.length,
+        documentLength: context.document.content.length,
+      });
+
+      const response = await client.models.generateContent({
+        model: GEMINI_PRO_MODEL,
+        contents: prompt,
+        config: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+        },
+      });
+
+      const text = response.text;
+
+      if (!text) {
+        throw new Error(
+          'Empty response from Gemini API for document question'
+        );
+      }
+
+      const validatedContent = this.validateAndFixFollowupContent(text);
+
+      functions.logger.info('Document question answer generated successfully', {
+        length: validatedContent.length,
+      });
+      return validatedContent;
+    } catch (error) {
+      functions.logger.error(
+        'Error generating document question answer with Gemini AI:',
+        error
+      );
+      throw new Error(
+        `Failed to generate answer: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`
       );

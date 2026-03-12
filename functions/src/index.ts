@@ -82,6 +82,11 @@ export {
   generateQuizFollowup,
 } from "./endpoints/quiz-followup";
 
+// Export document question functions
+export {
+  askDocumentQuestion,
+} from "./endpoints/document-question";
+
 // Export document management functions
 export {
   createDocument,

@@ -8,6 +8,7 @@
 export { QuizPromptBuilder } from './quiz-prompt-builder';
 export { FollowupPromptBuilder } from './followup-prompt-builder';
 export { DocumentPromptBuilder } from './document-prompt-builder';
+export { DocumentQuestionPromptBuilder } from './document-question-prompt-builder';
 export { FlashcardPromptBuilder } from './flashcard-prompt-builder';
 export { SlideDeckPromptBuilder } from './slide-deck';
 

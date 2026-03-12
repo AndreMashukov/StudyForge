@@ -7,5 +7,6 @@ export interface IDocumentViewerPageHandlers {
   handleDownloadMd: () => void;
   handleToggleToc: () => void;
   handleTocItemClick: (id: string) => void;
+  handleAskDocumentQuestion: (question: string) => void;
   isExporting: boolean;
 }
