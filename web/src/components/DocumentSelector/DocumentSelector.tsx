@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { BookOpen, FileText, AlertTriangle, Calendar } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { IDocumentSelector } from './IDocumentSelector';
@@ -17,6 +17,22 @@ export const DocumentSelector = ({
   className,
 }: IDocumentSelector) => {
   const isSingleSelect = maxSelections === 1;
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hasScrolledRef = useRef(false);
+
+  useEffect(() => {
+    if (hasScrolledRef.current || selectedDocumentIds.length === 0 || documents.length === 0) return;
+
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const selectedId = selectedDocumentIds[0];
+    const selectedElement = container.querySelector(`[data-document-id="${selectedId}"]`);
+    if (selectedElement) {
+      selectedElement.scrollIntoView({ block: 'center' });
+      hasScrolledRef.current = true;
+    }
+  }, [selectedDocumentIds, documents]);
 
   // Determine whether additional items can be selected.
   // An explicit canSelectMore prop always takes precedence (e.g. when the
@@ -63,7 +79,7 @@ export const DocumentSelector = ({
 
   return (
     <div className={cn(documentSelectorStyles.container, className)}>
-      <div className={documentSelectorStyles.scrollContainer}>
+      <div ref={scrollContainerRef} className={documentSelectorStyles.scrollContainer}>
         {documents.map((document) => {
           const isSelected = selectedDocumentIds.includes(document.id);
           // For single-select, never lock out unselected items — toggling replaces the selection.
@@ -74,6 +90,7 @@ export const DocumentSelector = ({
           return (
             <label
               key={document.id}
+              data-document-id={document.id}
               className={cn(
                 documentSelectorStyles.documentItem,
                 isSelected && documentSelectorStyles.documentItemSelected,
