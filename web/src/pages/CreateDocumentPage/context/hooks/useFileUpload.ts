@@ -4,7 +4,7 @@
  * Supports both uploaded files and library document selection
  */
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../../store';
 import { DocumentEnhanced } from '@shared-types';
@@ -54,6 +54,9 @@ export const useFileUpload = (documents: DocumentEnhanced[] = []) => {
 
   // RTK Query hook for fetching document content
   const [fetchDocumentContent, { isLoading: isFetchingContent }] = useLazyGetDocumentContentQuery();
+
+  // Track in-flight document fetches to handle rapid toggle (check/uncheck)
+  const inFlightFetchesRef = useRef<Set<string>>(new Set());
 
   // Selectors
   const attachedFiles = useSelector((state: RootState) => selectAttachedFiles(state));
@@ -226,6 +229,9 @@ export const useFileUpload = (documents: DocumentEnhanced[] = []) => {
     const isAlreadyAttached = isDocumentAlreadyAttached(documentId, attachedFiles);
 
     if (isAlreadyAttached) {
+      // Cancel any in-flight fetch for this document
+      inFlightFetchesRef.current.delete(documentId);
+
       // Remove document
       const fileToRemove = attachedFiles.find(
         f => f.source === 'library' && f.documentId === documentId
@@ -296,9 +302,19 @@ export const useFileUpload = (documents: DocumentEnhanced[] = []) => {
     dispatch(toggleDocumentSelection(documentId));
     dispatch(setContextSizeError(null));
 
+    // Track this fetch so we can detect if it was cancelled
+    inFlightFetchesRef.current.add(documentId);
+
     try {
       // Fetch document content
       const result = await fetchDocumentContent(documentId);
+
+      // If document was untoggled while fetching, discard the result
+      if (!inFlightFetchesRef.current.has(documentId)) {
+        dispatch(removeFile(fileId));
+        return;
+      }
+      inFlightFetchesRef.current.delete(documentId);
 
       if (result.error) {
         // Handle specific error types
@@ -349,6 +365,13 @@ export const useFileUpload = (documents: DocumentEnhanced[] = []) => {
       }
 
     } catch (error) {
+      // If document was untoggled while fetching, discard silently
+      if (!inFlightFetchesRef.current.has(documentId)) {
+        dispatch(removeFile(fileId));
+        return;
+      }
+      inFlightFetchesRef.current.delete(documentId);
+
       console.error('Error fetching document content:', error);
       
       // Determine user-friendly error message
