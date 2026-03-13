@@ -20,7 +20,7 @@ export const documentsApi = baseApi.injectEndpoints({
     getUserDocuments: builder.query<ListDocumentsResponse, void>({
       query: () => ({
         functionName: 'getUserDocuments',
-        data: {}
+        data: { limit: 100 }
       }),
       transformResponse: (response: { success: boolean; documents: DocumentEnhanced[]; total: number; hasMore: boolean }) => {
         return {
