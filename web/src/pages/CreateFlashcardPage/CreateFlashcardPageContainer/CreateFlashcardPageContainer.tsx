@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { useCreateFlashcardPageContext } from '../context/hooks/useCreateFlashcardPageContext';
+import { selectSelectedDirectoryId } from '../../../store/slices/directorySlice';
 import { Page } from '../../../components/Page';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
@@ -14,6 +16,7 @@ import { RuleApplicability } from '@shared-types';
 
 export const CreateFlashcardPageContainer = () => {
   const navigate = useNavigate();
+  const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
   const [ruleIds, setRuleIds] = useState<string[]>([]);
 
   const { 
@@ -34,7 +37,11 @@ export const CreateFlashcardPageContainer = () => {
   const watchedFlashcardName = watch('flashcardName');
 
   const handleBack = () => {
-    navigate('/documents');
+    if (selectedDirectoryId) {
+      navigate(`/documents?directoryId=${selectedDirectoryId}`);
+    } else {
+      navigate('/documents');
+    }
   };
 
   const selectedDocument = documents.find(d => d.id === watchedDocumentId);

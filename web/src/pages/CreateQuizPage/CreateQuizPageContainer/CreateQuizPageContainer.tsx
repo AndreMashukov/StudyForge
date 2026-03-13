@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { useCreateQuizPageContext } from '../context/hooks/useCreateQuizPageContext';
+import { selectSelectedDirectoryId } from '../../../store/slices/directorySlice';
 import { Page } from '../../../components/Page';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
@@ -14,6 +16,7 @@ import { RuleApplicability } from '@shared-types';
 
 export const CreateQuizPageContainer = () => {
   const navigate = useNavigate();
+  const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
   const [quizRuleIds, setQuizRuleIds] = useState<string[]>([]);
   const [followupRuleIds, setFollowupRuleIds] = useState<string[]>([]);
 
@@ -34,7 +37,11 @@ export const CreateQuizPageContainer = () => {
   const watchedQuizName = watch('quizName');
 
   const handleBack = () => {
-    navigate('/documents');
+    if (selectedDirectoryId) {
+      navigate(`/documents?directoryId=${selectedDirectoryId}`);
+    } else {
+      navigate('/documents');
+    }
   };
 
   // Get selected document's directoryId (safely access with optional chaining)
