@@ -9,7 +9,7 @@ import { cn } from '../../../../lib/utils';
 import { FileUploadZone } from './FileUploadZone';
 import { AttachedFilesList } from './AttachedFilesList';
 import { SourceTabs, SourceTabType } from './SourceTabs';
-import { DocumentSelector } from './DocumentSelector';
+import { DocumentSelector } from '../../../../components/DocumentSelector';
 import { CompactRuleSelector } from '../../../../components/CompactRuleSelector';
 import { FILE_UPLOAD_CONSTRAINTS } from '../../../../types/fileUpload';
 import { RuleApplicability } from '@shared-types';

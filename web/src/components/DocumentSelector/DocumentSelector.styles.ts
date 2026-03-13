@@ -1,16 +1,12 @@
-/**
- * DocumentSelector Component Styles
- */
-
 export const documentSelectorStyles = {
   container: 'py-4',
   scrollContainer: 'max-h-96 overflow-y-auto space-y-2 pr-2',
-  
+
   // Loading state
   loadingContainer: 'flex flex-col items-center justify-center py-12 space-y-3',
   loadingSpinner: 'h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary',
   loadingText: 'text-sm text-muted-foreground',
-  
+
   // Empty state
   emptyContainer: [
     'flex flex-col items-center justify-center py-12 space-y-3',
@@ -20,7 +16,7 @@ export const documentSelectorStyles = {
   emptyTitle: 'text-base font-medium text-foreground',
   emptyDescription: 'text-sm text-muted-foreground max-w-sm',
   emptyAction: 'mt-2',
-  
+
   // Document item
   documentItem: [
     'flex items-start gap-3 p-3',
@@ -34,7 +30,7 @@ export const documentSelectorStyles = {
     'hover:bg-background hover:border-border',
   ].join(' '),
   documentItemSelected: 'bg-muted/30 border-primary/50',
-  
+
   // Checkbox
   checkbox: [
     'h-4 w-4 mt-0.5',
@@ -44,7 +40,7 @@ export const documentSelectorStyles = {
     'cursor-pointer',
     'disabled:cursor-not-allowed disabled:opacity-50',
   ].join(' '),
-  
+
   // Document content
   documentContent: 'flex-1 min-w-0',
   documentTitle: 'font-medium text-foreground text-sm line-clamp-2 break-words',
@@ -52,7 +48,7 @@ export const documentSelectorStyles = {
   documentMetaItem: 'flex items-center gap-1',
   documentMetaIcon: 'h-3.5 w-3.5',
   documentMetaDivider: 'h-3 w-px bg-border',
-  
+
   // Warning badge
   warningBadge: [
     'inline-flex items-center gap-1',
@@ -64,4 +60,3 @@ export const documentSelectorStyles = {
   ].join(' '),
   warningIcon: 'h-3 w-3',
 } as const;
-

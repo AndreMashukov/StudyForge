@@ -10,6 +10,7 @@ import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
 import { CompactRuleSelector } from '../../../components/CompactRuleSelector';
+import { DocumentSelector } from '../../../components/DocumentSelector';
 import { createSlideDeckPageStyles } from './CreateSlideDeckPageContainer.styles';
 import { ArrowLeft, Presentation } from 'lucide-react';
 import { RuleApplicability } from '@shared-types';
@@ -82,20 +83,20 @@ export const CreateSlideDeckPageContainer = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Document Selection */}
                 <div className={createSlideDeckPageStyles.formField}>
-                  <Label htmlFor="documentId">Source Document *</Label>
-                  <select
-                    {...register('documentId')}
-                    id="documentId"
-                    className="w-full h-10 px-3 py-2 text-sm bg-background border border-input rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  <Label>Source Document *</Label>
+                  <input {...register('documentId')} type="hidden" />
+                  <DocumentSelector
+                    documents={documents}
+                    selectedDocumentIds={watchedDocumentId ? [watchedDocumentId] : []}
+                    onDocumentToggle={(id) =>
+                      setValue('documentId', watchedDocumentId === id ? '' : id, {
+                        shouldValidate: true,
+                      })
+                    }
+                    maxSelections={1}
+                    isLoading={isLoading}
                     disabled={isLoading}
-                  >
-                    <option value="">Select a document</option>
-                    {documents.map((doc) => (
-                      <option key={doc.id} value={doc.id}>
-                        {doc.title}
-                      </option>
-                    ))}
-                  </select>
+                  />
                   {errors.documentId && (
                     <p className="text-sm text-destructive">{errors.documentId.message}</p>
                   )}

@@ -1,17 +1,10 @@
 import { UseFormReturn } from 'react-hook-form';
+import { IDocumentListResponse } from '../../../store/api/Documents/IDocumentsApi';
 import { ICreateSlideDeckFormData } from './ICreateSlideDeckPageTypes';
 
 export interface ICreateSlideDeckPageContext {
   documentsApi: {
-    data?: {
-      documents: Array<{
-        id: string;
-        title: string;
-        content?: string;
-      }>;
-      total: number;
-      hasMore: boolean;
-    };
+    data?: IDocumentListResponse;
     isLoading: boolean;
     error?: unknown;
     refetch: () => void;
