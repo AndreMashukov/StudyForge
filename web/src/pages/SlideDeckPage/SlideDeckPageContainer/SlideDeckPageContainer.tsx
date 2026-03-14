@@ -188,7 +188,7 @@ export const SlideDeckPageContainer: React.FC = () => {
 
   return (
     <Page showSidebar={false}>
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="bg-background flex flex-col">
         <header className="sticky top-0 bg-background border-b px-4 py-3 z-10">
           <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
             <button
@@ -232,7 +232,7 @@ export const SlideDeckPageContainer: React.FC = () => {
           </div>
         </header>
 
-        <div className="flex-1 flex items-center justify-center px-4 py-4">
+        <div className="flex justify-center px-4 py-6">
           {slideContent}
         </div>
 
