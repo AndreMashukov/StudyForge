@@ -148,7 +148,7 @@ In the Cloud VM, `NX_PUBLIC_*` secrets are injected as environment variables and
 Firebase Auth emulator starts empty. The recommended way to seed a user **and** a sample document is:
 
 ```bash
-npx tsx scripts/e2e-setup/setup-e2e-data.ts
+npx tsx scripts/seed-setup/setup-seed-data.ts
 ```
 
 This script (run from the workspace root with emulators already running):

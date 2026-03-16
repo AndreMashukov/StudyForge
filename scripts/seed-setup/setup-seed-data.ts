@@ -11,7 +11,7 @@
  *   6. Upload the document content file to the Storage emulator
  *
  * Usage:
- *   npx tsx scripts/e2e-setup/setup-e2e-data.ts
+ *   npx tsx scripts/seed-setup/setup-seed-data.ts
  *
  * All emulator hosts default to localhost — override via env if needed:
  *   FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
@@ -156,8 +156,8 @@ async function main() {
     createdAt: now,
     updatedAt: now,
   };
-  // directory creation skipped for e2e
-  console.log('   ✅ Directory creation skipped (e2e mode)');
+  await db.doc(`users/${TARGET_UID}/directories/${DIR_ID}`).set(dirData);
+  console.log(`   ✅ Directory created: ${dirData.name} (ID: ${DIR_ID})`);
 
   // ── Step 4: Rule ─────────────────────────────────────────────────────────
   console.log('\n[4] Creating general prompt rule …');
@@ -171,7 +171,7 @@ async function main() {
     tags: ['study', 'general'],
     applicableTo: ['prompt'],
     isDefault: true,
-    directoryIds: [], // directory creation skipped in e2e mode
+    directoryIds: [DIR_ID],
     createdAt: now,
     updatedAt: now,
   };
@@ -186,7 +186,7 @@ async function main() {
   const docData = {
     id: DOC_ID,
     userId: TARGET_UID,
-    directoryId: null,
+    directoryId: DIR_ID,
     title: 'Machine Learning',
     description: 'A comprehensive introduction to machine learning concepts and applications.',
     sourceType: 'generated',
