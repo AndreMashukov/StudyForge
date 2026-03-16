@@ -1,5 +1,5 @@
 export interface ICreateSlideDeckFormData {
-  documentId: string;
+  documentIds: string[];
   slideDeckName?: string;
   additionalPrompt?: string;
   ruleIds?: string[];

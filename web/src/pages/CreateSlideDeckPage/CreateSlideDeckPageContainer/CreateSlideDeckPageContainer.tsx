@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useCreateSlideDeckPageContext } from '../context/hooks/useCreateSlideDeckPageContext';
@@ -22,21 +22,14 @@ export const CreateSlideDeckPageContainer = () => {
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
   const [ruleIds, setRuleIds] = useState<string[]>([]);
 
-  const {
-    documentsApi,
-    form,
-    handlers
-  } = useCreateSlideDeckPageContext();
-
-  const {
-    handleSubmit,
-    isSubmitting
-  } = handlers;
+  const { documentsApi, form, handlers } = useCreateSlideDeckPageContext();
+  const { handleSubmit, isSubmitting } = handlers;
 
   const { data: documentsResponse, isLoading } = documentsApi;
-  const documents = documentsResponse?.documents || [];
+  const documents = useMemo(() => documentsResponse?.documents || [], [documentsResponse]);
   const { register, watch, setValue, formState: { errors } } = form;
-  const watchedDocumentId = watch('documentId');
+
+  const watchedDocumentIds = watch('documentIds');
   const watchedSlideDeckName = watch('slideDeckName');
 
   const handleBack = () => {
@@ -47,9 +40,9 @@ export const CreateSlideDeckPageContainer = () => {
     }
   };
 
-  const selectedDocument = documents.find(d => d.id === watchedDocumentId);
+  const primaryDocument = documents.find(d => d.id === watchedDocumentIds?.[0]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const directoryId = (selectedDocument as any)?.directoryId || null;
+  const directoryId = (primaryDocument as any)?.directoryId || null;
 
   const handleRulesChange = (selectedRuleIds: string[]) => {
     setRuleIds(selectedRuleIds);
@@ -57,26 +50,41 @@ export const CreateSlideDeckPageContainer = () => {
   };
 
   // useRef guard: apply preselection exactly once on mount
-  // Prevents overwriting user's manual selection on subsequent documents refetch
   const preselectionApplied = useRef(false);
   useEffect(() => {
     if (preselectedDocumentId && documents.length > 0 && !preselectionApplied.current) {
       const docExists = documents.find(d => d.id === preselectedDocumentId);
       if (docExists) {
         preselectionApplied.current = true;
-        setValue('documentId', preselectedDocumentId, { shouldValidate: true });
+        const current = form.getValues('documentIds');
+        if (!current.includes(preselectedDocumentId)) {
+          setValue('documentIds', [preselectedDocumentId, ...current], { shouldValidate: true });
+        }
       }
     }
-  }, [preselectedDocumentId, documents, setValue]);
+  }, [preselectedDocumentId, documents, setValue, form]);
+
+  const handleDocumentToggle = (id: string) => {
+    const current = form.getValues('documentIds');
+    const next = current.includes(id)
+      ? current.filter(d => d !== id)
+      : [...current, id];
+    setValue('documentIds', next, { shouldValidate: true });
+  };
+
+  const docCount = watchedDocumentIds?.length ?? 0;
+  const generateLabel = isSubmitting
+    ? 'Generating Slide Deck...'
+    : docCount > 1
+      ? `Generate Slide Deck from ${docCount} documents`
+      : 'Generate Slide Deck';
+
   return (
     <Page showSidebar={false}>
       <div className={createSlideDeckPageStyles.container}>
         <header className={createSlideDeckPageStyles.header}>
           <div className={createSlideDeckPageStyles.headerContent}>
-            <button
-              onClick={handleBack}
-              className={createSlideDeckPageStyles.backButton}
-            >
+            <button onClick={handleBack} className={createSlideDeckPageStyles.backButton}>
               <ArrowLeft size={20} />
               Back to Documents
             </button>
@@ -97,23 +105,19 @@ export const CreateSlideDeckPageContainer = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Document Selection */}
                 <div className={createSlideDeckPageStyles.formField}>
-                  <Label>Source Document *</Label>
-                  <input {...register('documentId')} type="hidden" />
+                  <Label>Source Documents *</Label>
                   <PreSelectedDocumentSelector
                     documents={documents}
-                    selectedDocumentIds={watchedDocumentId ? [watchedDocumentId] : []}
-                    onDocumentToggle={(id) =>
-                      setValue('documentId', watchedDocumentId === id ? '' : id, {
-                        shouldValidate: true,
-                      })
-                    }
-                    maxSelections={1}
+                    selectedDocumentIds={watchedDocumentIds ?? []}
+                    onDocumentToggle={handleDocumentToggle}
                     isLoading={isLoading}
                     disabled={isLoading}
                     initialDocumentId={preselectedDocumentId}
                   />
-                  {errors.documentId && (
-                    <p className="text-sm text-destructive">{errors.documentId.message}</p>
+                  {errors.documentIds && (
+                    <p className="text-sm text-destructive">
+                      {errors.documentIds.message ?? 'Please select at least one document'}
+                    </p>
                   )}
                 </div>
 
@@ -135,9 +139,9 @@ export const CreateSlideDeckPageContainer = () => {
                   {errors.slideDeckName && (
                     <p className="text-sm text-destructive">{errors.slideDeckName.message}</p>
                   )}
-                  {watchedDocumentId && !watchedSlideDeckName?.trim() && (
+                  {docCount > 0 && !watchedSlideDeckName?.trim() && (
                     <p className="text-sm text-muted-foreground">
-                      Default name: &quot;Slides for {documents.find(d => d.id === watchedDocumentId)?.title}&quot;
+                      Default name: &quot;Slides for {primaryDocument?.title}&quot;
                     </p>
                   )}
                 </div>
@@ -186,9 +190,9 @@ export const CreateSlideDeckPageContainer = () => {
                   <Button
                     type="submit"
                     className={createSlideDeckPageStyles.submitButton}
-                    disabled={isSubmitting || !watchedDocumentId}
+                    disabled={isSubmitting || docCount === 0}
                   >
-                    {isSubmitting ? 'Generating Slide Deck...' : 'Generate Slide Deck'}
+                    {generateLabel}
                   </Button>
                 </div>
               </form>

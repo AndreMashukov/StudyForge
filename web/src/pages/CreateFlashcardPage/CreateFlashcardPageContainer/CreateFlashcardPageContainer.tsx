@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useCreateFlashcardPageContext } from '../context/hooks/useCreateFlashcardPageContext';
@@ -22,21 +22,14 @@ export const CreateFlashcardPageContainer = () => {
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
   const [ruleIds, setRuleIds] = useState<string[]>([]);
 
-  const { 
-    documentsApi,
-    form,
-    handlers 
-  } = useCreateFlashcardPageContext();
-
-  const { 
-    handleSubmit, 
-    isSubmitting 
-  } = handlers;
+  const { documentsApi, form, handlers } = useCreateFlashcardPageContext();
+  const { handleSubmit, isSubmitting } = handlers;
 
   const { data: documentsResponse, isLoading } = documentsApi;
-  const documents = documentsResponse?.documents || [];
+  const documents = useMemo(() => documentsResponse?.documents || [], [documentsResponse]);
   const { register, watch, setValue, formState: { errors } } = form;
-  const watchedDocumentId = watch('documentId');
+
+  const watchedDocumentIds = watch('documentIds');
   const watchedFlashcardName = watch('flashcardName');
 
   const handleBack = () => {
@@ -47,9 +40,9 @@ export const CreateFlashcardPageContainer = () => {
     }
   };
 
-  const selectedDocument = documents.find(d => d.id === watchedDocumentId);
+  const primaryDocument = documents.find(d => d.id === watchedDocumentIds?.[0]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const directoryId = (selectedDocument as any)?.directoryId || null;
+  const directoryId = (primaryDocument as any)?.directoryId || null;
 
   const handleRulesChange = (selectedRuleIds: string[]) => {
     setRuleIds(selectedRuleIds);
@@ -57,26 +50,41 @@ export const CreateFlashcardPageContainer = () => {
   };
 
   // useRef guard: apply preselection exactly once on mount
-  // Prevents overwriting user's manual selection on subsequent documents refetch
   const preselectionApplied = useRef(false);
   useEffect(() => {
     if (preselectedDocumentId && documents.length > 0 && !preselectionApplied.current) {
       const docExists = documents.find(d => d.id === preselectedDocumentId);
       if (docExists) {
         preselectionApplied.current = true;
-        setValue('documentId', preselectedDocumentId, { shouldValidate: true });
+        const current = form.getValues('documentIds');
+        if (!current.includes(preselectedDocumentId)) {
+          setValue('documentIds', [preselectedDocumentId, ...current], { shouldValidate: true });
+        }
       }
     }
-  }, [preselectedDocumentId, documents, setValue]);
+  }, [preselectedDocumentId, documents, setValue, form]);
+
+  const handleDocumentToggle = (id: string) => {
+    const current = form.getValues('documentIds');
+    const next = current.includes(id)
+      ? current.filter(d => d !== id)
+      : [...current, id];
+    setValue('documentIds', next, { shouldValidate: true });
+  };
+
+  const docCount = watchedDocumentIds?.length ?? 0;
+  const generateLabel = isSubmitting
+    ? 'Generating Flashcards...'
+    : docCount > 1
+      ? `Generate Flashcards from ${docCount} documents`
+      : 'Generate Flashcards';
+
   return (
     <Page showSidebar={false}>
       <div className={createFlashcardPageStyles.container}>
         <header className={createFlashcardPageStyles.header}>
           <div className={createFlashcardPageStyles.headerContent}>
-            <button
-              onClick={handleBack}
-              className={createFlashcardPageStyles.backButton}
-            >
+            <button onClick={handleBack} className={createFlashcardPageStyles.backButton}>
               <ArrowLeft size={20} />
               Back to Documents
             </button>
@@ -97,23 +105,19 @@ export const CreateFlashcardPageContainer = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Document Selection */}
                 <div className={createFlashcardPageStyles.formField}>
-                  <Label>Source Document *</Label>
-                  <input {...register('documentId')} type="hidden" />
+                  <Label>Source Documents *</Label>
                   <PreSelectedDocumentSelector
                     documents={documents}
-                    selectedDocumentIds={watchedDocumentId ? [watchedDocumentId] : []}
-                    onDocumentToggle={(id) =>
-                      setValue('documentId', watchedDocumentId === id ? '' : id, {
-                        shouldValidate: true,
-                      })
-                    }
-                    maxSelections={1}
+                    selectedDocumentIds={watchedDocumentIds ?? []}
+                    onDocumentToggle={handleDocumentToggle}
                     isLoading={isLoading}
                     disabled={isLoading}
                     initialDocumentId={preselectedDocumentId}
                   />
-                  {errors.documentId && (
-                    <p className="text-sm text-destructive">{errors.documentId.message}</p>
+                  {errors.documentIds && (
+                    <p className="text-sm text-destructive">
+                      {errors.documentIds.message ?? 'Please select at least one document'}
+                    </p>
                   )}
                 </div>
 
@@ -135,9 +139,9 @@ export const CreateFlashcardPageContainer = () => {
                   {errors.flashcardName && (
                     <p className="text-sm text-destructive">{errors.flashcardName.message}</p>
                   )}
-                  {watchedDocumentId && !watchedFlashcardName?.trim() && (
+                  {docCount > 0 && !watchedFlashcardName?.trim() && (
                     <p className="text-sm text-muted-foreground">
-                      Default name: &quot;Flashcards for {documents.find(d => d.id === watchedDocumentId)?.title}&quot;
+                      Default name: &quot;Flashcards for {primaryDocument?.title}&quot;
                     </p>
                   )}
                 </div>
@@ -186,9 +190,9 @@ export const CreateFlashcardPageContainer = () => {
                   <Button
                     type="submit"
                     className={createFlashcardPageStyles.submitButton}
-                    disabled={isSubmitting || !watchedDocumentId}
+                    disabled={isSubmitting || docCount === 0}
                   >
-                    {isSubmitting ? 'Generating Flashcards...' : 'Generate Flashcards'}
+                    {generateLabel}
                   </Button>
                 </div>
               </form>

@@ -17,15 +17,16 @@ export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPage
   const [generateQuiz] = useGenerateQuizMutation();
 
   const handleSubmit = useCallback(async (formData: ICreateQuizFormData) => {
-    if (!formData.documentId) {
+    if (!formData.documentIds || formData.documentIds.length === 0) {
       return;
     }
 
-    const selectedDocument = documents.find(d => d.id === formData.documentId);
+    const primaryDocumentId = formData.documentIds[0];
+    const selectedDocument = documents.find(d => d.id === primaryDocumentId);
     const directoryId = selectedDocument?.directoryId || null;
 
     generateQuiz({
-      documentId: formData.documentId,
+      documentId: primaryDocumentId,
       quizName: formData.quizName?.trim() || undefined,
       additionalPrompt: formData.additionalPrompt?.trim() || undefined,
       quizRuleIds: formData.quizRuleIds || [],

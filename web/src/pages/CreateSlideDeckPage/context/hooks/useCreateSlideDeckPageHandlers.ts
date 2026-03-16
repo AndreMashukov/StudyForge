@@ -16,13 +16,15 @@ export const useCreateSlideDeckPageHandlers = ({ form }: UseCreateSlideDeckPageH
   const [generateSlideDeck, { isLoading: isSubmitting }] = useGenerateSlideDeckMutation();
 
   const handleSubmit = useCallback(async (formData: ICreateSlideDeckFormData) => {
-    if (!formData.documentId) {
+    if (!formData.documentIds || formData.documentIds.length === 0) {
       return;
     }
 
+    const primaryDocumentId = formData.documentIds[0];
+
     try {
       const result = await generateSlideDeck({
-        documentId: formData.documentId,
+        documentId: primaryDocumentId,
         title: formData.slideDeckName?.trim() || undefined,
         additionalPrompt: formData.additionalPrompt?.trim() || undefined,
         ruleIds: (formData.ruleIds ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0),
@@ -33,7 +35,6 @@ export const useCreateSlideDeckPageHandlers = ({ form }: UseCreateSlideDeckPageH
           message: 'Slide deck generated successfully!',
           type: 'success'
         }));
-
         navigate(`/slides/${result.data.slideDeckId}`);
       } else {
         dispatch(showToast({

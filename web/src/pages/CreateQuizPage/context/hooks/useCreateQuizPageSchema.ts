@@ -2,9 +2,9 @@ import { useCallback } from 'react';
 import { z } from 'zod';
 
 const createCreateQuizPageSchema = () => z.object({
-  documentId: z
-    .string()
-    .min(1, "Please select a document"),
+  documentIds: z
+    .array(z.string())
+    .min(1, "Please select at least one document"),
   quizName: z
     .string()
     .max(100, "Quiz name must be 100 characters or less")
@@ -27,9 +27,9 @@ export type CreateQuizPageFormData = z.infer<ReturnType<typeof createCreateQuizP
 
 export const useCreateQuizPageSchema = () => {
   const schema = useCallback(() => createCreateQuizPageSchema(), []);
-  
+
   return {
     schema: schema(),
-    type: {} as CreateQuizPageFormData, // For type inference
+    type: {} as CreateQuizPageFormData,
   };
 };

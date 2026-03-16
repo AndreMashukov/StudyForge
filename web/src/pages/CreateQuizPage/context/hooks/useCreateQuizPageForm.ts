@@ -13,7 +13,7 @@ export const useCreateQuizPageForm = () => {
   const form = useForm<ICreateQuizFormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      documentId: preSelectedDocumentId,
+      documentIds: preSelectedDocumentId ? [preSelectedDocumentId] : [],
       quizName: '',
       additionalPrompt: '',
     },
@@ -21,8 +21,11 @@ export const useCreateQuizPageForm = () => {
 
   // Update form when URL params change
   useEffect(() => {
-    if (preSelectedDocumentId && preSelectedDocumentId !== form.getValues('documentId')) {
-      form.setValue('documentId', preSelectedDocumentId);
+    if (preSelectedDocumentId) {
+      const current = form.getValues('documentIds');
+      if (!current.includes(preSelectedDocumentId)) {
+        form.setValue('documentIds', [preSelectedDocumentId, ...current]);
+      }
     }
   }, [preSelectedDocumentId, form]);
 

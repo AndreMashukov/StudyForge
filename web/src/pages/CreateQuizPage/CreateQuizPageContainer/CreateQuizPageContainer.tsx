@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useCreateQuizPageContext } from '../context/hooks/useCreateQuizPageContext';
@@ -23,20 +23,14 @@ export const CreateQuizPageContainer = () => {
   const [quizRuleIds, setQuizRuleIds] = useState<string[]>([]);
   const [followupRuleIds, setFollowupRuleIds] = useState<string[]>([]);
 
-  const { 
-    documentsApi,
-    form,
-    handlers 
-  } = useCreateQuizPageContext();
-
-  const { 
-    handleSubmit,
-  } = handlers;
+  const { documentsApi, form, handlers } = useCreateQuizPageContext();
+  const { handleSubmit } = handlers;
 
   const { data: documentsResponse, isLoading } = documentsApi;
-  const documents = documentsResponse?.documents || [];
+  const documents = useMemo(() => documentsResponse?.documents || [], [documentsResponse]);
   const { register, watch, setValue, formState: { errors } } = form;
-  const watchedDocumentId = watch('documentId');
+
+  const watchedDocumentIds = watch('documentIds');
   const watchedQuizName = watch('quizName');
 
   const handleBack = () => {
@@ -47,12 +41,11 @@ export const CreateQuizPageContainer = () => {
     }
   };
 
-  // Get selected document's directoryId (safely access with optional chaining)
-  const selectedDocument = documents.find(d => d.id === watchedDocumentId);
+  // Get directoryId from primary selected document
+  const primaryDocument = documents.find(d => d.id === watchedDocumentIds?.[0]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const directoryId = (selectedDocument as any)?.directoryId || null;
+  const directoryId = (primaryDocument as any)?.directoryId || null;
 
-  // Update form values when rules change
   const handleQuizRulesChange = (ruleIds: string[]) => {
     setQuizRuleIds(ruleIds);
     setValue('quizRuleIds', ruleIds);
@@ -64,32 +57,45 @@ export const CreateQuizPageContainer = () => {
   };
 
   // useRef guard: apply preselection exactly once on mount
-  // Prevents overwriting user's manual selection on subsequent documents refetch
   const preselectionApplied = useRef(false);
   useEffect(() => {
     if (preselectedDocumentId && documents.length > 0 && !preselectionApplied.current) {
       const docExists = documents.find(d => d.id === preselectedDocumentId);
       if (docExists) {
         preselectionApplied.current = true;
-        setValue('documentId', preselectedDocumentId, { shouldValidate: true });
+        const current = form.getValues('documentIds');
+        if (!current.includes(preselectedDocumentId)) {
+          setValue('documentIds', [preselectedDocumentId, ...current], { shouldValidate: true });
+        }
       }
     }
-  }, [preselectedDocumentId, documents, setValue]);
+  }, [preselectedDocumentId, documents, setValue, form]);
+
+  const handleDocumentToggle = (id: string) => {
+    const current = form.getValues('documentIds');
+    const next = current.includes(id)
+      ? current.filter(d => d !== id)
+      : [...current, id];
+    setValue('documentIds', next, { shouldValidate: true });
+  };
+
+  const docCount = watchedDocumentIds?.length ?? 0;
+  const generateLabel = docCount > 1
+    ? `Generate Quiz from ${docCount} documents`
+    : 'Generate Quiz';
+
   return (
     <Page showSidebar={false}>
       <div className={createQuizPageStyles.container}>
         {/* Header */}
         <header className={createQuizPageStyles.header}>
           <div className={createQuizPageStyles.headerContent}>
-            <button
-              onClick={handleBack}
-              className={createQuizPageStyles.backButton}
-            >
+            <button onClick={handleBack} className={createQuizPageStyles.backButton}>
               <ArrowLeft size={20} />
               Back to Documents
             </button>
             <h1 className={createQuizPageStyles.title}>Create Quiz</h1>
-            <div></div> {/* Spacer for centering */}
+            <div></div>
           </div>
         </header>
 
@@ -106,23 +112,19 @@ export const CreateQuizPageContainer = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Document Selection */}
                 <div className={createQuizPageStyles.formField}>
-                  <Label>Source Document *</Label>
-                  <input {...register('documentId')} type="hidden" />
+                  <Label>Source Documents *</Label>
                   <PreSelectedDocumentSelector
                     documents={documents}
-                    selectedDocumentIds={watchedDocumentId ? [watchedDocumentId] : []}
-                    onDocumentToggle={(id) =>
-                      setValue('documentId', watchedDocumentId === id ? '' : id, {
-                        shouldValidate: true,
-                      })
-                    }
-                    maxSelections={1}
+                    selectedDocumentIds={watchedDocumentIds ?? []}
+                    onDocumentToggle={handleDocumentToggle}
                     isLoading={isLoading}
                     disabled={isLoading}
                     initialDocumentId={preselectedDocumentId}
                   />
-                  {errors.documentId && (
-                    <p className="text-sm text-destructive">{errors.documentId.message}</p>
+                  {errors.documentIds && (
+                    <p className="text-sm text-destructive">
+                      {errors.documentIds.message ?? 'Please select at least one document'}
+                    </p>
                   )}
                 </div>
 
@@ -144,9 +146,9 @@ export const CreateQuizPageContainer = () => {
                   {errors.quizName && (
                     <p className="text-sm text-destructive">{errors.quizName.message}</p>
                   )}
-                  {watchedDocumentId && !watchedQuizName?.trim() && (
+                  {docCount > 0 && !watchedQuizName?.trim() && (
                     <p className="text-sm text-muted-foreground">
-                      Default name: "Quiz from {documents.find(d => d.id === watchedDocumentId)?.title}"
+                      Default name: &quot;Quiz from {primaryDocument?.title}&quot;
                     </p>
                   )}
                 </div>
@@ -207,9 +209,9 @@ export const CreateQuizPageContainer = () => {
                   <Button
                     type="submit"
                     className={createQuizPageStyles.submitButton}
-                    disabled={!watchedDocumentId}
+                    disabled={docCount === 0}
                   >
-                    Generate Quiz
+                    {generateLabel}
                   </Button>
                 </div>
               </form>

@@ -16,26 +16,27 @@ export const useCreateFlashcardPageHandlers = ({ form }: UseCreateFlashcardPageH
   const [generateFlashcards, { isLoading: isSubmitting }] = useGenerateFlashcardsMutation();
 
   const handleSubmit = useCallback(async (formData: ICreateFlashcardFormData) => {
-    if (!formData.documentId) {
+    if (!formData.documentIds || formData.documentIds.length === 0) {
       return;
     }
+
+    const primaryDocumentId = formData.documentIds[0];
 
     try {
       const trimmedTitle = formData.flashcardName?.trim();
       const trimmedPrompt = formData.additionalPrompt?.trim();
       const result = await generateFlashcards({
-        documentId: formData.documentId,
+        documentId: primaryDocumentId,
         ...(trimmedTitle ? { title: trimmedTitle } : {}),
         ...(trimmedPrompt ? { additionalPrompt: trimmedPrompt } : {}),
         ruleIds: formData.ruleIds || [],
       }).unwrap();
-      
+
       if (result.success && result.data) {
         dispatch(showToast({
           message: 'Flashcards generated successfully!',
           type: 'success'
         }));
-        
         navigate(`/flashcards/${result.data.flashcardSetId}`);
       } else {
         dispatch(showToast({

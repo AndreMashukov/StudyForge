@@ -74,6 +74,142 @@ Machine learning powers many modern applications:
 Machine learning continues to transform industries by enabling computers to learn from data and make intelligent decisions. Understanding its fundamentals is essential for anyone working in technology.
 `;
 
+
+const DOC_ID_2 = 'doc-ruby-vs-js';
+const DOC_ID_3 = 'doc-system-design';
+const DOC_ID_4 = 'doc-react-patterns';
+
+const DOCUMENT_CONTENT_2 = `# Ruby vs JavaScript
+
+Ruby and JavaScript are both dynamic, object-oriented programming languages, but they differ significantly in their design philosophy and primary use cases.
+
+## Ruby
+
+Ruby was designed with developer happiness in mind. It follows the principle of least surprise, meaning the language behaves in ways most developers expect.
+
+### Key Features
+- **Pure OOP**: Everything in Ruby is an object, including numbers and booleans
+- **Metaprogramming**: Ruby excels at dynamic code generation
+- **Blocks and Iterators**: Elegant iteration patterns with blocks, procs, and lambdas
+- **Rails Framework**: Ruby on Rails revolutionized web development with convention over configuration
+
+## JavaScript
+
+JavaScript was originally designed for browser scripting but has evolved into a full-stack language.
+
+### Key Features
+- **Asynchronous**: Event-driven, non-blocking I/O with Promises and async/await
+- **Prototype-based**: Object inheritance through prototypal chain
+- **Universal**: Runs in browsers and on servers (Node.js)
+- **Ecosystem**: Largest package ecosystem via npm
+
+## Comparison
+
+| Aspect | Ruby | JavaScript |
+|--------|------|------------|
+| Primary Use | Web backend (Rails) | Full-stack, browser |
+| Typing | Dynamic | Dynamic |
+| Concurrency | Multi-threading | Event loop |
+| Learning Curve | Moderate | Moderate |
+
+## Conclusion
+
+Both languages are powerful choices. Ruby shines in rapid web application development, while JavaScript's versatility and ubiquity make it indispensable for modern web development.
+`;
+
+const DOCUMENT_CONTENT_3 = `# System Design Fundamentals
+
+System design is the process of defining the architecture, components, modules, interfaces, and data flow of a system to satisfy specified requirements.
+
+## Core Concepts
+
+### Scalability
+Scalability is the ability of a system to handle growing amounts of work.
+- **Horizontal Scaling**: Adding more machines (scale out)
+- **Vertical Scaling**: Adding more power to existing machines (scale up)
+
+### Load Balancing
+Distributes incoming traffic across multiple servers to ensure no single server bears too much load.
+- Round Robin
+- Least Connections
+- IP Hash
+
+### Caching
+Stores copies of frequently accessed data in fast storage.
+- **Redis**: In-memory data store, ideal for caching and sessions
+- **CDN**: Content Delivery Networks for static assets
+- **Browser Cache**: Client-side caching
+
+### Databases
+- **SQL**: Relational databases (PostgreSQL, MySQL) — ACID compliant
+- **NoSQL**: Document stores (MongoDB), Key-value (Redis), Column (Cassandra)
+- **Sharding**: Partitioning data across multiple databases
+
+### Microservices
+Breaking applications into small, independent services that communicate via APIs.
+
+## Design Patterns
+
+1. **Event Sourcing**: Store state changes as events
+2. **CQRS**: Separate read and write models
+3. **Circuit Breaker**: Prevent cascading failures
+4. **Saga Pattern**: Manage distributed transactions
+
+## Summary
+
+Good system design balances performance, reliability, scalability, and maintainability. Understanding these fundamentals is crucial for building production-grade systems.
+`;
+
+const DOCUMENT_CONTENT_4 = `# React Design Patterns
+
+React design patterns are reusable solutions to common problems in React application development.
+
+## Component Patterns
+
+### Compound Components
+Allows components to share state implicitly while giving users full control over rendering.
+
+\`\`\`tsx
+<Select>
+  <Select.Option value="a">Option A</Select.Option>
+  <Select.Option value="b">Option B</Select.Option>
+</Select>
+\`\`\`
+
+### Render Props
+Share code between components using a prop whose value is a function.
+
+### Higher-Order Components (HOC)
+Functions that take a component and return a new enhanced component.
+
+## State Management Patterns
+
+### Context + useReducer
+Combine React Context with useReducer for scalable state management without external libraries.
+
+### Custom Hooks
+Extract and reuse stateful logic across components.
+
+\`\`\`tsx
+function useDocuments() {
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  // ...
+  return { documents, loading };
+}
+\`\`\`
+
+## Performance Patterns
+
+- **Code Splitting**: Lazy load components with React.lazy and Suspense
+- **Memoization**: Use React.memo, useMemo, useCallback to prevent re-renders
+- **Virtualization**: Render only visible items in long lists (react-window)
+
+## Summary
+
+Mastering these patterns leads to more maintainable, performant, and scalable React applications. Choose patterns based on your specific use case rather than applying them universally.
+`;
+
 async function main() {
   // --- Emulator hosts (must be set before admin.initializeApp) ---
   process.env.FIREBASE_AUTH_EMULATOR_HOST =
@@ -202,6 +338,60 @@ async function main() {
   await db.doc(`users/${TARGET_UID}/documents/${DOC_ID}`).set(docData);
   console.log('   ✅ Document metadata written');
 
+
+  // ── Step 5b: Additional documents ───────────────────────────────────────
+  console.log('\n[5b] Injecting additional documents ...');
+
+  const additionalDocs = [
+    {
+      id: DOC_ID_2,
+      title: 'Ruby vs JavaScript',
+      description: 'A comparison of Ruby and JavaScript programming languages.',
+      content: DOCUMENT_CONTENT_2,
+      tags: ['ruby', 'javascript', 'programming', 'comparison'],
+    },
+    {
+      id: DOC_ID_3,
+      title: 'System Design Fundamentals',
+      description: 'Core concepts and patterns for designing scalable systems.',
+      content: DOCUMENT_CONTENT_3,
+      tags: ['system-design', 'architecture', 'scalability'],
+    },
+    {
+      id: DOC_ID_4,
+      title: 'React Design Patterns',
+      description: 'Reusable patterns for building scalable React applications.',
+      content: DOCUMENT_CONTENT_4,
+      tags: ['react', 'design-patterns', 'frontend'],
+    },
+  ];
+
+  for (const doc of additionalDocs) {
+    const additionalDocData = {
+      id: doc.id,
+      userId: TARGET_UID,
+      directoryId: null,
+      title: doc.title,
+      description: doc.description,
+      sourceType: 'generated',
+      status: 'active',
+      wordCount: doc.content.split(/\s+/).length,
+      storagePath: `users/${TARGET_UID}/documents/${doc.id}/content.md`,
+      storageUrl: `http://${process.env.FIREBASE_STORAGE_EMULATOR_HOST}/v0/b/${STORAGE_BUCKET}/o/users%2F${encodeURIComponent(TARGET_UID)}%2Fdocuments%2F${doc.id}%2Fcontent.md?alt=media`,
+      tags: doc.tags,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db.doc(`users/${TARGET_UID}/documents/${doc.id}`).set(additionalDocData);
+
+    const additionalFilePath = `users/${TARGET_UID}/documents/${doc.id}/content.md`;
+    const additionalFile = admin.storage().bucket(STORAGE_BUCKET).file(additionalFilePath);
+    await additionalFile.save(Buffer.from(doc.content, 'utf8'), {
+      metadata: { contentType: 'text/markdown; charset=utf-8' },
+      resumable: false,
+    });
+    console.log(`   ✅ Document seeded: ${doc.title} (ID: ${doc.id})`);
+  }
   // ── Step 6: Storage content file ────────────────────────────────────────
   console.log('\n[6] Uploading content to Storage emulator …');
   const filePath = `users/${TARGET_UID}/documents/${DOC_ID}/content.md`;
