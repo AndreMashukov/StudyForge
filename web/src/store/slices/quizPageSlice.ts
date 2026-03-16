@@ -75,6 +75,10 @@ const quizPageSlice = createSlice({
       state.startTime = null;
       state.endTime = null;
       state.error = null;
+      state.followupGenerated = {};
+      state.followupContent = {};
+      state.isGeneratingFollowup = false;
+      state.followupError = null;
     },
     // Quiz lifecycle actions
     startQuiz: (state, action: PayloadAction<{ questions: IQuizQuestion[] }>) => {
@@ -88,6 +92,10 @@ const quizPageSlice = createSlice({
       state.startTime = Date.now();
       state.endTime = null;
       state.error = null;
+      state.followupGenerated = {};
+      state.followupContent = {};
+      state.isGeneratingFollowup = false;
+      state.followupError = null;
     },
     
     selectAnswer: (state, action: PayloadAction<{ answerIndex: number }>) => {
