@@ -57,13 +57,13 @@ export const CreateFlashcardPageContainer = () => {
   };
 
   useEffect(() => {
-    if (preselectedDocumentId && documents.length > 0) {
+    if (preselectedDocumentId && documents.length > 0 && !watchedDocumentId) {
       const docExists = documents.find(d => d.id === preselectedDocumentId);
       if (docExists) {
         setValue('documentId', preselectedDocumentId, { shouldValidate: true });
       }
     }
-  }, [preselectedDocumentId, documents, setValue]);
+  }, [preselectedDocumentId, documents, setValue, watchedDocumentId]);
   return (
     <Page showSidebar={false}>
       <div className={createFlashcardPageStyles.container}>

@@ -3,6 +3,7 @@ import { FileText, ChevronDown, X, BookMarked, Loader2 } from 'lucide-react';
 import { DocumentSelector } from '../DocumentSelector';
 import { IPreSelectedDocumentSelector } from './IPreSelectedDocumentSelector';
 import { preSelectedDocumentSelectorStyles as styles } from './PreSelectedDocumentSelector.styles';
+import { Button } from '../ui/Button';
 import { cn } from '../../lib/utils';
 
 export const PreSelectedDocumentSelector = ({
@@ -44,21 +45,22 @@ export const PreSelectedDocumentSelector = ({
             <div className="h-2 bg-muted rounded w-1/2" />
           </div>
         </div>
-        <p className={styles.helperText}>⏳ Loading document…</p>
+        <p className={styles.helperText}>Loading document...</p>
       </div>
     );
   }
 
   // Use initialDocumentId directly to find the pre-selected document
-  // This avoids the race condition where form state (selectedDocumentIds)
-  // is set via useEffect after documents load
   const preSelectedDoc = documents.find((d) => d.id === initialDocumentId);
-  const currentSelectedId = selectedDocumentIds[0];
-  const currentSelectedDoc = documents.find((d) => d.id === currentSelectedId);
 
-  // The document to display in the card:
-  // - After user picks a different doc: use currentSelectedDoc
-  // - Initially: use preSelectedDoc
+  // Fix: only use currentSelectedDoc when selectedDocumentIds is non-empty
+  // to prevent empty-selection drift when user deselects
+  const currentSelectedId = selectedDocumentIds.length > 0 ? selectedDocumentIds[0] : undefined;
+  const currentSelectedDoc = currentSelectedId
+    ? documents.find((d) => d.id === currentSelectedId)
+    : undefined;
+
+  // The document to display in the card
   const displayDoc = currentSelectedDoc || preSelectedDoc;
 
   // Documents loaded but initialDocumentId not found — fall back to plain list
@@ -95,8 +97,11 @@ export const PreSelectedDocumentSelector = ({
             </div>
           )}
         </div>
-        <button
+        {/* Fix: use shadcn Button instead of native <button> */}
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           className={styles.changeBtn}
           onClick={() => setIsExpanded((v) => !v)}
           disabled={disabled || isLoading}
@@ -106,11 +111,11 @@ export const PreSelectedDocumentSelector = ({
           ) : (
             <><ChevronDown size={12} /> Change</>
           )}
-        </button>
+        </Button>
       </div>
 
       {!isExpanded && (
-        <p className={styles.helperText}>✓ Auto-selected from your current session</p>
+        <p className={styles.helperText}>Auto-selected from your current session</p>
       )}
 
       {isExpanded && (

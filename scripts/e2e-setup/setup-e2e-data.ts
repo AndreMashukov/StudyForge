@@ -157,7 +157,7 @@ async function main() {
     updatedAt: now,
   };
   // directory creation skipped for e2e
-  console.log(`   ✅ Directory created: ${dirData.name} (ID: ${DIR_ID})`);
+  console.log('   ✅ Directory creation skipped (e2e mode)');
 
   // ── Step 4: Rule ─────────────────────────────────────────────────────────
   console.log('\n[4] Creating general prompt rule …');
@@ -171,7 +171,7 @@ async function main() {
     tags: ['study', 'general'],
     applicableTo: ['prompt'],
     isDefault: true,
-    directoryIds: [DIR_ID],
+    directoryIds: [], // directory creation skipped in e2e mode
     createdAt: now,
     updatedAt: now,
   };
