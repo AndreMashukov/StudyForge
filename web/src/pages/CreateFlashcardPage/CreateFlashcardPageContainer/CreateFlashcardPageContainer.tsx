@@ -41,8 +41,7 @@ export const CreateFlashcardPageContainer = () => {
   };
 
   const primaryDocument = documents.find(d => d.id === watchedDocumentIds?.[0]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const directoryId = (primaryDocument as any)?.directoryId || null;
+  const directoryId = primaryDocument?.directoryId ?? null;
 
   const handleRulesChange = (selectedRuleIds: string[]) => {
     setRuleIds(selectedRuleIds);
@@ -84,10 +83,10 @@ export const CreateFlashcardPageContainer = () => {
       <div className={createFlashcardPageStyles.container}>
         <header className={createFlashcardPageStyles.header}>
           <div className={createFlashcardPageStyles.headerContent}>
-            <button onClick={handleBack} className={createFlashcardPageStyles.backButton}>
+            <Button variant="ghost" onClick={handleBack} className={createFlashcardPageStyles.backButton}>
               <ArrowLeft size={20} />
               Back to Documents
-            </button>
+            </Button>
             <h1 className={createFlashcardPageStyles.title}>Create Flashcards</h1>
             <div></div>
           </div>

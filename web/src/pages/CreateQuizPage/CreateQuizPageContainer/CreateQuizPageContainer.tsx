@@ -24,7 +24,7 @@ export const CreateQuizPageContainer = () => {
   const [followupRuleIds, setFollowupRuleIds] = useState<string[]>([]);
 
   const { documentsApi, form, handlers } = useCreateQuizPageContext();
-  const { handleSubmit } = handlers;
+  const { handleSubmit, isSubmitting } = handlers;
 
   const { data: documentsResponse, isLoading } = documentsApi;
   const documents = useMemo(() => documentsResponse?.documents || [], [documentsResponse]);
@@ -209,7 +209,7 @@ export const CreateQuizPageContainer = () => {
                   <Button
                     type="submit"
                     className={createQuizPageStyles.submitButton}
-                    disabled={docCount === 0}
+                    disabled={isSubmitting || docCount === 0}
                   >
                     {generateLabel}
                   </Button>
