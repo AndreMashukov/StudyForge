@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useCreateQuizPageContext } from '../context/hooks/useCreateQuizPageContext';
@@ -63,14 +63,18 @@ export const CreateQuizPageContainer = () => {
     setValue('followupRuleIds', ruleIds);
   };
 
+  // useRef guard: apply preselection exactly once on mount
+  // Prevents overwriting user's manual selection on subsequent documents refetch
+  const preselectionApplied = useRef(false);
   useEffect(() => {
-    if (preselectedDocumentId && documents.length > 0 && !watchedDocumentId) {
+    if (preselectedDocumentId && documents.length > 0 && !preselectionApplied.current) {
       const docExists = documents.find(d => d.id === preselectedDocumentId);
       if (docExists) {
+        preselectionApplied.current = true;
         setValue('documentId', preselectedDocumentId, { shouldValidate: true });
       }
     }
-  }, [preselectedDocumentId, documents, setValue, watchedDocumentId]);
+  }, [preselectedDocumentId, documents, setValue]);
   return (
     <Page showSidebar={false}>
       <div className={createQuizPageStyles.container}>
