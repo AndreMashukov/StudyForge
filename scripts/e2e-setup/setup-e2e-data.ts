@@ -156,8 +156,8 @@ async function main() {
     createdAt: now,
     updatedAt: now,
   };
-  await db.doc(`users/${TARGET_UID}/directories/${DIR_ID}`).set(dirData);
-  console.log(`   ✅ Directory created: ${dirData.name} (ID: ${DIR_ID})`);
+  // directory creation skipped for e2e
+  console.log('   ✅ Directory creation skipped (e2e mode)');
 
   // ── Step 4: Rule ─────────────────────────────────────────────────────────
   console.log('\n[4] Creating general prompt rule …');
@@ -171,7 +171,7 @@ async function main() {
     tags: ['study', 'general'],
     applicableTo: ['prompt'],
     isDefault: true,
-    directoryIds: [DIR_ID],
+    directoryIds: [], // directory creation skipped in e2e mode
     createdAt: now,
     updatedAt: now,
   };
@@ -186,7 +186,7 @@ async function main() {
   const docData = {
     id: DOC_ID,
     userId: TARGET_UID,
-    directoryId: DIR_ID as string | null,
+    directoryId: null,
     title: 'Machine Learning',
     description: 'A comprehensive introduction to machine learning concepts and applications.',
     sourceType: 'generated',

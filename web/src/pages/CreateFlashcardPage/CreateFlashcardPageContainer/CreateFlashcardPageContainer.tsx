@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useCreateFlashcardPageContext } from '../context/hooks/useCreateFlashcardPageContext';
 import { selectSelectedDirectoryId } from '../../../store/slices/directorySlice';
@@ -10,13 +10,15 @@ import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
 import { CompactRuleSelector } from '../../../components/CompactRuleSelector';
-import { DocumentSelector } from '../../../components/DocumentSelector';
+import { PreSelectedDocumentSelector } from '../../../components/PreSelectedDocumentSelector';
 import { createFlashcardPageStyles } from './CreateFlashcardPageContainer.styles';
 import { ArrowLeft, Layers } from 'lucide-react';
 import { RuleApplicability } from '@shared-types';
 
 export const CreateFlashcardPageContainer = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedDocumentId = searchParams.get('documentId') ?? undefined;
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
   const [ruleIds, setRuleIds] = useState<string[]>([]);
 
@@ -54,6 +56,18 @@ export const CreateFlashcardPageContainer = () => {
     setValue('ruleIds', selectedRuleIds);
   };
 
+  // useRef guard: apply preselection exactly once on mount
+  // Prevents overwriting user's manual selection on subsequent documents refetch
+  const preselectionApplied = useRef(false);
+  useEffect(() => {
+    if (preselectedDocumentId && documents.length > 0 && !preselectionApplied.current) {
+      const docExists = documents.find(d => d.id === preselectedDocumentId);
+      if (docExists) {
+        preselectionApplied.current = true;
+        setValue('documentId', preselectedDocumentId, { shouldValidate: true });
+      }
+    }
+  }, [preselectedDocumentId, documents, setValue]);
   return (
     <Page showSidebar={false}>
       <div className={createFlashcardPageStyles.container}>
@@ -85,7 +99,7 @@ export const CreateFlashcardPageContainer = () => {
                 <div className={createFlashcardPageStyles.formField}>
                   <Label>Source Document *</Label>
                   <input {...register('documentId')} type="hidden" />
-                  <DocumentSelector
+                  <PreSelectedDocumentSelector
                     documents={documents}
                     selectedDocumentIds={watchedDocumentId ? [watchedDocumentId] : []}
                     onDocumentToggle={(id) =>
@@ -96,6 +110,7 @@ export const CreateFlashcardPageContainer = () => {
                     maxSelections={1}
                     isLoading={isLoading}
                     disabled={isLoading}
+                    initialDocumentId={preselectedDocumentId}
                   />
                   {errors.documentId && (
                     <p className="text-sm text-destructive">{errors.documentId.message}</p>
