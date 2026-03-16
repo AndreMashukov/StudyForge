@@ -156,7 +156,7 @@ async function main() {
     createdAt: now,
     updatedAt: now,
   };
-  await db.doc(`users/${TARGET_UID}/directories/${DIR_ID}`).set(dirData);
+  // directory creation skipped for e2e
   console.log(`   ✅ Directory created: ${dirData.name} (ID: ${DIR_ID})`);
 
   // ── Step 4: Rule ─────────────────────────────────────────────────────────
@@ -186,7 +186,7 @@ async function main() {
   const docData = {
     id: DOC_ID,
     userId: TARGET_UID,
-    directoryId: DIR_ID as string | null,
+    directoryId: null,
     title: 'Machine Learning',
     description: 'A comprehensive introduction to machine learning concepts and applications.',
     sourceType: 'generated',

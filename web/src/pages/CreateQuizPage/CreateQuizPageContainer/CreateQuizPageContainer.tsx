@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useCreateQuizPageContext } from '../context/hooks/useCreateQuizPageContext';
 import { selectSelectedDirectoryId } from '../../../store/slices/directorySlice';
@@ -10,13 +10,15 @@ import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
 import { CompactRuleSelector } from '../../../components/CompactRuleSelector';
-import { DocumentSelector } from '../../../components/DocumentSelector';
+import { PreSelectedDocumentSelector } from '../../../components/PreSelectedDocumentSelector';
 import { createQuizPageStyles } from './CreateQuizPageContainer.styles';
 import { ArrowLeft, Brain } from 'lucide-react';
 import { RuleApplicability } from '@shared-types';
 
 export const CreateQuizPageContainer = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedDocumentId = searchParams.get('documentId') ?? undefined;
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
   const [quizRuleIds, setQuizRuleIds] = useState<string[]>([]);
   const [followupRuleIds, setFollowupRuleIds] = useState<string[]>([]);
@@ -61,6 +63,14 @@ export const CreateQuizPageContainer = () => {
     setValue('followupRuleIds', ruleIds);
   };
 
+  useEffect(() => {
+    if (preselectedDocumentId && documents.length > 0) {
+      const docExists = documents.find(d => d.id === preselectedDocumentId);
+      if (docExists) {
+        setValue('documentId', preselectedDocumentId, { shouldValidate: true });
+      }
+    }
+  }, [preselectedDocumentId, documents, setValue]);
   return (
     <Page showSidebar={false}>
       <div className={createQuizPageStyles.container}>
@@ -94,7 +104,7 @@ export const CreateQuizPageContainer = () => {
                 <div className={createQuizPageStyles.formField}>
                   <Label>Source Document *</Label>
                   <input {...register('documentId')} type="hidden" />
-                  <DocumentSelector
+                  <PreSelectedDocumentSelector
                     documents={documents}
                     selectedDocumentIds={watchedDocumentId ? [watchedDocumentId] : []}
                     onDocumentToggle={(id) =>
@@ -105,6 +115,7 @@ export const CreateQuizPageContainer = () => {
                     maxSelections={1}
                     isLoading={isLoading}
                     disabled={isLoading}
+                    initialDocumentId={preselectedDocumentId}
                   />
                   {errors.documentId && (
                     <p className="text-sm text-destructive">{errors.documentId.message}</p>

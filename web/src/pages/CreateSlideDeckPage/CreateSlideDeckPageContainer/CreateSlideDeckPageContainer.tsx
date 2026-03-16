@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useCreateSlideDeckPageContext } from '../context/hooks/useCreateSlideDeckPageContext';
 import { selectSelectedDirectoryId } from '../../../store/slices/directorySlice';
@@ -10,13 +10,15 @@ import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
 import { CompactRuleSelector } from '../../../components/CompactRuleSelector';
-import { DocumentSelector } from '../../../components/DocumentSelector';
+import { PreSelectedDocumentSelector } from '../../../components/PreSelectedDocumentSelector';
 import { createSlideDeckPageStyles } from './CreateSlideDeckPageContainer.styles';
 import { ArrowLeft, Presentation } from 'lucide-react';
 import { RuleApplicability } from '@shared-types';
 
 export const CreateSlideDeckPageContainer = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedDocumentId = searchParams.get('documentId') ?? undefined;
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
   const [ruleIds, setRuleIds] = useState<string[]>([]);
 
@@ -54,6 +56,14 @@ export const CreateSlideDeckPageContainer = () => {
     setValue('ruleIds', selectedRuleIds);
   };
 
+  useEffect(() => {
+    if (preselectedDocumentId && documents.length > 0) {
+      const docExists = documents.find(d => d.id === preselectedDocumentId);
+      if (docExists) {
+        setValue('documentId', preselectedDocumentId, { shouldValidate: true });
+      }
+    }
+  }, [preselectedDocumentId, documents, setValue]);
   return (
     <Page showSidebar={false}>
       <div className={createSlideDeckPageStyles.container}>
@@ -85,7 +95,7 @@ export const CreateSlideDeckPageContainer = () => {
                 <div className={createSlideDeckPageStyles.formField}>
                   <Label>Source Document *</Label>
                   <input {...register('documentId')} type="hidden" />
-                  <DocumentSelector
+                  <PreSelectedDocumentSelector
                     documents={documents}
                     selectedDocumentIds={watchedDocumentId ? [watchedDocumentId] : []}
                     onDocumentToggle={(id) =>
@@ -96,6 +106,7 @@ export const CreateSlideDeckPageContainer = () => {
                     maxSelections={1}
                     isLoading={isLoading}
                     disabled={isLoading}
+                    initialDocumentId={preselectedDocumentId}
                   />
                   {errors.documentId && (
                     <p className="text-sm text-destructive">{errors.documentId.message}</p>
