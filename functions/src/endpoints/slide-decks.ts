@@ -65,18 +65,21 @@ export const generateSlideDeck = onCall(
 
       try {
         // Fetch all documents and their content in parallel
+        // Each fetch is wrapped in try-catch to preserve error context before Promise.all short-circuits
         const documentDataList = await Promise.all(
-          documentIds.map(async (docId) => {
-            const doc = await DocumentCrudService.getDocumentWithContent(userId, docId);
-            return doc;
+          documentIds.map(async (docId, index) => {
+            try {
+              const doc = await DocumentCrudService.getDocumentWithContent(userId, docId);
+              if (!doc || !doc.content) {
+                throw new HttpsError('not-found', `Document at index ${index} (id: ${docId}) does not exist or has no content.`);
+              }
+              return doc;
+            } catch (err) {
+              if (err instanceof HttpsError) throw err;
+              throw new HttpsError('not-found', `Failed to fetch document at index ${index} (id: ${docId}).`);
+            }
           })
         );
-
-        for (let i = 0; i < documentDataList.length; i++) {
-          if (!documentDataList[i] || !documentDataList[i].content) {
-            throw new HttpsError('not-found', `Document at index ${i} does not exist or has no content.`);
-          }
-        }
 
         // Build combined content
         const combinedContent = documentDataList
