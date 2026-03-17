@@ -28,17 +28,17 @@ export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPage
 
     // Fire a quiz generation request for each selected document in parallel
     // (backend currently accepts one documentId at a time)
-    const requests = formData.documentIds.map(documentId =>
-      generateQuiz({
-        documentId,
-        quizName: formData.quizName?.trim() || undefined,
-        additionalPrompt: formData.additionalPrompt?.trim() || undefined,
-        quizRuleIds: formData.quizRuleIds || [],
-        followupRuleIds: formData.followupRuleIds || [],
-      }).unwrap().catch(() => showToast(`Failed to generate quiz for document ${documentId}`, 'error'))
+    void Promise.all(
+      formData.documentIds.map(documentId =>
+        generateQuiz({
+          documentId,
+          quizName: formData.quizName?.trim() || undefined,
+          additionalPrompt: formData.additionalPrompt?.trim() || undefined,
+          quizRuleIds: formData.quizRuleIds || [],
+          followupRuleIds: formData.followupRuleIds || [],
+        }).unwrap().catch(() => showToast(`Failed to generate quiz for document ${documentId}`, 'error'))
+      )
     );
-
-    Promise.all(requests).catch(() => {});
 
     showToast(
       formData.documentIds.length > 1
