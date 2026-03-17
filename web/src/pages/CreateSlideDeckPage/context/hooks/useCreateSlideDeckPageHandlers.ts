@@ -25,38 +25,29 @@ export const useCreateSlideDeckPageHandlers = ({ form }: UseCreateSlideDeckPageH
     );
 
     try {
-      if (formData.documentIds.length === 1) {
-        // Single document: generate and navigate to the result
-        const result = await generateSlideDeck({
-          documentId: formData.documentIds[0],
-          title: formData.slideDeckName?.trim() || undefined,
-          additionalPrompt: formData.additionalPrompt?.trim() || undefined,
-          ruleIds,
-        }).unwrap();
+      // Send a single request with all document IDs — backend combines content into one slide deck
+      const result = await generateSlideDeck({
+        documentIds: formData.documentIds,
+        title: formData.slideDeckName?.trim() || undefined,
+        additionalPrompt: formData.additionalPrompt?.trim() || undefined,
+        ruleIds,
+      }).unwrap();
 
-        if (result.success && result.data) {
-          dispatch(showToast({ message: 'Slide deck generated successfully!', type: 'success' }));
-          navigate(`/slides/${result.data.slideDeckId}`);
-        } else {
-          dispatch(showToast({ message: 'Failed to generate slide deck', type: 'error' }));
-        }
-      } else {
-        // Multiple documents: fire all in parallel, navigate to slide decks list
-        const requests = formData.documentIds.map(documentId =>
-          generateSlideDeck({
-            documentId,
-            title: formData.slideDeckName?.trim() || undefined,
-            additionalPrompt: formData.additionalPrompt?.trim() || undefined,
-            ruleIds,
-          }).unwrap()
-        );
-
-        await Promise.all(requests);
+      if (result.success && result.data) {
         dispatch(showToast({
-          message: `Slide decks generated from ${formData.documentIds.length} documents!`,
+          message: formData.documentIds.length > 1
+            ? `Slide deck created from ${formData.documentIds.length} documents!`
+            : 'Slide deck generated successfully!',
           type: 'success'
         }));
-        navigate('/slides');
+
+        if (formData.documentIds.length === 1) {
+          navigate(`/slides/${result.data.slideDeckId}`);
+        } else {
+          navigate('/slides');
+        }
+      } else {
+        dispatch(showToast({ message: 'Failed to generate slide deck', type: 'error' }));
       }
     } catch (error) {
       console.error('Error generating slide deck:', error);

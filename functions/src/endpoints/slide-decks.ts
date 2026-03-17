@@ -18,7 +18,7 @@ const redactId = (id: string): string =>
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 
 const generateSlideDeckRequestSchema = z.object({
-  documentId: z.string().min(1, 'documentId is required'),
+  documentIds: z.array(z.string().min(1)).min(1, 'At least one documentId is required').max(5, 'Maximum 5 documents allowed'),
   title: z.string().max(100).nullish(),
   additionalPrompt: z.string().max(500).nullish(),
   // Accept null/undefined elements gracefully and strip them out
@@ -50,27 +50,41 @@ export const generateSlideDeck = onCall(
         });
         throw new HttpsError('invalid-argument', msg);
       }
-      const { documentId, title: customTitle, additionalPrompt, ruleIds } = parseResult.data;
+      const { documentIds, title: customTitle, additionalPrompt, ruleIds } = parseResult.data;
 
       const u = redactId(userId);
-      const d = redactId(documentId);
       const uploadedPaths: string[] = [];
 
       logger.info('[generateSlideDeck] STEP 1: Function started.', {
         userIdHash: u,
-        documentIdHash: d,
+        documentCount: documentIds.length,
         hasCustomTitle: !!customTitle,
         hasAdditionalPrompt: !!additionalPrompt,
         ruleCount: ruleIds?.length || 0,
       });
 
       try {
-        const document = await DocumentCrudService.getDocumentWithContent(userId, documentId);
-        logger.info('[generateSlideDeck] STEP 2: Document retrieved.', { userIdHash: u, documentIdHash: d });
+        // Fetch all documents and their content in parallel
+        const documentDataList = await Promise.all(
+          documentIds.map(async (docId) => {
+            const doc = await DocumentCrudService.getDocumentWithContent(userId, docId);
+            return doc;
+          })
+        );
 
-        if (!document || !document.content) {
-          throw new HttpsError('not-found', 'The specified document does not exist or has no content.');
+        for (let i = 0; i < documentDataList.length; i++) {
+          if (!documentDataList[i] || !documentDataList[i].content) {
+            throw new HttpsError('not-found', `Document at index ${i} does not exist or has no content.`);
+          }
         }
+
+        // Build combined content
+        const combinedContent = documentDataList
+          .map((d) => d.content)
+          .join('\n\n---\n\n');
+        const combinedTitle = documentDataList.map((d) => d.title).join(' + ');
+
+        logger.info('[generateSlideDeck] STEP 2: Documents retrieved.', { userIdHash: u });
 
         // Inject rules if provided
         let injectedRules: string | undefined;
@@ -81,7 +95,7 @@ export const generateSlideDeck = onCall(
 
         // Step 3: Generate slide outline
         logger.info('[generateSlideDeck] STEP 3: Generating slide outline.', { userIdHash: u });
-        const slideOutline = await GeminiService.generateSlideDeckOutline(document.content, additionalPrompt || undefined, injectedRules);
+        const slideOutline = await GeminiService.generateSlideDeckOutline(combinedContent, additionalPrompt || undefined, injectedRules);
         logger.info(`[generateSlideDeck] STEP 4: Outline generated. Slides: ${slideOutline.length}`, { userIdHash: u });
 
         // Step 5: Generate images with bounded concurrency (3 at a time)
@@ -121,13 +135,22 @@ export const generateSlideDeck = onCall(
         }
 
         // Step 6: Save to Firestore
-        const deckTitle = customTitle?.trim() || `Slides for "${document.title}"`;
+        let deckTitle: string;
+        if (customTitle?.trim()) {
+          deckTitle = customTitle.trim();
+        } else if (documentIds.length === 1) {
+          deckTitle = `Slides for "${documentDataList[0].title}"`;
+        } else {
+          deckTitle = `Slides for "${documentDataList[0].title}" + ${documentIds.length - 1} more`;
+        }
+        const primaryDocumentId = documentIds[0];
         const newSlideDeckData = {
           title: deckTitle,
           slides,
           userId,
-          documentId,
-          documentTitle: document.title,
+          documentId: primaryDocumentId,
+          ...(documentIds.length > 1 ? { documentIds } : {}),
+          documentTitle: documentDataList[0].title,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         };

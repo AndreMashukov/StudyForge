@@ -24,38 +24,29 @@ export const useCreateFlashcardPageHandlers = ({ form }: UseCreateFlashcardPageH
     const trimmedPrompt = formData.additionalPrompt?.trim();
 
     try {
-      if (formData.documentIds.length === 1) {
-        // Single document: generate and navigate to the result
-        const result = await generateFlashcards({
-          documentId: formData.documentIds[0],
-          ...(trimmedTitle ? { title: trimmedTitle } : {}),
-          ...(trimmedPrompt ? { additionalPrompt: trimmedPrompt } : {}),
-          ruleIds: formData.ruleIds || [],
-        }).unwrap();
+      // Send a single request with all document IDs — backend combines content into one flashcard set
+      const result = await generateFlashcards({
+        documentIds: formData.documentIds,
+        ...(trimmedTitle ? { title: trimmedTitle } : {}),
+        ...(trimmedPrompt ? { additionalPrompt: trimmedPrompt } : {}),
+        ruleIds: formData.ruleIds || [],
+      }).unwrap();
 
-        if (result.success && result.data) {
-          dispatch(showToast({ message: 'Flashcards generated successfully!', type: 'success' }));
-          navigate(`/flashcards/${result.data.flashcardSetId}`);
-        } else {
-          dispatch(showToast({ message: 'Failed to generate flashcards', type: 'error' }));
-        }
-      } else {
-        // Multiple documents: fire all in parallel, navigate to flashcards list
-        const requests = formData.documentIds.map(documentId =>
-          generateFlashcards({
-            documentId,
-            ...(trimmedTitle ? { title: trimmedTitle } : {}),
-            ...(trimmedPrompt ? { additionalPrompt: trimmedPrompt } : {}),
-            ruleIds: formData.ruleIds || [],
-          }).unwrap()
-        );
-
-        await Promise.all(requests);
+      if (result.success && result.data) {
         dispatch(showToast({
-          message: `Flashcard sets generated from ${formData.documentIds.length} documents!`,
+          message: formData.documentIds.length > 1
+            ? `Flashcards created from ${formData.documentIds.length} documents!`
+            : 'Flashcards generated successfully!',
           type: 'success'
         }));
-        navigate('/flashcards');
+
+        if (formData.documentIds.length === 1) {
+          navigate(`/flashcards/${result.data.flashcardSetId}`);
+        } else {
+          navigate('/flashcards');
+        }
+      } else {
+        dispatch(showToast({ message: 'Failed to generate flashcards', type: 'error' }));
       }
     } catch (error) {
       console.error('Error generating flashcards:', error);
