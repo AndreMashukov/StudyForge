@@ -12,6 +12,7 @@ export interface FlashcardSet {
   id: string;
   userId: string;
   documentId: string;
+  documentIds?: string[];
   documentTitle: string;
   title: string;
   flashcards: Flashcard[];
@@ -21,7 +22,7 @@ export interface FlashcardSet {
 
 // Flashcard API Types
 export interface GenerateFlashcardsRequest {
-  documentId: string;
+  documentIds: string[];
   title?: string;
   additionalPrompt?: string;
   ruleIds?: string[];
@@ -53,6 +54,7 @@ export interface SlideDeck {
   id: string;
   userId: string;
   documentId: string;
+  documentIds?: string[];
   documentTitle: string;
   title: string;
   slides: Slide[];
@@ -61,7 +63,7 @@ export interface SlideDeck {
 }
 
 export interface GenerateSlideDeckRequest {
-  documentId: string;
+  documentIds: string[];
   title?: string;
   additionalPrompt?: string;
   ruleIds?: string[];

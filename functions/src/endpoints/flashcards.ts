@@ -23,7 +23,7 @@ const geminiApiKey = defineSecret('GEMINI_API_KEY');
 
 // Zod schemas for request payload validation
 const generateFlashcardsRequestSchema = z.object({
-  documentId: z.string().min(1, 'documentId is required'),
+  documentIds: z.array(z.string().min(1)).min(1, 'At least one documentId is required').max(5, 'Maximum 5 documents allowed'),
   title: z.string().max(100).nullish(),
   additionalPrompt: z.string().max(500).nullish(),
   ruleIds: z.array(z.string()).optional(),
@@ -86,24 +86,42 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
       throw new HttpsError('invalid-argument', msg);
     }
-    const { documentId, title: customTitle, additionalPrompt, ruleIds } = parseResult.data;
+    const { documentIds, title: customTitle, additionalPrompt, ruleIds } = parseResult.data;
 
     const u = redactId(userId);
-    const d = redactId(documentId);
 
     logger.info(`[generateFlashcards] STEP 1: Function started.`, {
       userIdHash: u,
-      documentIdHash: d,
+      documentCount: documentIds.length,
       hasCustomTitle: !!customTitle,
       hasAdditionalPrompt: !!additionalPrompt,
       ruleCount: ruleIds?.length || 0,
     });
-    const document = await DocumentCrudService.getDocumentWithContent(userId, documentId);
-    logger.info(`[generateFlashcards] STEP 2: Document retrieved. Title: "${document?.title ?? 'N/A'}"`, { userIdHash: u, documentIdHash: d });
 
-    if (!document || !document.content) {
-      throw new HttpsError('not-found', 'The specified document does not exist or has no content.');
-    }
+    // Fetch all documents and their content in parallel
+    // Each fetch is wrapped in try-catch to preserve error context before Promise.all short-circuits
+    const documentDataList = await Promise.all(
+      documentIds.map(async (docId, index) => {
+        try {
+          const doc = await DocumentCrudService.getDocumentWithContent(userId, docId);
+          if (!doc || !doc.content) {
+            throw new HttpsError('not-found', `Document at index ${index} (id: ${docId}) does not exist or has no content.`);
+          }
+          return doc;
+        } catch (err) {
+          if (err instanceof HttpsError) throw err;
+          throw new HttpsError('not-found', `Failed to fetch document at index ${index} (id: ${docId}).`);
+        }
+      })
+    );
+
+    // Build combined content
+    const combinedContent = documentDataList
+      .map((d) => d.content)
+      .join('\n\n---\n\n');
+    const combinedTitle = documentDataList.map((d) => d.title).join(' + ');
+
+    logger.info(`[generateFlashcards] STEP 2: Documents retrieved.`, { userIdHash: u, documentCount: documentDataList.length });
 
     // Resolve rules to inject into the prompt
     let injectedRules: string | undefined;
@@ -114,27 +132,33 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       injectedRules = `Additional instructions: ${additionalPrompt}`;
     }
 
-    logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (GeminiService).`, { userIdHash: u, documentIdHash: d });
-    const generatedData = await generateFlashcardsFromContent(document.content, document.title, injectedRules);
-    logger.info(`[generateFlashcards] STEP 4: Flashcard generation complete. Flashcards created: ${generatedData.flashcards.length}`, { userIdHash: u, documentIdHash: d });
+    logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (GeminiService).`, { userIdHash: u });
+    const generatedData = await generateFlashcardsFromContent(combinedContent, combinedTitle, injectedRules);
+    logger.info(`[generateFlashcards] STEP 4: Flashcard generation complete. Flashcards created: ${generatedData.flashcards.length}`, { userIdHash: u });
 
-    // Apply custom title if provided
+    // Apply custom title or auto-name
     if (customTitle?.trim()) {
       generatedData.title = customTitle.trim();
+    } else if (documentIds.length === 1) {
+      generatedData.title = `Flashcards for "${documentDataList[0].title}"`;
+    } else {
+      generatedData.title = `Flashcards for "${documentDataList[0].title}" + ${documentIds.length - 1} more`;
     }
 
+    const primaryDocumentId = documentIds[0];
     const newFlashcardSetData = {
       ...generatedData,
       userId,
-      documentId,
-      documentTitle: document.title,
+      documentId: primaryDocumentId,
+      ...(documentIds.length > 1 ? { documentIds } : {}),
+      documentTitle: documentDataList[0].title,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     };
 
-    logger.info(`[generateFlashcards] STEP 5: Adding new flashcard set to Firestore.`, { userIdHash: u, documentIdHash: d });
+    logger.info(`[generateFlashcards] STEP 5: Adding new flashcard set to Firestore.`, { userIdHash: u });
     const docRef = await admin.firestore().collection('users').doc(userId).collection('flashcardSets').add(newFlashcardSetData);
-    logger.info(`[generateFlashcards] STEP 6: Firestore add complete. New document ID: ${redactId(docRef.id)}`, { userIdHash: u, documentIdHash: d });
+    logger.info(`[generateFlashcards] STEP 6: Firestore add complete. New document ID: ${redactId(docRef.id)}`, { userIdHash: u });
 
     return { success: true, data: { flashcardSetId: docRef.id } };
 
