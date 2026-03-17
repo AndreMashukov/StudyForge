@@ -12,7 +12,7 @@ import {
 
 export const quizApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Generate a quiz from a document
+    // Generate a quiz from one or more documents
     generateQuiz: builder.mutation<ApiResponse<GenerateQuizResponse>, GenerateQuizRequest>({
       query: (data) => ({
         functionName: 'generateQuiz',
@@ -21,7 +21,7 @@ export const quizApi = baseApi.injectEndpoints({
       invalidatesTags: (result, error, arg) => [
         'UserQuizzes', 
         'RecentQuizzes',
-        { type: 'DocumentQuizzes', id: arg.documentId },
+        ...arg.documentIds.map(id => ({ type: 'DocumentQuizzes' as const, id })),
       ],
     }),
 

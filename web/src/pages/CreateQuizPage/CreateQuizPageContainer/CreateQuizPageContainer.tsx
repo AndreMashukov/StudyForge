@@ -117,6 +117,7 @@ export const CreateQuizPageContainer = () => {
                     documents={documents}
                     selectedDocumentIds={watchedDocumentIds ?? []}
                     onDocumentToggle={handleDocumentToggle}
+                    maxSelections={5}
                     isLoading={isLoading}
                     disabled={isLoading}
                     initialDocumentId={preselectedDocumentId}

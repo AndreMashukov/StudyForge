@@ -28,7 +28,6 @@ export const generateQuiz = onCall(
   },
   async (request): Promise<ApiResponse<GenerateQuizResponse>> => {
     try {
-      // Support documentId-based requests with optional quiz name and additional prompt
       const requestData = request.data as GenerateQuizRequest;
       const userId = request.auth?.uid;
 
@@ -36,35 +35,49 @@ export const generateQuiz = onCall(
         throw new Error("Authentication required");
       }
 
-      if (!requestData.documentId) {
-        throw new Error("documentId is required");
+      const documentIds = requestData.documentIds;
+      if (!documentIds || documentIds.length === 0) {
+        throw new Error("documentIds is required (at least one document)");
       }
 
-      const { documentId, quizName, additionalPrompt, quizRuleIds, followupRuleIds } = requestData;
+      if (documentIds.length > 5) {
+        throw new Error("Maximum 5 documents allowed per quiz");
+      }
 
-      console.log(`Generating quiz from document: ${documentId}`, {
+      const { quizName, additionalPrompt, quizRuleIds, followupRuleIds } = requestData;
+
+      console.log(`Generating quiz from ${documentIds.length} document(s): ${documentIds.join(', ')}`, {
         customQuizName: !!quizName,
         hasAdditionalPrompt: !!additionalPrompt,
         quizRuleCount: quizRuleIds?.length || 0,
         followupRuleCount: followupRuleIds?.length || 0,
       });
       
-      // Step 1: Get document metadata
-      const document = await FirestoreService.getDocument(userId, documentId);
-      
-      // Step 2: Retrieve document content from Storage
-      const content = await FirestoreService.getDocumentContent(userId, documentId);
-      
-      // Step 3: Validate content for quiz generation
+      // Fetch all documents and their content in parallel
+      const documentDataList = await Promise.all(
+        documentIds.map(async (docId) => {
+          const doc = await FirestoreService.getDocument(userId, docId);
+          const content = await FirestoreService.getDocumentContent(userId, docId);
+          return { doc, content };
+        })
+      );
+
+      // Build combined content for Gemini
+      const combinedContent = documentDataList
+        .map((d) => d.content)
+        .join('\n\n---\n\n');
+      const combinedWordCount = combinedContent.split(/\s+/).length;
+      const combinedTitle = documentDataList.map((d) => d.doc.title).join(' + ');
+
       const documentContent = {
-        title: document.title,
-        content: content,
-        wordCount: document.wordCount || content.split(/\s+/).length,
+        title: combinedTitle,
+        content: combinedContent,
+        wordCount: combinedWordCount,
       };
       
       GeminiService.validateContentForQuiz(documentContent);
       
-      // Step 3.5: Inject rules into prompt if provided
+      // Inject rules into prompt if provided
       let enhancedPrompt = additionalPrompt || '';
       if (userId && (quizRuleIds?.length || followupRuleIds?.length)) {
         console.log("Injecting rules into quiz generation prompt...");
@@ -75,34 +88,36 @@ export const generateQuiz = onCall(
           userId
         );
         enhancedPrompt = quizPrompt;
-        // Store followup prompt for later use (TODO: Add to quiz metadata)
         console.log("Rules injected successfully", {
           quizPromptLength: quizPrompt.length,
           followupPromptLength: followupPrompt.length,
         });
       }
       
-      // Step 4: Generate quiz with Gemini AI (allowing multiple per document)
-      console.log("Generating quiz with Gemini AI for document...");
+      // Generate quiz with Gemini AI
+      console.log("Generating quiz with Gemini AI for document(s)...");
       const geminiQuiz = await GeminiService.generateQuiz(documentContent, enhancedPrompt);
       
-      // Step 5: Apply custom quiz name if provided
+      // Apply custom quiz name if provided
       if (quizName && quizName.trim()) {
         geminiQuiz.title = quizName.trim();
+      } else if (documentIds.length === 1) {
+        geminiQuiz.title = `Quiz from ${documentDataList[0].doc.title}`;
       } else {
-        // Use default naming: "Quiz from [Document Title]"
-        geminiQuiz.title = `Quiz from ${document.title}`;
+        geminiQuiz.title = `Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
       }
       
-      // Step 6: Save quiz with document reference and followup rules
+      // Save quiz with document references and followup rules
+      const primaryDocumentId = documentIds[0];
       const savedQuiz = await FirestoreService.saveQuizFromDocument(
-        documentId, 
+        primaryDocumentId, 
         geminiQuiz, 
         userId,
-        followupRuleIds
+        followupRuleIds,
+        documentIds.length > 1 ? documentIds : undefined
       );
       
-      console.log(`Successfully generated quiz from document: ${savedQuiz.id}`);
+      console.log(`Successfully generated quiz from ${documentIds.length} document(s): ${savedQuiz.id}`);
       
       return {
         success: true,

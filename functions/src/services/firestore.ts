@@ -303,7 +303,8 @@ export class FirestoreService {
     documentId: string,
     geminiQuiz: GeminiQuizResponse,
     userId: string,
-    followupRuleIds?: string[]
+    followupRuleIds?: string[],
+    allDocumentIds?: string[]
   ): Promise<Quiz> {
     try {
       const quizzesCollection = FirestorePaths.quizzes(userId);
@@ -321,6 +322,7 @@ export class FirestoreService {
       const quiz: Quiz = {
         id: "",
         documentId: documentId,
+        ...(allDocumentIds ? { documentIds: allDocumentIds } : {}),
         title: `${document.title} - Quiz ${generationAttempt}`,
         questions: geminiQuiz.questions.map((q: { question: string; options: string[]; correctAnswer: number; explanation?: string }): QuizQuestion => ({
           question: q.question,

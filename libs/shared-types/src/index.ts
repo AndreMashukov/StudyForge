@@ -82,6 +82,7 @@ export interface UpdateSlideDeckRequest {
 export interface Quiz {
   id: string;
   documentId: string; // Primary reference to the source document
+  documentIds?: string[]; // All source documents (multi-doc quizzes)
   title: string;
   questions: QuizQuestion[];
   createdAt: Date;
@@ -262,7 +263,7 @@ export interface DocumentMetadata {
 
 // API Types (Document-centric architecture)
 export interface GenerateQuizRequest {
-  documentId: string;
+  documentIds: string[]; // One or more source documents to generate a quiz from
   quizName?: string; // Optional custom name, defaults to "Quiz from [Document Title]"
   additionalPrompt?: string; // Optional additional instructions for quiz generation
   quizRuleIds?: string[]; // Optional rules for quiz generation
