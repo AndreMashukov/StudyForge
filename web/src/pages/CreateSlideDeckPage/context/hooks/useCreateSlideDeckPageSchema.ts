@@ -2,9 +2,9 @@ import { useCallback } from 'react';
 import { z } from 'zod';
 
 const createCreateSlideDeckPageSchema = () => z.object({
-  documentId: z
-    .string()
-    .min(1, "Please select a document"),
+  documentIds: z
+    .array(z.string())
+    .min(1, "Please select at least one document"),
   slideDeckName: z
     .string()
     .max(100, "Slide deck name must be 100 characters or less")
@@ -26,6 +26,6 @@ const createCreateSlideDeckPageSchema = () => z.object({
 
 export const useCreateSlideDeckPageSchema = () => {
   const schema = useCallback(() => createCreateSlideDeckPageSchema(), []);
-  
+
   return { schema: schema() };
 };

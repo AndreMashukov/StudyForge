@@ -12,6 +12,7 @@ export interface ICreateQuizPageContext {
   form: UseFormReturn<ICreateQuizFormData>;
   handlers: {
     handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
+    isSubmitting: boolean;
   };
   // DON'T include: formData (managed by React Hook Form)
   // DON'T include: documents (access through documentsApi.data)

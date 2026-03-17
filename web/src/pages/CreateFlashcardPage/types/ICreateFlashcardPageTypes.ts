@@ -1,5 +1,5 @@
 export interface ICreateFlashcardFormData {
-  documentId: string;
+  documentIds: string[];
   flashcardName?: string;
   additionalPrompt?: string;
   ruleIds?: string[];

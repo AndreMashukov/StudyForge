@@ -16,30 +16,47 @@ export const useCreateSlideDeckPageHandlers = ({ form }: UseCreateSlideDeckPageH
   const [generateSlideDeck, { isLoading: isSubmitting }] = useGenerateSlideDeckMutation();
 
   const handleSubmit = useCallback(async (formData: ICreateSlideDeckFormData) => {
-    if (!formData.documentId) {
+    if (!formData.documentIds || formData.documentIds.length === 0) {
       return;
     }
 
-    try {
-      const result = await generateSlideDeck({
-        documentId: formData.documentId,
-        title: formData.slideDeckName?.trim() || undefined,
-        additionalPrompt: formData.additionalPrompt?.trim() || undefined,
-        ruleIds: (formData.ruleIds ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0),
-      }).unwrap();
+    const ruleIds = (formData.ruleIds ?? []).filter(
+      (id): id is string => typeof id === 'string' && id.length > 0
+    );
 
-      if (result.success && result.data) {
+    try {
+      if (formData.documentIds.length === 1) {
+        // Single document: generate and navigate to the result
+        const result = await generateSlideDeck({
+          documentId: formData.documentIds[0],
+          title: formData.slideDeckName?.trim() || undefined,
+          additionalPrompt: formData.additionalPrompt?.trim() || undefined,
+          ruleIds,
+        }).unwrap();
+
+        if (result.success && result.data) {
+          dispatch(showToast({ message: 'Slide deck generated successfully!', type: 'success' }));
+          navigate(`/slides/${result.data.slideDeckId}`);
+        } else {
+          dispatch(showToast({ message: 'Failed to generate slide deck', type: 'error' }));
+        }
+      } else {
+        // Multiple documents: fire all in parallel, navigate to slide decks list
+        const requests = formData.documentIds.map(documentId =>
+          generateSlideDeck({
+            documentId,
+            title: formData.slideDeckName?.trim() || undefined,
+            additionalPrompt: formData.additionalPrompt?.trim() || undefined,
+            ruleIds,
+          }).unwrap()
+        );
+
+        await Promise.all(requests);
         dispatch(showToast({
-          message: 'Slide deck generated successfully!',
+          message: `Slide decks generated from ${formData.documentIds.length} documents!`,
           type: 'success'
         }));
-
-        navigate(`/slides/${result.data.slideDeckId}`);
-      } else {
-        dispatch(showToast({
-          message: 'Failed to generate slide deck',
-          type: 'error'
-        }));
+        navigate('/slides');
       }
     } catch (error) {
       console.error('Error generating slide deck:', error);

@@ -2,9 +2,9 @@ import { useCallback } from 'react';
 import { z } from 'zod';
 
 const createCreateFlashcardPageSchema = () => z.object({
-  documentId: z
-    .string()
-    .min(1, "Please select a document"),
+  documentIds: z
+    .array(z.string())
+    .min(1, "Please select at least one document"),
   flashcardName: z
     .string()
     .max(100, "Flashcard set name must be 100 characters or less")
@@ -28,7 +28,7 @@ export type CreateFlashcardPageFormData = z.infer<ReturnType<typeof createCreate
 
 export const useCreateFlashcardPageSchema = () => {
   const schema = useCallback(() => createCreateFlashcardPageSchema(), []);
-  
+
   return {
     schema: schema(),
     type: {} as CreateFlashcardPageFormData,

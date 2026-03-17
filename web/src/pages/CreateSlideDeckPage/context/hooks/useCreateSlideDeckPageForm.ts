@@ -13,7 +13,7 @@ export const useCreateSlideDeckPageForm = () => {
   const form = useForm<ICreateSlideDeckFormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      documentId: preSelectedDocumentId,
+      documentIds: preSelectedDocumentId ? [preSelectedDocumentId] : [],
       slideDeckName: '',
       additionalPrompt: '',
       ruleIds: [],
@@ -21,8 +21,11 @@ export const useCreateSlideDeckPageForm = () => {
   });
 
   useEffect(() => {
-    if (preSelectedDocumentId && preSelectedDocumentId !== form.getValues('documentId')) {
-      form.setValue('documentId', preSelectedDocumentId);
+    if (preSelectedDocumentId) {
+      const current = form.getValues('documentIds');
+      if (!current.includes(preSelectedDocumentId)) {
+        form.setValue('documentIds', [preSelectedDocumentId, ...current]);
+      }
     }
   }, [preSelectedDocumentId, form]);
 

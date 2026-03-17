@@ -14,27 +14,38 @@ interface UseCreateQuizPageHandlersProps {
 export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPageHandlersProps) => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [generateQuiz] = useGenerateQuizMutation();
+  const [generateQuiz, { isLoading: isSubmitting }] = useGenerateQuizMutation();
 
   const handleSubmit = useCallback(async (formData: ICreateQuizFormData) => {
-    if (!formData.documentId) {
+    if (!formData.documentIds || formData.documentIds.length === 0) {
       return;
     }
 
-    const selectedDocument = documents.find(d => d.id === formData.documentId);
-    const directoryId = selectedDocument?.directoryId || null;
+    // Use the first document to determine directoryId for navigation
+    const primaryDocumentId = formData.documentIds[0];
+    const primaryDocument = documents.find(d => d.id === primaryDocumentId);
+    const directoryId = primaryDocument?.directoryId ?? null;
 
-    generateQuiz({
-      documentId: formData.documentId,
-      quizName: formData.quizName?.trim() || undefined,
-      additionalPrompt: formData.additionalPrompt?.trim() || undefined,
-      quizRuleIds: formData.quizRuleIds || [],
-      followupRuleIds: formData.followupRuleIds || [],
-    })
-      .unwrap()
-      .catch(() => showToast('Failed to generate quiz', 'error'));
+    // Fire a quiz generation request for each selected document in parallel
+    // (backend currently accepts one documentId at a time)
+    void Promise.all(
+      formData.documentIds.map(documentId =>
+        generateQuiz({
+          documentId,
+          quizName: formData.quizName?.trim() || undefined,
+          additionalPrompt: formData.additionalPrompt?.trim() || undefined,
+          quizRuleIds: formData.quizRuleIds || [],
+          followupRuleIds: formData.followupRuleIds || [],
+        }).unwrap().catch(() => showToast(`Failed to generate quiz for document ${documentId}`, 'error'))
+      )
+    );
 
-    showToast('Quiz creation started', 'info');
+    showToast(
+      formData.documentIds.length > 1
+        ? `Quiz creation started for ${formData.documentIds.length} documents`
+        : 'Quiz creation started',
+      'info'
+    );
 
     if (directoryId) {
       navigate(`/documents?directoryId=${directoryId}`);
@@ -45,5 +56,6 @@ export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPage
 
   return {
     handleSubmit: form.handleSubmit(handleSubmit),
+    isSubmitting,
   };
 };
