@@ -85,7 +85,6 @@ export const generateSlideDeck = onCall(
         const combinedContent = documentDataList
           .map((d) => d.content)
           .join('\n\n---\n\n');
-        const combinedTitle = documentDataList.map((d) => d.title).join(' + ');
 
         logger.info('[generateSlideDeck] STEP 2: Documents retrieved.', { userIdHash: u });
 
@@ -101,7 +100,9 @@ export const generateSlideDeck = onCall(
         const slideOutline = await GeminiService.generateSlideDeckOutline(combinedContent, additionalPrompt || undefined, injectedRules);
         logger.info(`[generateSlideDeck] STEP 4: Outline generated. Slides: ${slideOutline.length}`, { userIdHash: u });
 
-        // Step 5: Generate images with bounded concurrency (3 at a time)
+        // Step 5: Generate images with two-phase approach + bounded concurrency (3 at a time)
+        // Phase 1 (per slide): Gemini text model builds a detailed image brief from rules + content
+        // Phase 2 (per slide): The brief is passed to the image model for rendering
         const CONCURRENCY = 3;
         const slides: Slide[] = slideOutline.map((outline) => ({
           id: admin.firestore().collection('tmp').doc().id,
@@ -118,7 +119,22 @@ export const generateSlideDeck = onCall(
 
           await Promise.all(chunk.map(async (slide, ci) => {
             const i = batch + ci;
-            const imageBase64 = await GeminiService.generateSlideImage(slide.title, slide.content, injectedRules);
+
+            // Phase 1: Generate detailed image brief using Gemini text model
+            const brief = await GeminiService.generateSlideImageBrief(slide.title, slide.content, injectedRules);
+
+            // Phase 2: Generate the actual image from the brief (or fall back to direct prompt)
+            let imageBase64: string | null = null;
+            if (brief) {
+              const { SlideDeckPromptBuilder } = await import('../services/gemini/prompt-builder/slide-deck');
+              const imagePrompt = SlideDeckPromptBuilder.buildSlideImageFromBriefPrompt(brief);
+              imageBase64 = await GeminiService.generateSlideImageFromPrompt(imagePrompt);
+            }
+            if (!imageBase64) {
+              // Fallback: direct image generation without brief
+              imageBase64 = await GeminiService.generateSlideImage(slide.title, slide.content, injectedRules);
+            }
+
             if (imageBase64) {
               const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.png`;
               const downloadToken = randomUUID();

@@ -1085,6 +1085,46 @@ export class GeminiService {
   }
 
   /**
+   * Generate a detailed image-generation brief for a slide using Gemini text model.
+   * This brief describes layout, diagram, colors, icons, etc. based on rules.
+   */
+  public static async generateSlideImageBrief(
+    slideTitle: string,
+    slideContent: string,
+    rules?: string
+  ): Promise<string | null> {
+    try {
+      const client = this.getClient();
+      const prompt = SlideDeckPromptBuilder.buildSlideImageBriefPrompt(
+        slideTitle,
+        slideContent,
+        rules
+      );
+
+      const response = await client.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: prompt,
+        config: { temperature: 0.7, topK: 40, topP: 0.95 },
+      });
+
+      const text = response.text?.trim();
+      if (!text) {
+        functions.logger.warn('Slide image brief: empty response from Gemini.');
+        return null;
+      }
+
+      functions.logger.info('Slide image brief generated.', {
+        slideTitle,
+        briefLength: text.length,
+      });
+      return text;
+    } catch (error) {
+      functions.logger.warn('Slide image brief generation failed (non-fatal):', error);
+      return null;
+    }
+  }
+
+  /**
    * Generate a slide image using Gemini image generation model.
    * Uses @google/genai SDK with gemini-3.1-flash-image-preview.
    * Returns base64-encoded PNG image data.
@@ -1124,6 +1164,44 @@ export class GeminiService {
     } catch (error) {
       functions.logger.warn(
         'Slide image generation failed (non-fatal):',
+        error
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Generate a slide image from a pre-built prompt string.
+   * Used in the two-phase flow where Gemini text model first builds a detailed brief.
+   */
+  public static async generateSlideImageFromPrompt(
+    prompt: string
+  ): Promise<string | null> {
+    try {
+      const client = this.getClient();
+
+      const response = await client.models.generateContent({
+        model: 'gemini-3.1-flash-image-preview',
+        contents: prompt,
+        config: {
+          responseModalities: ['IMAGE'],
+        },
+      });
+
+      const parts = response.candidates?.[0]?.content?.parts;
+      if (!parts) return null;
+
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          return part.inlineData.data;
+        }
+      }
+
+      functions.logger.warn('Slide image from brief: no inline image data in response.');
+      return null;
+    } catch (error) {
+      functions.logger.warn(
+        'Slide image from brief failed (non-fatal):',
         error
       );
       return null;
