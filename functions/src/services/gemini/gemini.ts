@@ -996,7 +996,7 @@ export class GeminiService {
         rules
       );
       const response = await client.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: GEMINI_PRO_MODEL,
         contents: prompt,
         config: { temperature: 0.7, topK: 40, topP: 0.95 },
       });
@@ -1102,7 +1102,7 @@ export class GeminiService {
       );
 
       const response = await client.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: GEMINI_PRO_MODEL,
         contents: prompt,
         config: { temperature: 0.7, topK: 40, topP: 0.95 },
       });
