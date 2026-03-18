@@ -49,6 +49,8 @@ Slide title: "${slideTitle}"
 Slide content:
 ${slideContent}
 ${rulesSection}
+Visual excellence is paramount — the resulting slide must look polished, striking, and professionally designed. Every element (layout, colors, typography, diagrams) should work together to create a visually outstanding presentation slide.
+
 Analyse the slide content and the rules (if provided), then write a single, self-contained image-generation prompt that covers ALL of the following:
 
 1. **LAYOUT**: Exact positions — where the title sits, where the text content sits, where the diagram goes, and where any icon/illustration goes. Specify approximate percentages of slide area.
@@ -69,10 +71,11 @@ Output ONLY the image-generation prompt as plain text (no JSON, no markdown fenc
 ${detailedBrief}
 
 Important rendering rules:
+- Visual excellence is paramount — the slide must look polished, striking, and professionally designed
 - 16:9 widescreen landscape orientation (wider than tall)
 - The diagram must be the dominant visual element (at least 50% of slide area)
 - All text on the slide must be clearly legible
-- Use a clean, modern, professional design`;
+- Use a clean, modern, professional design with harmonious colors and balanced composition`;
   }
 
   static buildSlideImagePrompt(slideTitle: string, slideContent: string, rules?: string): string {
@@ -97,7 +100,7 @@ Mandatory visual elements (both must appear on every slide):
 1. DIAGRAM — include a relevant diagram that best illustrates the slide content. Choose the most appropriate type for the topic: flowchart, mind map, timeline, bar/line chart, pie chart, Venn diagram, network graph, hierarchy tree, comparison table, or process loop. The diagram must be large, clearly labelled, and take up at least half the slide (e.g. the right half, or the full lower two-thirds).
 2. THEMATIC IMAGE — include a small, thematic icon or illustration that visually represents the core concept of the slide (e.g. a brain for AI, gears for processes, a magnifying glass for analysis). Place it in a corner or alongside the title as a visual anchor.`;
 
-    return `Generate a visually appealing 16:9 landscape presentation slide image with a clean, modern, dark-themed design.
+    return `Generate a visually excellent 16:9 landscape presentation slide image. Visual excellence is paramount — the slide must look polished, striking, and professionally designed with harmonious colors, balanced composition, and a clean, modern, dark-themed aesthetic.
 
 Slide title: "${slideTitle}"
 
