@@ -10,7 +10,7 @@ import { validateAuth } from '../lib/auth';
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 
-const GEMINI_MODEL = 'gemini-3.1-pro-preview';
+const GEMINI_MODEL = 'gemini-pro-latest';
 
 // Zod schemas for request payload validation
 const generateRuleRequestSchema = z.object({
