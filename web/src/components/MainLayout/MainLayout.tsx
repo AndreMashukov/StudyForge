@@ -83,9 +83,10 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
             {/* Logo */}
             <Link
               to="/"
-              className="flex items-center space-x-3 hover:opacity-80 linear-transition"
+              aria-label="AI Learning Assistant"
+              className="flex items-center xl:space-x-3 hover:opacity-80 linear-transition"
             >
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 shrink-0 bg-primary rounded-lg flex items-center justify-center">
                 <Icon size={16} className="text-primary-foreground">
                   <path
                     strokeLinecap="round"
@@ -96,7 +97,7 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
                 </Icon>
               </div>
               <h1 className="text-lg font-semibold text-foreground tracking-tight">
-                AI Learning Assistant
+                <span className="app-title-responsive">AI Learning Assistant</span>
               </h1>
             </Link>
 

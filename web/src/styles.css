@@ -279,4 +279,15 @@
     background: var(--foreground);
     opacity: 0.8;
   }
+  
+  /* Responsive app title - hidden below xl (1280px) */
+  .app-title-responsive {
+    display: none;
+  }
+  
+  @media (min-width: 1280px) {
+    .app-title-responsive {
+      display: inline;
+    }
+  }
 }
