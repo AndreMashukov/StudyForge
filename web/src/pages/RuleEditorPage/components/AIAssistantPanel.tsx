@@ -157,6 +157,20 @@ export const AIAssistantPanel: React.FC = () => {
         {/* Error State */}
         {aiState === 'error' && (
           <div className="space-y-3">
+            <p className="text-sm" style={{ color: colors.mutedForeground }}>
+              Edit your topic and try again.
+            </p>
+            <Textarea
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="e.g., Code review best practices for Python"
+              rows={4}
+              style={{
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+                color: colors.foreground,
+              }}
+            />
             <div
               className="rounded-md border p-3 flex items-start gap-2"
               style={{
@@ -169,13 +183,27 @@ export const AIAssistantPanel: React.FC = () => {
                 {aiError || 'An error occurred while generating the rule.'}
               </p>
             </div>
-            <Button
-              variant="outline"
-              onClick={handleRetry}
-              className="w-full"
-            >
-              Retry
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleGenerate}
+                disabled={!topic.trim()}
+                className="flex-1"
+                style={{
+                  backgroundColor: colors.primary,
+                  color: colors.primaryForeground,
+                }}
+              >
+                <Sparkles size={16} className="mr-2" />
+                Retry
+              </Button>
+              <Button
+                variant="outline"
+                onClick={discardAIResult}
+                className="flex-1"
+              >
+                Reset
+              </Button>
+            </div>
           </div>
         )}
       </div>
