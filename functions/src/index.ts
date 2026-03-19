@@ -137,6 +137,11 @@ export {
 } from "./endpoints/directories";
 
 // Export flashcard management functions
+
+// Export rule AI generation function
+export {
+  generateRuleWithAI,
+} from "./endpoints/rule-ai";
 export {
   generateFlashcards,
   getFlashcardSet,

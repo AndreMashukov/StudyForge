@@ -14,11 +14,7 @@ export interface IRulesPageContext {
     handleFilterChange: (filters: RulesPageFilters) => void;
     handleViewModeChange: (mode: 'grid' | 'list') => void;
     handleSearchChange: (search: string) => void;
-    isCreateModalOpen: boolean;
-    isEditModalOpen: boolean;
-    selectedRule: Rule | null;
-    handleCloseCreateModal: () => void;
-    handleCloseEditModal: () => void;
+    isDeleting: boolean;
   };
   filters: RulesPageFilters;
   viewMode: 'grid' | 'list';

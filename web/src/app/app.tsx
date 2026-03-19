@@ -17,6 +17,7 @@ import { CreateDocumentPage } from '../pages/CreateDocumentPage';
 import { DocumentViewerPage } from '../pages/DocumentViewerPage';
 import { MyQuizzesPage } from '../pages/MyQuizzesPage';
 import { RulesPage } from '../pages/RulesPage';
+import { RuleEditorPage } from '../pages/RuleEditorPage';
 import { DirectoryRulesPage } from '../pages/DirectoryRulesPage';
 import { FlashcardsPage } from '../pages/FlashcardsPage';
 import { FlashcardSetPage } from '../pages/FlashcardSetPage';
@@ -238,6 +239,28 @@ const AppContent = () => {
                   </div>
                 </div>
               </Page>
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+
+      {/* Rule Editor Routes */}
+      <Route
+        path="/rules/editor"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <RuleEditorPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/rules/editor/:ruleId"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <RuleEditorPage />
             </ProtectedRoute>
           </MainLayout>
         }

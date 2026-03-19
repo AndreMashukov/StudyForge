@@ -200,6 +200,38 @@ export const rulesApi = baseApi.injectEndpoints({
       },
       providesTags: ['Rules'],
     }),
+
+    /**
+     * Generate a rule using AI
+     */
+    generateRuleWithAI: builder.mutation<{
+      name: string;
+      description: string;
+      content: string;
+    }, {
+      topic: string;
+      description?: string;
+      applicableTo?: string[];
+      existingContent?: string;
+    }>({
+      query: (data) => ({
+        functionName: 'generateRuleWithAI',
+        data,
+      }),
+      transformResponse: (response: {
+        success: boolean;
+        generatedName: string;
+        generatedDescription: string;
+        generatedContent: string;
+      }) => {
+        return {
+          name: response.generatedName,
+          description: response.generatedDescription,
+          content: response.generatedContent,
+        };
+      },
+      invalidatesTags: ['Rules'],
+    }),
   }),
 });
 
@@ -215,4 +247,5 @@ export const {
   useGetApplicableRulesQuery,
   useFormatRulesForPromptMutation,
   useGetRuleTagsQuery,
+  useGenerateRuleWithAIMutation,
 } = rulesApi;
