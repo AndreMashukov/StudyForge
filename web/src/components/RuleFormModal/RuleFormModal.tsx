@@ -376,7 +376,7 @@ export const RuleFormModal = ({
               )}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
-                  Characters: {formData.content.length} / 15,000
+                  Characters: {formData.content.length} / 100,000
                 </span>
                 {errors.content && (
                   <p className="text-sm text-destructive">{errors.content}</p>

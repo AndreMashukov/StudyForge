@@ -19,8 +19,8 @@ export async function createRule(
   request: CreateRuleRequest
 ): Promise<Rule> {
   // Validate content length
-  if (request.content.length > 15000) {
-    throw new Error('Rule content cannot exceed 15,000 characters');
+  if (request.content.length > 100000) {
+    throw new Error('Rule content cannot exceed 100,000 characters');
   }
 
   // Validate at least one applicability selected
@@ -147,8 +147,8 @@ export async function updateRule(
   }
 
   // Validate content length if content is being updated
-  if (request.content && request.content.length > 15000) {
-    throw new Error('Rule content cannot exceed 15,000 characters');
+  if (request.content && request.content.length > 100000) {
+    throw new Error('Rule content cannot exceed 100,000 characters');
   }
 
   // Validate at least one applicability if updating applicableTo
