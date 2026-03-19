@@ -14,7 +14,7 @@ const GEMINI_MODEL = 'gemini-pro-latest';
 
 // Zod schemas for request payload validation
 const generateRuleRequestSchema = z.object({
-  topic: z.string().min(1, 'Topic is required').max(200, 'Topic must be 200 characters or less'),
+  topic: z.string().min(1, 'Topic is required').max(15000, 'Topic must be 15,000 characters or less'),
   description: z.string().max(500, 'Description must be 500 characters or less').optional(),
   applicableTo: z.array(z.enum([
     'scraping',
@@ -25,7 +25,7 @@ const generateRuleRequestSchema = z.object({
     'flashcard',
     'slide_deck',
   ])).optional(),
-  existingContent: z.string().max(15000, 'Existing content must be 15000 characters or less').optional(),
+  existingContent: z.string().max(100000, 'Existing content must be 100,000 characters or less').optional(),
 });
 
 interface RuleResponse {
