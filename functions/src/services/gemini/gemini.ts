@@ -24,7 +24,7 @@ import {
   estimateContextTokens,
 } from './prompt-builder/withContextFiles';
 
-const GEMINI_PRO_MODEL = 'gemini-3.1-pro-preview';
+const GEMINI_PRO_MODEL = 'gemini-pro-latest';
 
 export interface GeminiQuizResponse {
   title: string;

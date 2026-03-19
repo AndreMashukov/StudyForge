@@ -3,7 +3,6 @@ import { Page } from '../../../components/Page';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { RuleCard } from './RuleCard';
-import { RuleFormModal } from '../../../components/RuleFormModal';
 import { Plus, Search, Grid3x3, List, Loader2 } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { cn } from '../../../lib/utils';
@@ -25,12 +24,12 @@ export const RulesPageContainer = () => {
       <Page showSidebar={true}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="flex flex-col items-center gap-3">
-            <Loader2 
-              className="animate-spin" 
+            <Loader2
+              className="animate-spin"
               size={32}
               style={{ color: currentTheme.colors.primary }}
             />
-            <p 
+            <p
               className="text-sm"
               style={{ color: currentTheme.colors.mutedForeground }}
             >
@@ -47,28 +46,28 @@ export const RulesPageContainer = () => {
     return (
       <Page showSidebar={true}>
         <div className="flex items-center justify-center min-h-[400px]">
-          <div 
+          <div
             className="p-6 rounded-lg border text-center max-w-md"
             style={{
               backgroundColor: currentTheme.colors.card,
               borderColor: currentTheme.colors.destructive,
             }}
           >
-            <p 
+            <p
               className="font-medium mb-2"
               style={{ color: currentTheme.colors.destructive }}
             >
               Failed to load rules
             </p>
-            <p 
+            <p
               className="text-sm mb-4"
               style={{ color: currentTheme.colors.mutedForeground }}
             >
-              {rulesApi.error instanceof Error 
-                ? rulesApi.error.message 
+              {rulesApi.error instanceof Error
+                ? rulesApi.error.message
                 : 'An unknown error occurred'}
             </p>
-            <Button 
+            <Button
               onClick={() => rulesApi.refetch()}
               variant="outline"
             >
@@ -89,13 +88,13 @@ export const RulesPageContainer = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 
+            <h1
               className="text-3xl font-bold"
               style={{ color: currentTheme.colors.foreground }}
             >
               Rules Manager
             </h1>
-            <p 
+            <p
               className="text-sm mt-1"
               style={{ color: currentTheme.colors.mutedForeground }}
             >
@@ -112,8 +111,8 @@ export const RulesPageContainer = () => {
         {hasRules && (
           <div className="flex items-center gap-3">
             <div className="flex-1 relative">
-              <Search 
-                size={16} 
+              <Search
+                size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2"
                 style={{ color: currentTheme.colors.mutedForeground }}
               />
@@ -125,7 +124,7 @@ export const RulesPageContainer = () => {
               />
             </div>
             
-            <div 
+            <div
               className="flex rounded-lg border p-1"
               style={{
                 backgroundColor: currentTheme.colors.card,
@@ -154,7 +153,7 @@ export const RulesPageContainer = () => {
 
         {/* Empty State - No Rules */}
         {!hasRules && (
-          <div 
+          <div
             className="text-center py-16 rounded-lg border"
             style={{
               backgroundColor: currentTheme.colors.card,
@@ -162,22 +161,22 @@ export const RulesPageContainer = () => {
             }}
           >
             <div className="max-w-md mx-auto">
-              <div 
+              <div
                 className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
                 style={{ backgroundColor: currentTheme.colors.muted }}
               >
-                <Plus 
+                <Plus
                   size={32}
                   style={{ color: currentTheme.colors.mutedForeground }}
                 />
               </div>
-              <h3 
+              <h3
                 className="text-lg font-semibold mb-2"
                 style={{ color: currentTheme.colors.foreground }}
               >
                 No rules yet
               </h3>
-              <p 
+              <p
                 className="text-sm mb-6"
                 style={{ color: currentTheme.colors.mutedForeground }}
               >
@@ -194,7 +193,7 @@ export const RulesPageContainer = () => {
 
         {/* Empty State - No Filtered Results */}
         {hasRules && !hasFilteredRules && (
-          <div 
+          <div
             className="text-center py-16 rounded-lg border"
             style={{
               backgroundColor: currentTheme.colors.card,
@@ -202,24 +201,24 @@ export const RulesPageContainer = () => {
             }}
           >
             <div className="max-w-md mx-auto">
-              <Search 
-                size={32} 
+              <Search
+                size={32}
                 className="mx-auto mb-4"
                 style={{ color: currentTheme.colors.mutedForeground }}
               />
-              <h3 
+              <h3
                 className="text-lg font-semibold mb-2"
                 style={{ color: currentTheme.colors.foreground }}
               >
                 No rules found
               </h3>
-              <p 
+              <p
                 className="text-sm mb-6"
                 style={{ color: currentTheme.colors.mutedForeground }}
               >
                 No rules match your search criteria. Try adjusting your search or filters.
               </p>
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => handlers.handleSearchChange('')}
               >
@@ -233,7 +232,7 @@ export const RulesPageContainer = () => {
         {hasFilteredRules && (
           <>
             <div className="flex items-center justify-between">
-              <p 
+              <p
                 className="text-sm"
                 style={{ color: currentTheme.colors.mutedForeground }}
               >
@@ -261,30 +260,6 @@ export const RulesPageContainer = () => {
           </>
         )}
       </div>
-
-      {/* Modals */}
-      {handlers.isCreateModalOpen && (
-        <RuleFormModal
-          open={handlers.isCreateModalOpen}
-          onClose={handlers.handleCloseCreateModal}
-          onSuccess={(rule) => {
-            rulesApi.refetch();
-            handlers.handleCloseCreateModal();
-          }}
-        />
-      )}
-
-      {handlers.isEditModalOpen && handlers.selectedRule && (
-        <RuleFormModal
-          open={handlers.isEditModalOpen}
-          ruleId={handlers.selectedRule.id}
-          onClose={handlers.handleCloseEditModal}
-          onSuccess={(rule) => {
-            rulesApi.refetch();
-            handlers.handleCloseEditModal();
-          }}
-        />
-      )}
     </Page>
   );
 };
