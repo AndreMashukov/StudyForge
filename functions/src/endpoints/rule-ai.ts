@@ -80,7 +80,7 @@ function parseRuleResponse(responseText: string): RuleResponse {
  * Generates or improves a rule using Gemini AI.
  */
 export const generateRuleWithAI = onCall(
-  { region: 'asia-east1', cors: true },
+  { region: 'asia-east1', cors: true, secrets: [geminiApiKey] },
   async (request) => {
     try {
       const userId = validateAuth(request);
@@ -134,9 +134,11 @@ export const generateRuleWithAI = onCall(
 
       return {
         success: true,
-        generatedName: rule.name,
-        generatedDescription: rule.description,
-        generatedContent: rule.content,
+        result: {
+          name: rule.name,
+          description: rule.description,
+          content: rule.content,
+        },
       };
     } catch (error) {
       logger.error('Error in generateRuleWithAI:', error);

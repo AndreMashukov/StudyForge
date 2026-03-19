@@ -220,15 +220,9 @@ export const rulesApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: {
         success: boolean;
-        generatedName: string;
-        generatedDescription: string;
-        generatedContent: string;
+        result: { name: string; description: string; content: string };
       }) => {
-        return {
-          name: response.generatedName,
-          description: response.generatedDescription,
-          content: response.generatedContent,
-        };
+        return response.result;
       },
       invalidatesTags: ['Rules'],
     }),
