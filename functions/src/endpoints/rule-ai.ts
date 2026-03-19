@@ -94,7 +94,7 @@ export const generateRuleWithAI = onCall(
       logger.info('[generateRuleWithAI] Function started.', {
         userId,
         hasExistingContent: !!existingContent,
-        topic,
+        topicLength: topic.length,
       });
 
       const apiKey = process.env.GEMINI_API_KEY;
