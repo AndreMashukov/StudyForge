@@ -63,6 +63,7 @@ export const AIAssistantPanel: React.FC = () => {
               onChange={(e) => setTopic(e.target.value)}
               placeholder="e.g., Code review best practices for Python"
               rows={4}
+              maxLength={15000}
               style={{
                 backgroundColor: colors.background,
                 borderColor: colors.border,
@@ -165,6 +166,7 @@ export const AIAssistantPanel: React.FC = () => {
               onChange={(e) => setTopic(e.target.value)}
               placeholder="e.g., Code review best practices for Python"
               rows={4}
+              maxLength={15000}
               style={{
                 backgroundColor: colors.background,
                 borderColor: colors.border,

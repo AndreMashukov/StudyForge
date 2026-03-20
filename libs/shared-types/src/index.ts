@@ -597,7 +597,7 @@ export interface Rule {
   userId: string;
   name: string;
   description?: string;
-  content: string; // Markdown content, max 10,000 chars
+  content: string; // Markdown content, max 100,000 chars
   color: RuleColor;
   tags: string[];
   applicableTo: RuleApplicability[];

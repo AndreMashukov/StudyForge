@@ -96,8 +96,8 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
     }
     if (!formData.content.trim()) {
       errors.content = 'Content is required';
-    } else if (formData.content.length > 15000) {
-      errors.content = 'Content must be 15,000 characters or less';
+    } else if (formData.content.length > 100000) {
+      errors.content = 'Content must be 100,000 characters or less';
     }
     if (formData.applicableTo.length < 1) {
       errors.applicableTo = 'Select at least one operation';

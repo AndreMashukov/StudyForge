@@ -208,7 +208,7 @@ export const RuleFormSection: React.FC = () => {
           <Textarea
             id="rule-content"
             value={formData.content}
-            onChange={(e) => updateField('content', e.target.value.slice(0, 15000))}
+            onChange={(e) => updateField('content', e.target.value.slice(0, 100000))}
             placeholder={'When generating DSA content:\n- Include Python and Java implementations\n- Add time/space complexity analysis\n- Provide step-by-step walkthrough'}
             rows={10}
             style={formErrors.content ? { ...inputStyle, borderColor: colors.destructive } : inputStyle}
@@ -216,7 +216,7 @@ export const RuleFormSection: React.FC = () => {
         )}
         <div className="flex items-center justify-between">
           <span className="text-sm" style={{ color: colors.mutedForeground }}>
-            Characters: {formData.content.length} / 15,000
+            Characters: {formData.content.length} / 100,000
           </span>
           {formErrors.content && (
             <p className="text-sm" style={{ color: colors.destructive }}>{formErrors.content}</p>
