@@ -94,43 +94,42 @@ export const ThemeToggle = () => {
 
   return (
     <div className={themeToggleStyles.container}>
-      {/* Compact view */}
-      {!isExpanded && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={toggleExpanded}
-          className={themeToggleStyles.compactButton}
+      {/* Compact view - always in DOM to prevent layout shift */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={toggleExpanded}
+        className={themeToggleStyles.compactButton}
+        style={{ visibility: isExpanded ? 'hidden' : 'visible' }}
+      >
+        <div className={themeToggleStyles.colorPreviewContainer}>
+          <div 
+            className={themeToggleStyles.colorPreview}
+            style={{ 
+              backgroundColor: currentTheme.colors.background,
+              borderColor: currentTheme.colors.border 
+            }}
+          />
+          <div 
+            className={themeToggleStyles.colorPreview}
+            style={{ 
+              backgroundColor: currentTheme.colors.primary,
+              borderColor: currentTheme.colors.border 
+            }}
+          />
+        </div>
+        <span className={themeToggleStyles.compactButtonText}>
+          {currentTheme.name}
+        </span>
+        <svg 
+          className={getExpandIconClasses(isExpanded)}
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
         >
-          <div className={themeToggleStyles.colorPreviewContainer}>
-            <div 
-              className={themeToggleStyles.colorPreview}
-              style={{ 
-                backgroundColor: currentTheme.colors.background,
-                borderColor: currentTheme.colors.border 
-              }}
-            />
-            <div 
-              className={themeToggleStyles.colorPreview}
-              style={{ 
-                backgroundColor: currentTheme.colors.primary,
-                borderColor: currentTheme.colors.border 
-              }}
-            />
-          </div>
-          <span className={themeToggleStyles.compactButtonText}>
-            {currentTheme.name}
-          </span>
-          <svg 
-            className={getExpandIconClasses(isExpanded)}
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </Button>
-      )}
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </Button>
 
       {/* Expanded preview grid */}
       {isExpanded && (

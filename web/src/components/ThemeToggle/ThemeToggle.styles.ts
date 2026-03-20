@@ -13,7 +13,7 @@ export const themeToggleStyles = {
   expandIconRotated: "w-4 h-4 transition-transform duration-300 rotate-180",
   
   // Expanded popover styles
-  popover: "absolute top-0 left-0 z-50 p-4 rounded-lg border shadow-lg transition-all duration-300",
+  popover: "absolute top-0 left-0 z-[1250] p-4 rounded-lg border shadow-lg transition-all duration-300",
   popoverHeader: "flex items-center justify-between mb-4",
   popoverTitle: "text-lg font-semibold",
   closeButton: "p-1 rounded transition-colors",
@@ -43,7 +43,7 @@ export const themeToggleStyles = {
   description: "text-xs mt-3 text-center opacity-70",
   
   // Backdrop
-  backdrop: "fixed inset-0 z-40 transition-opacity duration-300",
+  backdrop: "fixed inset-0 z-[1200] transition-opacity duration-300",
 } as const;
 
 // Helper functions for dynamic styling
