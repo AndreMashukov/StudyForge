@@ -13,9 +13,11 @@ const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const GEMINI_MODEL = 'gemini-pro-latest';
 
 // Zod schemas for request payload validation
+// Note: Firebase callable SDK serializes undefined fields as null over the wire,
+// so optional string fields must use .nullish() to accept both null and undefined.
 const generateRuleRequestSchema = z.object({
   topic: z.string().min(1, 'Topic is required').max(15000, 'Topic must be 15,000 characters or less'),
-  description: z.string().max(500, 'Description must be 500 characters or less').optional(),
+  description: z.string().max(500, 'Description must be 500 characters or less').nullish(),
   applicableTo: z.array(z.enum([
     'scraping',
     'upload',
@@ -24,8 +26,8 @@ const generateRuleRequestSchema = z.object({
     'followup',
     'flashcard',
     'slide_deck',
-  ])).optional(),
-  existingContent: z.string().max(100000, 'Existing content must be 100,000 characters or less').optional(),
+  ])).nullish(),
+  existingContent: z.string().max(100000, 'Existing content must be 100,000 characters or less').nullish(),
 });
 
 interface RuleResponse {
@@ -89,7 +91,10 @@ export const generateRuleWithAI = onCall(
         const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
         throw new HttpsError('invalid-argument', msg);
       }
-      const { topic, description, applicableTo, existingContent } = parseResult.data;
+      const { topic } = parseResult.data;
+      const description = parseResult.data.description ?? undefined;
+      const applicableTo = parseResult.data.applicableTo ?? undefined;
+      const existingContent = parseResult.data.existingContent ?? undefined;
 
       logger.info('[generateRuleWithAI] Function started.', {
         userId,
