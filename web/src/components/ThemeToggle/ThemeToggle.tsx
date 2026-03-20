@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Button } from '../ui/Button/Button';
 import { ThemeId } from '../../types/theme';
@@ -81,6 +82,19 @@ const ThemePreview: React.FC<IThemePreview> = ({ theme, isActive, onClick }) => 
 export const ThemeToggle = () => {
   const { currentTheme, setTheme, themes } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
+
+  // Calculate popover position when expanded
+  useEffect(() => {
+    if (isExpanded && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPopoverPosition({
+        top: rect.bottom + 8, // 8px below the button
+        left: rect.left,
+      });
+    }
+  }, [isExpanded]);
 
   const handleThemeChange = (themeId: ThemeId) => {
     setTheme(themeId);
@@ -94,108 +108,111 @@ export const ThemeToggle = () => {
 
   return (
     <div className={themeToggleStyles.container}>
-      {/* Compact view */}
-      {!isExpanded && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={toggleExpanded}
-          className={themeToggleStyles.compactButton}
-        >
-          <div className={themeToggleStyles.colorPreviewContainer}>
-            <div 
-              className={themeToggleStyles.colorPreview}
-              style={{ 
-                backgroundColor: currentTheme.colors.background,
-                borderColor: currentTheme.colors.border 
-              }}
-            />
-            <div 
-              className={themeToggleStyles.colorPreview}
-              style={{ 
-                backgroundColor: currentTheme.colors.primary,
-                borderColor: currentTheme.colors.border 
-              }}
-            />
-          </div>
-          <span className={themeToggleStyles.compactButtonText}>
-            {currentTheme.name}
-          </span>
-          <svg 
-            className={getExpandIconClasses(isExpanded)}
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </Button>
-      )}
-
-      {/* Expanded preview grid */}
-      {isExpanded && (
-        <div 
-          className={themeToggleStyles.popover}
-          style={{ 
-            backgroundColor: currentTheme.colors.popover,
-            borderColor: currentTheme.colors.border 
-          }}
-        >
-          <div className={themeToggleStyles.popoverHeader}>
-            <h3 
-              className={themeToggleStyles.popoverTitle}
-              style={{ color: currentTheme.colors.foreground }}
-            >
-              Choose Theme
-            </h3>
-            <button
-              onClick={toggleExpanded}
-              className={themeToggleStyles.closeButton}
-              style={{ 
-                color: currentTheme.colors.mutedForeground,
-                backgroundColor: 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = currentTheme.colors.muted;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              <svg className={themeToggleStyles.closeIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          
-          <div className={themeToggleStyles.themeGrid}>
-            {Object.values(themes).map((theme) => (
-              <ThemePreview
-                key={theme.id}
-                theme={theme}
-                isActive={currentTheme.id === theme.id}
-                onClick={() => handleThemeChange(theme.id as ThemeId)}
-              />
-            ))}
-          </div>
-          
-          {/* Description */}
-          <p 
-            className={themeToggleStyles.description}
-            style={{ color: currentTheme.colors.mutedForeground }}
-          >
-            Themes are applied instantly and saved automatically
-          </p>
+      {/* Compact view - always in DOM to prevent layout shift */}
+      <Button
+        ref={buttonRef}
+        variant="outline"
+        size="sm"
+        onClick={toggleExpanded}
+        className={themeToggleStyles.compactButton}
+        style={{ visibility: isExpanded ? 'hidden' : 'visible' }}
+      >
+        <div className={themeToggleStyles.colorPreviewContainer}>
+          <div 
+            className={themeToggleStyles.colorPreview}
+            style={{ 
+              backgroundColor: currentTheme.colors.background,
+              borderColor: currentTheme.colors.border 
+            }}
+          />
+          <div 
+            className={themeToggleStyles.colorPreview}
+            style={{ 
+              backgroundColor: currentTheme.colors.primary,
+              borderColor: currentTheme.colors.border 
+            }}
+          />
         </div>
-      )}
-      
-      {/* Backdrop */}
-      {isExpanded && (
-        <div 
-          className={themeToggleStyles.backdrop}
-          style={{ backgroundColor: currentTheme.colors.overlay }}
-          onClick={toggleExpanded}
-        />
+        <span className={themeToggleStyles.compactButtonText}>
+          {currentTheme.name}
+        </span>
+        <svg 
+          className={getExpandIconClasses(isExpanded)}
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </Button>
+
+      {/* Expanded preview grid - rendered via portal */}
+      {isExpanded && createPortal(
+        <>
+          <div 
+            className={themeToggleStyles.popover}
+            style={{ 
+              backgroundColor: currentTheme.colors.popover,
+              borderColor: currentTheme.colors.border,
+              top: popoverPosition.top,
+              left: popoverPosition.left,
+            }}
+          >
+            <div className={themeToggleStyles.popoverHeader}>
+              <h3 
+                className={themeToggleStyles.popoverTitle}
+                style={{ color: currentTheme.colors.foreground }}
+              >
+                Choose Theme
+              </h3>
+              <button
+                onClick={toggleExpanded}
+                className={themeToggleStyles.closeButton}
+                style={{ 
+                  color: currentTheme.colors.mutedForeground,
+                  backgroundColor: 'transparent'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = currentTheme.colors.muted;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <svg className={themeToggleStyles.closeIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className={themeToggleStyles.themeGrid}>
+              {Object.values(themes).map((theme) => (
+                <ThemePreview
+                  key={theme.id}
+                  theme={theme}
+                  isActive={currentTheme.id === theme.id}
+                  onClick={() => handleThemeChange(theme.id as ThemeId)}
+                />
+              ))}
+            </div>
+            
+            {/* Description */}
+            <p 
+              className={themeToggleStyles.description}
+              style={{ color: currentTheme.colors.mutedForeground }}
+            >
+              Themes are applied instantly and saved automatically
+            </p>
+          </div>
+          
+          {/* Backdrop */}
+          <div 
+            className={themeToggleStyles.backdrop}
+            style={{ backgroundColor: currentTheme.colors.overlay }}
+            onClick={toggleExpanded}
+          />
+        </>,
+        document.body
       )}
     </div>
   );
