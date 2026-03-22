@@ -5,6 +5,7 @@ import { Textarea } from '../../../components/ui/Textarea/Textarea';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useAIAssistant } from '../context/hooks/useAIAssistant';
 import { useRuleEditorContext } from '../context/RuleEditorContext';
+import { MarkdownRenderer } from '../../../components/MarkdownRenderer/MarkdownRenderer';
 
 export const AIAssistantPanel: React.FC = () => {
   const { currentTheme } = useTheme();
@@ -126,11 +127,8 @@ export const AIAssistantPanel: React.FC = () => {
                   {aiResult.description}
                 </p>
               )}
-              <div
-                className="text-xs line-clamp-4 whitespace-pre-wrap"
-                style={{ color: colors.mutedForeground }}
-              >
-                {aiResult.content}
+              <div className="max-h-96 overflow-y-auto rounded">
+                <MarkdownRenderer content={aiResult.content} showToc={false} />
               </div>
             </div>
             <div className="flex gap-2">
