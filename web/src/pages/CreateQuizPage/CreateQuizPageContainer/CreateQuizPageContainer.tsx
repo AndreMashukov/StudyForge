@@ -10,8 +10,10 @@ import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
 import { PreSelectedDocumentSelector } from '../../../components/PreSelectedDocumentSelector';
+import { ResolvedRulesInfo } from '../../../components/ResolvedRulesInfo';
 import { createQuizPageStyles } from './CreateQuizPageContainer.styles';
 import { ArrowLeft, Brain } from 'lucide-react';
+import { RuleApplicability } from '@shared-types';
 
 export const CreateQuizPageContainer = () => {
   const navigate = useNavigate();
@@ -155,6 +157,12 @@ export const CreateQuizPageContainer = () => {
                     <p className="text-sm text-destructive">{errors.additionalPrompt.message}</p>
                   )}
                 </div>
+
+                {/* Resolved Rules */}
+                <ResolvedRulesInfo
+                  directoryId={directoryIdParam}
+                  operation={RuleApplicability.QUIZ}
+                />
 
                 {/* Form Actions */}
                 <div className={createQuizPageStyles.formActions}>

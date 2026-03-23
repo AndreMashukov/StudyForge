@@ -10,8 +10,10 @@ import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
 import { PreSelectedDocumentSelector } from '../../../components/PreSelectedDocumentSelector';
+import { ResolvedRulesInfo } from '../../../components/ResolvedRulesInfo';
 import { createSlideDeckPageStyles } from './CreateSlideDeckPageContainer.styles';
 import { ArrowLeft, Presentation } from 'lucide-react';
+import { RuleApplicability } from '@shared-types';
 
 export const CreateSlideDeckPageContainer = () => {
   const navigate = useNavigate();
@@ -159,6 +161,12 @@ export const CreateSlideDeckPageContainer = () => {
                     <p className="text-sm text-destructive">{errors.additionalPrompt.message}</p>
                   )}
                 </div>
+
+                {/* Resolved Rules */}
+                <ResolvedRulesInfo
+                  directoryId={directoryIdParam}
+                  operation={RuleApplicability.SLIDE_DECK}
+                />
 
                 {/* Form Actions */}
                 <div className={createSlideDeckPageStyles.formActions}>
