@@ -1753,11 +1753,6 @@
     protobufjs "^7.5.4"
     ws "^8.18.0"
 
-"@google/generative-ai@^0.21.0":
-  version "0.21.0"
-  resolved "https://registry.npmmirror.com/@google/generative-ai/-/generative-ai-0.21.0.tgz"
-  integrity sha512-7XhUbtnlkSEZK15kN3t+tzIMxsbKm/dSkKBFalj+20NvPKe1kBY7mR2P7vuijEn+f06z5+A8bVGKO0v39cr6Wg==
-
 "@googleapis/sqladmin@^31.1.0":
   version "31.1.0"
   resolved "https://registry.npmmirror.com/@googleapis/sqladmin/-/sqladmin-31.1.0.tgz"
@@ -3146,13 +3141,6 @@
   version "0.11.0"
   resolved "https://registry.npmmirror.com/@pkgjs/parseargs/-/parseargs-0.11.0.tgz"
   integrity sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==
-
-"@playwright/test@^1.58.2":
-  version "1.58.2"
-  resolved "https://registry.npmmirror.com/@playwright/test/-/test-1.58.2.tgz"
-  integrity sha512-akea+6bHYBBfA9uQqSYmlJXn61cTa+jbO87xVLCWbTqbWadRVmhxlXATaOjOgcBaWU4ePo0wB41KMFv3o35IXA==
-  dependencies:
-    playwright "1.58.2"
 
 "@pnpm/config.env-replace@^1.1.0":
   version "1.1.0"
@@ -11808,7 +11796,7 @@ playwright-core@1.58.2:
   resolved "https://registry.npmmirror.com/playwright-core/-/playwright-core-1.58.2.tgz"
   integrity sha512-yZkEtftgwS8CsfYo7nm0KE8jsvm6i/PTgVtB8DL726wNf6H2IMsDuxCpJj59KDaxCtSnrWan2AeDqM7JBaultg==
 
-playwright@1.58.2, playwright@^1.58.2:
+playwright@^1.58.2:
   version "1.58.2"
   resolved "https://registry.npmmirror.com/playwright/-/playwright-1.58.2.tgz"
   integrity sha512-vA30H8Nvkq/cPBnNw4Q8TWz1EJyqgpuinBcHET0YVJVFldr8JDNiU9LaWAE1KqSkRYazuaBhTpB5ZzShOezQ6A==
