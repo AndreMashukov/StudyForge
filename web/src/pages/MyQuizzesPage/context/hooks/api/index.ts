@@ -1,1 +1,0 @@
-export { useFetchMyQuizzesData } from './useFetchMyQuizzesData';
