@@ -1,38 +1,6 @@
 import { Theme, ThemeId } from '../types/theme';
 
 export const themes: Record<ThemeId, Theme> = {
-  dark: {
-    name: 'Eclipse',
-    id: 'dark',
-    colors: {
-      background: 'rgb(11 11 11)', // #0B0B0B
-      foreground: 'rgb(255 255 255)', // #FFFFFF
-      card: 'rgb(16 16 16)', // #101010
-      cardForeground: 'rgb(255 255 255)', // #FFFFFF
-      popover: 'rgb(16 16 16)', // #101010
-      popoverForeground: 'rgb(255 255 255)', // #FFFFFF
-      primary: 'rgb(79 70 229)', // #4F46E5
-      primaryForeground: 'rgb(255 255 255)', // #FFFFFF
-      secondary: 'rgb(20 20 20)', // #141414
-      secondaryForeground: 'rgb(255 255 255)', // #FFFFFF
-      muted: 'rgb(24 24 24)', // #181818
-      mutedForeground: 'rgb(163 163 163)', // #A3A3A3
-      accent: 'rgb(79 70 229)', // #4F46E5
-      accentForeground: 'rgb(255 255 255)', // #FFFFFF
-      destructive: 'rgb(220 38 38)', // #DC2626
-      destructiveForeground: 'rgb(255 255 255)', // #FFFFFF
-      border: 'rgb(39 39 42)', // #27272A
-      input: 'rgb(20 20 20)', // #141414
-      ring: 'rgb(79 70 229)', // #4F46E5
-      radius: '0.5rem',
-      // Advanced design tokens
-      sidebar: 'rgb(14 14 14)', // #0E0E0E - Slightly lighter than background
-      dropdown: 'rgb(18 18 18)', // #121212 - For dropdown menus
-      overlay: 'rgba(0 0 0 / 0.8)', // Dark overlay
-      glass: 'rgba(16 16 16 / 0.8)', // Glass effect background
-      glow: 'rgba(79 70 229 / 0.15)', // Primary color glow
-    },
-  },
   light: {
     name: 'Lumen',
     id: 'light',
@@ -66,7 +34,7 @@ export const themes: Record<ThemeId, Theme> = {
     },
   },
   linear: {
-    name: 'Code Abyss',
+    name: 'Bit Depth',
     id: 'linear',
     colors: {
       background: 'rgb(8 8 8)', // #080808 - Even darker than current
@@ -97,38 +65,6 @@ export const themes: Record<ThemeId, Theme> = {
       glow: 'rgba(139 92 246 / 0.2)', // Primary color glow
     },
   },
-  semidark: {
-    name: 'Twilight',
-    id: 'semidark',
-    colors: {
-      background: 'rgb(24 24 27)', // #18181B - Zinc-900
-      foreground: 'rgb(244 244 245)', // #F4F4F5 - Zinc-100
-      card: 'rgb(39 39 42)', // #27272A - Zinc-800
-      cardForeground: 'rgb(244 244 245)', // #F4F4F5
-      popover: 'rgb(39 39 42)', // #27272A
-      popoverForeground: 'rgb(244 244 245)', // #F4F4F5
-      primary: 'rgb(99 102 241)', // #6366F1 - Indigo-500
-      primaryForeground: 'rgb(255 255 255)', // #FFFFFF
-      secondary: 'rgb(63 63 70)', // #3F3F46 - Zinc-700
-      secondaryForeground: 'rgb(244 244 245)', // #F4F4F5
-      muted: 'rgb(63 63 70)', // #3F3F46 - Zinc-700
-      mutedForeground: 'rgb(161 161 170)', // #A1A1AA - Zinc-400
-      accent: 'rgb(99 102 241)', // #6366F1 - Indigo-500
-      accentForeground: 'rgb(255 255 255)', // #FFFFFF
-      destructive: 'rgb(239 68 68)', // #EF4444 - Red-500
-      destructiveForeground: 'rgb(255 255 255)', // #FFFFFF
-      border: 'rgb(63 63 70)', // #3F3F46 - Zinc-700
-      input: 'rgb(39 39 42)', // #27272A - Zinc-800
-      ring: 'rgb(99 102 241)', // #6366F1 - Indigo-500
-      radius: '0.5rem',
-      // Advanced design tokens
-      sidebar: 'rgb(32 32 36)', // #202024 - Slightly lighter than background
-      dropdown: 'rgb(44 44 47)', // #2C2C2F - For dropdown menus
-      overlay: 'rgba(0 0 0 / 0.6)', // Medium overlay
-      glass: 'rgba(39 39 42 / 0.8)', // Glass effect background
-      glow: 'rgba(99 102 241 / 0.12)', // Primary color glow
-    },
-  },
 };
 
-export const defaultTheme: ThemeId = 'dark';
+export const defaultTheme: ThemeId = 'linear';
