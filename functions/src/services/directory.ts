@@ -1,4 +1,5 @@
 import { FieldValue } from 'firebase-admin/firestore';
+import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import {
   Directory,
@@ -10,11 +11,17 @@ import {
   DIRECTORY_CONSTRAINTS,
   GetDirectoryTreeResponse,
   GetDirectoryContentsResponse,
+  GetDirectoryContentsWithArtifactsResponse,
   GetDirectoryAncestorsResponse,
   MoveDirectoryResponse,
   DeleteDirectoryResponse,
   DocumentEnhanced,
+  Quiz,
+  FlashcardSet,
+  SlideDeck,
+  Rule,
 } from '../../libs/shared-types/src/index';
+import { resolveRulesForDirectory } from './rule-resolution';
 import { FirestorePaths } from '../lib/firestore-paths';
 
 export class DirectoryService {
@@ -76,8 +83,12 @@ export class DirectoryService {
       level,
       color: request.color,
       icon: request.icon,
+      description: request.description,
       documentCount: 0,
       childCount: 0,
+      quizCount: 0,
+      flashcardSetCount: 0,
+      slideDeckCount: 0,
       ruleIds: [],
       createdAt: now,
       updatedAt: now,
@@ -101,6 +112,31 @@ export class DirectoryService {
       id: docRef.id,
       ...directoryData,
     };
+  }
+
+  /**
+   * Ensures a directory exists and is owned by the user (throws if not found).
+   */
+  async validateDirectoryId(userId: string, directoryId: string): Promise<void> {
+    const dir = await this.getDirectory(userId, directoryId);
+    if (!dir) {
+      throw new Error(`Directory ${directoryId} does not exist.`);
+    }
+  }
+
+  /**
+   * Adjust cached artifact counts on a directory document.
+   */
+  async adjustDirectoryArtifactCount(
+    userId: string,
+    directoryId: string,
+    field: 'quizCount' | 'flashcardSetCount' | 'slideDeckCount',
+    delta: number
+  ): Promise<void> {
+    await FirestorePaths.directory(userId, directoryId).update({
+      [field]: FieldValue.increment(delta),
+      updatedAt: new Date(),
+    });
   }
 
   /**
@@ -185,6 +221,10 @@ export class DirectoryService {
       updateData.icon = request.icon;
     }
 
+    if (request.description !== undefined) {
+      updateData.description = request.description;
+    }
+
     // Update directory
     await FirestorePaths.directory(userId, directoryId)
       .update(updateData);
@@ -222,7 +262,13 @@ export class DirectoryService {
 
     // Delete documents (Firestore metadata + Storage content) in all directories
     let deletedDocumentCount = 0;
+    let deletedQuizCount = 0;
+    let deletedFlashcardSetCount = 0;
+    let deletedSlideDeckCount = 0;
     const db = FirestorePaths.documents(userId).firestore;
+    const { DocumentService } = await import('./document-storage.js');
+    const bucket = admin.storage().bucket();
+
     for (const dirId of allDirectoryIds) {
       const docsSnapshot = await FirestorePaths.documents(userId)
         .where('directoryId', '==', dirId)
@@ -231,7 +277,6 @@ export class DirectoryService {
       deletedDocumentCount += docsSnapshot.size;
 
       // Delete Storage content for each document
-      const { DocumentService } = await import('./document-storage.js');
       for (const doc of docsSnapshot.docs) {
         try {
           await DocumentService.deleteDocument(userId, doc.id);
@@ -248,6 +293,56 @@ export class DirectoryService {
         const chunk = docsSnapshot.docs.slice(i, i + 500);
         const batch = db.batch();
         chunk.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+      }
+
+      // Delete quizzes in this directory
+      const quizzesSnap = await FirestorePaths.quizzes(userId)
+        .where('directoryId', '==', dirId)
+        .get();
+      deletedQuizCount += quizzesSnap.size;
+      for (let i = 0; i < quizzesSnap.docs.length; i += 500) {
+        const chunk = quizzesSnap.docs.slice(i, i + 500);
+        const batch = db.batch();
+        chunk.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+
+      // Delete flashcard sets in this directory
+      const fcSnap = await FirestorePaths.flashcardSets(userId)
+        .where('directoryId', '==', dirId)
+        .get();
+      deletedFlashcardSetCount += fcSnap.size;
+      for (let i = 0; i < fcSnap.docs.length; i += 500) {
+        const chunk = fcSnap.docs.slice(i, i + 500);
+        const batch = db.batch();
+        chunk.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+
+      // Delete slide decks (storage images + Firestore)
+      const sdSnap = await FirestorePaths.slideDecks(userId)
+        .where('directoryId', '==', dirId)
+        .get();
+      deletedSlideDeckCount += sdSnap.size;
+      for (const deckDoc of sdSnap.docs) {
+        const deck = deckDoc.data() as { slides?: { imageStoragePath?: string }[] };
+        for (const slide of deck.slides || []) {
+          if (slide.imageStoragePath) {
+            try {
+              await bucket.file(slide.imageStoragePath).delete();
+            } catch {
+              logger.warn('Failed to delete slide image during directory deletion', {
+                path: slide.imageStoragePath,
+              });
+            }
+          }
+        }
+      }
+      for (let i = 0; i < sdSnap.docs.length; i += 500) {
+        const chunk = sdSnap.docs.slice(i, i + 500);
+        const batch = db.batch();
+        chunk.forEach(d => batch.delete(d.ref));
         await batch.commit();
       }
     }
@@ -275,12 +370,18 @@ export class DirectoryService {
       directoryId,
       deletedDocumentCount,
       deletedDirectoryCount: allDirectoryIds.length,
+      deletedQuizCount,
+      deletedFlashcardSetCount,
+      deletedSlideDeckCount,
     });
 
     return {
       success: true,
       deletedDocumentCount,
       deletedDirectoryCount: allDirectoryIds.length,
+      deletedQuizCount,
+      deletedFlashcardSetCount,
+      deletedSlideDeckCount,
     };
   }
 
@@ -376,6 +477,69 @@ export class DirectoryService {
       subdirectories,
       documents,
       totalCount: subdirectories.length + documents.length,
+    };
+  }
+
+  /**
+   * Directory contents plus artifacts and resolved cascading rules (single request).
+   */
+  async getDirectoryContentsWithArtifacts(
+    userId: string,
+    directoryId: string | null,
+    options?: { includeArtifacts?: boolean; includeRules?: boolean; artifactLimit?: number }
+  ): Promise<GetDirectoryContentsWithArtifactsResponse> {
+    const includeArtifacts = options?.includeArtifacts !== false;
+    const includeRules = options?.includeRules !== false;
+    const artifactLimit = Math.min(options?.artifactLimit ?? 20, 100);
+
+    const base = await this.getDirectoryContents(userId, directoryId);
+
+    let quizzes: Quiz[] = [];
+    let flashcardSets: FlashcardSet[] = [];
+    let slideDecks: SlideDeck[] = [];
+    let resolvedRules: { rules: Rule[]; inheritanceMap: { [key: string]: Rule[] } } = {
+      rules: [],
+      inheritanceMap: {},
+    };
+
+    if (directoryId && includeArtifacts) {
+      const [qSnap, fSnap, sSnap] = await Promise.all([
+        FirestorePaths.quizzes(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .get(),
+        FirestorePaths.flashcardSets(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .get(),
+        FirestorePaths.slideDecks(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .get(),
+      ]);
+
+      quizzes = qSnap.docs.map(d => ({ id: d.id, ...d.data() } as Quiz));
+      flashcardSets = fSnap.docs.map(d => ({ id: d.id, ...d.data() } as FlashcardSet));
+      slideDecks = sSnap.docs.map(d => ({ id: d.id, ...d.data() } as SlideDeck));
+    }
+
+    if (directoryId && includeRules) {
+      resolvedRules = await resolveRulesForDirectory(userId, directoryId);
+    }
+
+    const totalCount =
+      base.totalCount + quizzes.length + flashcardSets.length + slideDecks.length;
+
+    return {
+      ...base,
+      quizzes,
+      flashcardSets,
+      slideDecks,
+      resolvedRules,
+      totalCount,
     };
   }
 

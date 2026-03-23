@@ -3,12 +3,16 @@ import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { FirestoreService } from "../services/firestore";
 import { promptBuilder } from "../services/promptBuilder";
+import { DocumentCrudService } from "../services/document-crud";
+import { directoryService } from "../services/directory";
+import { resolveGenerationRulesForPrompt, resolveRulesForDirectory } from "../services/rule-resolution";
 import { 
   GenerateQuizRequest, 
   GenerateQuizResponse, 
   GetQuizResponse,
   ApiResponse,
-  Quiz
+  Quiz,
+  RuleApplicability,
 } from "@shared-types";
 
 // Define secrets
@@ -56,11 +60,23 @@ export const generateQuiz = onCall(
       // Fetch all documents and their content in parallel
       const documentDataList = await Promise.all(
         documentIds.map(async (docId) => {
-          const doc = await FirestoreService.getDocument(userId, docId);
+          const doc = await DocumentCrudService.getDocument(userId, docId);
           const content = await FirestoreService.getDocumentContent(userId, docId);
           return { doc, content };
         })
       );
+
+      const resolvedDirectoryId = requestData.directoryId ?? documentDataList[0]?.doc.directoryId;
+      if (!resolvedDirectoryId) {
+        throw new Error("directoryId is required, or documents must belong to a directory");
+      }
+      await directoryService.validateDirectoryId(userId, resolvedDirectoryId);
+
+      for (const { doc } of documentDataList) {
+        if (!doc.directoryId || doc.directoryId !== resolvedDirectoryId) {
+          throw new Error("All selected documents must belong to the same directory");
+        }
+      }
 
       // Build combined content for Gemini
       const combinedContent = documentDataList
@@ -77,21 +93,41 @@ export const generateQuiz = onCall(
       
       GeminiService.validateContentForQuiz(documentContent);
       
-      // Inject rules into prompt if provided
+      // Inject rules: legacy explicit IDs, or auto-resolve from directory hierarchy
       let enhancedPrompt = additionalPrompt || '';
-      if (userId && (quizRuleIds?.length || followupRuleIds?.length)) {
-        console.log("Injecting rules into quiz generation prompt...");
-        const { quizPrompt, followupPrompt } = await promptBuilder.injectQuizRules(
+      let followupIdsForSave: string[] = [];
+
+      if (quizRuleIds?.length || followupRuleIds?.length) {
+        console.log("Injecting rules into quiz generation prompt (legacy explicit rule IDs)...");
+        const { quizPrompt } = await promptBuilder.injectQuizRules(
           enhancedPrompt,
           quizRuleIds || [],
           followupRuleIds || [],
           userId
         );
         enhancedPrompt = quizPrompt;
-        console.log("Rules injected successfully", {
-          quizPromptLength: quizPrompt.length,
-          followupPromptLength: followupPrompt.length,
-        });
+        followupIdsForSave = followupRuleIds || [];
+      } else {
+        const quizRulesText = await resolveGenerationRulesForPrompt(
+          userId,
+          resolvedDirectoryId,
+          RuleApplicability.QUIZ,
+          requestData.additionalRuleIds
+        );
+        if (quizRulesText) {
+          enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
+        }
+        const { rules: followupRules } = await resolveRulesForDirectory(
+          userId,
+          resolvedDirectoryId,
+          RuleApplicability.FOLLOWUP
+        );
+        followupIdsForSave = followupRules.map((r) => r.id);
+        if (requestData.additionalRuleIds?.length) {
+          for (const id of requestData.additionalRuleIds) {
+            if (!followupIdsForSave.includes(id)) followupIdsForSave.push(id);
+          }
+        }
       }
       
       // Generate quiz with Gemini AI
@@ -113,7 +149,8 @@ export const generateQuiz = onCall(
         primaryDocumentId, 
         geminiQuiz, 
         userId,
-        followupRuleIds,
+        resolvedDirectoryId,
+        followupIdsForSave,
         documentIds.length > 1 ? documentIds : undefined
       );
       

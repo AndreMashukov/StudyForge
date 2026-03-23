@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UseFormReturn } from 'react-hook-form';
 import { useGenerateQuizMutation } from '../../../../store/api/Quiz/QuizApi';
 import { ICreateQuizFormData } from '../../types/ICreateQuizPageTypes';
@@ -13,6 +13,7 @@ interface UseCreateQuizPageHandlersProps {
 
 export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPageHandlersProps) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { showToast } = useToast();
   const [generateQuiz, { isLoading: isSubmitting }] = useGenerateQuizMutation();
 
@@ -21,33 +22,36 @@ export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPage
       return;
     }
 
-    // Use the first document to determine directoryId for navigation
     const primaryDocumentId = formData.documentIds[0];
     const primaryDocument = documents.find(d => d.id === primaryDocumentId);
-    const directoryId = primaryDocument?.directoryId ?? null;
+    const directoryIdFromUrl = searchParams.get('directoryId');
+    const resolvedDirectoryId =
+      directoryIdFromUrl ?? primaryDocument?.directoryId ?? undefined;
 
-    // Send a single request with all document IDs — backend combines content into one quiz
-    void generateQuiz({
-      documentIds: formData.documentIds,
-      quizName: formData.quizName?.trim() || undefined,
-      additionalPrompt: formData.additionalPrompt?.trim() || undefined,
-      quizRuleIds: formData.quizRuleIds || [],
-      followupRuleIds: formData.followupRuleIds || [],
-    }).unwrap().catch(() => showToast('Failed to generate quiz', 'error'));
+    try {
+      await generateQuiz({
+        documentIds: formData.documentIds,
+        directoryId: resolvedDirectoryId,
+        quizName: formData.quizName?.trim() || undefined,
+        additionalPrompt: formData.additionalPrompt?.trim() || undefined,
+      }).unwrap();
 
-    showToast(
-      formData.documentIds.length > 1
-        ? `Quiz creation started from ${formData.documentIds.length} documents`
-        : 'Quiz creation started',
-      'info'
-    );
+      showToast(
+        formData.documentIds.length > 1
+          ? `Quiz created from ${formData.documentIds.length} documents`
+          : 'Quiz created',
+        'success'
+      );
 
-    if (directoryId) {
-      navigate(`/documents?directoryId=${directoryId}`);
-    } else {
-      navigate('/documents');
+      if (resolvedDirectoryId) {
+        navigate(`/directory/${resolvedDirectoryId}`);
+      } else {
+        navigate('/documents');
+      }
+    } catch {
+      showToast('Failed to generate quiz', 'error');
     }
-  }, [generateQuiz, navigate, showToast, documents]);
+  }, [generateQuiz, navigate, showToast, documents, searchParams]);
 
   return {
     handleSubmit: form.handleSubmit(handleSubmit),

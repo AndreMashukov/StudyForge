@@ -1,0 +1,1 @@
+export { DirectoryDetailPage } from './DirectoryDetailPage';

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useCreateFlashcardPageContext } from '../context/hooks/useCreateFlashcardPageContext';
@@ -9,18 +9,16 @@ import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
-import { CompactRuleSelector } from '../../../components/CompactRuleSelector';
 import { PreSelectedDocumentSelector } from '../../../components/PreSelectedDocumentSelector';
 import { createFlashcardPageStyles } from './CreateFlashcardPageContainer.styles';
 import { ArrowLeft, Layers } from 'lucide-react';
-import { RuleApplicability } from '@shared-types';
 
 export const CreateFlashcardPageContainer = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedDocumentId = searchParams.get('documentId') ?? undefined;
+  const directoryIdParam = searchParams.get('directoryId');
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
-  const [ruleIds, setRuleIds] = useState<string[]>([]);
 
   const { documentsApi, form, handlers } = useCreateFlashcardPageContext();
   const { handleSubmit, isSubmitting } = handlers;
@@ -33,20 +31,16 @@ export const CreateFlashcardPageContainer = () => {
   const watchedFlashcardName = watch('flashcardName');
 
   const handleBack = () => {
-    if (selectedDirectoryId) {
-      navigate(`/documents?directoryId=${selectedDirectoryId}`);
+    if (directoryIdParam) {
+      navigate(`/directory/${directoryIdParam}`);
+    } else if (selectedDirectoryId) {
+      navigate(`/directory/${selectedDirectoryId}`);
     } else {
       navigate('/documents');
     }
   };
 
   const primaryDocument = documents.find(d => d.id === watchedDocumentIds?.[0]);
-  const directoryId = primaryDocument?.directoryId ?? null;
-
-  const handleRulesChange = (selectedRuleIds: string[]) => {
-    setRuleIds(selectedRuleIds);
-    setValue('ruleIds', selectedRuleIds);
-  };
 
   // useRef guard: apply preselection exactly once on mount
   const preselectionApplied = useRef(false);
@@ -162,19 +156,6 @@ export const CreateFlashcardPageContainer = () => {
                     <p className="text-sm text-destructive">{errors.additionalPrompt.message}</p>
                   )}
                 </div>
-
-                {/* Flashcard Rules */}
-                {directoryId && (
-                  <div className={createFlashcardPageStyles.formField}>
-                    <CompactRuleSelector
-                      directoryId={directoryId}
-                      operation={RuleApplicability.FLASHCARD}
-                      selectedRuleIds={ruleIds}
-                      onSelectionChange={handleRulesChange}
-                      label="Flashcard Generation Rules"
-                    />
-                  </div>
-                )}
 
                 {/* Form Actions */}
                 <div className={createFlashcardPageStyles.formActions}>

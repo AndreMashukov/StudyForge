@@ -1,17 +1,20 @@
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UseFormReturn } from 'react-hook-form';
 import { useDispatch } from 'react-redux';
 import { useGenerateFlashcardsMutation } from '../../../../store/api/Flashcards/FlashcardsApi';
 import { ICreateFlashcardFormData } from '../../types/ICreateFlashcardPageTypes';
 import { showToast } from '../../../../store/slices/uiSlice';
+import { DocumentEnhanced } from '@shared-types';
 
 interface UseCreateFlashcardPageHandlersProps {
   form: UseFormReturn<ICreateFlashcardFormData>;
+  documents: DocumentEnhanced[];
 }
 
-export const useCreateFlashcardPageHandlers = ({ form }: UseCreateFlashcardPageHandlersProps) => {
+export const useCreateFlashcardPageHandlers = ({ form, documents }: UseCreateFlashcardPageHandlersProps) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const dispatch = useDispatch();
   const [generateFlashcards, { isLoading: isSubmitting }] = useGenerateFlashcardsMutation();
 
@@ -22,14 +25,16 @@ export const useCreateFlashcardPageHandlers = ({ form }: UseCreateFlashcardPageH
 
     const trimmedTitle = formData.flashcardName?.trim();
     const trimmedPrompt = formData.additionalPrompt?.trim();
+    const primary = documents.find((d) => d.id === formData.documentIds[0]);
+    const directoryIdFromUrl = searchParams.get('directoryId');
+    const resolvedDirectoryId = directoryIdFromUrl ?? primary?.directoryId;
 
     try {
-      // Send a single request with all document IDs — backend combines content into one flashcard set
       const result = await generateFlashcards({
         documentIds: formData.documentIds,
+        ...(resolvedDirectoryId ? { directoryId: resolvedDirectoryId } : {}),
         ...(trimmedTitle ? { title: trimmedTitle } : {}),
         ...(trimmedPrompt ? { additionalPrompt: trimmedPrompt } : {}),
-        ruleIds: formData.ruleIds || [],
       }).unwrap();
 
       if (result.success && result.data) {
@@ -40,10 +45,12 @@ export const useCreateFlashcardPageHandlers = ({ form }: UseCreateFlashcardPageH
           type: 'success'
         }));
 
-        if (formData.documentIds.length === 1) {
+        if (resolvedDirectoryId) {
+          navigate(`/directory/${resolvedDirectoryId}`);
+        } else if (formData.documentIds.length === 1) {
           navigate(`/flashcards/${result.data.flashcardSetId}`);
         } else {
-          navigate('/flashcards');
+          navigate('/documents');
         }
       } else {
         dispatch(showToast({ message: 'Failed to generate flashcards', type: 'error' }));
@@ -55,7 +62,7 @@ export const useCreateFlashcardPageHandlers = ({ form }: UseCreateFlashcardPageH
         type: 'error'
       }));
     }
-  }, [generateFlashcards, navigate, dispatch]);
+  }, [generateFlashcards, navigate, dispatch, documents, searchParams]);
 
   return {
     handleSubmit: form.handleSubmit(handleSubmit),

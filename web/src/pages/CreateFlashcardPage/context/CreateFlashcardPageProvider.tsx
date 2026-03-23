@@ -13,7 +13,8 @@ interface CreateFlashcardPageProviderProps {
 export const CreateFlashcardPageProvider: React.FC<CreateFlashcardPageProviderProps> = ({ children }) => {
   const documentsApi = useFetchCreateFlashcardPageData();
   const form = useCreateFlashcardPageForm();
-  const handlers = useCreateFlashcardPageHandlers({ form });
+  const documents = documentsApi.data?.documents || [];
+  const handlers = useCreateFlashcardPageHandlers({ form, documents });
 
   useCreateFlashcardPageEffects();
 

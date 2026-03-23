@@ -15,12 +15,11 @@ export const useDocumentsPageHandlers = () => {
   const currentDirectoryId = useSelector((state: RootState) => selectSelectedDirectoryId(state));
 
   const handleCreateDocument = useCallback(() => {
-    // Pass directoryId as query parameter if one is selected
-    if (currentDirectoryId) {
-      navigate(`/documents/create?directoryId=${currentDirectoryId}`);
-    } else {
-      navigate('/documents/create');
+    if (!currentDirectoryId) {
+      window.alert('Select or create a folder first, then add documents inside it.');
+      return;
     }
+    navigate(`/documents/create?directoryId=${currentDirectoryId}`);
   }, [navigate, currentDirectoryId]);
 
   const handleViewDocument = useCallback((documentId: string) => {
@@ -52,14 +51,13 @@ export const useDocumentsPageHandlers = () => {
 
   const handleSelectDirectory = useCallback((directoryId: string | null) => {
     dispatch(setSelectedDirectory(directoryId));
-    
-    // Update URL params
     if (directoryId) {
-      setSearchParams({ directoryId });
+      navigate(`/directory/${directoryId}`);
     } else {
+      navigate('/documents');
       setSearchParams({});
     }
-  }, [dispatch, setSearchParams]);
+  }, [dispatch, navigate, setSearchParams]);
 
   return {
     handleCreateDocument,

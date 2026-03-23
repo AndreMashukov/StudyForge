@@ -1,7 +1,9 @@
 import { Timestamp, FieldValue, Query } from 'firebase-admin/firestore';
+import * as admin from 'firebase-admin';
 import { logger } from 'firebase-functions/v2';
 import { DocumentService } from './document-storage';
 import { FirestorePaths } from '../lib/firestore-paths';
+import { directoryService } from './directory';
 import { 
   DocumentEnhanced as Document, 
   DocumentMetadataEnhanced as DocumentMetadata, 
@@ -36,6 +38,11 @@ export class DocumentCrudService {
 
       // Validate content
       DocumentService.validateDocumentContent(request.content);
+
+      if (!request.directoryId) {
+        throw new Error('directoryId is required');
+      }
+      await directoryService.validateDirectoryId(userId, request.directoryId);
 
       // Generate document ID
       const docRef = FirestorePaths.documents(userId).doc();
@@ -74,7 +81,7 @@ export class DocumentCrudService {
         storageUrl: storageFile.downloadUrl,
         storagePath: storageFile.path,
         tags: request.tags || [],
-        directoryId: request.directoryId || null,
+        directoryId: request.directoryId,
         createdAt: Timestamp.fromDate(metadata.createdAt),
         updatedAt: Timestamp.fromDate(metadata.updatedAt),
       };
@@ -318,6 +325,77 @@ export class DocumentCrudService {
           error: error instanceof Error ? error.message : String(error),
         });
         // Continue with document deletion even if quiz deletion fails
+      }
+
+      // Delete flashcard sets that reference this document
+      try {
+        const fcSnap = await FirestorePaths.flashcardSets(userId)
+          .where('documentId', '==', documentId)
+          .get();
+        for (const fcDoc of fcSnap.docs) {
+          const fcData = fcDoc.data() as { directoryId?: string };
+          await fcDoc.ref.delete();
+          if (fcData.directoryId) {
+            try {
+              await directoryService.adjustDirectoryArtifactCount(
+                userId,
+                fcData.directoryId,
+                'flashcardSetCount',
+                -1
+              );
+            } catch {
+              /* ignore count drift */
+            }
+          }
+        }
+      } catch (fcErr) {
+        logger.error('Failed to delete associated flashcard sets', {
+          userId,
+          documentId,
+          error: fcErr instanceof Error ? fcErr.message : String(fcErr),
+        });
+      }
+
+      // Delete slide decks that reference this document (and their images)
+      try {
+        const sdSnap = await FirestorePaths.slideDecks(userId)
+          .where('documentId', '==', documentId)
+          .get();
+        const bucket = admin.storage().bucket();
+        for (const sdDoc of sdSnap.docs) {
+          const sdData = sdDoc.data() as {
+            directoryId?: string;
+            slides?: { imageStoragePath?: string }[];
+          };
+          for (const slide of sdData.slides || []) {
+            if (slide.imageStoragePath) {
+              try {
+                await bucket.file(slide.imageStoragePath).delete();
+              } catch {
+                /* ignore missing files */
+              }
+            }
+          }
+          await sdDoc.ref.delete();
+          if (sdData.directoryId) {
+            try {
+              await directoryService.adjustDirectoryArtifactCount(
+                userId,
+                sdData.directoryId,
+                'slideDeckCount',
+                -1
+              );
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+      } catch (sdErr) {
+        logger.error('Failed to delete associated slide decks', {
+          userId,
+          documentId,
+          error: sdErr instanceof Error ? sdErr.message : String(sdErr),
+        });
       }
 
       // Update directory document count if document was in a directory
@@ -630,6 +708,11 @@ export class DocumentCrudService {
         targetDirectoryId: request.targetDirectoryId,
       });
 
+      if (!request.targetDirectoryId) {
+        throw new Error('targetDirectoryId is required');
+      }
+      await directoryService.validateDirectoryId(userId, request.targetDirectoryId);
+
       // Get current document
       const currentDocument = await this.getDocument(userId, documentId);
       const docRef = FirestorePaths.document(userId, documentId);
@@ -641,14 +724,12 @@ export class DocumentCrudService {
 
       // Update document
       await docRef.update({
-        directoryId: request.targetDirectoryId || null,
+        directoryId: request.targetDirectoryId,
         updatedAt: Timestamp.now(),
       });
 
       // Update new directory document count
-      if (request.targetDirectoryId) {
-        await this.updateDirectoryDocumentCount(userId, request.targetDirectoryId, 1);
-      }
+      await this.updateDirectoryDocumentCount(userId, request.targetDirectoryId, 1);
 
       // Get updated document
       const updatedDocument = await this.getDocument(userId, documentId);

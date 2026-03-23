@@ -3,6 +3,7 @@ import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import { validateAuth } from '../lib/auth';
 import { DocumentCrudService } from '../services/document-crud';
+import { directoryService } from '../services/directory';
 import { WebScraperService } from '../services/scraper';
 import { GeminiService } from '../services/gemini';
 import { promptBuilder } from '../services/promptBuilder';
@@ -48,6 +49,11 @@ export const createDocument = onCall(
       if (!data.content || data.content.trim().length === 0) {
         throw new Error('Document content is required');
       }
+
+      if (!data.directoryId) {
+        throw new Error('directoryId is required');
+      }
+      await directoryService.validateDirectoryId(userId, data.directoryId);
 
       // Create document
       const document = await DocumentCrudService.createDocument(userId, data);
@@ -108,6 +114,11 @@ export const createDocumentFromUrl = onCall(
         throw new Error('Invalid URL format');
       }
 
+      if (!directoryId) {
+        throw new Error('directoryId is required');
+      }
+      await directoryService.validateDirectoryId(userId, directoryId);
+
       logger.info('Starting content scraping and markdown conversion', { url });
 
       // Scrape content and convert to markdown (with optional rule injection)
@@ -148,7 +159,7 @@ export const createDocumentFromUrl = onCall(
         sourceUrl: url,
         status: DocumentStatus.ACTIVE,
         tags: ['scraped', 'article'],
-        directoryId: directoryId || undefined, // Pass through directoryId if provided
+        directoryId,
       };
 
       // Create document
@@ -687,6 +698,11 @@ export const generateFromPrompt = onCall(
         wordCount,
       });
 
+      if (!data.directoryId) {
+        throw new Error('directoryId is required');
+      }
+      await directoryService.validateDirectoryId(userId, data.directoryId);
+
       // Create document in Firestore
       const document = await DocumentCrudService.createDocument(userId, {
         title,
@@ -695,7 +711,7 @@ export const generateFromPrompt = onCall(
         sourceType: DocumentSourceType.GENERATED,
         status: DocumentStatus.ACTIVE,
         tags: ['ai-generated', 'prompt-based'],
-        directoryId: data.directoryId || null, // Use provided directoryId or null for root
+        directoryId: data.directoryId,
       });
 
       // Add custom metadata to document (stored in Firestore)

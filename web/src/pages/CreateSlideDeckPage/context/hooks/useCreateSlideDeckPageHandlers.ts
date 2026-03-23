@@ -1,17 +1,20 @@
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UseFormReturn } from 'react-hook-form';
 import { useDispatch } from 'react-redux';
 import { useGenerateSlideDeckMutation } from '../../../../store/api/SlideDecks/SlideDecksApi';
 import { ICreateSlideDeckFormData } from '../../types/ICreateSlideDeckPageTypes';
 import { showToast } from '../../../../store/slices/uiSlice';
+import { DocumentEnhanced } from '@shared-types';
 
 interface UseCreateSlideDeckPageHandlersProps {
   form: UseFormReturn<ICreateSlideDeckFormData>;
+  documents: DocumentEnhanced[];
 }
 
-export const useCreateSlideDeckPageHandlers = ({ form }: UseCreateSlideDeckPageHandlersProps) => {
+export const useCreateSlideDeckPageHandlers = ({ form, documents }: UseCreateSlideDeckPageHandlersProps) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const dispatch = useDispatch();
   const [generateSlideDeck, { isLoading: isSubmitting }] = useGenerateSlideDeckMutation();
 
@@ -20,17 +23,16 @@ export const useCreateSlideDeckPageHandlers = ({ form }: UseCreateSlideDeckPageH
       return;
     }
 
-    const ruleIds = (formData.ruleIds ?? []).filter(
-      (id): id is string => typeof id === 'string' && id.length > 0
-    );
+    const primary = documents.find((d) => d.id === formData.documentIds[0]);
+    const directoryIdFromUrl = searchParams.get('directoryId');
+    const resolvedDirectoryId = directoryIdFromUrl ?? primary?.directoryId;
 
     try {
-      // Send a single request with all document IDs — backend combines content into one slide deck
       const result = await generateSlideDeck({
         documentIds: formData.documentIds,
+        ...(resolvedDirectoryId ? { directoryId: resolvedDirectoryId } : {}),
         title: formData.slideDeckName?.trim() || undefined,
         additionalPrompt: formData.additionalPrompt?.trim() || undefined,
-        ruleIds,
       }).unwrap();
 
       if (result.success && result.data) {
@@ -41,10 +43,12 @@ export const useCreateSlideDeckPageHandlers = ({ form }: UseCreateSlideDeckPageH
           type: 'success'
         }));
 
-        if (formData.documentIds.length === 1) {
+        if (resolvedDirectoryId) {
+          navigate(`/directory/${resolvedDirectoryId}`);
+        } else if (formData.documentIds.length === 1) {
           navigate(`/slides/${result.data.slideDeckId}`);
         } else {
-          navigate('/slides');
+          navigate('/documents');
         }
       } else {
         dispatch(showToast({ message: 'Failed to generate slide deck', type: 'error' }));
@@ -56,7 +60,7 @@ export const useCreateSlideDeckPageHandlers = ({ form }: UseCreateSlideDeckPageH
         type: 'error'
       }));
     }
-  }, [generateSlideDeck, navigate, dispatch]);
+  }, [generateSlideDeck, navigate, dispatch, documents, searchParams]);
 
   return {
     handleSubmit: form.handleSubmit(handleSubmit),

@@ -6,8 +6,10 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { createHash, randomUUID } from 'crypto';
 import { z } from 'zod';
 
-import { Slide, SlideDeck } from '@shared-types';
+import { Slide, SlideDeck, RuleApplicability } from '@shared-types';
 import { DocumentCrudService } from '../services/document-crud';
+import { directoryService } from '../services/directory';
+import { resolveGenerationRulesForPrompt } from '../services/rule-resolution';
 import { GeminiService } from '../services/gemini/gemini';
 import { validateAuth } from '../lib/auth';
 import { promptBuilder } from '../services/promptBuilder';
@@ -19,11 +21,13 @@ const geminiApiKey = defineSecret('GEMINI_API_KEY');
 
 const generateSlideDeckRequestSchema = z.object({
   documentIds: z.array(z.string().min(1)).min(1, 'At least one documentId is required').max(5, 'Maximum 5 documents allowed'),
+  directoryId: z.string().optional(),
   title: z.string().max(100).nullish(),
   additionalPrompt: z.string().max(500).nullish(),
   // Accept null/undefined elements gracefully and strip them out
   ruleIds: z.array(z.string().nullable().optional()).optional()
     .transform(arr => (arr ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0)),
+  additionalRuleIds: z.array(z.string()).optional(),
 });
 
 const slideDeckIdRequestSchema = z.object({
@@ -50,7 +54,7 @@ export const generateSlideDeck = onCall(
         });
         throw new HttpsError('invalid-argument', msg);
       }
-      const { documentIds, title: customTitle, additionalPrompt, ruleIds } = parseResult.data;
+      const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, additionalRuleIds } = parseResult.data;
 
       const u = redactId(userId);
       const uploadedPaths: string[] = [];
@@ -88,11 +92,37 @@ export const generateSlideDeck = onCall(
 
         logger.info('[generateSlideDeck] STEP 2: Documents retrieved.', { userIdHash: u });
 
+        const resolvedDirectoryId = requestDirectoryId ?? documentDataList[0]?.directoryId;
+        if (!resolvedDirectoryId) {
+          throw new HttpsError('invalid-argument', 'directoryId is required, or documents must belong to a directory');
+        }
+        await directoryService.validateDirectoryId(userId, resolvedDirectoryId);
+        for (const d of documentDataList) {
+          if (!d.directoryId || d.directoryId !== resolvedDirectoryId) {
+            throw new HttpsError('invalid-argument', 'All documents must belong to the same directory');
+          }
+        }
+
         // Inject rules if provided
         let injectedRules: string | undefined;
         if (ruleIds?.length) {
           logger.info('[generateSlideDeck] STEP 2.5: Injecting rules.', { ruleCount: ruleIds.length });
           injectedRules = await promptBuilder.injectRules(additionalPrompt || '', ruleIds, userId);
+        } else {
+          const rulesText = await resolveGenerationRulesForPrompt(
+            userId,
+            resolvedDirectoryId,
+            RuleApplicability.SLIDE_DECK,
+            additionalRuleIds
+          );
+          const base = additionalPrompt?.trim() || '';
+          if (rulesText && base) {
+            injectedRules = `${rulesText}\n\n${base}`;
+          } else if (rulesText) {
+            injectedRules = rulesText;
+          } else if (base) {
+            injectedRules = base;
+          }
         }
 
         // Step 3: Generate slide outline
@@ -168,6 +198,7 @@ export const generateSlideDeck = onCall(
           slides,
           userId,
           documentId: primaryDocumentId,
+          directoryId: resolvedDirectoryId,
           ...(documentIds.length > 1 ? { documentIds } : {}),
           documentTitle: documentDataList[0].title,
           createdAt: FieldValue.serverTimestamp(),
@@ -178,6 +209,12 @@ export const generateSlideDeck = onCall(
         const docRef = await admin.firestore()
           .collection('users').doc(userId).collection('slideDecks')
           .add(newSlideDeckData);
+
+        try {
+          await directoryService.adjustDirectoryArtifactCount(userId, resolvedDirectoryId, 'slideDeckCount', 1);
+        } catch (e) {
+          logger.warn('[generateSlideDeck] Could not increment slideDeckCount', e);
+        }
 
         logger.info(`[generateSlideDeck] STEP 7: Complete. Deck ID: ${redactId(docRef.id)}`, { userIdHash: u });
 
@@ -308,7 +345,7 @@ export const deleteSlideDeck = onCall({ region: 'asia-east1', cors: true }, asyn
     }
 
     // Delete associated storage files
-    const data = doc.data();
+    const data = doc.data() as SlideDeck;
     if (data?.slides) {
       for (const slide of data.slides) {
         if (slide.imageStoragePath) {
@@ -322,6 +359,13 @@ export const deleteSlideDeck = onCall({ region: 'asia-east1', cors: true }, asyn
     }
 
     await docRef.delete();
+    if (data.directoryId) {
+      try {
+        await directoryService.adjustDirectoryArtifactCount(userId, data.directoryId, 'slideDeckCount', -1);
+      } catch (e) {
+        logger.warn('Could not decrement slideDeckCount', e);
+      }
+    }
     return { success: true };
   } catch (error) {
     logger.error('Error deleting slide deck:', error);

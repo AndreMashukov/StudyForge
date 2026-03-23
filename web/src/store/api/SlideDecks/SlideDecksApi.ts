@@ -14,7 +14,13 @@ export const slideDecksApi = baseApi.injectEndpoints({
         data,
         timeout: 310_000, // 310s — matches the server-side 300s timeout + buffer
       }),
-      invalidatesTags: ['UserSlideDecks'],
+      invalidatesTags: (result, error, arg) => [
+        'UserSlideDecks',
+        { type: 'Directory', id: 'CONTENTS' },
+        ...(arg.directoryId
+          ? [{ type: 'Directory' as const, id: arg.directoryId }]
+          : []),
+      ],
     }),
 
     getSlideDeck: builder.query<ApiResponse<SlideDeck>, { slideDeckId: string }>({

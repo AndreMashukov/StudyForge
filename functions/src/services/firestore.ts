@@ -6,6 +6,7 @@ import {
 } from "@shared-types";
 import * as functions from "firebase-functions";
 import { FirestorePaths } from '../lib/firestore-paths';
+import { directoryService } from './directory';
 
 /**
  * Firestore service for managing URLs and Quizzes collections
@@ -165,7 +166,15 @@ export class FirestoreService {
         throw new Error("Quiz not found");
       }
 
+      const data = doc.data() as Quiz;
       await quizRef.delete();
+      if (data.directoryId) {
+        try {
+          await directoryService.adjustDirectoryArtifactCount(userId, data.directoryId, 'quizCount', -1);
+        } catch (err) {
+          functions.logger.warn(`Could not decrement quizCount for directory ${data.directoryId}`, err);
+        }
+      }
       functions.logger.info(`Deleted quiz: ${quizId}`);
     } catch (error) {
       functions.logger.error(`Error deleting quiz ${quizId}:`, error);
@@ -303,6 +312,7 @@ export class FirestoreService {
     documentId: string,
     geminiQuiz: GeminiQuizResponse,
     userId: string,
+    directoryId: string,
     followupRuleIds?: string[],
     allDocumentIds?: string[]
   ): Promise<Quiz> {
@@ -332,6 +342,7 @@ export class FirestoreService {
         })),
         createdAt: new Date(),
         userId: userId,
+        directoryId,
         // Add generation metadata
         generationAttempt: generationAttempt,
         documentTitle: document.title,
@@ -341,6 +352,12 @@ export class FirestoreService {
 
       const docRef = await quizzesCollection.add(quiz);
       quiz.id = docRef.id;
+
+      try {
+        await directoryService.adjustDirectoryArtifactCount(userId, directoryId, 'quizCount', 1);
+      } catch (err) {
+        functions.logger.warn('Could not increment directory quizCount', err);
+      }
 
       functions.logger.info(`Quiz saved from document: ${docRef.id} (document: ${documentId}, attempt: ${generationAttempt})`);
       return quiz;
