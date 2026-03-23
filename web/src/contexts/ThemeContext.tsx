@@ -10,9 +10,12 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [currentThemeId, setCurrentThemeId] = useState<ThemeId>(() => {
-    // Try to get theme from localStorage
     const savedTheme = localStorage.getItem('theme');
-    return (savedTheme as ThemeId) || defaultTheme;
+    // Migrate removed theme IDs to the new default
+    if (savedTheme === 'dark' || savedTheme === 'semidark' || !savedTheme || !(savedTheme in themes)) {
+      return defaultTheme;
+    }
+    return savedTheme as ThemeId;
   });
 
   const currentTheme = themes[currentThemeId];
@@ -28,7 +31,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   };
 
-  const isDark = currentThemeId === 'dark' || currentThemeId === 'linear' || currentThemeId === 'semidark';
+  const isDark = currentThemeId === 'linear';
 
   // Apply theme to document root for CSS custom properties if needed
   useEffect(() => {
@@ -49,7 +52,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     });
 
     // Remove all theme classes first
-    root.classList.remove('dark', 'light', 'semidark', 'linear');
+    root.classList.remove('dark', 'light', 'linear');
     
     // Add the current theme class for theme-specific styling
     root.classList.add(currentThemeId);
