@@ -16,6 +16,7 @@ export interface FlashcardSet {
   documentTitle: string;
   title: string;
   flashcards: Flashcard[];
+  directoryId: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -23,9 +24,12 @@ export interface FlashcardSet {
 // Flashcard API Types
 export interface GenerateFlashcardsRequest {
   documentIds: string[];
+  directoryId?: string;
   title?: string;
   additionalPrompt?: string;
+  /** @deprecated Auto-resolved from directory hierarchy when omitted */
   ruleIds?: string[];
+  additionalRuleIds?: string[];
 }
 
 export interface GenerateFlashcardsResponse {
@@ -58,15 +62,19 @@ export interface SlideDeck {
   documentTitle: string;
   title: string;
   slides: Slide[];
+  directoryId: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
 export interface GenerateSlideDeckRequest {
   documentIds: string[];
+  directoryId?: string;
   title?: string;
   additionalPrompt?: string;
+  /** @deprecated Auto-resolved from directory hierarchy when omitted */
   ruleIds?: string[];
+  additionalRuleIds?: string[];
 }
 
 export interface GenerateSlideDeckResponse {
@@ -89,11 +97,12 @@ export interface Quiz {
   questions: QuizQuestion[];
   createdAt: Date;
   userId?: string;
-  
+  directoryId: string;
+
   // New fields for document-based architecture
   generationAttempt?: number; // Track multiple generations per document
   documentTitle?: string; // Cache for performance
-  
+
   // Rule tracking for followup generation
   followupRuleIds?: string[]; // Rules to use when generating followup explanations
 }
@@ -147,7 +156,7 @@ export interface DocumentEnhanced {
   storageUrl: string;
   storagePath: string;
   tags: string[];
-  directoryId?: string; // Optional directory reference
+  directoryId: string;
   createdAt: Date | { toDate(): Date }; // Can be Date or Firestore Timestamp
   updatedAt: Date | { toDate(): Date }; // Can be Date or Firestore Timestamp
 }
@@ -162,8 +171,13 @@ export interface Directory {
   level: number; // Tree depth level (0 for root)
   color?: string; // Optional color for visual organization
   icon?: string; // Optional icon name
+  description?: string;
   documentCount: number; // Cached count of documents in this directory
   childCount: number; // Cached count of child directories
+  quizCount: number;
+  flashcardSetCount: number;
+  slideDeckCount: number;
+  ruleIds: string[];
   createdAt: Date | { toDate(): Date };
   updatedAt: Date | { toDate(): Date };
 }
@@ -182,12 +196,14 @@ export interface CreateDirectoryRequest {
   parentId?: string | null;
   color?: string;
   icon?: string;
+  description?: string;
 }
 
 export interface UpdateDirectoryRequest {
   name?: string;
   color?: string;
   icon?: string;
+  description?: string;
 }
 
 export interface MoveDirectoryRequest {
@@ -195,7 +211,7 @@ export interface MoveDirectoryRequest {
 }
 
 export interface MoveDocumentRequest {
-  targetDirectoryId: string | null;
+  targetDirectoryId: string;
 }
 
 // Directory API Response Types
@@ -220,6 +236,16 @@ export interface GetDirectoryContentsResponse {
   totalCount: number;
 }
 
+export interface GetDirectoryContentsWithArtifactsResponse extends GetDirectoryContentsResponse {
+  quizzes: Quiz[];
+  flashcardSets: FlashcardSet[];
+  slideDecks: SlideDeck[];
+  resolvedRules: {
+    rules: Rule[];
+    inheritanceMap: { [directoryId: string]: Rule[] };
+  };
+}
+
 export interface GetDirectoryAncestorsResponse {
   ancestors: Directory[];
 }
@@ -233,6 +259,9 @@ export interface DeleteDirectoryResponse {
   success: boolean;
   deletedDocumentCount: number;
   deletedDirectoryCount: number;
+  deletedQuizCount: number;
+  deletedFlashcardSetCount: number;
+  deletedSlideDeckCount: number;
 }
 
 // Directory Validation Types
@@ -266,10 +295,14 @@ export interface DocumentMetadata {
 // API Types (Document-centric architecture)
 export interface GenerateQuizRequest {
   documentIds: string[]; // One or more source documents to generate a quiz from
+  directoryId?: string;
   quizName?: string; // Optional custom name, defaults to "Quiz from [Document Title]"
   additionalPrompt?: string; // Optional additional instructions for quiz generation
-  quizRuleIds?: string[]; // Optional rules for quiz generation
-  followupRuleIds?: string[]; // Optional rules for followup generation
+  /** @deprecated Auto-resolved from directory when omitted */
+  quizRuleIds?: string[];
+  /** @deprecated Auto-resolved from directory when omitted */
+  followupRuleIds?: string[];
+  additionalRuleIds?: string[];
 }
 
 export interface GenerateQuizResponse {
@@ -302,7 +335,7 @@ export interface CreateDocumentRequest {
   sourceUrl?: string;
   status?: DocumentStatus;
   tags?: string[];
-  directoryId?: string; // Optional directory placement
+  directoryId: string;
   ruleIds?: string[]; // Optional rule IDs for document generation
 }
 
@@ -342,7 +375,7 @@ export interface DocumentMetadataEnhanced {
 export interface CreateDocumentFromUrlRequest {
   url: string;
   title?: string; // Optional override for document title
-  directoryId?: string; // Optional directory placement
+  directoryId: string;
   ruleIds?: string[]; // Optional rules for content processing (Section 6)
 }
 
@@ -350,6 +383,7 @@ export interface UploadDocumentRequest {
   fileName: string;
   content: string; // Base64 encoded markdown content
   title?: string; // Optional override for document title
+  directoryId: string;
   ruleIds?: string[]; // Optional rules for content processing (Section 6)
 }
 
@@ -366,7 +400,7 @@ export interface IFileContent {
 export interface GenerateFromPromptRequest {
   prompt: string; // User's text prompt (max 10000 characters)
   files?: IFileContent[]; // Optional reference documents (max 5 files)
-  directoryId?: string | null; // Optional directory to place the generated document
+  directoryId: string; // Directory to place the generated document
   ruleIds?: string[]; // Optional rules for content generation
 }
 
@@ -579,17 +613,6 @@ export enum RuleColor {
   PURPLE = 'purple',
   PINK = 'pink',
   GRAY = 'gray',
-}
-
-export interface Directory {
-  id: string;
-  userId: string;
-  name: string;
-  path: string;
-  parentId: string | null;
-  ruleIds: string[]; // Denormalized for quick access
-  createdAt: Date | { toDate(): Date };
-  updatedAt: Date | { toDate(): Date };
 }
 
 export interface Rule {

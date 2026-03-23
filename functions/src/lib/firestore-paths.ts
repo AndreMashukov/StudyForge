@@ -38,4 +38,18 @@ export const FirestorePaths = {
   },
   rule: (userId: string, ruleId: string) =>
     FirestorePaths.rules(userId).doc(ruleId),
+
+  flashcardSets: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('flashcardSets');
+  },
+  flashcardSet: (userId: string, setId: string) =>
+    FirestorePaths.flashcardSets(userId).doc(setId),
+
+  slideDecks: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('slideDecks');
+  },
+  slideDeck: (userId: string, deckId: string) =>
+    FirestorePaths.slideDecks(userId).doc(deckId),
 };

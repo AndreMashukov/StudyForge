@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useCreateSlideDeckPageContext } from '../context/hooks/useCreateSlideDeckPageContext';
@@ -9,18 +9,16 @@ import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
-import { CompactRuleSelector } from '../../../components/CompactRuleSelector';
 import { PreSelectedDocumentSelector } from '../../../components/PreSelectedDocumentSelector';
 import { createSlideDeckPageStyles } from './CreateSlideDeckPageContainer.styles';
 import { ArrowLeft, Presentation } from 'lucide-react';
-import { RuleApplicability } from '@shared-types';
 
 export const CreateSlideDeckPageContainer = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedDocumentId = searchParams.get('documentId') ?? undefined;
+  const directoryIdParam = searchParams.get('directoryId');
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
-  const [ruleIds, setRuleIds] = useState<string[]>([]);
 
   const { documentsApi, form, handlers } = useCreateSlideDeckPageContext();
   const { handleSubmit, isSubmitting } = handlers;
@@ -33,21 +31,19 @@ export const CreateSlideDeckPageContainer = () => {
   const watchedSlideDeckName = watch('slideDeckName');
 
   const handleBack = () => {
-    if (selectedDirectoryId) {
-      navigate(`/documents?directoryId=${selectedDirectoryId}`);
+    if (directoryIdParam) {
+      navigate(`/directory/${directoryIdParam}`);
+    } else if (selectedDirectoryId) {
+      navigate(`/directory/${selectedDirectoryId}`);
     } else {
       navigate('/documents');
     }
   };
 
-  const primaryDocument = documents.find(d => d.id === watchedDocumentIds?.[0]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const directoryId = (primaryDocument as any)?.directoryId || null;
+  const backLabel =
+    directoryIdParam || selectedDirectoryId ? 'Back' : 'Back to Documents';
 
-  const handleRulesChange = (selectedRuleIds: string[]) => {
-    setRuleIds(selectedRuleIds);
-    setValue('ruleIds', selectedRuleIds);
-  };
+  const primaryDocument = documents.find(d => d.id === watchedDocumentIds?.[0]);
 
   // useRef guard: apply preselection exactly once on mount
   const preselectionApplied = useRef(false);
@@ -84,9 +80,9 @@ export const CreateSlideDeckPageContainer = () => {
       <div className={createSlideDeckPageStyles.container}>
         <header className={createSlideDeckPageStyles.header}>
           <div className={createSlideDeckPageStyles.headerContent}>
-            <button onClick={handleBack} className={createSlideDeckPageStyles.backButton}>
+            <button type="button" onClick={handleBack} className={createSlideDeckPageStyles.backButton}>
               <ArrowLeft size={20} />
-              Back to Documents
+              {backLabel}
             </button>
             <h1 className={createSlideDeckPageStyles.title}>Create Slide Deck</h1>
             <div></div>
@@ -163,19 +159,6 @@ export const CreateSlideDeckPageContainer = () => {
                     <p className="text-sm text-destructive">{errors.additionalPrompt.message}</p>
                   )}
                 </div>
-
-                {/* Slide Deck Rules */}
-                {directoryId && (
-                  <div className={createSlideDeckPageStyles.formField}>
-                    <CompactRuleSelector
-                      directoryId={directoryId}
-                      operation={RuleApplicability.SLIDE_DECK}
-                      selectedRuleIds={ruleIds}
-                      onSelectionChange={handleRulesChange}
-                      label="Slide Deck Generation Rules"
-                    />
-                  </div>
-                )}
 
                 {/* Form Actions */}
                 <div className={createSlideDeckPageStyles.formActions}>

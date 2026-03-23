@@ -17,6 +17,30 @@
       ]
     },
     {
+      "collectionGroup": "quizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "directoryId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "flashcardSets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "directoryId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "slideDecks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "directoryId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "directories",
       "queryScope": "COLLECTION",
       "fields": [

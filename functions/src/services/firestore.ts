@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { 
   Quiz, 
   QuizQuestion, 
@@ -159,13 +160,21 @@ export class FirestoreService {
   public static async deleteQuiz(quizId: string, userId: string): Promise<void> {
     try {
       const quizRef = FirestorePaths.quiz(userId, quizId);
-      
-      const doc = await quizRef.get();
-      if (!doc.exists) {
-        throw new Error("Quiz not found");
-      }
-
-      await quizRef.delete();
+      const db = this.getDb();
+      await db.runTransaction(async (transaction) => {
+        const snap = await transaction.get(quizRef);
+        if (!snap.exists) {
+          throw new Error("Quiz not found");
+        }
+        const data = snap.data() as Quiz;
+        transaction.delete(quizRef);
+        if (data.directoryId) {
+          transaction.update(FirestorePaths.directory(userId, data.directoryId), {
+            quizCount: FieldValue.increment(-1),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      });
       functions.logger.info(`Deleted quiz: ${quizId}`);
     } catch (error) {
       functions.logger.error(`Error deleting quiz ${quizId}:`, error);
@@ -303,6 +312,7 @@ export class FirestoreService {
     documentId: string,
     geminiQuiz: GeminiQuizResponse,
     userId: string,
+    directoryId: string,
     followupRuleIds?: string[],
     allDocumentIds?: string[]
   ): Promise<Quiz> {
@@ -332,6 +342,7 @@ export class FirestoreService {
         })),
         createdAt: new Date(),
         userId: userId,
+        directoryId,
         // Add generation metadata
         generationAttempt: generationAttempt,
         documentTitle: document.title,
@@ -339,10 +350,33 @@ export class FirestoreService {
         followupRuleIds: followupRuleIds || [],
       };
 
-      const docRef = await quizzesCollection.add(quiz);
-      quiz.id = docRef.id;
+      const db = this.getDb();
+      const quizRef = quizzesCollection.doc();
+      const quizPayload = {
+        documentId: quiz.documentId,
+        ...(quiz.documentIds ? { documentIds: quiz.documentIds } : {}),
+        title: quiz.title,
+        questions: quiz.questions,
+        createdAt: FieldValue.serverTimestamp(),
+        userId: quiz.userId,
+        directoryId: quiz.directoryId,
+        generationAttempt: quiz.generationAttempt,
+        documentTitle: quiz.documentTitle,
+        followupRuleIds: quiz.followupRuleIds || [],
+      };
 
-      functions.logger.info(`Quiz saved from document: ${docRef.id} (document: ${documentId}, attempt: ${generationAttempt})`);
+      await db.runTransaction(async (transaction) => {
+        transaction.set(quizRef, { ...quizPayload, id: quizRef.id });
+        transaction.update(FirestorePaths.directory(userId, directoryId), {
+          quizCount: FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      });
+
+      quiz.id = quizRef.id;
+      quiz.createdAt = new Date();
+
+      functions.logger.info(`Quiz saved from document: ${quizRef.id} (document: ${documentId}, attempt: ${generationAttempt})`);
       return quiz;
     } catch (error) {
       functions.logger.error("Error saving quiz from document:", error);

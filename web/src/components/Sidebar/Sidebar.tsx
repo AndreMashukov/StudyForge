@@ -7,16 +7,12 @@ import {
   ChevronUp, 
   ChevronDown, 
   Home, 
-  BookOpen, 
   Settings, 
   User,
   FileText,
   FolderOpen,
   Plus,
-  Brain,
   Sparkles,
-  Layers,
-  Presentation
 } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
@@ -53,7 +49,7 @@ const sidebarSections: SidebarSection[] = [
     items: [
       {
         id: 'documents',
-        title: 'Documents Library',
+        title: 'My Directories',
         path: '/documents',
         icon: FileText,
       },
@@ -62,31 +58,6 @@ const sidebarSections: SidebarSection[] = [
         title: 'Create Document',
         path: '/documents/create',
         icon: Plus,
-      },
-    ],
-  },
-  {
-    id: 'quizzes',
-    title: 'Artifacts',
-    icon: Brain,
-    items: [
-      {
-        id: 'my-quizzes',
-        title: 'My Quizzes',
-        path: '/quizzes',
-        icon: BookOpen,
-      },
-      {
-        id: 'my-flashcards',
-        title: 'My Flashcards',
-        path: '/flashcards',
-        icon: Layers,
-      },
-      {
-        id: 'my-slides',
-        title: 'My Slide Decks',
-        path: '/slides',
-        icon: Presentation,
       },
     ],
   },

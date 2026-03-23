@@ -9,6 +9,7 @@ import {
   GetDirectoryResponse,
   GetDirectoryTreeResponse,
   GetDirectoryContentsResponse,
+  GetDirectoryContentsWithArtifactsResponse,
   GetDirectoryAncestorsResponse,
   MoveDirectoryResponse,
   DeleteDirectoryResponse,
@@ -92,6 +93,30 @@ export const directoryApi = baseApi.injectEndpoints({
       keepUnusedDataFor: 0, // Don't cache directory contents for long
     }),
 
+    getDirectoryContentsWithArtifacts: builder.query<
+      GetDirectoryContentsWithArtifactsResponse,
+      { directoryId: string | null; artifactLimit?: number }
+    >({
+      query: ({ directoryId, artifactLimit }) => ({
+        functionName: 'getDirectoryContentsWithArtifacts',
+        data: {
+          directoryId,
+          includeArtifacts: true,
+          includeRules: true,
+          artifactLimit: artifactLimit ?? 20,
+        },
+      }),
+      providesTags: (result, error, arg) => [
+        { type: 'Directory', id: arg.directoryId || 'ROOT' },
+        { type: 'Directory', id: 'CONTENTS' },
+        'Documents',
+        'UserQuizzes',
+        'UserFlashcardSets',
+        'UserSlideDecks',
+      ],
+      keepUnusedDataFor: 0,
+    }),
+
     // Get directory ancestors (breadcrumb)
     getDirectoryAncestors: builder.query<GetDirectoryAncestorsResponse, string>({
       query: (directoryId) => ({
@@ -128,10 +153,10 @@ export const directoryApi = baseApi.injectEndpoints({
     }),
 
     // Move a document to a directory
-    moveDocument: builder.mutation<void, { documentId: string; targetDirectoryId: string | null }>({
+    moveDocument: builder.mutation<void, { documentId: string; targetDirectoryId: string }>({
       query: ({ documentId, targetDirectoryId }) => ({
         functionName: 'moveDocument',
-        data: { documentId, targetDirectoryId } as MoveDocumentRequest,
+        data: { documentId, targetDirectoryId } as { documentId: string } & MoveDocumentRequest,
       }),
       invalidatesTags: [
         'Documents',
@@ -149,6 +174,7 @@ export const {
   useDeleteDirectoryMutation,
   useGetDirectoryTreeQuery,
   useGetDirectoryContentsQuery,
+  useGetDirectoryContentsWithArtifactsQuery,
   useGetDirectoryAncestorsQuery,
   useMoveDirectoryMutation,
   useGetDirectoryByPathQuery,

@@ -13,7 +13,8 @@ interface CreateSlideDeckPageProviderProps {
 export const CreateSlideDeckPageProvider: React.FC<CreateSlideDeckPageProviderProps> = ({ children }) => {
   const documentsApi = useFetchCreateSlideDeckPageData();
   const form = useCreateSlideDeckPageForm();
-  const handlers = useCreateSlideDeckPageHandlers({ form });
+  const documents = documentsApi.data?.documents || [];
+  const handlers = useCreateSlideDeckPageHandlers({ form, documents });
 
   useCreateSlideDeckPageEffects();
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useCreateQuizPageContext } from '../context/hooks/useCreateQuizPageContext';
@@ -9,19 +9,16 @@ import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
-import { CompactRuleSelector } from '../../../components/CompactRuleSelector';
 import { PreSelectedDocumentSelector } from '../../../components/PreSelectedDocumentSelector';
 import { createQuizPageStyles } from './CreateQuizPageContainer.styles';
 import { ArrowLeft, Brain } from 'lucide-react';
-import { RuleApplicability } from '@shared-types';
 
 export const CreateQuizPageContainer = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedDocumentId = searchParams.get('documentId') ?? undefined;
+  const directoryIdParam = searchParams.get('directoryId');
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
-  const [quizRuleIds, setQuizRuleIds] = useState<string[]>([]);
-  const [followupRuleIds, setFollowupRuleIds] = useState<string[]>([]);
 
   const { documentsApi, form, handlers } = useCreateQuizPageContext();
   const { handleSubmit, isSubmitting } = handlers;
@@ -34,26 +31,13 @@ export const CreateQuizPageContainer = () => {
   const watchedQuizName = watch('quizName');
 
   const handleBack = () => {
-    if (selectedDirectoryId) {
-      navigate(`/documents?directoryId=${selectedDirectoryId}`);
+    if (directoryIdParam) {
+      navigate(`/directory/${directoryIdParam}`);
+    } else if (selectedDirectoryId) {
+      navigate(`/directory/${selectedDirectoryId}`);
     } else {
       navigate('/documents');
     }
-  };
-
-  // Get directoryId from primary selected document
-  const primaryDocument = documents.find(d => d.id === watchedDocumentIds?.[0]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const directoryId = (primaryDocument as any)?.directoryId || null;
-
-  const handleQuizRulesChange = (ruleIds: string[]) => {
-    setQuizRuleIds(ruleIds);
-    setValue('quizRuleIds', ruleIds);
-  };
-
-  const handleFollowupRulesChange = (ruleIds: string[]) => {
-    setFollowupRuleIds(ruleIds);
-    setValue('followupRuleIds', ruleIds);
   };
 
   // useRef guard: apply preselection exactly once on mount
@@ -149,7 +133,8 @@ export const CreateQuizPageContainer = () => {
                   )}
                   {docCount > 0 && !watchedQuizName?.trim() && (
                     <p className="text-sm text-muted-foreground">
-                      Default name: &quot;Quiz from {primaryDocument?.title}&quot;
+                      Default name: &quot;Quiz from{' '}
+                      {documents.find((d) => d.id === watchedDocumentIds?.[0])?.title}&quot;
                     </p>
                   )}
                 </div>
@@ -170,32 +155,6 @@ export const CreateQuizPageContainer = () => {
                     <p className="text-sm text-destructive">{errors.additionalPrompt.message}</p>
                   )}
                 </div>
-
-                {/* Quiz Rules */}
-                {directoryId && (
-                  <div className={createQuizPageStyles.formField}>
-                    <CompactRuleSelector
-                      directoryId={directoryId}
-                      operation={RuleApplicability.QUIZ}
-                      selectedRuleIds={quizRuleIds}
-                      onSelectionChange={handleQuizRulesChange}
-                      label="Quiz Generation Rules"
-                    />
-                  </div>
-                )}
-
-                {/* Followup Rules */}
-                {directoryId && (
-                  <div className={createQuizPageStyles.formField}>
-                    <CompactRuleSelector
-                      directoryId={directoryId}
-                      operation={RuleApplicability.FOLLOWUP}
-                      selectedRuleIds={followupRuleIds}
-                      onSelectionChange={handleFollowupRulesChange}
-                      label="Followup Explanation Rules"
-                    />
-                  </div>
-                )}
 
                 {/* Form Actions */}
                 <div className={createQuizPageStyles.formActions}>

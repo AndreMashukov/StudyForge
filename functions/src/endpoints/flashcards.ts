@@ -11,11 +11,15 @@ const redactId = (id: string): string => createHash('sha256').update(id).digest(
 import {
   Flashcard,
   FlashcardSet,
+  RuleApplicability,
 } from '@shared-types';
 import { DocumentCrudService } from '../services/document-crud';
+import { directoryService } from '../services/directory';
+import { resolveGenerationRulesForPrompt } from '../services/rule-resolution';
 import { DocumentService } from '../services/document-storage';
 import { GeminiService } from '../services/gemini/gemini';
 import { validateAuth } from '../lib/auth';
+import { FirestorePaths } from '../lib/firestore-paths';
 import { promptBuilder } from '../services/promptBuilder';
 
 // Define secrets
@@ -24,9 +28,11 @@ const geminiApiKey = defineSecret('GEMINI_API_KEY');
 // Zod schemas for request payload validation
 const generateFlashcardsRequestSchema = z.object({
   documentIds: z.array(z.string().min(1)).min(1, 'At least one documentId is required').max(5, 'Maximum 5 documents allowed'),
+  directoryId: z.string().optional(),
   title: z.string().max(100).nullish(),
   additionalPrompt: z.string().max(500).nullish(),
   ruleIds: z.array(z.string()).optional(),
+  additionalRuleIds: z.array(z.string()).optional(),
 });
 
 const flashcardSetIdRequestSchema = z.object({
@@ -86,7 +92,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
       throw new HttpsError('invalid-argument', msg);
     }
-    const { documentIds, title: customTitle, additionalPrompt, ruleIds } = parseResult.data;
+    const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, additionalRuleIds } = parseResult.data;
 
     const u = redactId(userId);
 
@@ -123,13 +129,37 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
 
     logger.info(`[generateFlashcards] STEP 2: Documents retrieved.`, { userIdHash: u, documentCount: documentDataList.length });
 
+    const resolvedDirectoryId = requestDirectoryId ?? documentDataList[0]?.directoryId;
+    if (!resolvedDirectoryId) {
+      throw new HttpsError('invalid-argument', 'directoryId is required, or documents must belong to a directory');
+    }
+    await directoryService.validateDirectoryId(userId, resolvedDirectoryId);
+    for (const d of documentDataList) {
+      if (!d.directoryId || d.directoryId !== resolvedDirectoryId) {
+        throw new HttpsError('invalid-argument', 'All documents must belong to the same directory');
+      }
+    }
+
     // Resolve rules to inject into the prompt
     let injectedRules: string | undefined;
     if (ruleIds?.length) {
       logger.info(`[generateFlashcards] STEP 2.5: Injecting rules into prompt.`, { userIdHash: u, ruleCount: ruleIds.length });
       injectedRules = await promptBuilder.injectRules(additionalPrompt || '', ruleIds, userId);
-    } else if (additionalPrompt) {
-      injectedRules = `Additional instructions: ${additionalPrompt}`;
+    } else {
+      const rulesText = await resolveGenerationRulesForPrompt(
+        userId,
+        resolvedDirectoryId,
+        RuleApplicability.FLASHCARD,
+        additionalRuleIds
+      );
+      const base = additionalPrompt?.trim() ? `Additional instructions: ${additionalPrompt}` : '';
+      if (rulesText && base) {
+        injectedRules = `${rulesText}\n\n${base}`;
+      } else if (rulesText) {
+        injectedRules = rulesText;
+      } else if (base) {
+        injectedRules = base;
+      }
     }
 
     logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (GeminiService).`, { userIdHash: u });
@@ -150,6 +180,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       ...generatedData,
       userId,
       documentId: primaryDocumentId,
+      directoryId: resolvedDirectoryId,
       ...(documentIds.length > 1 ? { documentIds } : {}),
       documentTitle: documentDataList[0].title,
       createdAt: FieldValue.serverTimestamp(),
@@ -157,7 +188,16 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
     };
 
     logger.info(`[generateFlashcards] STEP 5: Adding new flashcard set to Firestore.`, { userIdHash: u });
-    const docRef = await admin.firestore().collection('users').doc(userId).collection('flashcardSets').add(newFlashcardSetData);
+    const db = admin.firestore();
+    const newRef = FirestorePaths.flashcardSets(userId).doc();
+    await db.runTransaction(async (transaction) => {
+      transaction.set(newRef, newFlashcardSetData);
+      transaction.update(FirestorePaths.directory(userId, resolvedDirectoryId), {
+        flashcardSetCount: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+    const docRef = newRef;
     logger.info(`[generateFlashcards] STEP 6: Firestore add complete. New document ID: ${redactId(docRef.id)}`, { userIdHash: u });
 
     return { success: true, data: { flashcardSetId: docRef.id } };
@@ -274,14 +314,22 @@ export const deleteFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
     }
     const { flashcardSetId } = parseResult.data;
 
-    const docRef = admin.firestore().collection('users').doc(userId).collection('flashcardSets').doc(flashcardSetId);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
-      throw new HttpsError('not-found', 'No flashcard set found with that ID.');
-    }
-
-    await docRef.delete();
+    const docRef = FirestorePaths.flashcardSets(userId).doc(flashcardSetId);
+    const db = admin.firestore();
+    await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists) {
+        throw new HttpsError('not-found', 'No flashcard set found with that ID.');
+      }
+      const existing = snap.data() as FlashcardSet;
+      transaction.delete(docRef);
+      if (existing.directoryId) {
+        transaction.update(FirestorePaths.directory(userId, existing.directoryId), {
+          flashcardSetCount: FieldValue.increment(-1),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+    });
 
     return { success: true };
   } catch(error) {

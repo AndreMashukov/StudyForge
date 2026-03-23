@@ -44,6 +44,14 @@ service cloud.firestore {
       match /rules/{ruleId} {
         allow read, write: if isOwner(userId);
       }
+
+      match /flashcardSets/{flashcardSetId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /slideDecks/{slideDeckId} {
+        allow read, write: if isOwner(userId);
+      }
     }
   }
 }

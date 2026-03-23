@@ -52,12 +52,16 @@ export const useCreateDocumentPageHandlers = () => {
   const handleCreateFromUrl = useCallback(async (data: IUrlScrapingFormData) => {
     try {
       dispatch(clearError());
+      if (!directoryId) {
+        dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
+        return;
+      }
       dispatch(setUrlFormLoading(true));
       
       const result = await createDocumentFromUrl({
         url: data.url,
         title: data.title,
-        directoryId: directoryId || undefined, // 🆕 Pass directoryId to API
+        directoryId,
         ruleIds: data.ruleIds, // Section 6: Pass selected rules to API
       }).unwrap();
       
@@ -74,6 +78,10 @@ export const useCreateDocumentPageHandlers = () => {
   const handleCreateFromFile = useCallback(async (data: IFileUploadFormData) => {
     try {
       dispatch(clearError());
+      if (!directoryId) {
+        dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
+        return;
+      }
       dispatch(setFileFormLoading(true));
       
       // Read file content
@@ -88,7 +96,7 @@ export const useCreateDocumentPageHandlers = () => {
         title: data.title || data.file.name.replace(/\.md$/, ''),
         content,
         sourceType: DocumentSourceType.UPLOAD,
-        directoryId: directoryId || undefined, // 🆕 Pass directoryId to API
+        directoryId,
         ruleIds: data.ruleIds, // Section 6: Pass selected rules to API
       }).unwrap();
       
@@ -122,6 +130,11 @@ export const useCreateDocumentPageHandlers = () => {
         dispatch(setError('Total context size exceeds limit. Please remove some files.'));
         return;
       }
+
+      if (!directoryId) {
+        dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
+        return;
+      }
       
       // Simulate progress updates
       progressInterval = setInterval(() => {
@@ -135,7 +148,7 @@ export const useCreateDocumentPageHandlers = () => {
       const requestPayload = {
         prompt: data.prompt,
         files: files.length > 0 ? files : undefined,
-        directoryId: directoryId || null,
+        directoryId,
         ruleIds: data.ruleIds || [],
       };
       console.debug('[generateFromPrompt] Request payload:', requestPayload);

@@ -173,6 +173,25 @@ export async function resolveRulesForDirectory(
 }
 
 /**
+ * Format cascaded rules for a single generation operation (directory + optional overrides).
+ */
+export async function resolveGenerationRulesForPrompt(
+  userId: string,
+  directoryId: string,
+  operation: RuleApplicability,
+  additionalRuleIds?: string[]
+): Promise<string> {
+  const { rules } = await resolveRulesForDirectory(userId, directoryId, operation);
+  const baseIds = rules.map(r => r.id);
+  const extra = (additionalRuleIds || []).filter(id => !baseIds.includes(id));
+  const mergedIds = [...baseIds, ...extra];
+  if (mergedIds.length === 0) {
+    return '';
+  }
+  return formatRulesForPrompt(userId, mergedIds);
+}
+
+/**
  * Sort rules by directory hierarchy (parent directories first)
  */
 function sortRulesByHierarchy(

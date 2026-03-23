@@ -38,6 +38,26 @@ export class DocumentService {
       bucketName = process.env.STORAGE_BUCKET;
     }
 
+    // Storage emulator uses a single namespace; `.appspot.com` and `.firebasestorage.app` are
+    // different buckets. Seed scripts and uploads use `.appspot.com` — if env points at
+    // `.firebasestorage.app` or STORAGE_BUCKET is missing, reads fail with opaque INTERNAL errors.
+    if (isEmulator) {
+      if (bucketName?.endsWith('.firebasestorage.app')) {
+        const projectId = bucketName.replace(/\.firebasestorage\.app$/, '');
+        bucketName = `${projectId}.appspot.com`;
+      }
+      if (!bucketName) {
+        const projectId =
+          process.env.GCLOUD_PROJECT ||
+          process.env.GCP_PROJECT ||
+          process.env.GOOGLE_CLOUD_PROJECT ||
+          '';
+        if (projectId) {
+          bucketName = `${projectId}.appspot.com`;
+        }
+      }
+    }
+
     logger.info('[DocumentService] getBucket() resolved', {
       bucketName: bucketName || '(not set)',
       FIREBASE_STORAGE_EMULATOR_HOST: process.env.FIREBASE_STORAGE_EMULATOR_HOST || '(not set)',

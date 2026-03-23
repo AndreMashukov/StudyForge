@@ -15,17 +15,15 @@ import { ProfilePage } from '../pages/ProfilePage';
 import { DocumentsPage } from '../pages/DocumentsPage';
 import { CreateDocumentPage } from '../pages/CreateDocumentPage';
 import { DocumentViewerPage } from '../pages/DocumentViewerPage';
-import { MyQuizzesPage } from '../pages/MyQuizzesPage';
 import { RulesPage } from '../pages/RulesPage';
 import { RuleEditorPage } from '../pages/RuleEditorPage';
 import { DirectoryRulesPage } from '../pages/DirectoryRulesPage';
-import { FlashcardsPage } from '../pages/FlashcardsPage';
 import { FlashcardSetPage } from '../pages/FlashcardSetPage';
 import { CreateFlashcardPage } from '../pages/CreateFlashcardPage';
 import { CreateSlideDeckPage } from '../pages/CreateSlideDeckPage';
-import { SlideDecksPage } from '../pages/SlideDecksPage';
 import { SlideDeckPage } from '../pages/SlideDeckPage';
 import { Page } from '../components/Page';
+import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
 
 export function App() {
   return (
@@ -142,6 +140,14 @@ const AppContent = () => {
         }
       />
       <Route
+        path="/directory/:directoryId"
+        element={
+          <MainLayout>
+            <DirectoryDetailPage />
+          </MainLayout>
+        }
+      />
+      <Route
         path="/document/:documentId"
         element={
           <MainLayout>
@@ -159,16 +165,6 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <CreateFlashcardPage />
-            </ProtectedRoute>
-          </MainLayout>
-        }
-      />
-      <Route
-        path="/flashcards"
-        element={
-          <MainLayout>
-            <ProtectedRoute>
-              <FlashcardsPage />
             </ProtectedRoute>
           </MainLayout>
         }
@@ -196,16 +192,6 @@ const AppContent = () => {
         }
       />
       <Route
-        path="/slides"
-        element={
-          <MainLayout>
-            <ProtectedRoute>
-              <SlideDecksPage />
-            </ProtectedRoute>
-          </MainLayout>
-        }
-      />
-      <Route
         path="/slides/:slideDeckId"
         element={
           <MainLayout>
@@ -217,16 +203,6 @@ const AppContent = () => {
       />
 
       {/* Quiz Management Routes */}
-      <Route
-        path="/quizzes"
-        element={
-          <MainLayout>
-            <ProtectedRoute>
-              <MyQuizzesPage />
-            </ProtectedRoute>
-          </MainLayout>
-        }
-      />
       <Route
         path="/quizzes/results"
         element={

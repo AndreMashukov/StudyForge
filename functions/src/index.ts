@@ -131,6 +131,7 @@ export {
   deleteDirectory,
   getDirectoryTree,
   getDirectoryContents,
+  getDirectoryContentsWithArtifacts,
   getDirectoryAncestors,
   moveDirectory,
   getDirectoryByPath,

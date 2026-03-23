@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium } from 'playwright';
 import * as dotenv from 'dotenv';
 
 dotenv.config();

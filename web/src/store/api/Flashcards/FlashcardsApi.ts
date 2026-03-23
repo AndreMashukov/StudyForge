@@ -15,7 +15,13 @@ export const flashcardsApi = baseApi.injectEndpoints({
         functionName: 'generateFlashcards',
         data,
       }),
-      invalidatesTags: ['UserFlashcardSets'],
+      invalidatesTags: (result, error, arg) => [
+        'UserFlashcardSets',
+        { type: 'Directory', id: 'CONTENTS' },
+        ...(arg.directoryId
+          ? [{ type: 'Directory' as const, id: arg.directoryId }]
+          : []),
+      ],
     }),
 
     // Get a specific flashcard set by ID

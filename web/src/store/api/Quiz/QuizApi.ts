@@ -19,9 +19,13 @@ export const quizApi = baseApi.injectEndpoints({
         data,
       }),
       invalidatesTags: (result, error, arg) => [
-        'UserQuizzes', 
+        'UserQuizzes',
         'RecentQuizzes',
-        ...arg.documentIds.map(id => ({ type: 'DocumentQuizzes' as const, id })),
+        { type: 'Directory', id: 'CONTENTS' },
+        ...(arg.directoryId
+          ? ([{ type: 'Directory' as const, id: arg.directoryId }] as const)
+          : []),
+        ...arg.documentIds.map((id) => ({ type: 'DocumentQuizzes' as const, id })),
       ],
     }),
 

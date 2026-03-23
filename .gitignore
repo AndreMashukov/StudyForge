@@ -150,6 +150,9 @@ vite.config.ts.timestamp-*
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
 
+# Playwright / local test output
+test-results/
+
 .github/instructions/examples/*
 .github/instructions/*
 docs/*

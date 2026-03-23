@@ -12,10 +12,10 @@ export const HomePageContainer = () => {
   const quickActions = [
     {
       title: 'Create Document',
-      description: 'Add content from URL or upload markdown file',
+      description: 'Choose a folder, then add content from URL or upload markdown',
       icon: Plus,
       color: 'bg-primary text-primary-foreground',
-      action: () => navigate('/documents/create'),
+      action: () => navigate('/documents'),
     },
     {
       title: 'Browse Documents',
@@ -25,11 +25,11 @@ export const HomePageContainer = () => {
       action: () => navigate('/documents'),
     },
     {
-      title: 'My Quizzes',
-      description: 'Access your generated quizzes',
+      title: 'My Directories',
+      description: 'Open a folder to see sources, quizzes, flashcards, and slide decks',
       icon: Brain,
       color: 'bg-accent text-accent-foreground',
-      action: () => navigate('/quizzes'),
+      action: () => navigate('/documents'),
     },
   ];
 
@@ -164,9 +164,9 @@ export const HomePageContainer = () => {
                   <Button 
                     variant="outline" 
                     className="w-full"
-                    onClick={() => navigate('/quizzes')}
+                    onClick={() => navigate('/documents')}
                   >
-                    View All Quizzes
+                    Browse directories
                   </Button>
                 )}
               </div>
@@ -216,9 +216,9 @@ export const HomePageContainer = () => {
                   <Button 
                     variant="outline" 
                     className="w-full"
-                    onClick={() => navigate('/quizzes')}
+                    onClick={() => navigate('/documents')}
                   >
-                    View All History
+                    Browse directories
                   </Button>
                 )}
               </div>

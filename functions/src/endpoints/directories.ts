@@ -302,3 +302,51 @@ export const getDirectoryByPath = onCall(
     }
   }
 );
+
+/**
+ * Directory contents plus artifacts and resolved cascading rules
+ */
+export const getDirectoryContentsWithArtifacts = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
+  async (request) => {
+    try {
+      const userId = await validateAuth(request);
+      const {
+        directoryId,
+        includeArtifacts = true,
+        includeRules = true,
+        artifactLimit = 20,
+      } = request.data as {
+        directoryId?: string | null;
+        includeArtifacts?: boolean;
+        includeRules?: boolean;
+        artifactLimit?: number;
+      };
+
+      logger.info('Getting directory contents with artifacts', {
+        userId,
+        directoryId,
+        includeArtifacts,
+        includeRules,
+        artifactLimit,
+      });
+
+      const result = await directoryService.getDirectoryContentsWithArtifacts(
+        userId,
+        directoryId ?? null,
+        { includeArtifacts, includeRules, artifactLimit }
+      );
+      return result;
+    } catch (error) {
+      logger.error('Error getting directory contents with artifacts', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(
+        `Failed to get directory contents with artifacts: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+);
