@@ -10,7 +10,7 @@ interface FlashcardSetPageProviderProps {
 
 export const FlashcardSetPageProvider: React.FC<FlashcardSetPageProviderProps> = ({ children }) => {
   const api = useFetchFlashcardSetData();
-  const handlers = useFlashcardSetPageHandlers();
+  const handlers = useFlashcardSetPageHandlers(api.flashcardSet?.directoryId);
 
   const contextValue: IFlashcardSetPageContext = { api, handlers };
 

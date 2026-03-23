@@ -1,15 +1,30 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { IFlashcardSetPageHandlers } from '../../types/IFlashcardSetPageContext';
 import { useFullscreen } from '../../../../hooks/useFullscreen';
 
-export const useFlashcardSetPageHandlers = (): IFlashcardSetPageHandlers => {
+export const useFlashcardSetPageHandlers = (
+  directoryIdFromData?: string | null
+): IFlashcardSetPageHandlers => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const { isFullscreen, handleToggleFullscreen } = useFullscreen();
 
-  const handleGoBack = () => navigate('/flashcards');
+  const resolvedDirectoryId = useMemo(() => {
+    const fromData = directoryIdFromData?.trim();
+    const fromQuery = searchParams.get('directoryId')?.trim();
+    return fromData || fromQuery || null;
+  }, [directoryIdFromData, searchParams]);
+
+  const handleGoBack = useCallback(() => {
+    if (resolvedDirectoryId) {
+      navigate(`/directory/${resolvedDirectoryId}`);
+    } else {
+      navigate('/');
+    }
+  }, [navigate, resolvedDirectoryId]);
 
   const handleNext = (totalCards: number) => {
     setIsFlipped(false);

@@ -260,7 +260,7 @@ export const DirectoryDetailPageContainer = () => {
                 quizzes.map((q: Quiz) => (
                   <Link
                     key={q.id}
-                    to={`/quiz/${q.id}`}
+                    to={`/quiz/${q.id}?directoryId=${encodeURIComponent(directoryId ?? '')}`}
                     className={cn(
                       'block rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors'
                     )}
@@ -278,7 +278,7 @@ export const DirectoryDetailPageContainer = () => {
                 flashcardSets.map((f: FlashcardSet) => (
                   <Link
                     key={f.id}
-                    to={`/flashcards/${f.id}`}
+                    to={`/flashcards/${f.id}?directoryId=${encodeURIComponent(directoryId ?? '')}`}
                     className="block rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors"
                   >
                     <div className="font-medium">{f.title}</div>
@@ -296,7 +296,7 @@ export const DirectoryDetailPageContainer = () => {
                 slideDecks.map((s: SlideDeck) => (
                   <Link
                     key={s.id}
-                    to={`/slides/${s.id}`}
+                    to={`/slides/${s.id}?directoryId=${encodeURIComponent(directoryId ?? '')}`}
                     className="block rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors"
                   >
                     <div className="font-medium">{s.title}</div>

@@ -11,7 +11,7 @@ interface ISlideDeckPageProvider {
 
 export const SlideDeckPageProvider: React.FC<ISlideDeckPageProvider> = ({ children }) => {
   const slideDeckApi = useFetchSlideDeckData();
-  const handlers = useSlideDeckPageHandlers();
+  const handlers = useSlideDeckPageHandlers(slideDeckApi.slideDeck?.directoryId);
 
   useSlideDeckPageEffects({
     slidesLength: slideDeckApi.slideDeck?.slides?.length ?? 0,

@@ -51,7 +51,7 @@ export const SlideDeckPageContainer: React.FC = () => {
               className="mt-4"
               onClick={handleNavigateBack}
             >
-              Back to Slide Decks
+              Back to directory
             </Button>
           </CardContent>
         </Card>
@@ -194,11 +194,11 @@ export const SlideDeckPageContainer: React.FC = () => {
             <button
               onClick={handleNavigateBack}
               className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-              aria-label="Back to Slide Decks"
+              aria-label="Back to directory"
             >
               <ArrowLeft size={20} />
               <span className="hidden sm:inline text-sm">
-                Back to Slide Decks
+                Back to directory
               </span>
             </button>
 

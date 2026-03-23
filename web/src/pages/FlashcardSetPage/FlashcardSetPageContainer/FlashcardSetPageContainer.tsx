@@ -242,7 +242,7 @@ export const FlashcardSetPageContainer = () => {
                   className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors mb-1"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
-                  All Sets
+                  Back to directory
                 </button>
                 <h1 className="text-base sm:text-lg font-bold leading-tight truncate">
                   {flashcardSet.title}

@@ -1,14 +1,29 @@
-import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ISlideDeckPageHandlers } from '../../types/ISlideDeckPageHandlers';
 import { useFullscreen } from '../../../../hooks/useFullscreen';
 
-export const useSlideDeckPageHandlers = (): ISlideDeckPageHandlers => {
+export const useSlideDeckPageHandlers = (
+  directoryIdFromData?: string | null
+): ISlideDeckPageHandlers => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [currentSlide, setCurrentSlide] = useState(0);
   const { isFullscreen, handleToggleFullscreen } = useFullscreen();
 
-  const handleNavigateBack = useCallback(() => navigate('/slides'), [navigate]);
+  const resolvedDirectoryId = useMemo(() => {
+    const fromData = directoryIdFromData?.trim();
+    const fromQuery = searchParams.get('directoryId')?.trim();
+    return fromData || fromQuery || null;
+  }, [directoryIdFromData, searchParams]);
+
+  const handleNavigateBack = useCallback(() => {
+    if (resolvedDirectoryId) {
+      navigate(`/directory/${resolvedDirectoryId}`);
+    } else {
+      navigate('/');
+    }
+  }, [navigate, resolvedDirectoryId]);
 
   const handleSlideChange = useCallback((index: number) => setCurrentSlide(index), []);
 
