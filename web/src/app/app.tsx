@@ -24,6 +24,7 @@ import { CreateSlideDeckPage } from '../pages/CreateSlideDeckPage';
 import { SlideDeckPage } from '../pages/SlideDeckPage';
 import { Page } from '../components/Page';
 import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
+import { QuizIndexRedirect } from '../utils/QuizIndexRedirect';
 
 export function App() {
   return (
@@ -93,6 +94,27 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <CreateQuizPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      {/* /quiz?directoryId= or /quiz/?directoryId= — no :quizId; send users to the folder */}
+      <Route
+        path="/quiz"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <QuizIndexRedirect />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/quiz/"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <QuizIndexRedirect />
             </ProtectedRoute>
           </MainLayout>
         }
