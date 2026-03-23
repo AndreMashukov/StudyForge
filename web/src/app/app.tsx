@@ -143,9 +143,7 @@ const AppContent = () => {
         path="/directory/:directoryId"
         element={
           <MainLayout>
-            <ProtectedRoute>
-              <DirectoryDetailPage />
-            </ProtectedRoute>
+            <DirectoryDetailPage />
           </MainLayout>
         }
       />
