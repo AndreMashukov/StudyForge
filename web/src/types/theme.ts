@@ -33,7 +33,7 @@ export interface Theme {
   colors: ThemeColors;
 }
 
-export type ThemeId = 'dark' | 'light' | 'linear' | 'semidark';
+export type ThemeId = 'light' | 'linear';
 
 export interface ThemeContextType {
   currentTheme: Theme;
