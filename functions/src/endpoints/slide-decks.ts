@@ -12,6 +12,7 @@ import { directoryService } from '../services/directory';
 import { resolveGenerationRulesForPrompt } from '../services/rule-resolution';
 import { GeminiService } from '../services/gemini/gemini';
 import { validateAuth } from '../lib/auth';
+import { FirestorePaths } from '../lib/firestore-paths';
 import { promptBuilder } from '../services/promptBuilder';
 
 const redactId = (id: string): string =>
@@ -206,15 +207,16 @@ export const generateSlideDeck = onCall(
         };
 
         logger.info('[generateSlideDeck] STEP 6: Saving to Firestore.', { userIdHash: u });
-        const docRef = await admin.firestore()
-          .collection('users').doc(userId).collection('slideDecks')
-          .add(newSlideDeckData);
-
-        try {
-          await directoryService.adjustDirectoryArtifactCount(userId, resolvedDirectoryId, 'slideDeckCount', 1);
-        } catch (e) {
-          logger.warn('[generateSlideDeck] Could not increment slideDeckCount', e);
-        }
+        const db = admin.firestore();
+        const newDeckRef = FirestorePaths.slideDecks(userId).doc();
+        await db.runTransaction(async (transaction) => {
+          transaction.set(newDeckRef, newSlideDeckData);
+          transaction.update(FirestorePaths.directory(userId, resolvedDirectoryId), {
+            slideDeckCount: FieldValue.increment(1),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        });
+        const docRef = newDeckRef;
 
         logger.info(`[generateSlideDeck] STEP 7: Complete. Deck ID: ${redactId(docRef.id)}`, { userIdHash: u });
 
@@ -336,16 +338,15 @@ export const deleteSlideDeck = onCall({ region: 'asia-east1', cors: true }, asyn
     }
     const { slideDeckId } = parseResult.data;
 
-    const docRef = admin.firestore()
-      .collection('users').doc(userId).collection('slideDecks').doc(slideDeckId);
-    const doc = await docRef.get();
+    const docRef = FirestorePaths.slideDecks(userId).doc(slideDeckId);
+    const docSnap = await docRef.get();
 
-    if (!doc.exists) {
+    if (!docSnap.exists) {
       throw new HttpsError('not-found', 'No slide deck found with that ID.');
     }
 
     // Delete associated storage files
-    const data = doc.data() as SlideDeck;
+    const data = docSnap.data() as SlideDeck;
     if (data?.slides) {
       for (const slide of data.slides) {
         if (slide.imageStoragePath) {
@@ -358,14 +359,21 @@ export const deleteSlideDeck = onCall({ region: 'asia-east1', cors: true }, asyn
       }
     }
 
-    await docRef.delete();
-    if (data.directoryId) {
-      try {
-        await directoryService.adjustDirectoryArtifactCount(userId, data.directoryId, 'slideDeckCount', -1);
-      } catch (e) {
-        logger.warn('Could not decrement slideDeckCount', e);
+    const db = admin.firestore();
+    await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists) {
+        throw new HttpsError('not-found', 'No slide deck found with that ID.');
       }
-    }
+      const deck = snap.data() as SlideDeck;
+      transaction.delete(docRef);
+      if (deck.directoryId) {
+        transaction.update(FirestorePaths.directory(userId, deck.directoryId), {
+          slideDeckCount: FieldValue.increment(-1),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+    });
     return { success: true };
   } catch (error) {
     logger.error('Error deleting slide deck:', error);

@@ -19,6 +19,7 @@ import { resolveGenerationRulesForPrompt } from '../services/rule-resolution';
 import { DocumentService } from '../services/document-storage';
 import { GeminiService } from '../services/gemini/gemini';
 import { validateAuth } from '../lib/auth';
+import { FirestorePaths } from '../lib/firestore-paths';
 import { promptBuilder } from '../services/promptBuilder';
 
 // Define secrets
@@ -187,12 +188,16 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
     };
 
     logger.info(`[generateFlashcards] STEP 5: Adding new flashcard set to Firestore.`, { userIdHash: u });
-    const docRef = await admin.firestore().collection('users').doc(userId).collection('flashcardSets').add(newFlashcardSetData);
-    try {
-      await directoryService.adjustDirectoryArtifactCount(userId, resolvedDirectoryId, 'flashcardSetCount', 1);
-    } catch (e) {
-      logger.warn('[generateFlashcards] Could not increment flashcardSetCount', e);
-    }
+    const db = admin.firestore();
+    const newRef = FirestorePaths.flashcardSets(userId).doc();
+    await db.runTransaction(async (transaction) => {
+      transaction.set(newRef, newFlashcardSetData);
+      transaction.update(FirestorePaths.directory(userId, resolvedDirectoryId), {
+        flashcardSetCount: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+    const docRef = newRef;
     logger.info(`[generateFlashcards] STEP 6: Firestore add complete. New document ID: ${redactId(docRef.id)}`, { userIdHash: u });
 
     return { success: true, data: { flashcardSetId: docRef.id } };
@@ -309,22 +314,22 @@ export const deleteFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
     }
     const { flashcardSetId } = parseResult.data;
 
-    const docRef = admin.firestore().collection('users').doc(userId).collection('flashcardSets').doc(flashcardSetId);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
-      throw new HttpsError('not-found', 'No flashcard set found with that ID.');
-    }
-
-    const existing = doc.data() as FlashcardSet;
-    await docRef.delete();
-    if (existing.directoryId) {
-      try {
-        await directoryService.adjustDirectoryArtifactCount(userId, existing.directoryId, 'flashcardSetCount', -1);
-      } catch (e) {
-        logger.warn('Could not decrement flashcardSetCount', e);
+    const docRef = FirestorePaths.flashcardSets(userId).doc(flashcardSetId);
+    const db = admin.firestore();
+    await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists) {
+        throw new HttpsError('not-found', 'No flashcard set found with that ID.');
       }
-    }
+      const existing = snap.data() as FlashcardSet;
+      transaction.delete(docRef);
+      if (existing.directoryId) {
+        transaction.update(FirestorePaths.directory(userId, existing.directoryId), {
+          flashcardSetCount: FieldValue.increment(-1),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+    });
 
     return { success: true };
   } catch(error) {

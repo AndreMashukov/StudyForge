@@ -29,6 +29,9 @@ import { DocumentEnhanced, Directory, Quiz, FlashcardSet, SlideDeck, Rule } from
 import { formatDate } from '../../utils/dateUtils';
 import { cn } from '../../lib/utils';
 
+/** Max artifacts loaded per type (server caps at 100). Tab totals use directory denormalized counts. */
+const ARTIFACT_PAGE_LIMIT = 100;
+
 export const DirectoryDetailPage = () => {
   const { directoryId } = useParams<{ directoryId: string }>();
   const navigate = useNavigate();
@@ -40,7 +43,7 @@ export const DirectoryDetailPage = () => {
     isLoading,
     error,
   } = useGetDirectoryContentsWithArtifactsQuery(
-    { directoryId: directoryId ?? null, artifactLimit: 30 },
+    { directoryId: directoryId ?? null, artifactLimit: ARTIFACT_PAGE_LIMIT },
     { skip: !directoryId }
   );
 
@@ -89,9 +92,16 @@ export const DirectoryDetailPage = () => {
   const slideDecks = contents.slideDecks || [];
   const resolvedRules = contents.resolvedRules;
 
-  const quizCount = quizzes.length;
-  const fcCount = flashcardSets.length;
-  const sdCount = slideDecks.length;
+  const quizTotal = dir.quizCount ?? quizzes.length;
+  const fcTotal = dir.flashcardSetCount ?? flashcardSets.length;
+  const sdTotal = dir.slideDeckCount ?? slideDecks.length;
+
+  const quizListTruncated =
+    quizzes.length >= ARTIFACT_PAGE_LIMIT && quizTotal > quizzes.length;
+  const fcListTruncated =
+    flashcardSets.length >= ARTIFACT_PAGE_LIMIT && fcTotal > flashcardSets.length;
+  const sdListTruncated =
+    slideDecks.length >= ARTIFACT_PAGE_LIMIT && sdTotal > slideDecks.length;
 
   const ancestors = ancestorsData?.ancestors || [];
 
@@ -239,10 +249,16 @@ export const DirectoryDetailPage = () => {
             <h2 className="text-lg font-semibold mb-3">Artifacts</h2>
             <Tabs value={artifactTab} onValueChange={setArtifactTab}>
               <TabsList>
-                <TabsTrigger value="quizzes">Quizzes ({quizCount})</TabsTrigger>
-                <TabsTrigger value="flashcards">Flashcards ({fcCount})</TabsTrigger>
-                <TabsTrigger value="slides">Slide decks ({sdCount})</TabsTrigger>
+                <TabsTrigger value="quizzes">Quizzes ({quizTotal})</TabsTrigger>
+                <TabsTrigger value="flashcards">Flashcards ({fcTotal})</TabsTrigger>
+                <TabsTrigger value="slides">Slide decks ({sdTotal})</TabsTrigger>
               </TabsList>
+              {(quizListTruncated || fcListTruncated || sdListTruncated) && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Lists show the newest {ARTIFACT_PAGE_LIMIT} per type when there are more — totals above are
+                  for the whole folder.
+                </p>
+              )}
               <TabsContent value="quizzes" className="mt-4 space-y-2">
                 {quizzes.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No quizzes in this directory yet.</p>

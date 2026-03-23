@@ -40,6 +40,9 @@ export const CreateSlideDeckPageContainer = () => {
     }
   };
 
+  const backLabel =
+    directoryIdParam || selectedDirectoryId ? 'Back' : 'Back to Documents';
+
   const primaryDocument = documents.find(d => d.id === watchedDocumentIds?.[0]);
 
   // useRef guard: apply preselection exactly once on mount
@@ -77,9 +80,9 @@ export const CreateSlideDeckPageContainer = () => {
       <div className={createSlideDeckPageStyles.container}>
         <header className={createSlideDeckPageStyles.header}>
           <div className={createSlideDeckPageStyles.headerContent}>
-            <button onClick={handleBack} className={createSlideDeckPageStyles.backButton}>
+            <button type="button" onClick={handleBack} className={createSlideDeckPageStyles.backButton}>
               <ArrowLeft size={20} />
-              Back to Documents
+              {backLabel}
             </button>
             <h1 className={createSlideDeckPageStyles.title}>Create Slide Deck</h1>
             <div></div>

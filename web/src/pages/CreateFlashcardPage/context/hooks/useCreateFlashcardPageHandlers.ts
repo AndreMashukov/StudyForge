@@ -35,6 +35,7 @@ export const useCreateFlashcardPageHandlers = ({ form, documents }: UseCreateFla
         ...(resolvedDirectoryId ? { directoryId: resolvedDirectoryId } : {}),
         ...(trimmedTitle ? { title: trimmedTitle } : {}),
         ...(trimmedPrompt ? { additionalPrompt: trimmedPrompt } : {}),
+        ...(formData.ruleIds?.length ? { ruleIds: formData.ruleIds } : {}),
       }).unwrap();
 
       if (result.success && result.data) {

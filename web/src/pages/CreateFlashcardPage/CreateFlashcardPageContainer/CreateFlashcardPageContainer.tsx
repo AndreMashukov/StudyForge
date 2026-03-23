@@ -40,6 +40,9 @@ export const CreateFlashcardPageContainer = () => {
     }
   };
 
+  const backLabel =
+    directoryIdParam || selectedDirectoryId ? 'Back' : 'Back to Documents';
+
   const primaryDocument = documents.find(d => d.id === watchedDocumentIds?.[0]);
 
   // useRef guard: apply preselection exactly once on mount
@@ -79,7 +82,7 @@ export const CreateFlashcardPageContainer = () => {
           <div className={createFlashcardPageStyles.headerContent}>
             <Button variant="ghost" onClick={handleBack} className={createFlashcardPageStyles.backButton}>
               <ArrowLeft size={20} />
-              Back to Documents
+              {backLabel}
             </Button>
             <h1 className={createFlashcardPageStyles.title}>Create Flashcards</h1>
             <div></div>

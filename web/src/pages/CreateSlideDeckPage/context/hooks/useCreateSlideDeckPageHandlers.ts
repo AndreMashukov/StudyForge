@@ -33,6 +33,7 @@ export const useCreateSlideDeckPageHandlers = ({ form, documents }: UseCreateSli
         ...(resolvedDirectoryId ? { directoryId: resolvedDirectoryId } : {}),
         title: formData.slideDeckName?.trim() || undefined,
         additionalPrompt: formData.additionalPrompt?.trim() || undefined,
+        ...(formData.ruleIds?.length ? { ruleIds: formData.ruleIds } : {}),
       }).unwrap();
 
       if (result.success && result.data) {
