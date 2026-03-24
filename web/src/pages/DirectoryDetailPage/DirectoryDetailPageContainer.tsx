@@ -21,13 +21,17 @@ import {
   Presentation,
   FileText,
   FolderOpen,
+  FolderPlus,
   ChevronDown,
   Sparkles,
   Settings,
+  Trash2,
 } from 'lucide-react';
 import { DocumentEnhanced, Directory, Quiz, FlashcardSet, SlideDeck, Rule } from '@shared-types';
 import { formatDate } from '../../utils/dateUtils';
 import { cn } from '../../lib/utils';
+import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/CreateDirectoryDialog';
+import { DeleteDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/DeleteDirectoryDialog';
 
 /** Max artifacts loaded per type (server caps at 100). Tab totals use directory denormalized counts. */
 const ARTIFACT_PAGE_LIMIT = 100;
@@ -37,6 +41,8 @@ export const DirectoryDetailPageContainer = () => {
   const navigate = useNavigate();
   const [rulesOpen, setRulesOpen] = useState(false);
   const [artifactTab, setArtifactTab] = useState('quizzes');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<{ directory: Directory | null }>({ directory: null });
 
   const {
     data: contents,
@@ -181,6 +187,10 @@ export const DirectoryDetailPageContainer = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <Button variant="outline" size="sm" onClick={() => setCreateDialogOpen(true)}>
+                <FolderPlus size={16} />
+                New subfolder
+              </Button>
               <Button size="sm" asChild>
                 <Link to={`/documents/create?directoryId=${directoryId}`}>Add source</Link>
               </Button>
@@ -344,24 +354,63 @@ export const DirectoryDetailPageContainer = () => {
           )}
         </section>
 
-        {subdirectories.length > 0 && (
-          <section>
-            <h2 className="text-lg font-semibold mb-3">Subfolders</h2>
+        <section>
+          <h2 className="text-lg font-semibold mb-3">Subfolders</h2>
+          {subdirectories.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                No subfolders yet.
+                <Button variant="link" className="ml-1 p-0" onClick={() => setCreateDialogOpen(true)}>
+                  Create one
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
             <div className="grid sm:grid-cols-2 gap-3">
               {subdirectories.map((sub: Directory) => (
-                <Link
+                <div
                   key={sub.id}
-                  to={`/directory/${sub.id}`}
-                  className="rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors flex items-center gap-2"
+                  className="rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors flex items-center gap-2 group"
                 >
-                  <FolderOpen size={20} className="text-primary" />
-                  <span className="font-medium">{sub.name}</span>
-                </Link>
+                  <Link
+                    to={`/directory/${sub.id}`}
+                    className="flex items-center gap-2 flex-1 min-w-0"
+                  >
+                    <FolderOpen size={20} className="text-primary shrink-0" />
+                    <span className="font-medium truncate">{sub.name}</span>
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 group-hover:opacity-100 shrink-0 h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteDialog({ directory: sub });
+                    }}
+                    aria-label={`Delete ${sub.name}`}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
               ))}
             </div>
-          </section>
-        )}
+          )}
+        </section>
       </div>
+
+      <CreateDirectoryDialog
+        isOpen={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        parentId={directoryId}
+        onSuccess={() => setCreateDialogOpen(false)}
+      />
+
+      <DeleteDirectoryDialog
+        isOpen={!!deleteDialog.directory}
+        onClose={() => setDeleteDialog({ directory: null })}
+        directory={deleteDialog.directory}
+        onSuccess={() => setDeleteDialog({ directory: null })}
+      />
     </Page>
   );
 };
