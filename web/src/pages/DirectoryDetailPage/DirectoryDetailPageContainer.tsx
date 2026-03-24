@@ -187,7 +187,7 @@ export const DirectoryDetailPageContainer = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button variant="outline" size="sm" onClick={() => setCreateDialogOpen(true)}>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => setCreateDialogOpen(true)}>
                 <FolderPlus size={16} />
                 New subfolder
               </Button>
