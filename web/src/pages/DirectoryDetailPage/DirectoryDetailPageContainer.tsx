@@ -118,10 +118,16 @@ export const DirectoryDetailPageContainer = () => {
           <Button
             variant="ghost"
             className="self-start gap-2 text-muted-foreground"
-            onClick={() => navigate('/documents')}
+            onClick={() =>
+              navigate(
+                ancestors.length > 0
+                  ? `/directory/${ancestors[ancestors.length - 1].id}`
+                  : '/documents'
+              )
+            }
           >
             <ArrowLeft size={18} />
-            Back to My Directories
+            Back
           </Button>
 
           <nav className="text-sm text-muted-foreground flex flex-wrap gap-1 items-center">
