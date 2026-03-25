@@ -20,18 +20,32 @@ import {
   Layers,
   Presentation,
   FileText,
+  Folder,
   FolderOpen,
   FolderPlus,
   ChevronDown,
   Sparkles,
   Settings,
   Trash2,
+  Briefcase,
+  Target,
+  Zap,
+  Rocket,
 } from 'lucide-react';
 import { DocumentEnhanced, Directory, Quiz, FlashcardSet, SlideDeck, Rule } from '@shared-types';
 import { formatDate } from '../../utils/dateUtils';
 import { cn } from '../../lib/utils';
 import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/CreateDirectoryDialog';
 import { DeleteDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/DeleteDirectoryDialog';
+
+const ICON_MAP: Record<string, React.ComponentType<{ size?: number; color?: string; className?: string }>> = {
+  'Folder': Folder,
+  'Folder Open': FolderOpen,
+  'Briefcase': Briefcase,
+  'Target': Target,
+  'Zap': Zap,
+  'Rocket': Rocket,
+};
 
 /** Max artifacts loaded per type (server caps at 100). Tab totals use directory denormalized counts. */
 const ARTIFACT_PAGE_LIMIT = 100;
@@ -382,7 +396,7 @@ export const DirectoryDetailPageContainer = () => {
                     to={`/directory/${sub.id}`}
                     className="flex items-center gap-2 flex-1 min-w-0"
                   >
-                    <FolderOpen size={20} className="text-primary shrink-0" />
+                    {(() => { const IconComponent = ICON_MAP[sub.icon || 'Folder'] || Folder; return <IconComponent size={20} color={sub.color || undefined} className={sub.color ? 'shrink-0' : 'text-primary shrink-0'} />; })()}
                     <span className="font-medium truncate">{sub.name}</span>
                   </Link>
                   <Button
