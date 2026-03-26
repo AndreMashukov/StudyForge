@@ -95,7 +95,7 @@ export const DocumentViewerPageContainer = () => {
   const handleBreadcrumbNavigate = (directoryId: string | null) => {
     dispatch(setSelectedDirectory(directoryId));
     if (directoryId) {
-      navigate(`/documents?directoryId=${directoryId}`);
+      navigate(`/directory/${directoryId}`);
       return;
     }
     navigate('/documents');
