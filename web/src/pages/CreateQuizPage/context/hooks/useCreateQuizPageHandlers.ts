@@ -34,6 +34,7 @@ export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPage
         directoryId: resolvedDirectoryId,
         quizName: formData.quizName?.trim() || undefined,
         additionalPrompt: formData.additionalPrompt?.trim() || undefined,
+        additionalRuleIds: formData.ruleIds?.length ? formData.ruleIds : undefined,
       }).unwrap();
 
       showToast(
