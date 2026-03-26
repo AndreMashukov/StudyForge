@@ -160,4 +160,4 @@ docs/*
 # Firebase backups (contain sensitive data)
 *.backup
 env.prod
-env.dev
+env.devscreenshots/
