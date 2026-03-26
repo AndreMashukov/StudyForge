@@ -16,6 +16,7 @@ export const useCreateQuizPageForm = () => {
       documentIds: preSelectedDocumentId ? [preSelectedDocumentId] : [],
       quizName: '',
       additionalPrompt: '',
+      ruleIds: [],
     },
   });
 

@@ -21,6 +21,7 @@ const createCreateQuizPageSchema = () => z.object({
       "Additional prompt cannot be only whitespace"
     )
     .optional(),
+  ruleIds: z.array(z.string()).optional(),
 });
 
 export type CreateQuizPageFormData = z.infer<ReturnType<typeof createCreateQuizPageSchema>>;

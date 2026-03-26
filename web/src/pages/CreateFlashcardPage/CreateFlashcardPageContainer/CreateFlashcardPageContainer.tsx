@@ -10,7 +10,7 @@ import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
 import { PreSelectedDocumentSelector } from '../../../components/PreSelectedDocumentSelector';
-import { ResolvedRulesInfo } from '../../../components/ResolvedRulesInfo';
+import { RuleSelector } from '../../../components/RuleSelector';
 import { createFlashcardPageStyles } from './CreateFlashcardPageContainer.styles';
 import { ArrowLeft, Layers } from 'lucide-react';
 import { RuleApplicability } from '@shared-types';
@@ -31,6 +31,11 @@ export const CreateFlashcardPageContainer = () => {
 
   const watchedDocumentIds = watch('documentIds');
   const watchedFlashcardName = watch('flashcardName');
+  const watchedRuleIds = watch('ruleIds');
+
+  const handleRuleSelectionChange = (ruleIds: string[]) => {
+    setValue('ruleIds', ruleIds);
+  };
 
   const handleBack = () => {
     if (directoryIdParam) {
@@ -162,10 +167,12 @@ export const CreateFlashcardPageContainer = () => {
                   )}
                 </div>
 
-                {/* Resolved Rules */}
-                <ResolvedRulesInfo
-                  directoryId={directoryIdParam}
+                {/* Rules */}
+                <RuleSelector
+                  directoryId={directoryIdParam ?? ''}
                   operation={RuleApplicability.FLASHCARD}
+                  selectedRuleIds={watchedRuleIds ?? []}
+                  onSelectionChange={handleRuleSelectionChange}
                 />
 
                 {/* Form Actions */}
