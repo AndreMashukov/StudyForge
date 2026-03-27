@@ -293,19 +293,19 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                                       id: 'create-quiz',
                                       label: 'Create Quiz',
                                       icon: <Brain size={14} />,
-                                      onClick: () => handlers.handleCreateQuizFromDocument(document.id),
+                                      onClick: () => handlers.handleCreateQuizFromDocument(document.id, document.directoryId),
                                     },
                                     {
                                       id: 'generate-flashcards',
                                       label: 'Generate Flashcards',
                                       icon: <Layers size={14} />,
-                                      onClick: () => handlers.handleGenerateFlashcardsFromDocument(document.id),
+                                      onClick: () => handlers.handleGenerateFlashcardsFromDocument(document.id, document.directoryId),
                                     },
                                     {
                                       id: 'generate-slide-deck',
                                       label: 'Generate Slide Deck',
                                       icon: <Presentation size={14} />,
-                                      onClick: () => handlers.handleGenerateSlideDeckFromDocument(document.id),
+                                      onClick: () => handlers.handleGenerateSlideDeckFromDocument(document.id, document.directoryId),
                                     },
                                   ]}
                                   className="flex-1 w-full sm:w-auto"

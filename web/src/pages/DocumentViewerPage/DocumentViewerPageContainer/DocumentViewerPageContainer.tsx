@@ -103,12 +103,22 @@ export const DocumentViewerPageContainer = () => {
 
   const handleCreateFlashcards = () => {
     if (!documentId) return;
-    navigate(`/flashcards/create?documentId=${documentId}`);
+    const directoryId = documentApi.data?.directoryId;
+    const params = new URLSearchParams({ documentId });
+    if (directoryId) {
+      params.set('directoryId', directoryId);
+    }
+    navigate(`/flashcards/create?${params.toString()}`);
   };
 
   const handleCreateSlideDeck = () => {
     if (!documentId) return;
-    navigate(`/slides/create?documentId=${documentId}`);
+    const directoryId = documentApi.data?.directoryId;
+    const params = new URLSearchParams({ documentId });
+    if (directoryId) {
+      params.set('directoryId', directoryId);
+    }
+    navigate(`/slides/create?${params.toString()}`);
   };
 
   // Early returns for loading and error states
