@@ -27,18 +27,30 @@ export const useDocumentsPageHandlers = () => {
     navigate(`/document/${documentId}`);
   }, [navigate, dispatch]);
 
-  const handleCreateQuizFromDocument = useCallback((documentId: string) => {
+  const handleCreateQuizFromDocument = useCallback((documentId: string, directoryId?: string) => {
     console.log('Navigating to create quiz page for document:', documentId);
     // Navigate to create quiz page with pre-selected document
-    navigate(`/quiz/create?documentId=${documentId}`);
+    const params = new URLSearchParams({ documentId });
+    if (directoryId) {
+      params.set('directoryId', directoryId);
+    }
+    navigate(`/quiz/create?${params.toString()}`);
   }, [navigate]);
 
-  const handleGenerateFlashcardsFromDocument = useCallback((documentId: string) => {
-    navigate(`/flashcards/create?documentId=${documentId}`);
+  const handleGenerateFlashcardsFromDocument = useCallback((documentId: string, directoryId?: string) => {
+    const params = new URLSearchParams({ documentId });
+    if (directoryId) {
+      params.set('directoryId', directoryId);
+    }
+    navigate(`/flashcards/create?${params.toString()}`);
   }, [navigate]);
 
-  const handleGenerateSlideDeckFromDocument = useCallback((documentId: string) => {
-    navigate(`/slides/create?documentId=${documentId}`);
+  const handleGenerateSlideDeckFromDocument = useCallback((documentId: string, directoryId?: string) => {
+    const params = new URLSearchParams({ documentId });
+    if (directoryId) {
+      params.set('directoryId', directoryId);
+    }
+    navigate(`/slides/create?${params.toString()}`);
   }, [navigate]);
 
   const handleDeleteDocument = useCallback(async (documentId: string) => {

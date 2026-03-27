@@ -33,8 +33,31 @@ export const useDocumentViewerPageHandlers = ({
   const [askDocumentQuestion] = useAskDocumentQuestionMutation();
 
   const handleCreateQuizFromDocument = useCallback((docId: string) => {
-    navigate(`/quiz/create?documentId=${docId}`);
-  }, [navigate]);
+    const directoryId = document?.directoryId;
+    const params = new URLSearchParams({ documentId: docId });
+    if (directoryId) {
+      params.set('directoryId', directoryId);
+    }
+    navigate(`/quiz/create?${params.toString()}`);
+  }, [navigate, document?.directoryId]);
+
+  const handleGenerateFlashcards = useCallback((docId: string) => {
+    const directoryId = document?.directoryId;
+    const params = new URLSearchParams({ documentId: docId });
+    if (directoryId) {
+      params.set('directoryId', directoryId);
+    }
+    navigate(`/flashcards/create?${params.toString()}`);
+  }, [navigate, document?.directoryId]);
+
+  const handleGenerateSlideDeck = useCallback((docId: string) => {
+    const directoryId = document?.directoryId;
+    const params = new URLSearchParams({ documentId: docId });
+    if (directoryId) {
+      params.set('directoryId', directoryId);
+    }
+    navigate(`/slides/create?${params.toString()}`);
+  }, [navigate, document?.directoryId]);
 
   const handleTocGenerated = useCallback((toc: TocItem[]) => {
     dispatch(setTocItems(toc));
@@ -121,6 +144,8 @@ export const useDocumentViewerPageHandlers = ({
 
   return {
     handleCreateQuizFromDocument,
+    handleGenerateFlashcards,
+    handleGenerateSlideDeck,
     handleTocGenerated,
     handleExportPDF,
     handleDownloadMd,

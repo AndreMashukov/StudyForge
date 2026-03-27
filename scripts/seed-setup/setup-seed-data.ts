@@ -309,7 +309,7 @@ async function main() {
     content: RULE_CONTENT,
     color: 'blue',
     tags: ['study', 'general'],
-    applicableTo: ['prompt'],
+    applicableTo: ['prompt', 'quiz', 'flashcard', 'slide_deck'],
     isDefault: true,
     directoryIds: [DIR_ID],
     createdAt: now,
