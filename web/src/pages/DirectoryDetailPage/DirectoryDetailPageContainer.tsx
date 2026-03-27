@@ -37,6 +37,7 @@ import { formatDate } from '../../utils/dateUtils';
 import { cn } from '../../lib/utils';
 import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/CreateDirectoryDialog';
 import { DeleteDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/DeleteDirectoryDialog';
+import { DeleteDocumentDialog } from './DeleteDocumentDialog';
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; color?: string; className?: string }>> = {
   'Folder': Folder,
@@ -57,6 +58,7 @@ export const DirectoryDetailPageContainer = () => {
   const [artifactTab, setArtifactTab] = useState('quizzes');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ directory: Directory | null }>({ directory: null });
+  const [deleteDocDialog, setDeleteDocDialog] = useState<{ document: DocumentEnhanced | null }>({ document: null });
 
   const {
     data: contents,
@@ -229,8 +231,22 @@ export const DirectoryDetailPageContainer = () => {
           ) : (
             <div className="grid sm:grid-cols-2 gap-3">
               {documents.map((doc: DocumentEnhanced) => (
-                <Card key={doc.id} className="hover:border-primary/40 transition-colors">
-                  <CardHeader className="pb-2">
+                <Card key={doc.id} className="hover:border-primary/40 transition-colors relative group">
+                  {/* Delete button - absolute positioned top-right */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive z-10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteDocDialog({ document: doc });
+                    }}
+                    aria-label={`Delete ${doc.title}`}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+
+                  <CardHeader className="pb-2 pr-10">
                     <CardTitle className="text-base truncate flex items-center gap-2">
                       <FileText size={18} className="shrink-0 text-muted-foreground" />
                       {doc.title}
@@ -430,6 +446,13 @@ export const DirectoryDetailPageContainer = () => {
         onClose={() => setDeleteDialog({ directory: null })}
         directory={deleteDialog.directory}
         onSuccess={() => setDeleteDialog({ directory: null })}
+      />
+
+      <DeleteDocumentDialog
+        isOpen={!!deleteDocDialog.document}
+        onClose={() => setDeleteDocDialog({ document: null })}
+        document={deleteDocDialog.document}
+        onSuccess={() => setDeleteDocDialog({ document: null })}
       />
     </Page>
   );
