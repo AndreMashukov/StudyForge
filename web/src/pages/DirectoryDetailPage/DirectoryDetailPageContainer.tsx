@@ -350,7 +350,7 @@ export const DirectoryDetailPageContainer = () => {
                     >
                       <div className="font-medium">{f.title}</div>
                       <div className="text-xs text-muted-foreground">
-                        {formatDate(f.createdAt as unknown as Date)}
+                        {formatDate(f.createdAt)}
                       </div>
                     </Link>
                     <Button
@@ -384,7 +384,7 @@ export const DirectoryDetailPageContainer = () => {
                     >
                       <div className="font-medium">{s.title}</div>
                       <div className="text-xs text-muted-foreground">
-                        {formatDate(s.createdAt as unknown as Date)}
+                        {formatDate(s.createdAt)}
                       </div>
                     </Link>
                     <Button
