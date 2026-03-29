@@ -1,6 +1,7 @@
 import React from 'react';
 import { FileText, Brain, Layers, Presentation, Settings } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { Button } from '../../components/ui/Button';
 
 export type PanelType = 'sources' | 'quizzes' | 'cards' | 'slides' | 'rules';
 
@@ -21,11 +22,12 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
 }) => {
   const isActive = activePanel === panel;
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="icon"
       onClick={() => onPanelChange(panel)}
       className={cn(
-        'flex flex-col items-center justify-center gap-1 w-full py-2 px-1 rounded-md transition-colors',
+        'flex flex-col items-center justify-center gap-1 w-full py-2 px-1 rounded-md transition-colors h-auto',
         isActive
           ? 'text-[#8B5CF6] bg-[#8B5CF6]/10'
           : 'text-[#9CA3AF] hover:text-foreground hover:bg-muted/50'
@@ -35,7 +37,7 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
     >
       <Icon size={20} />
       <span className="text-[10px] leading-tight font-medium">{label}</span>
-    </button>
+    </Button>
   );
 };
 
@@ -60,10 +62,9 @@ export const DirectoryIconSidebar: React.FC<DirectoryIconSidebarProps> = ({
   onPanelChange,
 }) => {
   return (
-    <aside
+    <nav
       className="w-[60px] shrink-0 flex flex-col items-center py-4 border-r border-border bg-transparent"
-      role="tablist"
-      aria-orientation="vertical"
+      aria-label="Directory content"
     >
       <div className="flex flex-col gap-1 w-full px-2">
         {CONTENT_ITEMS.map((item) => (
@@ -92,6 +93,6 @@ export const DirectoryIconSidebar: React.FC<DirectoryIconSidebarProps> = ({
           />
         ))}
       </div>
-    </aside>
+    </nav>
   );
 };

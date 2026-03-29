@@ -27,7 +27,7 @@ const FlashcardRow: React.FC<FlashcardRowProps> = ({ flashcard, directoryId, onD
       <Button
         variant="ghost"
         size="icon"
-        className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive z-10"
+        className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity text-muted-foreground hover:text-destructive z-10"
         onClick={(e) => {
           e.stopPropagation();
           onDelete(flashcard);
