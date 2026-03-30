@@ -192,7 +192,7 @@ export const DirectoryDetailPageContainer = () => {
                 return (
                   <div
                     key={sub.id}
-                    className="group/pill inline-flex items-center gap-0.5 rounded-full border border-border text-sm hover:bg-muted/50 transition-colors overflow-hidden"
+                    className="group/pill inline-flex items-center gap-0.5 rounded-full border border-border text-sm hover:bg-muted/50 transition-colors"
                   >
                     <Link
                       to={`/directory/${sub.id}`}
