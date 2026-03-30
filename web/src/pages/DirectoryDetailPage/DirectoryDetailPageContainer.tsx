@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   useGetDirectoryContentsWithArtifactsQuery,
@@ -45,6 +45,11 @@ export const DirectoryDetailPageContainer = () => {
   const { directoryId } = useParams<{ directoryId: string }>();
   const navigate = useNavigate();
   const [activePanel, setActivePanel] = useState<PanelType>('sources');
+
+  // Reset panel to sources when navigating to a different directory
+  useEffect(() => {
+    setActivePanel('sources');
+  }, [directoryId]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ directory: Directory | null }>({ directory: null });
   const [deleteDocDialog, setDeleteDocDialog] = useState<{ document: DocumentEnhanced | null }>({ document: null });
@@ -104,6 +109,11 @@ export const DirectoryDetailPageContainer = () => {
   const slideDecks = contents.slideDecks || [];
   const resolvedRules = contents.resolvedRules;
   const ancestors = ancestorsData?.ancestors || [];
+
+  // Detect truncation: server caps at ARTIFACT_PAGE_LIMIT per type
+  const quizzesTruncated = quizzes.length >= ARTIFACT_PAGE_LIMIT;
+  const flashcardsTruncated = flashcardSets.length >= ARTIFACT_PAGE_LIMIT;
+  const slidesTruncated = slideDecks.length >= ARTIFACT_PAGE_LIMIT;
 
   return (
     <Page showSidebar>
@@ -206,6 +216,7 @@ export const DirectoryDetailPageContainer = () => {
               <QuizzesPanel
                 quizzes={quizzes}
                 directoryId={directoryId}
+                mayBeTruncated={quizzesTruncated}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
               />
             )}
@@ -213,6 +224,7 @@ export const DirectoryDetailPageContainer = () => {
               <FlashcardsPanel
                 flashcardSets={flashcardSets}
                 directoryId={directoryId}
+                mayBeTruncated={flashcardsTruncated}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
               />
             )}
@@ -220,6 +232,7 @@ export const DirectoryDetailPageContainer = () => {
               <SlidesPanel
                 slideDecks={slideDecks}
                 directoryId={directoryId}
+                mayBeTruncated={slidesTruncated}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
               />
             )}

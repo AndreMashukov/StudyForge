@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Brain, Trash2 } from 'lucide-react';
+import { AlertTriangle, Brain, Trash2 } from 'lucide-react';
 import { Quiz } from '@shared-types';
 import { formatDate } from '../../utils/dateUtils';
 import { Button } from '../../components/ui/Button';
@@ -43,12 +43,14 @@ const QuizRow: React.FC<QuizRowProps> = ({ quiz, directoryId, onDelete }) => {
 interface QuizzesPanelProps {
   quizzes: Quiz[];
   directoryId: string;
+  mayBeTruncated?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'quiz' }) => void;
 }
 
 export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
   quizzes,
   directoryId,
+  mayBeTruncated = false,
   onDeleteArtifact,
 }) => {
   return (
@@ -59,7 +61,12 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
           <Link to={`/quiz/create?directoryId=${directoryId}`}>+ Create quiz</Link>
         </Button>
       </div>
-
+      {mayBeTruncated && (
+        <div className="flex items-center gap-2 rounded-md border border-yellow-600/50 bg-yellow-950/20 px-3 py-2 text-sm text-yellow-500">
+          <AlertTriangle size={16} className="shrink-0" />
+          <span>Showing first {quizzes.length} quizzes — more may exist.</span>
+        </div>
+      )}
       {quizzes.length === 0 ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
           No quizzes in this directory yet.
