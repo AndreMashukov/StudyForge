@@ -121,7 +121,7 @@ export const PreSelectedDocumentSelector = ({
           disabled={disabled || isLoading}
         >
           <Plus size={14} />
-          {showPicker ? 'Close document picker' : '+ Add more documents'}
+          {showPicker ? 'Close document picker' : 'Add more documents'}
         </Button>
       )}
 

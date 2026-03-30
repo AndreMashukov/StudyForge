@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { 
   selectSelectedSource,
@@ -10,6 +10,7 @@ import {
   selectFileFormLoading,
   selectTextPromptFormLoading,
   selectTextPromptFormProgress,
+  selectDirectoryId,
 } from '../../../../store/slices/createDocumentPageSlice';
 import { useGetUserDocumentsQuery } from '../../../../store/api/Documents';
 import { useCreateDocumentPageContext } from '../../context/hooks/useCreateDocumentPageContext';
@@ -70,7 +71,14 @@ export const FormRenderer = ({ onBack }: IFormRendererProps) => {
   
   // Fetch user documents for library selector
   const { data: documentsData, isLoading: isLoadingDocuments } = useGetUserDocumentsQuery();
-  const userDocuments = documentsData?.documents || [];
+  const allDocuments = documentsData?.documents || [];
+  const directoryId = useSelector((state: RootState) => selectDirectoryId(state));
+  const userDocuments = useMemo(
+    () => directoryId
+      ? allDocuments.filter(d => d.directoryId === directoryId)
+      : allDocuments,
+    [allDocuments, directoryId]
+  );
   
   // File upload hook with documents
   const fileUpload = useFileUpload(userDocuments);

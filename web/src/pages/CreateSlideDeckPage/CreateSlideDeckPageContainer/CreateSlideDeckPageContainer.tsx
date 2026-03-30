@@ -26,7 +26,14 @@ export const CreateSlideDeckPageContainer = () => {
   const { handleSubmit, isSubmitting } = handlers;
 
   const { data: documentsResponse, isLoading } = documentsApi;
-  const documents = useMemo(() => documentsResponse?.documents || [], [documentsResponse]);
+  const allDocuments = useMemo(() => documentsResponse?.documents || [], [documentsResponse]);
+  const resolvedDirectoryId = directoryIdParam || selectedDirectoryId;
+  const documents = useMemo(
+    () => resolvedDirectoryId
+      ? allDocuments.filter(d => d.directoryId === resolvedDirectoryId)
+      : allDocuments,
+    [allDocuments, resolvedDirectoryId]
+  );
   const { register, watch, setValue, formState: { errors } } = form;
 
   const watchedDocumentIds = watch('documentIds');
