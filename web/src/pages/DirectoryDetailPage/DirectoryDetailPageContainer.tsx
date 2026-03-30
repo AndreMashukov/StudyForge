@@ -8,6 +8,12 @@ import { Page } from '../../components/Page';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/DropdownMenu';
+import {
   ArrowLeft,
   Folder,
   FolderOpen,
@@ -16,6 +22,9 @@ import {
   Target,
   Zap,
   Rocket,
+  MoreVertical,
+  Trash2,
+  Shield,
 } from 'lucide-react';
 import { DocumentEnhanced, Directory } from '@shared-types';
 import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/CreateDirectoryDialog';
@@ -178,25 +187,55 @@ export const DirectoryDetailPageContainer = () => {
           {/* Subfolder pills */}
           {subdirectories.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {subdirectories.map((sub: Directory) => (
-                <Link
-                  key={sub.id}
-                  to={`/directory/${sub.id}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-sm hover:bg-muted/50 transition-colors"
-                >
-                  {(() => {
-                    const IconComponent = ICON_MAP[sub.icon || 'Folder'] || Folder;
-                    return (
+              {subdirectories.map((sub: Directory) => {
+                const IconComponent = ICON_MAP[sub.icon || 'Folder'] || Folder;
+                return (
+                  <div
+                    key={sub.id}
+                    className="group/pill inline-flex items-center gap-0.5 rounded-full border border-border text-sm hover:bg-muted/50 transition-colors"
+                  >
+                    <Link
+                      to={`/directory/${sub.id}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5"
+                    >
                       <IconComponent
                         size={14}
                         color={sub.color || undefined}
                         className={sub.color ? 'shrink-0' : 'text-primary shrink-0'}
                       />
-                    );
-                  })()}
-                  {sub.name}
-                </Link>
-              ))}
+                      {sub.name}
+                    </Link>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Actions for ${sub.name}`}
+                        >
+                          <MoreVertical size={14} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => navigate(`/directories/${sub.id}/rules`)}
+                        >
+                          <Shield size={14} className="mr-2" />
+                          Manage rules
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleteDialog({ directory: sub })}
+                        >
+                          <Trash2 size={14} className="mr-2" />
+                          Delete folder
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

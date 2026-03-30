@@ -161,3 +161,4 @@ docs/*
 *.backup
 env.prod
 env.devscreenshots/
+wireframes/

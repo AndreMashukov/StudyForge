@@ -11,7 +11,8 @@
     "playwright": {
       "command": "npx",
       "args": [
-        "@playwright/mcp@latest"
+        "@playwright/mcp@latest",
+        "--no-sandbox"
       ]
     },
     "nx-mcp": {
@@ -19,5 +20,5 @@
       "command": "npx",
       "args": ["nx-mcp@latest"]
     }
-  },
+  }
 }
