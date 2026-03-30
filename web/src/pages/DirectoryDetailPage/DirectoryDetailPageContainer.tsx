@@ -1,44 +1,33 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   useGetDirectoryContentsWithArtifactsQuery,
   useGetDirectoryAncestorsQuery,
 } from '../../store/api/Directory/DirectoryApi';
 import { Page } from '../../components/Page';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/Tabs';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../../components/ui/DropdownMenu';
 import {
   ArrowLeft,
-  Brain,
-  Layers,
-  Presentation,
-  FileText,
   Folder,
   FolderOpen,
   FolderPlus,
-  ChevronDown,
-  Sparkles,
-  Settings,
-  Trash2,
   Briefcase,
   Target,
   Zap,
   Rocket,
 } from 'lucide-react';
-import { DocumentEnhanced, Directory, Quiz, FlashcardSet, SlideDeck, Rule } from '@shared-types';
-import { formatDate } from '../../utils/dateUtils';
-import { cn } from '../../lib/utils';
+import { DocumentEnhanced, Directory } from '@shared-types';
 import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/CreateDirectoryDialog';
 import { DeleteDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/DeleteDirectoryDialog';
 import { DeleteDocumentDialog } from './DeleteDocumentDialog';
 import { DeleteArtifactDialog, ArtifactToDelete } from './DeleteArtifactDialog';
+import { DirectoryIconSidebar, PanelType } from './DirectoryIconSidebar';
+import { SourcesPanel } from './SourcesPanel';
+import { QuizzesPanel } from './QuizzesPanel';
+import { FlashcardsPanel } from './FlashcardsPanel';
+import { SlidesPanel } from './SlidesPanel';
+import { RulesPanel } from './RulesPanel';
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; color?: string; className?: string }>> = {
   'Folder': Folder,
@@ -49,14 +38,18 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; color?: stri
   'Rocket': Rocket,
 };
 
-/** Max artifacts loaded per type (server caps at 100). Tab totals use directory denormalized counts. */
+/** Max artifacts loaded per type (server caps at 100). */
 const ARTIFACT_PAGE_LIMIT = 100;
 
 export const DirectoryDetailPageContainer = () => {
   const { directoryId } = useParams<{ directoryId: string }>();
   const navigate = useNavigate();
-  const [rulesOpen, setRulesOpen] = useState(false);
-  const [artifactTab, setArtifactTab] = useState('quizzes');
+  const [activePanel, setActivePanel] = useState<PanelType>('sources');
+
+  // Reset panel to sources when navigating to a different directory
+  useEffect(() => {
+    setActivePanel('sources');
+  }, [directoryId]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ directory: Directory | null }>({ directory: null });
   const [deleteDocDialog, setDeleteDocDialog] = useState<{ document: DocumentEnhanced | null }>({ document: null });
@@ -115,24 +108,19 @@ export const DirectoryDetailPageContainer = () => {
   const flashcardSets = contents.flashcardSets || [];
   const slideDecks = contents.slideDecks || [];
   const resolvedRules = contents.resolvedRules;
-
-  const quizTotal = dir.quizCount ?? quizzes.length;
-  const fcTotal = dir.flashcardSetCount ?? flashcardSets.length;
-  const sdTotal = dir.slideDeckCount ?? slideDecks.length;
-
-  const quizListTruncated =
-    quizzes.length >= ARTIFACT_PAGE_LIMIT && quizTotal > quizzes.length;
-  const fcListTruncated =
-    flashcardSets.length >= ARTIFACT_PAGE_LIMIT && fcTotal > flashcardSets.length;
-  const sdListTruncated =
-    slideDecks.length >= ARTIFACT_PAGE_LIMIT && sdTotal > slideDecks.length;
-
   const ancestors = ancestorsData?.ancestors || [];
+
+  // Detect truncation: server caps at ARTIFACT_PAGE_LIMIT per type
+  const quizzesTruncated = quizzes.length >= ARTIFACT_PAGE_LIMIT;
+  const flashcardsTruncated = flashcardSets.length >= ARTIFACT_PAGE_LIMIT;
+  const slidesTruncated = slideDecks.length >= ARTIFACT_PAGE_LIMIT;
 
   return (
     <Page showSidebar>
-      <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-8">
+      <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+        {/* Header: Back button + Breadcrumb + Directory title + Action buttons */}
         <div className="flex flex-col gap-4">
+          {/* Back button */}
           <Button
             variant="ghost"
             className="self-start gap-2 text-muted-foreground"
@@ -148,6 +136,7 @@ export const DirectoryDetailPageContainer = () => {
             Back
           </Button>
 
+          {/* Breadcrumb */}
           <nav className="text-sm text-muted-foreground flex flex-wrap gap-1 items-center">
             <Link to="/documents" className="hover:text-foreground">
               Directories
@@ -164,6 +153,7 @@ export const DirectoryDetailPageContainer = () => {
             <span className="text-foreground font-medium">{dir.name}</span>
           </nav>
 
+          {/* Directory title + actions row */}
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold flex items-center gap-2">
@@ -175,42 +165,6 @@ export const DirectoryDetailPageContainer = () => {
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/directories/${directoryId}/rules`}>
-                  <Settings size={16} />
-                  Rules
-                </Link>
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm">
-                    Generate
-                    <ChevronDown size={16} className="ml-1" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => navigate(`/quiz/create?directoryId=${directoryId}`)}
-                  >
-                    <Brain size={16} className="mr-2" />
-                    Quiz
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      navigate(`/flashcards/create?directoryId=${directoryId}`)
-                    }
-                  >
-                    <Layers size={16} className="mr-2" />
-                    Flashcards
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => navigate(`/slides/create?directoryId=${directoryId}`)}
-                  >
-                    <Presentation size={16} className="mr-2" />
-                    Slide deck
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
               <Button variant="outline" size="sm" className="gap-2" onClick={() => setCreateDialogOpen(true)}>
                 <FolderPlus size={16} />
                 New subfolder
@@ -220,270 +174,79 @@ export const DirectoryDetailPageContainer = () => {
               </Button>
             </div>
           </div>
+
+          {/* Subfolder pills */}
+          {subdirectories.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {subdirectories.map((sub: Directory) => (
+                <Link
+                  key={sub.id}
+                  to={`/directory/${sub.id}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-sm hover:bg-muted/50 transition-colors"
+                >
+                  {(() => {
+                    const IconComponent = ICON_MAP[sub.icon || 'Folder'] || Folder;
+                    return (
+                      <IconComponent
+                        size={14}
+                        color={sub.color || undefined}
+                        className={sub.color ? 'shrink-0' : 'text-primary shrink-0'}
+                      />
+                    );
+                  })()}
+                  {sub.name}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
-        <section>
-          <h2 className="text-lg font-semibold mb-3">Sources</h2>
-          {documents.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                No documents yet. Add a URL, upload markdown, or generate from a prompt.
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid sm:grid-cols-2 gap-3">
-              {documents.map((doc: DocumentEnhanced) => (
-                <Card key={doc.id} className="hover:border-primary/40 transition-colors relative group">
-                  {/* Delete button - absolute positioned top-right */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive z-10"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteDocDialog({ document: doc });
-                    }}
-                    aria-label={`Delete ${doc.title}`}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
-
-                  <CardHeader className="pb-2 pr-10">
-                    <CardTitle className="text-base truncate flex items-center gap-2">
-                      <FileText size={18} className="shrink-0 text-muted-foreground" />
-                      {doc.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-xs text-muted-foreground">
-                      {doc.wordCount} words · {formatDate(doc.createdAt)}
-                    </p>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={`/document/${doc.id}`}>Open</Link>
-                      </Button>
-                      <Button variant="secondary" size="sm" asChild>
-                        <Link to={`/quiz/create?directoryId=${directoryId}&documentId=${doc.id}`}>
-                          Quiz
-                        </Link>
-                      </Button>
-                      <Button variant="secondary" size="sm" asChild>
-                        <Link
-                          to={`/flashcards/create?directoryId=${directoryId}&documentId=${doc.id}`}
-                        >
-                          Cards
-                        </Link>
-                      </Button>
-                      <Button variant="secondary" size="sm" asChild>
-                        <Link to={`/slides/create?directoryId=${directoryId}&documentId=${doc.id}`}>
-                          Slides
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-3">Artifacts</h2>
-          <Tabs value={artifactTab} onValueChange={setArtifactTab}>
-            <TabsList>
-              <TabsTrigger value="quizzes">Quizzes ({quizTotal})</TabsTrigger>
-              <TabsTrigger value="flashcards">Flashcards ({fcTotal})</TabsTrigger>
-              <TabsTrigger value="slides">Slide decks ({sdTotal})</TabsTrigger>
-            </TabsList>
-            {(quizListTruncated || fcListTruncated || sdListTruncated) && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Lists show the newest {ARTIFACT_PAGE_LIMIT} per type when there are more — totals above are
-                for the whole folder.
-              </p>
+        {/* Main layout: Icon Sidebar + Content Panel */}
+        <div className="flex gap-4">
+          <DirectoryIconSidebar activePanel={activePanel} onPanelChange={setActivePanel} />
+          <div className="flex-1 min-w-0">
+            {activePanel === 'sources' && (
+              <SourcesPanel
+                documents={documents}
+                directoryId={directoryId}
+                onDeleteDocument={(doc) => setDeleteDocDialog({ document: doc })}
+              />
             )}
-            <TabsContent value="quizzes" className="mt-4 space-y-2">
-              {quizzes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No quizzes in this directory yet.</p>
-              ) : (
-                quizzes.map((q: Quiz) => (
-                  <div
-                    key={q.id}
-                    className="relative group"
-                  >
-                    <Link
-                      to={`/quiz/${q.id}?directoryId=${encodeURIComponent(directoryId ?? '')}`}
-                      className={cn(
-                        'block rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors pr-10'
-                      )}
-                    >
-                      <div className="font-medium">{q.title}</div>
-                      <div className="text-xs text-muted-foreground">{formatDate(q.createdAt)}</div>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive z-10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteArtifactDialog({ artifact: { id: q.id, title: q.title, type: 'quiz' } });
-                      }}
-                      aria-label={`Delete ${q.title}`}
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
-                ))
-              )}
-            </TabsContent>
-            <TabsContent value="flashcards" className="mt-4 space-y-2">
-              {flashcardSets.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No flashcard sets yet.</p>
-              ) : (
-                flashcardSets.map((f: FlashcardSet) => (
-                  <div
-                    key={f.id}
-                    className="relative group"
-                  >
-                    <Link
-                      to={`/flashcards/${f.id}?directoryId=${encodeURIComponent(directoryId ?? '')}`}
-                      className="block rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors pr-10"
-                    >
-                      <div className="font-medium">{f.title}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDate(f.createdAt)}
-                      </div>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive z-10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteArtifactDialog({ artifact: { id: f.id, title: f.title, type: 'flashcard' } });
-                      }}
-                      aria-label={`Delete ${f.title}`}
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
-                ))
-              )}
-            </TabsContent>
-            <TabsContent value="slides" className="mt-4 space-y-2">
-              {slideDecks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No slide decks yet.</p>
-              ) : (
-                slideDecks.map((s: SlideDeck) => (
-                  <div
-                    key={s.id}
-                    className="relative group"
-                  >
-                    <Link
-                      to={`/slides/${s.id}?directoryId=${encodeURIComponent(directoryId ?? '')}`}
-                      className="block rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors pr-10"
-                    >
-                      <div className="font-medium">{s.title}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDate(s.createdAt)}
-                      </div>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive z-10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteArtifactDialog({ artifact: { id: s.id, title: s.title, type: 'slideDeck' } });
-                      }}
-                      aria-label={`Delete ${s.title}`}
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
-                ))
-              )}
-            </TabsContent>
-          </Tabs>
-        </section>
-
-        <section>
-          <button
-            type="button"
-            onClick={() => setRulesOpen(!rulesOpen)}
-            className="flex items-center gap-2 text-lg font-semibold w-full text-left"
-          >
-            <Sparkles size={20} className="text-primary" />
-            Rules (cascading)
-            <span className="text-sm font-normal text-muted-foreground">
-              {rulesOpen ? '▼' : '▶'}
-            </span>
-          </button>
-          {rulesOpen && (
-            <div className="mt-3 space-y-3">
-              {resolvedRules.rules.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No rules attached. Manage rules from the Rules button above.
-                </p>
-              ) : (
-                resolvedRules.rules.map((rule: Rule) => (
-                  <Card key={rule.id}>
-                    <CardHeader className="py-3">
-                      <CardTitle className="text-sm">{rule.name}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-xs text-muted-foreground line-clamp-4">
-                      {rule.content}
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          )}
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-3">Subfolders</h2>
-          {subdirectories.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                No subfolders yet.
-                <Button variant="link" className="ml-1 p-0" onClick={() => setCreateDialogOpen(true)}>
-                  Create one
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid sm:grid-cols-2 gap-3">
-              {subdirectories.map((sub: Directory) => (
-                <div
-                  key={sub.id}
-                  className="rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors flex items-center gap-2 group"
-                >
-                  <Link
-                    to={`/directory/${sub.id}`}
-                    className="flex items-center gap-2 flex-1 min-w-0"
-                  >
-                    {(() => { const IconComponent = ICON_MAP[sub.icon || 'Folder'] || Folder; return <IconComponent size={20} color={sub.color || undefined} className={sub.color ? 'shrink-0' : 'text-primary shrink-0'} />; })()}
-                    <span className="font-medium truncate">{sub.name}</span>
-                  </Link>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="opacity-0 group-hover:opacity-100 shrink-0 h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteDialog({ directory: sub });
-                    }}
-                    aria-label={`Delete ${sub.name}`}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+            {activePanel === 'quizzes' && (
+              <QuizzesPanel
+                quizzes={quizzes}
+                directoryId={directoryId}
+                mayBeTruncated={quizzesTruncated}
+                onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
+              />
+            )}
+            {activePanel === 'cards' && (
+              <FlashcardsPanel
+                flashcardSets={flashcardSets}
+                directoryId={directoryId}
+                mayBeTruncated={flashcardsTruncated}
+                onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
+              />
+            )}
+            {activePanel === 'slides' && (
+              <SlidesPanel
+                slideDecks={slideDecks}
+                directoryId={directoryId}
+                mayBeTruncated={slidesTruncated}
+                onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
+              />
+            )}
+            {activePanel === 'rules' && (
+              <RulesPanel
+                rules={resolvedRules?.inheritanceMap?.[directoryId] ?? []}
+                directoryId={directoryId}
+              />
+            )}
+          </div>
+        </div>
       </div>
 
+      {/* Dialogs */}
       <CreateDirectoryDialog
         isOpen={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
