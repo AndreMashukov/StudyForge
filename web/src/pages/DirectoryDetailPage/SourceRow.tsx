@@ -69,7 +69,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onD
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity text-muted-foreground hover:text-destructive"
+          className="h-7 w-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-events-none group-hover:pointer-events-auto focus-visible:pointer-events-auto transition-opacity text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring"
           onClick={(e) => {
             e.stopPropagation();
             onDelete(document);

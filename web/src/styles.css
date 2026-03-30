@@ -290,4 +290,12 @@
       display: inline;
     }
   }
+
+  /* Touch device accessibility: always show hover-revealed actions */
+  @media (hover: none) {
+    .group .opacity-0.group-hover\:opacity-100 {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
 }
