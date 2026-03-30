@@ -16,6 +16,20 @@ function ensureMermaidInit(): void {
   mermaidInitialized = true;
 }
 
+/**
+ * Mermaid's flowchart syntax treats [/text/] and [text\] as trapezoid shapes.
+ * When the AI generates node labels containing slashes (e.g. [/usage]), the
+ * lexer throws. Strip leading/trailing slashes from bracket-enclosed labels
+ * so the diagram renders instead of erroring.
+ */
+function sanitizeMermaidCode(source: string): string {
+  return source
+    .replace(/\[\/([^\]]*)\]/g, '[$1]')
+    .replace(/\[([^\]*)\/\]/g, '[$1]')
+    .replace(/\[\\([^\]]*)\]/g, '[$1]')
+    .replace(/\[([^\]*)\\]/g, '[$1]');
+}
+
 export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) => {
   const reactId = useId().replace(/:/g, '');
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +39,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
     let cancelled = false;
     const run = async () => {
       setError(null);
-      const trimmed = code?.trim() ?? '';
+      const trimmed = sanitizeMermaidCode(code?.trim() ?? '');
       if (!trimmed) {
         setSvg(null);
         return;
