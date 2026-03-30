@@ -49,7 +49,12 @@ export const RuleSelector = ({
     return (
       <div className={cn("border rounded-lg", compact ? "p-3" : "p-4")}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium">📋 Rules</h3>
+          <h3 className="text-sm font-medium flex items-center gap-2">
+            <span role="img" aria-label="rules">
+              📋
+            </span>
+            Rules
+          </h3>
         </div>
         <RuleListSkeleton count={compact ? 2 : 3} />
       </div>

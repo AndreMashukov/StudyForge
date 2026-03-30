@@ -71,14 +71,13 @@ export const FormRenderer = ({ onBack }: IFormRendererProps) => {
   
   // Fetch user documents for library selector
   const { data: documentsData, isLoading: isLoadingDocuments } = useGetUserDocumentsQuery();
-  const allDocuments = documentsData?.documents || [];
   const directoryId = useSelector((state: RootState) => selectDirectoryId(state));
-  const userDocuments = useMemo(
-    () => directoryId
-      ? allDocuments.filter(d => d.directoryId === directoryId)
-      : allDocuments,
-    [allDocuments, directoryId]
-  );
+  const userDocuments = useMemo(() => {
+    const allDocuments = documentsData?.documents ?? [];
+    return directoryId
+      ? allDocuments.filter((d) => d.directoryId === directoryId)
+      : allDocuments;
+  }, [documentsData?.documents, directoryId]);
   
   // File upload hook with documents
   const fileUpload = useFileUpload(userDocuments);

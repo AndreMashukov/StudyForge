@@ -21,12 +21,6 @@ export const AIAssistantPanel: React.FC = () => {
     generateWithAI(topic.trim());
   };
 
-  const handleRetry = () => {
-    if (topic.trim()) {
-      generateWithAI(topic.trim());
-    }
-  };
-
   const isDisabled = aiState === 'generating' || !topic.trim();
 
   return (

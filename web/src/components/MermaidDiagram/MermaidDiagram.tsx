@@ -25,9 +25,9 @@ function ensureMermaidInit(): void {
 function sanitizeMermaidCode(source: string): string {
   return source
     .replace(/\[\/([^\]]*)\]/g, '[$1]')
-    .replace(/\[([^\]*)\/\]/g, '[$1]')
+    .replace(/\[([^\]]*)\/\]/g, '[$1]')
     .replace(/\[\\([^\]]*)\]/g, '[$1]')
-    .replace(/\[([^\]*)\\]/g, '[$1]');
+    .replace(/\[([^\]]*)\\]/g, '[$1]');
 }
 
 export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) => {

@@ -29,12 +29,9 @@ export const ContextMenu = ({ items, isOpen, position, onClose }: IContextMenu) 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isOpen) return;
 
-      const enabledItems = items.filter(item => !item.disabled);
-      
       if (event.key === "ArrowDown") {
         event.preventDefault();
         setFocusedIndex(prev => {
-          const enabledIndex = enabledItems.findIndex(item => items[prev + 1]?.id === item.id);
           if (prev === -1) return items.findIndex(item => !item.disabled);
           const nextIndex = items.findIndex((item, idx) => idx > prev && !item.disabled);
           return nextIndex === -1 ? items.findIndex(item => !item.disabled) : nextIndex;

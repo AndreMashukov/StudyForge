@@ -18,12 +18,41 @@ export class DiagramQuizPromptBuilder {
     additionalPrompt?: string,
     randomCorrectAnswers: number[] = []
   ): string {
+    if (additionalPrompt?.trim()) {
+      return this.buildFromCustomRules(content, additionalPrompt, randomCorrectAnswers);
+    }
+    return this.buildDefaultPrompt(content, randomCorrectAnswers);
+  }
+
+  private static buildFromCustomRules(
+    content: ScrapedContent,
+    customRules: string,
+    randomCorrectAnswers: number[] = []
+  ): string {
+    const contentSection = this.formatContentSection(content);
+    const distribution = this.getRandomAnswerDistributionRules(randomCorrectAnswers);
+    const jsonRules = this.getJsonFormatRules();
+    const example = this.getExampleStructure();
+    return `${customRules}
+
+${contentSection}
+
+${distribution}
+
+${jsonRules}
+
+${example}
+
+${this.getFinalInstructions()}`;
+  }
+
+  private static buildDefaultPrompt(
+    content: ScrapedContent,
+    randomCorrectAnswers: number[] = []
+  ): string {
     const base = this.getBaseInstructions();
     const contentSection = this.formatContentSection(content);
     const distribution = this.getRandomAnswerDistributionRules(randomCorrectAnswers);
-    const additional = additionalPrompt
-      ? `**ADDITIONAL USER INSTRUCTIONS:**\n${additionalPrompt}\n`
-      : '';
     const jsonRules = this.getJsonFormatRules();
     const example = this.getExampleStructure();
     return `${base}
@@ -31,8 +60,6 @@ export class DiagramQuizPromptBuilder {
 ${contentSection}
 
 ${distribution}
-
-${additional}
 
 ${jsonRules}
 
