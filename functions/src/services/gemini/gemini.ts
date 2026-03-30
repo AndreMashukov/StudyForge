@@ -17,6 +17,7 @@ import {
   DocumentQuestionPromptBuilder,
   FlashcardPromptBuilder,
   SlideDeckPromptBuilder,
+  DiagramQuizPromptBuilder,
 } from './prompt-builder';
 import {
   buildPromptWithContextFiles,
@@ -33,6 +34,17 @@ export interface GeminiQuizResponse {
     options: string[];
     correctAnswer: number;
     explanation: string;
+  }>;
+}
+
+export interface GeminiDiagramQuizResponse {
+  title: string;
+  questions: Array<{
+    question: string;
+    diagrams: string[];
+    correctAnswer: number;
+    explanation: string;
+    diagramLabels?: string[];
   }>;
 }
 
@@ -131,6 +143,64 @@ export class GeminiService {
       }
 
       throw new Error(`Failed to generate quiz: ${error}`);
+    }
+  }
+
+  /**
+   * Generate a diagram quiz: four Mermaid diagrams per question as answer options.
+   */
+  public static async generateDiagramQuiz(
+    content: ScrapedContent,
+    additionalPrompt?: string
+  ): Promise<GeminiDiagramQuizResponse> {
+    try {
+      functions.logger.info('Generating diagram quiz with Gemini AI...');
+      JsonSanitizer.validateContentForSafeGeneration(content.content);
+
+      const client = this.getClient();
+      const randomCorrectAnswers =
+        DiagramQuizPromptBuilder.generateRandomCorrectAnswers(20);
+      const prompt = DiagramQuizPromptBuilder.buildDiagramQuizPrompt(
+        content,
+        additionalPrompt,
+        randomCorrectAnswers
+      );
+
+      const response = await client.models.generateContent({
+        model: GEMINI_PRO_MODEL,
+        contents: prompt,
+        config: {
+          temperature: 0.4,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 16384,
+        },
+      });
+
+      const text = response.text;
+      if (!text) {
+        throw new Error('Empty response from Gemini API');
+      }
+
+      return this.parseDiagramQuizResponse(text);
+    } catch (error) {
+      functions.logger.error('Error generating diagram quiz:', error);
+      const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+      if (
+        isEmulator &&
+        error instanceof Error &&
+        error.message.includes('User location is not supported')
+      ) {
+        functions.logger.warn(
+          'Geographic restriction in emulator, falling back to mock diagram quiz'
+        );
+        return this.generateMockDiagramQuiz(content);
+      }
+      throw new Error(
+        `Failed to generate diagram quiz: ${
+          error instanceof Error ? error.message : error
+        }`
+      );
     }
   }
 
@@ -690,6 +760,106 @@ export class GeminiService {
           correctAnswer: 1,
           explanation:
             'Mock quizzes appear when there are geographic restrictions or API configuration issues.',
+        },
+      ],
+    };
+  }
+
+  private static parseDiagramQuizResponse(
+    responseText: string
+  ): GeminiDiagramQuizResponse {
+    let cleanText = '';
+    try {
+      cleanText = JsonSanitizer.initialCleanup(responseText);
+      cleanText = JsonSanitizer.sanitizeJsonText(cleanText);
+      cleanText = JsonSanitizer.applyComprehensiveCleanup(cleanText);
+      cleanText = JsonSanitizer.applyStateBased(cleanText);
+      const parsed = JSON.parse(cleanText);
+      this.validateDiagramQuizStructure(parsed);
+      return parsed as GeminiDiagramQuizResponse;
+    } catch (error) {
+      JsonSanitizer.logParsingError(error, responseText, cleanText);
+      try {
+        const fallbackResult = JsonSanitizer.tryFallbackParsing(cleanText);
+        this.validateDiagramQuizStructure(fallbackResult);
+        return fallbackResult as GeminiDiagramQuizResponse;
+      } catch (fallbackError) {
+        functions.logger.error('Diagram quiz parse failed:', fallbackError);
+      }
+      throw new Error(`Failed to parse diagram quiz response: ${error}`);
+    }
+  }
+
+  private static validateDiagramQuizStructure(parsed: {
+    title?: unknown;
+    questions?: unknown;
+  }): void {
+    if (!parsed.title || !Array.isArray(parsed.questions)) {
+      throw new Error('Invalid diagram quiz: missing title or questions');
+    }
+    (parsed.questions as unknown[]).forEach((q, index) => {
+      const row = q as Record<string, unknown>;
+      if (!row.question || typeof row.question !== 'string') {
+        throw new Error(`Diagram quiz question ${index + 1}: invalid question`);
+      }
+      if (!Array.isArray(row.diagrams) || row.diagrams.length !== 4) {
+        throw new Error(
+          `Diagram quiz question ${index + 1}: diagrams must be length 4`
+        );
+      }
+      for (const d of row.diagrams) {
+        if (typeof d !== 'string' || d.trim().length === 0) {
+          throw new Error(
+            `Diagram quiz question ${index + 1}: each diagram must be non-empty string`
+          );
+        }
+      }
+      if (
+        typeof row.correctAnswer !== 'number' ||
+        row.correctAnswer < 0 ||
+        row.correctAnswer > 3
+      ) {
+        throw new Error(
+          `Diagram quiz question ${index + 1}: invalid correctAnswer`
+        );
+      }
+      if (
+        !row.explanation ||
+        typeof row.explanation !== 'string' ||
+        row.explanation.trim().length === 0
+      ) {
+        throw new Error(
+          `Diagram quiz question ${index + 1}: missing explanation`
+        );
+      }
+    });
+  }
+
+  private static generateMockDiagramQuiz(
+    content: ScrapedContent
+  ): GeminiDiagramQuizResponse {
+    const d = (body: string) =>
+      `flowchart TD\n${body}`.replace(/"/g, "'");
+    return {
+      title: `Mock Diagram Quiz: ${content.title}`,
+      questions: [
+        {
+          question: 'Which flowchart shows a linear A then B flow?',
+          diagrams: [
+            d('A-->B'),
+            d('A-->C\nC-->B'),
+            d('B-->A'),
+            d('A-->B\nB-->C'),
+          ],
+          correctAnswer: 0,
+          explanation:
+            'The first diagram shows a direct edge from A to B. Others add branches or reverse order.',
+        },
+        {
+          question: 'Mock question two (development only)?',
+          diagrams: [d('X-->Y'), d('Y-->X'), d('X-->Z'), d('Z-->Y')],
+          correctAnswer: 0,
+          explanation: 'Mock explanation for local emulator testing.',
         },
       ],
     };

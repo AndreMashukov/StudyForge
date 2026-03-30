@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FileText, Trash2, ChevronDown, Brain, Layers, Presentation } from 'lucide-react';
+import { FileText, Trash2, ChevronDown, Brain, Layers, Presentation, Network } from 'lucide-react';
 import { DocumentEnhanced } from '@shared-types';
 import { formatDate } from '../../utils/dateUtils';
 import { Button } from '../../components/ui/Button';
@@ -67,6 +67,14 @@ export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onD
             >
               <Presentation size={14} className="mr-2" />
               Slide deck
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                navigate(`/diagram-quiz/create?directoryId=${directoryId}&documentId=${document.id}`)
+              }
+            >
+              <Network size={14} className="mr-2" />
+              Diagram quiz
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -35,6 +35,7 @@ const getApplicabilityLabel = (applicability: RuleApplicability): string => {
     [RuleApplicability.FOLLOWUP]: 'Followup',
     [RuleApplicability.FLASHCARD]: 'Flashcard',
     [RuleApplicability.SLIDE_DECK]: 'Slide Deck',
+    [RuleApplicability.DIAGRAM_QUIZ]: 'Diagram Quiz',
   };
   return labels[applicability];
 };

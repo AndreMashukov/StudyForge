@@ -26,7 +26,7 @@ import {
   Trash2,
   Shield,
 } from 'lucide-react';
-import { DocumentEnhanced, Directory } from '@shared-types';
+import { DocumentEnhanced, Directory, DiagramQuiz } from '@shared-types';
 import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/CreateDirectoryDialog';
 import { DeleteDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/DeleteDirectoryDialog';
 import { DeleteDocumentDialog } from './DeleteDocumentDialog';
@@ -36,6 +36,7 @@ import { SourcesPanel } from './SourcesPanel';
 import { QuizzesPanel } from './QuizzesPanel';
 import { FlashcardsPanel } from './FlashcardsPanel';
 import { SlidesPanel } from './SlidesPanel';
+import { DiagramQuizzesPanel } from './DiagramQuizzesPanel';
 import { RulesPanel } from './RulesPanel';
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; color?: string; className?: string }>> = {
@@ -116,6 +117,7 @@ export const DirectoryDetailPageContainer = () => {
   const quizzes = contents.quizzes || [];
   const flashcardSets = contents.flashcardSets || [];
   const slideDecks = contents.slideDecks || [];
+  const diagramQuizzes = (contents.diagramQuizzes || []) as DiagramQuiz[];
   const resolvedRules = contents.resolvedRules;
   const ancestors = ancestorsData?.ancestors || [];
 
@@ -123,6 +125,7 @@ export const DirectoryDetailPageContainer = () => {
   const quizzesTruncated = quizzes.length >= ARTIFACT_PAGE_LIMIT;
   const flashcardsTruncated = flashcardSets.length >= ARTIFACT_PAGE_LIMIT;
   const slidesTruncated = slideDecks.length >= ARTIFACT_PAGE_LIMIT;
+  const diagramQuizzesTruncated = diagramQuizzes.length >= ARTIFACT_PAGE_LIMIT;
 
   return (
     <Page showSidebar>
@@ -272,6 +275,14 @@ export const DirectoryDetailPageContainer = () => {
                 slideDecks={slideDecks}
                 directoryId={directoryId}
                 mayBeTruncated={slidesTruncated}
+                onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
+              />
+            )}
+            {activePanel === 'diagramQuizzes' && (
+              <DiagramQuizzesPanel
+                diagramQuizzes={diagramQuizzes}
+                directoryId={directoryId}
+                mayBeTruncated={diagramQuizzesTruncated}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
               />
             )}

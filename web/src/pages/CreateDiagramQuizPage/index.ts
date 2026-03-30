@@ -1,0 +1,1 @@
+export { CreateDiagramQuizPage } from './CreateDiagramQuizPage';

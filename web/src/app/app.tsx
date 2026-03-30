@@ -22,6 +22,8 @@ import { FlashcardSetPage } from '../pages/FlashcardSetPage';
 import { CreateFlashcardPage } from '../pages/CreateFlashcardPage';
 import { CreateSlideDeckPage } from '../pages/CreateSlideDeckPage';
 import { SlideDeckPage } from '../pages/SlideDeckPage';
+import { DiagramQuizPage } from '../pages/DiagramQuizPage';
+import { CreateDiagramQuizPage } from '../pages/CreateDiagramQuizPage';
 import { Page } from '../components/Page';
 import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
 import { QuizIndexRedirect } from '../utils/QuizIndexRedirect';
@@ -219,6 +221,27 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <SlideDeckPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+
+      <Route
+        path="/diagram-quiz/create"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <CreateDiagramQuizPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/diagram-quiz/:diagramQuizId"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <DiagramQuizPage />
             </ProtectedRoute>
           </MainLayout>
         }

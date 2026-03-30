@@ -41,6 +41,22 @@
       ]
     },
     {
+      "collectionGroup": "diagramQuizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "directoryId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "diagramQuizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "documentId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "directories",
       "queryScope": "COLLECTION",
       "fields": [

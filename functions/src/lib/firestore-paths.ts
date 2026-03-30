@@ -52,4 +52,11 @@ export const FirestorePaths = {
   },
   slideDeck: (userId: string, deckId: string) =>
     FirestorePaths.slideDecks(userId).doc(deckId),
+
+  diagramQuizzes: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('diagramQuizzes');
+  },
+  diagramQuiz: (userId: string, diagramQuizId: string) =>
+    FirestorePaths.diagramQuizzes(userId).doc(diagramQuizId),
 };

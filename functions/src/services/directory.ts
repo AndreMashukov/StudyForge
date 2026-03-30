@@ -19,6 +19,7 @@ import {
   Quiz,
   FlashcardSet,
   SlideDeck,
+  DiagramQuiz,
   Rule,
 } from '../../libs/shared-types/src/index';
 import { resolveRulesForDirectory } from './rule-resolution';
@@ -89,6 +90,7 @@ export class DirectoryService {
       quizCount: 0,
       flashcardSetCount: 0,
       slideDeckCount: 0,
+      diagramQuizCount: 0,
       ruleIds: [],
       createdAt: now,
       updatedAt: now,
@@ -265,6 +267,7 @@ export class DirectoryService {
     let deletedQuizCount = 0;
     let deletedFlashcardSetCount = 0;
     let deletedSlideDeckCount = 0;
+    let deletedDiagramQuizCount = 0;
     const db = FirestorePaths.documents(userId).firestore;
     const { DocumentService } = await import('./document-storage.js');
     const bucket = admin.storage().bucket();
@@ -345,6 +348,17 @@ export class DirectoryService {
         chunk.forEach(d => batch.delete(d.ref));
         await batch.commit();
       }
+
+      const dqSnap = await FirestorePaths.diagramQuizzes(userId)
+        .where('directoryId', '==', dirId)
+        .get();
+      deletedDiagramQuizCount += dqSnap.size;
+      for (let i = 0; i < dqSnap.docs.length; i += 500) {
+        const chunk = dqSnap.docs.slice(i, i + 500);
+        const batch = db.batch();
+        chunk.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
     }
 
     // Delete all directories in chunks of 500
@@ -373,6 +387,7 @@ export class DirectoryService {
       deletedQuizCount,
       deletedFlashcardSetCount,
       deletedSlideDeckCount,
+      deletedDiagramQuizCount,
     });
 
     return {
@@ -382,6 +397,7 @@ export class DirectoryService {
       deletedQuizCount,
       deletedFlashcardSetCount,
       deletedSlideDeckCount,
+      deletedDiagramQuizCount,
     };
   }
 
@@ -497,13 +513,14 @@ export class DirectoryService {
     let quizzes: Quiz[] = [];
     let flashcardSets: FlashcardSet[] = [];
     let slideDecks: SlideDeck[] = [];
+    let diagramQuizzes: DiagramQuiz[] = [];
     let resolvedRules: { rules: Rule[]; inheritanceMap: { [key: string]: Rule[] } } = {
       rules: [],
       inheritanceMap: {},
     };
 
     if (directoryId && includeArtifacts) {
-      const [qSnap, fSnap, sSnap] = await Promise.all([
+      const [qSnap, fSnap, sSnap, dqSnap] = await Promise.all([
         FirestorePaths.quizzes(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
@@ -519,11 +536,17 @@ export class DirectoryService {
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
           .get(),
+        FirestorePaths.diagramQuizzes(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .get(),
       ]);
 
       quizzes = qSnap.docs.map(d => ({ id: d.id, ...d.data() } as Quiz));
       flashcardSets = fSnap.docs.map(d => ({ id: d.id, ...d.data() } as FlashcardSet));
       slideDecks = sSnap.docs.map(d => ({ id: d.id, ...d.data() } as SlideDeck));
+      diagramQuizzes = dqSnap.docs.map(d => ({ id: d.id, ...d.data() } as DiagramQuiz));
     }
 
     if (directoryId && includeRules) {
@@ -531,13 +554,18 @@ export class DirectoryService {
     }
 
     const totalCount =
-      base.totalCount + quizzes.length + flashcardSets.length + slideDecks.length;
+      base.totalCount +
+      quizzes.length +
+      flashcardSets.length +
+      slideDecks.length +
+      diagramQuizzes.length;
 
     return {
       ...base,
       quizzes,
       flashcardSets,
       slideDecks,
+      diagramQuizzes,
       resolvedRules,
       totalCount,
     };

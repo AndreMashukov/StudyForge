@@ -11,6 +11,7 @@ export { DocumentPromptBuilder } from './document-prompt-builder';
 export { DocumentQuestionPromptBuilder } from './document-question-prompt-builder';
 export { FlashcardPromptBuilder } from './flashcard-prompt-builder';
 export { SlideDeckPromptBuilder } from './slide-deck';
+export { DiagramQuizPromptBuilder } from './diagram-quiz-prompt-builder';
 
 import { QuizPromptBuilder } from './quiz-prompt-builder';
 import { FollowupPromptBuilder } from './followup-prompt-builder';

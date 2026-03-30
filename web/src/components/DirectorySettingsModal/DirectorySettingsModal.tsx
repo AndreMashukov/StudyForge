@@ -94,6 +94,7 @@ export const DirectorySettingsModal = ({
       [RuleApplicability.FOLLOWUP]: "bg-pink-500/10 text-pink-500",
       [RuleApplicability.FLASHCARD]: "bg-teal-500/10 text-teal-500",
       [RuleApplicability.SLIDE_DECK]: "bg-cyan-500/10 text-cyan-500",
+      [RuleApplicability.DIAGRAM_QUIZ]: "bg-violet-500/10 text-violet-500",
     };
 
     return applicableTo.map((op) => (

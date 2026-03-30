@@ -1,0 +1,1 @@
+export { DiagramQuizPage } from './DiagramQuizPage';

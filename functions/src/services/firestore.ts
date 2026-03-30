@@ -3,8 +3,11 @@ import { FieldValue } from "firebase-admin/firestore";
 import { 
   Quiz, 
   QuizQuestion, 
-  GeminiQuizResponse
+  GeminiQuizResponse,
+  DiagramQuiz,
+  DiagramQuizQuestion,
 } from "@shared-types";
+import type { GeminiDiagramQuizResponse } from "./gemini/gemini";
 import * as functions from "firebase-functions";
 import { FirestorePaths } from '../lib/firestore-paths';
 
@@ -381,6 +384,142 @@ export class FirestoreService {
     } catch (error) {
       functions.logger.error("Error saving quiz from document:", error);
       throw new Error(`Failed to save quiz: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Save diagram quiz from Gemini output
+   */
+  public static async saveDiagramQuizFromDocument(
+    documentId: string,
+    geminiQuiz: GeminiDiagramQuizResponse,
+    userId: string,
+    directoryId: string,
+    followupRuleIds?: string[],
+    allDocumentIds?: string[]
+  ): Promise<DiagramQuiz> {
+    try {
+      const col = FirestorePaths.diagramQuizzes(userId);
+      const document = await this.getDocument(userId, documentId);
+      const existing = await col.where("documentId", "==", documentId).get();
+      const generationAttempt = existing.size + 1;
+
+      const questions: DiagramQuizQuestion[] = geminiQuiz.questions.map((q) => ({
+        question: q.question,
+        diagrams: q.diagrams,
+        ...(q.diagramLabels?.length ? { diagramLabels: q.diagramLabels } : {}),
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation,
+      }));
+
+      const diagramQuiz = {
+        id: "",
+        documentId,
+        ...(allDocumentIds ? { documentIds: allDocumentIds } : {}),
+        title: `${document.title} - Diagram Quiz ${generationAttempt}`,
+        questions,
+        userId,
+        directoryId,
+        documentTitle: document.title,
+        generationAttempt,
+        followupRuleIds: followupRuleIds || [],
+      };
+
+      const db = this.getDb();
+      const ref = col.doc();
+      const payload = {
+        id: ref.id,
+        documentId: diagramQuiz.documentId,
+        ...(diagramQuiz.documentIds ? { documentIds: diagramQuiz.documentIds } : {}),
+        title: diagramQuiz.title,
+        questions: diagramQuiz.questions,
+        userId: diagramQuiz.userId,
+        directoryId: diagramQuiz.directoryId,
+        documentTitle: diagramQuiz.documentTitle,
+        generationAttempt: diagramQuiz.generationAttempt,
+        followupRuleIds: diagramQuiz.followupRuleIds || [],
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      await db.runTransaction(async (transaction) => {
+        transaction.set(ref, payload);
+        transaction.update(FirestorePaths.directory(userId, directoryId), {
+          diagramQuizCount: FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      });
+
+      diagramQuiz.id = ref.id;
+      return diagramQuiz as DiagramQuiz;
+    } catch (error) {
+      functions.logger.error("Error saving diagram quiz:", error);
+      throw new Error(
+        `Failed to save diagram quiz: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  public static async getDiagramQuiz(
+    diagramQuizId: string,
+    userId: string
+  ): Promise<DiagramQuiz | null> {
+    try {
+      const snap = await FirestorePaths.diagramQuiz(userId, diagramQuizId).get();
+      if (!snap.exists) return null;
+      return { id: snap.id, ...snap.data() } as DiagramQuiz;
+    } catch (error) {
+      functions.logger.error(`Error getDiagramQuiz ${diagramQuizId}:`, error);
+      throw new Error("Failed to fetch diagram quiz");
+    }
+  }
+
+  public static async getUserDiagramQuizzes(userId: string): Promise<DiagramQuiz[]> {
+    try {
+      const snapshot = await FirestorePaths.diagramQuizzes(userId)
+        .orderBy("createdAt", "desc")
+        .get();
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as DiagramQuiz));
+    } catch (error) {
+      functions.logger.error(`getUserDiagramQuizzes ${userId}:`, error);
+      throw new Error("Failed to list diagram quizzes");
+    }
+  }
+
+  public static async deleteDiagramQuiz(
+    diagramQuizId: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      const ref = FirestorePaths.diagramQuiz(userId, diagramQuizId);
+      const db = this.getDb();
+      await db.runTransaction(async (transaction) => {
+        const snap = await transaction.get(ref);
+        if (!snap.exists) {
+          throw new Error("Diagram quiz not found");
+        }
+        const data = snap.data() as DiagramQuiz;
+        transaction.delete(ref);
+        if (data.directoryId) {
+          transaction.update(
+            FirestorePaths.directory(userId, data.directoryId),
+            {
+              diagramQuizCount: FieldValue.increment(-1),
+              updatedAt: FieldValue.serverTimestamp(),
+            }
+          );
+        }
+      });
+      functions.logger.info(`Deleted diagram quiz: ${diagramQuizId}`);
+    } catch (error) {
+      functions.logger.error(`deleteDiagramQuiz ${diagramQuizId}:`, error);
+      throw new Error(
+        `Failed to delete diagram quiz: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 }

@@ -114,6 +114,53 @@ export interface QuizQuestion {
   explanation: string; // Mandatory explanation for the correct answer
 }
 
+// Diagram Quiz — multiple choice where each option is a Mermaid diagram
+export interface DiagramQuizQuestion {
+  question: string;
+  diagrams: string[]; // exactly 4 Mermaid diagram sources
+  diagramLabels?: string[];
+  correctAnswer: number; // 0–3
+  explanation: string;
+}
+
+export interface DiagramQuiz {
+  id: string;
+  userId: string;
+  documentId: string;
+  documentIds?: string[];
+  documentTitle: string;
+  title: string;
+  questions: DiagramQuizQuestion[];
+  directoryId: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  generationAttempt?: number;
+  followupRuleIds?: string[];
+}
+
+export interface GenerateDiagramQuizRequest {
+  documentIds: string[];
+  directoryId?: string;
+  diagramQuizName?: string;
+  additionalPrompt?: string;
+  quizRuleIds?: string[];
+  followupRuleIds?: string[];
+  additionalRuleIds?: string[];
+}
+
+export interface GenerateDiagramQuizResponse {
+  diagramQuizId: string;
+  diagramQuiz?: DiagramQuiz;
+}
+
+export interface GetDiagramQuizResponse {
+  diagramQuiz: DiagramQuiz;
+}
+
+export interface GetUserDiagramQuizzesResponse {
+  diagramQuizzes: DiagramQuiz[];
+}
+
 // Document Types (New document-centric data model)
 export interface Document {
   id: string;
@@ -177,6 +224,8 @@ export interface Directory {
   quizCount: number;
   flashcardSetCount: number;
   slideDeckCount: number;
+  /** Present for directories created after diagram quizzes; treat missing as 0 */
+  diagramQuizCount?: number;
   ruleIds: string[];
   createdAt: Date | { toDate(): Date };
   updatedAt: Date | { toDate(): Date };
@@ -240,6 +289,7 @@ export interface GetDirectoryContentsWithArtifactsResponse extends GetDirectoryC
   quizzes: Quiz[];
   flashcardSets: FlashcardSet[];
   slideDecks: SlideDeck[];
+  diagramQuizzes: DiagramQuiz[];
   resolvedRules: {
     rules: Rule[];
     inheritanceMap: { [directoryId: string]: Rule[] };
@@ -262,6 +312,7 @@ export interface DeleteDirectoryResponse {
   deletedQuizCount: number;
   deletedFlashcardSetCount: number;
   deletedSlideDeckCount: number;
+  deletedDiagramQuizCount?: number;
 }
 
 // Directory Validation Types
@@ -601,6 +652,7 @@ export enum RuleApplicability {
   FOLLOWUP = 'followup',
   FLASHCARD = 'flashcard',
   SLIDE_DECK = 'slide_deck',
+  DIAGRAM_QUIZ = 'diagram_quiz',
 }
 
 export enum RuleColor {
