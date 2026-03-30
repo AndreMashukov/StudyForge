@@ -17,17 +17,18 @@ function ensureMermaidInit(): void {
 }
 
 /**
- * Mermaid's flowchart syntax treats [/text/] and [text\] as trapezoid shapes.
- * When the AI generates node labels containing slashes (e.g. [/usage]), the
- * lexer throws. Strip leading/trailing slashes from bracket-enclosed labels
- * so the diagram renders instead of erroring.
+ * Mermaid reserves certain characters inside square-bracket node labels:
+ *   /  \ — trigger trapezoid shape syntax
+ *   @    — parsed as a link ID token
+ * When AI-generated diagrams use these bare in labels the lexer/parser throws.
+ * Wrap any affected label content in double-quotes so Mermaid treats it as a
+ * plain string, e.g. [/usage] -> ["/usage"], [@mention] -> ["@mention"].
  */
 function sanitizeMermaidCode(source: string): string {
-  return source
-    .replace(/\[\/([^\]]*)\]/g, '[$1]')
-    .replace(/\[([^\]]*)\/\]/g, '[$1]')
-    .replace(/\[\\([^\]]*)\]/g, '[$1]')
-    .replace(/\[([^\]]*)\\]/g, '[$1]');
+  return source.replace(
+    /\[([^\]"]*[/@\\][^\]"]*)\]/g,
+    (_match, inner: string) => `["${inner}"]`
+  );
 }
 
 export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) => {

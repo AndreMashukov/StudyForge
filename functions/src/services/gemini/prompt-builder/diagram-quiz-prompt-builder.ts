@@ -78,6 +78,10 @@ The learner must identify which diagram correctly represents a concept from the 
 - Keep each diagram **compact**: at most ~12 nodes or participants per diagram so it renders reliably.
 - **No markdown code fences** inside JSON string values — put raw Mermaid source with newline characters escaped as needed.
 - **Do not** use double quotes inside Mermaid node labels; use single quotes or rephrase.
+- **NEVER** use forward slashes (\`/\`) inside square-bracket node labels. \`[/text]\` triggers Mermaid trapezoid syntax and causes a lexical error. Write \`[text]\` or use parentheses \`(text)\` instead.
+- **NEVER** use backslashes (\`\\\\\`) inside square-bracket node labels for the same reason.
+- **NEVER** use \`@\` inside square-bracket node labels — it is a reserved Mermaid token (link ID) and causes a parse error. Write the word out or omit the symbol entirely. E.g. use \`[At symbol]\` or \`[mention]\` instead of \`[@]\`.
+- If a label must contain a special character (\`/\`, \`\\\\\`, \`@\`, \`#\`, \`&\`), **quote the label** with double quotes inside the brackets: e.g. \`A["@mention"]\` or \`B["/path"]\`.
 - Each of the four diagrams for a question should be **visually comparable** (same diagram type when possible) so the question tests understanding, not diagram style.`;
   }
 
