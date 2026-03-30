@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FileText, Trash2, ChevronDown, Brain, Layers, Presentation } from 'lucide-react';
 import { DocumentEnhanced } from '@shared-types';
 import { formatDate } from '../../utils/dateUtils';
@@ -25,7 +25,12 @@ export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onD
       <FileText size={18} className="shrink-0 text-muted-foreground" />
 
       <div className="flex-1 min-w-0">
-        <div className="font-medium truncate">{document.title}</div>
+        <Link
+          to={`/document/${document.id}`}
+          className="font-medium truncate hover:text-primary transition-colors"
+        >
+          {document.title}
+        </Link>
         <div className="text-xs text-muted-foreground">
           {document.wordCount} words · {formatDate(document.createdAt)}
         </div>
