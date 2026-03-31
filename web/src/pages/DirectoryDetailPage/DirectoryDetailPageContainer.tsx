@@ -22,6 +22,7 @@ import {
   Trash2,
   Shield,
 } from 'lucide-react';
+import { DocumentEnhanced, Directory, DiagramQuiz } from '@shared-types';
 import { ICON_MAP } from '../DocumentsPage/DocumentsPageContainer/folderConstants';
 import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/CreateDirectoryDialog';
 import { DeleteDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/DeleteDirectoryDialog';
