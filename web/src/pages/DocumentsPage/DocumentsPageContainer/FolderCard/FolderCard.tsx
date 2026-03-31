@@ -1,18 +1,10 @@
 import { useState } from "react";
 import { IFolderCard } from "./IFolderCard";
 import { folderCardStyles } from "./FolderCard.styles";
-import { Folder, FolderOpen, Briefcase, Target, Zap, Rocket, FileText, FolderTree, Edit, Trash2, Move, FileCode } from "lucide-react";
+import { Folder, FileText, FolderTree, Edit, Trash2, Move, FileCode } from "lucide-react";
 import { Button } from "../../../../components/ui/Button";
 import { ContextMenu, ContextMenuItem } from "../../../../components/ui/ContextMenu";
-
-const ICON_MAP: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
-  Folder,
-  "Folder Open": FolderOpen,
-  Briefcase,
-  Target,
-  Zap,
-  Rocket,
-};
+import { ICON_MAP } from "../folderConstants";
 
 export const FolderCard = ({
   directory,

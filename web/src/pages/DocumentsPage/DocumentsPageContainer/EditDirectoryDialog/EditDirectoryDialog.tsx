@@ -6,33 +6,13 @@ import { useUpdateDirectoryMutation } from "../../../../store/api/Directory/Dire
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "../../../../components/ui/Dialog";
 import { Button } from "../../../../components/ui/Button";
 import { Input } from "../../../../components/ui/Input";
 import { Label } from "../../../../components/ui/Label";
-import { Folder, FolderOpen, Briefcase, Target, Zap, Rocket } from "lucide-react";
-
-const FOLDER_COLORS = [
-  { name: "Blue", value: "#3b82f6" },
-  { name: "Green", value: "#22c55e" },
-  { name: "Yellow", value: "#eab308" },
-  { name: "Red", value: "#ef4444" },
-  { name: "Purple", value: "#a855f7" },
-  { name: "Gray", value: "#6b7280" },
-];
-
-const FOLDER_ICONS = [
-  { name: "Folder", component: Folder },
-  { name: "Folder Open", component: FolderOpen },
-  { name: "Briefcase", component: Briefcase },
-  { name: "Target", component: Target },
-  { name: "Zap", component: Zap },
-  { name: "Rocket", component: Rocket },
-];
+import { Folder, File, Palette } from "lucide-react";
+import { FOLDER_COLORS, FOLDER_ICONS } from "../folderConstants";
 
 export const EditDirectoryDialog = ({
   isOpen,
@@ -42,7 +22,7 @@ export const EditDirectoryDialog = ({
 }: IEditDirectoryDialog) => {
   const [formData, setFormData] = useState({
     name: "",
-    color: FOLDER_COLORS[0].value,
+    color: FOLDER_COLORS[4].value,
     icon: FOLDER_ICONS[0].name,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -54,7 +34,7 @@ export const EditDirectoryDialog = ({
     if (directory) {
       setFormData({
         name: directory.name,
-        color: directory.color || FOLDER_COLORS[0].value,
+        color: directory.color || FOLDER_COLORS[4].value,
         icon: directory.icon || FOLDER_ICONS[0].name,
       });
     }
@@ -109,86 +89,125 @@ export const EditDirectoryDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Edit Folder</DialogTitle>
-          <DialogDescription>
-            Update the folder name, color, or icon.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Folder Name */}
+      <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden">
+        {/* Gradient header */}
+        <div className="px-7 pt-7 pb-5 flex items-center gap-3.5 bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-transparent border-b border-border">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shadow-[0_4px_12px_rgba(139,92,246,0.3)] shrink-0">
+            <Folder className="text-white" size={22} />
+          </div>
           <div>
-            <Label htmlFor="name">Folder Name</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Enter folder name"
-              className={errors.name ? "border-destructive" : ""}
-            />
-            {errors.name && (
-              <p className="text-destructive text-sm mt-1">{errors.name}</p>
+            <h2 className="text-[17px] font-semibold leading-tight">Edit Folder</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Update the folder name, color, or icon</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="px-7 py-6 flex flex-col gap-6">
+            {/* Details Section */}
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center gap-1.5">
+                <File size={14} className="text-muted-foreground" />
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Details</span>
+              </div>
+              <div>
+                <Label htmlFor="edit-name">Folder Name</Label>
+                <Input
+                  id="edit-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter folder name"
+                  className={errors.name ? "border-destructive" : ""}
+                />
+                {errors.name && (
+                  <p className="text-destructive text-sm mt-1">{errors.name}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-border -mx-7" />
+
+            {/* Appearance Section */}
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center gap-1.5">
+                <Palette size={14} className="text-muted-foreground" />
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Appearance</span>
+              </div>
+
+              {/* Color picker */}
+              <div>
+                <div className="text-[13px] font-medium mb-2">Color</div>
+                <div className="grid grid-cols-10 gap-1.5">
+                  {FOLDER_COLORS.map((color) => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, color: color.value })}
+                      className={`aspect-square rounded-full border-2 transition-all duration-150 relative ${
+                        formData.color === color.value
+                          ? "border-white scale-110 shadow-[0_0_10px_rgba(255,255,255,0.15)]"
+                          : "border-transparent hover:scale-110"
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.name}
+                    >
+                      {formData.color === color.value && (
+                        <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Icon picker */}
+              <div>
+                <div className="text-[13px] font-medium mb-2">Icon</div>
+                <div className="grid grid-cols-8 gap-1">
+                  {FOLDER_ICONS.map((icon) => {
+                    const IconComponent = icon.component;
+                    return (
+                      <button
+                        key={icon.name}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, icon: icon.name })}
+                        className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-md border transition-all duration-150 ${
+                          formData.icon === icon.name
+                            ? "border-purple-500/50 bg-purple-500/15"
+                            : "border-transparent hover:bg-purple-500/5 hover:border-border"
+                        }`}
+                        title={icon.label}
+                      >
+                        <IconComponent
+                          size={20}
+                          className={formData.icon === icon.name ? "text-purple-500" : ""}
+                        />
+                        <span className={`text-[9px] leading-tight ${
+                          formData.icon === icon.name ? "text-purple-500" : "text-muted-foreground"
+                        }`}>
+                          {icon.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Submit Error */}
+            {errors.submit && (
+              <p className="text-destructive text-sm">{errors.submit}</p>
             )}
           </div>
 
-          {/* Color Picker */}
-          <div>
-            <Label>Color</Label>
-            <div className="flex gap-2 mt-2">
-              {FOLDER_COLORS.map((color) => (
-                <button
-                  key={color.value}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, color: color.value })}
-                  className={`w-8 h-8 rounded-full border-2 transition-all ${
-                    formData.color === color.value
-                      ? "border-foreground scale-110"
-                      : "border-transparent hover:scale-105"
-                  }`}
-                  style={{ backgroundColor: color.value }}
-                  title={color.name}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Icon Picker */}
-          <div>
-            <Label>Icon</Label>
-            <div className="flex gap-2 mt-2">
-              {FOLDER_ICONS.map((icon) => {
-                const IconComponent = icon.component;
-                return (
-                  <button
-                    key={icon.name}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, icon: icon.name })}
-                    className={`p-2 rounded-md border transition-all ${
-                      formData.icon === icon.name
-                        ? "border-foreground bg-accent"
-                        : "border-border hover:bg-accent/50"
-                    }`}
-                    title={icon.name}
-                  >
-                    <IconComponent size={20} />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Submit Error */}
-          {errors.submit && (
-            <p className="text-destructive text-sm">{errors.submit}</p>
-          )}
-
-          <DialogFooter>
+          <DialogFooter className="px-7 pb-6">
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="bg-gradient-to-r from-purple-500 to-indigo-500 border-transparent shadow-[0_2px_8px_rgba(139,92,246,0.3)] hover:shadow-[0_4px_16px_rgba(139,92,246,0.4)]"
+            >
               {isLoading ? "Updating..." : "Update Folder"}
             </Button>
           </DialogFooter>
