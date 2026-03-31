@@ -16,17 +16,12 @@ import {
 import {
   ArrowLeft,
   Folder,
-  FolderOpen,
   FolderPlus,
-  Briefcase,
-  Target,
-  Zap,
-  Rocket,
   MoreVertical,
   Trash2,
   Shield,
 } from 'lucide-react';
-import { DocumentEnhanced, Directory, DiagramQuiz } from '@shared-types';
+import { ICON_MAP } from '../DocumentsPage/DocumentsPageContainer/folderConstants';
 import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/CreateDirectoryDialog';
 import { DeleteDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/DeleteDirectoryDialog';
 import { DeleteDocumentDialog } from './DeleteDocumentDialog';
@@ -39,14 +34,6 @@ import { SlidesPanel } from './SlidesPanel';
 import { DiagramQuizzesPanel } from './DiagramQuizzesPanel';
 import { RulesPanel } from './RulesPanel';
 
-const ICON_MAP: Record<string, React.ComponentType<{ size?: number; color?: string; className?: string }>> = {
-  'Folder': Folder,
-  'Folder Open': FolderOpen,
-  'Briefcase': Briefcase,
-  'Target': Target,
-  'Zap': Zap,
-  'Rocket': Rocket,
-};
 
 /** Max artifacts loaded per type (server caps at 100). */
 const ARTIFACT_PAGE_LIMIT = 100;
