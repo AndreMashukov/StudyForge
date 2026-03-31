@@ -16,6 +16,7 @@ import {
 import {
   ArrowLeft,
   Folder,
+  FolderOpen,
   FolderPlus,
   MoreVertical,
   Trash2,
