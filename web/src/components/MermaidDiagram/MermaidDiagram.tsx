@@ -20,13 +20,14 @@ function ensureMermaidInit(): void {
  * Mermaid reserves certain characters inside square-bracket node labels:
  *   /  \ — trigger trapezoid shape syntax
  *   @    — parsed as a link ID token
+ *   ( )  — parsed as sub-graph / stadium shape tokens
  * When AI-generated diagrams use these bare in labels the lexer/parser throws.
  * Wrap any affected label content in double-quotes so Mermaid treats it as a
- * plain string, e.g. [/usage] -> ["/usage"], [@mention] -> ["@mention"].
+ * plain string, e.g. [dfs(A)] -> ["dfs(A)"], [/usage] -> ["/usage"].
  */
 function sanitizeMermaidCode(source: string): string {
   return source.replace(
-    /\[([^\]"]*[/@\\][^\]"]*)\]/g,
+    /\[([^\]"]*[/@\\()][^\]"]*)\]/g,
     (_match, inner: string) => `["${inner}"]`
   );
 }
