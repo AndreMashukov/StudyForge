@@ -16,7 +16,6 @@ import {
 import {
   ArrowLeft,
   Folder,
-  FolderOpen,
   FolderPlus,
   MoreVertical,
   Trash2,
@@ -158,7 +157,10 @@ export const DirectoryDetailPageContainer = () => {
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold flex items-center gap-2">
-                <FolderOpen className="text-primary" size={28} />
+                {(() => {
+                  const TitleIcon = ICON_MAP[dir.icon || 'Folder'] || Folder;
+                  return <TitleIcon size={28} color={dir.color || undefined} className={!dir.color ? 'text-primary' : ''} />;
+                })()}
                 {dir.name}
               </h1>
               {dir.description && (
