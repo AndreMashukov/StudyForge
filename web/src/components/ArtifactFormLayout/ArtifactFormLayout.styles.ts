@@ -1,4 +1,4 @@
-export const createFlashcardPageStyles = {
+export const artifactFormLayoutStyles = {
   container: "min-h-screen bg-background",
   header: "sticky top-0 bg-background border-b px-6 py-4",
   headerContent: "max-w-4xl mx-auto flex items-center justify-between",
