@@ -31,7 +31,7 @@ const DiagramQuizRow: React.FC<DiagramQuizRowProps> = ({
       <Button
         variant="ghost"
         size="icon"
-        className="pointer-events-none absolute right-2 top-2 h-8 w-8 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring z-10 text-muted-foreground hover:text-destructive"
+        className="absolute right-2 top-2 h-8 w-8 text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring z-10"
         onClick={(e) => {
           e.stopPropagation();
           e.preventDefault();
