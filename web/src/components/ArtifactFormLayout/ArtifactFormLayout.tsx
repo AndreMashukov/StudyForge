@@ -192,12 +192,14 @@ export const ArtifactFormLayout = <T extends FieldValues>({
                 </div>
 
                 {/* Rules */}
-                <RuleSelector
-                  directoryId={directoryIdParam ?? ''}
-                  operation={config.ruleApplicability}
-                  selectedRuleIds={(watchedRuleIds as unknown as string[]) ?? []}
-                  onSelectionChange={handleRuleSelectionChange}
-                />
+                {directoryIdParam && (
+                  <RuleSelector
+                    directoryId={directoryIdParam}
+                    operation={config.ruleApplicability}
+                    selectedRuleIds={(watchedRuleIds as unknown as string[]) ?? []}
+                    onSelectionChange={handleRuleSelectionChange}
+                  />
+                )}
 
                 {/* Form Actions */}
                 <div className={artifactFormLayoutStyles.formActions}>
