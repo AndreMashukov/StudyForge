@@ -42,7 +42,7 @@ export const ArtifactFormLayout = <T extends FieldValues>({
   const directoryIdParam = searchParams.get('directoryId');
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
 
-  const { data: documentsResponse, isLoading } = documentsApi;
+  const { data: documentsResponse, isLoading, error: documentsError, refetch: refetchDocuments } = documentsApi;
   const allDocuments = useMemo(() => documentsResponse?.documents || [], [documentsResponse]);
   const resolvedDirectoryId = directoryIdParam || selectedDirectoryId;
   const documents = useMemo(
@@ -133,15 +133,24 @@ export const ArtifactFormLayout = <T extends FieldValues>({
                 {/* Document Selection */}
                 <div className={artifactFormLayoutStyles.formField}>
                   <Label>Source Documents *</Label>
-                  <PreSelectedDocumentSelector
-                    documents={documents}
-                    selectedDocumentIds={(watchedDocumentIds as unknown as string[]) ?? []}
-                    onDocumentToggle={handleDocumentToggle}
-                    maxSelections={5}
-                    isLoading={isLoading}
-                    disabled={isLoading}
-                    initialDocumentId={preselectedDocumentId}
-                  />
+                  {documentsError ? (
+                    <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 space-y-2">
+                      <p className="text-sm text-destructive">Failed to load documents.</p>
+                      <Button type="button" variant="outline" size="sm" onClick={() => refetchDocuments()}>
+                        Retry
+                      </Button>
+                    </div>
+                  ) : (
+                    <PreSelectedDocumentSelector
+                      documents={documents}
+                      selectedDocumentIds={(watchedDocumentIds as unknown as string[]) ?? []}
+                      onDocumentToggle={handleDocumentToggle}
+                      maxSelections={5}
+                      isLoading={isLoading}
+                      disabled={isLoading}
+                      initialDocumentId={preselectedDocumentId}
+                    />
+                  )}
                   {errors.documentIds && (
                     <p className="text-sm text-destructive">
                       {String(errors.documentIds.message ?? 'Please select at least one document')}
@@ -192,9 +201,9 @@ export const ArtifactFormLayout = <T extends FieldValues>({
                 </div>
 
                 {/* Rules */}
-                {directoryIdParam && (
+                {resolvedDirectoryId && (
                   <RuleSelector
-                    directoryId={directoryIdParam}
+                    directoryId={resolvedDirectoryId}
                     operation={config.ruleApplicability}
                     selectedRuleIds={(watchedRuleIds as unknown as string[]) ?? []}
                     onSelectionChange={handleRuleSelectionChange}
