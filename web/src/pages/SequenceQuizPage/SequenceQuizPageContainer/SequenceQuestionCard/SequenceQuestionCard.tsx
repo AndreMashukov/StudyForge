@@ -75,14 +75,14 @@ const SortableBlock = ({
       style={style}
       className={cn(
         'flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium',
-        'bg-[#1c1c1e] transition-colors duration-150 select-none',
+        'bg-card transition-colors duration-150 select-none',
         isDragging ? 'opacity-40' : 'opacity-100',
         !isChecked && 'cursor-grab active:cursor-grabbing',
         isChecked && 'cursor-default',
         !isChecked && 'hover:border-primary/60 hover:bg-primary/5',
         isChecked && isPositionCorrect === true && 'border-green-500/60 bg-green-500/8',
         isChecked && isPositionCorrect === false && 'border-destructive/60 bg-destructive/8',
-        !isChecked && 'border-[#27272a]'
+        !isChecked && 'border-border'
       )}
     >
       <button
@@ -238,7 +238,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   const activeItemText = activeId ? itemTextFromId(activeId) : null;
 
   return (
-    <div className="bg-[#111111] border border-[#27272a] rounded-xl p-6 space-y-4">
+    <div className="bg-card border border-border rounded-xl p-6 space-y-4">
       {/* Question label + text */}
       <div>
         <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-1">
@@ -259,7 +259,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
             <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2 px-0.5">
               <Package size={13} />
               <span>Available Blocks</span>
-              <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#27272a] text-muted-foreground">
+              <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                 {availableItems.length}
               </span>
             </div>
@@ -269,8 +269,8 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                 className={cn(
                   'min-h-[140px] border-2 border-dashed rounded-lg p-2 space-y-1.5 transition-colors',
                   availableItems.length === 0
-                    ? 'border-[#27272a]/50'
-                    : 'border-[#27272a]'
+                    ? 'border-border/50'
+                    : 'border-border'
                 )}
               >
                 {availableItems.length === 0 ? (
@@ -341,12 +341,12 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
           </div>
         </div>
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={null}>
           {activeId && activeItemText ? (
             <div
               className={cn(
                 'flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium',
-                'bg-[#1c1c1e] border-primary shadow-lg shadow-primary/20',
+                'bg-card border-primary shadow-lg shadow-primary/20',
                 'opacity-95 cursor-grabbing'
               )}
             >
@@ -363,7 +363,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
           <button
             type="button"
             onClick={handlers.handleResetBoard}
-            className="text-xs px-3 py-1.5 rounded-md border border-[#27272a] text-muted-foreground hover:text-foreground hover:bg-[#27272a] transition-colors"
+            className="text-xs px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             Reset
           </button>
@@ -409,7 +409,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
           <p className="text-muted-foreground leading-relaxed">{question.explanation}</p>
 
           {!isCorrect && (
-            <div className="pt-2 border-t border-white/8">
+            <div className="pt-2 border-t border-border/40">
               <p className="text-xs font-semibold text-foreground mb-2">Correct order:</p>
               <div className="space-y-1">
                 {question.items.map((item, i) => (
