@@ -22,6 +22,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { useState } from 'react';
 import { GripVertical, X, Package, Layers, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
+import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
+import { Button } from '../../../../components/ui/Button';
 import { ISequenceQuizQuestion } from '../../types/ISequenceQuizTypes';
 import { ISequenceQuizPageHandlers } from '../../types/ISequenceQuizPageHandlers';
 
@@ -75,14 +77,14 @@ const SortableBlock = ({
       style={style}
       className={cn(
         'flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium',
-        'bg-[#1c1c1e] transition-colors duration-150 select-none',
+        'bg-card transition-colors duration-150 select-none',
         isDragging ? 'opacity-40' : 'opacity-100',
         !isChecked && 'cursor-grab active:cursor-grabbing',
         isChecked && 'cursor-default',
         !isChecked && 'hover:border-primary/60 hover:bg-primary/5',
         isChecked && isPositionCorrect === true && 'border-green-500/60 bg-green-500/8',
         isChecked && isPositionCorrect === false && 'border-destructive/60 bg-destructive/8',
-        !isChecked && 'border-[#27272a]'
+        !isChecked && 'border-border'
       )}
     >
       <button
@@ -238,15 +240,15 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   const activeItemText = activeId ? itemTextFromId(activeId) : null;
 
   return (
-    <div className="bg-[#111111] border border-[#27272a] rounded-xl p-6 space-y-4">
-      {/* Question label + text */}
-      <div>
+    <Card>
+      <CardHeader>
         <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-1">
           Question
         </p>
-        <h3 className="text-lg font-semibold leading-snug">{question.question}</h3>
-      </div>
+        <CardTitle className="text-lg font-semibold leading-snug">{question.question}</CardTitle>
+      </CardHeader>
 
+      <CardContent className="space-y-4">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -259,7 +261,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
             <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2 px-0.5">
               <Package size={13} />
               <span>Available Blocks</span>
-              <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#27272a] text-muted-foreground">
+              <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                 {availableItems.length}
               </span>
             </div>
@@ -269,8 +271,8 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                 className={cn(
                   'min-h-[140px] border-2 border-dashed rounded-lg p-2 space-y-1.5 transition-colors',
                   availableItems.length === 0
-                    ? 'border-[#27272a]/50'
-                    : 'border-[#27272a]'
+                    ? 'border-border/50'
+                    : 'border-border'
                 )}
               >
                 {availableItems.length === 0 ? (
@@ -341,12 +343,12 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
           </div>
         </div>
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={null}>
           {activeId && activeItemText ? (
             <div
               className={cn(
                 'flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium',
-                'bg-[#1c1c1e] border-primary shadow-lg shadow-primary/20',
+                'bg-card border-primary shadow-lg shadow-primary/20',
                 'opacity-95 cursor-grabbing'
               )}
             >
@@ -360,27 +362,20 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
       {/* Actions */}
       {!isChecked && (
         <div className="flex items-center gap-2 pt-1">
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handlers.handleResetBoard}
-            className="text-xs px-3 py-1.5 rounded-md border border-[#27272a] text-muted-foreground hover:text-foreground hover:bg-[#27272a] transition-colors"
           >
             Reset
-          </button>
+          </Button>
           <span className="flex-1" />
-          <button
-            type="button"
+          <Button
             onClick={handlers.handleCheckAnswer}
             disabled={placedItems.length !== question.items.length}
-            className={cn(
-              'px-4 py-2 rounded-lg text-sm font-semibold transition-colors',
-              placedItems.length === question.items.length
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'bg-primary/30 text-primary-foreground/50 cursor-not-allowed'
-            )}
           >
             Check Order
-          </button>
+          </Button>
         </div>
       )}
 
@@ -409,7 +404,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
           <p className="text-muted-foreground leading-relaxed">{question.explanation}</p>
 
           {!isCorrect && (
-            <div className="pt-2 border-t border-white/8">
+            <div className="pt-2 border-t border-border/40">
               <p className="text-xs font-semibold text-foreground mb-2">Correct order:</p>
               <div className="space-y-1">
                 {question.items.map((item, i) => (
@@ -425,16 +420,16 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
           )}
 
           <div className="flex justify-end pt-1">
-            <button
-              type="button"
+            <Button
+              size="sm"
               onClick={isLastQuestion ? handlers.handleCompleteQuiz : handlers.handleNextQuestion}
-              className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               {isLastQuestion ? 'View results' : 'Next question →'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };
