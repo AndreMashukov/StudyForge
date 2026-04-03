@@ -59,4 +59,11 @@ export const FirestorePaths = {
   },
   diagramQuiz: (userId: string, diagramQuizId: string) =>
     FirestorePaths.diagramQuizzes(userId).doc(diagramQuizId),
+
+  sequenceQuizzes: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('sequenceQuizzes');
+  },
+  sequenceQuiz: (userId: string, sequenceQuizId: string) =>
+    FirestorePaths.sequenceQuizzes(userId).doc(sequenceQuizId),
 };

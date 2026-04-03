@@ -20,6 +20,7 @@ import {
   FlashcardSet,
   SlideDeck,
   DiagramQuiz,
+  SequenceQuiz,
   Rule,
 } from '../../libs/shared-types/src/index';
 import { resolveRulesForDirectory } from './rule-resolution';
@@ -514,13 +515,14 @@ export class DirectoryService {
     let flashcardSets: FlashcardSet[] = [];
     let slideDecks: SlideDeck[] = [];
     let diagramQuizzes: DiagramQuiz[] = [];
+    let sequenceQuizzes: SequenceQuiz[] = [];
     let resolvedRules: { rules: Rule[]; inheritanceMap: { [key: string]: Rule[] } } = {
       rules: [],
       inheritanceMap: {},
     };
 
     if (directoryId && includeArtifacts) {
-      const [qSnap, fSnap, sSnap, dqSnap] = await Promise.all([
+      const [qSnap, fSnap, sSnap, dqSnap, sqSnap] = await Promise.all([
         FirestorePaths.quizzes(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
@@ -541,12 +543,18 @@ export class DirectoryService {
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
           .get(),
+        FirestorePaths.sequenceQuizzes(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .get(),
       ]);
 
       quizzes = qSnap.docs.map(d => ({ ...d.data(), id: d.id } as Quiz));
       flashcardSets = fSnap.docs.map(d => ({ ...d.data(), id: d.id } as FlashcardSet));
       slideDecks = sSnap.docs.map(d => ({ ...d.data(), id: d.id } as SlideDeck));
       diagramQuizzes = dqSnap.docs.map(d => ({ ...d.data(), id: d.id } as DiagramQuiz));
+      sequenceQuizzes = sqSnap.docs.map(d => ({ ...d.data(), id: d.id } as SequenceQuiz));
     }
 
     if (directoryId && includeRules) {
@@ -558,7 +566,8 @@ export class DirectoryService {
       quizzes.length +
       flashcardSets.length +
       slideDecks.length +
-      diagramQuizzes.length;
+      diagramQuizzes.length +
+      sequenceQuizzes.length;
 
     return {
       ...base,
@@ -566,6 +575,7 @@ export class DirectoryService {
       flashcardSets,
       slideDecks,
       diagramQuizzes,
+      sequenceQuizzes,
       resolvedRules,
       totalCount,
     };

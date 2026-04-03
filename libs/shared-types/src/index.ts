@@ -114,6 +114,49 @@ export interface QuizQuestion {
   explanation: string; // Mandatory explanation for the correct answer
 }
 
+// Sequence Quiz — ordering quiz where items must be arranged in the correct sequence
+export interface SequenceQuizQuestion {
+  question: string;
+  items: string[]; // Items in CORRECT order (shuffled at display time on the client)
+  explanation: string;
+}
+
+export interface SequenceQuiz {
+  id: string;
+  userId: string;
+  documentId: string;
+  documentIds?: string[];
+  documentTitle: string;
+  title: string;
+  questions: SequenceQuizQuestion[];
+  directoryId: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  generationAttempt?: number;
+  followupRuleIds?: string[];
+}
+
+export interface GenerateSequenceQuizRequest {
+  documentIds: string[];
+  directoryId?: string;
+  sequenceQuizName?: string;
+  additionalPrompt?: string;
+  additionalRuleIds?: string[];
+}
+
+export interface GenerateSequenceQuizResponse {
+  sequenceQuizId: string;
+  sequenceQuiz?: SequenceQuiz;
+}
+
+export interface GetSequenceQuizResponse {
+  sequenceQuiz: SequenceQuiz;
+}
+
+export interface GetUserSequenceQuizzesResponse {
+  sequenceQuizzes: SequenceQuiz[];
+}
+
 // Diagram Quiz — multiple choice where each option is a Mermaid diagram
 export interface DiagramQuizQuestion {
   question: string;
@@ -226,6 +269,8 @@ export interface Directory {
   slideDeckCount: number;
   /** Present for directories created after diagram quizzes; treat missing as 0 */
   diagramQuizCount?: number;
+  /** Present for directories created after sequence quizzes; treat missing as 0 */
+  sequenceQuizCount?: number;
   ruleIds: string[];
   createdAt: Date | { toDate(): Date };
   updatedAt: Date | { toDate(): Date };
@@ -290,6 +335,7 @@ export interface GetDirectoryContentsWithArtifactsResponse extends GetDirectoryC
   flashcardSets: FlashcardSet[];
   slideDecks: SlideDeck[];
   diagramQuizzes: DiagramQuiz[];
+  sequenceQuizzes: SequenceQuiz[];
   resolvedRules: {
     rules: Rule[];
     inheritanceMap: { [directoryId: string]: Rule[] };
@@ -313,6 +359,7 @@ export interface DeleteDirectoryResponse {
   deletedFlashcardSetCount: number;
   deletedSlideDeckCount: number;
   deletedDiagramQuizCount?: number;
+  deletedSequenceQuizCount?: number;
 }
 
 // Directory Validation Types
@@ -653,6 +700,7 @@ export enum RuleApplicability {
   FLASHCARD = 'flashcard',
   SLIDE_DECK = 'slide_deck',
   DIAGRAM_QUIZ = 'diagram_quiz',
+  SEQUENCE_QUIZ = 'sequence_quiz',
 }
 
 export enum RuleColor {

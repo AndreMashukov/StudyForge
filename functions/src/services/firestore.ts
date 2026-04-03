@@ -6,8 +6,10 @@ import {
   GeminiQuizResponse,
   DiagramQuiz,
   DiagramQuizQuestion,
+  SequenceQuiz,
+  SequenceQuizQuestion,
 } from "@shared-types";
-import type { GeminiDiagramQuizResponse } from "./gemini/gemini";
+import type { GeminiDiagramQuizResponse, GeminiSequenceQuizResponse } from "./gemini/gemini";
 import * as functions from "firebase-functions";
 import { FirestorePaths } from '../lib/firestore-paths';
 
@@ -517,6 +519,123 @@ export class FirestoreService {
       functions.logger.error(`deleteDiagramQuiz ${diagramQuizId}:`, error);
       throw new Error(
         `Failed to delete diagram quiz: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  public static async saveSequenceQuizFromDocument(
+    documentId: string,
+    geminiQuiz: GeminiSequenceQuizResponse,
+    userId: string,
+    directoryId: string,
+    followupRuleIds?: string[],
+    allDocumentIds?: string[]
+  ): Promise<SequenceQuiz> {
+    try {
+      const col = FirestorePaths.sequenceQuizzes(userId);
+      const document = await this.getDocument(userId, documentId);
+      const existing = await col.where("documentId", "==", documentId).get();
+      const generationAttempt = existing.size + 1;
+
+      const questions: SequenceQuizQuestion[] = geminiQuiz.questions.map((q) => ({
+        question: q.question,
+        items: q.items,
+        explanation: q.explanation,
+      }));
+
+      const db = this.getDb();
+      const ref = col.doc();
+      const payload = {
+        id: ref.id,
+        documentId,
+        ...(allDocumentIds ? { documentIds: allDocumentIds } : {}),
+        title: geminiQuiz.title,
+        questions,
+        userId,
+        directoryId,
+        documentTitle: document.title,
+        generationAttempt,
+        followupRuleIds: followupRuleIds || [],
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      await db.runTransaction(async (transaction) => {
+        transaction.set(ref, payload);
+        transaction.update(FirestorePaths.directory(userId, directoryId), {
+          sequenceQuizCount: FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      });
+
+      return { ...payload, id: ref.id } as unknown as SequenceQuiz;
+    } catch (error) {
+      functions.logger.error("Error saving sequence quiz:", error);
+      throw new Error(
+        `Failed to save sequence quiz: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  public static async getSequenceQuiz(
+    sequenceQuizId: string,
+    userId: string
+  ): Promise<SequenceQuiz | null> {
+    try {
+      const snap = await FirestorePaths.sequenceQuiz(userId, sequenceQuizId).get();
+      if (!snap.exists) return null;
+      return { id: snap.id, ...snap.data() } as SequenceQuiz;
+    } catch (error) {
+      functions.logger.error(`Error getSequenceQuiz ${sequenceQuizId}:`, error);
+      throw new Error("Failed to fetch sequence quiz");
+    }
+  }
+
+  public static async getUserSequenceQuizzes(userId: string): Promise<SequenceQuiz[]> {
+    try {
+      const snapshot = await FirestorePaths.sequenceQuizzes(userId)
+        .orderBy("createdAt", "desc")
+        .get();
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as SequenceQuiz));
+    } catch (error) {
+      functions.logger.error(`getUserSequenceQuizzes ${userId}:`, error);
+      throw new Error("Failed to list sequence quizzes");
+    }
+  }
+
+  public static async deleteSequenceQuiz(
+    sequenceQuizId: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      const ref = FirestorePaths.sequenceQuiz(userId, sequenceQuizId);
+      const db = this.getDb();
+      await db.runTransaction(async (transaction) => {
+        const snap = await transaction.get(ref);
+        if (!snap.exists) {
+          throw new Error("Sequence quiz not found");
+        }
+        const data = snap.data() as SequenceQuiz;
+        transaction.delete(ref);
+        if (data.directoryId) {
+          transaction.update(
+            FirestorePaths.directory(userId, data.directoryId),
+            {
+              sequenceQuizCount: FieldValue.increment(-1),
+              updatedAt: FieldValue.serverTimestamp(),
+            }
+          );
+        }
+      });
+      functions.logger.info(`Deleted sequence quiz: ${sequenceQuizId}`);
+    } catch (error) {
+      functions.logger.error(`deleteSequenceQuiz ${sequenceQuizId}:`, error);
+      throw new Error(
+        `Failed to delete sequence quiz: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );

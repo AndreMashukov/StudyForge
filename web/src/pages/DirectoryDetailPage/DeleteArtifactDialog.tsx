@@ -13,8 +13,9 @@ import { useDeleteQuizMutation } from '../../store/api/Quiz/QuizApi';
 import { useDeleteFlashcardSetMutation } from '../../store/api/Flashcards/FlashcardsApi';
 import { useDeleteSlideDeckMutation } from '../../store/api/SlideDecks/SlideDecksApi';
 import { useDeleteDiagramQuizMutation } from '../../store/api/DiagramQuiz/DiagramQuizApi';
+import { useDeleteSequenceQuizMutation } from '../../store/api/SequenceQuiz/SequenceQuizApi';
 
-export type ArtifactType = 'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz';
+export type ArtifactType = 'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz';
 
 export interface ArtifactToDelete {
   id: string;
@@ -33,6 +34,7 @@ const TYPE_LABELS: Record<ArtifactType, string> = {
   flashcard: 'Flashcard Set',
   slideDeck: 'Slide Deck',
   diagramQuiz: 'Diagram Quiz',
+  sequenceQuiz: 'Sequence Quiz',
 };
 
 export const DeleteArtifactDialog: React.FC<DeleteArtifactDialogProps> = ({
@@ -45,9 +47,11 @@ export const DeleteArtifactDialog: React.FC<DeleteArtifactDialogProps> = ({
   const [deleteSlideDeck, { isLoading: deletingSlideDeck }] = useDeleteSlideDeckMutation();
   const [deleteDiagramQuiz, { isLoading: deletingDiagramQuiz }] =
     useDeleteDiagramQuizMutation();
+  const [deleteSequenceQuiz, { isLoading: deletingSequenceQuiz }] =
+    useDeleteSequenceQuizMutation();
 
   const isLoading =
-    deletingQuiz || deletingFlashcard || deletingSlideDeck || deletingDiagramQuiz;
+    deletingQuiz || deletingFlashcard || deletingSlideDeck || deletingDiagramQuiz || deletingSequenceQuiz;
 
   const handleDelete = async () => {
     if (!artifact) return;
@@ -65,6 +69,9 @@ export const DeleteArtifactDialog: React.FC<DeleteArtifactDialogProps> = ({
           break;
         case 'diagramQuiz':
           await deleteDiagramQuiz({ diagramQuizId: artifact.id }).unwrap();
+          break;
+        case 'sequenceQuiz':
+          await deleteSequenceQuiz({ sequenceQuizId: artifact.id }).unwrap();
           break;
       }
       onClose();

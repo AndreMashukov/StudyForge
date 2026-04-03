@@ -84,6 +84,13 @@ export {
   deleteDiagramQuiz,
 } from "./endpoints/diagram-quizzes";
 
+export {
+  generateSequenceQuiz,
+  getSequenceQuiz,
+  getUserSequenceQuizzes,
+  deleteSequenceQuiz,
+} from "./endpoints/sequence-quizzes";
+
 // Export quiz followup functions
 export {
   generateQuizFollowup,
