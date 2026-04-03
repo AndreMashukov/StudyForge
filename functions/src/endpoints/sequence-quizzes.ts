@@ -6,7 +6,6 @@ import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
 import { resolveGenerationRulesForPrompt, resolveRulesForDirectory } from "../services/rule-resolution";
 import {
-  GenerateSequenceQuizRequest,
   GenerateSequenceQuizResponse,
   GetSequenceQuizResponse,
   ApiResponse,
@@ -15,6 +14,20 @@ import {
 } from "@shared-types";
 
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+
+function optionalTrimmedString(
+  value: unknown,
+  fieldName: string
+): string | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== "string") {
+    throw new Error(`${fieldName} must be a string`);
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
 
 export const generateSequenceQuiz = onCall(
   {
@@ -48,9 +61,25 @@ export const generateSequenceQuiz = onCall(
       if (requestData.additionalRuleIds != null && !Array.isArray(requestData.additionalRuleIds)) {
         throw new Error("additionalRuleIds must be an array when provided");
       }
+      if (
+        Array.isArray(requestData.additionalRuleIds) &&
+        !requestData.additionalRuleIds.every((id): id is string => typeof id === "string")
+      ) {
+        throw new Error("Each additionalRuleId must be a string");
+      }
 
-      const typedRequest = requestData as unknown as GenerateSequenceQuizRequest;
-      const { sequenceQuizName, additionalPrompt } = typedRequest;
+      const sequenceQuizName = optionalTrimmedString(
+        requestData.sequenceQuizName,
+        "sequenceQuizName"
+      );
+      const additionalPrompt = optionalTrimmedString(
+        requestData.additionalPrompt,
+        "additionalPrompt"
+      );
+      const directoryIdFromRequest = optionalTrimmedString(
+        requestData.directoryId,
+        "directoryId"
+      );
 
       const documentDataList = await Promise.all(
         documentIds.map(async (docId) => {
@@ -61,7 +90,7 @@ export const generateSequenceQuiz = onCall(
       );
 
       const resolvedDirectoryId =
-        typedRequest.directoryId ?? documentDataList[0]?.doc.directoryId;
+        directoryIdFromRequest ?? documentDataList[0]?.doc.directoryId;
       if (!resolvedDirectoryId) {
         throw new Error("directoryId is required, or documents must belong to a directory");
       }
@@ -88,11 +117,15 @@ export const generateSequenceQuiz = onCall(
       let enhancedPrompt = additionalPrompt || "";
       let followupIdsForSave: string[] = [];
 
+      const additionalRuleIds = Array.isArray(requestData.additionalRuleIds)
+        ? (requestData.additionalRuleIds as string[])
+        : undefined;
+
       const quizRulesText = await resolveGenerationRulesForPrompt(
         userId,
         resolvedDirectoryId,
         RuleApplicability.SEQUENCE_QUIZ,
-        typedRequest.additionalRuleIds
+        additionalRuleIds
       );
       if (quizRulesText) {
         enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
@@ -109,8 +142,8 @@ export const generateSequenceQuiz = onCall(
         enhancedPrompt || undefined
       );
 
-      if (sequenceQuizName?.trim()) {
-        geminiQuiz.title = sequenceQuizName.trim();
+      if (sequenceQuizName) {
+        geminiQuiz.title = sequenceQuizName;
       } else if (documentIds.length === 1) {
         geminiQuiz.title = `Sequence Quiz from ${documentDataList[0].doc.title}`;
       } else {

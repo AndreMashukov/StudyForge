@@ -960,20 +960,30 @@ export class GeminiService {
     title?: unknown;
     questions?: unknown;
   }): void {
-    if (!parsed.title || !Array.isArray(parsed.questions)) {
-      throw new Error('Invalid sequence quiz: missing title or questions');
+    if (typeof parsed.title !== 'string' || parsed.title.trim().length === 0) {
+      throw new Error('Invalid sequence quiz: title must be a non-empty string');
     }
-    if (parsed.questions.length === 0) {
-      throw new Error('Invalid sequence quiz: questions array is empty');
+    if (!Array.isArray(parsed.questions)) {
+      throw new Error('Invalid sequence quiz: questions must be an array');
+    }
+    const qCount = parsed.questions.length;
+    if (qCount < 8 || qCount > 12) {
+      throw new Error(
+        `Invalid sequence quiz: expected between 8 and 12 questions, got ${qCount}`
+      );
     }
     (parsed.questions as unknown[]).forEach((q, index) => {
       const row = q as Record<string, unknown>;
       if (!row.question || typeof row.question !== 'string') {
         throw new Error(`Sequence quiz question ${index + 1}: invalid question`);
       }
-      if (!Array.isArray(row.items) || row.items.length < 3) {
+      if (
+        !Array.isArray(row.items) ||
+        row.items.length < 4 ||
+        row.items.length > 10
+      ) {
         throw new Error(
-          `Sequence quiz question ${index + 1}: items must be an array with at least 3 elements`
+          `Sequence quiz question ${index + 1}: items must be an array with between 4 and 10 elements`
         );
       }
       for (const item of row.items) {

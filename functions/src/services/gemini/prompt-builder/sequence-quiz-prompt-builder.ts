@@ -30,7 +30,7 @@ export class SequenceQuizPromptBuilder {
     const example = this.getExampleStructure();
     return `${base}
 
-**ADDITIONAL RULES (take priority over defaults where they conflict):**
+**ADDITIONAL DOMAIN RULES (supplement the requirements above; do not change the JSON shape, question count 8–12, or per-question item count 4–10):**
 ${customRules}
 
 ${contentSection}

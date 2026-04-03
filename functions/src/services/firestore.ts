@@ -570,7 +570,11 @@ export class FirestoreService {
         });
       });
 
-      return { ...payload, id: ref.id } as unknown as SequenceQuiz;
+      const savedSnap = await ref.get();
+      if (!savedSnap.exists) {
+        throw new Error("Failed to read saved sequence quiz");
+      }
+      return { id: savedSnap.id, ...savedSnap.data() } as SequenceQuiz;
     } catch (error) {
       functions.logger.error("Error saving sequence quiz:", error);
       throw new Error(
