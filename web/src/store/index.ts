@@ -4,6 +4,7 @@ import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
 import quizPageReducer from './slices/quizPageSlice';
 import diagramQuizPageReducer from './slices/diagramQuizPageSlice';
+import sequenceQuizPageReducer from './slices/sequenceQuizPageSlice';
 import documentViewerPageReducer from './slices/documentViewerPageSlice';
 import createDocumentPageReducer from './slices/createDocumentPageSlice';
 import rulesReducer from './slices/rulesSlice';
@@ -15,6 +16,7 @@ export const store = configureStore({
     ui: uiReducer,
     quizPage: quizPageReducer,
     diagramQuizPage: diagramQuizPageReducer,
+    sequenceQuizPage: sequenceQuizPageReducer,
     documentViewerPage: documentViewerPageReducer,
     createDocumentPage: createDocumentPageReducer,
     rules: rulesReducer,

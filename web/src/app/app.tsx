@@ -24,6 +24,8 @@ import { CreateSlideDeckPage } from '../pages/CreateSlideDeckPage';
 import { SlideDeckPage } from '../pages/SlideDeckPage';
 import { DiagramQuizPage } from '../pages/DiagramQuizPage';
 import { CreateDiagramQuizPage } from '../pages/CreateDiagramQuizPage';
+import { SequenceQuizPage } from '../pages/SequenceQuizPage';
+import { CreateSequenceQuizPage } from '../pages/CreateSequenceQuizPage';
 import { Page } from '../components/Page';
 import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
 import { QuizIndexRedirect } from '../utils/QuizIndexRedirect';
@@ -242,6 +244,27 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <DiagramQuizPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+
+      <Route
+        path="/sequence-quiz/create"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <CreateSequenceQuizPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/sequence-quiz/:sequenceQuizId"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <SequenceQuizPage />
             </ProtectedRoute>
           </MainLayout>
         }

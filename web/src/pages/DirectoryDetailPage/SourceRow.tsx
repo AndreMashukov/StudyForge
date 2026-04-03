@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FileText, Trash2, ChevronDown, Brain, Layers, Presentation, Network } from 'lucide-react';
+import { FileText, Trash2, ChevronDown, Brain, Layers, Presentation, Network, ListOrdered } from 'lucide-react';
 import { DocumentEnhanced } from '@shared-types';
 import { formatDate } from '../../utils/dateUtils';
 import { Button } from '../../components/ui/Button';
@@ -75,6 +75,14 @@ export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onD
             >
               <Network size={14} className="mr-2" />
               Diagram quiz
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                navigate(`/sequence-quiz/create?directoryId=${directoryId}&documentId=${document.id}`)
+              }
+            >
+              <ListOrdered size={14} className="mr-2" />
+              Sequence quiz
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

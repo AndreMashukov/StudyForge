@@ -18,6 +18,7 @@ import {
   FlashcardPromptBuilder,
   SlideDeckPromptBuilder,
   DiagramQuizPromptBuilder,
+  SequenceQuizPromptBuilder,
 } from './prompt-builder';
 import {
   buildPromptWithContextFiles,
@@ -45,6 +46,15 @@ export interface GeminiDiagramQuizResponse {
     correctAnswer: number;
     explanation: string;
     diagramLabels?: string[];
+  }>;
+}
+
+export interface GeminiSequenceQuizResponse {
+  title: string;
+  questions: Array<{
+    question: string;
+    items: string[];
+    explanation: string;
   }>;
 }
 
@@ -198,6 +208,62 @@ export class GeminiService {
       }
       throw new Error(
         `Failed to generate diagram quiz: ${
+          error instanceof Error ? error.message : error
+        }`
+      );
+    }
+  }
+
+  /**
+   * Generate a sequence quiz: items that the learner must drag into the correct order.
+   * The prompt is domain-agnostic by design — specialisation is injected via rules.
+   */
+  public static async generateSequenceQuiz(
+    content: ScrapedContent,
+    additionalPrompt?: string
+  ): Promise<GeminiSequenceQuizResponse> {
+    try {
+      functions.logger.info('Generating sequence quiz with Gemini AI...');
+      JsonSanitizer.validateContentForSafeGeneration(content.content);
+
+      const client = this.getClient();
+      const prompt = SequenceQuizPromptBuilder.buildSequenceQuizPrompt(
+        content,
+        additionalPrompt
+      );
+
+      const response = await client.models.generateContent({
+        model: GEMINI_PRO_MODEL,
+        contents: prompt,
+        config: {
+          temperature: 0.4,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 16384,
+        },
+      });
+
+      const text = response.text;
+      if (!text) {
+        throw new Error('Empty response from Gemini API');
+      }
+
+      return this.parseSequenceQuizResponse(text);
+    } catch (error) {
+      functions.logger.error('Error generating sequence quiz:', error);
+      const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+      if (
+        isEmulator &&
+        error instanceof Error &&
+        error.message.includes('User location is not supported')
+      ) {
+        functions.logger.warn(
+          'Geographic restriction in emulator, falling back to mock sequence quiz'
+        );
+        return this.generateMockSequenceQuiz(content);
+      }
+      throw new Error(
+        `Failed to generate sequence quiz: ${
           error instanceof Error ? error.message : error
         }`
       );
@@ -859,6 +925,108 @@ export class GeminiService {
           question: 'Mock question two (development only)?',
           diagrams: [d('X-->Y'), d('Y-->X'), d('X-->Z'), d('Z-->Y')],
           correctAnswer: 0,
+          explanation: 'Mock explanation for local emulator testing.',
+        },
+      ],
+    };
+  }
+
+  private static parseSequenceQuizResponse(
+    responseText: string
+  ): GeminiSequenceQuizResponse {
+    let cleanText = '';
+    try {
+      cleanText = JsonSanitizer.initialCleanup(responseText);
+      cleanText = JsonSanitizer.sanitizeJsonText(cleanText);
+      cleanText = JsonSanitizer.applyComprehensiveCleanup(cleanText);
+      cleanText = JsonSanitizer.applyStateBased(cleanText);
+      const parsed = JSON.parse(cleanText);
+      this.validateSequenceQuizStructure(parsed);
+      return parsed as GeminiSequenceQuizResponse;
+    } catch (error) {
+      JsonSanitizer.logParsingError(error, responseText, cleanText);
+      try {
+        const fallbackResult = JsonSanitizer.tryFallbackParsing(cleanText);
+        this.validateSequenceQuizStructure(fallbackResult);
+        return fallbackResult as GeminiSequenceQuizResponse;
+      } catch (fallbackError) {
+        functions.logger.error('Sequence quiz parse failed:', fallbackError);
+      }
+      throw new Error(`Failed to parse sequence quiz response: ${error}`);
+    }
+  }
+
+  private static validateSequenceQuizStructure(parsed: {
+    title?: unknown;
+    questions?: unknown;
+  }): void {
+    if (typeof parsed.title !== 'string' || parsed.title.trim().length === 0) {
+      throw new Error('Invalid sequence quiz: title must be a non-empty string');
+    }
+    if (!Array.isArray(parsed.questions)) {
+      throw new Error('Invalid sequence quiz: questions must be an array');
+    }
+    const qCount = parsed.questions.length;
+    if (qCount < 8 || qCount > 12) {
+      throw new Error(
+        `Invalid sequence quiz: expected between 8 and 12 questions, got ${qCount}`
+      );
+    }
+    (parsed.questions as unknown[]).forEach((q, index) => {
+      const row = q as Record<string, unknown>;
+      if (!row.question || typeof row.question !== 'string') {
+        throw new Error(`Sequence quiz question ${index + 1}: invalid question`);
+      }
+      if (
+        !Array.isArray(row.items) ||
+        row.items.length < 4 ||
+        row.items.length > 10
+      ) {
+        throw new Error(
+          `Sequence quiz question ${index + 1}: items must be an array with between 4 and 10 elements`
+        );
+      }
+      for (const item of row.items) {
+        if (typeof item !== 'string' || item.trim().length === 0) {
+          throw new Error(
+            `Sequence quiz question ${index + 1}: each item must be a non-empty string`
+          );
+        }
+      }
+      if (
+        !row.explanation ||
+        typeof row.explanation !== 'string' ||
+        row.explanation.trim().length === 0
+      ) {
+        throw new Error(
+          `Sequence quiz question ${index + 1}: missing explanation`
+        );
+      }
+    });
+  }
+
+  private static generateMockSequenceQuiz(
+    content: ScrapedContent
+  ): GeminiSequenceQuizResponse {
+    return {
+      title: `Mock Sequence Quiz: ${content.title}`,
+      questions: [
+        {
+          question: 'Arrange these steps in the correct order:',
+          items: [
+            'Define the problem',
+            'Gather requirements',
+            'Design the solution',
+            'Implement the solution',
+            'Test and validate',
+            'Deploy and monitor',
+          ],
+          explanation:
+            'This is a standard software development lifecycle: define → gather → design → implement → test → deploy.',
+        },
+        {
+          question: 'Arrange these items in order (mock question):',
+          items: ['Step A', 'Step B', 'Step C', 'Step D'],
           explanation: 'Mock explanation for local emulator testing.',
         },
       ],
