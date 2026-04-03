@@ -1,44 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Brain, Trash2 } from 'lucide-react';
+import { AlertTriangle, Brain } from 'lucide-react';
 import { Quiz } from '@shared-types';
-import { formatDate } from '../../utils/dateUtils';
 import { Button } from '../../components/ui/Button';
-
-interface QuizRowProps {
-  quiz: Quiz;
-  directoryId: string;
-  onDelete: (quiz: Quiz) => void;
-}
-
-const QuizRow: React.FC<QuizRowProps> = ({ quiz, directoryId, onDelete }) => {
-  return (
-    <div className="group relative">
-      <Link
-        to={`/quiz/${quiz.id}?directoryId=${encodeURIComponent(directoryId)}`}
-        className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors pr-10"
-      >
-        <Brain size={18} className="shrink-0 text-muted-foreground" />
-        <div className="flex-1 min-w-0">
-          <div className="font-medium truncate">{quiz.title}</div>
-          <div className="text-xs text-muted-foreground">{formatDate(quiz.createdAt)}</div>
-        </div>
-      </Link>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring z-10"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(quiz);
-        }}
-        aria-label={`Delete ${quiz.title}`}
-      >
-        <Trash2 size={16} />
-      </Button>
-    </div>
-  );
-};
+import { ArtifactRow } from './ArtifactRow';
 
 interface QuizzesPanelProps {
   quizzes: Quiz[];
@@ -74,13 +39,16 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
       ) : (
         <div className="space-y-2">
           {quizzes.map((q) => (
-            <QuizRow
+            <ArtifactRow
               key={q.id}
-              quiz={q}
-              directoryId={directoryId}
-              onDelete={(quiz) =>
-                onDeleteArtifact({ id: quiz.id, title: quiz.title, type: 'quiz' })
+              icon={Brain}
+              title={q.title}
+              createdAt={q.createdAt}
+              linkTo={`/quiz/${q.id}?directoryId=${encodeURIComponent(directoryId)}`}
+              onDelete={() =>
+                onDeleteArtifact({ id: q.id, title: q.title, type: 'quiz' })
               }
+              deleteAriaLabel={`Delete ${q.title}`}
             />
           ))}
         </div>

@@ -1,49 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Network, Trash2 } from 'lucide-react';
+import { AlertTriangle, Network } from 'lucide-react';
 import { DiagramQuiz } from '@shared-types';
-import { formatDate } from '../../utils/dateUtils';
 import { Button } from '../../components/ui/Button';
-
-interface DiagramQuizRowProps {
-  diagramQuiz: DiagramQuiz;
-  directoryId: string;
-  onDelete: (dq: DiagramQuiz) => void;
-}
-
-const DiagramQuizRow: React.FC<DiagramQuizRowProps> = ({
-  diagramQuiz,
-  directoryId,
-  onDelete,
-}) => {
-  return (
-    <div className="group relative">
-      <Link
-        to={`/diagram-quiz/${diagramQuiz.id}?directoryId=${encodeURIComponent(directoryId)}`}
-        className="flex items-center gap-3 rounded-lg border border-border p-3 pr-10 transition-colors hover:bg-muted/50"
-      >
-        <Network size={18} className="shrink-0 text-muted-foreground" />
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-medium">{diagramQuiz.title}</div>
-          <div className="text-xs text-muted-foreground">{formatDate(diagramQuiz.createdAt)}</div>
-        </div>
-      </Link>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute right-2 top-2 h-8 w-8 text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring z-10"
-        onClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          onDelete(diagramQuiz);
-        }}
-        aria-label={`Delete ${diagramQuiz.title}`}
-      >
-        <Trash2 size={16} />
-      </Button>
-    </div>
-  );
-};
+import { ArtifactRow } from './ArtifactRow';
 
 interface DiagramQuizzesPanelProps {
   diagramQuizzes: DiagramQuiz[];
@@ -79,13 +39,16 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
       ) : (
         <div className="space-y-2">
           {diagramQuizzes.map((dq) => (
-            <DiagramQuizRow
+            <ArtifactRow
               key={dq.id}
-              diagramQuiz={dq}
-              directoryId={directoryId}
-              onDelete={(q) =>
-                onDeleteArtifact({ id: q.id, title: q.title, type: 'diagramQuiz' })
+              icon={Network}
+              title={dq.title}
+              createdAt={dq.createdAt}
+              linkTo={`/diagram-quiz/${dq.id}?directoryId=${encodeURIComponent(directoryId)}`}
+              onDelete={() =>
+                onDeleteArtifact({ id: dq.id, title: dq.title, type: 'diagramQuiz' })
               }
+              deleteAriaLabel={`Delete ${dq.title}`}
             />
           ))}
         </div>

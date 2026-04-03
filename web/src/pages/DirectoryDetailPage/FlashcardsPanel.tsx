@@ -1,44 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Layers, Trash2 } from 'lucide-react';
+import { AlertTriangle, Layers } from 'lucide-react';
 import { FlashcardSet } from '@shared-types';
-import { formatDate } from '../../utils/dateUtils';
 import { Button } from '../../components/ui/Button';
-
-interface FlashcardRowProps {
-  flashcard: FlashcardSet;
-  directoryId: string;
-  onDelete: (flashcard: FlashcardSet) => void;
-}
-
-const FlashcardRow: React.FC<FlashcardRowProps> = ({ flashcard, directoryId, onDelete }) => {
-  return (
-    <div className="group relative">
-      <Link
-        to={`/flashcards/${flashcard.id}?directoryId=${encodeURIComponent(directoryId)}`}
-        className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors pr-10"
-      >
-        <Layers size={18} className="shrink-0 text-muted-foreground" />
-        <div className="flex-1 min-w-0">
-          <div className="font-medium truncate">{flashcard.title}</div>
-          <div className="text-xs text-muted-foreground">{formatDate(flashcard.createdAt)}</div>
-        </div>
-      </Link>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring z-10"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(flashcard);
-        }}
-        aria-label={`Delete ${flashcard.title}`}
-      >
-        <Trash2 size={16} />
-      </Button>
-    </div>
-  );
-};
+import { ArtifactRow } from './ArtifactRow';
 
 interface FlashcardsPanelProps {
   flashcardSets: FlashcardSet[];
@@ -74,13 +39,16 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
       ) : (
         <div className="space-y-2">
           {flashcardSets.map((f) => (
-            <FlashcardRow
+            <ArtifactRow
               key={f.id}
-              flashcard={f}
-              directoryId={directoryId}
-              onDelete={(fc) =>
-                onDeleteArtifact({ id: fc.id, title: fc.title, type: 'flashcard' })
+              icon={Layers}
+              title={f.title}
+              createdAt={f.createdAt}
+              linkTo={`/flashcards/${f.id}?directoryId=${encodeURIComponent(directoryId)}`}
+              onDelete={() =>
+                onDeleteArtifact({ id: f.id, title: f.title, type: 'flashcard' })
               }
+              deleteAriaLabel={`Delete ${f.title}`}
             />
           ))}
         </div>

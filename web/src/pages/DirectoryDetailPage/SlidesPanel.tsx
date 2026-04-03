@@ -1,44 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Presentation, Trash2 } from 'lucide-react';
+import { AlertTriangle, Presentation } from 'lucide-react';
 import { SlideDeck } from '@shared-types';
-import { formatDate } from '../../utils/dateUtils';
 import { Button } from '../../components/ui/Button';
-
-interface SlideRowProps {
-  slide: SlideDeck;
-  directoryId: string;
-  onDelete: (slide: SlideDeck) => void;
-}
-
-const SlideRow: React.FC<SlideRowProps> = ({ slide, directoryId, onDelete }) => {
-  return (
-    <div className="group relative">
-      <Link
-        to={`/slides/${slide.id}?directoryId=${encodeURIComponent(directoryId)}`}
-        className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors pr-10"
-      >
-        <Presentation size={18} className="shrink-0 text-muted-foreground" />
-        <div className="flex-1 min-w-0">
-          <div className="font-medium truncate">{slide.title}</div>
-          <div className="text-xs text-muted-foreground">{formatDate(slide.createdAt)}</div>
-        </div>
-      </Link>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring z-10"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(slide);
-        }}
-        aria-label={`Delete ${slide.title}`}
-      >
-        <Trash2 size={16} />
-      </Button>
-    </div>
-  );
-};
+import { ArtifactRow } from './ArtifactRow';
 
 interface SlidesPanelProps {
   slideDecks: SlideDeck[];
@@ -74,13 +39,16 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
       ) : (
         <div className="space-y-2">
           {slideDecks.map((s) => (
-            <SlideRow
+            <ArtifactRow
               key={s.id}
-              slide={s}
-              directoryId={directoryId}
-              onDelete={(sd) =>
-                onDeleteArtifact({ id: sd.id, title: sd.title, type: 'slideDeck' })
+              icon={Presentation}
+              title={s.title}
+              createdAt={s.createdAt}
+              linkTo={`/slides/${s.id}?directoryId=${encodeURIComponent(directoryId)}`}
+              onDelete={() =>
+                onDeleteArtifact({ id: s.id, title: s.title, type: 'slideDeck' })
               }
+              deleteAriaLabel={`Delete ${s.title}`}
             />
           ))}
         </div>
