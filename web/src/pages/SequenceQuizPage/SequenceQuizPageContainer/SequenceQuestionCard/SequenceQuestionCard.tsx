@@ -2,6 +2,7 @@ import React from 'react';
 import {
   DndContext,
   DragEndEvent,
+  DragOverEvent,
   DragOverlay,
   DragStartEvent,
   PointerSensor,
@@ -14,6 +15,7 @@ import {
 } from '@dnd-kit/core';
 import {
   SortableContext,
+  arrayMove,
   useSortable,
   verticalListSortingStrategy,
   sortableKeyboardCoordinates,
@@ -164,6 +166,8 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   isLastQuestion,
 }) => {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  // Live ordered copy of placedItems updated during drag for smooth reorder preview
+  const [liveTargetIds, setLiveTargetIds] = useState<string[]>([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -171,7 +175,8 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   );
 
   const sourceIds = availableItems.map((_, i) => `src__${i}`);
-  const targetIds = placedItems.map((_, i) => `tgt__${i}`);
+  // Use the live order during drag, fall back to Redux state otherwise
+  const targetIds = activeId ? liveTargetIds : placedItems.map((_, i) => `tgt__${i}`);
 
   const itemFromSourceId = (id: UniqueIdentifier): { item: string; index: number } | null => {
     const s = String(id);
@@ -201,6 +206,29 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id);
+    // Snapshot current target ids for live reorder tracking
+    setLiveTargetIds(placedItems.map((_, i) => `tgt__${i}`));
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeIdStr = String(active.id);
+    const overIdStr = String(over.id);
+
+    const fromTarget = activeIdStr.startsWith('tgt__');
+    const toTarget = overIdStr.startsWith('tgt__');
+
+    // Live reorder within target zone: shift items as the drag moves
+    if (fromTarget && toTarget && activeIdStr !== overIdStr) {
+      setLiveTargetIds((ids) => {
+        const oldIndex = ids.indexOf(activeIdStr);
+        const newIndex = ids.indexOf(overIdStr);
+        if (oldIndex === -1 || newIndex === -1) return ids;
+        return arrayMove(ids, oldIndex, newIndex);
+      });
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -220,8 +248,14 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
     if (fromSource && toTarget) {
       const src = itemFromSourceId(active.id);
       if (src) {
-        const overTgt = itemFromTargetId(over.id);
-        handlers.handlePlaceItem(src.item, overTgt?.index);
+        if (overIdStr === TARGET_ZONE) {
+          // Dropped on empty zone area — append to end
+          handlers.handlePlaceItem(src.item);
+        } else {
+          // Dropped on a specific item — insert after it so it lands below
+          const overTgt = itemFromTargetId(over.id);
+          handlers.handlePlaceItem(src.item, overTgt !== null ? overTgt.index + 1 : undefined);
+        }
       }
     } else if (fromTarget && toSource) {
       const tgt = itemFromTargetId(active.id);
@@ -229,11 +263,20 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
         handlers.handleRemoveItem(tgt.item);
       }
     } else if (fromTarget && toTarget) {
-      const fromTgt = itemFromTargetId(active.id);
-      const toTgt = itemFromTargetId(over.id);
-      if (fromTgt && toTgt && fromTgt.index !== toTgt.index) {
-        handlers.handleReorderPlacedItem(fromTgt.index, toTgt.index);
+      // Commit the live reorder to Redux using the liveTargetIds order
+      const newOrder = liveTargetIds.map((id) => {
+        const t = itemFromTargetId(id);
+        return t ? t.item : null;
+      }).filter((x): x is string => x !== null);
+
+      // Walk through newOrder and apply any moves that differ from current placedItems
+      const oldFirst = itemFromTargetId(active.id);
+      const newFirstIdx = liveTargetIds.indexOf(activeIdStr);
+      if (oldFirst !== null && newFirstIdx !== -1 && oldFirst.index !== newFirstIdx) {
+        handlers.handleReorderPlacedItem(oldFirst.index, newFirstIdx);
       }
+      // If identical, no-op
+      void newOrder;
     }
   };
 
@@ -253,6 +296,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -320,14 +364,16 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                     <span className="text-xs">Drag blocks here</span>
                   </div>
                 ) : (
-                  placedItems.map((item, index) => {
+                  (activeId ? liveTargetIds : placedItems.map((_, i) => `tgt__${i}`)).map((tgtId, index) => {
+                    const srcIndex = parseInt(String(tgtId).slice(5), 10);
+                    const item = placedItems[srcIndex] ?? '';
                     const isPositionCorrect = isChecked
                       ? question.items[index] === item
                       : null;
                     return (
                       <SortableBlock
-                        key={`tgt__${index}`}
-                        id={`tgt__${index}`}
+                        key={tgtId}
+                        id={String(tgtId)}
                         text={item}
                         index={index}
                         inTarget={true}
