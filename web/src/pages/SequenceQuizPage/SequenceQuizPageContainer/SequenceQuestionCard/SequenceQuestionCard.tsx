@@ -22,6 +22,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { useState } from 'react';
 import { GripVertical, X, Package, Layers, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
+import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
+import { Button } from '../../../../components/ui/Button';
 import { ISequenceQuizQuestion } from '../../types/ISequenceQuizTypes';
 import { ISequenceQuizPageHandlers } from '../../types/ISequenceQuizPageHandlers';
 
@@ -238,15 +240,15 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   const activeItemText = activeId ? itemTextFromId(activeId) : null;
 
   return (
-    <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-      {/* Question label + text */}
-      <div>
+    <Card>
+      <CardHeader>
         <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-1">
           Question
         </p>
-        <h3 className="text-lg font-semibold leading-snug">{question.question}</h3>
-      </div>
+        <CardTitle className="text-lg font-semibold leading-snug">{question.question}</CardTitle>
+      </CardHeader>
 
+      <CardContent className="space-y-4">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -360,27 +362,20 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
       {/* Actions */}
       {!isChecked && (
         <div className="flex items-center gap-2 pt-1">
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handlers.handleResetBoard}
-            className="text-xs px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             Reset
-          </button>
+          </Button>
           <span className="flex-1" />
-          <button
-            type="button"
+          <Button
             onClick={handlers.handleCheckAnswer}
             disabled={placedItems.length !== question.items.length}
-            className={cn(
-              'px-4 py-2 rounded-lg text-sm font-semibold transition-colors',
-              placedItems.length === question.items.length
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'bg-primary/30 text-primary-foreground/50 cursor-not-allowed'
-            )}
           >
             Check Order
-          </button>
+          </Button>
         </div>
       )}
 
@@ -425,16 +420,16 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
           )}
 
           <div className="flex justify-end pt-1">
-            <button
-              type="button"
+            <Button
+              size="sm"
               onClick={isLastQuestion ? handlers.handleCompleteQuiz : handlers.handleNextQuestion}
-              className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               {isLastQuestion ? 'View results' : 'Next question →'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };
