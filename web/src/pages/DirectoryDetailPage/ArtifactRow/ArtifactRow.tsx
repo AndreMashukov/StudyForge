@@ -31,7 +31,6 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
         className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring z-10"
         onClick={(e) => {
           e.stopPropagation();
-          e.preventDefault();
           onDelete();
         }}
         aria-label={deleteAriaLabel}
