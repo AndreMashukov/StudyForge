@@ -14,28 +14,10 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
   deleteAriaLabel,
 }) => {
   return (
-    <div
-      className="group relative"
-      onClick={(e) => {
-        console.log('[ArtifactRow] wrapper div clicked', {
-          target: (e.target as HTMLElement).tagName,
-          currentTarget: (e.currentTarget as HTMLElement).tagName,
-          defaultPrevented: e.defaultPrevented,
-          linkTo,
-        });
-      }}
-    >
+    <div className="group relative">
       <Link
         to={linkTo}
         className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors pr-10"
-        onClick={(e) => {
-          console.log('[ArtifactRow] Link clicked', {
-            target: (e.target as HTMLElement).tagName,
-            defaultPrevented: e.defaultPrevented,
-            linkTo,
-            href: (e.currentTarget as HTMLAnchorElement).href,
-          });
-        }}
       >
         <Icon size={18} className="shrink-0 text-muted-foreground" />
         <div className="flex-1 min-w-0">
@@ -48,7 +30,6 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
         size="icon"
         className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring z-10"
         onClick={(e) => {
-          console.log('[ArtifactRow] Delete button clicked');
           e.stopPropagation();
           onDelete();
         }}

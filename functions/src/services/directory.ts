@@ -543,10 +543,10 @@ export class DirectoryService {
           .get(),
       ]);
 
-      quizzes = qSnap.docs.map(d => ({ id: d.id, ...d.data() } as Quiz));
-      flashcardSets = fSnap.docs.map(d => ({ id: d.id, ...d.data() } as FlashcardSet));
-      slideDecks = sSnap.docs.map(d => ({ id: d.id, ...d.data() } as SlideDeck));
-      diagramQuizzes = dqSnap.docs.map(d => ({ id: d.id, ...d.data() } as DiagramQuiz));
+      quizzes = qSnap.docs.map(d => ({ ...d.data(), id: d.id } as Quiz));
+      flashcardSets = fSnap.docs.map(d => ({ ...d.data(), id: d.id } as FlashcardSet));
+      slideDecks = sSnap.docs.map(d => ({ ...d.data(), id: d.id } as SlideDeck));
+      diagramQuizzes = dqSnap.docs.map(d => ({ ...d.data(), id: d.id } as DiagramQuiz));
     }
 
     if (directoryId && includeRules) {
