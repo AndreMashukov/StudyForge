@@ -23,7 +23,7 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Sequence quizzes ({sequenceQuizzes.length})</h2>
         <Button size="sm" asChild>
-          <Link to={`/sequence-quiz/create?directoryId=${directoryId}`}>+ Create sequence quiz</Link>
+          <Link to={`/sequence-quiz/create?directoryId=${encodeURIComponent(directoryId)}`}>+ Create sequence quiz</Link>
         </Button>
       </div>
       {mayBeTruncated && (

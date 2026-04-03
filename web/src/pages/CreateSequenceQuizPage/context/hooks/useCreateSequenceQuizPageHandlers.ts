@@ -24,7 +24,7 @@ export const useCreateSequenceQuizPageHandlers = ({ form, documents }: IProps) =
 
       const primaryDocumentId = formData.documentIds[0];
       const primaryDocument = documents.find((d) => d.id === primaryDocumentId);
-      const directoryIdFromUrl = searchParams.get('directoryId');
+      const directoryIdFromUrl = searchParams.get('directoryId')?.trim() || undefined;
       const resolvedDirectoryId =
         directoryIdFromUrl ?? primaryDocument?.directoryId ?? undefined;
 
@@ -53,8 +53,8 @@ export const useCreateSequenceQuizPageHandlers = ({ form, documents }: IProps) =
           'success'
         );
 
-        if (resolvedDirectoryId) {
-          navigate(`/directory/${resolvedDirectoryId}`);
+        if (resolvedDirectoryId?.trim()) {
+          navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}`);
         } else {
           navigate('/documents');
         }

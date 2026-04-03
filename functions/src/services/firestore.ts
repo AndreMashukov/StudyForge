@@ -622,13 +622,13 @@ export class FirestoreService {
         const data = snap.data() as SequenceQuiz;
         transaction.delete(ref);
         if (data.directoryId) {
-          transaction.update(
-            FirestorePaths.directory(userId, data.directoryId),
-            {
-              sequenceQuizCount: FieldValue.increment(-1),
-              updatedAt: FieldValue.serverTimestamp(),
-            }
-          );
+          const dirRef = FirestorePaths.directory(userId, data.directoryId);
+          const dirSnap = await transaction.get(dirRef);
+          const currentCount = (dirSnap.data()?.sequenceQuizCount as number) || 0;
+          transaction.update(dirRef, {
+            sequenceQuizCount: currentCount > 0 ? FieldValue.increment(-1) : 0,
+            updatedAt: FieldValue.serverTimestamp(),
+          });
         }
       });
       functions.logger.info(`Deleted sequence quiz: ${sequenceQuizId}`);

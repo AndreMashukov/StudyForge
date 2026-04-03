@@ -20,15 +20,16 @@ interface SequenceQuizPageState {
   firestoreSequenceQuiz: SequenceQuiz | null;
   questions: ISequenceQuizQuestion[];
   currentQuestionIndex: number;
-  availableItems: string[];   // Items still in the pool (shuffled)
-  placedItems: string[];      // Items placed on the sequence board (user's order)
+  availableItems: string[];
+  placedItems: string[];
   isChecked: boolean;
   isCorrect: boolean | null;
   showExplanation: boolean;
   score: number;
   answers: ISequenceQuizAnswer[];
   isCompleted: boolean;
-  startTime: number | null;
+  quizStartTime: number | null;
+  questionStartTime: number | null;
   endTime: number | null;
   isLoading: boolean;
   error: string | null;
@@ -55,7 +56,8 @@ const initialState: SequenceQuizPageState = {
   score: 0,
   answers: [],
   isCompleted: false,
-  startTime: null,
+  quizStartTime: null,
+  questionStartTime: null,
   endTime: null,
   isLoading: false,
   error: null,
@@ -69,6 +71,7 @@ const sequenceQuizPageSlice = createSlice({
       state,
       action: PayloadAction<{ sequenceQuiz: SequenceQuiz; questions: ISequenceQuizQuestion[] }>
     ) => {
+      const now = Date.now();
       state.firestoreSequenceQuiz = action.payload.sequenceQuiz;
       state.questions = action.payload.questions;
       state.currentQuestionIndex = 0;
@@ -80,7 +83,8 @@ const sequenceQuizPageSlice = createSlice({
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
-      state.startTime = Date.now();
+      state.quizStartTime = now;
+      state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
     },
@@ -88,7 +92,7 @@ const sequenceQuizPageSlice = createSlice({
     placeItem: (state, action: PayloadAction<{ item: string; atIndex?: number }>) => {
       if (state.isChecked) return;
       const { item, atIndex } = action.payload;
-      const idx = state.availableItems.indexOf(item);
+      const idx = state.availableItems.findIndex((i) => i === item);
       if (idx === -1) return;
       state.availableItems.splice(idx, 1);
       if (atIndex !== undefined && atIndex >= 0 && atIndex <= state.placedItems.length) {
@@ -100,10 +104,10 @@ const sequenceQuizPageSlice = createSlice({
 
     removeItem: (state, action: PayloadAction<{ item: string }>) => {
       if (state.isChecked) return;
-      const idx = state.placedItems.indexOf(action.payload.item);
+      const idx = state.placedItems.findIndex((i) => i === action.payload.item);
       if (idx === -1) return;
-      state.placedItems.splice(idx, 1);
-      state.availableItems.push(action.payload.item);
+      const [removed] = state.placedItems.splice(idx, 1);
+      state.availableItems.push(removed);
     },
 
     reorderPlacedItem: (
@@ -154,7 +158,7 @@ const sequenceQuizPageSlice = createSlice({
         placedItems: [...state.placedItems],
         correctItems: [...currentQuestion.items],
         isCorrect,
-        timeSpent: state.startTime ? Date.now() - state.startTime : 0,
+        timeSpent: state.questionStartTime ? Date.now() - state.questionStartTime : 0,
       };
       state.answers.push(answer);
     },
@@ -168,6 +172,7 @@ const sequenceQuizPageSlice = createSlice({
         state.isChecked = false;
         state.isCorrect = null;
         state.showExplanation = false;
+        state.questionStartTime = Date.now();
       } else {
         state.isCompleted = true;
         state.endTime = Date.now();
@@ -183,6 +188,7 @@ const sequenceQuizPageSlice = createSlice({
 
     restartSequenceQuizSession: (state) => {
       if (state.questions.length === 0) return;
+      const now = Date.now();
       state.currentQuestionIndex = 0;
       state.availableItems = shuffleArray(state.questions[0]?.items ?? []);
       state.placedItems = [];
@@ -192,7 +198,8 @@ const sequenceQuizPageSlice = createSlice({
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
-      state.startTime = Date.now();
+      state.quizStartTime = now;
+      state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
     },
@@ -237,10 +244,10 @@ export const selectSequenceQuizProgress = (state: { sequenceQuizPage: SequenceQu
 };
 
 export const selectSequenceQuizStats = (state: { sequenceQuizPage: SequenceQuizPageState }) => {
-  const { score, questions, answers, startTime, endTime } = state.sequenceQuizPage;
+  const { score, questions, answers, quizStartTime, endTime } = state.sequenceQuizPage;
   const totalQuestions = questions.length;
   const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
-  const timeTaken = startTime && endTime ? endTime - startTime : 0;
+  const timeTaken = quizStartTime && endTime ? endTime - quizStartTime : 0;
   return { score, totalQuestions, percentage, timeTaken, answersBreakdown: answers };
 };
 

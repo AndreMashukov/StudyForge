@@ -24,10 +24,14 @@ export class SequenceQuizPromptBuilder {
     content: ScrapedContent,
     customRules: string
   ): string {
+    const base = this.getBaseInstructions();
     const contentSection = this.formatContentSection(content);
     const jsonRules = this.getJsonFormatRules();
     const example = this.getExampleStructure();
-    return `${customRules}
+    return `${base}
+
+**ADDITIONAL RULES (take priority over defaults where they conflict):**
+${customRules}
 
 ${contentSection}
 

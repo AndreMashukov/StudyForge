@@ -2,19 +2,21 @@ import React from 'react';
 import {
   DndContext,
   DragEndEvent,
-  DragOverEvent,
   DragOverlay,
   DragStartEvent,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
   closestCenter,
   UniqueIdentifier,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useState } from 'react';
@@ -83,17 +85,20 @@ const SortableBlock = ({
         !isChecked && 'border-[#27272a]'
       )}
     >
-      <span
+      <button
+        type="button"
         {...attributes}
         {...listeners}
         className={cn(
-          'text-muted-foreground shrink-0',
-          isChecked ? 'opacity-30' : 'opacity-60 hover:opacity-100'
+          'text-muted-foreground shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded',
+          isChecked ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 cursor-grab active:cursor-grabbing'
         )}
-        aria-label="Drag handle"
+        aria-label={`Drag handle for "${text}"`}
+        aria-roledescription="sortable"
+        tabIndex={isChecked ? -1 : 0}
       >
         <GripVertical size={16} />
-      </span>
+      </button>
 
       {inTarget && (
         <span
@@ -131,6 +136,21 @@ const SortableBlock = ({
   );
 };
 
+interface IDroppableZoneProps {
+  id: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+const DroppableZone: React.FC<IDroppableZoneProps> = ({ id, children, className }) => {
+  const { setNodeRef } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={className}>
+      {children}
+    </div>
+  );
+};
+
 export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   question,
   availableItems,
@@ -144,48 +164,41 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Prefix IDs to avoid collisions between the two zones
-  const sourceIds = availableItems.map((item) => `src__${item}`);
-  const targetIds = placedItems.map((item) => `tgt__${item}`);
+  const sourceIds = availableItems.map((_, i) => `src__${i}`);
+  const targetIds = placedItems.map((_, i) => `tgt__${i}`);
 
-  const itemFromId = (id: UniqueIdentifier): string => {
+  const itemFromSourceId = (id: UniqueIdentifier): { item: string; index: number } | null => {
     const s = String(id);
-    if (s.startsWith('src__')) return s.slice(5);
-    if (s.startsWith('tgt__')) return s.slice(5);
-    return s;
+    if (s.startsWith('src__')) {
+      const idx = parseInt(s.slice(5), 10);
+      if (idx >= 0 && idx < availableItems.length) return { item: availableItems[idx], index: idx };
+    }
+    return null;
+  };
+
+  const itemFromTargetId = (id: UniqueIdentifier): { item: string; index: number } | null => {
+    const s = String(id);
+    if (s.startsWith('tgt__')) {
+      const idx = parseInt(s.slice(5), 10);
+      if (idx >= 0 && idx < placedItems.length) return { item: placedItems[idx], index: idx };
+    }
+    return null;
+  };
+
+  const itemTextFromId = (id: UniqueIdentifier): string | null => {
+    const src = itemFromSourceId(id);
+    if (src) return src.item;
+    const tgt = itemFromTargetId(id);
+    if (tgt) return tgt.item;
+    return null;
   };
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id);
-  };
-
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeIdStr = String(active.id);
-    const overIdStr = String(over.id);
-
-    const fromSource = activeIdStr.startsWith('src__');
-    const toTarget =
-      overIdStr.startsWith('tgt__') || overIdStr === TARGET_ZONE;
-    const toSource =
-      overIdStr.startsWith('src__') || overIdStr === SOURCE_ZONE;
-
-    if (fromSource && toTarget) {
-      const item = itemFromId(active.id);
-      if (!placedItems.includes(item)) {
-        handlers.handlePlaceItem(item);
-      }
-    } else if (!fromSource && toSource) {
-      const item = itemFromId(active.id);
-      if (placedItems.includes(item)) {
-        handlers.handleRemoveItem(item);
-      }
-    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -197,20 +210,32 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
     const activeIdStr = String(active.id);
     const overIdStr = String(over.id);
 
+    const fromSource = activeIdStr.startsWith('src__');
     const fromTarget = activeIdStr.startsWith('tgt__');
-    const toTarget =
-      overIdStr.startsWith('tgt__') || overIdStr === TARGET_ZONE;
+    const toTarget = overIdStr.startsWith('tgt__') || overIdStr === TARGET_ZONE;
+    const toSource = overIdStr.startsWith('src__') || overIdStr === SOURCE_ZONE;
 
-    if (fromTarget && toTarget && overIdStr.startsWith('tgt__')) {
-      const fromIndex = placedItems.indexOf(itemFromId(active.id));
-      const toIndex = placedItems.indexOf(itemFromId(over.id));
-      if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
-        handlers.handleReorderPlacedItem(fromIndex, toIndex);
+    if (fromSource && toTarget) {
+      const src = itemFromSourceId(active.id);
+      if (src) {
+        const overTgt = itemFromTargetId(over.id);
+        handlers.handlePlaceItem(src.item, overTgt?.index);
+      }
+    } else if (fromTarget && toSource) {
+      const tgt = itemFromTargetId(active.id);
+      if (tgt) {
+        handlers.handleRemoveItem(tgt.item);
+      }
+    } else if (fromTarget && toTarget) {
+      const fromTgt = itemFromTargetId(active.id);
+      const toTgt = itemFromTargetId(over.id);
+      if (fromTgt && toTgt && fromTgt.index !== toTgt.index) {
+        handlers.handleReorderPlacedItem(fromTgt.index, toTgt.index);
       }
     }
   };
 
-  const activeItemText = activeId ? itemFromId(activeId) : null;
+  const activeItemText = activeId ? itemTextFromId(activeId) : null;
 
   return (
     <div className="bg-[#111111] border border-[#27272a] rounded-xl p-6 space-y-4">
@@ -226,7 +251,6 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -239,8 +263,9 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                 {availableItems.length}
               </span>
             </div>
-            <SortableContext items={sourceIds} strategy={verticalListSortingStrategy} id={SOURCE_ZONE}>
-              <div
+            <SortableContext items={sourceIds} strategy={verticalListSortingStrategy}>
+              <DroppableZone
+                id={SOURCE_ZONE}
                 className={cn(
                   'min-h-[140px] border-2 border-dashed rounded-lg p-2 space-y-1.5 transition-colors',
                   availableItems.length === 0
@@ -254,17 +279,17 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                     <span className="text-xs">All blocks placed</span>
                   </div>
                 ) : (
-                  availableItems.map((item) => (
+                  availableItems.map((item, i) => (
                     <SortableBlock
-                      key={`src__${item}`}
-                      id={`src__${item}`}
+                      key={`src__${i}`}
+                      id={`src__${i}`}
                       text={item}
                       inTarget={false}
                       isChecked={isChecked}
                     />
                   ))
                 )}
-              </div>
+              </DroppableZone>
             </SortableContext>
           </div>
 
@@ -277,8 +302,9 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                 {placedItems.length} / {question.items.length}
               </span>
             </div>
-            <SortableContext items={targetIds} strategy={verticalListSortingStrategy} id={TARGET_ZONE}>
-              <div
+            <SortableContext items={targetIds} strategy={verticalListSortingStrategy}>
+              <DroppableZone
+                id={TARGET_ZONE}
                 className={cn(
                   'min-h-[140px] border-2 border-dashed rounded-lg p-2 space-y-1.5 transition-colors',
                   placedItems.length === 0
@@ -298,8 +324,8 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                       : null;
                     return (
                       <SortableBlock
-                        key={`tgt__${item}`}
-                        id={`tgt__${item}`}
+                        key={`tgt__${index}`}
+                        id={`tgt__${index}`}
                         text={item}
                         index={index}
                         inTarget={true}
@@ -310,7 +336,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                     );
                   })
                 )}
-              </div>
+              </DroppableZone>
             </SortableContext>
           </div>
         </div>

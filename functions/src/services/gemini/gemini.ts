@@ -963,6 +963,9 @@ export class GeminiService {
     if (!parsed.title || !Array.isArray(parsed.questions)) {
       throw new Error('Invalid sequence quiz: missing title or questions');
     }
+    if (parsed.questions.length === 0) {
+      throw new Error('Invalid sequence quiz: questions array is empty');
+    }
     (parsed.questions as unknown[]).forEach((q, index) => {
       const row = q as Record<string, unknown>;
       if (!row.question || typeof row.question !== 'string') {

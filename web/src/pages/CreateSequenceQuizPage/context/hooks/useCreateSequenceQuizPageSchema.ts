@@ -3,7 +3,10 @@ import { z } from 'zod';
 
 const createSchema = () =>
   z.object({
-    documentIds: z.array(z.string()).min(1, 'Please select at least one document'),
+    documentIds: z
+      .array(z.string())
+      .min(1, 'Please select at least one document')
+      .max(5, 'Maximum 5 documents allowed per sequence quiz'),
     sequenceQuizName: z
       .string()
       .max(100, 'Name must be 100 characters or less')

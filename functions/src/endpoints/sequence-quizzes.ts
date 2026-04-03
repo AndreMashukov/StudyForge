@@ -26,7 +26,7 @@ export const generateSequenceQuiz = onCall(
   },
   async (request): Promise<ApiResponse<GenerateSequenceQuizResponse>> => {
     try {
-      const requestData = request.data as GenerateSequenceQuizRequest;
+      const requestData = (request.data ?? {}) as Record<string, unknown>;
       const userId = request.auth?.uid;
 
       if (!userId) {
@@ -34,15 +34,23 @@ export const generateSequenceQuiz = onCall(
       }
 
       const documentIds = requestData.documentIds;
-      if (!documentIds || documentIds.length === 0) {
-        throw new Error("documentIds is required (at least one document)");
+      if (!Array.isArray(documentIds) || documentIds.length === 0) {
+        throw new Error("documentIds must be a non-empty array");
+      }
+      if (!documentIds.every((id): id is string => typeof id === "string")) {
+        throw new Error("Each documentId must be a string");
       }
 
       if (documentIds.length > 5) {
         throw new Error("Maximum 5 documents allowed per sequence quiz");
       }
 
-      const { sequenceQuizName, additionalPrompt } = requestData;
+      if (requestData.additionalRuleIds != null && !Array.isArray(requestData.additionalRuleIds)) {
+        throw new Error("additionalRuleIds must be an array when provided");
+      }
+
+      const typedRequest = requestData as unknown as GenerateSequenceQuizRequest;
+      const { sequenceQuizName, additionalPrompt } = typedRequest;
 
       const documentDataList = await Promise.all(
         documentIds.map(async (docId) => {
@@ -53,7 +61,7 @@ export const generateSequenceQuiz = onCall(
       );
 
       const resolvedDirectoryId =
-        requestData.directoryId ?? documentDataList[0]?.doc.directoryId;
+        typedRequest.directoryId ?? documentDataList[0]?.doc.directoryId;
       if (!resolvedDirectoryId) {
         throw new Error("directoryId is required, or documents must belong to a directory");
       }
@@ -84,7 +92,7 @@ export const generateSequenceQuiz = onCall(
         userId,
         resolvedDirectoryId,
         RuleApplicability.SEQUENCE_QUIZ,
-        requestData.additionalRuleIds
+        typedRequest.additionalRuleIds
       );
       if (quizRulesText) {
         enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
@@ -95,11 +103,6 @@ export const generateSequenceQuiz = onCall(
         RuleApplicability.FOLLOWUP
       );
       followupIdsForSave = followupRules.map((r) => r.id);
-      if (requestData.additionalRuleIds?.length) {
-        for (const id of requestData.additionalRuleIds) {
-          if (!followupIdsForSave.includes(id)) followupIdsForSave.push(id);
-        }
-      }
 
       const geminiQuiz = await GeminiService.generateSequenceQuiz(
         documentContent,
@@ -148,14 +151,15 @@ export const getSequenceQuiz = onCall(
   { cors: true },
   async (request): Promise<ApiResponse<GetSequenceQuizResponse>> => {
     try {
-      const { sequenceQuizId } = request.data as { sequenceQuizId?: string };
+      const data = (request.data ?? {}) as Record<string, unknown>;
+      const sequenceQuizId = typeof data.sequenceQuizId === "string" ? data.sequenceQuizId : undefined;
       const userId = request.auth?.uid;
 
-      if (!sequenceQuizId) {
-        throw new Error("sequenceQuizId is required");
-      }
       if (!userId) {
         throw new Error("Authentication required");
+      }
+      if (!sequenceQuizId) {
+        throw new Error("sequenceQuizId is required");
       }
 
       const sequenceQuiz = await FirestoreService.getSequenceQuiz(sequenceQuizId, userId);
@@ -218,7 +222,8 @@ export const deleteSequenceQuiz = onCall(
   async (request): Promise<ApiResponse<{ success: boolean }>> => {
     try {
       const userId = request.auth?.uid;
-      const { sequenceQuizId } = request.data as { sequenceQuizId?: string };
+      const deleteData = (request.data ?? {}) as Record<string, unknown>;
+      const sequenceQuizId = typeof deleteData.sequenceQuizId === "string" ? deleteData.sequenceQuizId : undefined;
 
       if (!userId) {
         return {

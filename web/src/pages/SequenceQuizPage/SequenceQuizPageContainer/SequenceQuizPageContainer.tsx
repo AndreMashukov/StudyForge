@@ -47,7 +47,19 @@ export const SequenceQuizPageContainer: React.FC = () => {
     </button>
   );
 
-  if (sequenceQuizApi.isLoading || !sequenceQuizApi.hasValidId) {
+  if (!sequenceQuizApi.hasValidId) {
+    return (
+      <div className="mx-auto max-w-4xl px-6 py-16">
+        {backButton}
+        <div className="text-center">
+          <h2 className="mb-4 text-2xl font-bold text-destructive">Invalid sequence quiz</h2>
+          <p className="mb-6 text-muted-foreground">No sequence quiz ID was provided.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (sequenceQuizApi.isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
