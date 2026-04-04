@@ -21,7 +21,7 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useState } from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
 import { GripVertical, X, Package, Layers, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
@@ -170,11 +170,19 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   // Live ordered copy of placedItems updated during drag for smooth reorder preview
   const [liveTargetIds, setLiveTargetIds] = useState<string[]>([]);
 
-  // Calculate zone height from the total number of items: each block ~40px, gap 6px, container padding 16px
-  const ITEM_HEIGHT = 40;
-  const ITEM_GAP = 6;
-  const CONTAINER_PADDING = 16;
-  const zoneHeight = question.items.length * ITEM_HEIGHT + Math.max(0, question.items.length - 1) * ITEM_GAP + CONTAINER_PADDING + 20;
+  // Measure the source zone's natural height on first render (before any items are moved)
+  // so both zones share the same fixed height regardless of text wrapping.
+  const sourceZoneMeasureRef = useRef<HTMLDivElement>(null);
+  const [fixedHeight, setFixedHeight] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (sourceZoneMeasureRef.current && fixedHeight === null) {
+      setFixedHeight(sourceZoneMeasureRef.current.offsetHeight);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const zoneStyle = fixedHeight !== null ? { height: fixedHeight } : undefined;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -317,6 +325,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
               </span>
             </div>
             <SortableContext items={sourceIds} strategy={verticalListSortingStrategy}>
+              <div ref={sourceZoneMeasureRef}>
               <DroppableZone
                 id={SOURCE_ZONE}
                 className={cn(
@@ -325,7 +334,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                     ? 'border-border/50'
                     : 'border-border'
                 )}
-                style={{ height: zoneHeight }}
+                style={zoneStyle}
               >
                 {availableItems.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center gap-1 text-muted-foreground opacity-40 py-6">
@@ -344,6 +353,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                   ))
                 )}
               </DroppableZone>
+              </div>
             </SortableContext>
           </div>
 
@@ -365,7 +375,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                     ? 'border-primary/20'
                     : 'border-primary/30'
                 )}
-                style={{ height: zoneHeight }}
+                style={zoneStyle}
               >
                 {placedItems.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center gap-1 text-muted-foreground opacity-40 py-6">
