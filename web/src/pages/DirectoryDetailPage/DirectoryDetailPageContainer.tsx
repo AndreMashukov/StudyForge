@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import {
   useGetDirectoryContentsWithArtifactsQuery,
   useGetDirectoryAncestorsQuery,
@@ -38,6 +38,8 @@ import { DiagramQuizzesPanel } from './DiagramQuizzesPanel';
 import { SequenceQuizzesPanel } from './SequenceQuizzesPanel';
 import { RulesPanel } from './RulesPanel';
 
+/** Valid tab values that can be passed via URL search param. */
+const VALID_TABS = new Set<string>(['sources', 'quizzes', 'cards', 'slides', 'diagramQuizzes', 'sequenceQuizzes', 'rules']);
 
 /** Max artifacts loaded per type (server caps at 100). */
 const ARTIFACT_PAGE_LIMIT = 100;
@@ -45,12 +47,20 @@ const ARTIFACT_PAGE_LIMIT = 100;
 export const DirectoryDetailPageContainer = () => {
   const { directoryId } = useParams<{ directoryId: string }>();
   const navigate = useNavigate();
-  const [activePanel, setActivePanel] = useState<PanelType>('sources');
+  const [searchParams] = useSearchParams();
 
-  // Reset panel to sources when navigating to a different directory
+  const getTabFromParams = (): PanelType => {
+    const tab = searchParams.get('tab');
+    return tab && VALID_TABS.has(tab) ? (tab as PanelType) : 'sources';
+  };
+
+  const [activePanel, setActivePanel] = useState<PanelType>(getTabFromParams);
+
+  // Update panel when URL params or directory changes
   useEffect(() => {
-    setActivePanel('sources');
-  }, [directoryId]);
+    setActivePanel(getTabFromParams());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [directoryId, searchParams]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialog, setEditDialog] = useState<{ directory: Directory | null }>({ directory: null });
   const [deleteDialog, setDeleteDialog] = useState<{ directory: Directory | null }>({ directory: null });

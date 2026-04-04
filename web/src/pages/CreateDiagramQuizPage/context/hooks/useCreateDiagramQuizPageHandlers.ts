@@ -54,7 +54,7 @@ export const useCreateDiagramQuizPageHandlers = ({ form, documents }: IProps) =>
         );
 
         if (resolvedDirectoryId) {
-          navigate(`/directory/${resolvedDirectoryId}`);
+          navigate(`/directory/${resolvedDirectoryId}?tab=diagramQuizzes`);
         } else {
           navigate('/documents');
         }

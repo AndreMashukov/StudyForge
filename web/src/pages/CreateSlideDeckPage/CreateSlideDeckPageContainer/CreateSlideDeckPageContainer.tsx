@@ -20,6 +20,7 @@ const slideDeckFormConfig: ArtifactFormConfig = {
     plural: (count) => `Generate Slide Deck from ${count} documents`,
     submitting: 'Generating Slide Deck...',
   },
+  directoryTab: 'slides',
 };
 
 export const CreateSlideDeckPageContainer = () => {

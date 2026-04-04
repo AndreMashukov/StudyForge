@@ -54,7 +54,7 @@ export const useCreateSequenceQuizPageHandlers = ({ form, documents }: IProps) =
         );
 
         if (resolvedDirectoryId?.trim()) {
-          navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}`);
+          navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=sequenceQuizzes`);
         } else {
           navigate('/documents');
         }

@@ -45,7 +45,7 @@ export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPage
       );
 
       if (resolvedDirectoryId) {
-        navigate(`/directory/${resolvedDirectoryId}`);
+        navigate(`/directory/${resolvedDirectoryId}?tab=quizzes`);
       } else {
         navigate('/documents');
       }

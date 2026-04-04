@@ -20,6 +20,7 @@ const quizFormConfig: ArtifactFormConfig = {
     plural: (count) => `Generate Quiz from ${count} documents`,
     submitting: 'Generating Quiz...',
   },
+  directoryTab: 'quizzes',
 };
 
 export const CreateQuizPageContainer = () => {

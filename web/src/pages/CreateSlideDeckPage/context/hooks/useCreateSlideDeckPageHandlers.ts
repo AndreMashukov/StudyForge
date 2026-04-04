@@ -45,7 +45,7 @@ export const useCreateSlideDeckPageHandlers = ({ form, documents }: UseCreateSli
         }));
 
         if (resolvedDirectoryId) {
-          navigate(`/directory/${resolvedDirectoryId}`);
+          navigate(`/directory/${resolvedDirectoryId}?tab=slides`);
         } else if (formData.documentIds.length === 1) {
           navigate(`/slides/${result.data.slideDeckId}`);
         } else {
