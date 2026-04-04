@@ -19,6 +19,7 @@ const diagramQuizFormConfig: ArtifactFormConfig = {
     plural: (count) => `Generate diagram quiz from ${count} documents`,
     submitting: 'Generating Diagram Quiz...',
   },
+  directoryTab: 'diagramQuizzes',
 };
 
 export const CreateDiagramQuizPageContainer: React.FC = () => {

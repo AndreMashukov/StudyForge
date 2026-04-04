@@ -21,6 +21,7 @@ const sequenceQuizFormConfig: ArtifactFormConfig = {
     plural: (count) => `Generate sequence quiz from ${count} documents`,
     submitting: 'Generating Sequence Quiz...',
   },
+  directoryTab: 'sequenceQuizzes',
 };
 
 export const CreateSequenceQuizPageContainer: React.FC = () => {

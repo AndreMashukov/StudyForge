@@ -47,7 +47,7 @@ export const useCreateFlashcardPageHandlers = ({ form, documents }: UseCreateFla
         }));
 
         if (resolvedDirectoryId) {
-          navigate(`/directory/${resolvedDirectoryId}`);
+          navigate(`/directory/${resolvedDirectoryId}?tab=cards`);
         } else if (formData.documentIds.length === 1) {
           navigate(`/flashcards/${result.data.flashcardSetId}`);
         } else {

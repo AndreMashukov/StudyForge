@@ -20,6 +20,7 @@ const flashcardFormConfig: ArtifactFormConfig = {
     plural: (count) => `Generate Flashcards from ${count} documents`,
     submitting: 'Generating Flashcards...',
   },
+  directoryTab: 'cards',
 };
 
 export const CreateFlashcardPageContainer = () => {

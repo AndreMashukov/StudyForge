@@ -63,10 +63,11 @@ export const ArtifactFormLayout = <T extends FieldValues>({
   };
 
   const handleBack = () => {
+    const tab = config.directoryTab;
     if (directoryIdParam) {
-      navigate(`/directory/${directoryIdParam}`);
+      navigate(`/directory/${directoryIdParam}?tab=${tab}`);
     } else if (selectedDirectoryId) {
-      navigate(`/directory/${selectedDirectoryId}`);
+      navigate(`/directory/${selectedDirectoryId}?tab=${tab}`);
     } else {
       navigate('/documents');
     }

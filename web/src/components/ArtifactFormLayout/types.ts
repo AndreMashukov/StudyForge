@@ -16,4 +16,6 @@ export interface ArtifactFormConfig {
     plural: (count: number) => string;
     submitting: string;
   };
+  /** PanelType tab to navigate to on the directory page after submission/back. */
+  directoryTab: string;
 }
