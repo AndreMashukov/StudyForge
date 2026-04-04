@@ -627,10 +627,8 @@ export class FirestoreService {
         transaction.delete(ref);
         if (data.directoryId) {
           const dirRef = FirestorePaths.directory(userId, data.directoryId);
-          const dirSnap = await transaction.get(dirRef);
-          const currentCount = (dirSnap.data()?.sequenceQuizCount as number) || 0;
           transaction.update(dirRef, {
-            sequenceQuizCount: currentCount > 0 ? FieldValue.increment(-1) : 0,
+            sequenceQuizCount: FieldValue.increment(-1),
             updatedAt: FieldValue.serverTimestamp(),
           });
         }
