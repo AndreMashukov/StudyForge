@@ -1,6 +1,4 @@
 import { useEffect, useMemo } from "react";
-import { RotateCcw, Settings } from "lucide-react";
-import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { useGetApplicableRulesQuery } from "../../store/api/Rules/rulesApi";
 import { RuleListSkeleton } from "../LoadingSkeletons";
@@ -37,10 +35,6 @@ export const RuleSelector = ({
     }
   };
 
-  const handleReset = () => {
-    onSelectionChange(defaultRuleIds);
-  };
-
   const selectedRules = rules.filter((rule) =>
     selectedRuleIds.includes(rule.id)
   );
@@ -68,9 +62,6 @@ export const RuleSelector = ({
         <h3 className="text-sm font-medium flex items-center gap-2">
           <span role="img" aria-label="rules">📋</span> Rules ({selectedRuleIds.length})
         </h3>
-        <Button variant="ghost" size="sm" className="h-auto p-1">
-          <Settings size={14} />
-        </Button>
       </div>
 
       {/* Selected Rules Chips */}
@@ -128,20 +119,7 @@ export const RuleSelector = ({
         )}
       </div>
 
-      {/* Reset Button */}
-      {rules.length > 0 && (
-        <div className="mt-3 pt-3 border-t">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleReset}
-            className="w-full"
-          >
-            <RotateCcw size={14} className="mr-1" />
-            Reset to Defaults
-          </Button>
-        </div>
-      )}
+
     </div>
   );
 };
