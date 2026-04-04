@@ -26,6 +26,8 @@ const generateRuleRequestSchema = z.object({
     'followup',
     'flashcard',
     'slide_deck',
+    'diagram_quiz',
+    'sequence_quiz',
   ])).nullish(),
   existingContent: z.string().max(100000, 'Existing content must be 100,000 characters or less').nullish(),
 });
