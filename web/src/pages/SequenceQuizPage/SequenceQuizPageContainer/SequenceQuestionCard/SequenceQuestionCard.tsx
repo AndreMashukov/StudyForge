@@ -174,7 +174,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   const ITEM_HEIGHT = 40;
   const ITEM_GAP = 6;
   const CONTAINER_PADDING = 16;
-  const zoneHeight = question.items.length * ITEM_HEIGHT + Math.max(0, question.items.length - 1) * ITEM_GAP + CONTAINER_PADDING;
+  const zoneHeight = question.items.length * ITEM_HEIGHT + Math.max(0, question.items.length - 1) * ITEM_GAP + CONTAINER_PADDING + 20;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
