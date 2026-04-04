@@ -144,12 +144,13 @@ interface IDroppableZoneProps {
   id: string;
   children: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }
 
-const DroppableZone: React.FC<IDroppableZoneProps> = ({ id, children, className }) => {
+const DroppableZone: React.FC<IDroppableZoneProps> = ({ id, children, className, style }) => {
   const { setNodeRef } = useDroppable({ id });
   return (
-    <div ref={setNodeRef} className={className}>
+    <div ref={setNodeRef} className={className} style={style}>
       {children}
     </div>
   );
@@ -168,6 +169,12 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   // Live ordered copy of placedItems updated during drag for smooth reorder preview
   const [liveTargetIds, setLiveTargetIds] = useState<string[]>([]);
+
+  // Calculate zone height from the total number of items: each block ~40px, gap 6px, container padding 16px
+  const ITEM_HEIGHT = 40;
+  const ITEM_GAP = 6;
+  const CONTAINER_PADDING = 16;
+  const zoneHeight = question.items.length * ITEM_HEIGHT + Math.max(0, question.items.length - 1) * ITEM_GAP + CONTAINER_PADDING;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -313,11 +320,12 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
               <DroppableZone
                 id={SOURCE_ZONE}
                 className={cn(
-                  'min-h-[140px] border-2 border-dashed rounded-lg p-2 space-y-1.5 transition-colors',
+                  'border-2 border-dashed rounded-lg p-2 space-y-1.5 transition-colors overflow-y-auto',
                   availableItems.length === 0
                     ? 'border-border/50'
                     : 'border-border'
                 )}
+                style={{ height: zoneHeight }}
               >
                 {availableItems.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center gap-1 text-muted-foreground opacity-40 py-6">
@@ -352,11 +360,12 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
               <DroppableZone
                 id={TARGET_ZONE}
                 className={cn(
-                  'min-h-[140px] border-2 border-dashed rounded-lg p-2 space-y-1.5 transition-colors',
+                  'border-2 border-dashed rounded-lg p-2 space-y-1.5 transition-colors overflow-y-auto',
                   placedItems.length === 0
                     ? 'border-primary/20'
                     : 'border-primary/30'
                 )}
+                style={{ height: zoneHeight }}
               >
                 {placedItems.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center gap-1 text-muted-foreground opacity-40 py-6">
