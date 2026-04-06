@@ -6,7 +6,7 @@ import { IFileContent } from '@shared-types';
 export interface ICreateDocumentPageHandlers {
   handleGoBack: () => void;
   handleCreateFromUrl: (data: IUrlScrapingFormData) => void;
-  handleCreateFromFile: (data: IFileUploadFormData) => Promise<void>;
+  handleCreateFromFile: (data: IFileUploadFormData) => void;
   handleCreateFromTextPrompt: (
     data: ITextPromptFormData,
     fileUploadHelpers: {

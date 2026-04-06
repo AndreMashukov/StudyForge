@@ -64,29 +64,31 @@ export const useCreateDocumentPageHandlers = () => {
     navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
   }, [createDocumentFromUrl, navigate, dispatch, directoryId]);
 
-  const handleCreateFromFile = useCallback(async (data: IFileUploadFormData) => {
+  const handleCreateFromFile = useCallback((data: IFileUploadFormData) => {
     dispatch(clearError());
     if (!directoryId) {
       dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
       return;
     }
 
-    // Read file content (must await since FileReader is async)
-    const fileContent = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsText(data.file);
-    });
-
-    createDocument({
-      title: data.title || data.file.name.replace(/\.md$/, ''),
-      content: fileContent,
-      sourceType: DocumentSourceType.UPLOAD,
-      directoryId,
-      ruleIds: data.ruleIds,
-    });
+    // Navigate immediately — don't block on FileReader
     navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
+
+    // Read file and fire mutation in background
+    const reader = new FileReader();
+    reader.onload = () => {
+      createDocument({
+        title: data.title || data.file.name.replace(/\.md$/, ''),
+        content: reader.result as string,
+        sourceType: DocumentSourceType.UPLOAD,
+        directoryId,
+        ruleIds: data.ruleIds,
+      });
+    };
+    reader.onerror = () => {
+      dispatch(setError('Failed to read file. Please try again.'));
+    };
+    reader.readAsText(data.file);
   }, [createDocument, navigate, dispatch, directoryId]);
 
   const handleCreateFromTextPrompt = useCallback((
