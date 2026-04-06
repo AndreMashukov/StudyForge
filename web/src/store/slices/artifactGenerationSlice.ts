@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-export type ArtifactPanelType = 'quizzes' | 'cards' | 'slides' | 'diagramQuizzes' | 'sequenceQuizzes';
+export type ArtifactPanelType = 'quizzes' | 'cards' | 'slides' | 'diagramQuizzes' | 'sequenceQuizzes' | 'sources';
 
 interface PendingGeneration {
   directoryId: string;
@@ -23,10 +23,14 @@ const artifactGenerationSlice = createSlice({
       state.pendingGenerations.push(action.payload);
     },
     removePendingGeneration: (state, action: PayloadAction<PendingGeneration>) => {
-      state.pendingGenerations = state.pendingGenerations.filter(
+      // Remove only ONE matching entry (ref-counted) so concurrent generations don't clobber each other
+      const idx = state.pendingGenerations.findIndex(
         (g) =>
-          !(g.directoryId === action.payload.directoryId && g.artifactType === action.payload.artifactType)
+          g.directoryId === action.payload.directoryId && g.artifactType === action.payload.artifactType
       );
+      if (idx !== -1) {
+        state.pendingGenerations.splice(idx, 1);
+      }
     },
   },
 });

@@ -74,6 +74,7 @@ export const DirectoryDetailPageContainer = () => {
   const isGeneratingSlides = useAppSelector((state) => selectIsGeneratingArtifact(state, directoryId ?? '', 'slides'));
   const isGeneratingDiagramQuizzes = useAppSelector((state) => selectIsGeneratingArtifact(state, directoryId ?? '', 'diagramQuizzes'));
   const isGeneratingSequenceQuizzes = useAppSelector((state) => selectIsGeneratingArtifact(state, directoryId ?? '', 'sequenceQuizzes'));
+  const isGeneratingSources = useAppSelector((state) => selectIsGeneratingArtifact(state, directoryId ?? '', 'sources'));
 
   const {
     data: contents,
@@ -273,6 +274,7 @@ export const DirectoryDetailPageContainer = () => {
                 documents={documents}
                 directoryId={directoryId}
                 onDeleteDocument={(doc) => setDeleteDocDialog({ document: doc })}
+                isGenerating={isGeneratingSources}
               />
             )}
             {activePanel === 'quizzes' && (

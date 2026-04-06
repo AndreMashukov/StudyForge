@@ -49,141 +49,78 @@ export const useCreateDocumentPageHandlers = () => {
     navigate('/documents');
   }, [navigate]);
 
-  const handleCreateFromUrl = useCallback(async (data: IUrlScrapingFormData) => {
-    try {
-      dispatch(clearError());
-      if (!directoryId) {
-        dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
-        return;
-      }
-      dispatch(setUrlFormLoading(true));
-      
-      const result = await createDocumentFromUrl({
-        url: data.url,
-        title: data.title,
-        directoryId,
-        ruleIds: data.ruleIds, // Section 6: Pass selected rules to API
-      }).unwrap();
-      
-      // Phase 2.2: Redirect to documents page with generation option
-      navigate(`/documents?highlight=${result.id}&action=generate-quiz`);
-    } catch (err) {
-      console.error('Error creating document from URL:', err);
-      dispatch(setError('Failed to create document from URL. Please check the URL and try again.'));
-    } finally {
-      dispatch(setUrlFormLoading(false));
+  const handleCreateFromUrl = useCallback((data: IUrlScrapingFormData) => {
+    dispatch(clearError());
+    if (!directoryId) {
+      dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
+      return;
     }
+    createDocumentFromUrl({
+      url: data.url,
+      title: data.title,
+      directoryId,
+      ruleIds: data.ruleIds,
+    });
+    navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
   }, [createDocumentFromUrl, navigate, dispatch, directoryId]);
 
-  const handleCreateFromFile = useCallback(async (data: IFileUploadFormData) => {
-    try {
-      dispatch(clearError());
-      if (!directoryId) {
-        dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
-        return;
-      }
-      dispatch(setFileFormLoading(true));
-      
-      // Read file content
-      const content = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error('Failed to read file'));
-        reader.readAsText(data.file);
-      });
+  const handleCreateFromFile = useCallback((data: IFileUploadFormData) => {
+    dispatch(clearError());
+    if (!directoryId) {
+      dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
+      return;
+    }
 
-      const result = await createDocument({
+    // Navigate immediately — don't block on FileReader
+    navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
+
+    // Read file and fire mutation in background
+    const reader = new FileReader();
+    reader.onload = () => {
+      createDocument({
         title: data.title || data.file.name.replace(/\.md$/, ''),
-        content,
+        content: reader.result as string,
         sourceType: DocumentSourceType.UPLOAD,
         directoryId,
-        ruleIds: data.ruleIds, // Section 6: Pass selected rules to API
-      }).unwrap();
-      
-      // Navigate to the created document
-      navigate(`/document/${result.id}`);
-    } catch (err) {
-      console.error('Error creating document from file:', err);
-      dispatch(setError('Failed to create document from file. Please try again.'));
-    } finally {
-      dispatch(setFileFormLoading(false));
-    }
+        ruleIds: data.ruleIds,
+      });
+    };
+    reader.onerror = () => {
+      dispatch(setError('Failed to read file. Please try again.'));
+    };
+    reader.readAsText(data.file);
   }, [createDocument, navigate, dispatch, directoryId]);
 
-  const handleCreateFromTextPrompt = useCallback(async (
+  const handleCreateFromTextPrompt = useCallback((
     data: ITextPromptFormData,
     fileUploadHelpers: {
       isContextSizeValid: () => boolean;
       getFilesForSubmission: () => IFileContent[];
     }
   ) => {
-    let progressInterval: NodeJS.Timeout | undefined;
-    let currentProgress = 0;
-    
-    try {
-      dispatch(clearError());
-      dispatch(setTextPromptFormLoading(true));
-      dispatch(setTextPromptFormProgress(0));
-      
-      // Validate context size before submission
-      if (!fileUploadHelpers.isContextSizeValid()) {
-        dispatch(setError('Total context size exceeds limit. Please remove some files.'));
-        return;
-      }
+    dispatch(clearError());
 
-      if (!directoryId) {
-        dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
-        return;
-      }
-      
-      // Simulate progress updates
-      progressInterval = setInterval(() => {
-        currentProgress = Math.min(currentProgress + 10, 90);
-        dispatch(setTextPromptFormProgress(currentProgress));
-      }, 2000);
-      
-      // Get files ready for submission
-      const files = fileUploadHelpers.getFilesForSubmission();
-
-      const requestPayload = {
-        prompt: data.prompt,
-        files: files.length > 0 ? files : undefined,
-        directoryId,
-        ruleIds: data.ruleIds || [],
-      };
-      console.debug('[generateFromPrompt] Request payload:', requestPayload);
-      
-      const result = await generateFromPrompt(requestPayload).unwrap();
-
-      console.debug('[generateFromPrompt] Success response:', result);
-      
-      if (progressInterval) {
-        clearInterval(progressInterval);
-      }
-      dispatch(setTextPromptFormProgress(100));
-      
-      // Clear files after successful submission
-      dispatch(clearFiles());
-      
-      // Navigate to the created document
-      navigate(`/document/${result.documentId}`);
-    } catch (err: unknown) {
-      console.error('[generateFromPrompt] Raw error object:', err);
-      console.error('[generateFromPrompt] Error JSON:', JSON.stringify(err, null, 2));
-      console.error('[generateFromPrompt] code:', (err as { code?: string })?.code);
-      console.error('[generateFromPrompt] message:', (err as { message?: string })?.message);
-      console.error('[generateFromPrompt] data:', (err as { data?: unknown })?.data);
-      const errData = (err as { data?: { message?: string } | string })?.data;
-      const errorMessage = (typeof errData === 'object' ? errData?.message : errData) || 'Failed to generate document. Please try again.';
-      dispatch(setError(errorMessage));
-      // Don't clear files on error - keep them for retry
-    } finally {
-      if (progressInterval) {
-        clearInterval(progressInterval);
-      }
-      dispatch(setTextPromptFormLoading(false));
-      dispatch(setTextPromptFormProgress(0));
+    if (!fileUploadHelpers.isContextSizeValid()) {
+      dispatch(setError('Total context size exceeds limit. Please remove some files.'));
+      return;
     }
+
+    if (!directoryId) {
+      dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
+      return;
+    }
+
+    const files = fileUploadHelpers.getFilesForSubmission();
+
+    generateFromPrompt({
+      prompt: data.prompt,
+      files: files.length > 0 ? files : undefined,
+      directoryId,
+      ruleIds: data.ruleIds || [],
+    });
+
+    dispatch(clearFiles());
+    navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
   }, [generateFromPrompt, navigate, dispatch, directoryId]);
 
   return {
