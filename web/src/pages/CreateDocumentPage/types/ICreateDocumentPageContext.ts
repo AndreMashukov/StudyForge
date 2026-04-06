@@ -5,7 +5,7 @@ import { IFileContent } from '@shared-types';
 
 export interface ICreateDocumentPageHandlers {
   handleGoBack: () => void;
-  handleCreateFromUrl: (data: IUrlScrapingFormData) => Promise<void>;
+  handleCreateFromUrl: (data: IUrlScrapingFormData) => void;
   handleCreateFromFile: (data: IFileUploadFormData) => Promise<void>;
   handleCreateFromTextPrompt: (
     data: ITextPromptFormData,
@@ -13,7 +13,7 @@ export interface ICreateDocumentPageHandlers {
       isContextSizeValid: () => boolean;
       getFilesForSubmission: () => IFileContent[];
     }
-  ) => Promise<void>;
+  ) => void;
   isLoading: boolean;
   isTextPromptLoading: boolean;
   textPromptProgress: number;

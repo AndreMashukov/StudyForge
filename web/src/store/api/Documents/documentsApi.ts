@@ -1,4 +1,5 @@
 import { baseApi } from '../baseApi';
+import { createDocumentOnQueryStarted } from '../utils/createDocumentOnQueryStarted';
 import { 
   DocumentEnhanced, 
   CreateDocumentRequest,
@@ -55,9 +56,10 @@ export const documentsApi = baseApi.injectEndpoints({
       },
       invalidatesTags: [
         'Document',
-        { type: 'Directory', id: 'CONTENTS' }, // Invalidate directory contents
-        { type: 'Directory', id: 'LIST' }, // Invalidate directory list
+        { type: 'Directory', id: 'CONTENTS' },
+        { type: 'Directory', id: 'LIST' },
       ],
+      onQueryStarted: createDocumentOnQueryStarted('Document', 'create document'),
     }),
     
     createDocumentFromUrl: builder.mutation<DocumentEnhanced, CreateDocumentFromUrlRequest>({
@@ -70,9 +72,10 @@ export const documentsApi = baseApi.injectEndpoints({
       },
       invalidatesTags: [
         'Document',
-        { type: 'Directory', id: 'CONTENTS' }, // Invalidate directory contents
-        { type: 'Directory', id: 'LIST' }, // Invalidate directory list
+        { type: 'Directory', id: 'CONTENTS' },
+        { type: 'Directory', id: 'LIST' },
       ],
+      onQueryStarted: createDocumentOnQueryStarted('Document', 'create document from URL'),
     }),
     
     generateFromPrompt: builder.mutation<GenerateFromPromptResponse, GenerateFromPromptRequest>({
@@ -80,6 +83,7 @@ export const documentsApi = baseApi.injectEndpoints({
         functionName: 'generateFromPrompt',
         data: data
       }),
+      onQueryStarted: createDocumentOnQueryStarted('Document', 'generate document'),
       transformResponse: (response: { 
         success: boolean;
         documentId: string;
