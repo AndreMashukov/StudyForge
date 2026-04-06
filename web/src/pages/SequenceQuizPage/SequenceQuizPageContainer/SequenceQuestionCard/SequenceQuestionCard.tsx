@@ -66,6 +66,7 @@ const SortableBlock = ({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     disabled: isChecked,
+    animateLayoutChanges: () => false,
   });
 
   const style: React.CSSProperties = {
@@ -169,6 +170,9 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   // Live ordered copy of placedItems updated during drag for smooth reorder preview
   const [liveTargetIds, setLiveTargetIds] = useState<string[]>([]);
+  // Holds the committed live order after drag end until Redux placedItems propagates,
+  // preventing the snap-back glitch (activeId → null before parent re-renders with new props).
+  const [pendingCommit, setPendingCommit] = useState<string[] | null>(null);
 
   // Measure the source zone's natural height on first render (before any items are moved)
   // so both zones share the same fixed height regardless of text wrapping.
@@ -182,6 +186,15 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Once Redux has propagated the reorder back via placedItems, drop the optimistic commit.
+  // This must only fire when placedItems changes, not on every render.
+  useLayoutEffect(() => {
+    if (pendingCommit !== null) {
+      setPendingCommit(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placedItems]);
+
   const zoneStyle = fixedHeight !== null ? { height: fixedHeight } : undefined;
 
   const sensors = useSensors(
@@ -190,8 +203,8 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   );
 
   const sourceIds = availableItems.map((_, i) => `src__${i}`);
-  // Use the live order during drag, fall back to Redux state otherwise
-  const targetIds = activeId ? liveTargetIds : placedItems.map((_, i) => `tgt__${i}`);
+  // During drag: use live preview; after drop (pending Redux propagation): use committed order; otherwise: use Redux state
+  const targetIds = activeId ? liveTargetIds : (pendingCommit ?? placedItems.map((_, i) => `tgt__${i}`));
 
   const itemFromSourceId = (id: UniqueIdentifier): { item: string; index: number } | null => {
     const s = String(id);
@@ -267,9 +280,20 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
           // Dropped on empty zone area — append to end
           handlers.handlePlaceItem(src.item);
         } else {
-          // Dropped on a specific item — insert after it so it lands below
+          // Dropped on a specific item — decide before/after based on drop position
           const overTgt = itemFromTargetId(over.id);
-          handlers.handlePlaceItem(src.item, overTgt !== null ? overTgt.index + 1 : undefined);
+          if (overTgt !== null) {
+            const overRect = over.rect;
+            const dropY = event.activatorEvent instanceof PointerEvent
+              ? event.activatorEvent.clientY + (event.delta?.y ?? 0)
+              : null;
+            // Insert before the item if dropped in the top half, after if in the bottom half
+            const midY = overRect ? overRect.top + overRect.height / 2 : null;
+            const insertBefore = dropY !== null && midY !== null && dropY < midY;
+            handlers.handlePlaceItem(src.item, insertBefore ? overTgt.index : overTgt.index + 1);
+          } else {
+            handlers.handlePlaceItem(src.item);
+          }
         }
       }
     } else if (fromTarget && toSource) {
@@ -288,6 +312,8 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
       const oldFirst = itemFromTargetId(active.id);
       const newFirstIdx = liveTargetIds.indexOf(activeIdStr);
       if (oldFirst !== null && newFirstIdx !== -1 && oldFirst.index !== newFirstIdx) {
+        // Hold the live order so the UI doesn't snap back while waiting for Redux to propagate
+        setPendingCommit([...liveTargetIds]);
         handlers.handleReorderPlacedItem(oldFirst.index, newFirstIdx);
       }
       // If identical, no-op
@@ -383,7 +409,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                     <span className="text-xs">Drag blocks here</span>
                   </div>
                 ) : (
-                  (activeId ? liveTargetIds : placedItems.map((_, i) => `tgt__${i}`)).map((tgtId, index) => {
+                  targetIds.map((tgtId, index) => {
                     const srcIndex = parseInt(String(tgtId).slice(5), 10);
                     const item = placedItems[srcIndex] ?? '';
                     const isPositionCorrect = isChecked
