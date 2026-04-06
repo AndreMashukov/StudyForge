@@ -35,7 +35,7 @@ export const Page = ({ children, className, showSidebar = true }: IPage) => {
       {/* Main Content Area - adjusted for fixed sidebar */}
       <div
         className={cn(
-          'flex flex-col min-h-screen transition-all duration-300',
+          'flex flex-col flex-1 min-h-0 transition-all duration-300',
           className
         )}
         style={{

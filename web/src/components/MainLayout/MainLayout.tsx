@@ -56,7 +56,7 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="h-screen overflow-hidden flex flex-col bg-background text-foreground">
       {/* Header — hidden during app fullscreen */}
       <header
         className="linear-glass border-b border-border/30 fixed top-0 z-[1100] transition-all duration-300"
@@ -161,9 +161,9 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
       </header>
 
       {/* Main Content with Toolbar spacer */}
-      <main className="flex-1">
+      <main className="flex-1 flex flex-col overflow-hidden">
         {/* Toolbar spacer to prevent content hiding under fixed header */}
-        {!isAppFullscreen && <div className="h-16" />}
+        {!isAppFullscreen && <div className="h-16 flex-shrink-0" />}
         {children}
       </main>
     </div>
