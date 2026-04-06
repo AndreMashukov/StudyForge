@@ -6,10 +6,10 @@ import { Label } from '../../../../components/ui/Label';
 import { Upload, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { RuleSelector } from '../../../../components/RuleSelector';
 import { RuleApplicability } from '@shared-types';
-import { 
-  selectDirectoryId, 
+import {
+  selectDirectoryId,
   selectUploadRules,
-  setUploadRules 
+  setUploadRules
 } from '../../../../store/slices/createDocumentPageSlice';
 import { IFileUploadFormProps } from './IFileUploadForm';
 import { fileUploadFormStyles } from './FileUploadForm.styles';
@@ -35,16 +35,12 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
   };
 
   const validateFile = (file: File): string | null => {
-    // Check file type
     if (file.type !== 'text/markdown' && !file.name.endsWith('.md')) {
       return 'Please select a markdown (.md) file';
     }
-
-    // Check file size
     if (file.size > MAX_FILE_SIZE) {
       return `File size must be less than ${MAX_FILE_SIZE / 1024}KB`;
     }
-
     return null;
   };
 
@@ -55,11 +51,8 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
       setSelectedFile(null);
       return;
     }
-
     setFileError(null);
     setSelectedFile(file);
-    
-    // Auto-fill title from filename if not already set
     if (!title.trim()) {
       const fileName = file.name.replace(/\.md$/, '');
       setTitle(fileName);
@@ -80,7 +73,6 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFileSelect(e.dataTransfer.files[0]);
     }
@@ -95,7 +87,6 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) return;
-    
     onSubmit({
       file: selectedFile,
       title: title.trim() || undefined,
@@ -103,22 +94,14 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
     });
   };
 
-  const formatFileSize = (bytes: number) => {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  };
-
+  const formatFileSize = (bytes: number) => `${(bytes / 1024).toFixed(1)} KB`;
   const canSubmit = selectedFile && !fileError;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[7fr_3fr] gap-6">
-      {/* Form Section (70%) */}
-      <form onSubmit={handleSubmit} className={fileUploadFormStyles.container}>
+    <form onSubmit={handleSubmit} className={fileUploadFormStyles.container}>
       {/* File Upload Area */}
       <div className={fileUploadFormStyles.formGroup}>
-        <Label className={fileUploadFormStyles.label}>
-          Markdown File *
-        </Label>
-        
+        <Label className={fileUploadFormStyles.label}>Markdown File *</Label>
         <div
           className={cn(
             fileUploadFormStyles.uploadArea,
@@ -130,14 +113,11 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
         >
-          <Upload size={48} className={fileUploadFormStyles.uploadIcon} />
-          <p className="font-medium mb-2">
-            Drop your markdown file here, or click to browse
-          </p>
+          <Upload size={36} className={fileUploadFormStyles.uploadIcon} />
+          <p className="font-medium mb-1">Drop your markdown file here, or click to browse</p>
           <p className={fileUploadFormStyles.uploadText}>
             Supports .md files up to {MAX_FILE_SIZE / 1024}KB
           </p>
-          
           <input
             ref={fileInputRef}
             type="file"
@@ -148,35 +128,31 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
           />
         </div>
 
-        {/* File Error */}
         {fileError && (
-          <div className="flex items-center gap-2 text-destructive text-sm">
+          <div className="flex items-center gap-2 text-destructive text-sm mt-2">
             <AlertCircle size={16} />
             {fileError}
           </div>
         )}
 
-        {/* Selected File Info */}
         {selectedFile && !fileError && (
           <div className={fileUploadFormStyles.fileInfo}>
             <div className="flex items-center gap-2">
               <FileText size={16} />
               <div className="flex-1">
                 <p className={fileUploadFormStyles.fileName}>{selectedFile.name}</p>
-                <p className={fileUploadFormStyles.fileSize}>
-                  {formatFileSize(selectedFile.size)}
-                </p>
+                <p className={fileUploadFormStyles.fileSize}>{formatFileSize(selectedFile.size)}</p>
               </div>
             </div>
           </div>
         )}
 
         <p className={fileUploadFormStyles.helpText}>
-          Upload a markdown file to create a document. The file will be stored as-is.
+          Upload a markdown file to create a document.
         </p>
       </div>
 
-      {/* Title Input */}
+      {/* Title */}
       <div className={fileUploadFormStyles.formGroup}>
         <Label htmlFor="title" className={fileUploadFormStyles.label}>
           Document Title (optional)
@@ -191,9 +167,30 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
           disabled={isLoading}
         />
         <p className={fileUploadFormStyles.helpText}>
-          Custom title for your document. If empty, we'll use the filename.
+          Custom title for your document.
         </p>
       </div>
+
+      {/* Rules — stacked */}
+      {directoryId && (
+        <div className="mb-4">
+          <RuleSelector
+            directoryId={directoryId}
+            operation={RuleApplicability.UPLOAD}
+            selectedRuleIds={selectedRuleIds}
+            onSelectionChange={handleRuleSelectionChange}
+            compact={true}
+          />
+        </div>
+      )}
+      
+      {!directoryId && (
+        <div className="border rounded-lg p-3 bg-muted/30 mb-4">
+          <p className="text-xs text-muted-foreground text-center">
+            📁 Select a directory to load applicable rules
+          </p>
+        </div>
+      )}
 
       <Button
         type="submit"
@@ -213,34 +210,5 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
         )}
       </Button>
     </form>
-
-      {/* Rule Selector Section (30%) */}
-      <div className="space-y-4">
-        {directoryId ? (
-          <RuleSelector
-            directoryId={directoryId}
-            operation={RuleApplicability.UPLOAD}
-            selectedRuleIds={selectedRuleIds}
-            onSelectionChange={handleRuleSelectionChange}
-            compact={true}
-          />
-        ) : (
-          <div className="border rounded-lg p-4 bg-muted/30">
-            <p className="text-sm text-muted-foreground text-center">
-              <span role="img" aria-label="folder">📁</span> Select a directory to load applicable rules
-            </p>
-          </div>
-        )}
-        
-        <div className="text-xs text-muted-foreground p-3 bg-accent/10 rounded-md border">
-          <p className="font-medium mb-1">
-            <span role="img" aria-label="info">ℹ️</span> About Rules
-          </p>
-          <p>
-            Rules guide how content is processed and validated during upload.
-          </p>
-        </div>
-      </div>
-    </div>
   );
 };

@@ -2,23 +2,20 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { useCreateDocumentPageContext } from '../context/hooks/useCreateDocumentPageContext';
 import { Page } from '../../../components/Page';
-import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { createDocumentPageStyles } from './CreateDocumentPageContainer.styles';
 import { ArrowLeft } from 'lucide-react';
-import { SourceSelector } from './SourceSelector';
+import { SourceListPanel } from './SourceListPanel';
 import { FormRenderer } from './FormRenderer';
-import { 
-  selectSelectedSource, 
+import {
+  selectSelectedSource,
   selectCreateDocumentPageError,
-  clearSelection 
 } from '../../../store/slices/createDocumentPageSlice';
-import { useDispatch } from 'react-redux';
+import { Card, CardContent } from '../../../components/ui/Card';
 import { cn } from '../../../lib/utils';
 import type { RootState } from '../../../store';
 
 export const CreateDocumentPageContainer = () => {
-  const dispatch = useDispatch();
   const { handlers } = useCreateDocumentPageContext();
   
   // Redux selectors
@@ -26,10 +23,6 @@ export const CreateDocumentPageContainer = () => {
   const error = useSelector((state: RootState) => selectCreateDocumentPageError(state));
   
   const isFormVisible = Boolean(selectedSource);
-
-  const handleBackToSources = () => {
-    dispatch(clearSelection());
-  };
 
   return (
     <Page showSidebar={true}>
@@ -47,9 +40,9 @@ export const CreateDocumentPageContainer = () => {
           <div className={createDocumentPageStyles.headerContent}>
             <h1 className={createDocumentPageStyles.title}>Create Document</h1>
             <p className={createDocumentPageStyles.subtitle}>
-              {isFormVisible 
+              {isFormVisible
                 ? 'Configure your document source and create your content'
-                : 'Choose how you\'d like to create your document'
+                : 'Choose a source type to get started'
               }
             </p>
           </div>
@@ -64,22 +57,26 @@ export const CreateDocumentPageContainer = () => {
           </Card>
         )}
 
-        {/* Main Content */}
-        <div className={createDocumentPageStyles.contentSection}>
-          {/* Source Selector Section */}
-          <div 
-            className={cn(
-              createDocumentPageStyles.sourceSelectorSection,
-              createDocumentPageStyles.cardsContainer,
-              isFormVisible ? createDocumentPageStyles.cardsDimmed : createDocumentPageStyles.cardsActive
+        {/* Split Layout */}
+        <div className={createDocumentPageStyles.splitLayout}>
+          {/* Left: Source List Panel */}
+          <SourceListPanel />
+
+          {/* Right: Form Panel */}
+          <div className={createDocumentPageStyles.formPanel}>
+            {isFormVisible ? (
+              <FormRenderer />
+            ) : (
+              <div className={createDocumentPageStyles.emptyState}>
+                <div className={createDocumentPageStyles.emptyStateIcon}>📝</div>
+                <h3 className={createDocumentPageStyles.emptyStateTitle}>
+                  Select a source type
+                </h3>
+                <p className={createDocumentPageStyles.emptyStateDesc}>
+                  Choose a source type from the panel on the left to start creating your document.
+                </p>
+              </div>
             )}
-          >
-            <SourceSelector />
-          </div>
-          
-          {/* Form Section */}
-          <div className={createDocumentPageStyles.formSection}>
-            <FormRenderer onBack={handleBackToSources} />
           </div>
         </div>
       </div>
