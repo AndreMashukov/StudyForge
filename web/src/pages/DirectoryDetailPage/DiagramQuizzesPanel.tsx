@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, Network } from 'lucide-react';
 import { DiagramQuiz } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { ArtifactRow } from './ArtifactRow';
+import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 
 interface DiagramQuizzesPanelProps {
   diagramQuizzes: DiagramQuiz[];
   directoryId: string;
   mayBeTruncated?: boolean;
+  isGenerating?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'diagramQuiz' }) => void;
 }
 
@@ -16,6 +17,7 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
   diagramQuizzes,
   directoryId,
   mayBeTruncated = false,
+  isGenerating = false,
   onDeleteArtifact,
 }) => {
   return (
@@ -26,6 +28,7 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
           <Link to={`/diagram-quiz/create?directoryId=${directoryId}`}>+ Create diagram quiz</Link>
         </Button>
       </div>
+      {isGenerating && <ArtifactRowGenerating label="Generating diagram quiz…" />}
       {mayBeTruncated && (
         <div className="flex items-center gap-2 rounded-md border border-yellow-600/50 bg-yellow-950/20 px-3 py-2 text-sm text-yellow-500">
           <AlertTriangle size={16} className="shrink-0" />

@@ -1,4 +1,5 @@
 import { baseApi } from '../baseApi';
+import { createArtifactOnQueryStarted } from '../utils/createArtifactOnQueryStarted';
 import {
   FlashcardSet,
   GenerateFlashcardsRequest,
@@ -15,6 +16,7 @@ export const flashcardsApi = baseApi.injectEndpoints({
         functionName: 'generateFlashcards',
         data,
       }),
+      onQueryStarted: createArtifactOnQueryStarted('cards', 'Flashcards', 'flashcards'),
       invalidatesTags: (result, error, arg) => [
         'UserFlashcardSets',
         { type: 'Directory', id: 'CONTENTS' },

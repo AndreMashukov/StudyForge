@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { FullscreenProvider } from '../contexts/FullscreenContext';
 import { ToastProvider, ToastContainer } from '../components/Toast';
+import { ReduxToastBridge } from '../components/Toast/ReduxToastBridge';
 import { MainLayout } from '../components/MainLayout';
 import { ProtectedRoute } from '../utils/ProtectedRoute';
 import { HomePage } from '../pages/HomePage';
@@ -37,6 +38,7 @@ export function App() {
         <AuthProvider>
           <FullscreenProvider>
             <ToastProvider>
+              <ReduxToastBridge />
               <AppContent />
               <ToastContainer />
             </ToastProvider>

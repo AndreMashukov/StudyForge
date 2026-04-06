@@ -1,4 +1,5 @@
 import { baseApi } from '../baseApi';
+import { createArtifactOnQueryStarted } from '../utils/createArtifactOnQueryStarted';
 import {
   ApiResponse,
   GenerateDiagramQuizRequest,
@@ -17,6 +18,7 @@ export const diagramQuizApi = baseApi.injectEndpoints({
         data,
         timeout: 300000,
       }),
+      onQueryStarted: createArtifactOnQueryStarted('diagramQuizzes', 'Diagram quiz', 'diagram quiz'),
       invalidatesTags: (result, error, arg) => [
         'UserDiagramQuizzes',
         { type: 'Directory', id: 'CONTENTS' },

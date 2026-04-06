@@ -1,4 +1,5 @@
 import { baseApi } from '../baseApi';
+import { createArtifactOnQueryStarted } from '../utils/createArtifactOnQueryStarted';
 import {
   Quiz,
   GenerateQuizRequest,
@@ -18,6 +19,7 @@ export const quizApi = baseApi.injectEndpoints({
         functionName: 'generateQuiz',
         data,
       }),
+      onQueryStarted: createArtifactOnQueryStarted('quizzes', 'Quiz', 'quiz'),
       invalidatesTags: (result, error, arg) => [
         'UserQuizzes',
         'RecentQuizzes',

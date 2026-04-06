@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, Layers } from 'lucide-react';
 import { FlashcardSet } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { ArtifactRow } from './ArtifactRow';
+import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 
 interface FlashcardsPanelProps {
   flashcardSets: FlashcardSet[];
   directoryId: string;
   mayBeTruncated?: boolean;
+  isGenerating?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'flashcard' }) => void;
 }
 
@@ -16,6 +17,7 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
   flashcardSets,
   directoryId,
   mayBeTruncated = false,
+  isGenerating = false,
   onDeleteArtifact,
 }) => {
   return (
@@ -26,6 +28,7 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
           <Link to={`/flashcards/create?directoryId=${directoryId}`}>+ Create flashcards</Link>
         </Button>
       </div>
+      {isGenerating && <ArtifactRowGenerating label="Generating flashcards…" />}
       {mayBeTruncated && (
         <div className="flex items-center gap-2 rounded-md border border-yellow-600/50 bg-yellow-950/20 px-3 py-2 text-sm text-yellow-500">
           <AlertTriangle size={16} className="shrink-0" />

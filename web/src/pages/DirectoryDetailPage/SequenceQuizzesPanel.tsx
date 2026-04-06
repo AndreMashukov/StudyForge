@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, ListOrdered } from 'lucide-react';
 import { SequenceQuiz } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { ArtifactRow } from './ArtifactRow';
+import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 
 interface SequenceQuizzesPanelProps {
   sequenceQuizzes: SequenceQuiz[];
   directoryId: string;
   mayBeTruncated?: boolean;
+  isGenerating?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'sequenceQuiz' }) => void;
 }
 
@@ -16,6 +17,7 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
   sequenceQuizzes,
   directoryId,
   mayBeTruncated = false,
+  isGenerating = false,
   onDeleteArtifact,
 }) => {
   return (
@@ -26,6 +28,7 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
           <Link to={`/sequence-quiz/create?directoryId=${encodeURIComponent(directoryId)}`}>+ Create sequence quiz</Link>
         </Button>
       </div>
+      {isGenerating && <ArtifactRowGenerating label="Generating sequence quiz…" />}
       {mayBeTruncated && (
         <div className="flex items-center gap-2 rounded-md border border-yellow-600/50 bg-yellow-950/20 px-3 py-2 text-sm text-yellow-500">
           <AlertTriangle size={16} className="shrink-0" />

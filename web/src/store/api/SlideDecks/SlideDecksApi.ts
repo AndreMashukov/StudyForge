@@ -1,4 +1,5 @@
 import { baseApi } from '../baseApi';
+import { createArtifactOnQueryStarted } from '../utils/createArtifactOnQueryStarted';
 import {
   SlideDeck,
   GenerateSlideDeckRequest,
@@ -14,6 +15,7 @@ export const slideDecksApi = baseApi.injectEndpoints({
         data,
         timeout: 310_000, // 310s — matches the server-side 300s timeout + buffer
       }),
+      onQueryStarted: createArtifactOnQueryStarted('slides', 'Slide deck', 'slide deck'),
       invalidatesTags: (result, error, arg) => [
         'UserSlideDecks',
         { type: 'Directory', id: 'CONTENTS' },

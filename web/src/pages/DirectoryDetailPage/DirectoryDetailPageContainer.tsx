@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
+import { useAppSelector } from '../../hooks/redux';
 import {
   useGetDirectoryContentsWithArtifactsQuery,
   useGetDirectoryAncestorsQuery,
 } from '../../store/api/Directory/DirectoryApi';
+import { selectIsGeneratingArtifact } from '../../store/slices/artifactGenerationSlice';
 import { Page } from '../../components/Page';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -66,6 +68,12 @@ export const DirectoryDetailPageContainer = () => {
   const [deleteDialog, setDeleteDialog] = useState<{ directory: Directory | null }>({ directory: null });
   const [deleteDocDialog, setDeleteDocDialog] = useState<{ document: DocumentEnhanced | null }>({ document: null });
   const [deleteArtifactDialog, setDeleteArtifactDialog] = useState<{ artifact: ArtifactToDelete | null }>({ artifact: null });
+
+  const isGeneratingQuizzes = useAppSelector((state) => selectIsGeneratingArtifact(state, directoryId ?? '', 'quizzes'));
+  const isGeneratingCards = useAppSelector((state) => selectIsGeneratingArtifact(state, directoryId ?? '', 'cards'));
+  const isGeneratingSlides = useAppSelector((state) => selectIsGeneratingArtifact(state, directoryId ?? '', 'slides'));
+  const isGeneratingDiagramQuizzes = useAppSelector((state) => selectIsGeneratingArtifact(state, directoryId ?? '', 'diagramQuizzes'));
+  const isGeneratingSequenceQuizzes = useAppSelector((state) => selectIsGeneratingArtifact(state, directoryId ?? '', 'sequenceQuizzes'));
 
   const {
     data: contents,
@@ -272,6 +280,7 @@ export const DirectoryDetailPageContainer = () => {
                 quizzes={quizzes}
                 directoryId={directoryId}
                 mayBeTruncated={quizzesTruncated}
+                isGenerating={isGeneratingQuizzes}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
               />
             )}
@@ -280,6 +289,7 @@ export const DirectoryDetailPageContainer = () => {
                 flashcardSets={flashcardSets}
                 directoryId={directoryId}
                 mayBeTruncated={flashcardsTruncated}
+                isGenerating={isGeneratingCards}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
               />
             )}
@@ -288,6 +298,7 @@ export const DirectoryDetailPageContainer = () => {
                 slideDecks={slideDecks}
                 directoryId={directoryId}
                 mayBeTruncated={slidesTruncated}
+                isGenerating={isGeneratingSlides}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
               />
             )}
@@ -296,6 +307,7 @@ export const DirectoryDetailPageContainer = () => {
                 diagramQuizzes={diagramQuizzes}
                 directoryId={directoryId}
                 mayBeTruncated={diagramQuizzesTruncated}
+                isGenerating={isGeneratingDiagramQuizzes}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
               />
             )}
@@ -304,6 +316,7 @@ export const DirectoryDetailPageContainer = () => {
                 sequenceQuizzes={sequenceQuizzes}
                 directoryId={directoryId}
                 mayBeTruncated={sequenceQuizzesTruncated}
+                isGenerating={isGeneratingSequenceQuizzes}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
               />
             )}

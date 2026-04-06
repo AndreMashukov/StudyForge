@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UseFormReturn } from 'react-hook-form';
 import { useGenerateSequenceQuizMutation } from '../../../../store/api/SequenceQuiz/SequenceQuizApi';
 import { ICreateSequenceQuizFormData } from '../../types/ICreateSequenceQuizPageTypes';
-import { useToast } from '../../../../components/Toast/ToastContext';
 import { DocumentEnhanced } from '@shared-types';
 
 interface IProps {
@@ -14,7 +13,6 @@ interface IProps {
 export const useCreateSequenceQuizPageHandlers = ({ form, documents }: IProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { showToast } = useToast();
   const [generateSequenceQuiz, { isLoading: isSubmitting }] =
     useGenerateSequenceQuizMutation();
 
@@ -28,41 +26,21 @@ export const useCreateSequenceQuizPageHandlers = ({ form, documents }: IProps) =
       const resolvedDirectoryId =
         directoryIdFromUrl ?? primaryDocument?.directoryId ?? undefined;
 
-      try {
-        const result = await generateSequenceQuiz({
-          documentIds: formData.documentIds,
-          directoryId: resolvedDirectoryId,
-          sequenceQuizName: formData.sequenceQuizName?.trim() || undefined,
-          additionalPrompt: formData.additionalPrompt?.trim() || undefined,
-          additionalRuleIds: formData.ruleIds?.length ? formData.ruleIds : undefined,
-        }).unwrap();
-
-        if (!result?.success) {
-          showToast(
-            (result as { error?: { message?: string } })?.error?.message ||
-              'Failed to generate sequence quiz',
-            'error'
-          );
-          return;
-        }
-
-        showToast(
-          formData.documentIds.length > 1
-            ? `Sequence quiz created from ${formData.documentIds.length} documents`
-            : 'Sequence quiz created',
-          'success'
-        );
-
-        if (resolvedDirectoryId?.trim()) {
-          navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=sequenceQuizzes`);
-        } else {
-          navigate('/documents');
-        }
-      } catch {
-        showToast('Failed to generate sequence quiz', 'error');
+      if (!resolvedDirectoryId) {
+        navigate('/documents');
+        return;
       }
+
+      generateSequenceQuiz({
+        documentIds: formData.documentIds,
+        directoryId: resolvedDirectoryId,
+        sequenceQuizName: formData.sequenceQuizName?.trim() || undefined,
+        additionalPrompt: formData.additionalPrompt?.trim() || undefined,
+        additionalRuleIds: formData.ruleIds?.length ? formData.ruleIds : undefined,
+      });
+      navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=sequenceQuizzes`);
     },
-    [generateSequenceQuiz, navigate, showToast, documents, searchParams]
+    [generateSequenceQuiz, navigate, documents, searchParams]
   );
 
   return {

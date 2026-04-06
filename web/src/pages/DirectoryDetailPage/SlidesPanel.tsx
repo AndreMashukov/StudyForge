@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, Presentation } from 'lucide-react';
 import { SlideDeck } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { ArtifactRow } from './ArtifactRow';
+import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 
 interface SlidesPanelProps {
   slideDecks: SlideDeck[];
   directoryId: string;
   mayBeTruncated?: boolean;
+  isGenerating?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'slideDeck' }) => void;
 }
 
@@ -16,6 +17,7 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
   slideDecks,
   directoryId,
   mayBeTruncated = false,
+  isGenerating = false,
   onDeleteArtifact,
 }) => {
   return (
@@ -26,6 +28,7 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
           <Link to={`/slides/create?directoryId=${directoryId}`}>+ Create slides</Link>
         </Button>
       </div>
+      {isGenerating && <ArtifactRowGenerating label="Generating slide deck…" />}
       {mayBeTruncated && (
         <div className="flex items-center gap-2 rounded-md border border-yellow-600/50 bg-yellow-950/20 px-3 py-2 text-sm text-yellow-500">
           <AlertTriangle size={16} className="shrink-0" />
