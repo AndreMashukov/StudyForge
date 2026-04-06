@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { 
+import {
   selectSelectedSource,
   selectAttachedFiles,
   selectContextSizeError,
@@ -17,26 +17,20 @@ import { useCreateDocumentPageContext } from '../../context/hooks/useCreateDocum
 import { UrlScrapingForm } from '../UrlScrapingForm';
 import { FileUploadForm } from '../FileUploadForm';
 import { TextPromptForm } from '../TextPromptForm';
-import { FormContainer } from '../FormContainer';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
-import { Globe, Upload, ArrowLeft, Sparkles } from 'lucide-react';
-import { Button } from '../../../../components/ui/Button';
+import { Globe, Upload, Sparkles } from 'lucide-react';
 import { ITextPromptFormData } from '../TextPromptForm/ITextPromptForm';
 import type { RootState } from '../../../../store';
 import { useFileUpload } from '../../context/hooks/useFileUpload';
 
-interface IFormRendererProps {
-  onBack?: () => void;
-}
 
 const getFormIcon = (sourceType: string) => {
   switch (sourceType) {
     case 'website':
-      return <Globe size={20} />;
+      return <Globe size={18} />;
     case 'file':
-      return <Upload size={20} />;
+      return <Upload size={18} />;
     case 'textPrompt':
-      return <Sparkles size={20} />;
+      return <Sparkles size={18} />;
     default:
       return null;
   }
@@ -47,7 +41,7 @@ const getFormTitle = (sourceType: string) => {
     case 'website':
       return 'Website Content Scraper';
     case 'file':
-      return 'File Upload Center';
+      return 'File Upload';
     case 'textPrompt':
       return 'AI Document Generator';
     default:
@@ -55,7 +49,20 @@ const getFormTitle = (sourceType: string) => {
   }
 };
 
-export const FormRenderer = ({ onBack }: IFormRendererProps) => {
+const getFormDescription = (sourceType: string) => {
+  switch (sourceType) {
+    case 'website':
+      return 'Enter a URL to scrape and convert to a document';
+    case 'file':
+      return 'Upload a markdown file to create a document';
+    case 'textPrompt':
+      return 'Describe what you want to learn — AI will generate the document';
+    default:
+      return '';
+  }
+};
+
+export const FormRenderer = () => {
   const { handlers } = useCreateDocumentPageContext();
   
   // Redux selectors for state
@@ -95,75 +102,66 @@ export const FormRenderer = ({ onBack }: IFormRendererProps) => {
   }
 
   return (
-    <FormContainer>
-      <Card className="border-0 shadow-none bg-transparent">
-        <CardHeader className="pb-4">
-          <div className="flex items-center gap-3">
-            {onBack && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onBack}
-                className="hover:bg-muted"
-              >
-                <ArrowLeft size={16} />
-              </Button>
-            )}
-            <div className="flex items-center gap-2">
-              {getFormIcon(selectedSource)}
-              <CardTitle className="text-lg">
-                {getFormTitle(selectedSource)}
-              </CardTitle>
-            </div>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="pt-0">
-          {selectedSource === 'website' && (
-            <UrlScrapingForm
-              isLoading={isUrlLoading}
-              onSubmit={handlers.handleCreateFromUrl}
-            />
-          )}
-          
-          {selectedSource === 'file' && (
-            <FileUploadForm
-              isLoading={isFileLoading}
-              onSubmit={handlers.handleCreateFromFile}
-            />
-          )}
-          
-          {selectedSource === 'textPrompt' && (
-            <TextPromptForm
-              isLoading={isTextPromptLoading}
-              progress={textPromptProgress}
-              onSubmit={handleTextPromptSubmit}
-              attachedFiles={attachedFiles}
-              onFilesSelected={fileUpload.handleFileAdd}
-              onFileRemove={fileUpload.handleFileRemove}
-              canAttachMore={canAttachMore}
-              totalTokens={fileUpload.getTotalTokens()}
-              contextSizeError={contextSizeError}
-              userDocuments={userDocuments}
-              selectedDocumentIds={selectedDocumentIds}
-              onDocumentToggle={fileUpload.handleDocumentToggle}
-              isLoadingDocuments={isLoadingDocuments}
-            />
-          )}
-          
-          {selectedSource === 'videoUrl' && (
-            <div className="text-center py-12">
-              <span role="img" aria-label="Under construction" className="text-4xl mb-4 block">
-                🚧
-              </span>
-              <h3 className="text-lg font-semibold mb-2">Coming Soon</h3>
-              <p className="text-muted-foreground">
-                This feature is currently under development and will be available soon.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </FormContainer>
+    <div className="space-y-0">
+      {/* Form header */}
+      <div className="flex items-center gap-2 pb-4 mb-4 border-b border-border">
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary">
+          {getFormIcon(selectedSource)}
+        </div>
+        <div>
+          <h2 className="text-base font-semibold">
+            {getFormTitle(selectedSource)}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {getFormDescription(selectedSource)}
+          </p>
+        </div>
+      </div>
+      
+      {/* Form content */}
+      {selectedSource === 'website' && (
+        <UrlScrapingForm
+          isLoading={isUrlLoading}
+          onSubmit={handlers.handleCreateFromUrl}
+        />
+      )}
+      
+      {selectedSource === 'file' && (
+        <FileUploadForm
+          isLoading={isFileLoading}
+          onSubmit={handlers.handleCreateFromFile}
+        />
+      )}
+      
+      {selectedSource === 'textPrompt' && (
+        <TextPromptForm
+          isLoading={isTextPromptLoading}
+          progress={textPromptProgress}
+          onSubmit={handleTextPromptSubmit}
+          attachedFiles={attachedFiles}
+          onFilesSelected={fileUpload.handleFileAdd}
+          onFileRemove={fileUpload.handleFileRemove}
+          canAttachMore={canAttachMore}
+          totalTokens={fileUpload.getTotalTokens()}
+          contextSizeError={contextSizeError}
+          userDocuments={userDocuments}
+          selectedDocumentIds={selectedDocumentIds}
+          onDocumentToggle={fileUpload.handleDocumentToggle}
+          isLoadingDocuments={isLoadingDocuments}
+        />
+      )}
+      
+      {selectedSource === 'videoUrl' && (
+        <div className="text-center py-12">
+          <span role="img" aria-label="Under construction" className="text-4xl mb-4 block">
+            🚧
+          </span>
+          <h3 className="text-lg font-semibold mb-2">Coming Soon</h3>
+          <p className="text-muted-foreground">
+            This feature is currently under development and will be available soon.
+          </p>
+        </div>
+      )}
+    </div>
   );
 };
