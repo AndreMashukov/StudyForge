@@ -19,7 +19,7 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <Page showSidebar={true}>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6 pt-6">
         <Card>
           <CardHeader>
             <CardTitle>Account Information</CardTitle>
