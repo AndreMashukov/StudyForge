@@ -58,12 +58,6 @@ export const PreSelectedDocumentSelector = ({
     );
   }
 
-  const handlePickerToggle = (id: string) => {
-    onDocumentToggle(id);
-    // Close picker after selecting
-    setShowPicker(false);
-  };
-
   return (
     <div className={cn('flex flex-col gap-1', className)}>
       {/* Stacked selected document cards */}
@@ -97,10 +91,7 @@ export const PreSelectedDocumentSelector = ({
                 variant="ghost"
                 size="icon"
                 className={styles.removeBtn}
-                onClick={() => {
-                  onDocumentToggle(id);
-                  setShowPicker(false);
-                }}
+                onClick={() => onDocumentToggle(id)}
                 aria-label={`Remove ${doc?.title ?? id}`}
               >
                 <X size={14} />
@@ -110,8 +101,8 @@ export const PreSelectedDocumentSelector = ({
         );
       })}
 
-      {/* + Add more documents button */}
-      {canAddMore && availableDocuments.length > 0 && (
+      {/* + Add more documents / Close document picker button */}
+      {(showPicker || (canAddMore && availableDocuments.length > 0)) && (
         <Button
           type="button"
           variant="outline"
@@ -120,7 +111,7 @@ export const PreSelectedDocumentSelector = ({
           onClick={() => setShowPicker((v) => !v)}
           disabled={disabled || isLoading}
         >
-          <Plus size={14} />
+          {showPicker ? <X size={14} /> : <Plus size={14} />}
           {showPicker ? 'Close document picker' : 'Add more documents'}
         </Button>
       )}
@@ -130,14 +121,14 @@ export const PreSelectedDocumentSelector = ({
         <p className={styles.helperText}>Auto-selected from your current session</p>
       )}
 
-      {/* Expanded document picker */}
+      {/* Expanded document picker — stays open for multi-select */}
       {showPicker && (
         <div className={styles.pickerPanel}>
           <p className={styles.pickerLabel}>Select additional documents:</p>
           <DocumentSelector
             documents={availableDocuments}
             selectedDocumentIds={[]}
-            onDocumentToggle={handlePickerToggle}
+            onDocumentToggle={onDocumentToggle}
             maxSelections={maxSelections !== undefined ? maxSelections - selectedDocumentIds.length : undefined}
             isLoading={isLoading}
             disabled={disabled}
