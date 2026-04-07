@@ -46,8 +46,12 @@ export const useCreateDocumentPageHandlers = () => {
   const isLoading = isUrlLoading || isFileLoading || isTextPromptLoading;
 
   const handleGoBack = useCallback(() => {
-    navigate('/documents');
-  }, [navigate]);
+    if (directoryId) {
+      navigate(`/directory/${encodeURIComponent(directoryId)}`);
+    } else {
+      navigate('/documents');
+    }
+  }, [navigate, directoryId]);
 
   const handleCreateFromUrl = useCallback((data: IUrlScrapingFormData) => {
     dispatch(clearError());
