@@ -543,6 +543,7 @@ export class FirestoreService {
         question: q.question,
         items: q.items,
         explanation: q.explanation,
+        ...(q.hint ? { hint: q.hint } : {}),
       }));
 
       const db = this.getDb();
