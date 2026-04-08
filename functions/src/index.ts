@@ -115,6 +115,7 @@ export {
   searchDocuments,
   getDocumentStats,
   getDocumentContent,
+  moveDocument,
 } from "./endpoints/documents";
 
 // Export rules management functions

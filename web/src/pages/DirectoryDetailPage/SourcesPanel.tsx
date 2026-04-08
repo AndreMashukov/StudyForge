@@ -7,6 +7,7 @@ interface ISourcesPanelProps {
   documents: DocumentEnhanced[];
   directoryId: string;
   onDeleteDocument: (document: DocumentEnhanced) => void;
+  onMoveDocument: (document: DocumentEnhanced) => void;
   isGenerating?: boolean;
 }
 
@@ -14,6 +15,7 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
   documents,
   directoryId,
   onDeleteDocument,
+  onMoveDocument,
   isGenerating = false,
 }) => {
   return (
@@ -34,6 +36,7 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
               document={doc}
               directoryId={directoryId}
               onDelete={onDeleteDocument}
+              onMove={onMoveDocument}
             />
           ))}
         </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FileText, Trash2, ChevronDown, Brain, Layers, Presentation, Network, ListOrdered } from 'lucide-react';
+import { FileText, Trash2, ChevronDown, Brain, Layers, Presentation, Network, ListOrdered, MoreVertical, FolderInput } from 'lucide-react';
 import { DocumentEnhanced } from '@shared-types';
 import { formatDate } from '../../utils/dateUtils';
 import { Button } from '../../components/ui/Button';
@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../components/ui/DropdownMenu';
 
@@ -15,9 +16,10 @@ interface SourceRowProps {
   document: DocumentEnhanced;
   directoryId: string;
   onDelete: (document: DocumentEnhanced) => void;
+  onMove: (document: DocumentEnhanced) => void;
 }
 
-export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onDelete }) => {
+export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onDelete, onMove }) => {
   const navigate = useNavigate();
 
   return (
@@ -87,18 +89,35 @@ export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onD
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(document);
-          }}
-          aria-label={`Delete ${document.title}`}
-        >
-          <Trash2 size={14} />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`Actions for ${document.title}`}
+            >
+              <MoreVertical size={14} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={() => onMove(document)}
+            >
+              <FolderInput size={14} className="mr-2" />
+              Move
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => onDelete(document)}
+            >
+              <Trash2 size={14} className="mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import {
   DocumentSourceType,
   DocumentStatus,
   GenerateFromPromptRequest,
+  MoveDocumentRequest,
 } from "@shared-types";
 
 // Define the Gemini API key secret for markdown conversion
@@ -748,6 +749,45 @@ export const generateFromPrompt = onCall(
         prompt: request.data?.prompt?.substring(0, 50),
       });
       throw new Error(`Failed to generate document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+);
+
+/**
+ * Move a document to a different directory
+ */
+export const moveDocument = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
+  async (request) => {
+    try {
+      const userId = await validateAuth(request);
+      const { documentId, targetDirectoryId } = request.data as { documentId: string; targetDirectoryId: string };
+
+      if (!documentId || typeof documentId !== 'string') {
+        throw new Error('Document ID is required');
+      }
+      if (!targetDirectoryId || typeof targetDirectoryId !== 'string') {
+        throw new Error('Target directory ID is required');
+      }
+
+      logger.info('Moving document', { userId, documentId, targetDirectoryId });
+
+      const moveRequest: MoveDocumentRequest = { targetDirectoryId };
+      const document = await DocumentCrudService.moveDocument(userId, documentId, moveRequest);
+
+      return {
+        success: true,
+        data: { document },
+      };
+    } catch (error) {
+      logger.error('Failed to move document', {
+        error: error instanceof Error ? error.message : String(error),
+        documentId: request.data?.documentId,
+      });
+      throw new Error(`Failed to move document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 );

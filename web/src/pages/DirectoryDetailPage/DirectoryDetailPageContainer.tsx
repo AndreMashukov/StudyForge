@@ -30,6 +30,7 @@ import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/C
 import { EditDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/EditDirectoryDialog';
 import { DeleteDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/DeleteDirectoryDialog';
 import { DeleteDocumentDialog } from './DeleteDocumentDialog';
+import { MoveDocumentDialog } from './MoveDocumentDialog';
 import { DeleteArtifactDialog, ArtifactToDelete } from './DeleteArtifactDialog';
 import { DirectoryIconSidebar, PanelType } from './DirectoryIconSidebar';
 import { SourcesPanel } from './SourcesPanel';
@@ -67,6 +68,7 @@ export const DirectoryDetailPageContainer = () => {
   const [editDialog, setEditDialog] = useState<{ directory: Directory | null }>({ directory: null });
   const [deleteDialog, setDeleteDialog] = useState<{ directory: Directory | null }>({ directory: null });
   const [deleteDocDialog, setDeleteDocDialog] = useState<{ document: DocumentEnhanced | null }>({ document: null });
+  const [moveDocDialog, setMoveDocDialog] = useState<{ document: DocumentEnhanced | null }>({ document: null });
   const [deleteArtifactDialog, setDeleteArtifactDialog] = useState<{ artifact: ArtifactToDelete | null }>({ artifact: null });
 
   const isGeneratingQuizzes = useAppSelector((state) => selectIsGeneratingArtifact(state, directoryId ?? '', 'quizzes'));
@@ -275,6 +277,7 @@ export const DirectoryDetailPageContainer = () => {
                 documents={documents}
                 directoryId={directoryId}
                 onDeleteDocument={(doc) => setDeleteDocDialog({ document: doc })}
+                onMoveDocument={(doc) => setMoveDocDialog({ document: doc })}
                 isGenerating={isGeneratingSources}
               />
             )}
@@ -360,6 +363,14 @@ export const DirectoryDetailPageContainer = () => {
         onClose={() => setDeleteDocDialog({ document: null })}
         document={deleteDocDialog.document}
         onSuccess={() => setDeleteDocDialog({ document: null })}
+      />
+
+      <MoveDocumentDialog
+        isOpen={!!moveDocDialog.document}
+        onClose={() => setMoveDocDialog({ document: null })}
+        document={moveDocDialog.document}
+        currentDirectoryId={directoryId}
+        onSuccess={() => setMoveDocDialog({ document: null })}
       />
 
       <DeleteArtifactDialog
