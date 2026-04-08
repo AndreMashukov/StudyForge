@@ -25,6 +25,7 @@ export const useFetchSequenceQuizData = () => {
       question: q.question,
       items: q.items,
       explanation: q.explanation,
+      hint: q.hint,
     }));
   }, []);
 

@@ -89,7 +89,8 @@ ${content.content}
 Create **8 to 12** questions. For each question provide:
 - \`question\`: a clear instruction telling the learner what to arrange (e.g. "Arrange the steps of X in order")
 - \`items\`: an array of strings in the **CORRECT** order (4–10 items)
-- \`explanation\`: a concise explanation of why this order is correct`;
+- \`explanation\`: a concise explanation of why this order is correct
+- \`hint\`: a short, helpful clue that nudges the learner without giving away the full answer (e.g. "Think about which step must happen before any other")`;
   }
 
   private static getJsonFormatRules(): string {
@@ -98,7 +99,8 @@ Create **8 to 12** questions. For each question provide:
 - **No backticks** in any string value.
 - **No unescaped double quotes** inside string values.
 - \`items\` must be a non-empty string array with at least 4 elements for every question.
-- \`explanation\` is required and must be a non-empty string.`;
+- \`explanation\` is required and must be a non-empty string.
+- \`hint\` is required and must be a short, non-empty string (one sentence, max 20 words).`;
   }
 
   private static getExampleStructure(): string {
@@ -109,7 +111,8 @@ Create **8 to 12** questions. For each question provide:
     {
       "question": "Arrange these items in the correct order:",
       "items": ["First item", "Second item", "Third item", "Fourth item"],
-      "explanation": "Why this order is correct and how each step follows from the previous."
+      "explanation": "Why this order is correct and how each step follows from the previous.",
+      "hint": "Think about which step must happen first before anything else can begin."
     }
   ]
 }`;

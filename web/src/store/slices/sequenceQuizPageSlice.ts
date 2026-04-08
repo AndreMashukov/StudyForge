@@ -6,6 +6,7 @@ export interface ISequenceQuizQuestion {
   question: string;
   items: string[]; // Correct order
   explanation: string;
+  hint?: string; // Optional tooltip hint
 }
 
 export interface ISequenceQuizAnswer {
