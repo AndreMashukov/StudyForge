@@ -37,6 +37,7 @@ export const DiagramQuizPageProvider = ({ children }: IDiagramQuizPageProviderPr
       handlePrevDiagram: handlers.handlePrevDiagram,
       handleNextDiagram: handlers.handleNextDiagram,
       handleDiagramDotClick: handlers.handleDiagramDotClick,
+      handleGenerateFollowup: handlers.handleGenerateFollowup,
     },
   };
 
