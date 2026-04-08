@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Brain } from 'lucide-react';
-import { Quiz } from '@shared-types';
+import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 
 interface QuizzesPanelProps {
-  quizzes: Quiz[];
+  quizzes: ArtifactSummary[];
   directoryId: string;
   mayBeTruncated?: boolean;
   isGenerating?: boolean;

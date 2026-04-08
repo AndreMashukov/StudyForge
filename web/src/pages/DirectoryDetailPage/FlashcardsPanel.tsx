@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Layers } from 'lucide-react';
-import { FlashcardSet } from '@shared-types';
+import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 
 interface FlashcardsPanelProps {
-  flashcardSets: FlashcardSet[];
+  flashcardSets: ArtifactSummary[];
   directoryId: string;
   mayBeTruncated?: boolean;
   isGenerating?: boolean;

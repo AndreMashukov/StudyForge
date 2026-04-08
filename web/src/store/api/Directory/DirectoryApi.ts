@@ -10,6 +10,7 @@ import {
   GetDirectoryTreeResponse,
   GetDirectoryContentsResponse,
   GetDirectoryContentsWithArtifactsResponse,
+  GetDirectoryContentsWithArtifactSummariesResponse,
   GetDirectoryAncestorsResponse,
   MoveDirectoryResponse,
   DeleteDirectoryResponse,
@@ -117,6 +118,29 @@ export const directoryApi = baseApi.injectEndpoints({
       keepUnusedDataFor: 0,
     }),
 
+    getDirectoryContentsWithArtifactSummaries: builder.query<
+      GetDirectoryContentsWithArtifactSummariesResponse,
+      { directoryId: string | null; artifactLimit?: number }
+    >({
+      query: ({ directoryId, artifactLimit }) => ({
+        functionName: 'getDirectoryContentsWithArtifactSummaries',
+        data: {
+          directoryId,
+          includeRules: true,
+          artifactLimit: artifactLimit ?? 20,
+        },
+      }),
+      providesTags: (result, error, arg) => [
+        { type: 'Directory', id: arg.directoryId || 'ROOT' },
+        { type: 'Directory', id: 'CONTENTS' },
+        'Documents',
+        'UserQuizzes',
+        'UserFlashcardSets',
+        'UserSlideDecks',
+      ],
+      keepUnusedDataFor: 0,
+    }),
+
     // Get directory ancestors (breadcrumb)
     getDirectoryAncestors: builder.query<GetDirectoryAncestorsResponse, string>({
       query: (directoryId) => ({
@@ -175,6 +199,7 @@ export const {
   useGetDirectoryTreeQuery,
   useGetDirectoryContentsQuery,
   useGetDirectoryContentsWithArtifactsQuery,
+  useGetDirectoryContentsWithArtifactSummariesQuery,
   useGetDirectoryAncestorsQuery,
   useMoveDirectoryMutation,
   useGetDirectoryByPathQuery,

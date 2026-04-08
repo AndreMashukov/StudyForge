@@ -350,3 +350,49 @@ export const getDirectoryContentsWithArtifacts = onCall(
     }
   }
 );
+
+/**
+ * Lightweight directory contents: metadata + artifact summaries (id, title, createdAt, type) only.
+ * Avoids sending large nested arrays (questions, flashcards, slides) that the directory listing doesn't need.
+ */
+export const getDirectoryContentsWithArtifactSummaries = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
+  async (request) => {
+    try {
+      const userId = await validateAuth(request);
+      const {
+        directoryId,
+        includeRules = true,
+        artifactLimit = 20,
+      } = request.data as {
+        directoryId?: string | null;
+        includeRules?: boolean;
+        artifactLimit?: number;
+      };
+
+      logger.info('Getting directory contents with artifact summaries', {
+        userId,
+        directoryId,
+        includeRules,
+        artifactLimit,
+      });
+
+      const result = await directoryService.getDirectoryContentsWithArtifactSummaries(
+        userId,
+        directoryId ?? null,
+        { includeRules, artifactLimit }
+      );
+      return result;
+    } catch (error) {
+      logger.error('Error getting directory contents with artifact summaries', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(
+        `Failed to get directory contents with artifact summaries: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+);

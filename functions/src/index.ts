@@ -146,6 +146,7 @@ export {
   getDirectoryTree,
   getDirectoryContents,
   getDirectoryContentsWithArtifacts,
+  getDirectoryContentsWithArtifactSummaries,
   getDirectoryAncestors,
   moveDirectory,
   getDirectoryByPath,

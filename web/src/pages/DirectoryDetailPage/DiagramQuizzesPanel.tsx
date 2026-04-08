@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Network } from 'lucide-react';
-import { DiagramQuiz } from '@shared-types';
+import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 
 interface DiagramQuizzesPanelProps {
-  diagramQuizzes: DiagramQuiz[];
+  diagramQuizzes: ArtifactSummary[];
   directoryId: string;
   mayBeTruncated?: boolean;
   isGenerating?: boolean;

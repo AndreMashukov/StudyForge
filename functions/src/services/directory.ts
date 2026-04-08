@@ -12,6 +12,9 @@ import {
   GetDirectoryTreeResponse,
   GetDirectoryContentsResponse,
   GetDirectoryContentsWithArtifactsResponse,
+  GetDirectoryContentsWithArtifactSummariesResponse,
+  ArtifactSummary,
+  ArtifactSummaryType,
   GetDirectoryAncestorsResponse,
   MoveDirectoryResponse,
   DeleteDirectoryResponse,
@@ -576,6 +579,86 @@ export class DirectoryService {
       slideDecks,
       diagramQuizzes,
       sequenceQuizzes,
+      resolvedRules,
+      totalCount,
+    };
+  }
+
+  /**
+   * Lightweight variant: directory contents plus artifact summaries (id, title, createdAt, type only).
+   * Uses Firestore field masks to avoid transferring large nested arrays (questions, flashcards, slides).
+   */
+  async getDirectoryContentsWithArtifactSummaries(
+    userId: string,
+    directoryId: string | null,
+    options?: { includeRules?: boolean; artifactLimit?: number }
+  ): Promise<GetDirectoryContentsWithArtifactSummariesResponse> {
+    const includeRules = options?.includeRules !== false;
+    const artifactLimit = Math.min(options?.artifactLimit ?? 20, 100);
+
+    const base = await this.getDirectoryContents(userId, directoryId);
+
+    const artifactSummaries: ArtifactSummary[] = [];
+    let resolvedRules: { rules: Rule[]; inheritanceMap: { [key: string]: Rule[] } } = {
+      rules: [],
+      inheritanceMap: {},
+    };
+
+    if (directoryId) {
+      const [qSnap, fSnap, sSnap, dqSnap, sqSnap] = await Promise.all([
+        FirestorePaths.quizzes(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .select('title', 'createdAt')
+          .get(),
+        FirestorePaths.flashcardSets(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .select('title', 'createdAt')
+          .get(),
+        FirestorePaths.slideDecks(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .select('title', 'createdAt')
+          .get(),
+        FirestorePaths.diagramQuizzes(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .select('title', 'createdAt')
+          .get(),
+        FirestorePaths.sequenceQuizzes(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .select('title', 'createdAt')
+          .get(),
+      ]);
+
+      const toSummaries = (snap: FirebaseFirestore.QuerySnapshot, type: ArtifactSummaryType): ArtifactSummary[] =>
+        snap.docs.map((d) => ({ id: d.id, title: d.data().title as string, createdAt: d.data().createdAt, type }));
+
+      artifactSummaries.push(
+        ...toSummaries(qSnap, 'quiz'),
+        ...toSummaries(fSnap, 'flashcard'),
+        ...toSummaries(sSnap, 'slideDeck'),
+        ...toSummaries(dqSnap, 'diagramQuiz'),
+        ...toSummaries(sqSnap, 'sequenceQuiz'),
+      );
+
+      if (includeRules) {
+        resolvedRules = await resolveRulesForDirectory(userId, directoryId);
+      }
+    }
+
+    const totalCount = base.totalCount + artifactSummaries.length;
+
+    return {
+      ...base,
+      artifactSummaries,
       resolvedRules,
       totalCount,
     };

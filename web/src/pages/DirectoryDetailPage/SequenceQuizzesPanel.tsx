@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ListOrdered } from 'lucide-react';
-import { SequenceQuiz } from '@shared-types';
+import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 
 interface SequenceQuizzesPanelProps {
-  sequenceQuizzes: SequenceQuiz[];
+  sequenceQuizzes: ArtifactSummary[];
   directoryId: string;
   mayBeTruncated?: boolean;
   isGenerating?: boolean;

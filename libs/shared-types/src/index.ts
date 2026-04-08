@@ -343,6 +343,23 @@ export interface GetDirectoryContentsWithArtifactsResponse extends GetDirectoryC
   };
 }
 
+export type ArtifactSummaryType = 'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz';
+
+export interface ArtifactSummary {
+  id: string;
+  title: string;
+  createdAt: Date | Timestamp;
+  type: ArtifactSummaryType;
+}
+
+export interface GetDirectoryContentsWithArtifactSummariesResponse extends GetDirectoryContentsResponse {
+  artifactSummaries: ArtifactSummary[];
+  resolvedRules: {
+    rules: Rule[];
+    inheritanceMap: { [directoryId: string]: Rule[] };
+  };
+}
+
 export interface GetDirectoryAncestorsResponse {
   ancestors: Directory[];
 }

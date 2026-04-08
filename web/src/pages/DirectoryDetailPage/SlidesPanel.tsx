@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Presentation } from 'lucide-react';
-import { SlideDeck } from '@shared-types';
+import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 
 interface SlidesPanelProps {
-  slideDecks: SlideDeck[];
+  slideDecks: ArtifactSummary[];
   directoryId: string;
   mayBeTruncated?: boolean;
   isGenerating?: boolean;

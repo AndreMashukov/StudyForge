@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/redux';
 import {
-  useGetDirectoryContentsWithArtifactsQuery,
+  useGetDirectoryContentsWithArtifactSummariesQuery,
   useGetDirectoryAncestorsQuery,
 } from '../../store/api/Directory/DirectoryApi';
 import { selectIsGeneratingArtifact } from '../../store/slices/artifactGenerationSlice';
@@ -24,7 +24,7 @@ import {
   Trash2,
   Shield,
 } from 'lucide-react';
-import { DocumentEnhanced, Directory, DiagramQuiz, SequenceQuiz } from '@shared-types';
+import { DocumentEnhanced, Directory, ArtifactSummary } from '@shared-types';
 import { ICON_MAP } from '../DocumentsPage/DocumentsPageContainer/folderConstants';
 import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/CreateDirectoryDialog';
 import { EditDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/EditDirectoryDialog';
@@ -80,7 +80,7 @@ export const DirectoryDetailPageContainer = () => {
     data: contents,
     isLoading,
     error,
-  } = useGetDirectoryContentsWithArtifactsQuery(
+  } = useGetDirectoryContentsWithArtifactSummariesQuery(
     { directoryId: directoryId ?? null, artifactLimit: ARTIFACT_PAGE_LIMIT },
     { skip: !directoryId }
   );
@@ -125,11 +125,12 @@ export const DirectoryDetailPageContainer = () => {
   const dir = contents.directory;
   const subdirectories = contents.subdirectories || [];
   const documents = contents.documents || [];
-  const quizzes = contents.quizzes || [];
-  const flashcardSets = contents.flashcardSets || [];
-  const slideDecks = contents.slideDecks || [];
-  const diagramQuizzes = (contents.diagramQuizzes || []) as DiagramQuiz[];
-  const sequenceQuizzes = (contents.sequenceQuizzes || []) as SequenceQuiz[];
+  const artifactSummaries = contents.artifactSummaries || [];
+  const quizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'quiz' } => a.type === 'quiz');
+  const flashcardSets = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'flashcard' } => a.type === 'flashcard');
+  const slideDecks = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'slideDeck' } => a.type === 'slideDeck');
+  const diagramQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'diagramQuiz' } => a.type === 'diagramQuiz');
+  const sequenceQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'sequenceQuiz' } => a.type === 'sequenceQuiz');
   const resolvedRules = contents.resolvedRules;
   const ancestors = ancestorsData?.ancestors || [];
 
