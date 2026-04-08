@@ -22,7 +22,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useState, useRef, useLayoutEffect } from 'react';
-import { GripVertical, X, Package, Layers, CheckCircle, XCircle } from 'lucide-react';
+import { GripVertical, X, Package, Layers, CheckCircle, XCircle, Lightbulb } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
@@ -329,7 +329,24 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
         <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-1">
           Question
         </p>
-        <CardTitle className="text-lg font-semibold leading-snug">{question.question}</CardTitle>
+        <div className="flex items-start gap-2">
+          <CardTitle className="text-lg font-semibold leading-snug flex-1">{question.question}</CardTitle>
+          {question.hint && (
+            <div className="relative group shrink-0 mt-0.5">
+              <button
+                type="button"
+                className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                aria-label="Show hint"
+              >
+                <Lightbulb size={15} />
+              </button>
+              <div className="absolute right-0 top-full mt-2 w-64 px-3 py-2 rounded-lg bg-popover text-popover-foreground text-sm border border-border shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none">
+                <p className="font-semibold text-xs text-primary mb-1"><span role="img" aria-label="Hint">💡</span> Hint</p>
+                <p className="leading-relaxed">{question.hint}</p>
+              </div>
+            </div>
+          )}
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-4">

@@ -119,6 +119,7 @@ export interface SequenceQuizQuestion {
   question: string;
   items: string[]; // Items in CORRECT order (shuffled at display time on the client)
   explanation: string;
+  hint?: string; // Optional hint shown via tooltip on lightbulb icon
 }
 
 export interface SequenceQuiz {

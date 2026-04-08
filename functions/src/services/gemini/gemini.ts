@@ -55,6 +55,7 @@ export interface GeminiSequenceQuizResponse {
     question: string;
     items: string[];
     explanation: string;
+    hint?: string;
   }>;
 }
 
