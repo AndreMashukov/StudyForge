@@ -7,11 +7,20 @@ import {
   restartDiagramQuizSession,
   setCurrentDiagramIndex,
   selectDiagramQuizState,
+  selectCurrentDiagramQuestion,
+  selectDiagramFormState,
+  setDiagramFollowupGenerating,
+  setDiagramFollowupGenerated,
+  setDiagramFollowupError,
 } from '../../../../store/slices/diagramQuizPageSlice';
+import { useGenerateQuizFollowupMutation } from '../../../../store/api/QuizFollowup/QuizFollowupApi';
+import { IGenerateFollowupRequest } from '../../../../store/api/QuizFollowup/IQuizFollowupApi';
 
 export const useDiagramQuizPageHandlers = () => {
   const dispatch = useDispatch();
   const quizState = useSelector(selectDiagramQuizState);
+  const currentQuestion = useSelector(selectCurrentDiagramQuestion);
+  const formState = useSelector(selectDiagramFormState);
 
   const handleAnswerSelect = useCallback(
     (answerIndex: number) => {
@@ -49,6 +58,45 @@ export const useDiagramQuizPageHandlers = () => {
     [dispatch]
   );
 
+  // Followup generation handler
+  const [generateFollowup] = useGenerateQuizFollowupMutation();
+
+  const handleGenerateFollowup = useCallback(async () => {
+    try {
+      if (!currentQuestion || formState.selectedAnswer === null) {
+        return;
+      }
+
+      dispatch(setDiagramFollowupGenerating(true));
+
+      const diagramLabels = ['Diagram A', 'Diagram B', 'Diagram C', 'Diagram D'];
+
+      const requestData: IGenerateFollowupRequest = {
+        documentId: quizState.firestoreDiagramQuiz?.documentId || '',
+        questionText: currentQuestion.question,
+        userSelectedAnswer: diagramLabels[formState.selectedAnswer] || `Diagram ${formState.selectedAnswer + 1}`,
+        correctAnswer: diagramLabels[currentQuestion.correct] || `Diagram ${currentQuestion.correct + 1}`,
+        questionOptions: diagramLabels,
+        quizTitle: quizState.firestoreDiagramQuiz?.title,
+        followupRuleIds: quizState.firestoreDiagramQuiz?.followupRuleIds || [],
+      };
+
+      const result = await generateFollowup(requestData).unwrap();
+
+      if (result.success && result.data?.content) {
+        dispatch(setDiagramFollowupGenerated({
+          questionIndex: quizState.currentQuestionIndex,
+          content: result.data.content,
+        }));
+      } else {
+        dispatch(setDiagramFollowupError('Failed to generate followup explanation'));
+      }
+    } catch (error) {
+      const errorMessage = (error as { data?: string })?.data || 'Failed to generate followup explanation';
+      dispatch(setDiagramFollowupError(errorMessage));
+    }
+  }, [dispatch, generateFollowup, currentQuestion, formState, quizState]);
+
   return {
     handleAnswerSelect,
     handleNextQuestion,
@@ -57,5 +105,6 @@ export const useDiagramQuizPageHandlers = () => {
     handlePrevDiagram,
     handleNextDiagram,
     handleDiagramDotClick,
+    handleGenerateFollowup,
   };
 };

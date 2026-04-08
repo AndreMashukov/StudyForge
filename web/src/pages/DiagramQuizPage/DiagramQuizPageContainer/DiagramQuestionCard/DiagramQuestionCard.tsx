@@ -3,6 +3,7 @@ import { Check, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
+import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 import { DiagramSlideViewer } from '../DiagramSlideViewer';
 import { DiagramAnswerBar } from '../DiagramAnswerBar';
 import { IDiagramQuestionCard } from './IDiagramQuestionCard';
@@ -19,6 +20,10 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
   onDiagramDotClick,
   isLastQuestion,
   className,
+  onGenerateFollowup,
+  isGeneratingFollowup = false,
+  isFollowupGenerated = false,
+  followupContent,
 }) => {
   return (
     <Card className={cn('w-full', className)}>
@@ -60,9 +65,45 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
         )}
 
         {showExplanation && (
-          <Button onClick={onNextQuestion} className="w-full" size="lg">
-            {isLastQuestion ? 'View results' : 'Next question'}
-          </Button>
+          <div className="space-y-3 mt-6">
+            <Button onClick={onNextQuestion} className="w-full" size="lg">
+              {isLastQuestion ? 'View results' : 'Next question'}
+            </Button>
+
+            {onGenerateFollowup && (
+              <Button
+                onClick={onGenerateFollowup}
+                variant="outline"
+                className="w-full"
+                size="lg"
+                disabled={isFollowupGenerated || isGeneratingFollowup}
+              >
+                {isGeneratingFollowup ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2"></div>
+                    Generating Detailed Explanation...
+                  </>
+                ) : isFollowupGenerated ? (
+                  'Detailed Explanation Generated'
+                ) : (
+                  'Generate Detailed Explanation'
+                )}
+              </Button>
+            )}
+
+            {followupContent && (
+              <Card className="mt-4 bg-primary/5 border-primary/20">
+                <CardContent className="p-5">
+                  <h3 className="text-sm font-semibold text-primary mb-3">
+                    Detailed Explanation
+                  </h3>
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <MarkdownRenderer content={followupContent} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

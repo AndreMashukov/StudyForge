@@ -115,6 +115,7 @@ export const DiagramQuizPageContainer: React.FC = () => {
   }
 
   const isLastQuestion = quizState.currentQuestionIndex === quizState.questions.length - 1;
+  const questionIndex = quizState.currentQuestionIndex;
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-6 py-16">
@@ -136,6 +137,10 @@ export const DiagramQuizPageContainer: React.FC = () => {
         onNextDiagram={handlers.handleNextDiagram}
         onDiagramDotClick={handlers.handleDiagramDotClick}
         isLastQuestion={isLastQuestion}
+        onGenerateFollowup={handlers.handleGenerateFollowup}
+        isGeneratingFollowup={quizState.isGeneratingFollowup}
+        isFollowupGenerated={!!quizState.followupGenerated[questionIndex]}
+        followupContent={quizState.followupContent[questionIndex]}
       />
     </div>
   );

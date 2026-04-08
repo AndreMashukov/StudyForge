@@ -18,6 +18,12 @@ interface DiagramQuizPageState {
   error: string | null;
   isSubmitting: boolean;
   formErrors: Record<string, string>;
+
+  // Followup state
+  followupGenerated: Record<number, boolean>;
+  followupContent: Record<number, string>;
+  isGeneratingFollowup: boolean;
+  followupError: string | null;
 }
 
 const initialState: DiagramQuizPageState = {
@@ -36,6 +42,10 @@ const initialState: DiagramQuizPageState = {
   error: null,
   isSubmitting: false,
   formErrors: {},
+  followupGenerated: {},
+  followupContent: {},
+  isGeneratingFollowup: false,
+  followupError: null,
 };
 
 const diagramQuizPageSlice = createSlice({
@@ -58,6 +68,10 @@ const diagramQuizPageSlice = createSlice({
       state.startTime = Date.now();
       state.endTime = null;
       state.error = null;
+      state.followupGenerated = {};
+      state.followupContent = {};
+      state.isGeneratingFollowup = false;
+      state.followupError = null;
     },
     startDiagramQuiz: (state, action: PayloadAction<{ questions: IDiagramQuizQuestion[] }>) => {
       state.questions = action.payload.questions;
@@ -128,6 +142,10 @@ const diagramQuizPageSlice = createSlice({
       state.startTime = Date.now();
       state.endTime = null;
       state.error = null;
+      state.followupGenerated = {};
+      state.followupContent = {};
+      state.isGeneratingFollowup = false;
+      state.followupError = null;
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
@@ -135,6 +153,23 @@ const diagramQuizPageSlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
       state.isLoading = false;
+    },
+
+    // Followup actions
+    setDiagramFollowupGenerating: (state, action: PayloadAction<boolean>) => {
+      state.isGeneratingFollowup = action.payload;
+      state.followupError = null;
+    },
+
+    setDiagramFollowupGenerated: (state, action: PayloadAction<{ questionIndex: number; content: string }>) => {
+      state.followupGenerated[action.payload.questionIndex] = true;
+      state.followupContent[action.payload.questionIndex] = action.payload.content;
+      state.isGeneratingFollowup = false;
+    },
+
+    setDiagramFollowupError: (state, action: PayloadAction<string | null>) => {
+      state.followupError = action.payload;
+      state.isGeneratingFollowup = false;
     },
   },
 });
@@ -150,6 +185,9 @@ export const {
   restartDiagramQuizSession,
   setLoading,
   setError,
+  setDiagramFollowupGenerating,
+  setDiagramFollowupGenerated,
+  setDiagramFollowupError,
 } = diagramQuizPageSlice.actions;
 
 export const selectDiagramQuizState = (state: { diagramQuizPage: DiagramQuizPageState }) =>

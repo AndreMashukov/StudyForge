@@ -12,4 +12,8 @@ export interface IDiagramQuestionCard {
   onDiagramDotClick: (index: number) => void;
   isLastQuestion: boolean;
   className?: string;
+  onGenerateFollowup?: () => void;
+  isGeneratingFollowup?: boolean;
+  isFollowupGenerated?: boolean;
+  followupContent?: string;
 }
