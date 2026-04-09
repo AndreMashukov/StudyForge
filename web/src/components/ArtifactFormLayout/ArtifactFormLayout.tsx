@@ -9,7 +9,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { Textarea } from '../ui/Textarea';
-import { PreSelectedDocumentSelector } from '../PreSelectedDocumentSelector';
+import { DocumentSelector } from '../DocumentSelector';
 import { RuleSelector } from '../RuleSelector';
 import { ArrowLeft } from 'lucide-react';
 import { IDocumentListResponse } from '../../store/api/Documents/IDocumentsApi';
@@ -142,14 +142,13 @@ export const ArtifactFormLayout = <T extends FieldValues>({
                       </Button>
                     </div>
                   ) : (
-                    <PreSelectedDocumentSelector
+                    <DocumentSelector
                       documents={documents}
                       selectedDocumentIds={(watchedDocumentIds as unknown as string[]) ?? []}
                       onDocumentToggle={handleDocumentToggle}
                       maxSelections={5}
                       isLoading={isLoading}
                       disabled={isLoading}
-                      initialDocumentId={preselectedDocumentId}
                     />
                   )}
                   {errors.documentIds && (
