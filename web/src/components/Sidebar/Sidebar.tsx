@@ -4,95 +4,34 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   ChevronsLeft, 
   ChevronsRight, 
-  ChevronUp, 
-  ChevronDown, 
   Home, 
   Settings, 
   User,
   FileText,
-  FolderOpen,
-  Plus,
   Sparkles,
 } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
-import { ISidebar, SidebarSection } from './ISidebar';
+import { ISidebar } from './ISidebar';
 import { sidebarStyles } from './Sidebar.styles';
 import {
   selectSidebarIsOpen,
-  selectSidebarOpenSections,
-  selectSidebarActiveSection,
   toggleSidebar,
-  toggleSidebarSection,
-  setSidebarActiveSection,
 } from '../../store/slices/uiSlice';
 
-// Define sidebar menu structure for the Code Insights AI app
-const sidebarSections: SidebarSection[] = [
-  {
-    id: 'main',
-    title: 'Main',
-    icon: Home,
-    items: [
-      {
-        id: 'home',
-        title: 'Dashboard',
-        path: '/',
-        icon: Home,
-      },
-    ],
-  },
-  {
-    id: 'content',
-    title: 'Content',
-    icon: FolderOpen,
-    items: [
-      {
-        id: 'documents',
-        title: 'My Directories',
-        path: '/documents',
-        icon: FileText,
-      },
-      {
-        id: 'create-document',
-        title: 'Create Document',
-        path: '/documents/create',
-        icon: Plus,
-      },
-    ],
-  },
-  {
-    id: 'rules',
-    title: 'AI Rules',
-    icon: Sparkles,
-    items: [
-      {
-        id: 'rules-manager',
-        title: 'Rules Manager',
-        path: '/rules',
-        icon: Sparkles,
-      },
-    ],
-  },
-  {
-    id: 'account',
-    title: 'Account',
-    icon: User,
-    items: [
-      {
-        id: 'profile',
-        title: 'Profile',
-        path: '/profile',
-        icon: User,
-      },
-      {
-        id: 'settings',
-        title: 'Settings',
-        path: '/settings',
-        icon: Settings,
-      },
-    ],
-  },
+interface NavItem {
+  id: string;
+  title: string;
+  path: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+}
+
+const navItems: NavItem[] = [
+  { id: 'home', title: 'Dashboard', path: '/', icon: Home },
+  { id: 'documents', title: 'My Directories', path: '/documents', icon: FileText },
+  { id: 'rules-manager', title: 'Rules Manager', path: '/rules', icon: Sparkles },
+  { id: 'profile', title: 'Profile', path: '/profile', icon: User },
+  { id: 'settings', title: 'Settings', path: '/settings', icon: Settings },
 ];
 
 export const Sidebar = ({ className }: ISidebar) => {
@@ -101,8 +40,6 @@ export const Sidebar = ({ className }: ISidebar) => {
   const location = useLocation();
   
   const isOpen = useSelector(selectSidebarIsOpen);
-  const openSections = useSelector(selectSidebarOpenSections);
-  const activeSection = useSelector(selectSidebarActiveSection);
   
   // Mobile detection
   const [isMobile, setIsMobile] = React.useState(false);
@@ -118,39 +55,17 @@ export const Sidebar = ({ className }: ISidebar) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Initialize open sections on mount - only when expanded
-  React.useEffect(() => {
-    if (openSections.length === 0 && isOpen) {
-      // Open all sections by default when expanded
-      sidebarSections.forEach(section => {
-        dispatch(toggleSidebarSection(section.id));
-      });
-    }
-  }, [dispatch, openSections.length, isOpen]);
-
   const handleToggleSidebar = () => {
     dispatch(toggleSidebar());
   };
 
-  const handleToggleSection = (sectionId: string) => {
-    // Only allow section toggling when sidebar is expanded
-    if (isOpen) {
-      dispatch(toggleSidebarSection(sectionId));
-      dispatch(setSidebarActiveSection(sectionId === activeSection ? null : sectionId));
-    }
-  };
-
-  const handleNavigateToItem = (path: string, sectionId: string) => {
-    dispatch(setSidebarActiveSection(sectionId));
+  const handleNavigateToItem = (path: string) => {
     navigate(path);
-    
-    // Close sidebar on mobile after navigation
     if (isMobile) {
       dispatch(toggleSidebar());
     }
   };
 
-  const isSectionOpen = (sectionId: string) => openSections.includes(sectionId);
   const isItemActive = (path: string) => location.pathname === path;
 
   // Don't render sidebar on mobile when closed
@@ -198,189 +113,41 @@ export const Sidebar = ({ className }: ISidebar) => {
         )}
       </div>
 
-      {/* Sidebar sections */}
+      {/* Nav items */}
       <div className="flex flex-col flex-1">
-        {sidebarSections.map((section) => {
-          const IconComponent = section.icon;
-          const sectionIsOpen = isSectionOpen(section.id);
-          const isActive = activeSection === section.id;
+        <div className={cn(sidebarStyles.itemsList, 'pt-2')}>
+          {navItems.map((item) => {
+            const ItemIcon = item.icon;
+            const itemIsActive = isItemActive(item.path);
 
-          if (!isOpen) {
-            // Collapsed state - preserve exact same structure, hide only text
             return (
-              <div key={section.id} className={sidebarStyles.section}>
-                {/* Section Header */}
-                <div
-                  className={cn(
-                    sidebarStyles.sectionHeader,
-                    sidebarStyles.collapsedSectionHeader
-                  )}
-                  onClick={() => handleToggleSection(section.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      handleToggleSection(section.id);
-                    }
-                  }}
-                  aria-expanded={sectionIsOpen}
-                  aria-controls={`section-${section.id}`}
-                >
-                  <div className="flex items-center gap-2 flex-1 justify-center relative group">
-                    <div
-                      className={cn(
-                        sidebarStyles.sectionIcon,
-                        isActive && sidebarStyles.sectionIconActive
-                      )}
-                    >
-                      <IconComponent size={16} />
-                    </div>
-                    {/* Tooltip for collapsed state */}
-                    <div className={sidebarStyles.collapsedTooltip}>
-                      {section.title}
-                    </div>
-                  </div>
-                  <div className={sidebarStyles.collapseIcon}>
-                    {sectionIsOpen ? (
-                      <ChevronUp size={14} />
-                    ) : (
-                      <ChevronDown size={14} />
-                    )}
-                  </div>
-                </div>
-
-                {/* Section Content - preserve structure */}
-                <div
-                  id={`section-${section.id}`}
-                  className={cn(
-                    sidebarStyles.sectionContent,
-                    sectionIsOpen
-                      ? sidebarStyles.sectionContentOpen
-                      : sidebarStyles.sectionContentClosed
-                  )}
-                >
-                  <div className={sidebarStyles.itemsList}>
-                    {section.items.map((item) => {
-                      const ItemIcon = item.icon;
-                      const itemIsActive = isItemActive(item.path);
-
-                      return (
-                        <div
-                          key={item.id}
-                          className={cn(
-                            sidebarStyles.item,
-                            itemIsActive && sidebarStyles.itemActive,
-                            "relative group justify-center"
-                          )}
-                          onClick={() => handleNavigateToItem(item.path, section.id)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              handleNavigateToItem(item.path, section.id);
-                            }
-                          }}
-                        >
-                          {ItemIcon && (
-                            <ItemIcon className={sidebarStyles.itemIcon} size={16} />
-                          )}
-                          {/* Tooltip for collapsed state */}
-                          <div className={sidebarStyles.collapsedTooltip}>
-                            {item.title}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            );
-          }
-
-          // Expanded state - show full sections with items
-          return (
-            <div key={section.id} className={sidebarStyles.section}>
-              {/* Section Header */}
               <div
-                className={sidebarStyles.sectionHeader}
-                onClick={() => handleToggleSection(section.id)}
+                key={item.id}
+                className={cn(
+                  sidebarStyles.item,
+                  itemIsActive && sidebarStyles.itemActive,
+                  !isOpen && 'justify-center relative group'
+                )}
+                onClick={() => handleNavigateToItem(item.path)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
-                    handleToggleSection(section.id);
+                    handleNavigateToItem(item.path);
                   }
                 }}
-                aria-expanded={sectionIsOpen}
-                aria-controls={`section-${section.id}`}
               >
-                <div className="flex items-center gap-2 flex-1">
-                  <div
-                    className={cn(
-                      sidebarStyles.sectionIcon,
-                      isActive && sidebarStyles.sectionIconActive
-                    )}
-                  >
-                    <IconComponent size={16} />
-                  </div>
-                  <span className={sidebarStyles.sectionTitle}>
-                    {section.title}
-                  </span>
-                </div>
-                <div className={sidebarStyles.collapseIcon}>
-                  {sectionIsOpen ? (
-                    <ChevronUp size={14} />
-                  ) : (
-                    <ChevronDown size={14} />
-                  )}
-                </div>
-              </div>
-
-              {/* Section Content */}
-              <div
-                id={`section-${section.id}`}
-                className={cn(
-                  sidebarStyles.sectionContent,
-                  sectionIsOpen
-                    ? sidebarStyles.sectionContentOpen
-                    : sidebarStyles.sectionContentClosed
+                <ItemIcon className={sidebarStyles.itemIcon} size={16} />
+                {isOpen && (
+                  <span className={sidebarStyles.itemText}>{item.title}</span>
                 )}
-              >
-                <div className={sidebarStyles.itemsList}>
-                  {section.items.map((item) => {
-                    const ItemIcon = item.icon;
-                    const itemIsActive = isItemActive(item.path);
-
-                    return (
-                      <div
-                        key={item.id}
-                        className={cn(
-                          sidebarStyles.item,
-                          itemIsActive && sidebarStyles.itemActive
-                        )}
-                        onClick={() => handleNavigateToItem(item.path, section.id)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            handleNavigateToItem(item.path, section.id);
-                          }
-                        }}
-                      >
-                        {ItemIcon && (
-                          <ItemIcon className={sidebarStyles.itemIcon} size={16} />
-                        )}
-                        <span className={sidebarStyles.itemText}>
-                          {item.title}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                {!isOpen && (
+                  <div className={sidebarStyles.collapsedTooltip}>{item.title}</div>
+                )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </aside>
     </>
