@@ -1,18 +1,15 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useSelector } from 'react-redux';
 import {
   selectSelectedSource,
   selectAttachedFiles,
   selectContextSizeError,
   selectCanAttachMore,
-  selectSelectedDocumentIds,
   selectUrlFormLoading,
   selectFileFormLoading,
   selectTextPromptFormLoading,
   selectTextPromptFormProgress,
-  selectDirectoryId,
 } from '../../../../store/slices/createDocumentPageSlice';
-import { useGetUserDocumentsQuery } from '../../../../store/api/Documents';
 import { useCreateDocumentPageContext } from '../../context/hooks/useCreateDocumentPageContext';
 import { UrlScrapingForm } from '../UrlScrapingForm';
 import { FileUploadForm } from '../FileUploadForm';
@@ -74,20 +71,9 @@ export const FormRenderer = () => {
   const attachedFiles = useSelector((state: RootState) => selectAttachedFiles(state));
   const contextSizeError = useSelector((state: RootState) => selectContextSizeError(state));
   const canAttachMore = useSelector((state: RootState) => selectCanAttachMore(state));
-  const selectedDocumentIds = useSelector((state: RootState) => selectSelectedDocumentIds(state));
   
-  // Fetch user documents for library selector
-  const { data: documentsData, isLoading: isLoadingDocuments } = useGetUserDocumentsQuery();
-  const directoryId = useSelector((state: RootState) => selectDirectoryId(state));
-  const userDocuments = useMemo(() => {
-    const allDocuments = documentsData?.documents ?? [];
-    return directoryId
-      ? allDocuments.filter((d) => d.directoryId === directoryId)
-      : allDocuments;
-  }, [documentsData?.documents, directoryId]);
-  
-  // File upload hook with documents
-  const fileUpload = useFileUpload(userDocuments);
+  // File upload hook
+  const fileUpload = useFileUpload();
 
   // Handle text prompt submission with file upload helpers
   const handleTextPromptSubmit = async (data: ITextPromptFormData) => {
@@ -144,10 +130,6 @@ export const FormRenderer = () => {
           canAttachMore={canAttachMore}
           totalTokens={fileUpload.getTotalTokens()}
           contextSizeError={contextSizeError}
-          userDocuments={userDocuments}
-          selectedDocumentIds={selectedDocumentIds}
-          onDocumentToggle={fileUpload.handleDocumentToggle}
-          isLoadingDocuments={isLoadingDocuments}
         />
       )}
       

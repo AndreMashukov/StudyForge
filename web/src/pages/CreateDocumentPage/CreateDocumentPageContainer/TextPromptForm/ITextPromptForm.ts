@@ -1,5 +1,4 @@
 import { IAttachedFile } from '../../../../types/fileUpload';
-import { DocumentEnhanced } from '@shared-types';
 
 export interface ITextPromptFormData {
   prompt: string;
@@ -18,11 +17,4 @@ export interface ITextPromptFormProps {
   canAttachMore: boolean;
   totalTokens: number;
   contextSizeError: string | null;
-  
-  // Document selector props
-  userDocuments: DocumentEnhanced[];
-  selectedDocumentIds: string[];
-  onDocumentToggle: (documentId: string) => void;
-  isLoadingDocuments: boolean;
 }
-
