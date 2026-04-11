@@ -97,14 +97,14 @@ export const useCreateDocumentPageHandlers = () => {
 
   const handleCreateFromTextPrompt = useCallback((
     data: ITextPromptFormData,
-    fileUploadHelpers: {
+    fileUploadHelpers?: {
       isContextSizeValid: () => boolean;
       getFilesForSubmission: () => IFileContent[];
     }
   ) => {
     dispatch(clearError());
 
-    if (!fileUploadHelpers.isContextSizeValid()) {
+    if (fileUploadHelpers && !fileUploadHelpers.isContextSizeValid()) {
       dispatch(setError('Total context size exceeds limit. Please remove some files.'));
       return;
     }
@@ -114,7 +114,7 @@ export const useCreateDocumentPageHandlers = () => {
       return;
     }
 
-    const files = fileUploadHelpers.getFilesForSubmission();
+    const files = fileUploadHelpers?.getFilesForSubmission() ?? [];
 
     generateFromPrompt({
       prompt: data.prompt,
@@ -123,7 +123,9 @@ export const useCreateDocumentPageHandlers = () => {
       ruleIds: data.ruleIds || [],
     });
 
-    dispatch(clearFiles());
+    if (fileUploadHelpers) {
+      dispatch(clearFiles());
+    }
     navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
   }, [generateFromPrompt, navigate, dispatch, directoryId]);
 

@@ -9,7 +9,7 @@ export interface ICreateDocumentPageHandlers {
   handleCreateFromFile: (data: IFileUploadFormData) => void;
   handleCreateFromTextPrompt: (
     data: ITextPromptFormData,
-    fileUploadHelpers: {
+    fileUploadHelpers?: {
       isContextSizeValid: () => boolean;
       getFilesForSubmission: () => IFileContent[];
     }

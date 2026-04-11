@@ -6,12 +6,7 @@ import { Sparkles, Loader2 } from 'lucide-react';
 import { ITextPromptFormProps } from './ITextPromptForm';
 import { textPromptFormStyles } from './TextPromptForm.styles';
 import { cn } from '../../../../lib/utils';
-import { FileUploadZone } from './FileUploadZone';
-import { AttachedFilesList } from './AttachedFilesList';
-import { SourceTabs, SourceTabType } from './SourceTabs';
-import { DocumentSelector } from '../../../../components/DocumentSelector';
 import { CompactRuleSelector } from '../../../../components/CompactRuleSelector';
-import { FILE_UPLOAD_CONSTRAINTS } from '../../../../types/fileUpload';
 import { RuleApplicability } from '@shared-types';
 import { 
   selectDirectoryId,
@@ -26,29 +21,14 @@ export const TextPromptForm = ({
   isLoading, 
   progress = 0, 
   onSubmit,
-  attachedFiles,
-  onFilesSelected,
-  onFileRemove,
-  canAttachMore,
-  totalTokens,
-  contextSizeError,
-  userDocuments,
-  selectedDocumentIds,
-  onDocumentToggle,
-  isLoadingDocuments,
 }: ITextPromptFormProps) => {
   const dispatch = useDispatch();
 
   // Redux selectors
   const directoryId = useSelector((state: RootState) => selectDirectoryId(state));
   const selectedRuleIds = useSelector((state: RootState) => selectPromptRules(state));
-    
-  console.log('TextPromptForm render start', { directoryId, selectedRuleIds });
-  
-  console.log('TextPromptForm render', { directoryId, selectedRuleIds });
   
   const [prompt, setPrompt] = useState('');
-  const [activeTab, setActiveTab] = useState<SourceTabType>('upload');
 
   const handleRuleSelectionChange = (ruleIds: string[]) => {
     dispatch(setPromptRules(ruleIds));
@@ -67,58 +47,10 @@ export const TextPromptForm = ({
   const characterCount = prompt.length;
   const isUnderMinimum = characterCount > 0 && characterCount < MIN_CHARACTERS;
   
-  // Context size validation
-  const isContextOverLimit = totalTokens > FILE_UPLOAD_CONSTRAINTS.MAX_TOTAL_TOKENS;
-  
-  const canSubmit = characterCount >= MIN_CHARACTERS && 
-                    !isLoading && 
-                    !isContextOverLimit;
-
-  // Calculate counts for tab badges
-  const uploadCount = attachedFiles.filter(f => f.source === 'upload').length;
-  const libraryCount = attachedFiles.filter(f => f.source === 'library').length;
+  const canSubmit = characterCount >= MIN_CHARACTERS && !isLoading;
 
   return (
     <form onSubmit={handleSubmit} className={textPromptFormStyles.container}>
-      {/* Source Tabs */}
-      <SourceTabs
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        uploadCount={uploadCount}
-        libraryCount={libraryCount}
-        disabled={isLoading}
-      />
-
-      {/* Tab Content */}
-      <div className="mt-4">
-        {activeTab === 'upload' ? (
-          <FileUploadZone
-            onFilesSelected={onFilesSelected}
-            canAttachMore={canAttachMore}
-            maxFiles={FILE_UPLOAD_CONSTRAINTS.MAX_FILES}
-            disabled={isLoading}
-          />
-        ) : (
-          <DocumentSelector
-            documents={userDocuments}
-            selectedDocumentIds={selectedDocumentIds}
-            onDocumentToggle={onDocumentToggle}
-            canSelectMore={canAttachMore}
-            isLoading={isLoadingDocuments}
-            disabled={isLoading}
-          />
-        )}
-      </div>
-
-      {/* Attached Files List - Always Visible */}
-      <AttachedFilesList
-        files={attachedFiles}
-        onRemoveFile={onFileRemove}
-        totalTokens={totalTokens}
-        maxTokens={FILE_UPLOAD_CONSTRAINTS.MAX_TOTAL_TOKENS}
-        contextSizeError={contextSizeError}
-      />
-
       {/* Prompt Input */}
       <div className={textPromptFormStyles.formGroup}>
         <div className="flex items-center justify-between">
@@ -137,11 +69,7 @@ export const TextPromptForm = ({
         </div>
         <textarea
           id="prompt"
-          placeholder={
-            attachedFiles.length > 0
-              ? `Example: "Summarize the key concepts from the attached documents"\n\nDescribe what you want to learn. The AI will use your attached ${uploadCount > 0 && libraryCount > 0 ? 'files and documents' : uploadCount > 0 ? 'files' : 'documents'} as context.`
-              : `Example: "Explain DynamoDB provisioned capacity"\n\nDescribe what you want to learn about. Be specific for better results.`
-          }
+          placeholder={`Example: "Explain DynamoDB provisioned capacity"\n\nDescribe what you want to learn about. Be specific for better results.`}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           className={cn(
@@ -160,25 +88,9 @@ export const TextPromptForm = ({
             Prompt must be at least {MIN_CHARACTERS} characters
           </p>
         )}
-        {isContextOverLimit && (
-          <p className={textPromptFormStyles.characterCounterError}>
-            Context size exceeds limit. Please remove some files before submitting.
-          </p>
-        )}
-        {!isUnderMinimum && !isContextOverLimit && (
+        {!isUnderMinimum && (
           <p className={textPromptFormStyles.helpText}>
-            {attachedFiles.length > 0 ? (
-              <>
-                The AI will use your {uploadCount} uploaded file{uploadCount !== 1 ? 's' : ''} 
-                {uploadCount > 0 && libraryCount > 0 ? ' and ' : ''}
-                {libraryCount > 0 && `${libraryCount} library document${libraryCount !== 1 ? 's' : ''}`} 
-                {' '}as context to generate a comprehensive, detailed document.
-              </>
-            ) : (
-              <>
-                Describe your topic clearly. The AI will generate a comprehensive document with tables, diagrams, and detailed explanations.
-              </>
-            )}
+            Describe your topic clearly. The AI will generate a comprehensive document with tables, diagrams, and detailed explanations.
           </p>
         )}
       </div>
@@ -230,4 +142,3 @@ export const TextPromptForm = ({
     </form>
   );
 };
-
