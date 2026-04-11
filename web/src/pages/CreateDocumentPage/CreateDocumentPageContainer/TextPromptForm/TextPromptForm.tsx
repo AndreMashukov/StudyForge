@@ -6,10 +6,7 @@ import { Sparkles, Loader2 } from 'lucide-react';
 import { ITextPromptFormProps } from './ITextPromptForm';
 import { textPromptFormStyles } from './TextPromptForm.styles';
 import { cn } from '../../../../lib/utils';
-import { FileUploadZone } from './FileUploadZone';
-import { AttachedFilesList } from './AttachedFilesList';
 import { CompactRuleSelector } from '../../../../components/CompactRuleSelector';
-import { FILE_UPLOAD_CONSTRAINTS } from '../../../../types/fileUpload';
 import { RuleApplicability } from '@shared-types';
 import { 
   selectDirectoryId,
@@ -24,12 +21,6 @@ export const TextPromptForm = ({
   isLoading, 
   progress = 0, 
   onSubmit,
-  attachedFiles,
-  onFilesSelected,
-  onFileRemove,
-  canAttachMore,
-  totalTokens,
-  contextSizeError,
 }: ITextPromptFormProps) => {
   const dispatch = useDispatch();
 
@@ -56,34 +47,10 @@ export const TextPromptForm = ({
   const characterCount = prompt.length;
   const isUnderMinimum = characterCount > 0 && characterCount < MIN_CHARACTERS;
   
-  // Context size validation
-  const isContextOverLimit = totalTokens > FILE_UPLOAD_CONSTRAINTS.MAX_TOTAL_TOKENS;
-  
-  const canSubmit = characterCount >= MIN_CHARACTERS && 
-                    !isLoading && 
-                    !isContextOverLimit;
-
-  const uploadCount = attachedFiles.filter(f => f.source === 'upload').length;
+  const canSubmit = characterCount >= MIN_CHARACTERS && !isLoading;
 
   return (
     <form onSubmit={handleSubmit} className={textPromptFormStyles.container}>
-      {/* File Upload Zone */}
-      <FileUploadZone
-        onFilesSelected={onFilesSelected}
-        canAttachMore={canAttachMore}
-        maxFiles={FILE_UPLOAD_CONSTRAINTS.MAX_FILES}
-        disabled={isLoading}
-      />
-
-      {/* Attached Files List - Always Visible */}
-      <AttachedFilesList
-        files={attachedFiles}
-        onRemoveFile={onFileRemove}
-        totalTokens={totalTokens}
-        maxTokens={FILE_UPLOAD_CONSTRAINTS.MAX_TOTAL_TOKENS}
-        contextSizeError={contextSizeError}
-      />
-
       {/* Prompt Input */}
       <div className={textPromptFormStyles.formGroup}>
         <div className="flex items-center justify-between">
@@ -102,11 +69,7 @@ export const TextPromptForm = ({
         </div>
         <textarea
           id="prompt"
-          placeholder={
-            attachedFiles.length > 0
-              ? `Example: "Summarize the key concepts from the attached documents"\n\nDescribe what you want to learn. The AI will use your attached files as context.`
-              : `Example: "Explain DynamoDB provisioned capacity"\n\nDescribe what you want to learn about. Be specific for better results.`
-          }
+          placeholder={`Example: "Explain DynamoDB provisioned capacity"\n\nDescribe what you want to learn about. Be specific for better results.`}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           className={cn(
@@ -125,22 +88,9 @@ export const TextPromptForm = ({
             Prompt must be at least {MIN_CHARACTERS} characters
           </p>
         )}
-        {isContextOverLimit && (
-          <p className={textPromptFormStyles.characterCounterError}>
-            Context size exceeds limit. Please remove some files before submitting.
-          </p>
-        )}
-        {!isUnderMinimum && !isContextOverLimit && (
+        {!isUnderMinimum && (
           <p className={textPromptFormStyles.helpText}>
-            {attachedFiles.length > 0 ? (
-              <>
-                The AI will use your {uploadCount} uploaded file{uploadCount !== 1 ? 's' : ''} as context to generate a comprehensive, detailed document.
-              </>
-            ) : (
-              <>
-                Describe your topic clearly. The AI will generate a comprehensive document with tables, diagrams, and detailed explanations.
-              </>
-            )}
+            Describe your topic clearly. The AI will generate a comprehensive document with tables, diagrams, and detailed explanations.
           </p>
         )}
       </div>
@@ -192,4 +142,3 @@ export const TextPromptForm = ({
     </form>
   );
 };
-
