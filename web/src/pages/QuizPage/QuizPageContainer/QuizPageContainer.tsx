@@ -3,7 +3,6 @@ import { useSelector } from 'react-redux';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { useQuizPageContext } from '../context';
-import { ProgressBar } from './ProgressBar';
 import { QuestionCard } from './QuestionCard';
 import { ScoreCard } from './ScoreCard';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -11,7 +10,6 @@ import {
   selectQuizState,
   selectCurrentQuestion,
   selectFormState,
-  selectProgress,
   selectQuizStats,
   selectIsLoading,
   selectError,
@@ -29,7 +27,6 @@ export const QuizPageContainer: React.FC = () => {
   const quizState = useSelector(selectQuizState);
   const currentQuestion = useSelector(selectCurrentQuestion);
   const formState = useSelector(selectFormState);
-  const progress = useSelector(selectProgress);
   const stats = useSelector(selectQuizStats);
   const isLoading = useSelector(selectIsLoading);
   const error = useSelector(selectError);
@@ -152,15 +149,8 @@ export const QuizPageContainer: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto px-6 py-16 space-y-8">
       {backButton}
-      {/* Progress Bar */}
-      <ProgressBar
-        progress={progress}
-        currentQuestion={quizState.currentQuestionIndex + 1}
-        totalQuestions={quizState.questions.length}
-        score={quizState.score}
-      />
 
-      {/* Question Card */}
+      {/* Question Card (with embedded progress bar) */}
       <QuestionCard
         question={currentQuestion}
         selectedAnswer={formState.selectedAnswer}

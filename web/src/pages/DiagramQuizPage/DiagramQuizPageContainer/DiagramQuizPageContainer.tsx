@@ -3,7 +3,6 @@ import { useSelector } from 'react-redux';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { useDiagramQuizPageContext } from '../context/hooks/useDiagramQuizPageContext';
-import { ProgressBar } from '../../QuizPage/QuizPageContainer/ProgressBar';
 import { ScoreCard } from '../../QuizPage/QuizPageContainer/ScoreCard';
 import { DiagramQuestionCard } from './DiagramQuestionCard';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -11,7 +10,6 @@ import {
   selectDiagramQuizState,
   selectCurrentDiagramQuestion,
   selectDiagramFormState,
-  selectDiagramQuizProgress,
   selectDiagramQuizStats,
 } from '../../../store/slices/diagramQuizPageSlice';
 import { IQuizStats } from '../../QuizPage/types/IQuizTypes';
@@ -22,7 +20,6 @@ export const DiagramQuizPageContainer: React.FC = () => {
   const quizState = useSelector(selectDiagramQuizState);
   const currentQuestion = useSelector(selectCurrentDiagramQuestion);
   const formState = useSelector(selectDiagramFormState);
-  const progress = useSelector(selectDiagramQuizProgress);
   const stats = useSelector(selectDiagramQuizStats);
   const { diagramQuizApi, handlers } = useDiagramQuizPageContext();
 
@@ -121,12 +118,6 @@ export const DiagramQuizPageContainer: React.FC = () => {
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-6 py-16">
       {backButton}
-      <ProgressBar
-        progress={progress}
-        currentQuestion={quizState.currentQuestionIndex + 1}
-        totalQuestions={quizState.questions.length}
-        score={quizState.score}
-      />
       <DiagramQuestionCard
         question={currentQuestion}
         currentDiagramIndex={quizState.currentDiagramIndex}

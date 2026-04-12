@@ -22,10 +22,16 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useState, useRef, useLayoutEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { GripVertical, X, Package, Layers, CheckCircle, XCircle, Lightbulb } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
+import { QuizProgressBar } from '../../../../components/QuizProgressBar';
+import {
+  selectSequenceQuizState,
+  selectSequenceQuizProgress,
+} from '../../../../store/slices/sequenceQuizPageSlice';
 import { ISequenceQuizQuestion } from '../../types/ISequenceQuizTypes';
 import { ISequenceQuizPageHandlers } from '../../types/ISequenceQuizPageHandlers';
 
@@ -323,8 +329,23 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
 
   const activeItemText = activeId ? itemTextFromId(activeId) : null;
 
+  const quizState = useSelector(selectSequenceQuizState);
+  const progress = useSelector(selectSequenceQuizProgress);
+  const currentQuestion = quizState.currentQuestionIndex + 1;
+  const totalQuestions = quizState.questions.length;
+  const answeredCount = quizState.answers.length;
+
   return (
-    <Card>
+    <Card className="overflow-hidden">
+      {totalQuestions > 0 && (
+        <QuizProgressBar
+          progress={progress}
+          currentQuestion={currentQuestion}
+          totalQuestions={totalQuestions}
+          score={quizState.score}
+          answeredCount={answeredCount}
+        />
+      )}
       <CardHeader>
         <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-1">
           Question

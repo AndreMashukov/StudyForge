@@ -3,14 +3,12 @@ import { useSelector } from 'react-redux';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { useSequenceQuizPageContext } from '../context/hooks/useSequenceQuizPageContext';
-import { ProgressBar } from '../../QuizPage/QuizPageContainer/ProgressBar';
 import { ScoreCard } from '../../QuizPage/QuizPageContainer/ScoreCard';
 import { SequenceQuestionCard } from './SequenceQuestionCard/SequenceQuestionCard';
 import { Spinner } from '../../../components/ui/Spinner';
 import {
   selectSequenceQuizState,
   selectCurrentSequenceQuestion,
-  selectSequenceQuizProgress,
   selectSequenceQuizStats,
 } from '../../../store/slices/sequenceQuizPageSlice';
 import { IQuizStats, IQuizAnswer } from '../../QuizPage/types/IQuizTypes';
@@ -20,7 +18,6 @@ export const SequenceQuizPageContainer: React.FC = () => {
   const [searchParams] = useSearchParams();
   const quizState = useSelector(selectSequenceQuizState);
   const currentQuestion = useSelector(selectCurrentSequenceQuestion);
-  const progress = useSelector(selectSequenceQuizProgress);
   const stats = useSelector(selectSequenceQuizStats);
   const { sequenceQuizApi, handlers } = useSequenceQuizPageContext();
 
@@ -129,12 +126,6 @@ export const SequenceQuizPageContainer: React.FC = () => {
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-6 py-16">
       {backButton}
-      <ProgressBar
-        progress={progress}
-        currentQuestion={quizState.currentQuestionIndex + 1}
-        totalQuestions={quizState.questions.length}
-        score={quizState.score}
-      />
       <SequenceQuestionCard
         question={currentQuestion}
         availableItems={quizState.availableItems}

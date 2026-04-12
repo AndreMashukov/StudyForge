@@ -1,13 +1,19 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
 import { Check, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
 import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
+import { QuizProgressBar } from '../../../../components/QuizProgressBar';
 import { DiagramSlideViewer } from '../DiagramSlideViewer';
 import { DiagramAnswerBar } from '../DiagramAnswerBar';
-import { IDiagramQuestionCard } from './IDiagramQuestionCard';
 import { Spinner } from '../../../../components/ui/Spinner';
+import {
+  selectDiagramQuizState,
+  selectDiagramQuizProgress,
+} from '../../../../store/slices/diagramQuizPageSlice';
+import { IDiagramQuestionCard } from './IDiagramQuestionCard';
 
 export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
   question,
@@ -26,8 +32,25 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
   isFollowupGenerated = false,
   followupContent,
 }) => {
+  const quizState = useSelector(selectDiagramQuizState);
+  const progress = useSelector(selectDiagramQuizProgress);
+
+  const currentQuestion = quizState.currentQuestionIndex + 1;
+  const totalQuestions = quizState.questions.length;
+  const answeredCount = quizState.answers.length;
+
   return (
-    <Card className={cn('w-full', className)}>
+    <Card className={cn('w-full overflow-hidden', className)}>
+      {totalQuestions > 0 && (
+        <QuizProgressBar
+          progress={progress}
+          currentQuestion={currentQuestion}
+          totalQuestions={totalQuestions}
+          score={quizState.score}
+          answeredCount={answeredCount}
+        />
+      )}
+
       <CardHeader>
         <CardTitle className="text-lg font-medium leading-relaxed text-foreground">
           {question.question}
@@ -81,7 +104,7 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
               >
                 {isGeneratingFollowup ? (
                   <>
-                      <Spinner size="xs" className="mr-2" />
+                    <Spinner size="xs" className="mr-2" />
                     Generating Detailed Explanation...
                   </>
                 ) : isFollowupGenerated ? (
