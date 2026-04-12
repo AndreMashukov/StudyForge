@@ -1,48 +1,14 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSignOut } from 'react-firebase-hooks/auth';
-import { auth } from '../../config/firebase';
 import { Icon } from '../ui/Icon';
-import { Button } from '../ui/Button';
 import { ThemeToggle } from '../ThemeToggle';
 import { IMainLayout } from './IMainLayout';
-import { selectSidebarIsOpen, toggleSidebar } from '../../store/slices/uiSlice';
-import { Menu } from 'lucide-react';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
 
 export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
-  const { user, loading } = useAuth();
-  const [signOut] = useSignOut(auth);
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const sidebarIsOpen = useSelector(selectSidebarIsOpen);
+  const { loading } = useAuth();
   const { isAppFullscreen } = useAppFullscreen();
-
-  // Calculate header margin and width based on sidebar state
-  const sidebarWidth = sidebarIsOpen ? 200 : 64;
-  const [isMobile, setIsMobile] = React.useState(false);
-
-  React.useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  const handleToggleSidebar = () => {
-    dispatch(toggleSidebar());
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/auth');
-  };
 
   if (loading) {
     return (
@@ -57,113 +23,43 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
 
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-background text-foreground">
-      {/* Header — hidden during app fullscreen */}
-      <header
-        className="linear-glass border-b border-border/30 fixed top-0 z-[1100] transition-all duration-300"
-        style={{
-          marginLeft: isMobile ? '0px' : `${sidebarWidth}px`,
-          width: isMobile ? '100%' : `calc(100% - ${sidebarWidth}px)`,
-          display: isAppFullscreen ? 'none' : undefined,
-        }}
-      >
-        <div className="px-6">
-          <div className="flex items-center justify-between h-16">
-            {/* Mobile Hamburger Menu */}
-            {isMobile && user && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleToggleSidebar}
-                className="mr-2"
-              >
-                <Menu size={20} />
-              </Button>
-            )}
-
-            {/* Logo */}
-            <Link
-              to="/"
-              aria-label="AI Learning Assistant"
-              className="flex items-center xl:space-x-3 hover:opacity-80 linear-transition"
-            >
-              <div className="w-8 h-8 shrink-0 bg-primary rounded-lg flex items-center justify-center">
-                <Icon size={16} className="text-primary-foreground">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                  />
-                </Icon>
-              </div>
-              <h1 className="text-lg font-semibold text-foreground tracking-tight">
-                <span className="app-title-responsive">AI Learning Assistant</span>
-              </h1>
-            </Link>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center space-x-8">
+      {/* Minimal Top Bar — 100% viewport, hidden during app fullscreen */}
+      {!isAppFullscreen && (
+        <header className="linear-glass border-b border-border/30 w-full flex-shrink-0 z-[1100]">
+          <div className="px-4">
+            <div className="flex items-center justify-between h-12">
+              {/* Logo */}
               <Link
                 to="/"
-                className="text-sm text-muted-foreground hover:text-foreground linear-transition"
+                aria-label="AI Learning Assistant"
+                className="flex items-center gap-2.5 hover:opacity-80 linear-transition"
               >
-                Dashboard
-              </Link>
-              <Link
-                to="/profile"
-                className="text-sm text-muted-foreground hover:text-foreground linear-transition"
-              >
-                Profile
-              </Link>
-            </nav>
-
-            {/* User Menu */}
-            {user ? (
-              <div className="flex items-center space-x-4">
-                {/* Theme Toggle */}
-                <ThemeToggle />
-
-                <div className="hidden sm:block text-right">
-                  <p className="text-sm font-medium text-foreground">
-                    Welcome back
-                  </p>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                <div className="w-7 h-7 shrink-0 bg-primary rounded-md flex items-center justify-center">
+                  <Icon size={14} className="text-primary-foreground">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                    />
+                  </Icon>
                 </div>
-                <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center border border-primary/20">
-                  <span className="text-primary font-medium text-xs">
-                    {user.email?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSignOut}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  Sign out
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-3">
-                {/* Theme Toggle for non-authenticated users */}
-                <ThemeToggle />
+                <span className="text-sm font-semibold text-foreground tracking-tight app-title-responsive">
+                  AI Learning Assistant
+                </span>
+              </Link>
 
-                <Link
-                  to="/auth"
-                  className="text-sm text-muted-foreground hover:text-foreground linear-transition"
-                >
-                  Sign in
-                </Link>
+              {/* Right side: theme toggle */}
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
-      {/* Main Content with Toolbar spacer */}
+      {/* Main Content area (sidebar + page rendered by Page component) */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Toolbar spacer to prevent content hiding under fixed header */}
-        {!isAppFullscreen && <div className="h-16 flex-shrink-0" />}
         {children}
       </main>
     </div>
