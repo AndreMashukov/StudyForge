@@ -81,8 +81,10 @@ export const Sidebar = ({ className }: ISidebar) => {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/auth');
+    const success = await signOut();
+    if (success) {
+      navigate('/auth');
+    }
   };
 
   const isItemActive = (path: string) => location.pathname === path;
@@ -205,7 +207,14 @@ export const Sidebar = ({ className }: ISidebar) => {
               </>
             )}
             {!isOpen && (
-              <div className={sidebarStyles.collapsedTooltip}>Sign out</div>
+              <button
+                className="relative group justify-center cursor-pointer bg-transparent border-none p-0"
+                onClick={handleSignOut}
+                aria-label="Sign out"
+              >
+                <LogOut size={16} className={sidebarStyles.itemIcon} />
+                <div className={sidebarStyles.collapsedTooltip}>Sign out</div>
+              </button>
             )}
           </div>
         )}
