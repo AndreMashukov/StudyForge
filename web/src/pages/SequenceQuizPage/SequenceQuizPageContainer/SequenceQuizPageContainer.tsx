@@ -9,7 +9,6 @@ import { Spinner } from '../../../components/ui/Spinner';
 import {
   selectSequenceQuizState,
   selectCurrentSequenceQuestion,
-  selectSequenceQuizProgress,
   selectSequenceQuizStats,
 } from '../../../store/slices/sequenceQuizPageSlice';
 import { IQuizStats, IQuizAnswer } from '../../QuizPage/types/IQuizTypes';
@@ -19,7 +18,6 @@ export const SequenceQuizPageContainer: React.FC = () => {
   const [searchParams] = useSearchParams();
   const quizState = useSelector(selectSequenceQuizState);
   const currentQuestion = useSelector(selectCurrentSequenceQuestion);
-  const progress = useSelector(selectSequenceQuizProgress);
   const stats = useSelector(selectSequenceQuizStats);
   const { sequenceQuizApi, handlers } = useSequenceQuizPageContext();
 
@@ -137,10 +135,6 @@ export const SequenceQuizPageContainer: React.FC = () => {
         showExplanation={quizState.showExplanation}
         handlers={handlers}
         isLastQuestion={isLastQuestion}
-        progress={progress}
-        currentQuestion={quizState.currentQuestionIndex + 1}
-        totalQuestions={quizState.questions.length}
-        score={quizState.score}
       />
     </div>
   );

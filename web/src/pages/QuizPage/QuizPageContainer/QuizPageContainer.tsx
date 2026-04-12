@@ -10,7 +10,6 @@ import {
   selectQuizState,
   selectCurrentQuestion,
   selectFormState,
-  selectProgress,
   selectQuizStats,
   selectIsLoading,
   selectError,
@@ -28,7 +27,6 @@ export const QuizPageContainer: React.FC = () => {
   const quizState = useSelector(selectQuizState);
   const currentQuestion = useSelector(selectCurrentQuestion);
   const formState = useSelector(selectFormState);
-  const progress = useSelector(selectProgress);
   const stats = useSelector(selectQuizStats);
   const isLoading = useSelector(selectIsLoading);
   const error = useSelector(selectError);
@@ -164,10 +162,6 @@ export const QuizPageContainer: React.FC = () => {
         isFollowupGenerated={isCurrentFollowupGenerated}
         followupContent={followupContent[quizState.currentQuestionIndex]}
         isLastQuestion={isLastQuestion}
-        progress={progress}
-        currentQuestion={quizState.currentQuestionIndex + 1}
-        totalQuestions={quizState.questions.length}
-        score={quizState.score}
       />
 
       {/* Error Display for Followup */}

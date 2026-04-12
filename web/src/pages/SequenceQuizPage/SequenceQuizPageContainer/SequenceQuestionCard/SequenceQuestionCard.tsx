@@ -22,11 +22,16 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useState, useRef, useLayoutEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { GripVertical, X, Package, Layers, CheckCircle, XCircle, Lightbulb } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { QuizProgressBar } from '../../../../components/QuizProgressBar';
+import {
+  selectSequenceQuizState,
+  selectSequenceQuizProgress,
+} from '../../../../store/slices/sequenceQuizPageSlice';
 import { ISequenceQuizQuestion } from '../../types/ISequenceQuizTypes';
 import { ISequenceQuizPageHandlers } from '../../types/ISequenceQuizPageHandlers';
 
@@ -39,11 +44,6 @@ interface ISequenceQuestionCardProps {
   showExplanation: boolean;
   handlers: ISequenceQuizPageHandlers;
   isLastQuestion: boolean;
-  /** Progress props for embedded progress bar */
-  progress?: number;
-  currentQuestion?: number;
-  totalQuestions?: number;
-  score?: number;
 }
 
 // Droppable zone IDs
@@ -172,10 +172,6 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   showExplanation,
   handlers,
   isLastQuestion,
-  progress,
-  currentQuestion,
-  totalQuestions,
-  score,
 }) => {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   // Live ordered copy of placedItems updated during drag for smooth reorder preview
@@ -333,17 +329,21 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
 
   const activeItemText = activeId ? itemTextFromId(activeId) : null;
 
-  const showProgressBar = progress !== undefined && currentQuestion !== undefined && totalQuestions !== undefined;
+  const quizState = useSelector(selectSequenceQuizState);
+  const progress = useSelector(selectSequenceQuizProgress);
+  const currentQuestion = quizState.currentQuestionIndex + 1;
+  const totalQuestions = quizState.questions.length;
+  const answeredCount = quizState.answers.length;
 
   return (
     <Card className="overflow-hidden">
-      {/* Embedded progress bar at top of card */}
-      {showProgressBar && (
+      {totalQuestions > 0 && (
         <QuizProgressBar
           progress={progress}
           currentQuestion={currentQuestion}
           totalQuestions={totalQuestions}
-          score={score ?? 0}
+          score={quizState.score}
+          answeredCount={answeredCount}
         />
       )}
       <CardHeader>

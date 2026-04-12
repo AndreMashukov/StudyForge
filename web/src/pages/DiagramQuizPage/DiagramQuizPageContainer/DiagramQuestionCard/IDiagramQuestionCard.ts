@@ -16,9 +16,4 @@ export interface IDiagramQuestionCard {
   isGeneratingFollowup?: boolean;
   isFollowupGenerated?: boolean;
   followupContent?: string;
-  /** Progress props for embedded progress bar */
-  progress?: number;
-  currentQuestion?: number;
-  totalQuestions?: number;
-  score?: number;
 }

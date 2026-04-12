@@ -3,4 +3,5 @@ export interface IQuizProgressBar {
   currentQuestion: number;
   totalQuestions: number;
   score: number;
+  answeredCount: number;
 }

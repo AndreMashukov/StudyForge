@@ -1,12 +1,17 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
 import { Check, X } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
 import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 import { QuizProgressBar } from '../../../../components/QuizProgressBar';
-import { IQuestionCard } from './IQuestionCard';
 import { Spinner } from '../../../../components/ui/Spinner';
+import {
+  selectQuizState,
+  selectProgress,
+} from '../../../../store/slices/quizPageSlice';
+import { IQuestionCard } from './IQuestionCard';
 
 export const QuestionCard: React.FC<IQuestionCard> = ({
   question,
@@ -20,12 +25,13 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
   isGeneratingFollowup = false,
   isFollowupGenerated = false,
   followupContent,
-  progress,
-  currentQuestion,
-  totalQuestions,
-  score,
 }) => {
-  const showProgressBar = progress !== undefined && currentQuestion !== undefined && totalQuestions !== undefined;
+  const quizState = useSelector(selectQuizState);
+  const progress = useSelector(selectProgress);
+
+  const currentQuestion = quizState.currentQuestionIndex + 1;
+  const totalQuestions = quizState.questions.length;
+  const answeredCount = quizState.answers.length;
 
   const getOptionButtonClass = (optionIndex: number) => {
     const baseClass = "w-full text-left p-4 rounded-xl border transition-all duration-200 hover:scale-[1.01] transform ";
@@ -43,13 +49,13 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
 
   return (
     <Card className={cn('w-full overflow-hidden', className)}>
-      {/* Embedded progress bar at top of card */}
-      {showProgressBar && (
+      {totalQuestions > 0 && (
         <QuizProgressBar
           progress={progress}
           currentQuestion={currentQuestion}
           totalQuestions={totalQuestions}
-          score={score ?? 0}
+          score={quizState.score}
+          answeredCount={answeredCount}
         />
       )}
 
@@ -60,7 +66,6 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
       </CardHeader>
       
       <CardContent className="space-y-3">
-        {/* Answer Options */}
         {question.options.map((option, index) => (
           <button
             key={index}
@@ -83,15 +88,14 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
           </button>
         ))}
 
-        {/* Explanation */}
         {showExplanation && (
           <Card className="mt-6 bg-muted/30 border-border/50">
             <CardContent className="p-4">
               <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                 {selectedAnswer === question.correct ? (
-                  <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
                 ) : (
-                  <X className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  <X className="h-4 w-4 text-red-600 dark:text-red-400" />
                 )}
                 {selectedAnswer === question.correct ? 'Correct!' : 'Incorrect'}
               </h3>
@@ -102,10 +106,8 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
           </Card>
         )}
 
-        {/* Action Buttons */}
         {showExplanation && (
           <div className="space-y-3 mt-6">
-            {/* Next Question Button */}
             <Button
               onClick={onNextQuestion}
               className="w-full"
@@ -114,7 +116,6 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
               {isLastQuestion ? 'View Results' : 'Next Question'}
             </Button>
 
-            {/* Followup Button */}
             {onGenerateFollowup && (
               <Button
                 onClick={onGenerateFollowup}
@@ -136,7 +137,6 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
               </Button>
             )}
 
-            {/* Inline followup explanation */}
             {followupContent && (
               <Card className="mt-4 bg-primary/5 border-primary/20">
                 <CardContent className="p-5">

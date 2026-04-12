@@ -10,7 +10,6 @@ import {
   selectDiagramQuizState,
   selectCurrentDiagramQuestion,
   selectDiagramFormState,
-  selectDiagramQuizProgress,
   selectDiagramQuizStats,
 } from '../../../store/slices/diagramQuizPageSlice';
 import { IQuizStats } from '../../QuizPage/types/IQuizTypes';
@@ -21,7 +20,6 @@ export const DiagramQuizPageContainer: React.FC = () => {
   const quizState = useSelector(selectDiagramQuizState);
   const currentQuestion = useSelector(selectCurrentDiagramQuestion);
   const formState = useSelector(selectDiagramFormState);
-  const progress = useSelector(selectDiagramQuizProgress);
   const stats = useSelector(selectDiagramQuizStats);
   const { diagramQuizApi, handlers } = useDiagramQuizPageContext();
 
@@ -135,10 +133,6 @@ export const DiagramQuizPageContainer: React.FC = () => {
         isGeneratingFollowup={quizState.isGeneratingFollowup}
         isFollowupGenerated={!!quizState.followupGenerated[questionIndex]}
         followupContent={quizState.followupContent[questionIndex]}
-        progress={progress}
-        currentQuestion={quizState.currentQuestionIndex + 1}
-        totalQuestions={quizState.questions.length}
-        score={quizState.score}
       />
     </div>
   );
