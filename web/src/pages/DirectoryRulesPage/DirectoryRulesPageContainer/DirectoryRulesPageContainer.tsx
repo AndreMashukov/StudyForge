@@ -6,6 +6,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { RuleCard } from './RuleCard';
 import { AssignRuleModal } from './AssignRuleModal';
 import { RuleCascadeVisualization } from './RuleCascadeVisualization';
+import { Spinner } from '../../../components/ui/Spinner';
 
 export const DirectoryRulesPageContainer = () => {
   const { state, handlers } = useDirectoryRulesPage();
@@ -18,13 +19,7 @@ export const DirectoryRulesPageContainer = () => {
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
-              <div 
-                className="animate-spin rounded-full h-12 w-12 border-4 mx-auto"
-                style={{ 
-                  borderColor: currentTheme.colors.muted,
-                  borderTopColor: currentTheme.colors.primary,
-                }}
-              ></div>
+              <Spinner size="lg" variant="muted" className="mx-auto" />
               <p 
                 className="mt-4 font-medium"
                 style={{ color: currentTheme.colors.mutedForeground }}

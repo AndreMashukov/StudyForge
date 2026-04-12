@@ -3,6 +3,7 @@ import { useSlideDeckPageContext } from '../context/hooks/useSlideDeckPageContex
 import { Page } from '../../../components/Page';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { Spinner } from '../../../components/ui/Spinner';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -34,7 +35,7 @@ export const SlideDeckPageContainer: React.FC = () => {
     return (
       <Page showSidebar={false}>
         <div className="flex justify-center items-center p-8">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          <Spinner size="md" />
         </div>
       </Page>
     );

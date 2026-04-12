@@ -4,6 +4,7 @@ import { RuleEditorHeader } from './RuleEditorHeader';
 import { RuleFormSection } from './RuleFormSection';
 import { AIAssistantPanel } from './AIAssistantPanel';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { Spinner } from '../../../components/ui/Spinner';
 
 const RuleEditorContent: React.FC = () => {
   const { currentTheme } = useTheme();
@@ -17,13 +18,7 @@ const RuleEditorContent: React.FC = () => {
         style={{ backgroundColor: colors.background }}
       >
         <div className="text-center">
-          <div
-            className="animate-spin rounded-full h-12 w-12 border-4 mx-auto"
-            style={{
-              borderColor: colors.muted,
-              borderTopColor: colors.primary,
-            }}
-          />
+          <Spinner size="lg" variant="muted" className="mx-auto" />
           <p
             className="mt-4 font-medium"
             style={{ color: colors.mutedForeground }}

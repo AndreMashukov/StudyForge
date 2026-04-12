@@ -5,6 +5,7 @@ import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
 import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 import { IQuestionCard } from './IQuestionCard';
+import { Spinner } from '../../../../components/ui/Spinner';
 
 export const QuestionCard: React.FC<IQuestionCard> = ({
   question,
@@ -107,7 +108,7 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
               >
                 {isGeneratingFollowup ? (
                   <>
-                    <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2"></div>
+                    <Spinner size="xs" className="mr-2" />
                     Generating Detailed Explanation...
                   </>
                 ) : isFollowupGenerated ? (

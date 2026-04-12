@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { RotateCcw, Tag } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
+import { Checkbox } from "../ui/Checkbox";
 import { useGetApplicableRulesQuery } from "../../store/api/Rules/rulesApi";
 import { RuleListSkeleton } from "../LoadingSkeletons";
 import { ICompactRuleSelector } from "./ICompactRuleSelector";
@@ -129,32 +130,29 @@ export const CompactRuleSelector = ({
         
         <div className="p-3 pt-0 space-y-2 max-h-[200px] overflow-y-auto">
           {rules.map((rule) => (
-            <label
+            <Checkbox
               key={rule.id}
-              className="flex items-start gap-2 cursor-pointer hover:bg-accent p-2 rounded-md transition-colors"
-            >
-              <input
-                type="checkbox"
-                checked={selectedRuleIds.includes(rule.id)}
-                onChange={() => handleToggle(rule.id)}
-                className="w-4 h-4 mt-0.5 rounded border-border flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium">{rule.name}</span>
-                  {rule.isDefault && (
-                    <Badge variant="outline" className="text-xs">
-                      Default
-                    </Badge>
+              checked={selectedRuleIds.includes(rule.id)}
+              onChange={() => handleToggle(rule.id)}
+              className="flex w-full items-start gap-2 p-2 rounded-md hover:bg-accent transition-colors"
+              label={
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">{rule.name}</span>
+                    {rule.isDefault && (
+                      <Badge variant="outline" className="text-xs">
+                        Default
+                      </Badge>
+                    )}
+                  </div>
+                  {rule.description && (
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                      {rule.description}
+                    </p>
                   )}
                 </div>
-                {rule.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                    {rule.description}
-                  </p>
-                )}
-              </div>
-            </label>
+              }
+            />
           ))}
         </div>
       </details>

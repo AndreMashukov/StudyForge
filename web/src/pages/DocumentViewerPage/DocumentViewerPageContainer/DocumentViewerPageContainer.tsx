@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui
 import { BreadcrumbNav } from '../../../components/BreadcrumbNav';
 import { Brain, ArrowLeft, Download, FileDown, List, X, Calendar, Layers, Presentation, Network, ListOrdered } from 'lucide-react';
 import { useDocumentViewerPageContext } from '../context';
+import { Spinner } from '../../../components/ui/Spinner';
 import { 
   selectTocItems, 
   selectShowToc, 
@@ -164,7 +165,7 @@ export const DocumentViewerPageContainer = () => {
     return (
       <Page showSidebar={true}>
         <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+          <Spinner size="md" />
           <span className="ml-3 text-muted-foreground">Loading document...</span>
         </div>
       </Page>
@@ -400,7 +401,7 @@ export const DocumentViewerPageContainer = () => {
               <CardContent className="p-6">
                 {contentApi.isLoading ? (
                   <div className="flex justify-center items-center py-12">
-                    <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+                    <Spinner size="md" />
                     <span className="ml-3 text-muted-foreground">Loading document content...</span>
                   </div>
                 ) : contentApi.error ? (

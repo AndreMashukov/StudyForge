@@ -6,6 +6,7 @@ import { Card, CardContent } from '../../../../components/ui/Card';
 import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 import { IDocumentQuestionForm } from './IDocumentQuestionForm';
 import { documentQuestionFormStyles as styles } from './DocumentQuestionForm.styles';
+import { Spinner } from '../../../../components/ui/Spinner';
 
 export const DocumentQuestionForm: React.FC<IDocumentQuestionForm> = ({
   onSubmit,
@@ -42,7 +43,7 @@ export const DocumentQuestionForm: React.FC<IDocumentQuestionForm> = ({
           >
             {isLoading ? (
               <>
-                <div className="animate-spin h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full mr-2" />
+                <Spinner size="xs" variant="on-primary" className="mr-2" />
                 Generating Answer...
               </>
             ) : (

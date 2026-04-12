@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { Badge } from "../ui/Badge";
+import { Checkbox } from "../ui/Checkbox";
 import { useGetApplicableRulesQuery } from "../../store/api/Rules/rulesApi";
 import { RuleListSkeleton } from "../LoadingSkeletons";
 import { IRuleSelector } from "./IRuleSelector";
@@ -85,32 +86,29 @@ export const RuleSelector = ({
       <div className="space-y-2 max-h-[300px] overflow-y-auto">
         {rules.length > 0 ? (
           rules.map((rule) => (
-            <label
+            <Checkbox
               key={rule.id}
-              className="flex items-center gap-2 cursor-pointer hover:bg-accent p-2 rounded-md transition-colors"
-            >
-              <input
-                type="checkbox"
-                checked={selectedRuleIds.includes(rule.id)}
-                onChange={() => handleToggle(rule.id)}
-                className="w-4 h-4 rounded border-border"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{rule.name}</span>
-                  {rule.isDefault && (
-                    <Badge variant="outline" className="text-xs">
-                      Default
-                    </Badge>
+              checked={selectedRuleIds.includes(rule.id)}
+              onChange={() => handleToggle(rule.id)}
+              className="flex w-full items-center gap-2 p-2 rounded-md hover:bg-accent transition-colors"
+              label={
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{rule.name}</span>
+                    {rule.isDefault && (
+                      <Badge variant="outline" className="text-xs">
+                        Default
+                      </Badge>
+                    )}
+                  </div>
+                  {rule.description && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {rule.description}
+                    </p>
                   )}
                 </div>
-                {rule.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {rule.description}
-                  </p>
-                )}
-              </div>
-            </label>
+              }
+            />
           ))
         ) : (
           <p className="text-sm text-muted-foreground text-center py-4">

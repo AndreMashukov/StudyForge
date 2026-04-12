@@ -3,7 +3,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
 import { Label } from '../../../../components/ui/Label';
-import { Upload, FileText, Loader2, AlertCircle } from 'lucide-react';
+import { Upload, FileText, AlertCircle } from 'lucide-react';
+import { Spinner } from '../../../../components/ui/Spinner';
 import { RuleSelector } from '../../../../components/RuleSelector';
 import { RuleApplicability } from '@shared-types';
 import {
@@ -199,7 +200,7 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
       >
         {isLoading ? (
           <>
-            <Loader2 size={16} className="animate-spin" />
+            <Spinner size="xs" />
             Uploading File...
           </>
         ) : (

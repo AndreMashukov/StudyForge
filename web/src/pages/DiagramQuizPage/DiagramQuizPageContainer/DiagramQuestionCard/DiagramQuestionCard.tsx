@@ -7,6 +7,7 @@ import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 import { DiagramSlideViewer } from '../DiagramSlideViewer';
 import { DiagramAnswerBar } from '../DiagramAnswerBar';
 import { IDiagramQuestionCard } from './IDiagramQuestionCard';
+import { Spinner } from '../../../../components/ui/Spinner';
 
 export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
   question,
@@ -80,7 +81,7 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
               >
                 {isGeneratingFollowup ? (
                   <>
-                    <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2"></div>
+                      <Spinner size="xs" className="mr-2" />
                     Generating Detailed Explanation...
                   </>
                 ) : isFollowupGenerated ? (

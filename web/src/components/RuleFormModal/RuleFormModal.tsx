@@ -11,6 +11,7 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
 import { Textarea } from "../ui/Textarea";
+import { Checkbox } from "../ui/Checkbox";
 import { Badge } from "../ui/Badge";
 import { X } from "lucide-react";
 import {
@@ -385,23 +386,14 @@ export const RuleFormModal = ({
             </div>
 
             {/* Default Rule Checkbox */}
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isDefault"
-                checked={formData.isDefault}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    isDefault: e.target.checked,
-                  }))
-                }
-                className="w-4 h-4 rounded border-border"
-              />
-              <Label htmlFor="isDefault" className="cursor-pointer">
-                Set as default rule (Auto-select for applicable operations)
-              </Label>
-            </div>
+            <Checkbox
+              id="isDefault"
+              checked={formData.isDefault}
+              onChange={(checked) =>
+                setFormData((prev) => ({ ...prev, isDefault: checked }))
+              }
+              label="Set as default rule (Auto-select for applicable operations)"
+            />
 
             {/* Submit Error */}
             {errors.submit && (

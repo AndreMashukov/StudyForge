@@ -12,6 +12,7 @@ import {
   Minimize2,
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
+import { Spinner } from '../../../components/ui/Spinner';
 
 export const FlashcardSetPageContainer = () => {
   const { api, handlers } = useFlashcardSetPageContext();
@@ -32,7 +33,7 @@ export const FlashcardSetPageContainer = () => {
     return (
       <Page showSidebar={true}>
         <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+          <Spinner size="md" />
           <span className="ml-3 text-muted-foreground">
             Loading flashcard set...
           </span>

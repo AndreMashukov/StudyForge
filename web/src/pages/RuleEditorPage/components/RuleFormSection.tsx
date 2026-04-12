@@ -4,6 +4,7 @@ import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
+import { Checkbox } from '../../../components/ui/Checkbox';
 import { X } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useRuleEditorForm } from '../context/hooks/useRuleEditorForm';
@@ -225,19 +226,12 @@ export const RuleFormSection: React.FC = () => {
       </div>
 
       {/* Default Rule Checkbox */}
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="rule-isDefault"
-          checked={formData.isDefault}
-          onChange={(e) => updateField('isDefault', e.target.checked)}
-          className="w-4 h-4 rounded"
-          style={{ borderColor: colors.border }}
-        />
-        <Label htmlFor="rule-isDefault" className="cursor-pointer">
-          Set as default rule (Auto-select for applicable operations)
-        </Label>
-      </div>
+      <Checkbox
+        id="rule-isDefault"
+        checked={formData.isDefault}
+        onChange={(checked) => updateField('isDefault', checked)}
+        label="Set as default rule (Auto-select for applicable operations)"
+      />
 
       {/* Submit Error */}
       {formErrors.submit && (

@@ -19,6 +19,7 @@ import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus, Menu, Layers,
 import { DocumentEnhanced, Directory } from "@shared-types";
 import { formatDate } from '../../../utils/dateUtils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { Spinner } from '../../../components/ui/Spinner';
 
 export const DocumentsPageContainer = (): React.JSX.Element => {
   const navigate = useNavigate();
@@ -72,7 +73,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     return (
       <Page showSidebar={true}>
         <div className="flex justify-center items-center p-8">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+          <Spinner size="md" />
         </div>
       </Page>
     );

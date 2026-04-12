@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { IDirectoryTree, IDirectoryTreeNodeProps } from './IDirectoryTree';
 import { useGetDirectoryTreeQuery } from '../../store/api/Directory/DirectoryApi';
+import { Spinner } from '../ui/Spinner';
 import {
   selectSelectedDirectoryId,
   selectExpandedDirectoryIds,
@@ -183,7 +184,7 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
   if (isLoading) {
     return (
       <div className={cn('flex items-center justify-center p-8', className)}>
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        <Spinner size="md" />
       </div>
     );
   }

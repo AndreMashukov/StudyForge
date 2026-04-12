@@ -2,8 +2,9 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
-import { Plus, FileText, Brain, BarChart3, Globe, Upload, Clock, Loader2 } from 'lucide-react';
+import { Plus, FileText, Brain, BarChart3, Globe, Upload, Clock } from 'lucide-react';
 import { useHomePageContext } from '../context/HomePageContext';
+import { Spinner } from '../../../components/ui/Spinner';
 
 export const HomePageContainer = () => {
   const navigate = useNavigate();
@@ -138,7 +139,7 @@ export const HomePageContainer = () => {
           <CardContent>
             {handlers.recentQuizzes.isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
+                <Spinner size="sm" />
               </div>
             ) : handlers.recentQuizzes.data && handlers.recentQuizzes.data.length > 0 ? (
               <div className="space-y-3">
@@ -190,7 +191,7 @@ export const HomePageContainer = () => {
           <CardContent>
             {handlers.userQuizzes.isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
+                <Spinner size="sm" />
               </div>
             ) : handlers.userQuizzes.data && handlers.userQuizzes.data.length > 0 ? (
               <div className="space-y-3">

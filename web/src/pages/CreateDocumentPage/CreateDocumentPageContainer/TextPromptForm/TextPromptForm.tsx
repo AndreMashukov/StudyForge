@@ -3,7 +3,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '../../../../components/ui/Button';
 import { Label } from '../../../../components/ui/Label';
 import { Textarea } from '../../../../components/ui/Textarea';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import { Spinner } from '../../../../components/ui/Spinner';
 import { ITextPromptFormProps } from './ITextPromptForm';
 import { textPromptFormStyles } from './TextPromptForm.styles';
 import { cn } from '../../../../lib/utils';
@@ -126,7 +127,7 @@ export const TextPromptForm = ({
       >
         {isLoading ? (
           <>
-            <Loader2 size={16} className="animate-spin" />
+            <Spinner size="xs" />
             Generating Document...
           </>
         ) : (

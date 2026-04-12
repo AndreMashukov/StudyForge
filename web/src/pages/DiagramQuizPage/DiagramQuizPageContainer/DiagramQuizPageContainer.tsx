@@ -6,6 +6,7 @@ import { useDiagramQuizPageContext } from '../context/hooks/useDiagramQuizPageCo
 import { ProgressBar } from '../../QuizPage/QuizPageContainer/ProgressBar';
 import { ScoreCard } from '../../QuizPage/QuizPageContainer/ScoreCard';
 import { DiagramQuestionCard } from './DiagramQuestionCard';
+import { Spinner } from '../../../components/ui/Spinner';
 import {
   selectDiagramQuizState,
   selectCurrentDiagramQuestion,
@@ -66,7 +67,7 @@ export const DiagramQuizPageContainer: React.FC = () => {
   if (diagramQuizApi.isLoading || !diagramQuizApi.hasValidId) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <Spinner size="md" />
         <p className="ml-4">Loading diagram quiz…</p>
       </div>
     );

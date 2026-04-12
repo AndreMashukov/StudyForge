@@ -6,6 +6,7 @@ import { useSequenceQuizPageContext } from '../context/hooks/useSequenceQuizPage
 import { ProgressBar } from '../../QuizPage/QuizPageContainer/ProgressBar';
 import { ScoreCard } from '../../QuizPage/QuizPageContainer/ScoreCard';
 import { SequenceQuestionCard } from './SequenceQuestionCard/SequenceQuestionCard';
+import { Spinner } from '../../../components/ui/Spinner';
 import {
   selectSequenceQuizState,
   selectCurrentSequenceQuestion,
@@ -62,7 +63,7 @@ export const SequenceQuizPageContainer: React.FC = () => {
   if (sequenceQuizApi.isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <Spinner size="md" />
         <p className="ml-4">Loading sequence quiz…</p>
       </div>
     );

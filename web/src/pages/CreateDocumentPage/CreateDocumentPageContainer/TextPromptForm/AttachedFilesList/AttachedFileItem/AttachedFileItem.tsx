@@ -4,11 +4,12 @@
  */
 
 import React from 'react';
-import { FileText, Loader2, AlertCircle, X, BookOpen } from 'lucide-react';
+import { FileText, AlertCircle, X, BookOpen } from 'lucide-react';
 import { IAttachedFileItemProps } from './IAttachedFileItem';
 import { attachedFileItemStyles } from './AttachedFileItem.styles';
 import { cn } from '../../../../../../lib/utils';
 import { formatFileSize, formatTokenCount } from '../../../../../../utils/fileUploadUtils';
+import { Spinner } from '../../../../../../components/ui/Spinner';
 
 export const AttachedFileItem = ({ file, onRemove }: IAttachedFileItemProps) => {
   const isLibraryDocument = file.source === 'library';
@@ -22,7 +23,7 @@ export const AttachedFileItem = ({ file, onRemove }: IAttachedFileItemProps) => 
         case 'ready':
           return <BookOpen className={cn(iconClass, 'text-purple-500')} />;
         case 'reading':
-          return <Loader2 className={cn(iconClass, 'text-purple-500 animate-spin')} />;
+          return <Spinner size="xs" className={cn(iconClass, 'text-purple-500')} />;
         case 'error':
           return <AlertCircle className={cn(iconClass, attachedFileItemStyles.iconError)} />;
         default:
@@ -34,7 +35,7 @@ export const AttachedFileItem = ({ file, onRemove }: IAttachedFileItemProps) => 
         case 'ready':
           return <FileText className={cn(iconClass, attachedFileItemStyles.iconReady)} />;
         case 'reading':
-          return <Loader2 className={cn(iconClass, attachedFileItemStyles.iconReading)} />;
+          return <Spinner size="xs" className={cn(iconClass, attachedFileItemStyles.iconReading)} />;
         case 'error':
           return <AlertCircle className={cn(iconClass, attachedFileItemStyles.iconError)} />;
         default:

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
+import { Spinner } from '../../../components/ui/Spinner';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useRuleEditorContext } from '../context/RuleEditorContext';
 
@@ -90,7 +91,7 @@ export const RuleEditorHeader: React.FC = () => {
             color: colors.primaryForeground,
           }}
         >
-          {isSaving && <Loader2 size={16} className="mr-2 animate-spin" />}
+          {isSaving && <Spinner size="xs" className="mr-2" />}
           {mode === 'create' ? 'Create Rule' : 'Save Changes'}
         </Button>
       </div>

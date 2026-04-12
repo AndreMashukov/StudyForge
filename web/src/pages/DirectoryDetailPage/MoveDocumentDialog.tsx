@@ -10,6 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { FolderInput, Folder, ChevronRight, ChevronDown } from 'lucide-react';
 import { ICON_MAP } from '../DocumentsPage/DocumentsPageContainer/folderConstants';
 import { cn } from '../../lib/utils';
+import { Spinner } from '../../components/ui/Spinner';
 
 interface IMoveDocumentDialog {
   isOpen: boolean;
@@ -147,7 +148,7 @@ export const MoveDocumentDialog = ({
         <div className="px-7 py-6">
           {isLoadingTree ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+              <Spinner size="sm" />
             </div>
           ) : !treeData?.tree?.length ? (
             <p className="text-sm text-muted-foreground text-center py-8">

@@ -3,7 +3,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
 import { Label } from '../../../../components/ui/Label';
-import { Globe, Loader2 } from 'lucide-react';
+import { Globe } from 'lucide-react';
+import { Spinner } from '../../../../components/ui/Spinner';
 import { RuleSelector } from '../../../../components/RuleSelector';
 import { RuleApplicability } from '@shared-types';
 import {
@@ -116,7 +117,7 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
       >
         {isLoading ? (
           <>
-            <Loader2 size={16} className="animate-spin" />
+            <Spinner size="xs" />
             Scraping Content...
           </>
         ) : (

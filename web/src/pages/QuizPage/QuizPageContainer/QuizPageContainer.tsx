@@ -6,6 +6,7 @@ import { useQuizPageContext } from '../context';
 import { ProgressBar } from './ProgressBar';
 import { QuestionCard } from './QuestionCard';
 import { ScoreCard } from './ScoreCard';
+import { Spinner } from '../../../components/ui/Spinner';
 import {
   selectQuizState,
   selectCurrentQuestion,
@@ -86,7 +87,7 @@ export const QuizPageContainer: React.FC = () => {
   if (isLoading || quizApi.isLoading) {
     return (
       <div className="flex justify-center items-center p-8">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        <Spinner size="md" />
         <p className="ml-4">Loading quiz...</p>
       </div>
     );

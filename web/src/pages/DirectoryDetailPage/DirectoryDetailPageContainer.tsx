@@ -38,6 +38,7 @@ import { QuizzesPanel } from './QuizzesPanel';
 import { FlashcardsPanel } from './FlashcardsPanel';
 import { SlidesPanel } from './SlidesPanel';
 import { DiagramQuizzesPanel } from './DiagramQuizzesPanel';
+import { Spinner } from '../../components/ui/Spinner';
 import { SequenceQuizzesPanel } from './SequenceQuizzesPanel';
 import { RulesPanel } from './RulesPanel';
 
@@ -103,7 +104,7 @@ export const DirectoryDetailPageContainer = () => {
     return (
       <Page showSidebar>
         <div className="flex justify-center items-center p-16">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          <Spinner size="md" />
         </div>
       </Page>
     );

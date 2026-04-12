@@ -3,9 +3,10 @@ import { Page } from '../../../components/Page';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { RuleCard } from './RuleCard';
-import { Plus, Search, Grid3x3, List, Loader2 } from 'lucide-react';
+import { Plus, Search, Grid3x3, List } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { cn } from '../../../lib/utils';
+import { Spinner } from '../../../components/ui/Spinner';
 
 export const RulesPageContainer = () => {
   const {
@@ -24,11 +25,7 @@ export const RulesPageContainer = () => {
       <Page showSidebar={true}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="flex flex-col items-center gap-3">
-            <Loader2
-              className="animate-spin"
-              size={32}
-              style={{ color: currentTheme.colors.primary }}
-            />
+            <Spinner size="md" />
             <p
               className="text-sm"
               style={{ color: currentTheme.colors.mutedForeground }}

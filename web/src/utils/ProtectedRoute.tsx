@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { Spinner } from '../components/ui/Spinner';
 
 interface IProtectedRoute {
   children: React.ReactNode;
@@ -13,7 +14,7 @@ export const ProtectedRoute = ({ children }: IProtectedRoute) => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-muted border-t-primary mx-auto"></div>
+          <Spinner size="lg" variant="muted" className="mx-auto" />
           <p className="mt-4 text-muted-foreground font-medium">Loading...</p>
         </div>
       </div>

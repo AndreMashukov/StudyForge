@@ -2,6 +2,7 @@ import React, { useEffect, useId, useState } from 'react';
 import mermaid from 'mermaid';
 import { cn } from '../../lib/utils';
 import { IMermaidDiagram } from './IMermaidDiagram';
+import { Spinner } from '../ui/Spinner';
 
 let mermaidInitialized = false;
 
@@ -91,7 +92,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
           className
         )}
       >
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <Spinner size="md" />
       </div>
     );
   }

@@ -8,6 +8,7 @@ import { ToastProvider, ToastContainer } from '../components/Toast';
 import { ReduxToastBridge } from '../components/Toast/ReduxToastBridge';
 import { MainLayout } from '../components/MainLayout';
 import { ProtectedRoute } from '../utils/ProtectedRoute';
+import { Spinner } from '../components/ui/Spinner';
 import { HomePage } from '../pages/HomePage';
 import { AuthPage } from '../pages/AuthPage';
 import { QuizPage } from '../pages/QuizPage';
@@ -60,13 +61,7 @@ const AppContent = () => {
         style={{ backgroundColor: currentTheme.colors.background }}
       >
         <div className="text-center">
-          <div
-            className="animate-spin rounded-full h-12 w-12 border-4 mx-auto"
-            style={{
-              borderColor: currentTheme.colors.muted,
-              borderTopColor: currentTheme.colors.primary,
-            }}
-          ></div>
+          <Spinner size="lg" variant="muted" className="mx-auto" />
           <p
             className="mt-4 font-medium"
             style={{ color: currentTheme.colors.mutedForeground }}

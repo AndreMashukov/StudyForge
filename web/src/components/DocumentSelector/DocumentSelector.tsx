@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { BookOpen, FileText, AlertTriangle, Calendar } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { Checkbox } from '../ui/Checkbox';
 import { IDocumentSelector } from './IDocumentSelector';
 import { documentSelectorStyles } from './DocumentSelector.styles';
 import { cn } from '../../lib/utils';
@@ -88,18 +89,16 @@ export const DocumentSelector = ({
           const isVeryLarge = document.wordCount > 50000;
 
           return (
-            <label
+            <div
               key={document.id}
               data-document-id={document.id}
-              className={cn(
-                documentSelectorStyles.documentItem,
-                isSelected && documentSelectorStyles.documentItemSelected,
-                isItemDisabled && documentSelectorStyles.documentItemDisabled,
-              )}
-              aria-label={`Select ${document.title}`}
+              title={
+                isItemDisabled && !isSelected
+                  ? `Maximum of ${maxSelections ?? 5} items reached`
+                  : undefined
+              }
             >
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={isSelected}
                 onChange={() => {
                   if (!isItemDisabled) {
@@ -107,53 +106,53 @@ export const DocumentSelector = ({
                   }
                 }}
                 disabled={isItemDisabled}
-                className={documentSelectorStyles.checkbox}
                 aria-label={`${isSelected ? 'Deselect' : 'Select'} ${document.title}`}
-                title={
-                  isItemDisabled && !isSelected
-                    ? `Maximum of ${maxSelections ?? 5} items reached`
-                    : undefined
+                className={cn(
+                  documentSelectorStyles.documentItem,
+                  isSelected && documentSelectorStyles.documentItemSelected,
+                  isItemDisabled && documentSelectorStyles.documentItemDisabled,
+                )}
+                label={
+                  <div className={documentSelectorStyles.documentContent}>
+                    <h4 className={documentSelectorStyles.documentTitle}>{document.title}</h4>
+
+                    <div className={documentSelectorStyles.documentMeta}>
+                      <div className={documentSelectorStyles.documentMetaItem}>
+                        <FileText className={documentSelectorStyles.documentMetaIcon} />
+                        <span>{document.wordCount.toLocaleString()} words</span>
+                      </div>
+
+                      <div className={documentSelectorStyles.documentMetaDivider} />
+
+                      <div className={documentSelectorStyles.documentMetaItem}>
+                        <Calendar className={documentSelectorStyles.documentMetaIcon} />
+                        <span>{formatDate(document.createdAt)}</span>
+                      </div>
+                    </div>
+
+                    {isLarge && !isVeryLarge && (
+                      <div className={cn(documentSelectorStyles.warningBadge, 'mt-2')}>
+                        <AlertTriangle className={documentSelectorStyles.warningIcon} />
+                        <span>Large document - monitor context size</span>
+                      </div>
+                    )}
+
+                    {isVeryLarge && (
+                      <div
+                        className={cn(
+                          documentSelectorStyles.warningBadge,
+                          'mt-2',
+                          'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+                        )}
+                      >
+                        <AlertTriangle className={documentSelectorStyles.warningIcon} />
+                        <span>Very large document - may exceed limits</span>
+                      </div>
+                    )}
+                  </div>
                 }
               />
-
-              <div className={documentSelectorStyles.documentContent}>
-                <h4 className={documentSelectorStyles.documentTitle}>{document.title}</h4>
-
-                <div className={documentSelectorStyles.documentMeta}>
-                  <div className={documentSelectorStyles.documentMetaItem}>
-                    <FileText className={documentSelectorStyles.documentMetaIcon} />
-                    <span>{document.wordCount.toLocaleString()} words</span>
-                  </div>
-
-                  <div className={documentSelectorStyles.documentMetaDivider} />
-
-                  <div className={documentSelectorStyles.documentMetaItem}>
-                    <Calendar className={documentSelectorStyles.documentMetaIcon} />
-                    <span>{formatDate(document.createdAt)}</span>
-                  </div>
-                </div>
-
-                {isLarge && !isVeryLarge && (
-                  <div className={cn(documentSelectorStyles.warningBadge, 'mt-2')}>
-                    <AlertTriangle className={documentSelectorStyles.warningIcon} />
-                    <span>Large document - monitor context size</span>
-                  </div>
-                )}
-
-                {isVeryLarge && (
-                  <div
-                    className={cn(
-                      documentSelectorStyles.warningBadge,
-                      'mt-2',
-                      'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
-                    )}
-                  >
-                    <AlertTriangle className={documentSelectorStyles.warningIcon} />
-                    <span>Very large document - may exceed limits</span>
-                  </div>
-                )}
-              </div>
-            </label>
+            </div>
           );
         })}
       </div>

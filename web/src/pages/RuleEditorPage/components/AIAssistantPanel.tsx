@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Sparkles, Loader2, X } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Textarea } from '../../../components/ui/Textarea/Textarea';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useAIAssistant } from '../context/hooks/useAIAssistant';
 import { useRuleEditorContext } from '../context/RuleEditorContext';
 import { MarkdownRenderer } from '../../../components/MarkdownRenderer/MarkdownRenderer';
+import { Spinner } from '../../../components/ui/Spinner';
 
 export const AIAssistantPanel: React.FC = () => {
   const { currentTheme } = useTheme();
@@ -83,11 +84,7 @@ export const AIAssistantPanel: React.FC = () => {
         {/* Generating State */}
         {aiState === 'generating' && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <Loader2
-              size={32}
-              className="animate-spin"
-              style={{ color: colors.primary }}
-            />
+            <Spinner size="md" />
             <p
               className="text-sm"
               style={{ color: colors.mutedForeground }}

@@ -12,6 +12,8 @@ import { Input } from '../../../../components/ui/Input';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { useDirectoryRulesPage } from '../../context/DirectoryRulesPageContext';
 import { useGetRulesQuery, useAttachRuleToDirectoryMutation } from '../../../../store/api/Rules';
+import { Spinner } from '../../../../components/ui/Spinner';
+import { Checkbox } from '../../../../components/ui/Checkbox';
 
 interface AssignRuleModalProps {
   onClose: () => void;
@@ -165,13 +167,7 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
         >
           {isLoading ? (
             <div className="p-8 text-center">
-              <div 
-                className="animate-spin rounded-full h-8 w-8 border-4 mx-auto"
-                style={{ 
-                  borderColor: currentTheme.colors.muted,
-                  borderTopColor: currentTheme.colors.primary,
-                }}
-              ></div>
+              <Spinner size="md" variant="muted" className="mx-auto" />
             </div>
           ) : filteredRules.length === 0 ? (
             <div 
@@ -187,7 +183,7 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
                 const isSelected = selectedRuleIds.has(rule.id);
 
                 return (
-                  <label
+                  <div
                     key={rule.id}
                     className="flex items-start gap-3 p-4 hover:bg-opacity-50 cursor-pointer"
                     style={{
@@ -195,14 +191,15 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
                         ? currentTheme.colors.accent
                         : 'transparent',
                     }}
+                    onClick={() => { if (!isAssigned) handleToggleRule(rule.id); }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleToggleRule(rule.id)}
-                      disabled={isAssigned}
-                      className="mt-1"
-                    />
+                    <span onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={isSelected}
+                        onChange={() => handleToggleRule(rule.id)}
+                        disabled={isAssigned}
+                      />
+                    </span>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span 
@@ -263,7 +260,7 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
                         </div>
                       )}
                     </div>
-                  </label>
+                  </div>
                 );
               })}
             </div>
