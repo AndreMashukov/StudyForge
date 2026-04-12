@@ -7,7 +7,7 @@ import { MarkdownRenderer, TocItem } from '../../../components/MarkdownRenderer'
 import { Button } from '../../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { BreadcrumbNav } from '../../../components/BreadcrumbNav';
-import { Brain, ArrowLeft, Download, FileDown, List, X, Calendar, Layers, Presentation } from 'lucide-react';
+import { Brain, ArrowLeft, Download, FileDown, List, X, Calendar, Layers, Presentation, Network, ListOrdered } from 'lucide-react';
 import { useDocumentViewerPageContext } from '../context';
 import { 
   selectTocItems, 
@@ -119,6 +119,26 @@ export const DocumentViewerPageContainer = () => {
       params.set('directoryId', directoryId);
     }
     navigate(`/slides/create?${params.toString()}`);
+  };
+
+  const handleCreateDiagramQuiz = () => {
+    if (!documentId) return;
+    const directoryId = documentApi.data?.directoryId;
+    const params = new URLSearchParams({ documentId });
+    if (directoryId) {
+      params.set('directoryId', directoryId);
+    }
+    navigate(`/diagram-quiz/create?${params.toString()}`);
+  };
+
+  const handleCreateSequenceQuiz = () => {
+    if (!documentId) return;
+    const directoryId = documentApi.data?.directoryId;
+    const params = new URLSearchParams({ documentId });
+    if (directoryId) {
+      params.set('directoryId', directoryId);
+    }
+    navigate(`/sequence-quiz/create?${params.toString()}`);
   };
 
   // Early returns for loading and error states
@@ -249,6 +269,18 @@ export const DocumentViewerPageContainer = () => {
                     label: 'Generate Slide Deck',
                     icon: <Presentation size={16} />,
                     onClick: handleCreateSlideDeck,
+                  },
+                  {
+                    id: 'create-diagram-quiz',
+                    label: 'Create Diagram Quiz',
+                    icon: <Network size={16} />,
+                    onClick: handleCreateDiagramQuiz,
+                  },
+                  {
+                    id: 'create-sequence-quiz',
+                    label: 'Create Sequence Quiz',
+                    icon: <ListOrdered size={16} />,
+                    onClick: handleCreateSequenceQuiz,
                   },
                 ]}
               />
