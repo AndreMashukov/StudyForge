@@ -7,7 +7,7 @@ export const buttonVariants = cva(
 	{
 		variants: {
 			variant: {
-				default: "text-white hover:opacity-90",
+				default: "text-white hover:brightness-110",
 				destructive: "text-white hover:opacity-90",
 				outline: "border hover:opacity-90",
 				secondary: "hover:opacity-80",
@@ -35,9 +35,10 @@ export const getVariantStyles = (variant: string | null | undefined, currentThem
 	switch (variant) {
 		case 'default':
 			return {
-				backgroundColor: colors.primary,
+				background: 'linear-gradient(135deg, #A855F7, #6366F1)',
 				color: colors.primaryForeground,
 				borderRadius: colors.radius,
+				boxShadow: '0 2px 8px rgba(139, 92, 246, 0.30)',
 			};
 		case 'destructive':
 			return {
@@ -73,9 +74,10 @@ export const getVariantStyles = (variant: string | null | undefined, currentThem
 			};
 		default:
 			return {
-				backgroundColor: colors.primary,
+				background: 'linear-gradient(135deg, #A855F7, #6366F1)',
 				color: colors.primaryForeground,
 				borderRadius: colors.radius,
+				boxShadow: '0 2px 8px rgba(139, 92, 246, 0.30)',
 			};
 	}
 };

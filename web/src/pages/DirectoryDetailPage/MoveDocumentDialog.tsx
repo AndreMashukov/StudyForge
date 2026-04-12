@@ -175,7 +175,6 @@ export const MoveDocumentDialog = ({
           <Button
             onClick={handleMove}
             disabled={!selectedDirectoryId || isMoving}
-            className="bg-gradient-to-r from-purple-500 to-indigo-500 border-transparent shadow-[0_2px_8px_rgba(139,92,246,0.3)] hover:shadow-[0_4px_16px_rgba(139,92,246,0.4)]"
           >
             {isMoving ? 'Moving…' : 'Move Here'}
           </Button>

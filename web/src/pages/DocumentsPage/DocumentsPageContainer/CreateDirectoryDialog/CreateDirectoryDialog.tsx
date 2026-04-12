@@ -227,7 +227,6 @@ export const CreateDirectoryDialog = ({
             <Button
               type="submit"
               disabled={isLoading}
-              className="bg-gradient-to-r from-purple-500 to-indigo-500 border-transparent shadow-[0_2px_8px_rgba(139,92,246,0.3)] hover:shadow-[0_4px_16px_rgba(139,92,246,0.4)]"
             >
               {isLoading ? "Creating..." : "Create Folder"}
             </Button>
