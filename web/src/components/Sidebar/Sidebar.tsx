@@ -9,7 +9,10 @@ import {
   User,
   FileText,
   Sparkles,
+  LogOut,
 } from 'lucide-react';
+import { useSignOut } from 'react-firebase-hooks/auth';
+import { auth } from '../../config/firebase';
 
 import { cn } from '../../lib/utils';
 import { ISidebar } from './ISidebar';
@@ -18,26 +21,37 @@ import {
   selectSidebarIsOpen,
   toggleSidebar,
 } from '../../store/slices/uiSlice';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface NavItem {
   id: string;
   title: string;
   path: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
+  section: 'navigation' | 'account';
 }
 
 const navItems: NavItem[] = [
-  { id: 'home', title: 'Dashboard', path: '/', icon: Home },
-  { id: 'documents', title: 'My Directories', path: '/documents', icon: FileText },
-  { id: 'rules-manager', title: 'Rules Manager', path: '/rules', icon: Sparkles },
-  { id: 'profile', title: 'Profile', path: '/profile', icon: User },
-  { id: 'settings', title: 'Settings', path: '/settings', icon: Settings },
+  { id: 'home', title: 'Dashboard', path: '/', icon: Home, section: 'navigation' },
+  { id: 'documents', title: 'My Directories', path: '/documents', icon: FileText, section: 'navigation' },
+  { id: 'rules-manager', title: 'Rules Manager', path: '/rules', icon: Sparkles, section: 'navigation' },
+  { id: 'profile', title: 'Profile', path: '/profile', icon: User, section: 'account' },
+  { id: 'settings', title: 'Settings', path: '/settings', icon: Settings, section: 'account' },
 ];
+
+const sectionLabels: Record<string, string> = {
+  navigation: 'Navigation',
+  account: 'Account',
+};
+
+const sectionOrder = ['navigation', 'account'];
 
 export const Sidebar = ({ className }: ISidebar) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  const [signOut] = useSignOut(auth);
   
   const isOpen = useSelector(selectSidebarIsOpen);
   
@@ -64,6 +78,11 @@ export const Sidebar = ({ className }: ISidebar) => {
     if (isMobile) {
       dispatch(toggleSidebar());
     }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
   };
 
   const isItemActive = (path: string) => location.pathname === path;
@@ -93,63 +112,104 @@ export const Sidebar = ({ className }: ISidebar) => {
           className
         )}
       >
-      {/* Header with toggle button */}
-      <div className={cn(
-        sidebarStyles.header,
-        isOpen ? sidebarStyles.headerExpanded : sidebarStyles.headerCollapsed
-      )}>
-        <button
-          type="button"
-          onClick={handleToggleSidebar}
-          className={sidebarStyles.toggleButton}
-          aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-        >
-          {isOpen ? <ChevronsLeft size={16} /> : <ChevronsRight size={16} />}
-        </button>
-        {isOpen && (
-          <h2 className={sidebarStyles.headerTitle}>
-            Code Insights AI
-          </h2>
-        )}
-      </div>
-
-      {/* Nav items */}
-      <div className="flex flex-col flex-1">
-        <div className={cn(sidebarStyles.itemsList, 'pt-2')}>
-          {navItems.map((item) => {
-            const ItemIcon = item.icon;
-            const itemIsActive = isItemActive(item.path);
-
-            return (
-              <div
-                key={item.id}
-                className={cn(
-                  sidebarStyles.item,
-                  itemIsActive && sidebarStyles.itemActive,
-                  !isOpen && 'justify-center relative group'
-                )}
-                onClick={() => handleNavigateToItem(item.path)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    handleNavigateToItem(item.path);
-                  }
-                }}
-              >
-                <ItemIcon className={sidebarStyles.itemIcon} size={16} />
-                {isOpen && (
-                  <span className={sidebarStyles.itemText}>{item.title}</span>
-                )}
-                {!isOpen && (
-                  <div className={sidebarStyles.collapsedTooltip}>{item.title}</div>
-                )}
-              </div>
-            );
-          })}
+        {/* Header with toggle button */}
+        <div className={cn(
+          sidebarStyles.header,
+          isOpen ? sidebarStyles.headerExpanded : sidebarStyles.headerCollapsed
+        )}>
+          <button
+            type="button"
+            onClick={handleToggleSidebar}
+            className={sidebarStyles.toggleButton}
+            aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          >
+            {isOpen ? <ChevronsLeft size={16} /> : <ChevronsRight size={16} />}
+          </button>
+          {isOpen && (
+            <h2 className={sidebarStyles.headerTitle}>
+              Code Insights AI
+            </h2>
+          )}
         </div>
-      </div>
-    </aside>
+
+        {/* Nav items grouped by section */}
+        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
+          {sectionOrder.map((section) => (
+            <div key={section}>
+              {isOpen && (
+                <div className={sidebarStyles.navSectionLabel}>
+                  {sectionLabels[section]}
+                </div>
+              )}
+              <div className={sidebarStyles.itemsList}>
+                {navItems
+                  .filter((item) => item.section === section)
+                  .map((item) => {
+                    const ItemIcon = item.icon;
+                    const itemIsActive = isItemActive(item.path);
+
+                    return (
+                      <div
+                        key={item.id}
+                        className={cn(
+                          sidebarStyles.item,
+                          itemIsActive && sidebarStyles.itemActive,
+                          !isOpen && 'justify-center relative group'
+                        )}
+                        onClick={() => handleNavigateToItem(item.path)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            handleNavigateToItem(item.path);
+                          }
+                        }}
+                      >
+                        <ItemIcon className={sidebarStyles.itemIcon} size={16} />
+                        {isOpen && (
+                          <span className={sidebarStyles.itemText}>{item.title}</span>
+                        )}
+                        {!isOpen && (
+                          <div className={sidebarStyles.collapsedTooltip}>{item.title}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* User profile footer */}
+        {user && (
+          <div className={cn(
+            sidebarStyles.sidebarFooter,
+            isOpen ? sidebarStyles.sidebarFooterExpanded : sidebarStyles.sidebarFooterCollapsed
+          )}>
+            <div className={sidebarStyles.userAvatar}>
+              {user.email?.charAt(0).toUpperCase()}
+            </div>
+            {isOpen && (
+              <>
+                <div className={sidebarStyles.userInfo}>
+                  <span className={sidebarStyles.userEmail}>{user.email}</span>
+                  <span className={sidebarStyles.userLabel}>Free plan</span>
+                </div>
+                <button
+                  className={sidebarStyles.signOutBtn}
+                  onClick={handleSignOut}
+                  aria-label="Sign out"
+                >
+                  <LogOut size={14} />
+                </button>
+              </>
+            )}
+            {!isOpen && (
+              <div className={sidebarStyles.collapsedTooltip}>Sign out</div>
+            )}
+          </div>
+        )}
+      </aside>
     </>
   );
 };

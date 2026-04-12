@@ -22,8 +22,8 @@ export const Page = ({ children, className, showSidebar = true }: IPage) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // In app fullscreen mode, sidebar is hidden and no margin is applied
-  const sidebarWidth = sidebarIsOpen ? 200 : 64;
+  // Sidebar width: expanded 220px, collapsed 64px
+  const sidebarWidth = sidebarIsOpen ? 220 : 64;
   const leftMargin =
     !isMobile && showSidebar && !isAppFullscreen ? sidebarWidth : 0;
 
@@ -32,7 +32,7 @@ export const Page = ({ children, className, showSidebar = true }: IPage) => {
       {/* Render Sidebar only when not in fullscreen */}
       {showSidebar && !isAppFullscreen && <Sidebar />}
 
-      {/* Main Content Area - adjusted for fixed sidebar */}
+      {/* Main Content Area - adjusted for sidebar left margin */}
       <div
         className={cn(
           'flex flex-col flex-1 min-h-0 transition-all duration-300',
