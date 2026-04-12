@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '../../../../components/ui/Button';
 import { Label } from '../../../../components/ui/Label';
+import { Textarea } from '../../../../components/ui/Textarea';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { ITextPromptFormProps } from './ITextPromptForm';
 import { textPromptFormStyles } from './TextPromptForm.styles';
@@ -67,18 +68,14 @@ export const TextPromptForm = ({
             {characterCount}
           </span>
         </div>
-        <textarea
+        <Textarea
           id="prompt"
           placeholder={`Example: "Explain DynamoDB provisioned capacity"\n\nDescribe what you want to learn about. Be specific for better results.`}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           className={cn(
-            textPromptFormStyles.textarea,
-            "px-3 py-2 text-sm rounded-md border border-input bg-background ring-offset-background",
-            "placeholder:text-muted-foreground",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            isUnderMinimum && "border-destructive focus-visible:ring-destructive"
+            "min-h-[120px]",
+            isUnderMinimum && "border-destructive focus-visible:ring-destructive/20"
           )}
           disabled={isLoading}
           rows={5}
