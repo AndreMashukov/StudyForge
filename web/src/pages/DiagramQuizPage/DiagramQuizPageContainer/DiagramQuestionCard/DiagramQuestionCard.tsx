@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../../components
 import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
 import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
+import { QuizProgressBar } from '../../../../components/QuizProgressBar';
 import { DiagramSlideViewer } from '../DiagramSlideViewer';
 import { DiagramAnswerBar } from '../DiagramAnswerBar';
 import { IDiagramQuestionCard } from './IDiagramQuestionCard';
@@ -25,9 +26,25 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
   isGeneratingFollowup = false,
   isFollowupGenerated = false,
   followupContent,
+  progress,
+  currentQuestion,
+  totalQuestions,
+  score,
 }) => {
+  const showProgressBar = progress !== undefined && currentQuestion !== undefined && totalQuestions !== undefined;
+
   return (
-    <Card className={cn('w-full', className)}>
+    <Card className={cn('w-full overflow-hidden', className)}>
+      {/* Embedded progress bar at top of card */}
+      {showProgressBar && (
+        <QuizProgressBar
+          progress={progress}
+          currentQuestion={currentQuestion}
+          totalQuestions={totalQuestions}
+          score={score ?? 0}
+        />
+      )}
+
       <CardHeader>
         <CardTitle className="text-lg font-medium leading-relaxed text-foreground">
           {question.question}

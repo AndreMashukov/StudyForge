@@ -3,7 +3,6 @@ import { useSelector } from 'react-redux';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { useSequenceQuizPageContext } from '../context/hooks/useSequenceQuizPageContext';
-import { ProgressBar } from '../../QuizPage/QuizPageContainer/ProgressBar';
 import { ScoreCard } from '../../QuizPage/QuizPageContainer/ScoreCard';
 import { SequenceQuestionCard } from './SequenceQuestionCard/SequenceQuestionCard';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -129,12 +128,6 @@ export const SequenceQuizPageContainer: React.FC = () => {
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-6 py-16">
       {backButton}
-      <ProgressBar
-        progress={progress}
-        currentQuestion={quizState.currentQuestionIndex + 1}
-        totalQuestions={quizState.questions.length}
-        score={quizState.score}
-      />
       <SequenceQuestionCard
         question={currentQuestion}
         availableItems={quizState.availableItems}
@@ -144,6 +137,10 @@ export const SequenceQuizPageContainer: React.FC = () => {
         showExplanation={quizState.showExplanation}
         handlers={handlers}
         isLastQuestion={isLastQuestion}
+        progress={progress}
+        currentQuestion={quizState.currentQuestionIndex + 1}
+        totalQuestions={quizState.questions.length}
+        score={quizState.score}
       />
     </div>
   );

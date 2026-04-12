@@ -26,6 +26,7 @@ import { GripVertical, X, Package, Layers, CheckCircle, XCircle, Lightbulb } fro
 import { cn } from '../../../../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
+import { QuizProgressBar } from '../../../../components/QuizProgressBar';
 import { ISequenceQuizQuestion } from '../../types/ISequenceQuizTypes';
 import { ISequenceQuizPageHandlers } from '../../types/ISequenceQuizPageHandlers';
 
@@ -38,6 +39,11 @@ interface ISequenceQuestionCardProps {
   showExplanation: boolean;
   handlers: ISequenceQuizPageHandlers;
   isLastQuestion: boolean;
+  /** Progress props for embedded progress bar */
+  progress?: number;
+  currentQuestion?: number;
+  totalQuestions?: number;
+  score?: number;
 }
 
 // Droppable zone IDs
@@ -166,6 +172,10 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   showExplanation,
   handlers,
   isLastQuestion,
+  progress,
+  currentQuestion,
+  totalQuestions,
+  score,
 }) => {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   // Live ordered copy of placedItems updated during drag for smooth reorder preview
@@ -323,8 +333,19 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
 
   const activeItemText = activeId ? itemTextFromId(activeId) : null;
 
+  const showProgressBar = progress !== undefined && currentQuestion !== undefined && totalQuestions !== undefined;
+
   return (
-    <Card>
+    <Card className="overflow-hidden">
+      {/* Embedded progress bar at top of card */}
+      {showProgressBar && (
+        <QuizProgressBar
+          progress={progress}
+          currentQuestion={currentQuestion}
+          totalQuestions={totalQuestions}
+          score={score ?? 0}
+        />
+      )}
       <CardHeader>
         <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-1">
           Question

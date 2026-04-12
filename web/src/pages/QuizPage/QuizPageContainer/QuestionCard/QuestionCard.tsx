@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../../../components
 import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
 import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
+import { QuizProgressBar } from '../../../../components/QuizProgressBar';
 import { IQuestionCard } from './IQuestionCard';
 import { Spinner } from '../../../../components/ui/Spinner';
 
@@ -19,7 +20,13 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
   isGeneratingFollowup = false,
   isFollowupGenerated = false,
   followupContent,
+  progress,
+  currentQuestion,
+  totalQuestions,
+  score,
 }) => {
+  const showProgressBar = progress !== undefined && currentQuestion !== undefined && totalQuestions !== undefined;
+
   const getOptionButtonClass = (optionIndex: number) => {
     const baseClass = "w-full text-left p-4 rounded-xl border transition-all duration-200 hover:scale-[1.01] transform ";
     
@@ -35,7 +42,17 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
   };
 
   return (
-    <Card className={cn('w-full', className)}>
+    <Card className={cn('w-full overflow-hidden', className)}>
+      {/* Embedded progress bar at top of card */}
+      {showProgressBar && (
+        <QuizProgressBar
+          progress={progress}
+          currentQuestion={currentQuestion}
+          totalQuestions={totalQuestions}
+          score={score ?? 0}
+        />
+      )}
+
       <CardHeader>
         <CardTitle className="text-lg font-medium text-foreground leading-relaxed">
           {question.question}
