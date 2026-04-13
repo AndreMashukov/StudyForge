@@ -92,6 +92,7 @@ const SUPPORTED_DIAGRAM_TYPES = new Set([
   'classdiagram',
   'erdiagram',
   'statediagram',
+  'statediagramv2',
 ]);
 
 /**
