@@ -6,15 +6,22 @@ import { Spinner } from '../../../components/ui/Spinner';
 import { Button } from '../../../components/ui/Button';
 import { useGetInteractionStatsQuery } from '../../../store/api/InteractionTracking/interactionTrackingApi';
 import { useGetDirectoryTreeQuery } from '../../../store/api/Directory/DirectoryApi';
-import { ArtifactType, DirectoryTreeNode } from '@shared-types';
+import { DirectoryTreeNode } from '@shared-types';
 import { TimeframeKey } from '../types/IInteractionStatsPage';
 import {
   getDateRange,
   formatDuration,
   aggregateStatsByDirectory,
-  getArtifactLabel,
+  toBarChartData,
+  toStackedBarData,
+  toDailyTrendData,
+  toPieChartData,
 } from '../utils/interactionStatsUtils';
-import { ArrowLeft, Clock, FolderOpen, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Clock, BarChart3, TrendingUp, PieChart as PieIcon, Layers } from 'lucide-react';
+import { TimePerDirectoryChart } from './TimePerDirectoryChart';
+import { ArtifactTypeBreakdownChart } from './ArtifactTypeBreakdownChart';
+import { DailyTrendChart } from './DailyTrendChart';
+import { DirectoryShareChart } from './DirectoryShareChart';
 
 function flattenDirectoryNames(
   nodes: DirectoryTreeNode[] | undefined
@@ -31,15 +38,6 @@ function flattenDirectoryNames(
   walk(nodes);
   return result;
 }
-
-const ARTIFACT_TYPE_KEYS: ArtifactType[] = [
-  'document',
-  'quiz',
-  'flashcardSet',
-  'slideDeck',
-  'diagramQuiz',
-  'sequenceQuiz',
-];
 
 export const InteractionStatsPageContainer: React.FC = () => {
   const navigate = useNavigate();
@@ -72,10 +70,20 @@ export const InteractionStatsPageContainer: React.FC = () => {
     [rows]
   );
 
+  const barData = useMemo(() => toBarChartData(rows), [rows]);
+  const stackedData = useMemo(() => toStackedBarData(rows), [rows]);
+  const trendData = useMemo(
+    () => (statsResponse?.stats ? toDailyTrendData(statsResponse.stats, startDate, endDate) : []),
+    [statsResponse, startDate, endDate]
+  );
+  const pieData = useMemo(() => toPieChartData(rows), [rows]);
+
+  const hasData = !statsLoading && !statsError && rows.length > 0;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 py-3">
-        <div className="max-w-5xl mx-auto flex items-center gap-3">
+        <div className="max-w-6xl mx-auto flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
@@ -86,113 +94,109 @@ export const InteractionStatsPageContainer: React.FC = () => {
           </Button>
           <div className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-semibold">Study Time</h1>
+            <h1 className="text-xl font-semibold">Study Dashboard</h1>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto p-6 space-y-6">
-        {/* Timeframe selector */}
-        <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as TimeframeKey)}>
-          <TabsList>
-            <TabsTrigger value="day">Today</TabsTrigger>
-            <TabsTrigger value="week">Last 7 days</TabsTrigger>
-            <TabsTrigger value="month">Last 30 days</TabsTrigger>
-          </TabsList>
-        </Tabs>
+      <main className="max-w-6xl mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as TimeframeKey)}>
+            <TabsList>
+              <TabsTrigger value="day">Today</TabsTrigger>
+              <TabsTrigger value="week">Last 7 days</TabsTrigger>
+              <TabsTrigger value="month">Last 30 days</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-        {/* Summary card */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              {label}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {statsLoading ? (
-              <div className="flex justify-center py-8">
-                <Spinner size="lg" variant="muted" />
-              </div>
-            ) : statsError ? (
+          {hasData && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              <span className="text-sm">{label}</span>
+              <span className="text-2xl font-bold text-foreground ml-2">
+                {formatDuration(grandTotal)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {statsLoading && (
+          <div className="flex justify-center py-16">
+            <Spinner size="lg" variant="muted" />
+          </div>
+        )}
+
+        {!!statsError && (
+          <Card className="border-destructive">
+            <CardContent className="p-6">
               <p className="text-destructive">Failed to load stats.</p>
-            ) : rows.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
+            </CardContent>
+          </Card>
+        )}
+
+        {!statsLoading && !statsError && rows.length === 0 && (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+              <p className="text-muted-foreground text-lg">
                 No study activity recorded for this period.
               </p>
-            ) : (
-              <div className="space-y-1">
-                <p className="text-3xl font-bold">{formatDuration(grandTotal)}</p>
-                <p className="text-sm text-muted-foreground">
-                  across {rows.length} {rows.length === 1 ? 'directory' : 'directories'}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              <p className="text-muted-foreground text-sm mt-1">
+                Open a document, quiz, or flashcard set to start tracking.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Per-directory breakdown */}
-        {!statsLoading && !statsError && rows.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">By Directory</h2>
-            {rows.map((row) => {
-              const pct =
-                grandTotal > 0
-                  ? Math.round((row.totalSeconds / grandTotal) * 100)
-                  : 0;
+        {hasData && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                  Time per Directory
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TimePerDirectoryChart data={barData} />
+              </CardContent>
+            </Card>
 
-              return (
-                <Card key={row.directoryId}>
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FolderOpen className="h-4 w-4 text-primary shrink-0" />
-                        <span className="font-medium truncate">
-                          {row.directoryName}
-                        </span>
-                      </div>
-                      <div className="text-right shrink-0 ml-4">
-                        <span className="font-semibold">
-                          {formatDuration(row.totalSeconds)}
-                        </span>
-                        <span className="text-sm text-muted-foreground ml-2">
-                          ({pct}%)
-                        </span>
-                      </div>
-                    </div>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <PieIcon className="h-4 w-4 text-muted-foreground" />
+                  Directory Share
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DirectoryShareChart data={pieData} />
+              </CardContent>
+            </Card>
 
-                    {/* Progress bar */}
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  Daily Study Trend
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DailyTrendChart data={trendData} />
+              </CardContent>
+            </Card>
 
-                    {/* Artifact type breakdown */}
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                      {ARTIFACT_TYPE_KEYS.filter(
-                        (type) => (row.byArtifactType[type] || 0) > 0
-                      ).map((type) => (
-                        <span key={type}>
-                          {getArtifactLabel(type)}:{' '}
-                          {formatDuration(row.byArtifactType[type])}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Own vs inherited */}
-                    {row.ownSeconds < row.totalSeconds && (
-                      <p className="text-xs text-muted-foreground">
-                        Direct: {formatDuration(row.ownSeconds)} · From
-                        subdirectories:{' '}
-                        {formatDuration(row.totalSeconds - row.ownSeconds)}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-muted-foreground" />
+                  Artifact Type Breakdown
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ArtifactTypeBreakdownChart data={stackedData} />
+              </CardContent>
+            </Card>
           </div>
         )}
       </main>
