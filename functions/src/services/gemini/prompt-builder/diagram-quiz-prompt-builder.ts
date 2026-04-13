@@ -82,6 +82,7 @@ The learner must identify which diagram correctly represents a concept from the 
 - **NEVER** use backslashes (\`\\\\\`) inside square-bracket node labels for the same reason.
 - **NEVER** use \`@\` inside square-bracket node labels — it is a reserved Mermaid token (link ID) and causes a parse error. Write the word out or omit the symbol entirely. E.g. use \`[At symbol]\` or \`[mention]\` instead of \`[@]\`.
 - If a label must contain a special character (\`/\`, \`\\\\\`, \`@\`, \`#\`, \`&\`), **quote the label** with double quotes inside the brackets: e.g. \`A["@mention"]\` or \`B["/path"]\`.
+- **NEVER** use spaces in \`subgraph\` IDs. A subgraph ID with spaces (e.g. \`subgraph Top Frame\`) will cause a parse error when referenced in an edge. Always use a camelCase or snake_case ID and put the display label in quotes: \`subgraph topFrame["Top Frame"]\`. Reference the ID (\`topFrame\`) in edges, not the label.
 - Each of the four diagrams for a question should be **visually comparable** (same diagram type when possible) so the question tests understanding, not diagram style.`;
   }
 
@@ -131,6 +132,17 @@ For question N, option at index matching the letter above must be the factually 
       ],
       "correctAnswer": 0,
       "explanation": "Why option A is correct and others are wrong."
+    },
+    {
+      "question": "Which diagram shows the correct stack state?",
+      "diagrams": [
+        "flowchart BT\\n  subgraph topFrame[\\"Top Frame\\"]\\n    A(op: +)\\n  end\\n  subgraph bottomFrame[\\"Bottom Frame\\"]\\n    B(op: -)\\n  end\\n  bottomFrame --> topFrame",
+        "flowchart BT\\n  subgraph topFrame[\\"Top Frame\\"]\\n    A(op: -)\\n  end\\n  subgraph bottomFrame[\\"Bottom Frame\\"]\\n    B(op: +)\\n  end\\n  bottomFrame --> topFrame",
+        "flowchart BT\\n  A(op: +)-->B(op: -)",
+        "flowchart BT\\n  A(op: -)-->B(op: +)"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Note: subgraph IDs use camelCase (topFrame) with display labels in quotes."
     }
   ]
 }`;

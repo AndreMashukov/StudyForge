@@ -26,11 +26,61 @@ function ensureMermaidInit(): void {
  * Wrap any affected label content in double-quotes so Mermaid treats it as a
  * plain string, e.g. [dfs(A)] -> ["dfs(A)"], [/usage] -> ["/usage"].
  */
-function sanitizeMermaidCode(source: string): string {
+function sanitizeBracketLabels(source: string): string {
   return source.replace(
     /\[([^\]"]*[/@\\()][^\]"]*)\]/g,
     (_match, inner: string) => `["${inner}"]`
   );
+}
+
+/**
+ * Mermaid subgraph IDs cannot contain spaces when referenced in edges.
+ * AI-generated diagrams often produce `subgraph My Label` and then use
+ * `My Label --> Other Label` in edges, which causes parse errors.
+ *
+ * This rewrites:
+ *   subgraph Some Name    →  subgraph someName["Some Name"]
+ * and replaces edge references from the old spaced name to the new camelCase ID.
+ */
+function sanitizeSubgraphIds(source: string): string {
+  const lines = source.split('\n');
+  const idMap = new Map<string, string>();
+
+  // Pass 1: find subgraph lines with spaced IDs (no bracket label already)
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^(\s*)subgraph\s+(?!end\b)(.+)$/);
+    if (!m) continue;
+    const raw = m[2].trim();
+    // Already has a bracket label like subgraph id["label"] — skip
+    if (/\[.*\]/.test(raw) || !/\s/.test(raw)) continue;
+
+    const camelId = raw
+      .split(/\s+/)
+      .map((w, j) =>
+        j === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+      )
+      .join('');
+    idMap.set(raw, camelId);
+    lines[i] = `${m[1]}subgraph ${camelId}["${raw}"]`;
+  }
+
+  if (idMap.size === 0) return source;
+
+  // Pass 2: replace spaced names in edge references
+  let result = lines.join('\n');
+  for (const [spacedName, camelId] of idMap) {
+    // Replace occurrences outside subgraph definitions (edge references)
+    const escaped = spacedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(
+      new RegExp(`(?<!subgraph\\s.*)\\b${escaped}\\b`, 'g'),
+      camelId
+    );
+  }
+  return result;
+}
+
+function sanitizeMermaidCode(source: string): string {
+  return sanitizeSubgraphIds(sanitizeBracketLabels(source));
 }
 
 export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) => {
