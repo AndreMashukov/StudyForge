@@ -1,4 +1,4 @@
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { FieldPath, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { FirestorePaths } from '../lib/firestore-paths';
 import { ArtifactType, InteractionStat } from '../../libs/shared-types/src/index';
@@ -93,6 +93,10 @@ export async function flushInteractionSession(
     const statRef = FirestorePaths.interactionStat(userId, statId);
     const isLeaf = i === 0;
 
+    // Use mergeFields with explicit FieldPath for the nested byArtifactType field.
+    // set() with { merge: true } and dot-notation keys creates literal top-level
+    // fields (e.g. "byArtifactType.diagramQuiz") rather than nested paths.
+    // mergeFields + FieldPath is the correct way to atomically increment a nested field.
     batch.set(
       statRef,
       {
@@ -103,10 +107,20 @@ export async function flushInteractionSession(
         ownSeconds: isLeaf
           ? FieldValue.increment(activeSeconds)
           : FieldValue.increment(0),
-        [`byArtifactType.${artifactType}`]: FieldValue.increment(activeSeconds),
+        byArtifactType: { [artifactType]: FieldValue.increment(activeSeconds) },
         sessionCount: FieldValue.increment(1),
       },
-      { merge: true }
+      {
+        mergeFields: [
+          'userId',
+          'directoryId',
+          'date',
+          'totalSeconds',
+          'ownSeconds',
+          'sessionCount',
+          new FieldPath('byArtifactType', artifactType),
+        ],
+      }
     );
   }
 
