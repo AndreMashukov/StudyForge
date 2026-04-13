@@ -1,9 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
 import { useFlushInteractionSessionMutation } from '../store/api/InteractionTracking/interactionTrackingApi';
 import { ArtifactType } from '@shared-types';
 import { auth, useEmulator } from '../config/firebase';
+import { useAuth } from '../contexts/AuthContext';
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
 // Users often read content without mouse movement for extended periods — use a
@@ -36,7 +35,7 @@ export const useInteractionTracker = ({
   artifactType,
   directoryId,
 }: IUseInteractionTrackerOptions) => {
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user } = useAuth();
   const [flushSession] = useFlushInteractionSessionMutation();
 
   const accumulatedSecondsRef = useRef(0);
