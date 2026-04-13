@@ -6,6 +6,7 @@ import { useFetchDocumentData } from './hooks/api/useFetchDocumentData';
 import { useFetchDocumentContentData } from './hooks/api/useFetchDocumentContentData';
 import { useDocumentViewerPageHandlers } from './hooks/useDocumentViewerPageHandlers';
 import { useDocumentViewerPageEffects } from './hooks/useDocumentViewerPageEffects';
+import { useInteractionTracker } from '../../../hooks/useInteractionTracker';
 
 interface DocumentViewerPageProviderProps {
   children: ReactNode;
@@ -30,6 +31,12 @@ export const DocumentViewerPageProvider: React.FC<DocumentViewerPageProviderProp
 
   // Effect hooks - self-contained side effects, manage their own dependencies
   useDocumentViewerPageEffects();
+
+  useInteractionTracker({
+    artifactId: documentApi.data ? documentId : undefined,
+    artifactType: 'document',
+    directoryId: documentApi.data?.directoryId,
+  });
 
   const contextValue: IDocumentViewerPageContext = {
     documentApi,    // Complete API object (no destructuring)
