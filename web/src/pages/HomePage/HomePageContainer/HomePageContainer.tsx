@@ -4,8 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui
 import { Button } from '../../../components/ui/Button';
 import { Tabs, TabsList, TabsTrigger } from '../../../components/ui/Tabs';
 import { Spinner } from '../../../components/ui/Spinner';
-import { BarChart3, TrendingUp, PieChart as PieIcon, Layers, Clock, Brain, FileText } from 'lucide-react';
-import { useHomePageContext } from '../context/HomePageContext';
+import { BarChart3, TrendingUp, PieChart as PieIcon, Layers, FileText } from 'lucide-react';
 import { useGetInteractionStatsQuery } from '../../../store/api/InteractionTracking/interactionTrackingApi';
 import { useGetDirectoryTreeQuery } from '../../../store/api/Directory/DirectoryApi';
 import { DirectoryTreeNode } from '@shared-types';
@@ -42,7 +41,6 @@ function flattenDirectoryNames(
 
 export const HomePageContainer = () => {
   const navigate = useNavigate();
-  const { handlers } = useHomePageContext();
   const [timeframe, setTimeframe] = useState<TimeframeKey>('week');
 
   const { startDate, endDate, label } = useMemo(
@@ -113,7 +111,7 @@ export const HomePageContainer = () => {
       </div>
 
       {/* Summary row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -134,32 +132,6 @@ export const HomePageContainer = () => {
               {statsLoading ? '—' : rows.length}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">with activity</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Recent Quizzes
-            </p>
-            <p className="text-2xl font-bold mt-1">
-              {handlers.recentQuizzes.isLoading
-                ? '—'
-                : handlers.recentQuizzes.data?.length ?? 0}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">available</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Quiz History
-            </p>
-            <p className="text-2xl font-bold mt-1">
-              {handlers.userQuizzes.isLoading
-                ? '—'
-                : handlers.userQuizzes.data?.length ?? 0}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">completed</p>
           </CardContent>
         </Card>
       </div>
@@ -257,96 +229,7 @@ export const HomePageContainer = () => {
         </div>
       )}
 
-      {/* Recent quizzes row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              Recent Quizzes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {handlers.recentQuizzes.isLoading ? (
-              <div className="flex justify-center py-6">
-                <Spinner size="sm" />
-              </div>
-            ) : handlers.recentQuizzes.data &&
-              handlers.recentQuizzes.data.length > 0 ? (
-              <div className="space-y-2">
-                {handlers.recentQuizzes.data.slice(0, 4).map((quiz) => (
-                  <div
-                    key={quiz.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
-                    onClick={() => handlers.handleNavigateToQuiz(quiz.id)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate text-sm">
-                        {quiz.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Clock size={10} />
-                        {new Date(quiz.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      Take Quiz
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                No quizzes created yet.
-              </p>
-            )}
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Brain className="h-4 w-4 text-muted-foreground" />
-              Quiz History
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {handlers.userQuizzes.isLoading ? (
-              <div className="flex justify-center py-6">
-                <Spinner size="sm" />
-              </div>
-            ) : handlers.userQuizzes.data &&
-              handlers.userQuizzes.data.length > 0 ? (
-              <div className="space-y-2">
-                {handlers.userQuizzes.data.slice(0, 4).map((quiz) => (
-                  <div
-                    key={quiz.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
-                    onClick={() => handlers.handleNavigateToQuiz(quiz.id)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate text-sm">
-                        {quiz.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Clock size={10} />
-                        {new Date(quiz.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      Review
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                No quiz history yet.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 };
