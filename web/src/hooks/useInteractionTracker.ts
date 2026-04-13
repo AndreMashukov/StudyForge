@@ -6,7 +6,9 @@ import { ArtifactType } from '@shared-types';
 import { auth, useEmulator } from '../config/firebase';
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
-const IDLE_THRESHOLD_MS = 60_000;
+// Users often read content without mouse movement for extended periods — use a
+// generous idle threshold so passive reading is counted as activity.
+const IDLE_THRESHOLD_MS = 5 * 60_000; // 5 minutes
 
 const FUNCTIONS_REGION = 'asia-east1';
 const EMULATOR_FUNCTIONS_HOST = 'http://127.0.0.1:5001';
@@ -40,6 +42,7 @@ export const useInteractionTracker = ({
   const accumulatedSecondsRef = useRef(0);
   const lastActivityRef = useRef(Date.now());
   const startedAtRef = useRef<string | null>(null);
+  const sessionStartMsRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isVisibleRef = useRef(!document.hidden);
 
@@ -48,13 +51,21 @@ export const useInteractionTracker = ({
       !artifactId ||
       !directoryId ||
       !user?.uid ||
-      !startedAtRef.current ||
-      accumulatedSecondsRef.current <= 0
+      !startedAtRef.current
     ) {
       return;
     }
 
-    const seconds = accumulatedSecondsRef.current;
+    // Use the heartbeat-accumulated time, but fall back to actual elapsed time
+    // so short sessions (< 30s) and heavily passive sessions are still captured.
+    const elapsed = sessionStartMsRef.current
+      ? Math.round((Date.now() - sessionStartMsRef.current) / 1000)
+      : 0;
+    const seconds = Math.max(accumulatedSecondsRef.current, Math.min(elapsed, IDLE_THRESHOLD_MS / 1000));
+
+    if (seconds <= 0) {
+      return;
+    }
 
     try {
       await flushSession({
@@ -64,9 +75,11 @@ export const useInteractionTracker = ({
         activeSeconds: seconds,
         startedAt: startedAtRef.current,
       }).unwrap();
-      accumulatedSecondsRef.current -= seconds;
+      accumulatedSecondsRef.current = 0;
+      sessionStartMsRef.current = null;
+      startedAtRef.current = null;
     } catch {
-      // Mutation failed — seconds remain in the buffer for the next flush
+      // Mutation failed — keep refs intact for the next flush attempt
     }
   }, [artifactId, artifactType, directoryId, user?.uid, flushSession]);
 
@@ -79,14 +92,20 @@ export const useInteractionTracker = ({
       !artifactId ||
       !directoryId ||
       !user?.uid ||
-      !startedAtRef.current ||
-      accumulatedSecondsRef.current <= 0
+      !startedAtRef.current
     ) {
       return;
     }
 
-    const seconds = accumulatedSecondsRef.current;
+    const elapsed = sessionStartMsRef.current
+      ? Math.round((Date.now() - sessionStartMsRef.current) / 1000)
+      : 0;
+    const seconds = Math.max(accumulatedSecondsRef.current, Math.min(elapsed, IDLE_THRESHOLD_MS / 1000));
+
+    if (seconds <= 0) return;
+
     accumulatedSecondsRef.current = 0;
+    sessionStartMsRef.current = null;
 
     try {
       const token = await auth.currentUser?.getIdToken();
@@ -139,6 +158,7 @@ export const useInteractionTracker = ({
     if (!artifactId || !directoryId || !user?.uid) return;
 
     startedAtRef.current = new Date().toISOString();
+    sessionStartMsRef.current = Date.now();
     accumulatedSecondsRef.current = 0;
 
     intervalRef.current = setInterval(() => {
