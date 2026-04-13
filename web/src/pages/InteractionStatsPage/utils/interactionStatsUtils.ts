@@ -135,15 +135,17 @@ export function toDailyTrendData(
 ): IDailyTrendDatum[] {
   const dayTotals = new Map<string, number>();
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const [startY, startM, startD] = startDate.split('-').map(Number);
+  const [endY, endM, endD] = endDate.split('-').map(Number);
+  const start = new Date(startY, startM - 1, startD);
+  const end = new Date(endY, endM - 1, endD);
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     dayTotals.set(toLocalDateString(d), 0);
   }
 
   for (const stat of stats) {
-    const current = dayTotals.get(stat.date) || 0;
-    dayTotals.set(stat.date, current + stat.totalSeconds);
+    if (!dayTotals.has(stat.date)) continue;
+    dayTotals.set(stat.date, (dayTotals.get(stat.date) ?? 0) + stat.totalSeconds);
   }
 
   return Array.from(dayTotals.entries())

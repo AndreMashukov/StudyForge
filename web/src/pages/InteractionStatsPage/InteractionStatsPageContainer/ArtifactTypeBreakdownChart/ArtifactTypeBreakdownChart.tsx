@@ -41,6 +41,7 @@ export const ArtifactTypeBreakdownChart: React.FC<
   );
 
   return (
+    <div role="img" aria-label="Stacked bar chart showing study time broken down by artifact type per directory">
     <ResponsiveContainer width="100%" height={300}>
       <BarChart
         data={data}
@@ -98,5 +99,6 @@ export const ArtifactTypeBreakdownChart: React.FC<
         ))}
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 };

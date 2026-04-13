@@ -21,6 +21,7 @@ export const DailyTrendChart: React.FC<IDailyTrendChart> = ({ data }) => {
   const theme = useChartTheme();
 
   return (
+    <div role="img" aria-label="Line chart showing daily study time trend">
     <ResponsiveContainer width="100%" height={300}>
       <LineChart
         data={data}
@@ -78,5 +79,6 @@ export const DailyTrendChart: React.FC<IDailyTrendChart> = ({ data }) => {
         />
       </LineChart>
     </ResponsiveContainer>
+    </div>
   );
 };

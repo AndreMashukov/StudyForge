@@ -22,6 +22,7 @@ export const DirectoryShareChart: React.FC<IDirectoryShareChart> = ({
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
   return (
+    <div role="img" aria-label="Pie chart showing the share of study time per directory">
     <ResponsiveContainer width="100%" height={300}>
       <PieChart>
         <Pie
@@ -71,5 +72,6 @@ export const DirectoryShareChart: React.FC<IDirectoryShareChart> = ({
         />
       </PieChart>
     </ResponsiveContainer>
+    </div>
   );
 };

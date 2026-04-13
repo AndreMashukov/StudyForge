@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 interface IChartTheme {
   primary: string;
@@ -18,6 +19,8 @@ function getCssVar(name: string): string {
 }
 
 export function useChartTheme(): IChartTheme {
+  const { currentTheme } = useTheme();
+
   return useMemo(() => {
     const primary = getCssVar('--primary');
     const foreground = getCssVar('--foreground');
@@ -36,5 +39,6 @@ export function useChartTheme(): IChartTheme {
       tooltipText: foreground ? `rgb(${foreground})` : '#fff',
       cursor: muted ? `rgb(${muted} / 0.3)` : 'rgba(255,255,255,0.05)',
     };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- currentTheme is an intentional signal to re-read CSS vars after theme toggle
+  }, [currentTheme]);
 }

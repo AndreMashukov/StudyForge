@@ -199,6 +199,30 @@ export const InteractionStatsPageContainer: React.FC = () => {
             </Card>
           </div>
         )}
+
+        {hasData && (
+          <table className="sr-only">
+            <caption>Study time per directory</caption>
+            <thead>
+              <tr>
+                <th>Directory</th>
+                <th>Total Time</th>
+                <th>Own Time</th>
+                <th>Sessions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.directoryId}>
+                  <td>{row.directoryName}</td>
+                  <td>{formatDuration(row.totalSeconds)}</td>
+                  <td>{formatDuration(row.ownSeconds)}</td>
+                  <td>{row.sessionCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </main>
     </div>
   );
