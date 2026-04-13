@@ -32,9 +32,8 @@ export const DocumentViewerPageProvider: React.FC<DocumentViewerPageProviderProp
   // Effect hooks - self-contained side effects, manage their own dependencies
   useDocumentViewerPageEffects();
 
-  // Interaction tracking
   useInteractionTracker({
-    artifactId: documentId,
+    artifactId: documentApi.data ? documentId : undefined,
     artifactType: 'document',
     directoryId: documentApi.data?.directoryId,
   });

@@ -28,13 +28,20 @@ export function formatDuration(totalSeconds: number): string {
   return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 }
 
+function toLocalDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function getDateRange(timeframe: TimeframeKey): {
   startDate: string;
   endDate: string;
   label: string;
 } {
   const now = new Date();
-  const endDate = now.toISOString().slice(0, 10);
+  const endDate = toLocalDateString(now);
 
   switch (timeframe) {
     case 'day':
@@ -43,7 +50,7 @@ export function getDateRange(timeframe: TimeframeKey): {
       const weekAgo = new Date(now);
       weekAgo.setDate(weekAgo.getDate() - 6);
       return {
-        startDate: weekAgo.toISOString().slice(0, 10),
+        startDate: toLocalDateString(weekAgo),
         endDate,
         label: 'Last 7 days',
       };
@@ -52,7 +59,7 @@ export function getDateRange(timeframe: TimeframeKey): {
       const monthAgo = new Date(now);
       monthAgo.setDate(monthAgo.getDate() - 29);
       return {
-        startDate: monthAgo.toISOString().slice(0, 10),
+        startDate: toLocalDateString(monthAgo),
         endDate,
         label: 'Last 30 days',
       };

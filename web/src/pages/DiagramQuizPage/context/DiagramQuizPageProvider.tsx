@@ -16,7 +16,7 @@ export const DiagramQuizPageProvider = ({ children }: IDiagramQuizPageProviderPr
   useDiagramQuizPageEffects();
 
   useInteractionTracker({
-    artifactId: fetchApi.diagramQuizId || undefined,
+    artifactId: fetchApi.firestoreDiagramQuiz?.id,
     artifactType: 'diagramQuiz',
     directoryId: fetchApi.firestoreDiagramQuiz?.directoryId,
   });

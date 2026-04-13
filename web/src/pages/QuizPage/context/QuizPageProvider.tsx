@@ -20,7 +20,6 @@ export const QuizPageProvider = ({ children }: IQuizPageProvider) => {
   // Effect hooks - self-contained side effects, manage their own dependencies
   useQuizPageEffects();
 
-  // Interaction tracking
   useInteractionTracker({
     artifactId: quizApi.firestoreQuiz?.id,
     artifactType: 'quiz',

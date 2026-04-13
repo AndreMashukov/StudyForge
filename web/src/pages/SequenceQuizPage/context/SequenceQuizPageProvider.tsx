@@ -16,7 +16,7 @@ export const SequenceQuizPageProvider = ({ children }: ISequenceQuizPageProvider
   useSequenceQuizPageEffects();
 
   useInteractionTracker({
-    artifactId: fetchApi.sequenceQuizId || undefined,
+    artifactId: fetchApi.firestoreSequenceQuiz?.id,
     artifactType: 'sequenceQuiz',
     directoryId: fetchApi.firestoreSequenceQuiz?.directoryId,
   });
