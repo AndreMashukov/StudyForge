@@ -1,5 +1,12 @@
 import { ArtifactType, InteractionStat } from '@shared-types';
-import { TimeframeKey, IDirectoryStatRow } from '../types/IInteractionStatsPage';
+import {
+  TimeframeKey,
+  IDirectoryStatRow,
+  IBarChartDatum,
+  IStackedBarDatum,
+  IDailyTrendDatum,
+  IPieChartDatum,
+} from '../types/IInteractionStatsPage';
 
 const ARTIFACT_LABELS: Record<ArtifactType, string> = {
   document: 'Documents',
@@ -100,3 +107,86 @@ export function aggregateStatsByDirectory(
 
   return Array.from(map.values()).sort((a, b) => b.totalSeconds - a.totalSeconds);
 }
+
+export function toBarChartData(rows: IDirectoryStatRow[]): IBarChartDatum[] {
+  return rows.map((r) => ({
+    name: r.directoryName,
+    minutes: Math.round((r.totalSeconds / 60) * 10) / 10,
+    directoryId: r.directoryId,
+  }));
+}
+
+export function toStackedBarData(rows: IDirectoryStatRow[]): IStackedBarDatum[] {
+  return rows.map((r) => ({
+    name: r.directoryName,
+    document: Math.round((r.byArtifactType.document || 0) / 60 * 10) / 10,
+    quiz: Math.round((r.byArtifactType.quiz || 0) / 60 * 10) / 10,
+    flashcardSet: Math.round((r.byArtifactType.flashcardSet || 0) / 60 * 10) / 10,
+    slideDeck: Math.round((r.byArtifactType.slideDeck || 0) / 60 * 10) / 10,
+    diagramQuiz: Math.round((r.byArtifactType.diagramQuiz || 0) / 60 * 10) / 10,
+    sequenceQuiz: Math.round((r.byArtifactType.sequenceQuiz || 0) / 60 * 10) / 10,
+  }));
+}
+
+export function toDailyTrendData(
+  stats: InteractionStat[],
+  startDate: string,
+  endDate: string
+): IDailyTrendDatum[] {
+  const dayTotals = new Map<string, number>();
+
+  const [startY, startM, startD] = startDate.split('-').map(Number);
+  const [endY, endM, endD] = endDate.split('-').map(Number);
+  const start = new Date(startY, startM - 1, startD);
+  const end = new Date(endY, endM - 1, endD);
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    dayTotals.set(toLocalDateString(d), 0);
+  }
+
+  for (const stat of stats) {
+    if (!dayTotals.has(stat.date)) continue;
+    dayTotals.set(stat.date, (dayTotals.get(stat.date) ?? 0) + stat.totalSeconds);
+  }
+
+  return Array.from(dayTotals.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, seconds]) => ({
+      date: formatShortDate(date),
+      minutes: Math.round((seconds / 60) * 10) / 10,
+    }));
+}
+
+export function toPieChartData(rows: IDirectoryStatRow[]): IPieChartDatum[] {
+  return rows
+    .filter((r) => r.totalSeconds > 0)
+    .map((r) => ({
+      name: r.directoryName,
+      value: Math.round((r.totalSeconds / 60) * 10) / 10,
+      directoryId: r.directoryId,
+    }));
+}
+
+function formatShortDate(dateStr: string): string {
+  const [, month, day] = dateStr.split('-');
+  return `${parseInt(month)}/${parseInt(day)}`;
+}
+
+export const CHART_COLORS = [
+  'hsl(262, 83%, 66%)', // purple (primary)
+  'hsl(142, 71%, 45%)', // green
+  'hsl(217, 91%, 60%)', // blue
+  'hsl(38, 92%, 50%)',  // amber
+  'hsl(340, 82%, 52%)', // rose
+  'hsl(174, 72%, 46%)', // teal
+  'hsl(24, 95%, 53%)',  // orange
+  'hsl(280, 68%, 60%)', // violet
+];
+
+export const ARTIFACT_TYPE_COLORS: Record<ArtifactType, string> = {
+  document: 'hsl(262, 83%, 66%)',
+  quiz: 'hsl(142, 71%, 45%)',
+  flashcardSet: 'hsl(217, 91%, 60%)',
+  slideDeck: 'hsl(38, 92%, 50%)',
+  diagramQuiz: 'hsl(340, 82%, 52%)',
+  sequenceQuiz: 'hsl(174, 72%, 46%)',
+};

@@ -1,0 +1,1 @@
+export { ArtifactTypeBreakdownChart } from './ArtifactTypeBreakdownChart';

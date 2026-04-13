@@ -1,0 +1,1 @@
+export { DirectoryShareChart } from './DirectoryShareChart';
