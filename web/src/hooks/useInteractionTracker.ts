@@ -3,31 +3,27 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { useFlushInteractionSessionMutation } from '../store/api/InteractionTracking/interactionTrackingApi';
 import { ArtifactType } from '@shared-types';
-import { auth, functions } from '../config/firebase';
+import { auth, useEmulator } from '../config/firebase';
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const IDLE_THRESHOLD_MS = 60_000;
 
+const FUNCTIONS_REGION = 'asia-east1';
+const EMULATOR_FUNCTIONS_HOST = 'http://127.0.0.1:5001';
+
 /**
- * Build the callable function URL for the current environment
- * (emulator or production) so we can use fetch+keepalive on beforeunload.
+ * Derive the callable function URL from env config (no SDK internals).
+ * Mirrors the emulator/production decision made in config/firebase.ts.
  */
 function getCallableFunctionUrl(functionName: string): string {
-  const emulatorHost = (functions as unknown as { _url?: string; customDomain?: string | null }).customDomain;
-  // Check if emulator is connected by inspecting the internal emulator origin
-  const fnAny = functions as unknown as { emulatorOrigin?: string };
-  if (fnAny.emulatorOrigin) {
-    const projectId = auth.app.options.projectId;
-    return `${fnAny.emulatorOrigin}/${projectId}/asia-east1/${functionName}`;
-  }
-  if (emulatorHost) {
-    return `${emulatorHost}/${functionName}`;
-  }
   const projectId = auth.app.options.projectId;
-  return `https://asia-east1-${projectId}.cloudfunctions.net/${functionName}`;
+  if (useEmulator) {
+    return `${EMULATOR_FUNCTIONS_HOST}/${projectId}/${FUNCTIONS_REGION}/${functionName}`;
+  }
+  return `https://${FUNCTIONS_REGION}-${projectId}.cloudfunctions.net/${functionName}`;
 }
 
-interface UseInteractionTrackerOptions {
+interface IUseInteractionTrackerOptions {
   artifactId: string | undefined;
   artifactType: ArtifactType;
   directoryId: string | undefined;
@@ -37,7 +33,7 @@ export const useInteractionTracker = ({
   artifactId,
   artifactType,
   directoryId,
-}: UseInteractionTrackerOptions) => {
+}: IUseInteractionTrackerOptions) => {
   const user = useSelector((state: RootState) => state.auth.user);
   const [flushSession] = useFlushInteractionSessionMutation();
 
@@ -47,7 +43,7 @@ export const useInteractionTracker = ({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isVisibleRef = useRef(!document.hidden);
 
-  const flush = useCallback(() => {
+  const flush = useCallback(async () => {
     if (
       !artifactId ||
       !directoryId ||
@@ -59,20 +55,24 @@ export const useInteractionTracker = ({
     }
 
     const seconds = accumulatedSecondsRef.current;
-    accumulatedSecondsRef.current = 0;
 
-    flushSession({
-      artifactId,
-      artifactType,
-      directoryId,
-      activeSeconds: seconds,
-      startedAt: startedAtRef.current,
-    });
+    try {
+      await flushSession({
+        artifactId,
+        artifactType,
+        directoryId,
+        activeSeconds: seconds,
+        startedAt: startedAtRef.current,
+      }).unwrap();
+      accumulatedSecondsRef.current -= seconds;
+    } catch {
+      // Mutation failed — seconds remain in the buffer for the next flush
+    }
   }, [artifactId, artifactType, directoryId, user?.uid, flushSession]);
 
   /**
-   * Fire-and-forget flush via fetch+keepalive. Used only in beforeunload
-   * where the page is terminating and the RTK mutation would be cancelled.
+   * Fire-and-forget flush via fetch+keepalive for beforeunload only.
+   * Uses env-based URL derivation — no Firebase SDK internals.
    */
   const flushWithKeepAlive = useCallback(async () => {
     if (
@@ -111,27 +111,27 @@ export const useInteractionTracker = ({
         keepalive: true,
       });
     } catch {
-      // Best-effort: page is unloading, nothing to handle
+      // Best-effort: page is unloading, nothing to recover
     }
   }, [artifactId, artifactType, directoryId, user?.uid]);
 
   useEffect(() => {
     if (!artifactId || !directoryId || !user?.uid) return;
 
-    const onActivity = () => {
+    const handleActivity = () => {
       lastActivityRef.current = Date.now();
     };
 
-    window.addEventListener('mousemove', onActivity, { passive: true });
-    window.addEventListener('keydown', onActivity, { passive: true });
-    window.addEventListener('scroll', onActivity, { passive: true });
-    window.addEventListener('touchstart', onActivity, { passive: true });
+    window.addEventListener('mousemove', handleActivity, { passive: true });
+    window.addEventListener('keydown', handleActivity, { passive: true });
+    window.addEventListener('scroll', handleActivity, { passive: true });
+    window.addEventListener('touchstart', handleActivity, { passive: true });
 
     return () => {
-      window.removeEventListener('mousemove', onActivity);
-      window.removeEventListener('keydown', onActivity);
-      window.removeEventListener('scroll', onActivity);
-      window.removeEventListener('touchstart', onActivity);
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('scroll', handleActivity);
+      window.removeEventListener('touchstart', handleActivity);
     };
   }, [artifactId, directoryId, user?.uid]);
 
@@ -161,7 +161,7 @@ export const useInteractionTracker = ({
   useEffect(() => {
     if (!artifactId || !directoryId || !user?.uid) return;
 
-    const onVisibilityChange = () => {
+    const handleVisibilityChange = () => {
       if (document.hidden) {
         isVisibleRef.current = false;
         flush();
@@ -171,10 +171,10 @@ export const useInteractionTracker = ({
       }
     };
 
-    document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [artifactId, directoryId, user?.uid, flush]);
 
@@ -189,14 +189,14 @@ export const useInteractionTracker = ({
   useEffect(() => {
     if (!artifactId || !directoryId || !user?.uid) return;
 
-    const onBeforeUnload = () => {
+    const handleBeforeUnload = () => {
       flushWithKeepAlive();
     };
 
-    window.addEventListener('beforeunload', onBeforeUnload);
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      window.removeEventListener('beforeunload', onBeforeUnload);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [artifactId, directoryId, user?.uid, flushWithKeepAlive]);
 };
