@@ -13,6 +13,7 @@ import {
   getDateRange,
   formatDuration,
   aggregateStatsByDirectory,
+  getTopLevelDirectoryIds,
   toBarChartData,
   toStackedBarData,
   toDailyTrendData,
@@ -61,10 +62,16 @@ export const HomePageContainer = () => {
     [treeResponse]
   );
 
+  const topLevelIds = useMemo(
+    () => getTopLevelDirectoryIds(treeResponse?.tree),
+    [treeResponse]
+  );
+
   const rows = useMemo(() => {
     if (!statsResponse?.stats) return [];
-    return aggregateStatsByDirectory(statsResponse.stats, directoryNames);
-  }, [statsResponse, directoryNames]);
+    const all = aggregateStatsByDirectory(statsResponse.stats, directoryNames);
+    return topLevelIds.size > 0 ? all.filter((r) => topLevelIds.has(r.directoryId)) : all;
+  }, [statsResponse, directoryNames, topLevelIds]);
 
   const grandTotal = useMemo(
     () => rows.reduce((sum, r) => sum + r.totalSeconds, 0),

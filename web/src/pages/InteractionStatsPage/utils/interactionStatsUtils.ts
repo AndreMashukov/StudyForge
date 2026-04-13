@@ -1,4 +1,4 @@
-import { ArtifactType, InteractionStat } from '@shared-types';
+import { ArtifactType, DirectoryTreeNode, InteractionStat } from '@shared-types';
 import {
   TimeframeKey,
   IDirectoryStatRow,
@@ -72,6 +72,18 @@ export function getDateRange(timeframe: TimeframeKey): {
       };
     }
   }
+}
+
+/**
+ * Collect the IDs of top-level (root) directories from the tree.
+ * Used to filter chart rows so only root directories are shown — their
+ * totalSeconds already include all subdirectory time via ancestor rollup.
+ */
+export function getTopLevelDirectoryIds(
+  nodes: DirectoryTreeNode[] | undefined
+): Set<string> {
+  if (!nodes) return new Set();
+  return new Set(nodes.map((n) => n.directory.id));
 }
 
 /**
