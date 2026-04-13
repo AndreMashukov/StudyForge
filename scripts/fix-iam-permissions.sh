@@ -86,6 +86,41 @@ gcloud services enable cloudbuild.googleapis.com --project=$PROJECT_ID
 gcloud services enable artifactregistry.googleapis.com --project=$PROJECT_ID
 gcloud services enable run.googleapis.com --project=$PROJECT_ID
 
+# 12. CRITICAL: Set Cloud Run invoker permissions for all callable functions
+# Firebase Functions v2 are backed by Cloud Run, which is private by default.
+# Callable functions handle auth internally — Cloud Run must allow requests through.
+echo ""
+echo "🔑 Setting Cloud Run invoker permissions for callable functions..."
+
+REGION="asia-east1"
+CALLABLE_FUNCTIONS=(
+  # Rule-related functions
+  "createrule"
+  "getrule"
+  "getrules"
+  "updaterule"
+  "deleterule"
+  "attachruletodirectory"
+  "detachrulefromdirectory"
+  "getdirectoryrules"
+  "getapplicablerules"
+  "formatrulesforprompt"
+  "getruletags"
+  "debugdirectoryrules"
+  # Interaction tracking functions
+  "flushinteractionsession"
+  "getinteractionstats"
+)
+
+for func in "${CALLABLE_FUNCTIONS[@]}"; do
+  echo "  Setting IAM for $func..."
+  gcloud run services add-iam-policy-binding "$func" \
+    --region="$REGION" \
+    --member="allUsers" \
+    --role="roles/run.invoker" \
+    --project="$PROJECT_ID" 2>/dev/null || echo "  ⚠️  Skipped $func (not deployed yet or already set)"
+done
+
 echo ""
 echo "✅ IAM permissions configured successfully!"
 echo "⏱️  Please wait 2-3 minutes for IAM changes to propagate."
