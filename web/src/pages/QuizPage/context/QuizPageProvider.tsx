@@ -4,6 +4,7 @@ import { useFetchQuizData } from './hooks/api/useFetchQuizData';
 import { useQuizPageHandlers } from './hooks/useQuizPageHandlers';
 import { useQuizPageEffects } from './hooks/useQuizPageEffects';
 import { IQuizPageContext } from '../types/IQuizPageContext';
+import { useInteractionTracker } from '../../../hooks/useInteractionTracker';
 
 interface IQuizPageProvider {
   children: ReactNode;
@@ -18,6 +19,13 @@ export const QuizPageProvider = ({ children }: IQuizPageProvider) => {
 
   // Effect hooks - self-contained side effects, manage their own dependencies
   useQuizPageEffects();
+
+  // Interaction tracking
+  useInteractionTracker({
+    artifactId: quizApi.firestoreQuiz?.id,
+    artifactType: 'quiz',
+    directoryId: quizApi.firestoreQuiz?.directoryId,
+  });
 
   const contextValue: IQuizPageContext = {
     quizApi,    // Complete API object (no destructuring)

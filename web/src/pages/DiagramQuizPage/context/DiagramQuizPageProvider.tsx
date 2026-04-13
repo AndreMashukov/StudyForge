@@ -4,6 +4,7 @@ import { useFetchDiagramQuizData } from './hooks/api/useFetchDiagramQuizData';
 import { useDiagramQuizPageHandlers } from './hooks/useDiagramQuizPageHandlers';
 import { useDiagramQuizPageEffects } from './hooks/useDiagramQuizPageEffects';
 import { IDiagramQuizPageContext } from '../types/IDiagramQuizPageContext';
+import { useInteractionTracker } from '../../../hooks/useInteractionTracker';
 
 interface IDiagramQuizPageProviderProps {
   children: ReactNode;
@@ -13,6 +14,12 @@ export const DiagramQuizPageProvider = ({ children }: IDiagramQuizPageProviderPr
   const fetchApi = useFetchDiagramQuizData();
   const handlers = useDiagramQuizPageHandlers();
   useDiagramQuizPageEffects();
+
+  useInteractionTracker({
+    artifactId: fetchApi.diagramQuizId || undefined,
+    artifactType: 'diagramQuiz',
+    directoryId: fetchApi.firestoreDiagramQuiz?.directoryId,
+  });
 
   const diagramQuizApi: IDiagramQuizPageContext['diagramQuizApi'] = {
     firestoreDiagramQuiz: fetchApi.firestoreDiagramQuiz,

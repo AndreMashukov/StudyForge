@@ -842,3 +842,58 @@ export interface AttachRuleResponse {
 export interface DetachRuleResponse {
   success: boolean;
 }
+
+// ─── Interaction Tracking Types ───────────────────────────────────────────────
+
+export type ArtifactType =
+  | 'document'
+  | 'quiz'
+  | 'flashcardSet'
+  | 'slideDeck'
+  | 'diagramQuiz'
+  | 'sequenceQuiz';
+
+export interface InteractionSession {
+  id: string;
+  userId: string;
+  artifactId: string;
+  artifactType: ArtifactType;
+  directoryId: string;
+  startedAt: Date | { toDate(): Date };
+  lastActiveAt: Date | { toDate(): Date };
+  activeSeconds: number;
+  date: string; // "YYYY-MM-DD" partition key
+}
+
+export interface InteractionStat {
+  id: string; // "{directoryId}_{date}"
+  userId: string;
+  directoryId: string;
+  date: string; // "YYYY-MM-DD"
+  totalSeconds: number;
+  ownSeconds: number;
+  byArtifactType: Record<ArtifactType, number>;
+  sessionCount: number;
+}
+
+export interface FlushInteractionSessionRequest {
+  artifactId: string;
+  artifactType: ArtifactType;
+  directoryId: string;
+  activeSeconds: number;
+  startedAt: string; // ISO string
+}
+
+export interface FlushInteractionSessionResponse {
+  sessionId: string;
+}
+
+export interface GetInteractionStatsRequest {
+  directoryId?: string; // omit for all directories
+  startDate: string; // "YYYY-MM-DD"
+  endDate: string; // "YYYY-MM-DD"
+}
+
+export interface GetInteractionStatsResponse {
+  stats: InteractionStat[];
+}

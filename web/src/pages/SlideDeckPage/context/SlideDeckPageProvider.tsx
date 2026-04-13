@@ -4,6 +4,7 @@ import { useFetchSlideDeckData } from './hooks/api/useFetchSlideDeckData';
 import { useSlideDeckPageHandlers } from './hooks/useSlideDeckPageHandlers';
 import { useSlideDeckPageEffects } from './hooks/useSlideDeckPageEffects';
 import { ISlideDeckPageContext } from '../types/ISlideDeckPageContext';
+import { useInteractionTracker } from '../../../hooks/useInteractionTracker';
 
 interface ISlideDeckPageProvider {
   children: ReactNode;
@@ -16,6 +17,12 @@ export const SlideDeckPageProvider: React.FC<ISlideDeckPageProvider> = ({ childr
   useSlideDeckPageEffects({
     slidesLength: slideDeckApi.slideDeck?.slides?.length ?? 0,
     handlers,
+  });
+
+  useInteractionTracker({
+    artifactId: slideDeckApi.slideDeck?.id,
+    artifactType: 'slideDeck',
+    directoryId: slideDeckApi.slideDeck?.directoryId,
   });
 
   const contextValue: ISlideDeckPageContext = { slideDeckApi, handlers };

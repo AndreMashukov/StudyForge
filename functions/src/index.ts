@@ -175,3 +175,9 @@ export {
   getUserSlideDecks,
   deleteSlideDeck,
 } from "./endpoints/slide-decks";
+
+// Export interaction tracking functions
+export {
+  flushInteractionSessionEndpoint as flushInteractionSession,
+  getInteractionStatsEndpoint as getInteractionStats,
+} from "./endpoints/interaction-tracking";

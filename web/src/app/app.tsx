@@ -28,6 +28,7 @@ import { DiagramQuizPage } from '../pages/DiagramQuizPage';
 import { CreateDiagramQuizPage } from '../pages/CreateDiagramQuizPage';
 import { SequenceQuizPage } from '../pages/SequenceQuizPage';
 import { CreateSequenceQuizPage } from '../pages/CreateSequenceQuizPage';
+import { InteractionStatsPage } from '../pages/InteractionStatsPage';
 import { Page } from '../components/Page';
 import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
 import { QuizIndexRedirect } from '../utils/QuizIndexRedirect';
@@ -343,6 +344,17 @@ const AppContent = () => {
                   </div>
                 </div>
               </Page>
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+
+      <Route
+        path="/stats"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <InteractionStatsPage />
             </ProtectedRoute>
           </MainLayout>
         }
