@@ -75,6 +75,7 @@ The learner must identify which diagram correctly represents a concept from the 
 
 **DIAGRAM RULES:**
 - Use only: \`flowchart\` / \`graph\`, \`sequenceDiagram\`, \`classDiagram\`, or \`erDiagram\`.
+- **BANNED diagram types** (will fail to render): \`mindmap\`, \`timeline\`, \`gantt\`, \`pie\`, \`gitGraph\`, \`journey\`, \`sankey\`, \`xychart\`, \`block\`, \`packet\`, \`kanban\`, \`architecture\`. Do NOT use any of these.
 - Keep each diagram **compact**: at most ~12 nodes or participants per diagram so it renders reliably.
 - **No markdown code fences** inside JSON string values — put raw Mermaid source with newline characters escaped as needed.
 - **Do not** use double quotes inside Mermaid node labels; use single quotes or rephrase.

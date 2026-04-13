@@ -79,6 +79,33 @@ function sanitizeSubgraphIds(source: string): string {
   return result;
 }
 
+/**
+ * Diagram types that are reliably bundled and render without dynamic chunk imports.
+ * Mermaid v11 lazy-loads many diagram types (mindmap, timeline, etc.) as separate
+ * JS chunks. These chunks can fail to load after a new deployment when the browser
+ * has stale hashes cached. Restricting to this allowlist avoids that failure mode.
+ */
+const SUPPORTED_DIAGRAM_TYPES = new Set([
+  'flowchart',
+  'graph',
+  'sequencediagram',
+  'classdiagram',
+  'erdiagram',
+  'statediagram',
+]);
+
+/**
+ * Extract the diagram type keyword from the first non-empty line of Mermaid source.
+ * Returns the type lowercased with hyphens/spaces removed, or null if unrecognisable.
+ */
+function extractDiagramType(source: string): string | null {
+  const firstLine = source.split('\n').find((l) => l.trim().length > 0)?.trim() ?? '';
+  // The first token before any whitespace or special char is the diagram type
+  const m = firstLine.match(/^([a-zA-Z][a-zA-Z0-9-]*)/);
+  if (!m) return null;
+  return m[1].toLowerCase().replace(/-/g, '');
+}
+
 function sanitizeMermaidCode(source: string): string {
   return sanitizeSubgraphIds(sanitizeBracketLabels(source));
 }
@@ -97,6 +124,19 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
         setSvg(null);
         return;
       }
+
+      // Block unsupported diagram types before Mermaid attempts a dynamic
+      // chunk import that may fail after redeployments (stale chunk hashes).
+      const diagramType = extractDiagramType(trimmed);
+      if (diagramType && !SUPPORTED_DIAGRAM_TYPES.has(diagramType)) {
+        setSvg(null);
+        setError(
+          `Unsupported diagram type "${diagramType}". ` +
+          `Only flowchart, graph, sequenceDiagram, classDiagram, erDiagram, and stateDiagram are supported.`
+        );
+        return;
+      }
+
       ensureMermaidInit();
       const id = `mermaid-${reactId}-${Math.random().toString(36).slice(2, 9)}`;
       try {
