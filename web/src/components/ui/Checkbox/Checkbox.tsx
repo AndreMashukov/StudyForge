@@ -33,7 +33,6 @@ export const Checkbox = ({
 
   return (
     <label
-      htmlFor={checkboxId}
       className={cn(
         checkboxStyles.wrapper,
         disabled && checkboxStyles.wrapperDisabled,
