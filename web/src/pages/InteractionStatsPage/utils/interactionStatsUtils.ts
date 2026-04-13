@@ -157,7 +157,7 @@ export function toDailyTrendData(
 
   for (const stat of stats) {
     if (!dayTotals.has(stat.date)) continue;
-    dayTotals.set(stat.date, (dayTotals.get(stat.date) ?? 0) + stat.totalSeconds);
+    dayTotals.set(stat.date, (dayTotals.get(stat.date) ?? 0) + stat.ownSeconds);
   }
 
   return Array.from(dayTotals.entries())
