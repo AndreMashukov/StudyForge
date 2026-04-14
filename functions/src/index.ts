@@ -181,3 +181,13 @@ export {
   flushInteractionSessionEndpoint as flushInteractionSession,
   getInteractionStatsEndpoint as getInteractionStats,
 } from "./endpoints/interaction-tracking";
+
+// External HTTP API (API key authenticated)
+export { api } from "./endpoints/external-api";
+
+// API key management (callable — used by the web app)
+export {
+  createApiKey,
+  listApiKeys,
+  revokeApiKey,
+} from "./endpoints/api-keys";
