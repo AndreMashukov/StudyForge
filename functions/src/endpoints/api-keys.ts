@@ -17,42 +17,47 @@ export const createApiKey = onCall(
   { region: "asia-east1", cors: true },
   async (request) => {
     const userId = validateAuth(request);
-    const name = (request.data.name as string | undefined)?.trim();
-
-    if (!name) {
+    const rawName = request.data.name;
+    if (typeof rawName !== "string" || !rawName.trim()) {
       throw new HttpsError("invalid-argument", "API key name is required.");
     }
+    const name = rawName.trim();
 
     const db = getFirestore();
 
-    // Enforce per-user key limit
-    const existing = await db
-      .collection("apiKeys")
-      .where("userId", "==", userId)
-      .where("active", "==", true)
-      .get();
-
-    if (existing.size >= MAX_KEYS_PER_USER) {
-      throw new HttpsError(
-        "resource-exhausted",
-        `Maximum of ${MAX_KEYS_PER_USER} active API keys reached. Revoke an existing key first.`
-      );
-    }
-
     const rawKey = "ciai_" + crypto.randomBytes(32).toString("hex");
     const keyHash = hashApiKey(rawKey);
-    const keyPrefix = rawKey.slice(0, 12) + "...";
+    // Store prefix without UI decoration — the client appends "..." when rendering.
+    const keyPrefix = rawKey.slice(0, 12);
     const now = new Date();
 
     const ref = db.collection("apiKeys").doc();
-    await ref.set({
-      userId,
-      name,
-      keyHash,
-      keyPrefix,
-      createdAt: now,
-      lastUsedAt: null,
-      active: true,
+
+    // Enforce per-user key limit atomically to prevent race conditions.
+    await db.runTransaction(async (transaction) => {
+      const existingSnap = await transaction.get(
+        db
+          .collection("apiKeys")
+          .where("userId", "==", userId)
+          .where("active", "==", true)
+      );
+
+      if (existingSnap.size >= MAX_KEYS_PER_USER) {
+        throw new HttpsError(
+          "resource-exhausted",
+          `Maximum of ${MAX_KEYS_PER_USER} active API keys reached. Revoke an existing key first.`
+        );
+      }
+
+      transaction.set(ref, {
+        userId,
+        name,
+        keyHash,
+        keyPrefix,
+        createdAt: now,
+        lastUsedAt: null,
+        active: true,
+      });
     });
 
     return {
@@ -114,9 +119,8 @@ export const revokeApiKey = onCall(
   { region: "asia-east1", cors: true },
   async (request) => {
     const userId = validateAuth(request);
-    const keyId = request.data.keyId as string | undefined;
-
-    if (!keyId) {
+    const keyId = request.data.keyId;
+    if (typeof keyId !== "string" || !keyId) {
       throw new HttpsError("invalid-argument", "keyId is required.");
     }
 

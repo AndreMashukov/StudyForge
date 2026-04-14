@@ -9,6 +9,7 @@ import { Badge } from '../../components/ui/Badge';
 import { useListApiKeysQuery, useCreateApiKeyMutation, useRevokeApiKeyMutation } from '../../store/api/ApiKeys/apiKeysApi';
 import { IApiKey } from '../../store/api/ApiKeys/IApiKeysApi';
 import { cn } from '../../lib/utils';
+import { formatDate } from '../../utils/dateUtils';
 
 export const ApiKeysSection: React.FC = () => {
   const { data, isLoading, error } = useListApiKeysQuery();
@@ -63,11 +64,10 @@ export const ApiKeysSection: React.FC = () => {
     if (!revokeTarget) return;
     try {
       await revokeApiKey({ keyId: revokeTarget.keyId }).unwrap();
-    } catch {
-      // error handled by RTK Query
-    } finally {
       setShowRevokeDialog(false);
       setRevokeTarget(null);
+    } catch {
+      // keep dialog open so user can retry
     }
   };
 
@@ -126,14 +126,14 @@ export const ApiKeysSection: React.FC = () => {
                       <td className="py-3 pr-4 font-medium text-foreground">{key.name}</td>
                       <td className="py-3 pr-4">
                         <Badge variant="secondary" className="font-mono text-xs">
-                          {key.keyPrefix}...
+                          {key.keyPrefix.replace(/\.\.\.$/,  '')}...
                         </Badge>
                       </td>
                       <td className="py-3 pr-4 text-muted-foreground">
-                        {key.createdAt ? new Date(key.createdAt).toLocaleDateString() : '—'}
+                        {key.createdAt ? formatDate(key.createdAt) : '—'}
                       </td>
                       <td className="py-3 pr-4 text-muted-foreground">
-                        {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : 'Never'}
+                        {key.lastUsedAt ? formatDate(key.lastUsedAt) : 'Never'}
                       </td>
                       <td className="py-3 text-right">
                         <Button
@@ -155,7 +155,7 @@ export const ApiKeysSection: React.FC = () => {
       </Card>
 
       {/* Create Key Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={(open) => { if (!open) handleCloseCreate(); }}>
+      <Dialog open={showCreateDialog} onOpenChange={(open) => { if (!open && !newKey) handleCloseCreate(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create API Key</DialogTitle>

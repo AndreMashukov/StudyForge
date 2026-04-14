@@ -61,15 +61,25 @@ export const api = onRequest(
     try {
       // POST /documents
       if (method === "POST" && path === "/documents") {
-        const data = req.body as CreateDocumentRequest;
-
-        if (!data.title || !data.content || !data.directoryId || !data.sourceType) {
+        const body: unknown = req.body;
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          res.status(400).json({ success: false, error: "Request body must be a JSON object." });
+          return;
+        }
+        const b = body as Record<string, unknown>;
+        if (
+          typeof b.title !== "string" ||
+          typeof b.content !== "string" ||
+          typeof b.directoryId !== "string" ||
+          typeof b.sourceType !== "string"
+        ) {
           res.status(400).json({
             success: false,
-            error: "title, content, directoryId, and sourceType are required.",
+            error: "title, content, directoryId, and sourceType are required string fields.",
           });
           return;
         }
+        const data = b as unknown as CreateDocumentRequest;
 
         const doc = await DocumentCrudService.createDocument(userId, data);
         res.status(201).json({ success: true, data: doc });
@@ -78,15 +88,17 @@ export const api = onRequest(
 
       // POST /directories
       if (method === "POST" && path === "/directories") {
-        const data = req.body as CreateDirectoryRequest;
-
-        if (!data.name) {
-          res.status(400).json({
-            success: false,
-            error: "name is required.",
-          });
+        const body: unknown = req.body;
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          res.status(400).json({ success: false, error: "Request body must be a JSON object." });
           return;
         }
+        const b = body as Record<string, unknown>;
+        if (typeof b.name !== "string" || !b.name.trim()) {
+          res.status(400).json({ success: false, error: "name is required." });
+          return;
+        }
+        const data = b as unknown as CreateDirectoryRequest;
 
         const dir = await directoryService.createDirectory(userId, data);
         res.status(201).json({ success: true, data: dir });
@@ -95,13 +107,22 @@ export const api = onRequest(
 
       // POST /quizzes/generate
       if (method === "POST" && path === "/quizzes/generate") {
-        const requestData = req.body as GenerateQuizRequest;
+        const body: unknown = req.body;
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          res.status(400).json({ success: false, error: "Request body must be a JSON object." });
+          return;
+        }
+        const requestData = body as GenerateQuizRequest;
 
         const documentIds = requestData.documentIds;
-        if (!documentIds || documentIds.length === 0) {
+        if (
+          !Array.isArray(documentIds) ||
+          documentIds.length === 0 ||
+          !documentIds.every((id) => typeof id === "string")
+        ) {
           res.status(400).json({
             success: false,
-            error: "documentIds is required (at least one document).",
+            error: "documentIds must be a non-empty array of strings.",
           });
           return;
         }
@@ -245,8 +266,7 @@ export const api = onRequest(
       console.error(`External API error [${method} ${path}]:`, err);
       res.status(500).json({
         success: false,
-        error:
-          err instanceof Error ? err.message : "Internal server error",
+        error: "Internal server error",
       });
     }
   }
