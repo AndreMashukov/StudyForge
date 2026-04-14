@@ -29,6 +29,7 @@ import { CreateDiagramQuizPage } from '../pages/CreateDiagramQuizPage';
 import { SequenceQuizPage } from '../pages/SequenceQuizPage';
 import { CreateSequenceQuizPage } from '../pages/CreateSequenceQuizPage';
 import { InteractionStatsPage } from '../pages/InteractionStatsPage';
+import { SettingsPage } from '../pages/SettingsPage';
 import { Page } from '../components/Page';
 import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
 import { QuizIndexRedirect } from '../utils/QuizIndexRedirect';
@@ -337,13 +338,7 @@ const AppContent = () => {
         element={
           <MainLayout>
             <ProtectedRoute>
-              <Page showSidebar={true}>
-                <div className="max-w-2xl mx-auto">
-                  <div className="text-center text-muted-foreground">
-                    Settings page coming soon...
-                  </div>
-                </div>
-              </Page>
+              <SettingsPage />
             </ProtectedRoute>
           </MainLayout>
         }
