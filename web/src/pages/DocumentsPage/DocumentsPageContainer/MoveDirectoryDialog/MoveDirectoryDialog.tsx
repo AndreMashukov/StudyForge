@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DirectoryTreeNode } from '@shared-types';
 import { useGetDirectoryTreeQuery, useMoveDirectoryMutation } from '../../../../store/api/Directory/DirectoryApi';
 import {
@@ -18,26 +18,55 @@ import { IMoveDirectoryDialog } from './IMoveDirectoryDialog';
 // Sentinel value meaning "move to root (no parent)"
 const ROOT_ID = '__root__';
 
-function isDescendantOrSelf(node: DirectoryTreeNode, sourcePath: string): boolean {
-  const nodePath = node.directory.path;
-  return nodePath === sourcePath || nodePath.startsWith(sourcePath + '/');
+function collectDescendantIds(node: DirectoryTreeNode): Set<string> {
+  const ids = new Set<string>();
+  for (const child of node.children) {
+    ids.add(child.directory.id);
+    for (const id of collectDescendantIds(child)) {
+      ids.add(id);
+    }
+  }
+  return ids;
+}
+
+function findNodeById(nodes: DirectoryTreeNode[], id: string): DirectoryTreeNode | null {
+  for (const node of nodes) {
+    if (node.directory.id === id) return node;
+    const found = findNodeById(node.children, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function buildDisabledIds(tree: DirectoryTreeNode[], sourceId: string): Set<string> {
+  const disabled = new Set<string>([sourceId]);
+  const sourceNode = findNodeById(tree, sourceId);
+  if (sourceNode) {
+    for (const id of collectDescendantIds(sourceNode)) {
+      disabled.add(id);
+    }
+  }
+  return disabled;
 }
 
 const DirectoryTreeItem = ({
   node,
-  sourcePath,
+  sourceId,
+  disabledIds,
   selectedId,
   onSelect,
   depth = 0,
 }: {
   node: DirectoryTreeNode;
-  sourcePath: string;
+  sourceId: string;
+  disabledIds: Set<string>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   depth?: number;
 }) => {
   const [expanded, setExpanded] = useState(true);
-  const isDisabled = isDescendantOrSelf(node, sourcePath);
+  const isDisabled = disabledIds.has(node.directory.id);
+  const isSource = node.directory.id === sourceId;
   const isSelected = node.directory.id === selectedId;
   const hasChildren = node.children.length > 0;
   const IconComponent = ICON_MAP[node.directory.icon || 'Folder'] || Folder;
@@ -82,7 +111,7 @@ const DirectoryTreeItem = ({
             className={cn('shrink-0', !node.directory.color && 'text-primary')}
           />
           <span className="truncate">{node.directory.name}</span>
-          {isDescendantOrSelf(node, sourcePath) && node.directory.path === sourcePath && (
+          {isSource && (
             <span className="text-[10px] text-muted-foreground ml-auto shrink-0">(current)</span>
           )}
         </button>
@@ -94,7 +123,8 @@ const DirectoryTreeItem = ({
             <DirectoryTreeItem
               key={child.directory.id}
               node={child}
-              sourcePath={sourcePath}
+              sourceId={sourceId}
+              disabledIds={disabledIds}
               selectedId={selectedId}
               onSelect={onSelect}
               depth={depth + 1}
@@ -118,6 +148,11 @@ export const MoveDirectoryDialog = ({
     skip: !isOpen,
   });
   const [moveDirectory, { isLoading: isMoving }] = useMoveDirectoryMutation();
+
+  const disabledIds = useMemo(
+    () => directory && treeData?.tree ? buildDisabledIds(treeData.tree, directory.id) : new Set<string>(),
+    [treeData?.tree, directory]
+  );
 
   const handleMove = async () => {
     if (!directory || selectedId === null) return;
@@ -199,7 +234,8 @@ export const MoveDirectoryDialog = ({
                   <DirectoryTreeItem
                     key={node.directory.id}
                     node={node}
-                    sourcePath={directory.path}
+                    sourceId={directory.id}
+                    disabledIds={disabledIds}
                     selectedId={selectedId}
                     onSelect={setSelectedId}
                   />
