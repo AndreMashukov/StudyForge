@@ -27,6 +27,7 @@ import {
   Rule,
 } from '../../libs/shared-types/src/index';
 import { resolveRulesForDirectory } from './rule-resolution';
+import { recalculateStatsForDirectoryMove } from './interaction-tracking';
 import { FirestorePaths } from '../lib/firestore-paths';
 
 export class DirectoryService {
@@ -782,6 +783,14 @@ export class DirectoryService {
 
     // Update paths of all descendants
     const descendants = await this.updateDescendantPaths(userId, directoryId, newPath);
+
+    // Recalculate interaction stats rollups for affected ancestor directories
+    await recalculateStatsForDirectoryMove(
+      userId,
+      directoryId,
+      directory.parentId,
+      request.targetParentId ?? null
+    );
 
     logger.info('Directory moved', {
       directoryId,
