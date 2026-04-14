@@ -4,10 +4,12 @@ import { useGetDirectoryTreeQuery, useMoveDirectoryMutation } from '../../../../
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
+  DialogTitle,
 } from '../../../../components/ui/Dialog';
 import { Button } from '../../../../components/ui/Button';
-import { FolderInput, Folder, ChevronRight, ChevronDown, Home } from 'lucide-react';
+import { FolderInput, Folder, ChevronRight, ChevronDown, Home, AlertCircle } from 'lucide-react';
 import { ICON_MAP } from '../folderConstants';
 import { cn } from '../../../../lib/utils';
 import { Spinner } from '../../../../components/ui/Spinner';
@@ -42,43 +44,50 @@ const DirectoryTreeItem = ({
 
   return (
     <div>
-      <button
-        type="button"
-        disabled={isDisabled}
-        onClick={() => onSelect(node.directory.id)}
-        className={cn(
-          'flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-sm transition-colors text-left',
-          isSelected
-            ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
-            : 'hover:bg-muted/50 border border-transparent',
-          isDisabled && 'opacity-40 cursor-not-allowed',
-        )}
-        style={{ paddingLeft: `${depth * 20 + 8}px` }}
+      <div
+        className="flex items-center"
+        style={{ paddingLeft: `${depth * 20}px` }}
       >
+        {/* Expand/collapse toggle — sibling to the selection button, not nested */}
         {hasChildren ? (
           <button
             type="button"
-            className="shrink-0 p-0.5 rounded hover:bg-muted"
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpanded(!expanded);
-            }}
+            aria-label={expanded ? 'Collapse folder' : 'Expand folder'}
+            aria-expanded={expanded}
+            className="shrink-0 w-6 h-7 flex items-center justify-center rounded hover:bg-muted"
+            onClick={() => setExpanded(!expanded)}
           >
             {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           </button>
         ) : (
-          <span className="w-4" />
+          <span className="w-6" />
         )}
-        <IconComponent
-          size={16}
-          color={node.directory.color || undefined}
-          className={cn('shrink-0', !node.directory.color && 'text-primary')}
-        />
-        <span className="truncate">{node.directory.name}</span>
-        {isDescendantOrSelf(node, sourcePath) && node.directory.path === sourcePath && (
-          <span className="text-[10px] text-muted-foreground ml-auto shrink-0">(current)</span>
-        )}
-      </button>
+
+        {/* Selection button */}
+        <button
+          type="button"
+          disabled={isDisabled}
+          onClick={() => onSelect(node.directory.id)}
+          className={cn(
+            'flex items-center gap-2 flex-1 rounded-md px-2 py-1.5 text-sm transition-colors text-left',
+            isSelected
+              ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+              : 'hover:bg-muted/50 border border-transparent',
+            isDisabled && 'opacity-40 cursor-not-allowed',
+          )}
+        >
+          <IconComponent
+            size={16}
+            color={node.directory.color || undefined}
+            className={cn('shrink-0', !node.directory.color && 'text-primary')}
+          />
+          <span className="truncate">{node.directory.name}</span>
+          {isDescendantOrSelf(node, sourcePath) && node.directory.path === sourcePath && (
+            <span className="text-[10px] text-muted-foreground ml-auto shrink-0">(current)</span>
+          )}
+        </button>
+      </div>
+
       {expanded && hasChildren && (
         <div>
           {node.children.map((child) => (
@@ -104,7 +113,8 @@ export const MoveDirectoryDialog = ({
   onSuccess,
 }: IMoveDirectoryDialog) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { data: treeData, isLoading: isLoadingTree } = useGetDirectoryTreeQuery(undefined, {
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const { data: treeData, isLoading: isLoadingTree, error: treeError } = useGetDirectoryTreeQuery(undefined, {
     skip: !isOpen,
   });
   const [moveDirectory, { isLoading: isMoving }] = useMoveDirectoryMutation();
@@ -113,6 +123,7 @@ export const MoveDirectoryDialog = ({
     if (!directory || selectedId === null) return;
 
     const targetParentId = selectedId === ROOT_ID ? null : selectedId;
+    setMoveError(null);
 
     try {
       await moveDirectory({
@@ -122,12 +133,13 @@ export const MoveDirectoryDialog = ({
       onSuccess();
       handleClose();
     } catch (error) {
-      console.error('Failed to move directory:', error);
+      setMoveError('Failed to move folder. Please try again.');
     }
   };
 
   const handleClose = () => {
     setSelectedId(null);
+    setMoveError(null);
     onClose();
   };
 
@@ -136,13 +148,13 @@ export const MoveDirectoryDialog = ({
       <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden">
         <div className="px-7 pt-7 pb-5 flex items-center gap-3.5 bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-transparent border-b border-border">
           <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shadow-[0_4px_12px_rgba(139,92,246,0.3)] shrink-0">
-            <FolderInput className="text-white" size={22} />
+            <FolderInput className="text-white" size={22} aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-[17px] font-semibold leading-tight">Move Folder</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <DialogTitle className="text-[17px] font-semibold leading-tight">Move Folder</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
               Choose a destination for &ldquo;{directory?.name}&rdquo;
-            </p>
+            </DialogDescription>
           </div>
         </div>
 
@@ -150,6 +162,11 @@ export const MoveDirectoryDialog = ({
           {isLoadingTree ? (
             <div className="flex justify-center py-8">
               <Spinner size="sm" />
+            </div>
+          ) : treeError ? (
+            <div className="flex items-center gap-2 text-destructive py-4 text-sm" role="alert">
+              <AlertCircle size={16} className="shrink-0" />
+              <span>Failed to load folders. Please close and try again.</span>
             </div>
           ) : (
             <div className="max-h-72 overflow-y-auto space-y-0.5 -mx-2 px-2">
@@ -165,8 +182,8 @@ export const MoveDirectoryDialog = ({
                   directory?.parentId === null && 'opacity-40 cursor-not-allowed',
                 )}
               >
-                <span className="w-4" />
-                <Home size={16} className="shrink-0 text-muted-foreground" />
+                <span className="w-6" />
+                <Home size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span>Root</span>
                 {directory?.parentId === null && (
                   <span className="text-[10px] text-muted-foreground ml-auto shrink-0">(current)</span>
@@ -190,6 +207,13 @@ export const MoveDirectoryDialog = ({
               )}
             </div>
           )}
+
+          {moveError && (
+            <div className="flex items-center gap-2 text-destructive mt-3 text-sm" role="alert">
+              <AlertCircle size={16} className="shrink-0" />
+              <span>{moveError}</span>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="px-7 pb-6">
@@ -198,7 +222,7 @@ export const MoveDirectoryDialog = ({
           </Button>
           <Button
             onClick={handleMove}
-            disabled={selectedId === null || isMoving}
+            disabled={selectedId === null || isMoving || !!treeError}
           >
             {isMoving ? 'Moving…' : 'Move Here'}
           </Button>
