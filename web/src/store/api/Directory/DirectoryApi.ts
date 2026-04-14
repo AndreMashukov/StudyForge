@@ -162,6 +162,7 @@ export const directoryApi = baseApi.injectEndpoints({
         { type: 'Directory', id: 'TREE' },
         { type: 'Directory', id: 'LIST' },
         { type: 'Directory', id: 'CONTENTS' },
+        'InteractionStats',
       ],
     }),
 

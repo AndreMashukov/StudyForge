@@ -14,6 +14,7 @@ import { FolderCard } from './FolderCard';
 import { CreateDirectoryDialog } from './CreateDirectoryDialog';
 import { EditDirectoryDialog } from './EditDirectoryDialog';
 import { DeleteDirectoryDialog } from './DeleteDirectoryDialog';
+import { MoveDirectoryDialog } from './MoveDirectoryDialog';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
 import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus, Menu, Layers, Presentation } from 'lucide-react';
 import { DocumentEnhanced, Directory } from "@shared-types";
@@ -59,6 +60,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     open: false,
     directory: null,
   });
+  const [moveDialog, setMoveDialog] = useState<{ directory: Directory | null }>({ directory: null });
 
   const handleCreateDirectory = (parentId: string | null) => {
     setCreateDialogParentId(parentId);
@@ -238,6 +240,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                           onClick={() => handlers.handleSelectDirectory(dir.id)}
                           onEdit={() => setEditDialog({ open: true, directory: dir })}
                           onDelete={() => setDeleteDialog({ open: true, directory: dir })}
+                          onMove={() => setMoveDialog({ directory: dir })}
                           onManageRules={() => navigate(`/directories/${dir.id}/rules`)}
                         />
                       ))}
@@ -362,6 +365,15 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
         isOpen={deleteDialog.open}
         onClose={() => setDeleteDialog({ open: false, directory: null })}
         directory={deleteDialog.directory}
+        onSuccess={() => {
+          // Refetch is handled automatically by RTK Query
+        }}
+      />
+
+      <MoveDirectoryDialog
+        isOpen={moveDialog.directory !== null}
+        onClose={() => setMoveDialog({ directory: null })}
+        directory={moveDialog.directory}
         onSuccess={() => {
           // Refetch is handled automatically by RTK Query
         }}
