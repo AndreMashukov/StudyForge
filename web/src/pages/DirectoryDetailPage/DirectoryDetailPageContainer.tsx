@@ -18,6 +18,7 @@ import {
 import {
   ArrowLeft,
   Folder,
+  FolderInput,
   FolderPlus,
   MoreVertical,
   Pencil,
@@ -29,6 +30,7 @@ import { ICON_MAP } from '../DocumentsPage/DocumentsPageContainer/folderConstant
 import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/CreateDirectoryDialog';
 import { EditDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/EditDirectoryDialog';
 import { DeleteDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/DeleteDirectoryDialog';
+import { MoveDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/MoveDirectoryDialog';
 import { DeleteDocumentDialog } from './DeleteDocumentDialog';
 import { MoveDocumentDialog } from './MoveDocumentDialog';
 import { DeleteArtifactDialog, ArtifactToDelete } from './DeleteArtifactDialog';
@@ -68,6 +70,7 @@ export const DirectoryDetailPageContainer = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialog, setEditDialog] = useState<{ directory: Directory | null }>({ directory: null });
   const [deleteDialog, setDeleteDialog] = useState<{ directory: Directory | null }>({ directory: null });
+  const [moveDirectoryDialog, setMoveDirectoryDialog] = useState<{ directory: Directory | null }>({ directory: null });
   const [deleteDocDialog, setDeleteDocDialog] = useState<{ document: DocumentEnhanced | null }>({ document: null });
   const [moveDocDialog, setMoveDocDialog] = useState<{ document: DocumentEnhanced | null }>({ document: null });
   const [deleteArtifactDialog, setDeleteArtifactDialog] = useState<{ artifact: ArtifactToDelete | null }>({ artifact: null });
@@ -248,6 +251,12 @@ export const DirectoryDetailPageContainer = () => {
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
+                          onClick={() => setMoveDirectoryDialog({ directory: sub })}
+                        >
+                          <FolderInput size={14} className="mr-2" />
+                          Move to...
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={() => navigate(`/directories/${sub.id}/rules`)}
                         >
                           <Shield size={14} className="mr-2" />
@@ -357,6 +366,13 @@ export const DirectoryDetailPageContainer = () => {
         onClose={() => setDeleteDialog({ directory: null })}
         directory={deleteDialog.directory}
         onSuccess={() => setDeleteDialog({ directory: null })}
+      />
+
+      <MoveDirectoryDialog
+        isOpen={!!moveDirectoryDialog.directory}
+        onClose={() => setMoveDirectoryDialog({ directory: null })}
+        directory={moveDirectoryDialog.directory}
+        onSuccess={() => setMoveDirectoryDialog({ directory: null })}
       />
 
       <DeleteDocumentDialog
