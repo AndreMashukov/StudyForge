@@ -17,15 +17,19 @@ import {
   getRules,
 } from "../services/rule-crud";
 import { FirestorePaths } from "../lib/firestore-paths";
+import { FieldValue } from "firebase-admin/firestore";
+import { randomUUID } from "crypto";
 import {
   CreateDocumentRequest,
   CreateDirectoryRequest,
   CreateRuleRequest,
   DocumentSourceType,
   DocumentStatus,
+  Flashcard,
+  FlashcardSet,
   GenerateQuizRequest,
   RuleApplicability,
-  FlashcardSet,
+  Slide,
   SlideDeck,
   DiagramQuiz,
 } from "@shared-types";
@@ -262,6 +266,470 @@ export const api = onRequest(
           success: true,
           data: { quizId: savedQuiz.id, quiz: savedQuiz },
         });
+        return;
+      }
+
+      // POST /diagram-quizzes/generate
+      if (method === "POST" && path === "/diagram-quizzes/generate") {
+        const body: unknown = req.body;
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          res.status(400).json({ success: false, error: "Request body must be a JSON object." });
+          return;
+        }
+        const requestData = body as Record<string, unknown>;
+
+        const documentIds = requestData.documentIds as string[];
+        if (
+          !Array.isArray(documentIds) ||
+          documentIds.length === 0 ||
+          !documentIds.every((id) => typeof id === "string")
+        ) {
+          res.status(400).json({ success: false, error: "documentIds must be a non-empty array of strings." });
+          return;
+        }
+        if (documentIds.length > 5) {
+          res.status(400).json({ success: false, error: "Maximum 5 documents allowed." });
+          return;
+        }
+
+        const diagramQuizName = typeof requestData.diagramQuizName === "string" ? requestData.diagramQuizName.trim() : undefined;
+        const additionalPrompt = typeof requestData.additionalPrompt === "string" ? requestData.additionalPrompt.trim() : undefined;
+        const quizRuleIds = Array.isArray(requestData.quizRuleIds) ? requestData.quizRuleIds as string[] : undefined;
+        const followupRuleIds = Array.isArray(requestData.followupRuleIds) ? requestData.followupRuleIds as string[] : undefined;
+        const additionalRuleIds = Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds as string[] : undefined;
+
+        const documentDataList = await Promise.all(
+          documentIds.map(async (docId) => {
+            const doc = await DocumentCrudService.getDocument(userId, docId);
+            const content = await FirestoreService.getDocumentContent(userId, docId);
+            return { doc, content };
+          })
+        );
+
+        const resolvedDirectoryId = (requestData.directoryId as string) ?? documentDataList[0]?.doc.directoryId;
+        if (!resolvedDirectoryId) {
+          res.status(400).json({ success: false, error: "directoryId is required, or documents must belong to a directory." });
+          return;
+        }
+        await directoryService.validateDirectoryId(userId, resolvedDirectoryId);
+
+        for (const { doc } of documentDataList) {
+          if (!doc.directoryId || doc.directoryId !== resolvedDirectoryId) {
+            res.status(400).json({ success: false, error: "All selected documents must belong to the same directory." });
+            return;
+          }
+        }
+
+        const combinedContent = documentDataList.map((d) => d.content).join("\n\n---\n\n");
+        const combinedTitle = documentDataList.map((d) => d.doc.title).join(" + ");
+        const documentContent = {
+          title: combinedTitle,
+          content: combinedContent,
+          wordCount: combinedContent.split(/\s+/).length,
+        };
+
+        GeminiService.validateContentForQuiz(documentContent);
+
+        let enhancedPrompt = additionalPrompt || "";
+        let followupIdsForSave: string[] = [];
+
+        if (quizRuleIds?.length || followupRuleIds?.length) {
+          const { quizPrompt } = await promptBuilder.injectQuizRules(
+            enhancedPrompt, quizRuleIds || [], followupRuleIds || [], userId
+          );
+          enhancedPrompt = quizPrompt;
+          followupIdsForSave = followupRuleIds || [];
+        } else {
+          const quizRulesText = await resolveGenerationRulesForPrompt(
+            userId, resolvedDirectoryId, RuleApplicability.DIAGRAM_QUIZ, additionalRuleIds
+          );
+          if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
+          const { rules: followupRules } = await resolveRulesForDirectory(
+            userId, resolvedDirectoryId, RuleApplicability.FOLLOWUP
+          );
+          followupIdsForSave = followupRules.map((r) => r.id);
+          if (additionalRuleIds?.length) {
+            for (const id of additionalRuleIds) {
+              if (!followupIdsForSave.includes(id)) followupIdsForSave.push(id);
+            }
+          }
+        }
+
+        const geminiQuiz = await GeminiService.generateDiagramQuiz(documentContent, enhancedPrompt);
+
+        if (diagramQuizName) {
+          geminiQuiz.title = diagramQuizName;
+        } else if (documentIds.length === 1) {
+          geminiQuiz.title = `Diagram Quiz from ${documentDataList[0].doc.title}`;
+        } else {
+          geminiQuiz.title = `Diagram Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
+        }
+
+        const saved = await FirestoreService.saveDiagramQuizFromDocument(
+          documentIds[0], geminiQuiz, userId, resolvedDirectoryId,
+          followupIdsForSave, documentIds.length > 1 ? documentIds : undefined
+        );
+
+        res.status(201).json({ success: true, data: { diagramQuizId: saved.id, diagramQuiz: saved } });
+        return;
+      }
+
+      // POST /sequence-quizzes/generate
+      if (method === "POST" && path === "/sequence-quizzes/generate") {
+        const body: unknown = req.body;
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          res.status(400).json({ success: false, error: "Request body must be a JSON object." });
+          return;
+        }
+        const requestData = body as Record<string, unknown>;
+
+        const documentIds = requestData.documentIds as string[];
+        if (
+          !Array.isArray(documentIds) ||
+          documentIds.length === 0 ||
+          !documentIds.every((id) => typeof id === "string")
+        ) {
+          res.status(400).json({ success: false, error: "documentIds must be a non-empty array of strings." });
+          return;
+        }
+        if (documentIds.length > 5) {
+          res.status(400).json({ success: false, error: "Maximum 5 documents allowed." });
+          return;
+        }
+
+        const sequenceQuizName = typeof requestData.sequenceQuizName === "string" ? requestData.sequenceQuizName.trim() : undefined;
+        const additionalPrompt = typeof requestData.additionalPrompt === "string" ? requestData.additionalPrompt.trim() : undefined;
+        const additionalRuleIds = Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds as string[] : undefined;
+
+        const documentDataList = await Promise.all(
+          documentIds.map(async (docId) => {
+            const doc = await DocumentCrudService.getDocument(userId, docId);
+            const content = await FirestoreService.getDocumentContent(userId, docId);
+            return { doc, content };
+          })
+        );
+
+        const resolvedDirectoryId = (requestData.directoryId as string) ?? documentDataList[0]?.doc.directoryId;
+        if (!resolvedDirectoryId) {
+          res.status(400).json({ success: false, error: "directoryId is required, or documents must belong to a directory." });
+          return;
+        }
+        await directoryService.validateDirectoryId(userId, resolvedDirectoryId);
+
+        for (const { doc } of documentDataList) {
+          if (!doc.directoryId || doc.directoryId !== resolvedDirectoryId) {
+            res.status(400).json({ success: false, error: "All selected documents must belong to the same directory." });
+            return;
+          }
+        }
+
+        const combinedContent = documentDataList.map((d) => d.content).join("\n\n---\n\n");
+        const combinedTitle = documentDataList.map((d) => d.doc.title).join(" + ");
+        const documentContent = {
+          title: combinedTitle,
+          content: combinedContent,
+          wordCount: combinedContent.split(/\s+/).length,
+        };
+
+        GeminiService.validateContentForQuiz(documentContent);
+
+        let enhancedPrompt = additionalPrompt || "";
+        let followupIdsForSave: string[] = [];
+
+        const quizRulesText = await resolveGenerationRulesForPrompt(
+          userId, resolvedDirectoryId, RuleApplicability.SEQUENCE_QUIZ, additionalRuleIds
+        );
+        if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
+        const { rules: followupRules } = await resolveRulesForDirectory(
+          userId, resolvedDirectoryId, RuleApplicability.FOLLOWUP
+        );
+        followupIdsForSave = followupRules.map((r) => r.id);
+
+        const geminiQuiz = await GeminiService.generateSequenceQuiz(
+          documentContent, enhancedPrompt || undefined
+        );
+
+        if (sequenceQuizName) {
+          geminiQuiz.title = sequenceQuizName;
+        } else if (documentIds.length === 1) {
+          geminiQuiz.title = `Sequence Quiz from ${documentDataList[0].doc.title}`;
+        } else {
+          geminiQuiz.title = `Sequence Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
+        }
+
+        const saved = await FirestoreService.saveSequenceQuizFromDocument(
+          documentIds[0], geminiQuiz, userId, resolvedDirectoryId,
+          followupIdsForSave, documentIds.length > 1 ? documentIds : undefined
+        );
+
+        res.status(201).json({ success: true, data: { sequenceQuizId: saved.id, sequenceQuiz: saved } });
+        return;
+      }
+
+      // POST /flashcard-sets/generate
+      if (method === "POST" && path === "/flashcard-sets/generate") {
+        const body: unknown = req.body;
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          res.status(400).json({ success: false, error: "Request body must be a JSON object." });
+          return;
+        }
+        const requestData = body as Record<string, unknown>;
+
+        const documentIds = requestData.documentIds as string[];
+        if (
+          !Array.isArray(documentIds) ||
+          documentIds.length === 0 ||
+          !documentIds.every((id) => typeof id === "string")
+        ) {
+          res.status(400).json({ success: false, error: "documentIds must be a non-empty array of strings." });
+          return;
+        }
+        if (documentIds.length > 5) {
+          res.status(400).json({ success: false, error: "Maximum 5 documents allowed." });
+          return;
+        }
+
+        const customTitle = typeof requestData.title === "string" ? requestData.title.trim() : undefined;
+        const additionalPrompt = typeof requestData.additionalPrompt === "string" ? requestData.additionalPrompt.trim() : undefined;
+        const ruleIds = Array.isArray(requestData.ruleIds) ? requestData.ruleIds as string[] : undefined;
+        const additionalRuleIds = Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds as string[] : undefined;
+
+        const documentDataList = await Promise.all(
+          documentIds.map(async (docId) => {
+            const doc = await DocumentCrudService.getDocument(userId, docId);
+            const content = await FirestoreService.getDocumentContent(userId, docId);
+            return { doc, content };
+          })
+        );
+
+        const combinedContent = documentDataList.map((d) => d.content).join("\n\n---\n\n");
+
+        const resolvedDirectoryId = (requestData.directoryId as string) ?? documentDataList[0]?.doc.directoryId;
+        if (!resolvedDirectoryId) {
+          res.status(400).json({ success: false, error: "directoryId is required, or documents must belong to a directory." });
+          return;
+        }
+        await directoryService.validateDirectoryId(userId, resolvedDirectoryId);
+        for (const { doc } of documentDataList) {
+          if (!doc.directoryId || doc.directoryId !== resolvedDirectoryId) {
+            res.status(400).json({ success: false, error: "All selected documents must belong to the same directory." });
+            return;
+          }
+        }
+
+        let injectedRules: string | undefined;
+        if (ruleIds?.length) {
+          injectedRules = await promptBuilder.injectRules(additionalPrompt || "", ruleIds, userId);
+        } else {
+          const rulesText = await resolveGenerationRulesForPrompt(
+            userId, resolvedDirectoryId, RuleApplicability.FLASHCARD, additionalRuleIds
+          );
+          const base = additionalPrompt || "";
+          if (rulesText && base) {
+            injectedRules = `${rulesText}\n\n${base}`;
+          } else if (rulesText) {
+            injectedRules = rulesText;
+          } else if (base) {
+            injectedRules = base;
+          }
+        }
+
+        const generatedFlashcards = await GeminiService.generateFlashcards(combinedContent, injectedRules);
+        const flashcardsWithIds: Flashcard[] = generatedFlashcards.map((card) => ({
+          ...card,
+          id: admin.firestore().collection("tmp").doc().id,
+        }));
+
+        let title: string;
+        if (customTitle) {
+          title = customTitle;
+        } else if (documentIds.length === 1) {
+          title = `Flashcards for "${documentDataList[0].doc.title}"`;
+        } else {
+          title = `Flashcards for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`;
+        }
+
+        const primaryDocumentId = documentIds[0];
+        const newFlashcardSetData = {
+          title,
+          flashcards: flashcardsWithIds,
+          userId,
+          documentId: primaryDocumentId,
+          directoryId: resolvedDirectoryId,
+          ...(documentIds.length > 1 ? { documentIds } : {}),
+          documentTitle: documentDataList[0].doc.title,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        const db = admin.firestore();
+        const newRef = FirestorePaths.flashcardSets(userId).doc();
+        await db.runTransaction(async (transaction) => {
+          transaction.set(newRef, newFlashcardSetData);
+          transaction.update(FirestorePaths.directory(userId, resolvedDirectoryId), {
+            flashcardSetCount: FieldValue.increment(1),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        });
+
+        res.status(201).json({ success: true, data: { flashcardSetId: newRef.id } });
+        return;
+      }
+
+      // POST /slide-decks/generate
+      if (method === "POST" && path === "/slide-decks/generate") {
+        const body: unknown = req.body;
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          res.status(400).json({ success: false, error: "Request body must be a JSON object." });
+          return;
+        }
+        const requestData = body as Record<string, unknown>;
+
+        const documentIds = requestData.documentIds as string[];
+        if (
+          !Array.isArray(documentIds) ||
+          documentIds.length === 0 ||
+          !documentIds.every((id) => typeof id === "string")
+        ) {
+          res.status(400).json({ success: false, error: "documentIds must be a non-empty array of strings." });
+          return;
+        }
+        if (documentIds.length > 5) {
+          res.status(400).json({ success: false, error: "Maximum 5 documents allowed." });
+          return;
+        }
+
+        const customTitle = typeof requestData.title === "string" ? requestData.title.trim() : undefined;
+        const additionalPrompt = typeof requestData.additionalPrompt === "string" ? requestData.additionalPrompt.trim() : undefined;
+        const ruleIds = Array.isArray(requestData.ruleIds) ? requestData.ruleIds as string[] : undefined;
+        const additionalRuleIds = Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds as string[] : undefined;
+
+        const documentDataList = await Promise.all(
+          documentIds.map(async (docId) => {
+            const doc = await DocumentCrudService.getDocument(userId, docId);
+            const content = await FirestoreService.getDocumentContent(userId, docId);
+            return { doc, content };
+          })
+        );
+
+        const combinedContent = documentDataList.map((d) => d.content).join("\n\n---\n\n");
+
+        const resolvedDirectoryId = (requestData.directoryId as string) ?? documentDataList[0]?.doc.directoryId;
+        if (!resolvedDirectoryId) {
+          res.status(400).json({ success: false, error: "directoryId is required, or documents must belong to a directory." });
+          return;
+        }
+        await directoryService.validateDirectoryId(userId, resolvedDirectoryId);
+        for (const { doc } of documentDataList) {
+          if (!doc.directoryId || doc.directoryId !== resolvedDirectoryId) {
+            res.status(400).json({ success: false, error: "All selected documents must belong to the same directory." });
+            return;
+          }
+        }
+
+        let injectedRules: string | undefined;
+        if (ruleIds?.length) {
+          injectedRules = await promptBuilder.injectRules(additionalPrompt || "", ruleIds, userId);
+        } else {
+          const rulesText = await resolveGenerationRulesForPrompt(
+            userId, resolvedDirectoryId, RuleApplicability.SLIDE_DECK, additionalRuleIds
+          );
+          const base = additionalPrompt || "";
+          if (rulesText && base) {
+            injectedRules = `${rulesText}\n\n${base}`;
+          } else if (rulesText) {
+            injectedRules = rulesText;
+          } else if (base) {
+            injectedRules = base;
+          }
+        }
+
+        const slideOutline = await GeminiService.generateSlideDeckOutline(
+          combinedContent, additionalPrompt || undefined, injectedRules
+        );
+
+        const CONCURRENCY = 3;
+        const slides: Slide[] = slideOutline.map((outline) => ({
+          id: admin.firestore().collection("tmp").doc().id,
+          title: outline.title,
+          content: outline.content,
+          speakerNotes: outline.speakerNotes,
+        }));
+
+        const uploadedPaths: string[] = [];
+        try {
+          for (let batch = 0; batch < slides.length; batch += CONCURRENCY) {
+            const chunk = slides.slice(batch, batch + CONCURRENCY);
+            await Promise.all(chunk.map(async (slide, ci) => {
+              const i = batch + ci;
+              const brief = await GeminiService.generateSlideImageBrief(slide.title, slide.content, injectedRules);
+              let imageBase64: string | null = null;
+              if (brief) {
+                const { SlideDeckPromptBuilder } = await import("../services/gemini/prompt-builder/slide-deck");
+                const imagePrompt = SlideDeckPromptBuilder.buildSlideImageFromBriefPrompt(brief);
+                imageBase64 = await GeminiService.generateSlideImageFromPrompt(imagePrompt);
+              }
+              if (!imageBase64) {
+                imageBase64 = await GeminiService.generateSlideImage(slide.title, slide.content, injectedRules);
+              }
+              if (imageBase64) {
+                const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.png`;
+                const downloadToken = randomUUID();
+                const file = admin.storage().bucket().file(storagePath);
+                await file.save(Buffer.from(imageBase64, "base64"), {
+                  metadata: {
+                    contentType: "image/png",
+                    metadata: { firebaseStorageDownloadTokens: downloadToken },
+                  },
+                  resumable: false,
+                });
+                slide.imageStoragePath = storagePath;
+                slide.imageDownloadToken = downloadToken;
+                uploadedPaths.push(storagePath);
+              }
+            }));
+          }
+        } catch (genError) {
+          if (uploadedPaths.length > 0) {
+            const bucket = admin.storage().bucket();
+            await Promise.allSettled(uploadedPaths.map((p) => bucket.file(p).delete().catch(() => { /* ignore cleanup errors */ })));
+          }
+          throw genError;
+        }
+
+        let deckTitle: string;
+        if (customTitle) {
+          deckTitle = customTitle;
+        } else if (documentIds.length === 1) {
+          deckTitle = `Slides for "${documentDataList[0].doc.title}"`;
+        } else {
+          deckTitle = `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`;
+        }
+
+        const primaryDocumentId = documentIds[0];
+        const newSlideDeckData = {
+          title: deckTitle,
+          slides,
+          userId,
+          documentId: primaryDocumentId,
+          directoryId: resolvedDirectoryId,
+          ...(documentIds.length > 1 ? { documentIds } : {}),
+          documentTitle: documentDataList[0].doc.title,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        const db = admin.firestore();
+        const newDeckRef = FirestorePaths.slideDecks(userId).doc();
+        await db.runTransaction(async (transaction) => {
+          transaction.set(newDeckRef, newSlideDeckData);
+          transaction.update(FirestorePaths.directory(userId, resolvedDirectoryId), {
+            slideDeckCount: FieldValue.increment(1),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        });
+
+        res.status(201).json({ success: true, data: { slideDeckId: newDeckRef.id } });
         return;
       }
 
@@ -633,6 +1101,10 @@ export const api = onRequest(
           "POST /directories",
           "POST /rules",
           "POST /quizzes/generate",
+          "POST /diagram-quizzes/generate",
+          "POST /sequence-quizzes/generate",
+          "POST /flashcard-sets/generate",
+          "POST /slide-decks/generate",
           // Read — Documents
           "GET /documents",
           "GET /documents/:id",
