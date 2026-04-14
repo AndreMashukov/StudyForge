@@ -641,6 +641,7 @@ export const api = onRequest(
           "GET /directories",
           "GET /directories/:id",
           "GET /directories/:id/contents",
+          "GET /directories/:id/rules",
           // Read — Rules (filterable by ?applicableTo=quiz,prompt,...)",
           "GET /rules",
           "GET /rules/:id",
