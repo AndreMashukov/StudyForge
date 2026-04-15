@@ -34,6 +34,31 @@ function sanitizeBracketLabels(source: string): string {
 }
 
 /**
+ * Round-paren node labels like  ('label')  or  ("label")  break when the
+ * inner text itself contains parentheses — the Mermaid lexer treats an inner
+ * '(' as a new shape-start token (PS).  Example:
+ *   F0('Function 0 (Running)')   ← parse error
+ *   F0('Function 0 #40;Running#41;')  ← works
+ *
+ * Replace inner parentheses with Mermaid HTML-entity shorthand #40; and #41;.
+ */
+function sanitizeParenLabels(source: string): string {
+  // Single-quoted paren labels: ('...')
+  let result = source.replace(/\('([^'\n]*)'\)/g, (_match, inner: string) => {
+    if (!/[()]/.test(inner)) return _match;
+    const escaped = inner.replace(/\(/g, '#40;').replace(/\)/g, '#41;');
+    return `('${escaped}')`;
+  });
+  // Double-quoted paren labels: ("...")
+  result = result.replace(/\("([^"\n]*)"\)/g, (_match, inner: string) => {
+    if (!/[()]/.test(inner)) return _match;
+    const escaped = inner.replace(/\(/g, '#40;').replace(/\)/g, '#41;');
+    return `("${escaped}")`;
+  });
+  return result;
+}
+
+/**
  * Mermaid subgraph IDs cannot contain spaces when referenced in edges.
  * AI-generated diagrams often produce `subgraph My Label` and then use
  * `My Label --> Other Label` in edges, which causes parse errors.
@@ -108,7 +133,7 @@ function extractDiagramType(source: string): string | null {
 }
 
 function sanitizeMermaidCode(source: string): string {
-  return sanitizeSubgraphIds(sanitizeBracketLabels(source));
+  return sanitizeSubgraphIds(sanitizeParenLabels(sanitizeBracketLabels(source)));
 }
 
 export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) => {
