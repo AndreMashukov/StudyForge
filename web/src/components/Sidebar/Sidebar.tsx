@@ -2,8 +2,6 @@ import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  ChevronsLeft, 
-  ChevronsRight, 
   Home, 
   Settings, 
   User,
@@ -114,26 +112,6 @@ export const Sidebar = ({ className }: ISidebar) => {
           className
         )}
       >
-        {/* Header with toggle button */}
-        <div className={cn(
-          sidebarStyles.header,
-          isOpen ? sidebarStyles.headerExpanded : sidebarStyles.headerCollapsed
-        )}>
-          <button
-            type="button"
-            onClick={handleToggleSidebar}
-            className={sidebarStyles.toggleButton}
-            aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-          >
-            {isOpen ? <ChevronsLeft size={16} /> : <ChevronsRight size={16} />}
-          </button>
-          {isOpen && (
-            <h2 className={sidebarStyles.headerTitle}>
-              Code Insights AI
-            </h2>
-          )}
-        </div>
-
         {/* Nav items grouped by section */}
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
           {sectionOrder.map((section) => (
