@@ -162,3 +162,6 @@ docs/*
 env.prod
 env.devscreenshots/
 wireframes/
+
+.claude/worktrees
+.claude/settings.local.json
