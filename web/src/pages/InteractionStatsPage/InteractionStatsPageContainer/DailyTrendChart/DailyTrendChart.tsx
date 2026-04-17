@@ -21,7 +21,7 @@ export const DailyTrendChart: React.FC<IDailyTrendChart> = ({ data }) => {
   const theme = useChartTheme();
 
   return (
-    <div role="img" aria-label="Line chart showing daily study time trend">
+    <div role="img" aria-label="Line chart showing daily study time trend" className="outline-none select-none">
     <ResponsiveContainer width="100%" height={300}>
       <LineChart
         data={data}
@@ -29,9 +29,19 @@ export const DailyTrendChart: React.FC<IDailyTrendChart> = ({ data }) => {
       >
         <defs>
           <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={theme.primary} stopOpacity={0.3} />
-            <stop offset="95%" stopColor={theme.primary} stopOpacity={0} />
+            <stop offset="0%" stopColor={theme.primary} stopOpacity={0.45} />
+            <stop offset="60%" stopColor={theme.primary} stopOpacity={0.15} />
+            <stop offset="100%" stopColor={theme.primary} stopOpacity={0} />
           </linearGradient>
+          <linearGradient id="trendEdgeFade" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="white" stopOpacity={0} />
+            <stop offset="8%" stopColor="white" stopOpacity={1} />
+            <stop offset="92%" stopColor="white" stopOpacity={1} />
+            <stop offset="100%" stopColor="white" stopOpacity={0} />
+          </linearGradient>
+          <mask id="trendEdgeMask" maskContentUnits="objectBoundingBox">
+            <rect x="0" y="0" width="1" height="1" fill="url(#trendEdgeFade)" />
+          </mask>
         </defs>
         <CartesianGrid
           strokeDasharray="3 3"
@@ -68,6 +78,7 @@ export const DailyTrendChart: React.FC<IDailyTrendChart> = ({ data }) => {
           dataKey="minutes"
           stroke="none"
           fill="url(#trendGradient)"
+          mask="url(#trendEdgeMask)"
         />
         <Line
           type="monotone"
