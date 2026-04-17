@@ -1,0 +1,150 @@
+- generic [ref=e1]:
+  - generic [ref=e7]:
+    - banner [ref=e8]:
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - button "Toggle sidebar" [ref=e12] [cursor=pointer]:
+            - img [ref=e13]
+          - link "AI Learning Assistant" [ref=e14] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e15]: AI Learning Assistant
+        - button "Switch to light theme" [ref=e17] [cursor=pointer]:
+          - img [ref=e18]
+    - main [ref=e20]:
+      - complementary [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - generic [ref=e24]: Navigation
+            - generic [ref=e25]:
+              - button "Dashboard" [ref=e26] [cursor=pointer]:
+                - img [ref=e27]
+                - generic [ref=e30]: Dashboard
+              - button "My Directories" [ref=e31] [cursor=pointer]:
+                - img [ref=e32]
+                - generic [ref=e35]: My Directories
+              - button "Rules Manager" [ref=e36] [cursor=pointer]:
+                - img [ref=e37]
+                - generic [ref=e40]: Rules Manager
+          - generic [ref=e41]:
+            - generic [ref=e42]: Account
+            - generic [ref=e43]:
+              - button "Profile" [ref=e44] [cursor=pointer]:
+                - img [ref=e45]
+                - generic [ref=e48]: Profile
+              - button "Settings" [ref=e49] [cursor=pointer]:
+                - img [ref=e50]
+                - generic [ref=e53]: Settings
+        - generic [ref=e54]:
+          - generic [ref=e55]: A
+          - generic [ref=e56]:
+            - generic [ref=e57]: andre.mashukov@gmail.com
+            - generic [ref=e58]: Free plan
+          - button "Sign out" [ref=e59] [cursor=pointer]:
+            - img [ref=e60]
+      - main [ref=e64]:
+        - generic [ref=e65]:
+          - generic [ref=e66]:
+            - generic [ref=e67]:
+              - heading "Dashboard" [level=1] [ref=e68]
+              - paragraph [ref=e69]: Your study activity at a glance
+            - generic [ref=e72]:
+              - button "Today" [ref=e73] [cursor=pointer]
+              - button "7 days" [ref=e74] [cursor=pointer]
+              - button "30 days" [ref=e75] [cursor=pointer]
+          - generic [ref=e76]:
+            - generic [ref=e78]:
+              - paragraph [ref=e79]: Total Study Time
+              - paragraph [ref=e80]: 4h 4m
+              - paragraph [ref=e81]: Last 7 days
+            - generic [ref=e83]:
+              - paragraph [ref=e84]: Directories
+              - paragraph [ref=e85]: "3"
+              - paragraph [ref=e86]: with activity
+          - generic [ref=e87]:
+            - generic [ref=e88]:
+              - heading "Daily Study Trend" [level=3] [ref=e90]:
+                - img [ref=e91]
+                - text: Daily Study Trend
+              - img "Line chart showing daily study time trend" [ref=e95]:
+                - application [ref=e98]:
+                  - generic [ref=e115]:
+                    - generic [ref=e116]:
+                      - generic [ref=e118]: 4/11
+                      - generic [ref=e120]: 4/12
+                      - generic [ref=e122]: 4/13
+                      - generic [ref=e124]: 4/14
+                      - generic [ref=e126]: 4/15
+                      - generic [ref=e128]: 4/16
+                      - generic [ref=e130]: 4/17
+                    - generic [ref=e131]:
+                      - generic [ref=e133]: 0 min
+                      - generic [ref=e135]: 20 min
+                      - generic [ref=e137]: 40 min
+                      - generic [ref=e139]: 60 min
+                      - generic [ref=e141]: 80 min
+            - generic [ref=e142]:
+              - heading "Time per Directory" [level=3] [ref=e144]:
+                - img [ref=e145]
+                - text: Time per Directory
+              - img "Bar chart showing study time in minutes per directory" [ref=e148]:
+                - application [ref=e151]:
+                  - generic [ref=e168]:
+                    - generic [ref=e169]:
+                      - generic [ref=e171]: 0 min
+                      - generic [ref=e173]: 40 min
+                      - generic [ref=e175]: 80 min
+                      - generic [ref=e177]: 120 min
+                      - generic [ref=e179]: 160 min
+                    - generic [ref=e180]:
+                      - generic [ref=e182]: DSA
+                      - generic [ref=e184]: AWS
+                      - generic [ref=e186]: Cantonese
+            - generic [ref=e187]:
+              - heading "Directory Share" [level=3] [ref=e189]:
+                - img [ref=e190]
+                - text: Directory Share
+              - img "Pie chart showing the share of study time per directory" [ref=e194]:
+                - generic [ref=e196]:
+                  - list [ref=e198]:
+                    - listitem [ref=e199]:
+                      - img "AWS legend icon" [ref=e200]
+                      - text: AWS (35%)
+                    - listitem [ref=e202]:
+                      - img "Cantonese legend icon" [ref=e203]
+                      - text: Cantonese (1%)
+                    - listitem [ref=e205]:
+                      - img "DSA legend icon" [ref=e206]
+                      - text: DSA (65%)
+                  - application [active] [ref=e208]
+            - generic [ref=e221]:
+              - heading "Artifact Type Breakdown" [level=3] [ref=e223]:
+                - img [ref=e224]
+                - text: Artifact Type Breakdown
+              - img "Stacked bar chart showing study time broken down by artifact type per directory" [ref=e229]:
+                - generic [ref=e231]:
+                  - list [ref=e233]:
+                    - listitem [ref=e234]:
+                      - img "diagramQuiz legend icon" [ref=e235]
+                      - text: Diagram Quizzes
+                    - listitem [ref=e237]:
+                      - img "document legend icon" [ref=e238]
+                      - text: Documents
+                    - listitem [ref=e240]:
+                      - img "quiz legend icon" [ref=e241]
+                      - text: Quizzes
+                    - listitem [ref=e243]:
+                      - img "sequenceQuiz legend icon" [ref=e244]
+                      - text: Sequence Quizzes
+                  - application [ref=e246]:
+                    - generic [ref=e290]:
+                      - generic [ref=e291]:
+                        - generic [ref=e293]: DSA
+                        - generic [ref=e295]: AWS
+                        - generic [ref=e297]: Cantonese
+                      - generic [ref=e298]:
+                        - generic [ref=e300]: 0 min
+                        - generic [ref=e302]: 35 min
+                        - generic [ref=e304]: 70 min
+                        - generic [ref=e306]: 105 min
+                        - generic [ref=e308]: 140 min
+  - generic [ref=e309]: DSA

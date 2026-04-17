@@ -42,6 +42,11 @@
     letter-spacing: -0.04em;
     line-height: 1.2;
   }
+
+  /* Prevent focus outline on recharts SVGs when clicked */
+  .recharts-surface:focus {
+    outline: none;
+  }
   
   h1 {
     font-size: 3.5rem;

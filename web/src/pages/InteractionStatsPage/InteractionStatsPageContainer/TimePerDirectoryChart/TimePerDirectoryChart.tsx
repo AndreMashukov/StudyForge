@@ -23,7 +23,7 @@ export const TimePerDirectoryChart: React.FC<ITimePerDirectoryChart> = ({
   const theme = useChartTheme();
 
   return (
-    <div role="img" aria-label="Bar chart showing study time in minutes per directory" className="outline-none select-none">
+    <div role="img" aria-label="Bar chart showing study time in minutes per directory">
     <ResponsiveContainer width="100%" height={300}>
       <BarChart
         data={data}
