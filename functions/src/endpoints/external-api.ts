@@ -207,6 +207,7 @@ export const api = onRequest(
 
         let enhancedPrompt = additionalPrompt || "";
         let followupIdsForSave: string[] = [];
+        let appliedRuleIdsForSave: string[] = [];
 
         if (quizRuleIds?.length || followupRuleIds?.length) {
           const { quizPrompt } = await promptBuilder.injectQuizRules(
@@ -217,8 +218,11 @@ export const api = onRequest(
           );
           enhancedPrompt = quizPrompt;
           followupIdsForSave = followupRuleIds || [];
+          appliedRuleIdsForSave = [...(quizRuleIds || []), ...(followupRuleIds || [])].filter(
+            (id, i, arr) => arr.indexOf(id) === i
+          );
         } else {
-          const quizRulesText = await resolveGenerationRulesForPrompt(
+          const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
             userId,
             resolvedDirectoryId,
             RuleApplicability.QUIZ,
@@ -227,6 +231,7 @@ export const api = onRequest(
           if (quizRulesText) {
             enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
           }
+          appliedRuleIdsForSave = resolvedAppliedIds;
           const { rules: followupRules } = await resolveRulesForDirectory(
             userId,
             resolvedDirectoryId,
@@ -259,7 +264,8 @@ export const api = onRequest(
           userId,
           resolvedDirectoryId,
           followupIdsForSave,
-          documentIds.length > 1 ? documentIds : undefined
+          documentIds.length > 1 ? documentIds : undefined,
+          appliedRuleIdsForSave
         );
 
         res.status(201).json({
@@ -332,6 +338,7 @@ export const api = onRequest(
 
         let enhancedPrompt = additionalPrompt || "";
         let followupIdsForSave: string[] = [];
+        let appliedRuleIdsForSave: string[] = [];
 
         if (quizRuleIds?.length || followupRuleIds?.length) {
           const { quizPrompt } = await promptBuilder.injectQuizRules(
@@ -339,11 +346,15 @@ export const api = onRequest(
           );
           enhancedPrompt = quizPrompt;
           followupIdsForSave = followupRuleIds || [];
+          appliedRuleIdsForSave = [...(quizRuleIds || []), ...(followupRuleIds || [])].filter(
+            (id, i, arr) => arr.indexOf(id) === i
+          );
         } else {
-          const quizRulesText = await resolveGenerationRulesForPrompt(
+          const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
             userId, resolvedDirectoryId, RuleApplicability.DIAGRAM_QUIZ, additionalRuleIds
           );
           if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
+          appliedRuleIdsForSave = resolvedAppliedIds;
           const { rules: followupRules } = await resolveRulesForDirectory(
             userId, resolvedDirectoryId, RuleApplicability.FOLLOWUP
           );
@@ -367,7 +378,7 @@ export const api = onRequest(
 
         const saved = await FirestoreService.saveDiagramQuizFromDocument(
           documentIds[0], geminiQuiz, userId, resolvedDirectoryId,
-          followupIdsForSave, documentIds.length > 1 ? documentIds : undefined
+          followupIdsForSave, documentIds.length > 1 ? documentIds : undefined, appliedRuleIdsForSave
         );
 
         res.status(201).json({ success: true, data: { diagramQuizId: saved.id, diagramQuiz: saved } });
@@ -436,7 +447,7 @@ export const api = onRequest(
         let enhancedPrompt = additionalPrompt || "";
         let followupIdsForSave: string[] = [];
 
-        const quizRulesText = await resolveGenerationRulesForPrompt(
+        const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveGenerationRulesForPrompt(
           userId, resolvedDirectoryId, RuleApplicability.SEQUENCE_QUIZ, additionalRuleIds
         );
         if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
@@ -459,7 +470,7 @@ export const api = onRequest(
 
         const saved = await FirestoreService.saveSequenceQuizFromDocument(
           documentIds[0], geminiQuiz, userId, resolvedDirectoryId,
-          followupIdsForSave, documentIds.length > 1 ? documentIds : undefined
+          followupIdsForSave, documentIds.length > 1 ? documentIds : undefined, appliedRuleIdsForSave
         );
 
         res.status(201).json({ success: true, data: { sequenceQuizId: saved.id, sequenceQuiz: saved } });
@@ -518,12 +529,15 @@ export const api = onRequest(
         }
 
         let injectedRules: string | undefined;
+        let appliedRuleIdsForSave: string[] = [];
         if (ruleIds?.length) {
           injectedRules = await promptBuilder.injectRules(additionalPrompt || "", ruleIds, userId);
+          appliedRuleIdsForSave = ruleIds;
         } else {
-          const rulesText = await resolveGenerationRulesForPrompt(
+          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
             userId, resolvedDirectoryId, RuleApplicability.FLASHCARD, additionalRuleIds
           );
+          appliedRuleIdsForSave = resolvedAppliedIds;
           const base = additionalPrompt || "";
           if (rulesText && base) {
             injectedRules = `${rulesText}\n\n${base}`;
@@ -560,6 +574,7 @@ export const api = onRequest(
           documentTitle: documentDataList[0].doc.title,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
+          appliedRuleIds: appliedRuleIdsForSave,
         };
 
         const db = admin.firestore();
@@ -628,12 +643,15 @@ export const api = onRequest(
         }
 
         let injectedRules: string | undefined;
+        let appliedRuleIdsForSave: string[] = [];
         if (ruleIds?.length) {
           injectedRules = await promptBuilder.injectRules(additionalPrompt || "", ruleIds, userId);
+          appliedRuleIdsForSave = ruleIds;
         } else {
-          const rulesText = await resolveGenerationRulesForPrompt(
+          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
             userId, resolvedDirectoryId, RuleApplicability.SLIDE_DECK, additionalRuleIds
           );
+          appliedRuleIdsForSave = resolvedAppliedIds;
           const base = additionalPrompt || "";
           if (rulesText && base) {
             injectedRules = `${rulesText}\n\n${base}`;
@@ -717,6 +735,7 @@ export const api = onRequest(
           documentTitle: documentDataList[0].doc.title,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
+          appliedRuleIds: appliedRuleIdsForSave,
         };
 
         const db = admin.firestore();

@@ -11,6 +11,7 @@ interface FlashcardsPanelProps {
   mayBeTruncated?: boolean;
   isGenerating?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'flashcard' }) => void;
+  ruleNamesMap?: Map<string, string>;
 }
 
 export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
@@ -19,6 +20,7 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
   mayBeTruncated = false,
   isGenerating = false,
   onDeleteArtifact,
+  ruleNamesMap,
 }) => {
   return (
     <div className="space-y-4">
@@ -52,6 +54,7 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
                 onDeleteArtifact({ id: f.id, title: f.title, type: 'flashcard' })
               }
               deleteAriaLabel={`Delete ${f.title}`}
+              appliedRuleNames={f.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
             />
           ))}
         </div>

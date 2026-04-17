@@ -81,6 +81,7 @@ export const generateDiagramQuiz = onCall(
 
       let enhancedPrompt = additionalPrompt || "";
       let followupIdsForSave: string[] = [];
+      let appliedRuleIdsForSave: string[] = [];
 
       if (quizRuleIds?.length || followupRuleIds?.length) {
         const { quizPrompt } = await promptBuilder.injectQuizRules(
@@ -91,8 +92,11 @@ export const generateDiagramQuiz = onCall(
         );
         enhancedPrompt = quizPrompt;
         followupIdsForSave = followupRuleIds || [];
+        appliedRuleIdsForSave = [...(quizRuleIds || []), ...(followupRuleIds || [])].filter(
+          (id, i, arr) => arr.indexOf(id) === i
+        );
       } else {
-        const quizRulesText = await resolveGenerationRulesForPrompt(
+        const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
           userId,
           resolvedDirectoryId,
           RuleApplicability.DIAGRAM_QUIZ,
@@ -101,6 +105,7 @@ export const generateDiagramQuiz = onCall(
         if (quizRulesText) {
           enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
         }
+        appliedRuleIdsForSave = resolvedAppliedIds;
         const { rules: followupRules } = await resolveRulesForDirectory(
           userId,
           resolvedDirectoryId,
@@ -134,7 +139,8 @@ export const generateDiagramQuiz = onCall(
         userId,
         resolvedDirectoryId,
         followupIdsForSave,
-        documentIds.length > 1 ? documentIds : undefined
+        documentIds.length > 1 ? documentIds : undefined,
+        appliedRuleIdsForSave
       );
 
       return {

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
 import { formatDate } from '../../../utils/dateUtils';
 import { Button } from '../../../components/ui/Button';
+import { Badge } from '../../../components/ui/Badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../../components/ui/Tooltip';
 import type { IArtifactRow } from './IArtifactRow';
 
 export const ArtifactRow: React.FC<IArtifactRow> = ({
@@ -12,7 +14,10 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
   linkTo,
   onDelete,
   deleteAriaLabel,
+  appliedRuleNames,
 }) => {
+  const hasRules = appliedRuleNames && appliedRuleNames.length > 0;
+
   return (
     <div className="group relative">
       <Link
@@ -25,6 +30,28 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
           <div className="text-xs text-muted-foreground">{formatDate(createdAt)}</div>
         </div>
       </Link>
+      {hasRules && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className="absolute top-1/2 -translate-y-1/2 right-10 z-10 cursor-default"
+              onClick={(e) => e.preventDefault()}
+            >
+              <Badge variant="secondary" className="text-xs tabular-nums">
+                {appliedRuleNames.length}
+              </Badge>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p className="font-medium mb-1">Rules applied</p>
+            <ul className="space-y-0.5">
+              {appliedRuleNames.map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+          </TooltipContent>
+        </Tooltip>
+      )}
       <Button
         variant="ghost"
         size="icon"

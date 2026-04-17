@@ -106,16 +106,19 @@ export const generateSlideDeck = onCall(
 
         // Inject rules if provided
         let injectedRules: string | undefined;
+        let appliedRuleIdsForSave: string[] = [];
         if (ruleIds?.length) {
           logger.info('[generateSlideDeck] STEP 2.5: Injecting rules.', { ruleCount: ruleIds.length });
           injectedRules = await promptBuilder.injectRules(additionalPrompt || '', ruleIds, userId);
+          appliedRuleIdsForSave = ruleIds;
         } else {
-          const rulesText = await resolveGenerationRulesForPrompt(
+          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
             userId,
             resolvedDirectoryId,
             RuleApplicability.SLIDE_DECK,
             additionalRuleIds
           );
+          appliedRuleIdsForSave = resolvedAppliedIds;
           const base = additionalPrompt?.trim() || '';
           if (rulesText && base) {
             injectedRules = `${rulesText}\n\n${base}`;
@@ -204,6 +207,7 @@ export const generateSlideDeck = onCall(
           documentTitle: documentDataList[0].title,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
+          appliedRuleIds: appliedRuleIdsForSave,
         };
 
         logger.info('[generateSlideDeck] STEP 6: Saving to Firestore.', { userIdHash: u });

@@ -11,6 +11,7 @@ interface DiagramQuizzesPanelProps {
   mayBeTruncated?: boolean;
   isGenerating?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'diagramQuiz' }) => void;
+  ruleNamesMap?: Map<string, string>;
 }
 
 export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
@@ -19,6 +20,7 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
   mayBeTruncated = false,
   isGenerating = false,
   onDeleteArtifact,
+  ruleNamesMap,
 }) => {
   return (
     <div className="space-y-4">
@@ -52,6 +54,7 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
                 onDeleteArtifact({ id: dq.id, title: dq.title, type: 'diagramQuiz' })
               }
               deleteAriaLabel={`Delete ${dq.title}`}
+              appliedRuleNames={dq.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
             />
           ))}
         </div>

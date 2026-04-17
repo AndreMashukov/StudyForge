@@ -96,6 +96,7 @@ export const generateQuiz = onCall(
       // Inject rules: legacy explicit IDs, or auto-resolve from directory hierarchy
       let enhancedPrompt = additionalPrompt || '';
       let followupIdsForSave: string[] = [];
+      let appliedRuleIdsForSave: string[] = [];
 
       if (quizRuleIds?.length || followupRuleIds?.length) {
         console.log("Injecting rules into quiz generation prompt (legacy explicit rule IDs)...");
@@ -107,8 +108,11 @@ export const generateQuiz = onCall(
         );
         enhancedPrompt = quizPrompt;
         followupIdsForSave = followupRuleIds || [];
+        appliedRuleIdsForSave = [...(quizRuleIds || []), ...(followupRuleIds || [])].filter(
+          (id, i, arr) => arr.indexOf(id) === i
+        );
       } else {
-        const quizRulesText = await resolveGenerationRulesForPrompt(
+        const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
           userId,
           resolvedDirectoryId,
           RuleApplicability.QUIZ,
@@ -117,6 +121,7 @@ export const generateQuiz = onCall(
         if (quizRulesText) {
           enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
         }
+        appliedRuleIdsForSave = resolvedAppliedIds;
         const { rules: followupRules } = await resolveRulesForDirectory(
           userId,
           resolvedDirectoryId,
@@ -151,7 +156,8 @@ export const generateQuiz = onCall(
         userId,
         resolvedDirectoryId,
         followupIdsForSave,
-        documentIds.length > 1 ? documentIds : undefined
+        documentIds.length > 1 ? documentIds : undefined,
+        appliedRuleIdsForSave
       );
       
       console.log(`Successfully generated quiz from ${documentIds.length} document(s): ${savedQuiz.id}`);

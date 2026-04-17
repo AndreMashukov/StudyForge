@@ -121,7 +121,7 @@ export const generateSequenceQuiz = onCall(
         ? (requestData.additionalRuleIds as string[])
         : undefined;
 
-      const quizRulesText = await resolveGenerationRulesForPrompt(
+      const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveGenerationRulesForPrompt(
         userId,
         resolvedDirectoryId,
         RuleApplicability.SEQUENCE_QUIZ,
@@ -157,7 +157,8 @@ export const generateSequenceQuiz = onCall(
         userId,
         resolvedDirectoryId,
         followupIdsForSave,
-        documentIds.length > 1 ? documentIds : undefined
+        documentIds.length > 1 ? documentIds : undefined,
+        appliedRuleIdsForSave
       );
 
       return {

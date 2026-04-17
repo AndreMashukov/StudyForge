@@ -319,7 +319,8 @@ export class FirestoreService {
     userId: string,
     directoryId: string,
     followupRuleIds?: string[],
-    allDocumentIds?: string[]
+    allDocumentIds?: string[],
+    appliedRuleIds?: string[]
   ): Promise<Quiz> {
     try {
       const quizzesCollection = FirestorePaths.quizzes(userId);
@@ -368,6 +369,7 @@ export class FirestoreService {
         generationAttempt: quiz.generationAttempt,
         documentTitle: quiz.documentTitle,
         followupRuleIds: quiz.followupRuleIds || [],
+        appliedRuleIds: appliedRuleIds || [],
       };
 
       await db.runTransaction(async (transaction) => {
@@ -398,7 +400,8 @@ export class FirestoreService {
     userId: string,
     directoryId: string,
     followupRuleIds?: string[],
-    allDocumentIds?: string[]
+    allDocumentIds?: string[],
+    appliedRuleIds?: string[]
   ): Promise<DiagramQuiz> {
     try {
       const col = FirestorePaths.diagramQuizzes(userId);
@@ -440,6 +443,7 @@ export class FirestoreService {
         documentTitle: diagramQuiz.documentTitle,
         generationAttempt: diagramQuiz.generationAttempt,
         followupRuleIds: diagramQuiz.followupRuleIds || [],
+        appliedRuleIds: appliedRuleIds || [],
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       };
@@ -531,7 +535,8 @@ export class FirestoreService {
     userId: string,
     directoryId: string,
     followupRuleIds?: string[],
-    allDocumentIds?: string[]
+    allDocumentIds?: string[],
+    appliedRuleIds?: string[]
   ): Promise<SequenceQuiz> {
     try {
       const col = FirestorePaths.sequenceQuizzes(userId);
@@ -559,6 +564,7 @@ export class FirestoreService {
         documentTitle: document.title,
         generationAttempt,
         followupRuleIds: followupRuleIds || [],
+        appliedRuleIds: appliedRuleIds || [],
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       };

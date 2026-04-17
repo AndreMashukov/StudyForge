@@ -19,6 +19,7 @@ export interface FlashcardSet {
   directoryId: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  appliedRuleIds?: string[];
 }
 
 // Flashcard API Types
@@ -65,6 +66,7 @@ export interface SlideDeck {
   directoryId: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  appliedRuleIds?: string[];
 }
 
 export interface GenerateSlideDeckRequest {
@@ -105,6 +107,7 @@ export interface Quiz {
 
   // Rule tracking for followup generation
   followupRuleIds?: string[]; // Rules to use when generating followup explanations
+  appliedRuleIds?: string[]; // Rules applied during initial generation
 }
 
 export interface QuizQuestion {
@@ -135,6 +138,7 @@ export interface SequenceQuiz {
   updatedAt: Timestamp;
   generationAttempt?: number;
   followupRuleIds?: string[];
+  appliedRuleIds?: string[];
 }
 
 export interface GenerateSequenceQuizRequest {
@@ -180,6 +184,7 @@ export interface DiagramQuiz {
   updatedAt: Timestamp;
   generationAttempt?: number;
   followupRuleIds?: string[];
+  appliedRuleIds?: string[];
 }
 
 export interface GenerateDiagramQuizRequest {
@@ -350,6 +355,7 @@ export interface ArtifactSummary {
   title: string;
   createdAt: Date | Timestamp;
   type: ArtifactSummaryType;
+  appliedRuleIds?: string[];
 }
 
 export interface GetDirectoryContentsWithArtifactSummariesResponse extends GetDirectoryContentsResponse {

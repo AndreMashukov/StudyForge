@@ -43,6 +43,7 @@ import { DiagramQuizzesPanel } from './DiagramQuizzesPanel';
 import { Spinner } from '../../components/ui/Spinner';
 import { SequenceQuizzesPanel } from './SequenceQuizzesPanel';
 import { RulesPanel } from './RulesPanel';
+import { TooltipProvider } from '../../components/ui/Tooltip';
 
 /** Valid tab values that can be passed via URL search param. */
 const VALID_TABS = new Set<string>(['sources', 'quizzes', 'cards', 'slides', 'diagramQuizzes', 'sequenceQuizzes', 'rules']);
@@ -138,6 +139,9 @@ export const DirectoryDetailPageContainer = () => {
   const diagramQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'diagramQuiz' } => a.type === 'diagramQuiz');
   const sequenceQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'sequenceQuiz' } => a.type === 'sequenceQuiz');
   const resolvedRules = contents.resolvedRules;
+  const ruleNamesMap = new Map<string, string>(
+    (resolvedRules?.rules ?? []).map((r) => [r.id, r.name])
+  );
   const ancestors = ancestorsData?.ancestors || [];
 
   // Detect truncation: server caps at ARTIFACT_PAGE_LIMIT per type
@@ -148,6 +152,7 @@ export const DirectoryDetailPageContainer = () => {
   const sequenceQuizzesTruncated = sequenceQuizzes.length >= ARTIFACT_PAGE_LIMIT;
 
   return (
+    <TooltipProvider>
     <Page showSidebar>
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
         {/* Header: Back button + Breadcrumb + Directory title + Action buttons */}
@@ -298,6 +303,7 @@ export const DirectoryDetailPageContainer = () => {
                 mayBeTruncated={quizzesTruncated}
                 isGenerating={isGeneratingQuizzes}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
+                ruleNamesMap={ruleNamesMap}
               />
             )}
             {activePanel === 'cards' && (
@@ -307,6 +313,7 @@ export const DirectoryDetailPageContainer = () => {
                 mayBeTruncated={flashcardsTruncated}
                 isGenerating={isGeneratingCards}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
+                ruleNamesMap={ruleNamesMap}
               />
             )}
             {activePanel === 'slides' && (
@@ -316,6 +323,7 @@ export const DirectoryDetailPageContainer = () => {
                 mayBeTruncated={slidesTruncated}
                 isGenerating={isGeneratingSlides}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
+                ruleNamesMap={ruleNamesMap}
               />
             )}
             {activePanel === 'diagramQuizzes' && (
@@ -325,6 +333,7 @@ export const DirectoryDetailPageContainer = () => {
                 mayBeTruncated={diagramQuizzesTruncated}
                 isGenerating={isGeneratingDiagramQuizzes}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
+                ruleNamesMap={ruleNamesMap}
               />
             )}
             {activePanel === 'sequenceQuizzes' && (
@@ -334,6 +343,7 @@ export const DirectoryDetailPageContainer = () => {
                 mayBeTruncated={sequenceQuizzesTruncated}
                 isGenerating={isGeneratingSequenceQuizzes}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
+                ruleNamesMap={ruleNamesMap}
               />
             )}
             {activePanel === 'rules' && (
@@ -396,5 +406,6 @@ export const DirectoryDetailPageContainer = () => {
         artifact={deleteArtifactDialog.artifact}
       />
     </Page>
+    </TooltipProvider>
   );
 };

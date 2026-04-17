@@ -11,6 +11,7 @@ interface SlidesPanelProps {
   mayBeTruncated?: boolean;
   isGenerating?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'slideDeck' }) => void;
+  ruleNamesMap?: Map<string, string>;
 }
 
 export const SlidesPanel: React.FC<SlidesPanelProps> = ({
@@ -19,6 +20,7 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
   mayBeTruncated = false,
   isGenerating = false,
   onDeleteArtifact,
+  ruleNamesMap,
 }) => {
   return (
     <div className="space-y-4">
@@ -52,6 +54,7 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
                 onDeleteArtifact({ id: s.id, title: s.title, type: 'slideDeck' })
               }
               deleteAriaLabel={`Delete ${s.title}`}
+              appliedRuleNames={s.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
             />
           ))}
         </div>

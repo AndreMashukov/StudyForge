@@ -7,4 +7,5 @@ export interface IArtifactRow {
   linkTo: string;
   onDelete: () => void;
   deleteAriaLabel: string;
+  appliedRuleNames?: string[];
 }

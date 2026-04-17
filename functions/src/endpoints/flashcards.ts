@@ -142,16 +142,19 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
 
     // Resolve rules to inject into the prompt
     let injectedRules: string | undefined;
+    let appliedRuleIdsForSave: string[] = [];
     if (ruleIds?.length) {
       logger.info(`[generateFlashcards] STEP 2.5: Injecting rules into prompt.`, { userIdHash: u, ruleCount: ruleIds.length });
       injectedRules = await promptBuilder.injectRules(additionalPrompt || '', ruleIds, userId);
+      appliedRuleIdsForSave = ruleIds;
     } else {
-      const rulesText = await resolveGenerationRulesForPrompt(
+      const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
         userId,
         resolvedDirectoryId,
         RuleApplicability.FLASHCARD,
         additionalRuleIds
       );
+      appliedRuleIdsForSave = resolvedAppliedIds;
       const base = additionalPrompt?.trim() ? `Additional instructions: ${additionalPrompt}` : '';
       if (rulesText && base) {
         injectedRules = `${rulesText}\n\n${base}`;
@@ -185,6 +188,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       documentTitle: documentDataList[0].title,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
+      appliedRuleIds: appliedRuleIdsForSave,
     };
 
     logger.info(`[generateFlashcards] STEP 5: Adding new flashcard set to Firestore.`, { userIdHash: u });

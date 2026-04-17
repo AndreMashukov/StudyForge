@@ -11,6 +11,7 @@ interface SequenceQuizzesPanelProps {
   mayBeTruncated?: boolean;
   isGenerating?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'sequenceQuiz' }) => void;
+  ruleNamesMap?: Map<string, string>;
 }
 
 export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
@@ -19,6 +20,7 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
   mayBeTruncated = false,
   isGenerating = false,
   onDeleteArtifact,
+  ruleNamesMap,
 }) => {
   return (
     <div className="space-y-4">
@@ -52,6 +54,7 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
                 onDeleteArtifact({ id: sq.id, title: sq.title, type: 'sequenceQuiz' })
               }
               deleteAriaLabel={`Delete ${sq.title}`}
+              appliedRuleNames={sq.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
             />
           ))}
         </div>

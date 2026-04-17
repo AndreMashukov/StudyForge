@@ -611,36 +611,42 @@ export class DirectoryService {
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt')
+          .select('title', 'createdAt', 'appliedRuleIds')
           .get(),
         FirestorePaths.flashcardSets(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt')
+          .select('title', 'createdAt', 'appliedRuleIds')
           .get(),
         FirestorePaths.slideDecks(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt')
+          .select('title', 'createdAt', 'appliedRuleIds')
           .get(),
         FirestorePaths.diagramQuizzes(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt')
+          .select('title', 'createdAt', 'appliedRuleIds')
           .get(),
         FirestorePaths.sequenceQuizzes(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt')
+          .select('title', 'createdAt', 'appliedRuleIds')
           .get(),
       ]);
 
       const toSummaries = (snap: FirebaseFirestore.QuerySnapshot, type: ArtifactSummaryType): ArtifactSummary[] =>
-        snap.docs.map((d) => ({ id: d.id, title: d.data().title as string, createdAt: d.data().createdAt, type }));
+        snap.docs.map((d) => ({
+          id: d.id,
+          title: d.data().title as string,
+          createdAt: d.data().createdAt,
+          type,
+          appliedRuleIds: (d.data().appliedRuleIds as string[] | undefined) || [],
+        }));
 
       artifactSummaries.push(
         ...toSummaries(qSnap, 'quiz'),

@@ -174,21 +174,23 @@ export async function resolveRulesForDirectory(
 
 /**
  * Format cascaded rules for a single generation operation (directory + optional overrides).
+ * Returns both the formatted prompt text and the merged rule IDs used.
  */
 export async function resolveGenerationRulesForPrompt(
   userId: string,
   directoryId: string,
   operation: RuleApplicability,
   additionalRuleIds?: string[]
-): Promise<string> {
+): Promise<{ text: string; ruleIds: string[] }> {
   const { rules } = await resolveRulesForDirectory(userId, directoryId, operation);
   const baseIds = rules.map(r => r.id);
   const extra = (additionalRuleIds || []).filter(id => !baseIds.includes(id));
   const mergedIds = [...baseIds, ...extra];
   if (mergedIds.length === 0) {
-    return '';
+    return { text: '', ruleIds: [] };
   }
-  return formatRulesForPrompt(userId, mergedIds);
+  const text = await formatRulesForPrompt(userId, mergedIds);
+  return { text, ruleIds: mergedIds };
 }
 
 /**
