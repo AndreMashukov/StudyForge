@@ -38,15 +38,6 @@
   }
   
   h1, h2, h3, h4, h5, h6 {
-    font-weight: 600;
-    letter-spacing: -0.04em;
-    line-height: 1.2;
-  }
-
-  /* Prevent focus outline on recharts SVGs when clicked */
-  .recharts-surface:focus {
-    outline: none;
-  }
   
   h1 {
     font-size: 3.5rem;
@@ -303,4 +294,9 @@
       pointer-events: auto;
     }
   }
+}
+
+/* Prevent focus outline on recharts SVGs when clicked (outside @layer to win over UA stylesheet) */
+.recharts-surface:focus {
+  outline: none;
 }
