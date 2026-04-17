@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  LineChart,
+  ComposedChart,
   Line,
   XAxis,
   YAxis,
@@ -23,7 +23,7 @@ export const DailyTrendChart: React.FC<IDailyTrendChart> = ({ data }) => {
   return (
     <div role="img" aria-label="Line chart showing daily study time trend" className="outline-none select-none">
     <ResponsiveContainer width="100%" height={300}>
-      <LineChart
+      <ComposedChart
         data={data}
         margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
       >
@@ -88,7 +88,7 @@ export const DailyTrendChart: React.FC<IDailyTrendChart> = ({ data }) => {
           dot={{ fill: theme.primary, r: 3, strokeWidth: 0 }}
           activeDot={{ fill: theme.primary, r: 5, strokeWidth: 2, stroke: theme.tooltipBg }}
         />
-      </LineChart>
+      </ComposedChart>
     </ResponsiveContainer>
     </div>
   );
