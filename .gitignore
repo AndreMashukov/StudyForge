@@ -1,3 +1,6 @@
+# Playwright MCP debug output
+.playwright-mcp/
+
 # Logs
 logs
 *.log
