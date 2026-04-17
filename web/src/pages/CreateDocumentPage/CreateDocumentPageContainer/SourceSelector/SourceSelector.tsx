@@ -1,4 +1,5 @@
 import React from 'react';
+import './animations.css';
 import { useDispatch, useSelector } from 'react-redux';
 import { SourceCard } from './SourceCard';
 import { setSelectedSource, selectSelectedSource } from '../../../../store/slices/createDocumentPageSlice';
