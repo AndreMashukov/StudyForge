@@ -297,7 +297,23 @@
   }
 }
 
-/* Prevent focus outline on recharts SVGs when clicked (outside @layer to win over UA stylesheet) */
-.recharts-surface:focus {
+/* Prevent selection highlight on recharts SVGs when clicked */
+.recharts-surface,
+.recharts-wrapper,
+.recharts-wrapper * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
   outline: none;
+}
+
+.recharts-surface:focus,
+.recharts-wrapper:focus {
+  outline: none;
+}
+
+/* Prevent drag selection on chart containers */
+[role="img"] {
+  user-select: none;
+  -webkit-user-select: none;
 }
