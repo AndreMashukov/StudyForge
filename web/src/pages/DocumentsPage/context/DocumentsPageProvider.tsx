@@ -4,6 +4,7 @@ import { IDocumentsPageContext } from '../types/IDocumentsPageContext';
 import { useFetchDocuments } from './hooks/api/useFetchDocuments';
 import { useDocumentsPageHandlers } from './hooks/useDocumentsPageHandlers';
 import { useDocumentsPageEffects } from './hooks/useDocumentsPageEffects';
+import { useRealtimeDirectorySync } from './hooks/useRealtimeDirectorySync';
 
 interface DocumentsPageProviderProps {
   children: React.ReactNode;
@@ -19,6 +20,9 @@ export const DocumentsPageProvider: React.FC<DocumentsPageProviderProps> = ({ ch
     documents: documentsApi.documents,
     handlers,
   });
+
+  // Real-time Firestore listeners for the current directory
+  useRealtimeDirectorySync();
 
   const contextValue: IDocumentsPageContext = {
     documentsApi,

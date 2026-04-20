@@ -52,6 +52,16 @@ service cloud.firestore {
       match /slideDecks/{slideDeckId} {
         allow read, write: if isOwner(userId);
       }
+
+      // Diagram quizzes subcollection
+      match /diagramQuizzes/{diagramQuizId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Sequence quizzes subcollection
+      match /sequenceQuizzes/{sequenceQuizId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // API keys — only accessible via Firebase Admin SDK (Cloud Functions).

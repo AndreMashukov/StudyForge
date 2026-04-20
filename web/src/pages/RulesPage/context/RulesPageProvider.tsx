@@ -4,6 +4,7 @@ import { IRulesPageContext } from '../types/IRulesPageContext';
 import { useFetchRules } from './hooks/api/useFetchRules';
 import { useRulesPageHandlers } from './hooks/useRulesPageHandlers';
 import { useRulesPageFilters } from './hooks/useRulesPageFilters';
+import { useRealtimeRulesSync } from './hooks/useRealtimeRulesSync';
 
 interface RulesPageProviderProps {
   children: React.ReactNode;
@@ -12,6 +13,9 @@ interface RulesPageProviderProps {
 export const RulesPageProvider: React.FC<RulesPageProviderProps> = ({ children }) => {
   // API hooks - fetch all rules
   const rulesApi = useFetchRules();
+
+  // Real-time Firestore listener for rules changes
+  useRealtimeRulesSync();
 
   // Handler hooks - manage create/edit/delete operations
   const handlers = useRulesPageHandlers();
