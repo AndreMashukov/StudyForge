@@ -5,14 +5,20 @@ import { ProtectedRoute } from '../../utils/ProtectedRoute';
 import { CreateDocumentPageProvider } from './context/CreateDocumentPageProvider';
 import { CreateDocumentPageContainer } from './CreateDocumentPageContainer';
 import { setSelectedDirectory } from '../../store/slices/directorySlice';
-import { setDirectoryId } from '../../store/slices/createDocumentPageSlice';
+import {
+  setDirectoryId,
+  setPromptRules,
+  setScrapingRules,
+  setUploadRules,
+} from '../../store/slices/createDocumentPageSlice';
 
 export const CreateDocumentPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Initialize directoryId from URL query parameter
+  // Initialize directoryId from URL query parameter and reset rule selections
+  // so that stale rules from a previous directory do not carry over.
   useEffect(() => {
     const directoryIdParam = searchParams.get('directoryId');
     if (!directoryIdParam) {
@@ -21,6 +27,9 @@ export const CreateDocumentPage = () => {
     }
     dispatch(setSelectedDirectory(directoryIdParam));
     dispatch(setDirectoryId(directoryIdParam));
+    dispatch(setPromptRules([]));
+    dispatch(setScrapingRules([]));
+    dispatch(setUploadRules([]));
   }, [searchParams, dispatch, navigate]);
 
   return (
