@@ -10,6 +10,8 @@ export const quizFollowupApi = baseApi.injectEndpoints({
       query: (data) => ({
         functionName: 'generateQuizFollowup',
         data,
+        // Server-side timeout is 300s; override the 70s client-side default to match.
+        timeout: 300000,
       }),
       invalidatesTags: [],
     }),
