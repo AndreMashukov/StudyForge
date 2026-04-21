@@ -13,9 +13,17 @@ import {
  *
  * When any change is detected, the corresponding RTK Query cache tags
  * are invalidated, triggering a refetch of `getDirectoryContents*`.
+ *
+ * @param overrideDirectoryId - When provided (e.g. from useParams in
+ *   DirectoryDetailPage), this value is used instead of the Redux
+ *   `selectedDirectoryId` selector. Pass `null` explicitly for root.
  */
-export const useRealtimeDirectorySync = () => {
-  const directoryId = useAppSelector(selectSelectedDirectoryId);
+export const useRealtimeDirectorySync = (
+  overrideDirectoryId?: string | null,
+) => {
+  const reduxDirectoryId = useAppSelector(selectSelectedDirectoryId);
+  const directoryId =
+    overrideDirectoryId !== undefined ? overrideDirectoryId : reduxDirectoryId;
 
   const configs: FirestoreListenerConfig[] = useMemo(() => {
     const dirValue = directoryId ?? null;

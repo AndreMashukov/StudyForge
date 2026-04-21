@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/redux';
+import { useRealtimeDirectorySync } from '../DocumentsPage/context/hooks/useRealtimeDirectorySync';
 import {
   useGetDirectoryContentsWithArtifactSummariesQuery,
   useGetDirectoryAncestorsQuery,
@@ -55,6 +56,9 @@ export const DirectoryDetailPageContainer = () => {
   const { directoryId } = useParams<{ directoryId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  // Real-time Firestore listeners for this directory's contents
+  useRealtimeDirectorySync(directoryId ?? null);
 
   const getTabFromParams = (): PanelType => {
     const tab = searchParams.get('tab');
