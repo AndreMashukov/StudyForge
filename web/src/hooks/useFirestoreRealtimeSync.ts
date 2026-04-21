@@ -53,7 +53,18 @@ export const useFirestoreRealtimeSync = (
   configsRef.current = configs;
 
   useEffect(() => {
-    if (!enabled || !uid) return;
+    if (!enabled || !uid) {
+      console.log('[RealtimeSync] Skipped — enabled:', enabled, 'uid:', uid ?? 'none');
+      return;
+    }
+
+    console.log('[RealtimeSync] Registering listeners', JSON.stringify({
+      uid,
+      collections: configs.map((c) => ({
+        name: c.collectionName,
+        filters: c.filters,
+      })),
+    }));
 
     const unsubscribes: Unsubscribe[] = [];
 
@@ -74,23 +85,36 @@ export const useFirestoreRealtimeSync = (
 
       const unsub = onSnapshot(
         q,
-        () => {
-          // Skip initial snapshot — RTK Query already has data from
-          // its own fetch.  Only react to subsequent changes.
+        (snapshot) => {
           if (isInitial) {
             isInitial = false;
+            console.log('[RealtimeSync] Initial snapshot received', JSON.stringify({
+              collection: cfg.collectionName,
+              filters: cfg.filters,
+              docCount: snapshot.size,
+            }));
             return;
           }
-          dispatch(
-            baseApi.util.invalidateTags(configsRef.current[idx].tags),
-          );
+          const changes = snapshot.docChanges().map((c) => ({
+            type: c.type,
+            id: c.doc.id,
+          }));
+          const tags = configsRef.current[idx].tags;
+          console.log('[RealtimeSync] Change detected — invalidating tags', JSON.stringify({
+            collection: cfg.collectionName,
+            changes,
+            tags,
+          }));
+          dispatch(baseApi.util.invalidateTags(tags));
         },
         (error) => {
-          // Listener errors (e.g. permission denied) should not crash
-          // the app.  Log and detach silently.
           console.warn(
-            `[RealtimeSync] Listener error on ${cfg.collectionName}:`,
-            error,
+            '[RealtimeSync] Listener error', JSON.stringify({
+              collection: cfg.collectionName,
+              filters: cfg.filters,
+              code: (error as { code?: string }).code,
+              message: error.message,
+            }),
           );
         },
       );
@@ -99,6 +123,10 @@ export const useFirestoreRealtimeSync = (
     });
 
     return () => {
+      console.log('[RealtimeSync] Cleaning up listeners', JSON.stringify({
+        uid,
+        collections: configs.map((c) => c.collectionName),
+      }));
       unsubscribes.forEach((u) => u());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
