@@ -84,6 +84,7 @@ export const useFirestoreRealtimeSync = (
           const tags = configsRef.current[idx].tags;
           dispatch(baseApi.util.invalidateTags(tags));
         },
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         () => {},
       );
 
