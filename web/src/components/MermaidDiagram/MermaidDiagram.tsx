@@ -166,10 +166,31 @@ function sanitizeSquareBracketsInParenLabels(source: string): string {
   );
 }
 
+/**
+ * Square brackets inside diamond {condition} node labels cause parse errors.
+ * Mermaid's lexer treats [ inside a {label} as a new node shape token (SQS).
+ * Example:
+ *   C{nums[r] > nums[deque.last]?}  ← parse error
+ *   C{nums#91;r#93; > nums#91;deque.last#93;?}  ← works
+ *
+ * Replace [ and ] inside {…} labels with HTML-entity shorthand #91; and #93;.
+ */
+function sanitizeSquareBracketsInDiamondLabels(source: string): string {
+  return source.replace(
+    /\{([^{}\n]*\[[^\]\n]*\][^{}\n]*)\}/g,
+    (_match, inner: string) => {
+      const escaped = inner.replace(/\[/g, '#91;').replace(/\]/g, '#93;');
+      return `{${escaped}}`;
+    },
+  );
+}
+
 function sanitizeMermaidCode(source: string): string {
   return sanitizeSubgraphIds(
     sanitizeParenLabels(
-      sanitizeSquareBracketsInParenLabels(sanitizeBracketLabels(source)),
+      sanitizeSquareBracketsInParenLabels(
+        sanitizeSquareBracketsInDiamondLabels(sanitizeBracketLabels(source)),
+      ),
     ),
   );
 }
@@ -209,6 +230,9 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
           setSvg(out);
         }
       } catch (e) {
+        // Mermaid appends an error SVG to <body> on failure (div#d${id}).
+        // Remove it so it doesn't linger as a floating "Syntax error" tooltip.
+        document.getElementById(`d${id}`)?.remove();
         if (!cancelled) {
           setSvg(null);
           setError(e instanceof Error ? e.message : 'Failed to render diagram');
