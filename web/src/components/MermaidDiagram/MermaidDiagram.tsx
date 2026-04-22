@@ -22,15 +22,28 @@ function ensureMermaidInit(): void {
  *   /  \ — trigger trapezoid shape syntax
  *   @    — parsed as a link ID token
  *   ( )  — parsed as sub-graph / stadium shape tokens
+ *   [ ]  — parsed as another node label when nested inside an outer [...]
  * When AI-generated diagrams use these bare in labels the lexer/parser throws.
  * Wrap any affected label content in double-quotes so Mermaid treats it as a
- * plain string, e.g. [dfs(A)] -> ["dfs(A)"], [/usage] -> ["/usage"].
+ * plain string, e.g. [dfs(A)] -> ["dfs(A)"], [s[end]] -> ["s[end]"].
+ *
+ * All matches are intentionally kept within a single line (via \n exclusion)
+ * to prevent the greedy quantifiers from spanning multiple nodes.
  */
 function sanitizeBracketLabels(source: string): string {
-  return source.replace(
-    /\[([^\]"]*[/@\\()][^\]"]*)\]/g,
-    (_match, inner: string) => `["${inner}"]`
+  // Handle labels containing special shape-syntax chars: / @ \ ( )
+  let result = source.replace(
+    /\[([^\]"\n]*[/@\\()][^\]"\n]*)\]/g,
+    (_match, inner: string) => `["${inner}"]`,
   );
+  // Handle labels with nested square brackets like [text s[end]] or [freq of s[start]].
+  // [^\["\n\]]+ — requires ≥1 char before the inner [, and excludes newlines and ] to
+  // prevent the match spanning across multiple node definitions.
+  result = result.replace(
+    /\[([^\["\n\]]+\[[^\]\n]*\][^\]"\n]*)\]/g,
+    (_match, inner: string) => `["${inner}"]`,
+  );
+  return result;
 }
 
 /**
