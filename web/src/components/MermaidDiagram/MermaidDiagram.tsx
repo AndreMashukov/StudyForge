@@ -145,8 +145,33 @@ function extractDiagramType(source: string): string | null {
   return m[1].toLowerCase().replace(/-/g, '');
 }
 
+/**
+ * Handles square brackets [...] appearing inside unquoted paren node labels:
+ *   B(Add a[i-m])   →  B(Add a#91;i-m#93;)
+ *   C(Remove a[i])  →  C(Remove a#91;i#93;)
+ *
+ * Mermaid's lexer treats [ inside a (label) as a new node shape token, causing
+ * parse errors. Replace with Mermaid HTML-entity shorthand #91; and #93;.
+ *
+ * The [^()'"\n\[]+ quantifier (requires ≥1 char before the inner [) intentionally
+ * excludes stadium shapes like ([label]) and ((circle)) which start with [ or (.
+ */
+function sanitizeSquareBracketsInParenLabels(source: string): string {
+  return source.replace(
+    /\(([^()'"\n\[]+\[[^\]\n]*\][^()'"\n]*)\)/g,
+    (_match, inner: string) => {
+      const escaped = inner.replace(/\[/g, '#91;').replace(/\]/g, '#93;');
+      return `(${escaped})`;
+    },
+  );
+}
+
 function sanitizeMermaidCode(source: string): string {
-  return sanitizeSubgraphIds(sanitizeParenLabels(sanitizeBracketLabels(source)));
+  return sanitizeSubgraphIds(
+    sanitizeParenLabels(
+      sanitizeSquareBracketsInParenLabels(sanitizeBracketLabels(source)),
+    ),
+  );
 }
 
 export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) => {
