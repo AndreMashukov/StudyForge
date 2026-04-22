@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import remarkToc from 'remark-toc';
 import { IMarkdownRenderer, TocItem } from './IMarkdownRenderer';
 import { CodeBlock } from './CodeBlock';
+import { MermaidDiagram } from '../MermaidDiagram';
 import { markdownStyles, getMarkdownClasses } from './MarkdownRenderer.styles';
 import { cn } from '../../lib/utils';
 
@@ -195,6 +196,10 @@ export const MarkdownRenderer = ({
       const language = match ? match[1] : undefined;
       
       if (language && children && typeof children === 'string') {
+        if (language === 'mermaid') {
+          return <MermaidDiagram code={children.trim()} />;
+        }
+
         // Block code with syntax highlighting
         return (
           <CodeBlock

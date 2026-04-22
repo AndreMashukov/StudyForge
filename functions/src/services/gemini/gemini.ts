@@ -1,6 +1,5 @@
-// Box-drawing and arrow characters used for ASCII diagram detection.
-// Multi-codepoint emoji are matched via explicit alternation (not character
-// classes) to stay compliant with Biome's noMisleadingCharacterClass rule.
+// Mermaid diagram detection is based on the first non-empty line inside a
+// fenced block so the validator can normalize unlabeled Mermaid code fences.
 import { GoogleGenAI } from '@google/genai';
 import * as functions from 'firebase-functions';
 import {
@@ -59,12 +58,8 @@ export interface GeminiSequenceQuizResponse {
   }>;
 }
 
-/**
- * Detects box-drawing / arrow characters that indicate an ASCII diagram.
- * Multi-codepoint emoji (✅ ❌ ⚠️ 🔄 ⭐) are tested via explicit alternation
- * rather than inside a character class to satisfy Biome noMisleadingCharacterClass.
- */
-const ASCII_DIAGRAM_RE = /[╔╗╚╝║═┌┐└┘│─→←↑↓]|✅|❌|⚠️|🔄|⭐/u;
+const MERMAID_DIAGRAM_START_RE =
+  /^(flowchart|graph|sequenceDiagram|classDiagram|erDiagram|stateDiagram(?:-v2)?)(?:\s|$)/i;
 
 /**
  * Service for interacting with Google's Gemini AI for quiz generation and content processing
@@ -311,7 +306,7 @@ export class GeminiService {
 
   /**
    * Generate a comprehensive document from a user text prompt
-   * Creates structured markdown with tables, ASCII diagrams, and detailed content
+    * Creates structured markdown with tables, Mermaid diagrams, and detailed content
    * @param userPrompt - The user's text prompt describing what document to generate
    * @param files - Optional array of reference documents to use as context
    * @returns Generated markdown document content
@@ -397,7 +392,7 @@ export class GeminiService {
   /**
    * Generate comprehensive followup explanation for quiz question
    * @param context - Complete context including original document and question details
-   * @returns Generated markdown content with ASCII diagrams
+   * @returns Generated markdown content with Mermaid diagrams
    */
   public static async generateQuizFollowup(
     context: QuizFollowupContext
@@ -447,12 +442,77 @@ export class GeminiService {
         'Error generating quiz followup with Gemini AI:',
         error
       );
+
+      const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+      if (
+        isEmulator &&
+        error instanceof Error &&
+        error.message.includes('User location is not supported')
+      ) {
+        functions.logger.warn(
+          'Geographic restriction detected in local emulator, falling back to mock followup'
+        );
+        return this.generateMockFollowup(context);
+      }
+
       throw new Error(
         `Failed to generate followup: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`
       );
     }
+  }
+
+  private static generateMockFollowup(context: QuizFollowupContext): string {
+    functions.logger.info('Generating mock followup explanation for development');
+    return `# Question Analysis
+
+> **Note**: This is mock followup content generated in the local emulator (Gemini API geographic restriction).
+
+## Core Concept Explanation
+
+The question tests understanding of: **${context.question.text.slice(0, 80)}...**
+
+This is a fundamental concept from the document "${context.originalDocument.title}".
+
+## Answer Analysis
+
+- **Your answer**: ${context.question.userAnswer}
+${context.question.correctAnswer ? `- **Correct answer**: ${context.question.correctAnswer}` : ''}
+
+Each option represents a different aspect of the concept being tested.
+
+## Diagram 1: Conceptual Overview
+
+\`\`\`mermaid
+flowchart TD
+  A[Question Concept] --> B[Key Principle]
+  B --> C[Application]
+  C --> D[Outcome]
+\`\`\`
+
+This diagram shows the conceptual flow from question to answer.
+
+## Diagram 2: Detailed Process
+
+\`\`\`mermaid
+flowchart LR
+  Q[Your Answer] -->|Compare| C[Correct Answer]
+  C --> E[Explanation]
+  E --> L[Learning Outcome]
+\`\`\`
+
+This diagram illustrates the learning process.
+
+## Key Takeaways
+
+- Configure the Gemini API key for your region to get real AI-generated explanations
+- The emulator falls back to this mock content when the Gemini API is unavailable
+
+## Connection to Original Document
+
+This question is derived from: **${context.originalDocument.title}**
+`;
   }
 
   /**
@@ -1076,7 +1136,44 @@ export class GeminiService {
   }
 
   /**
-   * Validate and fix followup content to ensure proper ASCII diagram formatting
+   * Check whether a fenced code block starts with Mermaid source.
+   */
+  private static isMermaidSource(content: string): boolean {
+    const firstNonEmptyLine =
+      content
+        .split('\n')
+        .find((line) => line.trim().length > 0)
+        ?.trim() ?? '';
+
+    return MERMAID_DIAGRAM_START_RE.test(firstNonEmptyLine);
+  }
+
+  /**
+   * Upgrade unlabeled code fences that contain Mermaid source to `mermaid`
+   * fences so the shared markdown renderer can render them as diagrams.
+   */
+  private static normalizeMermaidCodeFences(content: string): string {
+    return content.replace(
+      /```[ \t]*\n([\s\S]*?)\n```/g,
+      (match: string, block: string) => {
+        if (!this.isMermaidSource(block)) {
+          return match;
+        }
+
+        return `\`\`\`mermaid\n${block}\n\`\`\``;
+      }
+    );
+  }
+
+  /**
+   * Count Mermaid code fences in generated markdown.
+   */
+  private static countMermaidCodeBlocks(content: string): number {
+    return (content.match(/```mermaid\s*\n[\s\S]*?\n```/gi) ?? []).length;
+  }
+
+  /**
+   * Validate and fix followup content to ensure proper Mermaid diagram formatting
    * @param content - Generated followup content to validate and fix
    * @returns Fixed content
    */
@@ -1105,6 +1202,12 @@ export class GeminiService {
         );
       }
 
+      const normalizedContent = this.normalizeMermaidCodeFences(processedContent);
+      if (normalizedContent !== processedContent) {
+        processedContent = normalizedContent;
+        functions.logger.info('Normalized Mermaid code fences in followup content');
+      }
+
       // Check for required sections
       const requiredSections = [
         '# Question Analysis',
@@ -1127,34 +1230,15 @@ export class GeminiService {
         );
       }
 
-      // Check for ASCII diagrams in code blocks
-      const codeBlockRegex = /```[\s\S]*?```/g;
-      const codeBlocks = processedContent.match(codeBlockRegex);
-
-      if (!codeBlocks || codeBlocks.length < 2) {
+      const mermaidBlockCount = this.countMermaidCodeBlocks(processedContent);
+      if (mermaidBlockCount < 2) {
         functions.logger.warn(
-          'Less than 2 code blocks found in followup content. ASCII diagrams may not be properly formatted.'
+          'Less than 2 Mermaid code blocks found in followup content. Diagrams may not be properly formatted.'
         );
-
-        // Attempt to fix common ASCII diagram formatting issues
-        const fixedContent = this.fixAsciiDiagramFormatting(processedContent);
-        if (fixedContent !== processedContent) {
-          functions.logger.info('Applied ASCII diagram formatting fixes');
-          return fixedContent; // Return fixed content
-        }
-      }
-
-      // Check if ASCII diagrams contain proper symbols
-      if (codeBlocks) {
-        const hasAsciiSymbols = codeBlocks.some((block) =>
-          ASCII_DIAGRAM_RE.test(block)
+      } else {
+        functions.logger.info(
+          `Found ${mermaidBlockCount} Mermaid diagram(s) in followup content`
         );
-
-        if (!hasAsciiSymbols) {
-          functions.logger.warn(
-            'No ASCII symbols detected in code blocks. Diagrams may be improperly formatted.'
-          );
-        }
       }
 
       functions.logger.info('Followup content validation passed');
@@ -1163,58 +1247,6 @@ export class GeminiService {
       functions.logger.error('Error validating followup content:', error);
       return content; // Return original content on error
     }
-  }
-
-  /**
-   * Attempt to fix common ASCII diagram formatting issues
-   * @param content - Content with potential formatting issues
-   * @returns Fixed content
-   */
-  private static fixAsciiDiagramFormatting(content: string): string {
-    const fixedContent = content;
-    const lines = fixedContent.split('\n');
-    const result: string[] = [];
-    let inAsciiBlock = false;
-    let asciiBuffer: string[] = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-
-      // Check if line contains ASCII diagram characters (box-drawing / arrows /
-      // emoji only — plain +, -, | are excluded to avoid false positives on
-      // markdown lists and tables).
-      const hasAsciiChars = ASCII_DIAGRAM_RE.test(line);
-      const isCodeBlock = line.startsWith('```');
-
-      if (hasAsciiChars && !isCodeBlock && !inAsciiBlock) {
-        // Start of ASCII block
-        inAsciiBlock = true;
-        result.push('```');
-        asciiBuffer = [lines[i]];
-      } else if (inAsciiBlock) {
-        if (hasAsciiChars || line === '') {
-          // Continue ASCII block
-          asciiBuffer.push(lines[i]);
-        } else {
-          // End of ASCII block
-          result.push(...asciiBuffer);
-          result.push('```');
-          result.push(lines[i]);
-          inAsciiBlock = false;
-          asciiBuffer = [];
-        }
-      } else {
-        result.push(lines[i]);
-      }
-    }
-
-    // Handle case where ASCII block goes to end of content
-    if (inAsciiBlock && asciiBuffer.length > 0) {
-      result.push(...asciiBuffer);
-      result.push('```');
-    }
-
-    return result.join('\n');
   }
 
   /**
@@ -1246,6 +1278,12 @@ export class GeminiService {
         );
       }
 
+      const normalizedContent = this.normalizeMermaidCodeFences(processedContent);
+      if (normalizedContent !== processedContent) {
+        processedContent = normalizedContent;
+        functions.logger.info('Normalized Mermaid code fences in document content');
+      }
+
       // Check for required sections
       const requiredSections = [
         '## Glossary',
@@ -1275,21 +1313,12 @@ export class GeminiService {
         functions.logger.info(`Found ${tables.length} table(s) in document`);
       }
 
-      // Check for ASCII diagrams in code blocks
-      const codeBlockRegex = /```[\s\S]*?```/g;
-      const codeBlocks = processedContent.match(codeBlockRegex);
-
-      if (!codeBlocks || codeBlocks.length < 2) {
-        functions.logger.warn(
-          'Less than 2 code blocks found in document content. ASCII diagrams may not be properly formatted.'
-        );
+      const mermaidBlockCount = this.countMermaidCodeBlocks(processedContent);
+      if (mermaidBlockCount === 0) {
+        functions.logger.info('No Mermaid diagrams detected in document content');
       } else {
-        // Count blocks that contain ASCII art characters
-        const asciiBlocks = codeBlocks.filter((block) =>
-          ASCII_DIAGRAM_RE.test(block)
-        );
         functions.logger.info(
-          `Found ${asciiBlocks.length} ASCII diagram(s) in document`
+          `Found ${mermaidBlockCount} Mermaid diagram(s) in document`
         );
       }
 

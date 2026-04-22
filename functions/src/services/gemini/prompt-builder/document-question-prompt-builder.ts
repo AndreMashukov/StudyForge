@@ -51,7 +51,9 @@ FORMATTING REQUIREMENTS:
 - Use proper markdown structure with clear headings
 - Keep the response focused and relevant to the question
 - If the question cannot be answered from the document content alone, acknowledge this and provide the best possible answer based on available information
-- If ASCII diagrams would help explain the concept, wrap them in triple backticks
+- If a diagram would help explain the concept, use a Mermaid fenced block (\`\`\`mermaid)
+- Use only supported Mermaid types: flowchart/graph, sequenceDiagram, classDiagram, erDiagram, or stateDiagram
+- Keep Mermaid diagrams compact and avoid bare /, \\, or @ inside square-bracket labels
 
 Generate a helpful, accurate markdown response.`;
 
