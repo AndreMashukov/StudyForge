@@ -37,14 +37,16 @@ ${userPrompt.trim()}
 === GENERATION GUIDELINES ===
 - Synthesize information from all reference documents above
 - Create comprehensive content with proper structure (minimum 1000 words)
-- Include tables, diagrams (using mermaid/ASCII), and examples where appropriate
+- Include tables, Mermaid diagrams, and examples where appropriate
 - Ensure accuracy by referencing the provided context
 - Maintain educational tone with clear explanations
 - Organize content with proper headings and sections
 - Start with a clear H1 title (# Title)
 - Include these sections: Glossary, Core Concepts, Examples, Summary
 - Use markdown formatting throughout
-- Add relevant ASCII diagrams in code blocks for visual explanations
+- If diagrams help, use Mermaid fenced blocks (\`\`\`mermaid) for visual explanations
+- Use only supported Mermaid types: flowchart/graph, sequenceDiagram, classDiagram, erDiagram, or stateDiagram
+- Keep Mermaid diagrams compact and avoid labels that use bare /, \\, or @ inside square brackets
 
 Generate the complete educational document now:`;
 
@@ -86,7 +88,8 @@ function buildStandardDocumentPrompt(userPrompt: string): string {
   * ## Examples (practical examples and use cases)
   * ## Summary (key takeaways)
 - Use markdown tables to present structured information
-- Include ASCII diagrams in code blocks for visual explanations
+- If diagrams help, use Mermaid fenced blocks (\`\`\`mermaid) for visual explanations
+- Use only supported Mermaid types: flowchart/graph, sequenceDiagram, classDiagram, erDiagram, or stateDiagram
 - Add relevant examples and detailed explanations
 - Maintain professional, educational tone
 - Use proper markdown formatting throughout

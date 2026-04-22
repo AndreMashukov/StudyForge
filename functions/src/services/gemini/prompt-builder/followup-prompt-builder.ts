@@ -33,7 +33,7 @@ Generate a comprehensive educational explanation in markdown format that:
 
 1. **Explains the core concept** being tested in the question
 2. **Provides detailed analysis** of why each answer option is correct/incorrect
-3. **Includes exactly 2 ASCII diagrams**:
+3. **Includes exactly 2 Mermaid diagrams**:
    - Diagram 1: Conceptual overview showing the main concept visually
    - Diagram 2: Detailed process/implementation showing step-by-step breakdown
 4. **Connects to the original document** by referencing specific sections
@@ -41,63 +41,46 @@ Generate a comprehensive educational explanation in markdown format that:
 
 CRITICAL FORMATTING REQUIREMENTS:
 - Use proper markdown structure with clear headings
-- **MANDATORY**: Each ASCII diagram MUST be wrapped in triple backticks
+- **MANDATORY**: Each Mermaid diagram MUST be wrapped in \`\`\`mermaid code fences
 - **EXAMPLE OF CORRECT FORMAT**:
   ## Diagram 1: Title
   
-  Triple backticks here
-  ╔═══════════════╗     ┌─────────────┐
-  ║ Important Box ║ ──→ │ Process Box │
-  ╚═══════════════╝     └─────────────┘
-  Triple backticks here
+  \`\`\`mermaid
+  flowchart TD
+   A[Core Concept] --> B[Important Step]
+   B --> C[Outcome]
+  \`\`\`
   
   This diagram shows...
-- Never put ASCII diagrams outside code blocks
-- Follow the ascii-diagram-rule patterns for visual clarity
+- Never put Mermaid diagrams outside \`\`\`mermaid code fences
+- Use only supported Mermaid types: flowchart/graph, sequenceDiagram, classDiagram, erDiagram, or stateDiagram
+- Keep diagrams compact and visually clear
+- Do not use bare /, \\, or @ inside square-bracket node labels
+- If a label needs a special character, quote the label inside the brackets
+- Use subgraph IDs without spaces; put the display label in quotes if needed
 - Create educational content suitable for deep learning
 
-ASCII DIAGRAM REQUIREMENTS:
-- **CRITICAL**: Always wrap ASCII diagrams in \`\`\` code blocks
-- Use boxes, arrows, and symbols: → ↑ ↓ ← ✅ ❌ ⚠️ 🔄 ⭐
-- Make diagrams informative and easy to understand  
+MERMAID DIAGRAM REQUIREMENTS:
+- **CRITICAL**: Always wrap Mermaid diagrams in \`\`\`mermaid code fences
 - Explain each diagram after showing it in regular text
 - Ensure diagrams complement the textual explanation
 - Keep diagrams concise but informative
-
-AVAILABLE ASCII SYMBOLS:
-\`\`\`
-╔═══════════════╗     ┌─────────────┐     +-------------+
-║ Important Box ║     │ Regular Box │     | Simple Box  |
-╚═══════════════╝     └─────────────┘     +-------------+
-
-Flow Examples:
-Process A ──→ Process B ──→ Result
-    │              ↑
-    └──→ Alt Path ──┘
-
-Symbols: ✅ ❌ ⚠️ 🔄 ⭐ → ↑ ↓ ← │ ─ ╔ ╗ ╚ ╝ ║ ═
-\`\`\`
+- Prefer flowchart/graph unless another supported Mermaid type is clearly better
 
 CONTENT STRUCTURE:
 1. **# Question Analysis**
 2. **## Core Concept Explanation**  
 3. **## Answer Analysis**
 4. **## Diagram 1: Conceptual Overview**
-   **CRITICAL**: Must wrap ASCII art in triple backticks like this:
-   Triple backticks on line before diagram
-   ASCII diagram content here
-   Triple backticks on line after diagram
+  **CRITICAL**: Must wrap Mermaid source in \`\`\`mermaid fences
 5. **## Diagram 2: Detailed Process**
-   **CRITICAL**: Must wrap ASCII art in triple backticks like this:
-   Triple backticks on line before diagram
-   ASCII diagram content here
-   Triple backticks on line after diagram
+  **CRITICAL**: Must wrap Mermaid source in \`\`\`mermaid fences
 6. **## Key Takeaways**
 7. **## Connection to Original Document**
 
 **FINAL REMINDER**: 
-- EVERY ASCII diagram must be wrapped in triple backticks (code blocks)
-- No exceptions - all ASCII art must be in code blocks
+- EVERY Mermaid diagram must be wrapped in \`\`\`mermaid fences
+- No exceptions - all Mermaid diagrams must be in Mermaid code blocks
 - Text explanation goes outside code blocks
 - This is critical for proper markdown rendering
 
