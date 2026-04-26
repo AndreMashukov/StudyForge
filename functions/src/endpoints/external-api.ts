@@ -752,6 +752,226 @@ export const api = onRequest(
         return;
       }
 
+      // POST /slide-decks/generate-with-images
+      // Same as /slide-decks/generate, but the caller supplies pre-generated
+      // images (base64) instead of having Gemini render them. The images array
+      // is positional: images[i] is bound to slides[i]. Image count MUST equal
+      // the number of slides Gemini produces from the document(s); otherwise a
+      // 400 is returned with both counts so the caller can retry.
+      if (method === "POST" && path === "/slide-decks/generate-with-images") {
+        const body: unknown = req.body;
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          res.status(400).json({ success: false, error: "Request body must be a JSON object." });
+          return;
+        }
+        const requestData = body as Record<string, unknown>;
+
+        const documentIds = requestData.documentIds as string[];
+        if (
+          !Array.isArray(documentIds) ||
+          documentIds.length === 0 ||
+          !documentIds.every((id) => typeof id === "string")
+        ) {
+          res.status(400).json({ success: false, error: "documentIds must be a non-empty array of strings." });
+          return;
+        }
+        if (documentIds.length > 5) {
+          res.status(400).json({ success: false, error: "Maximum 5 documents allowed." });
+          return;
+        }
+
+        const rawImages = requestData.images;
+        if (!Array.isArray(rawImages) || rawImages.length === 0) {
+          res.status(400).json({
+            success: false,
+            error: "images is required: a non-empty array of { data: string (base64), contentType?: string } in slide order.",
+          });
+          return;
+        }
+        const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+        const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MiB per image (decoded)
+        const parsedImages: Array<{ buffer: Buffer; contentType: string; extension: string }> = [];
+        for (let i = 0; i < rawImages.length; i++) {
+          const item = rawImages[i];
+          if (!item || typeof item !== "object" || Array.isArray(item)) {
+            res.status(400).json({ success: false, error: `images[${i}] must be an object.` });
+            return;
+          }
+          const itemRecord = item as Record<string, unknown>;
+          if (typeof itemRecord.data !== "string" || !itemRecord.data.trim()) {
+            res.status(400).json({ success: false, error: `images[${i}].data must be a non-empty base64 string.` });
+            return;
+          }
+          let dataField: string = itemRecord.data;
+          let contentType = typeof itemRecord.contentType === "string" ? itemRecord.contentType.toLowerCase() : "image/png";
+          // Allow data URLs (e.g. "data:image/png;base64,XXXX") and extract type + payload
+          const dataUrlMatch = dataField.match(/^data:([^;,]+);base64,(.+)$/);
+          if (dataUrlMatch) {
+            contentType = dataUrlMatch[1].toLowerCase();
+            dataField = dataUrlMatch[2];
+          }          if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
+            res.status(400).json({
+              success: false,
+              error: `images[${i}].contentType "${contentType}" is not allowed. Allowed: ${[...ALLOWED_IMAGE_TYPES].join(", ")}.`,
+            });
+            return;
+          }
+          let buffer: Buffer;
+          try {
+            buffer = Buffer.from(dataField, "base64");
+          } catch {
+            res.status(400).json({ success: false, error: `images[${i}].data is not valid base64.` });
+            return;
+          }
+          if (buffer.length === 0) {
+            res.status(400).json({ success: false, error: `images[${i}].data decoded to 0 bytes.` });
+            return;
+          }
+          if (buffer.length > MAX_IMAGE_BYTES) {
+            res.status(400).json({
+              success: false,
+              error: `images[${i}] is ${buffer.length} bytes, exceeds ${MAX_IMAGE_BYTES} byte limit.`,
+            });
+            return;
+          }
+          const extension = contentType.split("/")[1] || "png";
+          parsedImages.push({ buffer, contentType, extension });
+        }
+
+        const customTitle = typeof requestData.title === "string" ? requestData.title.trim() : undefined;
+        const additionalPrompt = typeof requestData.additionalPrompt === "string" ? requestData.additionalPrompt.trim() : undefined;
+        const ruleIds = Array.isArray(requestData.ruleIds) ? requestData.ruleIds as string[] : undefined;
+        const additionalRuleIds = Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds as string[] : undefined;
+
+        const documentDataList = await Promise.all(
+          documentIds.map(async (docId) => {
+            const doc = await DocumentCrudService.getDocument(userId, docId);
+            const content = await FirestoreService.getDocumentContent(userId, docId);
+            return { doc, content };
+          })
+        );
+
+        const combinedContent = documentDataList.map((d) => d.content).join("\n\n---\n\n");
+
+        const resolvedDirectoryId = (requestData.directoryId as string) ?? documentDataList[0]?.doc.directoryId;
+        if (!resolvedDirectoryId) {
+          res.status(400).json({ success: false, error: "directoryId is required, or documents must belong to a directory." });
+          return;
+        }
+        await directoryService.validateDirectoryId(userId, resolvedDirectoryId);
+        for (const { doc } of documentDataList) {
+          if (!doc.directoryId || doc.directoryId !== resolvedDirectoryId) {
+            res.status(400).json({ success: false, error: "All selected documents must belong to the same directory." });
+            return;
+          }
+        }
+
+        let injectedRules: string | undefined;
+        let appliedRuleIdsForSave: string[] = [];
+        if (ruleIds?.length) {
+          injectedRules = await promptBuilder.injectRules(additionalPrompt || "", ruleIds, userId);
+          appliedRuleIdsForSave = ruleIds;
+        } else {
+          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
+            userId, resolvedDirectoryId, RuleApplicability.SLIDE_DECK, additionalRuleIds
+          );
+          appliedRuleIdsForSave = resolvedAppliedIds;
+          const base = additionalPrompt || "";
+          if (rulesText && base) {
+            injectedRules = `${rulesText}\n\n${base}`;
+          } else if (rulesText) {
+            injectedRules = rulesText;
+          } else if (base) {
+            injectedRules = base;
+          }
+        }
+
+        const slideOutline = await GeminiService.generateSlideDeckOutline(
+          combinedContent, additionalPrompt || undefined, injectedRules
+        );
+
+        if (slideOutline.length !== parsedImages.length) {
+          res.status(400).json({
+            success: false,
+            error: "Image count does not match generated slide count. Resubmit with the correct number of images.",
+            data: {
+              expectedImageCount: slideOutline.length,
+              providedImageCount: parsedImages.length,
+            },
+          });
+          return;
+        }
+
+        const slides: Slide[] = slideOutline.map((outline) => ({
+          id: admin.firestore().collection("tmp").doc().id,
+          title: outline.title,
+          content: outline.content,
+          speakerNotes: outline.speakerNotes,
+        }));
+
+        const uploadedPaths: string[] = [];
+        try {
+          await Promise.all(slides.map(async (slide, i) => {
+            const img = parsedImages[i];
+            const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.${img.extension}`;
+            const downloadToken = randomUUID();
+            const file = admin.storage().bucket().file(storagePath);
+            await file.save(img.buffer, {
+              metadata: {
+                contentType: img.contentType,
+                metadata: { firebaseStorageDownloadTokens: downloadToken },
+              },
+              resumable: false,
+            });
+            slide.imageStoragePath = storagePath;
+            slide.imageDownloadToken = downloadToken;
+            uploadedPaths.push(storagePath);
+          }));
+        } catch (uploadError) {
+          if (uploadedPaths.length > 0) {
+            const bucket = admin.storage().bucket();
+            await Promise.allSettled(uploadedPaths.map((p) => bucket.file(p).delete().catch(() => { /* ignore cleanup errors */ })));
+          }
+          throw uploadError;
+        }
+
+        let deckTitle: string;
+        if (customTitle) {
+          deckTitle = customTitle;
+        } else if (documentIds.length === 1) {
+          deckTitle = `Slides for "${documentDataList[0].doc.title}"`;
+        } else {
+          deckTitle = `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`;
+        }
+
+        const primaryDocumentId = documentIds[0];
+        const newSlideDeckData = {
+          title: deckTitle,
+          slides,
+          userId,
+          documentId: primaryDocumentId,
+          directoryId: resolvedDirectoryId,
+          ...(documentIds.length > 1 ? { documentIds } : {}),
+          documentTitle: documentDataList[0].doc.title,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          appliedRuleIds: appliedRuleIdsForSave,
+        };
+
+        const db = admin.firestore();
+        const newDeckRef = FirestorePaths.slideDecks(userId).doc();
+        await db.runTransaction(async (transaction) => {
+          transaction.set(newDeckRef, newSlideDeckData);
+          transaction.update(FirestorePaths.directory(userId, resolvedDirectoryId), {
+            slideDeckCount: FieldValue.increment(1),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        });
+
+        res.status(201).json({ success: true, data: { slideDeckId: newDeckRef.id } });
+        return;
+      }
+
       // ==================== READ ENDPOINTS ====================
 
       // GET /documents — List documents (with optional filters)
@@ -1124,6 +1344,7 @@ export const api = onRequest(
           "POST /sequence-quizzes/generate",
           "POST /flashcard-sets/generate",
           "POST /slide-decks/generate",
+          "POST /slide-decks/generate-with-images",
           // Read — Documents
           "GET /documents",
           "GET /documents/:id",
