@@ -115,6 +115,7 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
       if (mode === 'edit' && ruleId) {
         await updateRule({ ruleId, ...formData }).unwrap();
         showToast(`Rule "${formData.name}" updated successfully`, 'success');
+        navigate('/rules');
       } else {
         await createRule(formData as CreateRuleRequest).unwrap();
         showToast(`Rule "${formData.name}" created successfully`, 'success');
