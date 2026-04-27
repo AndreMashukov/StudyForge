@@ -70,7 +70,8 @@ export const HomePageContainer = () => {
   const rows = useMemo(() => {
     if (!statsResponse?.stats) return [];
     const all = aggregateStatsByDirectory(statsResponse.stats, directoryNames);
-    return topLevelIds.size > 0 ? all.filter((r) => topLevelIds.has(r.directoryId)) : all;
+    const scoped = topLevelIds.size > 0 ? all.filter((r) => topLevelIds.has(r.directoryId)) : all;
+    return scoped.filter((r) => r.totalSeconds > 0);
   }, [statsResponse, directoryNames, topLevelIds]);
 
   const grandTotal = useMemo(
