@@ -20,13 +20,17 @@ export const DirectoryShareChart: React.FC<IDirectoryShareChart> = ({
 }) => {
   const theme = useChartTheme();
   const total = data.reduce((sum, d) => sum + d.value, 0);
+  const filteredData = data.filter(
+    (d) => total > 0 && Math.round((d.value / total) * 100) > 0
+  );
+  const filteredTotal = filteredData.reduce((sum, d) => sum + d.value, 0);
 
   return (
     <div role="img" aria-label="Pie chart showing the share of study time per directory">
     <ResponsiveContainer width="100%" height={300}>
       <PieChart>
         <Pie
-          data={data}
+          data={filteredData}
           cx="50%"
           cy="50%"
           innerRadius={60}
@@ -36,7 +40,7 @@ export const DirectoryShareChart: React.FC<IDirectoryShareChart> = ({
           nameKey="name"
           strokeWidth={0}
         >
-          {data.map((_, idx) => (
+          {filteredData.map((_, idx) => (
             <Cell
               key={idx}
               fill={CHART_COLORS[idx % CHART_COLORS.length]}
@@ -52,7 +56,7 @@ export const DirectoryShareChart: React.FC<IDirectoryShareChart> = ({
           }}
           formatter={(value) => {
             const v = Number(value);
-            const pct = total > 0 ? Math.round((v / total) * 100) : 0;
+            const pct = filteredTotal > 0 ? Math.round((v / filteredTotal) * 100) : 0;
             return [`${formatDuration(v * 60)} (${pct}%)`, 'Time'];
           }}
         />
@@ -64,8 +68,8 @@ export const DirectoryShareChart: React.FC<IDirectoryShareChart> = ({
           formatter={(value: string, entry) => {
             const payload = entry.payload as IPieChartDatum & { value: number };
             const pct =
-              total > 0
-                ? Math.round((payload.value / total) * 100)
+              filteredTotal > 0
+                ? Math.round((payload.value / filteredTotal) * 100)
                 : 0;
             return `${value} (${pct}%)`;
           }}
