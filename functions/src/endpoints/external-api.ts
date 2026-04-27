@@ -27,6 +27,7 @@ import {
   DocumentStatus,
   Flashcard,
   FlashcardSet,
+  GenerateFromPromptRequest,
   GenerateQuizRequest,
   RuleApplicability,
   Slide,
@@ -46,9 +47,10 @@ const geminiApiKey = defineSecret("GEMINI_API_KEY");
  *   http://127.0.0.1:5001/{project-id}/asia-east1/api
  *
  * Routes:
- *   POST /documents           — Create a document
- *   POST /directories         — Create a directory
- *   POST /quizzes/generate    — Generate a quiz from document(s)
+ *   POST /documents                        — Create a document
+ *   POST /documents/generate-from-prompt   — Generate a document from an AI text prompt
+ *   POST /directories                      — Create a directory
+ *   POST /quizzes/generate                 — Generate a quiz from document(s)
  */
 export const api = onRequest(
   {
@@ -972,6 +974,118 @@ export const api = onRequest(
         return;
       }
 
+      // POST /documents/generate-from-prompt
+      if (method === "POST" && path === "/documents/generate-from-prompt") {
+        const body: unknown = req.body;
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          res.status(400).json({ success: false, error: "Request body must be a JSON object." });
+          return;
+        }
+        const data = body as GenerateFromPromptRequest;
+
+        if (!data.prompt || typeof data.prompt !== "string") {
+          res.status(400).json({ success: false, error: "prompt is required and must be a string." });
+          return;
+        }
+
+        const trimmedPrompt = data.prompt.trim();
+
+        if (trimmedPrompt.length === 0) {
+          res.status(400).json({ success: false, error: "prompt cannot be empty." });
+          return;
+        }
+
+        if (trimmedPrompt.length < 10) {
+          res.status(400).json({ success: false, error: "prompt must be at least 10 characters long." });
+          return;
+        }
+
+        if (typeof data.directoryId !== "string" || !data.directoryId.trim()) {
+          res.status(400).json({ success: false, error: "directoryId is required." });
+          return;
+        }
+
+        if (data.files) {
+          if (!Array.isArray(data.files)) {
+            res.status(400).json({ success: false, error: "files must be an array." });
+            return;
+          }
+          if (data.files.length > 5) {
+            res.status(400).json({ success: false, error: "Cannot attach more than 5 files." });
+            return;
+          }
+          for (let i = 0; i < data.files.length; i++) {
+            const file = data.files[i];
+            if (!file.filename || !file.content || typeof file.size !== "number" || !file.type) {
+              res.status(400).json({ success: false, error: `Invalid file structure at index ${i} for file: ${file.filename || "unknown"}.` });
+              return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+              res.status(400).json({ success: false, error: `File "${file.filename}" exceeds 5MB size limit.` });
+              return;
+            }
+            if (file.content.trim().length === 0) {
+              res.status(400).json({ success: false, error: `File "${file.filename}" is empty.` });
+              return;
+            }
+            if (!["text/plain", "text/markdown"].includes(file.type)) {
+              res.status(400).json({ success: false, error: `File "${file.filename}" has unsupported type: ${file.type}. Only text/plain and text/markdown are allowed.` });
+              return;
+            }
+          }
+        }
+
+        await directoryService.validateDirectoryId(userId, data.directoryId);
+
+        let finalPrompt = trimmedPrompt;
+        if (data.ruleIds && data.ruleIds.length > 0) {
+          finalPrompt = await promptBuilder.injectRules(trimmedPrompt, data.ruleIds, userId);
+        }
+
+        const generatedContent = await GeminiService.generateDocumentFromPrompt(
+          finalPrompt,
+          data.files
+        );
+
+        let title = "Generated Document";
+        const titleMatch = generatedContent.match(/^#\s+(.+)$/m);
+        if (titleMatch && titleMatch[1]) {
+          title = titleMatch[1].trim();
+        } else {
+          title = trimmedPrompt.length > 50
+            ? `${trimmedPrompt.substring(0, 50)}...`
+            : trimmedPrompt;
+        }
+
+        const wordCount = generatedContent.split(/\s+/).length;
+
+        const document = await DocumentCrudService.createDocument(userId, {
+          title,
+          description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? "..." : ""}`,
+          content: generatedContent,
+          sourceType: DocumentSourceType.GENERATED,
+          status: DocumentStatus.ACTIVE,
+          tags: ["ai-generated", "prompt-based"],
+          directoryId: data.directoryId,
+        });
+
+        res.status(201).json({
+          success: true,
+          data: {
+            documentId: document.id,
+            title: document.title,
+            content: generatedContent,
+            wordCount,
+            metadata: {
+              originalPrompt: trimmedPrompt,
+              generatedAt: new Date().toISOString(),
+              filesUsed: data.files?.length || 0,
+            },
+          },
+        });
+        return;
+      }
+
       // ==================== READ ENDPOINTS ====================
 
       // GET /documents — List documents (with optional filters)
@@ -1337,6 +1451,7 @@ export const api = onRequest(
         availableRoutes: [
           // Create
           "POST /documents",
+          "POST /documents/generate-from-prompt",
           "POST /directories",
           "POST /rules",
           "POST /quizzes/generate",
