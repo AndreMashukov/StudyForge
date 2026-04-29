@@ -39,10 +39,9 @@
     "deploy": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "nx run shared-types:build && yarn deploy",
-        "cwd": "functions"
+        "command": "node_modules/.bin/firebase deploy --only functions --project study-forge-202604"
       },
-      "dependsOn": ["shared-types:build"]
+      "dependsOn": ["build"]
     },
     "shell": {
       "executor": "nx:run-commands",
