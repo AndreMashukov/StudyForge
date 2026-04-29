@@ -13,6 +13,243 @@
 
 <!-- nx configuration end-->
 
+---
+
+# Code Insights AI — Coding Conventions
+
+## Project Overview
+
+React + TypeScript web app in an NX monorepo. All source lives in `web/src/`. UI is built with shadcn/ui and Tailwind CSS. Routing uses React Router DOM **v6**. State is managed with Redux Toolkit + RTK Query. Auth uses Firebase Authentication.
+
+> **Never use MUI (Material UI).** This project does not have MUI as a dependency. Use shadcn/ui + Tailwind for all UI.
+
+---
+
+## Technology Stack
+
+| Concern | Choice |
+|---|---|
+| Build | Vite + NX workspace |
+| Package manager | Yarn (always install at workspace root) |
+| Framework | React 19+ with TypeScript |
+| UI library | shadcn/ui with Radix UI primitives |
+| Styling | Tailwind CSS + CSS custom properties |
+| Routing | **React Router DOM v6** (`react-router-dom`) |
+| Auth | Firebase Authentication + `react-firebase-hooks` |
+| State | Redux Toolkit + RTK Query + `redux-persist` |
+| Icons | Lucide React |
+| Forms | React Hook Form + Zod validation |
+| Dates | `date-fns` via `web/src/utils/dateUtils.ts` |
+
+---
+
+## File and Directory Structure
+
+### Source root: `web/src/`
+
+```
+web/src/
+├── components/         # Reusable global components
+│   └── ui/             # shadcn/ui components (each in its own directory)
+├── config/             # App-level configuration
+├── contexts/           # Shared React contexts
+├── hooks/              # Shared custom hooks
+├── lib/                # Utilities (cn, etc.)
+├── pages/              # Feature pages (see below)
+├── store/              # Redux store, slices, RTK Query APIs
+├── types/              # Shared TypeScript types
+└── utils/              # Utility functions (dateUtils, etc.)
+```
+
+### Page structure (established pattern)
+
+```
+web/src/pages/FeatureNamePage/
+├── index.ts
+├── FeatureNamePage.tsx
+├── FeatureNamePageContainer/
+│   ├── index.ts
+│   ├── FeatureNamePageContainer.tsx
+│   └── ComponentName/
+│       ├── index.ts
+│       ├── ComponentName.tsx
+│       ├── IComponentName.ts
+│       └── ComponentName.styles.ts
+├── context/
+│   ├── FeatureNamePageContext.ts
+│   ├── FeatureNamePageProvider.tsx
+│   └── hooks/
+│       ├── api/
+│       │   └── useFetchFeaturePageData.ts
+│       ├── useFeaturePageHandlers.ts
+│       ├── useFeaturePageEffects.ts
+│       └── useFeaturePageContext.ts
+├── types/
+│   ├── IFeaturePageHandlers.ts
+│   └── IFeaturePageContext.ts
+└── utils/
+    └── featurePageUtils.ts
+```
+
+Not all pages require the full structure. Simple pages may only need `index.tsx`.
+
+### Component directory structure
+
+```
+web/src/components/ComponentName/
+├── index.ts
+├── ComponentName.tsx
+├── IComponentName.ts       # Props interface (prefix with I)
+└── ComponentName.styles.ts # Tailwind/CVA style constants
+```
+
+### Store structure
+
+```
+web/src/store/
+├── index.ts
+├── api/
+│   ├── baseApi.ts
+│   └── FeatureName/
+│       ├── FeatureNameApi.ts
+│       └── IFeatureNameApi.ts
+└── slices/
+    ├── authSlice.ts
+    ├── uiSlice.ts
+    └── featureNamePageSlice.ts
+```
+
+---
+
+## Naming Conventions
+
+- Components: `PascalCase`
+- Pages: `FeatureNamePage`
+- Containers: `FeatureNamePageContainer`
+- Contexts: `FeatureNamePageContext`
+- Hooks: `useFeatureName`
+- Event handlers: prefix with `handle` (e.g., `handleSubmit`)
+- Interfaces: prefix with `I` (e.g., `IUserProfile`)
+- API response types: suffix with `Api` (e.g., `IDocumentApi`)
+
+---
+
+## TypeScript Guidelines
+
+- Use interfaces for all props and data structures (prefer over `type`)
+- No empty interfaces — use `Record<string, never>` or omit props entirely
+- Strict typing for all functions and variables
+- Separate interface files (`IComponentName.ts`) for complex types
+
+---
+
+## UI Components (shadcn/ui)
+
+Available components in `web/src/components/ui/`: `Button`, `Card`/`CardHeader`/`CardTitle`/`CardDescription`/`CardContent`/`CardFooter`, `Input`, `Textarea`, `Label`, `Badge`, `Dialog`, `DropdownMenu`, `ContextMenu`, `Tabs`, `Icon`.
+
+Button variants: `default`, `destructive`, `outline`, `secondary`, `ghost`, `link`. Sizes: `default`, `sm`, `lg`, `icon`.
+
+Use `cn()` from `web/src/lib/utils.ts` for conditional Tailwind classes.
+
+### Design tokens (CSS variables)
+
+```css
+--background: 0 0 0;       /* Pure black */
+--foreground: 255 255 255; /* White text */
+--card: 17 17 17;
+--primary: 139 92 246;     /* Purple */
+--accent: 34 197 94;       /* Green */
+--muted: 39 39 42;
+--destructive: 239 68 68;
+--border: 39 39 42;
+--input: 28 28 30;
+--ring: 139 92 246;
+--radius: 0.75rem;
+```
+
+---
+
+## Routing — React Router DOM v6
+
+**Always import from `react-router-dom`**, not from `react-router`.
+
+```typescript
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
+```
+
+### Protected route pattern
+
+```typescript
+export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const location = useLocation();
+  if (!isAuthenticated) return <Navigate to="/auth" state={{ from: location }} replace />;
+  return <>{children}</>;
+};
+```
+
+---
+
+## State Management
+
+- Use Redux slices for all global and page-level state
+- Use RTK Query for all API calls — never duplicate API data in local `useState`
+- `useState` is allowed for purely local UI state (controlled form inputs, open/closed toggles)
+- Access Redux state with `useSelector` directly in components — do not thread it down via props
+- Mutations belong in handler hooks, not in effects
+
+---
+
+## Architecture Patterns (context-based page)
+
+1. **Page component** — wraps `Provider` and `ProtectedRoute`
+2. **Page container** — consumes context, renders UI
+3. **Context provider** — orchestrates hooks only, no business logic
+4. **API hooks** (`context/hooks/api/`) — RTK Query + fetch-related `useEffect`
+5. **Handler hooks** (`useFeaturePageHandlers`) — mutations, navigation, no `useEffect`
+6. **Effect hooks** (`useFeaturePageEffects`) — non-fetch `useEffect` only
+
+Do **not** put `useState`, `useSelector`, or `useEffect` directly in providers.
+
+---
+
+## Form Handling
+
+- `useState` for simple controlled inputs
+- React Hook Form + Zod for complex forms; always name the form instance `form`
+- Validate with Zod `safeParse` before submission; collect field errors by path
+
+---
+
+## Authentication
+
+Firebase Authentication via `react-firebase-hooks`. Auth state managed in Redux `authSlice`.
+
+---
+
+## Date Utilities
+
+All date formatting goes through `web/src/utils/dateUtils.ts`. Never format dates inline.
+
+---
+
+## Dependency Management
+
+Install all packages at the workspace root: `yarn add package-name`
+
+---
+
+## Code Quality Rules
+
+- TypeScript strict mode throughout
+- Functional components only (no class components except `ErrorBoundary`)
+- Named exports for all components
+- No comments that just describe what the code does — only explain non-obvious intent
+- Use early returns for loading and error states in containers
+- Write accessible markup with proper ARIA labels
+
+---
+
 # Worktree Playbook
 
 - Always verify active worktrees before doing any setup or task execution: `git worktree list`
