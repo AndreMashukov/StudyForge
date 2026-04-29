@@ -28,8 +28,8 @@ import { config } from 'dotenv';
 
 config({ path: path.join(process.cwd(), '.env.local') });
 
-const PROJECT_ID = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'code-insights-quiz-ai';
-const STORAGE_BUCKET = 'code-insights-quiz-ai.appspot.com';
+const PROJECT_ID = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'study-forge-202604';
+const STORAGE_BUCKET = 'study-forge-202604.appspot.com';
 const TARGET_UID = '4ZBsEPIUJ4jrlylcXkg7t3sFdPZv';
 const TEST_EMAIL = 'test@example.com';
 const TEST_PASSWORD = 'Test123456!';

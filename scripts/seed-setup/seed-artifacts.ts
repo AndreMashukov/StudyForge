@@ -5,7 +5,7 @@ process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
 process.env.FIREBASE_AUTH_EMULATOR_HOST = 'localhost:9099';
 process.env.FIREBASE_STORAGE_EMULATOR_HOST = 'localhost:9199';
 
-admin.initializeApp({ projectId: 'code-insights-quiz-ai' });
+admin.initializeApp({ projectId: 'study-forge-202604' });
 const db = admin.firestore();
 
 const USER_ID = '4ZBsEPIUJ4jrlylcXkg7t3sFdPZv';
