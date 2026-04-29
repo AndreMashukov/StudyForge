@@ -4,8 +4,8 @@
   "scripts": {
     "serve": "nx run functions:build && npx firebase emulators:start --only functions",
     "shell": "nx run functions:build && npx firebase functions:shell",
-    "deploy": "nx run functions:build && npx firebase deploy --only functions --project code-insights-quiz-ai",
-    "logs": "npx firebase functions:log --project code-insights-quiz-ai"
+    "deploy": "nx run functions:build && npx firebase deploy --only functions --project study-forge-202604",
+    "logs": "npx firebase functions:log --project study-forge-202604"
   },
   "engines": {
     "node": ">=20"
