@@ -2,7 +2,7 @@
   "name": "code-insights-ai",
   "version": "1.0.0",
   "main": "index.js",
-  "repository": "https://github.com/AndreMashukov/code-insights-ai.git",
+  "repository": "https://github.com/AndreMashukov/StudyForge.git",
   "author": "AndreyAffhausen <andrey@affhausen.com>",
   "license": "MIT",
   "devDependencies": {
