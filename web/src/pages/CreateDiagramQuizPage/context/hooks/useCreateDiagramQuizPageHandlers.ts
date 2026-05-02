@@ -36,7 +36,8 @@ export const useCreateDiagramQuizPageHandlers = ({ form, documents }: IProps) =>
         directoryId: resolvedDirectoryId,
         diagramQuizName: formData.diagramQuizName?.trim() || undefined,
         additionalPrompt: formData.additionalPrompt?.trim() || undefined,
-        additionalRuleIds: formData.ruleIds?.length ? formData.ruleIds : undefined,
+        ruleIds: formData.ruleIds || [],
+        ruleResolutionMode: 'explicit-only',
       });
       navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=diagramQuizzes`);
     },
