@@ -9,11 +9,13 @@ import { z } from 'zod';
 import { Slide, SlideDeck, RuleApplicability } from '@shared-types';
 import { DocumentCrudService } from '../services/document-crud';
 import { directoryService } from '../services/directory';
-import { resolveGenerationRulesForPrompt } from '../services/rule-resolution';
+import {
+  isRuleResolutionMode,
+  resolveEffectiveRules,
+} from '../services/rule-resolution';
 import { GeminiService } from '../services/gemini/gemini';
 import { validateAuth } from '../lib/auth';
 import { FirestorePaths } from '../lib/firestore-paths';
-import { promptBuilder } from '../services/promptBuilder';
 
 const redactId = (id: string): string =>
   createHash('sha256').update(id).digest('hex').slice(0, 8);
@@ -29,6 +31,7 @@ const generateSlideDeckRequestSchema = z.object({
   ruleIds: z.array(z.string().nullable().optional()).optional()
     .transform(arr => (arr ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0)),
   additionalRuleIds: z.array(z.string()).optional(),
+  ruleResolutionMode: z.enum(['inherit', 'inherit-plus-explicit', 'explicit-only']).optional(),
 });
 
 const slideDeckIdRequestSchema = z.object({
@@ -55,7 +58,7 @@ export const generateSlideDeck = onCall(
         });
         throw new HttpsError('invalid-argument', msg);
       }
-      const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, additionalRuleIds } = parseResult.data;
+      const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, additionalRuleIds, ruleResolutionMode } = parseResult.data;
 
       const u = redactId(userId);
       const uploadedPaths: string[] = [];
@@ -107,27 +110,30 @@ export const generateSlideDeck = onCall(
         // Inject rules if provided
         let injectedRules: string | undefined;
         let appliedRuleIdsForSave: string[] = [];
-        if (ruleIds?.length) {
-          logger.info('[generateSlideDeck] STEP 2.5: Injecting rules.', { ruleCount: ruleIds.length });
-          injectedRules = await promptBuilder.injectRules(additionalPrompt || '', ruleIds, userId);
-          appliedRuleIdsForSave = ruleIds;
-        } else {
-          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
-            userId,
-            resolvedDirectoryId,
-            RuleApplicability.SLIDE_DECK,
-            additionalRuleIds
-          );
-          appliedRuleIdsForSave = resolvedAppliedIds;
-          const base = additionalPrompt?.trim() || '';
-          if (rulesText && base) {
-            injectedRules = `${rulesText}\n\n${base}`;
-          } else if (rulesText) {
-            injectedRules = rulesText;
-          } else if (base) {
-            injectedRules = base;
-          }
+        const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
+        const mode = ruleResolutionMode
+          ?? (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+        const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.SLIDE_DECK,
+          additionalRuleIds: explicitRuleIds,
+          mode: isRuleResolutionMode(mode) ? mode : 'inherit-plus-explicit',
+        });
+        appliedRuleIdsForSave = resolvedAppliedIds;
+        const base = additionalPrompt?.trim() || '';
+        if (rulesText && base) {
+          injectedRules = `${rulesText}\n\n${base}`;
+        } else if (rulesText) {
+          injectedRules = rulesText;
+        } else if (base) {
+          injectedRules = base;
         }
+
+        logger.info('[generateSlideDeck] STEP 2.5: Resolved effective rules.', {
+          ruleCount: appliedRuleIdsForSave.length,
+          mode,
+        });
 
         // Step 3: Generate slide outline
         logger.info('[generateSlideDeck] STEP 3: Generating slide outline.', { userIdHash: u });

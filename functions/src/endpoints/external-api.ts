@@ -6,9 +6,9 @@ import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
 import { GeminiService } from "../services/gemini";
 import { FirestoreService } from "../services/firestore";
-import { promptBuilder } from "../services/promptBuilder";
 import {
-  resolveGenerationRulesForPrompt,
+  isRuleResolutionMode,
+  resolveEffectiveRules,
   resolveRulesForDirectory,
 } from "../services/rule-resolution";
 import {
@@ -210,42 +210,40 @@ export const api = onRequest(
         let enhancedPrompt = additionalPrompt || "";
         let followupIdsForSave: string[] = [];
         let appliedRuleIdsForSave: string[] = [];
+        const ruleResolutionMode = isRuleResolutionMode(
+          (requestData as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
+        )
+          ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
+          : undefined;
+        const hasLegacyExplicitRules = Boolean(quizRuleIds?.length || followupRuleIds?.length);
+        const mode = ruleResolutionMode
+          ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
+        const selectedQuizRuleIds = quizRuleIds?.length
+          ? quizRuleIds
+          : requestData.additionalRuleIds;
+        const selectedFollowupRuleIds = hasLegacyExplicitRules
+          ? (followupRuleIds || [])
+          : requestData.additionalRuleIds;
 
-        if (quizRuleIds?.length || followupRuleIds?.length) {
-          const { quizPrompt } = await promptBuilder.injectQuizRules(
-            enhancedPrompt,
-            quizRuleIds || [],
-            followupRuleIds || [],
-            userId
-          );
-          enhancedPrompt = quizPrompt;
-          followupIdsForSave = followupRuleIds || [];
-          appliedRuleIdsForSave = [...(quizRuleIds || []), ...(followupRuleIds || [])].filter(
-            (id, i, arr) => arr.indexOf(id) === i
-          );
-        } else {
-          const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
-            userId,
-            resolvedDirectoryId,
-            RuleApplicability.QUIZ,
-            requestData.additionalRuleIds
-          );
-          if (quizRulesText) {
-            enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-          }
-          appliedRuleIdsForSave = resolvedAppliedIds;
-          const { rules: followupRules } = await resolveRulesForDirectory(
-            userId,
-            resolvedDirectoryId,
-            RuleApplicability.FOLLOWUP
-          );
-          followupIdsForSave = followupRules.map((r) => r.id);
-          if (requestData.additionalRuleIds?.length) {
-            for (const id of requestData.additionalRuleIds) {
-              if (!followupIdsForSave.includes(id)) followupIdsForSave.push(id);
-            }
-          }
+        const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.QUIZ,
+          additionalRuleIds: selectedQuizRuleIds,
+          mode,
+        });
+        if (quizRulesText) {
+          enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
         }
+        appliedRuleIdsForSave = resolvedAppliedIds;
+        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.FOLLOWUP,
+          additionalRuleIds: selectedFollowupRuleIds,
+          mode,
+        });
+        followupIdsForSave = resolvedFollowupIds;
 
         const geminiQuiz = await GeminiService.generateQuiz(
           documentContent,
@@ -341,32 +339,36 @@ export const api = onRequest(
         let enhancedPrompt = additionalPrompt || "";
         let followupIdsForSave: string[] = [];
         let appliedRuleIdsForSave: string[] = [];
+        const ruleResolutionMode = isRuleResolutionMode(requestData.ruleResolutionMode)
+          ? requestData.ruleResolutionMode
+          : undefined;
+        const hasLegacyExplicitRules = Boolean(quizRuleIds?.length || followupRuleIds?.length);
+        const mode = ruleResolutionMode
+          ?? (hasLegacyExplicitRules ? "explicit-only" : "inherit-plus-explicit");
+        const selectedQuizRuleIds = quizRuleIds?.length
+          ? quizRuleIds
+          : additionalRuleIds;
+        const selectedFollowupRuleIds = hasLegacyExplicitRules
+          ? (followupRuleIds || [])
+          : additionalRuleIds;
 
-        if (quizRuleIds?.length || followupRuleIds?.length) {
-          const { quizPrompt } = await promptBuilder.injectQuizRules(
-            enhancedPrompt, quizRuleIds || [], followupRuleIds || [], userId
-          );
-          enhancedPrompt = quizPrompt;
-          followupIdsForSave = followupRuleIds || [];
-          appliedRuleIdsForSave = [...(quizRuleIds || []), ...(followupRuleIds || [])].filter(
-            (id, i, arr) => arr.indexOf(id) === i
-          );
-        } else {
-          const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
-            userId, resolvedDirectoryId, RuleApplicability.DIAGRAM_QUIZ, additionalRuleIds
-          );
-          if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-          appliedRuleIdsForSave = resolvedAppliedIds;
-          const { rules: followupRules } = await resolveRulesForDirectory(
-            userId, resolvedDirectoryId, RuleApplicability.FOLLOWUP
-          );
-          followupIdsForSave = followupRules.map((r) => r.id);
-          if (additionalRuleIds?.length) {
-            for (const id of additionalRuleIds) {
-              if (!followupIdsForSave.includes(id)) followupIdsForSave.push(id);
-            }
-          }
-        }
+        const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.DIAGRAM_QUIZ,
+          additionalRuleIds: selectedQuizRuleIds,
+          mode,
+        });
+        if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
+        appliedRuleIdsForSave = resolvedAppliedIds;
+        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.FOLLOWUP,
+          additionalRuleIds: selectedFollowupRuleIds,
+          mode,
+        });
+        followupIdsForSave = resolvedFollowupIds;
 
         const geminiQuiz = await GeminiService.generateDiagramQuiz(documentContent, enhancedPrompt);
 
@@ -448,15 +450,26 @@ export const api = onRequest(
 
         let enhancedPrompt = additionalPrompt || "";
         let followupIdsForSave: string[] = [];
+        const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
+          ? requestData.ruleResolutionMode
+          : "inherit-plus-explicit";
 
-        const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveGenerationRulesForPrompt(
-          userId, resolvedDirectoryId, RuleApplicability.SEQUENCE_QUIZ, additionalRuleIds
-        );
+        const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.SEQUENCE_QUIZ,
+          additionalRuleIds,
+          mode,
+        });
         if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-        const { rules: followupRules } = await resolveRulesForDirectory(
-          userId, resolvedDirectoryId, RuleApplicability.FOLLOWUP
-        );
-        followupIdsForSave = followupRules.map((r) => r.id);
+        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.FOLLOWUP,
+          additionalRuleIds,
+          mode,
+        });
+        followupIdsForSave = resolvedFollowupIds;
 
         const geminiQuiz = await GeminiService.generateSequenceQuiz(
           documentContent, enhancedPrompt || undefined
@@ -532,22 +545,25 @@ export const api = onRequest(
 
         let injectedRules: string | undefined;
         let appliedRuleIdsForSave: string[] = [];
-        if (ruleIds?.length) {
-          injectedRules = await promptBuilder.injectRules(additionalPrompt || "", ruleIds, userId);
-          appliedRuleIdsForSave = ruleIds;
-        } else {
-          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
-            userId, resolvedDirectoryId, RuleApplicability.FLASHCARD, additionalRuleIds
-          );
-          appliedRuleIdsForSave = resolvedAppliedIds;
-          const base = additionalPrompt || "";
-          if (rulesText && base) {
-            injectedRules = `${rulesText}\n\n${base}`;
-          } else if (rulesText) {
-            injectedRules = rulesText;
-          } else if (base) {
-            injectedRules = base;
-          }
+        const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
+        const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
+          ? requestData.ruleResolutionMode
+          : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
+        const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.FLASHCARD,
+          additionalRuleIds: explicitRuleIds,
+          mode,
+        });
+        appliedRuleIdsForSave = resolvedAppliedIds;
+        const base = additionalPrompt || "";
+        if (rulesText && base) {
+          injectedRules = `${rulesText}\n\n${base}`;
+        } else if (rulesText) {
+          injectedRules = rulesText;
+        } else if (base) {
+          injectedRules = base;
         }
 
         const generatedFlashcards = await GeminiService.generateFlashcards(combinedContent, injectedRules);
@@ -646,22 +662,25 @@ export const api = onRequest(
 
         let injectedRules: string | undefined;
         let appliedRuleIdsForSave: string[] = [];
-        if (ruleIds?.length) {
-          injectedRules = await promptBuilder.injectRules(additionalPrompt || "", ruleIds, userId);
-          appliedRuleIdsForSave = ruleIds;
-        } else {
-          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
-            userId, resolvedDirectoryId, RuleApplicability.SLIDE_DECK, additionalRuleIds
-          );
-          appliedRuleIdsForSave = resolvedAppliedIds;
-          const base = additionalPrompt || "";
-          if (rulesText && base) {
-            injectedRules = `${rulesText}\n\n${base}`;
-          } else if (rulesText) {
-            injectedRules = rulesText;
-          } else if (base) {
-            injectedRules = base;
-          }
+        const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
+        const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
+          ? requestData.ruleResolutionMode
+          : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
+        const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.SLIDE_DECK,
+          additionalRuleIds: explicitRuleIds,
+          mode,
+        });
+        appliedRuleIdsForSave = resolvedAppliedIds;
+        const base = additionalPrompt || "";
+        if (rulesText && base) {
+          injectedRules = `${rulesText}\n\n${base}`;
+        } else if (rulesText) {
+          injectedRules = rulesText;
+        } else if (base) {
+          injectedRules = base;
         }
 
         const slideOutline = await GeminiService.generateSlideDeckOutline(
@@ -870,22 +889,25 @@ export const api = onRequest(
 
         let injectedRules: string | undefined;
         let appliedRuleIdsForSave: string[] = [];
-        if (ruleIds?.length) {
-          injectedRules = await promptBuilder.injectRules(additionalPrompt || "", ruleIds, userId);
-          appliedRuleIdsForSave = ruleIds;
-        } else {
-          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
-            userId, resolvedDirectoryId, RuleApplicability.SLIDE_DECK, additionalRuleIds
-          );
-          appliedRuleIdsForSave = resolvedAppliedIds;
-          const base = additionalPrompt || "";
-          if (rulesText && base) {
-            injectedRules = `${rulesText}\n\n${base}`;
-          } else if (rulesText) {
-            injectedRules = rulesText;
-          } else if (base) {
-            injectedRules = base;
-          }
+        const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
+        const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
+          ? requestData.ruleResolutionMode
+          : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
+        const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.SLIDE_DECK,
+          additionalRuleIds: explicitRuleIds,
+          mode,
+        });
+        appliedRuleIdsForSave = resolvedAppliedIds;
+        const base = additionalPrompt || "";
+        if (rulesText && base) {
+          injectedRules = `${rulesText}\n\n${base}`;
+        } else if (rulesText) {
+          injectedRules = rulesText;
+        } else if (base) {
+          injectedRules = base;
         }
 
         const slideOutline = await GeminiService.generateSlideDeckOutline(
@@ -1039,7 +1061,19 @@ export const api = onRequest(
 
         let finalPrompt = trimmedPrompt;
         if (data.ruleIds && data.ruleIds.length > 0) {
-          finalPrompt = await promptBuilder.injectRules(trimmedPrompt, data.ruleIds, userId);
+          const mode = isRuleResolutionMode(
+            (data as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
+          )
+            ? (data as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
+            : 'explicit-only';
+          const { text: rulesText } = await resolveEffectiveRules({
+            userId,
+            directoryId: data.directoryId,
+            operation: RuleApplicability.PROMPT,
+            additionalRuleIds: data.ruleIds,
+            mode,
+          });
+          finalPrompt = rulesText ? `${rulesText}\n\n${trimmedPrompt}` : trimmedPrompt;
         }
 
         const generatedContent = await GeminiService.generateDocumentFromPrompt(
