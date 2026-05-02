@@ -62,12 +62,11 @@ service cloud.firestore {
       match /sequenceQuizzes/{sequenceQuizId} {
         allow read, write: if isOwner(userId);
       }
-    }
 
-    // API keys — only accessible via Firebase Admin SDK (Cloud Functions).
-    // No direct client read or write is permitted.
-    match /apiKeys/{keyId} {
-      allow read, write: if false;
+      // API keys are managed only via Cloud Functions.
+      match /apiKeys/{keyId} {
+        allow read, write: if false;
+      }
     }
   }
 }

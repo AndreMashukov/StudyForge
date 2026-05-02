@@ -3,6 +3,8 @@ import { Request } from "firebase-functions/v2/https";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 
+const API_KEY_BEARER_PREFIXES = ["sf-", "ciai_"];
+
 /**
  * SHA-256 hash of a raw API key for safe storage and lookup.
  */
@@ -13,8 +15,8 @@ export function hashApiKey(rawKey: string): string {
 /**
  * Authenticates the incoming request using one of two strategies:
  *
- *  1. API key  — X-API-Key header, or Authorization: Bearer ciai_<key>
- *                Validated against the `apiKeys` Firestore collection.
+ *  1. API key  — X-API-Key header, or Authorization: Bearer sf-<key>
+ *                Validated against users/{userId}/apiKeys.
  *
  *  2. Firebase ID token — Authorization: Bearer eyJ...
  *                Verified by the Firebase Admin SDK. Useful for testing
@@ -40,7 +42,7 @@ export async function validateApiKeyFromRequest(req: Request): Promise<string> {
   const token = authHeader.slice(7).trim();
 
   // --- Path 2: API key in Bearer (starts with our prefix) ---
-  if (token.startsWith("ciai_")) {
+  if (API_KEY_BEARER_PREFIXES.some((prefix) => token.startsWith(prefix))) {
     return validateStoredApiKey(token);
   }
 
@@ -58,22 +60,27 @@ async function validateStoredApiKey(rawKey: string): Promise<string> {
   const db = getFirestore();
 
   const snap = await db
-    .collection("apiKeys")
+    .collectionGroup("apiKeys")
     .where("keyHash", "==", keyHash)
-    .where("active", "==", true)
     .limit(1)
     .get();
 
-  if (snap.empty) {
+  const doc = snap.docs[0];
+  const data = doc?.data();
+
+  if (!data?.active) {
     throw new Error("Invalid or revoked API key.");
   }
-
-  const doc = snap.docs[0];
 
   // Update lastUsedAt in the background — don't block the request
   doc.ref.update({ lastUsedAt: new Date() }).catch((e) => {
     console.warn("Failed to update lastUsedAt for API key:", e);
   });
 
-  return doc.data().userId as string;
+  const userId = doc.ref.parent.parent?.id;
+  if (!userId) {
+    throw new Error("Invalid API key owner.");
+  }
+
+  return userId;
 }
