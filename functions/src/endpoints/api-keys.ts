@@ -5,6 +5,11 @@ import { validateAuth } from "../lib/auth";
 import { hashApiKey } from "../lib/api-key-auth";
 
 const MAX_KEYS_PER_USER = 10;
+const API_KEY_PREFIX = "sf-";
+
+function getUserApiKeysCollection(db: FirebaseFirestore.Firestore, userId: string) {
+  return db.collection("users").doc(userId).collection("apiKeys");
+}
 
 /**
  * Create a new API key for the authenticated user.
@@ -25,21 +30,19 @@ export const createApiKey = onCall(
 
     const db = getFirestore();
 
-    const rawKey = "ciai_" + crypto.randomBytes(32).toString("hex");
+    const rawKey = API_KEY_PREFIX + crypto.randomBytes(32).toString("hex");
     const keyHash = hashApiKey(rawKey);
     // Store prefix without UI decoration — the client appends "..." when rendering.
     const keyPrefix = rawKey.slice(0, 12);
     const now = new Date();
 
-    const ref = db.collection("apiKeys").doc();
+    const userApiKeys = getUserApiKeysCollection(db, userId);
+    const ref = userApiKeys.doc();
 
     // Enforce per-user key limit atomically to prevent race conditions.
     await db.runTransaction(async (transaction) => {
       const existingSnap = await transaction.get(
-        db
-          .collection("apiKeys")
-          .where("userId", "==", userId)
-          .where("active", "==", true)
+        userApiKeys.where("active", "==", true)
       );
 
       if (existingSnap.size >= MAX_KEYS_PER_USER) {
@@ -50,7 +53,6 @@ export const createApiKey = onCall(
       }
 
       transaction.set(ref, {
-        userId,
         name,
         keyHash,
         keyPrefix,
@@ -82,8 +84,9 @@ export const listApiKeys = onCall(
     const db = getFirestore();
 
     const snap = await db
+      .collection("users")
+      .doc(userId)
       .collection("apiKeys")
-      .where("userId", "==", userId)
       .get();
 
     const keys = snap.docs
@@ -125,10 +128,10 @@ export const revokeApiKey = onCall(
     }
 
     const db = getFirestore();
-    const ref = db.collection("apiKeys").doc(keyId);
+    const ref = getUserApiKeysCollection(db, userId).doc(keyId);
     const doc = await ref.get();
 
-    if (!doc.exists || doc.data()?.userId !== userId) {
+    if (!doc.exists) {
       throw new HttpsError(
         "not-found",
         "API key not found or does not belong to you."
