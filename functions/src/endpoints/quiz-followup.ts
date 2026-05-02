@@ -4,11 +4,12 @@ import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '../lib/auth';
 import { DocumentCrudService } from '../services/document-crud';
 import { GeminiService } from '../services/gemini/gemini';
-import { promptBuilder } from '../services/promptBuilder';
+import { resolveEffectiveRules } from '../services/rule-resolution';
 import { 
   GenerateFollowupRequest, 
   GenerateFollowupResponse,
   QuizFollowupContext,
+  RuleApplicability,
 } from "@shared-types";
 
 // Define secrets
@@ -68,11 +69,15 @@ export const generateQuizFollowup = onCall(
           ruleCount: data.followupRuleIds.length,
         });
         const baseFollowupPrompt = 'Generate a detailed followup explanation for this quiz question.';
-        followupContext.customInstructions = await promptBuilder.injectRules(
-          baseFollowupPrompt,
-          data.followupRuleIds,
-          userId
-        );
+        const { text: rulesText } = await resolveEffectiveRules({
+          userId,
+          operation: RuleApplicability.FOLLOWUP,
+          additionalRuleIds: data.followupRuleIds,
+          mode: 'explicit-only',
+        });
+        followupContext.customInstructions = rulesText
+          ? `${rulesText}\n\n${baseFollowupPrompt}`
+          : baseFollowupPrompt;
       }
 
       // Generate followup content with Gemini

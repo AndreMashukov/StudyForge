@@ -15,12 +15,14 @@ import {
 } from '@shared-types';
 import { DocumentCrudService } from '../services/document-crud';
 import { directoryService } from '../services/directory';
-import { resolveGenerationRulesForPrompt } from '../services/rule-resolution';
+import {
+  isRuleResolutionMode,
+  resolveEffectiveRules,
+} from '../services/rule-resolution';
 import { DocumentService } from '../services/document-storage';
 import { GeminiService } from '../services/gemini/gemini';
 import { validateAuth } from '../lib/auth';
 import { FirestorePaths } from '../lib/firestore-paths';
-import { promptBuilder } from '../services/promptBuilder';
 
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -33,6 +35,7 @@ const generateFlashcardsRequestSchema = z.object({
   additionalPrompt: z.string().max(500).nullish(),
   ruleIds: z.array(z.string()).optional(),
   additionalRuleIds: z.array(z.string()).optional(),
+  ruleResolutionMode: z.enum(['inherit', 'inherit-plus-explicit', 'explicit-only']).optional(),
 });
 
 const flashcardSetIdRequestSchema = z.object({
@@ -92,7 +95,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
       throw new HttpsError('invalid-argument', msg);
     }
-    const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, additionalRuleIds } = parseResult.data;
+    const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, additionalRuleIds, ruleResolutionMode } = parseResult.data;
 
     const u = redactId(userId);
 
@@ -143,27 +146,31 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
     // Resolve rules to inject into the prompt
     let injectedRules: string | undefined;
     let appliedRuleIdsForSave: string[] = [];
-    if (ruleIds?.length) {
-      logger.info(`[generateFlashcards] STEP 2.5: Injecting rules into prompt.`, { userIdHash: u, ruleCount: ruleIds.length });
-      injectedRules = await promptBuilder.injectRules(additionalPrompt || '', ruleIds, userId);
-      appliedRuleIdsForSave = ruleIds;
-    } else {
-      const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
-        userId,
-        resolvedDirectoryId,
-        RuleApplicability.FLASHCARD,
-        additionalRuleIds
-      );
-      appliedRuleIdsForSave = resolvedAppliedIds;
-      const base = additionalPrompt?.trim() ? `Additional instructions: ${additionalPrompt}` : '';
-      if (rulesText && base) {
-        injectedRules = `${rulesText}\n\n${base}`;
-      } else if (rulesText) {
-        injectedRules = rulesText;
-      } else if (base) {
-        injectedRules = base;
-      }
+    const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
+    const mode = ruleResolutionMode
+      ?? (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+    const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+      userId,
+      directoryId: resolvedDirectoryId,
+      operation: RuleApplicability.FLASHCARD,
+      additionalRuleIds: explicitRuleIds,
+      mode: isRuleResolutionMode(mode) ? mode : 'inherit-plus-explicit',
+    });
+    appliedRuleIdsForSave = resolvedAppliedIds;
+    const base = additionalPrompt?.trim() ? `Additional instructions: ${additionalPrompt}` : '';
+    if (rulesText && base) {
+      injectedRules = `${rulesText}\n\n${base}`;
+    } else if (rulesText) {
+      injectedRules = rulesText;
+    } else if (base) {
+      injectedRules = base;
     }
+
+    logger.info(`[generateFlashcards] STEP 2.5: Resolved effective rules.`, {
+      userIdHash: u,
+      ruleCount: appliedRuleIdsForSave.length,
+      mode,
+    });
 
     logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (GeminiService).`, { userIdHash: u });
     const generatedData = await generateFlashcardsFromContent(combinedContent, combinedTitle, injectedRules);

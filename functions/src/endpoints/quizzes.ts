@@ -2,10 +2,12 @@ import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { FirestoreService } from "../services/firestore";
-import { promptBuilder } from "../services/promptBuilder";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
-import { resolveGenerationRulesForPrompt, resolveRulesForDirectory } from "../services/rule-resolution";
+import {
+  isRuleResolutionMode,
+  resolveEffectiveRules,
+} from "../services/rule-resolution";
 import { 
   GenerateQuizRequest, 
   GenerateQuizResponse, 
@@ -97,43 +99,41 @@ export const generateQuiz = onCall(
       let enhancedPrompt = additionalPrompt || '';
       let followupIdsForSave: string[] = [];
       let appliedRuleIdsForSave: string[] = [];
+      const ruleResolutionMode = isRuleResolutionMode(
+        (requestData as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
+      )
+        ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
+        : undefined;
+      const hasLegacyExplicitRules = Boolean(quizRuleIds?.length || followupRuleIds?.length);
+      const mode = ruleResolutionMode
+        ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
+      const selectedQuizRuleIds = quizRuleIds?.length
+        ? quizRuleIds
+        : requestData.additionalRuleIds;
+      const selectedFollowupRuleIds = hasLegacyExplicitRules
+        ? (followupRuleIds || [])
+        : requestData.additionalRuleIds;
 
-      if (quizRuleIds?.length || followupRuleIds?.length) {
-        console.log("Injecting rules into quiz generation prompt (legacy explicit rule IDs)...");
-        const { quizPrompt } = await promptBuilder.injectQuizRules(
-          enhancedPrompt,
-          quizRuleIds || [],
-          followupRuleIds || [],
-          userId
-        );
-        enhancedPrompt = quizPrompt;
-        followupIdsForSave = followupRuleIds || [];
-        appliedRuleIdsForSave = [...(quizRuleIds || []), ...(followupRuleIds || [])].filter(
-          (id, i, arr) => arr.indexOf(id) === i
-        );
-      } else {
-        const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveGenerationRulesForPrompt(
-          userId,
-          resolvedDirectoryId,
-          RuleApplicability.QUIZ,
-          requestData.additionalRuleIds
-        );
-        if (quizRulesText) {
-          enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-        }
-        appliedRuleIdsForSave = resolvedAppliedIds;
-        const { rules: followupRules } = await resolveRulesForDirectory(
-          userId,
-          resolvedDirectoryId,
-          RuleApplicability.FOLLOWUP
-        );
-        followupIdsForSave = followupRules.map((r) => r.id);
-        if (requestData.additionalRuleIds?.length) {
-          for (const id of requestData.additionalRuleIds) {
-            if (!followupIdsForSave.includes(id)) followupIdsForSave.push(id);
-          }
-        }
+      const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+        userId,
+        directoryId: resolvedDirectoryId,
+        operation: RuleApplicability.QUIZ,
+        additionalRuleIds: selectedQuizRuleIds,
+        mode,
+      });
+      if (quizRulesText) {
+        enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
       }
+      appliedRuleIdsForSave = resolvedAppliedIds;
+
+      const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
+        userId,
+        directoryId: resolvedDirectoryId,
+        operation: RuleApplicability.FOLLOWUP,
+        additionalRuleIds: selectedFollowupRuleIds,
+        mode,
+      });
+      followupIdsForSave = resolvedFollowupIds;
       
       // Generate quiz with Gemini AI
       console.log("Generating quiz with Gemini AI for document(s)...");

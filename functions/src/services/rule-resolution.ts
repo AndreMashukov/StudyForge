@@ -16,6 +16,67 @@ interface DirectoryHierarchy {
   ancestors: Directory[];
 }
 
+export type RuleResolutionMode =
+  | 'inherit'
+  | 'inherit-plus-explicit'
+  | 'explicit-only';
+
+export interface ResolveEffectiveRulesRequest {
+  userId: string;
+  directoryId?: string | null;
+  operation: RuleApplicability;
+  additionalRuleIds?: string[];
+  mode?: RuleResolutionMode;
+}
+
+export interface ResolveEffectiveRulesResult {
+  rules: Rule[];
+  ruleIds: string[];
+  text: string;
+  inheritanceMap: { [directoryId: string]: Rule[] };
+}
+
+const RULE_RESOLUTION_MODES = new Set<RuleResolutionMode>([
+  'inherit',
+  'inherit-plus-explicit',
+  'explicit-only',
+]);
+
+export function isRuleResolutionMode(value: unknown): value is RuleResolutionMode {
+  return typeof value === 'string' && RULE_RESOLUTION_MODES.has(value as RuleResolutionMode);
+}
+
+function uniqueRuleIds(ruleIds: string[] = []): string[] {
+  return ruleIds.filter((id, index, arr) => Boolean(id) && arr.indexOf(id) === index);
+}
+
+function contentSignature(rule: Rule): string {
+  return rule.content.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function dedupeRulesByIdAndContent(rules: Rule[]): Rule[] {
+  const seenIds = new Set<string>();
+  const seenContent = new Set<string>();
+
+  return rules.filter((rule) => {
+    if (seenIds.has(rule.id)) {
+      return false;
+    }
+
+    const signature = contentSignature(rule);
+    if (signature && seenContent.has(signature)) {
+      return false;
+    }
+
+    seenIds.add(rule.id);
+    if (signature) {
+      seenContent.add(signature);
+    }
+
+    return true;
+  });
+}
+
 /**
  * Get directory and all its ancestors (for cascading)
  */
@@ -182,15 +243,73 @@ export async function resolveGenerationRulesForPrompt(
   operation: RuleApplicability,
   additionalRuleIds?: string[]
 ): Promise<{ text: string; ruleIds: string[] }> {
-  const { rules } = await resolveRulesForDirectory(userId, directoryId, operation);
-  const baseIds = rules.map(r => r.id);
-  const extra = (additionalRuleIds || []).filter(id => !baseIds.includes(id));
-  const mergedIds = [...baseIds, ...extra];
-  if (mergedIds.length === 0) {
-    return { text: '', ruleIds: [] };
+  const { text, ruleIds } = await resolveEffectiveRules({
+    userId,
+    directoryId,
+    operation,
+    additionalRuleIds,
+    mode: 'inherit-plus-explicit',
+  });
+
+  return { text, ruleIds };
+}
+
+/**
+ * Canonical resolver for all generation flows.
+ *
+ * Modes:
+ * - inherit: directory hierarchy only
+ * - inherit-plus-explicit: inherited rules, then explicitly selected extras
+ * - explicit-only: only explicitly selected rule IDs
+ */
+export async function resolveEffectiveRules({
+  userId,
+  directoryId,
+  operation,
+  additionalRuleIds = [],
+  mode = 'inherit-plus-explicit',
+}: ResolveEffectiveRulesRequest): Promise<ResolveEffectiveRulesResult> {
+  const resolvedMode = isRuleResolutionMode(mode) ? mode : 'inherit-plus-explicit';
+  const explicitIds = uniqueRuleIds(additionalRuleIds);
+  const inheritanceMap: { [directoryId: string]: Rule[] } = {};
+
+  let inheritedRules: Rule[] = [];
+
+  if (resolvedMode !== 'explicit-only') {
+    if (!directoryId) {
+      throw new Error('directoryId is required when resolving inherited rules');
+    }
+
+    const inherited = await resolveRulesForDirectory(userId, directoryId, operation);
+    inheritedRules = inherited.rules;
+    Object.assign(inheritanceMap, inherited.inheritanceMap);
   }
-  const text = await formatRulesForPrompt(userId, mergedIds);
-  return { text, ruleIds: mergedIds };
+
+  let explicitRules: Rule[] = [];
+  if (resolvedMode !== 'inherit' && explicitIds.length > 0) {
+    const fetchedExplicitRules = await getRulesByIds(userId, explicitIds);
+    const explicitRuleById = new Map(fetchedExplicitRules.map((rule) => [rule.id, rule]));
+
+    explicitRules = explicitIds
+      .map((id) => explicitRuleById.get(id))
+      .filter((rule): rule is Rule => Boolean(rule))
+      .filter((rule) => rule.applicableTo.includes(operation));
+  }
+
+  const effectiveRules = dedupeRulesByIdAndContent([
+    ...inheritedRules,
+    ...explicitRules,
+  ]);
+
+  const ruleIds = effectiveRules.map((rule) => rule.id);
+  const text = ruleIds.length > 0 ? await formatRulesForPrompt(userId, ruleIds) : '';
+
+  return {
+    rules: effectiveRules,
+    ruleIds,
+    text,
+    inheritanceMap,
+  };
 }
 
 /**
@@ -256,11 +375,17 @@ export async function formatRulesForPrompt(
   userId: string,
   ruleIds: string[]
 ): Promise<string> {
-  if (ruleIds.length === 0) {
+  const orderedRuleIds = uniqueRuleIds(ruleIds);
+
+  if (orderedRuleIds.length === 0) {
     return '';
   }
 
-  const rules = await getRulesByIds(userId, ruleIds);
+  const fetchedRules = await getRulesByIds(userId, orderedRuleIds);
+  const ruleById = new Map(fetchedRules.map((rule) => [rule.id, rule]));
+  const rules = orderedRuleIds
+    .map((id) => ruleById.get(id))
+    .filter((rule): rule is Rule => Boolean(rule));
 
   if (rules.length === 0) {
     return '';

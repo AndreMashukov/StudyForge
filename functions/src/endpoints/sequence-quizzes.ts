@@ -4,7 +4,10 @@ import { GeminiService } from "../services/gemini";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
-import { resolveGenerationRulesForPrompt, resolveRulesForDirectory } from "../services/rule-resolution";
+import {
+  isRuleResolutionMode,
+  resolveEffectiveRules,
+} from "../services/rule-resolution";
 import {
   GenerateSequenceQuizResponse,
   GetSequenceQuizResponse,
@@ -120,22 +123,28 @@ export const generateSequenceQuiz = onCall(
       const additionalRuleIds = Array.isArray(requestData.additionalRuleIds)
         ? (requestData.additionalRuleIds as string[])
         : undefined;
+      const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
+        ? requestData.ruleResolutionMode
+        : 'inherit-plus-explicit';
 
-      const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveGenerationRulesForPrompt(
+      const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveEffectiveRules({
         userId,
-        resolvedDirectoryId,
-        RuleApplicability.SEQUENCE_QUIZ,
-        additionalRuleIds
-      );
+        directoryId: resolvedDirectoryId,
+        operation: RuleApplicability.SEQUENCE_QUIZ,
+        additionalRuleIds,
+        mode,
+      });
       if (quizRulesText) {
         enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
       }
-      const { rules: followupRules } = await resolveRulesForDirectory(
+      const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
         userId,
-        resolvedDirectoryId,
-        RuleApplicability.FOLLOWUP
-      );
-      followupIdsForSave = followupRules.map((r) => r.id);
+        directoryId: resolvedDirectoryId,
+        operation: RuleApplicability.FOLLOWUP,
+        additionalRuleIds,
+        mode,
+      });
+      followupIdsForSave = resolvedFollowupIds;
 
       const geminiQuiz = await GeminiService.generateSequenceQuiz(
         documentContent,

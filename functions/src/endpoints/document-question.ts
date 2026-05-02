@@ -4,11 +4,12 @@ import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '../lib/auth';
 import { DocumentCrudService } from '../services/document-crud';
 import { GeminiService } from '../services/gemini/gemini';
-import { promptBuilder } from '../services/promptBuilder';
+import { resolveEffectiveRules } from '../services/rule-resolution';
 import { 
   AskDocumentQuestionRequest, 
   AskDocumentQuestionResponse,
   DocumentQuestionContext,
+  RuleApplicability,
 } from "@shared-types";
 
 // Define secrets
@@ -64,11 +65,15 @@ export const askDocumentQuestion = onCall(
           ruleCount: data.ruleIds.length,
         });
         const basePrompt = 'Answer the user question about this document.';
-        questionContext.customInstructions = await promptBuilder.injectRules(
-          basePrompt,
-          data.ruleIds,
-          userId
-        );
+        const { text: rulesText } = await resolveEffectiveRules({
+          userId,
+          operation: RuleApplicability.PROMPT,
+          additionalRuleIds: data.ruleIds,
+          mode: 'explicit-only',
+        });
+        questionContext.customInstructions = rulesText
+          ? `${rulesText}\n\n${basePrompt}`
+          : basePrompt;
       }
 
       // Generate answer with Gemini

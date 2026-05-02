@@ -6,7 +6,10 @@ import { DocumentCrudService } from '../services/document-crud';
 import { directoryService } from '../services/directory';
 import { WebScraperService } from '../services/scraper';
 import { GeminiService } from '../services/gemini';
-import { promptBuilder } from '../services/promptBuilder';
+import {
+  isRuleResolutionMode,
+  resolveEffectiveRules,
+} from '../services/rule-resolution';
 import { 
   CreateDocumentRequest, 
   UpdateDocumentRequest, 
@@ -14,6 +17,7 @@ import {
   DocumentStatus,
   GenerateFromPromptRequest,
   MoveDocumentRequest,
+  RuleApplicability,
 } from "@shared-types";
 
 // Define the Gemini API key secret for markdown conversion
@@ -92,11 +96,13 @@ export const createDocumentFromUrl = onCall(
   async (request) => {
     try {
       const userId = await validateAuth(request);
-      const { url, title: customTitle, directoryId, ruleIds } = request.data as { 
+      const { url, title: customTitle, directoryId, ruleIds, additionalRuleIds, ruleResolutionMode } = request.data as { 
         url: string; 
         title?: string;
         directoryId?: string;
         ruleIds?: string[];
+        additionalRuleIds?: string[];
+        ruleResolutionMode?: unknown;
       };
 
       logger.info('Creating document from URL', { 
@@ -122,8 +128,19 @@ export const createDocumentFromUrl = onCall(
 
       logger.info('Starting content scraping and markdown conversion', { url });
 
+      const mode = isRuleResolutionMode(ruleResolutionMode)
+        ? ruleResolutionMode
+        : (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+      const { ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
+        userId,
+        directoryId,
+        operation: RuleApplicability.SCRAPING,
+        additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
+        mode,
+      });
+
       // Scrape content and convert to markdown (with optional rule injection)
-      const scrapedContent = await WebScraperService.extractContentAsMarkdown(url, ruleIds, userId);
+      const scrapedContent = await WebScraperService.extractContentAsMarkdown(url, effectiveRuleIds, userId);
 
       logger.info('Content scraped successfully', { 
         url,
@@ -639,14 +656,30 @@ export const generateFromPrompt = onCall(
         });
       }
 
-      // Inject rules into prompt if provided
+      // Inject effective rules into prompt.
       let finalPrompt = trimmedPrompt;
-      if (data.ruleIds && data.ruleIds.length > 0) {
-        logger.info('Injecting rules into document generation prompt', { 
-          ruleCount: data.ruleIds.length,
+      const rawRuleData = data as GenerateFromPromptRequest & {
+        additionalRuleIds?: string[];
+        ruleResolutionMode?: unknown;
+      };
+      const mode = isRuleResolutionMode(rawRuleData.ruleResolutionMode)
+        ? rawRuleData.ruleResolutionMode
+        : (data.ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+      const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
+        userId,
+        directoryId: data.directoryId,
+        operation: RuleApplicability.PROMPT,
+        additionalRuleIds: data.ruleIds?.length ? data.ruleIds : rawRuleData.additionalRuleIds,
+        mode,
+      });
+
+      if (rulesText) {
+        logger.info('Injecting effective rules into document generation prompt', {
+          ruleCount: effectiveRuleIds.length,
           userId,
+          mode,
         });
-        finalPrompt = await promptBuilder.injectRules(trimmedPrompt, data.ruleIds, userId);
+        finalPrompt = `${rulesText}\n\n${trimmedPrompt}`;
       }
 
       logger.info('Calling Gemini AI to generate document', { 
