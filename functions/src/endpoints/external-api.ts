@@ -215,10 +215,14 @@ export const api = onRequest(
         )
           ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
           : undefined;
-        const hasLegacyExplicitRules = Boolean(quizRuleIds?.length || followupRuleIds?.length);
+        const hasLegacyExplicitRules = Boolean(
+          requestData.ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length
+        );
         const mode = ruleResolutionMode
           ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
-        const selectedQuizRuleIds = quizRuleIds?.length
+        const selectedQuizRuleIds = requestData.ruleIds?.length
+          ? requestData.ruleIds
+          : quizRuleIds?.length
           ? quizRuleIds
           : requestData.additionalRuleIds;
         const selectedFollowupRuleIds = hasLegacyExplicitRules
@@ -300,6 +304,7 @@ export const api = onRequest(
 
         const diagramQuizName = typeof requestData.diagramQuizName === "string" ? requestData.diagramQuizName.trim() : undefined;
         const additionalPrompt = typeof requestData.additionalPrompt === "string" ? requestData.additionalPrompt.trim() : undefined;
+        const ruleIds = Array.isArray(requestData.ruleIds) ? requestData.ruleIds as string[] : undefined;
         const quizRuleIds = Array.isArray(requestData.quizRuleIds) ? requestData.quizRuleIds as string[] : undefined;
         const followupRuleIds = Array.isArray(requestData.followupRuleIds) ? requestData.followupRuleIds as string[] : undefined;
         const additionalRuleIds = Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds as string[] : undefined;
@@ -342,10 +347,12 @@ export const api = onRequest(
         const ruleResolutionMode = isRuleResolutionMode(requestData.ruleResolutionMode)
           ? requestData.ruleResolutionMode
           : undefined;
-        const hasLegacyExplicitRules = Boolean(quizRuleIds?.length || followupRuleIds?.length);
+        const hasLegacyExplicitRules = Boolean(ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length);
         const mode = ruleResolutionMode
           ?? (hasLegacyExplicitRules ? "explicit-only" : "inherit-plus-explicit");
-        const selectedQuizRuleIds = quizRuleIds?.length
+        const selectedQuizRuleIds = ruleIds?.length
+          ? ruleIds
+          : quizRuleIds?.length
           ? quizRuleIds
           : additionalRuleIds;
         const selectedFollowupRuleIds = hasLegacyExplicitRules
@@ -414,6 +421,7 @@ export const api = onRequest(
 
         const sequenceQuizName = typeof requestData.sequenceQuizName === "string" ? requestData.sequenceQuizName.trim() : undefined;
         const additionalPrompt = typeof requestData.additionalPrompt === "string" ? requestData.additionalPrompt.trim() : undefined;
+        const ruleIds = Array.isArray(requestData.ruleIds) ? requestData.ruleIds as string[] : undefined;
         const additionalRuleIds = Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds as string[] : undefined;
 
         const documentDataList = await Promise.all(
@@ -452,13 +460,13 @@ export const api = onRequest(
         let followupIdsForSave: string[] = [];
         const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
           ? requestData.ruleResolutionMode
-          : "inherit-plus-explicit";
+          : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
 
         const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveEffectiveRules({
           userId,
           directoryId: resolvedDirectoryId,
           operation: RuleApplicability.SEQUENCE_QUIZ,
-          additionalRuleIds,
+          additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
           mode,
         });
         if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
@@ -466,7 +474,7 @@ export const api = onRequest(
           userId,
           directoryId: resolvedDirectoryId,
           operation: RuleApplicability.FOLLOWUP,
-          additionalRuleIds,
+          additionalRuleIds: ruleIds?.length ? [] : additionalRuleIds,
           mode,
         });
         followupIdsForSave = resolvedFollowupIds;

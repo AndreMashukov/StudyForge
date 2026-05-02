@@ -34,7 +34,8 @@ export const useCreateSlideDeckPageHandlers = ({ form, documents }: UseCreateSli
       directoryId: resolvedDirectoryId,
       title: formData.slideDeckName?.trim() || undefined,
       additionalPrompt: formData.additionalPrompt?.trim() || undefined,
-      ...(formData.ruleIds?.length ? { ruleIds: formData.ruleIds } : {}),
+      ruleIds: formData.ruleIds || [],
+      ruleResolutionMode: 'explicit-only',
     });
     navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=slides`);
   }, [generateSlideDeck, navigate, documents, searchParams]);

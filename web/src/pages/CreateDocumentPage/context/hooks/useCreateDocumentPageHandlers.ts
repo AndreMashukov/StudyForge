@@ -63,7 +63,8 @@ export const useCreateDocumentPageHandlers = () => {
       url: data.url,
       title: data.title,
       directoryId,
-      ruleIds: data.ruleIds,
+      ruleIds: data.ruleIds || [],
+      ruleResolutionMode: 'explicit-only',
     });
     navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
   }, [createDocumentFromUrl, navigate, dispatch, directoryId]);
@@ -87,6 +88,7 @@ export const useCreateDocumentPageHandlers = () => {
         sourceType: DocumentSourceType.UPLOAD,
         directoryId,
         ruleIds: data.ruleIds,
+        ruleResolutionMode: 'explicit-only',
       });
     };
     reader.onerror = () => {
@@ -121,6 +123,7 @@ export const useCreateDocumentPageHandlers = () => {
       files: files.length > 0 ? files : undefined,
       directoryId,
       ruleIds: data.ruleIds || [],
+      ruleResolutionMode: 'explicit-only',
     });
 
     if (fileUploadHelpers) {

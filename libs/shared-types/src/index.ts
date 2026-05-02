@@ -1,5 +1,10 @@
 import { Timestamp } from 'firebase/firestore';
 
+export type RuleResolutionMode =
+  | 'inherit'
+  | 'inherit-plus-explicit'
+  | 'explicit-only';
+
 // Flashcard Types
 export interface Flashcard {
   id: string;    // Unique ID for each card
@@ -31,6 +36,7 @@ export interface GenerateFlashcardsRequest {
   /** @deprecated Auto-resolved from directory hierarchy when omitted */
   ruleIds?: string[];
   additionalRuleIds?: string[];
+  ruleResolutionMode?: RuleResolutionMode;
 }
 
 export interface GenerateFlashcardsResponse {
@@ -77,6 +83,7 @@ export interface GenerateSlideDeckRequest {
   /** @deprecated Auto-resolved from directory hierarchy when omitted */
   ruleIds?: string[];
   additionalRuleIds?: string[];
+  ruleResolutionMode?: RuleResolutionMode;
 }
 
 export interface GenerateSlideDeckResponse {
@@ -146,7 +153,9 @@ export interface GenerateSequenceQuizRequest {
   directoryId?: string;
   sequenceQuizName?: string;
   additionalPrompt?: string;
+  ruleIds?: string[];
   additionalRuleIds?: string[];
+  ruleResolutionMode?: RuleResolutionMode;
 }
 
 export interface GenerateSequenceQuizResponse {
@@ -192,9 +201,11 @@ export interface GenerateDiagramQuizRequest {
   directoryId?: string;
   diagramQuizName?: string;
   additionalPrompt?: string;
+  ruleIds?: string[];
   quizRuleIds?: string[];
   followupRuleIds?: string[];
   additionalRuleIds?: string[];
+  ruleResolutionMode?: RuleResolutionMode;
 }
 
 export interface GenerateDiagramQuizResponse {
@@ -420,11 +431,13 @@ export interface GenerateQuizRequest {
   directoryId?: string;
   quizName?: string; // Optional custom name, defaults to "Quiz from [Document Title]"
   additionalPrompt?: string; // Optional additional instructions for quiz generation
+  ruleIds?: string[];
   /** @deprecated Auto-resolved from directory when omitted */
   quizRuleIds?: string[];
   /** @deprecated Auto-resolved from directory when omitted */
   followupRuleIds?: string[];
   additionalRuleIds?: string[];
+  ruleResolutionMode?: RuleResolutionMode;
 }
 
 export interface GenerateQuizResponse {
@@ -459,6 +472,7 @@ export interface CreateDocumentRequest {
   tags?: string[];
   directoryId: string;
   ruleIds?: string[]; // Optional rule IDs for document generation
+  ruleResolutionMode?: RuleResolutionMode;
 }
 
 export interface UpdateDocumentRequest {
@@ -499,6 +513,7 @@ export interface CreateDocumentFromUrlRequest {
   title?: string; // Optional override for document title
   directoryId: string;
   ruleIds?: string[]; // Optional rules for content processing (Section 6)
+  ruleResolutionMode?: RuleResolutionMode;
 }
 
 export interface UploadDocumentRequest {
@@ -507,6 +522,7 @@ export interface UploadDocumentRequest {
   title?: string; // Optional override for document title
   directoryId: string;
   ruleIds?: string[]; // Optional rules for content processing (Section 6)
+  ruleResolutionMode?: RuleResolutionMode;
 }
 
 // File Content Type for Text Prompt Context
@@ -524,6 +540,7 @@ export interface GenerateFromPromptRequest {
   files?: IFileContent[]; // Optional reference documents (max 5 files)
   directoryId: string; // Directory to place the generated document
   ruleIds?: string[]; // Optional rules for content generation
+  ruleResolutionMode?: RuleResolutionMode;
 }
 
 export interface GenerateFromPromptResponse {

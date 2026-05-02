@@ -104,10 +104,14 @@ export const generateQuiz = onCall(
       )
         ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
         : undefined;
-      const hasLegacyExplicitRules = Boolean(quizRuleIds?.length || followupRuleIds?.length);
+      const hasLegacyExplicitRules = Boolean(
+        requestData.ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length
+      );
       const mode = ruleResolutionMode
         ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
-      const selectedQuizRuleIds = quizRuleIds?.length
+      const selectedQuizRuleIds = requestData.ruleIds?.length
+        ? requestData.ruleIds
+        : quizRuleIds?.length
         ? quizRuleIds
         : requestData.additionalRuleIds;
       const selectedFollowupRuleIds = hasLegacyExplicitRules

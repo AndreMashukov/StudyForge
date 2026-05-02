@@ -123,15 +123,18 @@ export const generateSequenceQuiz = onCall(
       const additionalRuleIds = Array.isArray(requestData.additionalRuleIds)
         ? (requestData.additionalRuleIds as string[])
         : undefined;
+      const ruleIds = Array.isArray(requestData.ruleIds)
+        ? (requestData.ruleIds as string[])
+        : undefined;
       const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
         ? requestData.ruleResolutionMode
-        : 'inherit-plus-explicit';
+        : (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
 
       const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveEffectiveRules({
         userId,
         directoryId: resolvedDirectoryId,
         operation: RuleApplicability.SEQUENCE_QUIZ,
-        additionalRuleIds,
+        additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
         mode,
       });
       if (quizRulesText) {
@@ -141,7 +144,7 @@ export const generateSequenceQuiz = onCall(
         userId,
         directoryId: resolvedDirectoryId,
         operation: RuleApplicability.FOLLOWUP,
-        additionalRuleIds,
+        additionalRuleIds: ruleIds?.length ? [] : additionalRuleIds,
         mode,
       });
       followupIdsForSave = resolvedFollowupIds;

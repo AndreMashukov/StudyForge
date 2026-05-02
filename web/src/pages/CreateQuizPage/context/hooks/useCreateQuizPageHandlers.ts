@@ -36,7 +36,8 @@ export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPage
       directoryId: resolvedDirectoryId,
       quizName: formData.quizName?.trim() || undefined,
       additionalPrompt: formData.additionalPrompt?.trim() || undefined,
-      additionalRuleIds: formData.ruleIds?.length ? formData.ruleIds : undefined,
+      ruleIds: formData.ruleIds || [],
+      ruleResolutionMode: 'explicit-only',
     });
     navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=quizzes`);
   }, [generateQuiz, navigate, documents, searchParams]);
