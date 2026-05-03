@@ -27,6 +27,8 @@ import { GripVertical, X, Package, Layers, CheckCircle, XCircle, Lightbulb } fro
 import { cn } from '../../../../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
+import { Spinner } from '../../../../components/ui/Spinner';
+import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 import { QuizProgressBar } from '../../../../components/QuizProgressBar';
 import {
   selectSequenceQuizState,
@@ -334,6 +336,8 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   const currentQuestion = quizState.currentQuestionIndex + 1;
   const totalQuestions = quizState.questions.length;
   const answeredCount = quizState.answers.length;
+  const isFollowupGenerated = !!quizState.followupGenerated[quizState.currentQuestionIndex];
+  const followupContent = quizState.followupContent[quizState.currentQuestionIndex];
 
   return (
     <Card className="overflow-hidden">
@@ -546,6 +550,42 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                 ))}
               </div>
             </div>
+          )}
+
+          <Button
+            onClick={handlers.handleGenerateFollowup}
+            variant="outline"
+            className="w-full"
+            size="sm"
+            disabled={isFollowupGenerated || quizState.isGeneratingFollowup}
+          >
+            {quizState.isGeneratingFollowup ? (
+              <>
+                <Spinner size="xs" className="mr-2" />
+                Generating Detailed Explanation...
+              </>
+            ) : isFollowupGenerated ? (
+              'Detailed Explanation Generated'
+            ) : (
+              'Generate Detailed Explanation'
+            )}
+          </Button>
+
+          {followupContent && (
+            <Card className="mt-4 bg-primary/5 border-primary/20">
+              <CardContent className="p-5">
+                <h3 className="text-sm font-semibold text-primary mb-3">
+                  Detailed Explanation
+                </h3>
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <MarkdownRenderer content={followupContent} />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {quizState.followupError && (
+            <p className="text-xs text-destructive">{quizState.followupError}</p>
           )}
 
           <div className="flex justify-end pt-1">

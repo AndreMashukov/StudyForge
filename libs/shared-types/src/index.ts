@@ -673,6 +673,10 @@ export interface GenerateFollowupRequest {
   userSelectedAnswer: string;
   correctAnswer?: string;
   questionOptions?: string[];
+  questionType?: 'multiple-choice' | 'diagram' | 'sequence';
+  sequenceItems?: string[];
+  userSequence?: string[];
+  correctSequence?: string[];
   quizTitle?: string;
   followupRuleIds?: string[]; // Optional rule IDs for followup generation
 }
@@ -691,6 +695,10 @@ export interface QuizFollowupContext {
     options: string[];
     userAnswer: string;
     correctAnswer?: string;
+    questionType?: 'multiple-choice' | 'diagram' | 'sequence';
+    sequenceItems?: string[];
+    userSequence?: string[];
+    correctSequence?: string[];
   };
   quiz: {
     title: string;
