@@ -43,6 +43,13 @@
       },
       "dependsOn": ["build"]
     },
+    "deploy-selected": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx scripts/deploy-selected-functions.ts --functions={args.functions} --firebase-project={args.firebaseProject} --print-only={args.printOnly}"
+      },
+      "dependsOn": ["build"]
+    },
     "shell": {
       "executor": "nx:run-commands",
       "options": {
