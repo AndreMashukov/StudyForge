@@ -23,7 +23,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useState, useRef, useLayoutEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { GripVertical, X, Package, Layers, CheckCircle, XCircle, Lightbulb } from 'lucide-react';
+import { GripVertical, X, Package, Layers, CheckCircle, XCircle, Lightbulb, Sparkles } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
@@ -552,25 +552,6 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
             </div>
           )}
 
-          <Button
-            onClick={handlers.handleGenerateFollowup}
-            variant="outline"
-            className="w-full"
-            size="sm"
-            disabled={isFollowupGenerated || quizState.isGeneratingFollowup}
-          >
-            {quizState.isGeneratingFollowup ? (
-              <>
-                <Spinner size="xs" className="mr-2" />
-                Generating Detailed Explanation...
-              </>
-            ) : isFollowupGenerated ? (
-              'Detailed Explanation Generated'
-            ) : (
-              'Generate Detailed Explanation'
-            )}
-          </Button>
-
           {followupContent && (
             <Card className="mt-4 bg-primary/5 border-primary/20">
               <CardContent className="p-5">
@@ -588,7 +569,31 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
             <p className="text-xs text-destructive">{quizState.followupError}</p>
           )}
 
-          <div className="flex justify-end pt-1">
+          <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+            <Button
+              onClick={handlers.handleGenerateFollowup}
+              variant="outline"
+              size="sm"
+              className="border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary disabled:border-border disabled:bg-muted/40 disabled:text-muted-foreground sm:w-auto"
+              disabled={isFollowupGenerated || quizState.isGeneratingFollowup}
+            >
+              {quizState.isGeneratingFollowup ? (
+                <>
+                  <Spinner size="xs" className="mr-2" />
+                  Generating...
+                </>
+              ) : isFollowupGenerated ? (
+                <>
+                  <CheckCircle size={14} className="mr-1.5" />
+                  Explanation ready
+                </>
+              ) : (
+                <>
+                  <Sparkles size={14} className="mr-1.5" />
+                  Detailed explanation
+                </>
+              )}
+            </Button>
             <Button
               size="sm"
               onClick={isLastQuestion ? handlers.handleCompleteQuiz : handlers.handleNextQuestion}
