@@ -569,12 +569,12 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
             <p className="text-xs text-destructive">{quizState.followupError}</p>
           )}
 
-          <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
             <Button
               onClick={handlers.handleGenerateFollowup}
               variant="outline"
               size="sm"
-              className="border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary disabled:border-border disabled:bg-muted/40 disabled:text-muted-foreground sm:w-auto"
+              className="border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary disabled:border-border disabled:bg-muted/40 disabled:text-muted-foreground"
               disabled={isFollowupGenerated || quizState.isGeneratingFollowup}
             >
               {quizState.isGeneratingFollowup ? (
