@@ -34,6 +34,10 @@ interface SequenceQuizPageState {
   endTime: number | null;
   isLoading: boolean;
   error: string | null;
+  followupGenerated: Record<number, boolean>;
+  followupContent: Record<number, string>;
+  isGeneratingFollowup: boolean;
+  followupError: string | null;
 }
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -62,6 +66,10 @@ const initialState: SequenceQuizPageState = {
   endTime: null,
   isLoading: false,
   error: null,
+  followupGenerated: {},
+  followupContent: {},
+  isGeneratingFollowup: false,
+  followupError: null,
 };
 
 const sequenceQuizPageSlice = createSlice({
@@ -88,6 +96,10 @@ const sequenceQuizPageSlice = createSlice({
       state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
+      state.followupGenerated = {};
+      state.followupContent = {};
+      state.isGeneratingFollowup = false;
+      state.followupError = null;
     },
 
     placeItem: (state, action: PayloadAction<{ item: string; atIndex?: number }>) => {
@@ -174,6 +186,7 @@ const sequenceQuizPageSlice = createSlice({
         state.isCorrect = null;
         state.showExplanation = false;
         state.questionStartTime = Date.now();
+        state.followupError = null;
       } else {
         state.isCompleted = true;
         state.endTime = Date.now();
@@ -203,6 +216,10 @@ const sequenceQuizPageSlice = createSlice({
       state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
+      state.followupGenerated = {};
+      state.followupContent = {};
+      state.isGeneratingFollowup = false;
+      state.followupError = null;
     },
 
     setLoading: (state, action: PayloadAction<boolean>) => {
@@ -212,6 +229,25 @@ const sequenceQuizPageSlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
       state.isLoading = false;
+    },
+
+    setSequenceFollowupGenerating: (state, action: PayloadAction<boolean>) => {
+      state.isGeneratingFollowup = action.payload;
+      state.followupError = null;
+    },
+
+    setSequenceFollowupGenerated: (
+      state,
+      action: PayloadAction<{ questionIndex: number; content: string }>
+    ) => {
+      state.followupGenerated[action.payload.questionIndex] = true;
+      state.followupContent[action.payload.questionIndex] = action.payload.content;
+      state.isGeneratingFollowup = false;
+    },
+
+    setSequenceFollowupError: (state, action: PayloadAction<string | null>) => {
+      state.followupError = action.payload;
+      state.isGeneratingFollowup = false;
     },
   },
 });
@@ -229,6 +265,9 @@ export const {
   restartSequenceQuizSession,
   setLoading,
   setError,
+  setSequenceFollowupGenerating,
+  setSequenceFollowupGenerated,
+  setSequenceFollowupError,
 } = sequenceQuizPageSlice.actions;
 
 export const selectSequenceQuizState = (state: { sequenceQuizPage: SequenceQuizPageState }) =>

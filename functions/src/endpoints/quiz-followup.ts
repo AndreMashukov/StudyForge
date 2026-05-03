@@ -57,6 +57,10 @@ export const generateQuizFollowup = onCall(
           options: data.questionOptions || [],
           userAnswer: data.userSelectedAnswer,
           correctAnswer: data.correctAnswer,
+          questionType: data.questionType,
+          sequenceItems: data.sequenceItems,
+          userSequence: data.userSequence,
+          correctSequence: data.correctSequence,
         },
         quiz: {
           title: data.quizTitle || `Quiz from ${originalDocument.title}`,
