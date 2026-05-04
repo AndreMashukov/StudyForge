@@ -76,9 +76,8 @@ export const EditDirectoryDialog = ({
 
       onSuccess();
       handleClose();
-    } catch (error) {
-      console.error("Failed to update directory:", error);
-      setErrors({ submit: "Failed to update folder. Please try again." });
+    } catch {
+      // Error is shown via the global errorToastMiddleware toast
     }
   };
 
@@ -192,11 +191,6 @@ export const EditDirectoryDialog = ({
                 </div>
               </div>
             </div>
-
-            {/* Submit Error */}
-            {errors.submit && (
-              <p className="text-destructive text-sm">{errors.submit}</p>
-            )}
           </div>
 
           <DialogFooter className="px-7 pb-6">
