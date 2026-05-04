@@ -59,9 +59,8 @@ export const DirectorySettingsModal = ({
         directoryId: directory.id,
       }).unwrap();
       showToast(`Rule "${ruleName}" detached from "${directory.name}"`, "success");
-    } catch (error) {
-      console.error("Failed to detach rule:", error);
-      showToast("Failed to detach rule. Please try again.", "error");
+    } catch {
+      // Error is shown via the global errorToastMiddleware toast
     }
   };
 
@@ -75,9 +74,8 @@ export const DirectorySettingsModal = ({
         `Rule "${rule.name}" ${!rule.isDefault ? "set as" : "removed from"} default`,
         "success"
       );
-    } catch (error) {
-      console.error("Failed to toggle default:", error);
-      showToast("Failed to update default status. Please try again.", "error");
+    } catch {
+      // Error is shown via the global errorToastMiddleware toast
     }
   };
 

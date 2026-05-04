@@ -27,7 +27,7 @@ export function createDocumentOnQueryStarted(
       }));
     } catch {
       dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType: 'sources' }));
-      dispatch(showToast({ message: `Failed to ${errorLabel}`, type: 'error' }));
+      // Error is shown via the global errorToastMiddleware toast
     }
   };
 }

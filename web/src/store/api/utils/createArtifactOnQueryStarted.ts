@@ -36,7 +36,7 @@ export function createArtifactOnQueryStarted(
       }
     } catch {
       dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType }));
-      dispatch(showToast({ message: `Failed to generate ${errorLabel}`, type: 'error' }));
+      // Error is shown via the global errorToastMiddleware toast
     }
   };
 }

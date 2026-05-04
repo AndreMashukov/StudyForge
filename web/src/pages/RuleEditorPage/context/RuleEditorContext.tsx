@@ -122,9 +122,7 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
         navigate('/rules');
       }
     } catch {
-      const msg = `Failed to ${mode === 'edit' ? 'update' : 'create'} rule. Please try again.`;
-      setFormErrors({ submit: msg });
-      showToast(msg, 'error');
+      // Error is shown via the global errorToastMiddleware toast
     }
   }, [formData, mode, ruleId, validate, showToast, navigate, updateRule, createRule]);
 
@@ -139,7 +137,7 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
         showToast(result.error || 'Failed to delete rule', 'error');
       }
     } catch {
-      showToast('Failed to delete rule', 'error');
+      // Error is shown via the global errorToastMiddleware toast
     }
   }, [ruleId, deleteRuleMutation, showToast, navigate]);
 

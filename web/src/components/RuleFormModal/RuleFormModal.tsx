@@ -143,11 +143,8 @@ export const RuleFormModal = ({
         onSuccess?.(newRule);
       }
       onClose();
-    } catch (error) {
-      console.error("Failed to save rule:", error);
-      const errorMessage = `Failed to ${isEditMode ? "update" : "create"} rule. Please try again.`;
-      setErrors({ submit: errorMessage });
-      showToast(errorMessage, "error");
+    } catch {
+      // Error is shown via the global errorToastMiddleware toast
     }
   };
 
@@ -395,12 +392,6 @@ export const RuleFormModal = ({
               label="Set as default rule (Auto-select for applicable operations)"
             />
 
-            {/* Submit Error */}
-            {errors.submit && (
-              <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md">
-                {errors.submit}
-              </div>
-            )}
           </DialogBody>
 
           <DialogFooter>
