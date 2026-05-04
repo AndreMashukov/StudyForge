@@ -1,4 +1,4 @@
-import { onCall } from 'firebase-functions/v2/https';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import { validateAuth } from '../lib/auth';
@@ -44,19 +44,19 @@ export const createDocument = onCall(
 
       // Validate request
       if (!data.sourceType || !Object.values(DocumentSourceType).includes(data.sourceType)) {
-        throw new Error('Invalid or missing sourceType');
+        throw new HttpsError('invalid-argument', 'Invalid or missing sourceType');
       }
 
       if (!data.title || data.title.trim().length === 0) {
-        throw new Error('Document title is required');
+        throw new HttpsError('invalid-argument', 'Document title is required');
       }
 
       if (!data.content || data.content.trim().length === 0) {
-        throw new Error('Document content is required');
+        throw new HttpsError('invalid-argument', 'Document content is required');
       }
 
       if (!data.directoryId) {
-        throw new Error('directoryId is required');
+        throw new HttpsError('invalid-argument', 'directoryId is required');
       }
       await directoryService.validateDirectoryId(userId, data.directoryId);
 
@@ -79,7 +79,7 @@ export const createDocument = onCall(
         error: error instanceof Error ? error.message : String(error),
         data: request.data,
       });
-      throw new Error(`Failed to create document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -114,15 +114,15 @@ export const createDocumentFromUrl = onCall(
 
       // Validate URL
       if (!url || typeof url !== 'string') {
-        throw new Error('URL is required');
+        throw new HttpsError('invalid-argument', 'URL is required');
       }
 
       if (!WebScraperService.isValidUrl(url)) {
-        throw new Error('Invalid URL format');
+        throw new HttpsError('invalid-argument', 'Invalid URL format');
       }
 
       if (!directoryId) {
-        throw new Error('directoryId is required');
+        throw new HttpsError('invalid-argument', 'directoryId is required');
       }
       await directoryService.validateDirectoryId(userId, directoryId);
 
@@ -156,7 +156,7 @@ export const createDocumentFromUrl = onCall(
           url,
           rawContentLength: scrapedContent.content?.length || 0,
         });
-        throw new Error('Failed to convert content to markdown: empty result');
+        throw new HttpsError('internal', 'Failed to convert content to markdown: empty result');
       }
 
       // Check if markdown is just plain text (no markdown formatting)
@@ -207,7 +207,7 @@ export const createDocumentFromUrl = onCall(
         error: error instanceof Error ? error.message : String(error),
         url: request.data?.url,
       });
-      throw new Error(`Failed to create document from URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -227,7 +227,7 @@ export const getDocument = onCall(
 
       // Additional validation to catch "undefined" string
       if (!documentId || typeof documentId !== 'string' || documentId === 'undefined' || documentId.trim() === '') {
-        throw new Error('Document ID is required');
+        throw new HttpsError('invalid-argument', 'Document ID is required');
       }
 
       logger.info('Getting document', { userId, documentId });
@@ -244,7 +244,7 @@ export const getDocument = onCall(
         error: error instanceof Error ? error.message : String(error),
         documentId: request.data?.documentId,
       });
-      throw new Error(`Failed to get document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -263,7 +263,7 @@ export const getDocumentWithContent = onCall(
       const { documentId } = request.data as { documentId: string };
 
       if (!documentId || typeof documentId !== 'string') {
-        throw new Error('Document ID is required');
+        throw new HttpsError('invalid-argument', 'Document ID is required');
       }
 
       logger.info('Getting document with content', { userId, documentId });
@@ -280,7 +280,7 @@ export const getDocumentWithContent = onCall(
         error: error instanceof Error ? error.message : String(error),
         documentId: request.data?.documentId,
       });
-      throw new Error(`Failed to get document with content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -302,11 +302,11 @@ export const updateDocument = onCall(
       };
 
       if (!documentId || typeof documentId !== 'string') {
-        throw new Error('Document ID is required');
+        throw new HttpsError('invalid-argument', 'Document ID is required');
       }
 
       if (!updates || typeof updates !== 'object') {
-        throw new Error('Updates object is required');
+        throw new HttpsError('invalid-argument', 'Updates object is required');
       }
 
       logger.info('Updating document', { 
@@ -328,7 +328,7 @@ export const updateDocument = onCall(
         error: error instanceof Error ? error.message : String(error),
         documentId: request.data?.documentId,
       });
-      throw new Error(`Failed to update document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -347,7 +347,7 @@ export const deleteDocument = onCall(
       const { documentId } = request.data as { documentId: string };
 
       if (!documentId || typeof documentId !== 'string') {
-        throw new Error('Document ID is required');
+        throw new HttpsError('invalid-argument', 'Document ID is required');
       }
 
       logger.info('Deleting document', { userId, documentId });
@@ -364,7 +364,7 @@ export const deleteDocument = onCall(
         error: error instanceof Error ? error.message : String(error),
         documentId: request.data?.documentId,
       });
-      throw new Error(`Failed to delete document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -401,7 +401,7 @@ export const getUserDocuments = onCall(
         error: error instanceof Error ? error.message : String(error),
         options: request.data,
       });
-      throw new Error(`Failed to get user documents: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -438,7 +438,7 @@ export const listDocuments = onCall(
         error: error instanceof Error ? error.message : String(error),
         options: request.data,
       });
-      throw new Error(`Failed to list documents: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -462,7 +462,7 @@ export const searchDocuments = onCall(
       };
 
       if (!searchTerm || typeof searchTerm !== 'string' || searchTerm.trim().length === 0) {
-        throw new Error('Search term is required');
+        throw new HttpsError('invalid-argument', 'Search term is required');
       }
 
       logger.info('Searching documents', { 
@@ -484,7 +484,7 @@ export const searchDocuments = onCall(
         error: error instanceof Error ? error.message : String(error),
         searchTerm: request.data?.searchTerm?.substring(0, 50),
       });
-      throw new Error(`Failed to search documents: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -514,7 +514,7 @@ export const getDocumentStats = onCall(
       logger.error('Failed to get document statistics', { 
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(`Failed to get document statistics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -533,7 +533,7 @@ export const getDocumentContent = onCall(
       const { documentId } = request.data as { documentId: string };
 
       if (!documentId || documentId.trim().length === 0) {
-        throw new Error('Document ID is required');
+        throw new HttpsError('invalid-argument', 'Document ID is required');
       }
 
       logger.info('Getting document content', { 
@@ -553,7 +553,7 @@ export const getDocumentContent = onCall(
         error: error instanceof Error ? error.message : String(error),
         documentId: request.data?.documentId,
       });
-      throw new Error(`Failed to get document content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -588,27 +588,27 @@ export const generateFromPrompt = onCall(
 
       // Validate prompt
       if (!data.prompt || typeof data.prompt !== 'string') {
-        throw new Error('Prompt is required and must be a string');
+        throw new HttpsError('invalid-argument', 'Prompt is required and must be a string');
       }
 
       const trimmedPrompt = data.prompt.trim();
 
       if (trimmedPrompt.length === 0) {
-        throw new Error('Prompt cannot be empty');
+        throw new HttpsError('invalid-argument', 'Prompt cannot be empty');
       }
 
       if (trimmedPrompt.length < 10) {
-        throw new Error('Prompt must be at least 10 characters long');
+        throw new HttpsError('invalid-argument', 'Prompt must be at least 10 characters long');
       }
 
       // Validate files if provided
       if (data.files) {
         if (!Array.isArray(data.files)) {
-          throw new Error('Files must be an array');
+          throw new HttpsError('invalid-argument', 'Files must be an array');
         }
 
         if (data.files.length > 5) {
-          throw new Error('Cannot attach more than 5 files');
+          throw new HttpsError('invalid-argument', 'Cannot attach more than 5 files');
         }
 
         // Validate each file and track sources
@@ -620,19 +620,19 @@ export const generateFromPrompt = onCall(
 
         data.files.forEach((file, index) => {
           if (!file.filename || !file.content || typeof file.size !== 'number' || !file.type) {
-            throw new Error(`Invalid file structure at index ${index} for file: ${file.filename || 'unknown'}`);
+            throw new HttpsError('invalid-argument', `Invalid file structure at index ${index} for file: ${file.filename || 'unknown'}`);
           }
 
           if (file.size > 5 * 1024 * 1024) {
-            throw new Error(`File "${file.filename}" exceeds 5MB size limit`);
+            throw new HttpsError('invalid-argument', `File "${file.filename}" exceeds 5MB size limit`);
           }
 
           if (file.content.trim().length === 0) {
-            throw new Error(`File "${file.filename}" is empty`);
+            throw new HttpsError('invalid-argument', `File "${file.filename}" is empty`);
           }
 
           if (!['text/plain', 'text/markdown'].includes(file.type)) {
-            throw new Error(`File "${file.filename}" has an unsupported type: ${file.type}. Only text/plain and text/markdown are allowed.`);
+            throw new HttpsError('invalid-argument', `File "${file.filename}" has an unsupported type: ${file.type}. Only text/plain and text/markdown are allowed.`);
           }
 
           // Track source type
@@ -733,7 +733,7 @@ export const generateFromPrompt = onCall(
       });
 
       if (!data.directoryId) {
-        throw new Error('directoryId is required');
+        throw new HttpsError('invalid-argument', 'directoryId is required');
       }
       await directoryService.validateDirectoryId(userId, data.directoryId);
 
@@ -781,7 +781,7 @@ export const generateFromPrompt = onCall(
         error: error instanceof Error ? error.message : String(error),
         prompt: request.data?.prompt?.substring(0, 50),
       });
-      throw new Error(`Failed to generate document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -800,10 +800,10 @@ export const moveDocument = onCall(
       const { documentId, targetDirectoryId } = request.data as { documentId: string; targetDirectoryId: string };
 
       if (!documentId || typeof documentId !== 'string') {
-        throw new Error('Document ID is required');
+        throw new HttpsError('invalid-argument', 'Document ID is required');
       }
       if (!targetDirectoryId || typeof targetDirectoryId !== 'string') {
-        throw new Error('Target directory ID is required');
+        throw new HttpsError('invalid-argument', 'Target directory ID is required');
       }
 
       logger.info('Moving document', { userId, documentId, targetDirectoryId });
@@ -820,7 +820,7 @@ export const moveDocument = onCall(
         error: error instanceof Error ? error.message : String(error),
         documentId: request.data?.documentId,
       });
-      throw new Error(`Failed to move document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
