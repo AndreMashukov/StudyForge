@@ -1,4 +1,4 @@
-import { onCall } from 'firebase-functions/v2/https';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import {
   CreateRuleRequest,
@@ -48,27 +48,27 @@ export const createRuleEndpoint = onCall(
 
       // Validate request
       if (!data.name || data.name.trim().length === 0) {
-        throw new Error('Rule name is required');
+        throw new HttpsError('invalid-argument', 'Rule name is required');
       }
 
       if (data.name.length > 100) {
-        throw new Error('Rule name cannot exceed 100 characters');
+        throw new HttpsError('invalid-argument', 'Rule name cannot exceed 100 characters');
       }
 
       if (!data.content || data.content.trim().length === 0) {
-        throw new Error('Rule content is required');
+        throw new HttpsError('invalid-argument', 'Rule content is required');
       }
 
       if (data.content.length > 100000) {
-        throw new Error('Rule content cannot exceed 100,000 characters');
+        throw new HttpsError('invalid-argument', 'Rule content cannot exceed 100,000 characters');
       }
 
       if (!data.applicableTo || data.applicableTo.length === 0) {
-        throw new Error('Rule must be applicable to at least one operation type');
+        throw new HttpsError('invalid-argument', 'Rule must be applicable to at least one operation type');
       }
 
       if (!data.color) {
-        throw new Error('Rule color is required');
+        throw new HttpsError('invalid-argument', 'Rule color is required');
       }
 
       // Create rule
@@ -90,9 +90,7 @@ export const createRuleEndpoint = onCall(
         error: error instanceof Error ? error.message : String(error),
         data: request.data,
       });
-      throw new Error(
-        `Failed to create rule: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -110,13 +108,13 @@ export const getRuleEndpoint = onCall(
       const { ruleId } = request.data as { ruleId: string };
 
       if (!ruleId) {
-        throw new Error('Rule ID is required');
+        throw new HttpsError('invalid-argument', 'Rule ID is required');
       }
 
       const rule = await getRule(userId, ruleId);
 
       if (!rule) {
-        throw new Error('Rule not found');
+        throw new HttpsError('not-found', 'Rule not found');
       }
 
       return {
@@ -127,9 +125,7 @@ export const getRuleEndpoint = onCall(
       logger.error('Failed to get rule', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to get rule: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -155,9 +151,7 @@ export const getRulesEndpoint = onCall(
       logger.error('Failed to get rules', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to get rules: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -180,20 +174,20 @@ export const updateRuleEndpoint = onCall(
       });
 
       if (!data.ruleId) {
-        throw new Error('Rule ID is required');
+        throw new HttpsError('invalid-argument', 'Rule ID is required');
       }
 
       // Validate field updates
       if (data.name !== undefined && data.name.length > 100) {
-        throw new Error('Rule name cannot exceed 100 characters');
+        throw new HttpsError('invalid-argument', 'Rule name cannot exceed 100 characters');
       }
 
       if (data.content !== undefined && data.content.length > 100000) {
-        throw new Error('Rule content cannot exceed 100,000 characters');
+        throw new HttpsError('invalid-argument', 'Rule content cannot exceed 100,000 characters');
       }
 
       if (data.applicableTo !== undefined && data.applicableTo.length === 0) {
-        throw new Error('Rule must be applicable to at least one operation type');
+        throw new HttpsError('invalid-argument', 'Rule must be applicable to at least one operation type');
       }
 
       const rule = await updateRule(userId, data);
@@ -212,9 +206,7 @@ export const updateRuleEndpoint = onCall(
         error: error instanceof Error ? error.message : String(error),
         data: request.data,
       });
-      throw new Error(
-        `Failed to update rule: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -237,7 +229,7 @@ export const deleteRuleEndpoint = onCall(
       });
 
       if (!data.ruleId) {
-        throw new Error('Rule ID is required');
+        throw new HttpsError('invalid-argument', 'Rule ID is required');
       }
 
       const result = await deleteRule(userId, data.ruleId);
@@ -266,9 +258,7 @@ export const deleteRuleEndpoint = onCall(
       logger.error('Failed to delete rule', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to delete rule: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -292,7 +282,7 @@ export const attachRuleToDirectoryEndpoint = onCall(
       });
 
       if (!data.ruleId || !data.directoryId) {
-        throw new Error('Rule ID and Directory ID are required');
+        throw new HttpsError('invalid-argument', 'Rule ID and Directory ID are required');
       }
 
       await attachRuleToDirectory(userId, data.ruleId, data.directoryId);
@@ -310,9 +300,7 @@ export const attachRuleToDirectoryEndpoint = onCall(
       logger.error('Failed to attach rule to directory', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to attach rule to directory: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -336,7 +324,7 @@ export const detachRuleFromDirectoryEndpoint = onCall(
       });
 
       if (!data.ruleId || !data.directoryId) {
-        throw new Error('Rule ID and Directory ID are required');
+        throw new HttpsError('invalid-argument', 'Rule ID and Directory ID are required');
       }
 
       await detachRuleFromDirectory(userId, data.ruleId, data.directoryId);
@@ -354,9 +342,7 @@ export const detachRuleFromDirectoryEndpoint = onCall(
       logger.error('Failed to detach rule from directory', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to detach rule from directory: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -374,7 +360,7 @@ export const getDirectoryRulesEndpoint = onCall(
       const data = request.data as GetDirectoryRulesRequest;
 
       if (!data.directoryId) {
-        throw new Error('Directory ID is required');
+        throw new HttpsError('invalid-argument', 'Directory ID is required');
       }
 
       if (data.includeAncestors) {
@@ -405,9 +391,7 @@ export const getDirectoryRulesEndpoint = onCall(
       logger.error('Failed to get directory rules', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to get directory rules: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -425,7 +409,7 @@ export const getApplicableRulesEndpoint = onCall(
       const data = request.data as GetApplicableRulesRequest;
 
       if (!data.directoryId || !data.operation) {
-        throw new Error('Directory ID and operation type are required');
+        throw new HttpsError('invalid-argument', 'Directory ID and operation type are required');
       }
 
       const { rules, defaultRuleIds } = await getApplicableRules(
@@ -443,9 +427,7 @@ export const getApplicableRulesEndpoint = onCall(
       logger.error('Failed to get applicable rules', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to get applicable rules: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -463,7 +445,7 @@ export const formatRulesForPromptEndpoint = onCall(
       const data = request.data as FormatRulesForPromptRequest;
 
       if (!data.ruleIds || !Array.isArray(data.ruleIds)) {
-        throw new Error('Rule IDs array is required');
+        throw new HttpsError('invalid-argument', 'Rule IDs array is required');
       }
 
       const formattedRules = await formatRulesForPrompt(userId, data.ruleIds);
@@ -476,9 +458,7 @@ export const formatRulesForPromptEndpoint = onCall(
       logger.error('Failed to format rules for prompt', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to format rules for prompt: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );
@@ -504,9 +484,7 @@ export const getRuleTagsEndpoint = onCall(
       logger.error('Failed to get rule tags', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to get rule tags: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 );

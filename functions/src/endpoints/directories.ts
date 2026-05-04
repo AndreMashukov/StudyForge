@@ -30,7 +30,7 @@ export const createDirectory = onCall(
 
       // Validate request
       if (!data.name || data.name.trim().length === 0) {
-        throw new Error('Directory name is required');
+        throw new HttpsError('invalid-argument', 'Directory name is required');
       }
 
       logger.info('Creating directory', { userId, name: data.name });
@@ -68,7 +68,7 @@ export const getDirectory = onCall(
       const { directoryId } = request.data as { directoryId: string };
 
       if (!directoryId) {
-        throw new Error('Directory ID is required');
+        throw new HttpsError('invalid-argument', 'Directory ID is required');
       }
 
       logger.info('Getting directory', { userId, directoryId });
@@ -76,7 +76,7 @@ export const getDirectory = onCall(
       const directory = await directoryService.getDirectory(userId, directoryId);
 
       if (!directory) {
-        throw new Error('Directory not found');
+        throw new HttpsError('not-found', 'Directory not found');
       }
 
       const response: GetDirectoryResponse = { directory };
@@ -104,7 +104,7 @@ export const updateDirectory = onCall(
       const { directoryId, ...updateData } = request.data as { directoryId: string } & UpdateDirectoryRequest;
 
       if (!directoryId) {
-        throw new Error('Directory ID is required');
+        throw new HttpsError('invalid-argument', 'Directory ID is required');
       }
 
       logger.info('Updating directory', { userId, directoryId });
@@ -136,7 +136,7 @@ export const deleteDirectory = onCall(
       const { directoryId } = request.data as { directoryId: string };
 
       if (!directoryId) {
-        throw new Error('Directory ID is required');
+        throw new HttpsError('invalid-argument', 'Directory ID is required');
       }
 
       logger.info('Deleting directory', { userId, directoryId });
@@ -217,7 +217,7 @@ export const getDirectoryAncestors = onCall(
       const { directoryId } = request.data as { directoryId: string };
 
       if (!directoryId) {
-        throw new Error('Directory ID is required');
+        throw new HttpsError('invalid-argument', 'Directory ID is required');
       }
 
       logger.info('Getting directory ancestors', { userId, directoryId });
@@ -247,7 +247,7 @@ export const moveDirectory = onCall(
       const { directoryId, ...moveData } = request.data as { directoryId: string } & MoveDirectoryRequest;
 
       if (!directoryId) {
-        throw new Error('Directory ID is required');
+        throw new HttpsError('invalid-argument', 'Directory ID is required');
       }
 
       logger.info('Moving directory', { 
@@ -281,7 +281,7 @@ export const getDirectoryByPath = onCall(
       const { path } = request.data as { path: string };
 
       if (!path) {
-        throw new Error('Path parameter is required');
+        throw new HttpsError('invalid-argument', 'Path parameter is required');
       }
 
       logger.info('Getting directory by path', { userId, path });
@@ -289,7 +289,7 @@ export const getDirectoryByPath = onCall(
       const directory = await directoryService.getDirectoryByPath(userId, path);
 
       if (!directory) {
-        throw new Error('Directory not found');
+        throw new HttpsError('not-found', 'Directory not found');
       }
 
       const response: GetDirectoryResponse = { directory };
