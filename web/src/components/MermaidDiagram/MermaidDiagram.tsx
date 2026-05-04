@@ -185,11 +185,70 @@ function sanitizeSquareBracketsInDiamondLabels(source: string): string {
   );
 }
 
+/**
+ * Handles double-nested square brackets inside bracket node labels.
+ * The existing sanitizeBracketLabels only handles one level of nesting and
+ * partially wraps the label (e.g. ["Board[r][c"]) leaving the tail dangling,
+ * which causes a mermaid lexical error.
+ *
+ * This function walks each line character-by-character. When it detects a
+ * bracket node label (wordId[...]) it tracks nesting depth and encodes any
+ * inner [ and ] with #91; / #93; HTML entities so mermaid sees a flat label.
+ *
+ * Example:
+ *   Choose[✅ Choose: Add to Sets, Board[r][c] = 'Q']
+ *   → Choose[✅ Choose: Add to Sets, Board#91;r#93;#91;c#93; = 'Q']
+ */
+function sanitizeNestedBracketsInBracketLabels(source: string): string {
+  return source
+    .split('\n')
+    .map((line) => {
+      let result = '';
+      let i = 0;
+      while (i < line.length) {
+        // Detect a bracket node label: one or more word chars followed by '['
+        const wordBracket = line.slice(i).match(/^(\w+)\[/);
+        if (wordBracket) {
+          result += wordBracket[1] + '[';
+          i += wordBracket[0].length;
+          let depth = 1;
+          let label = '';
+          while (i < line.length && depth > 0) {
+            const ch = line[i];
+            if (ch === '[') {
+              depth++;
+              label += '#91;';
+            } else if (ch === ']') {
+              depth--;
+              if (depth > 0) {
+                label += '#93;';
+              } else {
+                result += label + ']';
+              }
+            } else {
+              label += ch;
+            }
+            i++;
+          }
+        } else {
+          result += line[i];
+          i++;
+        }
+      }
+      return result;
+    })
+    .join('\n');
+}
+
 function sanitizeMermaidCode(source: string): string {
   return sanitizeSubgraphIds(
     sanitizeParenLabels(
       sanitizeSquareBracketsInParenLabels(
-        sanitizeSquareBracketsInDiamondLabels(sanitizeBracketLabels(source)),
+        sanitizeSquareBracketsInDiamondLabels(
+          sanitizeBracketLabels(
+            sanitizeNestedBracketsInBracketLabels(source),
+          ),
+        ),
       ),
     ),
   );
