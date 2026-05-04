@@ -81,9 +81,8 @@ export const AttachRuleModal = ({
       );
       setSelectedRuleIds([]);
       onClose();
-    } catch (error) {
-      console.error("Failed to attach rules:", error);
-      showToast("Failed to attach rules. Please try again.", "error");
+    } catch {
+      // Error is shown via the global errorToastMiddleware toast
     }
   };
 

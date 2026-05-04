@@ -49,9 +49,8 @@ export const DeleteDirectoryDialog = ({
       await deleteDirectory(directory.id).unwrap();
       onSuccess();
       handleClose();
-    } catch (error) {
-      console.error("Failed to delete directory:", error);
-      setError("Failed to delete folder. Please try again.");
+    } catch {
+      // Error is shown via the global errorToastMiddleware toast
     }
   };
 

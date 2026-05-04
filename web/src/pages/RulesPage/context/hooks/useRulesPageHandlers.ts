@@ -20,20 +20,13 @@ export const useRulesPageHandlers = () => {
   const handleDeleteRule = useCallback(async (ruleId: string) => {
     try {
       const result = await deleteRule({ ruleId }).unwrap();
-      
       if (result.success) {
         showToast('Rule deleted successfully', 'success');
       } else {
         showToast(result.error || 'Failed to delete rule', 'error');
       }
-    } catch (error) {
-      const errorMessage = error && typeof error === 'object' && 'data' in error &&
-        typeof error.data === 'object' && error.data && 'error' in error.data &&
-        typeof error.data.error === 'string'
-        ? error.data.error
-        : 'Failed to delete rule';
-      
-      showToast(errorMessage, 'error');
+    } catch {
+      // Error is shown via the global errorToastMiddleware toast
     }
   }, [deleteRule, showToast]);
 

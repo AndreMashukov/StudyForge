@@ -71,9 +71,8 @@ export const CreateDirectoryDialog = ({
       const result = await createDirectory(directoryData).unwrap();
       onSuccess(result.directoryId);
       handleClose();
-    } catch (error) {
-      console.error("Failed to create directory:", error);
-      setErrors({ submit: "Failed to create folder. Please try again." });
+    } catch {
+      // Error is shown via the global errorToastMiddleware toast
     }
   };
 
@@ -214,10 +213,6 @@ export const CreateDirectoryDialog = ({
               </div>
             </div>
 
-            {/* Submit Error */}
-            {errors.submit && (
-              <p className="text-destructive text-sm">{errors.submit}</p>
-            )}
           </div>
 
           <DialogFooter className="px-7 pb-6">

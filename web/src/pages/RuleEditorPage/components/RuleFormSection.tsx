@@ -233,19 +233,6 @@ export const RuleFormSection: React.FC = () => {
         label="Set as default rule (Auto-select for applicable operations)"
       />
 
-      {/* Submit Error */}
-      {formErrors.submit && (
-        <div
-          className="px-4 py-3 rounded-md border"
-          style={{
-            backgroundColor: `${colors.destructive}15`,
-            borderColor: colors.destructive,
-            color: colors.destructive,
-          }}
-        >
-          {formErrors.submit}
-        </div>
-      )}
     </div>
   );
 };
