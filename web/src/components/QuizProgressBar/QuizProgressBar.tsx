@@ -13,7 +13,7 @@ export const QuizProgressBar: React.FC<IQuizProgressBar> = ({
     <>
       <div className="h-1 w-full bg-muted">
         <div
-          className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-300 ease-out rounded-r-full"
+          className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300 ease-out rounded-r-full"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -23,8 +23,8 @@ export const QuizProgressBar: React.FC<IQuizProgressBar> = ({
           Question {currentQuestion} of {totalQuestions}
         </span>
         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
-          <CheckCircle2 className="w-3 h-3 text-green-500" />
-          <span className="text-green-500 font-semibold">{score}</span>
+          <CheckCircle2 className="w-3 h-3 text-success" />
+          <span className="text-success font-semibold">{score}</span>
           <span>/ {answeredCount} correct</span>
         </span>
       </div>

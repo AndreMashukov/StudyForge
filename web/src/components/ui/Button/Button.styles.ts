@@ -38,7 +38,7 @@ export const getVariantStyles = (variant: string | null | undefined, currentThem
 				background: 'linear-gradient(135deg, #A855F7, #6366F1)',
 				color: colors.primaryForeground,
 				borderRadius: colors.radius,
-				boxShadow: '0 2px 8px rgba(139, 92, 246, 0.30)',
+				boxShadow: `0 2px 8px ${colors.glow}`,
 			};
 		case 'destructive':
 			return {
@@ -77,7 +77,7 @@ export const getVariantStyles = (variant: string | null | undefined, currentThem
 				background: 'linear-gradient(135deg, #A855F7, #6366F1)',
 				color: colors.primaryForeground,
 				borderRadius: colors.radius,
-				boxShadow: '0 2px 8px rgba(139, 92, 246, 0.30)',
+				boxShadow: `0 2px 8px ${colors.glow}`,
 			};
 	}
 };

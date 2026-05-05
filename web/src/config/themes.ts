@@ -22,6 +22,8 @@ export const themes: Record<ThemeId, Theme> = {
       accentForeground: 'rgb(255 255 255)', // #ffffff
       destructive: 'rgb(186 26 26)', // #ba1a1a - error
       destructiveForeground: 'rgb(255 255 255)', // #ffffff - on_error
+      success: 'rgb(16 185 129)', // #10B981 - emerald-success
+      successForeground: 'rgb(255 255 255)', // #ffffff
       border: 'rgb(123 116 135)', // #7b7487 - outline
       input: 'rgb(243 235 250)', // #f3ebfa - surface_container
       ring: 'rgb(99 14 212)', // #630ed4 - primary
@@ -54,6 +56,8 @@ export const themes: Record<ThemeId, Theme> = {
       accentForeground: 'rgb(232 223 238)', // #e8dfee
       destructive: 'rgb(255 180 171)', // #ffb4ab - error (on dark)
       destructiveForeground: 'rgb(105 0 5)', // #690005 - on_error
+      success: 'rgb(16 185 129)', // #10B981 - emerald-success
+      successForeground: 'rgb(255 255 255)', // #ffffff
       border: 'rgb(74 68 85)', // #4a4455 - outline_variant
       input: 'rgb(34 30 40)', // #221e28 - surface_container
       ring: 'rgb(210 187 255)', // #d2bbff - primary (on dark)

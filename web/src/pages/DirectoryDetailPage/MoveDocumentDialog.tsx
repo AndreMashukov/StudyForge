@@ -48,7 +48,7 @@ const DirectoryTreeItem = ({
         className={cn(
           'flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-sm transition-colors text-left',
           isSelected
-            ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+            ? 'bg-primary/15 text-primary border border-primary/30'
             : 'hover:bg-muted/50 border border-transparent',
           isCurrent && 'opacity-40 cursor-not-allowed',
         )}
@@ -133,8 +133,8 @@ export const MoveDocumentDialog = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden">
         {/* Gradient header — matches Create Directory modal */}
-        <div className="px-7 pt-7 pb-5 flex items-center gap-3.5 bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-transparent border-b border-border">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shadow-[0_4px_12px_rgba(139,92,246,0.3)] shrink-0">
+        <div className="px-7 pt-7 pb-5 flex items-center gap-3.5 linear-gradient-subtle border-b border-border">
+          <div className="w-11 h-11 rounded-xl linear-gradient flex items-center justify-center shrink-0" style={{ boxShadow: '0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent)' }}>
             <FolderInput className="text-white" size={22} />
           </div>
           <div>

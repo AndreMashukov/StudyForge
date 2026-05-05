@@ -77,9 +77,9 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
             <CardContent className="p-4">
               <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
                 {selectedAnswer === question.correct ? (
-                  <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <Check className="h-4 w-4 text-success" />
                 ) : (
-                  <X className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  <X className="h-4 w-4 text-destructive" />
                 )}
                 {selectedAnswer === question.correct ? 'Correct!' : 'Incorrect'}
               </h3>

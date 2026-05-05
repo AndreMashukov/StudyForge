@@ -62,35 +62,35 @@
     vertical-align: middle;
   }
   
-  /* Linear-style gradients - can be used as utility classes */
+  /* Linear-style gradients - theme-aware using CSS variables */
   .linear-gradient {
-    background: linear-gradient(135deg, #4F46E5 0%, #6366F1 50%, #7C3AED 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
   }
   
   .linear-gradient-subtle {
-    background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(99, 102, 241, 0.08) 50%, rgba(124, 58, 237, 0.06) 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 8%, transparent) 0%, color-mix(in srgb, var(--accent) 6%, transparent) 100%);
   }
   
-  /* Linear-style glow effects */
+  /* Linear-style glow effects - theme-aware */
   .linear-glow {
-    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.1), 0 1px 3px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent), 0 1px 3px rgba(0, 0, 0, 0.4);
   }
   
   .linear-glow-hover:hover {
-    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.2), 0 4px 12px rgba(79, 70, 229, 0.15);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 20%, transparent), 0 4px 12px color-mix(in srgb, var(--primary) 15%, transparent);
   }
   
-  /* Linear-style button effects */
+  /* Linear-style button effects - theme-aware */
   .linear-button {
-    background: rgba(79, 70, 229, 0.1);
-    border: 1px solid rgba(79, 70, 229, 0.2);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
     backdrop-filter: blur(12px);
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   
   .linear-button:hover {
-    background: rgba(79, 70, 229, 0.15);
-    border-color: rgba(79, 70, 229, 0.3);
+    background: color-mix(in srgb, var(--primary) 15%, transparent);
+    border-color: color-mix(in srgb, var(--primary) 30%, transparent);
     transform: translateY(-1px);
   }
   
@@ -235,14 +235,7 @@
     color: var(--muted-foreground);
   }
   
-  /* Ensure proper contrast in light themes */
-  .light .text-muted-foreground {
-    color: rgb(51 65 85); /* Force dark text in light theme */
-  }
-  
-  .light .bg-muted {
-    background-color: rgb(248 250 252); /* Ensure light background in light theme */
-  }
+  /* Light theme contrast is handled by theme CSS variables in ThemeContext */
 
   /* Scrollbar utilities */
   .scrollbar-hidden {

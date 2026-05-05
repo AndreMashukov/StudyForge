@@ -13,10 +13,10 @@ export const QuizStartCard: React.FC<IQuizStartCard> = ({
   return (
     <Card className={cn('max-w-2xl mx-auto', className)}>
       <CardHeader className="text-center">
-        <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Play className="w-8 h-8 text-white" />
+        <div className="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mx-auto mb-4">
+          <Play className="w-8 h-8 text-primary-foreground" />
         </div>
-        <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+        <CardTitle className="text-2xl font-bold text-foreground">
           Ready to Start the Quiz?
         </CardTitle>
       </CardHeader>

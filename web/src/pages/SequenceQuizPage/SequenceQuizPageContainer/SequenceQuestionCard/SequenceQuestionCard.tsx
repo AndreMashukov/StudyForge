@@ -93,7 +93,7 @@ const SortableBlock = ({
         !isChecked && 'cursor-grab active:cursor-grabbing',
         isChecked && 'cursor-default',
         !isChecked && 'hover:border-primary/60 hover:bg-primary/5',
-        isChecked && isPositionCorrect === true && 'border-green-500/60 bg-green-500/8',
+        isChecked && isPositionCorrect === true && 'border-success/60 bg-success/8',
         isChecked && isPositionCorrect === false && 'border-destructive/60 bg-destructive/8',
         !isChecked && 'border-border'
       )}
@@ -117,7 +117,7 @@ const SortableBlock = ({
         <span
           className={cn(
             'w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0',
-            isChecked && isPositionCorrect === true && 'bg-green-500 text-black',
+            isChecked && isPositionCorrect === true && 'bg-success text-success-foreground',
             isChecked && isPositionCorrect === false && 'bg-destructive text-white',
             !isChecked && 'bg-primary/20 text-primary'
           )}
@@ -140,7 +140,7 @@ const SortableBlock = ({
       )}
 
       {isChecked && inTarget && isPositionCorrect === true && (
-        <CheckCircle size={14} className="shrink-0 text-green-500" />
+        <CheckCircle size={14} className="shrink-0 text-success" />
       )}
       {isChecked && inTarget && isPositionCorrect === false && (
         <XCircle size={14} className="shrink-0 text-destructive" />
@@ -518,14 +518,14 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
           className={cn(
             'rounded-lg p-4 text-sm space-y-2',
             isCorrect
-              ? 'bg-green-500/8 border border-green-500/25'
+              ? 'bg-success/8 border border-success/25'
               : 'bg-destructive/8 border border-destructive/25'
           )}
         >
           <p
             className={cn(
               'font-bold flex items-center gap-1.5',
-              isCorrect ? 'text-green-500' : 'text-destructive'
+              isCorrect ? 'text-success' : 'text-destructive'
             )}
           >
             {isCorrect ? (
@@ -542,7 +542,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
               <div className="space-y-1">
                 {question.items.map((item, i) => (
                   <div key={item} className="flex items-center gap-2 text-xs">
-                    <span className="w-4 h-4 rounded-full bg-green-500/20 text-green-500 text-[10px] font-bold flex items-center justify-center shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-success/20 text-success text-[10px] font-bold flex items-center justify-center shrink-0">
                       {i + 1}
                     </span>
                     <span className="text-muted-foreground">{item}</span>

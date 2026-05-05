@@ -32,10 +32,10 @@ export const DiagramAnswerBar: React.FC<IDiagramAnswerBar> = ({
                 !showResult && 'border-border bg-card hover:border-primary/50 hover:bg-muted',
                 showResult &&
                   isRightPick &&
-                  'border-green-600 bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100',
+                  'border-success bg-success/10 text-success',
                 showResult &&
                   isWrongPick &&
-                  'border-red-600 bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-100',
+                  'border-destructive bg-destructive/10 text-destructive',
                 showResult &&
                   !isRightPick &&
                   !isWrongPick &&

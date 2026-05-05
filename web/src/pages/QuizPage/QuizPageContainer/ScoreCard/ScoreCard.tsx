@@ -7,9 +7,9 @@ import { IQuizAnswer } from '../../types/IQuizTypes';
 import { IScoreCard } from './IScoreCard';
 
 const getScoreColor = (percentage: number) => {
-  if (percentage >= 80) return 'text-green-400';
+  if (percentage >= 80) return 'text-success';
   if (percentage >= 60) return 'text-yellow-400';
-  return 'text-red-400';
+  return 'text-destructive';
 };
 
 const formatTime = (milliseconds: number) => {
@@ -30,10 +30,10 @@ export const ScoreCard: React.FC<IScoreCard> = ({
       {/* Header */}
       <Card>
         <CardContent className="p-8 text-center">
-          <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Trophy className="w-10 h-10 text-white" />
+          <div className="w-20 h-20 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mx-auto mb-4">
+            <Trophy className="w-10 h-10 text-primary-foreground" />
           </div>
-          <CardTitle className="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+          <CardTitle className="text-3xl font-bold mb-2 text-foreground">
             Quiz Completed!
           </CardTitle>
           <p className="text-muted-foreground">
@@ -46,7 +46,7 @@ export const ScoreCard: React.FC<IScoreCard> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardContent className="p-6 text-center">
-            <Target className="w-8 h-8 text-purple-400 mx-auto mb-2" />
+            <Target className="w-8 h-8 text-primary mx-auto mb-2" />
             <div className={cn('text-2xl font-bold mb-1', getScoreColor(percentage))}>
               {score}/{totalQuestions}
             </div>
@@ -65,8 +65,8 @@ export const ScoreCard: React.FC<IScoreCard> = ({
         
         <Card>
           <CardContent className="p-6 text-center">
-            <Clock className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-blue-400 mb-1">
+            <Clock className="w-8 h-8 text-primary mx-auto mb-2" />
+            <div className="text-2xl font-bold text-primary mb-1">
               {formatTime(timeTaken)}
             </div>
             <div className="text-muted-foreground text-sm">Time</div>
@@ -88,15 +88,15 @@ export const ScoreCard: React.FC<IScoreCard> = ({
               className={cn(
                 'p-4 rounded-xl border',
                 answer.isCorrect 
-                  ? 'bg-green-100 dark:bg-green-900/20 border-green-600 dark:border-green-800' 
-                  : 'bg-red-100 dark:bg-red-900/20 border-red-600 dark:border-red-800'
+                  ? 'bg-success/10 border-success' 
+                  : 'bg-destructive/10 border-destructive'
               )}
             >
               <div className="flex items-center gap-3">
                 {answer.isCorrect ? (
-                  <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                  <Check className="w-5 h-5 text-success flex-shrink-0" />
                 ) : (
-                  <X className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <X className="w-5 h-5 text-destructive flex-shrink-0" />
                 )}
                 <span className="text-sm text-foreground">
                   Question {index + 1}: {answer.isCorrect ? 'Correct' : 'Incorrect'}
