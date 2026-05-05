@@ -80,7 +80,7 @@ export const DirectoryRulesPageContainer = () => {
                 <span>Back</span>
               </button>
               <h1 
-                className="text-3xl font-bold"
+                className="text-3xl font-bold font-heading"
                 style={{ color: currentTheme.colors.foreground }}
               >
                 Directory Rules: {directory.name}

@@ -97,7 +97,7 @@ export const HomePageContainer = () => {
       {/* Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">
+          <h1 className="text-3xl font-bold font-heading text-foreground tracking-tight">
             Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -125,7 +125,7 @@ export const HomePageContainer = () => {
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Total Study Time
             </p>
-            <p className="text-2xl font-bold mt-1">
+            <p className="text-2xl font-bold font-heading mt-1">
               {statsLoading ? '—' : formatDuration(grandTotal)}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
@@ -136,7 +136,7 @@ export const HomePageContainer = () => {
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
               Directories
             </p>
-            <p className="text-2xl font-bold mt-1">
+            <p className="text-2xl font-bold font-heading mt-1">
               {statsLoading ? '—' : rows.length}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">with activity</p>

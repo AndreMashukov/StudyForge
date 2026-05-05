@@ -120,7 +120,7 @@ export const InteractionStatsPageContainer: React.FC = () => {
             <div className="flex items-center gap-2 text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span className="text-sm">{label}</span>
-              <span className="text-2xl font-bold text-foreground ml-2">
+              <span className="text-2xl font-bold font-heading text-foreground ml-2">
                 {formatDuration(grandTotal)}
               </span>
             </div>

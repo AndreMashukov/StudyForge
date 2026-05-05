@@ -14,5 +14,5 @@ export const pageStyles = {
     "sticky top-0 z-10 bg-background/80 backdrop-blur-sm",
     "border-b border-border px-6 py-4"
   ),
-  title: "text-2xl font-bold text-foreground",
+  title: "text-2xl font-bold font-heading text-foreground",
 } as const;

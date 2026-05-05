@@ -6,7 +6,7 @@ export const authFormStyles = {
   
   // Header styles
   header: "text-center pt-8 pb-6",
-  title: "text-xl font-semibold text-foreground mb-3",
+  title: "text-xl font-semibold font-heading text-foreground mb-3",
   subtitle: "text-sm text-muted-foreground",
   
   // Content styles

@@ -20,14 +20,14 @@ export const AuthPage: React.FC = () => {
                 />
               </Icon>
             </div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">
+            <h1 className="text-2xl font-bold font-heading text-foreground tracking-tight">
               AI Learning Assistant
             </h1>
           </div>
 
           {/* Value Proposition */}
           <div className="space-y-6">
-            <h2 className="text-4xl font-bold text-foreground tracking-tight">
+            <h2 className="text-4xl font-bold font-heading text-foreground tracking-tight">
               Transform Content into Personalized Learning Experiences
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
