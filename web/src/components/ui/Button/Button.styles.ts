@@ -35,8 +35,8 @@ export const getVariantStyles = (variant: string | null | undefined, currentThem
 	switch (variant) {
 		case 'default':
 			return {
-				background: 'linear-gradient(135deg, #A855F7, #6366F1)',
-				color: colors.primaryForeground,
+				background: colors.accent,
+				color: colors.accentForeground,
 				borderRadius: colors.radius,
 				boxShadow: `0 2px 8px ${colors.glow}`,
 			};
@@ -74,8 +74,8 @@ export const getVariantStyles = (variant: string | null | undefined, currentThem
 			};
 		default:
 			return {
-				background: 'linear-gradient(135deg, #A855F7, #6366F1)',
-				color: colors.primaryForeground,
+				background: colors.accent,
+				color: colors.accentForeground,
 				borderRadius: colors.radius,
 				boxShadow: `0 2px 8px ${colors.glow}`,
 			};
