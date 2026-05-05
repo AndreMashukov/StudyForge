@@ -168,3 +168,5 @@ wireframes/
 
 .claude/worktrees
 .claude/settings.local.json
+
+.vscode/mcp.json
