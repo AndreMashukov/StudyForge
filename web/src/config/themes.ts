@@ -1,68 +1,68 @@
 import { Theme, ThemeId } from '../types/theme';
 
 export const themes: Record<ThemeId, Theme> = {
+  // Sourced from Stitch design system: "StudyForge Brand System" (assets/88f92619a22e4c979fbc91d3035468c1)
   light: {
     name: 'Lumen',
     id: 'light',
     colors: {
-      background: 'rgb(255 255 255)', // #FFFFFF - Pure white
-      foreground: 'rgb(15 23 42)', // #0F172A - Very dark slate for maximum contrast
-      card: 'rgb(255 255 255)', // #FFFFFF
-      cardForeground: 'rgb(15 23 42)', // #0F172A
-      popover: 'rgb(255 255 255)', // #FFFFFF
-      popoverForeground: 'rgb(15 23 42)', // #0F172A
-      primary: 'rgb(79 70 229)', // #4F46E5
-      primaryForeground: 'rgb(255 255 255)', // #FFFFFF
-      secondary: 'rgb(248 250 252)', // #F8FAFC - Very light slate
-      secondaryForeground: 'rgb(15 23 42)', // #0F172A
-      muted: 'rgb(248 250 252)', // #F8FAFC
-      mutedForeground: 'rgb(51 65 85)', // #334155 - Dark slate-600 for better contrast
-      accent: 'rgb(79 70 229)', // #4F46E5
-      accentForeground: 'rgb(255 255 255)', // #FFFFFF
-      destructive: 'rgb(220 38 38)', // #DC2626
-      destructiveForeground: 'rgb(255 255 255)', // #FFFFFF
-      border: 'rgb(226 232 240)', // #E2E8F0 - Slate-200
-      input: 'rgb(248 250 252)', // #F8FAFC
-      ring: 'rgb(79 70 229)', // #4F46E5
+      background: 'rgb(254 247 255)', // #fef7ff - surface
+      foreground: 'rgb(29 26 36)', // #1d1a24 - on_surface
+      card: 'rgb(255 255 255)', // #ffffff - surface_container_lowest
+      cardForeground: 'rgb(29 26 36)', // #1d1a24
+      popover: 'rgb(255 255 255)', // #ffffff
+      popoverForeground: 'rgb(29 26 36)', // #1d1a24
+      primary: 'rgb(99 14 212)', // #630ed4 - primary
+      primaryForeground: 'rgb(255 255 255)', // #ffffff - on_primary
+      secondary: 'rgb(249 241 255)', // #f9f1ff - surface_container_low
+      secondaryForeground: 'rgb(29 26 36)', // #1d1a24
+      muted: 'rgb(243 235 250)', // #f3ebfa - surface_container
+      mutedForeground: 'rgb(74 68 85)', // #4a4455 - on_surface_variant
+      accent: 'rgb(124 58 237)', // #7c3aed - primary_container
+      accentForeground: 'rgb(255 255 255)', // #ffffff
+      destructive: 'rgb(186 26 26)', // #ba1a1a - error
+      destructiveForeground: 'rgb(255 255 255)', // #ffffff - on_error
+      border: 'rgb(123 116 135)', // #7b7487 - outline
+      input: 'rgb(243 235 250)', // #f3ebfa - surface_container
+      ring: 'rgb(99 14 212)', // #630ed4 - primary
       radius: '0.5rem',
-      // Advanced design tokens
-      sidebar: 'rgb(251 251 252)', // #FBFBFC - Slightly off-white
-      dropdown: 'rgb(255 255 255)', // #FFFFFF - Pure white dropdown
-      overlay: 'rgba(15 23 42 / 0.6)', // Dark overlay with better opacity
-      glass: 'rgba(255 255 255 / 0.9)', // More opaque glass effect
-      glow: 'rgba(79 70 229 / 0.15)', // Primary color glow
+      sidebar: 'rgb(249 241 255)', // #f9f1ff - surface_container_low
+      dropdown: 'rgb(255 255 255)', // #ffffff - surface_container_lowest
+      overlay: 'rgba(29 26 36 / 0.6)', // on_surface with opacity
+      glass: 'rgba(255 255 255 / 0.9)',
+      glow: 'rgba(99 14 212 / 0.15)', // primary glow
     },
   },
+  // Sourced from Stitch design system: "StudyForge Dark Mode" (assets/5cf2790741584593bd7b356d84e7da56)
   linear: {
     name: 'Bit Depth',
     id: 'linear',
     colors: {
-      background: 'rgb(8 8 8)', // #080808 - Even darker than current
-      foreground: 'rgb(255 255 255)', // #FFFFFF
-      card: 'rgb(12 12 12)', // #0C0C0C - Slightly lighter than background
-      cardForeground: 'rgb(255 255 255)', // #FFFFFF
-      popover: 'rgb(12 12 12)', // #0C0C0C
-      popoverForeground: 'rgb(255 255 255)', // #FFFFFF
-      primary: 'rgb(139 92 246)', // #8B5CF6 - Purple like Linear
-      primaryForeground: 'rgb(255 255 255)', // #FFFFFF
-      secondary: 'rgb(18 18 18)', // #121212
-      secondaryForeground: 'rgb(255 255 255)', // #FFFFFF
-      muted: 'rgb(20 20 20)', // #141414
-      mutedForeground: 'rgb(156 163 175)', // #9CA3AF
-      accent: 'rgb(139 92 246)', // #8B5CF6
-      accentForeground: 'rgb(255 255 255)', // #FFFFFF
-      destructive: 'rgb(239 68 68)', // #EF4444
-      destructiveForeground: 'rgb(255 255 255)', // #FFFFFF
-      border: 'rgb(31 31 31)', // #1F1F1F
-      input: 'rgb(16 16 16)', // #101010
-      ring: 'rgb(139 92 246)', // #8B5CF6
-      radius: '0.375rem', // Smaller radius like Linear
-      // Advanced design tokens
-      sidebar: 'rgb(10 10 10)', // #0A0A0A - Slightly lighter than background
-      dropdown: 'rgb(15 15 15)', // #0F0F0F - For dropdown menus
-      overlay: 'rgba(0 0 0 / 0.9)', // Very dark overlay
-      glass: 'rgba(12 12 12 / 0.8)', // Glass effect background
-      glow: 'rgba(139 92 246 / 0.2)', // Primary color glow
+      background: 'rgb(21 18 27)', // #15121b - surface/surface_dim
+      foreground: 'rgb(232 223 238)', // #e8dfee - on_surface
+      card: 'rgb(29 26 36)', // #1d1a24 - surface_container_low
+      cardForeground: 'rgb(232 223 238)', // #e8dfee
+      popover: 'rgb(34 30 40)', // #221e28 - surface_container
+      popoverForeground: 'rgb(232 223 238)', // #e8dfee
+      primary: 'rgb(210 187 255)', // #d2bbff - primary (on dark bg)
+      primaryForeground: 'rgb(63 0 142)', // #3f008e - on_primary
+      secondary: 'rgb(34 30 40)', // #221e28 - surface_container
+      secondaryForeground: 'rgb(232 223 238)', // #e8dfee
+      muted: 'rgb(34 30 40)', // #221e28 - surface_container
+      mutedForeground: 'rgb(204 195 216)', // #ccc3d8 - on_surface_variant
+      accent: 'rgb(124 58 237)', // #7c3aed - primary_container
+      accentForeground: 'rgb(232 223 238)', // #e8dfee
+      destructive: 'rgb(255 180 171)', // #ffb4ab - error (on dark)
+      destructiveForeground: 'rgb(105 0 5)', // #690005 - on_error
+      border: 'rgb(74 68 85)', // #4a4455 - outline_variant
+      input: 'rgb(34 30 40)', // #221e28 - surface_container
+      ring: 'rgb(210 187 255)', // #d2bbff - primary (on dark)
+      radius: '0.375rem',
+      sidebar: 'rgb(16 13 22)', // #100d16 - surface_container_lowest
+      dropdown: 'rgb(44 40 51)', // #2c2833 - surface_container_high
+      overlay: 'rgba(0 0 0 / 0.9)',
+      glass: 'rgba(34 30 40 / 0.8)', // surface_container
+      glow: 'rgba(210 187 255 / 0.2)', // primary glow (on dark)
     },
   },
 };
