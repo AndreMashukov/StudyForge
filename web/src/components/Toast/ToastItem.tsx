@@ -5,24 +5,24 @@ import { cn } from "../../lib/utils";
 
 const variantStyles: Record<ToastVariant, { bg: string; border: string; icon: React.ReactElement }> = {
   success: {
-    bg: "bg-green-500/10 border-green-500",
-    border: "border-green-500",
-    icon: <CheckCircle className="text-green-500" size={20} />,
+    bg: "bg-success/10 border-success",
+    border: "border-success",
+    icon: <CheckCircle className="text-success" size={20} />,
   },
   error: {
-    bg: "bg-red-500/10 border-red-500",
-    border: "border-red-500",
-    icon: <XCircle className="text-red-500" size={20} />,
+    bg: "bg-destructive/10 border-destructive",
+    border: "border-destructive",
+    icon: <XCircle className="text-destructive" size={20} />,
   },
   warning: {
-    bg: "bg-yellow-500/10 border-yellow-500",
-    border: "border-yellow-500",
-    icon: <AlertTriangle className="text-yellow-500" size={20} />,
+    bg: "bg-primary/10 border-primary",
+    border: "border-primary",
+    icon: <AlertTriangle className="text-primary" size={20} />,
   },
   info: {
-    bg: "bg-blue-500/10 border-blue-500",
-    border: "border-blue-500",
-    icon: <Info className="text-blue-500" size={20} />,
+    bg: "bg-accent/10 border-accent",
+    border: "border-accent",
+    icon: <Info className="text-accent" size={20} />,
   },
 };
 

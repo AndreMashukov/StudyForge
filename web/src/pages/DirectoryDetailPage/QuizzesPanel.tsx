@@ -32,7 +32,7 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
       </div>
       {isGenerating && <ArtifactRowGenerating label="Generating quiz…" />}
       {mayBeTruncated && (
-        <div className="flex items-center gap-2 rounded-md border border-yellow-600/50 bg-yellow-950/20 px-3 py-2 text-sm text-yellow-500">
+        <div className="flex items-center gap-2 rounded-md border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-primary">
           <AlertTriangle size={16} className="shrink-0" />
           <span>Showing first {quizzes.length} quizzes — more may exist.</span>
         </div>

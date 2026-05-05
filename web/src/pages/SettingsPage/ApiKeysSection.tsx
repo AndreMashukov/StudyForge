@@ -166,9 +166,9 @@ export const ApiKeysSection: React.FC = () => {
 
           {newKey ? (
             <div className="space-y-4">
-              <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-3 flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
-                <p className="text-sm text-yellow-200">
+              <div className="rounded-md border border-primary/40 bg-primary/10 p-3 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <p className="text-sm text-primary">
                   Copy this key now — it will not be shown again.
                 </p>
               </div>

@@ -30,7 +30,7 @@ export function useChartTheme(): IChartTheme {
     const border = getCssVar('--border');
 
     return {
-      primary: primary ? `rgb(${primary})` : 'hsl(262, 83%, 66%)',
+      primary: primary ? `rgb(${primary})` : 'rgb(99 102 241)',
       text: mutedFg ? `rgb(${mutedFg})` : '#888',
       grid: border ? `rgb(${border})` : '#333',
       axis: border ? `rgb(${border})` : '#333',

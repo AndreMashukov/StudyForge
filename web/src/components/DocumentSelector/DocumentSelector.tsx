@@ -142,7 +142,7 @@ export const DocumentSelector = ({
                         className={cn(
                           documentSelectorStyles.warningBadge,
                           'mt-2',
-                          'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+                          'bg-destructive/10 text-destructive border-destructive/20',
                         )}
                       >
                         <AlertTriangle className={documentSelectorStyles.warningIcon} />
@@ -158,8 +158,8 @@ export const DocumentSelector = ({
       </div>
 
       {!isSingleSelect && !effectiveCanSelectMore && (
-        <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded-md">
-          <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+        <div className="mt-3 p-2 bg-accent/10 border border-accent/20 rounded-md">
+          <p className="text-xs text-accent text-center">
             Maximum of {maxSelections ?? 5} items reached. Remove some files to add more documents.
           </p>
         </div>
