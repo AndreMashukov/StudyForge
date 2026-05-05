@@ -2,7 +2,7 @@ export const createDocumentPageStyles = {
   container: "max-w-6xl mx-auto space-y-6 p-6",
   header: "space-y-4",
   headerContent: "space-y-2",
-  title: "text-3xl font-bold text-foreground",
+  title: "text-3xl font-bold font-heading text-foreground",
   subtitle: "text-lg text-muted-foreground",
   backButton: "flex items-center gap-2 w-fit hover:bg-muted/50 transition-colors",
 

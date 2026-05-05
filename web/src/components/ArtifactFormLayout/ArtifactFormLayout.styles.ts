@@ -2,7 +2,7 @@ export const artifactFormLayoutStyles = {
   container: "min-h-full bg-background",
   header: "sticky top-0 bg-background border-b px-6 py-4",
   headerContent: "max-w-4xl mx-auto flex items-center justify-between",
-  title: "text-2xl font-bold text-foreground",
+  title: "text-2xl font-bold font-heading text-foreground",
   backButton: "flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors",
   content: "max-w-2xl mx-auto p-6",
   formCard: "p-6 space-y-6",

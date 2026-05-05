@@ -86,7 +86,7 @@ export const RulesPageContainer = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1
-              className="text-3xl font-bold"
+              className="text-3xl font-bold font-heading"
               style={{ color: currentTheme.colors.foreground }}
             >
               Rules Manager

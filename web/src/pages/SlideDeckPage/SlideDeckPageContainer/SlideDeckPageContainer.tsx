@@ -74,7 +74,7 @@ export const SlideDeckPageContainer: React.FC = () => {
       ) : (
         <Card className="flex flex-col justify-center p-6 md:p-12 bg-card border-2 aspect-[16/9]">
           <CardContent className="p-0 space-y-4">
-            <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-primary">
+            <h2 className="text-xl sm:text-2xl md:text-4xl font-bold font-heading text-primary">
               {slide.title}
             </h2>
             <div className="text-sm sm:text-base md:text-lg text-foreground whitespace-pre-line leading-relaxed">

@@ -5,7 +5,7 @@ export const markdownStyles = {
   container: "prose prose-invert max-w-none dark:prose-invert overflow-x-hidden break-words",
   
   // Typography
-  heading: "scroll-mt-20 font-semibold text-foreground", // Increased scroll margin for sticky header
+  heading: "scroll-mt-20 font-semibold font-heading text-foreground", // Increased scroll margin for sticky header
   h1: "text-3xl font-bold text-foreground mb-6 mt-8 first:mt-0 border-b border-border pb-3 scroll-mt-20 break-words max-w-full",
   h2: "text-2xl font-semibold text-foreground mb-4 mt-6 border-b border-border/50 pb-2 scroll-mt-20 break-words max-w-full",
   h3: "text-xl font-medium text-foreground mb-3 mt-5 scroll-mt-20 break-words max-w-full",

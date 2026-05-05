@@ -23,6 +23,16 @@
     transition: background-color 0.3s ease, color 0.3s ease;
   }
   
+  /* Heading typography — Space Grotesk per Stitch branding spec */
+  h1, h2, h3,
+  .font-heading {
+    font-family: 'Space Grotesk', 'Inter Variable', 'Inter', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  h1 { letter-spacing: -0.03em; }
+
   /* Theme transition for all elements */
   * {
     transition: 

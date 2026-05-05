@@ -8,7 +8,7 @@ export const userProfileStyles = {
   // Header styles
   header: "",
   headerContent: "flex items-center justify-between",
-  title: "text-xl text-foreground",
+  title: "text-xl font-heading text-foreground",
   avatar: "w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center shadow-lg",
   avatarText: "text-white font-bold text-lg",
   

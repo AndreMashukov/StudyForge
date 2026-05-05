@@ -16,6 +16,7 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ['Inter Variable', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'sans-serif'],
+        heading: ['Space Grotesk', 'Inter Variable', 'Inter', 'sans-serif'],
       },
       colors: {
         // RGB-based CSS variables (matching our theme structure)
