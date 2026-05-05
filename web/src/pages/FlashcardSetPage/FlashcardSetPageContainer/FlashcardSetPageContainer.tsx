@@ -82,7 +82,7 @@ export const FlashcardSetPageContainer = () => {
   // Shared card UI — used in both normal and fullscreen mode
   const cardArea = (
     <div
-      className="w-full max-w-xl cursor-pointer hover:[filter:drop-shadow(0_0_14px_rgba(99,102,241,0.2))] transition-[filter] duration-300"
+      className="w-full max-w-xl cursor-pointer hover:[filter:drop-shadow(0_0_14px_color-mix(in_srgb,var(--primary)_20%,transparent))] transition-[filter] duration-300"
       style={{ perspective: '1200px', height: 'clamp(240px, 40vh, 380px)' }}
       onClick={handleFlip}
     >

@@ -184,7 +184,7 @@ function formatShortDate(dateStr: string): string {
 }
 
 export const CHART_COLORS = [
-  'hsl(262, 83%, 66%)', // purple (primary)
+  'rgb(99 102 241)',   // primary
   'hsl(142, 71%, 45%)', // green
   'hsl(217, 91%, 60%)', // blue
   'hsl(38, 92%, 50%)',  // amber
@@ -195,7 +195,7 @@ export const CHART_COLORS = [
 ];
 
 export const ARTIFACT_TYPE_COLORS: Record<ArtifactType, string> = {
-  document: 'hsl(262, 83%, 66%)',
+  document: 'rgb(99 102 241)',
   quiz: 'hsl(142, 71%, 45%)',
   flashcardSet: 'hsl(217, 91%, 60%)',
   slideDeck: 'hsl(38, 92%, 50%)',

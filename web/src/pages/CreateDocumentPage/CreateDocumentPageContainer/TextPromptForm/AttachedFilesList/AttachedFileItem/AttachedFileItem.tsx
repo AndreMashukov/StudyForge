@@ -21,9 +21,9 @@ export const AttachedFileItem = ({ file, onRemove }: IAttachedFileItemProps) => 
       // Library document icons (purple)
       switch (file.status) {
         case 'ready':
-          return <BookOpen className={cn(iconClass, 'text-purple-500')} />;
+          return <BookOpen className={cn(iconClass, 'text-primary')} />;
         case 'reading':
-          return <Spinner size="xs" className={cn(iconClass, 'text-purple-500')} />;
+          return <Spinner size="xs" className={cn(iconClass, 'text-primary')} />;
         case 'error':
           return <AlertCircle className={cn(iconClass, attachedFileItemStyles.iconError)} />;
         default:
