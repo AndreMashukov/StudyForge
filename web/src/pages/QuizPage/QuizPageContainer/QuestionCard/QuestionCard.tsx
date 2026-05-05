@@ -39,9 +39,9 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
     if (selectedAnswer === null) {
       return cn(baseClass, "bg-card border-border hover:bg-muted hover:border-muted-foreground text-foreground");
     } else if (optionIndex === question.correct) {
-      return cn(baseClass, "bg-green-100 dark:bg-green-900/30 border-green-600 text-green-900 dark:text-green-100");
+      return cn(baseClass, "bg-success/10 border-success text-success");
     } else if (optionIndex === selectedAnswer && optionIndex !== question.correct) {
-      return cn(baseClass, "bg-red-100 dark:bg-red-900/30 border-red-600 text-red-900 dark:text-red-100");
+      return cn(baseClass, "bg-destructive/10 border-destructive text-destructive");
     } else {
       return cn(baseClass, "bg-card border-border text-muted-foreground");
     }
@@ -78,9 +78,9 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
               {selectedAnswer !== null && (
                 <div className="ml-4 flex-shrink-0">
                   {index === question.correct ? (
-                    <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    <Check className="w-5 h-5 text-success" />
                   ) : index === selectedAnswer ? (
-                    <X className="w-5 h-5 text-red-600 dark:text-red-400" />
+                    <X className="w-5 h-5 text-destructive" />
                   ) : null}
                 </div>
               )}
@@ -93,9 +93,9 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
             <CardContent className="p-4">
               <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                 {selectedAnswer === question.correct ? (
-                  <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <Check className="h-4 w-4 text-success" />
                 ) : (
-                  <X className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  <X className="h-4 w-4 text-destructive" />
                 )}
                 {selectedAnswer === question.correct ? 'Correct!' : 'Incorrect'}
               </h3>

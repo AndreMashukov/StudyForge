@@ -36,6 +36,10 @@ module.exports = {
           DEFAULT: "rgb(var(--destructive))",
           foreground: "rgb(var(--destructive-foreground))",
         },
+        success: {
+          DEFAULT: "rgb(var(--success))",
+          foreground: "rgb(var(--success-foreground))",
+        },
         muted: {
           DEFAULT: "rgb(var(--muted))",
           foreground: "rgb(var(--muted-foreground))",
@@ -70,6 +74,8 @@ module.exports = {
           "accent-foreground": "var(--accent-foreground)",
           destructive: "var(--destructive)",
           "destructive-foreground": "var(--destructive-foreground)",
+          success: "var(--success)",
+          "success-foreground": "var(--success-foreground)",
           border: "var(--border)",
           input: "var(--input)",
           ring: "var(--ring)",

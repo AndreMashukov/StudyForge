@@ -114,8 +114,8 @@ export const ContextMenu = ({ items, isOpen, position, onClose }: IContextMenu) 
             )}
             data-focused={isFocused}
             style={isFocused ? {
-              backgroundColor: 'hsl(var(--accent))',
-              color: 'hsl(var(--accent-foreground))',
+              backgroundColor: 'var(--accent)',
+              color: 'var(--accent-foreground)',
             } : undefined}
           >
             {IconComponent && <IconComponent size={16} />}

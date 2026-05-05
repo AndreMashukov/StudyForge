@@ -92,8 +92,8 @@ export const CreateDirectoryDialog = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden">
         {/* Gradient header */}
-        <div className="px-7 pt-7 pb-5 flex items-center gap-3.5 bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-transparent border-b border-border">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shadow-[0_4px_12px_rgba(139,92,246,0.3)] shrink-0">
+        <div className="px-7 pt-7 pb-5 flex items-center gap-3.5 linear-gradient-subtle border-b border-border">
+          <div className="w-11 h-11 rounded-xl linear-gradient flex items-center justify-center shrink-0" style={{ boxShadow: '0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent)' }}>
             <Folder className="text-white" size={22} />
           </div>
           <div>
@@ -165,7 +165,7 @@ export const CreateDirectoryDialog = ({
                       onClick={() => setFormData({ ...formData, color: color.value })}
                       className={`aspect-square rounded-full border-2 transition-all duration-150 relative ${
                         formData.color === color.value
-                          ? "border-white scale-110 shadow-[0_0_10px_rgba(255,255,255,0.15)]"
+                          ? "border-foreground scale-110 shadow-[0_0_10px_color-mix(in_srgb,var(--foreground)_15%,transparent)]"
                           : "border-transparent hover:scale-110"
                       }`}
                       style={{ backgroundColor: color.value }}
@@ -192,17 +192,17 @@ export const CreateDirectoryDialog = ({
                         onClick={() => setFormData({ ...formData, icon: icon.name })}
                         className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-md border transition-all duration-150 ${
                           formData.icon === icon.name
-                            ? "border-purple-500/50 bg-purple-500/15"
-                            : "border-transparent hover:bg-purple-500/5 hover:border-border"
+                            ? "border-primary/50 bg-primary/15"
+                            : "border-transparent hover:bg-primary/5 hover:border-border"
                         }`}
                         title={icon.label}
                       >
                         <IconComponent
                           size={20}
-                          className={formData.icon === icon.name ? "text-purple-500" : ""}
+                          className={formData.icon === icon.name ? "text-primary" : ""}
                         />
                         <span className={`text-[9px] leading-tight ${
-                          formData.icon === icon.name ? "text-purple-500" : "text-muted-foreground"
+                          formData.icon === icon.name ? "text-primary" : "text-muted-foreground"
                         }`}>
                           {icon.label}
                         </span>
