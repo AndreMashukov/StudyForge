@@ -46,15 +46,12 @@ export const AuthPage: React.FC = () => {
         <div className="grid w-full gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,460px)] lg:items-center">
           <section className="space-y-8 text-center lg:text-left">
             <div className="inline-flex items-center gap-3 rounded-full border border-primary/25 bg-primary/10 px-4 py-2 text-sm font-medium text-primary shadow-[0_12px_40px_rgba(99,14,212,0.18)]">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full linear-gradient text-primary-foreground">
-                <Icon size={18}>
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                  />
-                </Icon>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-card/60 ring-1 ring-primary/15 backdrop-blur-sm">
+                <MascotImage
+                  variant="happy"
+                  alt=""
+                  className="h-7 w-7"
+                />
               </div>
               <span className="font-heading text-base tracking-tight">StudyForge</span>
             </div>
