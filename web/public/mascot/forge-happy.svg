@@ -25,13 +25,13 @@
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="9.5341051"
-     inkscape:cx="69.749598"
-     inkscape:cy="76.305011"
+     inkscape:zoom="6.2691366"
+     inkscape:cx="65.87829"
+     inkscape:cy="76.007277"
      inkscape:window-width="1385"
      inkscape:window-height="856"
      inkscape:window-x="184"
-     inkscape:window-y="79"
+     inkscape:window-y="51"
      inkscape:window-maximized="0"
      inkscape:current-layer="svg9" />
   <title
@@ -168,4 +168,12 @@
       </cc:Work>
     </rdf:RDF>
   </metadata>
+  <path
+     style="fill:#ffffff;stroke-width:0.159512"
+     d="m 55.516546,78.779729 c -0.682372,-0.574177 -0.98092,-1.217241 -0.987975,-2.128065 -0.01111,-1.433987 0.874267,-2.573499 2.024891,-2.606115 1.01973,-0.0289 1.987944,1.002581 2.107329,2.24504 0.203666,2.119597 -1.747614,3.664328 -3.144245,2.48914 z"
+     id="path16" />
+  <path
+     style="fill:#ffffff;stroke-width:0.159512"
+     d="m 94.428378,79.697629 c -0.681972,-0.364957 -1.433116,-1.708512 -1.433116,-2.563383 0,-0.905566 0.756112,-2.245464 1.471633,-2.607864 0.495967,-0.2512 0.683465,-0.271594 1.133003,-0.123233 1.998759,0.65965 2.281983,4.009212 0.442373,5.231729 -0.658342,0.437503 -0.896329,0.446756 -1.613893,0.06275 z"
+     id="path17" />
 </svg>
