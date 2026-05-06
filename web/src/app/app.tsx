@@ -33,6 +33,7 @@ import { SettingsPage } from '../pages/SettingsPage';
 import { Page } from '../components/Page';
 import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
 import { QuizIndexRedirect } from '../utils/QuizIndexRedirect';
+import { MascotImage } from '../components/MascotImage';
 
 export function App() {
   return (
@@ -63,6 +64,11 @@ const AppContent = () => {
         style={{ backgroundColor: currentTheme.colors.background }}
       >
         <div className="text-center">
+          <MascotImage
+            variant="thinking"
+            alt="Forge thinking"
+            className="mx-auto mb-4 h-24 w-24"
+          />
           <Spinner size="lg" variant="muted" className="mx-auto" />
           <p
             className="mt-4 font-medium"
