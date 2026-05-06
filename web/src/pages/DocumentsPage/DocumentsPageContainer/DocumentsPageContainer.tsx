@@ -21,6 +21,7 @@ import { DocumentEnhanced, Directory } from "@shared-types";
 import { formatDate } from '../../../utils/dateUtils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { Spinner } from '../../../components/ui/Spinner';
+import { MascotImage } from '../../../components/MascotImage';
 
 export const DocumentsPageContainer = (): React.JSX.Element => {
   const navigate = useNavigate();
@@ -194,7 +195,11 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
             {subdirectories.length === 0 && documents.length === 0 && (
               <Card className={documentsPageStyles.emptyState}>
                 <CardContent className="text-center p-6 md:p-8">
-                  <FileText size={48} className="mx-auto mb-4 text-muted-foreground" />
+                  <MascotImage
+                    variant={selectedDirectoryId ? 'curious' : 'neutral'}
+                    alt={selectedDirectoryId ? 'Forge looking curious' : 'Forge waiting for documents'}
+                    className="mx-auto mb-4 h-28 w-28"
+                  />
                   <h3 className="text-lg font-semibold mb-2">
                     {selectedDirectoryId ? 'Empty folder' : 'No documents yet'}
                   </h3>

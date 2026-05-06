@@ -8,6 +8,7 @@ import { Label } from '../ui/Label';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Icon } from '../ui/Icon';
 import { authFormStyles } from './AuthForm.styles';
+import { MascotImage } from '../MascotImage';
 
 export const AuthForm = () => {
   const [email, setEmail] = useState('');
@@ -58,6 +59,11 @@ export const AuthForm = () => {
       <div className={authFormStyles.container}>
         <Card className={authFormStyles.successCard}>
           <CardContent className={authFormStyles.successContent}>
+            <MascotImage
+              variant="happy"
+              alt="Forge celebrating"
+              className="mx-auto mb-4 h-28 w-28"
+            />
             <div className={authFormStyles.successIcon}>
               <Icon size={24} className="text-accent-foreground">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
