@@ -1,4 +1,4 @@
-import { Rule, RuleApplicability } from '@shared-types';
+import { Rule, RuleApplicability, RuleColor } from '@shared-types';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { Button } from '../../../../components/ui/Button';
 
@@ -10,21 +10,19 @@ interface RuleCardProps {
   showRemoveButton?: boolean;
 }
 
-const getRuleColorStyles = (color: string) => {
-  const colorMap: Record<string, { bg: string; border: string; text: string }> = {
-    red: { bg: '#FEE2E2', border: '#EF4444', text: '#991B1B' },
-    orange: { bg: '#FFEDD5', border: '#F97316', text: '#9A3412' },
-    yellow: { bg: '#FEF3C7', border: '#EAB308', text: '#854D0E' },
-    green: { bg: '#D1FAE5', border: '#10B981', text: '#065F46' },
-    blue: { bg: '#DBEAFE', border: '#3B82F6', text: '#1E40AF' },
-    indigo: { bg: '#E0E7FF', border: '#6366F1', text: '#3730A3' },
-    purple: { bg: '#EDE9FE', border: '#8B5CF6', text: '#5B21B6' },
-    pink: { bg: '#FCE7F3', border: '#EC4899', text: '#9F1239' },
-    gray: { bg: '#F3F4F6', border: '#6B7280', text: '#374151' },
-  };
-
-  return colorMap[color] || colorMap.gray;
+const ruleAccentColors: Record<RuleColor, string> = {
+  [RuleColor.RED]: '#EF4444',
+  [RuleColor.ORANGE]: '#F97316',
+  [RuleColor.YELLOW]: '#EAB308',
+  [RuleColor.GREEN]: '#10B981',
+  [RuleColor.BLUE]: '#3B82F6',
+  [RuleColor.INDIGO]: '#6366F1',
+  [RuleColor.PURPLE]: '#8B5CF6',
+  [RuleColor.PINK]: '#EC4899',
+  [RuleColor.GRAY]: '#6B7280',
 };
+
+const getRuleAccentColor = (color: RuleColor) => ruleAccentColors[color] ?? ruleAccentColors[RuleColor.GRAY];
 
 const getApplicabilityLabel = (applicability: RuleApplicability): string => {
   const labels: Record<RuleApplicability, string> = {
@@ -49,34 +47,40 @@ export const RuleCard = ({
   showRemoveButton = false,
 }: RuleCardProps) => {
   const { currentTheme } = useTheme();
-  const colorStyles = getRuleColorStyles(rule.color);
+  const colors = currentTheme.colors;
+  const ruleAccentColor = getRuleAccentColor(rule.color);
 
   return (
-    <div 
-      className="rounded-lg border-l-4 p-4"
-      style={{ 
-        backgroundColor: colorStyles.bg,
-        borderLeftColor: colorStyles.border,
-        borderTop: `1px solid ${currentTheme.colors.border}`,
-        borderRight: `1px solid ${currentTheme.colors.border}`,
-        borderBottom: `1px solid ${currentTheme.colors.border}`,
+    <div
+      className="relative overflow-hidden rounded-lg border p-4 pl-5 transition-colors"
+      style={{
+        backgroundColor: colors.card,
+        backgroundImage: `linear-gradient(90deg, color-mix(in srgb, ${ruleAccentColor} 10%, transparent), transparent 72px)`,
+        borderColor: colors.border,
       }}
     >
+      <div
+        aria-hidden="true"
+        className="absolute bottom-0 left-0 top-0 w-1.5"
+        style={{
+          background: `linear-gradient(180deg, ${ruleAccentColor} 0%, color-mix(in srgb, ${ruleAccentColor} 62%, ${colors.primary}) 58%, transparent 100%)`,
+        }}
+      />
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <h3 
+            <h3
               className="font-semibold"
-              style={{ color: colorStyles.text }}
+              style={{ color: colors.cardForeground }}
             >
               {rule.name}
             </h3>
             {isInherited && (
-              <span 
+              <span
                 className="text-xs px-2 py-0.5 rounded"
-                style={{ 
-                  backgroundColor: currentTheme.colors.muted,
-                  color: currentTheme.colors.mutedForeground,
+                style={{
+                  backgroundColor: colors.muted,
+                  color: colors.mutedForeground,
                 }}
               >
                 Inherited
@@ -91,8 +95,8 @@ export const RuleCard = ({
                 key={applicability}
                 className="text-xs px-2 py-1 rounded-md"
                 style={{
-                  backgroundColor: currentTheme.colors.secondary,
-                  color: currentTheme.colors.secondaryForeground,
+                  backgroundColor: colors.secondary,
+                  color: colors.secondaryForeground,
                 }}
               >
                 {getApplicabilityLabel(applicability)}
@@ -105,7 +109,7 @@ export const RuleCard = ({
             <div className="flex flex-wrap gap-1 items-center">
               <span 
                 className="text-xs"
-                style={{ color: currentTheme.colors.mutedForeground }}
+                style={{ color: colors.mutedForeground }}
               >
                 <span role="img" aria-label="tags">
                   🏷️
@@ -115,7 +119,7 @@ export const RuleCard = ({
                 <span
                   key={tag}
                   className="text-xs"
-                  style={{ color: currentTheme.colors.mutedForeground }}
+                  style={{ color: colors.mutedForeground }}
                 >
                   {tag}
                 </span>
@@ -130,6 +134,7 @@ export const RuleCard = ({
             variant="ghost"
             size="sm"
             onClick={onEdit}
+            style={{ color: colors.mutedForeground }}
           >
             Edit
           </Button>
@@ -138,7 +143,7 @@ export const RuleCard = ({
               variant="ghost"
               size="sm"
               onClick={onRemove}
-              style={{ color: currentTheme.colors.destructive }}
+              style={{ color: colors.destructive }}
             >
               ×
             </Button>
@@ -150,7 +155,7 @@ export const RuleCard = ({
       {rule.description && (
         <p 
           className="text-sm mt-2"
-          style={{ color: currentTheme.colors.mutedForeground }}
+          style={{ color: colors.mutedForeground }}
         >
           {rule.description}
         </p>
