@@ -10,6 +10,8 @@ import { Icon } from '../ui/Icon';
 import { authFormStyles } from './AuthForm.styles';
 import { MascotImage } from '../MascotImage';
 
+const workspaceArtifacts = ['Quizzes', 'Flashcards', 'Slide decks', 'Diagram drills'] as const;
+
 export const AuthForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -70,14 +72,14 @@ export const AuthForm = () => {
               </Icon>
             </div>
             <h2 className={authFormStyles.successTitle}>
-              Redirecting...
+              Welcome back to StudyForge
             </h2>
             <p className={authFormStyles.successSubtitle}>
               Successfully signed in as <span className="font-medium">{user.user.email}</span>
             </p>
             <div className={authFormStyles.successStatus}>
               <div className={authFormStyles.successIndicator}></div>
-              Taking you to your dashboard...
+              Opening your workspace...
             </div>
           </CardContent>
         </Card>
@@ -89,13 +91,17 @@ export const AuthForm = () => {
     <div className={authFormStyles.container}>
       <Card className={authFormStyles.card}>
         <CardHeader className={authFormStyles.header}>
+          <div className={authFormStyles.eyebrow}>
+            <span className={authFormStyles.eyebrowDot}></span>
+            StudyForge workspace
+          </div>
           <CardTitle className={authFormStyles.title}>
             {isSignUp ? 'Create your account' : 'Welcome back'}
           </CardTitle>
           <p className={authFormStyles.subtitle}>
             {isSignUp 
-              ? 'Start generating AI-powered quizzes today' 
-              : 'Sign in to access your quiz dashboard'
+              ? 'Start building study-ready quizzes, flashcards, and slide decks.' 
+              : 'Sign in to continue building study assets from documents, notes, and prompts.'
             }
           </p>
         </CardHeader>
@@ -159,7 +165,7 @@ export const AuthForm = () => {
               {loading ? (
                 <div className="flex items-center justify-center">
                   <div className={authFormStyles.loadingSpinner}></div>
-                  Processing...
+                  Opening workspace...
                 </div>
               ) : (
                 isSignUp ? 'Create account' : 'Sign in'
@@ -168,10 +174,17 @@ export const AuthForm = () => {
           </form>
 
           <div className={authFormStyles.divider}>
-            <div className={authFormStyles.dividerLine}>
-              <div className={authFormStyles.dividerLineInner}>
-                <div className={authFormStyles.dividerBorder}></div>
-              </div>
+            <div className={authFormStyles.dividerLine}></div>
+          </div>
+
+          <div className={authFormStyles.supportPanel}>
+            <p className={authFormStyles.supportLabel}>Inside your workspace</p>
+            <div className={authFormStyles.supportChips}>
+              {workspaceArtifacts.map((artifact) => (
+                <span key={artifact} className={authFormStyles.supportChip}>
+                  {artifact}
+                </span>
+              ))}
             </div>
           </div>
         </CardContent>
