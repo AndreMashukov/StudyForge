@@ -51,8 +51,13 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
                 <Link
                   to="/"
                   aria-label="StudyForge"
-                  className="flex items-center hover:opacity-80 linear-transition"
+                  className="flex items-center gap-1.5 hover:opacity-80 linear-transition"
                 >
+                  <img
+                    src="/mascot/forge-happy.svg"
+                    alt=""
+                    className="h-6 w-6 flex-shrink-0"
+                  />
                   <span className="text-sm font-semibold text-foreground tracking-tight app-title-responsive">
                     StudyForge
                   </span>
