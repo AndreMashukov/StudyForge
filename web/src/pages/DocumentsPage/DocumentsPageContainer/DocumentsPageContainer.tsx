@@ -174,20 +174,22 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                 <Button
                   variant="outline"
                   onClick={() => handleCreateDirectory(selectedDirectoryId)}
-                  className="w-full sm:w-auto"
+                  className="w-full sm:w-auto gap-2"
                 >
                   <FolderPlus size={16} />
                   <span className="hidden sm:inline">New Folder</span>
                   <span className="sm:hidden">Folder</span>
                 </Button>
-                <Button
-                  onClick={handlers.handleCreateDocument}
-                  className={documentsPageStyles.createButton}
-                >
-                  <Plus size={16} />
-                  <span className="hidden sm:inline">Create Document</span>
-                  <span className="sm:hidden">Document</span>
-                </Button>
+                {selectedDirectoryId && (
+                  <Button
+                    onClick={handlers.handleCreateDocument}
+                    className={documentsPageStyles.createButton}
+                  >
+                    <Plus size={16} />
+                    <span className="hidden sm:inline">Create Document</span>
+                    <span className="sm:hidden">Document</span>
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -213,18 +215,20 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                     <Button 
                       variant="outline" 
                       onClick={() => handleCreateDirectory(selectedDirectoryId)}
-                      className="w-full sm:w-auto"
+                      className="w-full sm:w-auto gap-2"
                     >
                       <FolderPlus size={16} />
                       New Folder
                     </Button>
-                    <Button 
-                      onClick={handlers.handleCreateDocument}
-                      className="w-full sm:w-auto"
-                    >
-                      <Plus size={16} />
-                      Create Document
-                    </Button>
+                    {selectedDirectoryId && (
+                      <Button 
+                        onClick={handlers.handleCreateDocument}
+                        className="w-full sm:w-auto"
+                      >
+                        <Plus size={16} />
+                        Create Document
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
