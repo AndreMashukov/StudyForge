@@ -1,92 +1,151 @@
 import React from 'react';
 import { AuthForm } from '../../components/AuthForm';
 import { Icon } from '../../components/ui/Icon';
+import { MascotImage } from '../../components/MascotImage';
+
+const authHighlights = [
+  {
+    title: 'One source, many study assets',
+    description:
+      'Turn the same document set into quizzes, flashcards, slide decks, and diagram challenges.',
+    iconPath:
+      'M13 10V3L4 14h7v7l9-11h-7z',
+  },
+  {
+    title: 'Rules stay in the loop',
+    description:
+      'Keep directory rules and prompting workflows attached to every generation pass.',
+    iconPath:
+      'M3 7l9 4 9-4M3 12l9 4 9-4M3 17l9 4 9-4',
+  },
+  {
+    title: 'Built for focused iteration',
+    description:
+      'Move from raw notes to polished study material without leaving a single workspace.',
+    iconPath:
+      'M5 13l4 4L19 7M12 21V3',
+  },
+] as const;
+
+const workflowTags = ['Quizzes', 'Flashcards', 'Slide decks', 'Diagram drills'] as const;
 
 export const AuthPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
-      {/* Hero Section */}
-      <div className="w-full max-w-4xl text-center mb-12">
-        <div className="space-y-8">
-          {/* Logo/Brand */}
-          <div className="flex items-center justify-center space-x-3">
-            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-              <Icon size={24} className="text-primary-foreground">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                />
-              </Icon>
-            </div>
-            <h1 className="text-2xl font-bold font-heading text-foreground tracking-tight">
-              AI Learning Assistant
-            </h1>
-          </div>
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+      <div
+        className="absolute inset-0 opacity-90"
+        style={{
+          background:
+            'radial-gradient(circle at 12% 12%, rgba(124, 58, 237, 0.22), transparent 30%), radial-gradient(circle at 88% 18%, rgba(99, 14, 212, 0.18), transparent 24%), linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%)',
+        }}
+      />
+      <div className="absolute -left-24 top-20 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
+      <div className="absolute -right-20 bottom-10 h-80 w-80 rounded-full bg-accent/10 blur-3xl" />
 
-          {/* Value Proposition */}
-          <div className="space-y-6">
-            <h2 className="text-4xl font-bold font-heading text-foreground tracking-tight">
-              Transform Content into Personalized Learning Experiences
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Turn any article, blog post, or web content into engaging multiple-choice quizzes
-              using advanced AI. Perfect for educators, students, and lifelong learners.
-            </p>
-          </div>
+      <div className="relative mx-auto flex min-h-screen w-full max-w-7xl items-center px-6 py-10 lg:px-10">
+        <div className="grid w-full gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,460px)] lg:items-center">
+          <section className="space-y-8 text-center lg:text-left">
+            <div className="inline-flex items-center gap-3 rounded-full border border-primary/25 bg-primary/10 px-4 py-2 text-sm font-medium text-primary shadow-[0_12px_40px_rgba(99,14,212,0.18)]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full linear-gradient text-primary-foreground">
+                <Icon size={18}>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                  />
+                </Icon>
+              </div>
+              <span className="font-heading text-base tracking-tight">StudyForge</span>
+            </div>
 
-          {/* Feature Highlights */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto">
-            <div className="text-center space-y-3">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto border border-primary/20">
-                <Icon size={20} className="text-primary">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </Icon>
-              </div>
-              <h3 className="text-sm font-semibold text-foreground">AI-Powered Generation</h3>
-              <p className="text-xs text-muted-foreground">
-                Advanced AI extracts key concepts and creates relevant questions automatically
+            <div className="space-y-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-primary/80 sm:text-sm">
+                Source material, refined
+              </p>
+              <h1 className="mx-auto max-w-3xl text-balance text-5xl font-bold font-heading tracking-tight text-foreground sm:text-6xl lg:mx-0 lg:text-[4.5rem] lg:leading-[1.02]">
+                Forge raw content into polished study systems.
+              </h1>
+              <p className="mx-auto max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl lg:mx-0">
+                StudyForge turns notes, articles, and prompts into quizzes, flashcards,
+                slide decks, and diagram challenges without breaking your flow.
               </p>
             </div>
-            
-            <div className="text-center space-y-3">
-              <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mx-auto border border-accent/20">
-                <Icon size={20} className="text-accent">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </Icon>
-              </div>
-              <h3 className="text-sm font-semibold text-foreground">Multiple Content Types</h3>
-              <p className="text-xs text-muted-foreground">
-                Works with articles, blog posts, documentation, and educational content
-              </p>
+
+            <div className="flex flex-wrap justify-center gap-3 lg:justify-start">
+              {workflowTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-border/50 bg-card/50 px-4 py-2 text-sm text-muted-foreground shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-sm"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
-            
-            <div className="text-center space-y-3">
-              <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center mx-auto border border-destructive/20">
-                <Icon size={20} className="text-destructive">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </Icon>
-              </div>
-              <h3 className="text-sm font-semibold text-foreground">Instant Results</h3>
-              <p className="text-xs text-muted-foreground">
-                Generate comprehensive quizzes in seconds, ready for immediate use
-              </p>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              {authHighlights.map((highlight) => (
+                <div
+                  key={highlight.title}
+                  className="linear-glass rounded-3xl border border-border/40 p-5 text-left shadow-[0_18px_50px_rgba(0,0,0,0.2)]"
+                >
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/12 text-primary ring-1 ring-primary/20">
+                    <Icon size={18}>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d={highlight.iconPath}
+                      />
+                    </Icon>
+                  </div>
+                  <h2 className="text-xl font-semibold font-heading text-foreground">
+                    {highlight.title}
+                  </h2>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {highlight.description}
+                  </p>
+                </div>
+              ))}
             </div>
-          </div>
+
+            <div className="linear-glass relative overflow-hidden rounded-[32px] border border-border/40 p-6 text-left shadow-[0_22px_70px_rgba(0,0,0,0.22)]">
+              <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-primary/10 via-transparent to-transparent" />
+              <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
+                <div className="flex h-28 w-28 items-center justify-center rounded-[26px] bg-muted/40 ring-1 ring-border/40">
+                  <MascotImage
+                    variant="curious"
+                    alt="Forge fox mascot"
+                    className="h-24 w-24"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.32em] text-primary/80">
+                    Meet Forge
+                  </p>
+                  <h2 className="text-2xl font-semibold font-heading text-foreground sm:text-3xl">
+                    A focused workspace for building study assets fast.
+                  </h2>
+                  <p className="max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
+                    Keep documents, rules, and generated outputs in one place, then iterate from
+                    prompt to polished artifact without context switching.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="relative">
+            <div className="absolute inset-6 rounded-full bg-primary/15 blur-3xl" />
+            <div className="relative">
+              <AuthForm />
+            </div>
+          </section>
         </div>
       </div>
 
-      {/* Auth Form Section */}
-      <div className="w-full max-w-md">
-        <AuthForm />
-      </div>
-
-      {/* Footer */}
-      <div className="mt-12 text-center">
-        <p className="text-sm text-muted-foreground">
-          Join thousands of educators and learners transforming content into knowledge.
-        </p>
+      <div className="relative px-6 pb-8 text-center text-sm text-muted-foreground lg:px-10">
+        StudyForge keeps documents, rules, and generated learning assets aligned in one place.
       </div>
     </div>
   );

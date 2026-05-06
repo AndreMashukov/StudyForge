@@ -50,11 +50,11 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
                 </button>
                 <Link
                   to="/"
-                  aria-label="AI Learning Assistant"
+                  aria-label="StudyForge"
                   className="flex items-center hover:opacity-80 linear-transition"
                 >
                   <span className="text-sm font-semibold text-foreground tracking-tight app-title-responsive">
-                    AI Learning Assistant
+                    StudyForge
                   </span>
                 </Link>
               </div>
