@@ -22,6 +22,16 @@ export class DocumentPromptBuilder {
 3. Start directly with the content
 4. Ensure content directly addresses the user's request
 
+**Mermaid Diagram Requirements (MANDATORY — overrides any conflicting rule instruction):**
+- Always wrap Mermaid diagrams in triple-backtick fenced blocks with the \`mermaid\` language tag:
+  \`\`\`mermaid
+  flowchart TD
+    A --> B
+  \`\`\`
+- NEVER use 4-space indentation for Mermaid code — indented blocks are not rendered as diagrams
+- Use only supported Mermaid types: flowchart/graph, sequenceDiagram, classDiagram, erDiagram, or stateDiagram
+- Keep diagrams compact; avoid bare /, \\, or @ inside square-bracket node labels
+
 **User's Request:**
 ${userPrompt}`;
   }
