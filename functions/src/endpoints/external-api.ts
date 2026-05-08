@@ -1458,6 +1458,26 @@ export const api = onRequest(
         return;
       }
 
+      // PUT /diagram-quizzes/:id — Update a diagram quiz (title, questions)
+      if (method === "PUT" && path.match(/^\/diagram-quizzes\/[^/]+$/)) {
+        const diagramQuizId = path.split("/")[2];
+        const docRef = FirestorePaths.diagramQuiz(userId, diagramQuizId);
+        const existing = await docRef.get();
+        if (!existing.exists) {
+          res.status(404).json({ success: false, error: "Diagram quiz not found." });
+          return;
+        }
+        const body = req.body as Record<string, unknown>;
+        const allowed: Record<string, unknown> = {};
+        if (typeof body.title === "string") allowed.title = body.title.trim();
+        if (Array.isArray(body.questions)) allowed.questions = body.questions;
+        allowed.updatedAt = new Date().toISOString();
+        await docRef.update(allowed);
+        const updated = await docRef.get();
+        res.status(200).json({ success: true, data: { ...updated.data(), id: diagramQuizId } });
+        return;
+      }
+
       // GET /sequence-quizzes — List sequence quizzes
       if (method === "GET" && path === "/sequence-quizzes") {
         const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);

@@ -31,9 +31,14 @@ export class DiagramQuizPromptBuilder {
   ): string {
     const contentSection = this.formatContentSection(content);
     const distribution = this.getRandomAnswerDistributionRules(randomCorrectAnswers);
+    const syntaxRules = this.getDiagramSyntaxRules();
     const jsonRules = this.getJsonFormatRules();
     const example = this.getExampleStructure();
+    // Always include the mandatory syntax rules even when custom rules replace the base instructions,
+    // so diagram syntax constraints are never silently dropped.
     return `${customRules}
+
+${syntaxRules}
 
 ${contentSection}
 
@@ -73,7 +78,11 @@ ${this.getFinalInstructions()}`;
 
 The learner must identify which diagram correctly represents a concept from the source material. Three diagrams should be **plausible but wrong** (wrong structure, wrong flow, or wrong labels). One diagram must be **correct**.
 
-**DIAGRAM RULES:**
+${this.getDiagramSyntaxRules()}`;
+  }
+
+  private static getDiagramSyntaxRules(): string {
+    return `**MANDATORY DIAGRAM SYNTAX RULES (override any other instruction):**
 - Use only: \`flowchart\` / \`graph\`, \`sequenceDiagram\`, \`classDiagram\`, or \`erDiagram\`.
 - **BANNED diagram types** (will fail to render): \`mindmap\`, \`timeline\`, \`gantt\`, \`pie\`, \`gitGraph\`, \`journey\`, \`sankey\`, \`xychart\`, \`block\`, \`packet\`, \`kanban\`, \`architecture\`. Do NOT use any of these.
 - Keep each diagram **compact**: at most ~12 nodes or participants per diagram so it renders reliably.
@@ -81,9 +90,11 @@ The learner must identify which diagram correctly represents a concept from the 
 - **Do not** use double quotes inside Mermaid node labels; use single quotes or rephrase.
 - **NEVER** use forward slashes (\`/\`) inside square-bracket node labels. \`[/text]\` triggers Mermaid trapezoid syntax and causes a lexical error. Write \`[text]\` or use parentheses \`(text)\` instead.
 - **NEVER** use backslashes (\`\\\\\`) inside square-bracket node labels for the same reason.
-- **NEVER** use \`@\` inside square-bracket node labels — it is a reserved Mermaid token (link ID) and causes a parse error. Write the word out or omit the symbol entirely. E.g. use \`[At symbol]\` or \`[mention]\` instead of \`[@]\`.
+- **NEVER** use \`@\` inside square-bracket node labels — it is a reserved Mermaid token and causes a parse error. Write the word out instead.
 - If a label must contain a special character (\`/\`, \`\\\\\`, \`@\`, \`#\`, \`&\`), **quote the label** with double quotes inside the brackets: e.g. \`A["@mention"]\` or \`B["/path"]\`.
-- **NEVER** use spaces in \`subgraph\` IDs. A subgraph ID with spaces (e.g. \`subgraph Top Frame\`) will cause a parse error when referenced in an edge. Always use a camelCase or snake_case ID and put the display label in quotes: \`subgraph topFrame["Top Frame"]\`. Reference the ID (\`topFrame\`) in edges, not the label.
+- **NEVER** use spaces in \`subgraph\` IDs. Always use camelCase/snake_case for the ID and put the display label in **square brackets**: \`subgraph topFrame["Top Frame"]\`. Do NOT use parentheses for subgraph labels — \`subgraph Init ('1D DP Array')\` is INVALID syntax; use \`subgraph initArray["1D DP Array"]\` instead.
+- **NEVER** use a colon (\`:\`) inside a parenthesis-style node label \`(text)\` — colons inside \`()\` confuse the Mermaid lexer. Use a dash or spell it out: \`(Size - Capacity plus 1)\` instead of \`(Size: Capacity + 1)\`.
+- When styling a node (\`style Node fill:#...\`), ALWAYS also set \`color:\` explicitly to ensure text remains visible (e.g., \`style Node fill:#2b6cb0,color:#fff\`).
 - Each of the four diagrams for a question should be **visually comparable** (same diagram type when possible) so the question tests understanding, not diagram style.`;
   }
 
