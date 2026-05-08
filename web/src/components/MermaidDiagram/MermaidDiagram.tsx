@@ -18,6 +18,17 @@ function ensureMermaidInit(): void {
 }
 
 /**
+ * Mermaid v10/v11's render() is not concurrent-safe: calling it from two
+ * components at the same time corrupts its internal DOM state and throws
+ * "Cannot read properties of null (reading 'firstChild')".
+ *
+ * This module-level promise queue serialises all render() calls so only one
+ * runs at a time.  Stale renders (where the component re-rendered before the
+ * queued call ran) are skipped via the per-effect `cancelled` flag.
+ */
+let renderQueue: Promise<void> = Promise.resolve();
+
+/**
  * Mermaid reserves certain characters inside square-bracket node labels:
  *   /  \ — trigger trapezoid shape syntax
  *   @    — parsed as a link ID token
@@ -261,44 +272,52 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
 
   useEffect(() => {
     let cancelled = false;
-    const run = async () => {
-      setError(null);
-      const trimmed = sanitizeMermaidCode(code?.trim() ?? '');
-      if (!trimmed) {
-        setSvg(null);
-        return;
-      }
 
-      // Block unsupported diagram types before Mermaid attempts a dynamic
-      // chunk import that may fail after redeployments (stale chunk hashes).
-      const diagramType = extractDiagramType(trimmed);
-      if (diagramType && !SUPPORTED_DIAGRAM_TYPES.has(diagramType)) {
-        setSvg(null);
-        setError(
-          `Unsupported diagram type "${diagramType}". ` +
-          `Only flowchart, graph, sequenceDiagram, classDiagram, erDiagram, and stateDiagram are supported.`
-        );
-        return;
-      }
+    // Reset display state immediately so the spinner shows while waiting in queue.
+    setError(null);
+    setSvg(null);
 
-      ensureMermaidInit();
-      const id = `mermaid-${reactId}-${Math.random().toString(36).slice(2, 9)}`;
-      try {
-        const { svg: out } = await mermaid.render(id, trimmed);
-        if (!cancelled) {
-          setSvg(out);
+    const trimmed = sanitizeMermaidCode(code?.trim() ?? '');
+    if (!trimmed) {
+      return () => { cancelled = true; };
+    }
+
+    // Block unsupported diagram types before Mermaid attempts a dynamic
+    // chunk import that may fail after redeployments (stale chunk hashes).
+    const diagramType = extractDiagramType(trimmed);
+    if (diagramType && !SUPPORTED_DIAGRAM_TYPES.has(diagramType)) {
+      setError(
+        `Unsupported diagram type "${diagramType}". ` +
+        `Only flowchart, graph, sequenceDiagram, classDiagram, erDiagram, and stateDiagram are supported.`
+      );
+      return () => { cancelled = true; };
+    }
+
+    // Enqueue this render after any in-flight render completes.
+    // The .catch keeps the chain alive even if a previous render threw.
+    renderQueue = renderQueue
+      .then(async () => {
+        if (cancelled) return;
+
+        ensureMermaidInit();
+        const id = `mermaid-${reactId}-${Math.random().toString(36).slice(2, 9)}`;
+        try {
+          const { svg: out } = await mermaid.render(id, trimmed);
+          if (!cancelled) {
+            setSvg(out);
+          }
+        } catch (e) {
+          // Mermaid appends an error SVG to <body> on failure (div#d${id}).
+          // Remove it so it doesn't linger as a floating "Syntax error" tooltip.
+          document.getElementById(`d${id}`)?.remove();
+          if (!cancelled) {
+            setSvg(null);
+            setError(e instanceof Error ? e.message : 'Failed to render diagram');
+          }
         }
-      } catch (e) {
-        // Mermaid appends an error SVG to <body> on failure (div#d${id}).
-        // Remove it so it doesn't linger as a floating "Syntax error" tooltip.
-        document.getElementById(`d${id}`)?.remove();
-        if (!cancelled) {
-          setSvg(null);
-          setError(e instanceof Error ? e.message : 'Failed to render diagram');
-        }
-      }
-    };
-    void run();
+      })
+      .catch(() => {});
+
     return () => {
       cancelled = true;
     };
