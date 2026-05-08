@@ -66,6 +66,7 @@ CRITICAL FORMATTING REQUIREMENTS:
 
 MERMAID DIAGRAM REQUIREMENTS:
 - **CRITICAL**: Always wrap Mermaid diagrams in \`\`\`mermaid code fences
+- When styling a node with a background color, ALWAYS also set \`color:\` explicitly to ensure text remains visible (e.g., \`style Node fill:#000,color:#ffffff\` for dark; \`style Node fill:#ccffcc,color:#000000\` for light backgrounds)
 - Explain each diagram after showing it in regular text
 - Ensure diagrams complement the textual explanation
 - Keep diagrams concise but informative
