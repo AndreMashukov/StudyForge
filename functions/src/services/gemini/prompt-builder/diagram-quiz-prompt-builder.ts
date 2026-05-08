@@ -94,6 +94,7 @@ ${this.getDiagramSyntaxRules()}`;
 - If a label must contain a special character (\`/\`, \`\\\\\`, \`@\`, \`#\`, \`&\`), **quote the label** with double quotes inside the brackets: e.g. \`A["@mention"]\` or \`B["/path"]\`.
 - **NEVER** use spaces in \`subgraph\` IDs. Always use camelCase/snake_case for the ID and put the display label in **square brackets**: \`subgraph topFrame["Top Frame"]\`. Do NOT use parentheses for subgraph labels — \`subgraph Init ('1D DP Array')\` is INVALID syntax; use \`subgraph initArray["1D DP Array"]\` instead.
 - **NEVER** use a colon (\`:\`) inside a parenthesis-style node label \`(text)\` — colons inside \`()\` confuse the Mermaid lexer. Use a dash or spell it out: \`(Size - Capacity plus 1)\` instead of \`(Size: Capacity + 1)\`.
+- **NEVER** put a bare negative number directly inside a circle node \`((text))\`. \`A((-1))\` causes a parse error because Mermaid tokenizes \`(-\` as an operator. **Always quote it**: \`A(("-1"))\`.
 - When styling a node (\`style Node fill:#...\`), ALWAYS also set \`color:\` explicitly to ensure text remains visible (e.g., \`style Node fill:#2b6cb0,color:#fff\`).
 - Each of the four diagrams for a question should be **visually comparable** (same diagram type when possible) so the question tests understanding, not diagram style.`;
   }
