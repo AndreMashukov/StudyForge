@@ -6,7 +6,6 @@ import { downloadMarkdownFile } from '../../../../utils/downloadUtils';
 import { DocumentEnhanced } from "@shared-types";
 import { 
   setTocItems, 
-  setShowToc,
   toggleToc, 
   setIsExporting,
   selectIsExporting,
@@ -61,13 +60,6 @@ export const useDocumentViewerPageHandlers = ({
 
   const handleTocGenerated = useCallback((toc: TocItem[]) => {
     dispatch(setTocItems(toc));
-    // Automatically show TOC if it has items and isn't already shown
-    if (toc.length > 0) {
-      // Only auto-show if there are multiple headings to make TOC useful
-      if (toc.length >= 2) {
-        dispatch(setShowToc(true));
-      }
-    }
   }, [dispatch]);
 
   const handleExportPDF = useCallback(async () => {
