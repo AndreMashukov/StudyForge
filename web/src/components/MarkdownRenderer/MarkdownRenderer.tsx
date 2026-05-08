@@ -195,19 +195,31 @@ export const MarkdownRenderer = ({
       const match = /language-(\w+)/.exec(className || '');
       const language = match ? match[1] : undefined;
       
-      if (language && children && typeof children === 'string') {
+      if (children && typeof children === 'string') {
+        // Fenced mermaid block: ```mermaid
         if (language === 'mermaid') {
           return <MermaidDiagram code={children.trim()} />;
         }
 
-        // Block code with syntax highlighting
-        return (
-          <CodeBlock
-            code={children.trim()}
-            language={language}
-            showCopyButton={true}
-          />
-        );
+        if (language) {
+          // Block code with syntax highlighting
+          return (
+            <CodeBlock
+              code={children.trim()}
+              language={language}
+              showCopyButton={true}
+            />
+          );
+        }
+
+        // Unlabeled block code whose first line is "mermaid" — produced when an
+        // AI rule instructs "indent Mermaid blocks with 4 spaces", which
+        // Markdown parses as a plain indented code block (no language class).
+        // Strip the leading "mermaid\n" token and render as a diagram.
+        const trimmed = children.trim();
+        if (trimmed.startsWith('mermaid\n')) {
+          return <MermaidDiagram code={trimmed.slice('mermaid\n'.length).trim()} />;
+        }
       }
       
       // Inline code
