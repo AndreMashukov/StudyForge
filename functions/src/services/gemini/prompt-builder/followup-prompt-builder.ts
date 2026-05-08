@@ -90,7 +90,9 @@ CONTENT STRUCTURE:
 
 Generate comprehensive, educational markdown content that helps the learner deeply understand the topic.`;
 
-    // If custom instructions are provided (from rules), prepend them
+    // If custom instructions are provided (from rules), prepend them.
+    // The base prompt's MANDATORY Mermaid fence requirement takes precedence
+    // over any rule instruction that might say to indent Mermaid blocks.
     if (context.customInstructions) {
       return `${context.customInstructions}\n\n${basePrompt}`;
     }
