@@ -15,6 +15,7 @@ import {
   createRule,
   getRule,
   getRules,
+  updateRule,
 } from "../services/rule-crud";
 import { FirestorePaths } from "../lib/firestore-paths";
 import { FieldValue } from "firebase-admin/firestore";
@@ -1275,6 +1276,15 @@ export const api = onRequest(
         return;
       }
 
+      // PUT /rules/:id — Update a rule
+      if (method === "PUT" && path.match(/^\/rules\/[^/]+$/)) {
+        const ruleId = path.split("/")[2];
+        const body = req.body as Record<string, unknown>;
+        const rule = await updateRule(userId, { ruleId, ...body });
+        res.status(200).json({ success: true, data: rule });
+        return;
+      }
+
       // GET /quizzes — List quizzes
       if (method === "GET" && path === "/quizzes") {
         const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
@@ -1514,6 +1524,7 @@ export const api = onRequest(
           // Read — Rules (filterable by ?applicableTo=quiz,prompt,...)",
           "GET /rules",
           "GET /rules/:id",
+          "PUT /rules/:id",
           // Read — Quizzes
           "GET /quizzes",
           "GET /quizzes/:id",
