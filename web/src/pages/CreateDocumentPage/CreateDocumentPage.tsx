@@ -10,6 +10,7 @@ import {
   setPromptRules,
   setScrapingRules,
   setUploadRules,
+  setSelectedSource,
 } from '../../store/slices/createDocumentPageSlice';
 
 export const CreateDocumentPage = () => {
@@ -27,6 +28,7 @@ export const CreateDocumentPage = () => {
     }
     dispatch(setSelectedDirectory(directoryIdParam));
     dispatch(setDirectoryId(directoryIdParam));
+    dispatch(setSelectedSource('textPrompt'));
     dispatch(setPromptRules([]));
     dispatch(setScrapingRules([]));
     dispatch(setUploadRules([]));
