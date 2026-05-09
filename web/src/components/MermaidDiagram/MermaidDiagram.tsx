@@ -316,7 +316,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
           }
         }
       })
-      .catch(() => {});
+      .catch((_err: unknown) => { /* ignore render errors handled in the async block above */ });
 
     return () => {
       cancelled = true;
