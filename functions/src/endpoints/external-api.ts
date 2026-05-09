@@ -1068,26 +1068,27 @@ export const api = onRequest(
 
         await directoryService.validateDirectoryId(userId, data.directoryId);
 
-        let finalPrompt = trimmedPrompt;
+        let rulesText: string | undefined;
         if (data.ruleIds && data.ruleIds.length > 0) {
           const mode = isRuleResolutionMode(
             (data as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
           )
             ? (data as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
             : 'explicit-only';
-          const { text: rulesText } = await resolveEffectiveRules({
+          const resolvedRules = await resolveEffectiveRules({
             userId,
             directoryId: data.directoryId,
             operation: RuleApplicability.PROMPT,
             additionalRuleIds: data.ruleIds,
             mode,
           });
-          finalPrompt = rulesText ? `${rulesText}\n\n${trimmedPrompt}` : trimmedPrompt;
+          rulesText = resolvedRules.text || undefined;
         }
 
         const generatedContent = await GeminiService.generateDocumentFromPrompt(
-          finalPrompt,
-          data.files
+          trimmedPrompt,
+          data.files,
+          rulesText
         );
 
         let title = "Generated Document";

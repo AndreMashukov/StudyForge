@@ -82,7 +82,7 @@ ${this.getDiagramSyntaxRules()}`;
   }
 
   private static getDiagramSyntaxRules(): string {
-    return `**MANDATORY DIAGRAM SYNTAX RULES (override any other instruction):**
+    return `**SEALED DIAGRAM SYNTAX RULES (override any domain rule above):**
 - Use only: \`flowchart\` / \`graph\`, \`sequenceDiagram\`, \`classDiagram\`, or \`erDiagram\`.
 - **BANNED diagram types** (will fail to render): \`mindmap\`, \`timeline\`, \`gantt\`, \`pie\`, \`gitGraph\`, \`journey\`, \`sankey\`, \`xychart\`, \`block\`, \`packet\`, \`kanban\`, \`architecture\`. Do NOT use any of these.
 - Keep each diagram **compact**: at most ~12 nodes or participants per diagram so it renders reliably.

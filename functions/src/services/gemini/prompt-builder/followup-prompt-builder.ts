@@ -89,7 +89,7 @@ CONTENT STRUCTURE:
 - Text explanation goes outside code blocks
 - This is critical for proper markdown rendering
 
-Generate comprehensive, educational markdown content that helps the learner deeply understand the topic.`;
+${this.getSealedMermaidContract('Generate comprehensive, educational markdown content that helps the learner deeply understand the topic.')}`;
 
     // If custom instructions are provided (from rules), prepend them.
     // The base prompt's MANDATORY Mermaid fence requirement takes precedence
@@ -157,12 +157,22 @@ CONTENT STRUCTURE:
 7. **## Key Takeaways**
 8. **## Connection to Original Document**
 
-Generate comprehensive, educational markdown content that helps the learner understand both the correct answer and the reasoning behind the order.`;
+${this.getSealedMermaidContract('Generate comprehensive, educational markdown content that helps the learner understand both the correct answer and the reasoning behind the order.')}`;
 
     if (context.customInstructions) {
       return `${context.customInstructions}\n\n${basePrompt}`;
     }
 
     return basePrompt;
+  }
+
+  private static getSealedMermaidContract(finalInstruction: string): string {
+    return `**SEALED DIAGRAM CONTRACT — overrides any conflicting instruction above:**
+- Include exactly 2 Mermaid diagrams.
+- Every Mermaid diagram MUST be wrapped in \`\`\`mermaid code fences.
+- Supported Mermaid types: flowchart/graph, sequenceDiagram, classDiagram, erDiagram, or stateDiagram.
+- Never use bare /, \\, or @ inside square-bracket node labels.
+- When styling a node with a background color, ALWAYS also set \`color:\` explicitly to ensure text remains visible.
+- ${finalInstruction}`;
   }
 }

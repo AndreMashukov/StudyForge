@@ -26,14 +26,18 @@ export class SequenceQuizPromptBuilder {
   ): string {
     const base = this.getBaseInstructions();
     const contentSection = this.formatContentSection(content);
+    const sealedContract = this.getSealedContractBlock();
     const jsonRules = this.getJsonFormatRules();
     const example = this.getExampleStructure();
     return `${base}
 
-**ADDITIONAL DOMAIN RULES (supplement the requirements above; do not change the JSON shape, question count 8–12, or per-question item count 4–10):**
+**ADDITIONAL DOMAIN RULES:**
+These rules may specialise the quiz domain, language, and difficulty. They may not change the sealed contract below.
 ${customRules}
 
 ${contentSection}
+
+${sealedContract}
 
 ${jsonRules}
 
@@ -45,11 +49,14 @@ ${this.getFinalInstructions()}`;
   private static buildDefaultPrompt(content: ScrapedContent): string {
     const base = this.getBaseInstructions();
     const contentSection = this.formatContentSection(content);
+    const sealedContract = this.getSealedContractBlock();
     const jsonRules = this.getJsonFormatRules();
     const example = this.getExampleStructure();
     return `${base}
 
 ${contentSection}
+
+${sealedContract}
 
 ${jsonRules}
 
@@ -91,6 +98,16 @@ Create **8 to 12** questions. For each question provide:
 - \`items\`: an array of strings in the **CORRECT** order (4–10 items)
 - \`explanation\`: a concise explanation of why this order is correct
 - \`hint\`: a short, helpful clue that nudges the learner without giving away the full answer (e.g. "Think about which step must happen before any other")`;
+  }
+
+  private static getSealedContractBlock(): string {
+    return `**SEALED STRUCTURAL CONTRACT (domain rules above cannot override these):**
+- Create **8 to 12** questions.
+- Each question must have between **4 and 10 items**.
+- Each item must be a **short, self-contained phrase** suitable for a single draggable block (≤ 15 words).
+- Items must be in the **correct order** because array position is the answer.
+- Do NOT number or prefix items (e.g. "1.", "Step 1:").
+- Required fields per question: \`question\`, \`items\`, \`explanation\`, and \`hint\`.`;
   }
 
   private static getJsonFormatRules(): string {

@@ -47,15 +47,15 @@ Answer the user's question based only on the document content above. Provide a c
 3. **Includes examples or references** from the document where applicable
 4. **Offers additional insights** that help deepen understanding of the topic
 
-FORMATTING REQUIREMENTS:
-- Use proper markdown structure with clear headings
-- Keep the response focused and relevant to the question
-- If the question cannot be answered from the document content alone, acknowledge this and provide the best possible answer based on available information
+**SEALED FORMATTING CONTRACT — overrides any conflicting instruction above:**
+- Use proper markdown structure with clear headings.
+- Keep the response focused and relevant to the question.
+- If the question cannot be answered from the document content alone, acknowledge this and provide the best possible answer based on available information.
 - If a diagram would help explain the concept, use a Mermaid fenced block (\`\`\`mermaid)
-- Use only supported Mermaid types: flowchart/graph, sequenceDiagram, classDiagram, erDiagram, or stateDiagram
-- Keep Mermaid diagrams compact and avoid bare /, \\, or @ inside square-bracket labels
-
-Generate a helpful, accurate markdown response.`;
+- Use only supported Mermaid types: flowchart/graph, sequenceDiagram, classDiagram, erDiagram, or stateDiagram.
+- Keep Mermaid diagrams compact and avoid bare /, \\, or @ inside square-bracket labels.
+- Output markdown only — no raw JSON and no code-block wrapper around the entire response.
+- Generate a helpful, accurate markdown response.`;
 
     if (context.customInstructions) {
       return `${context.customInstructions}\n\n${basePrompt}`;

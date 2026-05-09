@@ -3,33 +3,38 @@ export class SlideDeckPromptBuilder {
     const hasRules = !!rules?.trim();
 
     const slideCountInstruction = hasRules
-      ? `- The number of slides and their structure is determined by the injected rules — follow them exactly.
-- If the rules do not specify the number of slides, aim for 5-8 slides total.`
-      : `- Aim for 5-8 slides total.`;
+      ? `Slide count: follow the DOMAIN RULES above; if unspecified, aim for 5-8 slides total.`
+      : `Aim for 5-8 slides total.`;
 
     const rulesSection = hasRules
-      ? `\nINJECTED RULES (take priority over default instructions):\n---\n${rules}\n---\n`
+      ? `**DOMAIN RULES** (customise slide structure, count, and content focus — do not change the JSON shape or field names):
+---
+${rules}
+---`
       : '';
 
-    const extra = !hasRules && additionalPrompt ? `\n\nAdditional instructions: ${additionalPrompt}` : '';
+    const extra = !hasRules && additionalPrompt ? `Additional instructions: ${additionalPrompt}` : '';
 
-    return `You are an expert presentation designer. Based on the following document content, create a slide deck outline as a JSON array.
+    const personaSection = `You are an expert presentation designer. Based on the following document content, create a slide deck outline as a JSON array.`;
 
-Each slide object MUST have exactly these three string fields:
-- "title": a concise slide title (string)
-- "content": 3-5 key points as a single string, each on its own line (string, NOT an array)
-- "speakerNotes": a 1-2 sentence note for the presenter (string)
+    const contentSection = `Document content:
+${content}`;
 
-Rules:
+    const sealedOutputContract = `[SEALED OUTPUT CONTRACT — overrides all instructions above]
+- Return ONLY a valid JSON array. No markdown fences. No extra keys.
+- Each slide object MUST have exactly these three string fields:
+  - "title": a concise slide title (string)
+  - "content": 3-5 key points as a single string, each on its own line (string, NOT an array)
+  - "speakerNotes": a 1-2 sentence note for the presenter (string)
+- ALL three fields ("title", "content", "speakerNotes") must be non-empty strings in every slide object.
+- ${slideCountInstruction}
 - First slide should be a title/overview slide.
 - Last slide should be a summary/takeaways slide.
-${slideCountInstruction}
-- Keep each point concise (max 12 words each).
-- ALL three fields ("title", "content", "speakerNotes") must be non-empty strings in every slide object.
-- Return ONLY a valid JSON array, no markdown fences, no extra keys.${rulesSection}${extra}
+- Keep each point concise (max 12 words each).`;
 
-Document content:
-${content}`;
+    return [personaSection, rulesSection, extra, contentSection, sealedOutputContract]
+      .filter(Boolean)
+      .join('\n\n');
   }
 
   /**
@@ -40,7 +45,12 @@ ${content}`;
     const hasRules = !!rules?.trim();
 
     const rulesSection = hasRules
-      ? `\nINJECTED RULES (these rules define the visual style, diagram types, color palettes, and layout. Follow them exactly):\n---\n${rules}\n---\n`
+      ? `
+DOMAIN RULES (customise visual style, diagram types, color palettes, and layout only — do not change the plain-text output medium):
+---
+${rules}
+---
+`
       : '';
 
     return `You are an expert presentation visual designer. Your task is to create a DETAILED image-generation prompt for an AI image model that will render a single presentation slide.
@@ -82,7 +92,12 @@ Important rendering rules:
     const hasRules = !!rules?.trim();
 
     const rulesSection = hasRules
-      ? `\nINJECTED RULES (take priority over default layout/visual instructions below):\n---\n${rules}\n---\n`
+      ? `
+DOMAIN RULES (customise visual style, palette, layout, and diagram type only — do not change the requested image output):
+---
+${rules}
+---
+`
       : '';
 
     const defaultLayout = hasRules ? '' : `

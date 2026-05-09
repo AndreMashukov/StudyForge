@@ -313,12 +313,14 @@ export class GeminiService {
    */
   public static async generateDocumentFromPrompt(
     userPrompt: string,
-    files?: IFileContent[]
+    files?: IFileContent[],
+    rules?: string
   ): Promise<string> {
     try {
       functions.logger.info('Generating document from prompt with Gemini AI', {
         promptLength: userPrompt.length,
         filesCount: files?.length || 0,
+        hasRules: !!rules?.trim(),
       });
 
       // Validate context files if provided
@@ -336,8 +338,8 @@ export class GeminiService {
       // Use context-aware prompt builder if files provided
       const prompt =
         files && files.length > 0
-          ? buildPromptWithContextFiles(userPrompt, files)
-          : DocumentPromptBuilder.buildDocumentPrompt(userPrompt);
+          ? buildPromptWithContextFiles(userPrompt, files, rules)
+          : DocumentPromptBuilder.buildDocumentPrompt(userPrompt, rules);
 
       functions.logger.debug(
         'Sending document generation request to Gemini AI',
