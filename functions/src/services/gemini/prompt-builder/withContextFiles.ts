@@ -17,15 +17,28 @@ import { IFileContent } from '@shared-types';
  */
 export function buildPromptWithContextFiles(
   userPrompt: string,
-  files?: IFileContent[]
+  files?: IFileContent[],
+  rules?: string
 ): string {
   // If no files provided, use the standard document prompt
   if (!files || files.length === 0) {
-    return buildStandardDocumentPrompt(userPrompt);
+    return buildStandardDocumentPrompt(userPrompt, rules);
   }
+
+  const rulesSection = rules?.trim()
+    ? `
+=== DOMAIN RULES ===
+Customise style, tone, or domain focus only. Do not change the sealed output contract below.
+---
+${rules}
+---
+`
+    : '';
 
   // Build the full Option C structured prompt
   const prompt = `You are an expert educational content creator specializing in comprehensive learning materials. Use the provided reference documents to create detailed, accurate educational content.
+
+${rulesSection}
 
 === REFERENCE DOCUMENTS ===
 
@@ -34,7 +47,7 @@ ${buildReferenceDocumentsSection(files)}
 === TASK ===
 ${userPrompt.trim()}
 
-=== GENERATION GUIDELINES ===
+=== SEALED OUTPUT CONTRACT ===
 - Synthesize information from all reference documents above
 - Create comprehensive content with proper structure (minimum 1000 words)
 - Include tables, Mermaid diagrams, and examples where appropriate
@@ -47,6 +60,7 @@ ${userPrompt.trim()}
 - If diagrams help, use Mermaid fenced blocks (\`\`\`mermaid) for visual explanations
 - Use only supported Mermaid types: flowchart/graph, sequenceDiagram, classDiagram, erDiagram, or stateDiagram
 - Keep Mermaid diagrams compact and avoid labels that use bare /, \\, or @ inside square brackets
+- Do not wrap the entire document in a markdown code block
 
 Generate the complete educational document now:`;
 
@@ -74,12 +88,23 @@ ${file.content}
  * @param userPrompt - The user's text prompt
  * @returns Standard document generation prompt
  */
-function buildStandardDocumentPrompt(userPrompt: string): string {
+function buildStandardDocumentPrompt(userPrompt: string, rules?: string): string {
+  const rulesSection = rules?.trim()
+    ? `
+**DOMAIN RULES** (customise style, tone, or domain focus only — do not change the sealed output contract below):
+---
+${rules}
+---
+`
+    : '';
+
   return `You are an expert educational content creator. Generate a comprehensive educational document based on the following prompt.
+
+${rulesSection}
 
 **Prompt:** ${userPrompt}
 
-**Requirements:**
+**SEALED OUTPUT CONTRACT:**
 - Create a comprehensive educational document with minimum 1000 words
 - Start with a clear H1 title (# Title)
 - Include these sections:
@@ -93,6 +118,7 @@ function buildStandardDocumentPrompt(userPrompt: string): string {
 - Add relevant examples and detailed explanations
 - Maintain professional, educational tone
 - Use proper markdown formatting throughout
+- Do not wrap the entire document in a markdown code block
 
 Generate the complete educational document now:`;
 }

@@ -656,8 +656,8 @@ export const generateFromPrompt = onCall(
         });
       }
 
-      // Inject effective rules into prompt.
-      let finalPrompt = trimmedPrompt;
+      // Resolve effective rules separately from the user's prompt so the prompt builder
+      // can place them in the scoped domain hook rather than mixing them with user data.
       const rawRuleData = data as GenerateFromPromptRequest & {
         additionalRuleIds?: string[];
         ruleResolutionMode?: unknown;
@@ -679,12 +679,11 @@ export const generateFromPrompt = onCall(
           userId,
           mode,
         });
-        finalPrompt = `${rulesText}\n\n${trimmedPrompt}`;
       }
 
       logger.info('Calling Gemini AI to generate document', { 
         userId,
-        promptLength: finalPrompt.length,
+        promptLength: trimmedPrompt.length,
         originalPromptLength: trimmedPrompt.length,
         withRules: data.ruleIds && data.ruleIds.length > 0,
         ruleCount: data.ruleIds?.length || 0,
@@ -698,8 +697,9 @@ export const generateFromPrompt = onCall(
 
       // Generate document content using Gemini AI with optional context files
       const generatedContent = await GeminiService.generateDocumentFromPrompt(
-        finalPrompt,
-        data.files
+        trimmedPrompt,
+        data.files,
+        rulesText || undefined
       );
 
       // Extract title from the first H1 heading or generate from prompt
