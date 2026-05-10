@@ -352,7 +352,7 @@ export const DirectoryDetailPageContainer = () => {
             )}
             {activePanel === 'rules' && (
               <RulesPanel
-                rules={resolvedRules?.inheritanceMap?.[directoryId] ?? []}
+                rules={resolvedRules?.rules ?? []}
                 directoryId={directoryId}
               />
             )}
