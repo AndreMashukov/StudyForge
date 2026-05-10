@@ -12,4 +12,5 @@ export interface IQuestionCard {
   isGeneratingFollowup?: boolean;
   isFollowupGenerated?: boolean;
   followupContent?: string;
+  followupRuleNames?: string[];
 }

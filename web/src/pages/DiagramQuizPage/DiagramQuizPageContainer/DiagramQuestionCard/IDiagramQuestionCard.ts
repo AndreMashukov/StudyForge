@@ -16,4 +16,5 @@ export interface IDiagramQuestionCard {
   isGeneratingFollowup?: boolean;
   isFollowupGenerated?: boolean;
   followupContent?: string;
+  followupRuleNames?: string[];
 }
