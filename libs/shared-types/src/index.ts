@@ -822,7 +822,7 @@ export interface DetachRuleFromDirectoryRequest {
 
 export interface GetDirectoryRulesRequest {
   directoryId: string;
-  includeAncestors?: boolean; // For cascading
+  includeAncestors?: boolean; // Defaults to true; set false for direct-only rules
 }
 
 export interface GetDirectoryRulesResponse {

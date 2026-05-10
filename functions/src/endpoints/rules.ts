@@ -363,7 +363,7 @@ export const getDirectoryRulesEndpoint = onCall(
         throw new HttpsError('invalid-argument', 'Directory ID is required');
       }
 
-      if (data.includeAncestors) {
+      if (data.includeAncestors !== false) {
         // Get cascading rules
         const { rules, inheritanceMap } = await resolveRulesForDirectory(
           userId,
