@@ -6,6 +6,7 @@ import { useQuizPageContext } from '../context';
 import { QuestionCard } from './QuestionCard';
 import { ScoreCard } from './ScoreCard';
 import { Spinner } from '../../../components/ui/Spinner';
+import { useRuleNames } from '../../../hooks/useRuleNames';
 import {
   selectQuizState,
   selectCurrentQuestion,
@@ -37,6 +38,7 @@ export const QuizPageContainer: React.FC = () => {
 
   // Only get handlers and API from context
   const { handlers, quizApi } = useQuizPageContext();
+  const followupRuleNames = useRuleNames(quizApi.firestoreQuiz?.followupRuleIds);
 
   const directoryIdForBack =
     quizApi.firestoreQuiz?.directoryId?.trim() ||
@@ -161,6 +163,7 @@ export const QuizPageContainer: React.FC = () => {
         isGeneratingFollowup={isGeneratingFollowup}
         isFollowupGenerated={isCurrentFollowupGenerated}
         followupContent={followupContent[quizState.currentQuestionIndex]}
+        followupRuleNames={followupRuleNames}
         isLastQuestion={isLastQuestion}
       />
 

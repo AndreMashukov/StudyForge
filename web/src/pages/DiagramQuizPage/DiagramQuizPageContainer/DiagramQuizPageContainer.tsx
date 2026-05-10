@@ -6,6 +6,7 @@ import { useDiagramQuizPageContext } from '../context/hooks/useDiagramQuizPageCo
 import { ScoreCard } from '../../QuizPage/QuizPageContainer/ScoreCard';
 import { DiagramQuestionCard } from './DiagramQuestionCard';
 import { Spinner } from '../../../components/ui/Spinner';
+import { useRuleNames } from '../../../hooks/useRuleNames';
 import {
   selectDiagramQuizState,
   selectCurrentDiagramQuestion,
@@ -22,6 +23,7 @@ export const DiagramQuizPageContainer: React.FC = () => {
   const formState = useSelector(selectDiagramFormState);
   const stats = useSelector(selectDiagramQuizStats);
   const { diagramQuizApi, handlers } = useDiagramQuizPageContext();
+  const followupRuleNames = useRuleNames(diagramQuizApi.firestoreDiagramQuiz?.followupRuleIds);
 
   const directoryIdForBack =
     diagramQuizApi.firestoreDiagramQuiz?.directoryId?.trim() ||
@@ -133,6 +135,7 @@ export const DiagramQuizPageContainer: React.FC = () => {
         isGeneratingFollowup={quizState.isGeneratingFollowup}
         isFollowupGenerated={!!quizState.followupGenerated[questionIndex]}
         followupContent={quizState.followupContent[questionIndex]}
+        followupRuleNames={followupRuleNames}
       />
     </div>
   );

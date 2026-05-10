@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../../components
 import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
 import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
+import { RuleUsageTooltip } from '../../../../components/RuleUsageTooltip';
 import { QuizProgressBar } from '../../../../components/QuizProgressBar';
 import { DiagramSlideViewer } from '../DiagramSlideViewer';
 import { DiagramAnswerBar } from '../DiagramAnswerBar';
@@ -31,6 +32,7 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
   isGeneratingFollowup = false,
   isFollowupGenerated = false,
   followupContent,
+  followupRuleNames = [],
 }) => {
   const quizState = useSelector(selectDiagramQuizState);
   const progress = useSelector(selectDiagramQuizProgress);
@@ -118,9 +120,12 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
             {followupContent && (
               <Card className="mt-4 bg-primary/5 border-primary/20">
                 <CardContent className="p-5">
-                  <h3 className="text-sm font-semibold text-primary mb-3">
-                    Detailed Explanation
-                  </h3>
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-primary">
+                      Detailed Explanation
+                    </h3>
+                    <RuleUsageTooltip ruleNames={followupRuleNames} />
+                  </div>
                   <div className="prose prose-sm dark:prose-invert max-w-none">
                     <MarkdownRenderer content={followupContent} />
                   </div>
