@@ -25,6 +25,7 @@ const generateRuleRequestSchema = z.object({
     'quiz',
     'followup',
     'flashcard',
+    'flashcard_desc',
     'slide_deck',
     'diagram_quiz',
     'sequence_quiz',
