@@ -1,5 +1,7 @@
+import { buildFlashcardDescriptionRulesSection } from './flashcard-desc-prompt-builder';
+
 export const FlashcardPromptBuilder = {
-  buildFlashcardPrompt(content: string, rules?: string): string {
+  buildFlashcardPrompt(content: string, rules?: string, descriptionRules?: string): string {
     const hasRules = !!rules?.trim();
 
     const frontBackInstructions = hasRules
@@ -15,12 +17,14 @@ ${rules}
 ---`
       : '';
 
+    const descriptionSection = buildFlashcardDescriptionRulesSection(descriptionRules);
+
     const personaSection = `You are an expert in educational content creation. Extract key terms, concepts, and important facts from the document below and format them as flashcards.`;
 
     const instructions = `Instructions:
 1. Analyze the document provided below.
 2. Identify between 10 and 20 critical terms or concepts essential for understanding the material.
-3. For each term, create a flashcard object with a "front" and a "back" field.
+3. For each term, create a flashcard object with a "front", a "back", and a "description" field.
 ${frontBackInstructions}
 
 Document Content to Analyze:
@@ -30,13 +34,13 @@ ${content}
 
     const sealedOutputContract = `[SEALED OUTPUT CONTRACT — overrides all instructions above]
 - Your entire response must be a single valid JSON array.
-- Each element must contain exactly two fields: {"front":"...","back":"..."}.
-- Do NOT include any field other than "front" and "back".
+- Each element must contain exactly three fields: {"front":"...","back":"...","description":"..."}.
+- Do NOT include any field other than "front", "back", and "description".
 - Do NOT wrap the JSON in markdown code blocks (no \`\`\`json or \`\`\`).
 - Do NOT include any text, explanation, or commentary before or after the JSON array.
 - Start your response with [ and end with ]. Nothing else.`;
 
-    return [personaSection, rulesSection, instructions, sealedOutputContract]
+    return [personaSection, rulesSection, descriptionSection, instructions, sealedOutputContract]
       .filter(Boolean)
       .join('\n\n');
   },

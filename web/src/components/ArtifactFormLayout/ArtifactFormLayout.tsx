@@ -57,9 +57,14 @@ export const ArtifactFormLayout = <T extends FieldValues>({
   const watchedDocumentIds = watch('documentIds' as Path<T>);
   const watchedName = watch(nameFieldName);
   const watchedRuleIds = watch('ruleIds' as Path<T>);
+  const watchedDescriptionRuleIds = watch('descriptionRuleIds' as Path<T>);
 
   const handleRuleSelectionChange = (ruleIds: string[]) => {
     setValue('ruleIds' as Path<T>, ruleIds as any);
+  };
+
+  const handleDescriptionRuleSelectionChange = (ruleIds: string[]) => {
+    setValue('descriptionRuleIds' as Path<T>, ruleIds as any);
   };
 
   const handleBack = () => {
@@ -207,6 +212,16 @@ export const ArtifactFormLayout = <T extends FieldValues>({
                     operation={config.ruleApplicability}
                     selectedRuleIds={(watchedRuleIds as unknown as string[]) ?? []}
                     onSelectionChange={handleRuleSelectionChange}
+                  />
+                )}
+
+                {/* Description Rules */}
+                {resolvedDirectoryId && config.descriptionRuleApplicability && (
+                  <RuleSelector
+                    directoryId={resolvedDirectoryId}
+                    operation={config.descriptionRuleApplicability}
+                    selectedRuleIds={(watchedDescriptionRuleIds as unknown as string[]) ?? []}
+                    onSelectionChange={handleDescriptionRuleSelectionChange}
                   />
                 )}
 

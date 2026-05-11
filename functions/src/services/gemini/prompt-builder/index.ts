@@ -10,6 +10,7 @@ export { FollowupPromptBuilder } from './followup-prompt-builder';
 export { DocumentPromptBuilder } from './document-prompt-builder';
 export { DocumentQuestionPromptBuilder } from './document-question-prompt-builder';
 export { FlashcardPromptBuilder } from './flashcard-prompt-builder';
+export { buildFlashcardDescriptionRulesSection } from './flashcard-desc-prompt-builder';
 export { SlideDeckPromptBuilder } from './slide-deck';
 export { DiagramQuizPromptBuilder } from './diagram-quiz-prompt-builder';
 export { SequenceQuizPromptBuilder } from './sequence-quiz-prompt-builder';

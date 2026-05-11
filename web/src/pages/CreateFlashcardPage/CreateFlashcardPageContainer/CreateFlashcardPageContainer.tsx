@@ -12,6 +12,7 @@ const flashcardFormConfig: ArtifactFormConfig = {
   nameFieldName: 'flashcardName',
   nameFieldLabel: 'Flashcard Set Name',
   ruleApplicability: RuleApplicability.FLASHCARD,
+  descriptionRuleApplicability: RuleApplicability.FLASHCARD_DESC,
   defaultNameFn: (docTitle) => `Flashcards for ${docTitle}`,
   additionalPromptPlaceholder: 'e.g., Focus on key definitions, include code examples, make cards more detailed, etc.',
   additionalPromptHelperText: 'Provide specific instructions to customize your flashcard generation',
