@@ -26,7 +26,7 @@ const generateSlideDeckRequestSchema = z.object({
   documentIds: z.array(z.string().min(1)).min(1, 'At least one documentId is required').max(5, 'Maximum 5 documents allowed'),
   directoryId: z.string().optional(),
   title: z.string().max(100).nullish(),
-  additionalPrompt: z.string().max(500).nullish(),
+  additionalPrompt: z.string().max(20000).nullish(),
   // Accept null/undefined elements gracefully and strip them out
   ruleIds: z.array(z.string().nullable().optional()).optional()
     .transform(arr => (arr ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0)),
