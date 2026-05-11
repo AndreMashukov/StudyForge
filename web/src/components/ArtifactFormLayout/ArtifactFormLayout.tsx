@@ -196,7 +196,7 @@ export const ArtifactFormLayout = <T extends FieldValues>({
                     label="Additional Instructions (Optional)"
                     placeholder={config.additionalPromptPlaceholder}
                     showCharCount={true}
-                    maxLength={500}
+                    maxLength={20000}
                     helperText={config.additionalPromptHelperText}
                     rows={4}
                   />

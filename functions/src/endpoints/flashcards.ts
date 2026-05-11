@@ -32,7 +32,7 @@ const generateFlashcardsRequestSchema = z.object({
   documentIds: z.array(z.string().min(1)).min(1, 'At least one documentId is required').max(5, 'Maximum 5 documents allowed'),
   directoryId: z.string().optional(),
   title: z.string().max(100).nullish(),
-  additionalPrompt: z.string().max(500).nullish(),
+  additionalPrompt: z.string().max(20000).nullish(),
   ruleIds: z.array(z.string()).optional(),
   descriptionRuleIds: z.array(z.string()).optional(),
   additionalRuleIds: z.array(z.string()).optional(),

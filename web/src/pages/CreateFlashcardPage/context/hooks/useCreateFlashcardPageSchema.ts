@@ -15,7 +15,7 @@ const createCreateFlashcardPageSchema = () => z.object({
     .optional(),
   additionalPrompt: z
     .string()
-    .max(500, "Additional prompt must be 500 characters or less")
+    .max(20000, "Additional prompt must be 20,000 characters or less")
     .refine(
       (value) => !value || value.trim().length > 0,
       "Additional prompt cannot be only whitespace"
