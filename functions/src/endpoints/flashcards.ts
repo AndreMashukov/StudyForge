@@ -89,7 +89,7 @@ async function generateFlashcardsFromContent(content: string, title: string, rul
 /**
  * Generates a new set of flashcards from a document.
  */
-export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, secrets: [geminiApiKey] }, async (request) => {
+export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, secrets: [geminiApiKey], timeoutSeconds: 300 }, async (request) => {
   try {
     const userId = validateAuth(request);
     const parseResult = generateFlashcardsRequestSchema.safeParse(request.data);
