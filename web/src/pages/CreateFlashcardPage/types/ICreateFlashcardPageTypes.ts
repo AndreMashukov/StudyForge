@@ -3,4 +3,5 @@ export interface ICreateFlashcardFormData {
   flashcardName?: string;
   additionalPrompt?: string;
   ruleIds?: string[];
+  descriptionRuleIds?: string[];
 }

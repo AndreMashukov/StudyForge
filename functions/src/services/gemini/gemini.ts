@@ -581,8 +581,9 @@ This question is derived from: **${context.originalDocument.title}**
    */
   public static async generateFlashcards(
     content: string,
-    rules?: string
-  ): Promise<{ front: string; back: string }[]> {
+    rules?: string,
+    descriptionRules?: string
+  ): Promise<{ front: string; back: string; description?: string }[]> {
     try {
       functions.logger.info('Generating flashcards with Gemini AI...');
 
@@ -590,7 +591,8 @@ This question is derived from: **${context.originalDocument.title}**
 
       const prompt = FlashcardPromptBuilder.buildFlashcardPrompt(
         content,
-        rules
+        rules,
+        descriptionRules
       );
       functions.logger.debug(
         'Sending flashcard generation request to Gemini AI',
@@ -640,7 +642,7 @@ This question is derived from: **${context.originalDocument.title}**
    */
   private static parseFlashcardResponse(
     responseText: string
-  ): { front: string; back: string }[] {
+  ): { front: string; back: string; description?: string }[] {
     let text = responseText.trim();
 
     // Strip markdown code fences (```json ... ``` or ``` ... ```)

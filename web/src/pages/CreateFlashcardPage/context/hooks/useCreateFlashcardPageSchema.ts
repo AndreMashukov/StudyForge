@@ -22,6 +22,7 @@ const createCreateFlashcardPageSchema = () => z.object({
     )
     .optional(),
   ruleIds: z.array(z.string()).optional(),
+  descriptionRuleIds: z.array(z.string()).optional(),
 });
 
 export type CreateFlashcardPageFormData = z.infer<ReturnType<typeof createCreateFlashcardPageSchema>>;

@@ -34,6 +34,7 @@ const generateFlashcardsRequestSchema = z.object({
   title: z.string().max(100).nullish(),
   additionalPrompt: z.string().max(500).nullish(),
   ruleIds: z.array(z.string()).optional(),
+  descriptionRuleIds: z.array(z.string()).optional(),
   additionalRuleIds: z.array(z.string()).optional(),
   ruleResolutionMode: z.enum(['inherit', 'inherit-plus-explicit', 'explicit-only']).optional(),
 });
@@ -47,6 +48,7 @@ const flashcardSchema = z.object({
   front: z.string(),
   back: z.string(),
   explanation: z.string().optional(),
+  description: z.string().optional(),
 });
 
 const updateFlashcardSetRequestSchema = z.object({
@@ -70,8 +72,8 @@ const requireEmulator = (): void => {
 };
 
 // Helper function that contains the core generation logic
-async function generateFlashcardsFromContent(content: string, title: string, rules?: string): Promise<Pick<FlashcardSet, 'title' | 'flashcards'>> {
-  const generatedFlashcards = await GeminiService.generateFlashcards(content, rules);
+async function generateFlashcardsFromContent(content: string, title: string, rules?: string, descriptionRules?: string): Promise<Pick<FlashcardSet, 'title' | 'flashcards'>> {
+  const generatedFlashcards = await GeminiService.generateFlashcards(content, rules, descriptionRules);
 
   const flashcardsWithIds: Flashcard[] = generatedFlashcards.map((card) => ({
     ...card,
@@ -95,7 +97,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
       throw new HttpsError('invalid-argument', msg);
     }
-    const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, additionalRuleIds, ruleResolutionMode } = parseResult.data;
+    const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, descriptionRuleIds, additionalRuleIds, ruleResolutionMode } = parseResult.data;
 
     const u = redactId(userId);
 
@@ -146,15 +148,17 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
     // Resolve rules to inject into the prompt
     let injectedRules: string | undefined;
     let appliedRuleIdsForSave: string[] = [];
+    let appliedDescriptionRuleIdsForSave: string[] = [];
     const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
     const mode = ruleResolutionMode
       ?? (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+    const resolvedMode = isRuleResolutionMode(mode) ? mode : 'inherit-plus-explicit';
     const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
       userId,
       directoryId: resolvedDirectoryId,
       operation: RuleApplicability.FLASHCARD,
       additionalRuleIds: explicitRuleIds,
-      mode: isRuleResolutionMode(mode) ? mode : 'inherit-plus-explicit',
+      mode: resolvedMode,
     });
     appliedRuleIdsForSave = resolvedAppliedIds;
     const base = additionalPrompt?.trim() ? `Additional instructions: ${additionalPrompt}` : '';
@@ -166,14 +170,25 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       injectedRules = base;
     }
 
+    const selectedDescriptionRuleIds = descriptionRuleIds?.length ? descriptionRuleIds : explicitRuleIds;
+    const { text: descRulesText, ruleIds: resolvedDescriptionRuleIds } = await resolveEffectiveRules({
+      userId,
+      directoryId: resolvedDirectoryId,
+      operation: RuleApplicability.FLASHCARD_DESC,
+      additionalRuleIds: selectedDescriptionRuleIds,
+      mode: resolvedMode,
+    });
+    appliedDescriptionRuleIdsForSave = resolvedDescriptionRuleIds;
+
     logger.info(`[generateFlashcards] STEP 2.5: Resolved effective rules.`, {
       userIdHash: u,
       ruleCount: appliedRuleIdsForSave.length,
+      descriptionRuleCount: appliedDescriptionRuleIdsForSave.length,
       mode,
     });
 
     logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (GeminiService).`, { userIdHash: u });
-    const generatedData = await generateFlashcardsFromContent(combinedContent, combinedTitle, injectedRules);
+    const generatedData = await generateFlashcardsFromContent(combinedContent, combinedTitle, injectedRules, descRulesText || undefined);
     logger.info(`[generateFlashcards] STEP 4: Flashcard generation complete. Flashcards created: ${generatedData.flashcards.length}`, { userIdHash: u });
 
     // Apply custom title or auto-name
@@ -196,6 +211,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
       appliedRuleIds: appliedRuleIdsForSave,
+      appliedDescriptionRuleIds: appliedDescriptionRuleIdsForSave,
     };
 
     logger.info(`[generateFlashcards] STEP 5: Adding new flashcard set to Firestore.`, { userIdHash: u });

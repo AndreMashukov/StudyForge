@@ -8,6 +8,7 @@ export interface ArtifactFormConfig {
   nameFieldName: string;
   nameFieldLabel: string;
   ruleApplicability: RuleApplicability;
+  descriptionRuleApplicability?: RuleApplicability;
   defaultNameFn?: (docTitle: string) => string;
   additionalPromptPlaceholder: string;
   additionalPromptHelperText: string;

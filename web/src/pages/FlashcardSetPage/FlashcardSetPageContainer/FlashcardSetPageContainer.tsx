@@ -2,6 +2,7 @@ import React from 'react';
 import { Page } from '../../../components/Page';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { MarkdownRenderer } from '../../../components/MarkdownRenderer';
 import { useFlashcardSetPageContext } from '../context/hooks/useFlashcardSetPageContext';
 import {
   ArrowLeft,
@@ -167,13 +168,20 @@ export const FlashcardSetPageContainer = () => {
           </div>
 
           {/* Card area */}
-          <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-5 sm:py-6 overflow-hidden">
-            {cardArea}
-            {isLast && (
-              <div className="mt-5 text-center">
-                <p className="text-sm font-semibold text-muted-foreground mb-3">
-                  You&apos;ve reached the end of the set!
-                </p>
+          <div className="flex-1 flex flex-col items-center px-4 sm:px-6 py-5 sm:py-6 overflow-y-auto">
+            <div className="flex flex-col items-center justify-center w-full flex-1">
+              {cardArea}
+              {isLast && (
+                <div className="mt-5 text-center">
+                  <p className="text-sm font-semibold text-muted-foreground mb-3">
+                    You&apos;ve reached the end of the set!
+                  </p>
+                </div>
+              )}
+            </div>
+            {currentCard.description && (
+              <div className="w-full max-w-2xl mx-auto mt-4 rounded-xl border border-border bg-muted/40 px-4 py-3">
+                <MarkdownRenderer content={currentCard.description} showToc={false} />
               </div>
             )}
           </div>
@@ -357,6 +365,14 @@ export const FlashcardSetPageContainer = () => {
             </button>
           </div>
         </div>
+
+        {currentCard.description && (
+          <div className="px-4 sm:px-6 pb-5">
+            <div className="max-w-2xl mx-auto rounded-xl border border-border bg-muted/40 px-4 py-3">
+              <MarkdownRenderer content={currentCard.description} showToc={false} />
+            </div>
+          </div>
+        )}
       </div>
     </Page>
   );

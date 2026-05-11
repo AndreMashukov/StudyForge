@@ -17,6 +17,7 @@ export const useCreateFlashcardPageForm = () => {
       flashcardName: '',
       additionalPrompt: '',
       ruleIds: [],
+      descriptionRuleIds: [],
     },
   });
 
