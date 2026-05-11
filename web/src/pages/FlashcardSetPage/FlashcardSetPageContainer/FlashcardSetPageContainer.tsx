@@ -179,7 +179,7 @@ export const FlashcardSetPageContainer = () => {
                 </div>
               )}
             </div>
-            {currentCard.description && (
+            {currentCard.description && isFlipped && (
               <div className="w-full max-w-2xl mx-auto mt-4 rounded-xl border border-border bg-muted/40 px-4 py-3">
                 <MarkdownRenderer content={currentCard.description} showToc={false} />
               </div>
@@ -366,7 +366,7 @@ export const FlashcardSetPageContainer = () => {
           </div>
         </div>
 
-        {currentCard.description && (
+        {currentCard.description && isFlipped && (
           <div className="px-4 sm:px-6 pb-5">
             <div className="max-w-2xl mx-auto rounded-xl border border-border bg-muted/40 px-4 py-3">
               <MarkdownRenderer content={currentCard.description} showToc={false} />
