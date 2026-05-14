@@ -11,7 +11,7 @@ import { useCreateDocumentPageContext } from '../../context/hooks/useCreateDocum
 import { UrlScrapingForm } from '../UrlScrapingForm';
 import { FileUploadForm } from '../FileUploadForm';
 import { TextPromptForm } from '../TextPromptForm';
-import { Globe, Upload, Sparkles } from 'lucide-react';
+import { Globe, Upload, Sparkles, Youtube } from 'lucide-react';
 import { ITextPromptFormData } from '../TextPromptForm/ITextPromptForm';
 import type { RootState } from '../../../../store';
 
@@ -24,6 +24,8 @@ const getFormIcon = (sourceType: string) => {
       return <Upload size={18} />;
     case 'textPrompt':
       return <Sparkles size={18} />;
+    case 'videoUrl':
+      return <Youtube size={18} />;
     default:
       return null;
   }
@@ -37,6 +39,8 @@ const getFormTitle = (sourceType: string) => {
       return 'File Upload';
     case 'textPrompt':
       return 'AI Document Generator';
+    case 'videoUrl':
+      return 'YouTube Transcript Extractor';
     default:
       return 'Create Document';
   }
@@ -50,6 +54,8 @@ const getFormDescription = (sourceType: string) => {
       return 'Upload a markdown file to create a document';
     case 'textPrompt':
       return 'Describe what you want to learn — AI will generate the document';
+    case 'videoUrl':
+      return 'Enter a YouTube URL to extract its transcript as a document';
     default:
       return '';
   }
@@ -115,15 +121,10 @@ export const FormRenderer = () => {
       )}
       
       {selectedSource === 'videoUrl' && (
-        <div className="text-center py-12">
-          <span role="img" aria-label="Under construction" className="text-4xl mb-4 block">
-            🚧
-          </span>
-          <h3 className="text-lg font-semibold mb-2">Coming Soon</h3>
-          <p className="text-muted-foreground">
-            This feature is currently under development and will be available soon.
-          </p>
-        </div>
+        <UrlScrapingForm
+          isLoading={isUrlLoading}
+          onSubmit={handlers.handleCreateFromUrl}
+        />
       )}
     </div>
   );

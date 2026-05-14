@@ -1,7 +1,7 @@
 export interface IUrlScrapingFormData {
-  url: string;
+  urls: string[];
   title?: string;
-  ruleIds?: string[]; // Optional rules for content scraping (Section 6)
+  ruleIds?: string[];
 }
 
 export interface IUrlScrapingFormProps {

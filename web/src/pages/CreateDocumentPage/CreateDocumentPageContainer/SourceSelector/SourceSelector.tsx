@@ -12,7 +12,7 @@ const sourceCards = [
     id: 'website' as SourceType,
     icon: '🌐',
     title: 'Website URL',
-    description: 'Scrape web content automatically',
+    description: 'From any URL or link',
     status: 'active' as const,
     order: 1,
   },
@@ -37,7 +37,7 @@ const sourceCards = [
     icon: '🎥',
     title: 'Video URL',
     description: 'Extract from video',
-    status: 'coming-soon' as const,
+    status: 'active' as const,
     order: 4,
   },
 ];

@@ -4,7 +4,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { validateAuth } from '../lib/auth';
 import { DocumentCrudService } from '../services/document-crud';
 import { directoryService } from '../services/directory';
-import { WebScraperService } from '../services/scraper';
+import { UrlProcessingOrchestrator } from '../services/url-processing/url-processing-orchestrator';
 import { GeminiService } from '../services/gemini';
 import {
   isRuleResolutionMode,
@@ -85,19 +85,23 @@ export const createDocument = onCall(
 );
 
 /**
- * Create a document from a URL (scrape and convert to markdown)
+ * Create a document from one or more URLs.
+ * Accepts either a single `url` string (legacy) or a `urls` array.
+ * YouTube URLs are processed via transcript extraction; all others are web-scraped.
  */
 export const createDocumentFromUrl = onCall(
   { 
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey], // Make the Gemini API key available to this function
+    secrets: [geminiApiKey],
+    timeoutSeconds: 300,
   },
   async (request) => {
     try {
       const userId = await validateAuth(request);
-      const { url, title: customTitle, directoryId, ruleIds, additionalRuleIds, ruleResolutionMode } = request.data as { 
-        url: string; 
+      const data = request.data as {
+        url?: string;
+        urls?: string[];
         title?: string;
         directoryId?: string;
         ruleIds?: string[];
@@ -105,20 +109,40 @@ export const createDocumentFromUrl = onCall(
         ruleResolutionMode?: unknown;
       };
 
-      logger.info('Creating document from URL', { 
-        userId, 
-        url, 
+      // Normalize: accept legacy `url` or new `urls` array
+      const rawUrls: string[] = data.urls?.length
+        ? data.urls
+        : data.url
+        ? [data.url]
+        : [];
+
+      const { title: customTitle, directoryId, ruleIds, additionalRuleIds, ruleResolutionMode } = data;
+
+      logger.info('Creating document from URL(s)', {
+        userId,
+        urlCount: rawUrls.length,
         directoryId,
         ruleCount: ruleIds?.length || 0,
       });
 
-      // Validate URL
-      if (!url || typeof url !== 'string') {
-        throw new HttpsError('invalid-argument', 'URL is required');
+      // Validate URLs
+      if (rawUrls.length === 0) {
+        throw new HttpsError('invalid-argument', 'At least one URL is required');
       }
 
-      if (!WebScraperService.isValidUrl(url)) {
-        throw new HttpsError('invalid-argument', 'Invalid URL format');
+      if (rawUrls.length > 20) {
+        throw new HttpsError('invalid-argument', `Too many URLs: ${rawUrls.length} submitted, maximum is 20`);
+      }
+
+      for (const url of rawUrls) {
+        try {
+          const parsed = new URL(url);
+          if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            throw new HttpsError('invalid-argument', `Invalid URL protocol: ${url}`);
+          }
+        } catch {
+          throw new HttpsError('invalid-argument', `Invalid URL format: ${url}`);
+        }
       }
 
       if (!directoryId) {
@@ -126,8 +150,7 @@ export const createDocumentFromUrl = onCall(
       }
       await directoryService.validateDirectoryId(userId, directoryId);
 
-      logger.info('Starting content scraping and markdown conversion', { url });
-
+      // Resolve rules once for all web URLs
       const mode = isRuleResolutionMode(ruleResolutionMode)
         ? ruleResolutionMode
         : (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
@@ -139,73 +162,72 @@ export const createDocumentFromUrl = onCall(
         mode,
       });
 
-      // Scrape content and convert to markdown (with optional rule injection)
-      const scrapedContent = await WebScraperService.extractContentAsMarkdown(url, effectiveRuleIds, userId);
-
-      logger.info('Content scraped successfully', { 
-        url,
-        title: scrapedContent.title,
-        contentLength: scrapedContent.content?.length || 0,
-        markdownLength: scrapedContent.markdownContent?.length || 0,
-        hasMarkdown: !!scrapedContent.markdownContent,
-      });
-
-      // Validate that we got markdown content, not just plain text
-      if (!scrapedContent.markdownContent || scrapedContent.markdownContent.length === 0) {
-        logger.error('Markdown conversion returned empty content', { 
-          url,
-          rawContentLength: scrapedContent.content?.length || 0,
-        });
-        throw new HttpsError('internal', 'Failed to convert content to markdown: empty result');
+      // Process all URLs via the orchestrator
+      let summary;
+      try {
+        summary = await UrlProcessingOrchestrator.processUrls(rawUrls, effectiveRuleIds, userId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new HttpsError('internal', `URL processing failed: ${message}`);
       }
 
-      // Check if markdown is just plain text (no markdown formatting)
-      const hasMarkdownFormatting = /[#*\-_`[\]]/g.test(scrapedContent.markdownContent);
-      if (!hasMarkdownFormatting && scrapedContent.markdownContent.length > 100) {
-        logger.warn('Markdown content may be plain text without formatting', {
-          url,
-          contentPreview: scrapedContent.markdownContent.substring(0, 200),
-        });
+      const isSingleUrl = rawUrls.length === 1;
+      const firstSuccess = summary.results.find((r) => !r.error);
+
+      const tags = ['scraped'];
+      if (summary.results.some((r) => r.type === 'youtube' && !r.error)) {
+        tags.push('youtube');
+      }
+      if (summary.results.some((r) => r.type === 'web' && !r.error)) {
+        tags.push('article');
       }
 
-      // Prepare document request
+      const title = customTitle
+        || (isSingleUrl && firstSuccess ? firstSuccess.title : null)
+        || (isSingleUrl ? rawUrls[0] : `Merged Document (${summary.successfulCount} sources)`);
+
+      const description = isSingleUrl
+        ? `Scraped from: ${rawUrls[0]}`
+        : `Merged from ${summary.successfulCount} URL${summary.successfulCount !== 1 ? 's' : ''}`;
+
       const documentRequest: CreateDocumentRequest = {
-        title: customTitle || scrapedContent.title,
-        description: `Scraped from: ${url}`,
-        content: scrapedContent.markdownContent,
+        title,
+        description,
+        content: summary.mergedMarkdown,
         sourceType: DocumentSourceType.URL,
-        sourceUrl: url,
+        sourceUrl: rawUrls[0],
         status: DocumentStatus.ACTIVE,
-        tags: ['scraped', 'article'],
+        tags,
         directoryId,
       };
 
-      // Create document
       const document = await DocumentCrudService.createDocument(userId, documentRequest);
 
-      logger.info('Document created from URL successfully', { 
+      logger.info('Document created from URL(s) successfully', {
         userId,
         documentId: document.id,
-        url,
-        title: document.title,
+        urlCount: rawUrls.length,
+        successful: summary.successfulCount,
+        failed: summary.failedCount,
         wordCount: document.wordCount,
       });
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         document,
-        scrapedContent: {
-          title: scrapedContent.title,
-          author: scrapedContent.author,
-          publishDate: scrapedContent.publishDate,
-          wordCount: scrapedContent.wordCount,
+        summary: {
+          urlCount: rawUrls.length,
+          successfulCount: summary.successfulCount,
+          failedCount: summary.failedCount,
+          totalWordCount: summary.totalWordCount,
         },
       };
 
     } catch (error) {
-      logger.error('Failed to create document from URL', { 
+      if (error instanceof HttpsError) throw error;
+      logger.error('Failed to create document from URL(s)', {
         error: error instanceof Error ? error.message : String(error),
-        url: request.data?.url,
+        urls: request.data?.urls ?? (request.data?.url ? [request.data.url] : []),
       });
       throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }

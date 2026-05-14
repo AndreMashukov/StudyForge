@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '../../../../components/ui/Button';
+import { Textarea } from '../../../../components/ui/Textarea';
 import { Input } from '../../../../components/ui/Input';
 import { Label } from '../../../../components/ui/Label';
 import { Globe } from 'lucide-react';
@@ -16,12 +17,27 @@ import { IUrlScrapingFormProps } from './IUrlScrapingForm';
 import { urlScrapingFormStyles } from './UrlScrapingForm.styles';
 import type { RootState } from '../../../../store';
 
+function parseUrls(raw: string): string[] {
+  return raw
+    .split(/[\n,]+/)
+    .map((u) => u.trim())
+    .filter(Boolean);
+}
+
+function isValidUrl(urlString: string): boolean {
+  try {
+    const parsed = new URL(urlString);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) => {
   const dispatch = useDispatch();
-  const [url, setUrl] = useState('');
+  const [rawUrls, setRawUrls] = useState('');
   const [title, setTitle] = useState('');
 
-  // Redux selectors
   const directoryId = useSelector((state: RootState) => selectDirectoryId(state));
   const selectedRuleIds = useSelector((state: RootState) => selectScrapingRules(state));
 
@@ -29,46 +45,61 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
     dispatch(setScrapingRules(ruleIds));
   };
 
+  const parsedUrls = useMemo(() => parseUrls(rawUrls), [rawUrls]);
+  const invalidUrls = useMemo(() => parsedUrls.filter((u) => !isValidUrl(u)), [parsedUrls]);
+  const validUrls = useMemo(() => parsedUrls.filter((u) => isValidUrl(u)), [parsedUrls]);
+
+  const canSubmit = validUrls.length > 0 && invalidUrls.length === 0 && parsedUrls.length <= 20;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url.trim()) return;
-    
+    if (!canSubmit) return;
     onSubmit({
-      url: url.trim(),
+      urls: validUrls,
       title: title.trim() || undefined,
       ruleIds: selectedRuleIds.length > 0 ? selectedRuleIds : undefined,
     });
   };
 
-  const isValidUrl = (urlString: string) => {
-    try {
-      new URL(urlString);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
-  const canSubmit = url.trim() && isValidUrl(url.trim());
+  const urlCountLabel =
+    parsedUrls.length > 0
+      ? `${parsedUrls.length} URL${parsedUrls.length !== 1 ? 's' : ''} entered`
+      : '';
 
   return (
     <form onSubmit={handleSubmit} className={urlScrapingFormStyles.container}>
       <div className={urlScrapingFormStyles.formGroup}>
-        <Label htmlFor="url" className={urlScrapingFormStyles.label}>
-          Website URL *
+        <Label htmlFor="urls" className={urlScrapingFormStyles.label}>
+          URL(s) *
         </Label>
-        <Input
-          id="url"
-          type="url"
-          placeholder="https://example.com/article"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          className={urlScrapingFormStyles.input}
+        <Textarea
+          id="urls"
+          placeholder={`https://example.com/article\nhttps://youtu.be/dQw4w9WgXcQ`}
+          value={rawUrls}
+          onChange={(e) => setRawUrls(e.target.value)}
           disabled={isLoading}
+          rows={4}
         />
         <p className={urlScrapingFormStyles.helpText}>
-          Enter the URL of the webpage you want to convert to a document
+          One URL per line — web pages or YouTube videos. Max 20.
         </p>
+        {urlCountLabel && (
+          <p className="text-xs text-muted-foreground mt-1">{urlCountLabel}</p>
+        )}
+        {invalidUrls.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {invalidUrls.map((u) => (
+              <p key={u} className="text-xs text-destructive" role="alert">
+                Invalid URL: {u}
+              </p>
+            ))}
+          </div>
+        )}
+        {parsedUrls.length > 20 && (
+          <p className="text-xs text-destructive mt-1" role="alert">
+            Too many URLs — maximum is 20.
+          </p>
+        )}
       </div>
 
       <div className={urlScrapingFormStyles.formGroup}>
@@ -78,18 +109,17 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
         <Input
           id="title"
           type="text"
-          placeholder="Leave empty to use webpage title"
+          placeholder="Leave empty to use page title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className={urlScrapingFormStyles.input}
           disabled={isLoading}
         />
         <p className={urlScrapingFormStyles.helpText}>
-          Custom title for your document. If empty, we'll use the webpage title.
+          Custom title for your document. If empty, the source title will be used.
         </p>
       </div>
 
-      {/* Rules section — stacked below form */}
       {directoryId && (
         <div className="mb-4">
           <RuleSelector
@@ -101,7 +131,7 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
           />
         </div>
       )}
-      
+
       {!directoryId && (
         <div className="border rounded-lg p-3 bg-muted/30 mb-4">
           <p className="text-xs text-muted-foreground text-center">
@@ -118,12 +148,12 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
         {isLoading ? (
           <>
             <Spinner size="xs" />
-            Scraping Content...
+            Processing...
           </>
         ) : (
           <>
             <Globe size={16} />
-            Create Document from URL
+            Create Document from URL{validUrls.length > 1 ? 's' : ''}
           </>
         )}
       </Button>
