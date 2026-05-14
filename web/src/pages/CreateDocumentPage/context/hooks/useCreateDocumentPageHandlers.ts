@@ -60,7 +60,7 @@ export const useCreateDocumentPageHandlers = () => {
       return;
     }
     createDocumentFromUrl({
-      url: data.url,
+      urls: data.urls,
       title: data.title,
       directoryId,
       ruleIds: data.ruleIds || [],

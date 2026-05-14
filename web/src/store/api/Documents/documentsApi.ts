@@ -3,7 +3,7 @@ import { createDocumentOnQueryStarted } from '../utils/createDocumentOnQueryStar
 import { 
   DocumentEnhanced, 
   CreateDocumentRequest,
-  CreateDocumentFromUrlRequest,
+  CreateDocumentFromUrlsRequest,
   UpdateDocumentRequest,
   DeleteDocumentRequest,
   GenerateFromPromptRequest,
@@ -62,7 +62,7 @@ export const documentsApi = baseApi.injectEndpoints({
       onQueryStarted: createDocumentOnQueryStarted('Document', 'create document'),
     }),
     
-    createDocumentFromUrl: builder.mutation<DocumentEnhanced, CreateDocumentFromUrlRequest>({
+    createDocumentFromUrl: builder.mutation<DocumentEnhanced, CreateDocumentFromUrlsRequest>({
       query: (data) => ({
         functionName: 'createDocumentFromUrl',
         data

@@ -519,6 +519,14 @@ export interface CreateDocumentFromUrlRequest {
   ruleResolutionMode?: RuleResolutionMode;
 }
 
+export interface CreateDocumentFromUrlsRequest {
+  urls: string[];
+  title?: string;
+  directoryId: string;
+  ruleIds?: string[];
+  ruleResolutionMode?: RuleResolutionMode;
+}
+
 export interface UploadDocumentRequest {
   fileName: string;
   content: string; // Base64 encoded markdown content

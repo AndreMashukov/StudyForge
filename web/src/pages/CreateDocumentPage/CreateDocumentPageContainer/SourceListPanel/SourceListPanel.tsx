@@ -33,7 +33,7 @@ const sources = [
     icon: '🎥',
     title: 'Video URL',
     description: 'Extract from video',
-    status: 'coming-soon' as const,
+    status: 'active' as const,
   },
 ];
 
