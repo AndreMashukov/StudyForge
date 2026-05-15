@@ -378,9 +378,7 @@ async function fetchWithApifyFallback(videoUrl: string, videoId: string): Promis
 }
 
 /**
- * Adapter around the `youtube-transcript` npm package.
- * This is the only place in the codebase that imports that package directly.
- * Swap the import here if the package needs to be replaced.
+ * Fetch YouTube transcripts via InnerTube, with Apify as a fallback.
  */
 export class YouTubeTranscriptService {
   /**
@@ -404,68 +402,29 @@ export class YouTubeTranscriptService {
         throw new Error(`Transcript unavailable from Apify for video ${videoId}`);
       }
     } else {
-      // Dynamic import so the package is only loaded for YouTube requests
-      const { fetchTranscript } = await import('youtube-transcript');
-
-      try {
-        const raw = await fetchTranscript(videoId);
-
-        if (!raw || raw.length === 0) {
-          throw new Error('Transcript is empty. The video may have captions disabled or no captions available.');
-        }
-
-        segments = raw.map((s) => ({
-          text: s.text,
-          offset: s.offset,
-          duration: s.duration,
-        }));
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        logger.warn('youtube-transcript package failed; trying InnerTube fallback', {
+      segments = await fetchWithInnerTubeFallback(videoId);
+      if (segments.length > 0) {
+        logger.info('YouTube transcript fetched via InnerTube', {
           videoId,
-          error: message,
+          segments: segments.length,
+        });
+      } else {
+        logger.warn('InnerTube transcript fetch returned no usable captions; trying Apify fallback', {
+          videoId,
         });
 
-        segments = await fetchWithInnerTubeFallback(videoId);
+        segments = await fetchWithApifyFallback(videoUrl, videoId);
         if (segments.length > 0) {
-          logger.info('YouTube transcript fetched via InnerTube fallback', {
+          logger.info('YouTube transcript fetched via Apify fallback', {
             videoId,
             segments: segments.length,
           });
         } else {
-          logger.warn('InnerTube transcript fallback failed; trying Apify fallback', {
+          logger.error('YouTube transcript providers failed', {
             videoId,
-            originalError: message,
+            providersTried: ['innertube', 'apify'],
           });
-
-          segments = await fetchWithApifyFallback(videoUrl, videoId);
-          if (segments.length > 0) {
-            logger.info('YouTube transcript fetched via Apify fallback', {
-              videoId,
-              segments: segments.length,
-            });
-          } else {
-            logger.error('YouTube transcript fallback failed', {
-              videoId,
-              originalError: message,
-            });
-
-            if (
-              message.includes('disabled') ||
-              message.includes('captions') ||
-              message.includes('subtitles')
-            ) {
-              throw new Error(`Transcript unavailable: captions are disabled or unavailable for this video (${videoId})`);
-            }
-            if (message.includes('blocked') || message.includes('403') || message.includes('429')) {
-              throw new Error(`Transcript fetch was blocked by YouTube (${videoId}). Try again later.`);
-            }
-            if (message.includes('empty')) {
-              throw new Error(`Transcript is empty for video ${videoId}`);
-            }
-
-            throw new Error(`Failed to fetch YouTube transcript for ${videoId}: ${message}`);
-          }
+          throw new Error(`Transcript unavailable for video ${videoId}`);
         }
       }
     }
