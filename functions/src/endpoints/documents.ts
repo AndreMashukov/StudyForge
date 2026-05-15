@@ -22,6 +22,7 @@ import {
 
 // Define the Gemini API key secret for markdown conversion
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+const apifyApiToken = defineSecret("APIFY_API_TOKEN");
 
 /**
  * Create a new document from uploaded content or URL
@@ -93,7 +94,7 @@ export const createDocumentFromUrl = onCall(
   { 
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, apifyApiToken],
     timeoutSeconds: 300,
   },
   async (request) => {
