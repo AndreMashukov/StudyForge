@@ -17,6 +17,8 @@ import { IUrlScrapingFormProps } from './IUrlScrapingForm';
 import { urlScrapingFormStyles } from './UrlScrapingForm.styles';
 import type { RootState } from '../../../../store';
 
+const MAX_URLS = 3;
+
 function parseUrls(raw: string): string[] {
   return raw
     .split(/[\n,]+/)
@@ -49,7 +51,7 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
   const invalidUrls = useMemo(() => parsedUrls.filter((u) => !isValidUrl(u)), [parsedUrls]);
   const validUrls = useMemo(() => parsedUrls.filter((u) => isValidUrl(u)), [parsedUrls]);
 
-  const canSubmit = validUrls.length > 0 && invalidUrls.length === 0 && parsedUrls.length <= 20;
+  const canSubmit = validUrls.length > 0 && invalidUrls.length === 0 && parsedUrls.length <= MAX_URLS;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +83,7 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
           rows={4}
         />
         <p className={urlScrapingFormStyles.helpText}>
-          One URL per line — web pages or YouTube videos. Max 20.
+          One URL per line — web pages or YouTube videos. Max {MAX_URLS}.
         </p>
         {urlCountLabel && (
           <p className="text-xs text-muted-foreground mt-1">{urlCountLabel}</p>
@@ -95,9 +97,9 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
             ))}
           </div>
         )}
-        {parsedUrls.length > 20 && (
+        {parsedUrls.length > MAX_URLS && (
           <p className="text-xs text-destructive mt-1" role="alert">
-            Too many URLs — maximum is 20.
+            Too many URLs — maximum is {MAX_URLS}.
           </p>
         )}
       </div>

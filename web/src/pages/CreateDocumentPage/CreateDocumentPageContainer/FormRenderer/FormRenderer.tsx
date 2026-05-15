@@ -34,7 +34,7 @@ const getFormIcon = (sourceType: string) => {
 const getFormTitle = (sourceType: string) => {
   switch (sourceType) {
     case 'website':
-      return 'Website Content Scraper';
+      return 'URL Document Generator';
     case 'file':
       return 'File Upload';
     case 'textPrompt':
@@ -49,7 +49,7 @@ const getFormTitle = (sourceType: string) => {
 const getFormDescription = (sourceType: string) => {
   switch (sourceType) {
     case 'website':
-      return 'Enter a URL to scrape and convert to a document';
+      return 'Turn web pages or YouTube videos into a document';
     case 'file':
       return 'Upload a markdown file to create a document';
     case 'textPrompt':

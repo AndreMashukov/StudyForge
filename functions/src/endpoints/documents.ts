@@ -24,6 +24,7 @@ import {
 // Define the Gemini API key secret for markdown conversion
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
 const apifyApiToken = defineSecret("APIFY_API_TOKEN");
+const MAX_URL_DOCUMENT_SOURCES = 3;
 
 function extractMarkdownTitle(content: string): string | null {
   const titleMatch = content.match(/^#\s+(.+)$/m);
@@ -168,8 +169,11 @@ export const createDocumentFromUrl = onCall(
         throw new HttpsError('invalid-argument', 'At least one URL is required');
       }
 
-      if (rawUrls.length > 20) {
-        throw new HttpsError('invalid-argument', `Too many URLs: ${rawUrls.length} submitted, maximum is 20`);
+      if (rawUrls.length > MAX_URL_DOCUMENT_SOURCES) {
+        throw new HttpsError(
+          'invalid-argument',
+          `Too many URLs: ${rawUrls.length} submitted, maximum is ${MAX_URL_DOCUMENT_SOURCES}`
+        );
       }
 
       for (const url of rawUrls) {
