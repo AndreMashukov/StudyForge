@@ -151,14 +151,14 @@ export const createDocumentFromUrl = onCall(
       }
       await directoryService.validateDirectoryId(userId, directoryId);
 
-      // Resolve rules once for all web URLs
+      // Resolve content generation rules once for all URL sources.
       const mode = isRuleResolutionMode(ruleResolutionMode)
         ? ruleResolutionMode
         : (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
       const { ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
         userId,
         directoryId,
-        operation: RuleApplicability.SCRAPING,
+        operation: RuleApplicability.PROMPT,
         additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
         mode,
       });

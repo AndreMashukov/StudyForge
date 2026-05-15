@@ -6,12 +6,12 @@ import { Input } from '../../../../components/ui/Input';
 import { Label } from '../../../../components/ui/Label';
 import { Globe } from 'lucide-react';
 import { Spinner } from '../../../../components/ui/Spinner';
-import { RuleSelector } from '../../../../components/RuleSelector';
+import { CompactRuleSelector } from '../../../../components/CompactRuleSelector';
 import { RuleApplicability } from '@shared-types';
 import {
   selectDirectoryId,
-  selectScrapingRules,
-  setScrapingRules
+  selectPromptRules,
+  setPromptRules
 } from '../../../../store/slices/createDocumentPageSlice';
 import { IUrlScrapingFormProps } from './IUrlScrapingForm';
 import { urlScrapingFormStyles } from './UrlScrapingForm.styles';
@@ -39,10 +39,10 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
   const [title, setTitle] = useState('');
 
   const directoryId = useSelector((state: RootState) => selectDirectoryId(state));
-  const selectedRuleIds = useSelector((state: RootState) => selectScrapingRules(state));
+  const selectedRuleIds = useSelector((state: RootState) => selectPromptRules(state));
 
   const handleRuleSelectionChange = (ruleIds: string[]) => {
-    dispatch(setScrapingRules(ruleIds));
+    dispatch(setPromptRules(ruleIds));
   };
 
   const parsedUrls = useMemo(() => parseUrls(rawUrls), [rawUrls]);
@@ -121,13 +121,13 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
       </div>
 
       {directoryId && (
-        <div className="mb-4">
-          <RuleSelector
+        <div className={urlScrapingFormStyles.formGroup}>
+          <CompactRuleSelector
             directoryId={directoryId}
-            operation={RuleApplicability.SCRAPING}
+            operation={RuleApplicability.PROMPT}
             selectedRuleIds={selectedRuleIds}
             onSelectionChange={handleRuleSelectionChange}
-            compact={true}
+            label="Content Generation Rules"
           />
         </div>
       )}
