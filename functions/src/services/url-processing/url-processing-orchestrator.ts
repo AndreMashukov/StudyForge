@@ -8,7 +8,7 @@ import {
 import { YouTubeUrlProcessor } from './processors/youtube-url-processor';
 import { WebUrlProcessor } from './processors/web-url-processor';
 
-const MAX_URLS = 20;
+const MAX_URLS = 3;
 const CONCURRENCY = 3;
 
 /**
