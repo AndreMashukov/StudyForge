@@ -6,6 +6,7 @@ import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
 import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 import { RuleUsageTooltip } from '../../../../components/RuleUsageTooltip';
+import { QuizHintTooltip } from '../../../../components/QuizHintTooltip';
 import { QuizProgressBar } from '../../../../components/QuizProgressBar';
 import { DiagramSlideViewer } from '../DiagramSlideViewer';
 import { DiagramAnswerBar } from '../DiagramAnswerBar';
@@ -54,9 +55,12 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
       )}
 
       <CardHeader>
-        <CardTitle className="text-lg font-medium leading-relaxed text-foreground">
-          {question.question}
-        </CardTitle>
+        <div className="flex items-start gap-2">
+          <CardTitle className="flex-1 text-lg font-medium leading-relaxed text-foreground">
+            {question.question}
+          </CardTitle>
+          <QuizHintTooltip hint={question.hint} className="mt-0.5" />
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <DiagramSlideViewer

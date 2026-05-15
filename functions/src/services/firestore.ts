@@ -340,11 +340,12 @@ export class FirestoreService {
         documentId: documentId,
         ...(allDocumentIds ? { documentIds: allDocumentIds } : {}),
         title: `${document.title} - Quiz ${generationAttempt}`,
-        questions: geminiQuiz.questions.map((q: { question: string; options: string[]; correctAnswer: number; explanation?: string }): QuizQuestion => ({
+        questions: geminiQuiz.questions.map((q: { question: string; options: string[]; correctAnswer: number; explanation?: string; hint?: string }): QuizQuestion => ({
           question: q.question,
           options: q.options,
           correctAnswer: q.correctAnswer,
           explanation: q.explanation,
+          ...(q.hint ? { hint: q.hint } : {}),
         })),
         createdAt: new Date(),
         userId: userId,
@@ -415,6 +416,7 @@ export class FirestoreService {
         ...(q.diagramLabels?.length ? { diagramLabels: q.diagramLabels } : {}),
         correctAnswer: q.correctAnswer,
         explanation: q.explanation,
+        ...(q.hint ? { hint: q.hint } : {}),
       }));
 
       const diagramQuiz = {

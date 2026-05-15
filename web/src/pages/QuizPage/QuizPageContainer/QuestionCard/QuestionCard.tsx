@@ -6,6 +6,7 @@ import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
 import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 import { RuleUsageTooltip } from '../../../../components/RuleUsageTooltip';
+import { QuizHintTooltip } from '../../../../components/QuizHintTooltip';
 import { QuizProgressBar } from '../../../../components/QuizProgressBar';
 import { Spinner } from '../../../../components/ui/Spinner';
 import {
@@ -62,9 +63,12 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
       )}
 
       <CardHeader>
-        <CardTitle className="text-lg font-medium text-foreground leading-relaxed">
-          {question.question}
-        </CardTitle>
+        <div className="flex items-start gap-2">
+          <CardTitle className="flex-1 text-lg font-medium leading-relaxed text-foreground">
+            {question.question}
+          </CardTitle>
+          <QuizHintTooltip hint={question.hint} className="mt-0.5" />
+        </div>
       </CardHeader>
       
       <CardContent className="space-y-3">

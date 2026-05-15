@@ -1,4 +1,9 @@
 import { ScrapedContent } from '@shared-types';
+import {
+  buildQuizHintFieldInstruction,
+  buildQuizHintJsonRule,
+  buildQuizHintExampleLine,
+} from './quiz-hint-prompt-builder';
 
 /**
  * Prompt builder for sequence quizzes: the learner arranges items in the correct order.
@@ -97,7 +102,7 @@ Create **8 to 12** questions. For each question provide:
 - \`question\`: a clear instruction telling the learner what to arrange (e.g. "Arrange the steps of X in order")
 - \`items\`: an array of strings in the **CORRECT** order (4–10 items)
 - \`explanation\`: a concise explanation of why this order is correct
-- \`hint\`: a short, helpful clue that nudges the learner without giving away the full answer (e.g. "Think about which step must happen before any other")`;
+${buildQuizHintFieldInstruction('Think about which step must happen first before anything else can begin.')}`;
   }
 
   private static getSealedContractBlock(): string {
@@ -117,7 +122,7 @@ Create **8 to 12** questions. For each question provide:
 - **No unescaped double quotes** inside string values.
 - \`items\` must be a non-empty string array with at least 4 elements for every question.
 - \`explanation\` is required and must be a non-empty string.
-- \`hint\` is required and must be a short, non-empty string (one sentence, max 20 words).`;
+${buildQuizHintJsonRule()}`;
   }
 
   private static getExampleStructure(): string {
@@ -129,13 +134,13 @@ Create **8 to 12** questions. For each question provide:
       "question": "Arrange these items in the correct order:",
       "items": ["First item", "Second item", "Third item", "Fourth item"],
       "explanation": "Why this order is correct and how each step follows from the previous.",
-      "hint": "Think about which step must happen first before anything else can begin."
+      ${buildQuizHintExampleLine('Think about which step must happen first before anything else can begin.')}
     }
   ]
 }`;
   }
 
   private static getFinalInstructions(): string {
-    return `**FINAL CHECK:** Every question has at least 4 items, a non-empty explanation, and items are in the correct order. Generate the JSON now:`;
+    return `**FINAL CHECK:** Every question has at least 4 items, a non-empty explanation, a non-empty hint, and items are in the correct order. Generate the JSON now:`;
   }
 }

@@ -1,5 +1,10 @@
 /* eslint-disable no-useless-escape */
 import { ScrapedContent } from '@shared-types';
+import {
+  buildQuizHintFieldInstruction,
+  buildQuizHintJsonRule,
+  buildQuizHintExampleLine,
+} from './quiz-hint-prompt-builder';
 
 /**
  * Quiz Prompt Builder for Gemini AI
@@ -89,10 +94,11 @@ ${content.content}
 5. Include questions about main ideas, supporting details, conclusions, and implications
 6. Avoid overly specific details that aren't central to the article's main points
 7. **MANDATORY**: Each question MUST include a brief explanation of why the correct answer is right
+8. ${buildQuizHintFieldInstruction('Look for the key concept the question is asking about before choosing.')}
 
 **CRITICAL OPTION QUALITY REQUIREMENTS:**
 
-**8. EQUAL LENGTH RULE (MANDATORY):**
+**9. EQUAL LENGTH RULE (MANDATORY):**
    - ✅ **ALL four options must be approximately the same length (within 5-10 words of each other)**
    - ✅ **Count words in each option and balance them accordingly**
    - ❌ **NEVER make the correct answer significantly longer or shorter than others**
@@ -110,7 +116,7 @@ ${content.content}
    C. There are n+1 numbers in range [1,n], ensuring at least one duplicate according to pigeonhole principle
    D. Unique numbers
 
-**9. PLAUSIBLE INCORRECT OPTIONS (MANDATORY):**
+**10. PLAUSIBLE INCORRECT OPTIONS (MANDATORY):**
    - ✅ **All incorrect options must be topically relevant and contextually related**
    - ✅ **Use concepts, terminology, and ideas from the same domain/article**
    - ✅ **Make incorrect options sound reasonable to someone with partial knowledge**
@@ -128,7 +134,7 @@ ${content.content}
    - Using overly generic statements that could apply to anything
    - Including options that don't use relevant technical vocabulary
 
-**10. OPTION CONSTRUCTION PROCESS:**
+**11. OPTION CONSTRUCTION PROCESS:**
    **Step 1**: Write the correct answer with appropriate length and detail
    **Step 2**: Create 3 incorrect options using these strategies:
       - **Strategy A**: Take a related but incorrect concept from the article
@@ -252,7 +258,8 @@ Before finalizing JSON, verify each question meets these requirements:
 - The correctAnswer field should be an integer (0, 1, 2, or 3) indicating the index of the correct option
 - Make sure questions are clear, concise, and grammatically correct
 - **VERIFY** answer distribution follows the rules above before finalizing
-- **MANDATORY**: Every question must have an explanation field`;
+- **MANDATORY**: Every question must have an explanation field
+${buildQuizHintJsonRule()}`;
   }
 
   /**
@@ -272,7 +279,8 @@ Before finalizing JSON, verify each question meets these requirements:
         "Option D providing comparable length with contextually appropriate details"
       ],
       "correctAnswer": 0,
-      "explanation": "Brief explanation of why this answer is correct (MANDATORY)"
+      "explanation": "Brief explanation of why this answer is correct (MANDATORY)",
+      ${buildQuizHintExampleLine('Look for the main concept the question is testing.')}
     }
   ]
 }
@@ -287,7 +295,8 @@ Before finalizing JSON, verify each question meets these requirements:
     "The algorithmic complexity bounds require cycle detection for optimal performance"
   ],
   "correctAnswer": 0,
-  "explanation": "The pigeonhole principle states that with n+1 items in n containers, at least one container must contain multiple items"
+  "explanation": "The pigeonhole principle states that with n+1 items in n containers, at least one container must contain multiple items",
+  ${buildQuizHintExampleLine('Think about why having more items than containers matters.')}
 }`;
   }
 
@@ -323,6 +332,10 @@ Before finalizing JSON, verify each question meets these requirements:
    - Every question has detailed explanation
    - Explanations clarify why correct answer is right
    - Explanations help distinguish from incorrect options
+
+5. **HINT QUALITY VERIFICATION:**
+  - Every question has a short hint
+  - Hints nudge toward the reasoning path without naming the correct option
 
 **REMEMBER:** A well-crafted quiz question should be answerable by someone knowledgeable but not easily guessed through option length or relevance disparities.
 

@@ -1,4 +1,9 @@
 import { ScrapedContent } from '@shared-types';
+import {
+  buildQuizHintFieldInstruction,
+  buildQuizHintJsonRule,
+  buildQuizHintExampleLine,
+} from './quiz-hint-prompt-builder';
 
 /**
  * Prompt builder for diagram quizzes: each answer option is a Mermaid diagram.
@@ -107,7 +112,8 @@ ${content.author ? `**AUTHOR:** ${content.author}` : ''}
 ${content.content}
 
 **TASK:**
-Create **5 to 8** questions. For each question, output **exactly 4** Mermaid diagrams in array \`diagrams\` (indices 0–3 = A–D), a **correctAnswer** index (0–3), and a clear **explanation** of why the correct diagram is right and how the others mislead.`;
+Create **5 to 8** questions. For each question, output **exactly 4** Mermaid diagrams in array \`diagrams\` (indices 0–3 = A–D), a **correctAnswer** index (0–3), a clear **explanation** of why the correct diagram is right and how the others mislead, and:
+${buildQuizHintFieldInstruction('Compare the arrow direction, labels, and missing links before choosing.')}`;
   }
 
   private static getRandomAnswerDistributionRules(randomAnswers: number[]): string {
@@ -127,7 +133,8 @@ For question N, option at index matching the letter above must be the factually 
 - **No unescaped double quotes** inside string values.
 - \`diagrams\` must be a string array of length **4** for every question — each string is full Mermaid source.
 - \`correctAnswer\` is integer 0, 1, 2, or 3.
-- \`explanation\` is required (non-empty string).`;
+- \`explanation\` is required (non-empty string).
+${buildQuizHintJsonRule()}`;
   }
 
   private static getExampleStructure(): string {
@@ -144,7 +151,8 @@ For question N, option at index matching the letter above must be the factually 
         "flowchart TD\\n  A-->B\\n  B-->D"
       ],
       "correctAnswer": 0,
-      "explanation": "Why option A is correct and others are wrong."
+      "explanation": "Why option A is correct and others are wrong.",
+      ${buildQuizHintExampleLine('Trace the direction of the arrows before deciding.')}
     },
     {
       "question": "Which diagram shows the correct stack state?",
@@ -155,13 +163,14 @@ For question N, option at index matching the letter above must be the factually 
         "flowchart BT\\n  A(op: -)-->B(op: +)"
       ],
       "correctAnswer": 1,
-      "explanation": "Note: subgraph IDs use camelCase (topFrame) with display labels in quotes."
+      "explanation": "Note: subgraph IDs use camelCase (topFrame) with display labels in quotes.",
+      ${buildQuizHintExampleLine('Check which stack frame is shown above the other.')}
     }
   ]
 }`;
   }
 
   private static getFinalInstructions(): string {
-    return `**FINAL CHECK:** Every question has exactly 4 diagrams, valid Mermaid, and a non-empty explanation. Generate the JSON now:`;
+    return `**FINAL CHECK:** Every question has exactly 4 diagrams, valid Mermaid, a non-empty explanation, and a non-empty hint. Generate the JSON now:`;
   }
 }
