@@ -34,6 +34,7 @@ export interface GeminiQuizResponse {
     options: string[];
     correctAnswer: number;
     explanation: string;
+    hint?: string;
   }>;
 }
 
@@ -44,6 +45,7 @@ export interface GeminiDiagramQuizResponse {
     diagrams: string[];
     correctAnswer: number;
     explanation: string;
+    hint?: string;
     diagramLabels?: string[];
   }>;
 }
@@ -785,6 +787,8 @@ This question is derived from: **${context.originalDocument.title}**
           `Question ${index + 1} is missing required explanation`
         );
       }
+
+      this.validateQuestionHint(question, 'Quiz', index);
     });
 
     // Validate answer distribution
@@ -879,6 +883,7 @@ This question is derived from: **${context.originalDocument.title}**
           correctAnswer: 0,
           explanation:
             'The Gemini API needs to be properly configured for your region.',
+          hint: 'Check whether this quiz is using real AI output or local fallback data.',
         },
         {
           question: 'Why might you see this mock quiz?',
@@ -891,6 +896,7 @@ This question is derived from: **${context.originalDocument.title}**
           correctAnswer: 1,
           explanation:
             'Mock quizzes appear when there are geographic restrictions or API configuration issues.',
+          hint: 'Look for environment or region messages in the function logs.',
         },
       ],
     };
@@ -963,6 +969,7 @@ This question is derived from: **${context.originalDocument.title}**
           `Diagram quiz question ${index + 1}: missing explanation`
         );
       }
+      this.validateQuestionHint(row, 'Diagram quiz', index);
     });
   }
 
@@ -985,12 +992,14 @@ This question is derived from: **${context.originalDocument.title}**
           correctAnswer: 0,
           explanation:
             'The first diagram shows a direct edge from A to B. Others add branches or reverse order.',
+          hint: 'Trace the only direct arrow from A to B.',
         },
         {
           question: 'Mock question two (development only)?',
           diagrams: [d('X-->Y'), d('Y-->X'), d('X-->Z'), d('Z-->Y')],
           correctAnswer: 0,
           explanation: 'Mock explanation for local emulator testing.',
+          hint: 'Compare which diagram preserves the X then Y direction.',
         },
       ],
     };
@@ -1067,7 +1076,22 @@ This question is derived from: **${context.originalDocument.title}**
           `Sequence quiz question ${index + 1}: missing explanation`
         );
       }
+      this.validateQuestionHint(row, 'Sequence quiz', index);
     });
+  }
+
+  private static validateQuestionHint(
+    row: Record<string, unknown>,
+    quizType: string,
+    index: number
+  ): void {
+    if (
+      !row.hint ||
+      typeof row.hint !== 'string' ||
+      row.hint.trim().length === 0
+    ) {
+      throw new Error(`${quizType} question ${index + 1}: missing hint`);
+    }
   }
 
   private static generateMockSequenceQuiz(
@@ -1088,11 +1112,13 @@ This question is derived from: **${context.originalDocument.title}**
           ],
           explanation:
             'This is a standard software development lifecycle: define → gather → design → implement → test → deploy.',
+          hint: 'Start with the work that clarifies what problem needs solving.',
         },
         {
           question: 'Arrange these items in order (mock question):',
           items: ['Step A', 'Step B', 'Step C', 'Step D'],
           explanation: 'Mock explanation for local emulator testing.',
+          hint: 'The mock labels already imply their order.',
         },
       ],
     };

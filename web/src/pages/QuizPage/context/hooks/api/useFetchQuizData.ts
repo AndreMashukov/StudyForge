@@ -26,6 +26,7 @@ export const useFetchQuizData = () => {
       correct: question.correctAnswer,
       correctAnswer: question.correctAnswer, // Keep both for compatibility
       explanation: question.explanation, // Use actual explanation from API
+      hint: question.hint,
     }));
   }, []);
 

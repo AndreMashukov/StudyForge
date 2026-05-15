@@ -29,6 +29,7 @@ export const useFetchDiagramQuizData = () => {
       correctAnswer: q.correctAnswer,
       correct: q.correctAnswer,
       explanation: q.explanation,
+      hint: q.hint,
     }));
   }, []);
 

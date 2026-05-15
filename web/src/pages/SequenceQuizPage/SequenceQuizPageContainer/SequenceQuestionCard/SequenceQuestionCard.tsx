@@ -23,13 +23,14 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useState, useRef, useLayoutEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { GripVertical, X, Package, Layers, CheckCircle, XCircle, Lightbulb, Sparkles } from 'lucide-react';
+import { GripVertical, X, Package, Layers, CheckCircle, XCircle, Sparkles } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 import { RuleUsageTooltip } from '../../../../components/RuleUsageTooltip';
+import { QuizHintTooltip } from '../../../../components/QuizHintTooltip';
 import { QuizProgressBar } from '../../../../components/QuizProgressBar';
 import { useRuleNames } from '../../../../hooks/useRuleNames';
 import {
@@ -359,21 +360,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
         </p>
         <div className="flex items-start gap-2">
           <CardTitle className="text-lg font-semibold leading-snug flex-1">{question.question}</CardTitle>
-          {question.hint && (
-            <div className="relative group shrink-0 mt-0.5">
-              <button
-                type="button"
-                className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                aria-label="Show hint"
-              >
-                <Lightbulb size={15} />
-              </button>
-              <div className="absolute right-0 top-full mt-2 w-64 px-3 py-2 rounded-lg bg-popover text-popover-foreground text-sm border border-border shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none">
-                <p className="font-semibold text-xs text-primary mb-1"><span role="img" aria-label="Hint">💡</span> Hint</p>
-                <p className="leading-relaxed">{question.hint}</p>
-              </div>
-            </div>
-          )}
+          <QuizHintTooltip hint={question.hint} className="mt-0.5" />
         </div>
       </CardHeader>
 

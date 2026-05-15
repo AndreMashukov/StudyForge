@@ -125,6 +125,7 @@ export interface QuizQuestion {
   options: string[]; // 4 options
   correctAnswer: number; // index of correct option
   explanation: string; // Mandatory explanation for the correct answer
+  hint?: string; // Optional hint shown via tooltip on lightbulb icon
 }
 
 // Sequence Quiz — ordering quiz where items must be arranged in the correct sequence
@@ -181,6 +182,7 @@ export interface DiagramQuizQuestion {
   diagramLabels?: string[];
   correctAnswer: number; // 0–3
   explanation: string;
+  hint?: string; // Optional hint shown via tooltip on lightbulb icon
 }
 
 export interface DiagramQuiz {
@@ -606,6 +608,7 @@ export interface GeminiQuizQuestion {
   options: string[];
   correctAnswer: number;
   explanation?: string;
+  hint?: string;
 }
 
 export interface GeminiQuizResponse {
