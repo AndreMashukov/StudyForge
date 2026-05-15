@@ -26,7 +26,26 @@ interface InnerTubeClient {
   body: (videoId: string) => Record<string, unknown>;
 }
 
+interface ApifyTranscriptJsonSegment {
+  start?: number | string;
+  end?: number | string;
+  duration?: number | string;
+  text?: unknown;
+}
+
+interface ApifyTranscriptItem {
+  error_code?: string;
+  error_message?: string;
+  language?: string;
+  is_ai_generated?: boolean;
+  is_auto_generated?: boolean;
+  transcript_json?: ApifyTranscriptJsonSegment[];
+  transcript_text?: string;
+  transcript_llm?: string;
+}
+
 const INNER_TUBE_URL = 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false';
+const APIFY_TRANSCRIPT_ACTOR_ID = 'codepoetry~youtube-transcript-ai-scraper';
 
 const INNER_TUBE_CLIENTS: InnerTubeClient[] = [
   {
@@ -223,6 +242,141 @@ async function fetchWithInnerTubeFallback(videoId: string): Promise<TranscriptSe
   return [];
 }
 
+function getNumber(value: number | string | undefined): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function normalizeApifyTranscriptJson(segments: ApifyTranscriptJsonSegment[]): TranscriptSegment[] {
+  return segments.flatMap((segment) => {
+    const text = typeof segment.text === 'string' ? segment.text.trim() : '';
+    if (!text) return [];
+
+    const startSeconds = getNumber(segment.start) ?? 0;
+    const endSeconds = getNumber(segment.end);
+    const durationSeconds = getNumber(segment.duration) ?? (endSeconds !== null ? endSeconds - startSeconds : 0);
+
+    return [{
+      text,
+      offset: Math.max(0, Math.round(startSeconds * 1000)),
+      duration: Math.max(0, Math.round(durationSeconds * 1000)),
+    }];
+  });
+}
+
+function splitTranscriptTextIntoSegments(text: string): TranscriptSegment[] {
+  const words = text.replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  const chunkSize = 90;
+  const segments: TranscriptSegment[] = [];
+
+  for (let index = 0; index < words.length; index += chunkSize) {
+    const chunk = words.slice(index, index + chunkSize).join(' ').trim();
+    if (chunk) {
+      segments.push({
+        text: chunk,
+        offset: 0,
+        duration: 0,
+      });
+    }
+  }
+
+  return segments;
+}
+
+function normalizeApifyItem(item: ApifyTranscriptItem): TranscriptSegment[] {
+  if (Array.isArray(item.transcript_json) && item.transcript_json.length > 0) {
+    const segments = normalizeApifyTranscriptJson(item.transcript_json);
+    if (segments.length > 0) return segments;
+  }
+
+  const plainText = item.transcript_llm || item.transcript_text;
+  return typeof plainText === 'string' ? splitTranscriptTextIntoSegments(plainText) : [];
+}
+
+function getApifyActorId(): string {
+  return (process.env.APIFY_TRANSCRIPT_ACTOR_ID || APIFY_TRANSCRIPT_ACTOR_ID).replace('/', '~');
+}
+
+async function fetchWithApifyFallback(videoUrl: string, videoId: string): Promise<TranscriptSegment[]> {
+  const token = process.env.APIFY_API_TOKEN;
+  if (!token) {
+    logger.warn('Apify transcript fallback skipped because APIFY_API_TOKEN is not configured', { videoId });
+    return [];
+  }
+
+  const endpoint = new URL(`https://api.apify.com/v2/acts/${getApifyActorId()}/run-sync-get-dataset-items`);
+  endpoint.searchParams.set('token', token);
+  endpoint.searchParams.set('timeout', process.env.APIFY_TRANSCRIPT_TIMEOUT_SECONDS || '180');
+  endpoint.searchParams.set('memory', process.env.APIFY_TRANSCRIPT_MEMORY_MB || '4096');
+  endpoint.searchParams.set('maxItems', '1');
+
+  const input = {
+    startUrls: [{ url: videoUrl }],
+    languages: [process.env.APIFY_TRANSCRIPT_LANGUAGE || 'en'],
+    outputFormats: ['json', 'llm'],
+    maxResults: 1,
+    maxAiMinutes: Number(process.env.APIFY_TRANSCRIPT_MAX_AI_MINUTES || '1'),
+  };
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+
+    const body = await response.text();
+    if (!response.ok) {
+      logger.warn('Apify transcript fallback request failed', {
+        videoId,
+        status: response.status,
+      });
+      return [];
+    }
+
+    const items = JSON.parse(body) as ApifyTranscriptItem[];
+    const firstItem = Array.isArray(items) ? items[0] : items;
+    if (!firstItem) {
+      logger.warn('Apify transcript fallback returned no dataset items', { videoId });
+      return [];
+    }
+
+    if (firstItem.error_code) {
+      logger.warn('Apify transcript fallback returned an error item', {
+        videoId,
+        errorCode: firstItem.error_code,
+        errorMessage: firstItem.error_message,
+      });
+    }
+
+    const segments = normalizeApifyItem(firstItem);
+    if (segments.length > 0) {
+      logger.info('Apify transcript fallback fetched transcript', {
+        videoId,
+        segments: segments.length,
+        language: firstItem.language,
+        isAiGenerated: firstItem.is_ai_generated,
+        isAutoGenerated: firstItem.is_auto_generated,
+      });
+    } else {
+      logger.warn('Apify transcript fallback returned no usable transcript content', { videoId });
+    }
+
+    return segments;
+  } catch (err) {
+    logger.warn('Apify transcript fallback failed', {
+      videoId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return [];
+  }
+}
+
 /**
  * Adapter around the `youtube-transcript` npm package.
  * This is the only place in the codebase that imports that package directly.
@@ -241,56 +395,78 @@ export class YouTubeTranscriptService {
 
     logger.info(`Fetching YouTube transcript`, { videoId });
 
-    // Dynamic import so the package is only loaded for YouTube requests
-    const { fetchTranscript } = await import('youtube-transcript');
-
     let segments: TranscriptSegment[];
-    try {
-      const raw = await fetchTranscript(videoId);
+    const forcedProvider = process.env.YOUTUBE_TRANSCRIPT_PROVIDER?.toLowerCase();
 
-      if (!raw || raw.length === 0) {
-        throw new Error('Transcript is empty. The video may have captions disabled or no captions available.');
+    if (forcedProvider === 'apify') {
+      segments = await fetchWithApifyFallback(videoUrl, videoId);
+      if (segments.length === 0) {
+        throw new Error(`Transcript unavailable from Apify for video ${videoId}`);
       }
+    } else {
+      // Dynamic import so the package is only loaded for YouTube requests
+      const { fetchTranscript } = await import('youtube-transcript');
 
-      segments = raw.map((s) => ({
-        text: s.text,
-        offset: s.offset,
-        duration: s.duration,
-      }));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.warn('youtube-transcript package failed; trying InnerTube fallback', {
-        videoId,
-        error: message,
-      });
+      try {
+        const raw = await fetchTranscript(videoId);
 
-      segments = await fetchWithInnerTubeFallback(videoId);
-      if (segments.length > 0) {
-        logger.info('YouTube transcript fetched via fallback', {
+        if (!raw || raw.length === 0) {
+          throw new Error('Transcript is empty. The video may have captions disabled or no captions available.');
+        }
+
+        segments = raw.map((s) => ({
+          text: s.text,
+          offset: s.offset,
+          duration: s.duration,
+        }));
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        logger.warn('youtube-transcript package failed; trying InnerTube fallback', {
           videoId,
-          segments: segments.length,
-        });
-      } else {
-        logger.error('YouTube transcript fallback failed', {
-          videoId,
-          originalError: message,
+          error: message,
         });
 
-        if (
-          message.includes('disabled') ||
-          message.includes('captions') ||
-          message.includes('subtitles')
-        ) {
-          throw new Error(`Transcript unavailable: captions are disabled or unavailable for this video (${videoId})`);
-        }
-        if (message.includes('blocked') || message.includes('403') || message.includes('429')) {
-          throw new Error(`Transcript fetch was blocked by YouTube (${videoId}). Try again later.`);
-        }
-        if (message.includes('empty')) {
-          throw new Error(`Transcript is empty for video ${videoId}`);
-        }
+        segments = await fetchWithInnerTubeFallback(videoId);
+        if (segments.length > 0) {
+          logger.info('YouTube transcript fetched via InnerTube fallback', {
+            videoId,
+            segments: segments.length,
+          });
+        } else {
+          logger.warn('InnerTube transcript fallback failed; trying Apify fallback', {
+            videoId,
+            originalError: message,
+          });
 
-        throw new Error(`Failed to fetch YouTube transcript for ${videoId}: ${message}`);
+          segments = await fetchWithApifyFallback(videoUrl, videoId);
+          if (segments.length > 0) {
+            logger.info('YouTube transcript fetched via Apify fallback', {
+              videoId,
+              segments: segments.length,
+            });
+          } else {
+            logger.error('YouTube transcript fallback failed', {
+              videoId,
+              originalError: message,
+            });
+
+            if (
+              message.includes('disabled') ||
+              message.includes('captions') ||
+              message.includes('subtitles')
+            ) {
+              throw new Error(`Transcript unavailable: captions are disabled or unavailable for this video (${videoId})`);
+            }
+            if (message.includes('blocked') || message.includes('403') || message.includes('429')) {
+              throw new Error(`Transcript fetch was blocked by YouTube (${videoId}). Try again later.`);
+            }
+            if (message.includes('empty')) {
+              throw new Error(`Transcript is empty for video ${videoId}`);
+            }
+
+            throw new Error(`Failed to fetch YouTube transcript for ${videoId}: ${message}`);
+          }
+        }
       }
     }
 
