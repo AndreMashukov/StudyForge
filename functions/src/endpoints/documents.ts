@@ -16,6 +16,7 @@ import {
   DocumentSourceType,
   DocumentStatus,
   GenerateFromPromptRequest,
+  IFileContent,
   MoveDocumentRequest,
   RuleApplicability,
 } from "@shared-types";
@@ -23,6 +24,42 @@ import {
 // Define the Gemini API key secret for markdown conversion
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
 const apifyApiToken = defineSecret("APIFY_API_TOKEN");
+
+function extractMarkdownTitle(content: string): string | null {
+  const titleMatch = content.match(/^#\s+(.+)$/m);
+  return titleMatch?.[1]?.trim() || null;
+}
+
+function buildUrlDocumentPrompt(params: {
+  customTitle?: string;
+  sourceCount: number;
+  successfulCount: number;
+  failedCount: number;
+  hasYouTubeSource: boolean;
+  sourceUrls: string[];
+}): string {
+  const sourceList = params.sourceUrls.map((url, index) => `${index + 1}. ${url}`).join('\n');
+  const titleInstruction = params.customTitle
+    ? `Use this exact document title as the H1 heading: ${params.customTitle}`
+    : 'Choose a clear, specific H1 title from the source material.';
+
+  return [
+    'Create a comprehensive educational document from the attached URL source material.',
+    titleInstruction,
+    '',
+    'Source URLs:',
+    sourceList,
+    '',
+    `Successfully extracted sources: ${params.successfulCount} of ${params.sourceCount}.`,
+    params.failedCount > 0 ? `Some sources failed extraction: ${params.failedCount}. Mention only successful source material in the main explanation.` : '',
+    '',
+    'Do not save or reproduce the raw transcript, timestamp list, scrape wrapper, or extraction metadata as the final document.',
+    'Synthesize the source material into a polished learning document with explanations, structure, examples, and takeaways.',
+    params.hasYouTubeSource
+      ? 'For YouTube transcript sources, remove timestamps, filler phrasing, and spoken-video artifacts while preserving the technical substance.'
+      : '',
+  ].filter(Boolean).join('\n');
+}
 
 /**
  * Create a new document from uploaded content or URL
@@ -95,7 +132,7 @@ export const createDocumentFromUrl = onCall(
     region: 'asia-east1',
     cors: true,
     secrets: [geminiApiKey, apifyApiToken],
-    timeoutSeconds: 300,
+    timeoutSeconds: 540,
   },
   async (request) => {
     try {
@@ -155,7 +192,7 @@ export const createDocumentFromUrl = onCall(
       const mode = isRuleResolutionMode(ruleResolutionMode)
         ? ruleResolutionMode
         : (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
-      const { ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
+      const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
         userId,
         directoryId,
         operation: RuleApplicability.PROMPT,
@@ -166,7 +203,7 @@ export const createDocumentFromUrl = onCall(
       // Process all URLs via the orchestrator
       let summary;
       try {
-        summary = await UrlProcessingOrchestrator.processUrls(rawUrls, effectiveRuleIds, userId);
+        summary = await UrlProcessingOrchestrator.processUrls(rawUrls, undefined, userId);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         throw new HttpsError('internal', `URL processing failed: ${message}`);
@@ -174,16 +211,58 @@ export const createDocumentFromUrl = onCall(
 
       const isSingleUrl = rawUrls.length === 1;
       const firstSuccess = summary.results.find((r) => !r.error);
+      const hasYouTubeSource = summary.results.some((r) => r.type === 'youtube' && !r.error);
+      const hasWebSource = summary.results.some((r) => r.type === 'web' && !r.error);
 
-      const tags = ['scraped'];
-      if (summary.results.some((r) => r.type === 'youtube' && !r.error)) {
+      const sourceContextFile: IFileContent = {
+        filename: isSingleUrl && firstSuccess
+          ? `${firstSuccess.title || 'url-source'}.md`
+          : 'url-sources.md',
+        content: summary.mergedMarkdown,
+        size: Buffer.byteLength(summary.mergedMarkdown, 'utf8'),
+        type: 'text/markdown',
+      };
+
+      logger.info('Generating final document from URL source context', {
+        userId,
+        urlCount: summary.sourceUrls.length,
+        sourceWordCount: summary.totalWordCount,
+        ruleCount: effectiveRuleIds.length,
+        hasRules: !!rulesText,
+        hasYouTubeSource,
+        hasWebSource,
+      });
+
+      let generatedContent: string;
+      try {
+        generatedContent = await GeminiService.generateDocumentFromPrompt(
+          buildUrlDocumentPrompt({
+            customTitle,
+            sourceCount: summary.sourceUrls.length,
+            successfulCount: summary.successfulCount,
+            failedCount: summary.failedCount,
+            hasYouTubeSource,
+            sourceUrls: summary.sourceUrls,
+          }),
+          [sourceContextFile],
+          rulesText || undefined
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new HttpsError('internal', `URL document generation failed: ${message}`);
+      }
+
+      const tags = ['scraped', 'ai-generated'];
+      if (hasYouTubeSource) {
         tags.push('youtube');
       }
-      if (summary.results.some((r) => r.type === 'web' && !r.error)) {
+      if (hasWebSource) {
         tags.push('article');
       }
 
+      const generatedTitle = extractMarkdownTitle(generatedContent);
       const title = customTitle
+        || generatedTitle
         || (isSingleUrl && firstSuccess ? firstSuccess.title : null)
         || (isSingleUrl ? rawUrls[0] : `Merged Document (${summary.successfulCount} sources)`);
 
@@ -194,7 +273,7 @@ export const createDocumentFromUrl = onCall(
       const documentRequest: CreateDocumentRequest = {
         title,
         description,
-        content: summary.mergedMarkdown,
+        content: generatedContent,
         sourceType: DocumentSourceType.URL,
         sourceUrl: rawUrls[0],
         status: DocumentStatus.ACTIVE,
@@ -220,7 +299,8 @@ export const createDocumentFromUrl = onCall(
           urlCount: rawUrls.length,
           successfulCount: summary.successfulCount,
           failedCount: summary.failedCount,
-          totalWordCount: summary.totalWordCount,
+          sourceWordCount: summary.totalWordCount,
+          totalWordCount: document.wordCount,
         },
       };
 
