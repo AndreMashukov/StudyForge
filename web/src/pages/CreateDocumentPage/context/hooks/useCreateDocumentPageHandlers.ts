@@ -3,20 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   useCreateDocumentFromUrlMutation, 
-  useCreateDocumentMutation,
+  useUploadAndCreateDocumentMutation,
   useGenerateFromPromptMutation 
 } from '../../../../store/api/Documents';
 import { IUrlScrapingFormData } from '../../CreateDocumentPageContainer/UrlScrapingForm/IUrlScrapingForm';
 import { IFileUploadFormData } from '../../CreateDocumentPageContainer/FileUploadForm/IFileUploadForm';
 import { ITextPromptFormData } from '../../CreateDocumentPageContainer/TextPromptForm/ITextPromptForm';
-import { DocumentSourceType, IFileContent } from '@shared-types';
+import { IFileContent } from '@shared-types';
+import {
+  readFileAsBase64,
+  stripDocumentUploadExtension,
+} from '../../../../utils/documentUploadUtils';
 import { 
   setError, 
   clearError, 
-  setUrlFormLoading, 
   setFileFormLoading,
-  setTextPromptFormLoading,
-  setTextPromptFormProgress,
   selectCreateDocumentPageError,
   selectUrlFormLoading,
   selectFileFormLoading,
@@ -40,7 +41,7 @@ export const useCreateDocumentPageHandlers = () => {
   const directoryId = useSelector((state: RootState) => selectSelectedDirectoryId(state)); // 🆕 Get directoryId from global directory selection
   
   const [createDocumentFromUrl] = useCreateDocumentFromUrlMutation();
-  const [createDocument] = useCreateDocumentMutation();
+  const [uploadAndCreateDocument] = useUploadAndCreateDocumentMutation();
   const [generateFromPrompt] = useGenerateFromPromptMutation();
   
   const isLoading = isUrlLoading || isFileLoading || isTextPromptLoading;
@@ -69,33 +70,41 @@ export const useCreateDocumentPageHandlers = () => {
     navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
   }, [createDocumentFromUrl, navigate, dispatch, directoryId]);
 
-  const handleCreateFromFile = useCallback((data: IFileUploadFormData) => {
+  const handleCreateFromFile = useCallback(async (data: IFileUploadFormData) => {
     dispatch(clearError());
     if (!directoryId) {
       dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
       return;
     }
 
-    // Navigate immediately — don't block on FileReader
-    navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
-
-    // Read file and fire mutation in background
-    const reader = new FileReader();
-    reader.onload = () => {
-      createDocument({
-        title: data.title || data.file.name.replace(/\.md$/, ''),
-        content: reader.result as string,
-        sourceType: DocumentSourceType.UPLOAD,
+    dispatch(setFileFormLoading(true));
+    try {
+      const content = await readFileAsBase64(data.file);
+      const uploadPromise = uploadAndCreateDocument({
+        fileName: data.file.name,
+        content,
+        mimeType: data.file.type || undefined,
+        size: data.file.size,
+        title: data.title || stripDocumentUploadExtension(data.file.name),
         directoryId,
         ruleIds: data.ruleIds,
         ruleResolutionMode: 'explicit-only',
-      });
-    };
-    reader.onerror = () => {
-      dispatch(setError('Failed to read file. Please try again.'));
-    };
-    reader.readAsText(data.file);
-  }, [createDocument, navigate, dispatch, directoryId]);
+      }).unwrap();
+
+      navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
+
+      void uploadPromise
+        .catch((error) => {
+          dispatch(setError(getSubmissionErrorMessage(error)));
+        })
+        .finally(() => {
+          dispatch(setFileFormLoading(false));
+        });
+    } catch (error) {
+      dispatch(setFileFormLoading(false));
+      dispatch(setError(getSubmissionErrorMessage(error)));
+    }
+  }, [uploadAndCreateDocument, navigate, dispatch, directoryId]);
 
   const handleCreateFromTextPrompt = useCallback((
     data: ITextPromptFormData,
@@ -143,3 +152,21 @@ export const useCreateDocumentPageHandlers = () => {
     error,
   };
 };
+
+function getSubmissionErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    const maybeError = error as { data?: { message?: unknown }; message?: unknown };
+    if (typeof maybeError.data?.message === 'string') {
+      return maybeError.data.message;
+    }
+    if (typeof maybeError.message === 'string') {
+      return maybeError.message;
+    }
+  }
+
+  return 'Failed to upload file. Please try again.';
+}

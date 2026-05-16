@@ -1,6 +1,6 @@
 // Mermaid diagram detection is based on the first non-empty line inside a
 // fenced block so the validator can normalize unlabeled Mermaid code fences.
-import { GoogleGenAI } from '@google/genai';
+import { FinishReason, GoogleGenAI } from '@google/genai';
 import * as functions from 'firebase-functions';
 import {
   ScrapedContent,
@@ -303,6 +303,74 @@ export class GeminiService {
     } catch (error) {
       functions.logger.error('Error generating content with Gemini AI:', error);
       throw new Error(`Failed to generate content: ${error}`);
+    }
+  }
+
+  /**
+   * Clean up deterministic document extraction artifacts without changing the
+   * source material into a different lesson format.
+   */
+  public static async enhanceExtractedDocument(
+    markdownContent: string,
+    sourceFilename: string,
+    rules?: string
+  ): Promise<string> {
+    try {
+      functions.logger.info('Enhancing extracted document with Gemini AI', {
+        sourceFilename,
+        contentLength: markdownContent.length,
+        hasRules: !!rules?.trim(),
+      });
+
+      const rulesSection = rules?.trim()
+        ? `\n\nDomain rules to respect while cleaning the extraction:\n---\n${rules}\n---`
+        : '';
+
+      const prompt = `Clean up this extracted document and return polished Markdown only.
+
+Source filename: ${sourceFilename}
+
+Instructions:
+- Preserve all substantive content from the extraction.
+- Remove repeated page numbers, headers, footers, and extraction artifacts.
+- Repair obvious broken line wrapping, bullet lists, headings, and tables.
+- Keep the document faithful to the source; do not invent new sections or facts.
+- Keep image omission notes only if they help the reader understand missing context.
+- Start with a clear H1 heading if one is missing.
+- Do not wrap the response in a Markdown code block.${rulesSection}
+
+Extracted Markdown:
+---
+${markdownContent}
+---`;
+
+      const client = this.getClient();
+      const response = await client.models.generateContent({
+        model: GEMINI_PRO_MODEL,
+        contents: prompt,
+        config: {
+          temperature: 0.2,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 16384,
+        },
+      });
+
+      this.assertGeminiResponseCompleted(response, 'extracted document cleanup');
+
+      const text = response.text;
+      if (!text) {
+        throw new Error('Empty response from Gemini API for extracted document cleanup');
+      }
+
+      return this.stripMarkdownWrapper(text).trim();
+    } catch (error) {
+      functions.logger.error('Error enhancing extracted document:', error);
+      throw new Error(
+        `Failed to enhance extracted document: ${
+          error instanceof Error ? error.message : error
+        }`
+      );
     }
   }
 
@@ -1368,6 +1436,40 @@ This question is derived from: **${context.originalDocument.title}**
       functions.logger.error('Error validating document content:', error);
       return content; // Return original content on error
     }
+  }
+
+  private static stripMarkdownWrapper(content: string): string {
+    const markdownCodeBlockRegex = /^```markdown\s*\n([\s\S]*?)\n```$/;
+    const markdownMatch = content.match(markdownCodeBlockRegex);
+    if (markdownMatch) {
+      return markdownMatch[1];
+    }
+
+    const genericCodeBlockRegex = /^```\s*\n([\s\S]*?)\n```$/;
+    const genericMatch = content.match(genericCodeBlockRegex);
+    return genericMatch ? genericMatch[1] : content;
+  }
+
+  private static assertGeminiResponseCompleted(
+    response: { candidates?: Array<{ finishReason?: FinishReason; finishMessage?: string }> },
+    operation: string
+  ): void {
+    const candidate = response.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+
+    if (!finishReason) {
+      functions.logger.warn('Gemini response did not include a finish reason', { operation });
+      return;
+    }
+
+    if (finishReason === FinishReason.STOP) {
+      return;
+    }
+
+    const finishMessage = candidate?.finishMessage ? `: ${candidate.finishMessage}` : '';
+    throw new Error(
+      `Gemini ${operation} stopped before completion (${finishReason}${finishMessage})`
+    );
   }
 
   /**

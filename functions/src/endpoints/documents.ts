@@ -5,7 +5,9 @@ import { validateAuth } from '../lib/auth';
 import { DocumentCrudService } from '../services/document-crud';
 import { directoryService } from '../services/directory';
 import { UrlProcessingOrchestrator } from '../services/url-processing/url-processing-orchestrator';
+import { FileExtractionError, FileExtractionService } from '../services/file-extraction';
 import { GeminiService } from '../services/gemini';
+import { SourceDocumentGenerationService } from '../services/source-document-generation';
 import {
   isRuleResolutionMode,
   resolveEffectiveRules,
@@ -19,6 +21,7 @@ import {
   IFileContent,
   MoveDocumentRequest,
   RuleApplicability,
+  UploadDocumentRequest,
 } from "@shared-types";
 
 // Define the Gemini API key secret for markdown conversion
@@ -117,6 +120,130 @@ export const createDocument = onCall(
       logger.error('Failed to create document', { 
         error: error instanceof Error ? error.message : String(error),
         data: request.data,
+      });
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+);
+
+/**
+ * Upload a binary file, extract it to Markdown, optionally clean up extraction
+ * artifacts, and create a document from the resulting content.
+ */
+export const uploadAndCreateDocument = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+    secrets: [geminiApiKey],
+    timeoutSeconds: 120,
+    memory: '1GiB',
+  },
+  async (request) => {
+    try {
+      const userId = await validateAuth(request);
+      const data = request.data as UploadDocumentRequest & {
+        additionalRuleIds?: string[];
+        ruleResolutionMode?: unknown;
+      };
+
+      logger.info('Uploading and creating document', {
+        userId,
+        fileName: data.fileName,
+        mimeType: data.mimeType || '(not provided)',
+        browserSize: data.size || null,
+        directoryId: data.directoryId,
+        ruleCount: data.ruleIds?.length || 0,
+      });
+
+      if (!data.fileName || typeof data.fileName !== 'string') {
+        throw new HttpsError('invalid-argument', 'fileName is required');
+      }
+
+      if (!data.content || typeof data.content !== 'string') {
+        throw new HttpsError('invalid-argument', 'content is required');
+      }
+
+      if (data.size !== undefined && (!Number.isFinite(data.size) || data.size <= 0)) {
+        throw new HttpsError('invalid-argument', 'size must be a positive number when provided');
+      }
+
+      if (!data.directoryId) {
+        throw new HttpsError('invalid-argument', 'directoryId is required');
+      }
+      await directoryService.validateDirectoryId(userId, data.directoryId);
+
+      const buffer = FileExtractionService.decodeBase64File(data.content, data.size);
+      const extraction = await FileExtractionService.extractFromFile(
+        buffer,
+        data.fileName,
+        data.mimeType
+      );
+
+      const mode = isRuleResolutionMode(data.ruleResolutionMode)
+        ? data.ruleResolutionMode
+        : (data.ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+      const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
+        userId,
+        directoryId: data.directoryId,
+        operation: RuleApplicability.UPLOAD,
+        additionalRuleIds: data.ruleIds?.length ? data.ruleIds : data.additionalRuleIds,
+        mode,
+      });
+
+      const prepared = await SourceDocumentGenerationService.prepareUploadDocumentContent({
+        extraction,
+        customTitle: data.title,
+        rulesText: rulesText || undefined,
+      });
+
+      const documentRequest: CreateDocumentRequest = {
+        title: prepared.title,
+        description: `Uploaded from: ${data.fileName}`,
+        content: prepared.content,
+        sourceType: DocumentSourceType.UPLOAD,
+        status: DocumentStatus.ACTIVE,
+        tags: prepared.tags,
+        directoryId: data.directoryId,
+        ruleIds: effectiveRuleIds,
+        ruleResolutionMode: mode,
+      };
+
+      const document = await DocumentCrudService.createDocument(userId, documentRequest);
+
+      logger.info('Document created from upload successfully', {
+        userId,
+        documentId: document.id,
+        fileName: data.fileName,
+        extension: extraction.extension,
+        originalSize: extraction.originalSize,
+        sourceWordCount: extraction.wordCount,
+        finalWordCount: document.wordCount,
+        warningCount: prepared.warnings.length,
+      });
+
+      return {
+        success: true,
+        document,
+        extraction: {
+          filename: extraction.filename,
+          extension: extraction.extension,
+          originalType: extraction.originalType,
+          originalSize: extraction.originalSize,
+          wordCount: extraction.wordCount,
+          metadata: extraction.metadata,
+          warnings: prepared.warnings,
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      if (error instanceof FileExtractionError) {
+        throw new HttpsError(error.code, error.message);
+      }
+
+      logger.error('Failed to create document from upload', {
+        error: error instanceof Error ? error.message : String(error),
+        fileName: request.data?.fileName,
+        directoryId: request.data?.directoryId,
       });
       throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
