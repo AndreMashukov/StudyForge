@@ -3,6 +3,8 @@ import { DocumentEnhanced as Document, DocumentMetadataEnhanced as DocumentMetad
 import { logger } from 'firebase-functions/v2';
 import { FirestorePaths } from '../lib/firestore-paths';
 
+const MAX_DOCUMENT_CONTENT_BYTES = 5 * 1024 * 1024;
+
 /**
  * Service for managing document storage in Firebase Storage
  * Handles markdown document upload, download, and management operations
@@ -143,7 +145,7 @@ export class DocumentService {
             updatedAt: new Date().toISOString(),
           },
         },
-        resumable: false, // Use simple upload for files < 100KB
+        resumable: false,
         validation: 'crc32c',
       });
 
@@ -448,8 +450,9 @@ export class DocumentService {
       throw new Error('Document content cannot be empty');
     }
 
-    if (content.length > 100 * 1024) {
-      throw new Error('Document content exceeds maximum size of 100KB');
+    const contentSize = Buffer.byteLength(content, 'utf8');
+    if (contentSize > MAX_DOCUMENT_CONTENT_BYTES) {
+      throw new Error('Document content exceeds maximum size of 5MB');
     }
 
     // Additional content validation can be added here

@@ -2,6 +2,7 @@ import {
   DocumentEnhanced, 
   CreateDocumentRequest,
   CreateDocumentFromUrlsRequest,
+  UploadDocumentRequest,
   UpdateDocumentRequest,
   DeleteDocumentRequest
 } from '@shared-types';
@@ -18,6 +19,7 @@ export interface IDocumentsApi {
   getDocument: (documentId: string) => DocumentEnhanced;
   createDocument: (data: CreateDocumentRequest) => DocumentEnhanced;
   createDocumentFromUrl: (data: CreateDocumentFromUrlsRequest) => DocumentEnhanced;
+  uploadAndCreateDocument: (data: UploadDocumentRequest) => DocumentEnhanced;
   updateDocument: (data: UpdateDocumentRequest) => DocumentEnhanced;
   deleteDocument: (data: DeleteDocumentRequest) => { success: boolean };
   

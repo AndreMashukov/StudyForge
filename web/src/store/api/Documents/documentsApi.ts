@@ -7,7 +7,8 @@ import {
   UpdateDocumentRequest,
   DeleteDocumentRequest,
   GenerateFromPromptRequest,
-  GenerateFromPromptResponse
+  GenerateFromPromptResponse,
+  UploadDocumentRequest
 } from "@shared-types";
 
 interface ListDocumentsResponse {
@@ -76,6 +77,23 @@ export const documentsApi = baseApi.injectEndpoints({
         { type: 'Directory', id: 'LIST' },
       ],
       onQueryStarted: createDocumentOnQueryStarted('Document', 'create document from URL'),
+    }),
+
+    uploadAndCreateDocument: builder.mutation<DocumentEnhanced, UploadDocumentRequest>({
+      query: (data) => ({
+        functionName: 'uploadAndCreateDocument',
+        data,
+        timeout: 180000,
+      }),
+      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) => {
+        return response.document;
+      },
+      invalidatesTags: [
+        'Document',
+        { type: 'Directory', id: 'CONTENTS' },
+        { type: 'Directory', id: 'LIST' },
+      ],
+      onQueryStarted: createDocumentOnQueryStarted('Document', 'upload document'),
     }),
     
     generateFromPrompt: builder.mutation<GenerateFromPromptResponse, GenerateFromPromptRequest>({
@@ -186,6 +204,7 @@ export const {
   useGetDocumentContentQuery,
   useLazyGetDocumentContentQuery,
   useCreateDocumentMutation,
+  useUploadAndCreateDocumentMutation,
   useCreateDocumentFromUrlMutation,
   useGenerateFromPromptMutation,
   useUpdateDocumentMutation,

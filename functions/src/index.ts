@@ -104,6 +104,7 @@ export {
 // Export document management functions
 export {
   createDocument,
+  uploadAndCreateDocument,
   createDocumentFromUrl,
   generateFromPrompt,
   getDocument,

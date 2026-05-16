@@ -529,9 +529,37 @@ export interface CreateDocumentFromUrlsRequest {
   ruleResolutionMode?: RuleResolutionMode;
 }
 
+export type SupportedFileExtension =
+  | 'pdf'
+  | 'docx'
+  | 'txt'
+  | 'md'
+  | 'csv'
+  | 'pptx'
+  | 'epub';
+
+export interface FileExtractionResult {
+  filename: string;
+  originalType: string;
+  markdownContent: string;
+  wordCount: number;
+  title: string | null;
+  extension: SupportedFileExtension;
+  originalSize: number;
+  warnings?: string[];
+  metadata?: {
+    pageCount?: number;
+    slideCount?: number;
+    sheetCount?: number;
+    chapterCount?: number;
+  };
+}
+
 export interface UploadDocumentRequest {
   fileName: string;
-  content: string; // Base64 encoded markdown content
+  content: string; // Base64 encoded original file bytes
+  mimeType?: string; // Browser-provided MIME type; advisory only
+  size?: number; // Browser-reported original file size in bytes
   title?: string; // Optional override for document title
   directoryId: string;
   ruleIds?: string[]; // Optional rules for content processing (Section 6)
@@ -543,7 +571,7 @@ export interface IFileContent {
   filename: string;
   content: string;
   size: number;
-  type: 'text/plain' | 'text/markdown';
+  type: string;
   source?: 'upload' | 'library'; // Optional: track source for logging
   documentId?: string; // Optional: document ID for library documents (ownership validation)
 }
@@ -664,9 +692,9 @@ export interface ContentValidationResult {
 
 // File Upload Types
 export interface FileUploadValidation {
-  maxSize: number; // 100KB = 100 * 1024 bytes
-  allowedTypes: string[]; // ['text/markdown', 'text/plain']
-  allowedExtensions: string[]; // ['.md', '.markdown']
+  maxSize: number;
+  allowedTypes: string[];
+  allowedExtensions: string[];
 }
 
 export interface UploadValidationResult {

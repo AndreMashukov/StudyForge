@@ -51,7 +51,7 @@ const getFormDescription = (sourceType: string) => {
     case 'website':
       return 'Turn web pages or YouTube videos into a document';
     case 'file':
-      return 'Upload a markdown file to create a document';
+      return 'Upload a document to create a study guide';
     case 'textPrompt':
       return 'Describe what you want to learn — AI will generate the document';
     case 'videoUrl':
