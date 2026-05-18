@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ExternalLink, Folder, KeyRound, Keyboard, Link, RefreshCw, Save, Trash2 } from 'lucide-react';
-import { CAPTURE_SCREENSHOT_COMMAND, CommandShortcut, DebugLogEntry, DEFAULT_API_BASE_URL, DEFAULT_SETTINGS, ExtensionSettings } from '../types';
+import { Check, ExternalLink, Folder, KeyRound, Keyboard, Link, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
+import { CAPTURE_COMMANDS, CAPTURE_SCREENSHOT_COMMAND, CommandShortcut, DebugLogEntry, DEFAULT_API_BASE_URL, DEFAULT_SETTINGS, ExtensionSettings } from '../types';
 import { DebugLogService } from '../services/DebugLogService';
 import { ExtensionHostPermissionService } from '../services/ExtensionHostPermissionService';
 import { ExtensionSettingsRepository } from '../services/ExtensionSettingsRepository';
@@ -12,6 +12,7 @@ export const App = () => {
   const settingsRepository = useMemo(() => new ExtensionSettingsRepository(), []);
   const settingsValidator = useMemo(() => new ExtensionSettingsValidator(), []);
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
+  const [activeMappingCommands, setActiveMappingCommands] = useState<string[]>([CAPTURE_SCREENSHOT_COMMAND]);
   const [commands, setCommands] = useState<CommandShortcut[]>([]);
   const [debugEntries, setDebugEntries] = useState<DebugLogEntry[]>([]);
   const [status, setStatus] = useState<string>('');
@@ -28,6 +29,7 @@ export const App = () => {
         }
 
         setSettings(savedSettings);
+        setActiveMappingCommands(getInitialActiveMappingCommands(savedSettings));
         setCommands(registeredCommands);
         setDebugEntries(storedDebugEntries);
       })
@@ -45,7 +47,8 @@ export const App = () => {
     };
   }, [debugLogService, settingsRepository]);
 
-  const shortcut = commands.find((command) => command.name === CAPTURE_SCREENSHOT_COMMAND)?.shortcut || 'Unassigned';
+  const activeCaptureCommands = CAPTURE_COMMANDS.filter((command) => activeMappingCommands.includes(command.id));
+  const canAddMapping = activeMappingCommands.length < CAPTURE_COMMANDS.length;
 
   const updateField = (field: keyof Omit<ExtensionSettings, 'directoryMappings'>, value: string) => {
     setSettings((current) => ({
@@ -54,18 +57,37 @@ export const App = () => {
     }));
   };
 
-  const updateDirectoryMapping = (directoryId: string) => {
+  const updateDirectoryMapping = (commandId: string, directoryId: string) => {
     setSettings((current) => ({
       ...current,
       directoryMappings: {
         ...current.directoryMappings,
-        [CAPTURE_SCREENSHOT_COMMAND]: directoryId,
+        [commandId]: directoryId,
       },
     }));
   };
 
+  const addMapping = () => {
+    const nextCommand = CAPTURE_COMMANDS.find((command) => !activeMappingCommands.includes(command.id));
+    if (!nextCommand) {
+      return;
+    }
+
+    setActiveMappingCommands((current) => [...current, nextCommand.id]);
+  };
+
+  const removeMapping = (commandId: string) => {
+    setActiveMappingCommands((current) => current.filter((activeCommandId) => activeCommandId !== commandId));
+    updateDirectoryMapping(commandId, '');
+  };
+
   const handleSave = async () => {
-    const validationErrors = settingsValidator.validateSettings(settings);
+    const settingsToSave = buildSettingsForSave(settings, activeMappingCommands);
+    const validationErrors = [
+      ...settingsValidator.validateSettings(settingsToSave),
+      ...validateActiveMappings(settingsToSave, activeMappingCommands),
+    ];
+
     if (validationErrors.length > 0) {
       setStatus(validationErrors.join(' '));
       return;
@@ -74,8 +96,9 @@ export const App = () => {
     setIsSaving(true);
     setStatus('');
     try {
-      await hostPermissionService.requestConfiguredHosts(settings);
-      await settingsRepository.saveSettings(settings);
+      await hostPermissionService.requestConfiguredHosts(settingsToSave);
+      await settingsRepository.saveSettings(settingsToSave);
+      setSettings(settingsToSave);
       setStatus('Saved');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Unable to save settings.');
@@ -155,21 +178,48 @@ export const App = () => {
       <section className="settings-section command-section">
         <div className="command-header">
           <div>
-            <p className="eyebrow">Command</p>
-            <h2>{shortcut}</h2>
+            <p className="eyebrow">Mappings</p>
+            <h2>{activeMappingCommands.length} / {CAPTURE_COMMANDS.length}</h2>
           </div>
-          <span className="shortcut-state">{CAPTURE_SCREENSHOT_COMMAND}</span>
+          <button className="add-button" type="button" onClick={addMapping} disabled={!canAddMapping}>
+            <Plus aria-hidden="true" size={15} />
+            Add
+          </button>
         </div>
 
-        <label className="field">
-          <span><Folder aria-hidden="true" size={14} /> Directory ID</span>
-          <input
-            type="text"
-            value={settings.directoryMappings[CAPTURE_SCREENSHOT_COMMAND] || ''}
-            placeholder="Directory ID"
-            onChange={(event) => updateDirectoryMapping(event.target.value)}
-          />
-        </label>
+        {activeCaptureCommands.length > 0 ? (
+          <div className="mapping-list">
+            {activeCaptureCommands.map((captureCommand) => (
+              <div className="mapping-row" key={captureCommand.id}>
+                <div className="mapping-row-header">
+                  <div className="mapping-meta">
+                    <span className="mapping-label">{captureCommand.label}</span>
+                    <span className="shortcut-state">{getShortcutLabel(commands, captureCommand.id)}</span>
+                  </div>
+                  <button
+                    className="remove-button"
+                    type="button"
+                    title={`Remove ${captureCommand.label}`}
+                    onClick={() => removeMapping(captureCommand.id)}
+                  >
+                    <X aria-hidden="true" size={15} />
+                  </button>
+                </div>
+                <label className="field">
+                  <span><Folder aria-hidden="true" size={14} /> Directory ID</span>
+                  <input
+                    type="text"
+                    value={settings.directoryMappings[captureCommand.id] || ''}
+                    placeholder="Directory ID"
+                    onChange={(event) => updateDirectoryMapping(captureCommand.id, event.target.value)}
+                  />
+                </label>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mapping-empty">No mappings configured.</p>
+        )}
       </section>
 
       <section className="settings-section debug-section">
@@ -215,6 +265,38 @@ export const App = () => {
 
 async function getCommands(): Promise<CommandShortcut[]> {
   return chrome.commands.getAll();
+}
+
+function getInitialActiveMappingCommands(settings: ExtensionSettings): string[] {
+  const configuredCommands = CAPTURE_COMMANDS
+    .filter((command) => settings.directoryMappings[command.id]?.trim())
+    .map((command) => command.id);
+
+  return configuredCommands.length > 0 ? configuredCommands : [CAPTURE_SCREENSHOT_COMMAND];
+}
+
+function getShortcutLabel(commands: CommandShortcut[], commandId: string): string {
+  return commands.find((command) => command.name === commandId)?.shortcut || 'Unassigned';
+}
+
+function buildSettingsForSave(settings: ExtensionSettings, activeCommandIds: string[]): ExtensionSettings {
+  const directoryMappings = CAPTURE_COMMANDS.reduce<Record<string, string>>((mappings, command) => ({
+    ...mappings,
+    [command.id]: activeCommandIds.includes(command.id)
+      ? settings.directoryMappings[command.id]?.trim() || ''
+      : '',
+  }), {});
+
+  return {
+    ...settings,
+    directoryMappings,
+  };
+}
+
+function validateActiveMappings(settings: ExtensionSettings, activeCommandIds: string[]): string[] {
+  return CAPTURE_COMMANDS
+    .filter((command) => activeCommandIds.includes(command.id) && !settings.directoryMappings[command.id]?.trim())
+    .map((command) => `${command.label} directory ID is required.`);
 }
 
 function formatDebugTime(timestamp: string): string {

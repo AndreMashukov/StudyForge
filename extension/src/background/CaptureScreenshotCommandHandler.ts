@@ -1,4 +1,4 @@
-import { CaptureState, CAPTURE_SCREENSHOT_COMMAND } from '../types';
+import { CaptureState, isCaptureCommand } from '../types';
 import { ExtensionSettingsRepository } from '../services/ExtensionSettingsRepository';
 import { ExtensionSettingsValidator } from '../services/ExtensionSettingsValidator';
 import { ScreenshotCaptureService } from '../services/ScreenshotCaptureService';
@@ -24,7 +24,7 @@ export class CaptureScreenshotCommandHandler {
       state: this.state,
     });
 
-    if (command !== CAPTURE_SCREENSHOT_COMMAND) {
+    if (!isCaptureCommand(command)) {
       await this.deps.debugLogService.info('Ignoring unsupported command', { command });
       return;
     }
@@ -41,6 +41,7 @@ export class CaptureScreenshotCommandHandler {
       const settings = await this.deps.settingsRepository.getSettings();
       const { directoryId } = this.deps.settingsValidator.validateForCommand(settings, command);
       await this.deps.debugLogService.info('Settings validated', {
+        command,
         apiBaseUrl: settings.apiBaseUrl,
         appBaseUrl: settings.appBaseUrl,
         hasApiKey: Boolean(settings.apiKey.trim()),
@@ -64,6 +65,7 @@ export class CaptureScreenshotCommandHandler {
 
       this.transitionTo('success');
       await this.deps.debugLogService.info('Screenshot document created', {
+        command,
         documentId: result.documentId,
         title: result.title,
       });

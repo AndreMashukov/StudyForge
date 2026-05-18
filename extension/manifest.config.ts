@@ -1,7 +1,21 @@
 import { defineManifest } from '@crxjs/vite-plugin';
-import { DEFAULT_API_BASE_URL } from './src/types';
+import { CAPTURE_COMMANDS, DEFAULT_API_BASE_URL } from './src/types';
 
 const DEFAULT_API_HOST_PERMISSION = `${new URL(DEFAULT_API_BASE_URL).origin}/*`;
+const commands = CAPTURE_COMMANDS.reduce<Record<string, { description: string; suggested_key?: { default: string; mac: string } }>>(
+  (items, command) => {
+    const suggestedKey = 'suggestedKey' in command ? command.suggestedKey : undefined;
+
+    return {
+      ...items,
+      [command.id]: {
+        description: command.description,
+        ...(suggestedKey ? { suggested_key: { ...suggestedKey } } : {}),
+      },
+    };
+  },
+  {}
+);
 
 export default defineManifest({
   manifest_version: 3,
@@ -24,13 +38,5 @@ export default defineManifest({
     48: 'icons/icon-48.png',
     128: 'icons/icon-128.png',
   },
-  commands: {
-    'capture-screenshot': {
-      suggested_key: {
-        default: 'Ctrl+Shift+S',
-        mac: 'Command+Shift+S',
-      },
-      description: 'Capture viewport and create a StudyForge document',
-    },
-  },
+  commands,
 });
