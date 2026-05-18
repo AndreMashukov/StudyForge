@@ -16,7 +16,7 @@ export default defineManifest({
     service_worker: 'src/background/main.ts',
     type: 'module',
   },
-  permissions: ['activeTab', 'commands', 'notifications', 'storage', 'tabs'],
+  permissions: ['activeTab', 'commands', 'storage', 'tabs'],
   host_permissions: [DEFAULT_API_HOST_PERMISSION],
   optional_host_permissions: ['https://*/*', 'http://*/*'],
   icons: {
