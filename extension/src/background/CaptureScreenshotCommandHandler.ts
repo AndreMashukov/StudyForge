@@ -34,7 +34,7 @@ export class CaptureScreenshotCommandHandler {
       const { directoryId } = this.deps.settingsValidator.validateForCommand(settings, command);
 
       this.transitionTo('capturing');
-      await this.deps.notificationService.showProgress();
+      void this.showProgressSafely();
       const imageBase64 = await this.deps.screenshotCaptureService.captureVisibleViewport();
 
       this.transitionTo('uploading');
@@ -46,7 +46,7 @@ export class CaptureScreenshotCommandHandler {
       });
 
       this.transitionTo('success');
-      await this.deps.notificationService.showSuccess(
+      await this.showSuccessSafely(
         result.title,
         `${settings.appBaseUrl.replace(/\/+$/, '')}/document/${result.documentId}`
       );
@@ -69,6 +69,22 @@ export class CaptureScreenshotCommandHandler {
       await this.deps.notificationService.showError(message);
     } catch (error) {
       console.warn('Failed to show StudyForge Capture error notification', error);
+    }
+  }
+
+  private async showProgressSafely(): Promise<void> {
+    try {
+      await this.deps.notificationService.showProgress();
+    } catch (error) {
+      console.warn('Failed to show StudyForge Capture progress notification', error);
+    }
+  }
+
+  private async showSuccessSafely(title: string, documentUrl: string): Promise<void> {
+    try {
+      await this.deps.notificationService.showSuccess(title, documentUrl);
+    } catch (error) {
+      console.warn('Failed to show StudyForge Capture success notification', error);
     }
   }
 }

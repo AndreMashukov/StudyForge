@@ -1,5 +1,5 @@
 const NOTIFICATION_TARGET_PREFIX = 'notificationTarget:';
-const ICON_URL = 'icons/icon-128.svg';
+const ICON_URL = 'icons/icon-128.png';
 
 export class NotificationService {
   attachClickHandlers(): void {

@@ -16,9 +16,9 @@ export default defineManifest({
   permissions: ['activeTab', 'commands', 'notifications', 'storage', 'tabs'],
   optional_host_permissions: ['https://*/*', 'http://*/*'],
   icons: {
-    16: 'icons/icon-16.svg',
-    48: 'icons/icon-48.svg',
-    128: 'icons/icon-128.svg',
+    16: 'icons/icon-16.png',
+    48: 'icons/icon-48.png',
+    128: 'icons/icon-128.png',
   },
   commands: {
     'capture-screenshot': {

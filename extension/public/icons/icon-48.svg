@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 128 128" role="img" aria-label="StudyForge Capture">
-  <rect width="128" height="128" rx="24" fill="#0b0f14"/>
-  <rect x="24" y="28" width="80" height="56" rx="10" fill="#16a674"/>
-  <rect x="34" y="38" width="60" height="36" rx="5" fill="#f5f7fb"/>
-  <path d="M45 101h38l-8-17H53l-8 17Z" fill="#f7b955"/>
-  <path d="M78 22 61 56h19L66 91l39-45H83l16-24H78Z" fill="#f7b955"/>
-</svg>
