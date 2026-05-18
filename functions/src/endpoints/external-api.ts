@@ -1,11 +1,13 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
-import { validateApiKeyFromRequest } from "../lib/api-key-auth";
+import { ExternalAuthResult, validateExternalAuthFromRequest } from "../lib/api-key-auth";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
 import { GeminiService } from "../services/gemini";
 import { FirestoreService } from "../services/firestore";
+import { ScreenshotDocumentGenerationService } from "../services/screenshot-document-generation";
+import { enforceScreenshotGenerationRateLimit, RateLimitError } from "../services/api-rate-limit";
 import {
   isRuleResolutionMode,
   resolveEffectiveRules,
@@ -29,6 +31,7 @@ import {
   Flashcard,
   FlashcardSet,
   GenerateFromPromptRequest,
+  GenerateFromScreenshotRequest,
   GenerateQuizRequest,
   RuleApplicability,
   Slide,
@@ -50,6 +53,7 @@ const geminiApiKey = defineSecret("GEMINI_API_KEY");
  * Routes:
  *   POST /documents                        — Create a document
  *   POST /documents/generate-from-prompt   — Generate a document from an AI text prompt
+ *   POST /documents/generate-from-screenshot — Generate a document from a screenshot
  *   POST /directories                      — Create a directory
  *   POST /quizzes/generate                 — Generate a quiz from document(s)
  */
@@ -64,9 +68,9 @@ export const api = onRequest(
   },
   async (req, res) => {
     // --- Authentication ---
-    let userId: string;
+    let authResult: ExternalAuthResult;
     try {
-      userId = await validateApiKeyFromRequest(req);
+      authResult = await validateExternalAuthFromRequest(req);
     } catch (err) {
       res.status(401).json({
         success: false,
@@ -74,6 +78,8 @@ export const api = onRequest(
       });
       return;
     }
+
+    const userId = authResult.userId;
 
     const method = req.method;
     const path = req.path; // e.g. "/documents", "/quizzes/generate"
@@ -1130,6 +1136,57 @@ export const api = onRequest(
         return;
       }
 
+      // POST /documents/generate-from-screenshot
+      if (method === "POST" && path === "/documents/generate-from-screenshot") {
+        const body: unknown = req.body;
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          res.status(400).json({ success: false, error: "Request body must be a JSON object." });
+          return;
+        }
+        const data = body as GenerateFromScreenshotRequest;
+
+        if (!data.imageBase64 || typeof data.imageBase64 !== "string") {
+          res.status(400).json({ success: false, error: "imageBase64 is required and must be a string." });
+          return;
+        }
+
+        if (typeof data.directoryId !== "string" || !data.directoryId.trim()) {
+          res.status(400).json({ success: false, error: "directoryId is required." });
+          return;
+        }
+
+        if (data.prompt !== undefined && typeof data.prompt !== "string") {
+          res.status(400).json({ success: false, error: "prompt must be a string when provided." });
+          return;
+        }
+
+        if (data.title !== undefined && typeof data.title !== "string") {
+          res.status(400).json({ success: false, error: "title must be a string when provided." });
+          return;
+        }
+
+        if (data.ruleIds !== undefined && !Array.isArray(data.ruleIds)) {
+          res.status(400).json({ success: false, error: "ruleIds must be an array when provided." });
+          return;
+        }
+
+        await enforceScreenshotGenerationRateLimit({
+          userId,
+          limiterKey: authResult.limiterKey,
+        });
+
+        const result = await ScreenshotDocumentGenerationService.generate({
+          ...data,
+          userId,
+        });
+
+        res.status(201).json({
+          success: true,
+          data: result,
+        });
+        return;
+      }
+
       // ==================== READ ENDPOINTS ====================
 
       // GET /documents — List documents (with optional filters)
@@ -1525,6 +1582,7 @@ export const api = onRequest(
           // Create
           "POST /documents",
           "POST /documents/generate-from-prompt",
+          "POST /documents/generate-from-screenshot",
           "POST /directories",
           "POST /rules",
           "POST /quizzes/generate",
@@ -1564,6 +1622,16 @@ export const api = onRequest(
         ],
       });
     } catch (err) {
+      if (err instanceof RateLimitError) {
+        res.set("Retry-After", String(err.retryAfterSeconds));
+        res.status(429).json({
+          success: false,
+          error: err.message,
+          retryAfterSeconds: err.retryAfterSeconds,
+        });
+        return;
+      }
+
       console.error(`External API error [${method} ${path}]:`, err);
       res.status(500).json({
         success: false,

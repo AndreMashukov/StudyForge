@@ -1,0 +1,30 @@
+{
+  "name": "extension",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "extension/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "vite build --config extension/vite.config.ts"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "vite --config extension/vite.config.ts --host localhost"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "tsc -p extension/tsconfig.json --noEmit"
+      }
+    }
+  },
+  "tags": ["type:app", "scope:extension"]
+}

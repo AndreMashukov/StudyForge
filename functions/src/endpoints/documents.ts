@@ -8,6 +8,7 @@ import { UrlProcessingOrchestrator } from '../services/url-processing/url-proces
 import { FileExtractionError, FileExtractionService } from '../services/file-extraction';
 import { GeminiService } from '../services/gemini';
 import { SourceDocumentGenerationService } from '../services/source-document-generation';
+import { ScreenshotDocumentGenerationService } from '../services/screenshot-document-generation';
 import {
   isRuleResolutionMode,
   resolveEffectiveRules,
@@ -18,6 +19,7 @@ import {
   DocumentSourceType,
   DocumentStatus,
   GenerateFromPromptRequest,
+  GenerateFromScreenshotRequest,
   IFileContent,
   MoveDocumentRequest,
   RuleApplicability,
@@ -1014,6 +1016,60 @@ export const generateFromPrompt = onCall(
       logger.error('Failed to generate document from prompt', { 
         error: error instanceof Error ? error.message : String(error),
         prompt: request.data?.prompt?.substring(0, 50),
+      });
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+);
+
+/**
+ * Generate a document from a screenshot using Gemini AI
+ */
+export const generateFromScreenshot = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+    secrets: [geminiApiKey],
+    timeoutSeconds: 540,
+  },
+  async (request) => {
+    try {
+      const userId = await validateAuth(request);
+      const data = request.data as GenerateFromScreenshotRequest;
+
+      if (!data.imageBase64 || typeof data.imageBase64 !== 'string') {
+        throw new HttpsError('invalid-argument', 'imageBase64 is required and must be a string');
+      }
+
+      if (!data.directoryId || typeof data.directoryId !== 'string') {
+        throw new HttpsError('invalid-argument', 'directoryId is required');
+      }
+
+      logger.info('Generating document from screenshot', {
+        userId,
+        directoryId: data.directoryId,
+        imageSize: data.imageBase64.length,
+        hasPrompt: !!data.prompt,
+        ruleCount: data.ruleIds?.length || 0,
+      });
+
+      const result = await ScreenshotDocumentGenerationService.generate({
+        ...data,
+        userId,
+      });
+
+      return {
+        success: true,
+        ...result,
+      };
+    } catch (error) {
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      logger.error('Failed to generate document from screenshot', {
+        error: error instanceof Error ? error.message : String(error),
+        directoryId: request.data?.directoryId,
       });
       throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }

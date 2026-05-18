@@ -18,6 +18,7 @@ import {
   SlideDeckPromptBuilder,
   DiagramQuizPromptBuilder,
   SequenceQuizPromptBuilder,
+  ScreenshotPromptBuilder,
 } from './prompt-builder';
 import {
   buildPromptWithContextFiles,
@@ -455,6 +456,96 @@ ${markdownContent}
       );
       throw new Error(
         `Failed to generate document: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  public static async generateDocumentFromScreenshot(
+    imageBase64: string,
+    userPrompt?: string,
+    rules?: string
+  ): Promise<string> {
+    try {
+      functions.logger.info('Generating document from screenshot with Gemini AI', {
+        imageSize: imageBase64.length,
+        hasPrompt: !!userPrompt?.trim(),
+        hasRules: !!rules?.trim(),
+      });
+
+      let mimeType = 'image/png';
+      let rawBase64 = imageBase64;
+      const dataUrlMatch = imageBase64.match(/^data:(image\/\w+);base64,(.+)$/);
+      if (dataUrlMatch) {
+        mimeType = dataUrlMatch[1];
+        rawBase64 = dataUrlMatch[2];
+      }
+
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(mimeType)) {
+        throw new Error(`Unsupported screenshot MIME type: ${mimeType}`);
+      }
+
+      const normalizedBase64 = rawBase64.replace(/\s/g, '');
+      if (
+        normalizedBase64.length % 4 !== 0 ||
+        !/^[A-Za-z0-9+/]+={0,2}$/.test(normalizedBase64)
+      ) {
+        throw new Error('Screenshot image data is not valid base64');
+      }
+
+      const decodedImage = Buffer.from(normalizedBase64, 'base64');
+      if (decodedImage.length === 0) {
+        throw new Error('Screenshot image data is empty');
+      }
+
+      const client = this.getClient();
+      const prompt = ScreenshotPromptBuilder.buildDocumentPrompt({
+        userPrompt,
+        rules,
+      });
+
+      const response = await client.models.generateContent({
+        model: GEMINI_PRO_MODEL,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                inlineData: {
+                  mimeType,
+                  data: normalizedBase64,
+                },
+              },
+              { text: prompt },
+            ],
+          },
+        ],
+        config: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 16384,
+        },
+      });
+
+      const text = response.text;
+      if (!text) {
+        throw new Error('Empty response from Gemini API for screenshot document generation');
+      }
+
+      const validatedContent = this.validateAndFixDocumentContent(text);
+
+      functions.logger.info('Document generated from screenshot successfully', {
+        length: validatedContent.length,
+        wasFixed: validatedContent !== text,
+      });
+
+      return validatedContent;
+    } catch (error) {
+      functions.logger.error('Error generating document from screenshot:', error);
+      throw new Error(
+        `Failed to generate document from screenshot: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`
       );
