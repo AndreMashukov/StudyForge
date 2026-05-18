@@ -596,6 +596,28 @@ export interface GenerateFromPromptResponse {
   };
 }
 
+export interface GenerateFromScreenshotRequest {
+  imageBase64: string;
+  directoryId: string;
+  title?: string;
+  prompt?: string;
+  ruleIds?: string[];
+  ruleResolutionMode?: RuleResolutionMode;
+}
+
+export interface GenerateFromScreenshotResponse {
+  documentId: string;
+  title: string;
+  content: string;
+  wordCount: number;
+  metadata: {
+    generatedAt: string;
+    sourceType: 'screenshot';
+    directoryId: string;
+    prompt?: string;
+  };
+}
+
 export interface CreateDocumentResponse {
   documentId: string;
   document: Document;
