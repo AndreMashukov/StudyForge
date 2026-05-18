@@ -1,4 +1,5 @@
 import { GenerateFromScreenshotParams, GenerateFromScreenshotResult } from '../types';
+import { DebugLogService } from './DebugLogService';
 
 interface StudyForgeApiResponse<T> {
   success: boolean;
@@ -8,6 +9,8 @@ interface StudyForgeApiResponse<T> {
 }
 
 export class StudyForgeApiClient {
+  constructor(private readonly debugLogService?: DebugLogService) {}
+
   async generateFromScreenshot({
     apiBaseUrl,
     apiKey,
@@ -15,6 +18,12 @@ export class StudyForgeApiClient {
     imageBase64,
   }: GenerateFromScreenshotParams): Promise<GenerateFromScreenshotResult> {
     const url = `${apiBaseUrl.replace(/\/+$/, '')}/documents/generate-from-screenshot`;
+    await this.debugLogService?.info('Posting screenshot to StudyForge API', {
+      url,
+      directoryId,
+      imageBase64Length: imageBase64.length,
+    });
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -28,6 +37,15 @@ export class StudyForgeApiClient {
     });
 
     const payload = await this.parseResponse(response);
+    await this.debugLogService?.info('StudyForge API response received', {
+      url,
+      status: response.status,
+      ok: response.ok,
+      success: payload.success,
+      error: payload.error,
+      retryAfterSeconds: payload.retryAfterSeconds,
+    });
+
     if (!response.ok || !payload.success) {
       const retrySuffix = payload.retryAfterSeconds
         ? ` Try again in ${payload.retryAfterSeconds}s.`

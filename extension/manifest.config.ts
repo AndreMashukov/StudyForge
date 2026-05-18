@@ -1,4 +1,7 @@
 import { defineManifest } from '@crxjs/vite-plugin';
+import { DEFAULT_API_BASE_URL } from './src/types';
+
+const DEFAULT_API_HOST_PERMISSION = `${new URL(DEFAULT_API_BASE_URL).origin}/*`;
 
 export default defineManifest({
   manifest_version: 3,
@@ -14,6 +17,7 @@ export default defineManifest({
     type: 'module',
   },
   permissions: ['activeTab', 'commands', 'notifications', 'storage', 'tabs'],
+  host_permissions: [DEFAULT_API_HOST_PERMISSION],
   optional_host_permissions: ['https://*/*', 'http://*/*'],
   icons: {
     16: 'icons/icon-16.png',
