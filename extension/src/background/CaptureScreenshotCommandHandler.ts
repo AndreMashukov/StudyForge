@@ -24,7 +24,7 @@ export class CaptureScreenshotCommandHandler {
     }
 
     if (this.state !== 'idle') {
-      await this.deps.notificationService.showError('A screenshot capture is already running.');
+      await this.showErrorSafely('A screenshot capture is already running.');
       return;
     }
 
@@ -52,7 +52,7 @@ export class CaptureScreenshotCommandHandler {
       );
     } catch (error) {
       this.transitionTo('error');
-      await this.deps.notificationService.showError(
+      await this.showErrorSafely(
         error instanceof Error ? error.message : 'Screenshot capture failed.'
       );
     } finally {
@@ -62,5 +62,13 @@ export class CaptureScreenshotCommandHandler {
 
   private transitionTo(state: CaptureState): void {
     this.state = state;
+  }
+
+  private async showErrorSafely(message: string): Promise<void> {
+    try {
+      await this.deps.notificationService.showError(message);
+    } catch (error) {
+      console.warn('Failed to show StudyForge Capture error notification', error);
+    }
   }
 }

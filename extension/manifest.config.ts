@@ -14,7 +14,7 @@ export default defineManifest({
     type: 'module',
   },
   permissions: ['activeTab', 'commands', 'notifications', 'storage', 'tabs'],
-  host_permissions: ['<all_urls>'],
+  optional_host_permissions: ['https://*/*', 'http://*/*'],
   icons: {
     16: 'icons/icon-16.svg',
     48: 'icons/icon-48.svg',

@@ -46,7 +46,6 @@ export class ScreenshotDocumentGenerationService {
     if (rulesText) {
       logger.info('Injecting effective rules into screenshot document generation', {
         ruleCount: effectiveRuleIds.length,
-        userId,
         mode,
       });
     }
@@ -66,7 +65,7 @@ export class ScreenshotDocumentGenerationService {
 
     const document = await DocumentCrudService.createDocument(userId, {
       title,
-      description: `Captured from screenshot${input.prompt ? `: ${input.prompt.substring(0, 100)}` : ''}`,
+      description: 'Captured from screenshot',
       content: generatedContent,
       sourceType: DocumentSourceType.GENERATED,
       status: DocumentStatus.ACTIVE,

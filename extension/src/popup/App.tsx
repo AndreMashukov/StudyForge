@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, ExternalLink, Folder, KeyRound, Keyboard, Link, Save } from 'lucide-react';
 import { CAPTURE_SCREENSHOT_COMMAND, CommandShortcut, DEFAULT_SETTINGS, ExtensionSettings } from '../types';
+import { ExtensionHostPermissionService } from '../services/ExtensionHostPermissionService';
 import { ExtensionSettingsRepository } from '../services/ExtensionSettingsRepository';
 import { ExtensionSettingsValidator } from '../services/ExtensionSettingsValidator';
 
 export const App = () => {
+  const hostPermissionService = useMemo(() => new ExtensionHostPermissionService(), []);
   const settingsRepository = useMemo(() => new ExtensionSettingsRepository(), []);
   const settingsValidator = useMemo(() => new ExtensionSettingsValidator(), []);
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
@@ -68,6 +70,7 @@ export const App = () => {
     setIsSaving(true);
     setStatus('');
     try {
+      await hostPermissionService.requestConfiguredHosts(settings);
       await settingsRepository.saveSettings(settings);
       setStatus('Saved');
     } catch (error) {
