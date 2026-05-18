@@ -1,7 +1,8 @@
 export const CAPTURE_SCREENSHOT_COMMAND = 'capture-screenshot';
 
-export const DEFAULT_API_BASE_URL = 'https://asia-east1-studyforge.cloudfunctions.net/api';
+export const DEFAULT_API_BASE_URL = 'https://asia-east1-study-forge-202604.cloudfunctions.net/api';
 export const DEFAULT_APP_BASE_URL = 'https://studyforge.io';
+export const DEBUG_LOG_STORAGE_KEY = 'debugLog';
 
 export interface ExtensionSettings {
   apiKey: string;
@@ -33,6 +34,13 @@ export interface GenerateFromScreenshotParams {
   apiKey: string;
   directoryId: string;
   imageBase64: string;
+}
+
+export interface DebugLogEntry {
+  timestamp: string;
+  level: 'info' | 'error';
+  message: string;
+  details?: string;
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
