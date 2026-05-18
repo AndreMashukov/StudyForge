@@ -5,6 +5,13 @@ import { getAuth } from "firebase-admin/auth";
 
 const API_KEY_BEARER_PREFIXES = ["sf-", "ciai_"];
 
+export interface ExternalAuthResult {
+  userId: string;
+  authMethod: "api-key" | "firebase-id-token";
+  limiterKey: string;
+  apiKeyId?: string;
+}
+
 /**
  * SHA-256 hash of a raw API key for safe storage and lookup.
  */
@@ -25,6 +32,11 @@ export function hashApiKey(rawKey: string): string {
  * Returns the authenticated userId on success. Throws on failure.
  */
 export async function validateApiKeyFromRequest(req: Request): Promise<string> {
+  const auth = await validateExternalAuthFromRequest(req);
+  return auth.userId;
+}
+
+export async function validateExternalAuthFromRequest(req: Request): Promise<ExternalAuthResult> {
   const apiKeyHeader = req.headers["x-api-key"];
   const authHeader = req.headers["authorization"];
 
@@ -49,13 +61,17 @@ export async function validateApiKeyFromRequest(req: Request): Promise<string> {
   // --- Path 3: Firebase ID token in Bearer ---
   try {
     const decoded = await getAuth().verifyIdToken(token);
-    return decoded.uid;
+    return {
+      userId: decoded.uid,
+      authMethod: "firebase-id-token",
+      limiterKey: `firebase_${decoded.uid}`,
+    };
   } catch {
     throw new Error("Invalid or expired Firebase ID token.");
   }
 }
 
-async function validateStoredApiKey(rawKey: string): Promise<string> {
+async function validateStoredApiKey(rawKey: string): Promise<ExternalAuthResult> {
   const keyHash = hashApiKey(rawKey);
   const db = getFirestore();
 
@@ -82,5 +98,10 @@ async function validateStoredApiKey(rawKey: string): Promise<string> {
     throw new Error("Invalid API key owner.");
   }
 
-  return userId;
+  return {
+    userId,
+    authMethod: "api-key",
+    apiKeyId: doc.id,
+    limiterKey: doc.id,
+  };
 }

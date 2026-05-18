@@ -107,6 +107,7 @@ export {
   uploadAndCreateDocument,
   createDocumentFromUrl,
   generateFromPrompt,
+  generateFromScreenshot,
   getDocument,
   getDocumentWithContent,
   updateDocument,
