@@ -100,6 +100,17 @@ export const DirectoryDetailPageContainer = () => {
     skip: !directoryId,
   });
 
+  const titleDirectory = contents?.directory;
+
+  useEffect(() => {
+    const directoryName = titleDirectory && titleDirectory.id === directoryId ? titleDirectory.name : undefined;
+    document.title = directoryName ? `StudyForge - ${directoryName}` : 'StudyForge';
+
+    return () => {
+      document.title = 'StudyForge';
+    };
+  }, [titleDirectory, directoryId]);
+
   if (!directoryId) {
     return (
       <Page showSidebar>
