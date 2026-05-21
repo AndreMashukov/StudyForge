@@ -1,23 +1,68 @@
+import { RuleApplicability } from '@shared-types';
 import { useRulesPageContext } from '../context/hooks/useRulesPageContext';
 import { Page } from '../../../components/Page';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
+import { Badge } from '../../../components/ui/Badge';
 import { RuleCard } from './RuleCard';
-import { Plus, Search, Grid3x3, List } from 'lucide-react';
+import { Checkbox } from '../../../components/ui/Checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '../../../components/ui/DropdownMenu';
+import { Plus, Search, Grid3x3, List, Filter, ChevronDown, X } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { cn } from '../../../lib/utils';
 import { Spinner } from '../../../components/ui/Spinner';
+import { getRuleApplicabilityLabel } from '../../../utils/ruleApplicabilityUtils';
+
+const ruleTypeOptions = Object.values(RuleApplicability);
+
+const defaultFilters = {
+  tags: [],
+  applicableTo: [],
+  colors: [],
+  showDefaultOnly: false,
+};
 
 export const RulesPageContainer = () => {
   const {
     rulesApi,
     handlers,
+    filters,
     viewMode,
     searchQuery,
     filteredRules,
   } = useRulesPageContext();
   
   const { currentTheme } = useTheme();
+
+  const selectedRuleTypeCount = filters.applicableTo.length;
+  const hasRuleTypeFilter = selectedRuleTypeCount > 0;
+
+  const handleRuleTypeToggle = (ruleType: RuleApplicability) => {
+    const nextApplicableTo = filters.applicableTo.includes(ruleType)
+      ? filters.applicableTo.filter((selectedRuleType) => selectedRuleType !== ruleType)
+      : [...filters.applicableTo, ruleType];
+
+    handlers.handleFilterChange({
+      ...filters,
+      applicableTo: nextApplicableTo,
+    });
+  };
+
+  const handleClearRuleTypes = () => {
+    handlers.handleFilterChange({
+      ...filters,
+      applicableTo: [],
+    });
+  };
+
+  const handleClearSearchAndFilters = () => {
+    handlers.handleSearchChange('');
+    handlers.handleFilterChange(defaultFilters);
+  };
 
   // Loading state
   if (rulesApi.isLoading) {
@@ -106,45 +151,114 @@ export const RulesPageContainer = () => {
 
         {/* Search and View Toggle */}
         {hasRules && (
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="relative min-w-[220px] flex-1">
               <Search
                 size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2"
                 style={{ color: currentTheme.colors.mutedForeground }}
               />
               <Input
-                placeholder="Search rules by name, description, tags..."
+                placeholder="Search rules by name, description, tags, or type..."
                 value={searchQuery}
                 onChange={(e) => handlers.handleSearchChange(e.target.value)}
                 className="pl-9"
               />
             </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="min-w-[132px] justify-between gap-2 px-3"
+                    aria-label="Filter rules by type"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Filter size={16} className="flex-shrink-0" />
+                      <span className="truncate">
+                        {hasRuleTypeFilter
+                          ? `${selectedRuleTypeCount} ${selectedRuleTypeCount === 1 ? 'type' : 'types'}`
+                          : 'All types'}
+                      </span>
+                    </span>
+                    <ChevronDown size={14} className="flex-shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <div className="flex items-center justify-between px-2 py-1.5">
+                    <span className="text-xs font-medium uppercase text-muted-foreground">
+                      Rule Type
+                    </span>
+                    {hasRuleTypeFilter && (
+                      <button
+                        type="button"
+                        onClick={handleClearRuleTypes}
+                        className="text-xs font-medium text-primary hover:text-primary/80"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-72 space-y-1 overflow-y-auto p-1">
+                    {ruleTypeOptions.map((ruleType) => (
+                      <Checkbox
+                        key={ruleType}
+                        checked={filters.applicableTo.includes(ruleType)}
+                        onChange={() => handleRuleTypeToggle(ruleType)}
+                        label={getRuleApplicabilityLabel(ruleType)}
+                        className="flex w-full rounded-sm px-2 py-1.5 transition-colors hover:bg-accent hover:text-accent-foreground"
+                      />
+                    ))}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             
-            <div
-              className="flex rounded-lg border p-1"
-              style={{
-                backgroundColor: currentTheme.colors.card,
-                borderColor: currentTheme.colors.border,
-              }}
-            >
-              <Button
-                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => handlers.handleViewModeChange('grid')}
-                className="px-3"
+              <div
+                className="flex rounded-lg border p-1"
+                style={{
+                  backgroundColor: currentTheme.colors.card,
+                  borderColor: currentTheme.colors.border,
+                }}
               >
-                <Grid3x3 size={16} />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => handlers.handleViewModeChange('list')}
-                className="px-3"
-              >
-                <List size={16} />
-              </Button>
+                <Button
+                  variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => handlers.handleViewModeChange('grid')}
+                  className="px-3"
+                  aria-label="Show rules in grid view"
+                >
+                  <Grid3x3 size={16} />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => handlers.handleViewModeChange('list')}
+                  className="px-3"
+                  aria-label="Show rules in list view"
+                >
+                  <List size={16} />
+                </Button>
+              </div>
             </div>
+          </div>
+        )}
+
+        {hasRuleTypeFilter && (
+          <div className="flex flex-wrap items-center gap-2">
+            {filters.applicableTo.map((ruleType) => (
+              <Badge key={ruleType} variant="outline" className="gap-1.5 pr-1.5">
+                {getRuleApplicabilityLabel(ruleType)}
+                <button
+                  type="button"
+                  onClick={() => handleRuleTypeToggle(ruleType)}
+                  aria-label={`Remove ${getRuleApplicabilityLabel(ruleType)} filter`}
+                  className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <X size={12} />
+                </button>
+              </Badge>
+            ))}
           </div>
         )}
 
@@ -217,9 +331,9 @@ export const RulesPageContainer = () => {
               </p>
               <Button
                 variant="outline"
-                onClick={() => handlers.handleSearchChange('')}
+                onClick={handleClearSearchAndFilters}
               >
-                Clear Search
+                Clear Filters
               </Button>
             </div>
           </div>

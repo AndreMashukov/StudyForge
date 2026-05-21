@@ -1,4 +1,4 @@
-import { Rule } from '@shared-types';
+import { Rule, RuleApplicability } from '@shared-types';
 
 export interface IRulesPageContext {
   rulesApi: {
@@ -24,7 +24,7 @@ export interface IRulesPageContext {
 
 export interface RulesPageFilters {
   tags: string[];
-  applicableTo: string[];
+  applicableTo: RuleApplicability[];
   colors: string[];
   showDefaultOnly: boolean;
 }
