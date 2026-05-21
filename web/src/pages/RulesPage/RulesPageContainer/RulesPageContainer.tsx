@@ -185,7 +185,7 @@ export const RulesPageContainer = () => {
                     <ChevronDown size={14} className="flex-shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-2rem)]">
                   <div className="flex items-center justify-between px-2 py-1.5">
                     <span className="text-xs font-medium uppercase text-muted-foreground">
                       Rule Type
@@ -200,7 +200,7 @@ export const RulesPageContainer = () => {
                       </button>
                     )}
                   </div>
-                  <div className="max-h-72 space-y-1 overflow-y-auto p-1">
+                  <div className="grid max-h-96 grid-cols-1 gap-1 overflow-y-auto p-1 sm:grid-cols-2">
                     {ruleTypeOptions.map((ruleType) => (
                       <Checkbox
                         key={ruleType}
