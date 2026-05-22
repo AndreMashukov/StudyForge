@@ -1,8 +1,10 @@
 import React, { useEffect, useId, useState } from 'react';
 import mermaid from 'mermaid';
+import { RotateCcw } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { IMermaidDiagram } from './IMermaidDiagram';
 import { Spinner } from '../ui/Spinner';
+import { Button } from '../ui/Button';
 
 let mermaidInitialized = false;
 
@@ -269,6 +271,13 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
   const reactId = useId().replace(/:/g, '');
   const [error, setError] = useState<string | null>(null);
   const [svg, setSvg] = useState<string | null>(null);
+  const [renderAttempt, setRenderAttempt] = useState(0);
+
+  const handleRetry = () => {
+    setError(null);
+    setSvg(null);
+    setRenderAttempt((attempt) => attempt + 1);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -306,13 +315,13 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
           if (!cancelled) {
             setSvg(out);
           }
-        } catch (e) {
+        } catch (renderError) {
           // Mermaid appends an error SVG to <body> on failure (div#d${id}).
           // Remove it so it doesn't linger as a floating "Syntax error" tooltip.
           document.getElementById(`d${id}`)?.remove();
           if (!cancelled) {
             setSvg(null);
-            setError(e instanceof Error ? e.message : 'Failed to render diagram');
+            setError(renderError instanceof Error ? renderError.message : 'Failed to render diagram');
           }
         }
       })
@@ -321,21 +330,22 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
     return () => {
       cancelled = true;
     };
-  }, [code, reactId]);
+  }, [code, reactId, renderAttempt]);
 
   if (error) {
     return (
       <div
         className={cn(
-          'rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm',
+          'flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm',
           className
         )}
+        role="alert"
       >
-        <p className="font-medium text-destructive">Diagram could not be rendered</p>
-        <p className="mt-1 text-muted-foreground">{error}</p>
-        <pre className="mt-3 max-h-40 overflow-auto rounded bg-muted/50 p-2 text-xs text-muted-foreground">
-          {code}
-        </pre>
+        <p className="font-medium text-destructive">error in diagram</p>
+        <Button type="button" variant="outline" size="sm" onClick={handleRetry}>
+          <RotateCcw className="mr-2 h-4 w-4" />
+          Retry
+        </Button>
       </div>
     );
   }
