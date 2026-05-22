@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ISlideDeckPageHandlers } from '../../types/ISlideDeckPageHandlers';
-import { useFullscreen } from '../../../../hooks/useFullscreen';
 
 export const useSlideDeckPageHandlers = (
   directoryIdFromData?: string | null
@@ -9,7 +8,6 @@ export const useSlideDeckPageHandlers = (
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const { isFullscreen, handleToggleFullscreen } = useFullscreen();
 
   const resolvedDirectoryId = useMemo(() => {
     const fromData = directoryIdFromData?.trim();
@@ -41,12 +39,10 @@ export const useSlideDeckPageHandlers = (
 
   return {
     currentSlide,
-    isFullscreen,
     handleNavigateBack,
     handleSlideChange,
     handlePrevSlide,
     handleNextSlide,
     handleClampSlide,
-    handleToggleFullscreen,
   };
 };

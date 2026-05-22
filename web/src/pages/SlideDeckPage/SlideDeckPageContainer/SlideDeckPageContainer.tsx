@@ -4,6 +4,8 @@ import { Page } from '../../../components/Page';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Spinner } from '../../../components/ui/Spinner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../components/ui/Tooltip';
+import { cn } from '../../../lib/utils';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -14,22 +16,75 @@ import {
 } from 'lucide-react';
 
 export const SlideDeckPageContainer: React.FC = () => {
+  const deckRef = React.useRef<HTMLDivElement | null>(null);
   const { slideDeckApi, handlers } = useSlideDeckPageContext();
   const { slideDeck, isLoading } = slideDeckApi;
   const {
     currentSlide,
-    isFullscreen,
     handleNavigateBack,
     handleSlideChange,
     handlePrevSlide,
     handleNextSlide,
-    handleToggleFullscreen,
   } = handlers;
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const [isFullscreenSupported, setIsFullscreenSupported] = React.useState(false);
+  const [fullscreenError, setFullscreenError] = React.useState<string | null>(null);
+
+  const fullscreenLabel = isFullscreen ? 'Exit fullscreen' : 'View fullscreen';
 
   const slides = slideDeck?.slides || [];
   const safeIndex =
     slides.length > 0 ? Math.min(currentSlide, slides.length - 1) : 0;
   const slide = slides.length > 0 ? slides[safeIndex] : undefined;
+
+  const handleToggleFullscreen = React.useCallback(async () => {
+    const deckElement = deckRef.current;
+    if (!deckElement) return;
+
+    setFullscreenError(null);
+
+    try {
+      if (document.fullscreenElement === deckElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      if (!document.fullscreenEnabled || typeof deckElement.requestFullscreen !== 'function') {
+        setFullscreenError('Fullscreen is unavailable in this browser.');
+        return;
+      }
+
+      await deckElement.requestFullscreen();
+    } catch (fullscreenRequestError) {
+      setFullscreenError(
+        fullscreenRequestError instanceof Error
+          ? fullscreenRequestError.message
+          : 'Fullscreen is unavailable in this browser.'
+      );
+    }
+  }, []);
+
+  React.useEffect(() => {
+    setIsFullscreenSupported(
+      document.fullscreenEnabled && typeof document.exitFullscreen === 'function'
+    );
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === deckRef.current);
+    };
+
+    const handleFullscreenError = () => {
+      setFullscreenError('Fullscreen is unavailable in this browser.');
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('fullscreenerror', handleFullscreenError);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('fullscreenerror', handleFullscreenError);
+    };
+  }, []);
 
   if (isLoading) {
     return (
@@ -62,17 +117,23 @@ export const SlideDeckPageContainer: React.FC = () => {
 
   // Shared slide content — used in both normal and fullscreen mode
   const slideContent = slide && (
-    <div className="w-full max-w-4xl">
+    <div className={cn('w-full', isFullscreen ? 'max-w-6xl' : 'max-w-4xl')}>
       {slide.imageUrl ? (
-        <Card className="overflow-hidden border-2">
+        <Card className={cn('overflow-hidden border-2', isFullscreen && 'border-border/60 bg-card/80')}>
           <img
             src={slide.imageUrl}
             alt={`Slide: ${slide.title}`}
-            className="w-full aspect-[16/9] object-contain bg-black"
+            className={cn(
+              'w-full aspect-[16/9] object-contain bg-black',
+              isFullscreen && 'max-h-[calc(100vh-9rem)]'
+            )}
           />
         </Card>
       ) : (
-        <Card className="flex flex-col justify-center p-6 md:p-12 bg-card border-2 aspect-[16/9]">
+        <Card className={cn(
+          'flex flex-col justify-center p-6 md:p-12 bg-card border-2 aspect-[16/9]',
+          isFullscreen && 'max-h-[calc(100vh-9rem)]'
+        )}>
           <CardContent className="p-0 space-y-4">
             <h2 className="text-xl sm:text-2xl md:text-4xl font-bold font-heading text-primary">
               {slide.title}
@@ -117,127 +178,93 @@ export const SlideDeckPageContainer: React.FC = () => {
     </div>
   );
 
-  // Fullscreen mode — covers the entire viewport
-  if (isFullscreen) {
-    return (
-      <Page showSidebar={false}>
-        <div className="fixed inset-0 z-[2000] bg-background flex flex-col">
-          {/* Fullscreen header */}
-          <header className="bg-background border-b px-4 py-3 shrink-0">
-            <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
+  return (
+    <Page showSidebar={false}>
+      <div
+        ref={deckRef}
+        className={cn(
+          'relative bg-background flex flex-col',
+          isFullscreen && 'h-screen w-screen overflow-hidden'
+        )}
+      >
+        <header className={cn(
+          'bg-background border-b px-4 py-3 z-10',
+          isFullscreen ? 'shrink-0' : 'sticky top-0'
+        )}>
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
+            {isFullscreen ? (
               <div className="flex items-center gap-2 min-w-0">
                 <Presentation size={18} className="shrink-0" />
                 <h1 className="text-sm sm:text-lg font-semibold truncate">
                   {slideDeck.title}
                 </h1>
               </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-sm text-muted-foreground">
-                  {slides.length > 0
-                    ? `${safeIndex + 1} / ${slides.length}`
-                    : 'No slides'}
+            ) : (
+              <button
+                onClick={handleNavigateBack}
+                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                aria-label="Back to directory"
+              >
+                <ArrowLeft size={20} />
+                <span className="hidden sm:inline text-sm">
+                  Back to directory
                 </span>
-                <button
-                  onClick={handleToggleFullscreen}
-                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  aria-label="Exit fullscreen"
-                >
-                  <Minimize2 size={18} />
-                </button>
+              </button>
+            )}
+
+            {!isFullscreen && (
+              <div className="flex items-center gap-2 min-w-0">
+                <Presentation size={18} className="shrink-0" />
+                <h1 className="text-sm sm:text-lg font-semibold truncate">
+                  {slideDeck.title}
+                </h1>
               </div>
-            </div>
-          </header>
-
-          {/* Slide area */}
-          <div className="flex-1 flex items-center justify-center px-4 py-4 overflow-hidden">
-            {slideContent}
-          </div>
-
-          {/* Navigation */}
-          <div className="border-t px-4 py-3 shrink-0">
-            <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
-              <Button
-                variant="outline"
-                onClick={handlePrevSlide}
-                disabled={currentSlide === 0}
-                className="px-3 sm:px-4"
-              >
-                <ChevronLeft size={20} />
-                <span className="hidden sm:inline ml-1">Previous</span>
-              </Button>
-
-              {navDots}
-
-              <Button
-                variant="outline"
-                onClick={() => handleNextSlide(Math.max(slides.length - 1, 0))}
-                disabled={
-                  slides.length === 0 || currentSlide >= slides.length - 1
-                }
-                className="px-3 sm:px-4"
-              >
-                <span className="hidden sm:inline mr-1">Next</span>
-                <ChevronRight size={20} />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Page>
-    );
-  }
-
-  return (
-    <Page showSidebar={false}>
-      <div className="bg-background flex flex-col">
-        <header className="sticky top-0 bg-background border-b px-4 py-3 z-10">
-          <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
-            <button
-              onClick={handleNavigateBack}
-              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-              aria-label="Back to directory"
-            >
-              <ArrowLeft size={20} />
-              <span className="hidden sm:inline text-sm">
-                Back to directory
-              </span>
-            </button>
-
-            <div className="flex items-center gap-2 min-w-0">
-              <Presentation size={18} className="shrink-0" />
-              <h1 className="text-sm sm:text-lg font-semibold truncate">
-                {slideDeck.title}
-              </h1>
-            </div>
+            )}
 
             <div className="flex items-center gap-2 shrink-0">
-              <span className="hidden sm:block text-sm text-muted-foreground">
+              <span className={cn('text-sm text-muted-foreground', !isFullscreen && 'hidden sm:block')}>
                 {slides.length > 0
                   ? `${safeIndex + 1} / ${slides.length}`
                   : 'No slides'}
               </span>
-              <button
-                onClick={handleToggleFullscreen}
-                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                aria-label={
-                  isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
-                }
-              >
-                {isFullscreen ? (
-                  <Minimize2 size={18} />
-                ) : (
-                  <Maximize2 size={18} />
-                )}
-              </button>
+              {isFullscreenSupported && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        onClick={handleToggleFullscreen}
+                        aria-label={fullscreenLabel}
+                        title={fullscreenLabel}
+                      >
+                        {isFullscreen ? (
+                          <Minimize2 size={18} />
+                        ) : (
+                          <Maximize2 size={18} />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">{fullscreenLabel}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           </div>
         </header>
 
-        <div className="flex justify-center px-4 py-6">
+        <div className={cn(
+          'flex justify-center px-4',
+          isFullscreen
+            ? 'flex-1 items-center overflow-hidden py-4'
+            : 'py-6'
+        )}>
           {slideContent}
         </div>
 
-        <div className="border-t px-4 py-3">
+        <div className={cn('border-t px-4 py-3', isFullscreen && 'shrink-0')}>
           <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
             <Button
               variant="outline"
@@ -264,6 +291,15 @@ export const SlideDeckPageContainer: React.FC = () => {
             </Button>
           </div>
         </div>
+
+        {fullscreenError && (
+          <p
+            className="absolute bottom-16 left-1/2 z-10 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-md border border-destructive/40 bg-background px-3 py-1 text-center text-xs text-destructive shadow-sm"
+            role="status"
+          >
+            {fullscreenError}
+          </p>
+        )}
       </div>
     </Page>
   );
