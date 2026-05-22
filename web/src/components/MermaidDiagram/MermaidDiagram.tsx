@@ -1,10 +1,11 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import mermaid from 'mermaid';
-import { RotateCcw } from 'lucide-react';
+import { Maximize2, Minimize2, RotateCcw } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { IMermaidDiagram } from './IMermaidDiagram';
 import { Spinner } from '../ui/Spinner';
 import { Button } from '../ui/Button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/Tooltip';
 
 let mermaidInitialized = false;
 
@@ -268,16 +269,71 @@ function sanitizeMermaidCode(source: string): string {
 }
 
 export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) => {
+  const diagramRef = useRef<HTMLDivElement | null>(null);
   const reactId = useId().replace(/:/g, '');
   const [error, setError] = useState<string | null>(null);
   const [svg, setSvg] = useState<string | null>(null);
   const [renderAttempt, setRenderAttempt] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFullscreenSupported, setIsFullscreenSupported] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState<string | null>(null);
+
+  const fullscreenLabel = isFullscreen ? 'Exit fullscreen' : 'View fullscreen';
 
   const handleRetry = () => {
     setError(null);
     setSvg(null);
     setRenderAttempt((attempt) => attempt + 1);
   };
+
+  const handleFullscreenToggle = async () => {
+    const diagramElement = diagramRef.current;
+    if (!diagramElement) return;
+
+    setFullscreenError(null);
+
+    try {
+      if (document.fullscreenElement === diagramElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      if (!document.fullscreenEnabled || typeof diagramElement.requestFullscreen !== 'function') {
+        setFullscreenError('Fullscreen is unavailable in this browser.');
+        return;
+      }
+
+      await diagramElement.requestFullscreen();
+    } catch (fullscreenRequestError) {
+      setFullscreenError(
+        fullscreenRequestError instanceof Error
+          ? fullscreenRequestError.message
+          : 'Fullscreen is unavailable in this browser.'
+      );
+    }
+  };
+
+  useEffect(() => {
+    setIsFullscreenSupported(
+      document.fullscreenEnabled && typeof document.exitFullscreen === 'function'
+    );
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === diagramRef.current);
+    };
+
+    const handleFullscreenError = () => {
+      setFullscreenError('Fullscreen is unavailable in this browser.');
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('fullscreenerror', handleFullscreenError);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('fullscreenerror', handleFullscreenError);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -365,11 +421,57 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
 
   return (
     <div
+      ref={diagramRef}
       className={cn(
-        'mermaid-diagram flex max-h-[min(70vh,520px)] justify-center overflow-auto rounded-lg border border-border bg-card p-4',
-        className
+        'mermaid-diagram relative flex max-h-[min(70vh,520px)] overflow-hidden rounded-lg border border-border bg-card',
+        className,
+        isFullscreen && 'h-screen max-h-none w-screen rounded-none border-0 bg-background'
       )}
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
+    >
+      {isFullscreenSupported && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className={cn(
+                  'absolute right-3 top-3 z-10 h-8 w-8 shadow-sm',
+                  isFullscreen && 'right-4 top-4 h-10 w-10'
+                )}
+                onClick={handleFullscreenToggle}
+                aria-label={fullscreenLabel}
+                title={fullscreenLabel}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="h-4 w-4" />
+                ) : (
+                  <Maximize2 className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">{fullscreenLabel}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 justify-center overflow-auto p-4 [&_svg]:h-auto [&_svg]:max-w-full',
+          isFullscreen && 'h-full w-full items-center p-6 pt-16 [&_svg]:max-h-[calc(100vh-5rem)]'
+        )}
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+
+      {fullscreenError && (
+        <p
+          className="absolute bottom-3 left-1/2 z-10 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-md border border-destructive/40 bg-background px-3 py-1 text-center text-xs text-destructive shadow-sm"
+          role="status"
+        >
+          {fullscreenError}
+        </p>
+      )}
+    </div>
   );
 };
