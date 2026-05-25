@@ -115,8 +115,8 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   return (
     <section
       className={cn(
-        'flex min-h-[520px] flex-col rounded-lg border border-border bg-card/40',
-        compact && 'min-h-[420px]',
+        'flex h-[520px] flex-col rounded-lg border border-border bg-card/40',
+        compact && 'h-[420px]',
         className
       )}
       aria-label="Directory chat"
