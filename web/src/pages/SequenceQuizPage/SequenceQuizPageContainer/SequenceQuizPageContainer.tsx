@@ -6,6 +6,7 @@ import { useSequenceQuizPageContext } from '../context/hooks/useSequenceQuizPage
 import { ScoreCard } from '../../QuizPage/QuizPageContainer/ScoreCard';
 import { SequenceQuestionCard } from './SequenceQuestionCard/SequenceQuestionCard';
 import { Spinner } from '../../../components/ui/Spinner';
+import { DirectoryChatPanel } from '../../../components/DirectoryChatPanel';
 import {
   selectSequenceQuizState,
   selectCurrentSequenceQuestion,
@@ -122,6 +123,10 @@ export const SequenceQuizPageContainer: React.FC = () => {
   }
 
   const isLastQuestion = quizState.currentQuestionIndex === quizState.questions.length - 1;
+  const questionIndex = quizState.currentQuestionIndex;
+  const directoryId = sequenceQuizApi.firestoreSequenceQuiz?.directoryId || directoryIdForBack;
+  const detailedExplanationSeedKey = `sequenceQuiz:${sequenceQuizApi.firestoreSequenceQuiz?.id ?? 'active'}:${questionIndex}:detailed-explanation`;
+  const detailedExplanationMessage = 'Explain this sequence quiz in detail. Include why my ordering is right or wrong, how to reason through the correct sequence, and the source details that support it.';
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-6 py-16">
@@ -136,6 +141,26 @@ export const SequenceQuizPageContainer: React.FC = () => {
         handlers={handlers}
         isLastQuestion={isLastQuestion}
       />
+
+      {quizState.followupChatOpen[questionIndex] && directoryId && (
+        <DirectoryChatPanel
+          directoryId={directoryId}
+          sourceCount={1}
+          compact
+          autoSendSeed
+          seedKey={detailedExplanationSeedKey}
+          seedMessage={detailedExplanationMessage}
+          artifactContext={{
+            type: 'sequenceQuiz',
+            title: sequenceQuizApi.firestoreSequenceQuiz?.title,
+            question: currentQuestion.question,
+            explanation: currentQuestion.explanation,
+            sequenceItems: currentQuestion.items,
+            userSequence: quizState.placedItems,
+            correctSequence: currentQuestion.items,
+          }}
+        />
+      )}
     </div>
   );
 };

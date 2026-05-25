@@ -6,6 +6,7 @@ import {
   ScrapedContent,
   QuizFollowupContext,
   DocumentQuestionContext,
+  DirectoryChatPromptContext,
   IFileContent,
 } from '@shared-types';
 import { JsonSanitizer } from './json-sanitizer';
@@ -14,6 +15,7 @@ import {
   FollowupPromptBuilder,
   DocumentPromptBuilder,
   DocumentQuestionPromptBuilder,
+  DirectoryChatPromptBuilder,
   FlashcardPromptBuilder,
   SlideDeckPromptBuilder,
   DiagramQuizPromptBuilder,
@@ -731,6 +733,52 @@ This question is derived from: **${context.originalDocument.title}**
       );
       throw new Error(
         `Failed to generate answer: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  /**
+   * Generate an assistant reply for directory-scoped chat.
+   */
+  public static async generateDirectoryChatAnswer(
+    context: DirectoryChatPromptContext
+  ): Promise<string> {
+    try {
+      functions.logger.info('Generating directory chat answer with Gemini AI');
+
+      const client = this.getClient();
+      const prompt = DirectoryChatPromptBuilder.buildPrompt(context);
+
+      functions.logger.debug('Sending directory chat prompt to Gemini AI', {
+        userMessageLength: context.userMessage.length,
+        retrievedChunkCount: context.retrievedChunks.length,
+        recentMessageCount: context.recentMessages.length,
+      });
+
+      const response = await client.models.generateContent({
+        model: GEMINI_PRO_MODEL,
+        contents: prompt,
+        config: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+        },
+      });
+
+      const text = response.text;
+
+      if (!text) {
+        throw new Error('Empty response from Gemini API for directory chat');
+      }
+
+      return this.validateAndFixFollowupContent(text);
+    } catch (error) {
+      functions.logger.error('Error generating directory chat answer with Gemini AI:', error);
+      throw new Error(
+        `Failed to generate directory chat answer: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`
       );

@@ -26,6 +26,7 @@ interface QuizPageState {
   // Followup state
   followupGenerated: Record<number, boolean>;
   followupContent: Record<number, string>;
+  followupChatOpen: Record<number, boolean>;
   isGeneratingFollowup: boolean;
   followupError: string | null;
 }
@@ -54,6 +55,7 @@ const initialState: QuizPageState = {
   // Followup state
   followupGenerated: {},
   followupContent: {},
+  followupChatOpen: {},
   isGeneratingFollowup: false,
   followupError: null,
 };
@@ -77,6 +79,7 @@ const quizPageSlice = createSlice({
       state.error = null;
       state.followupGenerated = {};
       state.followupContent = {};
+      state.followupChatOpen = {};
       state.isGeneratingFollowup = false;
       state.followupError = null;
     },
@@ -94,6 +97,7 @@ const quizPageSlice = createSlice({
       state.error = null;
       state.followupGenerated = {};
       state.followupContent = {};
+      state.followupChatOpen = {};
       state.isGeneratingFollowup = false;
       state.followupError = null;
     },
@@ -209,6 +213,13 @@ const quizPageSlice = createSlice({
     clearFollowupError: (state) => {
       state.followupError = null;
     },
+
+    openFollowupChat: (state, action: PayloadAction<{ questionIndex: number }>) => {
+      state.followupChatOpen[action.payload.questionIndex] = true;
+      state.followupGenerated[action.payload.questionIndex] = true;
+      state.isGeneratingFollowup = false;
+      state.followupError = null;
+    },
   },
 });
 
@@ -231,6 +242,7 @@ export const {
   setFollowupGenerated,
   setFollowupError,
   clearFollowupError,
+  openFollowupChat,
 } = quizPageSlice.actions;
 
 // Selectors
@@ -271,5 +283,6 @@ export const selectIsGeneratingFollowup = (state: { quizPage: QuizPageState }) =
 export const selectFollowupGenerated = (state: { quizPage: QuizPageState }) => state.quizPage.followupGenerated;
 export const selectFollowupContent = (state: { quizPage: QuizPageState }) => state.quizPage.followupContent;
 export const selectFollowupError = (state: { quizPage: QuizPageState }) => state.quizPage.followupError;
+export const selectFollowupChatOpen = (state: { quizPage: QuizPageState }) => state.quizPage.followupChatOpen;
 
 export default quizPageSlice.reducer;

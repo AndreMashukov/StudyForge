@@ -8,9 +8,7 @@ import {
   completeQuiz,
   resetQuiz,
   skipQuestion,
-  setFollowupGenerating,
-  setFollowupGenerated,
-  setFollowupError,
+  openFollowupChat,
   selectCurrentQuestion,
   selectQuizState,
   selectFormState,
@@ -18,8 +16,6 @@ import {
 import { useQuizForm } from './useQuizForm';
 import { IQuizQuestion } from '../../types/IQuizTypes';
 import { Quiz } from '@shared-types';
-import { useGenerateQuizFollowupMutation } from '../../../../store/api/QuizFollowup/QuizFollowupApi';
-import { IGenerateFollowupRequest } from '../../../../store/api/QuizFollowup/IQuizFollowupApi';
 
 export const useQuizPageHandlers = () => {
   const dispatch = useDispatch();
@@ -59,43 +55,13 @@ export const useQuizPageHandlers = () => {
     dispatch(skipQuestion());
   }, [dispatch]);
 
-  // Followup generation handler
-  const [generateFollowup] = useGenerateQuizFollowupMutation();
-
   const handleGenerateFollowup = useCallback(async () => {
-    try {
-      if (!currentQuestion || formState.selectedAnswer === null) {
-        return;
-      }
-
-      dispatch(setFollowupGenerating(true));
-
-      const requestData: IGenerateFollowupRequest = {
-        documentId: quizState.firestoreQuiz?.documentId || '',
-        questionText: currentQuestion.question,
-        userSelectedAnswer: currentQuestion.options[formState.selectedAnswer],
-        correctAnswer: currentQuestion.options[currentQuestion.correct],
-        questionOptions: currentQuestion.options,
-        quizTitle: quizState.firestoreQuiz?.title,
-        followupRuleIds: quizState.firestoreQuiz?.followupRuleIds || [], // Use stored rules
-      };
-
-      const result = await generateFollowup(requestData).unwrap();
-      
-      if (result.success && result.data?.content) {
-        dispatch(setFollowupGenerated({ 
-          questionIndex: quizState.currentQuestionIndex,
-          content: result.data.content,
-        }));
-      } else {
-        dispatch(setFollowupError('Failed to generate followup explanation'));
-      }
-
-    } catch (error) {
-      const errorMessage = (error as { data?: string })?.data || "Failed to generate followup explanation";
-      dispatch(setFollowupError(errorMessage));
+    if (!currentQuestion || formState.selectedAnswer === null) {
+      return;
     }
-  }, [dispatch, generateFollowup, currentQuestion, formState, quizState]);
+
+    dispatch(openFollowupChat({ questionIndex: quizState.currentQuestionIndex }));
+  }, [currentQuestion, dispatch, formState.selectedAnswer, quizState.currentQuestionIndex]);
 
   return {
     // Quiz handlers (business logic only, no state)

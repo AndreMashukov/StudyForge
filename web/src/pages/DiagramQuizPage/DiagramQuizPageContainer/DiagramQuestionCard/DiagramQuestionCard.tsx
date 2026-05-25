@@ -4,8 +4,6 @@ import { Check, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
-import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
-import { RuleUsageTooltip } from '../../../../components/RuleUsageTooltip';
 import { QuizHintTooltip } from '../../../../components/QuizHintTooltip';
 import { QuizProgressBar } from '../../../../components/QuizProgressBar';
 import { DiagramSlideViewer } from '../DiagramSlideViewer';
@@ -32,8 +30,6 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
   onGenerateFollowup,
   isGeneratingFollowup = false,
   isFollowupGenerated = false,
-  followupContent,
-  followupRuleNames = [],
 }) => {
   const quizState = useSelector(selectDiagramQuizState);
   const progress = useSelector(selectDiagramQuizProgress);
@@ -119,22 +115,6 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
                   'Generate Detailed Explanation'
                 )}
               </Button>
-            )}
-
-            {followupContent && (
-              <Card className="mt-4 bg-primary/5 border-primary/20">
-                <CardContent className="p-5">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold text-primary">
-                      Detailed Explanation
-                    </h3>
-                    <RuleUsageTooltip ruleNames={followupRuleNames} />
-                  </div>
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <MarkdownRenderer content={followupContent} />
-                  </div>
-                </CardContent>
-              </Card>
             )}
           </div>
         )}

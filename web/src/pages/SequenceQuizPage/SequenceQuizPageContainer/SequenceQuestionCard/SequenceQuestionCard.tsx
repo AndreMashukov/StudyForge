@@ -28,11 +28,8 @@ import { cn } from '../../../../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { Spinner } from '../../../../components/ui/Spinner';
-import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
-import { RuleUsageTooltip } from '../../../../components/RuleUsageTooltip';
 import { QuizHintTooltip } from '../../../../components/QuizHintTooltip';
 import { QuizProgressBar } from '../../../../components/QuizProgressBar';
-import { useRuleNames } from '../../../../hooks/useRuleNames';
 import {
   selectSequenceQuizState,
   selectSequenceQuizProgress,
@@ -336,12 +333,10 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
 
   const quizState = useSelector(selectSequenceQuizState);
   const progress = useSelector(selectSequenceQuizProgress);
-  const followupRuleNames = useRuleNames(quizState.firestoreSequenceQuiz?.followupRuleIds);
   const currentQuestion = quizState.currentQuestionIndex + 1;
   const totalQuestions = quizState.questions.length;
   const answeredCount = quizState.answers.length;
   const isFollowupGenerated = !!quizState.followupGenerated[quizState.currentQuestionIndex];
-  const followupContent = quizState.followupContent[quizState.currentQuestionIndex];
 
   return (
     <Card className="overflow-hidden">
@@ -541,23 +536,6 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
               </div>
             </div>
           )}
-
-          {followupContent && (
-            <Card className="mt-4 bg-primary/5 border-primary/20">
-              <CardContent className="p-5">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-primary">
-                    Detailed Explanation
-                  </h3>
-                  <RuleUsageTooltip ruleNames={followupRuleNames} />
-                </div>
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <MarkdownRenderer content={followupContent} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {quizState.followupError && (
             <p className="text-xs text-destructive">{quizState.followupError}</p>
           )}

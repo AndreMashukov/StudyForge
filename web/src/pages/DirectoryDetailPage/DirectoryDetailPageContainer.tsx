@@ -45,9 +45,10 @@ import { Spinner } from '../../components/ui/Spinner';
 import { SequenceQuizzesPanel } from './SequenceQuizzesPanel';
 import { RulesPanel } from './RulesPanel';
 import { TooltipProvider } from '../../components/ui/Tooltip';
+import { DirectoryChatPanel } from '../../components/DirectoryChatPanel';
 
 /** Valid tab values that can be passed via URL search param. */
-const VALID_TABS = new Set<string>(['sources', 'quizzes', 'cards', 'slides', 'diagramQuizzes', 'sequenceQuizzes', 'rules']);
+const VALID_TABS = new Set<string>(['sources', 'quizzes', 'cards', 'slides', 'diagramQuizzes', 'sequenceQuizzes', 'chat', 'rules']);
 
 /** Max artifacts loaded per type (server caps at 100). */
 const ARTIFACT_PAGE_LIMIT = 100;
@@ -359,6 +360,12 @@ export const DirectoryDetailPageContainer = () => {
                 isGenerating={isGeneratingSequenceQuizzes}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
                 ruleNamesMap={ruleNamesMap}
+              />
+            )}
+            {activePanel === 'chat' && (
+              <DirectoryChatPanel
+                directoryId={directoryId}
+                sourceCount={documents.length}
               />
             )}
             {activePanel === 'rules' && (

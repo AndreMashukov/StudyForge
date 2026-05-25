@@ -11,12 +11,8 @@ import {
   restartSequenceQuizSession,
   selectSequenceQuizState,
   selectCurrentSequenceQuestion,
-  setSequenceFollowupGenerating,
-  setSequenceFollowupGenerated,
-  setSequenceFollowupError,
+  openSequenceFollowupChat,
 } from '../../../../store/slices/sequenceQuizPageSlice';
-import { useGenerateQuizFollowupMutation } from '../../../../store/api/QuizFollowup/QuizFollowupApi';
-import { IGenerateFollowupRequest } from '../../../../store/api/QuizFollowup/IQuizFollowupApi';
 
 export const useSequenceQuizPageHandlers = () => {
   const dispatch = useDispatch();
@@ -64,45 +60,13 @@ export const useSequenceQuizPageHandlers = () => {
     dispatch(restartSequenceQuizSession());
   }, [dispatch]);
 
-  const [generateFollowup] = useGenerateQuizFollowupMutation();
-
   const handleGenerateFollowup = useCallback(async () => {
-    try {
-      if (!currentQuestion || !quizState.isChecked) {
-        return;
-      }
-
-      dispatch(setSequenceFollowupGenerating(true));
-
-      const requestData: IGenerateFollowupRequest = {
-        documentId: quizState.firestoreSequenceQuiz?.documentId || '',
-        questionText: currentQuestion.question,
-        userSelectedAnswer: quizState.placedItems.join(' -> '),
-        correctAnswer: currentQuestion.explanation,
-        questionOptions: currentQuestion.items,
-        questionType: 'sequence',
-        sequenceItems: currentQuestion.items,
-        userSequence: quizState.placedItems,
-        correctSequence: currentQuestion.items,
-        quizTitle: quizState.firestoreSequenceQuiz?.title,
-        followupRuleIds: quizState.firestoreSequenceQuiz?.followupRuleIds || [],
-      };
-
-      const result = await generateFollowup(requestData).unwrap();
-
-      if (result.success && result.data?.content) {
-        dispatch(setSequenceFollowupGenerated({
-          questionIndex: quizState.currentQuestionIndex,
-          content: result.data.content,
-        }));
-      } else {
-        dispatch(setSequenceFollowupError('Failed to generate followup explanation'));
-      }
-    } catch (error) {
-      const errorMessage = (error as { data?: string })?.data || 'Failed to generate followup explanation';
-      dispatch(setSequenceFollowupError(errorMessage));
+    if (!currentQuestion || !quizState.isChecked) {
+      return;
     }
-  }, [currentQuestion, dispatch, generateFollowup, quizState]);
+
+    dispatch(openSequenceFollowupChat({ questionIndex: quizState.currentQuestionIndex }));
+  }, [currentQuestion, dispatch, quizState.currentQuestionIndex, quizState.isChecked]);
 
   return {
     handlePlaceItem,

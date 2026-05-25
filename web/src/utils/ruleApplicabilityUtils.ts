@@ -6,6 +6,7 @@ export const ruleApplicabilityLabels: Record<RuleApplicability, string> = {
   [RuleApplicability.PROMPT]: 'Prompt',
   [RuleApplicability.QUIZ]: 'Quiz',
   [RuleApplicability.FOLLOWUP]: 'Followup',
+  [RuleApplicability.CHAT]: 'Chat',
   [RuleApplicability.FLASHCARD]: 'Flashcard',
   [RuleApplicability.FLASHCARD_DESC]: 'Flashcard Description',
   [RuleApplicability.SLIDE_DECK]: 'Slide Deck',

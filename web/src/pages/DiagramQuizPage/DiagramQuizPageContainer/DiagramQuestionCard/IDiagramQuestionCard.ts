@@ -15,6 +15,4 @@ export interface IDiagramQuestionCard {
   onGenerateFollowup?: () => void;
   isGeneratingFollowup?: boolean;
   isFollowupGenerated?: boolean;
-  followupContent?: string;
-  followupRuleNames?: string[];
 }
