@@ -103,13 +103,6 @@
         { "fieldPath": "role", "order": "ASCENDING" },
         { "fieldPath": "seedKey", "order": "ASCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "messages",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
-      ]
     }
   ],
   "fieldOverrides": [
