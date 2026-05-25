@@ -790,6 +790,76 @@ export interface DocumentQuestionContext {
   customInstructions?: string;
 }
 
+// Directory Chat API Types
+export type DirectoryChatRole = 'user' | 'assistant';
+
+export interface DirectoryChatMessage {
+  id: string;
+  role: DirectoryChatRole;
+  content: string;
+  createdAt: string;
+  seedKey?: string;
+}
+
+export interface DirectoryChatArtifactContext {
+  type: 'quiz' | 'diagramQuiz' | 'sequenceQuiz' | 'slideDeck' | 'flashcardSet' | 'document';
+  title?: string;
+  question?: string;
+  options?: string[];
+  userAnswer?: string;
+  correctAnswer?: string;
+  explanation?: string;
+  sequenceItems?: string[];
+  userSequence?: string[];
+  correctSequence?: string[];
+  slideTitle?: string;
+  slideContent?: string;
+  speakerNotes?: string;
+}
+
+export interface RetrievedDirectoryChatChunk {
+  documentId: string;
+  documentTitle: string;
+  text: string;
+}
+
+export interface DirectoryChatPromptContext {
+  directoryName: string;
+  userMessage: string;
+  chatRules?: string;
+  conversationSummary?: string;
+  recentMessages: DirectoryChatMessage[];
+  retrievedChunks: RetrievedDirectoryChatChunk[];
+  artifactContext?: DirectoryChatArtifactContext;
+}
+
+export interface GetDirectoryChatRequest {
+  directoryId: string;
+}
+
+export interface GetDirectoryChatResponse {
+  directoryId: string;
+  documentCount: number;
+  messages: DirectoryChatMessage[];
+  summary?: string;
+}
+
+export interface SendDirectoryChatMessageRequest {
+  directoryId: string;
+  message: string;
+  seedKey?: string;
+  artifactContext?: DirectoryChatArtifactContext;
+}
+
+export interface SendDirectoryChatMessageResponse {
+  directoryId: string;
+  documentCount: number;
+  userMessage: DirectoryChatMessage;
+  assistantMessage?: DirectoryChatMessage;
+  messages: DirectoryChatMessage[];
+  summary?: string;
+}
+
 // Auth Types
 export interface User {
   uid: string;
@@ -810,6 +880,7 @@ export enum RuleApplicability {
   PROMPT = 'prompt',
   QUIZ = 'quiz',
   FOLLOWUP = 'followup',
+  CHAT = 'chat',
   FLASHCARD = 'flashcard',
   FLASHCARD_DESC = 'flashcard_desc',
   SLIDE_DECK = 'slide_deck',

@@ -36,6 +36,7 @@ interface SequenceQuizPageState {
   error: string | null;
   followupGenerated: Record<number, boolean>;
   followupContent: Record<number, string>;
+  followupChatOpen: Record<number, boolean>;
   isGeneratingFollowup: boolean;
   followupError: string | null;
 }
@@ -68,6 +69,7 @@ const initialState: SequenceQuizPageState = {
   error: null,
   followupGenerated: {},
   followupContent: {},
+  followupChatOpen: {},
   isGeneratingFollowup: false,
   followupError: null,
 };
@@ -98,6 +100,7 @@ const sequenceQuizPageSlice = createSlice({
       state.error = null;
       state.followupGenerated = {};
       state.followupContent = {};
+      state.followupChatOpen = {};
       state.isGeneratingFollowup = false;
       state.followupError = null;
     },
@@ -249,6 +252,13 @@ const sequenceQuizPageSlice = createSlice({
       state.followupError = action.payload;
       state.isGeneratingFollowup = false;
     },
+
+    openSequenceFollowupChat: (state, action: PayloadAction<{ questionIndex: number }>) => {
+      state.followupChatOpen[action.payload.questionIndex] = true;
+      state.followupGenerated[action.payload.questionIndex] = true;
+      state.isGeneratingFollowup = false;
+      state.followupError = null;
+    },
   },
 });
 
@@ -268,6 +278,7 @@ export const {
   setSequenceFollowupGenerating,
   setSequenceFollowupGenerated,
   setSequenceFollowupError,
+  openSequenceFollowupChat,
 } = sequenceQuizPageSlice.actions;
 
 export const selectSequenceQuizState = (state: { sequenceQuizPage: SequenceQuizPageState }) =>

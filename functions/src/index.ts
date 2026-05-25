@@ -101,6 +101,12 @@ export {
   askDocumentQuestion,
 } from "./endpoints/document-question";
 
+// Export directory chat functions
+export {
+  getDirectoryChat,
+  sendDirectoryChatMessage,
+} from "./endpoints/directory-chat";
+
 // Export document management functions
 export {
   createDocument,

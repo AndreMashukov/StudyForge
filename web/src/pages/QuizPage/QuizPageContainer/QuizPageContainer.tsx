@@ -6,7 +6,7 @@ import { useQuizPageContext } from '../context';
 import { QuestionCard } from './QuestionCard';
 import { ScoreCard } from './ScoreCard';
 import { Spinner } from '../../../components/ui/Spinner';
-import { useRuleNames } from '../../../hooks/useRuleNames';
+import { DirectoryChatPanel } from '../../../components/DirectoryChatPanel';
 import {
   selectQuizState,
   selectCurrentQuestion,
@@ -16,8 +16,8 @@ import {
   selectError,
   selectIsGeneratingFollowup,
   selectFollowupGenerated,
-  selectFollowupContent,
   selectFollowupError,
+  selectFollowupChatOpen,
 } from '../../../store/slices/quizPageSlice';
 
 export const QuizPageContainer: React.FC = () => {
@@ -33,12 +33,11 @@ export const QuizPageContainer: React.FC = () => {
   const error = useSelector(selectError);
   const isGeneratingFollowup = useSelector(selectIsGeneratingFollowup);
   const followupGenerated = useSelector(selectFollowupGenerated);
-  const followupContent = useSelector(selectFollowupContent);
   const followupError = useSelector(selectFollowupError);
+  const followupChatOpen = useSelector(selectFollowupChatOpen);
 
   // Only get handlers and API from context
   const { handlers, quizApi } = useQuizPageContext();
-  const followupRuleNames = useRuleNames(quizApi.firestoreQuiz?.followupRuleIds);
 
   const directoryIdForBack =
     quizApi.firestoreQuiz?.directoryId?.trim() ||
@@ -147,6 +146,14 @@ export const QuizPageContainer: React.FC = () => {
 
   // Check if current question has followup generated
   const isCurrentFollowupGenerated = followupGenerated[quizState.currentQuestionIndex] || false;
+  const isCurrentFollowupChatOpen = followupChatOpen[quizState.currentQuestionIndex] || false;
+  const directoryId = quizApi.firestoreQuiz?.directoryId || directoryIdForBack;
+  const selectedAnswerText = formState.selectedAnswer !== null
+    ? currentQuestion.options[formState.selectedAnswer]
+    : undefined;
+  const correctAnswerText = currentQuestion.options[currentQuestion.correct];
+  const detailedExplanationSeedKey = `quiz:${quizApi.firestoreQuiz?.id ?? 'active'}:${quizState.currentQuestionIndex}:detailed-explanation`;
+  const detailedExplanationMessage = 'Explain this quiz question in detail. Include why my answer is right or wrong, how to reason toward the correct answer, and the key source details that matter.';
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-16 space-y-8">
@@ -162,10 +169,28 @@ export const QuizPageContainer: React.FC = () => {
         onGenerateFollowup={handleGenerateFollowup}
         isGeneratingFollowup={isGeneratingFollowup}
         isFollowupGenerated={isCurrentFollowupGenerated}
-        followupContent={followupContent[quizState.currentQuestionIndex]}
-        followupRuleNames={followupRuleNames}
         isLastQuestion={isLastQuestion}
       />
+
+      {isCurrentFollowupChatOpen && directoryId && (
+        <DirectoryChatPanel
+          directoryId={directoryId}
+          sourceCount={1}
+          compact
+          autoSendSeed
+          seedKey={detailedExplanationSeedKey}
+          seedMessage={detailedExplanationMessage}
+          artifactContext={{
+            type: 'quiz',
+            title: quizApi.firestoreQuiz?.title,
+            question: currentQuestion.question,
+            options: currentQuestion.options,
+            userAnswer: selectedAnswerText,
+            correctAnswer: correctAnswerText,
+            explanation: currentQuestion.explanation,
+          }}
+        />
+      )}
 
       {/* Error Display for Followup */}
       {followupError && (

@@ -110,6 +110,9 @@ CALLABLE_FUNCTIONS=(
   # Interaction tracking functions
   "flushinteractionsession"
   "getinteractionstats"
+  # Directory chat functions
+  "getdirectorychat"
+  "senddirectorychatmessage"
 )
 
 for func in "${CALLABLE_FUNCTIONS[@]}"; do

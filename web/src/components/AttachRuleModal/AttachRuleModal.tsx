@@ -93,6 +93,7 @@ export const AttachRuleModal = ({
       [RuleApplicability.PROMPT]: "bg-purple-500/10 text-purple-500",
       [RuleApplicability.QUIZ]: "bg-orange-500/10 text-orange-500",
       [RuleApplicability.FOLLOWUP]: "bg-pink-500/10 text-pink-500",
+      [RuleApplicability.CHAT]: "bg-sky-500/10 text-sky-500",
       [RuleApplicability.FLASHCARD]: "bg-teal-500/10 text-teal-500",
       [RuleApplicability.FLASHCARD_DESC]: "bg-teal-400/10 text-teal-400",
       [RuleApplicability.SLIDE_DECK]: "bg-cyan-500/10 text-cyan-500",
