@@ -173,7 +173,7 @@ export class FirestoreService {
         }
         const data = snap.data() as Quiz;
         transaction.delete(quizRef);
-        if (data.directoryId) {
+        if (data.directoryId && (!data.generationStatus || data.generationStatus === 'completed')) {
           transaction.update(FirestorePaths.directory(userId, data.directoryId), {
             quizCount: FieldValue.increment(-1),
             updatedAt: FieldValue.serverTimestamp(),
@@ -510,7 +510,7 @@ export class FirestoreService {
         }
         const data = snap.data() as DiagramQuiz;
         transaction.delete(ref);
-        if (data.directoryId) {
+        if (data.directoryId && (!data.generationStatus || data.generationStatus === 'completed')) {
           transaction.update(
             FirestorePaths.directory(userId, data.directoryId),
             {
@@ -634,7 +634,7 @@ export class FirestoreService {
         }
         const data = snap.data() as SequenceQuiz;
         transaction.delete(ref);
-        if (data.directoryId) {
+        if (data.directoryId && (!data.generationStatus || data.generationStatus === 'completed')) {
           const dirRef = FirestorePaths.directory(userId, data.directoryId);
           transaction.update(dirRef, {
             sequenceQuizCount: FieldValue.increment(-1),

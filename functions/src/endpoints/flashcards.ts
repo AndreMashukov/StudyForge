@@ -19,6 +19,11 @@ import {
   isRuleResolutionMode,
   resolveEffectiveRules,
 } from '../services/rule-resolution';
+import {
+  createPendingFlashcardSet,
+  completePendingFlashcardSet,
+  failPendingFlashcardSet,
+} from '../services/artifact-generation-records';
 import { DocumentService } from '../services/document-storage';
 import { GeminiService } from '../services/gemini/gemini';
 import { validateAuth } from '../lib/auth';
@@ -145,89 +150,89 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       }
     }
 
-    // Resolve rules to inject into the prompt
-    let injectedRules: string | undefined;
-    let appliedRuleIdsForSave: string[] = [];
-    let appliedDescriptionRuleIdsForSave: string[] = [];
-    const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
-    const mode = ruleResolutionMode
-      ?? (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
-    const resolvedMode = isRuleResolutionMode(mode) ? mode : 'inherit-plus-explicit';
-    const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
-      userId,
+    // Determine pending title before the expensive Gemini work
+    const pendingTitle = customTitle?.trim()
+      || (documentIds.length === 1
+        ? `Flashcards for "${documentDataList[0].title}"`
+        : `Flashcards for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
+
+    const pendingFlashcardSetId = await createPendingFlashcardSet({
       directoryId: resolvedDirectoryId,
-      operation: RuleApplicability.FLASHCARD,
-      additionalRuleIds: explicitRuleIds,
-      mode: resolvedMode,
-    });
-    appliedRuleIdsForSave = resolvedAppliedIds;
-    const base = additionalPrompt?.trim() ? `Additional instructions: ${additionalPrompt}` : '';
-    if (rulesText && base) {
-      injectedRules = `${rulesText}\n\n${base}`;
-    } else if (rulesText) {
-      injectedRules = rulesText;
-    } else if (base) {
-      injectedRules = base;
-    }
-
-    const selectedDescriptionRuleIds = descriptionRuleIds?.length ? descriptionRuleIds : explicitRuleIds;
-    const { text: descRulesText, ruleIds: resolvedDescriptionRuleIds } = await resolveEffectiveRules({
       userId,
-      directoryId: resolvedDirectoryId,
-      operation: RuleApplicability.FLASHCARD_DESC,
-      additionalRuleIds: selectedDescriptionRuleIds,
-      mode: resolvedMode,
-    });
-    appliedDescriptionRuleIdsForSave = resolvedDescriptionRuleIds;
-
-    logger.info(`[generateFlashcards] STEP 2.5: Resolved effective rules.`, {
-      userIdHash: u,
-      ruleCount: appliedRuleIdsForSave.length,
-      descriptionRuleCount: appliedDescriptionRuleIdsForSave.length,
-      mode,
-    });
-
-    logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (GeminiService).`, { userIdHash: u });
-    const generatedData = await generateFlashcardsFromContent(combinedContent, combinedTitle, injectedRules, descRulesText || undefined);
-    logger.info(`[generateFlashcards] STEP 4: Flashcard generation complete. Flashcards created: ${generatedData.flashcards.length}`, { userIdHash: u });
-
-    // Apply custom title or auto-name
-    if (customTitle?.trim()) {
-      generatedData.title = customTitle.trim();
-    } else if (documentIds.length === 1) {
-      generatedData.title = `Flashcards for "${documentDataList[0].title}"`;
-    } else {
-      generatedData.title = `Flashcards for "${documentDataList[0].title}" + ${documentIds.length - 1} more`;
-    }
-
-    const primaryDocumentId = documentIds[0];
-    const newFlashcardSetData = {
-      ...generatedData,
-      userId,
-      documentId: primaryDocumentId,
-      directoryId: resolvedDirectoryId,
-      ...(documentIds.length > 1 ? { documentIds } : {}),
+      documentId: documentIds[0],
+      documentIds: documentIds.length > 1 ? documentIds : undefined,
       documentTitle: documentDataList[0].title,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      appliedRuleIds: appliedRuleIdsForSave,
-      appliedDescriptionRuleIds: appliedDescriptionRuleIdsForSave,
-    };
-
-    logger.info(`[generateFlashcards] STEP 5: Adding new flashcard set to Firestore.`, { userIdHash: u });
-    const db = admin.firestore();
-    const newRef = FirestorePaths.flashcardSets(userId).doc();
-    await db.runTransaction(async (transaction) => {
-      transaction.set(newRef, newFlashcardSetData);
-      transaction.update(FirestorePaths.directory(userId, resolvedDirectoryId), {
-        flashcardSetCount: FieldValue.increment(1),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+      title: pendingTitle,
     });
-    const docRef = newRef;
-    logger.info(`[generateFlashcards] STEP 6: Firestore add complete. New document ID: ${redactId(docRef.id)}`, { userIdHash: u });
 
-    return { success: true, data: { flashcardSetId: docRef.id } };
+    try {
+      // Resolve rules to inject into the prompt
+      let injectedRules: string | undefined;
+      let appliedRuleIdsForSave: string[] = [];
+      let appliedDescriptionRuleIdsForSave: string[] = [];
+      const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
+      const mode = ruleResolutionMode
+        ?? (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+      const resolvedMode = isRuleResolutionMode(mode) ? mode : 'inherit-plus-explicit';
+      const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+        userId,
+        directoryId: resolvedDirectoryId,
+        operation: RuleApplicability.FLASHCARD,
+        additionalRuleIds: explicitRuleIds,
+        mode: resolvedMode,
+      });
+      appliedRuleIdsForSave = resolvedAppliedIds;
+      const base = additionalPrompt?.trim() ? `Additional instructions: ${additionalPrompt}` : '';
+      if (rulesText && base) {
+        injectedRules = `${rulesText}\n\n${base}`;
+      } else if (rulesText) {
+        injectedRules = rulesText;
+      } else if (base) {
+        injectedRules = base;
+      }
+
+      const selectedDescriptionRuleIds = descriptionRuleIds?.length ? descriptionRuleIds : explicitRuleIds;
+      const { text: descRulesText, ruleIds: resolvedDescriptionRuleIds } = await resolveEffectiveRules({
+        userId,
+        directoryId: resolvedDirectoryId,
+        operation: RuleApplicability.FLASHCARD_DESC,
+        additionalRuleIds: selectedDescriptionRuleIds,
+        mode: resolvedMode,
+      });
+      appliedDescriptionRuleIdsForSave = resolvedDescriptionRuleIds;
+
+      logger.info(`[generateFlashcards] STEP 2.5: Resolved effective rules.`, {
+        userIdHash: u,
+        ruleCount: appliedRuleIdsForSave.length,
+        descriptionRuleCount: appliedDescriptionRuleIdsForSave.length,
+        mode,
+      });
+
+      logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (GeminiService).`, { userIdHash: u });
+      const generatedData = await generateFlashcardsFromContent(combinedContent, combinedTitle, injectedRules, descRulesText || undefined);
+      logger.info(`[generateFlashcards] STEP 4: Flashcard generation complete. Flashcards created: ${generatedData.flashcards.length}`, { userIdHash: u });
+
+      // Apply custom title or auto-name
+      const finalTitle = customTitle?.trim()
+        || (documentIds.length === 1
+          ? `Flashcards for "${documentDataList[0].title}"`
+          : `Flashcards for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
+
+      await completePendingFlashcardSet(userId, pendingFlashcardSetId, {
+        title: finalTitle,
+        flashcards: generatedData.flashcards,
+        appliedRuleIds: appliedRuleIdsForSave,
+        appliedDescriptionRuleIds: appliedDescriptionRuleIdsForSave,
+      });
+
+      logger.info(`[generateFlashcards] STEP 6: Complete. ID: ${redactId(pendingFlashcardSetId)}`, { userIdHash: u });
+      return { success: true, data: { flashcardSetId: pendingFlashcardSetId } };
+
+    } catch (innerError) {
+      const msg = innerError instanceof Error ? innerError.message : String(innerError);
+      await failPendingFlashcardSet(userId, pendingFlashcardSetId, msg).catch(() => {/* best-effort */});
+      throw innerError;
+    }
 
   } catch (error) {
     logger.error('Error in generateFlashcards:', error);
@@ -350,7 +355,8 @@ export const deleteFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
       }
       const existing = snap.data() as FlashcardSet;
       transaction.delete(docRef);
-      if (existing.directoryId) {
+      const gs = existing.generationStatus;
+      if (existing.directoryId && (!gs || gs === 'completed')) {
         transaction.update(FirestorePaths.directory(userId, existing.directoryId), {
           flashcardSetCount: FieldValue.increment(-1),
           updatedAt: FieldValue.serverTimestamp(),

@@ -9,6 +9,11 @@ import {
   resolveEffectiveRules,
 } from "../services/rule-resolution";
 import {
+  createPendingSequenceQuiz,
+  completePendingSequenceQuiz,
+  failPendingSequenceQuiz,
+} from "../services/artifact-generation-records";
+import {
   GenerateSequenceQuizResponse,
   GetSequenceQuizResponse,
   ApiResponse,
@@ -117,69 +122,83 @@ export const generateSequenceQuiz = onCall(
 
       GeminiService.validateContentForQuiz(documentContent);
 
-      let enhancedPrompt = additionalPrompt || "";
-      let followupIdsForSave: string[] = [];
+      const pendingTitle = sequenceQuizName
+        || (documentIds.length === 1
+          ? `Sequence Quiz from ${documentDataList[0].doc.title}`
+          : `Sequence Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
 
-      const additionalRuleIds = Array.isArray(requestData.additionalRuleIds)
-        ? (requestData.additionalRuleIds as string[])
-        : undefined;
-      const ruleIds = Array.isArray(requestData.ruleIds)
-        ? (requestData.ruleIds as string[])
-        : undefined;
-      const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
-        ? requestData.ruleResolutionMode
-        : (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
-
-      const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveEffectiveRules({
-        userId,
+      const pendingSequenceQuizId = await createPendingSequenceQuiz({
         directoryId: resolvedDirectoryId,
-        operation: RuleApplicability.SEQUENCE_QUIZ,
-        additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
-        mode,
-      });
-      if (quizRulesText) {
-        enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-      }
-      const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
         userId,
-        directoryId: resolvedDirectoryId,
-        operation: RuleApplicability.FOLLOWUP,
-        additionalRuleIds: ruleIds?.length ? [] : additionalRuleIds,
-        mode,
+        documentId: documentIds[0],
+        documentIds: documentIds.length > 1 ? documentIds : undefined,
+        documentTitle: documentDataList[0].doc.title,
+        title: pendingTitle,
       });
-      followupIdsForSave = resolvedFollowupIds;
 
-      const geminiQuiz = await GeminiService.generateSequenceQuiz(
-        documentContent,
-        enhancedPrompt || undefined
-      );
+      try {
+        let enhancedPrompt = additionalPrompt || "";
+        let followupIdsForSave: string[] = [];
 
-      if (sequenceQuizName) {
-        geminiQuiz.title = sequenceQuizName;
-      } else if (documentIds.length === 1) {
-        geminiQuiz.title = `Sequence Quiz from ${documentDataList[0].doc.title}`;
-      } else {
-        geminiQuiz.title = `Sequence Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
+        const additionalRuleIds = Array.isArray(requestData.additionalRuleIds)
+          ? (requestData.additionalRuleIds as string[])
+          : undefined;
+        const ruleIds = Array.isArray(requestData.ruleIds)
+          ? (requestData.ruleIds as string[])
+          : undefined;
+        const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
+          ? requestData.ruleResolutionMode
+          : (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+
+        const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.SEQUENCE_QUIZ,
+          additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
+          mode,
+        });
+        if (quizRulesText) {
+          enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
+        }
+        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.FOLLOWUP,
+          additionalRuleIds: ruleIds?.length ? [] : additionalRuleIds,
+          mode,
+        });
+        followupIdsForSave = resolvedFollowupIds;
+
+        const geminiQuiz = await GeminiService.generateSequenceQuiz(
+          documentContent,
+          enhancedPrompt || undefined
+        );
+
+        const finalTitle = sequenceQuizName
+          || (documentIds.length === 1
+            ? `Sequence Quiz from ${documentDataList[0].doc.title}`
+            : `Sequence Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
+
+        await completePendingSequenceQuiz(userId, pendingSequenceQuizId, {
+          title: finalTitle,
+          questions: geminiQuiz.questions,
+          appliedRuleIds: appliedRuleIdsForSave,
+          followupRuleIds: followupIdsForSave,
+        });
+
+        return {
+          success: true,
+          data: {
+            sequenceQuizId: pendingSequenceQuizId,
+            sequenceQuiz: { id: pendingSequenceQuizId } as SequenceQuiz,
+          },
+        };
+
+      } catch (innerError) {
+        const msg = innerError instanceof Error ? innerError.message : String(innerError);
+        await failPendingSequenceQuiz(userId, pendingSequenceQuizId, msg).catch(() => {/* best-effort */});
+        throw innerError;
       }
-
-      const primaryDocumentId = documentIds[0];
-      const saved = await FirestoreService.saveSequenceQuizFromDocument(
-        primaryDocumentId,
-        geminiQuiz,
-        userId,
-        resolvedDirectoryId,
-        followupIdsForSave,
-        documentIds.length > 1 ? documentIds : undefined,
-        appliedRuleIdsForSave
-      );
-
-      return {
-        success: true,
-        data: {
-          sequenceQuizId: saved.id,
-          sequenceQuiz: saved,
-        },
-      };
     } catch (error) {
       console.error("Error in generateSequenceQuiz:", error);
       return {

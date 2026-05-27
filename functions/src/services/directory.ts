@@ -611,31 +611,31 @@ export class DirectoryService {
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt', 'appliedRuleIds')
+          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError')
           .get(),
         FirestorePaths.flashcardSets(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt', 'appliedRuleIds')
+          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError')
           .get(),
         FirestorePaths.slideDecks(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt', 'appliedRuleIds')
+          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError')
           .get(),
         FirestorePaths.diagramQuizzes(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt', 'appliedRuleIds')
+          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError')
           .get(),
         FirestorePaths.sequenceQuizzes(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt', 'appliedRuleIds')
+          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError')
           .get(),
       ]);
 
@@ -646,6 +646,8 @@ export class DirectoryService {
           createdAt: d.data().createdAt,
           type,
           appliedRuleIds: (d.data().appliedRuleIds as string[] | undefined) || [],
+          generationStatus: d.data().generationStatus as ArtifactSummary['generationStatus'] | undefined,
+          generationError: d.data().generationError as string | undefined,
         }));
 
       artifactSummaries.push(

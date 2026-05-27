@@ -9,6 +9,11 @@ import {
   resolveEffectiveRules,
 } from "../services/rule-resolution";
 import {
+  createPendingDiagramQuiz,
+  completePendingDiagramQuiz,
+  failPendingDiagramQuiz,
+} from "../services/artifact-generation-records";
+import {
   GenerateDiagramQuizRequest,
   GenerateDiagramQuizResponse,
   GetDiagramQuizResponse,
@@ -81,79 +86,93 @@ export const generateDiagramQuiz = onCall(
 
       GeminiService.validateContentForQuiz(documentContent);
 
-      let enhancedPrompt = additionalPrompt || "";
-      let followupIdsForSave: string[] = [];
-      let appliedRuleIdsForSave: string[] = [];
-      const ruleResolutionMode = isRuleResolutionMode(
-        (requestData as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
-      )
-        ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
-        : undefined;
-      const hasLegacyExplicitRules = Boolean(
-        requestData.ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length
-      );
-      const mode = ruleResolutionMode
-        ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
-      const selectedQuizRuleIds = requestData.ruleIds?.length
-        ? requestData.ruleIds
-        : quizRuleIds?.length
-        ? quizRuleIds
-        : requestData.additionalRuleIds;
-      const selectedFollowupRuleIds = hasLegacyExplicitRules
-        ? (followupRuleIds || [])
-        : requestData.additionalRuleIds;
+      const pendingTitle = diagramQuizName?.trim()
+        || (documentIds.length === 1
+          ? `Diagram Quiz from ${documentDataList[0].doc.title}`
+          : `Diagram Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
 
-      const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
-        userId,
+      const pendingDiagramQuizId = await createPendingDiagramQuiz({
         directoryId: resolvedDirectoryId,
-        operation: RuleApplicability.DIAGRAM_QUIZ,
-        additionalRuleIds: selectedQuizRuleIds,
-        mode,
-      });
-      if (quizRulesText) {
-        enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-      }
-      appliedRuleIdsForSave = resolvedAppliedIds;
-      const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
         userId,
-        directoryId: resolvedDirectoryId,
-        operation: RuleApplicability.FOLLOWUP,
-        additionalRuleIds: selectedFollowupRuleIds,
-        mode,
+        documentId: documentIds[0],
+        documentIds: documentIds.length > 1 ? documentIds : undefined,
+        documentTitle: documentDataList[0].doc.title,
+        title: pendingTitle,
       });
-      followupIdsForSave = resolvedFollowupIds;
 
-      const geminiQuiz = await GeminiService.generateDiagramQuiz(
-        documentContent,
-        enhancedPrompt
-      );
+      try {
+        let enhancedPrompt = additionalPrompt || "";
+        let followupIdsForSave: string[] = [];
+        let appliedRuleIdsForSave: string[] = [];
+        const ruleResolutionMode = isRuleResolutionMode(
+          (requestData as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
+        )
+          ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
+          : undefined;
+        const hasLegacyExplicitRules = Boolean(
+          requestData.ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length
+        );
+        const mode = ruleResolutionMode
+          ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
+        const selectedQuizRuleIds = requestData.ruleIds?.length
+          ? requestData.ruleIds
+          : quizRuleIds?.length
+          ? quizRuleIds
+          : requestData.additionalRuleIds;
+        const selectedFollowupRuleIds = hasLegacyExplicitRules
+          ? (followupRuleIds || [])
+          : requestData.additionalRuleIds;
 
-      if (diagramQuizName?.trim()) {
-        geminiQuiz.title = diagramQuizName.trim();
-      } else if (documentIds.length === 1) {
-        geminiQuiz.title = `Diagram Quiz from ${documentDataList[0].doc.title}`;
-      } else {
-        geminiQuiz.title = `Diagram Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
+        const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.DIAGRAM_QUIZ,
+          additionalRuleIds: selectedQuizRuleIds,
+          mode,
+        });
+        if (quizRulesText) {
+          enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
+        }
+        appliedRuleIdsForSave = resolvedAppliedIds;
+        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.FOLLOWUP,
+          additionalRuleIds: selectedFollowupRuleIds,
+          mode,
+        });
+        followupIdsForSave = resolvedFollowupIds;
+
+        const geminiQuiz = await GeminiService.generateDiagramQuiz(
+          documentContent,
+          enhancedPrompt
+        );
+
+        const finalTitle = diagramQuizName?.trim()
+          || (documentIds.length === 1
+            ? `Diagram Quiz from ${documentDataList[0].doc.title}`
+            : `Diagram Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
+
+        await completePendingDiagramQuiz(userId, pendingDiagramQuizId, {
+          title: finalTitle,
+          questions: geminiQuiz.questions,
+          appliedRuleIds: appliedRuleIdsForSave,
+          followupRuleIds: followupIdsForSave,
+        });
+
+        return {
+          success: true,
+          data: {
+            diagramQuizId: pendingDiagramQuizId,
+            diagramQuiz: { id: pendingDiagramQuizId } as DiagramQuiz,
+          },
+        };
+
+      } catch (innerError) {
+        const msg = innerError instanceof Error ? innerError.message : String(innerError);
+        await failPendingDiagramQuiz(userId, pendingDiagramQuizId, msg).catch(() => {/* best-effort */});
+        throw innerError;
       }
-
-      const primaryDocumentId = documentIds[0];
-      const saved = await FirestoreService.saveDiagramQuizFromDocument(
-        primaryDocumentId,
-        geminiQuiz,
-        userId,
-        resolvedDirectoryId,
-        followupIdsForSave,
-        documentIds.length > 1 ? documentIds : undefined,
-        appliedRuleIdsForSave
-      );
-
-      return {
-        success: true,
-        data: {
-          diagramQuizId: saved.id,
-          diagramQuiz: saved,
-        },
-      };
     } catch (error) {
       console.error("Error in generateDiagramQuiz:", error);
       return {

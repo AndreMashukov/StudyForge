@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import type { GenerationStatus } from '../../../types/generationStatus';
 
 export interface IArtifactRow {
   icon: LucideIcon;
@@ -8,4 +9,6 @@ export interface IArtifactRow {
   onDelete: () => void;
   deleteAriaLabel: string;
   appliedRuleNames?: string[];
+  generationStatus?: GenerationStatus;
+  generationError?: string;
 }

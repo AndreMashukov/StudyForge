@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FileText, Trash2, ChevronDown, Brain, Layers, Presentation, Network, ListOrdered, MoreVertical, FolderInput } from 'lucide-react';
+import { FileText, Trash2, ChevronDown, Brain, Layers, Presentation, Network, ListOrdered, MoreVertical, FolderInput, Loader2, AlertCircle } from 'lucide-react';
 import { DocumentEnhanced } from '@shared-types';
 import { formatDate } from '../../utils/dateUtils';
 import { Button } from '../../components/ui/Button';
@@ -21,6 +21,41 @@ interface SourceRowProps {
 
 export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onDelete, onMove }) => {
   const navigate = useNavigate();
+  const isPending = document.generationStatus === 'pending';
+  const isFailed = document.generationStatus === 'failed';
+
+  if (isPending) {
+    return (
+      <div className="rounded-lg border border-border bg-muted/30 opacity-70 p-3 flex items-center gap-3">
+        <Loader2 size={18} className="shrink-0 text-muted-foreground animate-spin" />
+        <div className="flex-1 min-w-0">
+          <div className="font-medium truncate text-muted-foreground">{document.title}</div>
+          <div className="text-xs text-muted-foreground">Generating…</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isFailed) {
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 flex items-center gap-3">
+        <AlertCircle size={18} className="shrink-0 text-destructive" />
+        <div className="flex-1 min-w-0">
+          <div className="font-medium truncate text-destructive">{document.title}</div>
+          <div className="text-xs text-destructive/70 truncate">{document.generationError || 'Generation failed'}</div>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+          onClick={() => onDelete(document)}
+          aria-label={`Delete ${document.title}`}
+        >
+          <Trash2 size={14} />
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="group rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors flex items-center gap-3">

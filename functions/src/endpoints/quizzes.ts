@@ -4,10 +4,16 @@ import { GeminiService } from "../services/gemini";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
+import { FirestorePaths } from "../lib/firestore-paths";
 import {
   isRuleResolutionMode,
   resolveEffectiveRules,
 } from "../services/rule-resolution";
+import {
+  createPendingQuiz,
+  completePendingQuiz,
+  failPendingQuiz,
+} from "../services/artifact-generation-records";
 import { 
   GenerateQuizRequest, 
   GenerateQuizResponse, 
@@ -50,13 +56,11 @@ export const generateQuiz = onCall(
         throw new Error("Maximum 5 documents allowed per quiz");
       }
 
-      const { quizName, additionalPrompt, quizRuleIds, followupRuleIds } = requestData;
-
       console.log(`Generating quiz from ${documentIds.length} document(s): ${documentIds.join(', ')}`, {
-        customQuizName: !!quizName,
-        hasAdditionalPrompt: !!additionalPrompt,
-        quizRuleCount: quizRuleIds?.length || 0,
-        followupRuleCount: followupRuleIds?.length || 0,
+        customQuizName: !!requestData.quizName,
+        hasAdditionalPrompt: !!requestData.additionalPrompt,
+        quizRuleCount: requestData.quizRuleIds?.length || 0,
+        followupRuleCount: requestData.followupRuleIds?.length || 0,
       });
       
       // Fetch all documents and their content in parallel
@@ -94,85 +98,120 @@ export const generateQuiz = onCall(
       };
       
       GeminiService.validateContentForQuiz(documentContent);
-      
-      // Inject rules: legacy explicit IDs, or auto-resolve from directory hierarchy
-      let enhancedPrompt = additionalPrompt || '';
-      let followupIdsForSave: string[] = [];
-      let appliedRuleIdsForSave: string[] = [];
-      const ruleResolutionMode = isRuleResolutionMode(
-        (requestData as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
-      )
-        ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
-        : undefined;
-      const hasLegacyExplicitRules = Boolean(
-        requestData.ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length
-      );
-      const mode = ruleResolutionMode
-        ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
-      const selectedQuizRuleIds = requestData.ruleIds?.length
-        ? requestData.ruleIds
-        : quizRuleIds?.length
-        ? quizRuleIds
-        : requestData.additionalRuleIds;
-      const selectedFollowupRuleIds = hasLegacyExplicitRules
-        ? (followupRuleIds || [])
-        : requestData.additionalRuleIds;
 
-      const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
-        userId,
-        directoryId: resolvedDirectoryId,
-        operation: RuleApplicability.QUIZ,
-        additionalRuleIds: selectedQuizRuleIds,
-        mode,
-      });
-      if (quizRulesText) {
-        enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-      }
-      appliedRuleIdsForSave = resolvedAppliedIds;
+      const pendingTitle = requestData.quizName?.trim()
+        || (documentIds.length === 1
+          ? `Quiz from ${documentDataList[0].doc.title}`
+          : `Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
 
-      const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
-        userId,
+      const pendingQuizId = await createPendingQuiz({
         directoryId: resolvedDirectoryId,
-        operation: RuleApplicability.FOLLOWUP,
-        additionalRuleIds: selectedFollowupRuleIds,
-        mode,
-      });
-      followupIdsForSave = resolvedFollowupIds;
-      
-      // Generate quiz with Gemini AI
-      console.log("Generating quiz with Gemini AI for document(s)...");
-      const geminiQuiz = await GeminiService.generateQuiz(documentContent, enhancedPrompt);
-      
-      // Apply custom quiz name if provided
-      if (quizName && quizName.trim()) {
-        geminiQuiz.title = quizName.trim();
-      } else if (documentIds.length === 1) {
-        geminiQuiz.title = `Quiz from ${documentDataList[0].doc.title}`;
-      } else {
-        geminiQuiz.title = `Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
-      }
-      
-      // Save quiz with document references and followup rules
-      const primaryDocumentId = documentIds[0];
-      const savedQuiz = await FirestoreService.saveQuizFromDocument(
-        primaryDocumentId, 
-        geminiQuiz, 
         userId,
-        resolvedDirectoryId,
-        followupIdsForSave,
-        documentIds.length > 1 ? documentIds : undefined,
-        appliedRuleIdsForSave
-      );
-      
-      console.log(`Successfully generated quiz from ${documentIds.length} document(s): ${savedQuiz.id}`);
-      
-      return {
-        success: true,
-        data: {
-          quizId: savedQuiz.id,
-          quiz: savedQuiz,
-        },
-      };
+        documentId: documentIds[0],
+        documentIds: documentIds.length > 1 ? documentIds : undefined,
+        documentTitle: documentDataList[0].doc.title,
+        title: pendingTitle,
+      });
+
+      try {
+        // Inject rules: legacy explicit IDs, or auto-resolve from directory hierarchy
+        let enhancedPrompt = requestData.additionalPrompt || '';
+        let followupIdsForSave: string[] = [];
+        let appliedRuleIdsForSave: string[] = [];
+        const ruleResolutionMode = isRuleResolutionMode(
+          (requestData as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
+        )
+          ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
+          : undefined;
+        const hasLegacyExplicitRules = Boolean(
+          requestData.ruleIds?.length || requestData.quizRuleIds?.length || requestData.followupRuleIds?.length
+        );
+        const mode = ruleResolutionMode
+          ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
+        const selectedQuizRuleIds = requestData.ruleIds?.length
+          ? requestData.ruleIds
+          : requestData.quizRuleIds?.length
+          ? requestData.quizRuleIds
+          : requestData.additionalRuleIds;
+        const selectedFollowupRuleIds = hasLegacyExplicitRules
+          ? (requestData.followupRuleIds || [])
+          : requestData.additionalRuleIds;
+
+        const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.QUIZ,
+          additionalRuleIds: selectedQuizRuleIds,
+          mode,
+        });
+        if (quizRulesText) {
+          enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
+        }
+        appliedRuleIdsForSave = resolvedAppliedIds;
+
+        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: resolvedDirectoryId,
+          operation: RuleApplicability.FOLLOWUP,
+          additionalRuleIds: selectedFollowupRuleIds,
+          mode,
+        });
+        followupIdsForSave = resolvedFollowupIds;
+        
+        // Generate quiz with Gemini AI
+        console.log("Generating quiz with Gemini AI for document(s)...");
+        const geminiQuiz = await GeminiService.generateQuiz(documentContent, enhancedPrompt);
+        
+        // Apply custom quiz name if provided
+        if (requestData.quizName && requestData.quizName.trim()) {
+          geminiQuiz.title = requestData.quizName.trim();
+        } else if (documentIds.length === 1) {
+          geminiQuiz.title = `Quiz from ${documentDataList[0].doc.title}`;
+        } else {
+          geminiQuiz.title = `Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
+        }
+
+        // Count existing quizzes for this document for attempt number
+        // (pending record already in collection, so size == attempt number)
+        const existingSnap = await FirestorePaths.quizzes(userId)
+          .where('documentId', '==', documentIds[0])
+          .get();
+        const generationAttempt = existingSnap.size;
+
+        await completePendingQuiz(userId, pendingQuizId, {
+          title: geminiQuiz.title,
+          questions: geminiQuiz.questions.map((q: { question: string; options: string[]; correctAnswer: number; explanation?: string; hint?: string }) => ({
+            question: q.question,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation,
+            ...(q.hint ? { hint: q.hint } : {}),
+          })),
+          appliedRuleIds: appliedRuleIdsForSave,
+          generationAttempt,
+        });
+
+        // Also persist followupRuleIds and documentTitle
+        await FirestorePaths.quiz(userId, pendingQuizId).update({
+          followupRuleIds: followupIdsForSave,
+          documentTitle: documentDataList[0].doc.title,
+        });
+        
+        console.log(`Successfully generated quiz from ${documentIds.length} document(s): ${pendingQuizId}`);
+        
+        return {
+          success: true,
+          data: {
+            quizId: pendingQuizId,
+            quiz: { id: pendingQuizId } as Quiz,
+          },
+        };
+
+      } catch (innerError) {
+        const msg = innerError instanceof Error ? innerError.message : String(innerError);
+        await failPendingQuiz(userId, pendingQuizId, msg).catch(() => {/* best-effort */});
+        throw innerError;
+      }
 
     } catch (error) {
       console.error("Error in generateQuiz:", error);
