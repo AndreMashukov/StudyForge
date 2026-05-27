@@ -101,14 +101,20 @@ export const documentsApi = baseApi.injectEndpoints({
         functionName: 'generateFromPrompt',
         data: data
       }),
-      onQueryStarted: createDocumentOnQueryStarted('Document', 'generate document'),
+      onQueryStarted: createDocumentOnQueryStarted('Document', 'generate document', {
+        successMessage: 'Document is preparing',
+      }),
       transformResponse: (response: { 
         success: boolean;
+        id?: string;
         documentId: string;
-        title: string;
-        content: string;
-        wordCount: number;
-        metadata: {
+        recordType?: 'document';
+        directoryId?: string;
+        generationStatus?: 'pending';
+        title?: string;
+        content?: string;
+        wordCount?: number;
+        metadata?: {
           originalPrompt: string;
           generatedAt: string;
           filesUsed?: number;
@@ -116,7 +122,12 @@ export const documentsApi = baseApi.injectEndpoints({
       }) => {
         // Firebase Functions return data wrapped in the response
         return {
+          success: response.success,
+          id: response.id || response.documentId,
           documentId: response.documentId,
+          recordType: response.recordType || 'document',
+          directoryId: response.directoryId || '',
+          generationStatus: response.generationStatus || 'pending',
           title: response.title,
           content: response.content,
           wordCount: response.wordCount,

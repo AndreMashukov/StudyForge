@@ -9,6 +9,9 @@ import { FileExtractionError, FileExtractionService } from '../services/file-ext
 import { GeminiService } from '../services/gemini';
 import { SourceDocumentGenerationService } from '../services/source-document-generation';
 import { ScreenshotDocumentGenerationService } from '../services/screenshot-document-generation';
+import { GenerationJobPayloadStorage } from '../services/generation-job-payload-storage';
+import { GenerationJobsService } from '../services/generation-jobs';
+import { enqueueGenerationJobTask } from '../services/generation-task-queue';
 import {
   isRuleResolutionMode,
   resolveEffectiveRules,
@@ -937,112 +940,53 @@ export const generateFromPrompt = onCall(
         tags: ['ai-generated', 'prompt-based'],
       });
 
+      let jobId: string | undefined;
+      let payloadStoragePath: string | undefined;
+
       try {
-        const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
+        jobId = GenerationJobsService.newJobId(userId);
+        payloadStoragePath = await GenerationJobPayloadStorage.saveJson(userId, jobId, {
+          ...data,
+          prompt: trimmedPrompt,
+          ruleResolutionMode: mode,
+          additionalRuleIds: rawRuleData.additionalRuleIds,
+        });
+        await GenerationJobsService.createJob({
+          jobId,
+          kind: 'documentFromPrompt',
           userId,
           directoryId: data.directoryId,
-          operation: RuleApplicability.PROMPT,
-          additionalRuleIds: data.ruleIds?.length ? data.ruleIds : rawRuleData.additionalRuleIds,
-          mode,
+          recordId: pendingDocId,
+          payloadStoragePath,
         });
+        await enqueueGenerationJobTask({ userId, jobId });
 
-        if (rulesText) {
-          logger.info('Injecting effective rules into document generation prompt', {
-            ruleCount: effectiveRuleIds.length,
-            userId,
-            mode,
-          });
-        }
-
-        logger.info('Calling Gemini AI to generate document', { 
+        logger.info('Prompt document generation queued', {
           userId,
+          jobId,
+          documentId: pendingDocId,
+          directoryId: data.directoryId,
           promptLength: trimmedPrompt.length,
-          originalPromptLength: trimmedPrompt.length,
-          withRules: data.ruleIds && data.ruleIds.length > 0,
-          ruleCount: data.ruleIds?.length || 0,
-          withContextFiles: !!(data.files && data.files.length > 0),
-          contextSources: {
-            hasUploadedFiles: uploadFilesCount > 0,
-            hasLibraryDocuments: libraryFilesCount > 0,
-            isMixedSource: uploadFilesCount > 0 && libraryFilesCount > 0,
-          },
         });
 
-      // Generate document content using Gemini AI with optional context files
-      const generatedContent = await GeminiService.generateDocumentFromPrompt(
-        trimmedPrompt,
-        data.files,
-        rulesText || undefined
-      );
-
-      // Extract title from the first H1 heading or generate from prompt
-      let title = 'Generated Document';
-      const titleMatch = generatedContent.match(/^#\s+(.+)$/m);
-      if (titleMatch && titleMatch[1]) {
-        title = titleMatch[1].trim();
-      } else {
-        // Generate title from prompt if no H1 found
-        title = trimmedPrompt.length > 50 
-          ? `${trimmedPrompt.substring(0, 50)}...` 
-          : trimmedPrompt;
-      }
-
-      // Calculate word count
-      const wordCount = generatedContent.split(/\s+/).length;
-
-      // Validate generated content meets minimum requirements
-      if (wordCount < 1000) {
-        logger.warn('Generated content below minimum word count', { 
-          wordCount,
-          required: 1000,
-        });
-        // Don't throw error, but log warning - Gemini may have generated quality content
-      }
-
-      logger.info('Completing pending document with generated content', { 
-        userId,
-        pendingDocId,
-        title,
-        wordCount,
-      });
-
-      await DocumentCrudService.completePendingDocument(userId, pendingDocId, generatedContent, {
-        title,
-        description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? '...' : ''}`,
-        tags: ['ai-generated', 'prompt-based'],
-      });
-
-      // Add custom metadata to document (stored in Firestore)
-      const generatedAt = new Date().toISOString();
-      
-      logger.info('Document generated and created successfully', { 
-        userId,
-        documentId: pendingDocId,
-        title,
-        wordCount,
-        contextUsed: {
-          totalFiles: data.files?.length || 0,
-          uploadedFiles: uploadFilesCount,
-          libraryDocuments: libraryFilesCount,
-        },
-      });
-
-      return { 
-        success: true,
-        documentId: pendingDocId,
-        title,
-        content: generatedContent,
-        wordCount,
-        metadata: {
-          originalPrompt: trimmedPrompt,
-          generatedAt,
-          filesUsed: data.files?.length || 0,
-        },
-      };
+        return {
+          success: true,
+          id: pendingDocId,
+          documentId: pendingDocId,
+          recordType: 'document',
+          directoryId: data.directoryId,
+          generationStatus: 'pending',
+        };
 
       } catch (innerError) {
         // Mark the pending record as failed so the UI shows the error state
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
+        if (jobId) {
+          await GenerationJobsService.markFailed(userId, jobId, msg).catch(() => {/* best-effort */});
+        }
+        if (payloadStoragePath) {
+          await GenerationJobPayloadStorage.delete(payloadStoragePath).catch(() => {/* best-effort */});
+        }
         await DocumentCrudService.failPendingDocument(userId, pendingDocId, msg).catch(() => {/* best-effort */});
         throw innerError;
       }

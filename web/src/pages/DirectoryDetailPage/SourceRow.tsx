@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../components/ui/DropdownMenu';
+import { Badge } from '../../components/ui/Badge';
 
 interface SourceRowProps {
   document: DocumentEnhanced;
@@ -30,7 +31,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onD
         <Loader2 size={18} className="shrink-0 text-muted-foreground animate-spin" />
         <div className="flex-1 min-w-0">
           <div className="font-medium truncate text-muted-foreground">{document.title}</div>
-          <div className="text-xs text-muted-foreground">Generating…</div>
+          <Badge variant="secondary" className="mt-1 text-xs">Preparing</Badge>
         </div>
       </div>
     );

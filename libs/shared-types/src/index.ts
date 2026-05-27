@@ -273,6 +273,22 @@ export enum DocumentStatus {
 // Generation lifecycle status (orthogonal to DocumentStatus)
 export type GenerationStatus = 'pending' | 'completed' | 'failed';
 
+export type GenerationRecordType =
+  | 'document'
+  | 'quiz'
+  | 'flashcardSet'
+  | 'slideDeck'
+  | 'diagramQuiz'
+  | 'sequenceQuiz';
+
+export interface StartGenerationResponse {
+  success: boolean;
+  id: string;
+  recordType: GenerationRecordType;
+  directoryId: string;
+  generationStatus: 'pending';
+}
+
 // Enhanced Document interface
 export interface DocumentEnhanced {
   id: string;
@@ -609,12 +625,12 @@ export interface GenerateFromPromptRequest {
   ruleResolutionMode?: RuleResolutionMode;
 }
 
-export interface GenerateFromPromptResponse {
+export interface GenerateFromPromptResponse extends StartGenerationResponse {
   documentId: string;
-  title: string;
-  content: string;
-  wordCount: number;
-  metadata: {
+  title?: string;
+  content?: string;
+  wordCount?: number;
+  metadata?: {
     originalPrompt: string;
     generatedAt: string;
     filesUsed?: number; // Number of context files used

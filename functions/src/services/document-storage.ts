@@ -19,7 +19,7 @@ export class DocumentService {
     return this._storage;
   }
 
-  private static getBucket() {
+  static getBucket() {
     const isEmulator = !!process.env.FUNCTIONS_EMULATOR || !!process.env.FIREBASE_STORAGE_EMULATOR_HOST;
 
     // In production, prefer FIREBASE_CONFIG.storageBucket — Firebase injects this automatically
