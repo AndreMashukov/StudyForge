@@ -44,6 +44,7 @@ export const useRealtimeDirectorySync = (
       {
         collectionName: 'documents',
         filters: [{ field: 'directoryId', value: dirValue }],
+        invalidateOnInitial: true,
         tags: [...directoryTags, 'Documents' as const],
       },
       // Quizzes in the current directory

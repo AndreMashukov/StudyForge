@@ -16,10 +16,14 @@ import { baseApi } from '../store/api/baseApi';
  * - `collectionName`: sub-collection under `users/{uid}/`
  * - `filters`: optional Firestore where-clause pairs
  * - `tags`: RTK Query tags to invalidate when the collection changes
+ * - `invalidateOnInitial`: invalidate on the first snapshot too, useful when
+ *   cached RTK data may show a pending record that completed before the
+ *   listener's initial snapshot was delivered
  */
 export interface FirestoreListenerConfig {
   collectionName: string;
   filters?: { field: string; value: unknown }[];
+  invalidateOnInitial?: boolean;
   tags: Parameters<typeof baseApi.util.invalidateTags>[0];
 }
 
@@ -44,6 +48,7 @@ export const useFirestoreRealtimeSync = (
     configs.map((c) => ({
       c: c.collectionName,
       f: c.filters,
+      i: c.invalidateOnInitial,
     })),
   );
 
@@ -79,7 +84,9 @@ export const useFirestoreRealtimeSync = (
         () => {
           if (isInitial) {
             isInitial = false;
-            return;
+            if (!configsRef.current[idx].invalidateOnInitial) {
+              return;
+            }
           }
           const tags = configsRef.current[idx].tags;
           dispatch(baseApi.util.invalidateTags(tags));
