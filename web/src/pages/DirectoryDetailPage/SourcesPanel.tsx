@@ -1,14 +1,12 @@
 import React from 'react';
 import { DocumentEnhanced } from '@shared-types';
 import { SourceRow } from './SourceRow';
-import { ArtifactRowGenerating } from './ArtifactRow';
 
 interface ISourcesPanelProps {
   documents: DocumentEnhanced[];
   directoryId: string;
   onDeleteDocument: (document: DocumentEnhanced) => void;
   onMoveDocument: (document: DocumentEnhanced) => void;
-  isGenerating?: boolean;
 }
 
 export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
@@ -16,15 +14,16 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
   directoryId,
   onDeleteDocument,
   onMoveDocument,
-  isGenerating = false,
 }) => {
+  const completedCount = documents.filter(
+    (d) => !d.generationStatus || d.generationStatus === 'completed'
+  ).length;
+
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Sources ({documents.length})</h2>
+      <h2 className="text-lg font-semibold">Sources ({completedCount})</h2>
 
-      {isGenerating && <ArtifactRowGenerating label="Generating document…" />}
-
-      {documents.length === 0 && !isGenerating ? (
+      {documents.length === 0 ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
           No documents yet. Add a URL, upload markdown, or generate from a prompt.
         </div>

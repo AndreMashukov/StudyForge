@@ -13,6 +13,11 @@ import {
   isRuleResolutionMode,
   resolveEffectiveRules,
 } from '../services/rule-resolution';
+import {
+  createPendingSlideDeck,
+  completePendingSlideDeck,
+  failPendingSlideDeck,
+} from '../services/artifact-generation-records';
 import { GeminiService } from '../services/gemini/gemini';
 import { validateAuth } from '../lib/auth';
 import { FirestorePaths } from '../lib/firestore-paths';
@@ -71,13 +76,12 @@ export const generateSlideDeck = onCall(
         ruleCount: ruleIds?.length || 0,
       });
 
-      try {
-        // Fetch all documents and their content in parallel
-        // Each fetch is wrapped in try-catch to preserve error context before Promise.all short-circuits
-        const documentDataList = await Promise.all(
-          documentIds.map(async (docId, index) => {
-            try {
-              const doc = await DocumentCrudService.getDocumentWithContent(userId, docId);
+      // Fetch all documents and their content in parallel
+      // Each fetch is wrapped in try-catch to preserve error context before Promise.all short-circuits
+      const documentDataList = await Promise.all(
+        documentIds.map(async (docId, index) => {
+          try {
+            const doc = await DocumentCrudService.getDocumentWithContent(userId, docId);
               if (!doc || !doc.content) {
                 throw new HttpsError('not-found', `Document at index ${index} (id: ${docId}) does not exist or has no content.`);
               }
@@ -107,139 +111,132 @@ export const generateSlideDeck = onCall(
           }
         }
 
-        // Inject rules if provided
-        let injectedRules: string | undefined;
-        let appliedRuleIdsForSave: string[] = [];
-        const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
-        const mode = ruleResolutionMode
-          ?? (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
-        const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
-          userId,
+        // Determine pending title before expensive Gemini work
+        const pendingTitle = customTitle?.trim()
+          || (documentIds.length === 1
+            ? `Slides for "${documentDataList[0].title}"`
+            : `Slides for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
+
+        const pendingSlideDeckId = await createPendingSlideDeck({
           directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.SLIDE_DECK,
-          additionalRuleIds: explicitRuleIds,
-          mode: isRuleResolutionMode(mode) ? mode : 'inherit-plus-explicit',
-        });
-        appliedRuleIdsForSave = resolvedAppliedIds;
-        const base = additionalPrompt?.trim() || '';
-        if (rulesText && base) {
-          injectedRules = `${rulesText}\n\n${base}`;
-        } else if (rulesText) {
-          injectedRules = rulesText;
-        } else if (base) {
-          injectedRules = base;
-        }
-
-        logger.info('[generateSlideDeck] STEP 2.5: Resolved effective rules.', {
-          ruleCount: appliedRuleIdsForSave.length,
-          mode,
-        });
-
-        // Step 3: Generate slide outline
-        logger.info('[generateSlideDeck] STEP 3: Generating slide outline.', { userIdHash: u });
-        const slideOutline = await GeminiService.generateSlideDeckOutline(combinedContent, additionalPrompt || undefined, injectedRules);
-        logger.info(`[generateSlideDeck] STEP 4: Outline generated. Slides: ${slideOutline.length}`, { userIdHash: u });
-
-        // Step 5: Generate images with two-phase approach + bounded concurrency (3 at a time)
-        // Phase 1 (per slide): Gemini text model builds a detailed image brief from rules + content
-        // Phase 2 (per slide): The brief is passed to the image model for rendering
-        const CONCURRENCY = 3;
-        const slides: Slide[] = slideOutline.map((outline) => ({
-          id: admin.firestore().collection('tmp').doc().id,
-          title: outline.title,
-          content: outline.content,
-          speakerNotes: outline.speakerNotes,
-        }));
-
-        for (let batch = 0; batch < slides.length; batch += CONCURRENCY) {
-          const chunk = slides.slice(batch, batch + CONCURRENCY);
-          const chunkIndices = chunk.map((_, ci) => batch + ci);
-
-          logger.info(`[generateSlideDeck] STEP 5: Generating images for slides ${chunkIndices.join(',')}`, { userIdHash: u });
-
-          await Promise.all(chunk.map(async (slide, ci) => {
-            const i = batch + ci;
-
-            // Phase 1: Generate detailed image brief using Gemini text model
-            const brief = await GeminiService.generateSlideImageBrief(slide.title, slide.content, injectedRules);
-
-            // Phase 2: Generate the actual image from the brief (or fall back to direct prompt)
-            let imageBase64: string | null = null;
-            if (brief) {
-              const { SlideDeckPromptBuilder } = await import('../services/gemini/prompt-builder/slide-deck');
-              const imagePrompt = SlideDeckPromptBuilder.buildSlideImageFromBriefPrompt(brief);
-              imageBase64 = await GeminiService.generateSlideImageFromPrompt(imagePrompt);
-            }
-            if (!imageBase64) {
-              // Fallback: direct image generation without brief
-              imageBase64 = await GeminiService.generateSlideImage(slide.title, slide.content, injectedRules);
-            }
-
-            if (imageBase64) {
-              const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.png`;
-              const downloadToken = randomUUID();
-              const file = admin.storage().bucket().file(storagePath);
-              await file.save(Buffer.from(imageBase64, 'base64'), {
-                metadata: {
-                  contentType: 'image/png',
-                  metadata: { firebaseStorageDownloadTokens: downloadToken },
-                },
-                resumable: false,
-              });
-              slide.imageStoragePath = storagePath;
-              slide.imageDownloadToken = downloadToken;
-              uploadedPaths.push(storagePath);
-            }
-          }));
-        }
-
-        // Step 6: Save to Firestore
-        let deckTitle: string;
-        if (customTitle?.trim()) {
-          deckTitle = customTitle.trim();
-        } else if (documentIds.length === 1) {
-          deckTitle = `Slides for "${documentDataList[0].title}"`;
-        } else {
-          deckTitle = `Slides for "${documentDataList[0].title}" + ${documentIds.length - 1} more`;
-        }
-        const primaryDocumentId = documentIds[0];
-        const newSlideDeckData = {
-          title: deckTitle,
-          slides,
           userId,
-          documentId: primaryDocumentId,
-          directoryId: resolvedDirectoryId,
-          ...(documentIds.length > 1 ? { documentIds } : {}),
+          documentId: documentIds[0],
+          documentIds: documentIds.length > 1 ? documentIds : undefined,
           documentTitle: documentDataList[0].title,
-          createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-          appliedRuleIds: appliedRuleIdsForSave,
-        };
-
-        logger.info('[generateSlideDeck] STEP 6: Saving to Firestore.', { userIdHash: u });
-        const db = admin.firestore();
-        const newDeckRef = FirestorePaths.slideDecks(userId).doc();
-        await db.runTransaction(async (transaction) => {
-          transaction.set(newDeckRef, newSlideDeckData);
-          transaction.update(FirestorePaths.directory(userId, resolvedDirectoryId), {
-            slideDeckCount: FieldValue.increment(1),
-            updatedAt: FieldValue.serverTimestamp(),
-          });
+          title: pendingTitle,
         });
-        const docRef = newDeckRef;
 
-        logger.info(`[generateSlideDeck] STEP 7: Complete. Deck ID: ${redactId(docRef.id)}`, { userIdHash: u });
+        try {
+          // Inject rules if provided
+          let injectedRules: string | undefined;
+          let appliedRuleIdsForSave: string[] = [];
+          const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
+          const mode = ruleResolutionMode
+            ?? (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+            userId,
+            directoryId: resolvedDirectoryId,
+            operation: RuleApplicability.SLIDE_DECK,
+            additionalRuleIds: explicitRuleIds,
+            mode: isRuleResolutionMode(mode) ? mode : 'inherit-plus-explicit',
+          });
+          appliedRuleIdsForSave = resolvedAppliedIds;
+          const base = additionalPrompt?.trim() || '';
+          if (rulesText && base) {
+            injectedRules = `${rulesText}\n\n${base}`;
+          } else if (rulesText) {
+            injectedRules = rulesText;
+          } else if (base) {
+            injectedRules = base;
+          }
 
-        return { success: true, data: { slideDeckId: docRef.id } };
-      } catch (innerError) {
-        // Cleanup orphaned storage files on failure
-        if (uploadedPaths.length > 0) {
-          logger.warn(`[generateSlideDeck] Cleaning up ${uploadedPaths.length} orphaned files after failure.`);
-          const bucket = admin.storage().bucket();
-          await Promise.allSettled(uploadedPaths.map(p => bucket.file(p).delete().catch(() => { /* ignore cleanup errors */ })));
+          logger.info('[generateSlideDeck] STEP 2.5: Resolved effective rules.', {
+            ruleCount: appliedRuleIdsForSave.length,
+            mode,
+          });
+
+          // Step 3: Generate slide outline
+          logger.info('[generateSlideDeck] STEP 3: Generating slide outline.', { userIdHash: u });
+          const slideOutline = await GeminiService.generateSlideDeckOutline(combinedContent, additionalPrompt || undefined, injectedRules);
+          logger.info(`[generateSlideDeck] STEP 4: Outline generated. Slides: ${slideOutline.length}`, { userIdHash: u });
+
+          // Step 5: Generate images with two-phase approach + bounded concurrency (3 at a time)
+          const CONCURRENCY = 3;
+          const slides: Slide[] = slideOutline.map((outline) => ({
+            id: admin.firestore().collection('tmp').doc().id,
+            title: outline.title,
+            content: outline.content,
+            speakerNotes: outline.speakerNotes,
+          }));
+
+          for (let batch = 0; batch < slides.length; batch += CONCURRENCY) {
+            const chunk = slides.slice(batch, batch + CONCURRENCY);
+            const chunkIndices = chunk.map((_, ci) => batch + ci);
+
+            logger.info(`[generateSlideDeck] STEP 5: Generating images for slides ${chunkIndices.join(',')}`, { userIdHash: u });
+
+            await Promise.all(chunk.map(async (slide, ci) => {
+              const i = batch + ci;
+
+              // Phase 1: Generate detailed image brief using Gemini text model
+              const brief = await GeminiService.generateSlideImageBrief(slide.title, slide.content, injectedRules);
+
+              // Phase 2: Generate the actual image from the brief (or fall back to direct prompt)
+              let imageBase64: string | null = null;
+              if (brief) {
+                const { SlideDeckPromptBuilder } = await import('../services/gemini/prompt-builder/slide-deck');
+                const imagePrompt = SlideDeckPromptBuilder.buildSlideImageFromBriefPrompt(brief);
+                imageBase64 = await GeminiService.generateSlideImageFromPrompt(imagePrompt);
+              }
+              if (!imageBase64) {
+                imageBase64 = await GeminiService.generateSlideImage(slide.title, slide.content, injectedRules);
+              }
+
+              if (imageBase64) {
+                const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.png`;
+                const downloadToken = randomUUID();
+                const file = admin.storage().bucket().file(storagePath);
+                await file.save(Buffer.from(imageBase64, 'base64'), {
+                  metadata: {
+                    contentType: 'image/png',
+                    metadata: { firebaseStorageDownloadTokens: downloadToken },
+                  },
+                  resumable: false,
+                });
+                slide.imageStoragePath = storagePath;
+                slide.imageDownloadToken = downloadToken;
+                uploadedPaths.push(storagePath);
+              }
+            }));
+          }
+
+          // Step 6: Complete the pending record
+          const finalTitle = customTitle?.trim()
+            || (documentIds.length === 1
+              ? `Slides for "${documentDataList[0].title}"`
+              : `Slides for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
+
+          await completePendingSlideDeck(userId, pendingSlideDeckId, {
+            title: finalTitle,
+            slides,
+            appliedRuleIds: appliedRuleIdsForSave,
+          });
+
+          logger.info(`[generateSlideDeck] STEP 7: Complete. Deck ID: ${redactId(pendingSlideDeckId)}`, { userIdHash: u });
+          return { success: true, data: { slideDeckId: pendingSlideDeckId } };
+
+        } catch (innerError) {
+          // Mark pending record as failed
+          const msg = innerError instanceof Error ? innerError.message : String(innerError);
+          await failPendingSlideDeck(userId, pendingSlideDeckId, msg).catch(() => {/* best-effort */});
+          // Cleanup orphaned storage files
+          if (uploadedPaths.length > 0) {
+            logger.warn(`[generateSlideDeck] Cleaning up ${uploadedPaths.length} orphaned files after failure.`);
+            const bucket = admin.storage().bucket();
+            await Promise.allSettled(uploadedPaths.map(p => bucket.file(p).delete().catch(() => { /* ignore */ })));
+          }
+          throw innerError;
         }
-        throw innerError;
-      }
     } catch (error) {
       logger.error('Error in generateSlideDeck:', error);
       if (error instanceof HttpsError) throw error;
@@ -377,7 +374,8 @@ export const deleteSlideDeck = onCall({ region: 'asia-east1', cors: true }, asyn
       }
       const deck = snap.data() as SlideDeck;
       transaction.delete(docRef);
-      if (deck.directoryId) {
+      const gs = deck.generationStatus;
+      if (deck.directoryId && (!gs || gs === 'completed')) {
         transaction.update(FirestorePaths.directory(userId, deck.directoryId), {
           slideDeckCount: FieldValue.increment(-1),
           updatedAt: FieldValue.serverTimestamp(),

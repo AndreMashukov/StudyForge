@@ -12,6 +12,7 @@ import {
   MoveDocumentRequest,
   DocumentSourceType,
   DocumentStatus,
+  GenerationStatus,
 } from "@shared-types";
 
 /**
@@ -398,8 +399,11 @@ export class DocumentCrudService {
         });
       }
 
-      // Update directory document count if document was in a directory
-      if (document.directoryId) {
+      // Update directory document count if document was in a directory.
+      // Only decrement for completed/legacy records; pending records were never
+      // counted in the first place, and failed records were also never counted.
+      const gs = (document as Document & { generationStatus?: GenerationStatus }).generationStatus;
+      if (document.directoryId && (!gs || gs === 'completed')) {
         await this.updateDirectoryDocumentCount(userId, document.directoryId, -1);
       }
 
@@ -773,5 +777,137 @@ export class DocumentCrudService {
       });
       // Don't throw error - this is a non-critical operation
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pending-generation helpers
+  // Pending records are written before expensive AI/extraction work begins.
+  // The directory documentCount is only incremented on successful completion.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Create a placeholder document record with generationStatus='pending'.
+   * Does NOT upload content or increment documentCount.
+   * Returns the allocated document ID so callers can reference it in
+   * completePendingDocument() or failPendingDocument().
+   */
+  static async createPendingDocument(
+    userId: string,
+    params: {
+      directoryId: string;
+      title: string;
+      description?: string;
+      sourceType: DocumentSourceType;
+      sourceUrl?: string;
+      tags?: string[];
+    }
+  ): Promise<string> {
+    await directoryService.validateDirectoryId(userId, params.directoryId);
+
+    const docRef = FirestorePaths.documents(userId).doc();
+    const now = Timestamp.now();
+
+    await docRef.set({
+      id: docRef.id,
+      userId,
+      title: params.title,
+      description: params.description || '',
+      sourceType: params.sourceType,
+      sourceUrl: params.sourceUrl || null,
+      wordCount: 0,
+      status: DocumentStatus.ACTIVE,
+      storageUrl: '',
+      storagePath: '',
+      tags: params.tags || [],
+      directoryId: params.directoryId,
+      generationStatus: 'pending' as GenerationStatus,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    logger.info('Pending document created', { userId, documentId: docRef.id, directoryId: params.directoryId });
+    return docRef.id;
+  }
+
+  /**
+   * Complete a pending document: upload generated content to Storage, update
+   * the Firestore record with final metadata, set generationStatus='completed',
+   * and increment directoryDocumentCount exactly once.
+   */
+  static async completePendingDocument(
+    userId: string,
+    documentId: string,
+    content: string,
+    params: {
+      title: string;
+      description?: string;
+      tags?: string[];
+    }
+  ): Promise<Document> {
+    const wordCount = this.countWords(content);
+
+    const metadata: DocumentMetadata = {
+      title: params.title,
+      sourceType: DocumentSourceType.GENERATED,
+      wordCount,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const storageFile = await DocumentService.uploadDocument(
+      userId,
+      documentId,
+      content,
+      metadata
+    );
+
+    const now = Timestamp.now();
+    const docRef = FirestorePaths.documents(userId).doc(documentId);
+
+    // Read current record to get directoryId for count update
+    const snap = await docRef.get();
+    if (!snap.exists) {
+      throw new Error(`Pending document ${documentId} not found`);
+    }
+    const existing = snap.data() as Document;
+
+    await docRef.update({
+      title: params.title,
+      description: params.description || existing.description || '',
+      tags: params.tags || existing.tags || [],
+      wordCount,
+      storageUrl: storageFile.downloadUrl,
+      storagePath: storageFile.path,
+      status: DocumentStatus.ACTIVE,
+      generationStatus: 'completed' as GenerationStatus,
+      completedAt: now,
+      updatedAt: now,
+    });
+
+    // Increment count only on completion
+    if (existing.directoryId) {
+      await this.updateDirectoryDocumentCount(userId, existing.directoryId, 1);
+    }
+
+    logger.info('Pending document completed', { userId, documentId });
+    return { ...existing, ...snap.data(), id: documentId } as Document;
+  }
+
+  /**
+   * Mark a pending document as failed. Does not delete the record (it remains
+   * visible in the UI) and does not increment directoryDocumentCount.
+   */
+  static async failPendingDocument(
+    userId: string,
+    documentId: string,
+    error: string
+  ): Promise<void> {
+    const docRef = FirestorePaths.documents(userId).doc(documentId);
+    await docRef.update({
+      generationStatus: 'failed' as GenerationStatus,
+      generationError: error,
+      updatedAt: Timestamp.now(),
+    });
+    logger.warn('Pending document marked as failed', { userId, documentId, error });
   }
 }

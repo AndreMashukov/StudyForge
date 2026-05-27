@@ -1,7 +1,6 @@
 import { logger } from 'firebase-functions/v2';
 import {
   DocumentSourceType,
-  DocumentStatus,
   GenerateFromScreenshotRequest,
   GenerateFromScreenshotResponse,
   RuleApplicability,
@@ -16,6 +15,9 @@ const MAX_SCREENSHOT_BASE64_LENGTH = 14_000_000;
 export interface ScreenshotDocumentGenerationInput
   extends GenerateFromScreenshotRequest {
   userId: string;
+  /** Pre-created pending document ID. When provided, the service updates it
+   *  rather than creating a new document record. */
+  pendingDocumentId?: string;
 }
 
 export class ScreenshotDocumentGenerationService {
@@ -63,19 +65,31 @@ export class ScreenshotDocumentGenerationService {
     });
     const wordCount = this.countWords(generatedContent);
 
-    const document = await DocumentCrudService.createDocument(userId, {
-      title,
-      description: 'Captured from screenshot',
-      content: generatedContent,
-      sourceType: DocumentSourceType.GENERATED,
-      status: DocumentStatus.ACTIVE,
-      tags: ['screenshot', 'captured'],
-      directoryId,
-    });
+    let documentId: string;
+
+    if (input.pendingDocumentId) {
+      await DocumentCrudService.completePendingDocument(userId, input.pendingDocumentId, generatedContent, {
+        title,
+        description: 'Captured from screenshot',
+        tags: ['screenshot', 'captured'],
+      });
+      documentId = input.pendingDocumentId;
+    } else {
+      const document = await DocumentCrudService.createDocument(userId, {
+        title,
+        description: 'Captured from screenshot',
+        content: generatedContent,
+        sourceType: DocumentSourceType.GENERATED,
+        status: undefined,
+        tags: ['screenshot', 'captured'],
+        directoryId,
+      });
+      documentId = document.id;
+    }
 
     return {
-      documentId: document.id,
-      title: document.title,
+      documentId,
+      title,
       content: generatedContent,
       wordCount,
       metadata: {

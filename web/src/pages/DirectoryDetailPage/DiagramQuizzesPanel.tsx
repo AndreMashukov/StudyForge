@@ -3,13 +3,12 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, Network } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
+import { ArtifactRow } from './ArtifactRow';
 
 interface DiagramQuizzesPanelProps {
   diagramQuizzes: ArtifactSummary[];
   directoryId: string;
   mayBeTruncated?: boolean;
-  isGenerating?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'diagramQuiz' }) => void;
   ruleNamesMap?: Map<string, string>;
 }
@@ -18,19 +17,21 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
   diagramQuizzes,
   directoryId,
   mayBeTruncated = false,
-  isGenerating = false,
   onDeleteArtifact,
   ruleNamesMap,
 }) => {
+  const completedCount = diagramQuizzes.filter(
+    (dq) => !dq.generationStatus || dq.generationStatus === 'completed'
+  ).length;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Diagram quizzes ({diagramQuizzes.length})</h2>
+        <h2 className="text-lg font-semibold">Diagram quizzes ({completedCount})</h2>
         <Button size="sm" asChild>
           <Link to={`/diagram-quiz/create?directoryId=${directoryId}`}>+ Create diagram quiz</Link>
         </Button>
       </div>
-      {isGenerating && <ArtifactRowGenerating label="Generating diagram quiz…" />}
       {mayBeTruncated && (
         <div className="flex items-center gap-2 rounded-md border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-primary">
           <AlertTriangle size={16} className="shrink-0" />
@@ -55,6 +56,8 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
               }
               deleteAriaLabel={`Delete ${dq.title}`}
               appliedRuleNames={dq.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
+              generationStatus={dq.generationStatus}
+              generationError={dq.generationError}
             />
           ))}
         </div>

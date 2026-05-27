@@ -3,13 +3,12 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, Layers } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
+import { ArtifactRow } from './ArtifactRow';
 
 interface FlashcardsPanelProps {
   flashcardSets: ArtifactSummary[];
   directoryId: string;
   mayBeTruncated?: boolean;
-  isGenerating?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'flashcard' }) => void;
   ruleNamesMap?: Map<string, string>;
 }
@@ -18,19 +17,21 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
   flashcardSets,
   directoryId,
   mayBeTruncated = false,
-  isGenerating = false,
   onDeleteArtifact,
   ruleNamesMap,
 }) => {
+  const completedCount = flashcardSets.filter(
+    (f) => !f.generationStatus || f.generationStatus === 'completed'
+  ).length;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Flashcards ({flashcardSets.length})</h2>
+        <h2 className="text-lg font-semibold">Flashcards ({completedCount})</h2>
         <Button size="sm" asChild>
           <Link to={`/flashcards/create?directoryId=${directoryId}`}>+ Create flashcards</Link>
         </Button>
       </div>
-      {isGenerating && <ArtifactRowGenerating label="Generating flashcards…" />}
       {mayBeTruncated && (
         <div className="flex items-center gap-2 rounded-md border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-primary">
           <AlertTriangle size={16} className="shrink-0" />
@@ -55,6 +56,8 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
               }
               deleteAriaLabel={`Delete ${f.title}`}
               appliedRuleNames={f.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
+              generationStatus={f.generationStatus}
+              generationError={f.generationError}
             />
           ))}
         </div>

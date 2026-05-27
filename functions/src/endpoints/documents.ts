@@ -181,61 +181,68 @@ export const uploadAndCreateDocument = onCall(
         data.mimeType
       );
 
-      const mode = isRuleResolutionMode(data.ruleResolutionMode)
-        ? data.ruleResolutionMode
-        : (data.ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
-      const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
-        userId,
+      // Create pending document after extraction (fast) but before Gemini (slow)
+      const uploadPendingTitle = data.title || data.fileName;
+      const uploadPendingDocId = await DocumentCrudService.createPendingDocument(userId, {
         directoryId: data.directoryId,
-        operation: RuleApplicability.UPLOAD,
-        additionalRuleIds: data.ruleIds?.length ? data.ruleIds : data.additionalRuleIds,
-        mode,
-      });
-
-      const prepared = await SourceDocumentGenerationService.prepareUploadDocumentContent({
-        extraction,
-        customTitle: data.title,
-        rulesText: rulesText || undefined,
-      });
-
-      const documentRequest: CreateDocumentRequest = {
-        title: prepared.title,
+        title: uploadPendingTitle,
         description: `Uploaded from: ${data.fileName}`,
-        content: prepared.content,
         sourceType: DocumentSourceType.UPLOAD,
-        status: DocumentStatus.ACTIVE,
-        tags: prepared.tags,
-        directoryId: data.directoryId,
-        ruleIds: effectiveRuleIds,
-        ruleResolutionMode: mode,
-      };
-
-      const document = await DocumentCrudService.createDocument(userId, documentRequest);
-
-      logger.info('Document created from upload successfully', {
-        userId,
-        documentId: document.id,
-        fileName: data.fileName,
-        extension: extraction.extension,
-        originalSize: extraction.originalSize,
-        sourceWordCount: extraction.wordCount,
-        finalWordCount: document.wordCount,
-        warningCount: prepared.warnings.length,
+        tags: ['uploaded'],
       });
 
-      return {
-        success: true,
-        document,
-        extraction: {
-          filename: extraction.filename,
+      try {
+        const mode = isRuleResolutionMode(data.ruleResolutionMode)
+          ? data.ruleResolutionMode
+          : (data.ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+        const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: data.directoryId,
+          operation: RuleApplicability.UPLOAD,
+          additionalRuleIds: data.ruleIds?.length ? data.ruleIds : data.additionalRuleIds,
+          mode,
+        });
+
+        const prepared = await SourceDocumentGenerationService.prepareUploadDocumentContent({
+          extraction,
+          customTitle: data.title,
+          rulesText: rulesText || undefined,
+        });
+
+        await DocumentCrudService.completePendingDocument(userId, uploadPendingDocId, prepared.content, {
+          title: prepared.title,
+          description: `Uploaded from: ${data.fileName}`,
+          tags: prepared.tags,
+        });
+
+        logger.info('Document created from upload successfully', {
+          userId,
+          documentId: uploadPendingDocId,
+          fileName: data.fileName,
           extension: extraction.extension,
-          originalType: extraction.originalType,
           originalSize: extraction.originalSize,
-          wordCount: extraction.wordCount,
-          metadata: extraction.metadata,
-          warnings: prepared.warnings,
-        },
-      };
+          sourceWordCount: extraction.wordCount,
+          warningCount: prepared.warnings.length,
+        });
+
+        return {
+          success: true,
+          document: { id: uploadPendingDocId, title: prepared.title },
+          extraction: {
+            filename: extraction.filename,
+            extension: extraction.extension,
+            originalType: extraction.originalType,
+            originalSize: extraction.originalSize,
+            wordCount: extraction.wordCount,
+            metadata: extraction.metadata,
+            warnings: prepared.warnings,
+          },
+        };
+      } catch (innerError) {
+        const msg = innerError instanceof Error ? innerError.message : String(innerError);
+        await DocumentCrudService.failPendingDocument(userId, uploadPendingDocId, msg).catch(() => {/* best-effort */});
+        throw innerError;
+      }
     } catch (error) {
       if (error instanceof HttpsError) throw error;
       if (error instanceof FileExtractionError) {
@@ -321,121 +328,132 @@ export const createDocumentFromUrl = onCall(
       }
       await directoryService.validateDirectoryId(userId, directoryId);
 
-      // Resolve content generation rules once for all URL sources.
-      const mode = isRuleResolutionMode(ruleResolutionMode)
-        ? ruleResolutionMode
-        : (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
-      const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
-        userId,
+      // Create pending document visible in the directory UI immediately
+      const pendingTitle = customTitle || (rawUrls.length === 1 ? rawUrls[0] : `Importing from ${rawUrls.length} URLs…`);
+      const urlPendingDocId = await DocumentCrudService.createPendingDocument(userId, {
         directoryId,
-        operation: RuleApplicability.PROMPT,
-        additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
-        mode,
-      });
-
-      // Process all URLs via the orchestrator
-      let summary;
-      try {
-        summary = await UrlProcessingOrchestrator.processUrls(rawUrls, undefined, userId);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        throw new HttpsError('internal', `URL processing failed: ${message}`);
-      }
-
-      const isSingleUrl = rawUrls.length === 1;
-      const firstSuccess = summary.results.find((r) => !r.error);
-      const hasYouTubeSource = summary.results.some((r) => r.type === 'youtube' && !r.error);
-      const hasWebSource = summary.results.some((r) => r.type === 'web' && !r.error);
-
-      const sourceContextFile: IFileContent = {
-        filename: isSingleUrl && firstSuccess
-          ? `${firstSuccess.title || 'url-source'}.md`
-          : 'url-sources.md',
-        content: summary.mergedMarkdown,
-        size: Buffer.byteLength(summary.mergedMarkdown, 'utf8'),
-        type: 'text/markdown',
-      };
-
-      logger.info('Generating final document from URL source context', {
-        userId,
-        urlCount: summary.sourceUrls.length,
-        sourceWordCount: summary.totalWordCount,
-        ruleCount: effectiveRuleIds.length,
-        hasRules: !!rulesText,
-        hasYouTubeSource,
-        hasWebSource,
-      });
-
-      let generatedContent: string;
-      try {
-        generatedContent = await GeminiService.generateDocumentFromPrompt(
-          buildUrlDocumentPrompt({
-            customTitle,
-            sourceCount: summary.sourceUrls.length,
-            successfulCount: summary.successfulCount,
-            failedCount: summary.failedCount,
-            hasYouTubeSource,
-            sourceUrls: summary.sourceUrls,
-          }),
-          [sourceContextFile],
-          rulesText || undefined
-        );
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        throw new HttpsError('internal', `URL document generation failed: ${message}`);
-      }
-
-      const tags = ['scraped', 'ai-generated'];
-      if (hasYouTubeSource) {
-        tags.push('youtube');
-      }
-      if (hasWebSource) {
-        tags.push('article');
-      }
-
-      const generatedTitle = extractMarkdownTitle(generatedContent);
-      const title = customTitle
-        || generatedTitle
-        || (isSingleUrl && firstSuccess ? firstSuccess.title : null)
-        || (isSingleUrl ? rawUrls[0] : `Merged Document (${summary.successfulCount} sources)`);
-
-      const description = isSingleUrl
-        ? `Scraped from: ${rawUrls[0]}`
-        : `Merged from ${summary.successfulCount} URL${summary.successfulCount !== 1 ? 's' : ''}`;
-
-      const documentRequest: CreateDocumentRequest = {
-        title,
-        description,
-        content: generatedContent,
+        title: pendingTitle,
+        description: rawUrls.length === 1 ? `Scraped from: ${rawUrls[0]}` : `Merged from ${rawUrls.length} URLs`,
         sourceType: DocumentSourceType.URL,
         sourceUrl: rawUrls[0],
-        status: DocumentStatus.ACTIVE,
-        tags,
-        directoryId,
-      };
-
-      const document = await DocumentCrudService.createDocument(userId, documentRequest);
-
-      logger.info('Document created from URL(s) successfully', {
-        userId,
-        documentId: document.id,
-        urlCount: rawUrls.length,
-        successful: summary.successfulCount,
-        failed: summary.failedCount,
-        wordCount: document.wordCount,
+        tags: ['scraped', 'ai-generated'],
       });
 
-      return {
-        success: true,
-        document,
-        summary: {
-          urlCount: rawUrls.length,
-          successfulCount: summary.successfulCount,
-          failedCount: summary.failedCount,
+      try {
+        // Resolve content generation rules once for all URL sources.
+        const mode = isRuleResolutionMode(ruleResolutionMode)
+          ? ruleResolutionMode
+          : (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+        const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
+          userId,
+          directoryId,
+          operation: RuleApplicability.PROMPT,
+          additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
+          mode,
+        });
+
+        // Process all URLs via the orchestrator
+        let summary;
+        try {
+          summary = await UrlProcessingOrchestrator.processUrls(rawUrls, undefined, userId);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new HttpsError('internal', `URL processing failed: ${message}`);
+        }
+
+        const isSingleUrl = rawUrls.length === 1;
+        const firstSuccess = summary.results.find((r) => !r.error);
+        const hasYouTubeSource = summary.results.some((r) => r.type === 'youtube' && !r.error);
+        const hasWebSource = summary.results.some((r) => r.type === 'web' && !r.error);
+
+        const sourceContextFile: IFileContent = {
+          filename: isSingleUrl && firstSuccess
+            ? `${firstSuccess.title || 'url-source'}.md`
+            : 'url-sources.md',
+          content: summary.mergedMarkdown,
+          size: Buffer.byteLength(summary.mergedMarkdown, 'utf8'),
+          type: 'text/markdown',
+        };
+
+        logger.info('Generating final document from URL source context', {
+          userId,
+          urlCount: summary.sourceUrls.length,
           sourceWordCount: summary.totalWordCount,
-          totalWordCount: document.wordCount,
-        },
-      };
+          ruleCount: effectiveRuleIds.length,
+          hasRules: !!rulesText,
+          hasYouTubeSource,
+          hasWebSource,
+        });
+
+        let generatedContent: string;
+        try {
+          generatedContent = await GeminiService.generateDocumentFromPrompt(
+            buildUrlDocumentPrompt({
+              customTitle,
+              sourceCount: summary.sourceUrls.length,
+              successfulCount: summary.successfulCount,
+              failedCount: summary.failedCount,
+              hasYouTubeSource,
+              sourceUrls: summary.sourceUrls,
+            }),
+            [sourceContextFile],
+            rulesText || undefined
+          );
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new HttpsError('internal', `URL document generation failed: ${message}`);
+        }
+
+        const tags = ['scraped', 'ai-generated'];
+        if (hasYouTubeSource) {
+          tags.push('youtube');
+        }
+        if (hasWebSource) {
+          tags.push('article');
+        }
+
+        const generatedTitle = extractMarkdownTitle(generatedContent);
+        const title = customTitle
+          || generatedTitle
+          || (isSingleUrl && firstSuccess ? firstSuccess.title : null)
+          || (isSingleUrl ? rawUrls[0] : `Merged Document (${summary.successfulCount} sources)`);
+
+        const description = isSingleUrl
+          ? `Scraped from: ${rawUrls[0]}`
+          : `Merged from ${summary.successfulCount} URL${summary.successfulCount !== 1 ? 's' : ''}`;
+
+        await DocumentCrudService.completePendingDocument(userId, urlPendingDocId, generatedContent, {
+          title,
+          description,
+          tags,
+        });
+
+        logger.info('Document created from URL(s) successfully', {
+          userId,
+          documentId: urlPendingDocId,
+          urlCount: rawUrls.length,
+          successful: summary.successfulCount,
+          failed: summary.failedCount,
+          wordCount: generatedContent.split(/\s+/).length,
+        });
+
+        return {
+          success: true,
+          document: { id: urlPendingDocId, title },
+          summary: {
+            urlCount: rawUrls.length,
+            successfulCount: summary.successfulCount,
+            failedCount: summary.failedCount,
+            sourceWordCount: summary.totalWordCount,
+            totalWordCount: generatedContent.split(/\s+/).length,
+          },
+        };
+
+      } catch (innerError) {
+        const msg = innerError instanceof Error ? innerError.message : String(innerError);
+        await DocumentCrudService.failPendingDocument(userId, urlPendingDocId, msg).catch(() => {/* best-effort */});
+        throw innerError;
+      }
 
     } catch (error) {
       if (error instanceof HttpsError) throw error;
@@ -901,35 +919,54 @@ export const generateFromPrompt = onCall(
       const mode = isRuleResolutionMode(rawRuleData.ruleResolutionMode)
         ? rawRuleData.ruleResolutionMode
         : (data.ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
-      const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
-        userId,
+
+      if (!data.directoryId) {
+        throw new HttpsError('invalid-argument', 'directoryId is required');
+      }
+      await directoryService.validateDirectoryId(userId, data.directoryId);
+
+      // Create pending document record visible in the directory UI immediately
+      const pendingTitle = trimmedPrompt.length > 50
+        ? `${trimmedPrompt.substring(0, 50)}…`
+        : trimmedPrompt;
+      const pendingDocId = await DocumentCrudService.createPendingDocument(userId, {
         directoryId: data.directoryId,
-        operation: RuleApplicability.PROMPT,
-        additionalRuleIds: data.ruleIds?.length ? data.ruleIds : rawRuleData.additionalRuleIds,
-        mode,
+        title: pendingTitle,
+        description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? '...' : ''}`,
+        sourceType: DocumentSourceType.GENERATED,
+        tags: ['ai-generated', 'prompt-based'],
       });
 
-      if (rulesText) {
-        logger.info('Injecting effective rules into document generation prompt', {
-          ruleCount: effectiveRuleIds.length,
+      try {
+        const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
           userId,
+          directoryId: data.directoryId,
+          operation: RuleApplicability.PROMPT,
+          additionalRuleIds: data.ruleIds?.length ? data.ruleIds : rawRuleData.additionalRuleIds,
           mode,
         });
-      }
 
-      logger.info('Calling Gemini AI to generate document', { 
-        userId,
-        promptLength: trimmedPrompt.length,
-        originalPromptLength: trimmedPrompt.length,
-        withRules: data.ruleIds && data.ruleIds.length > 0,
-        ruleCount: data.ruleIds?.length || 0,
-        withContextFiles: !!(data.files && data.files.length > 0),
-        contextSources: {
-          hasUploadedFiles: uploadFilesCount > 0,
-          hasLibraryDocuments: libraryFilesCount > 0,
-          isMixedSource: uploadFilesCount > 0 && libraryFilesCount > 0,
-        },
-      });
+        if (rulesText) {
+          logger.info('Injecting effective rules into document generation prompt', {
+            ruleCount: effectiveRuleIds.length,
+            userId,
+            mode,
+          });
+        }
+
+        logger.info('Calling Gemini AI to generate document', { 
+          userId,
+          promptLength: trimmedPrompt.length,
+          originalPromptLength: trimmedPrompt.length,
+          withRules: data.ruleIds && data.ruleIds.length > 0,
+          ruleCount: data.ruleIds?.length || 0,
+          withContextFiles: !!(data.files && data.files.length > 0),
+          contextSources: {
+            hasUploadedFiles: uploadFilesCount > 0,
+            hasLibraryDocuments: libraryFilesCount > 0,
+            isMixedSource: uploadFilesCount > 0 && libraryFilesCount > 0,
+          },
+        });
 
       // Generate document content using Gemini AI with optional context files
       const generatedContent = await GeminiService.generateDocumentFromPrompt(
@@ -962,26 +999,17 @@ export const generateFromPrompt = onCall(
         // Don't throw error, but log warning - Gemini may have generated quality content
       }
 
-      logger.info('Creating document from generated content', { 
+      logger.info('Completing pending document with generated content', { 
         userId,
+        pendingDocId,
         title,
         wordCount,
       });
 
-      if (!data.directoryId) {
-        throw new HttpsError('invalid-argument', 'directoryId is required');
-      }
-      await directoryService.validateDirectoryId(userId, data.directoryId);
-
-      // Create document in Firestore
-      const document = await DocumentCrudService.createDocument(userId, {
+      await DocumentCrudService.completePendingDocument(userId, pendingDocId, generatedContent, {
         title,
         description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? '...' : ''}`,
-        content: generatedContent,
-        sourceType: DocumentSourceType.GENERATED,
-        status: DocumentStatus.ACTIVE,
         tags: ['ai-generated', 'prompt-based'],
-        directoryId: data.directoryId,
       });
 
       // Add custom metadata to document (stored in Firestore)
@@ -989,8 +1017,8 @@ export const generateFromPrompt = onCall(
       
       logger.info('Document generated and created successfully', { 
         userId,
-        documentId: document.id,
-        title: document.title,
+        documentId: pendingDocId,
+        title,
         wordCount,
         contextUsed: {
           totalFiles: data.files?.length || 0,
@@ -1001,8 +1029,8 @@ export const generateFromPrompt = onCall(
 
       return { 
         success: true,
-        documentId: document.id,
-        title: document.title,
+        documentId: pendingDocId,
+        title,
         content: generatedContent,
         wordCount,
         metadata: {
@@ -1011,6 +1039,13 @@ export const generateFromPrompt = onCall(
           filesUsed: data.files?.length || 0,
         },
       };
+
+      } catch (innerError) {
+        // Mark the pending record as failed so the UI shows the error state
+        const msg = innerError instanceof Error ? innerError.message : String(innerError);
+        await DocumentCrudService.failPendingDocument(userId, pendingDocId, msg).catch(() => {/* best-effort */});
+        throw innerError;
+      }
 
     } catch (error) {
       logger.error('Failed to generate document from prompt', { 
@@ -1053,10 +1088,33 @@ export const generateFromScreenshot = onCall(
         ruleCount: data.ruleIds?.length || 0,
       });
 
-      const result = await ScreenshotDocumentGenerationService.generate({
-        ...data,
-        userId,
+      // Validate directoryId before creating the pending record
+      await directoryService.validateDirectoryId(userId, data.directoryId);
+
+      // Create pending document record so the UI shows it immediately
+      const screenshotPendingTitle = data.title || (data.prompt
+        ? (data.prompt.length > 50 ? `${data.prompt.substring(0, 50)}…` : data.prompt)
+        : 'Captured Document');
+      const screenshotPendingDocId = await DocumentCrudService.createPendingDocument(userId, {
+        directoryId: data.directoryId,
+        title: screenshotPendingTitle,
+        description: 'Captured from screenshot',
+        sourceType: DocumentSourceType.GENERATED,
+        tags: ['screenshot', 'captured'],
       });
+
+      let result;
+      try {
+        result = await ScreenshotDocumentGenerationService.generate({
+          ...data,
+          userId,
+          pendingDocumentId: screenshotPendingDocId,
+        });
+      } catch (innerError) {
+        const msg = innerError instanceof Error ? innerError.message : String(innerError);
+        await DocumentCrudService.failPendingDocument(userId, screenshotPendingDocId, msg).catch(() => {/* best-effort */});
+        throw innerError;
+      }
 
       return {
         success: true,

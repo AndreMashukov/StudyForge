@@ -27,6 +27,9 @@ export interface FlashcardSet {
   updatedAt: Timestamp;
   appliedRuleIds?: string[];
   appliedDescriptionRuleIds?: string[];
+  generationStatus?: GenerationStatus;
+  generationError?: string;
+  completedAt?: Timestamp;
 }
 
 // Flashcard API Types
@@ -76,6 +79,9 @@ export interface SlideDeck {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   appliedRuleIds?: string[];
+  generationStatus?: GenerationStatus;
+  generationError?: string;
+  completedAt?: Timestamp;
 }
 
 export interface GenerateSlideDeckRequest {
@@ -118,6 +124,9 @@ export interface Quiz {
   // Rule tracking for followup generation
   followupRuleIds?: string[]; // Rules to use when generating followup explanations
   appliedRuleIds?: string[]; // Rules applied during initial generation
+  generationStatus?: GenerationStatus;
+  generationError?: string;
+  completedAt?: Date;
 }
 
 export interface QuizQuestion {
@@ -150,6 +159,9 @@ export interface SequenceQuiz {
   generationAttempt?: number;
   followupRuleIds?: string[];
   appliedRuleIds?: string[];
+  generationStatus?: GenerationStatus;
+  generationError?: string;
+  completedAt?: Timestamp;
 }
 
 export interface GenerateSequenceQuizRequest {
@@ -199,6 +211,9 @@ export interface DiagramQuiz {
   generationAttempt?: number;
   followupRuleIds?: string[];
   appliedRuleIds?: string[];
+  generationStatus?: GenerationStatus;
+  generationError?: string;
+  completedAt?: Timestamp;
 }
 
 export interface GenerateDiagramQuizRequest {
@@ -255,6 +270,9 @@ export enum DocumentStatus {
   DELETED = 'deleted'
 }
 
+// Generation lifecycle status (orthogonal to DocumentStatus)
+export type GenerationStatus = 'pending' | 'completed' | 'failed';
+
 // Enhanced Document interface
 export interface DocumentEnhanced {
   id: string;
@@ -271,6 +289,10 @@ export interface DocumentEnhanced {
   directoryId: string;
   createdAt: Date | { toDate(): Date }; // Can be Date or Firestore Timestamp
   updatedAt: Date | { toDate(): Date }; // Can be Date or Firestore Timestamp
+  // Generation lifecycle (missing means completed for backward compat)
+  generationStatus?: GenerationStatus;
+  generationError?: string;
+  completedAt?: Date | { toDate(): Date };
 }
 
 // Directory Types
@@ -372,6 +394,9 @@ export interface ArtifactSummary {
   createdAt: Date | Timestamp;
   type: ArtifactSummaryType;
   appliedRuleIds?: string[];
+  // Generation lifecycle (missing means completed for backward compat)
+  generationStatus?: GenerationStatus;
+  generationError?: string;
 }
 
 export interface GetDirectoryContentsWithArtifactSummariesResponse extends GetDirectoryContentsResponse {
