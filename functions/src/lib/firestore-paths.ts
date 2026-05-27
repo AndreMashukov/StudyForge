@@ -18,6 +18,13 @@ export const FirestorePaths = {
   document: (userId: string, docId: string) =>
     FirestorePaths.documents(userId).doc(docId),
 
+  generationJobs: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('generationJobs');
+  },
+  generationJob: (userId: string, jobId: string) =>
+    FirestorePaths.generationJobs(userId).doc(jobId),
+
   quizzes: (userId: string) => {
     validateUserId(userId);
     return db().collection('users').doc(userId).collection('quizzes');

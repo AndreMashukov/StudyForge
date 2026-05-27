@@ -14,6 +14,7 @@ interface OnQueryStartedApi {
 export function createDocumentOnQueryStarted(
   successLabel: string,
   errorLabel: string,
+  options?: { successMessage?: string },
 ) {
   return async (arg: DocumentGenerationArg, { dispatch, queryFulfilled }: OnQueryStartedApi) => {
     if (!arg.directoryId) return;
@@ -22,7 +23,7 @@ export function createDocumentOnQueryStarted(
       await queryFulfilled;
       dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType: 'sources' }));
       dispatch(showToast({
-        message: `${successLabel} created successfully`,
+        message: options?.successMessage || `${successLabel} created successfully`,
         type: 'success',
       }));
     } catch {

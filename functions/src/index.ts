@@ -78,6 +78,10 @@ export {
 } from "./endpoints/quizzes";
 
 export {
+  processGenerationJob,
+} from "./tasks/process-generation-job";
+
+export {
   generateDiagramQuiz,
   getDiagramQuiz,
   getUserDiagramQuizzes,

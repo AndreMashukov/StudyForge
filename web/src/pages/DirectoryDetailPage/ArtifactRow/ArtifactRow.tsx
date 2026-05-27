@@ -28,7 +28,7 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
         <Loader2 size={18} className="shrink-0 text-muted-foreground animate-spin" />
         <div className="flex-1 min-w-0">
           <div className="font-medium truncate text-muted-foreground">{title}</div>
-          <div className="text-xs text-muted-foreground">Generating…</div>
+          <Badge variant="secondary" className="mt-1 text-xs">Preparing</Badge>
         </div>
       </div>
     );
