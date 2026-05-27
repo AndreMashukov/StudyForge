@@ -170,3 +170,5 @@ wireframes/
 .claude/settings.local.json
 
 .vscode/mcp.json
+.nx/polygraph
+.nx/self-healing
