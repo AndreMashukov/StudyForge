@@ -66,15 +66,15 @@ export class GenerationJobsService {
 
   static async claimQueuedJob(userId: string, jobId: string): Promise<GenerationJob | null> {
     const ref = FirestorePaths.generationJob(userId, jobId);
-    return ref.firestore.runTransaction(async (transaction) => {
+    const claimed = await ref.firestore.runTransaction(async (transaction) => {
       const snap = await transaction.get(ref);
       if (!snap.exists) {
-        return null;
+        return false;
       }
 
       const job = { id: snap.id, ...snap.data() } as GenerationJob;
       if (job.status !== 'queued') {
-        return null;
+        return false;
       }
 
       transaction.update(ref, {
@@ -84,8 +84,14 @@ export class GenerationJobsService {
         updatedAt: FieldValue.serverTimestamp(),
       });
 
-      return job;
+      return true;
     });
+
+    if (!claimed) {
+      return null;
+    }
+
+    return this.getJob(userId, jobId);
   }
 
   static async markProcessing(userId: string, jobId: string): Promise<void> {
