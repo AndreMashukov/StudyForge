@@ -890,7 +890,20 @@ export class DocumentCrudService {
     }
 
     logger.info('Pending document completed', { userId, documentId });
-    return { ...existing, ...snap.data(), id: documentId } as Document;
+    return {
+      ...existing,
+      id: documentId,
+      title: params.title,
+      description: params.description || existing.description || '',
+      tags: params.tags || existing.tags || [],
+      wordCount,
+      storageUrl: storageFile.downloadUrl,
+      storagePath: storageFile.path,
+      status: DocumentStatus.ACTIVE,
+      generationStatus: 'completed' as GenerationStatus,
+      completedAt: now,
+      updatedAt: now,
+    } as Document;
   }
 
   /**
