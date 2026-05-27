@@ -94,15 +94,6 @@ export class GenerationJobsService {
     return this.getJob(userId, jobId);
   }
 
-  static async markProcessing(userId: string, jobId: string): Promise<void> {
-    await FirestorePaths.generationJob(userId, jobId).update({
-      status: 'processing',
-      attempts: FieldValue.increment(1),
-      startedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  }
-
   static async markCompleted(userId: string, jobId: string): Promise<void> {
     await FirestorePaths.generationJob(userId, jobId).update({
       status: 'completed',
