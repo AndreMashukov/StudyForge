@@ -1072,7 +1072,19 @@ export const api = onRequest(
           }
         }
 
-        await directoryService.validateDirectoryId(userId, data.directoryId);
+        // Create a pending document immediately so the UI reflects the in-progress state.
+        // createPendingDocument validates the directoryId internally.
+        const tentativeTitle = trimmedPrompt.length > 50
+          ? `${trimmedPrompt.substring(0, 50)}...`
+          : trimmedPrompt;
+
+        const pendingDocumentId = await DocumentCrudService.createPendingDocument(userId, {
+          directoryId: data.directoryId,
+          title: tentativeTitle,
+          description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? "..." : ""}`,
+          sourceType: DocumentSourceType.GENERATED,
+          tags: ["ai-generated", "prompt-based"],
+        });
 
         let rulesText: string | undefined;
         if (data.ruleIds && data.ruleIds.length > 0) {
@@ -1091,33 +1103,41 @@ export const api = onRequest(
           rulesText = resolvedRules.text || undefined;
         }
 
-        const generatedContent = await GeminiService.generateDocumentFromPrompt(
-          trimmedPrompt,
-          data.files,
-          rulesText
-        );
+        let generatedContent: string;
+        try {
+          generatedContent = await GeminiService.generateDocumentFromPrompt(
+            trimmedPrompt,
+            data.files,
+            rulesText
+          );
+        } catch (genErr) {
+          await DocumentCrudService.failPendingDocument(
+            userId,
+            pendingDocumentId,
+            genErr instanceof Error ? genErr.message : "Generation failed"
+          );
+          res.status(500).json({ success: false, error: "Document generation failed." });
+          return;
+        }
 
-        let title = "Generated Document";
+        let title = tentativeTitle;
         const titleMatch = generatedContent.match(/^#\s+(.+)$/m);
         if (titleMatch && titleMatch[1]) {
           title = titleMatch[1].trim();
-        } else {
-          title = trimmedPrompt.length > 50
-            ? `${trimmedPrompt.substring(0, 50)}...`
-            : trimmedPrompt;
         }
 
         const wordCount = generatedContent.split(/\s+/).length;
 
-        const document = await DocumentCrudService.createDocument(userId, {
-          title,
-          description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? "..." : ""}`,
-          content: generatedContent,
-          sourceType: DocumentSourceType.GENERATED,
-          status: DocumentStatus.ACTIVE,
-          tags: ["ai-generated", "prompt-based"],
-          directoryId: data.directoryId,
-        });
+        const document = await DocumentCrudService.completePendingDocument(
+          userId,
+          pendingDocumentId,
+          generatedContent,
+          {
+            title,
+            description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? "..." : ""}`,
+            tags: ["ai-generated", "prompt-based"],
+          }
+        );
 
         res.status(201).json({
           success: true,
