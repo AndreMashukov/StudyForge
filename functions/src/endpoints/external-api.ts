@@ -9,6 +9,23 @@ import { FirestoreService } from "../services/firestore";
 import { ScreenshotDocumentGenerationService } from "../services/screenshot-document-generation";
 import { enforceScreenshotGenerationRateLimit, RateLimitError } from "../services/api-rate-limit";
 import {
+  completePendingDiagramQuiz,
+  completePendingFlashcardSet,
+  completePendingQuiz,
+  completePendingSequenceQuiz,
+  completePendingSlideDeck,
+  createPendingDiagramQuiz,
+  createPendingFlashcardSet,
+  createPendingQuiz,
+  createPendingSequenceQuiz,
+  createPendingSlideDeck,
+  failPendingDiagramQuiz,
+  failPendingFlashcardSet,
+  failPendingQuiz,
+  failPendingSequenceQuiz,
+  failPendingSlideDeck,
+} from "../services/artifact-generation-records";
+import {
   isRuleResolutionMode,
   resolveEffectiveRules,
   resolveRulesForDirectory,
@@ -20,7 +37,6 @@ import {
   updateRule,
 } from "../services/rule-crud";
 import { FirestorePaths } from "../lib/firestore-paths";
-import { FieldValue } from "firebase-admin/firestore";
 import { randomUUID } from "crypto";
 import {
   CreateDocumentRequest,
@@ -40,6 +56,15 @@ import {
 } from "@shared-types";
 
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+
+async function cleanupUploadedFiles(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+
+  const bucket = admin.storage().bucket();
+  await Promise.allSettled(
+    paths.map((path) => bucket.file(path).delete().catch(() => { /* ignore cleanup errors */ }))
+  );
+}
 
 /**
  * External HTTP API authenticated via API keys (X-API-Key or Authorization: Bearer).
@@ -214,75 +239,107 @@ export const api = onRequest(
 
         GeminiService.validateContentForQuiz(documentContent);
 
-        let enhancedPrompt = additionalPrompt || "";
-        let followupIdsForSave: string[] = [];
-        let appliedRuleIdsForSave: string[] = [];
-        const ruleResolutionMode = isRuleResolutionMode(
-          (requestData as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
-        )
-          ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
-          : undefined;
-        const hasLegacyExplicitRules = Boolean(
-          requestData.ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length
-        );
-        const mode = ruleResolutionMode
-          ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
-        const selectedQuizRuleIds = requestData.ruleIds?.length
-          ? requestData.ruleIds
-          : quizRuleIds?.length
-          ? quizRuleIds
-          : requestData.additionalRuleIds;
-        const selectedFollowupRuleIds = hasLegacyExplicitRules
-          ? (followupRuleIds || [])
-          : requestData.additionalRuleIds;
-
-        const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
-          userId,
+        const pendingTitle = quizName?.trim()
+          || (documentIds.length === 1
+            ? `Quiz from ${documentDataList[0].doc.title}`
+            : `Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
+        const pendingQuizId = await createPendingQuiz({
           directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.QUIZ,
-          additionalRuleIds: selectedQuizRuleIds,
-          mode,
-        });
-        if (quizRulesText) {
-          enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-        }
-        appliedRuleIdsForSave = resolvedAppliedIds;
-        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
           userId,
-          directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.FOLLOWUP,
-          additionalRuleIds: selectedFollowupRuleIds,
-          mode,
+          documentId: documentIds[0],
+          documentIds: documentIds.length > 1 ? documentIds : undefined,
+          documentTitle: documentDataList[0].doc.title,
+          title: pendingTitle,
         });
-        followupIdsForSave = resolvedFollowupIds;
 
-        const geminiQuiz = await GeminiService.generateQuiz(
-          documentContent,
-          enhancedPrompt
-        );
+        try {
+          let enhancedPrompt = additionalPrompt || "";
+          let followupIdsForSave: string[] = [];
+          let appliedRuleIdsForSave: string[] = [];
+          const ruleResolutionMode = isRuleResolutionMode(
+            (requestData as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
+          )
+            ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
+            : undefined;
+          const hasLegacyExplicitRules = Boolean(
+            requestData.ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length
+          );
+          const mode = ruleResolutionMode
+            ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
+          const selectedQuizRuleIds = requestData.ruleIds?.length
+            ? requestData.ruleIds
+            : quizRuleIds?.length
+            ? quizRuleIds
+            : requestData.additionalRuleIds;
+          const selectedFollowupRuleIds = hasLegacyExplicitRules
+            ? (followupRuleIds || [])
+            : requestData.additionalRuleIds;
 
-        if (quizName?.trim()) {
-          geminiQuiz.title = quizName.trim();
-        } else if (documentIds.length === 1) {
-          geminiQuiz.title = `Quiz from ${documentDataList[0].doc.title}`;
-        } else {
-          geminiQuiz.title = `Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
+          const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+            userId,
+            directoryId: resolvedDirectoryId,
+            operation: RuleApplicability.QUIZ,
+            additionalRuleIds: selectedQuizRuleIds,
+            mode,
+          });
+          if (quizRulesText) {
+            enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
+          }
+          appliedRuleIdsForSave = resolvedAppliedIds;
+          const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
+            userId,
+            directoryId: resolvedDirectoryId,
+            operation: RuleApplicability.FOLLOWUP,
+            additionalRuleIds: selectedFollowupRuleIds,
+            mode,
+          });
+          followupIdsForSave = resolvedFollowupIds;
+
+          const geminiQuiz = await GeminiService.generateQuiz(
+            documentContent,
+            enhancedPrompt
+          );
+
+          if (quizName?.trim()) {
+            geminiQuiz.title = quizName.trim();
+          } else if (documentIds.length === 1) {
+            geminiQuiz.title = `Quiz from ${documentDataList[0].doc.title}`;
+          } else {
+            geminiQuiz.title = `Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
+          }
+
+          const existingSnap = await FirestorePaths.quizzes(userId)
+            .where("documentId", "==", documentIds[0])
+            .get();
+          const generationAttempt = existingSnap.size;
+
+          await completePendingQuiz(userId, pendingQuizId, {
+            title: geminiQuiz.title,
+            questions: geminiQuiz.questions.map((q: { question: string; options: string[]; correctAnswer: number; explanation?: string; hint?: string }) => ({
+              question: q.question,
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+              explanation: q.explanation,
+              ...(q.hint ? { hint: q.hint } : {}),
+            })),
+            appliedRuleIds: appliedRuleIdsForSave,
+            generationAttempt,
+          });
+          await FirestorePaths.quiz(userId, pendingQuizId).update({
+            followupRuleIds: followupIdsForSave,
+            documentTitle: documentDataList[0].doc.title,
+          });
+          const savedQuiz = await FirestorePaths.quiz(userId, pendingQuizId).get();
+
+          res.status(201).json({
+            success: true,
+            data: { quizId: pendingQuizId, quiz: { id: pendingQuizId, ...savedQuiz.data() } },
+          });
+        } catch (innerError) {
+          const msg = innerError instanceof Error ? innerError.message : String(innerError);
+          await failPendingQuiz(userId, pendingQuizId, msg).catch(() => { /* best-effort */ });
+          throw innerError;
         }
-
-        const savedQuiz = await FirestoreService.saveQuizFromDocument(
-          documentIds[0],
-          geminiQuiz,
-          userId,
-          resolvedDirectoryId,
-          followupIdsForSave,
-          documentIds.length > 1 ? documentIds : undefined,
-          appliedRuleIdsForSave
-        );
-
-        res.status(201).json({
-          success: true,
-          data: { quizId: savedQuiz.id, quiz: savedQuiz },
-        });
         return;
       }
 
@@ -348,58 +405,93 @@ export const api = onRequest(
 
         GeminiService.validateContentForQuiz(documentContent);
 
-        let enhancedPrompt = additionalPrompt || "";
-        let followupIdsForSave: string[] = [];
-        let appliedRuleIdsForSave: string[] = [];
-        const ruleResolutionMode = isRuleResolutionMode(requestData.ruleResolutionMode)
-          ? requestData.ruleResolutionMode
-          : undefined;
-        const hasLegacyExplicitRules = Boolean(ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length);
-        const mode = ruleResolutionMode
-          ?? (hasLegacyExplicitRules ? "explicit-only" : "inherit-plus-explicit");
-        const selectedQuizRuleIds = ruleIds?.length
-          ? ruleIds
-          : quizRuleIds?.length
-          ? quizRuleIds
-          : additionalRuleIds;
-        const selectedFollowupRuleIds = hasLegacyExplicitRules
-          ? (followupRuleIds || [])
-          : additionalRuleIds;
-
-        const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
-          userId,
+        const pendingTitle = diagramQuizName
+          || (documentIds.length === 1
+            ? `Diagram Quiz from ${documentDataList[0].doc.title}`
+            : `Diagram Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
+        const pendingDiagramQuizId = await createPendingDiagramQuiz({
           directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.DIAGRAM_QUIZ,
-          additionalRuleIds: selectedQuizRuleIds,
-          mode,
-        });
-        if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-        appliedRuleIdsForSave = resolvedAppliedIds;
-        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
           userId,
-          directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.FOLLOWUP,
-          additionalRuleIds: selectedFollowupRuleIds,
-          mode,
+          documentId: documentIds[0],
+          documentIds: documentIds.length > 1 ? documentIds : undefined,
+          documentTitle: documentDataList[0].doc.title,
+          title: pendingTitle,
         });
-        followupIdsForSave = resolvedFollowupIds;
 
-        const geminiQuiz = await GeminiService.generateDiagramQuiz(documentContent, enhancedPrompt);
+        try {
+          let enhancedPrompt = additionalPrompt || "";
+          let followupIdsForSave: string[] = [];
+          let appliedRuleIdsForSave: string[] = [];
+          const ruleResolutionMode = isRuleResolutionMode(requestData.ruleResolutionMode)
+            ? requestData.ruleResolutionMode
+            : undefined;
+          const hasLegacyExplicitRules = Boolean(ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length);
+          const mode = ruleResolutionMode
+            ?? (hasLegacyExplicitRules ? "explicit-only" : "inherit-plus-explicit");
+          const selectedQuizRuleIds = ruleIds?.length
+            ? ruleIds
+            : quizRuleIds?.length
+            ? quizRuleIds
+            : additionalRuleIds;
+          const selectedFollowupRuleIds = hasLegacyExplicitRules
+            ? (followupRuleIds || [])
+            : additionalRuleIds;
 
-        if (diagramQuizName) {
-          geminiQuiz.title = diagramQuizName;
-        } else if (documentIds.length === 1) {
-          geminiQuiz.title = `Diagram Quiz from ${documentDataList[0].doc.title}`;
-        } else {
-          geminiQuiz.title = `Diagram Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
+          const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+            userId,
+            directoryId: resolvedDirectoryId,
+            operation: RuleApplicability.DIAGRAM_QUIZ,
+            additionalRuleIds: selectedQuizRuleIds,
+            mode,
+          });
+          if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
+          appliedRuleIdsForSave = resolvedAppliedIds;
+          const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
+            userId,
+            directoryId: resolvedDirectoryId,
+            operation: RuleApplicability.FOLLOWUP,
+            additionalRuleIds: selectedFollowupRuleIds,
+            mode,
+          });
+          followupIdsForSave = resolvedFollowupIds;
+
+          const geminiQuiz = await GeminiService.generateDiagramQuiz(documentContent, enhancedPrompt);
+
+          if (diagramQuizName) {
+            geminiQuiz.title = diagramQuizName;
+          } else if (documentIds.length === 1) {
+            geminiQuiz.title = `Diagram Quiz from ${documentDataList[0].doc.title}`;
+          } else {
+            geminiQuiz.title = `Diagram Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
+          }
+
+          const existingSnap = await FirestorePaths.diagramQuizzes(userId)
+            .where("documentId", "==", documentIds[0])
+            .get();
+          const generationAttempt = existingSnap.size;
+
+          await completePendingDiagramQuiz(userId, pendingDiagramQuizId, {
+            title: geminiQuiz.title,
+            questions: geminiQuiz.questions.map((q) => ({
+              question: q.question,
+              diagrams: q.diagrams,
+              ...(q.diagramLabels?.length ? { diagramLabels: q.diagramLabels } : {}),
+              correctAnswer: q.correctAnswer,
+              explanation: q.explanation,
+              ...(q.hint ? { hint: q.hint } : {}),
+            })),
+            appliedRuleIds: appliedRuleIdsForSave,
+            followupRuleIds: followupIdsForSave,
+            generationAttempt,
+          });
+          const saved = await FirestorePaths.diagramQuiz(userId, pendingDiagramQuizId).get();
+
+          res.status(201).json({ success: true, data: { diagramQuizId: pendingDiagramQuizId, diagramQuiz: { id: pendingDiagramQuizId, ...saved.data() } } });
+        } catch (innerError) {
+          const msg = innerError instanceof Error ? innerError.message : String(innerError);
+          await failPendingDiagramQuiz(userId, pendingDiagramQuizId, msg).catch(() => { /* best-effort */ });
+          throw innerError;
         }
-
-        const saved = await FirestoreService.saveDiagramQuizFromDocument(
-          documentIds[0], geminiQuiz, userId, resolvedDirectoryId,
-          followupIdsForSave, documentIds.length > 1 ? documentIds : undefined, appliedRuleIdsForSave
-        );
-
-        res.status(201).json({ success: true, data: { diagramQuizId: saved.id, diagramQuiz: saved } });
         return;
       }
 
@@ -463,47 +555,80 @@ export const api = onRequest(
 
         GeminiService.validateContentForQuiz(documentContent);
 
-        let enhancedPrompt = additionalPrompt || "";
-        let followupIdsForSave: string[] = [];
-        const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
-          ? requestData.ruleResolutionMode
-          : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
-
-        const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveEffectiveRules({
-          userId,
+        const pendingTitle = sequenceQuizName
+          || (documentIds.length === 1
+            ? `Sequence Quiz from ${documentDataList[0].doc.title}`
+            : `Sequence Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
+        const pendingSequenceQuizId = await createPendingSequenceQuiz({
           directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.SEQUENCE_QUIZ,
-          additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
-          mode,
-        });
-        if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
           userId,
-          directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.FOLLOWUP,
-          additionalRuleIds: ruleIds?.length ? [] : additionalRuleIds,
-          mode,
+          documentId: documentIds[0],
+          documentIds: documentIds.length > 1 ? documentIds : undefined,
+          documentTitle: documentDataList[0].doc.title,
+          title: pendingTitle,
         });
-        followupIdsForSave = resolvedFollowupIds;
 
-        const geminiQuiz = await GeminiService.generateSequenceQuiz(
-          documentContent, enhancedPrompt || undefined
-        );
+        try {
+          let enhancedPrompt = additionalPrompt || "";
+          let followupIdsForSave: string[] = [];
+          const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
+            ? requestData.ruleResolutionMode
+            : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
 
-        if (sequenceQuizName) {
-          geminiQuiz.title = sequenceQuizName;
-        } else if (documentIds.length === 1) {
-          geminiQuiz.title = `Sequence Quiz from ${documentDataList[0].doc.title}`;
-        } else {
-          geminiQuiz.title = `Sequence Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
+          const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveEffectiveRules({
+            userId,
+            directoryId: resolvedDirectoryId,
+            operation: RuleApplicability.SEQUENCE_QUIZ,
+            additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
+            mode,
+          });
+          if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
+          const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
+            userId,
+            directoryId: resolvedDirectoryId,
+            operation: RuleApplicability.FOLLOWUP,
+            additionalRuleIds: ruleIds?.length ? [] : additionalRuleIds,
+            mode,
+          });
+          followupIdsForSave = resolvedFollowupIds;
+
+          const geminiQuiz = await GeminiService.generateSequenceQuiz(
+            documentContent, enhancedPrompt || undefined
+          );
+
+          if (sequenceQuizName) {
+            geminiQuiz.title = sequenceQuizName;
+          } else if (documentIds.length === 1) {
+            geminiQuiz.title = `Sequence Quiz from ${documentDataList[0].doc.title}`;
+          } else {
+            geminiQuiz.title = `Sequence Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
+          }
+
+          const existingSnap = await FirestorePaths.sequenceQuizzes(userId)
+            .where("documentId", "==", documentIds[0])
+            .get();
+          const generationAttempt = existingSnap.size;
+
+          await completePendingSequenceQuiz(userId, pendingSequenceQuizId, {
+            title: geminiQuiz.title,
+            questions: geminiQuiz.questions.map((q) => ({
+              question: q.question,
+              items: q.items,
+              explanation: q.explanation,
+              ...(q.hint ? { hint: q.hint } : {}),
+            })),
+            appliedRuleIds: appliedRuleIdsForSave,
+            followupRuleIds: followupIdsForSave,
+            generationAttempt,
+          });
+          const saved = await FirestorePaths.sequenceQuiz(userId, pendingSequenceQuizId).get();
+
+          res.status(201).json({ success: true, data: { sequenceQuizId: pendingSequenceQuizId, sequenceQuiz: { id: pendingSequenceQuizId, ...saved.data() } } });
+        } catch (innerError) {
+          const msg = innerError instanceof Error ? innerError.message : String(innerError);
+          await failPendingSequenceQuiz(userId, pendingSequenceQuizId, msg).catch(() => { /* best-effort */ });
+          throw innerError;
         }
-
-        const saved = await FirestoreService.saveSequenceQuizFromDocument(
-          documentIds[0], geminiQuiz, userId, resolvedDirectoryId,
-          followupIdsForSave, documentIds.length > 1 ? documentIds : undefined, appliedRuleIdsForSave
-        );
-
-        res.status(201).json({ success: true, data: { sequenceQuizId: saved.id, sequenceQuiz: saved } });
         return;
       }
 
@@ -558,69 +683,66 @@ export const api = onRequest(
           }
         }
 
-        let injectedRules: string | undefined;
-        let appliedRuleIdsForSave: string[] = [];
-        const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
-        const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
-          ? requestData.ruleResolutionMode
-          : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
-        const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
-          userId,
+        const pendingTitle = customTitle
+          || (documentIds.length === 1
+            ? `Flashcards for "${documentDataList[0].doc.title}"`
+            : `Flashcards for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
+        const pendingFlashcardSetId = await createPendingFlashcardSet({
           directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.FLASHCARD,
-          additionalRuleIds: explicitRuleIds,
-          mode,
-        });
-        appliedRuleIdsForSave = resolvedAppliedIds;
-        const base = additionalPrompt || "";
-        if (rulesText && base) {
-          injectedRules = `${rulesText}\n\n${base}`;
-        } else if (rulesText) {
-          injectedRules = rulesText;
-        } else if (base) {
-          injectedRules = base;
-        }
-
-        const generatedFlashcards = await GeminiService.generateFlashcards(combinedContent, injectedRules);
-        const flashcardsWithIds: Flashcard[] = generatedFlashcards.map((card) => ({
-          ...card,
-          id: admin.firestore().collection("tmp").doc().id,
-        }));
-
-        let title: string;
-        if (customTitle) {
-          title = customTitle;
-        } else if (documentIds.length === 1) {
-          title = `Flashcards for "${documentDataList[0].doc.title}"`;
-        } else {
-          title = `Flashcards for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`;
-        }
-
-        const primaryDocumentId = documentIds[0];
-        const newFlashcardSetData = {
-          title,
-          flashcards: flashcardsWithIds,
           userId,
-          documentId: primaryDocumentId,
-          directoryId: resolvedDirectoryId,
-          ...(documentIds.length > 1 ? { documentIds } : {}),
+          documentId: documentIds[0],
+          documentIds: documentIds.length > 1 ? documentIds : undefined,
           documentTitle: documentDataList[0].doc.title,
-          createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-          appliedRuleIds: appliedRuleIdsForSave,
-        };
-
-        const db = admin.firestore();
-        const newRef = FirestorePaths.flashcardSets(userId).doc();
-        await db.runTransaction(async (transaction) => {
-          transaction.set(newRef, newFlashcardSetData);
-          transaction.update(FirestorePaths.directory(userId, resolvedDirectoryId), {
-            flashcardSetCount: FieldValue.increment(1),
-            updatedAt: FieldValue.serverTimestamp(),
-          });
+          title: pendingTitle,
         });
 
-        res.status(201).json({ success: true, data: { flashcardSetId: newRef.id } });
+        try {
+          let injectedRules: string | undefined;
+          let appliedRuleIdsForSave: string[] = [];
+          const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
+          const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
+            ? requestData.ruleResolutionMode
+            : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
+          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+            userId,
+            directoryId: resolvedDirectoryId,
+            operation: RuleApplicability.FLASHCARD,
+            additionalRuleIds: explicitRuleIds,
+            mode,
+          });
+          appliedRuleIdsForSave = resolvedAppliedIds;
+          const base = additionalPrompt || "";
+          if (rulesText && base) {
+            injectedRules = `${rulesText}\n\n${base}`;
+          } else if (rulesText) {
+            injectedRules = rulesText;
+          } else if (base) {
+            injectedRules = base;
+          }
+
+          const generatedFlashcards = await GeminiService.generateFlashcards(combinedContent, injectedRules);
+          const flashcardsWithIds: Flashcard[] = generatedFlashcards.map((card) => ({
+            ...card,
+            id: admin.firestore().collection("tmp").doc().id,
+          }));
+
+          const title = customTitle
+            || (documentIds.length === 1
+              ? `Flashcards for "${documentDataList[0].doc.title}"`
+              : `Flashcards for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
+
+          await completePendingFlashcardSet(userId, pendingFlashcardSetId, {
+            title,
+            flashcards: flashcardsWithIds,
+            appliedRuleIds: appliedRuleIdsForSave,
+          });
+
+          res.status(201).json({ success: true, data: { flashcardSetId: pendingFlashcardSetId } });
+        } catch (innerError) {
+          const msg = innerError instanceof Error ? innerError.message : String(innerError);
+          await failPendingFlashcardSet(userId, pendingFlashcardSetId, msg).catch(() => { /* best-effort */ });
+          throw innerError;
+        }
         return;
       }
 
@@ -675,43 +797,56 @@ export const api = onRequest(
           }
         }
 
-        let injectedRules: string | undefined;
-        let appliedRuleIdsForSave: string[] = [];
-        const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
-        const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
-          ? requestData.ruleResolutionMode
-          : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
-        const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
-          userId,
+        const pendingTitle = customTitle
+          || (documentIds.length === 1
+            ? `Slides for "${documentDataList[0].doc.title}"`
+            : `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
+        const pendingSlideDeckId = await createPendingSlideDeck({
           directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.SLIDE_DECK,
-          additionalRuleIds: explicitRuleIds,
-          mode,
+          userId,
+          documentId: documentIds[0],
+          documentIds: documentIds.length > 1 ? documentIds : undefined,
+          documentTitle: documentDataList[0].doc.title,
+          title: pendingTitle,
         });
-        appliedRuleIdsForSave = resolvedAppliedIds;
-        const base = additionalPrompt || "";
-        if (rulesText && base) {
-          injectedRules = `${rulesText}\n\n${base}`;
-        } else if (rulesText) {
-          injectedRules = rulesText;
-        } else if (base) {
-          injectedRules = base;
-        }
-
-        const slideOutline = await GeminiService.generateSlideDeckOutline(
-          combinedContent, additionalPrompt || undefined, injectedRules
-        );
-
-        const CONCURRENCY = 3;
-        const slides: Slide[] = slideOutline.map((outline) => ({
-          id: admin.firestore().collection("tmp").doc().id,
-          title: outline.title,
-          content: outline.content,
-          speakerNotes: outline.speakerNotes,
-        }));
-
         const uploadedPaths: string[] = [];
+
         try {
+          let injectedRules: string | undefined;
+          let appliedRuleIdsForSave: string[] = [];
+          const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
+          const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
+            ? requestData.ruleResolutionMode
+            : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
+          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+            userId,
+            directoryId: resolvedDirectoryId,
+            operation: RuleApplicability.SLIDE_DECK,
+            additionalRuleIds: explicitRuleIds,
+            mode,
+          });
+          appliedRuleIdsForSave = resolvedAppliedIds;
+          const base = additionalPrompt || "";
+          if (rulesText && base) {
+            injectedRules = `${rulesText}\n\n${base}`;
+          } else if (rulesText) {
+            injectedRules = rulesText;
+          } else if (base) {
+            injectedRules = base;
+          }
+
+          const slideOutline = await GeminiService.generateSlideDeckOutline(
+            combinedContent, additionalPrompt || undefined, injectedRules
+          );
+
+          const CONCURRENCY = 3;
+          const slides: Slide[] = slideOutline.map((outline) => ({
+            id: admin.firestore().collection("tmp").doc().id,
+            title: outline.title,
+            content: outline.content,
+            speakerNotes: outline.speakerNotes,
+          }));
+
           for (let batch = 0; batch < slides.length; batch += CONCURRENCY) {
             const chunk = slides.slice(batch, batch + CONCURRENCY);
             await Promise.all(chunk.map(async (slide, ci) => {
@@ -743,48 +878,25 @@ export const api = onRequest(
               }
             }));
           }
-        } catch (genError) {
-          if (uploadedPaths.length > 0) {
-            const bucket = admin.storage().bucket();
-            await Promise.allSettled(uploadedPaths.map((p) => bucket.file(p).delete().catch(() => { /* ignore cleanup errors */ })));
-          }
-          throw genError;
-        }
 
-        let deckTitle: string;
-        if (customTitle) {
-          deckTitle = customTitle;
-        } else if (documentIds.length === 1) {
-          deckTitle = `Slides for "${documentDataList[0].doc.title}"`;
-        } else {
-          deckTitle = `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`;
-        }
+          const deckTitle = customTitle
+            || (documentIds.length === 1
+              ? `Slides for "${documentDataList[0].doc.title}"`
+              : `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
 
-        const primaryDocumentId = documentIds[0];
-        const newSlideDeckData = {
-          title: deckTitle,
-          slides,
-          userId,
-          documentId: primaryDocumentId,
-          directoryId: resolvedDirectoryId,
-          ...(documentIds.length > 1 ? { documentIds } : {}),
-          documentTitle: documentDataList[0].doc.title,
-          createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-          appliedRuleIds: appliedRuleIdsForSave,
-        };
-
-        const db = admin.firestore();
-        const newDeckRef = FirestorePaths.slideDecks(userId).doc();
-        await db.runTransaction(async (transaction) => {
-          transaction.set(newDeckRef, newSlideDeckData);
-          transaction.update(FirestorePaths.directory(userId, resolvedDirectoryId), {
-            slideDeckCount: FieldValue.increment(1),
-            updatedAt: FieldValue.serverTimestamp(),
+          await completePendingSlideDeck(userId, pendingSlideDeckId, {
+            title: deckTitle,
+            slides,
+            appliedRuleIds: appliedRuleIdsForSave,
           });
-        });
 
-        res.status(201).json({ success: true, data: { slideDeckId: newDeckRef.id } });
+          res.status(201).json({ success: true, data: { slideDeckId: pendingSlideDeckId } });
+        } catch (innerError) {
+          await cleanupUploadedFiles(uploadedPaths);
+          const msg = innerError instanceof Error ? innerError.message : String(innerError);
+          await failPendingSlideDeck(userId, pendingSlideDeckId, msg).catch(() => { /* best-effort */ });
+          throw innerError;
+        }
         return;
       }
 
@@ -902,54 +1014,69 @@ export const api = onRequest(
           }
         }
 
-        let injectedRules: string | undefined;
-        let appliedRuleIdsForSave: string[] = [];
-        const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
-        const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
-          ? requestData.ruleResolutionMode
-          : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
-        const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
-          userId,
+        const pendingTitle = customTitle
+          || (documentIds.length === 1
+            ? `Slides for "${documentDataList[0].doc.title}"`
+            : `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
+        const pendingSlideDeckId = await createPendingSlideDeck({
           directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.SLIDE_DECK,
-          additionalRuleIds: explicitRuleIds,
-          mode,
+          userId,
+          documentId: documentIds[0],
+          documentIds: documentIds.length > 1 ? documentIds : undefined,
+          documentTitle: documentDataList[0].doc.title,
+          title: pendingTitle,
         });
-        appliedRuleIdsForSave = resolvedAppliedIds;
-        const base = additionalPrompt || "";
-        if (rulesText && base) {
-          injectedRules = `${rulesText}\n\n${base}`;
-        } else if (rulesText) {
-          injectedRules = rulesText;
-        } else if (base) {
-          injectedRules = base;
-        }
-
-        const slideOutline = await GeminiService.generateSlideDeckOutline(
-          combinedContent, additionalPrompt || undefined, injectedRules
-        );
-
-        if (slideOutline.length !== parsedImages.length) {
-          res.status(400).json({
-            success: false,
-            error: "Image count does not match generated slide count. Resubmit with the correct number of images.",
-            data: {
-              expectedImageCount: slideOutline.length,
-              providedImageCount: parsedImages.length,
-            },
-          });
-          return;
-        }
-
-        const slides: Slide[] = slideOutline.map((outline) => ({
-          id: admin.firestore().collection("tmp").doc().id,
-          title: outline.title,
-          content: outline.content,
-          speakerNotes: outline.speakerNotes,
-        }));
-
         const uploadedPaths: string[] = [];
+
         try {
+          let injectedRules: string | undefined;
+          let appliedRuleIdsForSave: string[] = [];
+          const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
+          const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
+            ? requestData.ruleResolutionMode
+            : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
+          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+            userId,
+            directoryId: resolvedDirectoryId,
+            operation: RuleApplicability.SLIDE_DECK,
+            additionalRuleIds: explicitRuleIds,
+            mode,
+          });
+          appliedRuleIdsForSave = resolvedAppliedIds;
+          const base = additionalPrompt || "";
+          if (rulesText && base) {
+            injectedRules = `${rulesText}\n\n${base}`;
+          } else if (rulesText) {
+            injectedRules = rulesText;
+          } else if (base) {
+            injectedRules = base;
+          }
+
+          const slideOutline = await GeminiService.generateSlideDeckOutline(
+            combinedContent, additionalPrompt || undefined, injectedRules
+          );
+
+          if (slideOutline.length !== parsedImages.length) {
+            const message = "Image count does not match generated slide count. Resubmit with the correct number of images.";
+            await failPendingSlideDeck(userId, pendingSlideDeckId, message).catch(() => { /* best-effort */ });
+            res.status(400).json({
+              success: false,
+              error: message,
+              data: {
+                expectedImageCount: slideOutline.length,
+                providedImageCount: parsedImages.length,
+              },
+            });
+            return;
+          }
+
+          const slides: Slide[] = slideOutline.map((outline) => ({
+            id: admin.firestore().collection("tmp").doc().id,
+            title: outline.title,
+            content: outline.content,
+            speakerNotes: outline.speakerNotes,
+          }));
+
           await Promise.all(slides.map(async (slide, i) => {
             const img = parsedImages[i];
             const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.${img.extension}`;
@@ -966,48 +1093,25 @@ export const api = onRequest(
             slide.imageDownloadToken = downloadToken;
             uploadedPaths.push(storagePath);
           }));
-        } catch (uploadError) {
-          if (uploadedPaths.length > 0) {
-            const bucket = admin.storage().bucket();
-            await Promise.allSettled(uploadedPaths.map((p) => bucket.file(p).delete().catch(() => { /* ignore cleanup errors */ })));
-          }
-          throw uploadError;
-        }
 
-        let deckTitle: string;
-        if (customTitle) {
-          deckTitle = customTitle;
-        } else if (documentIds.length === 1) {
-          deckTitle = `Slides for "${documentDataList[0].doc.title}"`;
-        } else {
-          deckTitle = `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`;
-        }
+          const deckTitle = customTitle
+            || (documentIds.length === 1
+              ? `Slides for "${documentDataList[0].doc.title}"`
+              : `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
 
-        const primaryDocumentId = documentIds[0];
-        const newSlideDeckData = {
-          title: deckTitle,
-          slides,
-          userId,
-          documentId: primaryDocumentId,
-          directoryId: resolvedDirectoryId,
-          ...(documentIds.length > 1 ? { documentIds } : {}),
-          documentTitle: documentDataList[0].doc.title,
-          createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-          appliedRuleIds: appliedRuleIdsForSave,
-        };
-
-        const db = admin.firestore();
-        const newDeckRef = FirestorePaths.slideDecks(userId).doc();
-        await db.runTransaction(async (transaction) => {
-          transaction.set(newDeckRef, newSlideDeckData);
-          transaction.update(FirestorePaths.directory(userId, resolvedDirectoryId), {
-            slideDeckCount: FieldValue.increment(1),
-            updatedAt: FieldValue.serverTimestamp(),
+          await completePendingSlideDeck(userId, pendingSlideDeckId, {
+            title: deckTitle,
+            slides,
+            appliedRuleIds: appliedRuleIdsForSave,
           });
-        });
 
-        res.status(201).json({ success: true, data: { slideDeckId: newDeckRef.id } });
+          res.status(201).json({ success: true, data: { slideDeckId: pendingSlideDeckId } });
+        } catch (innerError) {
+          await cleanupUploadedFiles(uploadedPaths);
+          const msg = innerError instanceof Error ? innerError.message : String(innerError);
+          await failPendingSlideDeck(userId, pendingSlideDeckId, msg).catch(() => { /* best-effort */ });
+          throw innerError;
+        }
         return;
       }
 
@@ -1206,15 +1310,35 @@ export const api = onRequest(
           limiterKey: authResult.limiterKey,
         });
 
-        const result = await ScreenshotDocumentGenerationService.generate({
-          ...data,
-          userId,
+        const promptTitle = data.prompt?.trim();
+        const pendingTitle = data.title?.trim()
+          || (promptTitle
+            ? promptTitle.length > 50 ? `${promptTitle.substring(0, 50)}...` : promptTitle
+            : "Captured Document");
+        const pendingDocumentId = await DocumentCrudService.createPendingDocument(userId, {
+          directoryId: data.directoryId,
+          title: pendingTitle,
+          description: "Captured from screenshot",
+          sourceType: DocumentSourceType.GENERATED,
+          tags: ["screenshot", "captured"],
         });
 
-        res.status(201).json({
-          success: true,
-          data: result,
-        });
+        try {
+          const result = await ScreenshotDocumentGenerationService.generate({
+            ...data,
+            userId,
+            pendingDocumentId,
+          });
+
+          res.status(201).json({
+            success: true,
+            data: result,
+          });
+        } catch (innerError) {
+          const msg = innerError instanceof Error ? innerError.message : String(innerError);
+          await DocumentCrudService.failPendingDocument(userId, pendingDocumentId, msg).catch(() => { /* best-effort */ });
+          throw innerError;
+        }
         return;
       }
 
