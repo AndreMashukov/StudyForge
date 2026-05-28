@@ -1,10 +1,24 @@
 import { useEffect } from 'react';
-import { Timestamp, collection, onSnapshot, query, where } from 'firebase/firestore';
+import { Timestamp, collection, onSnapshot, query, where, type DocumentData } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAppDispatch } from '../../../hooks/redux';
 import { directoryApi } from '../../../store/api/Directory/DirectoryApi';
-import type { DocumentEnhanced } from '@shared-types';
+import type { ArtifactSummary, ArtifactSummaryType, DocumentEnhanced } from '@shared-types';
+
+interface RealtimeCollectionConfig {
+  collectionName: string;
+  artifactType?: ArtifactSummaryType;
+}
+
+const REALTIME_COLLECTIONS: RealtimeCollectionConfig[] = [
+  { collectionName: 'documents' },
+  { collectionName: 'quizzes', artifactType: 'quiz' },
+  { collectionName: 'flashcardSets', artifactType: 'flashcard' },
+  { collectionName: 'slideDecks', artifactType: 'slideDeck' },
+  { collectionName: 'diagramQuizzes', artifactType: 'diagramQuiz' },
+  { collectionName: 'sequenceQuizzes', artifactType: 'sequenceQuiz' },
+];
 
 /** Converts Firestore Timestamps to ISO strings so Redux stays serializable. */
 function serializeTimestamp(value: unknown): string | unknown {
@@ -14,17 +28,46 @@ function serializeTimestamp(value: unknown): string | unknown {
   return value;
 }
 
+function serializeCommonTimestamps<T extends Record<string, unknown>>(data: T): T {
+  return {
+    ...data,
+    createdAt: serializeTimestamp(data.createdAt),
+    updatedAt: serializeTimestamp(data.updatedAt),
+    completedAt: serializeTimestamp(data.completedAt),
+  };
+}
+
+function toDocumentEnhanced(id: string, raw: DocumentData): DocumentEnhanced {
+  return {
+    id,
+    ...serializeCommonTimestamps(raw),
+  } as DocumentEnhanced;
+}
+
+function toArtifactSummary(id: string, raw: DocumentData, type: ArtifactSummaryType): ArtifactSummary {
+  const data = serializeCommonTimestamps(raw);
+  return {
+    id,
+    title: typeof data.title === 'string' ? data.title : 'Untitled',
+    createdAt: data.createdAt as ArtifactSummary['createdAt'],
+    type,
+    appliedRuleIds: Array.isArray(data.appliedRuleIds) ? data.appliedRuleIds.filter((ruleId): ruleId is string => typeof ruleId === 'string') : [],
+    generationStatus: data.generationStatus as ArtifactSummary['generationStatus'] | undefined,
+    generationError: typeof data.generationError === 'string' ? data.generationError : undefined,
+  };
+}
+
 /**
- * Sets up a dedicated Firestore real-time listener for documents in the given
- * directory and immediately patches the RTK Query cache when documents are
- * added, modified, or removed.
+ * Sets up dedicated Firestore real-time listeners for documents and generated
+ * artifacts in the given directory, then immediately patches the RTK Query
+ * cache when records are added, modified, or removed.
  *
  * This is an optimistic-update companion to the invalidation-based listener in
  * `useRealtimeDirectorySync`. Because RTK Query's refetch cycle can take
  * 100–500 ms (Firebase callable round-trip), a document that transitions from
  * `pending` → `completed` very quickly (or in the emulator where Gemini
  * returns instantly) would never be visible as pending if we relied solely on
- * `invalidateTags`. The direct cache patch here makes the pending state appear
+ * `invalidateTags`. The direct cache patch here makes pending states appear
  * in the UI the moment Firestore delivers the snapshot, independent of the
  * refetch latency.
  *
@@ -42,67 +85,66 @@ export const useDirectoryDocumentsRealtimeCache = (
   useEffect(() => {
     if (!uid || !directoryId) return;
 
-    const q = query(
-      collection(db, 'users', uid, 'documents'),
-      where('directoryId', '==', directoryId),
-    );
-
     const queryArgs = { directoryId, artifactLimit };
-    let isInitial = true;
+    const unsubscribes = REALTIME_COLLECTIONS.map((config) => {
+      const q = query(
+        collection(db, 'users', uid, config.collectionName),
+        where('directoryId', '==', directoryId),
+      );
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        if (isInitial) {
-          isInitial = false;
-          return;
-        }
+      let isInitial = true;
 
-        for (const change of snapshot.docChanges()) {
-          const raw = change.doc.data();
-          const docData = {
-            id: change.doc.id,
-            ...raw,
-            createdAt: serializeTimestamp(raw.createdAt),
-            updatedAt: serializeTimestamp(raw.updatedAt),
-            completedAt: serializeTimestamp(raw.completedAt),
-          } as DocumentEnhanced;
+      return onSnapshot(
+        q,
+        (snapshot) => {
+          if (isInitial) {
+            isInitial = false;
+            return;
+          }
 
-          if (change.type === 'added' || change.type === 'modified') {
+          for (const change of snapshot.docChanges()) {
+            const raw = change.doc.data();
             dispatch(
               directoryApi.util.updateQueryData(
                 'getDirectoryContentsWithArtifactSummaries',
                 queryArgs,
                 (draft) => {
-                  const idx = draft.documents.findIndex((d) => d.id === docData.id);
-                  if (idx >= 0) {
-                    Object.assign(draft.documents[idx], docData);
-                  } else {
-                    draft.documents.unshift(docData);
+                  if (!config.artifactType) {
+                    const docData = toDocumentEnhanced(change.doc.id, raw);
+                    const idx = draft.documents.findIndex((d) => d.id === docData.id);
+                    if (change.type === 'removed') {
+                      if (idx >= 0) draft.documents.splice(idx, 1);
+                    } else if (idx >= 0) {
+                      Object.assign(draft.documents[idx], docData);
+                    } else {
+                      draft.documents.unshift(docData);
+                    }
+                    return;
                   }
-                },
-              ),
-            );
-          } else if (change.type === 'removed') {
-            dispatch(
-              directoryApi.util.updateQueryData(
-                'getDirectoryContentsWithArtifactSummaries',
-                queryArgs,
-                (draft) => {
-                  const idx = draft.documents.findIndex((d) => d.id === docData.id);
-                  if (idx >= 0) {
-                    draft.documents.splice(idx, 1);
+
+                  const artifact = toArtifactSummary(change.doc.id, raw, config.artifactType);
+                  const idx = draft.artifactSummaries.findIndex(
+                    (summary) => summary.id === artifact.id && summary.type === artifact.type,
+                  );
+                  if (change.type === 'removed') {
+                    if (idx >= 0) draft.artifactSummaries.splice(idx, 1);
+                  } else if (idx >= 0) {
+                    Object.assign(draft.artifactSummaries[idx], artifact);
+                  } else {
+                    draft.artifactSummaries.unshift(artifact);
                   }
                 },
               ),
             );
           }
-        }
-      },
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      () => {},
-    );
+        },
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        () => {},
+      );
+    });
 
-    return unsubscribe;
+    return () => {
+      unsubscribes.forEach((unsubscribe) => unsubscribe());
+    };
   }, [uid, directoryId, artifactLimit, dispatch]);
 };
