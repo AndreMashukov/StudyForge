@@ -15,13 +15,9 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
   onDeleteDocument,
   onMoveDocument,
 }) => {
-  const completedCount = documents.filter(
-    (d) => !d.generationStatus || d.generationStatus === 'completed'
-  ).length;
-
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Sources ({completedCount})</h2>
+      <h2 className="text-lg font-semibold">Sources ({documents.length})</h2>
 
       {documents.length === 0 ? (
         <div className="text-sm text-muted-foreground py-8 text-center">

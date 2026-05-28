@@ -1128,16 +1128,27 @@ export const api = onRequest(
 
         const wordCount = generatedContent.split(/\s+/).length;
 
-        const document = await DocumentCrudService.completePendingDocument(
-          userId,
-          pendingDocumentId,
-          generatedContent,
-          {
-            title,
-            description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? "..." : ""}`,
-            tags: ["ai-generated", "prompt-based"],
-          }
-        );
+        let document: Awaited<ReturnType<typeof DocumentCrudService.completePendingDocument>>;
+        try {
+          document = await DocumentCrudService.completePendingDocument(
+            userId,
+            pendingDocumentId,
+            generatedContent,
+            {
+              title,
+              description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? "..." : ""}`,
+              tags: ["ai-generated", "prompt-based"],
+            }
+          );
+        } catch (completeErr) {
+          await DocumentCrudService.failPendingDocument(
+            userId,
+            pendingDocumentId,
+            completeErr instanceof Error ? completeErr.message : "Failed to save generated document"
+          );
+          res.status(500).json({ success: false, error: "Failed to save generated document." });
+          return;
+        }
 
         res.status(201).json({
           success: true,

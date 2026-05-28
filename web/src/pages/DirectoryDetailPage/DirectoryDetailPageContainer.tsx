@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { useRealtimeDirectorySync } from '../DocumentsPage/context/hooks/useRealtimeDirectorySync';
+import { useDirectoryDocumentsRealtimeCache } from './hooks/useDirectoryDocumentsRealtimeCache';
 import {
   useGetDirectoryContentsWithArtifactSummariesQuery,
   useGetDirectoryAncestorsQuery,
@@ -56,8 +57,11 @@ export const DirectoryDetailPageContainer = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Real-time Firestore listeners for this directory's contents
+  // Real-time Firestore listeners for this directory's contents (tag invalidation)
   useRealtimeDirectorySync(directoryId ?? null);
+  // Optimistic cache patch: reflects document changes (e.g. pending → completed)
+  // immediately without waiting for the full refetch round-trip.
+  useDirectoryDocumentsRealtimeCache(directoryId ?? null, ARTIFACT_PAGE_LIMIT);
 
   const getTabFromParams = (): PanelType => {
     const tab = searchParams.get('tab');
