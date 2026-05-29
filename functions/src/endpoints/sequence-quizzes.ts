@@ -69,11 +69,20 @@ export const generateSequenceQuiz = onCall(
       if (requestData.additionalRuleIds != null && !Array.isArray(requestData.additionalRuleIds)) {
         throw new Error("additionalRuleIds must be an array when provided");
       }
+      if (requestData.followupRuleIds != null && !Array.isArray(requestData.followupRuleIds)) {
+        throw new Error("followupRuleIds must be an array when provided");
+      }
       if (
         Array.isArray(requestData.additionalRuleIds) &&
         !requestData.additionalRuleIds.every((id): id is string => typeof id === "string")
       ) {
         throw new Error("Each additionalRuleId must be a string");
+      }
+      if (
+        Array.isArray(requestData.followupRuleIds) &&
+        !requestData.followupRuleIds.every((id): id is string => typeof id === "string")
+      ) {
+        throw new Error("Each followupRuleId must be a string");
       }
 
       const sequenceQuizName = optionalTrimmedString(
@@ -146,9 +155,13 @@ export const generateSequenceQuiz = onCall(
         const ruleIds = Array.isArray(requestData.ruleIds)
           ? (requestData.ruleIds as string[])
           : undefined;
+        const followupRuleIds = Array.isArray(requestData.followupRuleIds)
+          ? (requestData.followupRuleIds as string[])
+          : undefined;
+        const hasExplicitRules = Boolean(ruleIds?.length || followupRuleIds?.length);
         const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
           ? requestData.ruleResolutionMode
-          : (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+          : (hasExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
 
         const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveEffectiveRules({
           userId,
@@ -164,7 +177,7 @@ export const generateSequenceQuiz = onCall(
           userId,
           directoryId: resolvedDirectoryId,
           operation: RuleApplicability.FOLLOWUP,
-          additionalRuleIds: ruleIds?.length ? [] : additionalRuleIds,
+          additionalRuleIds: hasExplicitRules ? (followupRuleIds || []) : additionalRuleIds,
           mode,
         });
         followupIdsForSave = resolvedFollowupIds;

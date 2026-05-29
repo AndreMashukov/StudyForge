@@ -12,6 +12,7 @@ const diagramQuizFormConfig: ArtifactFormConfig = {
   nameFieldName: 'diagramQuizName',
   nameFieldLabel: 'Quiz Name',
   ruleApplicability: RuleApplicability.DIAGRAM_QUIZ,
+  followupRuleApplicability: RuleApplicability.FOLLOWUP,
   additionalPromptPlaceholder: 'e.g. Focus on architecture diagrams, use sequence diagrams only, etc.',
   additionalPromptHelperText: 'Customize how Mermaid diagrams are generated',
   generateLabels: {

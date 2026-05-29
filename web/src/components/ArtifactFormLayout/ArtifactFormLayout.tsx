@@ -58,13 +58,18 @@ export const ArtifactFormLayout = <T extends FieldValues>({
   const watchedName = watch(nameFieldName);
   const watchedRuleIds = watch('ruleIds' as Path<T>);
   const watchedDescriptionRuleIds = watch('descriptionRuleIds' as Path<T>);
+  const watchedFollowupRuleIds = watch('followupRuleIds' as Path<T>);
 
   const handleRuleSelectionChange = (ruleIds: string[]) => {
-    setValue('ruleIds' as Path<T>, ruleIds as any);
+    setValue('ruleIds' as Path<T>, ruleIds as never);
   };
 
   const handleDescriptionRuleSelectionChange = (ruleIds: string[]) => {
-    setValue('descriptionRuleIds' as Path<T>, ruleIds as any);
+    setValue('descriptionRuleIds' as Path<T>, ruleIds as never);
+  };
+
+  const handleFollowupRuleSelectionChange = (ruleIds: string[]) => {
+    setValue('followupRuleIds' as Path<T>, ruleIds as never);
   };
 
   const handleBack = () => {
@@ -91,7 +96,7 @@ export const ArtifactFormLayout = <T extends FieldValues>({
         preselectionApplied.current = true;
         const current = (form.getValues('documentIds' as Path<T>) as unknown as string[]) || [];
         if (!current.includes(preselectedDocumentId)) {
-          setValue('documentIds' as Path<T>, [preselectedDocumentId, ...current] as any, { shouldValidate: true });
+          setValue('documentIds' as Path<T>, [preselectedDocumentId, ...current] as never, { shouldValidate: true });
         }
       }
     }
@@ -102,7 +107,7 @@ export const ArtifactFormLayout = <T extends FieldValues>({
     const next = current.includes(id)
       ? current.filter(d => d !== id)
       : [...current, id];
-    setValue('documentIds' as Path<T>, next as any, { shouldValidate: true });
+    setValue('documentIds' as Path<T>, next as never, { shouldValidate: true });
   };
 
   const docCount = (watchedDocumentIds as unknown as string[])?.length ?? 0;
@@ -179,7 +184,9 @@ export const ArtifactFormLayout = <T extends FieldValues>({
                     maxLength={100}
                   />
                   {errors[nameFieldName] && (
-                    <p className="text-sm text-destructive">{(errors[nameFieldName] as any)?.message}</p>
+                    <p className="text-sm text-destructive">
+                      {String((errors[nameFieldName] as { message?: unknown })?.message ?? '')}
+                    </p>
                   )}
                   {docCount > 0 && !(watchedName as unknown as string)?.trim() && config.defaultNameFn && primaryDocument && (
                     <p className="text-sm text-muted-foreground">
@@ -212,6 +219,18 @@ export const ArtifactFormLayout = <T extends FieldValues>({
                     operation={config.ruleApplicability}
                     selectedRuleIds={(watchedRuleIds as unknown as string[]) ?? []}
                     onSelectionChange={handleRuleSelectionChange}
+                    title="Generation Rules"
+                  />
+                )}
+
+                {/* Followup Rules */}
+                {resolvedDirectoryId && config.followupRuleApplicability && (
+                  <RuleSelector
+                    directoryId={resolvedDirectoryId}
+                    operation={config.followupRuleApplicability}
+                    selectedRuleIds={(watchedFollowupRuleIds as unknown as string[]) ?? []}
+                    onSelectionChange={handleFollowupRuleSelectionChange}
+                    title="Detailed Explanation Rules"
                   />
                 )}
 
@@ -222,6 +241,7 @@ export const ArtifactFormLayout = <T extends FieldValues>({
                     operation={config.descriptionRuleApplicability}
                     selectedRuleIds={(watchedDescriptionRuleIds as unknown as string[]) ?? []}
                     onSelectionChange={handleDescriptionRuleSelectionChange}
+                    title="Description Rules"
                   />
                 )}
 

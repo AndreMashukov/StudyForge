@@ -158,6 +158,7 @@ export const SequenceQuizPageContainer: React.FC = () => {
             sequenceItems: currentQuestion.items,
             userSequence: quizState.placedItems,
             correctSequence: currentQuestion.items,
+            followupRuleIds: sequenceQuizApi.firestoreSequenceQuiz?.followupRuleIds,
           }}
         />
       )}

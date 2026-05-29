@@ -17,6 +17,7 @@ export const useCreateQuizPageForm = () => {
       quizName: '',
       additionalPrompt: '',
       ruleIds: [],
+      followupRuleIds: [],
     },
   });
 

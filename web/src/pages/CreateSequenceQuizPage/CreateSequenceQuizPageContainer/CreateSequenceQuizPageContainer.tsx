@@ -12,6 +12,7 @@ const sequenceQuizFormConfig: ArtifactFormConfig = {
   nameFieldName: 'sequenceQuizName',
   nameFieldLabel: 'Quiz Name',
   ruleApplicability: RuleApplicability.SEQUENCE_QUIZ,
+  followupRuleApplicability: RuleApplicability.FOLLOWUP,
   additionalPromptPlaceholder:
     'e.g. Focus on sentence construction, decompose algorithm steps, use historical events, etc.',
   additionalPromptHelperText:

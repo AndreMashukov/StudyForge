@@ -17,6 +17,7 @@ export const useCreateSequenceQuizPageForm = () => {
       sequenceQuizName: '',
       additionalPrompt: '',
       ruleIds: [],
+      followupRuleIds: [],
     },
   });
 

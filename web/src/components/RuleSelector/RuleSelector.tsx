@@ -11,6 +11,7 @@ export const RuleSelector = ({
   operation,
   selectedRuleIds,
   onSelectionChange,
+  title = "Rules",
   compact = false,
 }: IRuleSelector) => {
   const { data, isLoading } = useGetApplicableRulesQuery({
@@ -48,7 +49,7 @@ export const RuleSelector = ({
             <span role="img" aria-label="rules">
               📋
             </span>
-            Rules
+            {title}
           </h3>
         </div>
         <RuleListSkeleton count={compact ? 2 : 3} />
@@ -61,7 +62,7 @@ export const RuleSelector = ({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium flex items-center gap-2">
-          <span role="img" aria-label="rules">📋</span> Rules ({selectedRuleIds.length})
+          <span role="img" aria-label="rules">📋</span> {title} ({selectedRuleIds.length})
         </h3>
       </div>
 

@@ -12,6 +12,7 @@ const quizFormConfig: ArtifactFormConfig = {
   nameFieldName: 'quizName',
   nameFieldLabel: 'Quiz Name',
   ruleApplicability: RuleApplicability.QUIZ,
+  followupRuleApplicability: RuleApplicability.FOLLOWUP,
   defaultNameFn: (docTitle) => `Quiz from ${docTitle}`,
   additionalPromptPlaceholder: 'e.g., Focus on AWS VPC related paragraphs, make questions more challenging, etc.',
   additionalPromptHelperText: 'Provide specific instructions to customize your quiz generation',

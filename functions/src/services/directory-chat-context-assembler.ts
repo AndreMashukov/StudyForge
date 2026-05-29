@@ -42,13 +42,23 @@ export class DirectoryChatContextAssembler {
       throw new Error('Add a source to this directory before starting chat.');
     }
 
-    const [{ text: chatRules }, retrievedChunks] = await Promise.all([
+    const followupRuleIds = this.getFollowupRuleIds(params.artifactContext);
+
+    const [{ text: chatRules }, { text: followupRules }, retrievedChunks] = await Promise.all([
       resolveEffectiveRules({
         userId: params.userId,
         directoryId: params.directory.id,
         operation: RuleApplicability.CHAT,
         mode: 'inherit',
       }),
+      followupRuleIds.length > 0
+        ? resolveEffectiveRules({
+          userId: params.userId,
+          operation: RuleApplicability.FOLLOWUP,
+          additionalRuleIds: followupRuleIds,
+          mode: 'explicit-only',
+        })
+        : Promise.resolve({ text: '' }),
       this.retrievalStrategy.selectContext({
         message: params.message,
         documents,
@@ -61,13 +71,25 @@ export class DirectoryChatContextAssembler {
       promptContext: {
         directoryName: params.directory.name,
         userMessage: params.message,
-        chatRules,
+        chatRules: [chatRules, followupRules].filter((rules) => rules.trim()).join('\n\n'),
         conversationSummary: params.conversationSummary,
         recentMessages: params.previousMessages.slice(-RECENT_MESSAGE_LIMIT),
         retrievedChunks,
         artifactContext: params.artifactContext,
       },
     };
+  }
+
+  private getFollowupRuleIds(artifactContext?: DirectoryChatArtifactContext): string[] {
+    if (!artifactContext?.followupRuleIds?.length) {
+      return [];
+    }
+
+    if (!['quiz', 'diagramQuiz', 'sequenceQuiz'].includes(artifactContext.type)) {
+      return [];
+    }
+
+    return artifactContext.followupRuleIds;
   }
 
   private async loadDirectDirectoryDocuments(userId: string, directoryId: string): Promise<DirectoryChatSourceDocument[]> {

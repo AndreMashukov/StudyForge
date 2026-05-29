@@ -17,6 +17,7 @@ export const useCreateDiagramQuizPageForm = () => {
       diagramQuizName: '',
       additionalPrompt: '',
       ruleIds: [],
+      followupRuleIds: [],
     },
   });
 

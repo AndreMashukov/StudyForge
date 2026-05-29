@@ -22,6 +22,7 @@ const createCreateQuizPageSchema = () => z.object({
     )
     .optional(),
   ruleIds: z.array(z.string()).optional(),
+  followupRuleIds: z.array(z.string()).optional(),
 });
 
 export type CreateQuizPageFormData = z.infer<ReturnType<typeof createCreateQuizPageSchema>>;

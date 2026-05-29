@@ -5,5 +5,6 @@ export interface IRuleSelector {
   operation: RuleApplicability;
   selectedRuleIds: string[];
   onSelectionChange: (ruleIds: string[]) => void;
+  title?: string;
   compact?: boolean; // For mobile/sidebar usage
 }

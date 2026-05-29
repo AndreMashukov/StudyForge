@@ -37,6 +37,7 @@ export const useCreateSequenceQuizPageHandlers = ({ form, documents }: IProps) =
         sequenceQuizName: formData.sequenceQuizName?.trim() || undefined,
         additionalPrompt: formData.additionalPrompt?.trim() || undefined,
         ruleIds: formData.ruleIds || [],
+        followupRuleIds: formData.followupRuleIds || [],
         ruleResolutionMode: 'explicit-only',
       });
       navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=sequenceQuizzes`);

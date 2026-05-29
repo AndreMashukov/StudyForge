@@ -159,6 +159,7 @@ export const DiagramQuizPageContainer: React.FC = () => {
             userAnswer: selectedAnswerText,
             correctAnswer: correctAnswerText,
             explanation: currentQuestion.explanation,
+            followupRuleIds: diagramQuizApi.firestoreDiagramQuiz?.followupRuleIds,
           }}
         />
       )}

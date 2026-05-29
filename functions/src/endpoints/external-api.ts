@@ -521,6 +521,7 @@ export const api = onRequest(
         const sequenceQuizName = typeof requestData.sequenceQuizName === "string" ? requestData.sequenceQuizName.trim() : undefined;
         const additionalPrompt = typeof requestData.additionalPrompt === "string" ? requestData.additionalPrompt.trim() : undefined;
         const ruleIds = Array.isArray(requestData.ruleIds) ? requestData.ruleIds as string[] : undefined;
+        const followupRuleIds = Array.isArray(requestData.followupRuleIds) ? requestData.followupRuleIds as string[] : undefined;
         const additionalRuleIds = Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds as string[] : undefined;
 
         const documentDataList = await Promise.all(
@@ -571,9 +572,10 @@ export const api = onRequest(
         try {
           let enhancedPrompt = additionalPrompt || "";
           let followupIdsForSave: string[] = [];
+          const hasExplicitRules = Boolean(ruleIds?.length || followupRuleIds?.length);
           const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
             ? requestData.ruleResolutionMode
-            : (ruleIds?.length ? "explicit-only" : "inherit-plus-explicit");
+            : (hasExplicitRules ? "explicit-only" : "inherit-plus-explicit");
 
           const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveEffectiveRules({
             userId,
@@ -587,7 +589,7 @@ export const api = onRequest(
             userId,
             directoryId: resolvedDirectoryId,
             operation: RuleApplicability.FOLLOWUP,
-            additionalRuleIds: ruleIds?.length ? [] : additionalRuleIds,
+            additionalRuleIds: hasExplicitRules ? (followupRuleIds || []) : additionalRuleIds,
             mode,
           });
           followupIdsForSave = resolvedFollowupIds;
