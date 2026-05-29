@@ -3,4 +3,5 @@ export interface ICreateSequenceQuizFormData {
   sequenceQuizName?: string;
   additionalPrompt?: string;
   ruleIds?: string[];
+  followupRuleIds?: string[];
 }

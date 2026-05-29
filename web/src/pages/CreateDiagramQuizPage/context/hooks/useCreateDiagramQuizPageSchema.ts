@@ -15,6 +15,7 @@ const createSchema = () =>
       .refine((v) => !v || v.trim().length > 0, 'Additional prompt cannot be only whitespace')
       .optional(),
     ruleIds: z.array(z.string()).optional(),
+    followupRuleIds: z.array(z.string()).optional(),
   });
 
 export type CreateDiagramQuizPageFormData = z.infer<ReturnType<typeof createSchema>>;

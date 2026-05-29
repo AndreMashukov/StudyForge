@@ -3,4 +3,5 @@ export interface ICreateDiagramQuizFormData {
   diagramQuizName?: string;
   additionalPrompt?: string;
   ruleIds?: string[];
+  followupRuleIds?: string[];
 }

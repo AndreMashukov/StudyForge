@@ -188,6 +188,7 @@ export const QuizPageContainer: React.FC = () => {
             userAnswer: selectedAnswerText,
             correctAnswer: correctAnswerText,
             explanation: currentQuestion.explanation,
+            followupRuleIds: quizApi.firestoreQuiz?.followupRuleIds,
           }}
         />
       )}

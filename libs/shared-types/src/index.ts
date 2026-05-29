@@ -170,6 +170,7 @@ export interface GenerateSequenceQuizRequest {
   sequenceQuizName?: string;
   additionalPrompt?: string;
   ruleIds?: string[];
+  followupRuleIds?: string[];
   additionalRuleIds?: string[];
   ruleResolutionMode?: RuleResolutionMode;
 }
@@ -856,6 +857,7 @@ export interface DirectoryChatArtifactContext {
   slideTitle?: string;
   slideContent?: string;
   speakerNotes?: string;
+  followupRuleIds?: string[];
 }
 
 export interface RetrievedDirectoryChatChunk {
