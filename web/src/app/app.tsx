@@ -28,7 +28,7 @@ import { DiagramQuizPage } from '../pages/DiagramQuizPage';
 import { CreateDiagramQuizPage } from '../pages/CreateDiagramQuizPage';
 import { SequenceQuizPage } from '../pages/SequenceQuizPage';
 import { CreateSequenceQuizPage } from '../pages/CreateSequenceQuizPage';
-import { InteractionStatsPage } from '../pages/InteractionStatsPage';
+import { StatisticsPage } from '../pages/StatisticsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { Page } from '../components/Page';
 import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
@@ -351,11 +351,41 @@ const AppContent = () => {
       />
 
       <Route
+        path="/statistics"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <StatisticsPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/statistics/quizzes/:quizType/:quizId"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <StatisticsPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/statistics/knowledge/:subjectKey/:knowledgeDomainKey"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <StatisticsPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route
         path="/stats"
         element={
           <MainLayout>
             <ProtectedRoute>
-              <InteractionStatsPage />
+              <StatisticsPage />
             </ProtectedRoute>
           </MainLayout>
         }

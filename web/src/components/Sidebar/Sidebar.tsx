@@ -8,6 +8,7 @@ import {
   FileText,
   Sparkles,
   LogOut,
+  BarChart3,
 } from 'lucide-react';
 import { useSignOut } from 'react-firebase-hooks/auth';
 import { auth } from '../../config/firebase';
@@ -32,6 +33,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'home', title: 'Dashboard', path: '/', icon: Home, section: 'navigation' },
   { id: 'documents', title: 'My Directories', path: '/documents', icon: FileText, section: 'navigation' },
+  { id: 'statistics', title: 'Statistics', path: '/statistics', icon: BarChart3, section: 'navigation' },
   { id: 'rules-manager', title: 'Rules Manager', path: '/rules', icon: Sparkles, section: 'navigation' },
   { id: 'profile', title: 'Profile', path: '/profile', icon: User, section: 'account' },
   { id: 'settings', title: 'Settings', path: '/settings', icon: Settings, section: 'account' },
