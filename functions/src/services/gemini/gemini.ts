@@ -8,6 +8,7 @@ import {
   DocumentQuestionContext,
   DirectoryChatPromptContext,
   IFileContent,
+  QuestionKnowledgeMetadata,
 } from '@shared-types';
 import { JsonSanitizer } from './json-sanitizer';
 import {
@@ -38,6 +39,7 @@ export interface GeminiQuizResponse {
     correctAnswer: number;
     explanation: string;
     hint?: string;
+    knowledge?: QuestionKnowledgeMetadata;
   }>;
 }
 
@@ -50,6 +52,7 @@ export interface GeminiDiagramQuizResponse {
     explanation: string;
     hint?: string;
     diagramLabels?: string[];
+    knowledge?: QuestionKnowledgeMetadata;
   }>;
 }
 
@@ -60,6 +63,7 @@ export interface GeminiSequenceQuizResponse {
     items: string[];
     explanation: string;
     hint?: string;
+    knowledge?: QuestionKnowledgeMetadata;
   }>;
 }
 

@@ -180,12 +180,13 @@ export const generateQuiz = onCall(
 
         await completePendingQuiz(userId, pendingQuizId, {
           title: geminiQuiz.title,
-          questions: geminiQuiz.questions.map((q: { question: string; options: string[]; correctAnswer: number; explanation?: string; hint?: string }) => ({
+          questions: geminiQuiz.questions.map((q) => ({
             question: q.question,
             options: q.options,
             correctAnswer: q.correctAnswer,
             explanation: q.explanation,
             ...(q.hint ? { hint: q.hint } : {}),
+            ...(q.knowledge ? { knowledge: q.knowledge } : {}),
           })),
           appliedRuleIds: appliedRuleIdsForSave,
           generationAttempt,

@@ -134,6 +134,7 @@ For question N, option at index matching the letter above must be the factually 
 - \`diagrams\` must be a string array of length **4** for every question — each string is full Mermaid source.
 - \`correctAnswer\` is integer 0, 1, 2, or 3.
 - \`explanation\` is required (non-empty string).
+- \`knowledge\` is required with \`subjectName\`, \`knowledgeDomainName\`, and \`topicTags\` (1-5 short strings).
 ${buildQuizHintJsonRule()}`;
   }
 
@@ -152,6 +153,11 @@ ${buildQuizHintJsonRule()}`;
       ],
       "correctAnswer": 0,
       "explanation": "Why option A is correct and others are wrong.",
+      "knowledge": {
+        "subjectName": "Concise subject tested by this question",
+        "knowledgeDomainName": "Broader knowledge domain",
+        "topicTags": ["specific-topic", "diagram-reasoning"]
+      },
       ${buildQuizHintExampleLine('Trace the direction of the arrows before deciding.')}
     },
     {
@@ -164,6 +170,11 @@ ${buildQuizHintJsonRule()}`;
       ],
       "correctAnswer": 1,
       "explanation": "Note: subgraph IDs use camelCase (topFrame) with display labels in quotes.",
+      "knowledge": {
+        "subjectName": "Stack state diagrams",
+        "knowledgeDomainName": "Programming concepts",
+        "topicTags": ["stack-frames", "mermaid-diagrams"]
+      },
       ${buildQuizHintExampleLine('Check which stack frame is shown above the other.')}
     }
   ]

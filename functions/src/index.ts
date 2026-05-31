@@ -194,6 +194,13 @@ export {
   getInteractionStatsEndpoint as getInteractionStats,
 } from "./endpoints/interaction-tracking";
 
+// Export learning telemetry functions
+export {
+  recordQuizAttemptEndpoint as recordQuizAttempt,
+  recordQuizExplanationRequestEndpoint as recordQuizExplanationRequest,
+  getQuizStatsEndpoint as getQuizStats,
+} from "./endpoints/learning-telemetry";
+
 // External HTTP API (API key authenticated)
 export { api } from "./endpoints/external-api";
 

@@ -13,6 +13,7 @@ interface QuizPageState {
   answers: IQuizAnswer[];
   isCompleted: boolean;
   startTime: number | null;
+  questionStartTime: number | null;
   endTime: number | null;
   
   // UI state
@@ -42,6 +43,7 @@ const initialState: QuizPageState = {
   answers: [],
   isCompleted: false,
   startTime: null,
+  questionStartTime: null,
   endTime: null,
   
   // UI state
@@ -66,6 +68,7 @@ const quizPageSlice = createSlice({
   reducers: {
     // Load quiz from Firestore
     loadQuiz: (state, action: PayloadAction<{ quiz: Quiz; questions: IQuizQuestion[] }>) => {
+      const now = Date.now();
       state.firestoreQuiz = action.payload.quiz;
       state.questions = action.payload.questions;
       state.currentQuestionIndex = 0;
@@ -74,7 +77,8 @@ const quizPageSlice = createSlice({
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
-      state.startTime = null;
+      state.startTime = now;
+      state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
       state.followupGenerated = {};
@@ -85,6 +89,7 @@ const quizPageSlice = createSlice({
     },
     // Quiz lifecycle actions
     startQuiz: (state, action: PayloadAction<{ questions: IQuizQuestion[] }>) => {
+      const now = Date.now();
       state.questions = action.payload.questions;
       state.currentQuestionIndex = 0;
       state.selectedAnswer = null;
@@ -92,7 +97,8 @@ const quizPageSlice = createSlice({
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
-      state.startTime = Date.now();
+      state.startTime = now;
+      state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
       state.followupGenerated = {};
@@ -121,7 +127,7 @@ const quizPageSlice = createSlice({
         selected: action.payload.answerIndex,
         correct: currentQuestion.correct,
         isCorrect,
-        timeSpent: state.startTime ? Date.now() - state.startTime : 0,
+        timeSpent: state.questionStartTime ? Date.now() - state.questionStartTime : 0,
       };
       
       state.answers.push(answer);
@@ -133,6 +139,7 @@ const quizPageSlice = createSlice({
         state.selectedAnswer = null;
         state.showExplanation = false;
         state.formErrors = {};
+        state.questionStartTime = Date.now();
       } else {
         state.isCompleted = true;
         state.endTime = Date.now();
@@ -185,7 +192,7 @@ const quizPageSlice = createSlice({
           selected: -1, // Indicates skipped
           correct: currentQuestion.correct,
           isCorrect: false,
-          timeSpent: state.startTime ? Date.now() - state.startTime : 0,
+          timeSpent: state.questionStartTime ? Date.now() - state.questionStartTime : 0,
         };
         
         state.answers.push(answer);
