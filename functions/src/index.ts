@@ -201,6 +201,16 @@ export {
   getQuizStatsEndpoint as getQuizStats,
 } from "./endpoints/learning-telemetry";
 
+// Export statistics page functions
+export {
+  getStatisticsOverviewEndpoint as getStatisticsOverview,
+  getStatisticsQuizPerformanceEndpoint as getStatisticsQuizPerformance,
+  getStatisticsKnowledgeGapsEndpoint as getStatisticsKnowledgeGaps,
+  getStatisticsLearningTimeEndpoint as getStatisticsLearningTime,
+  getStatisticsQuizDetailEndpoint as getStatisticsQuizDetail,
+  getStatisticsKnowledgeDetailEndpoint as getStatisticsKnowledgeDetail,
+} from "./endpoints/statistics";
+
 // External HTTP API (API key authenticated)
 export { api } from "./endpoints/external-api";
 

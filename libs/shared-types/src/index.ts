@@ -1265,3 +1265,169 @@ export interface GetQuizStatsRequest {
 export interface GetQuizStatsResponse {
   stats: QuizStatsSummary | null;
 }
+
+// ─── Statistics Page Types ──────────────────────────────────────────────────
+
+export type StatisticsTimeRangeKey = '7d' | '30d' | '90d' | 'all';
+
+export type StatisticsQuizTypeFilter = QuizTelemetryType | 'all';
+
+export interface StatisticsDateRangeRequest {
+  startDate?: string; // "YYYY-MM-DD"; omitted for all time
+  endDate?: string; // "YYYY-MM-DD"; omitted for all time
+  quizType?: StatisticsQuizTypeFilter;
+}
+
+export interface StatisticsDocumentSummary {
+  id: string;
+  title: string;
+}
+
+export interface StatisticsOverviewMetrics {
+  attemptCount: number;
+  quizCount: number;
+  answeredQuestionCount: number;
+  correctAnswerCount: number;
+  incorrectAnswerCount: number;
+  explanationRequestCount: number;
+  accuracyPercentage: number;
+}
+
+export interface StatisticsRecentFailure {
+  id: string;
+  attemptId: string;
+  quizId: string;
+  quizType: QuizTelemetryType;
+  quizTitle?: string;
+  questionIndex: number;
+  questionText: string;
+  selectedAnswer: QuizAnswerValue;
+  selectedAnswerLabel: string;
+  correctAnswer: QuizAnswerValue;
+  correctAnswerLabel: string;
+  knowledge: QuestionKnowledgeMetadata;
+  sourceDocuments: StatisticsDocumentSummary[];
+  occurredAt: string;
+  repeatedFailureCount: number;
+}
+
+export interface StatisticsOverviewRecommendation {
+  id: string;
+  title: string;
+  description: string;
+  subjectKey: string;
+  knowledgeDomainKey: string;
+  subjectName: string;
+  knowledgeDomainName: string;
+  failureCount: number;
+  explanationRequestCount: number;
+  latestFailureAt?: string;
+  sourceDocuments: StatisticsDocumentSummary[];
+}
+
+export interface GetStatisticsOverviewResponse {
+  metrics: StatisticsOverviewMetrics;
+  recentFailures: StatisticsRecentFailure[];
+  recommendations: StatisticsOverviewRecommendation[];
+}
+
+export interface StatisticsQuizPerformanceItem {
+  id: string;
+  quizId: string;
+  quizType: QuizTelemetryType;
+  quizTitle?: string;
+  sourceDocuments: StatisticsDocumentSummary[];
+  attemptCount: number;
+  answeredQuestionCount: number;
+  correctAnswerCount: number;
+  incorrectAnswerCount: number;
+  explanationRequestCount: number;
+  accuracyPercentage: number;
+  bestPercentage: number;
+  latestPercentage: number;
+  totalDurationMs: number;
+  lastAttemptAt?: string;
+}
+
+export interface GetStatisticsQuizPerformanceResponse {
+  quizzes: StatisticsQuizPerformanceItem[];
+  recentFailures: StatisticsRecentFailure[];
+}
+
+export interface StatisticsKnowledgeGapItem {
+  id: string;
+  subjectKey: string;
+  subjectId?: string;
+  subjectName: string;
+  knowledgeDomainKey: string;
+  knowledgeDomainId?: string;
+  knowledgeDomainName: string;
+  topicTags: string[];
+  answerCount: number;
+  correctCount: number;
+  incorrectCount: number;
+  explanationRequestCount: number;
+  accuracyPercentage: number;
+  recentFailureCount: number;
+  latestFailureAt?: string;
+  sourceDocuments: StatisticsDocumentSummary[];
+}
+
+export interface GetStatisticsKnowledgeGapsResponse {
+  gaps: StatisticsKnowledgeGapItem[];
+}
+
+export interface StatisticsLearningTimeArtifact {
+  id: string;
+  artifactId: string;
+  artifactType: ArtifactType;
+  title: string;
+  totalSeconds: number;
+  sessionCount: number;
+  lastActiveAt?: string;
+}
+
+export interface StatisticsLearningTimeByType {
+  artifactType: ArtifactType;
+  totalSeconds: number;
+  sessionCount: number;
+}
+
+export interface GetStatisticsLearningTimeResponse {
+  totalSeconds: number;
+  sessionCount: number;
+  byArtifactType: StatisticsLearningTimeByType[];
+  topArtifacts: StatisticsLearningTimeArtifact[];
+}
+
+export interface StatisticsQuizDetailAttempt {
+  attemptId: string;
+  completedAt: string;
+  score: number;
+  totalQuestions: number;
+  percentage: number;
+  durationMs: number;
+  incorrectAnswerCount: number;
+}
+
+export interface GetStatisticsQuizDetailRequest extends StatisticsDateRangeRequest {
+  quizId: string;
+  quizType: QuizTelemetryType;
+}
+
+export interface GetStatisticsQuizDetailResponse {
+  quiz: StatisticsQuizPerformanceItem | null;
+  attempts: StatisticsQuizDetailAttempt[];
+  failedQuestions: StatisticsRecentFailure[];
+}
+
+export interface GetStatisticsKnowledgeDetailRequest extends StatisticsDateRangeRequest {
+  subjectKey: string;
+  knowledgeDomainKey: string;
+}
+
+export interface GetStatisticsKnowledgeDetailResponse {
+  gap: StatisticsKnowledgeGapItem | null;
+  failedQuestions: StatisticsRecentFailure[];
+  relatedQuizzes: StatisticsQuizPerformanceItem[];
+}
