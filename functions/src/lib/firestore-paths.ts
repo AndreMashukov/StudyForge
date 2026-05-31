@@ -92,4 +92,39 @@ export const FirestorePaths = {
   },
   interactionStat: (userId: string, statId: string) =>
     FirestorePaths.interactionStats(userId).doc(statId),
+
+  learningEvents: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('learningEvents');
+  },
+  learningEvent: (userId: string, eventId: string) =>
+    FirestorePaths.learningEvents(userId).doc(eventId),
+
+  quizAttempts: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('quizAttempts');
+  },
+  quizAttempt: (userId: string, attemptId: string) =>
+    FirestorePaths.quizAttempts(userId).doc(attemptId),
+
+  quizStats: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('quizStats');
+  },
+  quizStat: (userId: string, statId: string) =>
+    FirestorePaths.quizStats(userId).doc(statId),
+
+  questionStats: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('questionStats');
+  },
+  questionStat: (userId: string, statId: string) =>
+    FirestorePaths.questionStats(userId).doc(statId),
+
+  knowledgeStats: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('knowledgeStats');
+  },
+  knowledgeStat: (userId: string, statId: string) =>
+    FirestorePaths.knowledgeStats(userId).doc(statId),
 };

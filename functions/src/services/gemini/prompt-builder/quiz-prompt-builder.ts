@@ -259,6 +259,7 @@ Before finalizing JSON, verify each question meets these requirements:
 - Make sure questions are clear, concise, and grammatically correct
 - **VERIFY** answer distribution follows the rules above before finalizing
 - **MANDATORY**: Every question must have an explanation field
+- **MANDATORY**: Every question must include a knowledge object with subjectName, knowledgeDomainName, and topicTags (1-5 short strings)
 ${buildQuizHintJsonRule()}`;
   }
 
@@ -280,6 +281,11 @@ ${buildQuizHintJsonRule()}`;
       ],
       "correctAnswer": 0,
       "explanation": "Brief explanation of why this answer is correct (MANDATORY)",
+      "knowledge": {
+        "subjectName": "Concise subject tested by this question",
+        "knowledgeDomainName": "Broader knowledge domain",
+        "topicTags": ["specific-topic", "related-concept"]
+      },
       ${buildQuizHintExampleLine('Look for the main concept the question is testing.')}
     }
   ]
@@ -296,6 +302,11 @@ ${buildQuizHintJsonRule()}`;
   ],
   "correctAnswer": 0,
   "explanation": "The pigeonhole principle states that with n+1 items in n containers, at least one container must contain multiple items",
+  "knowledge": {
+    "subjectName": "Duplicate detection",
+    "knowledgeDomainName": "Algorithms",
+    "topicTags": ["pigeonhole-principle", "cycle-detection"]
+  },
   ${buildQuizHintExampleLine('Think about why having more items than containers matters.')}
 }`;
   }

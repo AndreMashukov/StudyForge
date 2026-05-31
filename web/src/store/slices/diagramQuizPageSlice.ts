@@ -13,6 +13,7 @@ interface DiagramQuizPageState {
   answers: IDiagramQuizAnswer[];
   isCompleted: boolean;
   startTime: number | null;
+  questionStartTime: number | null;
   endTime: number | null;
   isLoading: boolean;
   error: string | null;
@@ -38,6 +39,7 @@ const initialState: DiagramQuizPageState = {
   answers: [],
   isCompleted: false,
   startTime: null,
+  questionStartTime: null,
   endTime: null,
   isLoading: false,
   error: null,
@@ -58,6 +60,7 @@ const diagramQuizPageSlice = createSlice({
       state,
       action: PayloadAction<{ diagramQuiz: DiagramQuiz; questions: IDiagramQuizQuestion[] }>
     ) => {
+      const now = Date.now();
       state.firestoreDiagramQuiz = action.payload.diagramQuiz;
       state.questions = action.payload.questions;
       state.currentQuestionIndex = 0;
@@ -67,7 +70,8 @@ const diagramQuizPageSlice = createSlice({
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
-      state.startTime = Date.now();
+      state.startTime = now;
+      state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
       state.followupGenerated = {};
@@ -77,6 +81,7 @@ const diagramQuizPageSlice = createSlice({
       state.followupError = null;
     },
     startDiagramQuiz: (state, action: PayloadAction<{ questions: IDiagramQuizQuestion[] }>) => {
+      const now = Date.now();
       state.questions = action.payload.questions;
       state.currentQuestionIndex = 0;
       state.currentDiagramIndex = 0;
@@ -85,7 +90,8 @@ const diagramQuizPageSlice = createSlice({
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
-      state.startTime = Date.now();
+      state.startTime = now;
+      state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
     },
@@ -110,7 +116,7 @@ const diagramQuizPageSlice = createSlice({
         selected: action.payload.answerIndex,
         correct: currentQuestion.correct,
         isCorrect,
-        timeSpent: state.startTime ? Date.now() - state.startTime : 0,
+        timeSpent: state.questionStartTime ? Date.now() - state.questionStartTime : 0,
       };
       state.answers.push(answer);
     },
@@ -121,6 +127,7 @@ const diagramQuizPageSlice = createSlice({
         state.selectedAnswer = null;
         state.showExplanation = false;
         state.formErrors = {};
+        state.questionStartTime = Date.now();
       } else {
         state.isCompleted = true;
         state.endTime = Date.now();
@@ -143,6 +150,7 @@ const diagramQuizPageSlice = createSlice({
       state.answers = [];
       state.isCompleted = false;
       state.startTime = Date.now();
+      state.questionStartTime = state.startTime;
       state.endTime = null;
       state.error = null;
       state.followupGenerated = {};

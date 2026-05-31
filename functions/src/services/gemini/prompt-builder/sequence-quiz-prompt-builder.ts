@@ -122,6 +122,7 @@ ${buildQuizHintFieldInstruction('Think about which step must happen first before
 - **No unescaped double quotes** inside string values.
 - \`items\` must be a non-empty string array with at least 4 elements for every question.
 - \`explanation\` is required and must be a non-empty string.
+- \`knowledge\` is required with \`subjectName\`, \`knowledgeDomainName\`, and \`topicTags\` (1-5 short strings).
 ${buildQuizHintJsonRule()}`;
   }
 
@@ -134,6 +135,11 @@ ${buildQuizHintJsonRule()}`;
       "question": "Arrange these items in the correct order:",
       "items": ["First item", "Second item", "Third item", "Fourth item"],
       "explanation": "Why this order is correct and how each step follows from the previous.",
+      "knowledge": {
+        "subjectName": "Concise subject tested by this sequence",
+        "knowledgeDomainName": "Broader knowledge domain",
+        "topicTags": ["specific-topic", "sequence-reasoning"]
+      },
       ${buildQuizHintExampleLine('Think about which step must happen first before anything else can begin.')}
     }
   ]

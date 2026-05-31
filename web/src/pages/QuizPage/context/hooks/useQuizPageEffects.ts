@@ -1,6 +1,32 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useSelector } from 'react-redux';
+import { RecordQuizAttemptAnswerInput } from '@shared-types';
+import { useQuizLearningTelemetry } from '../../../../hooks/useQuizLearningTelemetry';
+import { selectQuizState } from '../../../../store/slices/quizPageSlice';
 
 export const useQuizPageEffects = () => {
+  const quizState = useSelector(selectQuizState);
+  const telemetryAnswers = useMemo<RecordQuizAttemptAnswerInput[]>(() => {
+    return quizState.answers.map((answer) => {
+      const questionIndex = answer.questionId - 1;
+      return {
+        questionIndex,
+        selectedAnswer: answer.selected >= 0 ? answer.selected : null,
+        timeSpentMs: answer.timeSpent,
+        detailedExplanationRequested: Boolean(quizState.followupGenerated[questionIndex]),
+      };
+    });
+  }, [quizState.answers, quizState.followupGenerated]);
+
+  useQuizLearningTelemetry({
+    quiz: quizState.firestoreQuiz,
+    quizType: 'quiz',
+    isCompleted: quizState.isCompleted,
+    startedAtMs: quizState.startTime,
+    completedAtMs: quizState.endTime,
+    answers: telemetryAnswers,
+    followupGenerated: quizState.followupGenerated,
+  });
 
   // Keyboard navigation effect (manages its own dependencies)
   useEffect(() => {

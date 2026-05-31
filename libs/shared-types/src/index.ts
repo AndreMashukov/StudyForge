@@ -106,6 +106,15 @@ export interface UpdateSlideDeckRequest {
   slides?: Slide[];
 }
 
+export interface QuestionKnowledgeMetadata {
+  subjectId?: string;
+  subjectName?: string;
+  knowledgeDomainId?: string;
+  knowledgeDomainName?: string;
+  topicTags?: string[];
+  sourceDocumentIds?: string[];
+}
+
 // Quiz Types (Document-centric architecture)
 export interface Quiz {
   id: string;
@@ -135,6 +144,7 @@ export interface QuizQuestion {
   correctAnswer: number; // index of correct option
   explanation: string; // Mandatory explanation for the correct answer
   hint?: string; // Optional hint shown via tooltip on lightbulb icon
+  knowledge?: QuestionKnowledgeMetadata;
 }
 
 // Sequence Quiz — ordering quiz where items must be arranged in the correct sequence
@@ -143,6 +153,7 @@ export interface SequenceQuizQuestion {
   items: string[]; // Items in CORRECT order (shuffled at display time on the client)
   explanation: string;
   hint?: string; // Optional hint shown via tooltip on lightbulb icon
+  knowledge?: QuestionKnowledgeMetadata;
 }
 
 export interface SequenceQuiz {
@@ -196,6 +207,7 @@ export interface DiagramQuizQuestion {
   correctAnswer: number; // 0–3
   explanation: string;
   hint?: string; // Optional hint shown via tooltip on lightbulb icon
+  knowledge?: QuestionKnowledgeMetadata;
 }
 
 export interface DiagramQuiz {
@@ -1106,4 +1118,150 @@ export interface GetInteractionStatsRequest {
 
 export interface GetInteractionStatsResponse {
   stats: InteractionStat[];
+}
+
+// ─── Learning Telemetry Types ───────────────────────────────────────────────
+
+export type QuizTelemetryType = 'quiz' | 'diagramQuiz' | 'sequenceQuiz';
+
+export type QuizAnswerValue = string | string[] | number | number[] | null;
+
+export type LearningTelemetryEventType =
+  | 'quiz_attempt_completed'
+  | 'question_answered'
+  | 'detailed_explanation_requested';
+
+export interface RecordQuizAttemptAnswerInput {
+  questionIndex: number;
+  selectedAnswer: QuizAnswerValue;
+  timeSpentMs?: number;
+  detailedExplanationRequested?: boolean;
+  detailedExplanationRequestedAt?: string;
+}
+
+export interface RecordQuizAttemptRequest {
+  quizId: string;
+  quizType: QuizTelemetryType;
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  answers: RecordQuizAttemptAnswerInput[];
+}
+
+export interface RecordQuizAttemptResponse {
+  attemptId: string;
+}
+
+export interface RecordQuizExplanationRequest {
+  quizId: string;
+  quizType: QuizTelemetryType;
+  questionIndex: number;
+  requestedAt?: string;
+}
+
+export interface RecordQuizExplanationResponse {
+  eventId: string;
+}
+
+export interface QuizAttemptAnswer {
+  questionIndex: number;
+  questionText: string;
+  selectedAnswer: QuizAnswerValue;
+  correctAnswer: QuizAnswerValue;
+  isCorrect: boolean;
+  timeSpentMs?: number;
+  knowledge: QuestionKnowledgeMetadata;
+  detailedExplanationRequested: boolean;
+  detailedExplanationRequestedAt?: Date | { toDate(): Date };
+}
+
+export interface QuizAttempt {
+  id: string;
+  userId: string;
+  quizId: string;
+  quizType: QuizTelemetryType;
+  documentIds: string[];
+  directoryId: string;
+  startedAt: Date | { toDate(): Date };
+  completedAt: Date | { toDate(): Date };
+  durationMs: number;
+  score: number;
+  totalQuestions: number;
+  percentage: number;
+  answers: QuizAttemptAnswer[];
+  date: string;
+}
+
+export interface QuizStatsSummary {
+  id: string;
+  userId: string;
+  quizId: string;
+  quizType: QuizTelemetryType;
+  directoryId: string;
+  documentIds: string[];
+  attemptCount: number;
+  totalQuestions: number;
+  totalScore: number;
+  totalPercentage: number;
+  totalDurationMs: number;
+  bestScore: number;
+  bestPercentage: number;
+  latestScore: number;
+  latestPercentage: number;
+  incorrectAnswerCount: number;
+  explanationRequestCount: number;
+  lastAttemptAt?: Date | { toDate(): Date };
+  updatedAt: Date | { toDate(): Date };
+}
+
+export interface QuestionStatsSummary {
+  id: string;
+  userId: string;
+  quizId: string;
+  quizType: QuizTelemetryType;
+  questionIndex: number;
+  questionText: string;
+  knowledge: QuestionKnowledgeMetadata;
+  answerCount: number;
+  correctCount: number;
+  incorrectCount: number;
+  explanationRequestCount: number;
+  updatedAt: Date | { toDate(): Date };
+}
+
+export interface KnowledgeStatsSummary {
+  id: string;
+  userId: string;
+  date: string;
+  subjectId?: string;
+  subjectName?: string;
+  knowledgeDomainId?: string;
+  knowledgeDomainName?: string;
+  topicTags: string[];
+  answerCount: number;
+  correctCount: number;
+  incorrectCount: number;
+  explanationRequestCount: number;
+  updatedAt: Date | { toDate(): Date };
+}
+
+export interface LearningTelemetryEvent {
+  id: string;
+  userId: string;
+  eventType: LearningTelemetryEventType;
+  quizId: string;
+  quizType: QuizTelemetryType;
+  questionIndex?: number;
+  isCorrect?: boolean;
+  knowledge?: QuestionKnowledgeMetadata;
+  occurredAt: Date | { toDate(): Date };
+}
+
+export interface GetQuizStatsRequest {
+  quizId: string;
+  quizType: QuizTelemetryType;
+}
+
+export interface GetQuizStatsResponse {
+  stats: QuizStatsSummary | null;
 }

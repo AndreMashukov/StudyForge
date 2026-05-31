@@ -33,6 +33,7 @@ export interface IQuizState {
   answers: IQuizAnswer[];
   isCompleted: boolean;
   startTime: number | null;
+  questionStartTime: number | null;
   endTime: number | null;
   totalTimeSpent: number;
 }
