@@ -19,7 +19,7 @@
 
 ## Project Overview
 
-React + TypeScript web app in an NX monorepo. All source lives in `web/src/`. UI is built with shadcn/ui and Tailwind CSS. Routing uses React Router DOM **v6**. State is managed with Redux Toolkit + RTK Query. Auth uses Firebase Authentication.
+React + TypeScript apps in an NX monorepo. The public app lives in `web/src/` (Vite + React Router v6 + Redux). The internal **admin** app lives in `admin/src/` (Next.js 16 App Router, RSC-first, Firebase Admin on the server, deployed to Vercel). UI uses shadcn/ui and Tailwind CSS in both apps.
 
 > **Never use MUI (Material UI).** This project does not have MUI as a dependency. Use shadcn/ui + Tailwind for all UI.
 
@@ -335,7 +335,10 @@ Output format:
 
 ### Architecture
 
-NX monorepo with two apps (`web`, `functions`) and one shared library (`shared-types`). The `functions` app depends on `shared-types`, so always build via NX from the workspace root — never `cd` into app directories to run commands.
+NX monorepo with apps `web`, `admin`, `functions`, `extension` and shared library `shared-types`. The `functions` app depends on `shared-types`. Always build via NX from the workspace root — never `cd` into app directories to run commands.
+
+- **web**: Vite, Firebase Hosting
+- **admin**: Next.js 16 App Router, Vercel (separate deploy project)
 
 ### Running commands
 
@@ -347,6 +350,7 @@ NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run <project>:<target>
 
 Available targets per project (see `nx show project <name>` for full list):
 - **web**: `lint`, `build`, `dev`, `serve`, `typecheck`
+- **admin**: `lint`, `build`, `dev` (port **4201**), `start`, `typecheck`
 - **functions**: `lint`, `build`, `build-with-deps`, `serve` (builds + starts emulators)
 - **shared-types**: `build`, `lint`
 
@@ -376,7 +380,21 @@ Java (JDK 21+) is required for the Firestore emulator — it is pre-installed in
 
 - Root `.env` — loaded by NX into `process.env`
 - `web/.env` — loaded by Vite into `import.meta.env` (Vite's root is `web/`, NOT workspace root)
+- `admin/.env.local` — loaded by Next.js (`NEXT_PUBLIC_*` for browser; server secrets without prefix). See `admin/.env.example`.
 - `functions/.env` — loaded by Firebase Functions emulator
+
+### Admin app (local + Vercel)
+
+```bash
+yarn nx dev admin          # http://localhost:4201
+yarn nx run admin:lint
+yarn nx run admin:typecheck
+yarn nx run admin:build
+```
+
+**Vercel project settings:** repo root, build `yarn nx build admin --configuration=production`, output `admin/.next`. Optional ignored build step: `npx nx-ignore admin`.
+
+Admin auth uses Firebase session cookies (`admin_session` by default). Privileged reads use **Firebase Admin SDK** server-side only. Set `ADMIN_ALLOWED_EMAILS` for bootstrap access before custom claims exist.
 
 In the Cloud VM, `NX_PUBLIC_*` secrets are injected as environment variables and override `.env` file values. You still need `web/.env` for Vite to expose them to `import.meta.env`, but the injected secrets take precedence.
 

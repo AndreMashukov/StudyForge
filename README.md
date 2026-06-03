@@ -44,7 +44,9 @@ See [Shell Integration Setup](./scripts/shell-integration/README.md) for detaile
 ### Available Commands
 
 - `nx serve web` - Start the web development server  
+- `nx dev admin` - Start the admin Next.js app (port 4201)
 - `nx build web` - Build the web application
+- `nx build admin` - Build the admin application (Vercel deploy)
 - `nx test web` - Run web application tests
 - `nx serve functions` - Start the Firebase functions locally
 - `nx build functions` - Build Firebase functions
