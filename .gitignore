@@ -172,3 +172,4 @@ wireframes/
 .vscode/mcp.json
 .nx/polygraph
 .nx/self-healing
+.vercel
