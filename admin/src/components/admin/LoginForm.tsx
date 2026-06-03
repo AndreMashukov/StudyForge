@@ -60,7 +60,7 @@ export function LoginForm() {
       <CardHeader>
         <CardTitle>Admin sign in</CardTitle>
         <CardDescription>
-          Use an account with the admin claim or an allowlisted email.
+          Use an account with the custom claim role set to admin.
         </CardDescription>
       </CardHeader>
       <CardContent>
