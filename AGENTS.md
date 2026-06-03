@@ -394,7 +394,7 @@ yarn nx run admin:build
 
 **Vercel project settings:** repo root, build `yarn nx build admin --configuration=production`, output `admin/.next`. Optional ignored build step: `npx nx-ignore admin`.
 
-Admin auth uses Firebase session cookies (`admin_session` by default). Privileged reads use **Firebase Admin SDK** server-side only. Set `ADMIN_ALLOWED_EMAILS` for bootstrap access before custom claims exist.
+Admin auth uses Firebase session cookies (`admin_session` by default). Privileged reads use **Firebase Admin SDK** server-side only. Admin access requires the Firebase Auth custom claim `{"role": "admin"}`.
 
 In the Cloud VM, `NX_PUBLIC_*` secrets are injected as environment variables and override `.env` file values. You still need `web/.env` for Vite to expose them to `import.meta.env`, but the injected secrets take precedence.
 
