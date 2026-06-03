@@ -1,2 +1,2 @@
-export * from "./Input"
-export * from "./IInput"
+export { Input } from '@study-forge/ui';
+export type { IInput } from '@study-forge/ui';

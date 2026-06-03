@@ -1,8 +1,8 @@
 import { Route, Routes } from 'react-router-dom';
 import { Provider } from 'react-redux';
+import { ThemeProvider, useTheme } from '@study-forge/ui';
 import { store } from '../store';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { FullscreenProvider } from '../contexts/FullscreenContext';
 import { ToastProvider, ToastContainer } from '../components/Toast';
 import { ReduxToastBridge } from '../components/Toast/ReduxToastBridge';

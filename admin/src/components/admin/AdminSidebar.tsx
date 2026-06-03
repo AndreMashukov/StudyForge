@@ -1,9 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, FileText, Shield } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { usePathname, useRouter } from 'next/navigation';
+import { FileText, LayoutDashboard, LogOut, Users } from 'lucide-react';
+import {
+  Sidebar,
+  SidebarNav,
+  SidebarNavItem,
+  SidebarProfileFooter,
+  SidebarSection,
+  cn,
+  sidebarClassNames,
+} from '@study-forge/ui';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -11,39 +19,106 @@ const navItems = [
   { href: '/documents', label: 'Documents', icon: FileText },
 ];
 
-export function AdminSidebar() {
-  const currentPath = usePathname();
-  return (
-    <aside className="flex h-full w-64 flex-col border-r border-border bg-card">
-      <div className="flex items-center gap-2 border-b border-border px-6 py-5">
-        <Shield className="h-5 w-5 text-primary" aria-hidden />
-        <span className="font-heading text-lg font-semibold">Study Forge Admin</span>
-      </div>
-      <nav className="flex flex-1 flex-col gap-1 p-4" aria-label="Admin navigation">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive =
-            href === '/'
-              ? currentPath === '/'
-              : currentPath === href || currentPath.startsWith(`${href}/`);
+export interface IAdminSidebarProps {
+  email?: string;
+  isOpen: boolean;
+}
 
-          return (
-            <Link
-              key={href}
-              href={href}
+export function AdminSidebar({ email, isOpen }: IAdminSidebarProps) {
+  const currentPath = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/session', { method: 'DELETE' });
+    router.push('/login');
+    router.refresh();
+  };
+
+  const displayEmail = email ?? 'admin';
+
+  return (
+    <Sidebar
+      className={cn(
+        sidebarClassNames.container,
+        isOpen ? sidebarClassNames.expanded : sidebarClassNames.collapsed
+      )}
+      footer={
+        <SidebarProfileFooter
+          avatarLabel={displayEmail.charAt(0).toUpperCase()}
+          primaryText={displayEmail}
+          secondaryText="Admin plan"
+          isOpen={isOpen}
+          action={
+            <button
               className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
-                isActive
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                sidebarClassNames.footerAction,
+                !isOpen && 'relative group justify-center p-0'
               )}
-              aria-current={isActive ? 'page' : undefined}
+              onClick={handleLogout}
+              aria-label="Sign out"
             >
-              <Icon className="h-4 w-4" aria-hidden />
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
-    </aside>
+              <LogOut
+                size={isOpen ? 14 : 16}
+                className={sidebarClassNames.navItemIcon}
+              />
+              {!isOpen ? (
+                <div className={sidebarClassNames.collapsedTooltip}>
+                  Sign out
+                </div>
+              ) : null}
+            </button>
+          }
+        />
+      }
+      aria-label="Admin navigation"
+    >
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-hidden">
+        <SidebarSection label="Navigation" isOpen={isOpen}>
+          <SidebarNav
+            className={sidebarClassNames.navList}
+            aria-label="Admin navigation"
+          >
+            {navItems.map(({ href, label, icon: Icon }) => {
+              const isActive =
+                href === '/'
+                  ? currentPath === '/'
+                  : currentPath === href || currentPath.startsWith(`${href}/`);
+
+              return (
+                <SidebarNavItem
+                  key={href}
+                  isActive={isActive}
+                  asChild
+                  className={cn(
+                    !isOpen && 'justify-center relative group',
+                    isActive && sidebarClassNames.navItemActive
+                  )}
+                >
+                  <Link
+                    href={href}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <Icon
+                      className={sidebarClassNames.navItemIcon}
+                      size={16}
+                      aria-hidden
+                    />
+                    {isOpen ? (
+                      <span className={sidebarClassNames.navItemText}>
+                        {label}
+                      </span>
+                    ) : (
+                      <div className={sidebarClassNames.collapsedTooltip}>
+                        {label}
+                      </div>
+                    )}
+                  </Link>
+                </SidebarNavItem>
+              );
+            })}
+          </SidebarNav>
+        </SidebarSection>
+      </div>
+    </Sidebar>
   );
 }

@@ -16,7 +16,8 @@
     "baseUrl": ".",
     "paths": {
       "@shared-types": ["libs/shared-types/src/index.ts"],
-      "@admin/*": ["admin/src/*"]
+      "@admin/*": ["admin/src/*"],
+      "@study-forge/ui": ["libs/ui/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ShieldOff } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
+import { Button } from '@study-forge/ui';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/Card';
 
 export default function UnauthorizedPage() {

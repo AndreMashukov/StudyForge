@@ -1,9 +1,9 @@
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Home, 
-  Settings, 
+import {
+  Home,
+  Settings,
   User,
   FileText,
   Sparkles,
@@ -12,10 +12,16 @@ import {
 } from 'lucide-react';
 import { useSignOut } from 'react-firebase-hooks/auth';
 import { auth } from '../../config/firebase';
-
+import {
+  Sidebar as SharedSidebar,
+  SidebarNav,
+  SidebarNavItem,
+  SidebarProfileFooter,
+  SidebarSection,
+  sidebarClassNames,
+} from '@study-forge/ui';
 import { cn } from '../../lib/utils';
 import { ISidebar } from './ISidebar';
-import { sidebarStyles } from './Sidebar.styles';
 import {
   selectSidebarIsOpen,
   toggleSidebar,
@@ -52,20 +58,19 @@ export const Sidebar = ({ className }: ISidebar) => {
   const location = useLocation();
   const { user } = useAuth();
   const [signOut] = useSignOut(auth);
-  
+
   const isOpen = useSelector(selectSidebarIsOpen);
-  
-  // Mobile detection
+
   const [isMobile, setIsMobile] = React.useState(false);
-  
+
   React.useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -89,116 +94,98 @@ export const Sidebar = ({ className }: ISidebar) => {
 
   const isItemActive = (path: string) => location.pathname === path;
 
-  // Don't render sidebar on mobile when closed
   if (isMobile && !isOpen) {
     return null;
   }
 
+  const overlay =
+    isMobile && isOpen ? (
+      <div
+        className="fixed inset-0 bg-black/50 z-[1199]"
+        onClick={handleToggleSidebar}
+        aria-hidden="true"
+      />
+    ) : null;
+
+  const footer = user ? (
+    <SidebarProfileFooter
+      avatarLabel={user.email?.charAt(0).toUpperCase()}
+      primaryText={user.email}
+      secondaryText="Free plan"
+      isOpen={isOpen}
+      action={
+        <button
+          className={cn(
+            sidebarClassNames.footerAction,
+            !isOpen && 'relative group justify-center p-0'
+          )}
+          onClick={handleSignOut}
+          aria-label="Sign out"
+        >
+          <LogOut size={isOpen ? 14 : 16} className={sidebarClassNames.navItemIcon} />
+          {!isOpen ? (
+            <div className={sidebarClassNames.collapsedTooltip}>Sign out</div>
+          ) : null}
+        </button>
+      }
+    />
+  ) : null;
+
   return (
-    <>
-      {/* Mobile overlay backdrop */}
-      {isMobile && isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-[1199]"
-          onClick={handleToggleSidebar}
-          aria-hidden="true"
-        />
+    <SharedSidebar
+      className={cn(
+        sidebarClassNames.container,
+        isOpen ? sidebarClassNames.expanded : sidebarClassNames.collapsed,
+        isMobile && isOpen && 'w-[280px]',
+        className
       )}
-      
-      <aside
-        className={cn(
-          sidebarStyles.container,
-          isOpen ? sidebarStyles.expanded : sidebarStyles.collapsed,
-          // Mobile: full overlay when open
-          isMobile && isOpen && "w-[280px]",
-          className
-        )}
-      >
-        {/* Nav items grouped by section */}
-        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-          {sectionOrder.map((section) => (
-            <div key={section}>
-              {isOpen && (
-                <div className={sidebarStyles.navSectionLabel}>
-                  {sectionLabels[section]}
-                </div>
-              )}
-              <div className={sidebarStyles.itemsList}>
-                {navItems
-                  .filter((item) => item.section === section)
-                  .map((item) => {
-                    const ItemIcon = item.icon;
-                    const itemIsActive = isItemActive(item.path);
+      overlay={overlay}
+      footer={footer}
+      aria-label="Main navigation"
+    >
+      <div className="flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
+        {sectionOrder.map((section) => (
+          <SidebarSection
+            key={section}
+            label={sectionLabels[section]}
+            isOpen={isOpen}
+          >
+            <SidebarNav className={sidebarClassNames.navList} aria-label={sectionLabels[section]}>
+              {navItems
+                .filter((item) => item.section === section)
+                .map((item) => {
+                  const ItemIcon = item.icon;
+                  const itemIsActive = isItemActive(item.path);
 
-                    return (
-                      <div
-                        key={item.id}
-                        className={cn(
-                          sidebarStyles.item,
-                          itemIsActive && sidebarStyles.itemActive,
-                          !isOpen && 'justify-center relative group'
-                        )}
-                        onClick={() => handleNavigateToItem(item.path)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            handleNavigateToItem(item.path);
-                          }
-                        }}
-                      >
-                        <ItemIcon className={sidebarStyles.itemIcon} size={16} />
-                        {isOpen && (
-                          <span className={sidebarStyles.itemText}>{item.title}</span>
-                        )}
-                        {!isOpen && (
-                          <div className={sidebarStyles.collapsedTooltip}>{item.title}</div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* User profile footer */}
-        {user && (
-          <div className={cn(
-            sidebarStyles.sidebarFooter,
-            isOpen ? sidebarStyles.sidebarFooterExpanded : sidebarStyles.sidebarFooterCollapsed
-          )}>
-            <div className={sidebarStyles.userAvatar}>
-              {user.email?.charAt(0).toUpperCase()}
-            </div>
-            {isOpen && (
-              <>
-                <div className={sidebarStyles.userInfo}>
-                  <span className={sidebarStyles.userEmail}>{user.email}</span>
-                  <span className={sidebarStyles.userLabel}>Free plan</span>
-                </div>
-                <button
-                  className={sidebarStyles.signOutBtn}
-                  onClick={handleSignOut}
-                  aria-label="Sign out"
-                >
-                  <LogOut size={14} />
-                </button>
-              </>
-            )}
-            {!isOpen && (
-              <button
-                className="relative group justify-center cursor-pointer bg-transparent border-none p-0"
-                onClick={handleSignOut}
-                aria-label="Sign out"
-              >
-                <LogOut size={16} className={sidebarStyles.itemIcon} />
-                <div className={sidebarStyles.collapsedTooltip}>Sign out</div>
-              </button>
-            )}
-          </div>
-        )}
-      </aside>
-    </>
+                  return (
+                    <SidebarNavItem
+                      key={item.id}
+                      isActive={itemIsActive}
+                      icon={<ItemIcon className={sidebarClassNames.navItemIcon} size={16} />}
+                      label={
+                        isOpen ? (
+                          <span className={sidebarClassNames.navItemText}>{item.title}</span>
+                        ) : (
+                          <div className={sidebarClassNames.collapsedTooltip}>{item.title}</div>
+                        )
+                      }
+                      className={cn(
+                        !isOpen && 'justify-center relative group',
+                        itemIsActive && sidebarClassNames.navItemActive
+                      )}
+                      onClick={() => handleNavigateToItem(item.path)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          handleNavigateToItem(item.path);
+                        }
+                      }}
+                    />
+                  );
+                })}
+            </SidebarNav>
+          </SidebarSection>
+        ))}
+      </div>
+    </SharedSidebar>
   );
 };
