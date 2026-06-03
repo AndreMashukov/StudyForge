@@ -1,0 +1,41 @@
+# Firebase App Hosting configuration for the admin Next.js app.
+# Public NEXT_PUBLIC_* values are embedded into the browser bundle at build time.
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyDI2NjmWCElQrI5lDpOSK6f3W62BMdid6g"
+    availability: [BUILD, RUNTIME]
+
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "study-forge-202604.firebaseapp.com"
+    availability: [BUILD, RUNTIME]
+
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "study-forge-202604"
+    availability: [BUILD, RUNTIME]
+
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "study-forge-202604.firebasestorage.app"
+    availability: [BUILD, RUNTIME]
+
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "853327102927"
+    availability: [BUILD, RUNTIME]
+
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:853327102927:web:4a3444a27948fac44088ba"
+    availability: [BUILD, RUNTIME]
+
+  - variable: FIREBASE_PROJECT_ID
+    value: "study-forge-202604"
+    availability: [RUNTIME]
+
+  - variable: ADMIN_SESSION_COOKIE_NAME
+    value: "admin_session"
+    availability: [RUNTIME]
