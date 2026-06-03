@@ -4,9 +4,7 @@ import { FormEvent, useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { auth } from '../../lib/firebase/client';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { Label } from '../ui/Label';
+import { Button, Input, Label } from '@study-forge/ui';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/Card';
 
 export function LoginForm() {

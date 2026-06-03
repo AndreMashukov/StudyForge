@@ -1,4 +1,5 @@
 import './globals.css';
+import { AdminThemeProvider } from '../components/admin/AdminThemeProvider';
 
 export const metadata = {
   title: 'Study Forge Admin',
@@ -11,8 +12,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen">{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen">
+        <AdminThemeProvider>{children}</AdminThemeProvider>
+      </body>
     </html>
   );
 }

@@ -1,2 +1,2 @@
-export * from "./Label"
-export * from "./ILabel"
+export { Label } from '@study-forge/ui';
+export type { ILabel } from '@study-forge/ui';
