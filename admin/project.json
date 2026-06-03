@@ -1,0 +1,28 @@
+{
+  "name": "admin",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "admin",
+  "projectType": "application",
+  "tags": ["type:app", "scope:admin"],
+  "// targets": "to see all targets run: nx show project admin --web",
+  "targets": {
+    "dev": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "admin",
+        "command": "next dev -p 4201",
+        "env": {
+          "NODE_OPTIONS": "--max-http-header-size=131072"
+        }
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "admin",
+        "command": "tsc -p tsconfig.json --noEmit"
+      }
+    }
+  }
+}
