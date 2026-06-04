@@ -5,7 +5,7 @@ import {
 } from '@shared-types';
 import { FirestorePaths } from '../../lib/firestore-paths';
 import { DocumentCrudService } from '../document-crud';
-import { GeminiService } from '../gemini';
+import { LlmGenerationService } from '../llm';
 import { GenerationJob } from '../generation-jobs';
 import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 import { isRuleResolutionMode, resolveEffectiveRules } from '../rule-resolution';
@@ -73,7 +73,7 @@ export class DocumentFromPromptGenerationProcessor {
       },
     });
 
-    const generatedContent = await GeminiService.generateDocumentFromPrompt(
+    const generatedContent = await LlmGenerationService.generateDocumentFromPrompt(
       trimmedPrompt,
       data.files,
       rulesText || undefined
