@@ -7,6 +7,7 @@ import { GenerationJob, GenerationJobsService } from '../services/generation-job
 import { ProcessGenerationJobTaskPayload } from '../services/generation-task-queue';
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
+const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
 async function failVisibleRecord(job: GenerationJob, message: string): Promise<void> {
   switch (job.kind) {
@@ -37,7 +38,7 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
     rateLimits: {
       maxConcurrentDispatches: 3,
     },
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey],
     timeoutSeconds: 540,
     memory: '1GiB',
   },
