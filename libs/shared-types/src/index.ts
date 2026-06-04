@@ -1565,3 +1565,17 @@ export interface IOpenRouterConnectionTestResult {
   validatedAt?: string;
   model?: string;
 }
+
+export type LlmCapabilityKey =
+  | 'quiz'
+  | 'flashcards'
+  | 'documentFromPrompt'
+  | 'documentFromScreenshot'
+  | 'quizFollowup'
+  | 'documentQuestion'
+  | 'directoryChat'
+  | 'diagramQuiz'
+  | 'sequenceQuiz'
+  | 'slideDeckText'
+  | 'slideDeckImage'
+  | 'sourceDocumentEnhancement';

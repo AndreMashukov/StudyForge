@@ -1,6 +1,7 @@
 import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
+import { LlmGenerationService } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
@@ -26,6 +27,7 @@ import {
 
 // Define secrets
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+const llmSettingsEncryptionKey = defineSecret("LLM_SETTINGS_ENCRYPTION_KEY");
 
 /**
  * Generate Quiz from Document
@@ -34,7 +36,7 @@ const geminiApiKey = defineSecret("GEMINI_API_KEY");
 export const generateQuiz = onCall(
   {
     cors: true,
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey],
     maxInstances: 5,
     timeoutSeconds: 300,
     memory: "1GiB",
@@ -163,9 +165,9 @@ export const generateQuiz = onCall(
         });
         followupIdsForSave = resolvedFollowupIds;
         
-        // Generate quiz with Gemini AI
-        console.log("Generating quiz with Gemini AI for document(s)...");
-        const geminiQuiz = await GeminiService.generateQuiz(documentContent, enhancedPrompt);
+        // Generate quiz — routes to OpenRouter if enabled, falls back to Gemini
+        console.log("Generating quiz for document(s)...");
+        const geminiQuiz = await LlmGenerationService.generateQuiz(documentContent, enhancedPrompt);
         
         // Apply custom quiz name if provided
         if (requestData.quizName && requestData.quizName.trim()) {

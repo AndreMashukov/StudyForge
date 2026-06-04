@@ -26,12 +26,13 @@ import {
   failPendingFlashcardSet,
 } from '../services/artifact-generation-records';
 import { DocumentService } from '../services/document-storage';
-import { GeminiService } from '../services/gemini/gemini';
+import { LlmGenerationService } from '../services/llm';
 import { validateAuth } from '../lib/auth';
 import { FirestorePaths } from '../lib/firestore-paths';
 
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
+const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
 // Zod schemas for request payload validation
 const generateFlashcardsRequestSchema = z.object({
@@ -79,7 +80,7 @@ const requireEmulator = (): void => {
 
 // Helper function that contains the core generation logic
 async function generateFlashcardsFromContent(content: string, title: string, rules?: string, descriptionRules?: string): Promise<Pick<FlashcardSet, 'title' | 'flashcards'>> {
-  const generatedFlashcards = await GeminiService.generateFlashcards(content, rules, descriptionRules);
+  const generatedFlashcards = await LlmGenerationService.generateFlashcards(content, rules, descriptionRules);
 
   const flashcardsWithIds: Flashcard[] = generatedFlashcards.map((card) => ({
     ...card,
@@ -95,7 +96,7 @@ async function generateFlashcardsFromContent(content: string, title: string, rul
 /**
  * Generates a new set of flashcards from a document.
  */
-export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, secrets: [geminiApiKey], timeoutSeconds: 300 }, async (request) => {
+export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 300 }, async (request) => {
   try {
     const userId = validateAuth(request);
     const parseResult = generateFlashcardsRequestSchema.safeParse(request.data);
