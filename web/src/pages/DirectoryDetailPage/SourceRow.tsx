@@ -29,8 +29,10 @@ export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onD
 
   if (isPending) {
     return (
-      <div className="rounded-lg border border-border bg-muted/30 opacity-70 overflow-hidden flex">
-        <div className="w-[4px] shrink-0" style={{ backgroundColor: colorRailStyle.borderLeftColor as string }} />
+      <div
+        className="rounded-lg border border-border border-l-[4px] bg-muted/30 opacity-70 flex"
+        style={colorRailStyle}
+      >
         <div className="flex flex-1 items-center gap-3 p-3 min-w-0">
           <Loader2 size={18} className="shrink-0 text-muted-foreground animate-spin" />
           <div className="flex-1 min-w-0">
@@ -44,8 +46,10 @@ export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onD
 
   if (isFailed) {
     return (
-      <div className="rounded-lg border border-destructive/40 bg-destructive/5 overflow-hidden flex">
-        <div className="w-[4px] shrink-0" style={{ backgroundColor: colorRailStyle.borderLeftColor as string }} />
+      <div
+        className="rounded-lg border border-destructive/40 border-l-[4px] bg-destructive/5 flex"
+        style={colorRailStyle}
+      >
         <div className="flex flex-1 items-center gap-3 p-3 min-w-0">
           <AlertCircle size={18} className="shrink-0 text-destructive" />
           <div className="flex-1 min-w-0">
@@ -67,8 +71,10 @@ export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onD
   }
 
   return (
-    <div className="group rounded-lg border border-border hover:bg-muted/50 transition-colors overflow-hidden flex">
-      <div className="w-[4px] shrink-0" style={{ backgroundColor: colorRailStyle.borderLeftColor as string }} />
+    <div
+      className="group rounded-lg border border-border border-l-[4px] hover:bg-muted/50 transition-colors flex"
+      style={colorRailStyle}
+    >
       <div className="flex flex-1 items-center gap-3 p-3 min-w-0">
         <FileText size={18} className="shrink-0 text-muted-foreground" />
 
