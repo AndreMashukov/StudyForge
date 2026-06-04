@@ -6,7 +6,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { createHash, randomUUID } from 'crypto';
 import { z } from 'zod';
 
-import { Slide, SlideDeck, RuleApplicability } from '@shared-types';
+import { Slide, SlideDeck, RuleApplicability, getDocumentFallbackColor } from '@shared-types';
 import { DocumentCrudService } from '../services/document-crud';
 import { directoryService } from '../services/directory';
 import {
@@ -124,6 +124,10 @@ export const generateSlideDeck = onCall(
           documentIds: documentIds.length > 1 ? documentIds : undefined,
           documentTitle: documentDataList[0].title,
           title: pendingTitle,
+          documentColor: documentDataList[0].color ?? getDocumentFallbackColor(documentDataList[0].id),
+          documentColors: documentDataList.length > 1
+            ? documentDataList.map(d => d.color ?? getDocumentFallbackColor(d.id))
+            : undefined,
         });
 
         try {

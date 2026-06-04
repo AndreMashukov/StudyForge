@@ -58,6 +58,8 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
               appliedRuleNames={dq.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
               generationStatus={dq.generationStatus}
               generationError={dq.generationError}
+              documentColor={dq.documentColor}
+              documentColors={dq.documentColors}
             />
           ))}
         </div>

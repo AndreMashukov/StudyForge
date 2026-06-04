@@ -58,6 +58,8 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
               appliedRuleNames={f.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
               generationStatus={f.generationStatus}
               generationError={f.generationError}
+              documentColor={f.documentColor}
+              documentColors={f.documentColors}
             />
           ))}
         </div>

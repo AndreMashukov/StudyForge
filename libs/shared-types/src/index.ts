@@ -1,5 +1,36 @@
 import { Timestamp } from 'firebase/firestore';
 
+// ─── Document color provenance ───────────────────────────────────────────────
+/** Vivid palette used for document accent colors; neutral grays are excluded so
+ *  the absence of a stored color can use a distinct visual fallback. */
+export const DOCUMENT_COLOR_PALETTE = [
+  '#3b82f6', // Blue
+  '#2563eb', // Indigo
+  '#06b6d4', // Cyan
+  '#14b8a6', // Teal
+  '#8b5cf6', // Purple
+  '#a855f7', // Violet
+  '#d946ef', // Fuchsia
+  '#ec4899', // Pink
+  '#f43f5e', // Rose
+  '#ef4444', // Red
+  '#f97316', // Orange
+  '#eab308', // Yellow
+  '#84cc16', // Lime
+  '#22c55e', // Green
+  '#10b981', // Emerald
+] as const;
+
+/** Returns a deterministic palette color for a document that has no stored
+ *  color, derived from the document ID. Safe to call on the client side. */
+export function getDocumentFallbackColor(documentId: string): string {
+  let hash = 0;
+  for (let i = 0; i < documentId.length; i++) {
+    hash = (hash * 31 + documentId.charCodeAt(i)) >>> 0;
+  }
+  return DOCUMENT_COLOR_PALETTE[hash % DOCUMENT_COLOR_PALETTE.length];
+}
+
 export type RuleResolutionMode =
   | 'inherit'
   | 'inherit-plus-explicit'
@@ -30,6 +61,10 @@ export interface FlashcardSet {
   generationStatus?: GenerationStatus;
   generationError?: string;
   completedAt?: Timestamp;
+  /** Color of the primary source document, for left-rail rendering. */
+  documentColor?: string;
+  /** Colors of all source documents in documentIds order, for segmented rail. */
+  documentColors?: string[];
 }
 
 // Flashcard API Types
@@ -82,6 +117,10 @@ export interface SlideDeck {
   generationStatus?: GenerationStatus;
   generationError?: string;
   completedAt?: Timestamp;
+  /** Color of the primary source document, for left-rail rendering. */
+  documentColor?: string;
+  /** Colors of all source documents in documentIds order, for segmented rail. */
+  documentColors?: string[];
 }
 
 export interface GenerateSlideDeckRequest {
@@ -136,6 +175,10 @@ export interface Quiz {
   generationStatus?: GenerationStatus;
   generationError?: string;
   completedAt?: Date;
+  /** Color of the primary source document, for left-rail rendering. */
+  documentColor?: string;
+  /** Colors of all source documents in documentIds order, for segmented rail. */
+  documentColors?: string[];
 }
 
 export interface QuizQuestion {
@@ -173,6 +216,10 @@ export interface SequenceQuiz {
   generationStatus?: GenerationStatus;
   generationError?: string;
   completedAt?: Timestamp;
+  /** Color of the primary source document, for left-rail rendering. */
+  documentColor?: string;
+  /** Colors of all source documents in documentIds order, for segmented rail. */
+  documentColors?: string[];
 }
 
 export interface GenerateSequenceQuizRequest {
@@ -227,6 +274,10 @@ export interface DiagramQuiz {
   generationStatus?: GenerationStatus;
   generationError?: string;
   completedAt?: Timestamp;
+  /** Color of the primary source document, for left-rail rendering. */
+  documentColor?: string;
+  /** Colors of all source documents in documentIds order, for segmented rail. */
+  documentColors?: string[];
 }
 
 export interface GenerateDiagramQuizRequest {
@@ -268,6 +319,8 @@ export interface Document {
   createdAt: Date;
   userId?: string;
   storageUrl: string; // Firebase Storage download URL for the markdown file
+  /** Persistent accent color assigned at document creation. */
+  color?: string;
 }
 
 // Document Enums
@@ -322,6 +375,8 @@ export interface DocumentEnhanced {
   generationStatus?: GenerationStatus;
   generationError?: string;
   completedAt?: Date | { toDate(): Date };
+  /** Persistent accent color assigned at document creation. */
+  color?: string;
 }
 
 // Directory Types
@@ -426,6 +481,10 @@ export interface ArtifactSummary {
   // Generation lifecycle (missing means completed for backward compat)
   generationStatus?: GenerationStatus;
   generationError?: string;
+  /** Color of the primary source document, for left-rail rendering. */
+  documentColor?: string;
+  /** Colors of all source documents in documentIds order, for segmented rail. */
+  documentColors?: string[];
 }
 
 export interface GetDirectoryContentsWithArtifactSummariesResponse extends GetDirectoryContentsResponse {

@@ -17,7 +17,7 @@ import { DeleteDirectoryDialog } from './DeleteDirectoryDialog';
 import { MoveDirectoryDialog } from './MoveDirectoryDialog';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
 import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus, Menu, Layers, Presentation } from 'lucide-react';
-import { DocumentEnhanced, Directory } from "@shared-types";
+import { DocumentEnhanced, Directory, getDocumentFallbackColor } from "@shared-types";
 import { formatDate } from '../../../utils/dateUtils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -263,7 +263,11 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                     <h2 className="text-lg font-semibold mb-3">Documents</h2>
                     <div className={documentsPageStyles.documentsGrid}>
                       {documents.map((document: DocumentEnhanced) => (
-                        <Card key={document.id} className={documentsPageStyles.documentCard}>
+                        <Card
+                          key={document.id}
+                          className={documentsPageStyles.documentCard + ' border-l-[4px]'}
+                          style={{ borderLeftColor: document.color ?? getDocumentFallbackColor(document.id) }}
+                        >
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
