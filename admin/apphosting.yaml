@@ -39,3 +39,7 @@ env:
   - variable: ADMIN_SESSION_COOKIE_NAME
     value: "admin_session"
     availability: [RUNTIME]
+
+  - variable: LLM_SETTINGS_ENCRYPTION_KEY
+    secret: llm-settings-encryption-key
+    availability: [RUNTIME]
