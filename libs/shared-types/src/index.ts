@@ -1490,3 +1490,78 @@ export interface GetStatisticsKnowledgeDetailResponse {
   failedQuestions: StatisticsRecentFailure[];
   relatedQuizzes: StatisticsQuizPerformanceItem[];
 }
+
+export type LlmProviderType = 'gemini' | 'openrouter';
+
+export type LlmCredentialMode = 'deployment-secret' | 'encrypted-firestore';
+
+export type LlmConnectionValidationStatus =
+  | 'unknown'
+  | 'healthy'
+  | 'unhealthy';
+
+export interface ILlmConnectionAuditFields {
+  updatedAt?: string;
+  updatedBy?: string;
+  lastValidatedAt?: string;
+  lastValidationError?: string | null;
+  lastValidationStatus?: LlmConnectionValidationStatus;
+}
+
+export interface IGeminiProviderConnection extends ILlmConnectionAuditFields {
+  providerType: 'gemini';
+  label: string;
+  enabled: boolean;
+  credentialMode: 'deployment-secret';
+  secretRef: 'GEMINI_API_KEY';
+  defaultModel: string;
+}
+
+export interface IOpenRouterProviderPreferences {
+  order?: string[];
+  allowFallbacks?: boolean;
+  sort?: 'latency' | 'throughput' | 'price';
+  zdr?: boolean;
+}
+
+export interface IOpenRouterProviderHeaders {
+  httpReferer?: string;
+  title?: string;
+}
+
+export interface IOpenRouterProviderConnection extends ILlmConnectionAuditFields {
+  providerType: 'openrouter';
+  label: string;
+  enabled: boolean;
+  credentialMode: 'encrypted-firestore';
+  apiKeyConfigured: boolean;
+  baseUrl: string;
+  defaultModel: string;
+  headers?: IOpenRouterProviderHeaders;
+  providerPreferences?: IOpenRouterProviderPreferences;
+}
+
+export interface IEncryptedSecretRecord {
+  version: 1;
+  algorithm: 'aes-256-gcm';
+  iv: string;
+  authTag: string;
+  ciphertext: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface IUpdateOpenRouterSettingsRequest {
+  enabled: boolean;
+  baseUrl: string;
+  defaultModel: string;
+  apiKey?: string;
+  headers?: IOpenRouterProviderHeaders;
+}
+
+export interface IOpenRouterConnectionTestResult {
+  success: boolean;
+  message: string;
+  validatedAt?: string;
+  model?: string;
+}
