@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import type { LlmProviderClient } from './LlmProviderClient';
+import type { LlmProviderClient } from './llm-provider-client';
 import type { LlmTextRequest, LlmTextResult } from './types';
 
 export class GeminiProviderClient implements LlmProviderClient {

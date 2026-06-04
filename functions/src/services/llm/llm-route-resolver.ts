@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions';
-import { LlmSettingsRepository } from './LlmSettingsRepository';
-import { decryptLlmSecret, isLlmEncryptionAvailable } from './LlmSecretResolver';
+import { LlmSettingsRepository } from './llm-settings-repository';
+import { decryptLlmSecret, isLlmEncryptionAvailable } from './llm-secret-resolver';
 import type { LlmCapability, ResolvedRoute } from './types';
 
 const GEMINI_DEFAULT_MODEL = 'gemini-pro-latest';

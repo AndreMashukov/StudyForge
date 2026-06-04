@@ -12,8 +12,8 @@ import {
   validateContextFiles,
   estimateContextTokens,
 } from '../gemini/prompt-builder/withContextFiles';
-import { LlmRouteResolver } from './LlmRouteResolver';
-import { LlmProviderClientFactory } from './LlmProviderClientFactory';
+import { LlmRouteResolver } from './llm-route-resolver';
+import { LlmProviderClientFactory } from './llm-provider-client-factory';
 import type { LlmCapability } from './types';
 
 type FlashcardItem = { front: string; back: string; description?: string };
