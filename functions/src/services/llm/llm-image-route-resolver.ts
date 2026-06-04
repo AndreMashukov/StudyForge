@@ -11,10 +11,7 @@ const GEMINI_IMAGE_FALLBACK: ResolvedRoute = {
   fallbackUsed: false,
 };
 
-export type LlmImageCapability = Extract<
-  LlmCapability,
-  'slideDeckImage' | 'documentFromScreenshot'
->;
+export type LlmImageCapability = Extract<LlmCapability, 'slideDeckImage'>;
 
 export class LlmImageRouteResolver {
   /**

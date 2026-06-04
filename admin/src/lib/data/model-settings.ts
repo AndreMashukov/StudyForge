@@ -26,6 +26,7 @@ const OPENROUTER_SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 export const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 export const DEFAULT_OPENROUTER_MODEL = 'openrouter/auto';
+export const DEFAULT_OPENROUTER_VISION_MODEL = 'google/gemini-2.5-flash';
 export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 export interface IModelSettingsPageData {
@@ -81,6 +82,15 @@ function normalizeModel(model: string): string {
   return normalized;
 }
 
+function normalizeVisionModel(model: string | undefined): string | undefined {
+  if (model === undefined) {
+    return undefined;
+  }
+
+  const normalized = model.trim();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 function getConnectionRef(): admin.firestore.DocumentReference {
   return getAdminFirestore()
     .collection(OPENROUTER_CONNECTIONS_COLLECTION)
@@ -134,6 +144,7 @@ function buildDefaultOpenRouterConnection(
     apiKeyConfigured,
     baseUrl: DEFAULT_OPENROUTER_BASE_URL,
     defaultModel: DEFAULT_OPENROUTER_MODEL,
+    defaultVisionModel: DEFAULT_OPENROUTER_VISION_MODEL,
     lastValidationStatus: 'unknown',
   };
 }
@@ -252,6 +263,10 @@ async function readOpenRouterConnection(): Promise<IOpenRouterProviderConnection
       typeof data.defaultModel === 'string'
         ? data.defaultModel
         : defaults.defaultModel,
+    defaultVisionModel:
+      typeof data.defaultVisionModel === 'string'
+        ? data.defaultVisionModel.trim() || undefined
+        : defaults.defaultVisionModel,
     headers: readHeaders(data.headers),
     providerPreferences: readPreferences(data.providerPreferences),
     updatedAt: toIsoString(data.updatedAt),
@@ -411,6 +426,7 @@ export async function updateOpenRouterSettings(
     apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
     baseUrl: normalizeBaseUrl(input.baseUrl),
     defaultModel: normalizeModel(input.defaultModel),
+    defaultVisionModel: normalizeVisionModel(input.defaultVisionModel),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedBy: actorUid,
   };

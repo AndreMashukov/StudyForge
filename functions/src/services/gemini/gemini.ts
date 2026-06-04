@@ -25,6 +25,7 @@ import {
 } from './prompt-builder';
 import { RulePromptBuilder } from './prompt-builder/rule-prompt-builder';
 import { parseRuleResponse, type RuleGenerationResponse } from './rule-response-parser';
+import { normalizeScreenshotImage } from '../llm/screenshot-image-utils';
 import {
   buildPromptWithContextFiles,
   validateContextFiles,
@@ -476,36 +477,13 @@ ${markdownContent}
     rules?: string
   ): Promise<string> {
     try {
-      functions.logger.info('Generating document from screenshot with Gemini AI', {
+      const { mimeType, normalizedBase64 } = normalizeScreenshotImage(imageBase64);
+
+      functions.logger.info('Screenshot document generated via Gemini vision', {
         imageSize: imageBase64.length,
         hasPrompt: !!userPrompt?.trim(),
         hasRules: !!rules?.trim(),
       });
-
-      let mimeType = 'image/png';
-      let rawBase64 = imageBase64;
-      const dataUrlMatch = imageBase64.match(/^data:(image\/\w+);base64,(.+)$/);
-      if (dataUrlMatch) {
-        mimeType = dataUrlMatch[1];
-        rawBase64 = dataUrlMatch[2];
-      }
-
-      if (!['image/png', 'image/jpeg', 'image/webp'].includes(mimeType)) {
-        throw new Error(`Unsupported screenshot MIME type: ${mimeType}`);
-      }
-
-      const normalizedBase64 = rawBase64.replace(/\s/g, '');
-      if (
-        normalizedBase64.length % 4 !== 0 ||
-        !/^[A-Za-z0-9+/]+={0,2}$/.test(normalizedBase64)
-      ) {
-        throw new Error('Screenshot image data is not valid base64');
-      }
-
-      const decodedImage = Buffer.from(normalizedBase64, 'base64');
-      if (decodedImage.length === 0) {
-        throw new Error('Screenshot image data is empty');
-      }
 
       const client = this.getClient();
       const prompt = ScreenshotPromptBuilder.buildDocumentPrompt({
