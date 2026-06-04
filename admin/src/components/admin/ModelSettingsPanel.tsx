@@ -1,6 +1,7 @@
 'use client';
 
 import type {
+  IGeminiImageProviderConnection,
   IGeminiProviderConnection,
   IOpenRouterConnectionTestResult,
   IOpenRouterProviderConnection,
@@ -26,6 +27,7 @@ type NoticeState =
 
 export interface IModelSettingsPanelProps {
   geminiConnection: IGeminiProviderConnection;
+  geminiImageConnection: IGeminiImageProviderConnection;
   openRouterConnection: IOpenRouterProviderConnection;
   encryptionConfigured: boolean;
 }
@@ -34,6 +36,7 @@ interface IRouteResponse {
   success?: boolean;
   message?: string;
   openRouterConnection?: IOpenRouterProviderConnection;
+  geminiImageConnection?: IGeminiImageProviderConnection;
   result?: IOpenRouterConnectionTestResult;
 }
 
@@ -59,10 +62,17 @@ function getStatusVariant(status?: string): 'default' | 'secondary' | 'outline' 
 
 export function ModelSettingsPanel({
   geminiConnection,
+  geminiImageConnection: initialGeminiImageConnection,
   openRouterConnection: initialOpenRouterConnection,
   encryptionConfigured,
 }: IModelSettingsPanelProps) {
   const router = useRouter();
+  const [geminiImageConnection, setGeminiImageConnection] = useState(
+    initialGeminiImageConnection
+  );
+  const [imageEnabled, setImageEnabled] = useState(initialGeminiImageConnection.enabled);
+  const [imageModel, setImageModel] = useState(initialGeminiImageConnection.defaultModel);
+  const [isSavingImage, setIsSavingImage] = useState(false);
   const [openRouterConnection, setOpenRouterConnection] = useState(
     initialOpenRouterConnection
   );
@@ -123,6 +133,47 @@ export function ModelSettingsPanel({
     }
   };
 
+  const handleSaveImage = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setNotice(null);
+    setIsSavingImage(true);
+
+    try {
+      const response = await fetch('/api/model-settings/gemini-image', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: imageEnabled,
+          defaultModel: imageModel,
+        }),
+      });
+      const payload = (await response.json()) as IRouteResponse;
+
+      if (!response.ok || !payload.success || !payload.geminiImageConnection) {
+        throw new Error(payload.message || 'Failed to save image model settings.');
+      }
+
+      setGeminiImageConnection(payload.geminiImageConnection);
+      setImageEnabled(payload.geminiImageConnection.enabled);
+      setImageModel(payload.geminiImageConnection.defaultModel);
+      setNotice({
+        type: 'success',
+        message: 'Image generation settings saved.',
+      });
+      router.refresh();
+    } catch (error) {
+      setNotice({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to save image model settings.',
+      });
+    } finally {
+      setIsSavingImage(false);
+    }
+  };
+
   const handleTest = async () => {
     setNotice(null);
     setIsTesting(true);
@@ -157,6 +208,7 @@ export function ModelSettingsPanel({
   };
 
   return (
+    <div className="space-y-6">
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
       <Card>
         <CardHeader>
@@ -245,15 +297,18 @@ export function ModelSettingsPanel({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="openrouter-model">Default model</Label>
+              <Label htmlFor="openrouter-model">Default text model</Label>
               <Input
                 id="openrouter-model"
                 value={defaultModel}
                 onChange={(event) => setDefaultModel(event.target.value)}
-                placeholder="openrouter/auto"
+                placeholder="anthropic/claude-sonnet-4.6"
                 autoComplete="off"
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                Used for quiz, flashcards, documents, chat, and other text generation.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -329,6 +384,64 @@ export function ModelSettingsPanel({
           </div>
         </CardContent>
       </Card>
+    </div>
+
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <CardTitle className="text-xl">Image generation</CardTitle>
+          <Badge variant="outline">Gemini</Badge>
+        </div>
+        <CardDescription>
+          Slide deck images use a separate Gemini image model. This is not routed
+          through the OpenRouter text default above.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <form className="space-y-4" onSubmit={handleSaveImage}>
+          <label className="flex items-center gap-3 rounded-lg border border-border p-4 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-border bg-input"
+              checked={imageEnabled}
+              onChange={(event) => setImageEnabled(event.target.checked)}
+            />
+            <span>
+              <span className="block font-medium">Enable image generation</span>
+              <span className="text-muted-foreground">
+                Uses {geminiImageConnection.secretRef} from deployment secrets.
+              </span>
+            </span>
+          </label>
+
+          <div className="space-y-2">
+            <Label htmlFor="gemini-image-model">Default image model</Label>
+            <Input
+              id="gemini-image-model"
+              value={imageModel}
+              onChange={(event) => setImageModel(event.target.value)}
+              placeholder="gemini-3.1-flash-image-preview"
+              autoComplete="off"
+              required
+            />
+          </div>
+
+          <Button type="submit" disabled={isSavingImage}>
+            {isSavingImage ? 'Saving…' : 'Save image settings'}
+          </Button>
+        </form>
+
+        <div className="rounded-lg border border-border p-4 text-sm">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Last updated
+          </p>
+          <p className="mt-2">{formatDate(geminiImageConnection.updatedAt)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            by {geminiImageConnection.updatedBy || '—'}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
     </div>
   );
 }

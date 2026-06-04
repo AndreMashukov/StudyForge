@@ -1,5 +1,6 @@
 export { LlmGenerationService } from './llm-generation-service';
 export { LlmRouteResolver } from './llm-route-resolver';
+export { LlmImageRouteResolver } from './llm-image-route-resolver';
 export { LlmSettingsRepository } from './llm-settings-repository';
 export { decryptLlmSecret, isLlmEncryptionAvailable } from './llm-secret-resolver';
 export type { LlmCapability, LlmTextConfig, LlmTextRequest, LlmTextResult, ResolvedRoute } from './types';

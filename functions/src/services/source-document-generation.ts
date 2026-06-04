@@ -1,6 +1,6 @@
 import { logger } from 'firebase-functions/v2';
 import { FileExtractionResult } from '@shared-types';
-import { GeminiService } from './gemini';
+import { LlmGenerationService } from './llm';
 import { extractMarkdownTitle, filenameToTitle } from './file-extraction/utils';
 
 const ENHANCEABLE_UPLOAD_EXTENSIONS = new Set(['pdf', 'docx', 'pptx', 'epub']);
@@ -32,7 +32,7 @@ export class SourceDocumentGenerationService {
         warnings.push('Extracted content was too large for AI cleanup; raw extraction was stored.');
       } else {
         try {
-          content = await GeminiService.enhanceExtractedDocument(
+          content = await LlmGenerationService.enhanceExtractedDocument(
             content,
             params.extraction.filename,
             params.rulesText

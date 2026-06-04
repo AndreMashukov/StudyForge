@@ -5,6 +5,11 @@
  * including quiz generation, JSON sanitization, and prompt building utilities.
  */
 
-export { GeminiService, type GeminiQuizResponse } from './gemini';
+export {
+  GeminiService,
+  type GeminiQuizResponse,
+  type GeminiDiagramQuizResponse,
+  type GeminiSequenceQuizResponse,
+} from './gemini';
 export { JsonSanitizer } from './json-sanitizer';
 export { PromptBuilder } from './prompt-builder';

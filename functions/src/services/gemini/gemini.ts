@@ -23,6 +23,8 @@ import {
   SequenceQuizPromptBuilder,
   ScreenshotPromptBuilder,
 } from './prompt-builder';
+import { RulePromptBuilder } from './prompt-builder/rule-prompt-builder';
+import { parseRuleResponse, type RuleGenerationResponse } from './rule-response-parser';
 import {
   buildPromptWithContextFiles,
   validateContextFiles,
@@ -790,6 +792,55 @@ This question is derived from: **${context.originalDocument.title}**
   }
 
   /**
+   * Generate or improve a rule (JSON: name, description, content).
+   */
+  public static async generateRule(params: {
+    topic: string;
+    description?: string;
+    applicableTo?: string[];
+    existingContent?: string;
+  }): Promise<RuleGenerationResponse> {
+    try {
+      functions.logger.info('Generating rule with Gemini AI', {
+        mode: params.existingContent ? 'improve' : 'generate',
+        topicLength: params.topic.length,
+      });
+
+      const client = this.getClient();
+      const prompt = params.existingContent
+        ? RulePromptBuilder.buildImprovePrompt(
+            params.existingContent,
+            params.topic,
+            params.description
+          )
+        : RulePromptBuilder.buildGeneratePrompt(
+            params.topic,
+            params.description,
+            params.applicableTo
+          );
+
+      const response = await client.models.generateContent({
+        model: GEMINI_PRO_MODEL,
+        contents: prompt,
+      });
+
+      const text = response.text;
+      if (!text) {
+        throw new Error('Empty response from Gemini API for rule generation');
+      }
+
+      return parseRuleResponse(text);
+    } catch (error) {
+      functions.logger.error('Error generating rule with Gemini AI:', error);
+      throw new Error(
+        `Failed to generate rule: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  /**
    * Generate a set of flashcards from document content.
    */
   public static async generateFlashcards(
@@ -905,6 +956,30 @@ This question is derived from: **${context.originalDocument.title}**
     throw new Error(
       'Could not extract a valid JSON array from the flashcard response'
     );
+  }
+
+  public static parseQuizResponseFromText(responseText: string): GeminiQuizResponse {
+    return this.parseQuizResponse(responseText);
+  }
+
+  public static parseDiagramQuizResponseFromText(
+    responseText: string
+  ): GeminiDiagramQuizResponse {
+    return this.parseDiagramQuizResponse(responseText);
+  }
+
+  public static parseSequenceQuizResponseFromText(
+    responseText: string
+  ): GeminiSequenceQuizResponse {
+    return this.parseSequenceQuizResponse(responseText);
+  }
+
+  public static sanitizeMarkdownResponse(content: string): string {
+    return this.validateAndFixFollowupContent(content);
+  }
+
+  public static sanitizeDocumentResponse(content: string): string {
+    return this.validateAndFixDocumentContent(content);
   }
 
   /**
@@ -1775,7 +1850,8 @@ This question is derived from: **${context.originalDocument.title}**
   public static async generateSlideImage(
     slideTitle: string,
     slideContent: string,
-    rules?: string
+    rules?: string,
+    imageModel = 'gemini-3.1-flash-image-preview'
   ): Promise<string | null> {
     try {
       const client = this.getClient();
@@ -1786,7 +1862,7 @@ This question is derived from: **${context.originalDocument.title}**
       );
 
       const response = await client.models.generateContent({
-        model: 'gemini-3.1-flash-image-preview',
+        model: imageModel,
         contents: prompt,
         config: {
           responseModalities: ['IMAGE'],
@@ -1818,13 +1894,14 @@ This question is derived from: **${context.originalDocument.title}**
    * Used in the two-phase flow where Gemini text model first builds a detailed brief.
    */
   public static async generateSlideImageFromPrompt(
-    prompt: string
+    prompt: string,
+    imageModel = 'gemini-3.1-flash-image-preview'
   ): Promise<string | null> {
     try {
       const client = this.getClient();
 
       const response = await client.models.generateContent({
-        model: 'gemini-3.1-flash-image-preview',
+        model: imageModel,
         contents: prompt,
         config: {
           responseModalities: ['IMAGE'],

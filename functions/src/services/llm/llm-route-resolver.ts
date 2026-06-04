@@ -10,10 +10,19 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
  * Capabilities that can be routed to OpenRouter when it is enabled.
  * Other capabilities always use Gemini.
  */
+/** Text-only capabilities that may route to OpenRouter when enabled. */
 const OPENROUTER_ELIGIBLE: Set<LlmCapability> = new Set([
   'quiz',
   'flashcards',
   'documentFromPrompt',
+  'quizFollowup',
+  'documentQuestion',
+  'directoryChat',
+  'diagramQuiz',
+  'sequenceQuiz',
+  'slideDeckText',
+  'sourceDocumentEnhancement',
+  'ruleGeneration',
 ]);
 
 const GEMINI_FALLBACK: ResolvedRoute = {

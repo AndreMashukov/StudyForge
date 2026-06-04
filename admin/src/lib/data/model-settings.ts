@@ -3,9 +3,11 @@ import 'server-only';
 import * as admin from 'firebase-admin';
 import type {
   IEncryptedSecretRecord,
+  IGeminiImageProviderConnection,
   IGeminiProviderConnection,
   IOpenRouterConnectionTestResult,
   IOpenRouterProviderConnection,
+  IUpdateGeminiImageSettingsRequest,
   IUpdateOpenRouterSettingsRequest,
 } from '@shared-types';
 import { requireAdminSession } from '../auth/session';
@@ -17,15 +19,18 @@ import {
 } from '../security/llm-settings-encryption';
 
 const OPENROUTER_CONNECTION_ID = 'openrouter-primary';
+const GEMINI_IMAGE_CONNECTION_ID = 'gemini-image-primary';
 const OPENROUTER_CONNECTIONS_COLLECTION = 'llmProviderConnections';
 const OPENROUTER_SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
 
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 export const DEFAULT_OPENROUTER_MODEL = 'openrouter/auto';
 export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 export interface IModelSettingsPageData {
   geminiConnection: IGeminiProviderConnection;
+  geminiImageConnection: IGeminiImageProviderConnection;
   openRouterConnection: IOpenRouterProviderConnection;
   encryptionConfigured: boolean;
 }
@@ -82,6 +87,12 @@ function getConnectionRef(): admin.firestore.DocumentReference {
     .doc(OPENROUTER_CONNECTION_ID);
 }
 
+function getGeminiImageConnectionRef(): admin.firestore.DocumentReference {
+  return getAdminFirestore()
+    .collection(OPENROUTER_CONNECTIONS_COLLECTION)
+    .doc(GEMINI_IMAGE_CONNECTION_ID);
+}
+
 function getSecretRef(): admin.firestore.DocumentReference {
   return getAdminFirestore()
     .collection(OPENROUTER_SECRETS_COLLECTION)
@@ -96,6 +107,18 @@ function buildGeminiConnection(): IGeminiProviderConnection {
     credentialMode: 'deployment-secret',
     secretRef: 'GEMINI_API_KEY',
     defaultModel: DEFAULT_GEMINI_MODEL,
+    lastValidationStatus: 'unknown',
+  };
+}
+
+function buildDefaultGeminiImageConnection(): IGeminiImageProviderConnection {
+  return {
+    providerType: 'gemini-image',
+    label: 'Gemini image generation',
+    enabled: true,
+    credentialMode: 'deployment-secret',
+    secretRef: 'GEMINI_API_KEY',
+    defaultModel: DEFAULT_GEMINI_IMAGE_MODEL,
     lastValidationStatus: 'unknown',
   };
 }
@@ -164,6 +187,42 @@ function readPreferences(
     allowFallbacks,
     sort,
     zdr,
+  };
+}
+
+async function readGeminiImageConnection(): Promise<IGeminiImageProviderConnection> {
+  const defaults = buildDefaultGeminiImageConnection();
+  const snapshot = await getGeminiImageConnectionRef().get();
+  const data = snapshot.data();
+
+  if (!data) {
+    return defaults;
+  }
+
+  return {
+    ...defaults,
+    label: typeof data.label === 'string' ? data.label : defaults.label,
+    enabled:
+      typeof data.enabled === 'boolean' ? data.enabled : defaults.enabled,
+    defaultModel:
+      typeof data.defaultModel === 'string'
+        ? data.defaultModel
+        : defaults.defaultModel,
+    updatedAt: toIsoString(data.updatedAt),
+    updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
+    lastValidatedAt: toIsoString(data.lastValidatedAt),
+    lastValidationError:
+      typeof data.lastValidationError === 'string'
+        ? data.lastValidationError
+        : data.lastValidationError === null
+          ? null
+          : undefined,
+    lastValidationStatus:
+      data.lastValidationStatus === 'healthy' ||
+      data.lastValidationStatus === 'unhealthy' ||
+      data.lastValidationStatus === 'unknown'
+        ? data.lastValidationStatus
+        : defaults.lastValidationStatus,
   };
 }
 
@@ -299,9 +358,33 @@ export async function getModelSettingsPageData(): Promise<IModelSettingsPageData
 
   return {
     geminiConnection: buildGeminiConnection(),
+    geminiImageConnection: await readGeminiImageConnection(),
     openRouterConnection: await readOpenRouterConnection(),
     encryptionConfigured: isLlmSettingsEncryptionConfigured(),
   };
+}
+
+export async function updateGeminiImageSettings(
+  input: IUpdateGeminiImageSettingsRequest,
+  actorUid: string
+): Promise<IGeminiImageProviderConnection> {
+  const normalizedModel = normalizeModel(input.defaultModel);
+
+  await getGeminiImageConnectionRef().set(
+    {
+      providerType: 'gemini-image',
+      label: 'Gemini image generation',
+      enabled: input.enabled,
+      credentialMode: 'deployment-secret',
+      secretRef: 'GEMINI_API_KEY',
+      defaultModel: normalizedModel,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedBy: actorUid,
+    },
+    { merge: true }
+  );
+
+  return readGeminiImageConnection();
 }
 
 export async function updateOpenRouterSettings(

@@ -60,7 +60,7 @@ export class DocumentFromPromptGenerationProcessor {
       });
     }
 
-    logger.info('Calling Gemini AI for async prompt document generation', {
+    logger.info('Starting async prompt document generation', {
       userId: job.userId,
       jobId: job.id,
       documentId: job.recordId,

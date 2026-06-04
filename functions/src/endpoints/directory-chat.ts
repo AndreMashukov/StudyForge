@@ -11,6 +11,7 @@ import { validateAuth } from '../lib/auth';
 import { DirectoryChatService } from '../services/directory-chat';
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
+const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
 export const getDirectoryChat = onCall(
   {
@@ -42,7 +43,7 @@ export const sendDirectoryChatMessage = onCall(
   {
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey],
     timeoutSeconds: 300,
     memory: '1GiB',
   },
