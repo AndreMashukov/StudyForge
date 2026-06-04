@@ -1,4 +1,4 @@
-import type { LlmProviderClient } from './LlmProviderClient';
+import type { LlmProviderClient } from './llm-provider-client';
 import type { LlmTextRequest, LlmTextResult } from './types';
 
 interface OpenRouterChatChoice {

@@ -1,7 +1,7 @@
-import type { LlmProviderClient } from './LlmProviderClient';
+import type { LlmProviderClient } from './llm-provider-client';
 import type { ResolvedRoute } from './types';
-import { GeminiProviderClient } from './GeminiProviderClient';
-import { OpenRouterProviderClient } from './OpenRouterProviderClient';
+import { GeminiProviderClient } from './gemini-provider-client';
+import { OpenRouterProviderClient } from './openrouter-provider-client';
 
 export class LlmProviderClientFactory {
   static create(route: ResolvedRoute, openRouterApiKey?: string): LlmProviderClient {

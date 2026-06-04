@@ -46,6 +46,6 @@
     "node-forge": "^1.3.2",
     "jws": "^4.0.1"
   },
-  "types": "./src/index.d.ts",
+  "types": "./src/services/llm/functions/src/index.d.ts",
   "type": "commonjs"
 }
