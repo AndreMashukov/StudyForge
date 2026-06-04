@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FileText, LayoutDashboard, LogOut, Users } from 'lucide-react';
+import { FileText, LayoutDashboard, LogOut, SlidersHorizontal, Users } from 'lucide-react';
 import {
   Sidebar,
   SidebarNav,
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/users', label: 'Users', icon: Users },
   { href: '/documents', label: 'Documents', icon: FileText },
+  { href: '/model-settings', label: 'Model Settings', icon: SlidersHorizontal },
 ];
 
 export interface IAdminSidebarProps {
