@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { LlmProviderClient } from './llm-provider-client';
-import type { LlmTextRequest, LlmTextResult } from './types';
+import type { LlmTextRequest, LlmTextResult, LlmVisionRequest, LlmVisionResult } from './types';
 
 export class GeminiProviderClient implements LlmProviderClient {
   async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
@@ -28,5 +28,12 @@ export class GeminiProviderClient implements LlmProviderClient {
       providerType: 'gemini',
       connectionId: 'gemini-primary',
     };
+  }
+
+  async generateVisionText(request: LlmVisionRequest): Promise<LlmVisionResult> {
+    void request;
+    throw new Error(
+      'Gemini vision is handled by GeminiService.generateDocumentFromScreenshot'
+    );
   }
 }

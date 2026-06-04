@@ -32,6 +32,23 @@ export interface LlmTextRequest {
   config: LlmTextConfig;
 }
 
+export type LlmVisionDetail = 'auto' | 'low' | 'high';
+
+export interface LlmVisionRequest {
+  prompt: string;
+  /** Full data URL or raw base64; normalized by caller */
+  imageDataUrl: string;
+  config: LlmTextConfig;
+  detail?: LlmVisionDetail;
+}
+
+export interface LlmVisionResult {
+  text: string;
+  model: string;
+  providerType: 'gemini' | 'openrouter';
+  connectionId: string;
+}
+
 export interface LlmTextResult {
   text: string;
   model: string;

@@ -1552,6 +1552,8 @@ export interface IOpenRouterProviderConnection extends ILlmConnectionAuditFields
   apiKeyConfigured: boolean;
   baseUrl: string;
   defaultModel: string;
+  /** Screenshot / image-understanding model (image-in → text-out) */
+  defaultVisionModel?: string;
   headers?: IOpenRouterProviderHeaders;
   providerPreferences?: IOpenRouterProviderPreferences;
 }
@@ -1570,6 +1572,7 @@ export interface IUpdateOpenRouterSettingsRequest {
   enabled: boolean;
   baseUrl: string;
   defaultModel: string;
+  defaultVisionModel?: string;
   apiKey?: string;
   headers?: IOpenRouterProviderHeaders;
 }

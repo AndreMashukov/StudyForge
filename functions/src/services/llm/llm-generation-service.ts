@@ -23,6 +23,7 @@ import {
   SlideDeckPromptBuilder,
   DiagramQuizPromptBuilder,
   SequenceQuizPromptBuilder,
+  ScreenshotPromptBuilder,
 } from '../gemini/prompt-builder';
 import { RulePromptBuilder } from '../gemini/prompt-builder/rule-prompt-builder';
 import { parseRuleResponse, type RuleGenerationResponse } from '../gemini/rule-response-parser';
@@ -32,7 +33,10 @@ import {
   estimateContextTokens,
 } from '../gemini/prompt-builder/withContextFiles';
 import { LlmImageRouteResolver } from './llm-image-route-resolver';
+import { LlmProviderClientFactory } from './llm-provider-client-factory';
+import { LlmVisionRouteResolver } from './llm-vision-route-resolver';
 import { generateOpenRouterText, resolveTextRoute } from './llm-text-runner';
+import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
 import type { LlmCapability } from './types';
 
@@ -234,7 +238,44 @@ export class LlmGenerationService {
     userPrompt?: string,
     rules?: string
   ): Promise<string> {
-    await LlmImageRouteResolver.resolve('documentFromScreenshot');
+    const visionResolution = await LlmVisionRouteResolver.resolve('documentFromScreenshot');
+    const { route, openRouterApiKey } = visionResolution;
+
+    if (route.providerType === 'openrouter' && openRouterApiKey) {
+      try {
+        const normalized = normalizeScreenshotImage(imageBase64);
+        const prompt = ScreenshotPromptBuilder.buildDocumentPrompt({
+          userPrompt,
+          rules,
+        });
+        const client = LlmProviderClientFactory.create(route, openRouterApiKey);
+        const result = await client.generateVisionText({
+          prompt,
+          imageDataUrl: normalized.dataUrl,
+          config: {
+            model: route.model,
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 16384,
+          },
+          detail: 'auto',
+        });
+
+        functions.logger.info('Screenshot document generated via OpenRouter vision', {
+          model: result.model,
+          responseLength: result.text.length,
+        });
+
+        return GeminiService.sanitizeDocumentResponse(stripCodeFences(result.text));
+      } catch (error) {
+        functions.logger.warn('OpenRouter vision failed; falling back to Gemini', {
+          model: route.model,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     return GeminiService.generateDocumentFromScreenshot(imageBase64, userPrompt, rules);
   }
 

@@ -81,6 +81,9 @@ export function ModelSettingsPanel({
   const [defaultModel, setDefaultModel] = useState(
     initialOpenRouterConnection.defaultModel
   );
+  const [defaultVisionModel, setDefaultVisionModel] = useState(
+    initialOpenRouterConnection.defaultVisionModel ?? ''
+  );
   const [apiKey, setApiKey] = useState('');
   const [notice, setNotice] = useState<NoticeState>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -101,6 +104,7 @@ export function ModelSettingsPanel({
           enabled,
           baseUrl,
           defaultModel,
+          defaultVisionModel,
           apiKey: apiKey.trim() ? apiKey : undefined,
         }),
       });
@@ -114,6 +118,7 @@ export function ModelSettingsPanel({
       setEnabled(payload.openRouterConnection.enabled);
       setBaseUrl(payload.openRouterConnection.baseUrl);
       setDefaultModel(payload.openRouterConnection.defaultModel);
+      setDefaultVisionModel(payload.openRouterConnection.defaultVisionModel ?? '');
       setApiKey('');
       setNotice({
         type: 'success',
@@ -308,6 +313,21 @@ export function ModelSettingsPanel({
               />
               <p className="text-xs text-muted-foreground">
                 Used for quiz, flashcards, documents, chat, and other text generation.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="openrouter-vision-model">Default vision model</Label>
+              <Input
+                id="openrouter-vision-model"
+                value={defaultVisionModel}
+                onChange={(event) => setDefaultVisionModel(event.target.value)}
+                placeholder="google/gemini-2.5-flash"
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground">
+                Used for screenshot and image input to text. Leave empty to use Gemini for
+                screenshots.
               </p>
             </div>
 

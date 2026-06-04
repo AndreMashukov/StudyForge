@@ -46,6 +46,7 @@ export async function PUT(request: Request) {
         enabled: body.enabled ?? false,
         baseUrl: body.baseUrl ?? '',
         defaultModel: body.defaultModel ?? '',
+        defaultVisionModel: body.defaultVisionModel,
         apiKey: body.apiKey,
         headers: body.headers,
       },
