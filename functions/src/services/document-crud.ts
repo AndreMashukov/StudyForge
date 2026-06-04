@@ -13,6 +13,7 @@ import {
   DocumentSourceType,
   DocumentStatus,
   GenerationStatus,
+  DOCUMENT_COLOR_PALETTE,
 } from "@shared-types";
 
 /**
@@ -22,12 +23,18 @@ import {
  */
 export class DocumentCrudService {
 
+  /** Pick a random accent color from the vivid document color palette. */
+  private static pickRandomColor(): string {
+    return DOCUMENT_COLOR_PALETTE[Math.floor(Math.random() * DOCUMENT_COLOR_PALETTE.length)];
+  }
+
   /**
    * Create a new document with content storage
    * @param userId - The authenticated user's ID
    * @param request - Document creation request
    * @returns The created document
    */
+
   static async createDocument(userId: string, request: CreateDocumentRequest): Promise<Document> {
     try {
       logger.info('Creating new document', { 
@@ -85,6 +92,7 @@ export class DocumentCrudService {
         directoryId: request.directoryId,
         createdAt: Timestamp.fromDate(metadata.createdAt),
         updatedAt: Timestamp.fromDate(metadata.updatedAt),
+        color: DocumentCrudService.pickRandomColor(),
       };
 
       // Save to Firestore
@@ -821,6 +829,7 @@ export class DocumentCrudService {
       tags: params.tags || [],
       directoryId: params.directoryId,
       generationStatus: 'pending' as GenerationStatus,
+      color: DocumentCrudService.pickRandomColor(),
       createdAt: now,
       updatedAt: now,
     });

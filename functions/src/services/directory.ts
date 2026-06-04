@@ -611,31 +611,31 @@ export class DirectoryService {
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError')
+          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
           .get(),
         FirestorePaths.flashcardSets(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError')
+          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
           .get(),
         FirestorePaths.slideDecks(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError')
+          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
           .get(),
         FirestorePaths.diagramQuizzes(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError')
+          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
           .get(),
         FirestorePaths.sequenceQuizzes(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
-          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError')
+          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
           .get(),
       ]);
 
@@ -648,6 +648,8 @@ export class DirectoryService {
           appliedRuleIds: (d.data().appliedRuleIds as string[] | undefined) || [],
           generationStatus: d.data().generationStatus as ArtifactSummary['generationStatus'] | undefined,
           generationError: d.data().generationError as string | undefined,
+          documentColor: typeof d.data().documentColor === 'string' ? d.data().documentColor as string : undefined,
+          documentColors: Array.isArray(d.data().documentColors) ? d.data().documentColors as string[] : undefined,
         }));
 
       artifactSummaries.push(

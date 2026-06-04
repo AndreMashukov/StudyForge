@@ -20,6 +20,7 @@ import {
   ApiResponse,
   DiagramQuiz,
   RuleApplicability,
+  getDocumentFallbackColor,
 } from "@shared-types";
 
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
@@ -98,6 +99,10 @@ export const generateDiagramQuiz = onCall(
         documentIds: documentIds.length > 1 ? documentIds : undefined,
         documentTitle: documentDataList[0].doc.title,
         title: pendingTitle,
+        documentColor: documentDataList[0].doc.color ?? getDocumentFallbackColor(documentDataList[0].doc.id),
+        documentColors: documentDataList.length > 1
+          ? documentDataList.map(d => d.doc.color ?? getDocumentFallbackColor(d.doc.id))
+          : undefined,
       });
 
       try {

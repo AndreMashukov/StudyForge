@@ -58,6 +58,8 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
               appliedRuleNames={sq.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
               generationStatus={sq.generationStatus}
               generationError={sq.generationError}
+              documentColor={sq.documentColor}
+              documentColors={sq.documentColors}
             />
           ))}
         </div>

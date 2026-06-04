@@ -58,6 +58,8 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
               appliedRuleNames={q.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
               generationStatus={q.generationStatus}
               generationError={q.generationError}
+              documentColor={q.documentColor}
+              documentColors={q.documentColors}
             />
           ))}
         </div>

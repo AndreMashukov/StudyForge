@@ -12,6 +12,7 @@ import {
   Flashcard,
   FlashcardSet,
   RuleApplicability,
+  getDocumentFallbackColor,
 } from '@shared-types';
 import { DocumentCrudService } from '../services/document-crud';
 import { directoryService } from '../services/directory';
@@ -163,6 +164,10 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       documentIds: documentIds.length > 1 ? documentIds : undefined,
       documentTitle: documentDataList[0].title,
       title: pendingTitle,
+      documentColor: documentDataList[0].color ?? getDocumentFallbackColor(documentDataList[0].id),
+      documentColors: documentDataList.length > 1
+        ? documentDataList.map(d => d.color ?? getDocumentFallbackColor(d.id))
+        : undefined,
     });
 
     try {

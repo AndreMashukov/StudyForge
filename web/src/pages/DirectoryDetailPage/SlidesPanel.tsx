@@ -58,6 +58,8 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
               appliedRuleNames={s.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
               generationStatus={s.generationStatus}
               generationError={s.generationError}
+              documentColor={s.documentColor}
+              documentColors={s.documentColors}
             />
           ))}
         </div>

@@ -11,4 +11,8 @@ export interface IArtifactRow {
   appliedRuleNames?: string[];
   generationStatus?: GenerationStatus;
   generationError?: string;
+  /** Primary source document color for left-rail accent. */
+  documentColor?: string;
+  /** Source document colors for multi-doc segmented rail. */
+  documentColors?: string[];
 }

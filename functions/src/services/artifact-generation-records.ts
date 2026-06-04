@@ -44,6 +44,8 @@ export interface PendingQuizParams {
   title: string;
   userId: string;
   followupRuleIds?: string[];
+  documentColor?: string;
+  documentColors?: string[];
 }
 
 export async function createPendingQuiz(params: PendingQuizParams): Promise<string> {
@@ -59,6 +61,8 @@ export async function createPendingQuiz(params: PendingQuizParams): Promise<stri
     directoryId: params.directoryId,
     followupRuleIds: params.followupRuleIds || [],
     appliedRuleIds: [],
+    ...(params.documentColor ? { documentColor: params.documentColor } : {}),
+    ...(params.documentColors ? { documentColors: params.documentColors } : {}),
     generationStatus: 'pending' as GenerationStatus,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -119,6 +123,8 @@ export interface PendingFlashcardSetParams {
   documentTitle: string;
   title: string;
   userId: string;
+  documentColor?: string;
+  documentColors?: string[];
 }
 
 export async function createPendingFlashcardSet(params: PendingFlashcardSetParams): Promise<string> {
@@ -134,6 +140,8 @@ export async function createPendingFlashcardSet(params: PendingFlashcardSetParam
     directoryId: params.directoryId,
     appliedRuleIds: [],
     appliedDescriptionRuleIds: [],
+    ...(params.documentColor ? { documentColor: params.documentColor } : {}),
+    ...(params.documentColors ? { documentColors: params.documentColors } : {}),
     generationStatus: 'pending' as GenerationStatus,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -194,6 +202,8 @@ export interface PendingSlideDeckParams {
   documentTitle: string;
   title: string;
   userId: string;
+  documentColor?: string;
+  documentColors?: string[];
 }
 
 export async function createPendingSlideDeck(params: PendingSlideDeckParams): Promise<string> {
@@ -208,6 +218,8 @@ export async function createPendingSlideDeck(params: PendingSlideDeckParams): Pr
     slides: [],
     directoryId: params.directoryId,
     appliedRuleIds: [],
+    ...(params.documentColor ? { documentColor: params.documentColor } : {}),
+    ...(params.documentColors ? { documentColors: params.documentColors } : {}),
     generationStatus: 'pending' as GenerationStatus,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -267,6 +279,8 @@ export interface PendingDiagramQuizParams {
   title: string;
   userId: string;
   followupRuleIds?: string[];
+  documentColor?: string;
+  documentColors?: string[];
 }
 
 export async function createPendingDiagramQuiz(params: PendingDiagramQuizParams): Promise<string> {
@@ -282,6 +296,8 @@ export async function createPendingDiagramQuiz(params: PendingDiagramQuizParams)
     directoryId: params.directoryId,
     followupRuleIds: params.followupRuleIds || [],
     appliedRuleIds: [],
+    ...(params.documentColor ? { documentColor: params.documentColor } : {}),
+    ...(params.documentColors ? { documentColors: params.documentColors } : {}),
     generationStatus: 'pending' as GenerationStatus,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -345,6 +361,8 @@ export interface PendingSequenceQuizParams {
   title: string;
   userId: string;
   followupRuleIds?: string[];
+  documentColor?: string;
+  documentColors?: string[];
 }
 
 export async function createPendingSequenceQuiz(params: PendingSequenceQuizParams): Promise<string> {
@@ -360,6 +378,8 @@ export async function createPendingSequenceQuiz(params: PendingSequenceQuizParam
     directoryId: params.directoryId,
     followupRuleIds: params.followupRuleIds || [],
     appliedRuleIds: [],
+    ...(params.documentColor ? { documentColor: params.documentColor } : {}),
+    ...(params.documentColors ? { documentColors: params.documentColors } : {}),
     generationStatus: 'pending' as GenerationStatus,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
