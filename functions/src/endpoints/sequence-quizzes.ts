@@ -1,6 +1,7 @@
 import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
+import { LlmGenerationService } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
@@ -23,6 +24,7 @@ import {
 } from "@shared-types";
 
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+const llmSettingsEncryptionKey = defineSecret("LLM_SETTINGS_ENCRYPTION_KEY");
 
 function optionalTrimmedString(
   value: unknown,
@@ -41,7 +43,7 @@ function optionalTrimmedString(
 export const generateSequenceQuiz = onCall(
   {
     cors: true,
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey],
     maxInstances: 5,
     timeoutSeconds: 300,
     memory: "1GiB",
@@ -187,7 +189,7 @@ export const generateSequenceQuiz = onCall(
         });
         followupIdsForSave = resolvedFollowupIds;
 
-        const geminiQuiz = await GeminiService.generateSequenceQuiz(
+        const geminiQuiz = await LlmGenerationService.generateSequenceQuiz(
           documentContent,
           enhancedPrompt || undefined
         );

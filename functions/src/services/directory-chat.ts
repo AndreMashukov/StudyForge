@@ -8,7 +8,7 @@ import {
 import { FirestorePaths } from '../lib/firestore-paths';
 import { directoryService } from './directory';
 import { DirectoryChatContextAssembler } from './directory-chat-context-assembler';
-import { GeminiService } from './gemini/gemini';
+import { LlmGenerationService } from './llm';
 
 const MAX_USER_MESSAGE_LENGTH = 4000;
 const MAX_MESSAGES_RETURNED = 200;
@@ -121,7 +121,7 @@ export class DirectoryChatService {
       ...(artifactContext ? { artifactContext } : {}),
     });
 
-    const answer = await GeminiService.generateDirectoryChatAnswer(promptContext);
+    const answer = await LlmGenerationService.generateDirectoryChatAnswer(promptContext);
     const assistantNow = new Date();
     const assistantMessageRef = FirestorePaths.directoryChatMessages(userId, directoryId).doc();
     const assistantMessage: DirectoryChatMessage = {

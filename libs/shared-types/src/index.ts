@@ -1517,6 +1517,21 @@ export interface IGeminiProviderConnection extends ILlmConnectionAuditFields {
   defaultModel: string;
 }
 
+/** Admin-managed Gemini image generation (slide images, etc.). */
+export interface IGeminiImageProviderConnection extends ILlmConnectionAuditFields {
+  providerType: 'gemini-image';
+  label: string;
+  enabled: boolean;
+  credentialMode: 'deployment-secret';
+  secretRef: 'GEMINI_API_KEY';
+  defaultModel: string;
+}
+
+export interface IUpdateGeminiImageSettingsRequest {
+  enabled: boolean;
+  defaultModel: string;
+}
+
 export interface IOpenRouterProviderPreferences {
   order?: string[];
   allowFallbacks?: boolean;
@@ -1578,4 +1593,5 @@ export type LlmCapabilityKey =
   | 'sequenceQuiz'
   | 'slideDeckText'
   | 'slideDeckImage'
-  | 'sourceDocumentEnhancement';
+  | 'sourceDocumentEnhancement'
+  | 'ruleGeneration';

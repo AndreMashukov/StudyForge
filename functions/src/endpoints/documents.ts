@@ -6,7 +6,7 @@ import { DocumentCrudService } from '../services/document-crud';
 import { directoryService } from '../services/directory';
 import { UrlProcessingOrchestrator } from '../services/url-processing/url-processing-orchestrator';
 import { FileExtractionError, FileExtractionService } from '../services/file-extraction';
-import { GeminiService } from '../services/gemini';
+import { LlmGenerationService } from '../services/llm';
 import { SourceDocumentGenerationService } from '../services/source-document-generation';
 import { ScreenshotDocumentGenerationService } from '../services/screenshot-document-generation';
 import { GenerationJobPayloadStorage } from '../services/generation-job-payload-storage';
@@ -31,6 +31,7 @@ import {
 
 // Define the Gemini API key secret for markdown conversion
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+const llmSettingsEncryptionKey = defineSecret("LLM_SETTINGS_ENCRYPTION_KEY");
 const apifyApiToken = defineSecret("APIFY_API_TOKEN");
 const MAX_URL_DOCUMENT_SOURCES = 3;
 
@@ -139,7 +140,7 @@ export const uploadAndCreateDocument = onCall(
   {
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey],
     timeoutSeconds: 120,
     memory: '1GiB',
   },
@@ -271,7 +272,7 @@ export const createDocumentFromUrl = onCall(
   { 
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey, apifyApiToken],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, apifyApiToken],
     timeoutSeconds: 540,
   },
   async (request) => {
@@ -390,7 +391,7 @@ export const createDocumentFromUrl = onCall(
 
         let generatedContent: string;
         try {
-          generatedContent = await GeminiService.generateDocumentFromPrompt(
+          generatedContent = await LlmGenerationService.generateDocumentFromPrompt(
             buildUrlDocumentPrompt({
               customTitle,
               sourceCount: summary.sourceUrls.length,
@@ -822,7 +823,7 @@ export const generateFromPrompt = onCall(
   { 
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey],
     timeoutSeconds: 540, // 9 minutes for document generation
   },
   async (request) => {

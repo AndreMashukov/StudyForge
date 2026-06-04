@@ -3,7 +3,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '../lib/auth';
 import { DocumentCrudService } from '../services/document-crud';
-import { GeminiService } from '../services/gemini/gemini';
+import { LlmGenerationService } from '../services/llm';
 import { resolveEffectiveRules } from '../services/rule-resolution';
 import { 
   GenerateFollowupRequest, 
@@ -14,6 +14,7 @@ import {
 
 // Define secrets
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+const llmSettingsEncryptionKey = defineSecret("LLM_SETTINGS_ENCRYPTION_KEY");
 
 /**
  * Generate comprehensive followup explanation for quiz question
@@ -22,7 +23,7 @@ export const generateQuizFollowup = onCall(
   { 
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey],
     timeoutSeconds: 300,
     memory: "1GiB",
   },
@@ -85,7 +86,7 @@ export const generateQuizFollowup = onCall(
       }
 
       // Generate followup content with Gemini
-      const followupContent = await GeminiService.generateQuizFollowup(followupContext);
+      const followupContent = await LlmGenerationService.generateQuizFollowup(followupContext);
 
       logger.info('Quiz followup explanation generated successfully', {
         originalDocId: data.documentId,

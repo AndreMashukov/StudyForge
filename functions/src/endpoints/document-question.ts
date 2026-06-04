@@ -3,7 +3,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '../lib/auth';
 import { DocumentCrudService } from '../services/document-crud';
-import { GeminiService } from '../services/gemini/gemini';
+import { LlmGenerationService } from '../services/llm';
 import { resolveEffectiveRules } from '../services/rule-resolution';
 import { 
   AskDocumentQuestionRequest, 
@@ -14,6 +14,7 @@ import {
 
 // Define secrets
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+const llmSettingsEncryptionKey = defineSecret("LLM_SETTINGS_ENCRYPTION_KEY");
 
 /**
  * Answer a user's question about a specific document
@@ -22,7 +23,7 @@ export const askDocumentQuestion = onCall(
   { 
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey],
     timeoutSeconds: 300,
     memory: "1GiB",
   },
@@ -77,7 +78,7 @@ export const askDocumentQuestion = onCall(
       }
 
       // Generate answer with Gemini
-      const answerContent = await GeminiService.generateDocumentQuestionAnswer(questionContext);
+      const answerContent = await LlmGenerationService.generateDocumentQuestionAnswer(questionContext);
 
       logger.info('Document question answered successfully', {
         userId,

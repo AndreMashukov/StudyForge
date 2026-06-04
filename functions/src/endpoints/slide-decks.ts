@@ -18,7 +18,7 @@ import {
   completePendingSlideDeck,
   failPendingSlideDeck,
 } from '../services/artifact-generation-records';
-import { GeminiService } from '../services/gemini/gemini';
+import { LlmGenerationService } from '../services/llm';
 import { validateAuth } from '../lib/auth';
 import { FirestorePaths } from '../lib/firestore-paths';
 
@@ -26,6 +26,7 @@ const redactId = (id: string): string =>
   createHash('sha256').update(id).digest('hex').slice(0, 8);
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
+const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
 const generateSlideDeckRequestSchema = z.object({
   documentIds: z.array(z.string().min(1)).min(1, 'At least one documentId is required').max(5, 'Maximum 5 documents allowed'),
@@ -47,7 +48,7 @@ const slideDeckIdRequestSchema = z.object({
  * Generates a slide deck from a document using Gemini AI.
  */
 export const generateSlideDeck = onCall(
-  { region: 'asia-east1', cors: true, secrets: [geminiApiKey], timeoutSeconds: 300, memory: '1GiB' },
+  { region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 300, memory: '1GiB' },
   async (request) => {
     try {
       const userId = validateAuth(request);
@@ -161,7 +162,7 @@ export const generateSlideDeck = onCall(
 
           // Step 3: Generate slide outline
           logger.info('[generateSlideDeck] STEP 3: Generating slide outline.', { userIdHash: u });
-          const slideOutline = await GeminiService.generateSlideDeckOutline(combinedContent, additionalPrompt || undefined, injectedRules);
+          const slideOutline = await LlmGenerationService.generateSlideDeckOutline(combinedContent, additionalPrompt || undefined, injectedRules);
           logger.info(`[generateSlideDeck] STEP 4: Outline generated. Slides: ${slideOutline.length}`, { userIdHash: u });
 
           // Step 5: Generate images with two-phase approach + bounded concurrency (3 at a time)
@@ -183,17 +184,17 @@ export const generateSlideDeck = onCall(
               const i = batch + ci;
 
               // Phase 1: Generate detailed image brief using Gemini text model
-              const brief = await GeminiService.generateSlideImageBrief(slide.title, slide.content, injectedRules);
+              const brief = await LlmGenerationService.generateSlideImageBrief(slide.title, slide.content, injectedRules);
 
               // Phase 2: Generate the actual image from the brief (or fall back to direct prompt)
               let imageBase64: string | null = null;
               if (brief) {
                 const { SlideDeckPromptBuilder } = await import('../services/gemini/prompt-builder/slide-deck');
                 const imagePrompt = SlideDeckPromptBuilder.buildSlideImageFromBriefPrompt(brief);
-                imageBase64 = await GeminiService.generateSlideImageFromPrompt(imagePrompt);
+                imageBase64 = await LlmGenerationService.generateSlideImageFromPrompt(imagePrompt);
               }
               if (!imageBase64) {
-                imageBase64 = await GeminiService.generateSlideImage(slide.title, slide.content, injectedRules);
+                imageBase64 = await LlmGenerationService.generateSlideImage(slide.title, slide.content, injectedRules);
               }
 
               if (imageBase64) {

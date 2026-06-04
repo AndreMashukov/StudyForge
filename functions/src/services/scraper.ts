@@ -4,7 +4,7 @@ import { JSDOM } from "jsdom";
 import fetch from "node-fetch";
 import { ScrapedContent } from "@shared-types";
 import * as functions from "firebase-functions";
-import { GeminiService } from "./gemini/gemini";
+import { LlmGenerationService } from './llm';
 import { promptBuilder } from "./promptBuilder";
 
 /**
@@ -96,7 +96,7 @@ Please return only the clean markdown content, starting with the title heading:`
         finalPrompt = await promptBuilder.injectRules(basePrompt, ruleIds, userId);
       }
 
-      const response = await GeminiService.generateContent(finalPrompt);
+      const response = await LlmGenerationService.generateScrapedContentMarkdown(finalPrompt);
       
       if (!response || response.trim().length === 0) {
         throw new Error('Gemini returned empty response for markdown conversion');

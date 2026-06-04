@@ -5,6 +5,7 @@ import { ExternalAuthResult, validateExternalAuthFromRequest } from "../lib/api-
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
 import { GeminiService } from "../services/gemini";
+import { LlmGenerationService } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { ScreenshotDocumentGenerationService } from "../services/screenshot-document-generation";
 import { enforceScreenshotGenerationRateLimit, RateLimitError } from "../services/api-rate-limit";
@@ -57,6 +58,7 @@ import {
 } from "@shared-types";
 
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+const llmSettingsEncryptionKey = defineSecret("LLM_SETTINGS_ENCRYPTION_KEY");
 
 async function cleanupUploadedFiles(paths: string[]): Promise<void> {
   if (paths.length === 0) return;
@@ -86,7 +88,7 @@ async function cleanupUploadedFiles(paths: string[]): Promise<void> {
 export const api = onRequest(
   {
     cors: true,
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey],
     timeoutSeconds: 300,
     memory: "1GiB",
     maxInstances: 5,
@@ -300,7 +302,7 @@ export const api = onRequest(
           });
           followupIdsForSave = resolvedFollowupIds;
 
-          const geminiQuiz = await GeminiService.generateQuiz(
+          const geminiQuiz = await LlmGenerationService.generateQuiz(
             documentContent,
             enhancedPrompt
           );
@@ -464,7 +466,7 @@ export const api = onRequest(
           });
           followupIdsForSave = resolvedFollowupIds;
 
-          const geminiQuiz = await GeminiService.generateDiagramQuiz(documentContent, enhancedPrompt);
+          const geminiQuiz = await LlmGenerationService.generateDiagramQuiz(documentContent, enhancedPrompt);
 
           if (diagramQuizName) {
             geminiQuiz.title = diagramQuizName;
@@ -607,7 +609,7 @@ export const api = onRequest(
           });
           followupIdsForSave = resolvedFollowupIds;
 
-          const geminiQuiz = await GeminiService.generateSequenceQuiz(
+          const geminiQuiz = await LlmGenerationService.generateSequenceQuiz(
             documentContent, enhancedPrompt || undefined
           );
 
@@ -739,7 +741,7 @@ export const api = onRequest(
             injectedRules = base;
           }
 
-          const generatedFlashcards = await GeminiService.generateFlashcards(combinedContent, injectedRules);
+          const generatedFlashcards = await LlmGenerationService.generateFlashcards(combinedContent, injectedRules);
           const flashcardsWithIds: Flashcard[] = generatedFlashcards.map((card) => ({
             ...card,
             id: admin.firestore().collection("tmp").doc().id,
@@ -858,7 +860,7 @@ export const api = onRequest(
             injectedRules = base;
           }
 
-          const slideOutline = await GeminiService.generateSlideDeckOutline(
+          const slideOutline = await LlmGenerationService.generateSlideDeckOutline(
             combinedContent, additionalPrompt || undefined, injectedRules
           );
 
@@ -874,15 +876,15 @@ export const api = onRequest(
             const chunk = slides.slice(batch, batch + CONCURRENCY);
             await Promise.all(chunk.map(async (slide, ci) => {
               const i = batch + ci;
-              const brief = await GeminiService.generateSlideImageBrief(slide.title, slide.content, injectedRules);
+              const brief = await LlmGenerationService.generateSlideImageBrief(slide.title, slide.content, injectedRules);
               let imageBase64: string | null = null;
               if (brief) {
                 const { SlideDeckPromptBuilder } = await import("../services/gemini/prompt-builder/slide-deck");
                 const imagePrompt = SlideDeckPromptBuilder.buildSlideImageFromBriefPrompt(brief);
-                imageBase64 = await GeminiService.generateSlideImageFromPrompt(imagePrompt);
+                imageBase64 = await LlmGenerationService.generateSlideImageFromPrompt(imagePrompt);
               }
               if (!imageBase64) {
-                imageBase64 = await GeminiService.generateSlideImage(slide.title, slide.content, injectedRules);
+                imageBase64 = await LlmGenerationService.generateSlideImage(slide.title, slide.content, injectedRules);
               }
               if (imageBase64) {
                 const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.png`;
@@ -1079,7 +1081,7 @@ export const api = onRequest(
             injectedRules = base;
           }
 
-          const slideOutline = await GeminiService.generateSlideDeckOutline(
+          const slideOutline = await LlmGenerationService.generateSlideDeckOutline(
             combinedContent, additionalPrompt || undefined, injectedRules
           );
 
@@ -1236,7 +1238,7 @@ export const api = onRequest(
 
         let generatedContent: string;
         try {
-          generatedContent = await GeminiService.generateDocumentFromPrompt(
+          generatedContent = await LlmGenerationService.generateDocumentFromPrompt(
             trimmedPrompt,
             data.files,
             rulesText

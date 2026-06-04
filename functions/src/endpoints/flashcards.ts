@@ -214,7 +214,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
         mode,
       });
 
-      logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (GeminiService).`, { userIdHash: u });
+      logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (LlmGenerationService).`, { userIdHash: u });
       const generatedData = await generateFlashcardsFromContent(combinedContent, combinedTitle, injectedRules, descRulesText || undefined);
       logger.info(`[generateFlashcards] STEP 4: Flashcard generation complete. Flashcards created: ${generatedData.flashcards.length}`, { userIdHash: u });
 

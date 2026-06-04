@@ -16,7 +16,8 @@ export type LlmCapability =
   | 'sequenceQuiz'
   | 'slideDeckText'
   | 'slideDeckImage'
-  | 'sourceDocumentEnhancement';
+  | 'sourceDocumentEnhancement'
+  | 'ruleGeneration';
 
 export interface LlmTextConfig {
   model: string;

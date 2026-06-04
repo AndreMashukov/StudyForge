@@ -7,7 +7,7 @@ import {
 } from '@shared-types';
 import { DocumentCrudService } from './document-crud';
 import { directoryService } from './directory';
-import { GeminiService } from './gemini';
+import { LlmGenerationService } from './llm';
 import { isRuleResolutionMode, resolveEffectiveRules } from './rule-resolution';
 
 const MAX_SCREENSHOT_BASE64_LENGTH = 14_000_000;
@@ -52,7 +52,7 @@ export class ScreenshotDocumentGenerationService {
       });
     }
 
-    const generatedContent = await GeminiService.generateDocumentFromScreenshot(
+    const generatedContent = await LlmGenerationService.generateDocumentFromScreenshot(
       input.imageBase64,
       input.prompt,
       rulesText || undefined

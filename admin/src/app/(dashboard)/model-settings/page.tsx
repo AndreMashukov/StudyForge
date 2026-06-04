@@ -2,8 +2,12 @@ import { ModelSettingsPanel } from '../../../components/admin/ModelSettingsPanel
 import { getModelSettingsPageData } from '../../../lib/data/model-settings';
 
 export default async function ModelSettingsPage() {
-  const { geminiConnection, openRouterConnection, encryptionConfigured } =
-    await getModelSettingsPageData();
+  const {
+    geminiConnection,
+    geminiImageConnection,
+    openRouterConnection,
+    encryptionConfigured,
+  } = await getModelSettingsPageData();
 
   return (
     <div className="space-y-6">
@@ -17,6 +21,7 @@ export default async function ModelSettingsPage() {
 
       <ModelSettingsPanel
         geminiConnection={geminiConnection}
+        geminiImageConnection={geminiImageConnection}
         openRouterConnection={openRouterConnection}
         encryptionConfigured={encryptionConfigured}
       />
