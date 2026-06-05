@@ -1,12 +1,7 @@
 import * as admin from 'firebase-admin';
-import type {
-  IOpenRouterProviderConnection,
-  IEncryptedSecretRecord,
-  IGeminiImageProviderConnection,
-} from '@shared-types';
+import type { IOpenRouterProviderConnection, IEncryptedSecretRecord } from '@shared-types';
 
 const OPENROUTER_CONNECTION_ID = 'openrouter-primary';
-const GEMINI_IMAGE_CONNECTION_ID = 'gemini-image-primary';
 const CONNECTIONS_COLLECTION = 'llmProviderConnections';
 const SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
 
@@ -31,16 +26,5 @@ export class LlmSettingsRepository {
 
     if (!snap.exists) return null;
     return snap.data() as IEncryptedSecretRecord;
-  }
-
-  static async getGeminiImageConnection(): Promise<IGeminiImageProviderConnection | null> {
-    const snap = await admin
-      .firestore()
-      .collection(CONNECTIONS_COLLECTION)
-      .doc(GEMINI_IMAGE_CONNECTION_ID)
-      .get();
-
-    if (!snap.exists) return null;
-    return snap.data() as IGeminiImageProviderConnection;
   }
 }

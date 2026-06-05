@@ -1554,6 +1554,8 @@ export interface IOpenRouterProviderConnection extends ILlmConnectionAuditFields
   defaultModel: string;
   /** Screenshot / image-understanding model (image-in → text-out) */
   defaultVisionModel?: string;
+  /** Slide deck image generation model (text-in → image-out) */
+  defaultImageModel?: string;
   headers?: IOpenRouterProviderHeaders;
   providerPreferences?: IOpenRouterProviderPreferences;
 }
@@ -1573,6 +1575,7 @@ export interface IUpdateOpenRouterSettingsRequest {
   baseUrl: string;
   defaultModel: string;
   defaultVisionModel?: string;
+  defaultImageModel?: string;
   apiKey?: string;
   headers?: IOpenRouterProviderHeaders;
 }

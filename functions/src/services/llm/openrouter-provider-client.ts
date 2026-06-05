@@ -1,8 +1,25 @@
 import type { LlmProviderClient } from './llm-provider-client';
-import type { LlmTextRequest, LlmTextResult, LlmVisionRequest, LlmVisionResult } from './types';
+import type {
+  LlmImageRequest,
+  LlmImageResult,
+  LlmTextRequest,
+  LlmTextResult,
+  LlmVisionRequest,
+  LlmVisionResult,
+} from './types';
+import { extractBase64FromImageDataUrl } from './llm-image-utils';
+
+interface OpenRouterImagePart {
+  image_url?: { url?: string };
+}
+
+interface OpenRouterChatMessage {
+  content?: string;
+  images?: OpenRouterImagePart[];
+}
 
 interface OpenRouterChatChoice {
-  message?: { content?: string };
+  message?: OpenRouterChatMessage;
 }
 
 interface OpenRouterChatResponse {
@@ -103,6 +120,64 @@ export class OpenRouterProviderClient implements LlmProviderClient {
 
     return {
       text,
+      model: request.config.model,
+      providerType: 'openrouter',
+      connectionId: this.connectionId,
+    };
+  }
+
+  async generateImage(request: LlmImageRequest): Promise<LlmImageResult> {
+    const url = `${this.baseUrl.replace(/\/$/, '')}/chat/completions`;
+
+    const imageConfig =
+      request.imageConfig?.aspectRatio || request.imageConfig?.imageSize
+        ? {
+            ...(request.imageConfig.aspectRatio
+              ? { aspect_ratio: request.imageConfig.aspectRatio }
+              : {}),
+            ...(request.imageConfig.imageSize
+              ? { image_size: request.imageConfig.imageSize }
+              : {}),
+          }
+        : undefined;
+
+    const body = JSON.stringify({
+      model: request.config.model,
+      messages: [{ role: 'user', content: request.prompt }],
+      modalities: ['image', 'text'],
+      ...(imageConfig ? { image_config: imageConfig } : {}),
+    });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://study-forge.app',
+        'X-Title': 'StudyForge',
+      },
+      body,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '(unreadable)');
+      throw new Error(`OpenRouter image API error ${response.status}: ${errorText}`);
+    }
+
+    const data = (await response.json()) as OpenRouterChatResponse;
+    const message = data.choices?.[0]?.message;
+    const imageUrl = message?.images?.[0]?.image_url?.url;
+    if (!imageUrl) {
+      throw new Error('Empty image response from OpenRouter API');
+    }
+
+    const imageBase64 = extractBase64FromImageDataUrl(imageUrl);
+    if (!imageBase64) {
+      throw new Error('OpenRouter image response did not contain valid base64 data');
+    }
+
+    return {
+      imageBase64,
       model: request.config.model,
       providerType: 'openrouter',
       connectionId: this.connectionId,

@@ -49,6 +49,24 @@ export interface LlmVisionResult {
   connectionId: string;
 }
 
+export interface LlmImageConfig {
+  aspectRatio?: string;
+  imageSize?: string;
+}
+
+export interface LlmImageRequest {
+  prompt: string;
+  config: LlmTextConfig;
+  imageConfig?: LlmImageConfig;
+}
+
+export interface LlmImageResult {
+  imageBase64: string;
+  model: string;
+  providerType: 'gemini' | 'openrouter';
+  connectionId: string;
+}
+
 export interface LlmTextResult {
   text: string;
   model: string;
