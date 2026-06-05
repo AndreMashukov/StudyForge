@@ -3,11 +3,9 @@ import 'server-only';
 import * as admin from 'firebase-admin';
 import type {
   IEncryptedSecretRecord,
-  IGeminiImageProviderConnection,
   IGeminiProviderConnection,
   IOpenRouterConnectionTestResult,
   IOpenRouterProviderConnection,
-  IUpdateGeminiImageSettingsRequest,
   IUpdateOpenRouterSettingsRequest,
 } from '@shared-types';
 import { requireAdminSession } from '../auth/session';
@@ -19,7 +17,7 @@ import {
 } from '../security/llm-settings-encryption';
 
 const OPENROUTER_CONNECTION_ID = 'openrouter-primary';
-const GEMINI_IMAGE_CONNECTION_ID = 'gemini-image-primary';
+const LEGACY_GEMINI_IMAGE_CONNECTION_ID = 'gemini-image-primary';
 const OPENROUTER_CONNECTIONS_COLLECTION = 'llmProviderConnections';
 const OPENROUTER_SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
 
@@ -27,11 +25,11 @@ export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 export const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 export const DEFAULT_OPENROUTER_MODEL = 'openrouter/auto';
 export const DEFAULT_OPENROUTER_VISION_MODEL = 'google/gemini-2.5-flash';
+export const DEFAULT_OPENROUTER_IMAGE_MODEL = 'google/gemini-3.1-flash-image-preview';
 export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 export interface IModelSettingsPageData {
   geminiConnection: IGeminiProviderConnection;
-  geminiImageConnection: IGeminiImageProviderConnection;
   openRouterConnection: IOpenRouterProviderConnection;
   encryptionConfigured: boolean;
 }
@@ -91,16 +89,29 @@ function normalizeVisionModel(model: string | undefined): string | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function normalizeImageModel(model: string | undefined): string {
+  const normalized = model?.trim();
+  return normalized && normalized.length > 0 ? normalized : DEFAULT_OPENROUTER_IMAGE_MODEL;
+}
+
+function toOpenRouterImageModelId(geminiModelId: string): string {
+  const normalized = geminiModelId.trim();
+  if (normalized.includes('/')) {
+    return normalized;
+  }
+  return `google/${normalized}`;
+}
+
 function getConnectionRef(): admin.firestore.DocumentReference {
   return getAdminFirestore()
     .collection(OPENROUTER_CONNECTIONS_COLLECTION)
     .doc(OPENROUTER_CONNECTION_ID);
 }
 
-function getGeminiImageConnectionRef(): admin.firestore.DocumentReference {
+function getLegacyGeminiImageConnectionRef(): admin.firestore.DocumentReference {
   return getAdminFirestore()
     .collection(OPENROUTER_CONNECTIONS_COLLECTION)
-    .doc(GEMINI_IMAGE_CONNECTION_ID);
+    .doc(LEGACY_GEMINI_IMAGE_CONNECTION_ID);
 }
 
 function getSecretRef(): admin.firestore.DocumentReference {
@@ -121,18 +132,6 @@ function buildGeminiConnection(): IGeminiProviderConnection {
   };
 }
 
-function buildDefaultGeminiImageConnection(): IGeminiImageProviderConnection {
-  return {
-    providerType: 'gemini-image',
-    label: 'Gemini image generation',
-    enabled: true,
-    credentialMode: 'deployment-secret',
-    secretRef: 'GEMINI_API_KEY',
-    defaultModel: DEFAULT_GEMINI_IMAGE_MODEL,
-    lastValidationStatus: 'unknown',
-  };
-}
-
 function buildDefaultOpenRouterConnection(
   apiKeyConfigured: boolean
 ): IOpenRouterProviderConnection {
@@ -145,6 +144,7 @@ function buildDefaultOpenRouterConnection(
     baseUrl: DEFAULT_OPENROUTER_BASE_URL,
     defaultModel: DEFAULT_OPENROUTER_MODEL,
     defaultVisionModel: DEFAULT_OPENROUTER_VISION_MODEL,
+    defaultImageModel: DEFAULT_OPENROUTER_IMAGE_MODEL,
     lastValidationStatus: 'unknown',
   };
 }
@@ -201,54 +201,37 @@ function readPreferences(
   };
 }
 
-async function readGeminiImageConnection(): Promise<IGeminiImageProviderConnection> {
-  const defaults = buildDefaultGeminiImageConnection();
-  const snapshot = await getGeminiImageConnectionRef().get();
+async function readLegacyGeminiImageModel(): Promise<string | undefined> {
+  const snapshot = await getLegacyGeminiImageConnectionRef().get();
   const data = snapshot.data();
-
-  if (!data) {
-    return defaults;
+  if (!data || typeof data.defaultModel !== 'string') {
+    return undefined;
   }
 
-  return {
-    ...defaults,
-    label: typeof data.label === 'string' ? data.label : defaults.label,
-    enabled:
-      typeof data.enabled === 'boolean' ? data.enabled : defaults.enabled,
-    defaultModel:
-      typeof data.defaultModel === 'string'
-        ? data.defaultModel
-        : defaults.defaultModel,
-    updatedAt: toIsoString(data.updatedAt),
-    updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
-    lastValidatedAt: toIsoString(data.lastValidatedAt),
-    lastValidationError:
-      typeof data.lastValidationError === 'string'
-        ? data.lastValidationError
-        : data.lastValidationError === null
-          ? null
-          : undefined,
-    lastValidationStatus:
-      data.lastValidationStatus === 'healthy' ||
-      data.lastValidationStatus === 'unhealthy' ||
-      data.lastValidationStatus === 'unknown'
-        ? data.lastValidationStatus
-        : defaults.lastValidationStatus,
-  };
+  return toOpenRouterImageModelId(data.defaultModel);
 }
 
 async function readOpenRouterConnection(): Promise<IOpenRouterProviderConnection> {
-  const [connectionSnapshot, secretSnapshot] = await Promise.all([
+  const [connectionSnapshot, secretSnapshot, legacyImageModel] = await Promise.all([
     getConnectionRef().get(),
     getSecretRef().get(),
+    readLegacyGeminiImageModel(),
   ]);
 
   const defaults = buildDefaultOpenRouterConnection(secretSnapshot.exists);
   const data = connectionSnapshot.data();
 
   if (!data) {
-    return defaults;
+    return {
+      ...defaults,
+      defaultImageModel: legacyImageModel ?? defaults.defaultImageModel,
+    };
   }
+
+  const defaultImageModel =
+    typeof data.defaultImageModel === 'string'
+      ? normalizeImageModel(data.defaultImageModel)
+      : legacyImageModel ?? defaults.defaultImageModel;
 
   return {
     ...defaults,
@@ -267,6 +250,7 @@ async function readOpenRouterConnection(): Promise<IOpenRouterProviderConnection
       typeof data.defaultVisionModel === 'string'
         ? data.defaultVisionModel.trim() || undefined
         : defaults.defaultVisionModel,
+    defaultImageModel,
     headers: readHeaders(data.headers),
     providerPreferences: readPreferences(data.providerPreferences),
     updatedAt: toIsoString(data.updatedAt),
@@ -373,33 +357,9 @@ export async function getModelSettingsPageData(): Promise<IModelSettingsPageData
 
   return {
     geminiConnection: buildGeminiConnection(),
-    geminiImageConnection: await readGeminiImageConnection(),
     openRouterConnection: await readOpenRouterConnection(),
     encryptionConfigured: isLlmSettingsEncryptionConfigured(),
   };
-}
-
-export async function updateGeminiImageSettings(
-  input: IUpdateGeminiImageSettingsRequest,
-  actorUid: string
-): Promise<IGeminiImageProviderConnection> {
-  const normalizedModel = normalizeModel(input.defaultModel);
-
-  await getGeminiImageConnectionRef().set(
-    {
-      providerType: 'gemini-image',
-      label: 'Gemini image generation',
-      enabled: input.enabled,
-      credentialMode: 'deployment-secret',
-      secretRef: 'GEMINI_API_KEY',
-      defaultModel: normalizedModel,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedBy: actorUid,
-    },
-    { merge: true }
-  );
-
-  return readGeminiImageConnection();
 }
 
 export async function updateOpenRouterSettings(
@@ -427,6 +387,7 @@ export async function updateOpenRouterSettings(
     baseUrl: normalizeBaseUrl(input.baseUrl),
     defaultModel: normalizeModel(input.defaultModel),
     defaultVisionModel: normalizeVisionModel(input.defaultVisionModel),
+    defaultImageModel: normalizeImageModel(input.defaultImageModel),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedBy: actorUid,
   };

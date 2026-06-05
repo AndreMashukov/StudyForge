@@ -1,11 +1,17 @@
 import * as functions from 'firebase-functions';
 import { LlmSettingsRepository } from './llm-settings-repository';
+import { decryptLlmSecret, isLlmEncryptionAvailable } from './llm-secret-resolver';
+import {
+  DEFAULT_GEMINI_IMAGE_MODEL,
+  DEFAULT_OPENROUTER_IMAGE_MODEL,
+  toGeminiImageModel,
+} from './llm-image-utils';
 import type { LlmCapability, ResolvedRoute } from './types';
 
-const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 const GEMINI_IMAGE_FALLBACK: ResolvedRoute = {
-  connectionId: 'gemini-image-primary',
+  connectionId: 'gemini-primary',
   providerType: 'gemini',
   model: DEFAULT_GEMINI_IMAGE_MODEL,
   fallbackUsed: false,
@@ -13,43 +19,95 @@ const GEMINI_IMAGE_FALLBACK: ResolvedRoute = {
 
 export type LlmImageCapability = Extract<LlmCapability, 'slideDeckImage'>;
 
+export interface ImageRouteResolution {
+  route: ResolvedRoute;
+  openRouterApiKey?: string;
+  /** Gemini SDK model id used when routing falls back to Gemini */
+  geminiImageModel: string;
+}
+
 export class LlmImageRouteResolver {
   /**
-   * Image and multimodal flows use Gemini image models from admin config.
-   * OpenRouter text defaults are never used for image bytes.
+   * Resolve text-to-image routes for slide deck images.
+   * OpenRouter is used when enabled, configured, and defaultImageModel is set.
    */
-  static async resolve(capability: LlmImageCapability): Promise<ResolvedRoute> {
+  static async resolve(capability: LlmImageCapability): Promise<ImageRouteResolution> {
+    if (capability !== 'slideDeckImage') {
+      return {
+        route: GEMINI_IMAGE_FALLBACK,
+        geminiImageModel: DEFAULT_GEMINI_IMAGE_MODEL,
+      };
+    }
+
     try {
-      const connection = await LlmSettingsRepository.getGeminiImageConnection();
-      if (!connection || connection.enabled === false) {
-        functions.logger.info('LLM image route resolved (defaults)', {
-          capability,
-          providerType: GEMINI_IMAGE_FALLBACK.providerType,
-          model: GEMINI_IMAGE_FALLBACK.model,
+      const connection = await LlmSettingsRepository.getOpenRouterConnection();
+      const imageModel =
+        connection?.defaultImageModel?.trim() || DEFAULT_OPENROUTER_IMAGE_MODEL;
+      const geminiImageModel = toGeminiImageModel(imageModel);
+
+      if (!connection || !connection.enabled || !connection.apiKeyConfigured) {
+        functions.logger.info(`LLM image route resolved for ${capability}`, {
+          providerType: 'gemini',
+          model: geminiImageModel,
+          fallbackUsed: false,
         });
-        return GEMINI_IMAGE_FALLBACK;
+        return {
+          route: {
+            ...GEMINI_IMAGE_FALLBACK,
+            model: geminiImageModel,
+          },
+          geminiImageModel,
+        };
       }
 
+      if (!isLlmEncryptionAvailable()) {
+        functions.logger.warn(
+          'LLM_SETTINGS_ENCRYPTION_KEY not set; using Gemini for slide images',
+          { capability }
+        );
+        return {
+          route: { ...GEMINI_IMAGE_FALLBACK, model: geminiImageModel, fallbackUsed: true },
+          geminiImageModel,
+        };
+      }
+
+      const encryptedSecret = await LlmSettingsRepository.getOpenRouterEncryptedSecret();
+      if (!encryptedSecret) {
+        functions.logger.warn('OpenRouter secret not found; using Gemini for slide images', {
+          capability,
+        });
+        return {
+          route: { ...GEMINI_IMAGE_FALLBACK, model: geminiImageModel, fallbackUsed: true },
+          geminiImageModel,
+        };
+      }
+
+      const apiKey = decryptLlmSecret(encryptedSecret);
+
       const route: ResolvedRoute = {
-        connectionId: 'gemini-image-primary',
-        providerType: 'gemini',
-        model: connection.defaultModel?.trim() || DEFAULT_GEMINI_IMAGE_MODEL,
+        connectionId: 'openrouter-primary',
+        providerType: 'openrouter',
+        model: imageModel,
         fallbackUsed: false,
+        openRouterBaseUrl: connection.baseUrl || OPENROUTER_BASE_URL,
       };
 
-      functions.logger.info('LLM image route resolved', {
-        capability,
+      functions.logger.info(`LLM image route resolved for ${capability}`, {
         providerType: route.providerType,
         model: route.model,
+        fallbackUsed: route.fallbackUsed,
       });
 
-      return route;
+      return { route, openRouterApiKey: apiKey, geminiImageModel };
     } catch (error) {
-      functions.logger.warn('LlmImageRouteResolver error; using default image model', {
+      functions.logger.error('LlmImageRouteResolver error; using Gemini', {
         capability,
         error: error instanceof Error ? error.message : String(error),
       });
-      return { ...GEMINI_IMAGE_FALLBACK, fallbackUsed: true };
+      return {
+        route: { ...GEMINI_IMAGE_FALLBACK, fallbackUsed: true },
+        geminiImageModel: DEFAULT_GEMINI_IMAGE_MODEL,
+      };
     }
   }
 }

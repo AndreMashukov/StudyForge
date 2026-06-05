@@ -389,18 +389,54 @@ export class LlmGenerationService {
     slideContent: string,
     rules?: string
   ): Promise<string | null> {
-    const imageRoute = await LlmImageRouteResolver.resolve('slideDeckImage');
-    return GeminiService.generateSlideImage(
+    const imageResolution = await LlmImageRouteResolver.resolve('slideDeckImage');
+    const prompt = SlideDeckPromptBuilder.buildSlideImagePrompt(
       slideTitle,
       slideContent,
-      rules,
-      imageRoute.model
+      rules
     );
+    return LlmGenerationService.generateSlideImageWithPrompt(prompt, imageResolution);
   }
 
   static async generateSlideImageFromPrompt(prompt: string): Promise<string | null> {
-    const imageRoute = await LlmImageRouteResolver.resolve('slideDeckImage');
-    return GeminiService.generateSlideImageFromPrompt(prompt, imageRoute.model);
+    const imageResolution = await LlmImageRouteResolver.resolve('slideDeckImage');
+    return LlmGenerationService.generateSlideImageWithPrompt(prompt, imageResolution);
+  }
+
+  private static async generateSlideImageWithPrompt(
+    prompt: string,
+    imageResolution: Awaited<ReturnType<typeof LlmImageRouteResolver.resolve>>
+  ): Promise<string | null> {
+    const { route, openRouterApiKey, geminiImageModel } = imageResolution;
+
+    if (route.providerType === 'openrouter' && openRouterApiKey) {
+      try {
+        const client = LlmProviderClientFactory.create(route, openRouterApiKey);
+        const result = await client.generateImage({
+          prompt,
+          config: { model: route.model },
+          imageConfig: { aspectRatio: '16:9' },
+        });
+
+        functions.logger.info('Slide image generated via OpenRouter', {
+          model: result.model,
+          imageBytes: result.imageBase64.length,
+        });
+
+        return result.imageBase64;
+      } catch (error) {
+        functions.logger.warn('OpenRouter image generation failed; falling back to Gemini', {
+          model: route.model,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    functions.logger.info('Slide image generated via Gemini', {
+      model: geminiImageModel,
+    });
+
+    return GeminiService.generateSlideImageFromPrompt(prompt, geminiImageModel);
   }
 
   static async enhanceExtractedDocument(
