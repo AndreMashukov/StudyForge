@@ -246,6 +246,149 @@ export interface GetUserSequenceQuizzesResponse {
   sequenceQuizzes: SequenceQuiz[];
 }
 
+// Subject World — explorable 3D learning world generated from documents
+export interface SubjectWorldSourceReference {
+  documentId: string;
+  sectionHeading: string;
+  excerpt: string;
+}
+
+export interface SubjectWorldPosition {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export type SubjectWorldTheme = 'voxel' | 'museum' | 'outdoor' | 'lab' | 'space';
+export type SubjectWorldLayout = 'room' | 'path' | 'platform' | 'hub';
+export type SubjectWorldPoiType = 'read' | 'collectible' | 'checkpoint';
+export type SubjectWorldGateType = 'quiz' | 'door' | 'bridge';
+
+export interface SubjectWorldPoi {
+  id: string;
+  label: string;
+  summary: string;
+  fullExcerpt: string;
+  position: SubjectWorldPosition;
+  zoneId: string;
+  type: SubjectWorldPoiType;
+  sourceRef: SubjectWorldSourceReference;
+}
+
+export interface SubjectWorldGate {
+  id: string;
+  label: string;
+  zoneId: string;
+  position: SubjectWorldPosition;
+  type: SubjectWorldGateType;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
+  unlocksZoneId?: string;
+  sourceRef: SubjectWorldSourceReference;
+}
+
+export interface SubjectWorldQuest {
+  id: string;
+  title: string;
+  description: string;
+  poiIds: string[];
+  gateIds?: string[];
+  zoneIds: string[];
+}
+
+export interface SubjectWorldConnection {
+  toZoneId: string;
+  label: string;
+  requiresGateId?: string;
+}
+
+export interface SubjectWorldZone {
+  id: string;
+  name: string;
+  description: string;
+  sectionHeading: string;
+  layout: SubjectWorldLayout;
+  origin: SubjectWorldPosition;
+  size: { width: number; depth: number; height: number };
+  connections: SubjectWorldConnection[];
+  documentId?: string;
+}
+
+export interface SubjectWorldSpec {
+  title: string;
+  theme: SubjectWorldTheme;
+  spawn: { zoneId: string; position: SubjectWorldPosition };
+  zones: SubjectWorldZone[];
+  pois: SubjectWorldPoi[];
+  gates: SubjectWorldGate[];
+  quests: SubjectWorldQuest[];
+}
+
+export interface SubjectWorldProgressSnapshot {
+  visitedPoiIds: string[];
+  unlockedGateIds: string[];
+  completedQuestIds: string[];
+  collectedConceptIds: string[];
+  lastPosition?: SubjectWorldPosition;
+  lastZoneId?: string;
+}
+
+export interface SubjectWorld {
+  id: string;
+  userId: string;
+  documentId: string;
+  documentIds?: string[];
+  documentTitle: string;
+  title: string;
+  worldSpec: SubjectWorldSpec;
+  directoryId: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  generationAttempt?: number;
+  followupRuleIds?: string[];
+  appliedRuleIds?: string[];
+  generationStatus?: GenerationStatus;
+  generationError?: string;
+  completedAt?: Timestamp;
+  documentColor?: string;
+  documentColors?: string[];
+}
+
+export interface GenerateSubjectWorldRequest {
+  documentIds: string[];
+  directoryId?: string;
+  subjectWorldName?: string;
+  additionalPrompt?: string;
+  ruleIds?: string[];
+  followupRuleIds?: string[];
+  additionalRuleIds?: string[];
+  ruleResolutionMode?: RuleResolutionMode;
+}
+
+export interface GenerateSubjectWorldResponse {
+  subjectWorldId: string;
+  subjectWorld?: SubjectWorld;
+}
+
+export interface GetSubjectWorldResponse {
+  subjectWorld: SubjectWorld;
+}
+
+export interface GetUserSubjectWorldsResponse {
+  subjectWorlds: SubjectWorld[];
+}
+
+export interface SaveSubjectWorldProgressRequest {
+  subjectWorldId: string;
+  progress: SubjectWorldProgressSnapshot;
+}
+
+export interface SaveSubjectWorldProgressResponse {
+  success: boolean;
+}
+
 // Diagram Quiz — multiple choice where each option is a Mermaid diagram
 export interface DiagramQuizQuestion {
   question: string;
@@ -399,6 +542,8 @@ export interface Directory {
   diagramQuizCount?: number;
   /** Present for directories created after sequence quizzes; treat missing as 0 */
   sequenceQuizCount?: number;
+  /** Present for directories created after subject worlds; treat missing as 0 */
+  subjectWorldCount?: number;
   ruleIds: string[];
   createdAt: Date | { toDate(): Date };
   updatedAt: Date | { toDate(): Date };
@@ -464,13 +609,14 @@ export interface GetDirectoryContentsWithArtifactsResponse extends GetDirectoryC
   slideDecks: SlideDeck[];
   diagramQuizzes: DiagramQuiz[];
   sequenceQuizzes: SequenceQuiz[];
+  subjectWorlds: SubjectWorld[];
   resolvedRules: {
     rules: Rule[];
     inheritanceMap: { [directoryId: string]: Rule[] };
   };
 }
 
-export type ArtifactSummaryType = 'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz';
+export type ArtifactSummaryType = 'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz' | 'subjectWorld';
 
 export interface ArtifactSummary {
   id: string;
@@ -513,6 +659,7 @@ export interface DeleteDirectoryResponse {
   deletedSlideDeckCount: number;
   deletedDiagramQuizCount?: number;
   deletedSequenceQuizCount?: number;
+  deletedSubjectWorldCount?: number;
 }
 
 // Directory Validation Types
@@ -915,7 +1062,7 @@ export interface DirectoryChatMessage {
 }
 
 export interface DirectoryChatArtifactContext {
-  type: 'quiz' | 'diagramQuiz' | 'sequenceQuiz' | 'slideDeck' | 'flashcardSet' | 'document';
+  type: 'quiz' | 'diagramQuiz' | 'sequenceQuiz' | 'slideDeck' | 'flashcardSet' | 'document' | 'subjectWorld';
   title?: string;
   question?: string;
   options?: string[];
@@ -1000,6 +1147,7 @@ export enum RuleApplicability {
   SLIDE_DECK = 'slide_deck',
   DIAGRAM_QUIZ = 'diagram_quiz',
   SEQUENCE_QUIZ = 'sequence_quiz',
+  SUBJECT_WORLD = 'subject_world',
 }
 
 export enum RuleColor {
@@ -1132,7 +1280,8 @@ export type ArtifactType =
   | 'flashcardSet'
   | 'slideDeck'
   | 'diagramQuiz'
-  | 'sequenceQuiz';
+  | 'sequenceQuiz'
+  | 'subjectWorld';
 
 export interface InteractionSession {
   id: string;
@@ -1597,6 +1746,7 @@ export type LlmCapabilityKey =
   | 'directoryChat'
   | 'diagramQuiz'
   | 'sequenceQuiz'
+  | 'subjectWorld'
   | 'slideDeckText'
   | 'slideDeckImage'
   | 'sourceDocumentEnhancement'

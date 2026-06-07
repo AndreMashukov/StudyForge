@@ -28,6 +28,8 @@ import { DiagramQuizPage } from '../pages/DiagramQuizPage';
 import { CreateDiagramQuizPage } from '../pages/CreateDiagramQuizPage';
 import { SequenceQuizPage } from '../pages/SequenceQuizPage';
 import { CreateSequenceQuizPage } from '../pages/CreateSequenceQuizPage';
+import { SubjectWorldPage } from '../pages/SubjectWorldPage';
+import { CreateSubjectWorldPage } from '../pages/CreateSubjectWorldPage';
 import { StatisticsPage } from '../pages/StatisticsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { Page } from '../components/Page';
@@ -270,6 +272,27 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <SequenceQuizPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+
+      <Route
+        path="/subject-world/create"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <CreateSubjectWorldPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/subject-world/:subjectWorldId"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <SubjectWorldPage />
             </ProtectedRoute>
           </MainLayout>
         }

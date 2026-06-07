@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import {
   collection,
   query,
@@ -10,6 +10,7 @@ import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppDispatch } from './redux';
 import { baseApi } from '../store/api/baseApi';
+import { useFirestoreEffect } from './useFirestoreEffect';
 
 /**
  * A single Firestore collection listener configuration.
@@ -57,11 +58,12 @@ export const useFirestoreRealtimeSync = (
   const configsRef = useRef(configs);
   configsRef.current = configs;
 
-  useEffect(() => {
+  useFirestoreEffect(() => {
     if (!enabled || !uid) {
       return;
     }
 
+    let active = true;
     const unsubscribes: Unsubscribe[] = [];
 
     configs.forEach((cfg, idx) => {
@@ -82,6 +84,7 @@ export const useFirestoreRealtimeSync = (
       const unsub = onSnapshot(
         q,
         () => {
+          if (!active) return;
           if (isInitial) {
             isInitial = false;
             if (!configsRef.current[idx].invalidateOnInitial) {
@@ -99,8 +102,8 @@ export const useFirestoreRealtimeSync = (
     });
 
     return () => {
+      active = false;
       unsubscribes.forEach((u) => u());
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, enabled, configKey, dispatch]);
 };
