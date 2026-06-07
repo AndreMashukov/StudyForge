@@ -432,3 +432,85 @@ export async function failPendingSequenceQuiz(userId: string, sequenceQuizId: st
   });
   logger.warn('Pending sequence quiz marked as failed', { sequenceQuizId, userId, error });
 }
+
+// ─── Subject World ────────────────────────────────────────────────────────────
+
+export interface PendingSubjectWorldParams {
+  directoryId: string;
+  documentId: string;
+  documentIds?: string[];
+  documentTitle: string;
+  title: string;
+  userId: string;
+  followupRuleIds?: string[];
+  documentColor?: string;
+  documentColors?: string[];
+}
+
+export async function createPendingSubjectWorld(params: PendingSubjectWorldParams): Promise<string> {
+  const ref = FirestorePaths.subjectWorlds(params.userId).doc();
+  await ref.set({
+    id: ref.id,
+    userId: params.userId,
+    documentId: params.documentId,
+    ...(params.documentIds ? { documentIds: params.documentIds } : {}),
+    documentTitle: params.documentTitle,
+    title: params.title,
+    worldSpec: null,
+    directoryId: params.directoryId,
+    followupRuleIds: params.followupRuleIds || [],
+    appliedRuleIds: [],
+    ...(params.documentColor ? { documentColor: params.documentColor } : {}),
+    ...(params.documentColors ? { documentColors: params.documentColors } : {}),
+    generationStatus: 'pending' as GenerationStatus,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  logger.info('Pending subject world created', { subjectWorldId: ref.id, userId: params.userId });
+  return ref.id;
+}
+
+export async function completePendingSubjectWorld(
+  userId: string,
+  subjectWorldId: string,
+  updates: {
+    title: string;
+    worldSpec: object;
+    appliedRuleIds?: string[];
+    followupRuleIds?: string[];
+    generationAttempt?: number;
+  }
+): Promise<void> {
+  const ref = FirestorePaths.subjectWorld(userId, subjectWorldId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new Error(`Pending subject world ${subjectWorldId} not found`);
+  const data = snap.data() as { directoryId?: string };
+
+  await ref.update({
+    title: updates.title,
+    worldSpec: updates.worldSpec,
+    appliedRuleIds: updates.appliedRuleIds || [],
+    ...(updates.followupRuleIds !== undefined ? { followupRuleIds: updates.followupRuleIds } : {}),
+    generationAttempt: updates.generationAttempt || 1,
+    generationStatus: 'completed' as GenerationStatus,
+    completedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  if (data.directoryId) {
+    await FirestorePaths.directory(userId, data.directoryId).update({
+      subjectWorldCount: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+  logger.info('Pending subject world completed', { subjectWorldId, userId });
+}
+
+export async function failPendingSubjectWorld(userId: string, subjectWorldId: string, error: string): Promise<void> {
+  await FirestorePaths.subjectWorld(userId, subjectWorldId).update({
+    generationStatus: 'failed' as GenerationStatus,
+    generationError: error,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  logger.warn('Pending subject world marked as failed', { subjectWorldId, userId, error });
+}

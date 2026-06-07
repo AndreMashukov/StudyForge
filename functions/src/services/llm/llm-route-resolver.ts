@@ -20,6 +20,7 @@ const OPENROUTER_ELIGIBLE: Set<LlmCapability> = new Set([
   'directoryChat',
   'diagramQuiz',
   'sequenceQuiz',
+  'subjectWorld',
   'slideDeckText',
   'sourceDocumentEnhancement',
   'ruleGeneration',

@@ -17,13 +17,18 @@ import {
  * @param overrideDirectoryId - When provided (e.g. from useParams in
  *   DirectoryDetailPage), this value is used instead of the Redux
  *   `selectedDirectoryId` selector. Pass `null` explicitly for root.
+ * @param options.subdirectoriesOnly - When true, only listen for subfolder
+ *   changes. Use alongside `useDirectoryDocumentsRealtimeCache` to avoid
+ *   duplicate watch targets on the same queries (Firestore SDK ca9 bug).
  */
 export const useRealtimeDirectorySync = (
   overrideDirectoryId?: string | null,
+  options?: { subdirectoriesOnly?: boolean },
 ) => {
   const reduxDirectoryId = useAppSelector(selectSelectedDirectoryId);
   const directoryId =
     overrideDirectoryId !== undefined ? overrideDirectoryId : reduxDirectoryId;
+  const subdirectoriesOnly = options?.subdirectoriesOnly ?? false;
 
   const configs: FirestoreListenerConfig[] = useMemo(() => {
     const dirValue = directoryId ?? null;
@@ -33,13 +38,18 @@ export const useRealtimeDirectorySync = (
       { type: 'Directory' as const, id: 'CONTENTS' },
     ];
 
+    const subdirectoryConfig: FirestoreListenerConfig = {
+      collectionName: 'directories',
+      filters: [{ field: 'parentId', value: dirValue }],
+      tags: directoryTags,
+    };
+
+    if (subdirectoriesOnly) {
+      return [subdirectoryConfig];
+    }
+
     return [
-      // Subdirectories of the current directory
-      {
-        collectionName: 'directories',
-        filters: [{ field: 'parentId', value: dirValue }],
-        tags: directoryTags,
-      },
+      subdirectoryConfig,
       // Documents in the current directory
       {
         collectionName: 'documents',
@@ -77,8 +87,13 @@ export const useRealtimeDirectorySync = (
         filters: [{ field: 'directoryId', value: dirValue }],
         tags: [...directoryTags, 'UserSequenceQuizzes' as const],
       },
+      {
+        collectionName: 'subjectWorlds',
+        filters: [{ field: 'directoryId', value: dirValue }],
+        tags: [...directoryTags, 'UserSubjectWorlds' as const],
+      },
     ];
-  }, [directoryId]);
+  }, [directoryId, subdirectoriesOnly]);
 
   useFirestoreRealtimeSync(configs);
 };

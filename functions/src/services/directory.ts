@@ -24,6 +24,7 @@ import {
   SlideDeck,
   DiagramQuiz,
   SequenceQuiz,
+  SubjectWorld,
   Rule,
 } from '../../libs/shared-types/src/index';
 import { resolveRulesForDirectory } from './rule-resolution';
@@ -520,13 +521,14 @@ export class DirectoryService {
     let slideDecks: SlideDeck[] = [];
     let diagramQuizzes: DiagramQuiz[] = [];
     let sequenceQuizzes: SequenceQuiz[] = [];
+    let subjectWorlds: SubjectWorld[] = [];
     let resolvedRules: { rules: Rule[]; inheritanceMap: { [key: string]: Rule[] } } = {
       rules: [],
       inheritanceMap: {},
     };
 
     if (directoryId && includeArtifacts) {
-      const [qSnap, fSnap, sSnap, dqSnap, sqSnap] = await Promise.all([
+      const [qSnap, fSnap, sSnap, dqSnap, sqSnap, swSnap] = await Promise.all([
         FirestorePaths.quizzes(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
@@ -552,6 +554,11 @@ export class DirectoryService {
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
           .get(),
+        FirestorePaths.subjectWorlds(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .get(),
       ]);
 
       quizzes = qSnap.docs.map(d => ({ ...d.data(), id: d.id } as Quiz));
@@ -559,6 +566,7 @@ export class DirectoryService {
       slideDecks = sSnap.docs.map(d => ({ ...d.data(), id: d.id } as SlideDeck));
       diagramQuizzes = dqSnap.docs.map(d => ({ ...d.data(), id: d.id } as DiagramQuiz));
       sequenceQuizzes = sqSnap.docs.map(d => ({ ...d.data(), id: d.id } as SequenceQuiz));
+      subjectWorlds = swSnap.docs.map(d => ({ ...d.data(), id: d.id } as SubjectWorld));
     }
 
     if (directoryId && includeRules) {
@@ -571,7 +579,8 @@ export class DirectoryService {
       flashcardSets.length +
       slideDecks.length +
       diagramQuizzes.length +
-      sequenceQuizzes.length;
+      sequenceQuizzes.length +
+      subjectWorlds.length;
 
     return {
       ...base,
@@ -580,6 +589,7 @@ export class DirectoryService {
       slideDecks,
       diagramQuizzes,
       sequenceQuizzes,
+      subjectWorlds,
       resolvedRules,
       totalCount,
     };
@@ -606,7 +616,7 @@ export class DirectoryService {
     };
 
     if (directoryId) {
-      const [qSnap, fSnap, sSnap, dqSnap, sqSnap] = await Promise.all([
+      const [qSnap, fSnap, sSnap, dqSnap, sqSnap, swSnap] = await Promise.all([
         FirestorePaths.quizzes(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
@@ -637,6 +647,12 @@ export class DirectoryService {
           .limit(artifactLimit)
           .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
           .get(),
+        FirestorePaths.subjectWorlds(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .select('title', 'createdAt', 'appliedRuleIds', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
+          .get(),
       ]);
 
       const toSummaries = (snap: FirebaseFirestore.QuerySnapshot, type: ArtifactSummaryType): ArtifactSummary[] =>
@@ -658,6 +674,7 @@ export class DirectoryService {
         ...toSummaries(sSnap, 'slideDeck'),
         ...toSummaries(dqSnap, 'diagramQuiz'),
         ...toSummaries(sqSnap, 'sequenceQuiz'),
+        ...toSummaries(swSnap, 'subjectWorld'),
       );
 
       if (includeRules) {

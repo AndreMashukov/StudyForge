@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
 import { Timestamp, collection, onSnapshot, query, where, type DocumentData } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAppDispatch } from '../../../hooks/redux';
+import { useFirestoreEffect } from '../../../hooks/useFirestoreEffect';
 import { directoryApi } from '../../../store/api/Directory/DirectoryApi';
 import type { ArtifactSummary, ArtifactSummaryType, DocumentEnhanced } from '@shared-types';
 
@@ -18,6 +18,7 @@ const REALTIME_COLLECTIONS: RealtimeCollectionConfig[] = [
   { collectionName: 'slideDecks', artifactType: 'slideDeck' },
   { collectionName: 'diagramQuizzes', artifactType: 'diagramQuiz' },
   { collectionName: 'sequenceQuizzes', artifactType: 'sequenceQuiz' },
+  { collectionName: 'subjectWorlds', artifactType: 'subjectWorld' },
 ];
 
 /** Converts Firestore Timestamps to ISO strings so Redux stays serializable. */
@@ -84,9 +85,10 @@ export const useDirectoryDocumentsRealtimeCache = (
   const dispatch = useAppDispatch();
   const uid = user?.uid;
 
-  useEffect(() => {
+  useFirestoreEffect(() => {
     if (!uid || !directoryId) return;
 
+    let active = true;
     const queryArgs = { directoryId, artifactLimit };
     const unsubscribes = REALTIME_COLLECTIONS.map((config) => {
       const q = query(
@@ -99,6 +101,7 @@ export const useDirectoryDocumentsRealtimeCache = (
       return onSnapshot(
         q,
         (snapshot) => {
+          if (!active) return;
           if (isInitial) {
             isInitial = false;
             return;
@@ -146,6 +149,7 @@ export const useDirectoryDocumentsRealtimeCache = (
     });
 
     return () => {
+      active = false;
       unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
   }, [uid, directoryId, artifactLimit, dispatch]);

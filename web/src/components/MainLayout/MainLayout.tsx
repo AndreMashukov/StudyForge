@@ -15,6 +15,7 @@ import { useAppFullscreen } from '../../contexts/FullscreenContext';
 import { Spinner } from '../ui/Spinner';
 import { toggleSidebar } from '../../store/slices/uiSlice';
 import { MascotImage } from '../MascotImage';
+import { DirectoryRealtimeBridge } from '../DirectoryRealtimeBridge';
 
 export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
   const { loading } = useAuth();
@@ -59,6 +60,7 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">
+        <DirectoryRealtimeBridge />
         {children}
       </main>
     </div>

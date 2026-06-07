@@ -15,6 +15,7 @@ const ARTIFACT_LABELS: Record<ArtifactType, string> = {
   slideDeck: 'Slide Decks',
   diagramQuiz: 'Diagram Quizzes',
   sequenceQuiz: 'Sequence Quizzes',
+  subjectWorld: 'Subject Worlds',
 };
 
 export function getArtifactLabel(type: ArtifactType): string {
@@ -137,6 +138,7 @@ export function toStackedBarData(rows: IDirectoryStatRow[]): IStackedBarDatum[] 
     slideDeck: Math.round((r.byArtifactType.slideDeck || 0) / 60 * 10) / 10,
     diagramQuiz: Math.round((r.byArtifactType.diagramQuiz || 0) / 60 * 10) / 10,
     sequenceQuiz: Math.round((r.byArtifactType.sequenceQuiz || 0) / 60 * 10) / 10,
+    subjectWorld: Math.round((r.byArtifactType.subjectWorld || 0) / 60 * 10) / 10,
   }));
 }
 
@@ -201,4 +203,5 @@ export const ARTIFACT_TYPE_COLORS: Record<ArtifactType, string> = {
   slideDeck: 'hsl(38, 92%, 50%)',
   diagramQuiz: 'hsl(340, 82%, 52%)',
   sequenceQuiz: 'hsl(174, 72%, 46%)',
+  subjectWorld: 'hsl(262, 83%, 58%)',
 };
