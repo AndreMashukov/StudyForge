@@ -79,6 +79,15 @@ export const FirestorePaths = {
   sequenceQuiz: (userId: string, sequenceQuizId: string) =>
     FirestorePaths.sequenceQuizzes(userId).doc(sequenceQuizId),
 
+  subjectWorlds: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('subjectWorlds');
+  },
+  subjectWorld: (userId: string, subjectWorldId: string) =>
+    FirestorePaths.subjectWorlds(userId).doc(subjectWorldId),
+  subjectWorldProgress: (userId: string, subjectWorldId: string) =>
+    FirestorePaths.subjectWorld(userId, subjectWorldId).collection('progress'),
+
   interactionSessions: (userId: string) => {
     validateUserId(userId);
     return db().collection('users').doc(userId).collection('interactionSessions');

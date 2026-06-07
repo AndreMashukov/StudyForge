@@ -10,6 +10,7 @@ const EMPTY_ARTIFACT_COUNTS: Record<ArtifactType, number> = {
   slideDeck: 0,
   diagramQuiz: 0,
   sequenceQuiz: 0,
+  subjectWorld: 0,
 };
 
 /**

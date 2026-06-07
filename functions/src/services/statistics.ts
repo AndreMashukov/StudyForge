@@ -71,6 +71,7 @@ const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
   slideDeck: 'Slide deck',
   diagramQuiz: 'Diagram quiz',
   sequenceQuiz: 'Sequence quiz',
+  subjectWorld: 'Subject world',
 };
 
 function normalizeQuizType(value: StatisticsQuizTypeFilter | undefined): StatisticsQuizTypeFilter {
@@ -177,6 +178,8 @@ function getArtifactRef(userId: string, artifactType: ArtifactType, artifactId: 
       return FirestorePaths.flashcardSet(userId, artifactId);
     case 'slideDeck':
       return FirestorePaths.slideDeck(userId, artifactId);
+    case 'subjectWorld':
+      return FirestorePaths.subjectWorld(userId, artifactId);
   }
 }
 

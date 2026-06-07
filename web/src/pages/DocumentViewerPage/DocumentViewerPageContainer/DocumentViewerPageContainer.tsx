@@ -7,7 +7,7 @@ import { MarkdownRenderer, TocItem } from '../../../components/MarkdownRenderer'
 import { Button } from '../../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { BreadcrumbNav } from '../../../components/BreadcrumbNav';
-import { Brain, ArrowLeft, Download, FileDown, List, X, Calendar, Layers, Presentation, Network, ListOrdered } from 'lucide-react';
+import { Brain, ArrowLeft, Download, FileDown, List, X, Calendar, Layers, Presentation, Network, ListOrdered, Box } from 'lucide-react';
 import { useDocumentViewerPageContext } from '../context';
 import { Spinner } from '../../../components/ui/Spinner';
 import { 
@@ -140,6 +140,16 @@ export const DocumentViewerPageContainer = () => {
       params.set('directoryId', directoryId);
     }
     navigate(`/sequence-quiz/create?${params.toString()}`);
+  };
+
+  const handleCreateSubjectWorld = () => {
+    if (!documentId) return;
+    const directoryId = documentApi.data?.directoryId;
+    const params = new URLSearchParams({ documentId });
+    if (directoryId) {
+      params.set('directoryId', directoryId);
+    }
+    navigate(`/subject-world/create?${params.toString()}`);
   };
 
   // Early returns for loading and error states
@@ -282,6 +292,12 @@ export const DocumentViewerPageContainer = () => {
                     label: 'Create Sequence Quiz',
                     icon: <ListOrdered size={16} />,
                     onClick: handleCreateSequenceQuiz,
+                  },
+                  {
+                    id: 'create-subject-world',
+                    label: 'Explore as Game',
+                    icon: <Box size={16} />,
+                    onClick: handleCreateSubjectWorld,
                   },
                 ]}
               />

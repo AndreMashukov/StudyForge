@@ -95,6 +95,15 @@ export {
   deleteSequenceQuiz,
 } from "./endpoints/sequence-quizzes";
 
+export {
+  generateSubjectWorld,
+  getSubjectWorld,
+  getUserSubjectWorlds,
+  deleteSubjectWorld,
+  saveSubjectWorldProgress,
+  getSubjectWorldProgress,
+} from "./endpoints/subject-worlds";
+
 // Export quiz followup functions
 export {
   generateQuizFollowup,

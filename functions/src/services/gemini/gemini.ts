@@ -9,6 +9,7 @@ import {
   DirectoryChatPromptContext,
   IFileContent,
   QuestionKnowledgeMetadata,
+  SubjectWorldSpec,
 } from '@shared-types';
 import { JsonSanitizer } from './json-sanitizer';
 import {
@@ -21,6 +22,7 @@ import {
   SlideDeckPromptBuilder,
   DiagramQuizPromptBuilder,
   SequenceQuizPromptBuilder,
+  SubjectWorldPromptBuilder,
   ScreenshotPromptBuilder,
 } from './prompt-builder';
 import { RulePromptBuilder } from './prompt-builder/rule-prompt-builder';
@@ -69,6 +71,8 @@ export interface GeminiSequenceQuizResponse {
     knowledge?: QuestionKnowledgeMetadata;
   }>;
 }
+
+export type GeminiSubjectWorldResponse = SubjectWorldSpec;
 
 const MERMAID_DIAGRAM_START_RE =
   /^(flowchart|graph|sequenceDiagram|classDiagram|erDiagram|stateDiagram(?:-v2)?)(?:\s|$)/i;
@@ -272,6 +276,63 @@ export class GeminiService {
       }
       throw new Error(
         `Failed to generate sequence quiz: ${
+          error instanceof Error ? error.message : error
+        }`
+      );
+    }
+  }
+
+  /**
+   * Generate a subject world spec for browser 3D exploration.
+   */
+  public static async generateSubjectWorld(
+    content: ScrapedContent,
+    documentIds: string[],
+    additionalPrompt?: string
+  ): Promise<GeminiSubjectWorldResponse> {
+    try {
+      functions.logger.info('Generating subject world with Gemini AI...');
+      JsonSanitizer.validateContentForSafeGeneration(content.content);
+
+      const client = this.getClient();
+      const prompt = SubjectWorldPromptBuilder.buildSubjectWorldPrompt(
+        content,
+        documentIds,
+        additionalPrompt
+      );
+
+      const response = await client.models.generateContent({
+        model: GEMINI_PRO_MODEL,
+        contents: prompt,
+        config: {
+          temperature: 0.5,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 16384,
+        },
+      });
+
+      const text = response.text;
+      if (!text) {
+        throw new Error('Empty response from Gemini API');
+      }
+
+      return this.parseSubjectWorldResponse(text);
+    } catch (error) {
+      functions.logger.error('Error generating subject world:', error);
+      const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+      if (
+        isEmulator &&
+        error instanceof Error &&
+        error.message.includes('User location is not supported')
+      ) {
+        functions.logger.warn(
+          'Geographic restriction in emulator, falling back to mock subject world'
+        );
+        return this.generateMockSubjectWorld(content, documentIds);
+      }
+      throw new Error(
+        `Failed to generate subject world: ${
           error instanceof Error ? error.message : error
         }`
       );
@@ -952,6 +1013,12 @@ This question is derived from: **${context.originalDocument.title}**
     return this.parseSequenceQuizResponse(responseText);
   }
 
+  public static parseSubjectWorldResponseFromText(
+    responseText: string
+  ): GeminiSubjectWorldResponse {
+    return this.parseSubjectWorldResponse(responseText);
+  }
+
   public static sanitizeMarkdownResponse(content: string): string {
     return this.validateAndFixFollowupContent(content);
   }
@@ -1383,6 +1450,129 @@ This question is derived from: **${context.originalDocument.title}**
           items: ['Step A', 'Step B', 'Step C', 'Step D'],
           explanation: 'Mock explanation for local emulator testing.',
           hint: 'The mock labels already imply their order.',
+        },
+      ],
+    };
+  }
+
+  private static parseSubjectWorldResponse(
+    responseText: string
+  ): GeminiSubjectWorldResponse {
+    let cleanText = '';
+    try {
+      cleanText = JsonSanitizer.initialCleanup(responseText);
+      cleanText = JsonSanitizer.sanitizeJsonText(cleanText);
+      cleanText = JsonSanitizer.applyComprehensiveCleanup(cleanText);
+      cleanText = JsonSanitizer.applyStateBased(cleanText);
+      const parsed = JSON.parse(cleanText);
+      this.validateSubjectWorldStructure(parsed);
+      return parsed as GeminiSubjectWorldResponse;
+    } catch (error) {
+      JsonSanitizer.logParsingError(error, responseText, cleanText);
+      try {
+        const fallbackResult = JsonSanitizer.tryFallbackParsing(cleanText) as Record<string, unknown>;
+        this.validateSubjectWorldStructure(fallbackResult);
+        return fallbackResult as unknown as GeminiSubjectWorldResponse;
+      } catch (fallbackError) {
+        functions.logger.error('Subject world parse failed:', fallbackError);
+      }
+      throw new Error(`Failed to parse subject world response: ${error}`);
+    }
+  }
+
+  private static validateSubjectWorldStructure(parsed: Record<string, unknown>): void {
+    if (typeof parsed.title !== 'string' || parsed.title.trim().length === 0) {
+      throw new Error('Invalid subject world: title must be a non-empty string');
+    }
+    if (!Array.isArray(parsed.zones) || parsed.zones.length === 0) {
+      throw new Error('Invalid subject world: zones must be a non-empty array');
+    }
+    if (!Array.isArray(parsed.pois)) {
+      throw new Error('Invalid subject world: pois must be an array');
+    }
+    if (!parsed.spawn || typeof parsed.spawn !== 'object') {
+      throw new Error('Invalid subject world: spawn is required');
+    }
+  }
+
+  private static generateMockSubjectWorld(
+    content: ScrapedContent,
+    documentIds: string[]
+  ): GeminiSubjectWorldResponse {
+    const docId = documentIds[0] ?? 'doc-1';
+    return {
+      title: `Mock World: ${content.title}`,
+      theme: 'voxel',
+      spawn: { zoneId: 'zone-1', position: { x: 0, y: 1.6, z: 0 } },
+      zones: [
+        {
+          id: 'zone-1',
+          name: 'Overview',
+          description: 'Start your exploration here.',
+          sectionHeading: 'Overview',
+          layout: 'hub',
+          origin: { x: 0, y: 0, z: 0 },
+          size: { width: 12, depth: 12, height: 4 },
+          connections: [{ toZoneId: 'zone-2', label: 'Deep dive' }],
+          documentId: docId,
+        },
+        {
+          id: 'zone-2',
+          name: 'Core Concepts',
+          description: 'Key ideas from the source material.',
+          sectionHeading: 'Core Concepts',
+          layout: 'room',
+          origin: { x: 14, y: 0, z: 0 },
+          size: { width: 12, depth: 12, height: 4 },
+          connections: [],
+          documentId: docId,
+        },
+      ],
+      pois: [
+        {
+          id: 'poi-1',
+          label: 'Introduction',
+          summary: 'Overview of the subject.',
+          fullExcerpt: content.content.slice(0, 300),
+          position: { x: 2, y: 1, z: 2 },
+          zoneId: 'zone-1',
+          type: 'read',
+          sourceRef: { documentId: docId, sectionHeading: 'Overview', excerpt: content.content.slice(0, 120) },
+        },
+        {
+          id: 'poi-2',
+          label: 'Key Concept',
+          summary: 'A core idea to understand.',
+          fullExcerpt: content.content.slice(300, 600) || content.content.slice(0, 200),
+          position: { x: 16, y: 1, z: 2 },
+          zoneId: 'zone-2',
+          type: 'collectible',
+          sourceRef: { documentId: docId, sectionHeading: 'Core Concepts', excerpt: content.content.slice(0, 120) },
+        },
+      ],
+      gates: [
+        {
+          id: 'gate-1',
+          label: 'Knowledge Gate',
+          zoneId: 'zone-1',
+          position: { x: 5, y: 1, z: 0 },
+          type: 'quiz',
+          question: 'What is this world teaching?',
+          options: [content.title, 'Unrelated topic', 'Random fact', 'None of the above'],
+          correctAnswer: 0,
+          explanation: 'The world is based on the selected source documents.',
+          unlocksZoneId: 'zone-2',
+          sourceRef: { documentId: docId, sectionHeading: 'Overview', excerpt: content.title },
+        },
+      ],
+      quests: [
+        {
+          id: 'quest-1',
+          title: 'Explore the subject',
+          description: 'Visit all POIs and pass the knowledge gate.',
+          poiIds: ['poi-1', 'poi-2'],
+          gateIds: ['gate-1'],
+          zoneIds: ['zone-1', 'zone-2'],
         },
       ],
     };
