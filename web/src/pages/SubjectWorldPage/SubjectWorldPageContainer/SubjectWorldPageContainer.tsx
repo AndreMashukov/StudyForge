@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { ChevronLeft } from 'lucide-react';
 import { useSubjectWorldPageContext } from '../context/hooks/useSubjectWorldPageContext';
@@ -21,7 +21,15 @@ export const SubjectWorldPageContainer: React.FC = () => {
     const onInteract = () => handlers.handleInteract();
     window.addEventListener('subject-world-interact', onInteract);
     return () => window.removeEventListener('subject-world-interact', onInteract);
-  }, [handlers]);
+  }, [handlers.handleInteract]);
+
+  const handleNearMarkerChange = useCallback(
+    (marker: ISceneMarker | null) => {
+      setNearMarker(marker);
+      handlers.handleNearMarkerChange(marker);
+    },
+    [handlers.handleNearMarkerChange],
+  );
 
   const sceneModel = useMemo(() => {
     if (!subjectWorldApi.subjectWorld?.worldSpec) return null;
@@ -112,10 +120,7 @@ export const SubjectWorldPageContainer: React.FC = () => {
       <div className="h-full w-full">
         <SubjectWorldCanvas
           sceneModel={sceneModel}
-          onNearMarkerChange={(marker) => {
-            setNearMarker(marker);
-            handlers.handleNearMarkerChange(marker);
-          }}
+          onNearMarkerChange={handleNearMarkerChange}
         />
       </div>
       <SubjectWorldInteractionPanel

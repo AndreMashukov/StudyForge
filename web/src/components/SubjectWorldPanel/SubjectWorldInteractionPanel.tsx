@@ -48,7 +48,7 @@ export const SubjectWorldInteractionPanel: React.FC<ISubjectWorldInteractionPane
               <div className="space-y-2">
                 {gate.options.map((option, index) => (
                   <Button
-                    key={option}
+                    key={index}
                     variant={selectedGateAnswer === index ? 'default' : 'outline'}
                     className="w-full justify-start"
                     onClick={() => onSelectGateAnswer(index)}
