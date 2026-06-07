@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, MessageSquare, Send } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp, MessageSquare, Send } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Textarea } from '../ui/Textarea';
 import { Spinner } from '../ui/Spinner';
@@ -19,11 +19,30 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   sourceCount = 0,
   className,
   compact = false,
+  collapsible = false,
+  defaultExpanded,
+  expanded,
+  onExpandedChange,
   seedMessage,
   seedKey,
   artifactContext,
   autoSendSeed = false,
 }) => {
+  const isControlled = expanded !== undefined;
+  const [uncontrolledExpanded, setUncontrolledExpanded] = useState(
+    defaultExpanded ?? !collapsible,
+  );
+  const isExpanded = isControlled ? expanded : uncontrolledExpanded;
+
+  const handleExpandedChange = useCallback(
+    (next: boolean) => {
+      if (!isControlled) {
+        setUncontrolledExpanded(next);
+      }
+      onExpandedChange?.(next);
+    },
+    [isControlled, onExpandedChange],
+  );
   const [message, setMessage] = useState('');
   const [visibleMessages, setVisibleMessages] = useState<IDirectoryChatMessage[]>([]);
   const [optimisticMessages, setOptimisticMessages] = useState<IOptimisticDirectoryChatMessage[]>([]);
@@ -112,11 +131,39 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
     void handleSend(message);
   };
 
+  if (collapsible && !isExpanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => handleExpandedChange(true)}
+        className={cn(
+          'flex items-center gap-2 rounded-lg border border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur transition-colors hover:bg-muted/50',
+          className,
+        )}
+        aria-expanded={false}
+        aria-label="Open directory chat"
+      >
+        <MessageSquare size={18} className="shrink-0 text-primary" />
+        <span className="text-sm font-semibold">Chat</span>
+        <span className="text-xs text-muted-foreground">
+          {effectiveSourceCount} {effectiveSourceCount === 1 ? 'source' : 'sources'}
+        </span>
+        <ChevronUp size={16} className="ml-1 text-muted-foreground" />
+      </button>
+    );
+  }
+
+  const panelHeightClass = collapsible
+    ? 'h-80 w-96'
+    : compact
+      ? 'h-[600px]'
+      : 'h-[800px]';
+
   return (
     <section
       className={cn(
-        'flex h-[800px] flex-col rounded-lg border border-border bg-card/40',
-        compact && 'h-[600px]',
+        'flex flex-col rounded-lg border border-border bg-card/40',
+        panelHeightClass,
         className
       )}
       aria-label="Directory chat"
@@ -131,7 +178,22 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
             </p>
           </div>
         </div>
-        {isLoading && <Spinner size="xs" />}
+        <div className="flex shrink-0 items-center gap-1">
+          {isLoading && <Spinner size="xs" />}
+          {collapsible && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => handleExpandedChange(false)}
+              aria-label="Collapse chat"
+              aria-expanded={true}
+            >
+              <ChevronDown size={16} />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4">

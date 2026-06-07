@@ -23,6 +23,7 @@ import {
   SlideDeckPromptBuilder,
   DiagramQuizPromptBuilder,
   SequenceQuizPromptBuilder,
+  SubjectWorldPromptBuilder,
   ScreenshotPromptBuilder,
 } from '../gemini/prompt-builder';
 import { RulePromptBuilder } from '../gemini/prompt-builder/rule-prompt-builder';
@@ -169,6 +170,30 @@ export class LlmGenerationService {
       'Sequence quiz generated via OpenRouter'
     );
     return GeminiService.parseSequenceQuizResponseFromText(text);
+  }
+
+  static async generateSubjectWorld(
+    content: ScrapedContent,
+    documentIds: string[],
+    additionalPrompt?: string
+  ): Promise<import('../gemini/gemini').GeminiSubjectWorldResponse> {
+    const ctx = await resolveTextRoute('subjectWorld', 'subjectWorld');
+    if (!ctx.usesOpenRouter) {
+      return GeminiService.generateSubjectWorld(content, documentIds, additionalPrompt);
+    }
+
+    const prompt = SubjectWorldPromptBuilder.buildSubjectWorldPrompt(
+      content,
+      documentIds,
+      additionalPrompt
+    );
+    const text = await generateOpenRouterText(
+      ctx,
+      prompt,
+      { model: ctx.resolution.route.model, temperature: 0.5, topK: 40, topP: 0.95, maxOutputTokens: 16384 },
+      'Subject world generated via OpenRouter'
+    );
+    return GeminiService.parseSubjectWorldResponseFromText(text);
   }
 
   static async generateFlashcards(

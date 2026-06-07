@@ -652,6 +652,65 @@ export class FirestoreService {
       );
     }
   }
+
+  public static async getSubjectWorld(
+    subjectWorldId: string,
+    userId: string
+  ): Promise<import('@shared-types').SubjectWorld | null> {
+    try {
+      const snap = await FirestorePaths.subjectWorld(userId, subjectWorldId).get();
+      if (!snap.exists) return null;
+      return { id: snap.id, ...snap.data() } as import('@shared-types').SubjectWorld;
+    } catch (error) {
+      functions.logger.error(`Error getSubjectWorld ${subjectWorldId}:`, error);
+      throw new Error('Failed to fetch subject world');
+    }
+  }
+
+  public static async getUserSubjectWorlds(userId: string): Promise<import('@shared-types').SubjectWorld[]> {
+    try {
+      const snapshot = await FirestorePaths.subjectWorlds(userId)
+        .orderBy('createdAt', 'desc')
+        .get();
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as import('@shared-types').SubjectWorld));
+    } catch (error) {
+      functions.logger.error(`getUserSubjectWorlds ${userId}:`, error);
+      throw new Error('Failed to list subject worlds');
+    }
+  }
+
+  public static async deleteSubjectWorld(
+    subjectWorldId: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      const ref = FirestorePaths.subjectWorld(userId, subjectWorldId);
+      const db = this.getDb();
+      await db.runTransaction(async (transaction) => {
+        const snap = await transaction.get(ref);
+        if (!snap.exists) {
+          throw new Error('Subject world not found');
+        }
+        const data = snap.data() as import('@shared-types').SubjectWorld;
+        transaction.delete(ref);
+        if (data.directoryId && (!data.generationStatus || data.generationStatus === 'completed')) {
+          const dirRef = FirestorePaths.directory(userId, data.directoryId);
+          transaction.update(dirRef, {
+            subjectWorldCount: FieldValue.increment(-1),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      });
+      functions.logger.info(`Deleted subject world: ${subjectWorldId}`);
+    } catch (error) {
+      functions.logger.error(`deleteSubjectWorld ${subjectWorldId}:`, error);
+      throw new Error(
+        `Failed to delete subject world: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
 }
 
 // Initialize Firestore on module load

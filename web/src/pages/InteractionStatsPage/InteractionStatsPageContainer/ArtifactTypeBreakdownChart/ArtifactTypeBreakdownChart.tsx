@@ -29,6 +29,7 @@ const STACKED_KEYS: ArtifactType[] = [
   'slideDeck',
   'diagramQuiz',
   'sequenceQuiz',
+  'subjectWorld',
 ];
 
 export const ArtifactTypeBreakdownChart: React.FC<
