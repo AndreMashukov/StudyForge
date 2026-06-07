@@ -5,7 +5,7 @@ import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow } from './ArtifactRow';
 
-interface SubjectWorldsPanelProps {
+interface ISubjectWorldsPanelProps {
   subjectWorlds: ArtifactSummary[];
   directoryId: string;
   mayBeTruncated?: boolean;
@@ -13,7 +13,7 @@ interface SubjectWorldsPanelProps {
   ruleNamesMap?: Map<string, string>;
 }
 
-export const SubjectWorldsPanel: React.FC<SubjectWorldsPanelProps> = ({
+export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
   subjectWorlds,
   directoryId,
   mayBeTruncated = false,
