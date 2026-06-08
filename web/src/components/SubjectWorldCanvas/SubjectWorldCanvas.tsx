@@ -1,15 +1,93 @@
 import React, { useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { PointerLockControls, Text } from '@react-three/drei';
+import { Float, Html, Outlines, PointerLockControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { ISceneMarker, ISceneModel } from '../../pages/SubjectWorldPage/utils/subjectWorldSceneAdapter';
 
 interface ISubjectWorldCanvasProps {
   sceneModel: ISceneModel;
+  nearestMarkerId: string | null;
   onNearMarkerChange: (marker: ISceneMarker | null) => void;
+  onMarkerClick: (marker: ISceneMarker) => void;
 }
 
 const INTERACT_DISTANCE = 3.5;
+
+interface ISceneMarkerMeshProps {
+  marker: ISceneMarker;
+  isNearest: boolean;
+  onMarkerClick: (marker: ISceneMarker) => void;
+}
+
+function SceneMarkerMesh({ marker, isNearest, onMarkerClick }: ISceneMarkerMeshProps) {
+  const canInteract =
+    isNearest && (marker.kind === 'poi' || marker.locked === true);
+
+  const baseColor =
+    marker.kind === 'gate'
+      ? marker.locked
+        ? '#ef4444'
+        : '#f59e0b'
+      : '#22c55e';
+  const emissiveColor =
+    marker.kind === 'gate'
+      ? marker.locked
+        ? '#7f1d1d'
+        : '#78350f'
+      : '#14532d';
+
+  const mesh = (
+    <mesh
+      onClick={(event) => {
+        event.stopPropagation();
+        if (canInteract) {
+          onMarkerClick(marker);
+        }
+      }}
+      onPointerOver={(event) => {
+        if (canInteract) {
+          event.stopPropagation();
+          document.body.style.cursor = 'pointer';
+        }
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = 'default';
+      }}
+    >
+      <boxGeometry args={[0.6, 0.6, 0.6]} />
+      <meshStandardMaterial
+        color={baseColor}
+        emissive={emissiveColor}
+        emissiveIntensity={isNearest ? 0.7 : 0.4}
+      />
+      {isNearest && canInteract && (
+        <Outlines thickness={0.04} color="#ffffff" screenspace />
+      )}
+    </mesh>
+  );
+
+  return (
+    <group position={[marker.x, marker.y + 1.2, marker.z]}>
+      {isNearest && canInteract ? (
+        <Float speed={2} rotationIntensity={0.2} floatIntensity={0.6}>
+          {mesh}
+        </Float>
+      ) : (
+        mesh
+      )}
+      <Text position={[0, 0.8, 0]} fontSize={0.25} color="#ffffff" anchorX="center">
+        {marker.label}
+      </Text>
+      {isNearest && canInteract && (
+        <Html position={[0, 1.6, 0]} center distanceFactor={12} zIndexRange={[100, 0]}>
+          <div className="pointer-events-none whitespace-nowrap rounded-md border border-border bg-background/90 px-2 py-1 text-xs text-foreground shadow-md">
+            Press E or Click
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+}
 
 function PlayerMovement() {
   const { camera } = useThree();
@@ -63,6 +141,7 @@ function PointerLockCleanup() {
       if (document.pointerLockElement) {
         document.exitPointerLock();
       }
+      document.body.style.cursor = 'default';
     },
     [],
   );
@@ -71,7 +150,9 @@ function PointerLockCleanup() {
 
 function SceneContent({
   sceneModel,
+  nearestMarkerId,
   onNearMarkerChange,
+  onMarkerClick,
 }: ISubjectWorldCanvasProps) {
   const { camera } = useThree();
 
@@ -103,19 +184,12 @@ function SceneContent({
         </mesh>
       ))}
       {sceneModel.markers.map((marker) => (
-        <group key={marker.id} position={[marker.x, marker.y + 1.2, marker.z]}>
-          <mesh>
-            <boxGeometry args={[0.6, 0.6, 0.6]} />
-            <meshStandardMaterial
-              color={marker.kind === 'gate' ? (marker.locked ? '#ef4444' : '#f59e0b') : '#22c55e'}
-              emissive={marker.kind === 'gate' ? (marker.locked ? '#7f1d1d' : '#78350f') : '#14532d'}
-              emissiveIntensity={0.4}
-            />
-          </mesh>
-          <Text position={[0, 0.8, 0]} fontSize={0.25} color="#ffffff" anchorX="center">
-            {marker.label}
-          </Text>
-        </group>
+        <SceneMarkerMesh
+          key={marker.id}
+          marker={marker}
+          isNearest={nearestMarkerId === marker.id}
+          onMarkerClick={onMarkerClick}
+        />
       ))}
       <PlayerMovement />
       <PointerLockControls />
@@ -126,7 +200,9 @@ function SceneContent({
 
 export const SubjectWorldCanvas: React.FC<ISubjectWorldCanvasProps> = ({
   sceneModel,
+  nearestMarkerId,
   onNearMarkerChange,
+  onMarkerClick,
 }) => {
   const cameraPosition = useMemo(
     () => [sceneModel.spawn.x, sceneModel.spawn.y, sceneModel.spawn.z] as [number, number, number],
@@ -138,7 +214,12 @@ export const SubjectWorldCanvas: React.FC<ISubjectWorldCanvasProps> = ({
       camera={{ position: cameraPosition, fov: 75, near: 0.1, far: 500 }}
       className="h-full w-full bg-black"
     >
-      <SceneContent sceneModel={sceneModel} onNearMarkerChange={onNearMarkerChange} />
+      <SceneContent
+        sceneModel={sceneModel}
+        nearestMarkerId={nearestMarkerId}
+        onNearMarkerChange={onNearMarkerChange}
+        onMarkerClick={onMarkerClick}
+      />
     </Canvas>
   );
 };
