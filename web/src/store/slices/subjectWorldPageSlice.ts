@@ -14,11 +14,14 @@ export type SubjectWorldGameplayPhase =
   | 'answeringGate'
   | 'completed';
 
+export type SubjectWorldGateAnswerFeedback = 'none' | 'wrong' | 'correct';
+
 export interface ISubjectWorldPageState {
   phase: SubjectWorldGameplayPhase;
   activePoi: SubjectWorldPoi | null;
   activeGate: SubjectWorldGate | null;
   selectedGateAnswer: number | null;
+  gateAnswerFeedback: SubjectWorldGateAnswerFeedback;
   progress: SubjectWorldProgressSnapshot;
 }
 
@@ -34,6 +37,7 @@ const initialState: ISubjectWorldPageState = {
   activePoi: null,
   activeGate: null,
   selectedGateAnswer: null,
+  gateAnswerFeedback: 'none',
   progress: emptyProgress(),
 };
 
@@ -53,6 +57,7 @@ const subjectWorldPageSlice = createSlice({
       state.activePoi = action.payload;
       state.activeGate = null;
       state.selectedGateAnswer = null;
+      state.gateAnswerFeedback = 'none';
       state.phase = 'readingPoi';
       if (!state.progress.visitedPoiIds.includes(action.payload.id)) {
         state.progress.visitedPoiIds.push(action.payload.id);
@@ -72,20 +77,27 @@ const subjectWorldPageSlice = createSlice({
       state.activeGate = action.payload;
       state.activePoi = null;
       state.selectedGateAnswer = null;
+      state.gateAnswerFeedback = 'none';
       state.phase = 'answeringGate';
     },
     closeGate: (state) => {
       state.activeGate = null;
       state.selectedGateAnswer = null;
+      state.gateAnswerFeedback = 'none';
       state.phase = 'exploring';
     },
     selectGateAnswer: (state, action: PayloadAction<number>) => {
       state.selectedGateAnswer = action.payload;
+      state.gateAnswerFeedback = 'none';
+    },
+    setGateAnswerWrong: (state) => {
+      state.gateAnswerFeedback = 'wrong';
     },
     unlockGate: (state, action: PayloadAction<string>) => {
       if (!state.progress.unlockedGateIds.includes(action.payload)) {
         state.progress.unlockedGateIds.push(action.payload);
       }
+      state.gateAnswerFeedback = 'correct';
       state.activeGate = null;
       state.selectedGateAnswer = null;
       state.phase = 'exploring';
@@ -117,6 +129,7 @@ export const {
   openGate,
   closeGate,
   selectGateAnswer,
+  setGateAnswerWrong,
   unlockGate,
   completeQuest,
   setLastPosition,
@@ -136,6 +149,33 @@ export function isQuestComplete(
     (id) => progress.unlockedGateIds.includes(id)
   );
   return poisDone && gatesDone;
+}
+
+export function getQuestProgress(
+  quest: SubjectWorldQuest,
+  progress: SubjectWorldProgressSnapshot
+): { completed: number; total: number } {
+  const poiTotal = quest.poiIds.length;
+  const gateTotal = quest.gateIds?.length ?? 0;
+  const poiDone = quest.poiIds.filter((id) => progress.visitedPoiIds.includes(id)).length;
+  const gateDone = (quest.gateIds ?? []).filter((id) =>
+    progress.unlockedGateIds.includes(id)
+  ).length;
+  return {
+    completed: poiDone + gateDone,
+    total: poiTotal + gateTotal,
+  };
+}
+
+export function areAllQuestsComplete(
+  quests: SubjectWorldQuest[],
+  progress: SubjectWorldProgressSnapshot
+): boolean {
+  if (quests.length === 0) return false;
+  return quests.every(
+    (quest) =>
+      isQuestComplete(quest, progress) || progress.completedQuestIds.includes(quest.id)
+  );
 }
 
 export default subjectWorldPageSlice.reducer;

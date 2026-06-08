@@ -13,7 +13,11 @@ interface ISubjectWorldPageProviderProps {
 export const SubjectWorldPageProvider = ({ children }: ISubjectWorldPageProviderProps) => {
   const fetchApi = useFetchSubjectWorldData();
   const handlers = useSubjectWorldPageHandlers(fetchApi.subjectWorld);
-  useSubjectWorldPageEffects(fetchApi.subjectWorldId, fetchApi.progress);
+  useSubjectWorldPageEffects(
+    fetchApi.subjectWorldId,
+    fetchApi.progress,
+    fetchApi.subjectWorld?.worldSpec.quests
+  );
 
   useInteractionTracker({
     artifactId: fetchApi.subjectWorld?.id,

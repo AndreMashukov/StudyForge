@@ -1,16 +1,21 @@
 import { useEffect } from 'react';
-import { useDispatch } from 'react-redux';
-import { SubjectWorldProgressSnapshot } from '@shared-types';
+import { useDispatch, useSelector } from 'react-redux';
+import { SubjectWorldProgressSnapshot, SubjectWorldQuest } from '@shared-types';
 import {
+  areAllQuestsComplete,
   loadSubjectWorldProgress,
+  markWorldCompleted,
   resetSubjectWorldPage,
+  selectSubjectWorldPageState,
 } from '../../../../store/slices/subjectWorldPageSlice';
 
 export const useSubjectWorldPageEffects = (
   subjectWorldId: string | undefined,
-  progress: SubjectWorldProgressSnapshot | null | undefined
+  progress: SubjectWorldProgressSnapshot | null | undefined,
+  quests: SubjectWorldQuest[] | undefined
 ) => {
   const dispatch = useDispatch();
+  const pageState = useSelector(selectSubjectWorldPageState);
 
   useEffect(() => {
     dispatch(resetSubjectWorldPage());
@@ -21,6 +26,13 @@ export const useSubjectWorldPageEffects = (
       dispatch(loadSubjectWorldProgress(progress));
     }
   }, [progress, dispatch]);
+
+  useEffect(() => {
+    if (!quests?.length || pageState.phase === 'completed') return;
+    if (areAllQuestsComplete(quests, pageState.progress)) {
+      dispatch(markWorldCompleted());
+    }
+  }, [dispatch, pageState.phase, pageState.progress, quests]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

@@ -14,21 +14,30 @@ import { DirectoryChatPanel } from '../../../components/DirectoryChatPanel';
 
 export const SubjectWorldPageContainer: React.FC = () => {
   const { subjectWorldApi, handlers } = useSubjectWorldPageContext();
+  const {
+    handleInteract,
+    handleNearMarkerChange: syncNearMarker,
+    handleInteractMarker,
+    handleBackToDirectory,
+    handleClosePanel,
+    handleSelectGateAnswer,
+    handleSubmitGateAnswer,
+  } = handlers;
   const pageState = useSelector(selectSubjectWorldPageState);
   const [nearMarker, setNearMarker] = useState<ISceneMarker | null>(null);
 
   useEffect(() => {
-    const onInteract = () => handlers.handleInteract();
+    const onInteract = () => handleInteract();
     window.addEventListener('subject-world-interact', onInteract);
     return () => window.removeEventListener('subject-world-interact', onInteract);
-  }, [handlers.handleInteract]);
+  }, [handleInteract]);
 
   const handleNearMarkerChange = useCallback(
     (marker: ISceneMarker | null) => {
       setNearMarker(marker);
-      handlers.handleNearMarkerChange(marker);
+      syncNearMarker(marker);
     },
-    [handlers.handleNearMarkerChange],
+    [syncNearMarker],
   );
 
   const sceneModel = useMemo(() => {
@@ -42,7 +51,7 @@ export const SubjectWorldPageContainer: React.FC = () => {
   const backButton = (
     <button
       type="button"
-      onClick={handlers.handleBackToDirectory}
+      onClick={handleBackToDirectory}
       className="absolute left-4 top-4 z-30 flex items-center gap-1 rounded-md bg-background/80 px-3 py-2 text-sm font-medium text-muted-foreground backdrop-blur transition-colors hover:text-foreground"
     >
       <ChevronLeft className="h-4 w-4 shrink-0" />
@@ -116,21 +125,43 @@ export const SubjectWorldPageContainer: React.FC = () => {
         quests={world.worldSpec.quests}
         progress={pageState.progress}
         nearMarker={nearMarker}
+        isWorldComplete={pageState.phase === 'completed'}
       />
       <div className="h-full w-full">
         <SubjectWorldCanvas
           sceneModel={sceneModel}
+          nearestMarkerId={nearMarker?.id ?? null}
           onNearMarkerChange={handleNearMarkerChange}
+          onMarkerClick={handleInteractMarker}
         />
       </div>
       <SubjectWorldInteractionPanel
         poi={pageState.activePoi}
         gate={pageState.activeGate}
         selectedGateAnswer={pageState.selectedGateAnswer}
-        onClose={handlers.handleClosePanel}
-        onSelectGateAnswer={handlers.handleSelectGateAnswer}
-        onSubmitGateAnswer={handlers.handleSubmitGateAnswer}
+        gateAnswerFeedback={pageState.gateAnswerFeedback}
+        onClose={handleClosePanel}
+        onSelectGateAnswer={handleSelectGateAnswer}
+        onSubmitGateAnswer={handleSubmitGateAnswer}
       />
+      {pageState.phase === 'completed' && (
+        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="pointer-events-auto mx-4 max-w-md rounded-lg border border-accent/40 bg-background/95 px-6 py-5 text-center shadow-xl">
+            <p className="text-sm font-medium uppercase tracking-wide text-accent">World complete</p>
+            <h2 className="mt-2 text-2xl font-bold">{world.title}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              You finished every quest. Explore freely or head back to your directory.
+            </p>
+            <button
+              type="button"
+              onClick={handleBackToDirectory}
+              className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Back to directory
+            </button>
+          </div>
+        </div>
+      )}
       {directoryId && (
         <div className="absolute bottom-4 right-4 z-20 max-w-[calc(100vw-2rem)]">
           <DirectoryChatPanel
