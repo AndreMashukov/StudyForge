@@ -1,5 +1,5 @@
 import React from 'react';
-import { SubjectWorldQuest, SubjectWorldProgressSnapshot } from '@shared-types';
+import { SubjectWorldQuest, SubjectWorldProgressSnapshot, SubjectWorldTheme } from '@shared-types';
 import {
   getQuestProgress,
   isQuestComplete,
@@ -13,7 +13,18 @@ interface ISubjectWorldHudProps {
   progress: SubjectWorldProgressSnapshot;
   nearMarker: ISceneMarker | null;
   isWorldComplete?: boolean;
+  theme?: SubjectWorldTheme;
+  accessibleZoneCount?: number;
+  totalZoneCount?: number;
 }
+
+const THEME_LABELS: Record<SubjectWorldTheme, string> = {
+  voxel: 'Voxel',
+  museum: 'Museum',
+  outdoor: 'Outdoor',
+  lab: 'Lab',
+  space: 'Space',
+};
 
 export const SubjectWorldHud: React.FC<ISubjectWorldHudProps> = ({
   title,
@@ -21,6 +32,9 @@ export const SubjectWorldHud: React.FC<ISubjectWorldHudProps> = ({
   progress,
   nearMarker,
   isWorldComplete = false,
+  theme = 'voxel',
+  accessibleZoneCount,
+  totalZoneCount,
 }) => {
   const visitedCount = progress.visitedPoiIds.length;
 
@@ -32,7 +46,11 @@ export const SubjectWorldHud: React.FC<ISubjectWorldHudProps> = ({
           WASD to move · Click canvas to capture mouse · Press E or click markers to interact
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          POIs visited: {visitedCount}
+          Theme: {THEME_LABELS[theme]}
+          {totalZoneCount && totalZoneCount > 1 && accessibleZoneCount !== undefined
+            ? ` · Zones unlocked: ${accessibleZoneCount}/${totalZoneCount}`
+            : ''}
+          {' · '}POIs visited: {visitedCount}
           {nearMarker ? ` · Near: ${nearMarker.label}` : ''}
         </p>
         {isWorldComplete && (

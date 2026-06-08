@@ -1,12 +1,19 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { ChevronLeft } from 'lucide-react';
+import { SubjectWorldZone } from '@shared-types';
 import { useSubjectWorldPageContext } from '../context/hooks/useSubjectWorldPageContext';
 import { Spinner } from '../../../components/ui/Spinner';
-import { SubjectWorldCanvas } from '../../../components/SubjectWorldCanvas';
+import { SubjectWorldCanvas, ISubjectWorldUnlockCelebration } from '../../../components/SubjectWorldCanvas';
 import { SubjectWorldHud } from '../../../components/SubjectWorldHud';
+import { SubjectWorldZoneBanner } from '../../../components/SubjectWorldZoneBanner';
 import { SubjectWorldInteractionPanel } from '../../../components/SubjectWorldPanel';
-import { adaptSubjectWorldSpecToSceneModel, ISceneMarker } from '../utils/subjectWorldSceneAdapter';
+import {
+  adaptSubjectWorldSpecToSceneModel,
+  findGateMarkerPosition,
+  findPortalForGateUnlock,
+  ISceneMarker,
+} from '../utils/subjectWorldSceneAdapter';
 import {
   selectSubjectWorldPageState,
 } from '../../../store/slices/subjectWorldPageSlice';
@@ -25,6 +32,11 @@ export const SubjectWorldPageContainer: React.FC = () => {
   } = handlers;
   const pageState = useSelector(selectSubjectWorldPageState);
   const [nearMarker, setNearMarker] = useState<ISceneMarker | null>(null);
+  const [zoneBanner, setZoneBanner] = useState<SubjectWorldZone | null>(null);
+  const [unlockCelebration, setUnlockCelebration] = useState<ISubjectWorldUnlockCelebration | null>(null);
+  const prevUnlockedGateIdsRef = useRef<string[]>([]);
+  const zoneBannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unlockCelebrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const onInteract = () => handleInteract();
@@ -47,6 +59,57 @@ export const SubjectWorldPageContainer: React.FC = () => {
       pageState.progress.unlockedGateIds
     );
   }, [subjectWorldApi.subjectWorld?.worldSpec, pageState.progress.unlockedGateIds]);
+
+  const handleZoneEnter = useCallback((zone: SubjectWorldZone | null) => {
+    if (!zone) return;
+
+    setZoneBanner(zone);
+    if (zoneBannerTimeoutRef.current) {
+      clearTimeout(zoneBannerTimeoutRef.current);
+    }
+    zoneBannerTimeoutRef.current = setTimeout(() => {
+      setZoneBanner(null);
+    }, 3500);
+  }, []);
+
+  useEffect(() => {
+    const prevIds = prevUnlockedGateIdsRef.current;
+    const currentIds = pageState.progress.unlockedGateIds;
+    const newlyUnlocked = currentIds.find((id) => !prevIds.includes(id));
+    prevUnlockedGateIdsRef.current = currentIds;
+
+    if (!newlyUnlocked || !sceneModel) return;
+
+    const portal = findPortalForGateUnlock(sceneModel, newlyUnlocked);
+    const gatePosition = findGateMarkerPosition(sceneModel, newlyUnlocked);
+    const position = portal
+      ? { x: portal.x, y: portal.y + 1.5, z: portal.z }
+      : gatePosition;
+
+    if (!position) return;
+
+    setUnlockCelebration({
+      gateId: newlyUnlocked,
+      x: position.x,
+      y: position.y,
+      z: position.z,
+    });
+
+    if (unlockCelebrationTimeoutRef.current) {
+      clearTimeout(unlockCelebrationTimeoutRef.current);
+    }
+    unlockCelebrationTimeoutRef.current = setTimeout(() => {
+      setUnlockCelebration(null);
+    }, 2500);
+  }, [pageState.progress.unlockedGateIds, sceneModel]);
+
+  useEffect(
+    () => () => {
+      if (zoneBannerTimeoutRef.current) clearTimeout(zoneBannerTimeoutRef.current);
+      if (unlockCelebrationTimeoutRef.current) clearTimeout(unlockCelebrationTimeoutRef.current);
+    },
+    []
+  );
 
   const backButton = (
     <button
@@ -126,13 +189,19 @@ export const SubjectWorldPageContainer: React.FC = () => {
         progress={pageState.progress}
         nearMarker={nearMarker}
         isWorldComplete={pageState.phase === 'completed'}
+        theme={world.worldSpec.theme}
+        accessibleZoneCount={sceneModel.accessibleZoneIds.length}
+        totalZoneCount={sceneModel.zones.length}
       />
+      <SubjectWorldZoneBanner zone={zoneBanner} />
       <div className="h-full w-full">
         <SubjectWorldCanvas
           sceneModel={sceneModel}
           nearestMarkerId={nearMarker?.id ?? null}
           onNearMarkerChange={handleNearMarkerChange}
           onMarkerClick={handleInteractMarker}
+          onZoneEnter={handleZoneEnter}
+          unlockCelebration={unlockCelebration}
         />
       </div>
       <SubjectWorldInteractionPanel
