@@ -66,6 +66,19 @@ export function normalizeSubjectWorldSpec(
           height: clamp(zone.size.height ?? 4, 2, 8),
         }
       : { width: 12, depth: 12, height: 4 };
+    const rawConnections = Array.isArray(zone.connections) ? zone.connections : [];
+    const connections = rawConnections
+      .filter((connection) => typeof connection.toZoneId === 'string')
+      .map((connection) => ({
+        toZoneId: connection.toZoneId,
+        label: typeof connection.label === 'string' && connection.label.trim()
+          ? connection.label.trim()
+          : 'Continue',
+        ...(typeof connection.requiresGateId === 'string' && connection.requiresGateId.trim()
+          ? { requiresGateId: connection.requiresGateId.trim() }
+          : {}),
+      }));
+
     return {
       id,
       name: typeof zone.name === 'string' && zone.name.trim() ? zone.name.trim() : `Zone ${index + 1}`,
@@ -76,7 +89,7 @@ export function normalizeSubjectWorldSpec(
         : 'room',
       origin,
       size,
-      connections: Array.isArray(zone.connections) ? zone.connections : [],
+      connections,
       documentId: typeof zone.documentId === 'string' ? zone.documentId : documentIds[index % documentIds.length],
     };
   });
@@ -122,6 +135,11 @@ export function normalizeSubjectWorldSpec(
         ? gate.options.slice(0, 4).map((o) => String(o))
         : ['Option A', 'Option B', 'Option C', 'Option D'];
       const correctAnswer = clamp(typeof gate.correctAnswer === 'number' ? gate.correctAnswer : 0, 0, options.length - 1);
+      const unlocksZoneId =
+        typeof gate.unlocksZoneId === 'string' && zoneIds.has(gate.unlocksZoneId)
+          ? gate.unlocksZoneId
+          : null;
+
       return {
         id: typeof gate.id === 'string' && gate.id.trim() ? gate.id.trim() : `gate-${index + 1}`,
         label: typeof gate.label === 'string' && gate.label.trim() ? gate.label.trim() : `Gate ${index + 1}`,
@@ -136,9 +154,7 @@ export function normalizeSubjectWorldSpec(
         options,
         correctAnswer,
         explanation: typeof gate.explanation === 'string' ? gate.explanation : '',
-        unlocksZoneId: typeof gate.unlocksZoneId === 'string' && zoneIds.has(gate.unlocksZoneId)
-          ? gate.unlocksZoneId
-          : undefined,
+        ...(unlocksZoneId ? { unlocksZoneId } : {}),
         sourceRef: {
           documentId: gate.sourceRef?.documentId ?? zone.documentId ?? primaryDocId,
           sectionHeading: gate.sourceRef?.sectionHeading ?? zone.sectionHeading,
@@ -149,6 +165,19 @@ export function normalizeSubjectWorldSpec(
 
   const poiIds = new Set(pois.map((p) => p.id));
   const gateIds = new Set(gates.map((g) => g.id));
+
+  zones = zones.map((zone) => ({
+    ...zone,
+    connections: zone.connections
+      .filter((connection) => zoneIds.has(connection.toZoneId))
+      .map((connection) => ({
+        toZoneId: connection.toZoneId,
+        label: connection.label,
+        ...(connection.requiresGateId && gateIds.has(connection.requiresGateId)
+          ? { requiresGateId: connection.requiresGateId }
+          : {}),
+      })),
+  }));
 
   const quests: SubjectWorldQuest[] = (Array.isArray(raw.quests) ? raw.quests : [])
     .slice(0, MAX_QUESTS)
