@@ -2,6 +2,7 @@ import { PayloadAction, createSlice } from '@reduxjs/toolkit';
 import { RootState } from '../index';
 import {
   SubjectWorldGate,
+  SubjectWorldNpc,
   SubjectWorldPoi,
   SubjectWorldProgressSnapshot,
   SubjectWorldQuest,
@@ -12,6 +13,7 @@ export type SubjectWorldGameplayPhase =
   | 'exploring'
   | 'readingPoi'
   | 'answeringGate'
+  | 'talkingToNpc'
   | 'completed';
 
 export type SubjectWorldGateAnswerFeedback = 'none' | 'wrong' | 'correct';
@@ -20,6 +22,8 @@ export interface ISubjectWorldPageState {
   phase: SubjectWorldGameplayPhase;
   activePoi: SubjectWorldPoi | null;
   activeGate: SubjectWorldGate | null;
+  activeNpc: SubjectWorldNpc | null;
+  activeDialogueNodeId: string | null;
   selectedGateAnswer: number | null;
   gateAnswerFeedback: SubjectWorldGateAnswerFeedback;
   progress: SubjectWorldProgressSnapshot;
@@ -36,6 +40,8 @@ const initialState: ISubjectWorldPageState = {
   phase: 'loading',
   activePoi: null,
   activeGate: null,
+  activeNpc: null,
+  activeDialogueNodeId: null,
   selectedGateAnswer: null,
   gateAnswerFeedback: 'none',
   progress: emptyProgress(),
@@ -56,6 +62,8 @@ const subjectWorldPageSlice = createSlice({
     openPoi: (state, action: PayloadAction<SubjectWorldPoi>) => {
       state.activePoi = action.payload;
       state.activeGate = null;
+      state.activeNpc = null;
+      state.activeDialogueNodeId = null;
       state.selectedGateAnswer = null;
       state.gateAnswerFeedback = 'none';
       state.phase = 'readingPoi';
@@ -76,6 +84,8 @@ const subjectWorldPageSlice = createSlice({
     openGate: (state, action: PayloadAction<SubjectWorldGate>) => {
       state.activeGate = action.payload;
       state.activePoi = null;
+      state.activeNpc = null;
+      state.activeDialogueNodeId = null;
       state.selectedGateAnswer = null;
       state.gateAnswerFeedback = 'none';
       state.phase = 'answeringGate';
@@ -84,6 +94,26 @@ const subjectWorldPageSlice = createSlice({
       state.activeGate = null;
       state.selectedGateAnswer = null;
       state.gateAnswerFeedback = 'none';
+      state.phase = 'exploring';
+    },
+    openNpc: (
+      state,
+      action: PayloadAction<{ npc: SubjectWorldNpc; dialogueNodeId: string }>
+    ) => {
+      state.activeNpc = action.payload.npc;
+      state.activeDialogueNodeId = action.payload.dialogueNodeId;
+      state.activePoi = null;
+      state.activeGate = null;
+      state.selectedGateAnswer = null;
+      state.gateAnswerFeedback = 'none';
+      state.phase = 'talkingToNpc';
+    },
+    setActiveDialogueNodeId: (state, action: PayloadAction<string>) => {
+      state.activeDialogueNodeId = action.payload;
+    },
+    closeNpc: (state) => {
+      state.activeNpc = null;
+      state.activeDialogueNodeId = null;
       state.phase = 'exploring';
     },
     selectGateAnswer: (state, action: PayloadAction<number>) => {
@@ -128,6 +158,9 @@ export const {
   closePoi,
   openGate,
   closeGate,
+  openNpc,
+  setActiveDialogueNodeId,
+  closeNpc,
   selectGateAnswer,
   setGateAnswerWrong,
   unlockGate,

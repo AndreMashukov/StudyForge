@@ -1,3 +1,4 @@
+import { SubjectWorldDialogueButton } from '@shared-types';
 import { ISceneMarker } from '../utils/subjectWorldSceneAdapter';
 
 export interface ISubjectWorldPageHandlers {
@@ -8,4 +9,5 @@ export interface ISubjectWorldPageHandlers {
   handleClosePanel: () => void;
   handleSelectGateAnswer: (index: number) => void;
   handleSubmitGateAnswer: () => void;
+  handleDialogueButton: (button: SubjectWorldDialogueButton) => void;
 }

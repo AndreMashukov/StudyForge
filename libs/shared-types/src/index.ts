@@ -298,6 +298,33 @@ export interface SubjectWorldQuest {
   zoneIds: string[];
 }
 
+export interface SubjectWorldDialogueProgressRequirement {
+  minVisitedPois?: number;
+  unlockedGateIds?: string[];
+  completedQuestIds?: string[];
+}
+
+export interface SubjectWorldDialogueButton {
+  label: string;
+  nextNodeId?: string;
+  action?: 'close';
+}
+
+export interface SubjectWorldDialogueNode {
+  id: string;
+  text: string;
+  requiresProgress?: SubjectWorldDialogueProgressRequirement;
+  buttons?: SubjectWorldDialogueButton[];
+}
+
+export interface SubjectWorldNpc {
+  id: string;
+  label: string;
+  zoneId: string;
+  position: SubjectWorldPosition;
+  dialogue: SubjectWorldDialogueNode[];
+}
+
 export interface SubjectWorldConnection {
   toZoneId: string;
   label: string;
@@ -324,6 +351,7 @@ export interface SubjectWorldSpec {
   pois: SubjectWorldPoi[];
   gates: SubjectWorldGate[];
   quests: SubjectWorldQuest[];
+  npcs?: SubjectWorldNpc[];
 }
 
 export interface SubjectWorldProgressSnapshot {

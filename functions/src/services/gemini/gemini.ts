@@ -1575,6 +1575,33 @@ This question is derived from: **${context.originalDocument.title}**
           zoneIds: ['zone-1', 'zone-2'],
         },
       ],
+      npcs: [
+        {
+          id: 'npc-guide',
+          label: 'Guide',
+          zoneId: 'zone-1',
+          position: { x: 1, y: 1, z: 1 },
+          dialogue: [
+            {
+              id: 'intro',
+              text: 'Welcome! Read the green markers, then answer the gate to reach the next zone.',
+              buttons: [{ label: 'Got it', action: 'close' }],
+            },
+            {
+              id: 'mid-progress',
+              text: 'Good start — visit more markers before trying the gate.',
+              requiresProgress: { minVisitedPois: 1 },
+              buttons: [{ label: 'Thanks', action: 'close' }],
+            },
+            {
+              id: 'complete',
+              text: 'The gate is open — explore the next zone and collect the key concept.',
+              requiresProgress: { unlockedGateIds: ['gate-1'] },
+              buttons: [{ label: 'Onward', action: 'close' }],
+            },
+          ],
+        },
+      ],
     };
   }
 

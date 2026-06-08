@@ -1,5 +1,5 @@
 import React from 'react';
-import { SubjectWorldQuest, SubjectWorldProgressSnapshot, SubjectWorldTheme } from '@shared-types';
+import { SubjectWorldPoi, SubjectWorldQuest, SubjectWorldProgressSnapshot, SubjectWorldTheme } from '@shared-types';
 import {
   getQuestProgress,
   isQuestComplete,
@@ -10,6 +10,7 @@ import { cn } from '../../lib/utils';
 interface ISubjectWorldHudProps {
   title: string;
   quests: SubjectWorldQuest[];
+  pois: SubjectWorldPoi[];
   progress: SubjectWorldProgressSnapshot;
   nearMarker: ISceneMarker | null;
   isWorldComplete?: boolean;
@@ -29,6 +30,7 @@ const THEME_LABELS: Record<SubjectWorldTheme, string> = {
 export const SubjectWorldHud: React.FC<ISubjectWorldHudProps> = ({
   title,
   quests,
+  pois,
   progress,
   nearMarker,
   isWorldComplete = false,
@@ -37,6 +39,7 @@ export const SubjectWorldHud: React.FC<ISubjectWorldHudProps> = ({
   totalZoneCount,
 }) => {
   const visitedCount = progress.visitedPoiIds.length;
+  const collectedPois = pois.filter((poi) => progress.collectedConceptIds.includes(poi.id));
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2 p-4">
@@ -55,6 +58,21 @@ export const SubjectWorldHud: React.FC<ISubjectWorldHudProps> = ({
         </p>
         {isWorldComplete && (
           <p className="mt-2 text-sm font-medium text-accent">All quests complete — world mastered!</p>
+        )}
+        {collectedPois.length > 0 && (
+          <div className="mt-3">
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Inventory</p>
+            <div className="flex flex-wrap gap-1.5">
+              {collectedPois.map((poi) => (
+                <span
+                  key={poi.id}
+                  className="rounded-full border border-yellow-500/40 bg-yellow-500/10 px-2 py-0.5 text-xs text-yellow-200"
+                >
+                  {poi.label}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
       </div>
       {quests.length > 0 && (

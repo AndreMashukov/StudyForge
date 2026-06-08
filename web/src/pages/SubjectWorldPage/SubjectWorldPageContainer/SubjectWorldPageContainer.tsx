@@ -15,9 +15,15 @@ import {
   ISceneMarker,
 } from '../utils/subjectWorldSceneAdapter';
 import {
+  areAllQuestsComplete,
   selectSubjectWorldPageState,
 } from '../../../store/slices/subjectWorldPageSlice';
 import { DirectoryChatPanel } from '../../../components/DirectoryChatPanel';
+import {
+  SubjectWorldRecallCard,
+  buildRecallPrompt,
+  pickRecallSource,
+} from '../../../components/SubjectWorldRecallCard';
 
 export const SubjectWorldPageContainer: React.FC = () => {
   const { subjectWorldApi, handlers } = useSubjectWorldPageContext();
@@ -29,14 +35,31 @@ export const SubjectWorldPageContainer: React.FC = () => {
     handleClosePanel,
     handleSelectGateAnswer,
     handleSubmitGateAnswer,
+    handleDialogueButton,
   } = handlers;
   const pageState = useSelector(selectSubjectWorldPageState);
   const [nearMarker, setNearMarker] = useState<ISceneMarker | null>(null);
   const [zoneBanner, setZoneBanner] = useState<SubjectWorldZone | null>(null);
   const [unlockCelebration, setUnlockCelebration] = useState<ISubjectWorldUnlockCelebration | null>(null);
+  const [recallDismissed, setRecallDismissed] = useState(false);
+  const [chatExpanded, setChatExpanded] = useState(false);
+  const [chatSeedMessage, setChatSeedMessage] = useState<string | undefined>();
+  const [chatSeedKey, setChatSeedKey] = useState<string | undefined>();
+  const [chatAutoSend, setChatAutoSend] = useState(false);
+  const wasCompleteOnLoadRef = useRef(false);
+  const initialProgressCheckedRef = useRef(false);
   const prevUnlockedGateIdsRef = useRef<string[]>([]);
   const zoneBannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unlockCelebrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    initialProgressCheckedRef.current = false;
+    wasCompleteOnLoadRef.current = false;
+    setRecallDismissed(false);
+    setChatSeedMessage(undefined);
+    setChatSeedKey(undefined);
+    setChatAutoSend(false);
+  }, [subjectWorldApi.subjectWorld?.id]);
 
   useEffect(() => {
     const onInteract = () => handleInteract();
@@ -59,6 +82,68 @@ export const SubjectWorldPageContainer: React.FC = () => {
       pageState.progress.unlockedGateIds
     );
   }, [subjectWorldApi.subjectWorld?.worldSpec, pageState.progress.unlockedGateIds]);
+
+  useEffect(() => {
+    const world = subjectWorldApi.subjectWorld;
+    if (initialProgressCheckedRef.current || !world?.worldSpec || pageState.phase === 'loading') {
+      return;
+    }
+    initialProgressCheckedRef.current = true;
+    if (
+      areAllQuestsComplete(world.worldSpec.quests, pageState.progress)
+    ) {
+      wasCompleteOnLoadRef.current = true;
+    }
+  }, [pageState.phase, pageState.progress, subjectWorldApi.subjectWorld]);
+
+  const handleAskForgeHint = useCallback(() => {
+    const gate = pageState.activeGate;
+    if (!gate) return;
+
+    const selectedOption =
+      pageState.selectedGateAnswer !== null
+        ? gate.options[pageState.selectedGateAnswer]
+        : undefined;
+
+    const seed = buildRecallPrompt(gate.question, gate.sourceRef.excerpt, selectedOption);
+    setChatSeedMessage(seed);
+    setChatSeedKey(`gate-hint-${gate.id}-${pageState.selectedGateAnswer ?? 'none'}`);
+    setChatAutoSend(true);
+    setChatExpanded(true);
+  }, [pageState.activeGate, pageState.selectedGateAnswer]);
+
+  const recallSource = useMemo(() => {
+    const world = subjectWorldApi.subjectWorld;
+    if (!world?.worldSpec) return null;
+
+    const gate =
+      world.worldSpec.gates.find((g) => pageState.progress.unlockedGateIds.includes(g.id)) ??
+      world.worldSpec.gates[0];
+    if (!gate) return null;
+
+    return pickRecallSource(
+      world.worldSpec.pois,
+      pageState.progress.visitedPoiIds,
+      gate.question,
+      gate.sourceRef.excerpt
+    );
+  }, [pageState.progress, subjectWorldApi.subjectWorld]);
+
+  const handleRecallAskForge = useCallback(() => {
+    const world = subjectWorldApi.subjectWorld;
+    if (!world?.worldSpec || !recallSource) return;
+
+    const gate =
+      world.worldSpec.gates.find((g) => pageState.progress.unlockedGateIds.includes(g.id)) ??
+      world.worldSpec.gates[0];
+    if (!gate) return;
+
+    setChatSeedMessage(buildRecallPrompt(gate.question, gate.sourceRef.excerpt));
+    setChatSeedKey(`recall-${world.id}-${gate.id}`);
+    setChatAutoSend(true);
+    setChatExpanded(true);
+    setRecallDismissed(true);
+  }, [pageState.progress.unlockedGateIds, recallSource, subjectWorldApi.subjectWorld]);
 
   const handleZoneEnter = useCallback((zone: SubjectWorldZone | null) => {
     if (!zone) return;
@@ -179,6 +264,10 @@ export const SubjectWorldPageContainer: React.FC = () => {
 
   const world = subjectWorldApi.subjectWorld;
   const directoryId = world.directoryId;
+  const showCompletionOverlay =
+    pageState.phase === 'completed' && !wasCompleteOnLoadRef.current;
+  const showRecallCard =
+    wasCompleteOnLoadRef.current && !recallDismissed && recallSource !== null;
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -186,6 +275,7 @@ export const SubjectWorldPageContainer: React.FC = () => {
       <SubjectWorldHud
         title={world.title}
         quests={world.worldSpec.quests}
+        pois={world.worldSpec.pois}
         progress={pageState.progress}
         nearMarker={nearMarker}
         isWorldComplete={pageState.phase === 'completed'}
@@ -207,13 +297,25 @@ export const SubjectWorldPageContainer: React.FC = () => {
       <SubjectWorldInteractionPanel
         poi={pageState.activePoi}
         gate={pageState.activeGate}
+        npc={pageState.activeNpc}
+        activeDialogueNodeId={pageState.activeDialogueNodeId}
         selectedGateAnswer={pageState.selectedGateAnswer}
         gateAnswerFeedback={pageState.gateAnswerFeedback}
         onClose={handleClosePanel}
         onSelectGateAnswer={handleSelectGateAnswer}
         onSubmitGateAnswer={handleSubmitGateAnswer}
+        onDialogueButton={handleDialogueButton}
+        onAskForgeHint={directoryId ? handleAskForgeHint : undefined}
       />
-      {pageState.phase === 'completed' && (
+      {showRecallCard && recallSource && (
+        <SubjectWorldRecallCard
+          recallQuestion={recallSource.question}
+          recallContext={recallSource.context}
+          onDismiss={() => setRecallDismissed(true)}
+          onAskForge={handleRecallAskForge}
+        />
+      )}
+      {showCompletionOverlay && (
         <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="pointer-events-auto mx-4 max-w-md rounded-lg border border-accent/40 bg-background/95 px-6 py-5 text-center shadow-xl">
             <p className="text-sm font-medium uppercase tracking-wide text-accent">World complete</p>
@@ -237,12 +339,21 @@ export const SubjectWorldPageContainer: React.FC = () => {
             directoryId={directoryId}
             collapsible
             defaultExpanded={false}
+            expanded={chatExpanded}
+            onExpandedChange={setChatExpanded}
             compact
             className="border-border bg-background/95 shadow-lg backdrop-blur"
+            seedMessage={chatSeedMessage}
+            seedKey={chatSeedKey}
+            autoSendSeed={chatAutoSend}
             artifactContext={{
               type: 'subjectWorld',
               title: world.title,
-              question: pageState.activePoi?.label ?? pageState.activeGate?.label,
+              question:
+                pageState.activePoi?.label ??
+                pageState.activeGate?.label ??
+                pageState.activeNpc?.label ??
+                recallSource?.question,
             }}
           />
         </div>
