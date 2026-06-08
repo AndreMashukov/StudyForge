@@ -14,7 +14,7 @@ export interface ISceneBlock {
   z: number;
   color: string;
   zoneId: string;
-  kind: 'floor' | 'wall' | 'path' | 'barrier';
+  kind: 'floor' | 'wall' | 'path' | 'barrier' | 'bridge';
 }
 
 export interface ISceneMarker {
@@ -23,9 +23,11 @@ export interface ISceneMarker {
   y: number;
   z: number;
   label: string;
-  kind: 'poi' | 'gate';
+  kind: 'poi' | 'gate' | 'npc';
   zoneId: string;
   locked?: boolean;
+  poiType?: SubjectWorldPoi['type'];
+  gateType?: SubjectWorldGate['type'];
 }
 
 export interface IScenePortal {
@@ -154,7 +156,8 @@ function buildPathBlocks(
   portal: IScenePortal,
   fromZone: SubjectWorldZone,
   toZone: SubjectWorldZone,
-  palette: ISceneThemePalette
+  palette: ISceneThemePalette,
+  bridgeStyle: boolean
 ): ISceneBlock[] {
   const blocks: ISceneBlock[] = [];
   const steps = 4;
@@ -168,18 +171,53 @@ function buildPathBlocks(
     const x = fromCenterX + (toCenterX - fromCenterX) * t;
     const z = fromCenterZ + (toCenterZ - fromCenterZ) * t;
 
-    blocks.push({
-      id: `${portal.id}-path-${i}`,
-      x: Math.round(x),
-      y: fromZone.origin.y,
-      z: Math.round(z),
-      color: portal.locked ? palette.portalLockedColor : palette.pathColor,
-      zoneId: portal.toZoneId,
-      kind: portal.locked ? 'barrier' : 'path',
-    });
+    if (portal.locked) {
+      blocks.push({
+        id: `${portal.id}-path-${i}`,
+        x: Math.round(x),
+        y: fromZone.origin.y,
+        z: Math.round(z),
+        color: palette.portalLockedColor,
+        zoneId: portal.toZoneId,
+        kind: 'barrier',
+      });
+    } else if (bridgeStyle) {
+      blocks.push({
+        id: `${portal.id}-bridge-${i}`,
+        x: Math.round(x),
+        y: fromZone.origin.y + 0.5,
+        z: Math.round(z),
+        color: palette.pathColor,
+        zoneId: portal.toZoneId,
+        kind: 'bridge',
+      });
+    } else {
+      blocks.push({
+        id: `${portal.id}-path-${i}`,
+        x: Math.round(x),
+        y: fromZone.origin.y,
+        z: Math.round(z),
+        color: palette.pathColor,
+        zoneId: portal.toZoneId,
+        kind: 'path',
+      });
+    }
   }
 
   return blocks;
+}
+
+function isBridgeConnection(
+  connection: SubjectWorldZone['connections'][number],
+  gates: SubjectWorldGate[]
+): boolean {
+  if (connection.requiresGateId) {
+    const gate = gates.find((g) => g.id === connection.requiresGateId);
+    if (gate?.type === 'bridge') return true;
+  }
+
+  const zoneUnlockGate = gates.find((gate) => gate.unlocksZoneId === connection.toZoneId);
+  return zoneUnlockGate?.type === 'bridge';
 }
 
 export function adaptSubjectWorldSpecToSceneModel(
@@ -258,7 +296,15 @@ export function adaptSubjectWorldSpecToSceneModel(
         requiresGateId: connection.requiresGateId,
       };
       portals.push(portal);
-      blocks.push(...buildPathBlocks(portal, zone, toZone, palette));
+      blocks.push(
+        ...buildPathBlocks(
+          portal,
+          zone,
+          toZone,
+          palette,
+          isBridgeConnection(connection, spec.gates)
+        )
+      );
     });
   });
 
@@ -271,6 +317,7 @@ export function adaptSubjectWorldSpecToSceneModel(
       label: poi.label,
       kind: 'poi',
       zoneId: poi.zoneId,
+      poiType: poi.type,
     });
   });
 
@@ -287,6 +334,19 @@ export function adaptSubjectWorldSpecToSceneModel(
       kind: 'gate',
       zoneId: gate.zoneId,
       locked,
+      gateType: gate.type,
+    });
+  });
+
+  (spec.npcs ?? []).forEach((npc) => {
+    markers.push({
+      id: npc.id,
+      x: npc.position.x,
+      y: npc.position.y,
+      z: npc.position.z,
+      label: npc.label,
+      kind: 'npc',
+      zoneId: npc.zoneId,
     });
   });
 
@@ -324,7 +384,7 @@ export function isPlayerPositionAllowed(
       candidate.x === tileX &&
       candidate.z === tileZ &&
       candidate.y === floorY &&
-      (candidate.kind === 'floor' || candidate.kind === 'path' || candidate.kind === 'barrier')
+      (candidate.kind === 'floor' || candidate.kind === 'path' || candidate.kind === 'barrier' || candidate.kind === 'bridge')
   );
 
   if (block?.kind === 'barrier') {
@@ -336,7 +396,7 @@ export function isPlayerPositionAllowed(
     return accessibleZoneIds.includes(zone.id);
   }
 
-  return block?.kind === 'path';
+  return block?.kind === 'path' || block?.kind === 'bridge';
 }
 
 export function findGateMarkerPosition(

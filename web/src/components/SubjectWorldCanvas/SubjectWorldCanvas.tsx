@@ -37,62 +37,174 @@ interface ISceneMarkerMeshProps {
 
 function SceneMarkerMesh({ marker, isNearest, onMarkerClick }: ISceneMarkerMeshProps) {
   const canInteract =
-    isNearest && (marker.kind === 'poi' || marker.locked === true);
+    isNearest &&
+    (marker.kind === 'poi' ||
+      marker.kind === 'npc' ||
+      (marker.kind === 'gate' && marker.locked === true));
 
   const baseColor =
-    marker.kind === 'gate'
-      ? marker.locked
-        ? '#ef4444'
-        : '#f59e0b'
-      : '#22c55e';
+    marker.kind === 'npc'
+      ? '#a855f7'
+      : marker.kind === 'gate'
+        ? marker.locked
+          ? marker.gateType === 'door'
+            ? '#991b1b'
+            : marker.gateType === 'bridge'
+              ? '#1d4ed8'
+              : '#ef4444'
+          : '#22c55e'
+        : marker.poiType === 'collectible'
+          ? '#eab308'
+          : marker.poiType === 'checkpoint'
+            ? '#06b6d4'
+            : '#22c55e';
   const emissiveColor =
-    marker.kind === 'gate'
-      ? marker.locked
-        ? '#7f1d1d'
-        : '#78350f'
-      : '#14532d';
+    marker.kind === 'npc'
+      ? '#581c87'
+      : marker.kind === 'gate'
+        ? marker.locked
+          ? '#450a0a'
+          : '#14532d'
+        : marker.poiType === 'collectible'
+          ? '#713f12'
+          : '#14532d';
 
-  const mesh = (
-    <mesh
-      onClick={(event) => {
-        event.stopPropagation();
-        if (canInteract) {
-          onMarkerClick(marker);
-        }
-      }}
-      onPointerOver={(event) => {
-        if (canInteract) {
+  const displayLabel =
+    marker.kind === 'npc'
+      ? `Guide · ${marker.label}`
+      : marker.poiType === 'collectible'
+        ? `Collect · ${marker.label}`
+        : marker.kind === 'gate' && marker.gateType === 'door'
+          ? marker.locked
+            ? marker.label
+            : `${marker.label} (open)`
+          : marker.kind === 'gate' && marker.gateType === 'bridge'
+            ? marker.locked
+              ? `${marker.label} (blocked)`
+              : `${marker.label} (crossed)`
+            : marker.label;
+
+  const markerMesh =
+    marker.kind === 'gate' && marker.gateType === 'door' ? (
+      <group>
+        <mesh position={[-0.35, 0, 0]}>
+          <boxGeometry args={[0.2, 1.2, 0.2]} />
+          <meshStandardMaterial color={baseColor} emissive={emissiveColor} emissiveIntensity={0.5} />
+        </mesh>
+        <mesh position={[0.35, 0, 0]}>
+          <boxGeometry args={[0.2, 1.2, 0.2]} />
+          <meshStandardMaterial color={baseColor} emissive={emissiveColor} emissiveIntensity={0.5} />
+        </mesh>
+        {!marker.locked && (
+          <mesh position={[0, 0.3, 0]}>
+            <boxGeometry args={[0.9, 0.15, 0.15]} />
+            <meshStandardMaterial color="#22c55e" emissive="#14532d" emissiveIntensity={0.6} />
+          </mesh>
+        )}
+      </group>
+    ) : marker.kind === 'npc' ? (
+      <group>
+        <mesh position={[0, -0.1, 0]}>
+          <cylinderGeometry args={[0.25, 0.35, 0.5, 8]} />
+          <meshStandardMaterial color={baseColor} emissive={emissiveColor} emissiveIntensity={0.5} />
+        </mesh>
+        <mesh position={[0, 0.45, 0]}>
+          <sphereGeometry args={[0.28, 12, 12]} />
+          <meshStandardMaterial color={baseColor} emissive={emissiveColor} emissiveIntensity={0.6} />
+        </mesh>
+      </group>
+    ) : (
+      <mesh
+        onClick={(event) => {
           event.stopPropagation();
-          document.body.style.cursor = 'pointer';
-        }
-      }}
-      onPointerOut={() => {
-        document.body.style.cursor = 'default';
-      }}
-    >
-      <boxGeometry args={[0.6, 0.6, 0.6]} />
-      <meshStandardMaterial
-        color={baseColor}
-        emissive={emissiveColor}
-        emissiveIntensity={isNearest ? 0.7 : 0.4}
-      />
-      {isNearest && canInteract && (
-        <Outlines thickness={0.04} color="#ffffff" screenspace />
-      )}
-    </mesh>
-  );
+          if (canInteract) {
+            onMarkerClick(marker);
+          }
+        }}
+        onPointerOver={(event) => {
+          if (canInteract) {
+            event.stopPropagation();
+            document.body.style.cursor = 'pointer';
+          }
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = 'default';
+        }}
+      >
+        <boxGeometry args={marker.poiType === 'collectible' ? [0.5, 0.5, 0.5] : [0.6, 0.6, 0.6]} />
+        <meshStandardMaterial
+          color={baseColor}
+          emissive={emissiveColor}
+          emissiveIntensity={isNearest ? 0.7 : 0.4}
+        />
+        {isNearest && canInteract && (
+          <Outlines thickness={0.04} color="#ffffff" screenspace />
+        )}
+      </mesh>
+    );
+
+  const interactiveWrapper =
+    marker.kind === 'gate' && marker.gateType === 'door' ? (
+      <group
+        onClick={(event) => {
+          event.stopPropagation();
+          if (canInteract) {
+            onMarkerClick(marker);
+          }
+        }}
+        onPointerOver={(event) => {
+          if (canInteract) {
+            event.stopPropagation();
+            document.body.style.cursor = 'pointer';
+          }
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = 'default';
+        }}
+      >
+        {markerMesh}
+        {isNearest && canInteract && (
+          <Outlines thickness={0.04} color="#ffffff" screenspace />
+        )}
+      </group>
+    ) : marker.kind === 'npc' ? (
+      <group
+        onClick={(event) => {
+          event.stopPropagation();
+          if (canInteract) {
+            onMarkerClick(marker);
+          }
+        }}
+        onPointerOver={(event) => {
+          if (canInteract) {
+            event.stopPropagation();
+            document.body.style.cursor = 'pointer';
+          }
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = 'default';
+        }}
+      >
+        {markerMesh}
+        {isNearest && canInteract && (
+          <Outlines thickness={0.04} color="#ffffff" screenspace />
+        )}
+      </group>
+    ) : (
+      markerMesh
+    );
 
   return (
     <group position={[marker.x, marker.y + 1.2, marker.z]}>
       {isNearest && canInteract ? (
         <Float speed={2} rotationIntensity={0.2} floatIntensity={0.6}>
-          {mesh}
+          {interactiveWrapper}
         </Float>
       ) : (
-        mesh
+        interactiveWrapper
       )}
       <Text position={[0, 0.8, 0]} fontSize={0.25} color="#ffffff" anchorX="center">
-        {marker.label}
+        {displayLabel}
       </Text>
       {isNearest && canInteract && (
         <Html position={[0, 1.6, 0]} center distanceFactor={12} zIndexRange={[100, 0]}>
@@ -300,13 +412,19 @@ function SceneContent({
       {sceneModel.blocks.map((block) => (
         <mesh
           key={block.id}
-          position={[block.x, block.y + (block.kind === 'barrier' ? 1 : 0.5), block.z]}
+          position={[
+            block.x,
+            block.y + (block.kind === 'barrier' ? 1 : block.kind === 'bridge' ? 0.75 : 0.5),
+            block.z,
+          ]}
         >
           <boxGeometry
             args={
               block.kind === 'barrier'
                 ? [0.95, 2, 0.95]
-                : [0.95, 0.95, 0.95]
+                : block.kind === 'bridge'
+                  ? [1.1, 0.35, 1.1]
+                  : [0.95, 0.95, 0.95]
             }
           />
           <meshStandardMaterial

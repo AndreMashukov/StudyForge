@@ -119,14 +119,54 @@ Return ONLY valid JSON matching this structure:
       "gateIds": ["gate-1"],
       "zoneIds": ["zone-1", "zone-2"]
     }
+  ],
+  "npcs": [
+    {
+      "id": "npc-guide",
+      "label": "Guide",
+      "zoneId": "zone-1",
+      "position": { "x": 3, "y": 1, "z": 3 },
+      "dialogue": [
+        {
+          "id": "intro",
+          "text": "Welcome! Visit green markers to learn concepts, collect items, then pass gates to unlock new zones.",
+          "buttons": [{ "label": "Got it", "action": "close" }]
+        },
+        {
+          "id": "mid-progress",
+          "text": "Nice progress! Keep visiting POIs and try the gate when you feel ready.",
+          "requiresProgress": { "minVisitedPois": 1 },
+          "buttons": [{ "label": "Thanks", "action": "close" }]
+        },
+        {
+          "id": "complete",
+          "text": "You have unlocked new areas — finish the remaining quests to master this world.",
+          "requiresProgress": { "unlockedGateIds": ["gate-1"] },
+          "buttons": [{ "label": "Onward", "action": "close" }]
+        }
+      ]
+    }
   ]
 }
+
+**NPC GUIDE (required):**
+- Include exactly **one guide NPC** in the spawn zone (zone 1), placed near spawn but not on top of it
+- Provide **3 dialogue nodes**: intro (no requirements), mid-progress (minVisitedPois: 1), complete (unlockedGateIds referencing a progression gate)
+- Each node needs id, text, and optional buttons with label plus either nextNodeId or action: "close"
+- Use requiresProgress on mid/complete nodes as shown above
+
+**GATE TYPE GUIDANCE:**
+- Use quiz for standard progression gates
+- Use door for portal-like barriers (client shows door visuals)
+- Use bridge for path connections that block until answered (client shows bridge visuals)
+- All gate types still use MCQ fields (question, options, correctAnswer)
 
 **CONSTRAINTS:**
 - 3 to 6 zones mapped to major sections across all documents
 - 6 to 16 POIs with accurate summaries grounded in the source
 - 2 to 6 quiz gates; at least one gate per zone transition after zone 1
 - 1 to 4 quests tying POIs, gates, and zoneIds together
+- 1 guide NPC with 3 dialogue states (intro, mid-progress, complete)
 - theme must be one of: voxel, museum, outdoor, lab, space (choose by subject, not always voxel)
 - layout must be one of: hub, room, path, platform
 - poi type must be one of: read, collectible, checkpoint

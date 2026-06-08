@@ -1,23 +1,30 @@
 import { useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { SubjectWorld, SubjectWorldProgressSnapshot } from '@shared-types';
+import { SubjectWorld, SubjectWorldDialogueButton, SubjectWorldProgressSnapshot } from '@shared-types';
 import {
   areAllQuestsComplete,
   closeGate,
+  closeNpc,
   closePoi,
   completeQuest,
   isQuestComplete,
   markWorldCompleted,
   openGate,
+  openNpc,
   openPoi,
   selectGateAnswer,
   selectSubjectWorldPageState,
+  setActiveDialogueNodeId,
   setGateAnswerWrong,
   unlockGate,
 } from '../../../../store/slices/subjectWorldPageSlice';
 import { useSaveSubjectWorldProgressMutation } from '../../../../store/api/SubjectWorld/SubjectWorldApi';
 import { ISceneMarker } from '../../utils/subjectWorldSceneAdapter';
+import {
+  findDialogueNodeById,
+  selectBestDialogueNode,
+} from '../../utils/subjectWorldDialogueUtils';
 import { ISubjectWorldPageHandlers } from '../../types/ISubjectWorldPageHandlers';
 
 function applyQuestCompletions(
@@ -123,6 +130,15 @@ export const useSubjectWorldPageHandlers = (
         return;
       }
 
+      if (marker.kind === 'npc') {
+        const npc = subjectWorld.worldSpec.npcs?.find((n) => n.id === marker.id);
+        if (!npc) return;
+
+        const node = selectBestDialogueNode(npc, pageState.progress);
+        dispatch(openNpc({ npc, dialogueNodeId: node.id }));
+        return;
+      }
+
       const gate = subjectWorld.worldSpec.gates.find((g) => g.id === marker.id);
       if (gate && !pageState.progress.unlockedGateIds.includes(gate.id)) {
         dispatch(openGate(gate));
@@ -140,10 +156,11 @@ export const useSubjectWorldPageHandlers = (
   const handleClosePanel = useCallback(() => {
     dispatch(closePoi());
     dispatch(closeGate());
+    dispatch(closeNpc());
   }, [dispatch]);
 
   const handleInteract = useCallback(() => {
-    if (pageState.activePoi || pageState.activeGate) {
+    if (pageState.activePoi || pageState.activeGate || pageState.activeNpc) {
       handleClosePanel();
       return;
     }
@@ -154,6 +171,7 @@ export const useSubjectWorldPageHandlers = (
     handleClosePanel,
     interactWithMarker,
     pageState.activeGate,
+    pageState.activeNpc,
     pageState.activePoi,
   ]);
 
@@ -204,6 +222,26 @@ export const useSubjectWorldPageHandlers = (
     subjectWorld?.worldSpec,
   ]);
 
+  const handleDialogueButton = useCallback(
+    (button: SubjectWorldDialogueButton) => {
+      const npc = pageState.activeNpc;
+      if (!npc) return;
+
+      if (button.action === 'close') {
+        dispatch(closeNpc());
+        return;
+      }
+
+      if (button.nextNodeId) {
+        const nextNode = findDialogueNodeById(npc, button.nextNodeId);
+        if (nextNode) {
+          dispatch(setActiveDialogueNodeId(nextNode.id));
+        }
+      }
+    },
+    [dispatch, pageState.activeNpc]
+  );
+
   return {
     handleBackToDirectory,
     handleNearMarkerChange,
@@ -212,5 +250,6 @@ export const useSubjectWorldPageHandlers = (
     handleClosePanel,
     handleSelectGateAnswer,
     handleSubmitGateAnswer,
+    handleDialogueButton,
   };
 };

@@ -1,5 +1,6 @@
 import {
   SubjectWorldGate,
+  SubjectWorldNpc,
   SubjectWorldPoi,
   SubjectWorldPosition,
   SubjectWorldQuest,
@@ -11,6 +12,8 @@ const MAX_ZONES = 8;
 const MAX_POIS = 24;
 const MAX_GATES = 12;
 const MAX_QUESTS = 6;
+const MAX_NPCS = 4;
+const MAX_DIALOGUE_NODES = 12;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -190,10 +193,84 @@ export function normalizeSubjectWorldSpec(
       zoneIds: Array.isArray(quest.zoneIds) ? quest.zoneIds.filter((id) => zoneIds.has(id)) : [zones[0].id],
     }));
 
+  const questIds = new Set(quests.map((q) => q.id));
+
   const spawnZoneId = typeof raw.spawn?.zoneId === 'string' && zoneIds.has(raw.spawn.zoneId)
     ? raw.spawn.zoneId
     : zones[0].id;
   const spawnZone = zones.find((z) => z.id === spawnZoneId) ?? zones[0];
+
+  const npcs: SubjectWorldNpc[] = (Array.isArray(raw.npcs) ? raw.npcs : [])
+    .slice(0, MAX_NPCS)
+    .map((npc, index) => {
+      const zoneId = typeof npc.zoneId === 'string' && zoneIds.has(npc.zoneId)
+        ? npc.zoneId
+        : spawnZoneId;
+      const rawDialogue = Array.isArray(npc.dialogue) ? npc.dialogue.slice(0, MAX_DIALOGUE_NODES) : [];
+      const dialogue = rawDialogue.map((node, nodeIndex) => {
+        const nodeId =
+          typeof node.id === 'string' && node.id.trim() ? node.id.trim() : `dialogue-${index + 1}-${nodeIndex + 1}`;
+        const buttons = Array.isArray(node.buttons)
+          ? node.buttons.slice(0, 4).map((button) => ({
+              label: typeof button.label === 'string' && button.label.trim() ? button.label.trim() : 'Continue',
+              ...(typeof button.nextNodeId === 'string' && button.nextNodeId.trim()
+                ? { nextNodeId: button.nextNodeId.trim() }
+                : {}),
+              ...(button.action === 'close' ? { action: 'close' as const } : {}),
+            }))
+          : undefined;
+        const req = node.requiresProgress;
+        const requiresProgress =
+          req && typeof req === 'object'
+            ? {
+                ...(typeof req.minVisitedPois === 'number' && req.minVisitedPois > 0
+                  ? { minVisitedPois: Math.floor(req.minVisitedPois) }
+                  : {}),
+                ...(Array.isArray(req.unlockedGateIds)
+                  ? {
+                      unlockedGateIds: req.unlockedGateIds.filter(
+                        (id) => typeof id === 'string' && gateIds.has(id)
+                      ),
+                    }
+                  : {}),
+                ...(Array.isArray(req.completedQuestIds)
+                  ? {
+                      completedQuestIds: req.completedQuestIds.filter(
+                        (id) => typeof id === 'string' && questIds.has(id)
+                      ),
+                    }
+                  : {}),
+              }
+            : undefined;
+
+        return {
+          id: nodeId,
+          text: typeof node.text === 'string' ? node.text : '',
+          ...(requiresProgress && Object.keys(requiresProgress).length > 0
+            ? { requiresProgress }
+            : {}),
+          ...(buttons && buttons.length > 0 ? { buttons } : {}),
+        };
+      });
+
+      return {
+        id: typeof npc.id === 'string' && npc.id.trim() ? npc.id.trim() : `npc-${index + 1}`,
+        label: typeof npc.label === 'string' && npc.label.trim() ? npc.label.trim() : 'Guide',
+        zoneId,
+        position: normalizePosition(npc.position, {
+          x: spawnZone.origin.x + 1,
+          y: 1,
+          z: spawnZone.origin.z + 1,
+        }),
+        dialogue: dialogue.length > 0 ? dialogue : [
+          {
+            id: 'intro',
+            text: 'Welcome! Visit green markers to learn, then pass gates to unlock new zones.',
+            buttons: [{ label: 'Got it', action: 'close' as const }],
+          },
+        ],
+      };
+    });
 
   return {
     title,
@@ -210,5 +287,6 @@ export function normalizeSubjectWorldSpec(
     pois,
     gates,
     quests,
+    ...(npcs.length > 0 ? { npcs } : {}),
   };
 }
