@@ -1,5 +1,5 @@
 import './globals.css';
-import { AdminThemeProvider } from '../components/admin/AdminThemeProvider';
+import { AdminThemeProvider } from '../components/admin/layout';
 
 export const metadata = {
   title: 'Study Forge Admin',

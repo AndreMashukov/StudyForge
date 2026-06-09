@@ -5,17 +5,25 @@ import type {
   IOpenRouterConnectionTestResult,
   IOpenRouterProviderConnection,
 } from '@shared-types';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Input, Label } from '@study-forge/ui';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
-import { Badge } from '../ui/Badge';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Badge } from '../../ui/Badge';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../ui/Card';
+} from '../../ui/Card';
+import {
+  getModelSettingsDefaultValues,
+  modelSettingsPanelSchema,
+  normalizeModelSettingsSubmitPayload,
+  type IModelSettingsFormValues,
+} from './ModelSettingsPanel.form';
 
 type NoticeState =
   | {
@@ -66,24 +74,23 @@ export function ModelSettingsPanel({
   const [openRouterConnection, setOpenRouterConnection] = useState(
     initialOpenRouterConnection
   );
-  const [enabled, setEnabled] = useState(initialOpenRouterConnection.enabled);
-  const [baseUrl, setBaseUrl] = useState(initialOpenRouterConnection.baseUrl);
-  const [defaultModel, setDefaultModel] = useState(
-    initialOpenRouterConnection.defaultModel
-  );
-  const [defaultVisionModel, setDefaultVisionModel] = useState(
-    initialOpenRouterConnection.defaultVisionModel ?? ''
-  );
-  const [defaultImageModel, setDefaultImageModel] = useState(
-    initialOpenRouterConnection.defaultImageModel ?? ''
-  );
-  const [apiKey, setApiKey] = useState('');
   const [notice, setNotice] = useState<NoticeState>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
 
-  const handleSave = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const form = useForm<IModelSettingsFormValues>({
+    resolver: zodResolver(modelSettingsPanelSchema),
+    defaultValues: getModelSettingsDefaultValues(initialOpenRouterConnection),
+  });
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = form;
+
+  const handleSave = async (values: IModelSettingsFormValues) => {
     setNotice(null);
     setIsSaving(true);
 
@@ -93,14 +100,7 @@ export function ModelSettingsPanel({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          enabled,
-          baseUrl,
-          defaultModel,
-          defaultVisionModel,
-          defaultImageModel,
-          apiKey: apiKey.trim() ? apiKey : undefined,
-        }),
+        body: JSON.stringify(normalizeModelSettingsSubmitPayload(values)),
       });
       const payload = (await response.json()) as IRouteResponse;
 
@@ -109,12 +109,7 @@ export function ModelSettingsPanel({
       }
 
       setOpenRouterConnection(payload.openRouterConnection);
-      setEnabled(payload.openRouterConnection.enabled);
-      setBaseUrl(payload.openRouterConnection.baseUrl);
-      setDefaultModel(payload.openRouterConnection.defaultModel);
-      setDefaultVisionModel(payload.openRouterConnection.defaultVisionModel ?? '');
-      setDefaultImageModel(payload.openRouterConnection.defaultImageModel ?? '');
-      setApiKey('');
+      reset(getModelSettingsDefaultValues(payload.openRouterConnection));
       setNotice({
         type: 'success',
         message: 'OpenRouter settings saved.',
@@ -225,13 +220,12 @@ export function ModelSettingsPanel({
             </div>
           ) : null}
 
-          <form className="space-y-4" onSubmit={handleSave}>
+          <form className="space-y-4" onSubmit={handleSubmit(handleSave)}>
             <label className="flex items-center gap-3 rounded-lg border border-border p-4 text-sm">
               <input
                 type="checkbox"
                 className="h-4 w-4 rounded border-border bg-input"
-                checked={enabled}
-                onChange={(event) => setEnabled(event.target.checked)}
+                {...register('enabled')}
               />
               <span>
                 <span className="block font-medium">Enable OpenRouter</span>
@@ -245,24 +239,32 @@ export function ModelSettingsPanel({
               <Label htmlFor="openrouter-base-url">Base URL</Label>
               <Input
                 id="openrouter-base-url"
-                value={baseUrl}
-                onChange={(event) => setBaseUrl(event.target.value)}
                 placeholder="https://openrouter.ai/api/v1"
                 autoComplete="off"
-                required
+                aria-invalid={errors.baseUrl ? 'true' : 'false'}
+                {...register('baseUrl')}
               />
+              {errors.baseUrl ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {errors.baseUrl.message}
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="openrouter-model">Default text model</Label>
               <Input
                 id="openrouter-model"
-                value={defaultModel}
-                onChange={(event) => setDefaultModel(event.target.value)}
                 placeholder="anthropic/claude-sonnet-4.6"
                 autoComplete="off"
-                required
+                aria-invalid={errors.defaultModel ? 'true' : 'false'}
+                {...register('defaultModel')}
               />
+              {errors.defaultModel ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {errors.defaultModel.message}
+                </p>
+              ) : null}
               <p className="text-xs text-muted-foreground">
                 Used for quiz, flashcards, documents, chat, and other text generation.
               </p>
@@ -272,11 +274,16 @@ export function ModelSettingsPanel({
               <Label htmlFor="openrouter-vision-model">Default vision model</Label>
               <Input
                 id="openrouter-vision-model"
-                value={defaultVisionModel}
-                onChange={(event) => setDefaultVisionModel(event.target.value)}
                 placeholder="google/gemini-2.5-flash"
                 autoComplete="off"
+                aria-invalid={errors.defaultVisionModel ? 'true' : 'false'}
+                {...register('defaultVisionModel')}
               />
+              {errors.defaultVisionModel ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {errors.defaultVisionModel.message}
+                </p>
+              ) : null}
               <p className="text-xs text-muted-foreground">
                 Used for screenshot and image input to text. Leave empty to use Gemini for
                 screenshots.
@@ -287,12 +294,16 @@ export function ModelSettingsPanel({
               <Label htmlFor="openrouter-image-model">Default image model</Label>
               <Input
                 id="openrouter-image-model"
-                value={defaultImageModel}
-                onChange={(event) => setDefaultImageModel(event.target.value)}
                 placeholder="google/gemini-3.1-flash-image-preview"
                 autoComplete="off"
-                required
+                aria-invalid={errors.defaultImageModel ? 'true' : 'false'}
+                {...register('defaultImageModel')}
               />
+              {errors.defaultImageModel ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {errors.defaultImageModel.message}
+                </p>
+              ) : null}
               <p className="text-xs text-muted-foreground">
                 Used for slide deck image generation (text to image). When OpenRouter is
                 disabled, Gemini is used with the equivalent Google model id.
@@ -304,15 +315,20 @@ export function ModelSettingsPanel({
               <Input
                 id="openrouter-api-key"
                 type="password"
-                value={apiKey}
-                onChange={(event) => setApiKey(event.target.value)}
                 placeholder={
                   openRouterConnection.apiKeyConfigured
                     ? 'Leave blank to keep the current key'
                     : 'Paste OpenRouter API key'
                 }
                 autoComplete="new-password"
+                aria-invalid={errors.apiKey ? 'true' : 'false'}
+                {...register('apiKey')}
               />
+              {errors.apiKey ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {errors.apiKey.message}
+                </p>
+              ) : null}
               <p className="text-xs text-muted-foreground">
                 The key is encrypted server-side and never returned after save.
               </p>
