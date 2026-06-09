@@ -3,7 +3,7 @@
  * E2E test data setup — single script that wires the full local environment.
  *
  * Steps performed:
- *   1. Create / update Auth user with a fixed UID in the Auth emulator
+ *   1. Create / update Auth user with a fixed UID and admin custom claim in the Auth emulator
  *   2. Ensure Firestore user document exists
  *   3. Create "Study Materials" directory in Firestore
  *   4. Create a general prompt rule and attach it to the directory
@@ -267,6 +267,9 @@ async function main() {
     });
     console.log(`   ✅ Auth user created: ${TEST_EMAIL} (UID: ${TARGET_UID})`);
   }
+
+  await auth.setCustomUserClaims(TARGET_UID, { role: 'admin' });
+  console.log('   ✅ Admin custom claim set: {"role": "admin"}');
 
   // ── Step 2: Firestore user document ─────────────────────────────────────
   console.log('\n[2] Ensuring Firestore user document …');
