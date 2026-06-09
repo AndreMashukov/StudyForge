@@ -7,6 +7,7 @@ interface ISourcesPanelProps {
   directoryId: string;
   onDeleteDocument: (document: DocumentEnhanced) => void;
   onMoveDocument: (document: DocumentEnhanced) => void;
+  ruleNamesMap?: Map<string, string>;
 }
 
 export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
@@ -14,6 +15,7 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
   directoryId,
   onDeleteDocument,
   onMoveDocument,
+  ruleNamesMap,
 }) => {
   return (
     <div className="space-y-4">
@@ -32,6 +34,8 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
               directoryId={directoryId}
               onDelete={onDeleteDocument}
               onMove={onMoveDocument}
+              appliedRuleNames={doc.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
+              generationModel={doc.generationModel}
             />
           ))}
         </div>

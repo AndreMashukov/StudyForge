@@ -56,6 +56,8 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
               }
               deleteAriaLabel={`Delete ${f.title}`}
               appliedRuleNames={f.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
+              completedAt={f.completedAt}
+              generationModel={f.generationModel}
               generationStatus={f.generationStatus}
               generationError={f.generationError}
               documentColor={f.documentColor}

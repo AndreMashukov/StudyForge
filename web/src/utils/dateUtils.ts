@@ -106,6 +106,41 @@ export const formatDate = (date: Date | { toDate(): Date } | { _seconds: number;
  * @param formatString - date-fns format string (default: 'MMM d, yyyy')
  * @returns Formatted date string or fallback value
  */
+function formatDurationSeconds(totalSeconds: number): string {
+  if (totalSeconds < 60) return `${Math.round(totalSeconds)}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
+
+/**
+ * Computes generation duration in milliseconds from created/completed timestamps.
+ */
+export const computeGenerationDurationMs = (
+  createdAt: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined,
+  completedAt: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined,
+): number | null => {
+  const start = parseDate(createdAt);
+  const end = parseDate(completedAt);
+  if (!start || !end) return null;
+  const durationMs = end.getTime() - start.getTime();
+  return durationMs >= 0 ? durationMs : null;
+};
+
+/**
+ * Formats generation duration for tooltip display.
+ */
+export const formatGenerationDuration = (
+  createdAt: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined,
+  completedAt: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined,
+): string => {
+  const durationMs = computeGenerationDurationMs(createdAt, completedAt);
+  if (durationMs === null) return 'Unavailable';
+  return formatDurationSeconds(Math.round(durationMs / 1000));
+};
+
 export const formatDateWithOptions = (
   date: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined,
   formatString = 'MMM d, yyyy'

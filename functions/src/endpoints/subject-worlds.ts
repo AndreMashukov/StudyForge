@@ -1,7 +1,7 @@
 import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
-import { LlmGenerationService } from "../services/llm";
+import { LlmGenerationService, resolveTextGenerationModelLabel } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
@@ -189,11 +189,14 @@ export const generateSubjectWorld = onCall(
 
         const finalTitle = subjectWorldName || worldSpec.title || pendingTitle;
 
+        const generationModel = await resolveTextGenerationModelLabel('subjectWorld');
+
         await completePendingSubjectWorld(userId, pendingSubjectWorldId, {
           title: finalTitle,
           worldSpec,
           appliedRuleIds: appliedRuleIdsForSave,
           followupRuleIds: followupIdsForSave,
+          generationModel,
         });
 
         return {

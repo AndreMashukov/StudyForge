@@ -56,6 +56,8 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
               }
               deleteAriaLabel={`Delete ${q.title}`}
               appliedRuleNames={q.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
+              completedAt={q.completedAt}
+              generationModel={q.generationModel}
               generationStatus={q.generationStatus}
               generationError={q.generationError}
               documentColor={q.documentColor}

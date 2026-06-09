@@ -4,7 +4,7 @@ import { Loader2, Trash2, AlertCircle } from 'lucide-react';
 import { formatDate } from '../../../utils/dateUtils';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../../../components/ui/Tooltip';
+import { GenerationInfoTooltip } from '../../../components/GenerationInfoTooltip';
 import { getColorRailStyle, getSegmentedRailColors, isMultiColor } from '../../../utils/sourceColorRail';
 import type { IArtifactRow } from './IArtifactRow';
 
@@ -34,6 +34,8 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
   onDelete,
   deleteAriaLabel,
   appliedRuleNames,
+  completedAt,
+  generationModel,
   generationStatus,
   generationError,
   documentColor,
@@ -41,8 +43,6 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
 }) => {
   const isPending = generationStatus === 'pending';
   const isFailed = generationStatus === 'failed';
-  const hasRules = appliedRuleNames && appliedRuleNames.length > 0;
-
   if (isPending) {
     return (
       <div className="flex items-center rounded-lg border border-border bg-muted/30 opacity-70 overflow-hidden">
@@ -99,25 +99,14 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
         </div>
       </Link>
       <div className="flex items-center gap-1 pr-1 shrink-0">
-        {hasRules && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="cursor-default" onClick={(e) => e.preventDefault()}>
-                <Badge variant="secondary" className="text-xs tabular-nums">
-                  {appliedRuleNames.length}
-                </Badge>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p className="font-medium mb-1">Rules applied</p>
-              <ul className="space-y-0.5">
-                {appliedRuleNames.map((name) => (
-                  <li key={name}>{name}</li>
-                ))}
-              </ul>
-            </TooltipContent>
-          </Tooltip>
-        )}
+        <span onClick={(e) => e.preventDefault()}>
+          <GenerationInfoTooltip
+            createdAt={createdAt}
+            completedAt={completedAt}
+            ruleNames={appliedRuleNames ?? []}
+            generationModel={generationModel}
+          />
+        </span>
         <Button
           variant="ghost"
           size="icon"

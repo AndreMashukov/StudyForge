@@ -299,6 +299,7 @@ export const DirectoryDetailPageContainer = () => {
                 directoryId={directoryId}
                 onDeleteDocument={(doc) => setDeleteDocDialog({ document: doc })}
                 onMoveDocument={(doc) => setMoveDocDialog({ document: doc })}
+                ruleNamesMap={ruleNamesMap}
               />
             )}
             {activePanel === 'quizzes' && (

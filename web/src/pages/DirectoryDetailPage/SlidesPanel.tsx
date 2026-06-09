@@ -56,6 +56,8 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
               }
               deleteAriaLabel={`Delete ${s.title}`}
               appliedRuleNames={s.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
+              completedAt={s.completedAt}
+              generationModel={s.generationModel}
               generationStatus={s.generationStatus}
               generationError={s.generationError}
               documentColor={s.documentColor}

@@ -546,6 +546,10 @@ export interface DocumentEnhanced {
   generationStatus?: GenerationStatus;
   generationError?: string;
   completedAt?: Date | { toDate(): Date };
+  /** Rules applied during document generation. */
+  appliedRuleIds?: string[];
+  /** Primary LLM model used during generation. */
+  generationModel?: string;
   /** Persistent accent color assigned at document creation. */
   color?: string;
 }
@@ -655,6 +659,9 @@ export interface ArtifactSummary {
   // Generation lifecycle (missing means completed for backward compat)
   generationStatus?: GenerationStatus;
   generationError?: string;
+  completedAt?: Date | Timestamp;
+  /** Primary LLM model used during generation. */
+  generationModel?: string;
   /** Color of the primary source document, for left-rail rendering. */
   documentColor?: string;
   /** Colors of all source documents in documentIds order, for segmented rail. */

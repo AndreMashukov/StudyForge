@@ -7,7 +7,7 @@ import {
 } from '@shared-types';
 import { DocumentCrudService } from './document-crud';
 import { directoryService } from './directory';
-import { LlmGenerationService } from './llm';
+import { LlmGenerationService, resolveScreenshotGenerationModelLabel } from './llm';
 import { isRuleResolutionMode, resolveEffectiveRules } from './rule-resolution';
 
 const MAX_SCREENSHOT_BASE64_LENGTH = 14_000_000;
@@ -68,10 +68,14 @@ export class ScreenshotDocumentGenerationService {
     let documentId: string;
 
     if (input.pendingDocumentId) {
+      const generationModel = await resolveScreenshotGenerationModelLabel();
+
       await DocumentCrudService.completePendingDocument(userId, input.pendingDocumentId, generatedContent, {
         title,
         description: 'Captured from screenshot',
         tags: ['screenshot', 'captured'],
+        appliedRuleIds: effectiveRuleIds,
+        generationModel,
       });
       documentId = input.pendingDocumentId;
     } else {

@@ -55,6 +55,8 @@ function toArtifactSummary(id: string, raw: DocumentData, type: ArtifactSummaryT
     appliedRuleIds: Array.isArray(data.appliedRuleIds) ? data.appliedRuleIds.filter((ruleId): ruleId is string => typeof ruleId === 'string') : [],
     generationStatus: data.generationStatus as ArtifactSummary['generationStatus'] | undefined,
     generationError: typeof data.generationError === 'string' ? data.generationError : undefined,
+    completedAt: data.completedAt as ArtifactSummary['completedAt'] | undefined,
+    generationModel: typeof data.generationModel === 'string' ? data.generationModel : undefined,
     documentColor: typeof data.documentColor === 'string' ? data.documentColor : undefined,
     documentColors: Array.isArray(data.documentColors) ? data.documentColors.filter((c): c is string => typeof c === 'string') : undefined,
   };

@@ -5,7 +5,11 @@ import { ExternalAuthResult, validateExternalAuthFromRequest } from "../lib/api-
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
 import { GeminiService } from "../services/gemini";
-import { LlmGenerationService } from "../services/llm";
+import {
+  LlmGenerationService,
+  resolveSlideDeckGenerationModelLabel,
+  resolveTextGenerationModelLabel,
+} from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { ScreenshotDocumentGenerationService } from "../services/screenshot-document-generation";
 import { enforceScreenshotGenerationRateLimit, RateLimitError } from "../services/api-rate-limit";
@@ -320,6 +324,8 @@ export const api = onRequest(
             .get();
           const generationAttempt = existingSnap.size;
 
+          const quizGenerationModel = await resolveTextGenerationModelLabel('quiz');
+
           await completePendingQuiz(userId, pendingQuizId, {
             title: geminiQuiz.title,
             questions: geminiQuiz.questions.map((q: { question: string; options: string[]; correctAnswer: number; explanation?: string; hint?: string }) => ({
@@ -331,6 +337,7 @@ export const api = onRequest(
             })),
             appliedRuleIds: appliedRuleIdsForSave,
             generationAttempt,
+            generationModel: quizGenerationModel,
           });
           await FirestorePaths.quiz(userId, pendingQuizId).update({
             followupRuleIds: followupIdsForSave,
@@ -481,6 +488,8 @@ export const api = onRequest(
             .get();
           const generationAttempt = existingSnap.size;
 
+          const diagramQuizGenerationModel = await resolveTextGenerationModelLabel('diagramQuiz');
+
           await completePendingDiagramQuiz(userId, pendingDiagramQuizId, {
             title: geminiQuiz.title,
             questions: geminiQuiz.questions.map((q) => ({
@@ -494,6 +503,7 @@ export const api = onRequest(
             appliedRuleIds: appliedRuleIdsForSave,
             followupRuleIds: followupIdsForSave,
             generationAttempt,
+            generationModel: diagramQuizGenerationModel,
           });
           const saved = await FirestorePaths.diagramQuiz(userId, pendingDiagramQuizId).get();
 
@@ -626,6 +636,8 @@ export const api = onRequest(
             .get();
           const generationAttempt = existingSnap.size;
 
+          const sequenceQuizGenerationModel = await resolveTextGenerationModelLabel('sequenceQuiz');
+
           await completePendingSequenceQuiz(userId, pendingSequenceQuizId, {
             title: geminiQuiz.title,
             questions: geminiQuiz.questions.map((q) => ({
@@ -637,6 +649,7 @@ export const api = onRequest(
             appliedRuleIds: appliedRuleIdsForSave,
             followupRuleIds: followupIdsForSave,
             generationAttempt,
+            generationModel: sequenceQuizGenerationModel,
           });
           const saved = await FirestorePaths.sequenceQuiz(userId, pendingSequenceQuizId).get();
 
@@ -752,10 +765,13 @@ export const api = onRequest(
               ? `Flashcards for "${documentDataList[0].doc.title}"`
               : `Flashcards for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
 
+          const flashcardGenerationModel = await resolveTextGenerationModelLabel('flashcards');
+
           await completePendingFlashcardSet(userId, pendingFlashcardSetId, {
             title,
             flashcards: flashcardsWithIds,
             appliedRuleIds: appliedRuleIdsForSave,
+            generationModel: flashcardGenerationModel,
           });
 
           res.status(201).json({ success: true, data: { flashcardSetId: pendingFlashcardSetId } });
@@ -909,10 +925,13 @@ export const api = onRequest(
               ? `Slides for "${documentDataList[0].doc.title}"`
               : `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
 
+          const slideDeckGenerationModel = await resolveSlideDeckGenerationModelLabel();
+
           await completePendingSlideDeck(userId, pendingSlideDeckId, {
             title: deckTitle,
             slides,
             appliedRuleIds: appliedRuleIdsForSave,
+            generationModel: slideDeckGenerationModel,
           });
 
           res.status(201).json({ success: true, data: { slideDeckId: pendingSlideDeckId } });
@@ -1128,10 +1147,13 @@ export const api = onRequest(
               ? `Slides for "${documentDataList[0].doc.title}"`
               : `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
 
+          const slideDeckGenerationModel = await resolveSlideDeckGenerationModelLabel();
+
           await completePendingSlideDeck(userId, pendingSlideDeckId, {
             title: deckTitle,
             slides,
             appliedRuleIds: appliedRuleIdsForSave,
+            generationModel: slideDeckGenerationModel,
           });
 
           res.status(201).json({ success: true, data: { slideDeckId: pendingSlideDeckId } });
@@ -1219,29 +1241,27 @@ export const api = onRequest(
           tags: ["ai-generated", "prompt-based"],
         });
 
-        let rulesText: string | undefined;
-        if (data.ruleIds && data.ruleIds.length > 0) {
-          const mode = isRuleResolutionMode(
-            (data as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
-          )
-            ? (data as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
-            : 'explicit-only';
-          const resolvedRules = await resolveEffectiveRules({
-            userId,
-            directoryId: data.directoryId,
-            operation: RuleApplicability.PROMPT,
-            additionalRuleIds: data.ruleIds,
-            mode,
-          });
-          rulesText = resolvedRules.text || undefined;
-        }
+        const rawRuleData = data as typeof data & {
+          additionalRuleIds?: string[];
+          ruleResolutionMode?: unknown;
+        };
+        const mode = isRuleResolutionMode(rawRuleData.ruleResolutionMode)
+          ? rawRuleData.ruleResolutionMode
+          : (data.ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
+        const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
+          userId,
+          directoryId: data.directoryId,
+          operation: RuleApplicability.PROMPT,
+          additionalRuleIds: data.ruleIds?.length ? data.ruleIds : rawRuleData.additionalRuleIds,
+          mode,
+        });
 
         let generatedContent: string;
         try {
           generatedContent = await LlmGenerationService.generateDocumentFromPrompt(
             trimmedPrompt,
             data.files,
-            rulesText
+            rulesText || undefined
           );
         } catch (genErr) {
           await DocumentCrudService.failPendingDocument(
@@ -1261,6 +1281,8 @@ export const api = onRequest(
 
         const wordCount = generatedContent.split(/\s+/).length;
 
+        const documentGenerationModel = await resolveTextGenerationModelLabel('documentFromPrompt');
+
         let document: Awaited<ReturnType<typeof DocumentCrudService.completePendingDocument>>;
         try {
           document = await DocumentCrudService.completePendingDocument(
@@ -1271,6 +1293,8 @@ export const api = onRequest(
               title,
               description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? "..." : ""}`,
               tags: ["ai-generated", "prompt-based"],
+              appliedRuleIds: effectiveRuleIds,
+              generationModel: documentGenerationModel,
             }
           );
         } catch (completeErr) {

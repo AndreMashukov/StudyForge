@@ -851,6 +851,8 @@ export class DocumentCrudService {
       title: string;
       description?: string;
       tags?: string[];
+      appliedRuleIds?: string[];
+      generationModel?: string;
     }
   ): Promise<Document> {
     const wordCount = this.countWords(content);
@@ -888,6 +890,8 @@ export class DocumentCrudService {
       storageUrl: storageFile.downloadUrl,
       storagePath: storageFile.path,
       status: DocumentStatus.ACTIVE,
+      appliedRuleIds: params.appliedRuleIds || [],
+      ...(params.generationModel ? { generationModel: params.generationModel } : {}),
       generationStatus: 'completed' as GenerationStatus,
       completedAt: now,
       updatedAt: now,
@@ -909,6 +913,8 @@ export class DocumentCrudService {
       storageUrl: storageFile.downloadUrl,
       storagePath: storageFile.path,
       status: DocumentStatus.ACTIVE,
+      appliedRuleIds: params.appliedRuleIds || [],
+      ...(params.generationModel ? { generationModel: params.generationModel } : {}),
       generationStatus: 'completed' as GenerationStatus,
       completedAt: now,
       updatedAt: now,
