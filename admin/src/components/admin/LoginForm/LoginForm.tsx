@@ -18,7 +18,9 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<
+    'idle' | 'submitting' | 'redirecting'
+  >('idle');
 
   const form = useForm<ILoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -33,7 +35,7 @@ export function LoginForm() {
 
   const handleValidSubmit = async (values: ILoginFormValues) => {
     setError(null);
-    setIsSubmitting(true);
+    setSubmitStatus('submitting');
 
     try {
       const credential = await signInWithEmailAndPassword(
@@ -52,6 +54,7 @@ export function LoginForm() {
       if (!response.ok) {
         const payload = (await response.json()) as { message?: string };
         if (response.status === 403) {
+          setSubmitStatus('redirecting');
           router.push('/unauthorized');
           return;
         }
@@ -59,6 +62,7 @@ export function LoginForm() {
       }
 
       const from = searchParams.get('from') || '/';
+      setSubmitStatus('redirecting');
       router.push(from);
       router.refresh();
     } catch (submitError) {
@@ -67,10 +71,13 @@ export function LoginForm() {
           ? submitError.message
           : 'Sign in failed. Check your credentials.';
       setError(message);
-    } finally {
-      setIsSubmitting(false);
+      setSubmitStatus('idle');
     }
   };
+
+  const isSubmitting = submitStatus !== 'idle';
+  const submitLabel =
+    submitStatus === 'redirecting' ? 'Redirecting…' : 'Signing in…';
 
   return (
     <Card className="w-full max-w-md">
@@ -118,7 +125,7 @@ export function LoginForm() {
             </p>
           ) : null}
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? 'Signing in…' : 'Sign in'}
+            {isSubmitting ? submitLabel : 'Sign in'}
           </Button>
         </form>
       </CardContent>
