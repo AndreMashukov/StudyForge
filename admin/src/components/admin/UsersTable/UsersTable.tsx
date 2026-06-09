@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { IAdminUserSummary } from '../../types/IAdminUserSummary';
-import { Badge } from '../ui/Badge';
+import { IAdminUserSummary } from '../../../types/IAdminUserSummary';
+import { Badge } from '../../ui/Badge';
 
 export interface IUsersTableProps {
   users: IAdminUserSummary[];

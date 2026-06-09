@@ -1,27 +1,46 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { auth } from '../../lib/firebase/client';
+import { auth } from '../../../lib/firebase/client';
 import { Button, Input, Label } from '@study-forge/ui';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/Card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/Card';
+import {
+  loginFormDefaultValues,
+  loginFormSchema,
+  type ILoginFormValues,
+} from './LoginForm.form';
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const form = useForm<ILoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: loginFormDefaultValues,
+  });
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = form;
+
+  const handleValidSubmit = async (values: ILoginFormValues) => {
     setError(null);
     setIsSubmitting(true);
 
     try {
-      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        values.email,
+        values.password
+      );
       const idToken = await credential.user.getIdToken();
 
       const response = await fetch('/api/auth/session', {
@@ -62,17 +81,21 @@ export function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(handleValidSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
               autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
+              aria-invalid={errors.email ? 'true' : 'false'}
+              {...register('email')}
             />
+            {errors.email ? (
+              <p className="text-sm text-destructive" role="alert">
+                {errors.email.message}
+              </p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
@@ -80,10 +103,14 @@ export function LoginForm() {
               id="password"
               type="password"
               autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
+              aria-invalid={errors.password ? 'true' : 'false'}
+              {...register('password')}
             />
+            {errors.password ? (
+              <p className="text-sm text-destructive" role="alert">
+                {errors.password.message}
+              </p>
+            ) : null}
           </div>
           {error ? (
             <p className="text-sm text-destructive" role="alert">
