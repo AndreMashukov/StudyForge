@@ -56,6 +56,8 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
               }
               deleteAriaLabel={`Delete ${sq.title}`}
               appliedRuleNames={sq.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
+              completedAt={sq.completedAt}
+              generationModel={sq.generationModel}
               generationStatus={sq.generationStatus}
               generationError={sq.generationError}
               documentColor={sq.documentColor}

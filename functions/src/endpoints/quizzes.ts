@@ -1,7 +1,7 @@
 import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
-import { LlmGenerationService } from "../services/llm";
+import { LlmGenerationService, resolveTextGenerationModelLabel } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
@@ -185,6 +185,8 @@ export const generateQuiz = onCall(
           .get();
         const generationAttempt = existingSnap.size;
 
+        const generationModel = await resolveTextGenerationModelLabel('quiz');
+
         await completePendingQuiz(userId, pendingQuizId, {
           title: geminiQuiz.title,
           questions: geminiQuiz.questions.map((q) => ({
@@ -197,6 +199,7 @@ export const generateQuiz = onCall(
           })),
           appliedRuleIds: appliedRuleIdsForSave,
           generationAttempt,
+          generationModel,
         });
 
         // Also persist followupRuleIds and documentTitle

@@ -9,6 +9,8 @@ export interface IArtifactRow {
   onDelete: () => void;
   deleteAriaLabel: string;
   appliedRuleNames?: string[];
+  completedAt?: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined;
+  generationModel?: string;
   generationStatus?: GenerationStatus;
   generationError?: string;
   /** Primary source document color for left-rail accent. */

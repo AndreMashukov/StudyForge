@@ -5,7 +5,7 @@ import {
 } from '@shared-types';
 import { FirestorePaths } from '../../lib/firestore-paths';
 import { DocumentCrudService } from '../document-crud';
-import { LlmGenerationService } from '../llm';
+import { LlmGenerationService, resolveTextGenerationModelLabel } from '../llm';
 import { GenerationJob } from '../generation-jobs';
 import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 import { isRuleResolutionMode, resolveEffectiveRules } from '../rule-resolution';
@@ -94,10 +94,14 @@ export class DocumentFromPromptGenerationProcessor {
       });
     }
 
+    const generationModel = await resolveTextGenerationModelLabel('documentFromPrompt');
+
     await DocumentCrudService.completePendingDocument(job.userId, job.recordId, generatedContent, {
       title,
       description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? '...' : ''}`,
       tags: ['ai-generated', 'prompt-based'],
+      appliedRuleIds: effectiveRuleIds,
+      generationModel,
     });
 
     await GenerationJobPayloadStorage.delete(job.payloadStoragePath).catch((error) => {

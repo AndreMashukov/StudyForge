@@ -1,4 +1,9 @@
 export { LlmGenerationService } from './llm-generation-service';
+export {
+  resolveTextGenerationModelLabel,
+  resolveScreenshotGenerationModelLabel,
+  resolveSlideDeckGenerationModelLabel,
+} from './resolve-generation-model';
 export { LlmRouteResolver } from './llm-route-resolver';
 export { LlmImageRouteResolver } from './llm-image-route-resolver';
 export { LlmSettingsRepository } from './llm-settings-repository';

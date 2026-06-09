@@ -56,6 +56,8 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
               }
               deleteAriaLabel={`Delete ${dq.title}`}
               appliedRuleNames={dq.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
+              completedAt={dq.completedAt}
+              generationModel={dq.generationModel}
               generationStatus={dq.generationStatus}
               generationError={dq.generationError}
               documentColor={dq.documentColor}

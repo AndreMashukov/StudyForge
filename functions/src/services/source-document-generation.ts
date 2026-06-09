@@ -11,6 +11,7 @@ export interface PreparedUploadDocumentContent {
   title: string;
   tags: string[];
   warnings: string[];
+  wasEnhanced: boolean;
 }
 
 export interface PrepareUploadDocumentContentParams {
@@ -68,6 +69,7 @@ export class SourceDocumentGenerationService {
       title,
       tags,
       warnings,
+      wasEnhanced,
     };
   }
 

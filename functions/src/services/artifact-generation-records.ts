@@ -79,6 +79,7 @@ export async function completePendingQuiz(
     questions: object[];
     appliedRuleIds?: string[];
     generationAttempt?: number;
+    generationModel?: string;
   }
 ): Promise<void> {
   const ref = FirestorePaths.quiz(userId, quizId);
@@ -91,6 +92,7 @@ export async function completePendingQuiz(
     questions: updates.questions,
     appliedRuleIds: updates.appliedRuleIds || [],
     generationAttempt: updates.generationAttempt || 1,
+    ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -158,6 +160,7 @@ export async function completePendingFlashcardSet(
     flashcards: object[];
     appliedRuleIds?: string[];
     appliedDescriptionRuleIds?: string[];
+    generationModel?: string;
   }
 ): Promise<void> {
   const ref = FirestorePaths.flashcardSet(userId, flashcardSetId);
@@ -170,6 +173,7 @@ export async function completePendingFlashcardSet(
     flashcards: updates.flashcards,
     appliedRuleIds: updates.appliedRuleIds || [],
     appliedDescriptionRuleIds: updates.appliedDescriptionRuleIds || [],
+    ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -235,6 +239,7 @@ export async function completePendingSlideDeck(
     title: string;
     slides: object[];
     appliedRuleIds?: string[];
+    generationModel?: string;
   }
 ): Promise<void> {
   const ref = FirestorePaths.slideDeck(userId, slideDeckId);
@@ -246,6 +251,7 @@ export async function completePendingSlideDeck(
     title: updates.title,
     slides: updates.slides,
     appliedRuleIds: updates.appliedRuleIds || [],
+    ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -315,6 +321,7 @@ export async function completePendingDiagramQuiz(
     appliedRuleIds?: string[];
     followupRuleIds?: string[];
     generationAttempt?: number;
+    generationModel?: string;
   }
 ): Promise<void> {
   const ref = FirestorePaths.diagramQuiz(userId, diagramQuizId);
@@ -328,6 +335,7 @@ export async function completePendingDiagramQuiz(
     appliedRuleIds: updates.appliedRuleIds || [],
     ...(updates.followupRuleIds !== undefined ? { followupRuleIds: updates.followupRuleIds } : {}),
     generationAttempt: updates.generationAttempt || 1,
+    ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -397,6 +405,7 @@ export async function completePendingSequenceQuiz(
     appliedRuleIds?: string[];
     followupRuleIds?: string[];
     generationAttempt?: number;
+    generationModel?: string;
   }
 ): Promise<void> {
   const ref = FirestorePaths.sequenceQuiz(userId, sequenceQuizId);
@@ -410,6 +419,7 @@ export async function completePendingSequenceQuiz(
     appliedRuleIds: updates.appliedRuleIds || [],
     ...(updates.followupRuleIds !== undefined ? { followupRuleIds: updates.followupRuleIds } : {}),
     generationAttempt: updates.generationAttempt || 1,
+    ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -479,6 +489,7 @@ export async function completePendingSubjectWorld(
     appliedRuleIds?: string[];
     followupRuleIds?: string[];
     generationAttempt?: number;
+    generationModel?: string;
   }
 ): Promise<void> {
   const ref = FirestorePaths.subjectWorld(userId, subjectWorldId);
@@ -492,6 +503,7 @@ export async function completePendingSubjectWorld(
     appliedRuleIds: updates.appliedRuleIds || [],
     ...(updates.followupRuleIds !== undefined ? { followupRuleIds: updates.followupRuleIds } : {}),
     generationAttempt: updates.generationAttempt || 1,
+    ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),

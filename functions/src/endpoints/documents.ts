@@ -6,7 +6,10 @@ import { DocumentCrudService } from '../services/document-crud';
 import { directoryService } from '../services/directory';
 import { UrlProcessingOrchestrator } from '../services/url-processing/url-processing-orchestrator';
 import { FileExtractionError, FileExtractionService } from '../services/file-extraction';
-import { LlmGenerationService } from '../services/llm';
+import {
+  LlmGenerationService,
+  resolveTextGenerationModelLabel,
+} from '../services/llm';
 import { SourceDocumentGenerationService } from '../services/source-document-generation';
 import { ScreenshotDocumentGenerationService } from '../services/screenshot-document-generation';
 import { GenerationJobPayloadStorage } from '../services/generation-job-payload-storage';
@@ -213,10 +216,16 @@ export const uploadAndCreateDocument = onCall(
           rulesText: rulesText || undefined,
         });
 
+        const generationModel = prepared.wasEnhanced
+          ? await resolveTextGenerationModelLabel('sourceDocumentEnhancement')
+          : undefined;
+
         await DocumentCrudService.completePendingDocument(userId, uploadPendingDocId, prepared.content, {
           title: prepared.title,
           description: `Uploaded from: ${data.fileName}`,
           tags: prepared.tags,
+          appliedRuleIds: effectiveRuleIds,
+          generationModel,
         });
 
         logger.info('Document created from upload successfully', {
@@ -426,10 +435,14 @@ export const createDocumentFromUrl = onCall(
           ? `Scraped from: ${rawUrls[0]}`
           : `Merged from ${summary.successfulCount} URL${summary.successfulCount !== 1 ? 's' : ''}`;
 
+        const generationModel = await resolveTextGenerationModelLabel('documentFromPrompt');
+
         await DocumentCrudService.completePendingDocument(userId, urlPendingDocId, generatedContent, {
           title,
           description,
           tags,
+          appliedRuleIds: effectiveRuleIds,
+          generationModel,
         });
 
         logger.info('Document created from URL(s) successfully', {

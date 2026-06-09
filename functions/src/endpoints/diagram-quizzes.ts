@@ -1,7 +1,7 @@
 import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
-import { LlmGenerationService } from "../services/llm";
+import { LlmGenerationService, resolveTextGenerationModelLabel } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
@@ -160,11 +160,14 @@ export const generateDiagramQuiz = onCall(
             ? `Diagram Quiz from ${documentDataList[0].doc.title}`
             : `Diagram Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
 
+        const generationModel = await resolveTextGenerationModelLabel('diagramQuiz');
+
         await completePendingDiagramQuiz(userId, pendingDiagramQuizId, {
           title: finalTitle,
           questions: geminiQuiz.questions,
           appliedRuleIds: appliedRuleIdsForSave,
           followupRuleIds: followupIdsForSave,
+          generationModel,
         });
 
         return {

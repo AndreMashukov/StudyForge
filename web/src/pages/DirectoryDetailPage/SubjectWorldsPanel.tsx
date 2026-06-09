@@ -56,6 +56,8 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
               }
               deleteAriaLabel={`Delete ${sw.title}`}
               appliedRuleNames={sw.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
+              completedAt={sw.completedAt}
+              generationModel={sw.generationModel}
               generationStatus={sw.generationStatus}
               generationError={sw.generationError}
               documentColor={sw.documentColor}

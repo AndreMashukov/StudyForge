@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '../../components/ui/DropdownMenu';
 import { Badge } from '../../components/ui/Badge';
+import { GenerationInfoTooltip } from '../../components/GenerationInfoTooltip';
 import { getColorRailStyle } from '../../utils/sourceColorRail';
 
 interface SourceRowProps {
@@ -19,9 +20,18 @@ interface SourceRowProps {
   directoryId: string;
   onDelete: (document: DocumentEnhanced) => void;
   onMove: (document: DocumentEnhanced) => void;
+  appliedRuleNames?: string[];
+  generationModel?: string;
 }
 
-export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onDelete, onMove }) => {
+export const SourceRow: React.FC<SourceRowProps> = ({
+  document,
+  directoryId,
+  onDelete,
+  onMove,
+  appliedRuleNames = [],
+  generationModel,
+}) => {
   const navigate = useNavigate();
   const isPending = document.generationStatus === 'pending';
   const isFailed = document.generationStatus === 'failed';
@@ -91,6 +101,14 @@ export const SourceRow: React.FC<SourceRowProps> = ({ document, directoryId, onD
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
+          <span onClick={(e) => e.stopPropagation()}>
+            <GenerationInfoTooltip
+              createdAt={document.createdAt}
+              completedAt={document.completedAt}
+              ruleNames={appliedRuleNames}
+              generationModel={generationModel ?? document.generationModel}
+            />
+          </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
