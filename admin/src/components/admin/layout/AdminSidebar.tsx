@@ -12,6 +12,7 @@ import {
   cn,
   sidebarClassNames,
 } from '@study-forge/ui';
+import { AdminNavLinkContent } from './AdminNavLinkContent';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -99,20 +100,11 @@ export function AdminSidebar({ email, isOpen }: IAdminSidebarProps) {
                     href={href}
                     aria-current={isActive ? 'page' : undefined}
                   >
-                    <Icon
-                      className={sidebarClassNames.navItemIcon}
-                      size={16}
-                      aria-hidden
+                    <AdminNavLinkContent
+                      label={label}
+                      icon={Icon}
+                      isOpen={isOpen}
                     />
-                    {isOpen ? (
-                      <span className={sidebarClassNames.navItemText}>
-                        {label}
-                      </span>
-                    ) : (
-                      <div className={sidebarClassNames.collapsedTooltip}>
-                        {label}
-                      </div>
-                    )}
                   </Link>
                 </SidebarNavItem>
               );
