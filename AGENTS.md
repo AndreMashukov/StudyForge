@@ -15,7 +15,7 @@
 
 ---
 
-# Code Insights AI — Coding Conventions
+# StudyForge — Coding Conventions
 
 ## Project Overview
 
@@ -253,7 +253,7 @@ Install all packages at the workspace root: `yarn add package-name`
 # Worktree Playbook
 
 - Always verify active worktrees before doing any setup or task execution: `git worktree list`
-- Always execute commands from the workspace root: `/home/andrey/.openclaw/workspace/code-insights-ai`
+- Always execute commands from the workspace root (the active git worktree directory)
 - For fresh or incomplete worktrees, run setup first: `./scripts/setup-worktree.sh`
 - Do not assume Nx is ready; verify local Nx availability with: `./node_modules/.bin/nx --version`
 - Always run project tasks via Nx (do not call underlying tools directly for build/lint/test/e2e tasks)
