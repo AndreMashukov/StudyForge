@@ -1,0 +1,40 @@
+---
+description: Page context pattern, containers, and component organization (web)
+globs: "{web/src/components/**/*.tsx,web/src/pages/**/*.tsx}"
+alwaysApply: false
+---
+
+# Component Structure (Web)
+
+## Page Pattern
+
+Every feature page: **Page → Provider → Container**
+
+```
+web/src/pages/FeatureNamePage/
+├── FeatureNamePage.tsx
+├── FeatureNamePageContainer/
+├── context/
+│   ├── FeatureNamePageProvider.tsx   # orchestrates hooks only
+│   └── hooks/
+│       ├── api/useFetchFeaturePageData.ts
+│       ├── useFeaturePageHandlers.ts
+│       ├── useFeaturePageEffects.ts
+│       └── useFeaturePageContext.ts
+```
+
+## MUST Follow
+
+1. Providers orchestrate hooks only — no `useState`, `useSelector`, or `useEffect` in providers.
+2. Containers consume context — early return for loading/error.
+3. Named exports; handler prefix `handle`; interface prefix `I`.
+
+## NEVER Do
+
+- NEVER put business logic in providers
+- NEVER duplicate RTK Query data in local `useState`
+- NEVER use class components (except `ErrorBoundary`)
+
+## Reference
+
+- [.claude/skills/page-pattern/SKILL.md](../../.claude/skills/page-pattern/SKILL.md)

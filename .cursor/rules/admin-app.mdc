@@ -1,0 +1,41 @@
+---
+description: Admin app — Next.js App Router, Firebase Admin, session auth
+globs: "admin/src/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Admin App
+
+Internal admin at `admin/src/` — Next.js 16 App Router, RSC-first, deployed to Vercel (:4201).
+
+## MUST Follow
+
+1. **MUST use shadcn/ui** from `admin/src/components/ui/`.
+2. **MUST use Firebase Admin SDK server-side only** for privileged Firestore reads.
+3. **MUST use session cookie auth** (`admin_session` by default).
+4. **MUST require** Firebase custom claim `{"role": "admin"}` for access.
+5. **MUST run tasks via NX**: `yarn nx run admin:dev|lint|typecheck|build`.
+
+## Structure
+
+```
+admin/src/
+├── app/              # App Router routes + API routes
+├── components/       # Admin UI + shadcn primitives
+└── lib/              # Auth, Firebase Admin, security helpers
+```
+
+## NEVER Do
+
+- NEVER expose Firebase Admin credentials or service account keys client-side
+- NEVER use MUI — shadcn/ui + Tailwind only
+- NEVER `cd admin/` to run build/lint — use NX from workspace root
+
+## Env
+
+- `admin/.env.local` — `NEXT_PUBLIC_*` for browser; server secrets without prefix
+- Copy from `admin/.env.example`
+
+## Reference
+
+- [AGENTS.md](../../AGENTS.md) — Admin app section

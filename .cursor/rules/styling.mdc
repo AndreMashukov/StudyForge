@@ -1,0 +1,28 @@
+---
+description: Styling — shadcn/ui, Tailwind CSS 3, design tokens
+globs: "{web/src/**/*.tsx,web/src/styles.css,admin/src/**/*.tsx,admin/src/app/globals.css}"
+alwaysApply: false
+---
+
+# Styling Rules
+
+## MUST Follow
+
+1. **MUST use shadcn/ui** from `web/src/components/ui/` or `admin/src/components/ui/`.
+2. **MUST use Lucide React** — no inline `<svg>` when a Lucide icon exists.
+3. **MUST use `cn()`** from `web/src/lib/utils.ts` (or admin equivalent) for conditional classes.
+4. **MUST use design tokens** (`bg-primary`, `text-muted-foreground`, `border-border`).
+5. **MUST write accessible markup** with proper ARIA labels.
+
+## NEVER Do
+
+- NEVER use MUI — not a project dependency
+- NEVER use arbitrary hex when a token exists (`text-[#8b5cf6]` → `text-primary`)
+- NEVER create one-off UI primitives when shadcn already provides them
+
+## Button Conventions
+
+- Primary: `<Button>` default variant
+- Secondary: `variant="outline"`
+- Destructive: `variant="destructive"` — irreversible actions only
+- Icon: `size="icon"` with Lucide child

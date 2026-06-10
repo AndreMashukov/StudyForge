@@ -1,0 +1,34 @@
+---
+description: Firebase Functions v2 callable endpoint patterns
+globs: "functions/src/**/*.ts"
+alwaysApply: false
+---
+
+# Firebase Functions
+
+## Stack
+
+- Firebase Functions v2 (Node.js 22), region `asia-east1`
+- Callable functions consumed by web via RTK Query
+- Gemini via `defineSecret('GEMINI_API_KEY')`
+- Shared types from `@shared-types`
+
+## MUST Follow
+
+1. **MUST use `onCall`** for endpoints called from the web app.
+2. **MUST validate auth** — check `request.auth` before processing.
+3. **MUST return `{ success: boolean, ... }` envelopes** matching web `transformResponse`.
+4. **MUST use `defineSecret`** for `GEMINI_API_KEY` — never hardcode.
+5. **MUST keep functions thin** — delegate to `functions/src/services/`.
+
+## Local Dev
+
+```bash
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run functions:serve
+```
+
+Emulator `--project` MUST match `NX_PUBLIC_FIREBASE_PROJECT_ID`.
+
+## Reference
+
+- [docs/EXTERNAL_API.md](../../docs/EXTERNAL_API.md)
