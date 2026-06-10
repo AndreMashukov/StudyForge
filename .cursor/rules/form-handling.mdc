@@ -1,0 +1,34 @@
+---
+description: React Hook Form + Zod validation patterns
+globs: "{web/src/pages/**/*.tsx,web/src/components/**/Form*.tsx,admin/src/**/*.tsx}"
+alwaysApply: false
+---
+
+# Form Handling
+
+## Approach
+
+- **Simple inputs**: `useState` for controlled fields
+- **Complex forms**: React Hook Form + Zod; always name the form instance `form`
+
+## MUST Follow
+
+1. **MUST name the form instance `form`** when using React Hook Form.
+2. **MUST use `zodResolver`** for schema-driven validation.
+3. **MUST use shadcn Form components**: `Form`, `FormField`, `FormItem`, `FormLabel`, `FormMessage`.
+4. **MUST trigger mutations in handler hooks** after validation passes (web).
+
+## Schema Pattern
+
+```typescript
+export const createDocumentSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+});
+
+export type CreateDocumentFormData = z.infer<typeof createDocumentSchema>;
+```
+
+## NEVER Do
+
+- NEVER bypass validation with type assertions on form data
+- NEVER put form submission side effects in `useEffect`

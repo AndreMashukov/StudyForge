@@ -155,6 +155,8 @@ Path-scoped rules in `.claude/rules/` activate automatically when editing matchi
 | `firebase-functions.md` | `functions/src/**` | Callable endpoints, Gemini secrets |
 | `production-infra.md` | `.github/workflows/**`, `firebase.json` | Hosting deploy, GitHub secrets |
 
+Cursor IDE equivalents live in `.cursor/rules/*.mdc` (see [`.cursor/rules/README.md`](.cursor/rules/README.md)). `studyforge-core.mdc` is always applied and mirrors this file.
+
 ## Skills Reference
 
 Knowledge skills (loaded on demand):

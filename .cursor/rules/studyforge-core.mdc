@@ -1,0 +1,37 @@
+---
+description: StudyForge core stack, commands, and gotchas — mirrors CLAUDE.md
+alwaysApply: true
+---
+
+# StudyForge Core
+
+NX monorepo: `web` (React 19 + Vite, :4200), `admin` (Next.js 16, :4201), `functions`, `extension`, `shared-types`.
+
+**Never use MUI.** Use shadcn/ui + Tailwind in `web` and `admin`.
+
+## Commands (always via NX from workspace root)
+
+```bash
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run web:typecheck
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run web:lint
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run admin:typecheck
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run admin:lint
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run functions:serve
+```
+
+## Must Follow
+
+- RTK Query for all API calls — never `httpsCallable` in components
+- Providers orchestrate hooks only — no `useState`/`useSelector`/`useEffect` in providers
+- Serializable Redux only — no Dates, Maps, Sets, class instances
+- Check `@shared-types` and `web/src/types/` before creating new types
+- No type assertions (`as any`, `@ts-ignore`) — use type guards and Zod
+
+## Gotchas
+
+1. Emulator `--project` must match `NX_PUBLIC_FIREBASE_PROJECT_ID` or callables fail with CORS 404
+2. Deploy secret: `FIREBASE_SERVICE_ACCOUNT_STUDY_FORGE_202604` (project `study-forge-202604`)
+3. Admin privileged reads via Firebase Admin SDK server-side only
+4. Pre-existing lint warning in `RuleSelector.tsx` (accessible-emoji) — do not flag as new
+
+Full conventions: [AGENTS.md](../../AGENTS.md)

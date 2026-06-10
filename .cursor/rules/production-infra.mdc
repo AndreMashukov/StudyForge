@@ -1,0 +1,33 @@
+---
+description: Production deployment — Firebase Hosting, GitHub Actions, Vercel
+globs: "{.github/workflows/**,firebase.json,.firebaserc,admin/next.config.js}"
+alwaysApply: false
+---
+
+# Production Infrastructure
+
+## Web — Firebase Hosting
+
+- Workflow: `.github/workflows/firebase-hosting-merge.yml`
+- Build: `dist/web` via `yarn nx build web --configuration=production`
+- Firebase project: `study-forge-202604`
+- Deploy secret: `FIREBASE_SERVICE_ACCOUNT_STUDY_FORGE_202604`
+
+## Admin — Vercel
+
+- Build: `yarn nx build admin --configuration=production`
+- Output: `admin/.next`
+
+## Common Failures
+
+| Error | Fix |
+|-------|-----|
+| `Input required: firebaseServiceAccount` | Secret must be `FIREBASE_SERVICE_ACCOUNT_STUDY_FORGE_202604` |
+| CORS 404 on callables | Emulator `--project` ≠ `NX_PUBLIC_FIREBASE_PROJECT_ID` |
+| Demo Firebase config in prod | Missing `NX_PUBLIC_*` secrets in CI build step |
+
+**Never commit** service account JSON or API keys.
+
+## Reference
+
+- [.claude/skills/firebase-hosting/SKILL.md](../../.claude/skills/firebase-hosting/SKILL.md)

@@ -1,0 +1,26 @@
+---
+description: RTK Query + Firebase callable function patterns
+globs: "{web/src/store/api/**/*.ts,web/src/store/slices/**/*.ts}"
+alwaysApply: false
+---
+
+# API Patterns — RTK Query + Firebase Callables
+
+## MUST Follow
+
+1. **MUST route all API calls** through `web/src/store/api/baseApi.ts` (`firebaseCallableBaseQuery`).
+2. **MUST NOT call `httpsCallable` directly** from components or hooks outside the API layer.
+3. **MUST use `providesTags` / `invalidatesTags`** for cache invalidation.
+4. **MUST import shared types** from `@shared-types`.
+5. **MUST place mutations in handler hooks** (`use{Page}Handlers`), not in `useEffect`.
+6. **MUST keep API data in RTK Query cache** — do not duplicate in Redux slices.
+
+## Naming
+
+- API files: `web/src/store/api/{Domain}/{Domain}Api.ts`
+- Hooks: `use{Action}{Entity}Query` / `use{Action}{Entity}Mutation`
+- Response types: suffix with `Api` (e.g., `IDocumentApi`)
+
+## Reference
+
+- [AGENTS.md](../../AGENTS.md) — State management and API patterns
