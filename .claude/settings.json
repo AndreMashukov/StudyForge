@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run web:typecheck)",
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run web:lint)",
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run web:build)",
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run web:dev)",
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run admin:typecheck)",
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run admin:lint)",
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run admin:build)",
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run admin:dev)",
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run functions:lint)",
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run functions:build)",
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run functions:serve)",
+      "Bash(npx tsx scripts/seed-setup/setup-seed-data.ts)",
+      "Bash(gh secret list)",
+      "Bash(gh pr *)",
+      "Bash(git worktree *)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "playwright"
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-commit-format.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
