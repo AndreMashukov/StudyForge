@@ -36,6 +36,13 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!session) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('from', pathname);
     return NextResponse.redirect(loginUrl);
