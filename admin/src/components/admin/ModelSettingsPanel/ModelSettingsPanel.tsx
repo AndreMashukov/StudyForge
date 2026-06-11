@@ -7,9 +7,13 @@ import type {
 } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Input, Label } from '@study-forge/ui';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import {
+  isAdminUnauthorizedResponse,
+  redirectToAdminLogin,
+} from '../../../lib/auth/client-login-redirect';
 import { Badge } from '../../ui/Badge';
 import {
   Card,
@@ -71,6 +75,7 @@ export function ModelSettingsPanel({
   encryptionConfigured,
 }: IModelSettingsPanelProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [openRouterConnection, setOpenRouterConnection] = useState(
     initialOpenRouterConnection
   );
@@ -102,6 +107,16 @@ export function ModelSettingsPanel({
         },
         body: JSON.stringify(normalizeModelSettingsSubmitPayload(values)),
       });
+
+      if (isAdminUnauthorizedResponse(response)) {
+        setNotice({
+          type: 'error',
+          message: 'Your session has expired. Redirecting to sign in…',
+        });
+        redirectToAdminLogin(router, pathname);
+        return;
+      }
+
       const payload = (await response.json()) as IRouteResponse;
 
       if (!response.ok || !payload.success || !payload.openRouterConnection) {
@@ -136,6 +151,16 @@ export function ModelSettingsPanel({
       const response = await fetch('/api/model-settings/openrouter/test', {
         method: 'POST',
       });
+
+      if (isAdminUnauthorizedResponse(response)) {
+        setNotice({
+          type: 'error',
+          message: 'Your session has expired. Redirecting to sign in…',
+        });
+        redirectToAdminLogin(router, pathname);
+        return;
+      }
+
       const payload = (await response.json()) as IRouteResponse;
 
       if (!response.ok || !payload.result || !payload.openRouterConnection) {
