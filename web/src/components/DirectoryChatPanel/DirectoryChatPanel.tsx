@@ -1,5 +1,19 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ChevronDown, ChevronUp, MessageSquare, Send } from 'lucide-react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Maximize2,
+  MessageSquare,
+  Minimize2,
+  Send,
+} from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Textarea } from '../ui/Textarea';
 import { Spinner } from '../ui/Spinner';
@@ -9,7 +23,10 @@ import {
   useGetDirectoryChatQuery,
   useSendDirectoryChatMessageMutation,
 } from '../../store/api/DirectoryChat';
-import { IDirectoryChatMessage, IOptimisticDirectoryChatMessage } from '../../store/api/DirectoryChat';
+import {
+  IDirectoryChatMessage,
+  IOptimisticDirectoryChatMessage,
+} from '../../store/api/DirectoryChat';
 import { IDirectoryChatPanel } from './IDirectoryChatPanel';
 
 const MAX_MESSAGE_LENGTH = 4000;
@@ -23,6 +40,10 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   defaultExpanded,
   expanded,
   onExpandedChange,
+  expandable = false,
+  defaultHeightExpanded = false,
+  heightExpanded,
+  onHeightExpandedChange,
   seedMessage,
   seedKey,
   artifactContext,
@@ -43,18 +64,45 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
     },
     [isControlled, onExpandedChange],
   );
+
+  const isHeightExpandedControlled = heightExpanded !== undefined;
+  const [uncontrolledHeightExpanded, setUncontrolledHeightExpanded] = useState(
+    defaultHeightExpanded,
+  );
+  const isHeightExpanded = isHeightExpandedControlled
+    ? heightExpanded
+    : uncontrolledHeightExpanded;
+
+  const handleHeightExpandedChange = useCallback(
+    (next: boolean) => {
+      if (!isHeightExpandedControlled) {
+        setUncontrolledHeightExpanded(next);
+      }
+      onHeightExpandedChange?.(next);
+    },
+    [isHeightExpandedControlled, onHeightExpandedChange],
+  );
+
+  const toggleHeightExpanded = useCallback(() => {
+    handleHeightExpandedChange(!isHeightExpanded);
+  }, [handleHeightExpandedChange, isHeightExpanded]);
   const [message, setMessage] = useState('');
-  const [visibleMessages, setVisibleMessages] = useState<IDirectoryChatMessage[]>([]);
-  const [optimisticMessages, setOptimisticMessages] = useState<IOptimisticDirectoryChatMessage[]>([]);
+  const [visibleMessages, setVisibleMessages] = useState<
+    IDirectoryChatMessage[]
+  >([]);
+  const [optimisticMessages, setOptimisticMessages] = useState<
+    IOptimisticDirectoryChatMessage[]
+  >([]);
   const [sendError, setSendError] = useState<string | null>(null);
   const sentSeedRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const { data, isLoading, error } = useGetDirectoryChatQuery(
     { directoryId },
-    { skip: !directoryId }
+    { skip: !directoryId },
   );
-  const [sendDirectoryChatMessage, { isLoading: isSending }] = useSendDirectoryChatMessageMutation();
+  const [sendDirectoryChatMessage, { isLoading: isSending }] =
+    useSendDirectoryChatMessageMutation();
 
   const hasLoadError = Boolean(error);
   const effectiveSourceCount = data?.documentCount ?? sourceCount;
@@ -68,63 +116,92 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
 
   const displayMessages = useMemo<IOptimisticDirectoryChatMessage[]>(
     () => [...visibleMessages, ...optimisticMessages],
-    [visibleMessages, optimisticMessages]
+    [visibleMessages, optimisticMessages],
   );
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [displayMessages.length, isSending]);
 
-  const handleSend = useCallback(async (
-    nextMessage: string,
-    nextSeedKey?: string,
-    shouldClearInput = true
-  ) => {
-    const trimmed = nextMessage.trim();
-    if (!trimmed || !directoryId || !canChat || isSending) return;
+  const handleSend = useCallback(
+    async (
+      nextMessage: string,
+      nextSeedKey?: string,
+      shouldClearInput = true,
+    ) => {
+      const trimmed = nextMessage.trim();
+      if (!trimmed || !directoryId || !canChat || isSending) return;
 
-    setSendError(null);
+      setSendError(null);
 
-    const pendingMessage: IOptimisticDirectoryChatMessage = {
-      id: `pending-${Date.now()}`,
-      role: 'user',
-      content: trimmed,
-      createdAt: new Date().toISOString(),
-      ...(nextSeedKey ? { seedKey: nextSeedKey } : {}),
-      status: 'pending',
-    };
-
-    setOptimisticMessages([pendingMessage]);
-    if (shouldClearInput) setMessage('');
-
-    try {
-      const result = await sendDirectoryChatMessage({
-        directoryId,
-        message: trimmed,
+      const pendingMessage: IOptimisticDirectoryChatMessage = {
+        id: `pending-${Date.now()}`,
+        role: 'user',
+        content: trimmed,
+        createdAt: new Date().toISOString(),
         ...(nextSeedKey ? { seedKey: nextSeedKey } : {}),
-        ...(artifactContext ? { artifactContext } : {}),
-      }).unwrap();
+        status: 'pending',
+      };
 
-      setVisibleMessages(result.messages);
-      setOptimisticMessages([]);
-    } catch (sendMessageError) {
-      const errorMessage =
-        (sendMessageError as { data?: { message?: string } })?.data?.message ||
-        'Failed to send message';
+      setOptimisticMessages([pendingMessage]);
+      if (shouldClearInput) setMessage('');
 
-      setOptimisticMessages([{ ...pendingMessage, status: 'failed' }]);
-      setSendError(errorMessage);
-    }
-  }, [artifactContext, canChat, directoryId, isSending, sendDirectoryChatMessage]);
+      try {
+        const result = await sendDirectoryChatMessage({
+          directoryId,
+          message: trimmed,
+          ...(nextSeedKey ? { seedKey: nextSeedKey } : {}),
+          ...(artifactContext ? { artifactContext } : {}),
+        }).unwrap();
+
+        setVisibleMessages(result.messages);
+        setOptimisticMessages([]);
+      } catch (sendMessageError) {
+        const hasErrorMessage = (
+          err: unknown,
+        ): err is { data: { message: string } } =>
+          typeof err === 'object' &&
+          err !== null &&
+          'data' in err &&
+          typeof err.data === 'object' &&
+          err.data !== null &&
+          'message' in err.data &&
+          typeof err.data.message === 'string';
+
+        const errorMessage = hasErrorMessage(sendMessageError)
+          ? sendMessageError.data.message
+          : 'Failed to send message';
+
+        setOptimisticMessages([{ ...pendingMessage, status: 'failed' }]);
+        setSendError(errorMessage);
+      }
+    },
+    [
+      artifactContext,
+      canChat,
+      directoryId,
+      isSending,
+      sendDirectoryChatMessage,
+    ],
+  );
 
   useEffect(() => {
-    if (!autoSendSeed || !seedMessage || !seedKey || !canChat || isLoading) return;
+    if (!autoSendSeed || !seedMessage || !seedKey || !canChat || isLoading)
+      return;
     if (sentSeedRef.current === seedKey) return;
     if (displayMessages.some((item) => item.seedKey === seedKey)) return;
 
     sentSeedRef.current = seedKey;
     void handleSend(seedMessage, seedKey, false);
-  }, [autoSendSeed, canChat, displayMessages, handleSend, isLoading, seedKey, seedMessage]);
+  }, [
+    autoSendSeed,
+    canChat,
+    displayMessages,
+    handleSend,
+    isLoading,
+    seedKey,
+    seedMessage,
+  ]);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -146,25 +223,30 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
         <MessageSquare size={18} className="shrink-0 text-primary" />
         <span className="text-sm font-semibold">Chat</span>
         <span className="text-xs text-muted-foreground">
-          {effectiveSourceCount} {effectiveSourceCount === 1 ? 'source' : 'sources'}
+          {effectiveSourceCount}{' '}
+          {effectiveSourceCount === 1 ? 'source' : 'sources'}
         </span>
         <ChevronUp size={16} className="ml-1 text-muted-foreground" />
       </button>
     );
   }
 
-  const panelHeightClass = collapsible
-    ? 'h-80 w-96'
-    : compact
-      ? 'h-[600px]'
-      : 'h-[800px]';
+  const panelHeightClass = (() => {
+    if (collapsible) {
+      return isHeightExpanded ? 'h-[480px] w-96' : 'h-80 w-96';
+    }
+    if (compact) {
+      return isHeightExpanded ? 'h-[900px]' : 'h-[600px]';
+    }
+    return isHeightExpanded ? 'h-[1200px]' : 'h-[800px]';
+  })();
 
   return (
     <section
       className={cn(
         'flex flex-col rounded-lg border border-border bg-card/40',
         panelHeightClass,
-        className
+        className,
       )}
       aria-label="Directory chat"
     >
@@ -174,12 +256,32 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
           <div className="min-w-0">
             <h2 className="truncate text-base font-semibold">Chat</h2>
             <p className="text-xs text-muted-foreground">
-              {effectiveSourceCount} {effectiveSourceCount === 1 ? 'source' : 'sources'} in scope
+              {effectiveSourceCount}{' '}
+              {effectiveSourceCount === 1 ? 'source' : 'sources'} in scope
             </p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {isLoading && <Spinner size="xs" />}
+          {expandable && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleHeightExpanded}
+              aria-label={
+                isHeightExpanded ? 'Restore chat height' : 'Expand chat height'
+              }
+              aria-expanded={isHeightExpanded}
+            >
+              {isHeightExpanded ? (
+                <Minimize2 size={16} />
+              ) : (
+                <Maximize2 size={16} />
+              )}
+            </Button>
+          )}
           {collapsible && (
             <Button
               type="button"
@@ -210,11 +312,14 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
           </div>
         )}
 
-        {!hasLoadError && canChat && displayMessages.length === 0 && !isLoading && (
-          <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-            Ask about the sources in this directory.
-          </div>
-        )}
+        {!hasLoadError &&
+          canChat &&
+          displayMessages.length === 0 &&
+          !isLoading && (
+            <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+              Ask about the sources in this directory.
+            </div>
+          )}
 
         <div className="space-y-4">
           {displayMessages.map((item) => (
@@ -222,7 +327,7 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
               key={item.id}
               className={cn(
                 'flex',
-                item.role === 'user' ? 'justify-end' : 'justify-start'
+                item.role === 'user' ? 'justify-end' : 'justify-start',
               )}
             >
               <div
@@ -231,7 +336,8 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
                   item.role === 'user'
                     ? 'border-primary/30 bg-primary/15 text-foreground'
                     : 'border-border bg-background text-foreground',
-                  item.status === 'failed' && 'border-destructive/40 bg-destructive/10'
+                  item.status === 'failed' &&
+                    'border-destructive/40 bg-destructive/10',
                 )}
               >
                 {item.role === 'assistant' ? (
@@ -240,7 +346,9 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
                   <p className="whitespace-pre-wrap">{item.content}</p>
                 )}
                 {item.status === 'pending' && (
-                  <p className="mt-1 text-xs text-muted-foreground">Sending...</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Sending...
+                  </p>
                 )}
                 {item.status === 'failed' && (
                   <p className="mt-1 text-xs text-destructive">Not sent</p>
@@ -270,7 +378,11 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
         <Textarea
           value={message}
           onChange={(event) => setMessage(event.target.value)}
-          placeholder={canChat ? 'Ask about this directory...' : 'Add a source before chatting'}
+          placeholder={
+            canChat
+              ? 'Ask about this directory...'
+              : 'Add a source before chatting'
+          }
           rows={compact ? 2 : 3}
           maxLength={MAX_MESSAGE_LENGTH}
           showCharCount
@@ -283,7 +395,11 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
             disabled={!message.trim() || !canChat || isSending}
             className="gap-2"
           >
-            {isSending ? <Spinner size="xs" variant="on-primary" /> : <Send size={14} />}
+            {isSending ? (
+              <Spinner size="xs" variant="on-primary" />
+            ) : (
+              <Send size={14} />
+            )}
             Send
           </Button>
         </div>
