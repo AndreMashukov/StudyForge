@@ -309,7 +309,15 @@ const FailureList = ({ failures }: { failures: StatisticsRecentFailure[] }) => {
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase text-destructive">Your answer</p>
                     {openComparison.kind === 'diagram' ? (
-                      <MermaidDiagram code={openComparison.selectedCode} className="min-h-[200px]" />
+                      <div className="space-y-3">
+                        <MermaidDiagram code={openComparison.selectedCode} className="min-h-[200px]" />
+                        <details className="rounded-md border border-border bg-muted/20 p-3">
+                          <summary className="cursor-pointer text-sm font-medium">Show source</summary>
+                          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs text-foreground">
+                            {openComparison.selectedCode}
+                          </pre>
+                        </details>
+                      </div>
                     ) : (
                       <SequenceList items={openComparison.selectedItems} tone="wrong" />
                     )}
@@ -317,7 +325,15 @@ const FailureList = ({ failures }: { failures: StatisticsRecentFailure[] }) => {
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase text-success">Correct answer</p>
                     {openComparison.kind === 'diagram' ? (
-                      <MermaidDiagram code={openComparison.correctCode} className="min-h-[200px]" />
+                      <div className="space-y-3">
+                        <MermaidDiagram code={openComparison.correctCode} className="min-h-[200px]" />
+                        <details className="rounded-md border border-border bg-muted/20 p-3">
+                          <summary className="cursor-pointer text-sm font-medium">Show source</summary>
+                          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs text-foreground">
+                            {openComparison.correctCode}
+                          </pre>
+                        </details>
+                      </div>
                     ) : (
                       <SequenceList items={openComparison.correctItems} tone="right" />
                     )}
