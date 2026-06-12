@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -155,6 +155,32 @@ export const StatisticsPageContainer: React.FC = () => {
   const { statisticsApi, handlers } = useStatisticsPageContext();
   const { filters, isDetailRoute, quizDetailRequest, knowledgeDetailRequest } = statisticsApi;
 
+  const pageHeader = useMemo(() => {
+    if (knowledgeDetailRequest) {
+      const gap = statisticsApi.knowledgeDetail.data?.gap;
+      return {
+        title: 'Details',
+        subtitle: gap?.knowledgeDomainName ?? 'Knowledge domain details',
+      };
+    }
+    if (quizDetailRequest) {
+      const quiz = statisticsApi.quizDetail.data?.quiz;
+      return {
+        title: 'Details',
+        subtitle: quiz?.quizTitle ?? 'Quiz details',
+      };
+    }
+    return {
+      title: 'Statistics',
+      subtitle: 'Quiz performance, knowledge gaps, and learning time',
+    };
+  }, [
+    knowledgeDetailRequest,
+    quizDetailRequest,
+    statisticsApi.knowledgeDetail.data?.gap,
+    statisticsApi.quizDetail.data?.quiz,
+  ]);
+
   const rangeControls = (
     <div className="flex flex-wrap items-center gap-2">
       {TIME_RANGE_OPTIONS.map((option) => (
@@ -259,10 +285,8 @@ export const StatisticsPageContainer: React.FC = () => {
                 <BarChart3 className="h-5 w-5" />
               </div>
               <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-foreground">Statistics</h1>
-                <p className="text-sm text-muted-foreground">
-                  {isDetailRoute ? 'Detailed learning telemetry' : 'Quiz performance, knowledge gaps, and learning time'}
-                </p>
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">{pageHeader.title}</h1>
+                <p className="text-sm text-muted-foreground">{pageHeader.subtitle}</p>
               </div>
             </div>
             {rangeControls}
