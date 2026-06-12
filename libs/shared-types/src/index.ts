@@ -1548,6 +1548,10 @@ export interface StatisticsRecentFailure {
   selectedAnswerLabel: string;
   correctAnswer: QuizAnswerValue;
   correctAnswerLabel: string;
+  /** Mermaid source for diagram-quiz failures (selected option index). */
+  selectedDiagramCode?: string;
+  /** Mermaid source for diagram-quiz failures (correct option index). */
+  correctDiagramCode?: string;
   knowledge: QuestionKnowledgeMetadata;
   sourceDocuments: StatisticsDocumentSummary[];
   occurredAt: string;

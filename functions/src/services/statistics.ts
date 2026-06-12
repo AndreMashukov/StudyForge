@@ -153,6 +153,15 @@ function answerLabel(value: QuizAnswerValue, question?: IQuizMetadata['questions
   return String(value);
 }
 
+function diagramCodeAt(
+  question: IQuizMetadata['questions'][number] | undefined,
+  value: QuizAnswerValue
+): string | undefined {
+  if (typeof value !== 'number' || value < 0) return undefined;
+  const code = question?.diagrams?.[value];
+  return typeof code === 'string' && code.trim().length > 0 ? code : undefined;
+}
+
 function getQuizRef(userId: string, quizType: QuizTelemetryType, quizId: string) {
   switch (quizType) {
     case 'quiz':
@@ -319,6 +328,11 @@ async function buildRecentFailures(
     const failureKey = `${attempt.quizType}:${attempt.quizId}:${answer.questionIndex}:${keys.subjectKey}:${keys.knowledgeDomainKey}`;
     const documents = await getDocumentSummaries(userId, sourceDocumentIds(answer, attempt), documentCache);
 
+    const selectedDiagramCode =
+      attempt.quizType === 'diagramQuiz' ? diagramCodeAt(question, answer.selectedAnswer) : undefined;
+    const correctDiagramCode =
+      attempt.quizType === 'diagramQuiz' ? diagramCodeAt(question, answer.correctAnswer) : undefined;
+
     result.push({
       id: `${attempt.id}:${answer.questionIndex}`,
       attemptId: attempt.id,
@@ -331,6 +345,8 @@ async function buildRecentFailures(
       selectedAnswerLabel: answerLabel(answer.selectedAnswer, question),
       correctAnswer: answer.correctAnswer,
       correctAnswerLabel: answerLabel(answer.correctAnswer, question),
+      ...(selectedDiagramCode ? { selectedDiagramCode } : {}),
+      ...(correctDiagramCode ? { correctDiagramCode } : {}),
       knowledge: answer.knowledge,
       sourceDocuments: documents,
       occurredAt: attempt.completedAtDate.toISOString(),
