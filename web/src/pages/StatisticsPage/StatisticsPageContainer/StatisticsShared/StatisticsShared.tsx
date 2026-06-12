@@ -3,7 +3,19 @@ import { BarChart3 } from 'lucide-react';
 import { Card, CardContent } from '../../../../components/ui/Card';
 import { Spinner } from '../../../../components/ui/Spinner';
 
-export const EmptyState = ({ title, description }: { title: string; description: string }) => (
+interface IEmptyState {
+  title: string;
+  description: string;
+}
+
+interface IMetricCard {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  detail: string;
+}
+
+export const EmptyState = ({ title, description }: IEmptyState) => (
   <Card>
     <CardContent className="p-10 text-center">
       <BarChart3 className="mx-auto mb-4 h-10 w-10 text-muted-foreground/60" />
@@ -25,17 +37,7 @@ export const ErrorBlock = () => (
   </Card>
 );
 
-export const MetricCard = ({
-  icon: Icon,
-  label,
-  value,
-  detail,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  detail: string;
-}) => (
+export const MetricCard = ({ icon: Icon, label, value, detail }: IMetricCard) => (
   <Card>
     <CardContent className="p-5">
       <div className="flex items-start justify-between gap-3">

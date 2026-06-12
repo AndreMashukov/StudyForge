@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import {
   GetStatisticsKnowledgeDetailRequest,
   GetStatisticsQuizDetailRequest,
+  StatisticsDateRangeRequest,
   StatisticsQuizTypeFilter,
   StatisticsTimeRangeKey,
 } from '@shared-types';
@@ -18,6 +19,26 @@ import { IStatisticsPageApi } from '../../../types/IStatisticsPageContext';
 import { getStatisticsDateRange, isQuizTelemetryType } from '../../../utils/statisticsPageUtils';
 
 type RouteParamKey = 'quizType' | 'quizId' | 'subjectKey' | 'knowledgeDomainKey';
+
+function buildSkippedQuizDetailRequest(
+  request: StatisticsDateRangeRequest
+): GetStatisticsQuizDetailRequest {
+  return {
+    ...request,
+    quizId: '',
+    quizType: 'quiz',
+  };
+}
+
+function buildSkippedKnowledgeDetailRequest(
+  request: StatisticsDateRangeRequest
+): GetStatisticsKnowledgeDetailRequest {
+  return {
+    ...request,
+    subjectKey: '',
+    knowledgeDomainKey: '',
+  };
+}
 
 export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
   const params = useParams<RouteParamKey>();
@@ -53,21 +74,25 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
   const performanceQuery = useGetStatisticsQuizPerformanceQuery(request, { skip: isDetailRoute });
   const gapsQuery = useGetStatisticsKnowledgeGapsQuery(request, { skip: isDetailRoute });
   const timeQuery = useGetStatisticsLearningTimeQuery(request, { skip: isDetailRoute });
-  const quizDetailQuery = useGetStatisticsQuizDetailQuery(quizDetailRequest as GetStatisticsQuizDetailRequest, {
-    skip: !quizDetailRequest,
-  });
+  const quizDetailQuery = useGetStatisticsQuizDetailQuery(
+    quizDetailRequest ?? buildSkippedQuizDetailRequest(request),
+    { skip: !quizDetailRequest }
+  );
   const knowledgeDetailQuery = useGetStatisticsKnowledgeDetailQuery(
-    knowledgeDetailRequest as GetStatisticsKnowledgeDetailRequest,
+    knowledgeDetailRequest ?? buildSkippedKnowledgeDetailRequest(request),
     { skip: !knowledgeDetailRequest }
   );
 
-  const isLoading =
-    overviewQuery.isLoading ||
-    performanceQuery.isLoading ||
-    gapsQuery.isLoading ||
-    timeQuery.isLoading;
+  const isLoading = isDetailRoute
+    ? quizDetailQuery.isLoading || knowledgeDetailQuery.isLoading
+    : overviewQuery.isLoading ||
+      performanceQuery.isLoading ||
+      gapsQuery.isLoading ||
+      timeQuery.isLoading;
   const hasError = Boolean(
-    overviewQuery.error || performanceQuery.error || gapsQuery.error || timeQuery.error
+    isDetailRoute
+      ? quizDetailQuery.error || knowledgeDetailQuery.error
+      : overviewQuery.error || performanceQuery.error || gapsQuery.error || timeQuery.error
   );
 
   const refetchAll = () => {
