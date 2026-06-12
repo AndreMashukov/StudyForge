@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -12,29 +12,13 @@ import {
   Target,
   TrendingUp,
 } from 'lucide-react';
-import {
-  GetStatisticsKnowledgeDetailRequest,
-  GetStatisticsQuizDetailRequest,
-  QuizTelemetryType,
-  StatisticsKnowledgeGapItem,
-  StatisticsQuizPerformanceItem,
-  StatisticsQuizTypeFilter,
-  StatisticsRecentFailure,
-  StatisticsTimeRangeKey,
-} from '@shared-types';
+import { StatisticsKnowledgeGapItem, StatisticsQuizPerformanceItem } from '@shared-types';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/Card';
-import { Spinner } from '../../../components/ui/Spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/Tabs';
-import {
-  useGetStatisticsKnowledgeDetailQuery,
-  useGetStatisticsKnowledgeGapsQuery,
-  useGetStatisticsLearningTimeQuery,
-  useGetStatisticsOverviewQuery,
-  useGetStatisticsQuizDetailQuery,
-  useGetStatisticsQuizPerformanceQuery,
-} from '../../../store/api/Statistics';
+import { useStatisticsPageContext } from '../context/hooks/useStatisticsPageContext';
+import { StatisticsTab } from '../types/IStatisticsPageHandlers';
 import {
   artifactTypeLabel,
   detailQuizPath,
@@ -43,128 +27,15 @@ import {
   formatInteger,
   formatPercentage,
   formatSeconds,
-  getStatisticsDateRange,
   knowledgePath,
   QUIZ_TYPE_OPTIONS,
   quizTypeLabel,
   TIME_RANGE_OPTIONS,
 } from '../utils/statisticsPageUtils';
-
-type StatisticsTab = 'overview' | 'performance' | 'knowledge' | 'time';
-
-type RouteParamKey = 'quizType' | 'quizId' | 'subjectKey' | 'knowledgeDomainKey';
+import { FailureList } from './FailureList';
+import { EmptyState, ErrorBlock, LoadingBlock, MetricCard } from './StatisticsShared';
 
 const MAX_BAR_PERCENT = 100;
-
-function isQuizTelemetryType(value: string | undefined): value is QuizTelemetryType {
-  return value === 'quiz' || value === 'diagramQuiz' || value === 'sequenceQuiz';
-}
-
-const EmptyState = ({ title, description }: { title: string; description: string }) => (
-  <Card>
-    <CardContent className="p-10 text-center">
-      <BarChart3 className="mx-auto mb-4 h-10 w-10 text-muted-foreground/60" />
-      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
-    </CardContent>
-  </Card>
-);
-
-const LoadingBlock = () => (
-  <div className="flex justify-center py-14">
-    <Spinner size="lg" variant="muted" />
-  </div>
-);
-
-const ErrorBlock = () => (
-  <Card className="border-destructive/50">
-    <CardContent className="p-6 text-destructive">Failed to load statistics.</CardContent>
-  </Card>
-);
-
-const MetricCard = ({
-  icon: Icon,
-  label,
-  value,
-  detail,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  detail: string;
-}) => (
-  <Card>
-    <CardContent className="p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">{value}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-        </div>
-        <div className="rounded-md bg-primary/10 p-2 text-primary">
-          <Icon className="h-5 w-5" />
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-);
-
-const FailureList = ({ failures }: { failures: StatisticsRecentFailure[] }) => {
-  if (failures.length === 0) {
-    return (
-      <EmptyState
-        title="No failed answers in this range"
-        description="Quiz misses will appear here after completed attempts."
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {failures.map((failure) => (
-        <Card key={failure.id}>
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{quizTypeLabel(failure.quizType)}</Badge>
-                  <span className="text-xs text-muted-foreground">{formatDateTime(failure.occurredAt)}</span>
-                  {failure.repeatedFailureCount > 1 && (
-                    <Badge variant="outline">{failure.repeatedFailureCount} repeats</Badge>
-                  )}
-                </div>
-                <h3 className="text-sm font-semibold text-foreground">{failure.questionText}</h3>
-                <div className="mt-3 grid gap-2 text-sm md:grid-cols-2">
-                  <div className="rounded-md bg-destructive/10 p-3">
-                    <p className="text-xs uppercase text-muted-foreground">Your answer</p>
-                    <p className="mt-1 text-destructive">{failure.selectedAnswerLabel}</p>
-                  </div>
-                  <div className="rounded-md bg-accent/10 p-3">
-                    <p className="text-xs uppercase text-muted-foreground">Correct answer</p>
-                    <p className="mt-1 text-foreground">{failure.correctAnswerLabel}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2 md:w-48">
-                <Button variant="outline" size="sm" asChild>
-                  <Link to={detailQuizPath(failure.quizType, failure.quizId)}>Quiz detail</Link>
-                </Button>
-                {failure.sourceDocuments.slice(0, 1).map((document) => (
-                  <Button key={document.id} variant="ghost" size="sm" asChild>
-                    <Link to={`/document/${document.id}`}>
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      Source
-                    </Link>
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-};
 
 const KnowledgeGapChart = ({ gaps }: { gaps: StatisticsKnowledgeGapItem[] }) => {
   if (gaps.length === 0) {
@@ -281,72 +152,43 @@ const QuizPerformanceTable = ({ quizzes }: { quizzes: StatisticsQuizPerformanceI
 };
 
 export const StatisticsPageContainer: React.FC = () => {
-  const navigate = useNavigate();
-  const params = useParams<RouteParamKey>();
-  const [activeTab, setActiveTab] = useState<StatisticsTab>('overview');
-  const [timeRange, setTimeRange] = useState<StatisticsTimeRangeKey>('30d');
-  const [quizType, setQuizType] = useState<StatisticsQuizTypeFilter>('all');
+  const { statisticsApi, handlers } = useStatisticsPageContext();
+  const { filters, isDetailRoute, quizDetailRequest, knowledgeDetailRequest } = statisticsApi;
 
-  const request = useMemo(
-    () => getStatisticsDateRange(timeRange, quizType),
-    [timeRange, quizType]
-  );
-
-  const quizDetailRequest = useMemo<GetStatisticsQuizDetailRequest | null>(() => {
-    if (!params.quizId || !isQuizTelemetryType(params.quizType)) return null;
-    return {
-      ...request,
-      quizId: params.quizId,
-      quizType: params.quizType,
-    };
-  }, [params.quizId, params.quizType, request]);
-
-  const knowledgeDetailRequest = useMemo<GetStatisticsKnowledgeDetailRequest | null>(() => {
-    if (!params.subjectKey || !params.knowledgeDomainKey) return null;
-    return {
-      ...request,
-      subjectKey: decodeURIComponent(params.subjectKey),
-      knowledgeDomainKey: decodeURIComponent(params.knowledgeDomainKey),
-    };
-  }, [params.subjectKey, params.knowledgeDomainKey, request]);
-
-  const isDetailRoute = Boolean(quizDetailRequest || knowledgeDetailRequest);
-
-  const overviewQuery = useGetStatisticsOverviewQuery(request, { skip: isDetailRoute });
-  const performanceQuery = useGetStatisticsQuizPerformanceQuery(request, { skip: isDetailRoute });
-  const gapsQuery = useGetStatisticsKnowledgeGapsQuery(request, { skip: isDetailRoute });
-  const timeQuery = useGetStatisticsLearningTimeQuery(request, { skip: isDetailRoute });
-  const quizDetailQuery = useGetStatisticsQuizDetailQuery(quizDetailRequest as GetStatisticsQuizDetailRequest, {
-    skip: !quizDetailRequest,
-  });
-  const knowledgeDetailQuery = useGetStatisticsKnowledgeDetailQuery(
-    knowledgeDetailRequest as GetStatisticsKnowledgeDetailRequest,
-    { skip: !knowledgeDetailRequest }
-  );
-
-  const isLoading = overviewQuery.isLoading || performanceQuery.isLoading || gapsQuery.isLoading || timeQuery.isLoading;
-  const hasError = Boolean(overviewQuery.error || performanceQuery.error || gapsQuery.error || timeQuery.error);
-
-  const refetchAll = () => {
-    if (isDetailRoute) {
-      if (quizDetailRequest) quizDetailQuery.refetch();
-      if (knowledgeDetailRequest) knowledgeDetailQuery.refetch();
-      return;
+  const pageHeader = useMemo(() => {
+    if (knowledgeDetailRequest) {
+      const gap = statisticsApi.knowledgeDetail.data?.gap;
+      return {
+        title: 'Details',
+        subtitle: gap?.knowledgeDomainName ?? 'Knowledge domain details',
+      };
     }
-    overviewQuery.refetch();
-    performanceQuery.refetch();
-    gapsQuery.refetch();
-    timeQuery.refetch();
-  };
+    if (quizDetailRequest) {
+      const quiz = statisticsApi.quizDetail.data?.quiz;
+      return {
+        title: 'Details',
+        subtitle: quiz?.quizTitle ?? 'Quiz details',
+      };
+    }
+    return {
+      title: 'Statistics',
+      subtitle: 'Quiz performance, knowledge gaps, and learning time',
+    };
+  }, [
+    knowledgeDetailRequest,
+    quizDetailRequest,
+    statisticsApi.knowledgeDetail.data?.gap,
+    statisticsApi.quizDetail.data?.quiz,
+  ]);
 
   const rangeControls = (
     <div className="flex flex-wrap items-center gap-2">
       {TIME_RANGE_OPTIONS.map((option) => (
         <Button
           key={option.value}
-          variant={timeRange === option.value ? 'default' : 'outline'}
+          variant={filters.timeRange === option.value ? 'default' : 'outline'}
           size="sm"
-          onClick={() => setTimeRange(option.value)}
+          onClick={() => handlers.handleSetTimeRange(option.value)}
         >
           {option.label}
         </Button>
@@ -354,14 +196,14 @@ export const StatisticsPageContainer: React.FC = () => {
       {QUIZ_TYPE_OPTIONS.map((option) => (
         <Button
           key={option.value}
-          variant={quizType === option.value ? 'secondary' : 'ghost'}
+          variant={filters.quizType === option.value ? 'secondary' : 'ghost'}
           size="sm"
-          onClick={() => setQuizType(option.value)}
+          onClick={() => handlers.handleSetQuizType(option.value)}
         >
           {option.label}
         </Button>
       ))}
-      <Button variant="outline" size="sm" onClick={refetchAll}>
+      <Button variant="outline" size="sm" onClick={handlers.handleRefetchAll}>
         <RefreshCw className="mr-2 h-4 w-4" />
         Refresh
       </Button>
@@ -369,9 +211,10 @@ export const StatisticsPageContainer: React.FC = () => {
   );
 
   const renderQuizDetail = () => {
-    if (quizDetailQuery.isLoading) return <LoadingBlock />;
-    if (quizDetailQuery.error) return <ErrorBlock />;
-    const detail = quizDetailQuery.data;
+    const { quizDetail } = statisticsApi;
+    if (quizDetail.isLoading) return <LoadingBlock />;
+    if (quizDetail.error) return <ErrorBlock />;
+    const detail = quizDetail.data;
     if (!detail?.quiz) {
       return <EmptyState title="Quiz detail is empty" description="No attempts match the selected range." />;
     }
@@ -405,9 +248,10 @@ export const StatisticsPageContainer: React.FC = () => {
   };
 
   const renderKnowledgeDetail = () => {
-    if (knowledgeDetailQuery.isLoading) return <LoadingBlock />;
-    if (knowledgeDetailQuery.error) return <ErrorBlock />;
-    const detail = knowledgeDetailQuery.data;
+    const { knowledgeDetail } = statisticsApi;
+    if (knowledgeDetail.isLoading) return <LoadingBlock />;
+    if (knowledgeDetail.error) return <ErrorBlock />;
+    const detail = knowledgeDetail.data;
     if (!detail?.gap) {
       return <EmptyState title="Knowledge detail is empty" description="No matching domain data exists for this range." />;
     }
@@ -433,7 +277,7 @@ export const StatisticsPageContainer: React.FC = () => {
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
               {isDetailRoute && (
-                <Button variant="ghost" size="icon" onClick={() => navigate('/statistics')} aria-label="Back to Statistics">
+                <Button variant="ghost" size="icon" onClick={handlers.handleBackToStatistics} aria-label="Back to Statistics">
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
               )}
@@ -441,10 +285,8 @@ export const StatisticsPageContainer: React.FC = () => {
                 <BarChart3 className="h-5 w-5" />
               </div>
               <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-foreground">Statistics</h1>
-                <p className="text-sm text-muted-foreground">
-                  {isDetailRoute ? 'Detailed learning telemetry' : 'Quiz performance, knowledge gaps, and learning time'}
-                </p>
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">{pageHeader.title}</h1>
+                <p className="text-sm text-muted-foreground">{pageHeader.subtitle}</p>
               </div>
             </div>
             {rangeControls}
@@ -458,11 +300,14 @@ export const StatisticsPageContainer: React.FC = () => {
 
         {!isDetailRoute && (
           <>
-            {isLoading && <LoadingBlock />}
-            {hasError && <ErrorBlock />}
+            {statisticsApi.isLoading && <LoadingBlock />}
+            {statisticsApi.hasError && <ErrorBlock />}
 
-            {!isLoading && !hasError && (
-              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as StatisticsTab)}>
+            {!statisticsApi.isLoading && !statisticsApi.hasError && (
+              <Tabs
+                value={handlers.activeTab}
+                onValueChange={(value) => handlers.handleActiveTabChange(value as StatisticsTab)}
+              >
                 <TabsList className="flex flex-wrap">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="performance">Quiz Performance</TabsTrigger>
@@ -475,25 +320,25 @@ export const StatisticsPageContainer: React.FC = () => {
                     <MetricCard
                       icon={TrendingUp}
                       label="Overall accuracy"
-                      value={formatPercentage(overviewQuery.data?.metrics.accuracyPercentage ?? 0)}
-                      detail={`${formatInteger(overviewQuery.data?.metrics.answeredQuestionCount ?? 0)} answers`}
+                      value={formatPercentage(statisticsApi.overview.data?.metrics.accuracyPercentage ?? 0)}
+                      detail={`${formatInteger(statisticsApi.overview.data?.metrics.answeredQuestionCount ?? 0)} answers`}
                     />
                     <MetricCard
                       icon={AlertTriangle}
                       label="Failed questions"
-                      value={formatInteger(overviewQuery.data?.metrics.incorrectAnswerCount ?? 0)}
+                      value={formatInteger(statisticsApi.overview.data?.metrics.incorrectAnswerCount ?? 0)}
                       detail="Incorrect answers"
                     />
                     <MetricCard
                       icon={Brain}
                       label="Explanation requests"
-                      value={formatInteger(overviewQuery.data?.metrics.explanationRequestCount ?? 0)}
+                      value={formatInteger(statisticsApi.overview.data?.metrics.explanationRequestCount ?? 0)}
                       detail="Detailed help requested"
                     />
                   </div>
 
                   <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
-                    <KnowledgeGapChart gaps={gapsQuery.data?.gaps ?? []} />
+                    <KnowledgeGapChart gaps={statisticsApi.gaps.data?.gaps ?? []} />
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-base flex items-center gap-2">
@@ -502,10 +347,10 @@ export const StatisticsPageContainer: React.FC = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        {(overviewQuery.data?.recommendations ?? []).length === 0 && (
+                        {(statisticsApi.overview.data?.recommendations ?? []).length === 0 && (
                           <p className="text-sm text-muted-foreground">No recommendations for this range.</p>
                         )}
-                        {(overviewQuery.data?.recommendations ?? []).map((item) => (
+                        {(statisticsApi.overview.data?.recommendations ?? []).map((item) => (
                           <Link
                             key={item.id}
                             to={knowledgePath(item.subjectKey, item.knowledgeDomainKey)}
@@ -524,16 +369,16 @@ export const StatisticsPageContainer: React.FC = () => {
                     </Card>
                   </div>
 
-                  <FailureList failures={overviewQuery.data?.recentFailures ?? []} />
+                  <FailureList failures={statisticsApi.overview.data?.recentFailures ?? []} />
                 </TabsContent>
 
                 <TabsContent value="performance" className="mt-6 space-y-6">
-                  <QuizPerformanceTable quizzes={performanceQuery.data?.quizzes ?? []} />
-                  <FailureList failures={performanceQuery.data?.recentFailures ?? []} />
+                  <QuizPerformanceTable quizzes={statisticsApi.performance.data?.quizzes ?? []} />
+                  <FailureList failures={statisticsApi.performance.data?.recentFailures ?? []} />
                 </TabsContent>
 
                 <TabsContent value="knowledge" className="mt-6">
-                  <KnowledgeGapChart gaps={gapsQuery.data?.gaps ?? []} />
+                  <KnowledgeGapChart gaps={statisticsApi.gaps.data?.gaps ?? []} />
                 </TabsContent>
 
                 <TabsContent value="time" className="mt-6 space-y-6">
@@ -541,19 +386,19 @@ export const StatisticsPageContainer: React.FC = () => {
                     <MetricCard
                       icon={Clock3}
                       label="Active learning time"
-                      value={formatSeconds(timeQuery.data?.totalSeconds ?? 0)}
-                      detail={`${formatInteger(timeQuery.data?.sessionCount ?? 0)} sessions`}
+                      value={formatSeconds(statisticsApi.learningTime.data?.totalSeconds ?? 0)}
+                      detail={`${formatInteger(statisticsApi.learningTime.data?.sessionCount ?? 0)} sessions`}
                     />
                     <MetricCard
                       icon={BookOpen}
                       label="Tracked artifacts"
-                      value={formatInteger(timeQuery.data?.topArtifacts.length ?? 0)}
+                      value={formatInteger(statisticsApi.learningTime.data?.topArtifacts.length ?? 0)}
                       detail="Most engaged items"
                     />
                     <MetricCard
                       icon={BarChart3}
                       label="Activity types"
-                      value={formatInteger(timeQuery.data?.byArtifactType.length ?? 0)}
+                      value={formatInteger(statisticsApi.learningTime.data?.byArtifactType.length ?? 0)}
                       detail="Documents, quizzes, and artifacts"
                     />
                   </div>
@@ -564,7 +409,7 @@ export const StatisticsPageContainer: React.FC = () => {
                         <CardTitle className="text-base">Time by Activity</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        {(timeQuery.data?.byArtifactType ?? []).map((row) => (
+                        {(statisticsApi.learningTime.data?.byArtifactType ?? []).map((row) => (
                           <div key={row.artifactType} className="flex items-center justify-between rounded-md border p-3">
                             <span className="font-medium">{artifactTypeLabel(row.artifactType)}</span>
                             <span className="text-muted-foreground">{formatSeconds(row.totalSeconds)}</span>
@@ -577,7 +422,7 @@ export const StatisticsPageContainer: React.FC = () => {
                         <CardTitle className="text-base">Most Engaged</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        {(timeQuery.data?.topArtifacts ?? []).map((artifact) => (
+                        {(statisticsApi.learningTime.data?.topArtifacts ?? []).map((artifact) => (
                           <div key={artifact.id} className="rounded-md border p-3">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
