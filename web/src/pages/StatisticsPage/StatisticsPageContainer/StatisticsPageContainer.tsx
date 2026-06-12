@@ -17,6 +17,7 @@ import {
 import {
   GetStatisticsKnowledgeDetailRequest,
   GetStatisticsQuizDetailRequest,
+  QuizAnswerValue,
   QuizTelemetryType,
   StatisticsKnowledgeGapItem,
   StatisticsQuizPerformanceItem,
@@ -144,11 +145,24 @@ function isSequenceQuiz(quizType: string | undefined): boolean {
   return quizType === 'sequenceQuiz';
 }
 
+function isStringArray(value: QuizAnswerValue): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
 function splitSequenceLabel(label: string): string[] {
   return label
     .split(SEQUENCE_ITEM_SEPARATOR)
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+}
+
+function resolveSequenceItems(value: QuizAnswerValue, labelFallback: string): string[] {
+  if (isStringArray(value)) return value;
+  return splitSequenceLabel(labelFallback);
+}
+
+function canOpenDiagramComparison(failure: StatisticsRecentFailure): boolean {
+  return Boolean(failure.selectedDiagramCode && failure.correctDiagramCode);
 }
 
 interface ISequenceListProps {
@@ -196,11 +210,14 @@ const FailureList = ({ failures }: { failures: StatisticsRecentFailure[] }) => {
 
   const handleOpenComparison = (failure: StatisticsRecentFailure) => {
     if (isDiagramQuiz(failure.quizType)) {
+      const selectedCode = failure.selectedDiagramCode;
+      const correctCode = failure.correctDiagramCode;
+      if (!selectedCode || !correctCode) return;
       setOpenComparison({
         kind: 'diagram',
         questionText: failure.questionText,
-        selectedCode: failure.selectedAnswerLabel,
-        correctCode: failure.correctAnswerLabel,
+        selectedCode,
+        correctCode,
       });
       return;
     }
@@ -208,8 +225,8 @@ const FailureList = ({ failures }: { failures: StatisticsRecentFailure[] }) => {
       setOpenComparison({
         kind: 'sequence',
         questionText: failure.questionText,
-        selectedItems: splitSequenceLabel(failure.selectedAnswerLabel),
-        correctItems: splitSequenceLabel(failure.correctAnswerLabel),
+        selectedItems: resolveSequenceItems(failure.selectedAnswer, failure.selectedAnswerLabel),
+        correctItems: resolveSequenceItems(failure.correctAnswer, failure.correctAnswerLabel),
       });
     }
   };
@@ -222,6 +239,9 @@ const FailureList = ({ failures }: { failures: StatisticsRecentFailure[] }) => {
         const isDiagram = isDiagramQuiz(failure.quizType);
         const isSequence = isSequenceQuiz(failure.quizType);
         const showRichAnswer = isDiagram || isSequence;
+        const canOpenComparison = isDiagram
+          ? canOpenDiagramComparison(failure)
+          : isSequence;
 
         return (
           <Card key={failure.id}>
@@ -245,6 +265,7 @@ const FailureList = ({ failures }: { failures: StatisticsRecentFailure[] }) => {
                         size="sm"
                         className="mt-2"
                         onClick={() => handleOpenComparison(failure)}
+                        disabled={!canOpenComparison}
                         aria-label={
                           isDiagram ? 'View diagram comparison' : 'View sequence comparison'
                         }
