@@ -6,6 +6,10 @@ import {
   StatisticsTimeRangeKey,
 } from '@shared-types';
 
+export function isQuizTelemetryType(value: string | undefined): value is QuizTelemetryType {
+  return value === 'quiz' || value === 'diagramQuiz' || value === 'sequenceQuiz';
+}
+
 export const TIME_RANGE_OPTIONS: Array<{ value: StatisticsTimeRangeKey; label: string }> = [
   { value: '7d', label: '7 days' },
   { value: '30d', label: '30 days' },
