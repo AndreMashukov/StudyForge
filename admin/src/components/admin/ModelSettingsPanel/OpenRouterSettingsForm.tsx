@@ -39,11 +39,105 @@ export interface IOpenRouterSettingsFormProps {
   encryptionConfigured: boolean;
 }
 
-interface IRouteResponse {
-  success?: boolean;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isOptionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === 'string';
+}
+
+function isOptionalStringOrNull(
+  value: unknown
+): value is string | null | undefined {
+  return value === undefined || value === null || typeof value === 'string';
+}
+
+function isOptionalValidationStatus(
+  value: unknown
+): value is 'unknown' | 'healthy' | 'unhealthy' | undefined {
+  return (
+    value === undefined ||
+    value === 'unknown' ||
+    value === 'healthy' ||
+    value === 'unhealthy'
+  );
+}
+
+function isOpenRouterProviderConnection(
+  value: unknown
+): value is IOpenRouterProviderConnection {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    value.providerType === 'openrouter' &&
+    typeof value.label === 'string' &&
+    typeof value.enabled === 'boolean' &&
+    value.credentialMode === 'encrypted-firestore' &&
+    typeof value.apiKeyConfigured === 'boolean' &&
+    typeof value.baseUrl === 'string' &&
+    typeof value.defaultModel === 'string' &&
+    isOptionalString(value.defaultVisionModel) &&
+    isOptionalString(value.defaultImageModel) &&
+    isOptionalString(value.updatedAt) &&
+    isOptionalString(value.updatedBy) &&
+    isOptionalString(value.lastValidatedAt) &&
+    isOptionalStringOrNull(value.lastValidationError) &&
+    isOptionalValidationStatus(value.lastValidationStatus)
+  );
+}
+
+function isOpenRouterConnectionTestResult(
+  value: unknown
+): value is IOpenRouterConnectionTestResult {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.success === 'boolean' && typeof value.message === 'string'
+  );
+}
+
+interface ISaveRouteResponse {
+  success: true;
+  openRouterConnection: IOpenRouterProviderConnection;
   message?: string;
-  openRouterConnection?: IOpenRouterProviderConnection;
-  result?: IOpenRouterConnectionTestResult;
+}
+
+interface ITestRouteResponse {
+  result: IOpenRouterConnectionTestResult;
+  openRouterConnection: IOpenRouterProviderConnection;
+  message?: string;
+}
+
+function isValidSaveResponse(value: unknown): value is ISaveRouteResponse {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return value.success === true && isOpenRouterProviderConnection(value.openRouterConnection);
+}
+
+function isValidTestResponse(value: unknown): value is ITestRouteResponse {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isOpenRouterConnectionTestResult(value.result) &&
+    isOpenRouterProviderConnection(value.openRouterConnection)
+  );
+}
+
+function getRouteErrorMessage(payload: unknown, fallback: string): string {
+  if (isRecord(payload) && typeof payload.message === 'string') {
+    return payload.message;
+  }
+
+  return fallback;
 }
 
 function formatDate(value?: string): string {
@@ -101,10 +195,12 @@ export function OpenRouterSettingsForm({
         return;
       }
 
-      const payload = (await response.json()) as IRouteResponse;
+      const payload: unknown = await response.json();
 
-      if (!response.ok || !payload.success || !payload.openRouterConnection) {
-        throw new Error(payload.message || 'Failed to save OpenRouter settings.');
+      if (!response.ok || !isValidSaveResponse(payload)) {
+        throw new Error(
+          getRouteErrorMessage(payload, 'Failed to save OpenRouter settings.')
+        );
       }
 
       setOpenRouterConnection(payload.openRouterConnection);
@@ -145,10 +241,12 @@ export function OpenRouterSettingsForm({
         return;
       }
 
-      const payload = (await response.json()) as IRouteResponse;
+      const payload: unknown = await response.json();
 
-      if (!response.ok || !payload.result || !payload.openRouterConnection) {
-        throw new Error(payload.message || 'Failed to test OpenRouter settings.');
+      if (!response.ok || !isValidTestResponse(payload)) {
+        throw new Error(
+          getRouteErrorMessage(payload, 'Failed to test OpenRouter settings.')
+        );
       }
 
       setOpenRouterConnection(payload.openRouterConnection);

@@ -21,10 +21,7 @@ export const openRouterSettingsFormSchema = z.object({
     .trim()
     .min(1, 'Default text model is required'),
   defaultVisionModel: optionalModelField,
-  defaultImageModel: z
-    .string()
-    .trim()
-    .min(1, 'Default image model is required'),
+  defaultImageModel: optionalModelField,
   apiKey: z.string().optional(),
 });
 
@@ -48,12 +45,13 @@ export function normalizeOpenRouterSettingsSubmitPayload(
   values: IOpenRouterSettingsFormValues
 ): IUpdateOpenRouterSettingsRequest {
   const trimmedVisionModel = values.defaultVisionModel?.trim();
+  const trimmedImageModel = values.defaultImageModel?.trim();
 
   return {
     baseUrl: values.baseUrl.trim(),
     defaultModel: values.defaultModel.trim(),
     defaultVisionModel: trimmedVisionModel || undefined,
-    defaultImageModel: values.defaultImageModel.trim(),
+    defaultImageModel: trimmedImageModel || undefined,
     apiKey: values.apiKey?.trim() ? values.apiKey : undefined,
   };
 }

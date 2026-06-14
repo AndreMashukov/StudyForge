@@ -33,16 +33,12 @@ async function ProviderSettingsSection({
     );
   }
 
-  if (providerType === 'openrouter') {
-    return (
-      <OpenRouterSettingsForm
-        openRouterConnection={pageData.openRouterConnection}
-        encryptionConfigured={pageData.encryptionConfigured}
-      />
-    );
-  }
-
-  notFound();
+  return (
+    <OpenRouterSettingsForm
+      openRouterConnection={pageData.openRouterConnection}
+      encryptionConfigured={pageData.encryptionConfigured}
+    />
+  );
 }
 
 export default async function ProviderSettingsPage({
