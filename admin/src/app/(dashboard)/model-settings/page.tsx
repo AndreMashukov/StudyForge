@@ -1,18 +1,22 @@
 import { Suspense } from 'react';
 import { AdminPageHeader } from '../../../components/admin/AdminPageHeader';
 import { ModelSettingsPanelSkeleton } from '../../../components/admin/loading';
-import { ModelSettingsPanel } from '../../../components/admin/ModelSettingsPanel';
+import { ModelProviderOverview } from '../../../components/admin/ModelSettingsPanel/ModelProviderOverview';
+import { buildProviderOverviewItems } from '../../../components/admin/ModelSettingsPanel/modelProviderFields';
 import { getModelSettingsPageData } from '../../../lib/data/model-settings';
 
 async function ModelSettingsSection() {
-  const { geminiConnection, openRouterConnection, encryptionConfigured } =
-    await getModelSettingsPageData();
+  const pageData = await getModelSettingsPageData();
+  const providers = buildProviderOverviewItems({
+    activeProviderId: pageData.activeProviderId,
+    geminiConnection: pageData.geminiConnection,
+    openRouterConnection: pageData.openRouterConnection,
+  });
 
   return (
-    <ModelSettingsPanel
-      geminiConnection={geminiConnection}
-      openRouterConnection={openRouterConnection}
-      encryptionConfigured={encryptionConfigured}
+    <ModelProviderOverview
+      activeProviderId={pageData.activeProviderId}
+      providers={providers}
     />
   );
 }
@@ -22,7 +26,7 @@ export default function ModelSettingsPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="Model settings"
-        description="Gemini stays on the existing server-managed key. OpenRouter models can be configured and tested from this admin panel."
+        description="Choose one active LLM provider for text, vision, and image generation. Configure provider details on each provider page."
       />
 
       <Suspense fallback={<ModelSettingsPanelSkeleton />}>

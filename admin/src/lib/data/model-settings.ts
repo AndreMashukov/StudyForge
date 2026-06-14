@@ -2,6 +2,7 @@ import 'server-only';
 
 import * as admin from 'firebase-admin';
 import type {
+  ActiveModelProviderType,
   IEncryptedSecretRecord,
   IGeminiProviderConnection,
   IOpenRouterConnectionTestResult,
@@ -29,9 +30,22 @@ export const DEFAULT_OPENROUTER_IMAGE_MODEL = 'google/gemini-3.1-flash-image-pre
 export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 export interface IModelSettingsPageData {
+  activeProviderId: ActiveModelProviderType;
   geminiConnection: IGeminiProviderConnection;
   openRouterConnection: IOpenRouterProviderConnection;
   encryptionConfigured: boolean;
+}
+
+export function isActiveModelProviderType(
+  value: unknown
+): value is ActiveModelProviderType {
+  return value === 'gemini' || value === 'openrouter';
+}
+
+function resolveActiveProviderId(
+  openRouterConnection: IOpenRouterProviderConnection
+): ActiveModelProviderType {
+  return openRouterConnection.enabled ? 'openrouter' : 'gemini';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -355,11 +369,54 @@ function getResponseErrorMessage(
 export async function getModelSettingsPageData(): Promise<IModelSettingsPageData> {
   await requireAdminSession();
 
+  const openRouterConnection = await readOpenRouterConnection();
+
   return {
-    geminiConnection: buildGeminiConnection(),
-    openRouterConnection: await readOpenRouterConnection(),
+    activeProviderId: resolveActiveProviderId(openRouterConnection),
+    geminiConnection: {
+      ...buildGeminiConnection(),
+      enabled: !openRouterConnection.enabled,
+    },
+    openRouterConnection,
     encryptionConfigured: isLlmSettingsEncryptionConfigured(),
   };
+}
+
+export async function setActiveModelProvider(
+  providerType: ActiveModelProviderType,
+  actorUid: string
+): Promise<IModelSettingsPageData> {
+  await requireAdminSession();
+
+  if (providerType === 'openrouter') {
+    const connection = await readOpenRouterConnection();
+
+    if (!connection.apiKeyConfigured) {
+      throw new Error(
+        'OpenRouter API key must be configured before activating this provider.'
+      );
+    }
+
+    await getConnectionRef().set(
+      {
+        enabled: true,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedBy: actorUid,
+      },
+      { merge: true }
+    );
+  } else {
+    await getConnectionRef().set(
+      {
+        enabled: false,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedBy: actorUid,
+      },
+      { merge: true }
+    );
+  }
+
+  return getModelSettingsPageData();
 }
 
 export async function updateOpenRouterSettings(
@@ -381,7 +438,7 @@ export async function updateOpenRouterSettings(
   const payload: Record<string, unknown> = {
     providerType: 'openrouter',
     label: currentConnection.label,
-    enabled: input.enabled,
+    enabled: input.enabled ?? currentConnection.enabled,
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
     baseUrl: normalizeBaseUrl(input.baseUrl),

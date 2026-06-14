@@ -1759,13 +1759,19 @@ export interface IEncryptedSecretRecord {
 }
 
 export interface IUpdateOpenRouterSettingsRequest {
-  enabled: boolean;
+  enabled?: boolean;
   baseUrl: string;
   defaultModel: string;
   defaultVisionModel?: string;
   defaultImageModel?: string;
   apiKey?: string;
   headers?: IOpenRouterProviderHeaders;
+}
+
+export type ActiveModelProviderType = 'gemini' | 'openrouter';
+
+export interface ISetActiveModelProviderRequest {
+  providerType: ActiveModelProviderType;
 }
 
 export interface IOpenRouterConnectionTestResult {
