@@ -19,6 +19,12 @@ import {
 } from '../../ui/Card';
 import type { IModelProviderOverviewItem } from './modelProviderFields';
 
+const PROVIDER_LABELS: Record<ActiveModelProviderType, string> = {
+  gemini: 'Gemini',
+  openrouter: 'OpenRouter',
+  minimax: 'MiniMax',
+};
+
 type NoticeState =
   | {
       type: 'success' | 'error';
@@ -185,7 +191,7 @@ export function ModelProviderOverview({
       );
       setNotice({
         type: 'success',
-        message: `${providerType === 'gemini' ? 'Gemini' : 'OpenRouter'} is now the active provider.`,
+        message: `${PROVIDER_LABELS[providerType]} is now the active provider.`,
       });
       router.refresh();
     } catch (error) {
@@ -216,7 +222,7 @@ export function ModelProviderOverview({
         </p>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2 2xl:grid-cols-3">
         {providers.map((provider) => (
           <ProviderCard
             key={provider.providerType}

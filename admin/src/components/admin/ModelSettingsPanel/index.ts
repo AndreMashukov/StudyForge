@@ -1,3 +1,5 @@
+export { MiniMaxSettingsForm } from './MiniMaxSettingsForm';
+export type { IMiniMaxSettingsFormProps } from './MiniMaxSettingsForm';
 export { GeminiSettingsPanel } from './GeminiSettingsPanel';
 export type { IGeminiSettingsPanelProps } from './GeminiSettingsPanel';
 export { ModelProviderOverview } from './ModelProviderOverview';
@@ -21,6 +23,12 @@ export {
   getProviderDetailFieldValues,
 } from './modelProviderFields';
 export type { IModelProviderOverviewItem } from './modelProviderFields';
+export {
+  getMiniMaxSettingsDefaultValues,
+  miniMaxSettingsFormSchema,
+  normalizeMiniMaxSettingsSubmitPayload,
+} from './MiniMaxSettingsForm.form';
+export type { IMiniMaxSettingsFormValues } from './MiniMaxSettingsForm.form';
 export {
   getOpenRouterSettingsDefaultValues,
   normalizeOpenRouterSettingsSubmitPayload,

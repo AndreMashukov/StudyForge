@@ -46,7 +46,7 @@ export interface LlmVisionRequest {
 export interface LlmVisionResult {
   text: string;
   model: string;
-  providerType: 'gemini' | 'openrouter';
+  providerType: 'gemini' | 'openrouter' | 'minimax';
   connectionId: string;
 }
 
@@ -64,21 +64,23 @@ export interface LlmImageRequest {
 export interface LlmImageResult {
   imageBase64: string;
   model: string;
-  providerType: 'gemini' | 'openrouter';
+  providerType: 'gemini' | 'openrouter' | 'minimax';
   connectionId: string;
 }
 
 export interface LlmTextResult {
   text: string;
   model: string;
-  providerType: 'gemini' | 'openrouter';
+  providerType: 'gemini' | 'openrouter' | 'minimax';
   connectionId: string;
 }
 
 export interface ResolvedRoute {
   connectionId: string;
-  providerType: 'gemini' | 'openrouter';
+  providerType: 'gemini' | 'openrouter' | 'minimax';
   model: string;
   fallbackUsed: boolean;
   openRouterBaseUrl?: string;
+  miniMaxBaseUrl?: string;
+  miniMaxImageUrl?: string;
 }

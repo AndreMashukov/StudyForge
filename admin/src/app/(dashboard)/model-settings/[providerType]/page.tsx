@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { AdminPageHeader } from '../../../../components/admin/AdminPageHeader';
 import { ModelSettingsPanelSkeleton } from '../../../../components/admin/loading';
 import { GeminiSettingsPanel } from '../../../../components/admin/ModelSettingsPanel/GeminiSettingsPanel';
+import { MiniMaxSettingsForm } from '../../../../components/admin/ModelSettingsPanel/MiniMaxSettingsForm';
 import { OpenRouterSettingsForm } from '../../../../components/admin/ModelSettingsPanel/OpenRouterSettingsForm';
 import {
   getModelProviderDefinition,
@@ -28,7 +29,17 @@ async function ProviderSettingsSection({
       <GeminiSettingsPanel
         geminiConnection={pageData.geminiConnection}
         openRouterConnection={pageData.openRouterConnection}
+        miniMaxConnection={pageData.miniMaxConnection}
         activeProviderId={pageData.activeProviderId}
+      />
+    );
+  }
+
+  if (providerType === 'minimax') {
+    return (
+      <MiniMaxSettingsForm
+        miniMaxConnection={pageData.miniMaxConnection}
+        encryptionConfigured={pageData.encryptionConfigured}
       />
     );
   }

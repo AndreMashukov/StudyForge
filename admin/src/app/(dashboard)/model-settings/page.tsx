@@ -11,6 +11,7 @@ async function ModelSettingsSection() {
     activeProviderId: pageData.activeProviderId,
     geminiConnection: pageData.geminiConnection,
     openRouterConnection: pageData.openRouterConnection,
+    miniMaxConnection: pageData.miniMaxConnection,
   });
 
   return (

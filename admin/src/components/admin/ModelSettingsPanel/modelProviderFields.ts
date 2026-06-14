@@ -1,6 +1,7 @@
 import type {
   ActiveModelProviderType,
   IGeminiProviderConnection,
+  IMiniMaxProviderConnection,
   IOpenRouterProviderConnection,
 } from '@shared-types';
 import {
@@ -30,6 +31,7 @@ interface IBuildProviderOverviewParams {
   activeProviderId: ActiveModelProviderType;
   geminiConnection: IGeminiProviderConnection;
   openRouterConnection: IOpenRouterProviderConnection;
+  miniMaxConnection: IMiniMaxProviderConnection;
 }
 
 function getGeminiFieldValue(
@@ -74,6 +76,37 @@ function getOpenRouterFieldValue(
   return '—';
 }
 
+function getMiniMaxFieldValue(
+  key: string,
+  connection: IMiniMaxProviderConnection
+): string {
+  if (key === 'baseUrl') {
+    return connection.baseUrl;
+  }
+
+  if (key === 'textModel') {
+    return connection.defaultModel;
+  }
+
+  if (key === 'visionModel') {
+    return connection.defaultVisionModel?.trim() || '—';
+  }
+
+  if (key === 'imageModel') {
+    return connection.defaultImageModel ?? '—';
+  }
+
+  if (key === 'imageGenerationUrl') {
+    return connection.imageGenerationUrl;
+  }
+
+  if (key === 'apiKey') {
+    return connection.apiKeyConfigured ? 'Configured' : 'Missing';
+  }
+
+  return '—';
+}
+
 function getProviderFieldValue(
   providerType: ModelProviderType,
   key: string,
@@ -83,11 +116,15 @@ function getProviderFieldValue(
     return getGeminiFieldValue(key, params.geminiConnection);
   }
 
+  if (providerType === 'minimax') {
+    return getMiniMaxFieldValue(key, params.miniMaxConnection);
+  }
+
   return getOpenRouterFieldValue(key, params.openRouterConnection);
 }
 
-function getOpenRouterStatusBadges(
-  connection: IOpenRouterProviderConnection
+function getEncryptedProviderStatusBadges(
+  connection: IOpenRouterProviderConnection | IMiniMaxProviderConnection
 ): string[] {
   return [
     connection.lastValidationStatus || 'unknown',
@@ -110,7 +147,30 @@ function getActivationState(
     };
   }
 
+  if (providerType === 'minimax' && !params.miniMaxConnection.apiKeyConfigured) {
+    return {
+      canActivate: false,
+      activationBlockedReason:
+        'Configure a MiniMax API key before activating this provider.',
+    };
+  }
+
   return { canActivate: true };
+}
+
+function getConnectionForProvider(
+  providerType: ModelProviderType,
+  params: IBuildProviderOverviewParams
+): IGeminiProviderConnection | IOpenRouterProviderConnection | IMiniMaxProviderConnection {
+  if (providerType === 'openrouter') {
+    return params.openRouterConnection;
+  }
+
+  if (providerType === 'minimax') {
+    return params.miniMaxConnection;
+  }
+
+  return params.geminiConnection;
 }
 
 export function buildProviderOverviewItems(
@@ -122,10 +182,7 @@ export function buildProviderOverviewItems(
       (field) => field.showInOverview
     );
     const activationState = getActivationState(providerType, params);
-    const connection =
-      providerType === 'openrouter'
-        ? params.openRouterConnection
-        : params.geminiConnection;
+    const connection = getConnectionForProvider(providerType, params);
 
     return {
       providerType,
@@ -136,8 +193,10 @@ export function buildProviderOverviewItems(
       staticBadges: [...(definition.staticBadges ?? [])],
       statusBadges:
         providerType === 'openrouter'
-          ? getOpenRouterStatusBadges(params.openRouterConnection)
-          : [],
+          ? getEncryptedProviderStatusBadges(params.openRouterConnection)
+          : providerType === 'minimax'
+            ? getEncryptedProviderStatusBadges(params.miniMaxConnection)
+            : [],
       overviewFields: overviewFieldDefs.map((field) => ({
         label: field.label,
         value: getProviderFieldValue(providerType, field.key, params),

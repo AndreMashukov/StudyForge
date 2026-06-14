@@ -1,6 +1,7 @@
 import type {
   ActiveModelProviderType,
   IGeminiProviderConnection,
+  IMiniMaxProviderConnection,
   IOpenRouterProviderConnection,
 } from '@shared-types';
 import { Badge } from '../../ui/Badge';
@@ -17,12 +18,14 @@ import { getModelProviderDefinition } from './modelProviderRegistry';
 export interface IGeminiSettingsPanelProps {
   geminiConnection: IGeminiProviderConnection;
   openRouterConnection: IOpenRouterProviderConnection;
+  miniMaxConnection: IMiniMaxProviderConnection;
   activeProviderId: ActiveModelProviderType;
 }
 
 export function GeminiSettingsPanel({
   geminiConnection,
   openRouterConnection,
+  miniMaxConnection,
   activeProviderId,
 }: IGeminiSettingsPanelProps) {
   const definition = getModelProviderDefinition('gemini');
@@ -30,6 +33,7 @@ export function GeminiSettingsPanel({
     activeProviderId,
     geminiConnection,
     openRouterConnection,
+    miniMaxConnection,
   });
 
   return (

@@ -32,6 +32,7 @@ export async function PUT(request: Request) {
       activeProviderId: data.activeProviderId,
       geminiConnection: data.geminiConnection,
       openRouterConnection: data.openRouterConnection,
+      miniMaxConnection: data.miniMaxConnection,
     });
   } catch (error) {
     const message =
