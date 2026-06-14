@@ -375,7 +375,7 @@ export class LlmGenerationService {
       ctx,
       prompt,
       { model: ctx.resolution.route.model, temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 16384 },
-      'Slide deck outline generated via OpenRouter'
+      'Slide deck outline generated via external provider'
     );
     return parseSlideDeckOutlineJson(text);
   }
