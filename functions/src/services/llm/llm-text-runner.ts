@@ -5,7 +5,7 @@ import type { LlmCapability, LlmTextConfig } from './types';
 
 export interface TextRouteContext {
   resolution: RouteResolution;
-  usesOpenRouter: boolean;
+  usesExternalProvider: boolean;
 }
 
 export async function resolveTextRoute(
@@ -23,11 +23,11 @@ export async function resolveTextRoute(
 
   return {
     resolution,
-    usesOpenRouter: resolution.route.providerType === 'openrouter',
+    usesExternalProvider: resolution.route.providerType !== 'gemini',
   };
 }
 
-export async function generateOpenRouterText(
+export async function generateExternalProviderText(
   ctx: TextRouteContext,
   prompt: string,
   config: LlmTextConfig,
@@ -35,7 +35,7 @@ export async function generateOpenRouterText(
 ): Promise<string> {
   const client = LlmProviderClientFactory.create(
     ctx.resolution.route,
-    ctx.resolution.openRouterApiKey
+    ctx.resolution.providerApiKey
   );
   const result = await client.generateText({ prompt, config });
 
@@ -45,4 +45,12 @@ export async function generateOpenRouterText(
   });
 
   return result.text;
+}
+
+/** @deprecated Use generateExternalProviderText */
+export const generateOpenRouterText = generateExternalProviderText;
+
+/** @deprecated Use usesExternalProvider */
+export function usesOpenRouter(ctx: TextRouteContext): boolean {
+  return ctx.usesExternalProvider;
 }

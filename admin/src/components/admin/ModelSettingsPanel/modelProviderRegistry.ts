@@ -95,6 +95,62 @@ export const modelProviderRegistry = {
       },
     ],
   },
+  minimax: {
+    label: 'MiniMax',
+    description:
+      'Configure MiniMax models for text, vision, and slide image generation. Saved settings are preserved when another provider is active.',
+    credentialMode: 'encrypted-firestore',
+    isEditable: true,
+    fields: [
+      {
+        key: 'baseUrl',
+        label: 'Base URL',
+        kind: 'url',
+        showInOverview: true,
+        placeholder: 'https://api.minimax.io/v1',
+      },
+      {
+        key: 'textModel',
+        label: 'Default text model',
+        kind: 'modelId',
+        showInOverview: true,
+        placeholder: 'MiniMax-M3',
+        helpText:
+          'Used for quiz, flashcards, documents, chat, and other text generation.',
+      },
+      {
+        key: 'visionModel',
+        label: 'Default vision model',
+        kind: 'modelId',
+        showInOverview: true,
+        placeholder: 'MiniMax-M3',
+        helpText:
+          'Used for screenshot and image input to text via OpenAI-compatible chat.',
+      },
+      {
+        key: 'imageModel',
+        label: 'Default image model',
+        kind: 'modelId',
+        showInOverview: true,
+        placeholder: 'image-01',
+        helpText:
+          'Used for slide deck image generation via MiniMax image generation API.',
+      },
+      {
+        key: 'imageGenerationUrl',
+        label: 'Image generation URL',
+        kind: 'url',
+        helpText:
+          'Dedicated MiniMax image generation endpoint. Defaults to https://api.minimax.io/v1/image_generation.',
+      },
+      {
+        key: 'apiKey',
+        label: 'API key',
+        kind: 'secret',
+        helpText: 'The key is encrypted server-side and never returned after save.',
+      },
+    ],
+  },
 } as const satisfies Record<string, IModelProviderDefinition>;
 
 export type ModelProviderType = keyof typeof modelProviderRegistry;

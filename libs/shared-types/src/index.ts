@@ -1679,7 +1679,7 @@ export interface GetStatisticsKnowledgeDetailResponse {
   relatedQuizzes: StatisticsQuizPerformanceItem[];
 }
 
-export type LlmProviderType = 'gemini' | 'openrouter';
+export type LlmProviderType = 'gemini' | 'openrouter' | 'minimax';
 
 export type LlmCredentialMode = 'deployment-secret' | 'encrypted-firestore';
 
@@ -1768,7 +1768,41 @@ export interface IUpdateOpenRouterSettingsRequest {
   headers?: IOpenRouterProviderHeaders;
 }
 
-export type ActiveModelProviderType = 'gemini' | 'openrouter';
+export interface IMiniMaxProviderConnection extends ILlmConnectionAuditFields {
+  providerType: 'minimax';
+  label: string;
+  enabled: boolean;
+  credentialMode: 'encrypted-firestore';
+  apiKeyConfigured: boolean;
+  /** OpenAI-compatible chat base URL (text + vision) */
+  baseUrl: string;
+  defaultModel: string;
+  /** Screenshot / image-understanding model (image-in → text-out) */
+  defaultVisionModel?: string;
+  /** Slide deck image generation model (text-in → image-out) */
+  defaultImageModel?: string;
+  /** Dedicated image generation endpoint URL */
+  imageGenerationUrl: string;
+}
+
+export interface IUpdateMiniMaxSettingsRequest {
+  enabled?: boolean;
+  baseUrl: string;
+  defaultModel: string;
+  defaultVisionModel?: string;
+  defaultImageModel?: string;
+  imageGenerationUrl: string;
+  apiKey?: string;
+}
+
+export interface IMiniMaxConnectionTestResult {
+  success: boolean;
+  message: string;
+  validatedAt?: string;
+  model?: string;
+}
+
+export type ActiveModelProviderType = 'gemini' | 'openrouter' | 'minimax';
 
 export interface ISetActiveModelProviderRequest {
   providerType: ActiveModelProviderType;

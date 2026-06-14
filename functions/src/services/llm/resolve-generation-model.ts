@@ -4,7 +4,12 @@ import { LlmImageRouteResolver } from './llm-image-route-resolver';
 import type { LlmCapability, ResolvedRoute } from './types';
 
 function formatGenerationModelLabel(route: ResolvedRoute): string {
-  const provider = route.providerType === 'openrouter' ? 'OpenRouter' : 'Gemini';
+  const provider =
+    route.providerType === 'openrouter'
+      ? 'OpenRouter'
+      : route.providerType === 'minimax'
+        ? 'MiniMax'
+        : 'Gemini';
   return `${provider}: ${route.model}`;
 }
 
@@ -38,12 +43,15 @@ export async function resolveSlideDeckGenerationModelLabel(): Promise<string> {
 
   const textLabel = formatGenerationModelLabel(textResolution.route);
   const imageModel =
-    imageResolution.route.providerType === 'openrouter' && imageResolution.openRouterApiKey
+    imageResolution.route.providerType !== 'gemini' && imageResolution.providerApiKey
       ? imageResolution.route.model
       : imageResolution.geminiImageModel;
   const imageLabel = formatGenerationModelLabel({
     ...imageResolution.route,
-    providerType: 'gemini',
+    providerType:
+      imageResolution.route.providerType === 'gemini'
+        ? 'gemini'
+        : imageResolution.route.providerType,
     model: imageModel,
   });
 
