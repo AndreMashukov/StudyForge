@@ -40,7 +40,7 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   defaultExpanded,
   expanded,
   onExpandedChange,
-  expandable = false,
+  expandable = true,
   defaultHeightExpanded = false,
   heightExpanded,
   onHeightExpandedChange,
