@@ -52,6 +52,7 @@ export function normalizeMiniMaxSettingsSubmitPayload(
 ): IUpdateMiniMaxSettingsRequest {
   const trimmedVisionModel = values.defaultVisionModel?.trim();
   const trimmedImageModel = values.defaultImageModel?.trim();
+  const trimmedApiKey = values.apiKey?.trim();
 
   return {
     baseUrl: values.baseUrl.trim(),
@@ -59,6 +60,6 @@ export function normalizeMiniMaxSettingsSubmitPayload(
     defaultVisionModel: trimmedVisionModel || undefined,
     defaultImageModel: trimmedImageModel || undefined,
     imageGenerationUrl: values.imageGenerationUrl.trim(),
-    apiKey: values.apiKey?.trim() ? values.apiKey : undefined,
+    apiKey: trimmedApiKey || undefined,
   };
 }
