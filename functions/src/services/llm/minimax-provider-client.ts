@@ -1,5 +1,6 @@
 import type { IMiniMaxProviderConnection } from '@shared-types';
 import type { LlmProviderClient } from './llm-provider-client';
+import { stripRedactedThinking } from './llm-response-text-utils';
 import type {
   LlmImageRequest,
   LlmImageResult,
@@ -50,6 +51,7 @@ export class MiniMaxProviderClient implements LlmProviderClient {
       temperature: request.config.temperature ?? 0.7,
       top_p: request.config.topP,
       max_tokens: request.config.maxOutputTokens ?? 16384,
+      reasoning_split: true,
     });
 
     const response = await fetch(url, {
@@ -67,8 +69,10 @@ export class MiniMaxProviderClient implements LlmProviderClient {
     }
 
     const data = (await response.json()) as MiniMaxChatResponse;
-    const text = data.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Empty response from MiniMax API');
+    const rawText = data.choices?.[0]?.message?.content;
+    if (!rawText) throw new Error('Empty response from MiniMax API');
+    const text = stripRedactedThinking(rawText);
+    if (!text) throw new Error('Empty response from MiniMax API after stripping thinking content');
 
     return {
       text,
@@ -100,6 +104,7 @@ export class MiniMaxProviderClient implements LlmProviderClient {
       temperature: request.config.temperature ?? 0.7,
       top_p: request.config.topP,
       max_tokens: request.config.maxOutputTokens ?? 16384,
+      reasoning_split: true,
     });
 
     const response = await fetch(url, {
@@ -117,8 +122,10 @@ export class MiniMaxProviderClient implements LlmProviderClient {
     }
 
     const data = (await response.json()) as MiniMaxChatResponse;
-    const text = data.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Empty response from MiniMax vision API');
+    const rawText = data.choices?.[0]?.message?.content;
+    if (!rawText) throw new Error('Empty response from MiniMax vision API');
+    const text = stripRedactedThinking(rawText);
+    if (!text) throw new Error('Empty response from MiniMax vision API after stripping thinking content');
 
     return {
       text,
