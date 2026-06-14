@@ -34,6 +34,12 @@ import {
   estimateContextTokens,
 } from '../gemini/prompt-builder/withContextFiles';
 import { LlmImageRouteResolver } from './llm-image-route-resolver';
+import {
+  extractSlideImageBriefFromPrompt,
+  fitMiniMaxImagePrompt,
+  MINIMAX_SLIDE_BRIEF_MAX_CHARS,
+  truncateAtWordBoundary,
+} from './llm-image-prompt-utils';
 import { LlmProviderClientFactory } from './llm-provider-client-factory';
 import { LlmVisionRouteResolver } from './llm-vision-route-resolver';
 import { generateExternalProviderText, resolveTextRoute } from './llm-text-runner';
@@ -386,6 +392,10 @@ export class LlmGenerationService {
     rules?: string
   ): Promise<string | null> {
     const ctx = await resolveTextRoute('slideDeckText', 'slideDeckImageBrief');
+    const imageResolution = await LlmImageRouteResolver.resolve('slideDeckImage');
+    const usesMiniMaxImage =
+      imageResolution.route.providerType === 'minimax' && !!imageResolution.providerApiKey;
+
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateSlideImageBrief(slideTitle, slideContent, rules);
     }
@@ -393,16 +403,26 @@ export class LlmGenerationService {
     const prompt = SlideDeckPromptBuilder.buildSlideImageBriefPrompt(
       slideTitle,
       slideContent,
-      rules
+      rules,
+      usesMiniMaxImage ? { maxOutputChars: MINIMAX_SLIDE_BRIEF_MAX_CHARS } : undefined
     );
     try {
       const text = await generateExternalProviderText(
         ctx,
         prompt,
         { model: ctx.resolution.route.model, temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 4096 },
-        'Slide image brief generated via OpenRouter'
+        'Slide image brief generated via external provider'
       );
-      return text.trim() || null;
+      const brief = text.trim();
+      if (!brief) {
+        return null;
+      }
+
+      if (usesMiniMaxImage) {
+        return truncateAtWordBoundary(brief, MINIMAX_SLIDE_BRIEF_MAX_CHARS);
+      }
+
+      return brief;
     } catch (error) {
       functions.logger.warn('Slide image brief generation failed (non-fatal):', error);
       return null;
@@ -415,10 +435,13 @@ export class LlmGenerationService {
     rules?: string
   ): Promise<string | null> {
     const imageResolution = await LlmImageRouteResolver.resolve('slideDeckImage');
+    const usesMiniMaxImage =
+      imageResolution.route.providerType === 'minimax' && !!imageResolution.providerApiKey;
     const prompt = SlideDeckPromptBuilder.buildSlideImagePrompt(
       slideTitle,
       slideContent,
-      rules
+      rules,
+      usesMiniMaxImage ? { compact: true } : undefined
     );
     return LlmGenerationService.generateSlideImageWithPrompt(prompt, imageResolution);
   }
@@ -426,6 +449,18 @@ export class LlmGenerationService {
   static async generateSlideImageFromPrompt(prompt: string): Promise<string | null> {
     const imageResolution = await LlmImageRouteResolver.resolve('slideDeckImage');
     return LlmGenerationService.generateSlideImageWithPrompt(prompt, imageResolution);
+  }
+
+  private static prepareMiniMaxSlideImagePrompt(prompt: string): string {
+    const extractedBrief = extractSlideImageBriefFromPrompt(prompt);
+    const compactPrompt = extractedBrief
+      ? SlideDeckPromptBuilder.buildSlideImageFromBriefPrompt(
+          truncateAtWordBoundary(extractedBrief, MINIMAX_SLIDE_BRIEF_MAX_CHARS),
+          { compact: true }
+        )
+      : prompt;
+
+    return fitMiniMaxImagePrompt(compactPrompt);
   }
 
   private static async generateSlideImageWithPrompt(
@@ -436,9 +471,21 @@ export class LlmGenerationService {
 
     if (route.providerType !== 'gemini' && providerApiKey) {
       try {
+        const imagePrompt =
+          route.providerType === 'minimax'
+            ? LlmGenerationService.prepareMiniMaxSlideImagePrompt(prompt)
+            : prompt;
+
+        if (route.providerType === 'minimax' && imagePrompt.length !== prompt.length) {
+          functions.logger.info('MiniMax slide image prompt trimmed', {
+            originalLength: prompt.length,
+            finalLength: imagePrompt.length,
+          });
+        }
+
         const client = LlmProviderClientFactory.create(route, providerApiKey);
         const result = await client.generateImage({
-          prompt,
+          prompt: imagePrompt,
           config: { model: route.model },
           imageConfig: { aspectRatio: '16:9' },
         });

@@ -41,7 +41,12 @@ ${content}`;
    * Build a prompt that asks Gemini to produce a detailed image-generation brief
    * for a single slide. The brief will later be fed to the image model.
    */
-  static buildSlideImageBriefPrompt(slideTitle: string, slideContent: string, rules?: string): string {
+  static buildSlideImageBriefPrompt(
+    slideTitle: string,
+    slideContent: string,
+    rules?: string,
+    options?: { maxOutputChars?: number }
+  ): string {
     const hasRules = !!rules?.trim();
 
     const rulesSection = hasRules
@@ -51,6 +56,10 @@ DOMAIN RULES (customise visual style, diagram types, color palettes, and layout 
 ${rules}
 ---
 `
+      : '';
+
+    const lengthConstraint = options?.maxOutputChars
+      ? `\n\nCRITICAL: Keep the entire output under ${options.maxOutputChars} characters. Be concise; cover layout, diagram, colors, and exact on-slide text.`
       : '';
 
     return `You are an expert presentation visual designer. Your task is to create a DETAILED image-generation prompt for an AI image model that will render a single presentation slide.
@@ -69,13 +78,20 @@ Analyse the slide content and the rules (if provided), then write a single, self
 4. **THEMATIC IMAGE**: Describe a small thematic icon or illustration that visually represents the core concept (e.g. brain for AI, gears for processes). Specify its position and approximate size.
 5. **TEXT ON SLIDE**: Write out the exact title and content text that should appear on the rendered image.
 
-Output ONLY the image-generation prompt as plain text (no JSON, no markdown fences). It should read as a single cohesive instruction to an image model.`;
+Output ONLY the image-generation prompt as plain text (no JSON, no markdown fences). It should read as a single cohesive instruction to an image model.${lengthConstraint}`;
   }
 
   /**
    * Wrap the detailed brief into a final image-model prompt.
    */
-  static buildSlideImageFromBriefPrompt(detailedBrief: string): string {
+  static buildSlideImageFromBriefPrompt(
+    detailedBrief: string,
+    options?: { compact?: boolean }
+  ): string {
+    if (options?.compact) {
+      return `16:9 presentation slide. ${detailedBrief.trim()} Professional design; dominant diagram (50%+ of slide); legible on-slide text; modern colors.`;
+    }
+
     return `Generate a visually appealing 16:9 landscape presentation slide image based on the following detailed specification:
 
 ${detailedBrief}
@@ -88,7 +104,20 @@ Important rendering rules:
 - Use a clean, modern, professional design with harmonious colors and balanced composition`;
   }
 
-  static buildSlideImagePrompt(slideTitle: string, slideContent: string, rules?: string): string {
+  static buildSlideImagePrompt(
+    slideTitle: string,
+    slideContent: string,
+    rules?: string,
+    options?: { compact?: boolean }
+  ): string {
+    if (options?.compact) {
+      const rulesNote = rules?.trim()
+        ? ` Style rules: ${rules.trim().slice(0, 200).trim()}.`
+        : '';
+
+      return `16:9 presentation slide. Title: "${slideTitle}". Points: ${slideContent.slice(0, 600).trim()}.${rulesNote} Dark theme, large diagram (50%+ of slide), legible text, modern professional design.`;
+    }
+
     const hasRules = !!rules?.trim();
 
     const rulesSection = hasRules

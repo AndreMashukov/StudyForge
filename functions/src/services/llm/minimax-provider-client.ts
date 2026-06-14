@@ -1,5 +1,6 @@
 import type { IMiniMaxProviderConnection } from '@shared-types';
 import type { LlmProviderClient } from './llm-provider-client';
+import { fitMiniMaxImagePrompt } from './llm-image-prompt-utils';
 import { stripRedactedThinking } from './llm-response-text-utils';
 import type {
   LlmImageRequest,
@@ -136,9 +137,11 @@ export class MiniMaxProviderClient implements LlmProviderClient {
   }
 
   async generateImage(request: LlmImageRequest): Promise<LlmImageResult> {
+    const prompt = fitMiniMaxImagePrompt(request.prompt);
+
     const body = JSON.stringify({
       model: request.config.model,
-      prompt: request.prompt,
+      prompt,
       aspect_ratio: request.imageConfig?.aspectRatio ?? '16:9',
       response_format: 'base64',
       n: 1,
