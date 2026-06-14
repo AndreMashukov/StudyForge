@@ -66,7 +66,7 @@ export function DashboardCardsSkeleton() {
 
 export function ModelSettingsPanelSkeleton() {
   return (
-    <div className="space-y-6" aria-hidden>
+    <div className="grid gap-6 xl:grid-cols-2" aria-hidden>
       {Array.from({ length: 2 }, (_, index) => (
         <div
           key={`panel-${index}`}

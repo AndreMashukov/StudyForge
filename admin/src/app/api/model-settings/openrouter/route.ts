@@ -43,7 +43,6 @@ export async function PUT(request: Request) {
 
     const openRouterConnection = await updateOpenRouterSettings(
       {
-        enabled: body.enabled ?? false,
         baseUrl: body.baseUrl ?? '',
         defaultModel: body.defaultModel ?? '',
         defaultVisionModel: body.defaultVisionModel,
