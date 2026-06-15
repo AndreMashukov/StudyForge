@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "StudyForge Capture",
+    "slug": "studyforge-capture",
+    "scheme": "studyforge",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "io.studyforge.capture"
+    },
+    "android": {
+      "package": "io.studyforge.capture"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-dev-client",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow StudyForge to capture documents with your camera."
+        }
+      ],
+      "expo-ocr-kit"
+    ]
+  }
+}
