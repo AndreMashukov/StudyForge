@@ -1,0 +1,71 @@
+{
+  "name": "mobile-capture",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "mobile-capture/src",
+  "projectType": "application",
+  "tags": ["type:app", "scope:mobile-capture"],
+  "targets": {
+    "start": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "{workspaceRoot}/mobile-capture",
+        "command": "npx expo start --dev-client"
+      }
+    },
+    "start-go": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "{workspaceRoot}/mobile-capture",
+        "command": "npx expo start"
+      }
+    },
+    "start-clear": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "{workspaceRoot}/mobile-capture",
+        "command": "npx expo start --dev-client --clear"
+      }
+    },
+    "android": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "{workspaceRoot}/mobile-capture",
+        "command": "npx expo run:android"
+      }
+    },
+    "prebuild-android": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "{workspaceRoot}/mobile-capture",
+        "command": "npx expo prebuild --platform android --clean --no-install"
+      }
+    },
+    "ios": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "{workspaceRoot}/mobile-capture",
+        "command": "npx expo run:ios"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "tsc -p mobile-capture/tsconfig.json --noEmit"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "eslint mobile-capture --ext .ts,.tsx"
+      }
+    }
+  }
+}
