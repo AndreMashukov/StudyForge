@@ -1,9 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Directory, DirectoryTreeNode } from '@shared-types';
 import { queryKeys } from '../../../lib/api/queryKeys';
 import { createDocument, generateFromScreenshot, getDirectoryTree } from '../../../lib/api/studyforgeApi';
+import type { IGetDirectoryTreeResponse } from '../../../lib/api/studyforgeApiSchemas';
 
-export function filterDirectories(directories: Directory[], query: string): Directory[] {
+export type IMobileDirectory = IGetDirectoryTreeResponse['tree'][number]['directory'];
+
+export function filterDirectories(directories: IMobileDirectory[], query: string): IMobileDirectory[] {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
     return directories;
@@ -16,10 +18,10 @@ export function filterDirectories(directories: Directory[], query: string): Dire
   );
 }
 
-export function flattenDirectoryTree(nodes: DirectoryTreeNode[]) {
-  const directories: DirectoryTreeNode['directory'][] = [];
+export function flattenDirectoryTree(nodes: IGetDirectoryTreeResponse['tree']): IMobileDirectory[] {
+  const directories: IMobileDirectory[] = [];
 
-  const walk = (treeNodes: DirectoryTreeNode[]) => {
+  const walk = (treeNodes: IGetDirectoryTreeResponse['tree']) => {
     for (const node of treeNodes) {
       directories.push(node.directory);
       if (node.children.length > 0) {
