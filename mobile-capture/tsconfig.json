@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-native",
+    "jsxImportSource": "nativewind",
+    "strict": true,
+    "noEmit": true,
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@shared-types": ["libs/shared-types/src/index.ts"],
+      "@mobile-capture/*": ["mobile-capture/src/*"]
+    }
+  },
+  "include": ["nativewind-env.d.ts", "src/**/*.ts", "src/**/*.tsx", "app.config.ts"],
+  "exclude": ["node_modules"]
+}
