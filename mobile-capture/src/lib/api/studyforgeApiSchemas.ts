@@ -1,16 +1,47 @@
 import { z } from 'zod';
 import { DocumentSourceType, DocumentStatus } from '@shared-types';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 function isFirestoreTimestamp(value: unknown): value is { toDate(): Date } {
-  if (typeof value !== 'object' || value === null) {
+  if (!isRecord(value)) {
     return false;
   }
   const toDate = Reflect.get(value, 'toDate');
   return typeof toDate === 'function';
 }
 
-const dateOrTimestampSchema = z.custom<Date | { toDate(): Date }>((value) => {
-  return value instanceof Date || isFirestoreTimestamp(value);
+function isSerializedFirestoreTimestamp(
+  value: unknown
+): value is { seconds: number; nanoseconds: number } {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const seconds = value.seconds ?? value._seconds;
+  const nanoseconds = value.nanoseconds ?? value._nanoseconds;
+  return typeof seconds === 'number' && typeof nanoseconds === 'number';
+}
+
+/** Accepts Date, live Timestamp, or JSON-serialized Timestamp from Firebase callables. */
+const firestoreDateSchema = z.custom<
+  Date | { toDate(): Date } | { seconds: number; nanoseconds: number }
+>((value) => {
+  if (value instanceof Date) {
+    return true;
+  }
+  if (isFirestoreTimestamp(value)) {
+    return true;
+  }
+  if (isSerializedFirestoreTimestamp(value)) {
+    return true;
+  }
+  if (typeof value === 'string' && !Number.isNaN(Date.parse(value))) {
+    return true;
+  }
+  return false;
 });
 
 const directorySchema = z.object({
@@ -32,8 +63,8 @@ const directorySchema = z.object({
   sequenceQuizCount: z.number().optional(),
   subjectWorldCount: z.number().optional(),
   ruleIds: z.array(z.string()),
-  createdAt: dateOrTimestampSchema,
-  updatedAt: dateOrTimestampSchema,
+  createdAt: firestoreDateSchema,
+  updatedAt: firestoreDateSchema,
 });
 
 interface IDirectoryTreeNodeSchema {
@@ -70,11 +101,11 @@ const documentEnhancedSchema = z.object({
   storagePath: z.string(),
   tags: z.array(z.string()),
   directoryId: z.string(),
-  createdAt: dateOrTimestampSchema,
-  updatedAt: dateOrTimestampSchema,
+  createdAt: firestoreDateSchema,
+  updatedAt: firestoreDateSchema,
   generationStatus: z.enum(['pending', 'completed', 'failed']).optional(),
   generationError: z.string().optional(),
-  completedAt: dateOrTimestampSchema.optional(),
+  completedAt: firestoreDateSchema.optional(),
   appliedRuleIds: z.array(z.string()).optional(),
   generationModel: z.string().optional(),
   color: z.string().optional(),
