@@ -11,7 +11,7 @@ type StorageBackend = 'mmkv' | 'async';
 
 let backend: StorageBackend | null = null;
 let activeStorage: ISyncStorage | null = null;
-let hydrationPromise: Promise<void> | null = null;
+let storageInitializing = false;
 let mmkvUnavailable = false;
 const memoryCache = new Map<string, string>();
 
@@ -23,6 +23,12 @@ interface IMmkvInstance {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function isCreateMmkvFn(
+  value: unknown
+): value is (config: { id: string }) => IMmkvInstance {
+  return typeof value === 'function';
 }
 
 function isExpoGo(): boolean {
@@ -38,14 +44,13 @@ function loadCreateMmkv():
 
   try {
     // Dynamic require — nitro-modules throws at module init; skip entirely in Expo Go.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const moduleExports: unknown = require('react-native-mmkv');
-    if (!isRecord(moduleExports) || typeof moduleExports.createMMKV !== 'function') {
+    if (!isRecord(moduleExports) || !isCreateMmkvFn(moduleExports.createMMKV)) {
       mmkvUnavailable = true;
       return null;
     }
 
-    return moduleExports.createMMKV as (config: { id: string }) => IMmkvInstance;
+    return moduleExports.createMMKV;
   } catch {
     mmkvUnavailable = true;
     return null;
@@ -90,20 +95,28 @@ function createAsyncStorageFallback(): ISyncStorage {
 }
 
 function initStorage(): StorageBackend {
-  if (backend && activeStorage) {
+  if (backend !== null && activeStorage !== null) {
     return backend;
   }
 
-  const mmkv = createMmkvStorage();
-  if (mmkv) {
-    activeStorage = mmkv;
-    backend = 'mmkv';
-  } else {
-    activeStorage = createAsyncStorageFallback();
-    backend = 'async';
+  if (storageInitializing) {
+    return backend ?? 'async';
   }
 
-  return backend;
+  storageInitializing = true;
+  try {
+    const mmkv = createMmkvStorage();
+    if (mmkv) {
+      activeStorage = mmkv;
+      backend = 'mmkv';
+    } else {
+      activeStorage = createAsyncStorageFallback();
+      backend = 'async';
+    }
+    return backend;
+  } finally {
+    storageInitializing = false;
+  }
 }
 
 export function isUsingMmkv(): boolean {
@@ -116,18 +129,21 @@ export async function hydrateAppStorage(keys: string[]): Promise<void> {
     return;
   }
 
-  if (!hydrationPromise) {
-    hydrationPromise = (async () => {
-      const entries = await AsyncStorage.multiGet(keys);
-      for (const [key, value] of entries) {
-        if (value) {
-          memoryCache.set(key, value);
-        }
-      }
-    })();
+  const keysToLoad = keys.filter((key) => !memoryCache.has(key));
+  if (keysToLoad.length === 0) {
+    return;
   }
 
-  await hydrationPromise;
+  try {
+    const entries = await AsyncStorage.multiGet(keysToLoad);
+    for (const [key, value] of entries) {
+      if (value) {
+        memoryCache.set(key, value);
+      }
+    }
+  } catch {
+    // AsyncStorage unavailable — callers read empty values until a later hydrate succeeds.
+  }
 }
 
 export function getStorageString(key: string): string | undefined {
