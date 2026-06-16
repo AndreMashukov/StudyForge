@@ -10,7 +10,7 @@
       "cache": false,
       "options": {
         "cwd": "{workspaceRoot}/mobile-capture",
-        "command": "../node_modules/.bin/expo start --dev-client"
+        "command": "npx expo start --dev-client"
       }
     },
     "start-go": {
@@ -18,7 +18,7 @@
       "cache": false,
       "options": {
         "cwd": "{workspaceRoot}/mobile-capture",
-        "command": "../node_modules/.bin/expo start"
+        "command": "npx expo start"
       }
     },
     "start-clear": {
@@ -26,7 +26,7 @@
       "cache": false,
       "options": {
         "cwd": "{workspaceRoot}/mobile-capture",
-        "command": "../node_modules/.bin/expo start --dev-client --clear"
+        "command": "npx expo start --dev-client --clear"
       }
     },
     "android": {
@@ -34,7 +34,7 @@
       "cache": false,
       "options": {
         "cwd": "{workspaceRoot}/mobile-capture",
-        "command": "../node_modules/.bin/expo run:android"
+        "command": "npx expo run:android"
       }
     },
     "prebuild-android": {
@@ -42,7 +42,7 @@
       "cache": false,
       "options": {
         "cwd": "{workspaceRoot}/mobile-capture",
-        "command": "../node_modules/.bin/expo prebuild --platform android --clean --no-install"
+        "command": "npx expo prebuild --platform android --clean --no-install"
       }
     },
     "ios": {
@@ -50,7 +50,7 @@
       "cache": false,
       "options": {
         "cwd": "{workspaceRoot}/mobile-capture",
-        "command": "../node_modules/.bin/expo run:ios"
+        "command": "npx expo run:ios"
       }
     },
     "typecheck": {
