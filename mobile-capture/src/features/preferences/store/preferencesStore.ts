@@ -16,7 +16,11 @@ export const usePreferencesStore = create<IPreferencesState>((set) => ({
   defaultDirectoryId: null,
   hydrated: false,
   hydrate: async () => {
-    await hydrateDefaultDirectoryStorage();
+    try {
+      await hydrateDefaultDirectoryStorage();
+    } catch {
+      // Storage read failed — continue with no persisted default directory.
+    }
     set({
       defaultDirectoryId: getDefaultDirectoryId(),
       hydrated: true,

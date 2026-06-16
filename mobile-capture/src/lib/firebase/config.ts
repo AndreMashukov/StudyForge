@@ -38,14 +38,22 @@ export interface IFirebasePublicConfig {
   appId: string;
 }
 
+const DEMO_FIREBASE_PROJECT_ID = 'demo-project';
+
 export function getFirebasePublicConfig(): IFirebasePublicConfig {
   return {
     apiKey: env('NX_PUBLIC_FIREBASE_API_KEY', 'demo-api-key-for-emulator'),
-    authDomain: env('NX_PUBLIC_FIREBASE_AUTH_DOMAIN', 'study-forge-202604.firebaseapp.com'),
-    projectId: env('NX_PUBLIC_FIREBASE_PROJECT_ID', 'study-forge-202604'),
-    storageBucket: env('NX_PUBLIC_FIREBASE_STORAGE_BUCKET', 'study-forge-202604.firebasestorage.app'),
-    messagingSenderId: env('NX_PUBLIC_FIREBASE_MESSAGING_SENDER_ID', '853327102927'),
-    appId: env('NX_PUBLIC_FIREBASE_APP_ID', '1:853327102927:web:4a3444a27948fac44088ba'),
+    authDomain: env(
+      'NX_PUBLIC_FIREBASE_AUTH_DOMAIN',
+      `${DEMO_FIREBASE_PROJECT_ID}.firebaseapp.com`
+    ),
+    projectId: env('NX_PUBLIC_FIREBASE_PROJECT_ID', DEMO_FIREBASE_PROJECT_ID),
+    storageBucket: env(
+      'NX_PUBLIC_FIREBASE_STORAGE_BUCKET',
+      `${DEMO_FIREBASE_PROJECT_ID}.appspot.com`
+    ),
+    messagingSenderId: env('NX_PUBLIC_FIREBASE_MESSAGING_SENDER_ID', '123456789012'),
+    appId: env('NX_PUBLIC_FIREBASE_APP_ID', '1:123456789012:web:demo-app-id'),
   };
 }
 

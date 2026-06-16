@@ -21,10 +21,14 @@ let emulatorsConnected = false;
 
 if (useFirebaseEmulator() && !emulatorsConnected) {
   emulatorsConnected = true;
-  const host = getEmulatorHost();
-  connectAuthEmulator(auth, `http://${host}:9099`, { disableWarnings: true });
-  connectFirestoreEmulator(db, host, 8080);
-  connectFunctionsEmulator(functions, host, 5001);
+  try {
+    const host = getEmulatorHost();
+    connectAuthEmulator(auth, `http://${host}:9099`, { disableWarnings: true });
+    connectFirestoreEmulator(db, host, 8080);
+    connectFunctionsEmulator(functions, host, 5001);
+  } catch {
+    // Hot reload can re-run this module while Firebase instances stay connected.
+  }
 }
 
 export default app;
