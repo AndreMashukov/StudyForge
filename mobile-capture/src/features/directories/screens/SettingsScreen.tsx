@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Directory } from '@shared-types';
-import { Button, LoadingState, TextInputField } from '../../../components/ui/primitives';
+import { Button, LoadingState, TextInputField } from '../../../components/ui';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import {
   filterDirectories,

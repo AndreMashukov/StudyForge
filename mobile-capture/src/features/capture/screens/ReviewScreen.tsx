@@ -10,7 +10,7 @@ import {
   FieldLabel,
   Screen,
   TextInputField,
-} from '../../../components/ui/primitives';
+} from '../../../components/ui';
 import {
   IReviewDocumentFormValues,
   reviewDocumentSchema,
