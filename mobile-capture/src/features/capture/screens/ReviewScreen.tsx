@@ -30,23 +30,24 @@ export function ReviewScreen() {
   const createDocumentMutation = useCreateDocumentMutation();
   const generateFromScreenshotMutation = useGenerateFromScreenshotMutation();
 
-  const form = useForm<IReviewDocumentFormValues>({
-    resolver: zodResolver(reviewDocumentSchema),
-    defaultValues: {
-      title: '',
-      content: '',
-    },
-  });
+  const { control, formState, getValues, handleSubmit, reset, setError } =
+    useForm<IReviewDocumentFormValues>({
+      resolver: zodResolver(reviewDocumentSchema),
+      defaultValues: {
+        title: '',
+        content: '',
+      },
+    });
 
   useEffect(() => {
     if (!pendingScan) {
       return;
     }
-    form.reset({
+    reset({
       title: deriveTitleFromContent(pendingScan.ocrText),
       content: pendingScan.ocrText || '',
     });
-  }, [form, pendingScan]);
+  }, [pendingScan, reset]);
 
   if (!pendingScan) {
     return (
@@ -57,7 +58,7 @@ export function ReviewScreen() {
     );
   }
 
-  const submitTextDocument = form.handleSubmit(async (values) => {
+  const submitTextDocument = handleSubmit(async (values) => {
     try {
       const response = await createDocumentMutation.mutateAsync({
         title: values.title,
@@ -73,7 +74,7 @@ export function ReviewScreen() {
       setPendingScan(null);
       router.back();
     } catch (error) {
-      form.setError('root', { message: getCallableErrorMessage(error) });
+      setError('root', { message: getCallableErrorMessage(error) });
     }
   });
 
@@ -83,8 +84,8 @@ export function ReviewScreen() {
       const response = await generateFromScreenshotMutation.mutateAsync({
         imageBase64,
         directoryId: pendingScan.directoryId,
-        title: form.getValues('title') || undefined,
-        prompt: form.getValues('content') || undefined,
+        title: getValues('title') || undefined,
+        prompt: getValues('content') || undefined,
       });
 
       setLastResult(response.documentId, response.title);
@@ -92,7 +93,7 @@ export function ReviewScreen() {
       setPendingScan(null);
       router.back();
     } catch (error) {
-      form.setError('root', { message: getCallableErrorMessage(error) });
+      setError('root', { message: getCallableErrorMessage(error) });
     }
   };
 
@@ -113,7 +114,7 @@ export function ReviewScreen() {
 
       <FieldLabel>Title</FieldLabel>
       <Controller
-        control={form.control}
+        control={control}
         name="title"
         render={({ field, fieldState }) => (
           <>
@@ -125,7 +126,7 @@ export function ReviewScreen() {
 
       <FieldLabel>OCR text</FieldLabel>
       <Controller
-        control={form.control}
+        control={control}
         name="content"
         render={({ field, fieldState }) => (
           <>
@@ -141,7 +142,7 @@ export function ReviewScreen() {
         )}
       />
 
-      <FieldError message={form.formState.errors.root?.message} />
+      <FieldError message={formState.errors.root?.message} />
 
       <View className="gap-2.5 mt-2">
         <Button
