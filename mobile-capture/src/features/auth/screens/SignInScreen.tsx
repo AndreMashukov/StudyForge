@@ -1,7 +1,7 @@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Text, View } from 'react-native';
-import { Button, FieldError, FieldLabel, Screen, TextInputField } from '../../../components/ui/primitives';
+import { Button, FieldError, FieldLabel, Screen, TextInputField } from '../../../components/ui';
 import { useAuthUser } from '../hooks/useAuthUser';
 import { ISignInFormValues, signInSchema } from '../schemas/authSchemas';
 

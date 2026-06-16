@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button, LoadingState, Screen } from '../../../components/ui/primitives';
+import { Button, LoadingState, Screen } from '../../../components/ui';
 import { CaptureScanCommandHandler } from '../services/CaptureScanCommandHandler';
 import { CaptureState } from '../types/ICapture';
 import { useCaptureStore } from '../store/captureStore';

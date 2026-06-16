@@ -4,7 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useAuthUser } from '../features/auth/hooks/useAuthUser';
-import { LoadingState } from '../components/ui/primitives';
+import { LoadingState } from '../components/ui';
 import { queryClient } from '../lib/api/queryClient';
 import { usePreferencesStore } from '../features/preferences/store/preferencesStore';
 
