@@ -886,7 +886,14 @@ This question is derived from: **${context.originalDocument.title}**
     content: string,
     rules?: string,
     descriptionRules?: string
-  ): Promise<{ front: string; back: string; description?: string }[]> {
+  ): Promise<{
+    front: string;
+    back: string;
+    description?: string;
+    frontHtml?: string;
+    backHtml?: string;
+    descriptionHtml?: string;
+  }[]> {
     try {
       functions.logger.info('Generating flashcards with Gemini AI...');
 
@@ -945,7 +952,14 @@ This question is derived from: **${context.originalDocument.title}**
    */
   private static parseFlashcardResponse(
     responseText: string
-  ): { front: string; back: string; description?: string }[] {
+  ): {
+    front: string;
+    back: string;
+    description?: string;
+    frontHtml?: string;
+    backHtml?: string;
+    descriptionHtml?: string;
+  }[] {
     let text = responseText.trim();
 
     // Strip markdown code fences (```json ... ``` or ``` ... ```)

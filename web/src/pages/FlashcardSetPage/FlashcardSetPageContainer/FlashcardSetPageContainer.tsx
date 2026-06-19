@@ -2,7 +2,6 @@ import React from 'react';
 import { Page } from '../../../components/Page';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
-import { MarkdownRenderer } from '../../../components/MarkdownRenderer';
 import { useFlashcardSetPageContext } from '../context/hooks/useFlashcardSetPageContext';
 import {
   ArrowLeft,
@@ -14,6 +13,8 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { Spinner } from '../../../components/ui/Spinner';
+import { FlashcardHtmlContent } from './FlashcardHtmlContent';
+import { resolveFlashcardHtml } from './flashcardHtmlUtils';
 
 export const FlashcardSetPageContainer = () => {
   const { api, handlers } = useFlashcardSetPageContext();
@@ -80,6 +81,14 @@ export const FlashcardSetPageContainer = () => {
   const progressPct = Math.round(((currentIndex + 1) / totalCards) * 100);
   const isLast = currentIndex === totalCards - 1;
 
+  const frontHtml = resolveFlashcardHtml(currentCard?.frontHtml, currentCard?.front);
+  const backHtml = resolveFlashcardHtml(currentCard?.backHtml, currentCard?.back);
+  const descriptionHtml = resolveFlashcardHtml(
+    currentCard?.descriptionHtml,
+    currentCard?.description
+  );
+  const hasDescription = !!descriptionHtml;
+
   // Shared card UI — used in both normal and fullscreen mode
   const cardArea = (
     <div
@@ -99,18 +108,20 @@ export const FlashcardSetPageContainer = () => {
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
               Tap to reveal
             </p>
-            <p className="text-lg sm:text-2xl font-bold leading-snug">
-              {currentCard?.front}
-            </p>
+            <FlashcardHtmlContent
+              html={frontHtml}
+              className="text-lg sm:text-2xl font-bold leading-snug text-center"
+            />
           </div>
         </div>
 
         {/* BACK */}
         <div className="absolute inset-0 flex flex-col items-center justify-center [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)] rounded-[var(--radius,0.5rem)] border border-border bg-card text-card-foreground shadow-[0_4px_6px_-1px_rgba(0,0,0,0.25),0_10px_40px_-10px_rgba(0,0,0,0.3)]">
           <div className="flex flex-col items-center gap-3 px-6 sm:px-8 text-center overflow-y-auto max-h-full py-4">
-            <p className="text-base sm:text-xl font-semibold leading-relaxed">
-              {currentCard?.back}
-            </p>
+            <FlashcardHtmlContent
+              html={backHtml}
+              className="text-base sm:text-xl font-semibold leading-relaxed text-center"
+            />
             {currentCard?.explanation && (
               <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
                 {currentCard.explanation}
@@ -179,9 +190,9 @@ export const FlashcardSetPageContainer = () => {
                 </div>
               )}
             </div>
-            {currentCard.description && isFlipped && (
+            {hasDescription && isFlipped && (
               <div className="w-full max-w-2xl mx-auto mt-4 rounded-xl border border-border bg-muted/40 px-4 py-3">
-                <MarkdownRenderer content={currentCard.description} showToc={false} />
+                <FlashcardHtmlContent html={descriptionHtml} />
               </div>
             )}
           </div>
@@ -366,10 +377,10 @@ export const FlashcardSetPageContainer = () => {
           </div>
         </div>
 
-        {currentCard.description && isFlipped && (
+        {hasDescription && isFlipped && (
           <div className="px-4 sm:px-6 pb-5">
             <div className="max-w-2xl mx-auto rounded-xl border border-border bg-muted/40 px-4 py-3">
-              <MarkdownRenderer content={currentCard.description} showToc={false} />
+              <FlashcardHtmlContent html={descriptionHtml} />
             </div>
           </div>
         )}
