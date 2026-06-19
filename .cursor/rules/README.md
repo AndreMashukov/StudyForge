@@ -21,7 +21,7 @@ Path-scoped rules that mirror [`.claude/rules/`](../../.claude/rules/) for Curso
 Both Cursor and Claude Code use:
 
 - [`AGENTS.md`](../../AGENTS.md) — full conventions (workspace rule in Cursor)
-- [`CLAUDE.md`](../../CLAUDE.md) — concise entry point (Claude Code only; summarized in `studyforge-core.mdc`)
+- [`CLAUDE.md`](../../CLAUDE.md) — imports AGENTS.md + Claude-specific config (rules, skills, hooks); Cursor summary in `studyforge-core.mdc`
 
 ## MCP
 
