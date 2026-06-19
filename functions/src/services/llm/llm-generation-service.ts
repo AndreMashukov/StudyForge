@@ -47,7 +47,14 @@ import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
 import type { LlmCapability } from './types';
 
-type FlashcardItem = { front: string; back: string; description?: string };
+type FlashcardItem = {
+  front: string;
+  back: string;
+  description?: string;
+  frontHtml?: string;
+  backHtml?: string;
+  descriptionHtml?: string;
+};
 
 function stripCodeFences(text: string): string {
   return text

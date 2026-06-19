@@ -56,6 +56,9 @@ const flashcardSchema = z.object({
   back: z.string(),
   explanation: z.string().optional(),
   description: z.string().optional(),
+  frontHtml: z.string().optional(),
+  backHtml: z.string().optional(),
+  descriptionHtml: z.string().optional(),
 });
 
 const updateFlashcardSetRequestSchema = z.object({
