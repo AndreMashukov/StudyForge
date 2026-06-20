@@ -20,6 +20,7 @@ export async function resolveTextGenerationModelLabel(
     | 'flashcards'
     | 'documentFromPrompt'
     | 'diagramQuiz'
+    | 'diagramQuizAgent'
     | 'sequenceQuiz'
     | 'subjectWorld'
     | 'slideDeckText'

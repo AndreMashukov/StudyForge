@@ -1,7 +1,7 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { FirestorePaths } from '../lib/firestore-paths';
 
-export type GenerationJobKind = 'documentFromPrompt';
+export type GenerationJobKind = 'documentFromPrompt' | 'artifactAgent';
 export type GenerationJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
 
 export interface GenerationJob {

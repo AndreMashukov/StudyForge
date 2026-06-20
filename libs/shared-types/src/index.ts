@@ -452,6 +452,12 @@ export interface DiagramQuiz {
   documentColor?: string;
   /** Colors of all source documents in documentIds order, for segmented rail. */
   documentColors?: string[];
+  /** Agent pipeline summary for GenerationInfoTooltip / admin debug */
+  generationDiagnostics?: IArtifactAgentDiagnostics;
+  /** Model used for the primary generator pass */
+  generationModel?: string;
+  /** Model used for agent helper passes (repair/critic/refiner) */
+  agentModel?: string;
 }
 
 export interface GenerateDiagramQuizRequest {
@@ -512,6 +518,46 @@ export enum DocumentStatus {
 
 // Generation lifecycle status (orthogonal to DocumentStatus)
 export type GenerationStatus = 'pending' | 'completed' | 'failed';
+
+/** Artifact kinds processed by the shared artifact-agent pipeline. */
+export type ArtifactKind =
+  | 'diagramQuiz'
+  | 'slideDeck'
+  | 'sequenceQuiz'
+  | 'flashcards'
+  | 'subjectWorld';
+
+export interface IArtifactCriticResult {
+  overallVerdict: 'pass' | 'revise' | 'fail';
+  items: Array<{
+    itemIndex: number;
+    severity: 'ok' | 'warning' | 'blocker';
+    issues: string[];
+  }>;
+}
+
+export interface IArtifactAgentDiagnostics {
+  artifactKind: ArtifactKind;
+  agentDefinitionVersion: string;
+  adkSessionId?: string;
+  generatorAttempts: number;
+  repairCount: number;
+  criticCycles: number;
+  modelUsage: Array<{
+    role: 'generator' | 'repair' | 'critic' | 'refiner';
+    capability: LlmCapabilityKey;
+    model?: string;
+    durationMs?: number;
+  }>;
+  residuals: Array<{
+    gateId: string;
+    severity: 'warning' | 'blocker';
+    message: string;
+    path?: string;
+  }>;
+  criticIssues?: IArtifactCriticResult;
+  artifactDetails?: Record<string, unknown>;
+}
 
 export type GenerationRecordType =
   | 'document'
@@ -1827,6 +1873,7 @@ export type LlmCapabilityKey =
   | 'documentQuestion'
   | 'directoryChat'
   | 'diagramQuiz'
+  | 'diagramQuizAgent'
   | 'sequenceQuiz'
   | 'subjectWorld'
   | 'slideDeckText'

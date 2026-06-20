@@ -3,6 +3,9 @@ import { logger } from 'firebase-functions/v2';
 import { onTaskDispatched } from 'firebase-functions/v2/tasks';
 import { DocumentCrudService } from '../services/document-crud';
 import { DocumentFromPromptGenerationProcessor } from '../services/generation-processors/document-from-prompt';
+import { ArtifactAgentGenerationProcessor } from '../services/generation-processors/artifact-agent';
+import { failPendingDiagramQuiz } from '../services/artifact-generation-records';
+import { ArtifactAgentPipelineFailedError } from '../services/artifact-agent/artifact-agent-errors';
 import { GenerationJob, GenerationJobsService } from '../services/generation-jobs';
 import { ProcessGenerationJobTaskPayload } from '../services/generation-task-queue';
 
@@ -14,6 +17,9 @@ async function failVisibleRecord(job: GenerationJob, message: string): Promise<v
     case 'documentFromPrompt':
       await DocumentCrudService.failPendingDocument(job.userId, job.recordId, message);
       return;
+    case 'artifactAgent':
+      await failPendingDiagramQuiz(job.userId, job.recordId, message);
+      return;
     default:
       throw new Error(`Unsupported generation job kind: ${job.kind}`);
   }
@@ -23,6 +29,9 @@ async function processJob(job: GenerationJob): Promise<void> {
   switch (job.kind) {
     case 'documentFromPrompt':
       await DocumentFromPromptGenerationProcessor.process(job);
+      return;
+    case 'artifactAgent':
+      await ArtifactAgentGenerationProcessor.process(job);
       return;
     default:
       throw new Error(`Unsupported generation job kind: ${job.kind}`);
@@ -66,14 +75,16 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error('Generation job failed', { userId, jobId, kind: job.kind, recordId: job.recordId, error: message });
-      await failVisibleRecord(job, message).catch((failError) => {
-        logger.error('Failed to mark visible generation record as failed', {
-          userId,
-          jobId,
-          recordId: job.recordId,
-          error: failError instanceof Error ? failError.message : String(failError),
+      if (!(error instanceof ArtifactAgentPipelineFailedError)) {
+        await failVisibleRecord(job, message).catch((failError) => {
+          logger.error('Failed to mark visible generation record as failed', {
+            userId,
+            jobId,
+            recordId: job.recordId,
+            error: failError instanceof Error ? failError.message : String(failError),
+          });
         });
-      });
+      }
       await GenerationJobsService.markFailed(userId, jobId, message);
       return;
     }

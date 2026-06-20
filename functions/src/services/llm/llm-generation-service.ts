@@ -608,4 +608,121 @@ ${markdownContent}
     );
     return text.trim();
   }
+
+  static async repairDiagramQuizDiagram(params: {
+    sourceContent: ScrapedContent;
+    questionText: string;
+    brokenDiagram: string;
+    parseError: string;
+    syntaxRules: string;
+  }): Promise<string> {
+    const ctx = await resolveTextRoute('diagramQuizAgent', 'diagramQuizAgent');
+    const prompt = `Fix this broken Mermaid diagram for a diagram quiz question.
+
+Question: ${params.questionText}
+
+Parse/validation error:
+${params.parseError}
+
+Broken diagram:
+${params.brokenDiagram}
+
+${params.syntaxRules}
+
+Return ONLY the corrected Mermaid source with no markdown fences or commentary.`;
+
+    if (!ctx.usesExternalProvider) {
+      const text = await GeminiService.generateContent(prompt);
+      return stripCodeFences(text);
+    }
+
+    const text = await generateExternalProviderText(
+      ctx,
+      prompt,
+      { model: ctx.resolution.route.model, temperature: 0.2, topK: 20, topP: 0.9, maxOutputTokens: 2048 },
+      'Diagram quiz repair via OpenRouter'
+    );
+    return stripCodeFences(text);
+  }
+
+  static async runDiagramQuizCritic(params: {
+    sourceContent: ScrapedContent;
+    draft: GeminiDiagramQuizResponse;
+  }): Promise<string> {
+    const ctx = await resolveTextRoute('diagramQuizAgent', 'diagramQuizAgent');
+    const prompt = `Review this diagram quiz against the source material.
+
+Source title: ${params.sourceContent.title}
+
+Source excerpt (truncated):
+${params.sourceContent.content.slice(0, 12000)}
+
+Quiz JSON:
+${JSON.stringify(params.draft)}
+
+Return ONLY valid JSON with shape:
+{
+  "overallVerdict": "pass" | "revise" | "fail",
+  "items": [
+    { "itemIndex": 0, "severity": "ok" | "warning" | "blocker", "issues": ["..."] }
+  ]
+}
+
+Pass when marked correct diagrams are supported by the source and distractors are plausible but wrong.
+Use "revise" for fixable pedagogical issues and "fail" only for severe factual errors.`;
+
+    if (!ctx.usesExternalProvider) {
+      return GeminiService.generateContent(prompt);
+    }
+
+    return generateExternalProviderText(
+      ctx,
+      prompt,
+      { model: ctx.resolution.route.model, temperature: 0.2, topK: 20, topP: 0.9, maxOutputTokens: 4096 },
+      'Diagram quiz critic via OpenRouter'
+    );
+  }
+
+  static async refineDiagramQuiz(params: {
+    sourceContent: ScrapedContent;
+    draft: GeminiDiagramQuizResponse;
+    criticResult: import('@shared-types').IArtifactCriticResult;
+    failingQuestionIndexes: number[];
+    enhancedPrompt?: string;
+  }): Promise<GeminiDiagramQuizResponse> {
+    const ctx = await resolveTextRoute('diagramQuiz', 'diagramQuiz');
+    const failingQuestions = params.failingQuestionIndexes
+      .map((index) => params.draft.questions[index])
+      .filter(Boolean);
+
+    const prompt = `Refine ONLY the failing diagram quiz questions listed below.
+Keep all other questions unchanged in meaning and structure.
+
+Source title: ${params.sourceContent.title}
+Additional instructions: ${params.enhancedPrompt || '(none)'}
+
+Critic feedback:
+${JSON.stringify(params.criticResult)}
+
+Failing questions:
+${JSON.stringify(failingQuestions)}
+
+Full quiz for context:
+${JSON.stringify(params.draft)}
+
+Return ONLY valid JSON for the FULL quiz object (title + questions array).`;
+
+    if (!ctx.usesExternalProvider) {
+      const text = await GeminiService.generateContent(prompt);
+      return GeminiService.parseDiagramQuizResponseFromText(text);
+    }
+
+    const text = await generateExternalProviderText(
+      ctx,
+      prompt,
+      { model: ctx.resolution.route.model, temperature: 0.35, topK: 40, topP: 0.95, maxOutputTokens: 16384 },
+      'Diagram quiz refine via OpenRouter'
+    );
+    return GeminiService.parseDiagramQuizResponseFromText(text);
+  }
 }

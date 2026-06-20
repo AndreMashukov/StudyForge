@@ -1,26 +1,26 @@
 import { onCall } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
-import { LlmGenerationService, resolveTextGenerationModelLabel } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
 import {
   isRuleResolutionMode,
-  resolveEffectiveRules,
 } from "../services/rule-resolution";
 import {
   createPendingDiagramQuiz,
-  completePendingDiagramQuiz,
-  failPendingDiagramQuiz,
 } from "../services/artifact-generation-records";
+import { GenerationJobPayloadStorage } from "../services/generation-job-payload-storage";
+import { GenerationJobsService } from "../services/generation-jobs";
+import { enqueueGenerationJobTask } from "../services/generation-task-queue";
+import type { ArtifactAgentJobPayload } from "../services/artifact-agent";
 import {
   GenerateDiagramQuizRequest,
   GenerateDiagramQuizResponse,
   GetDiagramQuizResponse,
   ApiResponse,
   DiagramQuiz,
-  RuleApplicability,
   getDocumentFallbackColor,
 } from "@shared-types";
 
@@ -32,8 +32,8 @@ export const generateDiagramQuiz = onCall(
     cors: true,
     secrets: [geminiApiKey, llmSettingsEncryptionKey],
     maxInstances: 5,
-    timeoutSeconds: 300,
-    memory: "1GiB",
+    timeoutSeconds: 60,
+    memory: "512MiB",
   },
   async (request): Promise<ApiResponse<GenerateDiagramQuizResponse>> => {
     try {
@@ -107,82 +107,69 @@ export const generateDiagramQuiz = onCall(
           : undefined,
       });
 
-      try {
-        let enhancedPrompt = additionalPrompt || "";
-        let followupIdsForSave: string[] = [];
-        let appliedRuleIdsForSave: string[] = [];
-        const ruleResolutionMode = isRuleResolutionMode(
-          (requestData as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
-        )
-          ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
-          : undefined;
-        const hasLegacyExplicitRules = Boolean(
-          requestData.ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length
-        );
-        const mode = ruleResolutionMode
-          ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
-        const selectedQuizRuleIds = requestData.ruleIds?.length
-          ? requestData.ruleIds
-          : quizRuleIds?.length
-          ? quizRuleIds
-          : requestData.additionalRuleIds;
-        const selectedFollowupRuleIds = hasLegacyExplicitRules
-          ? (followupRuleIds || [])
-          : requestData.additionalRuleIds;
+      const ruleResolutionMode = isRuleResolutionMode(
+        (requestData as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
+      )
+        ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
+        : undefined;
+      const hasLegacyExplicitRules = Boolean(
+        requestData.ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length
+      );
+      const mode = ruleResolutionMode
+        ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
+      const selectedQuizRuleIds = requestData.ruleIds?.length
+        ? requestData.ruleIds
+        : quizRuleIds?.length
+        ? quizRuleIds
+        : requestData.additionalRuleIds;
+      const selectedFollowupRuleIds = hasLegacyExplicitRules
+        ? (followupRuleIds || [])
+        : requestData.additionalRuleIds;
 
-        const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
-          userId,
-          directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.DIAGRAM_QUIZ,
-          additionalRuleIds: selectedQuizRuleIds,
-          mode,
-        });
-        if (quizRulesText) {
-          enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-        }
-        appliedRuleIdsForSave = resolvedAppliedIds;
-        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
-          userId,
-          directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.FOLLOWUP,
-          additionalRuleIds: selectedFollowupRuleIds,
-          mode,
-        });
-        followupIdsForSave = resolvedFollowupIds;
+      const jobId = GenerationJobsService.newJobId(userId);
+      const payload: ArtifactAgentJobPayload = {
+        artifactKind: 'diagramQuiz',
+        documentIds,
+        directoryId: resolvedDirectoryId,
+        recordId: pendingDiagramQuizId,
+        title: pendingTitle,
+        additionalPrompt,
+        ruleIds: selectedQuizRuleIds,
+        followupRuleIds: selectedFollowupRuleIds,
+        ruleResolutionMode: mode,
+        artifactPayload: {
+          diagramQuizName,
+        },
+      };
 
-        const geminiQuiz = await LlmGenerationService.generateDiagramQuiz(
-          documentContent,
-          enhancedPrompt
-        );
+      const payloadStoragePath = await GenerationJobPayloadStorage.saveJson(userId, jobId, payload);
+      await GenerationJobsService.createJob({
+        jobId,
+        kind: 'artifactAgent',
+        userId,
+        directoryId: resolvedDirectoryId,
+        recordId: pendingDiagramQuizId,
+        payloadStoragePath,
+      });
+      await enqueueGenerationJobTask({ userId, jobId });
 
-        const finalTitle = diagramQuizName?.trim()
-          || (documentIds.length === 1
-            ? `Diagram Quiz from ${documentDataList[0].doc.title}`
-            : `Diagram Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
+      logger.info('Diagram quiz generation queued', {
+        userId,
+        jobId,
+        diagramQuizId: pendingDiagramQuizId,
+        directoryId: resolvedDirectoryId,
+      });
 
-        const generationModel = await resolveTextGenerationModelLabel('diagramQuiz');
-
-        await completePendingDiagramQuiz(userId, pendingDiagramQuizId, {
-          title: finalTitle,
-          questions: geminiQuiz.questions,
-          appliedRuleIds: appliedRuleIdsForSave,
-          followupRuleIds: followupIdsForSave,
-          generationModel,
-        });
-
-        return {
-          success: true,
-          data: {
-            diagramQuizId: pendingDiagramQuizId,
-            diagramQuiz: { id: pendingDiagramQuizId } as DiagramQuiz,
-          },
-        };
-
-      } catch (innerError) {
-        const msg = innerError instanceof Error ? innerError.message : String(innerError);
-        await failPendingDiagramQuiz(userId, pendingDiagramQuizId, msg).catch(() => {/* best-effort */});
-        throw innerError;
-      }
+      return {
+        success: true,
+        data: {
+          diagramQuizId: pendingDiagramQuizId,
+          diagramQuiz: {
+            id: pendingDiagramQuizId,
+            generationStatus: 'pending',
+          } as DiagramQuiz,
+        },
+      };
     } catch (error) {
       console.error("Error in generateDiagramQuiz:", error);
       return {
