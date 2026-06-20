@@ -17,7 +17,7 @@ export const useSlideDeckPageHandlers = (
 
   const handleNavigateBack = useCallback(() => {
     if (resolvedDirectoryId) {
-      navigate(`/directory/${resolvedDirectoryId}`);
+      navigate(`/directory/${resolvedDirectoryId}?tab=slides`);
     } else {
       navigate('/');
     }
