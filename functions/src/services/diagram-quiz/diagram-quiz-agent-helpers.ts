@@ -59,7 +59,6 @@ export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft
       question.diagrams[diagramIndex] = fixedDiagram;
       trackDiagramQuizArtifactDetails(diagnostics, {
         diagramsFixed: diagramsFixed + 1,
-        autoRepairFailures: details.autoRepairFailures,
       });
       recordModelUsage(diagnostics, {
         role: 'repair',
@@ -147,18 +146,31 @@ export const diagramQuizRefinerStrategy = {
     }
 
     const startedAt = Date.now();
-    const refined = await LlmGenerationService.refineDiagramQuiz({
-      sourceContent: context.sourceContent,
-      draft,
-      criticResult,
-      failingQuestionIndexes: failingIndexes,
-      enhancedPrompt: context.enhancedPrompt,
-    });
-    recordModelUsage(diagnostics, {
-      role: 'refiner',
-      capability: 'diagramQuiz',
-      durationMs: Date.now() - startedAt,
-    });
-    return refined;
+    try {
+      const refined = await LlmGenerationService.refineDiagramQuiz({
+        sourceContent: context.sourceContent,
+        draft,
+        criticResult,
+        failingQuestionIndexes: failingIndexes,
+        enhancedPrompt: context.enhancedPrompt,
+      });
+      recordModelUsage(diagnostics, {
+        role: 'refiner',
+        capability: 'diagramQuiz',
+        durationMs: Date.now() - startedAt,
+      });
+      return refined;
+    } catch (error) {
+      logger.warn('Diagram quiz refine failed; keeping pre-refine draft', {
+        error: error instanceof Error ? error.message : String(error),
+        failingIndexes,
+      });
+      recordModelUsage(diagnostics, {
+        role: 'refiner',
+        capability: 'diagramQuiz',
+        durationMs: Date.now() - startedAt,
+      });
+      return draft;
+    }
   },
 };

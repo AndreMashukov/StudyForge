@@ -199,7 +199,7 @@ export function mergeFailuresIntoDiagnostics(
       gateId: failure.gateId,
       severity: failure.severity,
       message: failure.message,
-      path: failure.path,
+      ...(failure.path !== undefined ? { path: failure.path } : {}),
     });
   }
 }

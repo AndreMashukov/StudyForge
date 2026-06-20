@@ -22,6 +22,22 @@ import { logger } from 'firebase-functions/v2';
 import { FirestorePaths } from '../lib/firestore-paths';
 import { GenerationStatus, IArtifactAgentDiagnostics } from '@shared-types';
 
+function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((entry) => stripUndefinedDeep(entry)) as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      if (entry !== undefined) {
+        result[key] = stripUndefinedDeep(entry);
+      }
+    }
+    return result as T;
+  }
+  return value;
+}
+
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 /**
@@ -339,7 +355,9 @@ export async function completePendingDiagramQuiz(
     generationAttempt: updates.generationAttempt || 1,
     ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
     ...(updates.agentModel ? { agentModel: updates.agentModel } : {}),
-    ...(updates.generationDiagnostics ? { generationDiagnostics: updates.generationDiagnostics } : {}),
+    ...(updates.generationDiagnostics
+      ? { generationDiagnostics: stripUndefinedDeep(updates.generationDiagnostics) }
+      : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -363,7 +381,7 @@ export async function failPendingDiagramQuiz(
   await FirestorePaths.diagramQuiz(userId, diagramQuizId).update({
     generationStatus: 'failed' as GenerationStatus,
     generationError: error,
-    ...(diagnostics ? { generationDiagnostics: diagnostics } : {}),
+    ...(diagnostics ? { generationDiagnostics: stripUndefinedDeep(diagnostics) } : {}),
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.warn('Pending diagram quiz marked as failed', { diagramQuizId, userId, error });

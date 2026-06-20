@@ -343,7 +343,15 @@ export class GeminiService {
    * Generate general content using Gemini AI
    * Used for markdown conversion and other text generation tasks
    */
-  public static async generateContent(prompt: string): Promise<string> {
+  public static async generateContent(
+    prompt: string,
+    options?: {
+      maxOutputTokens?: number;
+      temperature?: number;
+      topK?: number;
+      topP?: number;
+    }
+  ): Promise<string> {
     try {
       functions.logger.info('Generating content with Gemini AI');
 
@@ -354,10 +362,10 @@ export class GeminiService {
         model: GEMINI_PRO_MODEL,
         contents: fullPrompt,
         config: {
-          temperature: 0.3,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
+          temperature: options?.temperature ?? 0.3,
+          topK: options?.topK ?? 40,
+          topP: options?.topP ?? 0.95,
+          maxOutputTokens: options?.maxOutputTokens ?? 8192,
         },
       });
 
@@ -1021,6 +1029,29 @@ This question is derived from: **${context.originalDocument.title}**
     return this.parseDiagramQuizResponse(responseText);
   }
 
+  public static mergeDiagramQuizRefinement(
+    draft: GeminiDiagramQuizResponse,
+    responseText: string,
+    expectedIndexes: number[]
+  ): GeminiDiagramQuizResponse {
+    const refined = this.parseDiagramQuizRefineResponse(responseText);
+    const merged: GeminiDiagramQuizResponse = {
+      title: draft.title,
+      questions: [...draft.questions],
+    };
+
+    for (const item of refined.questions) {
+      if (!expectedIndexes.includes(item.index)) {
+        throw new Error(`Unexpected question index ${item.index} in refine response`);
+      }
+      const { index, ...question } = item;
+      this.validateDiagramQuizQuestion(question, index);
+      merged.questions[index] = question;
+    }
+
+    return merged;
+  }
+
   public static parseSequenceQuizResponseFromText(
     responseText: string
   ): GeminiSequenceQuizResponse {
@@ -1247,6 +1278,55 @@ This question is derived from: **${context.originalDocument.title}**
     };
   }
 
+  private static parseDiagramQuizRefineResponse(responseText: string): {
+    questions: Array<
+      {
+        index: number;
+      } & GeminiDiagramQuizResponse['questions'][number]
+    >;
+  } {
+    let cleanText = '';
+    try {
+      cleanText = JsonSanitizer.initialCleanup(responseText);
+      cleanText = JsonSanitizer.sanitizeJsonText(cleanText);
+      cleanText = JsonSanitizer.applyComprehensiveCleanup(cleanText);
+      cleanText = JsonSanitizer.applyStateBased(cleanText);
+      const parsed = JSON.parse(cleanText) as {
+        questions?: unknown;
+      };
+      if (!Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+        throw new Error('Invalid refine response: missing questions array');
+      }
+      return {
+        questions: parsed.questions as Array<
+          {
+            index: number;
+          } & GeminiDiagramQuizResponse['questions'][number]
+        >,
+      };
+    } catch (error) {
+      JsonSanitizer.logParsingError(error, responseText, cleanText);
+      try {
+        const fallbackResult = JsonSanitizer.tryFallbackParsing(cleanText) as {
+          questions?: unknown;
+        };
+        if (!Array.isArray(fallbackResult.questions) || fallbackResult.questions.length === 0) {
+          throw new Error('Invalid refine response: missing questions array');
+        }
+        return {
+          questions: fallbackResult.questions as Array<
+            {
+              index: number;
+            } & GeminiDiagramQuizResponse['questions'][number]
+          >,
+        };
+      } catch (fallbackError) {
+        functions.logger.error('Diagram quiz refine parse failed:', fallbackError);
+      }
+      throw new Error(`Failed to parse diagram quiz refine response: ${error}`);
+    }
+  }
+
   private static parseDiagramQuizResponse(
     responseText: string
   ): GeminiDiagramQuizResponse {
@@ -1280,42 +1360,48 @@ This question is derived from: **${context.originalDocument.title}**
       throw new Error('Invalid diagram quiz: missing title or questions');
     }
     (parsed.questions as unknown[]).forEach((q, index) => {
-      const row = q as Record<string, unknown>;
-      if (!row.question || typeof row.question !== 'string') {
-        throw new Error(`Diagram quiz question ${index + 1}: invalid question`);
-      }
-      if (!Array.isArray(row.diagrams) || row.diagrams.length !== 4) {
-        throw new Error(
-          `Diagram quiz question ${index + 1}: diagrams must be length 4`
-        );
-      }
-      for (const d of row.diagrams) {
-        if (typeof d !== 'string' || d.trim().length === 0) {
-          throw new Error(
-            `Diagram quiz question ${index + 1}: each diagram must be non-empty string`
-          );
-        }
-      }
-      if (
-        typeof row.correctAnswer !== 'number' ||
-        row.correctAnswer < 0 ||
-        row.correctAnswer > 3
-      ) {
-        throw new Error(
-          `Diagram quiz question ${index + 1}: invalid correctAnswer`
-        );
-      }
-      if (
-        !row.explanation ||
-        typeof row.explanation !== 'string' ||
-        row.explanation.trim().length === 0
-      ) {
-        throw new Error(
-          `Diagram quiz question ${index + 1}: missing explanation`
-        );
-      }
-      this.validateQuestionHint(row, 'Diagram quiz', index);
+      this.validateDiagramQuizQuestion(q as Record<string, unknown>, index);
     });
+  }
+
+  private static validateDiagramQuizQuestion(
+    row: Record<string, unknown>,
+    index: number
+  ): void {
+    if (!row.question || typeof row.question !== 'string') {
+      throw new Error(`Diagram quiz question ${index + 1}: invalid question`);
+    }
+    if (!Array.isArray(row.diagrams) || row.diagrams.length !== 4) {
+      throw new Error(
+        `Diagram quiz question ${index + 1}: diagrams must be length 4`
+      );
+    }
+    for (const d of row.diagrams) {
+      if (typeof d !== 'string' || d.trim().length === 0) {
+        throw new Error(
+          `Diagram quiz question ${index + 1}: each diagram must be non-empty string`
+        );
+      }
+    }
+    if (
+      typeof row.correctAnswer !== 'number' ||
+      row.correctAnswer < 0 ||
+      row.correctAnswer > 3
+    ) {
+      throw new Error(
+        `Diagram quiz question ${index + 1}: invalid correctAnswer`
+      );
+    }
+    if (
+      !row.explanation ||
+      typeof row.explanation !== 'string' ||
+      row.explanation.trim().length === 0
+    ) {
+      throw new Error(
+        `Diagram quiz question ${index + 1}: missing explanation`
+      );
+    }
+    this.validateQuestionHint(row, 'Diagram quiz', index);
   }
 
   private static generateMockDiagramQuiz(

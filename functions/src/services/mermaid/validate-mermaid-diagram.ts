@@ -1,4 +1,6 @@
-import mermaid from 'mermaid';
+import { createRequire } from 'node:module';
+import { JSDOM } from 'jsdom';
+import createDOMPurify from 'dompurify';
 import { sanitizeMermaidCode } from './sanitize-mermaid-code';
 import {
   BANNED_DIAGRAM_TYPES,
@@ -6,18 +8,55 @@ import {
   extractDiagramType,
 } from './supported-diagram-types';
 
-let mermaidInitialized = false;
+type DOMPurifyWindow = Parameters<typeof createDOMPurify>[0];
+type MermaidModule = typeof import('mermaid').default;
 
-function ensureMermaidInit(): void {
-  if (mermaidInitialized) {
-    return;
+const nodeRequire = createRequire(__filename);
+
+let mermaidInitPromise: Promise<MermaidModule> | null = null;
+
+function patchDompurifyModule(
+  purify: ReturnType<typeof createDOMPurify>
+): void {
+  const dompurifyPath = nodeRequire.resolve('dompurify');
+  nodeRequire.cache[dompurifyPath] = {
+    id: dompurifyPath,
+    filename: dompurifyPath,
+    loaded: true,
+    exports: {
+      __esModule: true,
+      default: purify,
+      ...purify,
+    },
+  } as NodeModule;
+}
+
+async function getMermaid(): Promise<MermaidModule> {
+  if (!mermaidInitPromise) {
+    mermaidInitPromise = initMermaid();
   }
+  return mermaidInitPromise;
+}
+
+async function initMermaid(): Promise<MermaidModule> {
+  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+  const { window } = dom;
+  const purify = createDOMPurify(window as unknown as DOMPurifyWindow);
+
+  const globalScope = globalThis as Record<string, unknown>;
+  globalScope.window = window;
+  globalScope.document = window.document;
+  globalScope.DOMPurify = purify;
+
+  patchDompurifyModule(purify);
+
+  const mermaid = (await import('mermaid')).default;
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: 'loose',
     theme: 'neutral',
   });
-  mermaidInitialized = true;
+  return mermaid;
 }
 
 export interface IMermaidValidationResult {
@@ -56,8 +95,8 @@ export async function validateMermaidDiagram(source: string): Promise<IMermaidVa
     };
   }
 
-  ensureMermaidInit();
   try {
+    const mermaid = await getMermaid();
     await mermaid.parse(sanitized);
     return { ok: true, sanitized, diagramType };
   } catch (error) {
