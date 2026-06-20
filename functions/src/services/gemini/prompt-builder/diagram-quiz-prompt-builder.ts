@@ -87,6 +87,11 @@ ${this.getDiagramSyntaxRules()}`;
   }
 
   private static getDiagramSyntaxRules(): string {
+    return DiagramQuizPromptBuilder.getDiagramSyntaxRulesExcerpt();
+  }
+
+  /** Public excerpt used by diagram quiz agent repair prompts. */
+  static getDiagramSyntaxRulesExcerpt(): string {
     return `**SEALED DIAGRAM SYNTAX RULES (override any domain rule above):**
 - Use only: \`flowchart\` / \`graph\`, \`sequenceDiagram\`, \`classDiagram\`, or \`erDiagram\`.
 - **BANNED diagram types** (will fail to render): \`mindmap\`, \`timeline\`, \`gantt\`, \`pie\`, \`gitGraph\`, \`journey\`, \`sankey\`, \`xychart\`, \`block\`, \`packet\`, \`kanban\`, \`architecture\`. Do NOT use any of these.

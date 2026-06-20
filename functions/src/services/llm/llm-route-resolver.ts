@@ -16,6 +16,7 @@ const EXTERNAL_TEXT_ELIGIBLE: Set<LlmCapability> = new Set([
   'documentQuestion',
   'directoryChat',
   'diagramQuiz',
+  'diagramQuizAgent',
   'sequenceQuiz',
   'subjectWorld',
   'slideDeckText',

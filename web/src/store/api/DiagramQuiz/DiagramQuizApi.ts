@@ -1,5 +1,6 @@
 import { baseApi } from '../baseApi';
-import { createArtifactOnQueryStarted } from '../utils/createArtifactOnQueryStarted';
+import { addPendingGeneration, removePendingGeneration } from '../../slices/artifactGenerationSlice';
+import { showToast } from '../../slices/uiSlice';
 import {
   ApiResponse,
   GenerateDiagramQuizRequest,
@@ -16,9 +17,29 @@ export const diagramQuizApi = baseApi.injectEndpoints({
       query: (data) => ({
         functionName: 'generateDiagramQuiz',
         data,
-        timeout: 300000,
+        timeout: 60000,
       }),
-      onQueryStarted: createArtifactOnQueryStarted('diagramQuizzes', 'Diagram quiz', 'diagram quiz'),
+      onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
+        if (!arg.directoryId) return;
+        dispatch(addPendingGeneration({ directoryId: arg.directoryId, artifactType: 'diagramQuizzes' }));
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType: 'diagramQuizzes' }));
+          if (data?.success !== false) {
+            dispatch(showToast({
+              message: 'Diagram quiz generation started — it will appear when ready',
+              type: 'success',
+            }));
+          } else {
+            dispatch(showToast({
+              message: data.error?.message || 'Failed to start diagram quiz generation',
+              type: 'error',
+            }));
+          }
+        } catch {
+          dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType: 'diagramQuizzes' }));
+        }
+      },
       invalidatesTags: (result, error, arg) => [
         'UserDiagramQuizzes',
         { type: 'Directory', id: 'CONTENTS' },

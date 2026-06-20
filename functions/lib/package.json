@@ -12,6 +12,7 @@
   },
   "main": "lib/src/index.js",
   "dependencies": {
+    "@google/adk": "^1.2.0",
     "@google/genai": "^1.44.0",
     "@types/node-fetch": "^2.6.11",
     "cheerio": "^1.0.0",
@@ -22,6 +23,7 @@
     "jsdom": "^25.0.0",
     "jszip": "^3.10.1",
     "mammoth": "^1.10.0",
+    "mermaid": "^11.15.0",
     "node-fetch": "^3.3.2",
     "papaparse": "^5.5.0",
     "pdf-parse": "^1.1.1",

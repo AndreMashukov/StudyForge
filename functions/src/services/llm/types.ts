@@ -13,6 +13,7 @@ export type LlmCapability =
   | 'documentQuestion'
   | 'directoryChat'
   | 'diagramQuiz'
+  | 'diagramQuizAgent'
   | 'sequenceQuiz'
   | 'subjectWorld'
   | 'slideDeckText'

@@ -20,7 +20,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { FirestorePaths } from '../lib/firestore-paths';
-import { GenerationStatus } from '@shared-types';
+import { GenerationStatus, IArtifactAgentDiagnostics } from '@shared-types';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -322,6 +322,8 @@ export async function completePendingDiagramQuiz(
     followupRuleIds?: string[];
     generationAttempt?: number;
     generationModel?: string;
+    agentModel?: string;
+    generationDiagnostics?: IArtifactAgentDiagnostics;
   }
 ): Promise<void> {
   const ref = FirestorePaths.diagramQuiz(userId, diagramQuizId);
@@ -336,6 +338,8 @@ export async function completePendingDiagramQuiz(
     ...(updates.followupRuleIds !== undefined ? { followupRuleIds: updates.followupRuleIds } : {}),
     generationAttempt: updates.generationAttempt || 1,
     ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
+    ...(updates.agentModel ? { agentModel: updates.agentModel } : {}),
+    ...(updates.generationDiagnostics ? { generationDiagnostics: updates.generationDiagnostics } : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -350,10 +354,16 @@ export async function completePendingDiagramQuiz(
   logger.info('Pending diagram quiz completed', { diagramQuizId, userId });
 }
 
-export async function failPendingDiagramQuiz(userId: string, diagramQuizId: string, error: string): Promise<void> {
+export async function failPendingDiagramQuiz(
+  userId: string,
+  diagramQuizId: string,
+  error: string,
+  diagnostics?: IArtifactAgentDiagnostics
+): Promise<void> {
   await FirestorePaths.diagramQuiz(userId, diagramQuizId).update({
     generationStatus: 'failed' as GenerationStatus,
     generationError: error,
+    ...(diagnostics ? { generationDiagnostics: diagnostics } : {}),
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.warn('Pending diagram quiz marked as failed', { diagramQuizId, userId, error });

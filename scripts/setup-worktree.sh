@@ -101,6 +101,13 @@ else
   echo "✅ Dependencies verified and updated"
 fi
 
+if [[ -f functions/package.json ]]; then
+  echo ""
+  echo "📦 Installing Cloud Functions dependencies..."
+  (cd functions && yarn install --frozen-lockfile)
+  echo "✅ Functions dependencies installed"
+fi
+
 # Warm up Nx and build cache (best-effort for Codex)
 echo ""
 echo "🔧 Warming up Nx workspace..."
