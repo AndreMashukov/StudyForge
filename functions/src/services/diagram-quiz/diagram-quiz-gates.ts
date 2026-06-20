@@ -259,10 +259,14 @@ export function trackDiagramQuizArtifactDetails(
     }>;
   }
 ): void {
-  diagnostics.artifactDetails = {
-    ...(diagnostics.artifactDetails || {}),
-    ...details,
-  };
+  const merged: Record<string, unknown> = { ...(diagnostics.artifactDetails || {}) };
+  if (details.diagramsFixed !== undefined) {
+    merged.diagramsFixed = details.diagramsFixed;
+  }
+  if (details.autoRepairFailures !== undefined) {
+    merged.autoRepairFailures = details.autoRepairFailures;
+  }
+  diagnostics.artifactDetails = merged;
 }
 
 export type { ArtifactAgentContext };

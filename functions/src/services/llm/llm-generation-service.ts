@@ -691,12 +691,12 @@ Use "revise" for fixable pedagogical issues and "fail" only for severe factual e
     enhancedPrompt?: string;
   }): Promise<GeminiDiagramQuizResponse> {
     const ctx = await resolveTextRoute('diagramQuiz', 'diagramQuiz');
-    const failingQuestions = params.failingQuestionIndexes
-      .map((index) => params.draft.questions[index])
-      .filter(Boolean);
+    const failingQuestions = params.failingQuestionIndexes.map((index) => ({
+      index,
+      ...params.draft.questions[index],
+    }));
 
-    const prompt = `Refine ONLY the failing diagram quiz questions listed below.
-Keep all other questions unchanged in meaning and structure.
+    const prompt = `Refine ONLY the diagram quiz questions at indexes: ${params.failingQuestionIndexes.join(', ')}.
 
 Source title: ${params.sourceContent.title}
 Additional instructions: ${params.enhancedPrompt || '(none)'}
@@ -704,25 +704,54 @@ Additional instructions: ${params.enhancedPrompt || '(none)'}
 Critic feedback:
 ${JSON.stringify(params.criticResult)}
 
-Failing questions:
+Failing questions (with indexes):
 ${JSON.stringify(failingQuestions)}
 
-Full quiz for context:
+Full quiz for context (do not rewrite unchanged questions):
 ${JSON.stringify(params.draft)}
 
-Return ONLY valid JSON for the FULL quiz object (title + questions array).`;
+Return ONLY valid JSON with this shape:
+{
+  "questions": [
+    {
+      "index": 0,
+      "question": "...",
+      "diagrams": ["...", "...", "...", "..."],
+      "correctAnswer": 0,
+      "explanation": "...",
+      "hint": "..."
+    }
+  ]
+}
+
+Include ONLY the listed indexes. Each diagram must be valid Mermaid source.`;
+
+    const generationConfig = {
+      temperature: 0.35,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 8192,
+    };
 
     if (!ctx.usesExternalProvider) {
-      const text = await GeminiService.generateContent(prompt);
-      return GeminiService.parseDiagramQuizResponseFromText(text);
+      const text = await GeminiService.generateContent(prompt, generationConfig);
+      return GeminiService.mergeDiagramQuizRefinement(
+        params.draft,
+        text,
+        params.failingQuestionIndexes
+      );
     }
 
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      { model: ctx.resolution.route.model, temperature: 0.35, topK: 40, topP: 0.95, maxOutputTokens: 16384 },
+      { model: ctx.resolution.route.model, ...generationConfig },
       'Diagram quiz refine via OpenRouter'
     );
-    return GeminiService.parseDiagramQuizResponseFromText(text);
+    return GeminiService.mergeDiagramQuizRefinement(
+      params.draft,
+      text,
+      params.failingQuestionIndexes
+    );
   }
 }
