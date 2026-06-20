@@ -3,6 +3,9 @@ import {
   BANNED_DIAGRAM_TYPES,
   SUPPORTED_DIAGRAM_TYPES,
   extractDiagramType,
+  extractMermaidFillSignatures,
+  hasMermaidQuizStyleDirectives,
+  hasSemanticMermaidColors,
   validateMermaidDiagram,
 } from '../mermaid';
 import type {
@@ -167,8 +170,42 @@ async function validateMermaidParse(draft: IDiagramQuizDraft): Promise<ArtifactG
 
   for (let questionIndex = 0; questionIndex < draft.questions.length; questionIndex += 1) {
     const question = draft.questions[questionIndex];
+    const fillSignatures = question.diagrams.map((diagram) => extractMermaidFillSignatures(diagram));
+    const uniqueFillSets = new Set(fillSignatures.map((fills) => fills.join('|')));
+
+    if (uniqueFillSets.size > 1 && fillSignatures.some((fills) => fills.length > 0)) {
+      failures.push({
+        gateId: 'visualNeutrality',
+        severity: 'blocker',
+        message: `Question ${questionIndex + 1}: answer options use inconsistent color palettes`,
+        path: `questions[${questionIndex}].diagrams`,
+        repairTarget: { questionIndex, diagramIndex: 0 },
+      });
+    }
+
     for (let diagramIndex = 0; diagramIndex < question.diagrams.length; diagramIndex += 1) {
       const diagram = question.diagrams[diagramIndex];
+      const path = `questions[${questionIndex}].diagrams[${diagramIndex}]`;
+      const repairTarget = { questionIndex, diagramIndex };
+
+      if (hasSemanticMermaidColors(diagram)) {
+        failures.push({
+          gateId: 'visualNeutrality',
+          severity: 'blocker',
+          message: `Question ${questionIndex + 1}, diagram ${diagramIndex + 1}: uses semantic green/red styling that reveals the answer`,
+          path,
+          repairTarget,
+        });
+      } else if (hasMermaidQuizStyleDirectives(diagram)) {
+        failures.push({
+          gateId: 'visualNeutrality',
+          severity: 'blocker',
+          message: `Question ${questionIndex + 1}, diagram ${diagramIndex + 1}: contains style/class directives; quiz options must use neutral unstylized diagrams`,
+          path,
+          repairTarget,
+        });
+      }
+
       const result = await validateMermaidDiagram(diagram);
       if (!result.ok) {
         failures.push({

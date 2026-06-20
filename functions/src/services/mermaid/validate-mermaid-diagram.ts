@@ -2,6 +2,7 @@ import { createRequire } from 'node:module';
 import { JSDOM } from 'jsdom';
 import createDOMPurify from 'dompurify';
 import { sanitizeMermaidCode } from './sanitize-mermaid-code';
+import { neutralizeMermaidQuizStyles } from './neutralize-mermaid-quiz-styles';
 import {
   BANNED_DIAGRAM_TYPES,
   SUPPORTED_DIAGRAM_TYPES,
@@ -67,7 +68,7 @@ export interface IMermaidValidationResult {
 }
 
 export async function validateMermaidDiagram(source: string): Promise<IMermaidValidationResult> {
-  const sanitized = sanitizeMermaidCode(source.trim());
+  const sanitized = neutralizeMermaidQuizStyles(sanitizeMermaidCode(source.trim()));
   if (!sanitized) {
     return { ok: false, sanitized, error: 'Diagram source is empty' };
   }

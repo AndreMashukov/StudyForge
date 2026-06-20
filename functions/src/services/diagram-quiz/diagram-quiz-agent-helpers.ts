@@ -103,6 +103,7 @@ export const diagramQuizCriticStrategy = {
     const raw = await LlmGenerationService.runDiagramQuizCritic({
       sourceContent: context.sourceContent,
       draft,
+      styleRules: DiagramQuizPromptBuilder.getDiagramSyntaxRulesExcerpt(),
     });
     recordModelUsage(diagnostics, {
       role: 'critic',
