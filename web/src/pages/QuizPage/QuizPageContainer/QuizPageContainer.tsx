@@ -46,7 +46,7 @@ export const QuizPageContainer: React.FC = () => {
 
   const handleBackToDirectory = () => {
     if (directoryIdForBack) {
-      navigate(`/directory/${directoryIdForBack}`);
+      navigate(`/directory/${directoryIdForBack}?tab=quizzes`);
     } else {
       navigate('/');
     }

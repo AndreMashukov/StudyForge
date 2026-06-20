@@ -29,7 +29,7 @@ export const SequenceQuizPageContainer: React.FC = () => {
 
   const handleBackToDirectory = () => {
     if (directoryIdForBack) {
-      navigate(`/directory/${directoryIdForBack}`);
+      navigate(`/directory/${directoryIdForBack}?tab=sequenceQuizzes`);
     } else {
       navigate('/');
     }
