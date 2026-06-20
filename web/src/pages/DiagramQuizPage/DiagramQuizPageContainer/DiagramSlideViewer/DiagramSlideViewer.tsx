@@ -4,6 +4,7 @@ import { Card } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { MermaidDiagram } from '../../../../components/MermaidDiagram';
 import { cn } from '../../../../lib/utils';
+import { neutralizeMermaidQuizStyles } from '../../../../utils/neutralizeMermaidQuizStyles';
 import { IDiagramSlideViewer } from './IDiagramSlideViewer';
 
 const LABELS = ['A', 'B', 'C', 'D'];
@@ -17,7 +18,7 @@ export const DiagramSlideViewer: React.FC<IDiagramSlideViewer> = ({
   className,
 }) => {
   const safeIndex = Math.min(Math.max(0, currentIndex), diagrams.length - 1);
-  const code = diagrams[safeIndex] ?? '';
+  const code = neutralizeMermaidQuizStyles(diagrams[safeIndex] ?? '');
 
   return (
     <div className={cn('space-y-3', className)}>

@@ -629,6 +629,8 @@ ${params.brokenDiagram}
 
 ${params.syntaxRules}
 
+Do NOT use style, classDef, class, or linkStyle directives. Do NOT use green/red/blue semantic colors.
+
 Return ONLY the corrected Mermaid source with no markdown fences or commentary.`;
 
     if (!ctx.usesExternalProvider) {
@@ -648,15 +650,19 @@ Return ONLY the corrected Mermaid source with no markdown fences or commentary.`
   static async runDiagramQuizCritic(params: {
     sourceContent: ScrapedContent;
     draft: GeminiDiagramQuizResponse;
+    styleRules?: string;
   }): Promise<string> {
     const ctx = await resolveTextRoute('diagramQuizAgent', 'diagramQuizAgent');
+    const styleSection = params.styleRules?.trim()
+      ? `\nDiagram quiz styling rules (must be enforced):\n${params.styleRules}\n`
+      : '';
     const prompt = `Review this diagram quiz against the source material.
 
 Source title: ${params.sourceContent.title}
 
 Source excerpt (truncated):
 ${params.sourceContent.content.slice(0, 12000)}
-
+${styleSection}
 Quiz JSON:
 ${JSON.stringify(params.draft)}
 
@@ -669,6 +675,7 @@ Return ONLY valid JSON with shape:
 }
 
 Pass when marked correct diagrams are supported by the source and distractors are plausible but wrong.
+Flag as "revise" or "blocker" when diagrams use semantic colors (green/red/blue), style directives, or uneven visual weight that makes the correct option guessable.
 Use "revise" for fixable pedagogical issues and "fail" only for severe factual errors.`;
 
     if (!ctx.usesExternalProvider) {
