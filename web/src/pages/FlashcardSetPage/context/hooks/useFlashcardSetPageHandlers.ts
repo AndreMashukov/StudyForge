@@ -20,7 +20,7 @@ export const useFlashcardSetPageHandlers = (
 
   const handleGoBack = useCallback(() => {
     if (resolvedDirectoryId) {
-      navigate(`/directory/${resolvedDirectoryId}`);
+      navigate(`/directory/${resolvedDirectoryId}?tab=cards`);
     } else {
       navigate('/');
     }
