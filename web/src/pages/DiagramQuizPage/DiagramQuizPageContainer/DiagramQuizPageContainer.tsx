@@ -31,7 +31,7 @@ export const DiagramQuizPageContainer: React.FC = () => {
 
   const handleBackToDirectory = () => {
     if (directoryIdForBack) {
-      navigate(`/directory/${directoryIdForBack}`);
+      navigate(`/directory/${directoryIdForBack}?tab=diagramQuizzes`);
     } else {
       navigate('/');
     }
