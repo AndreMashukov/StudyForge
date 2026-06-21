@@ -1,8 +1,9 @@
 export { sanitizeMermaidCode } from './sanitize-mermaid-code';
 export {
   extractMermaidFillSignatures,
-  hasMermaidQuizStyleDirectives,
   hasSemanticMermaidColors,
+  NEUTRAL_MERMAID_FILL,
+  NEUTRAL_MERMAID_TEXT,
   neutralizeMermaidQuizStyles,
 } from './neutralize-mermaid-quiz-styles';
 export { validateMermaidDiagram } from './validate-mermaid-diagram';

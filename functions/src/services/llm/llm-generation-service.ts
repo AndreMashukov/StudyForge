@@ -629,7 +629,7 @@ ${params.brokenDiagram}
 
 ${params.syntaxRules}
 
-Do NOT use style, classDef, class, or linkStyle directives. Do NOT use green/red/blue semantic colors.
+Use the same neutral palette across all four options (never green/red answer hints). Keep emojis and non-semantic styling.
 
 Return ONLY the corrected Mermaid source with no markdown fences or commentary.`;
 
@@ -675,7 +675,7 @@ Return ONLY valid JSON with shape:
 }
 
 Pass when marked correct diagrams are supported by the source and distractors are plausible but wrong.
-Flag as "revise" or "blocker" when diagrams use semantic colors (green/red/blue), style directives, or uneven visual weight that makes the correct option guessable.
+Flag as "revise" or "blocker" when diagrams use semantic green/red/blue answer hints or uneven styling that makes the correct option guessable (not when they share a neutral palette with emojis).
 Use "revise" for fixable pedagogical issues and "fail" only for severe factual errors.`;
 
     if (!ctx.usesExternalProvider) {
