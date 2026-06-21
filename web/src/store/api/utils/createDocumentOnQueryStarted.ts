@@ -1,6 +1,7 @@
 import { ThunkDispatch, UnknownAction } from '@reduxjs/toolkit';
 import { addPendingGeneration, removePendingGeneration } from '../../slices/artifactGenerationSlice';
 import { showToast } from '../../slices/uiSlice';
+import { getOptimisticArtifactTitle } from './artifactGenerationOptimistic';
 
 interface DocumentGenerationArg {
   directoryId?: string;
@@ -18,7 +19,11 @@ export function createDocumentOnQueryStarted(
 ) {
   return async (arg: DocumentGenerationArg, { dispatch, queryFulfilled }: OnQueryStartedApi) => {
     if (!arg.directoryId) return;
-    dispatch(addPendingGeneration({ directoryId: arg.directoryId, artifactType: 'sources' }));
+    dispatch(addPendingGeneration({
+      directoryId: arg.directoryId,
+      artifactType: 'sources',
+      optimisticTitle: getOptimisticArtifactTitle(arg as Record<string, unknown>),
+    }));
     try {
       await queryFulfilled;
       dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType: 'sources' }));

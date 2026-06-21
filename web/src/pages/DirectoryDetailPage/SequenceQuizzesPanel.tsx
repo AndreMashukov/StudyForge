@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, ListOrdered } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { ArtifactRow } from './ArtifactRow';
+import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
+import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
 
 interface SequenceQuizzesPanelProps {
   sequenceQuizzes: ArtifactSummary[];
@@ -23,6 +24,11 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
   const completedCount = sequenceQuizzes.filter(
     (sq) => !sq.generationStatus || sq.generationStatus === 'completed'
   ).length;
+  const { showOptimisticRow, optimisticTitle } = useOptimisticGeneratingRow(
+    directoryId,
+    'sequenceQuizzes',
+    sequenceQuizzes,
+  );
 
   return (
     <div className="space-y-4">
@@ -38,12 +44,13 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
           <span>Showing first {sequenceQuizzes.length} sequence quizzes — more may exist.</span>
         </div>
       )}
-      {sequenceQuizzes.length === 0 ? (
+      {sequenceQuizzes.length === 0 && !showOptimisticRow ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
           No sequence quizzes in this directory yet.
         </div>
       ) : (
         <div className="space-y-2">
+          {showOptimisticRow && <ArtifactRowGenerating title={optimisticTitle} />}
           {sequenceQuizzes.map((sq) => (
             <ArtifactRow
               key={sq.id}

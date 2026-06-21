@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, Network } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { ArtifactRow } from './ArtifactRow';
+import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
+import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
 
 interface DiagramQuizzesPanelProps {
   diagramQuizzes: ArtifactSummary[];
@@ -23,6 +24,11 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
   const completedCount = diagramQuizzes.filter(
     (dq) => !dq.generationStatus || dq.generationStatus === 'completed'
   ).length;
+  const { showOptimisticRow, optimisticTitle } = useOptimisticGeneratingRow(
+    directoryId,
+    'diagramQuizzes',
+    diagramQuizzes,
+  );
 
   return (
     <div className="space-y-4">
@@ -38,12 +44,13 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
           <span>Showing first {diagramQuizzes.length} diagram quizzes — more may exist.</span>
         </div>
       )}
-      {diagramQuizzes.length === 0 ? (
+      {diagramQuizzes.length === 0 && !showOptimisticRow ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
           No diagram quizzes in this directory yet.
         </div>
       ) : (
         <div className="space-y-2">
+          {showOptimisticRow && <ArtifactRowGenerating title={optimisticTitle} />}
           {diagramQuizzes.map((dq) => (
             <ArtifactRow
               key={dq.id}

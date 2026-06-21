@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, Presentation } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { ArtifactRow } from './ArtifactRow';
+import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
+import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
 
 interface SlidesPanelProps {
   slideDecks: ArtifactSummary[];
@@ -23,6 +24,11 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
   const completedCount = slideDecks.filter(
     (s) => !s.generationStatus || s.generationStatus === 'completed'
   ).length;
+  const { showOptimisticRow, optimisticTitle } = useOptimisticGeneratingRow(
+    directoryId,
+    'slides',
+    slideDecks,
+  );
 
   return (
     <div className="space-y-4">
@@ -38,12 +44,13 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
           <span>Showing first {slideDecks.length} slide decks — more may exist.</span>
         </div>
       )}
-      {slideDecks.length === 0 ? (
+      {slideDecks.length === 0 && !showOptimisticRow ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
           No slide decks in this directory yet.
         </div>
       ) : (
         <div className="space-y-2">
+          {showOptimisticRow && <ArtifactRowGenerating title={optimisticTitle} />}
           {slideDecks.map((s) => (
             <ArtifactRow
               key={s.id}

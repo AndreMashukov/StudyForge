@@ -1,36 +1,72 @@
 import { ThunkDispatch, UnknownAction } from '@reduxjs/toolkit';
+import { ApiResponse } from '@shared-types';
 import { addPendingGeneration, removePendingGeneration, ArtifactPanelType } from '../../slices/artifactGenerationSlice';
 import { showToast } from '../../slices/uiSlice';
-import { ApiResponse } from '@shared-types';
+import type { AppDispatch } from '../../index';
+import {
+  getOptimisticArtifactTitle,
+  patchPendingArtifactSummaryFromResponse,
+} from './artifactGenerationOptimistic';
 
 interface ArtifactGenerationArg {
   directoryId?: string;
   documentIds: string[];
 }
 
-interface OnQueryStartedApi {
-  dispatch: ThunkDispatch<unknown, unknown, UnknownAction>;
-  queryFulfilled: Promise<{ data: ApiResponse<unknown> }>;
+interface CreateArtifactOnQueryStartedOptions {
+  successMessage?: string | ((arg: ArtifactGenerationArg) => string);
 }
 
 export function createArtifactOnQueryStarted(
   artifactType: ArtifactPanelType,
   successLabel: string,
   errorLabel: string,
+  options?: CreateArtifactOnQueryStartedOptions,
 ) {
-  return async (arg: ArtifactGenerationArg, { dispatch, queryFulfilled }: OnQueryStartedApi) => {
+  return async (
+    arg: ArtifactGenerationArg,
+    {
+      dispatch,
+      queryFulfilled,
+      getState,
+    }: {
+      dispatch: ThunkDispatch<unknown, unknown, UnknownAction>;
+      queryFulfilled: Promise<{ data: ApiResponse<unknown> }>;
+      getState: () => unknown;
+    },
+  ) => {
     if (!arg.directoryId) return;
-    dispatch(addPendingGeneration({ directoryId: arg.directoryId, artifactType }));
+
+    dispatch(addPendingGeneration({
+      directoryId: arg.directoryId,
+      artifactType,
+      optimisticTitle: getOptimisticArtifactTitle(arg as unknown as Record<string, unknown>),
+    }));
+
     try {
       const { data } = await queryFulfilled;
+
+      patchPendingArtifactSummaryFromResponse(
+        dispatch as AppDispatch,
+        getState,
+        artifactType,
+        arg.directoryId,
+        arg as unknown as Record<string, unknown>,
+        data,
+      );
+
       dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType }));
+
       if (data?.success !== false) {
-        dispatch(showToast({
-          message: arg.documentIds.length > 1
-            ? `${successLabel} created from ${arg.documentIds.length} documents`
-            : `${successLabel} created`,
-          type: 'success',
-        }));
+        const message = typeof options?.successMessage === 'function'
+          ? options.successMessage(arg)
+          : options?.successMessage ?? (
+            arg.documentIds.length > 1
+              ? `${successLabel} created from ${arg.documentIds.length} documents`
+              : `${successLabel} created`
+          );
+
+        dispatch(showToast({ message, type: 'success' }));
       } else {
         dispatch(showToast({ message: `Failed to generate ${errorLabel}`, type: 'error' }));
       }

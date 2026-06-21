@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, Brain } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { ArtifactRow } from './ArtifactRow';
+import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
+import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
 
 interface QuizzesPanelProps {
   quizzes: ArtifactSummary[];
@@ -23,6 +24,11 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
   const completedCount = quizzes.filter(
     (q) => !q.generationStatus || q.generationStatus === 'completed'
   ).length;
+  const { showOptimisticRow, optimisticTitle } = useOptimisticGeneratingRow(
+    directoryId,
+    'quizzes',
+    quizzes,
+  );
 
   return (
     <div className="space-y-4">
@@ -38,12 +44,13 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
           <span>Showing first {quizzes.length} quizzes — more may exist.</span>
         </div>
       )}
-      {quizzes.length === 0 ? (
+      {quizzes.length === 0 && !showOptimisticRow ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
           No quizzes in this directory yet.
         </div>
       ) : (
         <div className="space-y-2">
+          {showOptimisticRow && <ArtifactRowGenerating title={optimisticTitle} />}
           {quizzes.map((q) => (
             <ArtifactRow
               key={q.id}

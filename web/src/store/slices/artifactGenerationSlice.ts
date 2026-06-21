@@ -5,6 +5,7 @@ export type ArtifactPanelType = 'quizzes' | 'cards' | 'slides' | 'diagramQuizzes
 interface PendingGeneration {
   directoryId: string;
   artifactType: ArtifactPanelType;
+  optimisticTitle?: string;
 }
 
 interface ArtifactGenerationState {

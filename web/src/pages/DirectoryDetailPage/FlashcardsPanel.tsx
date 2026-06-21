@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, Layers } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { ArtifactRow } from './ArtifactRow';
+import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
+import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
 
 interface FlashcardsPanelProps {
   flashcardSets: ArtifactSummary[];
@@ -23,6 +24,11 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
   const completedCount = flashcardSets.filter(
     (f) => !f.generationStatus || f.generationStatus === 'completed'
   ).length;
+  const { showOptimisticRow, optimisticTitle } = useOptimisticGeneratingRow(
+    directoryId,
+    'cards',
+    flashcardSets,
+  );
 
   return (
     <div className="space-y-4">
@@ -38,12 +44,13 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
           <span>Showing first {flashcardSets.length} flashcard sets — more may exist.</span>
         </div>
       )}
-      {flashcardSets.length === 0 ? (
+      {flashcardSets.length === 0 && !showOptimisticRow ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
           No flashcard sets in this directory yet.
         </div>
       ) : (
         <div className="space-y-2">
+          {showOptimisticRow && <ArtifactRowGenerating title={optimisticTitle} />}
           {flashcardSets.map((f) => (
             <ArtifactRow
               key={f.id}
