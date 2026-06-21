@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, Box } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { ArtifactRow } from './ArtifactRow';
+import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
+import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
 
 interface ISubjectWorldsPanelProps {
   subjectWorlds: ArtifactSummary[];
@@ -23,6 +24,11 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
   const completedCount = subjectWorlds.filter(
     (sw) => !sw.generationStatus || sw.generationStatus === 'completed'
   ).length;
+  const { showOptimisticRow, optimisticTitle } = useOptimisticGeneratingRow(
+    directoryId,
+    'subjectWorlds',
+    subjectWorlds,
+  );
 
   return (
     <div className="space-y-4">
@@ -38,12 +44,13 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
           <span>Showing first {subjectWorlds.length} subject worlds — more may exist.</span>
         </div>
       )}
-      {subjectWorlds.length === 0 ? (
+      {subjectWorlds.length === 0 && !showOptimisticRow ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
           No subject worlds in this directory yet.
         </div>
       ) : (
         <div className="space-y-2">
+          {showOptimisticRow && <ArtifactRowGenerating title={optimisticTitle} />}
           {subjectWorlds.map((sw) => (
             <ArtifactRow
               key={sw.id}

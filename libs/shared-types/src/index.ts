@@ -702,13 +702,13 @@ export type ArtifactSummaryType = 'quiz' | 'flashcard' | 'slideDeck' | 'diagramQ
 export interface ArtifactSummary {
   id: string;
   title: string;
-  createdAt: Date | Timestamp;
+  createdAt: Date | Timestamp | string;
   type: ArtifactSummaryType;
   appliedRuleIds?: string[];
   // Generation lifecycle (missing means completed for backward compat)
   generationStatus?: GenerationStatus;
   generationError?: string;
-  completedAt?: Date | Timestamp;
+  completedAt?: Date | Timestamp | string;
   /** Primary LLM model used during generation. */
   generationModel?: string;
   /** Color of the primary source document, for left-rail rendering. */
