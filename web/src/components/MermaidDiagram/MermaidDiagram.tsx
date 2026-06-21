@@ -2,6 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import { Maximize2, Minimize2, RotateCcw } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { applyMermaidLabelTooltips } from '../../utils/applyMermaidLabelTooltips';
 import { IMermaidDiagram } from './IMermaidDiagram';
 import { Spinner } from '../ui/Spinner';
 import { Button } from '../ui/Button';
@@ -342,7 +343,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
     setError(null);
     setSvg(null);
 
-    const trimmed = sanitizeMermaidCode(code?.trim() ?? '');
+    const trimmed = applyMermaidLabelTooltips(sanitizeMermaidCode(code?.trim() ?? ''));
     if (!trimmed) {
       return () => { cancelled = true; };
     }
