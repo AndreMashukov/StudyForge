@@ -1,3 +1,4 @@
+export { applyMermaidLabelTooltips } from './apply-mermaid-label-tooltips';
 export { sanitizeMermaidCode } from './sanitize-mermaid-code';
 export {
   enforceUniformMermaidQuizPalette,

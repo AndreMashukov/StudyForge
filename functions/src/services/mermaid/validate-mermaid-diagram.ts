@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import { JSDOM } from 'jsdom';
 import createDOMPurify from 'dompurify';
+import { applyMermaidLabelTooltips } from './apply-mermaid-label-tooltips';
 import { sanitizeMermaidCode } from './sanitize-mermaid-code';
 import { neutralizeMermaidQuizStyles } from './neutralize-mermaid-quiz-styles';
 import {
@@ -68,7 +69,9 @@ export interface IMermaidValidationResult {
 }
 
 export async function validateMermaidDiagram(source: string): Promise<IMermaidValidationResult> {
-  const sanitized = neutralizeMermaidQuizStyles(sanitizeMermaidCode(source.trim()));
+  const sanitized = neutralizeMermaidQuizStyles(
+    applyMermaidLabelTooltips(sanitizeMermaidCode(source.trim()))
+  );
   if (!sanitized) {
     return { ok: false, sanitized, error: 'Diagram source is empty' };
   }

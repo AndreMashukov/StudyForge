@@ -26,7 +26,7 @@ function countStructuralDiagramLines(diagram: string): number {
       if (!line) {
         return false;
       }
-      return !/^(style|classDef|class|linkStyle|%%)/i.test(line);
+      return !/^(style|classDef|class|linkStyle|click|%%)/i.test(line);
     }).length;
 }
 

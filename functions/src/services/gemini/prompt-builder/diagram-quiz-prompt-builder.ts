@@ -109,7 +109,8 @@ ${this.getDiagramSyntaxRules()}`;
 - Apply the **same color palette** across all four diagrams in each question. Never use semantic green, red, or blue to mark correct vs incorrect options.
 - When setting \`fill:\`, always set \`color:\` explicitly for readable contrast.
 - Each of the four diagrams for a question should be **visually comparable** (same diagram type when possible) so the question tests understanding, not diagram style.
-- Do not make the correct answer the only diagram with more nodes, subgraphs, labels, or arrows. All four options should use the same scaffold and be within about 1-2 structural lines of each other.`;
+- Do not make the correct answer the only diagram with more nodes, subgraphs, labels, or arrows. All four options should use the same scaffold and be within about 1-2 structural lines of each other.
+- For **flowchart/graph** and **classDiagram** nodes with long text, keep the visible label short (about 3-5 words / 28 characters) and put the full text in a hover tooltip using \`click nodeId "#" "Full tooltip text"\`. Do **not** use \`_blank\` for tooltips. Example: \`rootNode["Artifact Agent"]\` plus \`click rootNode "#" "ArtifactAgentDefinition contract with artifactKind, displayName, collection"\`. For \`sequenceDiagram\` and \`erDiagram\`, keep labels concise instead.`;
   }
 
   private static formatContentSection(content: ScrapedContent): string {
@@ -354,8 +355,8 @@ Return exactly ${questionCount} items in \`questions\`.`;
     {
       "index": 0,
       "diagrams": [
-        "flowchart TD\\n  A-->B",
-        "flowchart TD\\n  B-->A",
+        "flowchart TD\\n  A[Start] --> B[Result One]\\n  click B \\"#\\" \\"Full tooltip text for Result One\\"",
+        "flowchart TD\\n  A[Start] --> B[Result Two]",
         "flowchart TD\\n  A-->C",
         "flowchart TD\\n  A-->B\\n  B-->D"
       ]
