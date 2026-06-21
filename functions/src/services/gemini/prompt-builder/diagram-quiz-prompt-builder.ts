@@ -191,4 +191,174 @@ ${buildQuizHintJsonRule()}`;
   private static getFinalInstructions(): string {
     return `**FINAL CHECK:** Every question has exactly 4 diagrams, valid Mermaid, a non-empty explanation, and a non-empty hint. Generate the JSON now:`;
   }
+
+  /**
+   * Phase 1: compact question plans without Mermaid diagram source.
+   */
+  static buildDiagramQuizQuestionPlanPrompt(
+    content: ScrapedContent,
+    additionalPrompt: string | undefined,
+    randomCorrectAnswers: number[],
+    questionCount: number
+  ): string {
+    const distribution = this.getRandomAnswerDistributionRules(randomCorrectAnswers.slice(0, questionCount));
+    const contentSection = this.formatContentSectionForPlans(content, questionCount);
+    const customSection = additionalPrompt?.trim() ? `${additionalPrompt.trim()}\n\n` : '';
+
+    return `${customSection}${this.getBaseInstructionsForPlans()}
+
+${contentSection}
+
+${distribution}
+
+${this.getQuestionPlanJsonRules()}
+
+${this.getQuestionPlanExample(questionCount)}
+
+Generate the JSON now:`;
+  }
+
+  /**
+   * Phase 2: Mermaid diagrams for a batch of already-planned questions.
+   */
+  static buildDiagramQuizDiagramBatchPrompt(params: {
+    content: ScrapedContent;
+    title: string;
+    questions: Array<{
+      index: number;
+      question: string;
+      correctAnswer: number;
+      optionPlans: [string, string, string, string];
+      explanation: string;
+    }>;
+    strict?: boolean;
+  }): string {
+    const strictSection = params.strict
+      ? `\n**STRICT MODE:** Return ONLY valid JSON. Keep each diagram compact (~8 nodes max). No markdown fences.\n`
+      : '';
+    const questionBlocks = params.questions
+      .map((item) => {
+        const labels = ['A', 'B', 'C', 'D'];
+        const optionLines = item.optionPlans
+          .map((plan, optionIndex) => `    - Option ${labels[optionIndex]} (index ${optionIndex}): ${plan}`)
+          .join('\n');
+        return `Question index ${item.index}:
+  Prompt: ${item.question}
+  Correct answer index: ${item.correctAnswer}
+  Option plans:
+${optionLines}
+  Explanation summary: ${item.explanation}`;
+      })
+      .join('\n\n');
+
+    return `${this.getDiagramSyntaxRules()}${strictSection}
+
+**SOURCE TITLE:** ${params.content.title}
+
+**QUIZ TITLE:** ${params.title}
+
+**TASK:** For each question below, output exactly 4 Mermaid diagram strings in array \`diagrams\` (indices 0–3).
+The diagram at \`correctAnswer\` must be factually correct per the source; the other three must be plausible but wrong.
+Use the option plans as guidance. Do NOT repeat the question text inside the diagram unless needed as a short label.
+
+${questionBlocks}
+
+${this.getDiagramBatchJsonRules()}
+
+${this.getDiagramBatchExample()}
+
+Generate the JSON now:`;
+  }
+
+  private static getBaseInstructionsForPlans(): string {
+    return `You are an expert educator planning a **diagram quiz**.
+Each future question will have four Mermaid diagram answer options. In this step, plan the questions only — **do not** output Mermaid source code.
+
+For each question provide:
+- \`question\`: the stem shown to the learner
+- \`correctAnswer\`: integer 0–3 (which option will be correct)
+- \`optionPlans\`: array of exactly 4 short strings describing what each diagram option should depict
+- \`explanation\`: why the correct option is right and others mislead
+- \`hint\`: short non-spoiler clue
+- \`knowledge\`: subjectName, knowledgeDomainName, topicTags (1–5 strings)`;
+  }
+
+  private static formatContentSectionForPlans(
+    content: ScrapedContent,
+    questionCount: number
+  ): string {
+    return `**SOURCE TITLE:** ${content.title}
+${content.author ? `**AUTHOR:** ${content.author}` : ''}
+
+**SOURCE CONTENT:**
+${content.content}
+
+**TASK:** Create exactly **${questionCount}** questions. Do NOT include a \`diagrams\` field in this response.`;
+  }
+
+  private static getQuestionPlanJsonRules(): string {
+    return `**JSON RULES:**
+- Return **only** valid JSON. No markdown outside the JSON.
+- **No backticks** in any string value.
+- **No unescaped double quotes** inside string values.
+- \`optionPlans\` must be a string array of length **4**.
+- \`correctAnswer\` is integer 0, 1, 2, or 3.
+- \`explanation\` and \`hint\` are required non-empty strings.
+- \`knowledge\` is required with \`subjectName\`, \`knowledgeDomainName\`, and \`topicTags\`.
+${buildQuizHintJsonRule()}`;
+  }
+
+  private static getQuestionPlanExample(questionCount: number): string {
+    return `**REQUIRED SHAPE:**
+{
+  "title": "Short title for the diagram quiz",
+  "questions": [
+    {
+      "question": "Which diagram best shows X?",
+      "correctAnswer": 0,
+      "optionPlans": [
+        "Correct flow from A to B with labeled steps",
+        "Reversed arrow direction between A and B",
+        "Missing intermediate node between A and B",
+        "Extra invalid branch from A to D"
+      ],
+      "explanation": "Why option A is correct and others are wrong.",
+      "knowledge": {
+        "subjectName": "Concise subject tested by this question",
+        "knowledgeDomainName": "Broader knowledge domain",
+        "topicTags": ["specific-topic", "diagram-reasoning"]
+      },
+      ${buildQuizHintExampleLine('Compare arrow direction and labels before choosing.')}
+    }
+  ]
+}
+
+Return exactly ${questionCount} items in \`questions\`.`;
+  }
+
+  private static getDiagramBatchJsonRules(): string {
+    return `**JSON RULES:**
+- Return **only** valid JSON. No markdown outside the JSON.
+- Top-level object with \`questions\` array only.
+- Each item must include \`index\` (the question index from the prompt) and \`diagrams\` (string array length 4).
+- Each diagram string is raw Mermaid source with newlines escaped as needed.
+- **No backticks** inside JSON string values.`;
+  }
+
+  private static getDiagramBatchExample(): string {
+    return `**REQUIRED SHAPE:**
+{
+  "questions": [
+    {
+      "index": 0,
+      "diagrams": [
+        "flowchart TD\\n  A-->B",
+        "flowchart TD\\n  B-->A",
+        "flowchart TD\\n  A-->C",
+        "flowchart TD\\n  A-->B\\n  B-->D"
+      ]
+    }
+  ]
+}`;
+  }
 }

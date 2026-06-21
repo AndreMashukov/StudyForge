@@ -46,6 +46,7 @@ import { generateExternalProviderText, resolveTextRoute } from './llm-text-runne
 import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
 import type { LlmCapability } from './types';
+import { generateDiagramQuizChunked } from '../diagram-quiz/diagram-quiz-chunked-generator';
 
 type FlashcardItem = {
   front: string;
@@ -146,24 +147,15 @@ export class LlmGenerationService {
     content: ScrapedContent,
     additionalPrompt?: string
   ): Promise<GeminiDiagramQuizResponse> {
-    const ctx = await resolveTextRoute('diagramQuiz', 'diagramQuiz');
-    if (!ctx.usesExternalProvider) {
-      return GeminiService.generateDiagramQuiz(content, additionalPrompt);
-    }
+    return generateDiagramQuizChunked(content, additionalPrompt);
+  }
 
-    const randomCorrectAnswers = DiagramQuizPromptBuilder.generateRandomCorrectAnswers(20);
-    const prompt = DiagramQuizPromptBuilder.buildDiagramQuizPrompt(
-      content,
-      additionalPrompt,
-      randomCorrectAnswers
-    );
-    const text = await generateExternalProviderText(
-      ctx,
-      prompt,
-      { model: ctx.resolution.route.model, temperature: 0.4, topK: 40, topP: 0.95, maxOutputTokens: 16384 },
-      'Diagram quiz generated via OpenRouter'
-    );
-    return GeminiService.parseDiagramQuizResponseFromText(text);
+  /** @deprecated Use generateDiagramQuiz — routes to chunked generation for external providers. */
+  static async generateDiagramQuizChunked(
+    content: ScrapedContent,
+    additionalPrompt?: string
+  ): Promise<GeminiDiagramQuizResponse> {
+    return generateDiagramQuizChunked(content, additionalPrompt);
   }
 
   static async generateSequenceQuiz(
