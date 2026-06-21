@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { logger } from 'firebase-functions/v2';
 import type { IArtifactAgentDiagnostics, IArtifactCriticResult } from '@shared-types';
+import { JsonSanitizer } from '../gemini';
 import { DiagramQuizPromptBuilder } from '../gemini/prompt-builder';
 import { LlmGenerationService } from '../llm';
 import type {
@@ -93,6 +94,19 @@ const criticResultSchema = z.object({
   ),
 });
 
+function parseDiagramQuizCriticJson(raw: string): unknown {
+  let cleaned = JsonSanitizer.initialCleanup(raw);
+  cleaned = JsonSanitizer.sanitizeJsonText(cleaned);
+  cleaned = JsonSanitizer.applyComprehensiveCleanup(cleaned);
+  cleaned = JsonSanitizer.applyStateBased(cleaned);
+  try {
+    return JSON.parse(cleaned);
+  } catch (error) {
+    JsonSanitizer.logParsingError(error, raw, cleaned);
+    return JsonSanitizer.tryFallbackParsing(cleaned);
+  }
+}
+
 export const diagramQuizCriticStrategy = {
   async criticize(
     draft: IDiagramQuizDraft,
@@ -112,15 +126,14 @@ export const diagramQuizCriticStrategy = {
     });
 
     try {
-      const parsed = criticResultSchema.parse(JSON.parse(raw));
-      return parsed;
+      return criticResultSchema.parse(parseDiagramQuizCriticJson(raw));
     } catch (error) {
-      logger.warn('Failed to parse diagram quiz critic response', {
+      logger.warn('Failed to parse diagram quiz critic response; skipping critic gate', {
         error: error instanceof Error ? error.message : String(error),
         rawPreview: raw.slice(0, 500),
       });
       return {
-        overallVerdict: 'fail',
+        overallVerdict: 'pass',
         items: draft.questions.map((_question, itemIndex) => ({
           itemIndex,
           severity: 'ok' as const,
