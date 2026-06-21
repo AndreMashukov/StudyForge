@@ -1,5 +1,6 @@
 export { sanitizeMermaidCode } from './sanitize-mermaid-code';
 export {
+  enforceUniformMermaidQuizPalette,
   extractMermaidFillSignatures,
   hasSemanticMermaidColors,
   NEUTRAL_MERMAID_FILL,

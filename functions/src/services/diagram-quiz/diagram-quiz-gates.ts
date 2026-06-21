@@ -2,6 +2,7 @@ import type { DiagramQuizQuestion } from '@shared-types';
 import {
   BANNED_DIAGRAM_TYPES,
   SUPPORTED_DIAGRAM_TYPES,
+  enforceUniformMermaidQuizPalette,
   extractDiagramType,
   extractMermaidFillSignatures,
   validateMermaidDiagram,
@@ -172,13 +173,9 @@ async function validateMermaidParse(draft: IDiagramQuizDraft): Promise<ArtifactG
     const uniqueFillSets = new Set(fillSignatures.map((fills) => fills.join('|')));
 
     if (uniqueFillSets.size > 1 && fillSignatures.some((fills) => fills.length > 0)) {
-      failures.push({
-        gateId: 'visualNeutrality',
-        severity: 'blocker',
-        message: `Question ${questionIndex + 1}: answer options use inconsistent color palettes`,
-        path: `questions[${questionIndex}].diagrams`,
-        repairTarget: { questionIndex, diagramIndex: 0 },
-      });
+      question.diagrams = question.diagrams.map((diagram) =>
+        enforceUniformMermaidQuizPalette(diagram)
+      );
     }
 
     for (let diagramIndex = 0; diagramIndex < question.diagrams.length; diagramIndex += 1) {
