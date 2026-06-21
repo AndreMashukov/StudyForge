@@ -15,6 +15,20 @@ import type {
 import type { IDiagramQuizDraft } from './diagram-quiz-types';
 
 const MAX_NODES_HEURISTIC = 12;
+const MAX_OPTION_STRUCTURE_LINE_SPREAD = 2;
+const MAX_OPTION_STRUCTURE_LINE_RATIO = 1.5;
+
+function countStructuralDiagramLines(diagram: string): number {
+  return diagram
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => {
+      if (!line) {
+        return false;
+      }
+      return !/^(style|classDef|class|linkStyle|%%)/i.test(line);
+    }).length;
+}
 
 function validateSchema(draft: IDiagramQuizDraft): ArtifactGateFailure[] {
   const failures: ArtifactGateFailure[] = [];
@@ -176,6 +190,32 @@ async function validateMermaidParse(draft: IDiagramQuizDraft): Promise<ArtifactG
       question.diagrams = question.diagrams.map((diagram) =>
         enforceUniformMermaidQuizPalette(diagram)
       );
+    }
+
+    const structureLineCounts = question.diagrams.map(countStructuralDiagramLines);
+    const minLineCount = Math.min(...structureLineCounts);
+    const maxLineCount = Math.max(...structureLineCounts);
+    const largestDiagramIndex = structureLineCounts.indexOf(maxLineCount);
+    const largestIsUnique =
+      structureLineCounts.filter((lineCount) => lineCount === maxLineCount).length === 1;
+    const complexitySpread = maxLineCount - minLineCount;
+    const complexityRatio = minLineCount > 0 ? maxLineCount / minLineCount : Infinity;
+
+    if (
+      largestIsUnique &&
+      complexitySpread > MAX_OPTION_STRUCTURE_LINE_SPREAD &&
+      complexityRatio > MAX_OPTION_STRUCTURE_LINE_RATIO
+    ) {
+      const isCorrectOption = largestDiagramIndex === question.correctAnswer;
+      failures.push({
+        gateId: 'visualComplexity',
+        severity: 'blocker',
+        message: isCorrectOption
+          ? `Question ${questionIndex + 1}: correct answer diagram is visibly more detailed than distractors`
+          : `Question ${questionIndex + 1}, diagram ${largestDiagramIndex + 1}: answer option is visibly more detailed than the others`,
+        path: `questions[${questionIndex}].diagrams[${largestDiagramIndex}]`,
+        repairTarget: { questionIndex, diagramIndex: largestDiagramIndex },
+      });
     }
 
     for (let diagramIndex = 0; diagramIndex < question.diagrams.length; diagramIndex += 1) {
