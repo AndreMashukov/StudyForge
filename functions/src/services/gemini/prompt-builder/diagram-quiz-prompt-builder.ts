@@ -105,8 +105,9 @@ ${this.getDiagramSyntaxRules()}`;
 - **NEVER** use spaces in \`subgraph\` IDs. Always use camelCase/snake_case for the ID and put the display label in **square brackets**: \`subgraph topFrame["Top Frame"]\`. Do NOT use parentheses for subgraph labels — \`subgraph Init ('1D DP Array')\` is INVALID syntax; use \`subgraph initArray["1D DP Array"]\` instead.
 - **NEVER** use a colon (\`:\`) inside a parenthesis-style node label \`(text)\` — colons inside \`()\` confuse the Mermaid lexer. Use a dash or spell it out: \`(Size - Capacity plus 1)\` instead of \`(Size: Capacity + 1)\`.
 - **NEVER** put a bare negative number directly inside a circle node \`((text))\`. \`A((-1))\` causes a parse error because Mermaid tokenizes \`(-\` as an operator. **Always quote it**: \`A(("-1"))\`.
-- **NEVER** use \`style\`, \`classDef\`, \`class\`, or \`linkStyle\` directives in diagram quiz options. Do not color-code correct vs incorrect answers.
-- **NEVER** use semantic colors (green, red, or blue) to hint at correct or incorrect options. All four diagrams per question must look visually comparable with no color giveaways.
+- **Visual styling is encouraged**: use \`style\` / \`classDef\` with a shared neutral palette (e.g. \`fill:#2b6cb0,color:#fff\`) and include relevant emojis in node labels for engagement.
+- Apply the **same color palette** across all four diagrams in each question. Never use semantic green, red, or blue to mark correct vs incorrect options.
+- When setting \`fill:\`, always set \`color:\` explicitly for readable contrast.
 - Each of the four diagrams for a question should be **visually comparable** (same diagram type when possible) so the question tests understanding, not diagram style.`;
   }
 
