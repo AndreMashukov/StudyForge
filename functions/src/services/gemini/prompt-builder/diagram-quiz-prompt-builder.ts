@@ -108,7 +108,8 @@ ${this.getDiagramSyntaxRules()}`;
 - **Visual styling is encouraged**: use \`style\` / \`classDef\` with a shared neutral palette (e.g. \`fill:#2b6cb0,color:#fff\`) and include relevant emojis in node labels for engagement.
 - Apply the **same color palette** across all four diagrams in each question. Never use semantic green, red, or blue to mark correct vs incorrect options.
 - When setting \`fill:\`, always set \`color:\` explicitly for readable contrast.
-- Each of the four diagrams for a question should be **visually comparable** (same diagram type when possible) so the question tests understanding, not diagram style.`;
+- Each of the four diagrams for a question should be **visually comparable** (same diagram type when possible) so the question tests understanding, not diagram style.
+- Do not make the correct answer the only diagram with more nodes, subgraphs, labels, or arrows. All four options should use the same scaffold and be within about 1-2 structural lines of each other.`;
   }
 
   private static formatContentSection(content: ScrapedContent): string {
@@ -260,6 +261,7 @@ ${optionLines}
 **TASK:** For each question below, output exactly 4 Mermaid diagram strings in array \`diagrams\` (indices 0–3).
 The diagram at \`correctAnswer\` must be factually correct per the source; the other three must be plausible but wrong.
 Use the option plans as guidance. Do NOT repeat the question text inside the diagram unless needed as a short label.
+All four diagrams for a question must be balanced: same diagram type, same visual scaffold, similar node/edge count, and similar label density. Do not make the correct answer longer or more detailed than the distractors; wrong options should be created by changing direction, labels, missing links, or relationships inside the same-sized scaffold.
 
 ${questionBlocks}
 
