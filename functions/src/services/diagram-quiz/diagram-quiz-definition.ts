@@ -126,7 +126,7 @@ export const diagramQuizDefinition: ArtifactAgentDefinition<
 
   async generate(context, diagnostics) {
     const startedAt = Date.now();
-    const draft = await LlmGenerationService.generateDiagramQuiz(
+    const draft = await LlmGenerationService.generateDiagramQuizChunked(
       context.sourceContent,
       context.enhancedPrompt
     );
