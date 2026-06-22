@@ -54,6 +54,7 @@ Tool skills:
 |-------|----------|
 | `check` | NX typecheck + lint (CI parity) |
 | `format` | Prettier on staged or specified files |
+| `dev-bootstrap` | Full local stack: env init, emulators, seed, web dev |
 | `worktree-create` | Parallel dev worktree + `./scripts/setup-worktree.sh` |
 | `worktree-list` | List all worktrees |
 | `worktree-status` | Status across worktrees |
