@@ -45,6 +45,39 @@
         "command": "npx expo prebuild --platform android --clean --no-install"
       }
     },
+    "build-apk": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "{workspaceRoot}/mobile-capture",
+        "commands": [
+          "npx expo prebuild --platform android --clean --no-install",
+          "cd android && ./gradlew assembleRelease"
+        ],
+        "parallel": false
+      },
+      "configurations": {
+        "debug": {
+          "commands": [
+            "npx expo prebuild --platform android --clean --no-install",
+            "cd android && ./gradlew assembleDebug"
+          ]
+        }
+      }
+    },
+    "install-apk": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "{workspaceRoot}/mobile-capture",
+        "command": "adb install -r android/app/build/outputs/apk/release/app-release.apk"
+      },
+      "configurations": {
+        "debug": {
+          "command": "adb install -r android/app/build/outputs/apk/debug/app-debug.apk"
+        }
+      }
+    },
     "ios": {
       "executor": "nx:run-commands",
       "cache": false,

@@ -69,6 +69,8 @@ NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run mobile-capture:android
 # or: yarn nx run mobile-capture:ios
 ```
 
+Native Expo modules must be declared in [`package.json`](./package.json) (not only the workspace root) so autolinking includes them in the Android/iOS project. Missing modules cause startup crashes such as `Cannot find native module 'ExpoLinking'`.
+
 Then start Metro with a clean cache:
 
 ```bash
