@@ -1,7 +1,5 @@
-import { useGetUserDocumentsQuery } from '../../../../../store/api/Documents/documentsApi';
+import { useFetchDirectorySourceDocuments } from '../../../../../hooks/useFetchDirectorySourceDocuments';
 
 export const useFetchCreateFlashcardPageData = () => {
-  const documentsApi = useGetUserDocumentsQuery();
-  
-  return documentsApi;
+  return useFetchDirectorySourceDocuments();
 };

@@ -6,6 +6,7 @@ import {
   UpdateDocumentRequest,
   DeleteDocumentRequest
 } from '@shared-types';
+import { IGetUserDocumentsArgs } from './documentsApi';
 
 interface ListDocumentsResponse {
   documents: DocumentEnhanced[];
@@ -15,7 +16,7 @@ interface ListDocumentsResponse {
 
 export interface IDocumentsApi {
   // Document CRUD operations
-  getUserDocuments: () => ListDocumentsResponse;
+  getUserDocuments: (args?: IGetUserDocumentsArgs) => ListDocumentsResponse;
   getDocument: (documentId: string) => DocumentEnhanced;
   createDocument: (data: CreateDocumentRequest) => DocumentEnhanced;
   createDocumentFromUrl: (data: CreateDocumentFromUrlsRequest) => DocumentEnhanced;

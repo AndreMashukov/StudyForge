@@ -1,8 +1,5 @@
-import { useGetUserDocumentsQuery } from '../../../../../store/api/Documents/documentsApi';
+import { useFetchDirectorySourceDocuments } from '../../../../../hooks/useFetchDirectorySourceDocuments';
 
 export const useFetchCreateQuizPageData = () => {
-  // API hook - self-contained, manage own data dependencies
-  const documentsApi = useGetUserDocumentsQuery();
-  
-  return documentsApi;
+  return useFetchDirectorySourceDocuments();
 };

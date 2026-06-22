@@ -17,12 +17,22 @@ interface ListDocumentsResponse {
   hasMore: boolean;
 }
 
+export interface IGetUserDocumentsArgs {
+  limit?: number;
+  directoryId?: string;
+}
+
+const DEFAULT_USER_DOCUMENTS_LIMIT = 100;
+
 export const documentsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getUserDocuments: builder.query<ListDocumentsResponse, void>({
-      query: () => ({
+    getUserDocuments: builder.query<ListDocumentsResponse, IGetUserDocumentsArgs | void>({
+      query: (args) => ({
         functionName: 'getUserDocuments',
-        data: { limit: 100 }
+        data: {
+          limit: args?.limit ?? DEFAULT_USER_DOCUMENTS_LIMIT,
+          ...(args?.directoryId ? { directoryId: args.directoryId } : {}),
+        },
       }),
       transformResponse: (response: { success: boolean; documents: DocumentEnhanced[]; total: number; hasMore: boolean }) => {
         return {
