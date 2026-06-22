@@ -1,5 +1,5 @@
-import { useGetUserDocumentsQuery } from '../../../../../store/api/Documents/documentsApi';
+import { useFetchDirectorySourceDocuments } from '../../../../../hooks/useFetchDirectorySourceDocuments';
 
 export const useFetchCreateSubjectWorldPageData = () => {
-  return useGetUserDocumentsQuery(undefined);
+  return useFetchDirectorySourceDocuments();
 };
