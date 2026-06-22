@@ -208,106 +208,21 @@ export const DocumentViewerPageContainer = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 border-b">
-          <div className="flex items-center justify-between p-4">
-            <Button 
-              variant="ghost" 
+          <div className="flex items-center gap-3 px-4 py-2">
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => window.history.back()}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 flex-shrink-0"
             >
               <ArrowLeft size={16} />
               Go Back
             </Button>
-            
-            <div className="flex items-center gap-2">
-              {/* TOC Toggle */}
-              {tocItems.length > 0 && (
-                <Button
-                  variant={showToc ? "default" : "outline"}
-                  size="sm"
-                  onClick={handlers.handleToggleToc}
-                >
-                  <List size={16} className="mr-2" />
-                  {showToc ? 'Hide TOC' : 'Show TOC'}
-                </Button>
-              )}
-              
-              {/* Export dropdown */}
-              {contentApi.data?.content && (
-                <ActionsDropdown
-                  align="end"
-                  trigger={
-                    <Button variant="outline" size="sm">
-                      <FileDown size={16} className="mr-2" />
-                      Export
-                    </Button>
-                  }
-                  items={[
-                    {
-                      id: 'download-md',
-                      label: 'Download MD',
-                      icon: <FileDown size={14} />,
-                      onClick: handlers.handleDownloadMd,
-                    },
-                    {
-                      id: 'export-pdf',
-                      label: isExporting ? 'Exporting...' : 'Export PDF',
-                      icon: <Download size={14} />,
-                      onClick: handlers.handleExportPDF,
-                      disabled: isExporting,
-                    },
-                  ]}
-                />
-              )}
-              
-              {/* Actions Dropdown */}
-              <ActionsDropdown
-                items={[
-                  {
-                    id: 'create-quiz',
-                    label: 'Create Quiz',
-                    icon: <Brain size={16} />,
-                    onClick: () => documentId && handlers.handleCreateQuizFromDocument(documentId),
-                  },
-                  {
-                    id: 'generate-flashcards',
-                    label: 'Generate Flashcards',
-                    icon: <Layers size={16} />,
-                    onClick: handleCreateFlashcards,
-                  },
-                  {
-                    id: 'generate-slide-deck',
-                    label: 'Generate Slide Deck',
-                    icon: <Presentation size={16} />,
-                    onClick: handleCreateSlideDeck,
-                  },
-                  {
-                    id: 'create-diagram-quiz',
-                    label: 'Create Diagram Quiz',
-                    icon: <Network size={16} />,
-                    onClick: handleCreateDiagramQuiz,
-                  },
-                  {
-                    id: 'create-sequence-quiz',
-                    label: 'Create Sequence Quiz',
-                    icon: <ListOrdered size={16} />,
-                    onClick: handleCreateSequenceQuiz,
-                  },
-                  {
-                    id: 'create-subject-world',
-                    label: 'Explore as Game',
-                    icon: <Box size={16} />,
-                    onClick: handleCreateSubjectWorld,
-                  },
-                ]}
-              />
-            </div>
-          </div>
-          <div className="px-4 pb-3">
             <BreadcrumbNav
               directoryId={documentApi.data.directoryId || null}
               onNavigate={handleBreadcrumbNavigate}
               lastItemClickable
+              className="min-w-0 flex-1"
             />
           </div>
         </div>
@@ -315,15 +230,100 @@ export const DocumentViewerPageContainer = () => {
         {/* Document Info */}
         <Card className="border-0 shadow-none">
           <CardHeader className="pb-3">
-            <div className="space-y-2">
-              <CardTitle className="text-2xl font-bold leading-tight">
-                {documentApi.data.title}
-              </CardTitle>
-              {documentApi.data.description && (
-                <p className="text-muted-foreground text-base leading-relaxed">
-                  {documentApi.data.description}
-                </p>
-              )}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div className="space-y-2 min-w-0 flex-1">
+                <CardTitle className="text-2xl font-bold leading-tight">
+                  {documentApi.data.title}
+                </CardTitle>
+                {documentApi.data.description && (
+                  <p className="text-muted-foreground text-base leading-relaxed">
+                    {documentApi.data.description}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* TOC Toggle */}
+                {tocItems.length > 0 && (
+                  <Button
+                    variant={showToc ? "default" : "outline"}
+                    size="sm"
+                    onClick={handlers.handleToggleToc}
+                  >
+                    <List size={16} className="mr-2" />
+                    {showToc ? 'Hide TOC' : 'Show TOC'}
+                  </Button>
+                )}
+
+                {/* Export dropdown */}
+                {contentApi.data?.content && (
+                  <ActionsDropdown
+                    align="end"
+                    trigger={
+                      <Button variant="outline" size="sm">
+                        <FileDown size={16} className="mr-2" />
+                        Export
+                      </Button>
+                    }
+                    items={[
+                      {
+                        id: 'download-md',
+                        label: 'Download MD',
+                        icon: <FileDown size={14} />,
+                        onClick: handlers.handleDownloadMd,
+                      },
+                      {
+                        id: 'export-pdf',
+                        label: isExporting ? 'Exporting...' : 'Export PDF',
+                        icon: <Download size={14} />,
+                        onClick: handlers.handleExportPDF,
+                        disabled: isExporting,
+                      },
+                    ]}
+                  />
+                )}
+
+                {/* Actions Dropdown */}
+                <ActionsDropdown
+                  items={[
+                    {
+                      id: 'create-quiz',
+                      label: 'Create Quiz',
+                      icon: <Brain size={16} />,
+                      onClick: () => documentId && handlers.handleCreateQuizFromDocument(documentId),
+                    },
+                    {
+                      id: 'generate-flashcards',
+                      label: 'Generate Flashcards',
+                      icon: <Layers size={16} />,
+                      onClick: handleCreateFlashcards,
+                    },
+                    {
+                      id: 'generate-slide-deck',
+                      label: 'Generate Slide Deck',
+                      icon: <Presentation size={16} />,
+                      onClick: handleCreateSlideDeck,
+                    },
+                    {
+                      id: 'create-diagram-quiz',
+                      label: 'Create Diagram Quiz',
+                      icon: <Network size={16} />,
+                      onClick: handleCreateDiagramQuiz,
+                    },
+                    {
+                      id: 'create-sequence-quiz',
+                      label: 'Create Sequence Quiz',
+                      icon: <ListOrdered size={16} />,
+                      onClick: handleCreateSequenceQuiz,
+                    },
+                    {
+                      id: 'create-subject-world',
+                      label: 'Explore as Game',
+                      icon: <Box size={16} />,
+                      onClick: handleCreateSubjectWorld,
+                    },
+                  ]}
+                />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
