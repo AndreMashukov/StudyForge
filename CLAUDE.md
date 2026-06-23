@@ -37,7 +37,17 @@ Path-scoped rules in `.claude/rules/` activate automatically when editing matchi
 
 Cursor IDE equivalents live in `.cursor/rules/*.mdc` (see [`.cursor/rules/README.md`](.cursor/rules/README.md)). `studyforge-core.mdc` is always applied and summarizes the essentials for Cursor.
 
+### Domain Language
+
+`CONTEXT.md` at the repo root is the project glossary — domain terms only, no implementation details. Read it when exploring or naming things; update it during `/grill-with-docs` sessions. ADRs live in `docs/adr/` (created lazily).
+
 ### Skills Reference
+
+Planning skills (user-invoked):
+
+| Skill | Coverage |
+|-------|----------|
+| `grill-with-docs` | Relentless plan interview + inline `CONTEXT.md` / ADR updates |
 
 Knowledge skills (loaded on demand):
 
