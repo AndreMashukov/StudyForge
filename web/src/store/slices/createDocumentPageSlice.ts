@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { IAttachedFile } from '../../types/fileUpload';
 
-export type SourceType = 'website' | 'file' | 'textPrompt' | 'videoUrl';
+export type SourceType = 'website' | 'file' | 'textPrompt';
 
 export interface ICreateDocumentPageState {
   selectedSource: SourceType | null;
