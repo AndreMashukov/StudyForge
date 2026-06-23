@@ -2,9 +2,6 @@ import { Query, Timestamp } from 'firebase-admin/firestore';
 import { FirestorePaths } from '../lib/firestore-paths';
 import {
   ArtifactType,
-  GetStatisticsKnowledgeDetailRequest,
-  GetStatisticsKnowledgeDetailResponse,
-  GetStatisticsKnowledgeGapsResponse,
   GetStatisticsLearningTimeResponse,
   GetStatisticsOverviewResponse,
   GetStatisticsQuizDetailRequest,
@@ -17,10 +14,8 @@ import {
   QuizTelemetryType,
   StatisticsDateRangeRequest,
   StatisticsDocumentSummary,
-  StatisticsKnowledgeGapItem,
   StatisticsLearningTimeArtifact,
   StatisticsLearningTimeByType,
-  StatisticsOverviewRecommendation,
   StatisticsQuizDetailAttempt,
   StatisticsQuizPerformanceItem,
   StatisticsQuizTypeFilter,
@@ -40,23 +35,6 @@ interface IQuizMetadata {
     diagramLabels?: string[];
     items?: string[];
   }>;
-}
-
-interface IKnowledgeAggregate {
-  subjectKey: string;
-  subjectId?: string;
-  subjectName: string;
-  knowledgeDomainKey: string;
-  knowledgeDomainId?: string;
-  knowledgeDomainName: string;
-  topicTags: Set<string>;
-  sourceDocumentIds: Set<string>;
-  answerCount: number;
-  correctCount: number;
-  incorrectCount: number;
-  explanationRequestCount: number;
-  recentFailureCount: number;
-  latestFailureAt?: string;
 }
 
 const DEFAULT_RECENT_FAILURE_LIMIT = 10;
@@ -106,11 +84,6 @@ function accuracy(correct: number, total: number): number {
   return total > 0 ? Math.round((correct / total) * 100) : 0;
 }
 
-function keyPart(value: string | undefined): string {
-  const normalized = value?.trim();
-  return normalized ? normalized.toLowerCase() : 'unclassified';
-}
-
 function knowledgeKeys(knowledge: QuestionKnowledgeMetadata | undefined): {
   subjectKey: string;
   knowledgeDomainKey: string;
@@ -125,17 +98,13 @@ function knowledgeKeys(knowledge: QuestionKnowledgeMetadata | undefined): {
   };
 }
 
-function matchesQuizType(attempt: QuizAttempt, quizType: StatisticsQuizTypeFilter): boolean {
-  return quizType === 'all' || attempt.quizType === quizType;
+function keyPart(value: string | undefined): string {
+  const normalized = value?.trim();
+  return normalized ? normalized.toLowerCase() : 'unclassified';
 }
 
-function matchesKnowledge(
-  knowledge: QuestionKnowledgeMetadata | undefined,
-  subjectKey: string,
-  knowledgeDomainKey: string
-): boolean {
-  const keys = knowledgeKeys(knowledge);
-  return keys.subjectKey === subjectKey && keys.knowledgeDomainKey === knowledgeDomainKey;
+function matchesQuizType(attempt: QuizAttempt, quizType: StatisticsQuizTypeFilter): boolean {
+  return quizType === 'all' || attempt.quizType === quizType;
 }
 
 function sourceDocumentIds(answer: QuizAttemptAnswer, attempt: QuizAttempt): string[] {
@@ -443,115 +412,6 @@ async function buildQuizPerformance(
   });
 }
 
-async function buildKnowledgeGaps(
-  userId: string,
-  range: StatisticsDateRangeRequest,
-  attempts: IStoredAttempt[]
-): Promise<StatisticsKnowledgeGapItem[]> {
-  let query: Query = FirestorePaths.knowledgeStats(userId);
-  query = applyDateRange(query, range).limit(MAX_ATTEMPTS_TO_SCAN);
-  const snapshot = await query.get();
-  const aggregates = new Map<string, IKnowledgeAggregate>();
-  const documentCache = new Map<string, StatisticsDocumentSummary>();
-
-  for (const doc of snapshot.docs) {
-    const data = doc.data();
-    const knowledge: QuestionKnowledgeMetadata = {
-      subjectId: data.subjectId,
-      subjectName: data.subjectName,
-      knowledgeDomainId: data.knowledgeDomainId,
-      knowledgeDomainName: data.knowledgeDomainName,
-      topicTags: Array.isArray(data.topicTags) ? data.topicTags : [],
-    };
-    const keys = knowledgeKeys(knowledge);
-    const aggregateKey = `${keys.subjectKey}:${keys.knowledgeDomainKey}`;
-    const existing = aggregates.get(aggregateKey) ?? {
-      subjectKey: keys.subjectKey,
-      subjectId: knowledge.subjectId,
-      subjectName: keys.subjectName,
-      knowledgeDomainKey: keys.knowledgeDomainKey,
-      knowledgeDomainId: knowledge.knowledgeDomainId,
-      knowledgeDomainName: keys.knowledgeDomainName,
-      topicTags: new Set<string>(),
-      sourceDocumentIds: new Set<string>(),
-      answerCount: 0,
-      correctCount: 0,
-      incorrectCount: 0,
-      explanationRequestCount: 0,
-      recentFailureCount: 0,
-    };
-
-    for (const tag of knowledge.topicTags ?? []) existing.topicTags.add(tag);
-    existing.answerCount += Number(data.answerCount ?? 0);
-    existing.correctCount += Number(data.correctCount ?? 0);
-    existing.incorrectCount += Number(data.incorrectCount ?? 0);
-    existing.explanationRequestCount += Number(data.explanationRequestCount ?? 0);
-    aggregates.set(aggregateKey, existing);
-  }
-
-  for (const attempt of attempts) {
-    for (const answer of attempt.answers ?? []) {
-      if (answer.isCorrect) continue;
-      const keys = knowledgeKeys(answer.knowledge);
-      const aggregateKey = `${keys.subjectKey}:${keys.knowledgeDomainKey}`;
-      const existing = aggregates.get(aggregateKey);
-      if (!existing) continue;
-      existing.recentFailureCount += 1;
-      for (const documentId of sourceDocumentIds(answer, attempt)) existing.sourceDocumentIds.add(documentId);
-      if (!existing.latestFailureAt || attempt.completedAtDate.getTime() > new Date(existing.latestFailureAt).getTime()) {
-        existing.latestFailureAt = attempt.completedAtDate.toISOString();
-      }
-    }
-  }
-
-  const result: StatisticsKnowledgeGapItem[] = [];
-  for (const aggregate of aggregates.values()) {
-    result.push({
-      id: `${aggregate.subjectKey}:${aggregate.knowledgeDomainKey}`,
-      subjectKey: aggregate.subjectKey,
-      ...(aggregate.subjectId ? { subjectId: aggregate.subjectId } : {}),
-      subjectName: aggregate.subjectName,
-      knowledgeDomainKey: aggregate.knowledgeDomainKey,
-      ...(aggregate.knowledgeDomainId ? { knowledgeDomainId: aggregate.knowledgeDomainId } : {}),
-      knowledgeDomainName: aggregate.knowledgeDomainName,
-      topicTags: Array.from(aggregate.topicTags).slice(0, 8),
-      answerCount: aggregate.answerCount,
-      correctCount: aggregate.correctCount,
-      incorrectCount: aggregate.incorrectCount,
-      explanationRequestCount: aggregate.explanationRequestCount,
-      accuracyPercentage: accuracy(aggregate.correctCount, aggregate.answerCount),
-      recentFailureCount: aggregate.recentFailureCount || aggregate.incorrectCount,
-      latestFailureAt: aggregate.latestFailureAt,
-      sourceDocuments: await getDocumentSummaries(userId, Array.from(aggregate.sourceDocumentIds), documentCache),
-    });
-  }
-
-  return result.sort((left, right) => {
-    const leftWeight = left.incorrectCount * 3 + left.explanationRequestCount * 2 + (100 - left.accuracyPercentage);
-    const rightWeight = right.incorrectCount * 3 + right.explanationRequestCount * 2 + (100 - right.accuracyPercentage);
-    return rightWeight - leftWeight;
-  });
-}
-
-function buildRecommendations(gaps: StatisticsKnowledgeGapItem[]): StatisticsOverviewRecommendation[] {
-  return gaps
-    .filter((gap) => gap.incorrectCount > 0 || gap.explanationRequestCount > 0)
-    .slice(0, 5)
-    .map((gap) => ({
-      id: gap.id,
-      title: gap.knowledgeDomainName,
-      description: `${gap.incorrectCount} failed answers and ${gap.explanationRequestCount} explanation requests`,
-      subjectKey: gap.subjectKey,
-      knowledgeDomainKey: gap.knowledgeDomainKey,
-      subjectName: gap.subjectName,
-      knowledgeDomainName: gap.knowledgeDomainName,
-      failureCount: gap.incorrectCount,
-      explanationRequestCount: gap.explanationRequestCount,
-      latestFailureAt: gap.latestFailureAt,
-      sourceDocuments: gap.sourceDocuments,
-    }));
-}
-
 export async function getStatisticsOverview(
   userId: string,
   range: StatisticsDateRangeRequest
@@ -567,7 +427,6 @@ export async function getStatisticsOverview(
     0
   );
   const incorrectAnswerCount = Math.max(0, answeredQuestionCount - correctAnswerCount);
-  const gaps = await buildKnowledgeGaps(userId, range, attempts);
 
   return {
     metrics: {
@@ -580,7 +439,6 @@ export async function getStatisticsOverview(
       accuracyPercentage: accuracy(correctAnswerCount, answeredQuestionCount),
     },
     recentFailures,
-    recommendations: buildRecommendations(gaps),
   };
 }
 
@@ -593,14 +451,6 @@ export async function getStatisticsQuizPerformance(
     quizzes: await buildQuizPerformance(userId, attempts, range),
     recentFailures: await buildRecentFailures(userId, attempts),
   };
-}
-
-export async function getStatisticsKnowledgeGaps(
-  userId: string,
-  range: StatisticsDateRangeRequest
-): Promise<GetStatisticsKnowledgeGapsResponse> {
-  const attempts = await getAttempts(userId, range);
-  return { gaps: await buildKnowledgeGaps(userId, range, attempts) };
 }
 
 export async function getStatisticsLearningTime(
@@ -687,30 +537,5 @@ export async function getStatisticsQuizDetail(
     quiz: quizzes[0] ?? null,
     attempts: detailAttempts,
     failedQuestions,
-  };
-}
-
-export async function getStatisticsKnowledgeDetail(
-  userId: string,
-  data: GetStatisticsKnowledgeDetailRequest
-): Promise<GetStatisticsKnowledgeDetailResponse> {
-  const range = { ...data, quizType: data.quizType ?? 'all' };
-  const attempts = await getAttempts(userId, range);
-  const filteredAttempts = attempts.filter((attempt) =>
-    (attempt.answers ?? []).some((answer) => matchesKnowledge(answer.knowledge, data.subjectKey, data.knowledgeDomainKey))
-  );
-  const gaps = await buildKnowledgeGaps(userId, range, attempts);
-  const relatedQuizzes = await buildQuizPerformance(userId, filteredAttempts, range);
-  const failedQuestions = await buildRecentFailures(
-    userId,
-    filteredAttempts,
-    25,
-    (answer) => matchesKnowledge(answer.knowledge, data.subjectKey, data.knowledgeDomainKey)
-  );
-
-  return {
-    gap: gaps.find((gap) => gap.subjectKey === data.subjectKey && gap.knowledgeDomainKey === data.knowledgeDomainKey) ?? null,
-    failedQuestions,
-    relatedQuizzes,
   };
 }

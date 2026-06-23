@@ -1,7 +1,4 @@
 import {
-  GetStatisticsKnowledgeDetailRequest,
-  GetStatisticsKnowledgeDetailResponse,
-  GetStatisticsKnowledgeGapsResponse,
   GetStatisticsLearningTimeResponse,
   GetStatisticsOverviewResponse,
   GetStatisticsQuizDetailRequest,
@@ -26,13 +23,10 @@ export interface IStatisticsPageApi {
   };
   isDetailRoute: boolean;
   quizDetailRequest: GetStatisticsQuizDetailRequest | null;
-  knowledgeDetailRequest: GetStatisticsKnowledgeDetailRequest | null;
   overview: IStatisticsQueryState<GetStatisticsOverviewResponse>;
   performance: IStatisticsQueryState<GetStatisticsQuizPerformanceResponse>;
-  gaps: IStatisticsQueryState<GetStatisticsKnowledgeGapsResponse>;
   learningTime: IStatisticsQueryState<GetStatisticsLearningTimeResponse>;
   quizDetail: IStatisticsQueryState<GetStatisticsQuizDetailResponse>;
-  knowledgeDetail: IStatisticsQueryState<GetStatisticsKnowledgeDetailResponse>;
   isLoading: boolean;
   hasError: boolean;
   setTimeRange: (range: StatisticsTimeRangeKey) => void;

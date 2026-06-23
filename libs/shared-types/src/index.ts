@@ -1607,24 +1607,9 @@ export interface StatisticsRecentFailure {
   repeatedFailureCount: number;
 }
 
-export interface StatisticsOverviewRecommendation {
-  id: string;
-  title: string;
-  description: string;
-  subjectKey: string;
-  knowledgeDomainKey: string;
-  subjectName: string;
-  knowledgeDomainName: string;
-  failureCount: number;
-  explanationRequestCount: number;
-  latestFailureAt?: string;
-  sourceDocuments: StatisticsDocumentSummary[];
-}
-
 export interface GetStatisticsOverviewResponse {
   metrics: StatisticsOverviewMetrics;
   recentFailures: StatisticsRecentFailure[];
-  recommendations: StatisticsOverviewRecommendation[];
 }
 
 export interface StatisticsQuizPerformanceItem {
@@ -1648,29 +1633,6 @@ export interface StatisticsQuizPerformanceItem {
 export interface GetStatisticsQuizPerformanceResponse {
   quizzes: StatisticsQuizPerformanceItem[];
   recentFailures: StatisticsRecentFailure[];
-}
-
-export interface StatisticsKnowledgeGapItem {
-  id: string;
-  subjectKey: string;
-  subjectId?: string;
-  subjectName: string;
-  knowledgeDomainKey: string;
-  knowledgeDomainId?: string;
-  knowledgeDomainName: string;
-  topicTags: string[];
-  answerCount: number;
-  correctCount: number;
-  incorrectCount: number;
-  explanationRequestCount: number;
-  accuracyPercentage: number;
-  recentFailureCount: number;
-  latestFailureAt?: string;
-  sourceDocuments: StatisticsDocumentSummary[];
-}
-
-export interface GetStatisticsKnowledgeGapsResponse {
-  gaps: StatisticsKnowledgeGapItem[];
 }
 
 export interface StatisticsLearningTimeArtifact {
@@ -1715,17 +1677,6 @@ export interface GetStatisticsQuizDetailResponse {
   quiz: StatisticsQuizPerformanceItem | null;
   attempts: StatisticsQuizDetailAttempt[];
   failedQuestions: StatisticsRecentFailure[];
-}
-
-export interface GetStatisticsKnowledgeDetailRequest extends StatisticsDateRangeRequest {
-  subjectKey: string;
-  knowledgeDomainKey: string;
-}
-
-export interface GetStatisticsKnowledgeDetailResponse {
-  gap: StatisticsKnowledgeGapItem | null;
-  failedQuestions: StatisticsRecentFailure[];
-  relatedQuizzes: StatisticsQuizPerformanceItem[];
 }
 
 export type LlmProviderType = 'gemini' | 'openrouter' | 'minimax';

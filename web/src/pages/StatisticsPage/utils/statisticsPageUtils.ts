@@ -109,7 +109,3 @@ export function artifactTypeLabel(value: ArtifactType): string {
 export function detailQuizPath(quizType: QuizTelemetryType, quizId: string): string {
   return `/statistics/quizzes/${quizType}/${quizId}`;
 }
-
-export function knowledgePath(subjectKey: string, knowledgeDomainKey: string): string {
-  return `/statistics/knowledge/${encodeURIComponent(subjectKey)}/${encodeURIComponent(knowledgeDomainKey)}`;
-}

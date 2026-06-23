@@ -1,15 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  GetStatisticsKnowledgeDetailRequest,
   GetStatisticsQuizDetailRequest,
   StatisticsDateRangeRequest,
   StatisticsQuizTypeFilter,
   StatisticsTimeRangeKey,
 } from '@shared-types';
 import {
-  useGetStatisticsKnowledgeDetailQuery,
-  useGetStatisticsKnowledgeGapsQuery,
   useGetStatisticsLearningTimeQuery,
   useGetStatisticsOverviewQuery,
   useGetStatisticsQuizDetailQuery,
@@ -18,7 +15,7 @@ import {
 import { IStatisticsPageApi } from '../../../types/IStatisticsPageContext';
 import { getStatisticsDateRange, isQuizTelemetryType } from '../../../utils/statisticsPageUtils';
 
-type RouteParamKey = 'quizType' | 'quizId' | 'subjectKey' | 'knowledgeDomainKey';
+type RouteParamKey = 'quizType' | 'quizId';
 
 function buildSkippedQuizDetailRequest(
   request: StatisticsDateRangeRequest
@@ -27,16 +24,6 @@ function buildSkippedQuizDetailRequest(
     ...request,
     quizId: '',
     quizType: 'quiz',
-  };
-}
-
-function buildSkippedKnowledgeDetailRequest(
-  request: StatisticsDateRangeRequest
-): GetStatisticsKnowledgeDetailRequest {
-  return {
-    ...request,
-    subjectKey: '',
-    knowledgeDomainKey: '',
   };
 }
 
@@ -59,51 +46,32 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
     };
   }, [params.quizId, params.quizType, request]);
 
-  const knowledgeDetailRequest = useMemo<GetStatisticsKnowledgeDetailRequest | null>(() => {
-    if (!params.subjectKey || !params.knowledgeDomainKey) return null;
-    return {
-      ...request,
-      subjectKey: decodeURIComponent(params.subjectKey),
-      knowledgeDomainKey: decodeURIComponent(params.knowledgeDomainKey),
-    };
-  }, [params.subjectKey, params.knowledgeDomainKey, request]);
-
-  const isDetailRoute = Boolean(quizDetailRequest || knowledgeDetailRequest);
+  const isDetailRoute = Boolean(quizDetailRequest);
 
   const overviewQuery = useGetStatisticsOverviewQuery(request, { skip: isDetailRoute });
   const performanceQuery = useGetStatisticsQuizPerformanceQuery(request, { skip: isDetailRoute });
-  const gapsQuery = useGetStatisticsKnowledgeGapsQuery(request, { skip: isDetailRoute });
   const timeQuery = useGetStatisticsLearningTimeQuery(request, { skip: isDetailRoute });
   const quizDetailQuery = useGetStatisticsQuizDetailQuery(
     quizDetailRequest ?? buildSkippedQuizDetailRequest(request),
     { skip: !quizDetailRequest }
   );
-  const knowledgeDetailQuery = useGetStatisticsKnowledgeDetailQuery(
-    knowledgeDetailRequest ?? buildSkippedKnowledgeDetailRequest(request),
-    { skip: !knowledgeDetailRequest }
-  );
 
   const isLoading = isDetailRoute
-    ? quizDetailQuery.isLoading || knowledgeDetailQuery.isLoading
-    : overviewQuery.isLoading ||
-      performanceQuery.isLoading ||
-      gapsQuery.isLoading ||
-      timeQuery.isLoading;
+    ? quizDetailQuery.isLoading
+    : overviewQuery.isLoading || performanceQuery.isLoading || timeQuery.isLoading;
   const hasError = Boolean(
     isDetailRoute
-      ? quizDetailQuery.error || knowledgeDetailQuery.error
-      : overviewQuery.error || performanceQuery.error || gapsQuery.error || timeQuery.error
+      ? quizDetailQuery.error
+      : overviewQuery.error || performanceQuery.error || timeQuery.error
   );
 
   const refetchAll = () => {
     if (isDetailRoute) {
       if (quizDetailRequest) quizDetailQuery.refetch();
-      if (knowledgeDetailRequest) knowledgeDetailQuery.refetch();
       return;
     }
     overviewQuery.refetch();
     performanceQuery.refetch();
-    gapsQuery.refetch();
     timeQuery.refetch();
   };
 
@@ -111,7 +79,6 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
     filters: { timeRange, quizType },
     isDetailRoute,
     quizDetailRequest,
-    knowledgeDetailRequest,
     overview: {
       data: overviewQuery.data,
       isLoading: overviewQuery.isLoading,
@@ -124,12 +91,6 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
       error: performanceQuery.error,
       refetch: performanceQuery.refetch,
     },
-    gaps: {
-      data: gapsQuery.data,
-      isLoading: gapsQuery.isLoading,
-      error: gapsQuery.error,
-      refetch: gapsQuery.refetch,
-    },
     learningTime: {
       data: timeQuery.data,
       isLoading: timeQuery.isLoading,
@@ -141,12 +102,6 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
       isLoading: quizDetailQuery.isLoading,
       error: quizDetailQuery.error,
       refetch: quizDetailQuery.refetch,
-    },
-    knowledgeDetail: {
-      data: knowledgeDetailQuery.data,
-      isLoading: knowledgeDetailQuery.isLoading,
-      error: knowledgeDetailQuery.error,
-      refetch: knowledgeDetailQuery.refetch,
     },
     isLoading,
     hasError,
