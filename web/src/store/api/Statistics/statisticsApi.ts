@@ -1,8 +1,5 @@
 import { baseApi } from '../baseApi';
 import {
-  GetStatisticsKnowledgeDetailRequest,
-  GetStatisticsKnowledgeDetailResponse,
-  GetStatisticsKnowledgeGapsResponse,
   GetStatisticsLearningTimeResponse,
   GetStatisticsOverviewResponse,
   GetStatisticsQuizDetailRequest,
@@ -35,17 +32,6 @@ export const statisticsApi = baseApi.injectEndpoints({
       providesTags: ['Statistics'],
     }),
 
-    getStatisticsKnowledgeGaps: builder.query<
-      GetStatisticsKnowledgeGapsResponse,
-      StatisticsDateRangeRequest
-    >({
-      query: (data) => ({
-        functionName: 'getStatisticsKnowledgeGaps',
-        data,
-      }),
-      providesTags: ['Statistics'],
-    }),
-
     getStatisticsLearningTime: builder.query<
       GetStatisticsLearningTimeResponse,
       StatisticsDateRangeRequest
@@ -67,17 +53,6 @@ export const statisticsApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Statistics'],
     }),
-
-    getStatisticsKnowledgeDetail: builder.query<
-      GetStatisticsKnowledgeDetailResponse,
-      GetStatisticsKnowledgeDetailRequest
-    >({
-      query: (data) => ({
-        functionName: 'getStatisticsKnowledgeDetail',
-        data,
-      }),
-      providesTags: ['Statistics'],
-    }),
   }),
   overrideExisting: false,
 });
@@ -85,8 +60,6 @@ export const statisticsApi = baseApi.injectEndpoints({
 export const {
   useGetStatisticsOverviewQuery,
   useGetStatisticsQuizPerformanceQuery,
-  useGetStatisticsKnowledgeGapsQuery,
   useGetStatisticsLearningTimeQuery,
   useGetStatisticsQuizDetailQuery,
-  useGetStatisticsKnowledgeDetailQuery,
 } = statisticsApi;

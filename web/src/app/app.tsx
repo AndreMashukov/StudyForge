@@ -394,16 +394,6 @@ const AppContent = () => {
         }
       />
       <Route
-        path="/statistics/knowledge/:subjectKey/:knowledgeDomainKey"
-        element={
-          <MainLayout>
-            <ProtectedRoute>
-              <StatisticsPage />
-            </ProtectedRoute>
-          </MainLayout>
-        }
-      />
-      <Route
         path="/stats"
         element={
           <MainLayout>
