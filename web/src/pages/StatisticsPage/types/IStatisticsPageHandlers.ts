@@ -1,6 +1,6 @@
 import { StatisticsQuizTypeFilter, StatisticsTimeRangeKey } from '@shared-types';
 
-export type StatisticsTab = 'overview' | 'performance' | 'knowledge' | 'time';
+export type StatisticsTab = 'overview' | 'performance' | 'time';
 
 export interface IStatisticsPageHandlers {
   activeTab: StatisticsTab;

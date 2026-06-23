@@ -2,13 +2,10 @@ import { onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '../lib/auth';
 import {
-  GetStatisticsKnowledgeDetailRequest,
   GetStatisticsQuizDetailRequest,
   StatisticsDateRangeRequest,
 } from '../../libs/shared-types/src/index';
 import {
-  getStatisticsKnowledgeDetail,
-  getStatisticsKnowledgeGaps,
   getStatisticsLearningTime,
   getStatisticsOverview,
   getStatisticsQuizDetail,
@@ -53,23 +50,6 @@ export const getStatisticsQuizPerformanceEndpoint = onCall(
   }
 );
 
-export const getStatisticsKnowledgeGapsEndpoint = onCall(
-  { region: 'asia-east1', cors: true },
-  async (request) => {
-    try {
-      const userId = await validateAuth(request);
-      return await getStatisticsKnowledgeGaps(userId, rangeData(request.data));
-    } catch (error) {
-      logger.error('Error getting statistics knowledge gaps', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw new Error(
-        `Failed to get statistics knowledge gaps: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
-  }
-);
-
 export const getStatisticsLearningTimeEndpoint = onCall(
   { region: 'asia-east1', cors: true },
   async (request) => {
@@ -103,27 +83,6 @@ export const getStatisticsQuizDetailEndpoint = onCall(
       });
       throw new Error(
         `Failed to get statistics quiz detail: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
-  }
-);
-
-export const getStatisticsKnowledgeDetailEndpoint = onCall(
-  { region: 'asia-east1', cors: true },
-  async (request) => {
-    try {
-      const userId = await validateAuth(request);
-      const data = request.data as GetStatisticsKnowledgeDetailRequest;
-      if (!data.subjectKey || !data.knowledgeDomainKey) {
-        throw new Error('subjectKey and knowledgeDomainKey are required');
-      }
-      return await getStatisticsKnowledgeDetail(userId, data);
-    } catch (error) {
-      logger.error('Error getting statistics knowledge detail', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw new Error(
-        `Failed to get statistics knowledge detail: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
   }

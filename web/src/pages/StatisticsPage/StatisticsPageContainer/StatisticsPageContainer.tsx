@@ -7,15 +7,14 @@ import {
   BookOpen,
   Brain,
   Clock3,
-  ExternalLink,
   RefreshCw,
   Target,
   TrendingUp,
 } from 'lucide-react';
-import { StatisticsKnowledgeGapItem, StatisticsQuizPerformanceItem } from '@shared-types';
+import { StatisticsQuizPerformanceItem } from '@shared-types';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/Tabs';
 import { useStatisticsPageContext } from '../context/hooks/useStatisticsPageContext';
 import { StatisticsTab } from '../types/IStatisticsPageHandlers';
@@ -27,73 +26,12 @@ import {
   formatInteger,
   formatPercentage,
   formatSeconds,
-  knowledgePath,
   QUIZ_TYPE_OPTIONS,
   quizTypeLabel,
   TIME_RANGE_OPTIONS,
 } from '../utils/statisticsPageUtils';
 import { FailureList } from './FailureList';
 import { EmptyState, ErrorBlock, LoadingBlock, MetricCard } from './StatisticsShared';
-
-const MAX_BAR_PERCENT = 100;
-
-const KnowledgeGapChart = ({ gaps }: { gaps: StatisticsKnowledgeGapItem[] }) => {
-  if (gaps.length === 0) {
-    return (
-      <EmptyState
-        title="No knowledge gaps yet"
-        description="Knowledge-domain rankings appear after quiz attempts are recorded."
-      />
-    );
-  }
-
-  const topGaps = gaps.slice(0, 8);
-  const maxWeight = Math.max(...topGaps.map((gap) => gap.incorrectCount + gap.explanationRequestCount), 1);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Brain className="h-4 w-4 text-primary" />
-          Knowledge Gap Ranking
-        </CardTitle>
-        <CardDescription>Sorted by failed answers, explanation requests, and accuracy.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {topGaps.map((gap) => {
-          const weight = gap.incorrectCount + gap.explanationRequestCount;
-          const width = Math.max(8, Math.round((weight / maxWeight) * MAX_BAR_PERCENT));
-
-          return (
-            <Link
-              key={gap.id}
-              to={knowledgePath(gap.subjectKey, gap.knowledgeDomainKey)}
-              className="block rounded-md border border-border/70 p-3 transition-colors hover:bg-muted/40"
-            >
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{gap.knowledgeDomainName}</p>
-                  <p className="truncate text-xs text-muted-foreground">{gap.subjectName}</p>
-                </div>
-                <Badge variant={gap.accuracyPercentage < 60 ? 'destructive' : 'secondary'}>
-                  {formatPercentage(gap.accuracyPercentage)}
-                </Badge>
-              </div>
-              <div className="h-2 rounded-full bg-muted">
-                <div className="h-2 rounded-full bg-primary" style={{ width: `${width}%` }} />
-              </div>
-              <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                <span>{formatInteger(gap.incorrectCount)} failed</span>
-                <span>{formatInteger(gap.explanationRequestCount)} explanations</span>
-                <span>{formatInteger(gap.answerCount)} answers</span>
-              </div>
-            </Link>
-          );
-        })}
-      </CardContent>
-    </Card>
-  );
-};
 
 const QuizPerformanceTable = ({ quizzes }: { quizzes: StatisticsQuizPerformanceItem[] }) => {
   if (quizzes.length === 0) {
@@ -153,16 +91,9 @@ const QuizPerformanceTable = ({ quizzes }: { quizzes: StatisticsQuizPerformanceI
 
 export const StatisticsPageContainer: React.FC = () => {
   const { statisticsApi, handlers } = useStatisticsPageContext();
-  const { filters, isDetailRoute, quizDetailRequest, knowledgeDetailRequest } = statisticsApi;
+  const { filters, isDetailRoute, quizDetailRequest } = statisticsApi;
 
   const pageHeader = useMemo(() => {
-    if (knowledgeDetailRequest) {
-      const gap = statisticsApi.knowledgeDetail.data?.gap;
-      return {
-        title: 'Details',
-        subtitle: gap?.knowledgeDomainName ?? 'Knowledge domain details',
-      };
-    }
     if (quizDetailRequest) {
       const quiz = statisticsApi.quizDetail.data?.quiz;
       return {
@@ -172,12 +103,10 @@ export const StatisticsPageContainer: React.FC = () => {
     }
     return {
       title: 'Statistics',
-      subtitle: 'Quiz performance, knowledge gaps, and learning time',
+      subtitle: 'Quiz performance and learning time',
     };
   }, [
-    knowledgeDetailRequest,
     quizDetailRequest,
-    statisticsApi.knowledgeDetail.data?.gap,
     statisticsApi.quizDetail.data?.quiz,
   ]);
 
@@ -247,29 +176,6 @@ export const StatisticsPageContainer: React.FC = () => {
     );
   };
 
-  const renderKnowledgeDetail = () => {
-    const { knowledgeDetail } = statisticsApi;
-    if (knowledgeDetail.isLoading) return <LoadingBlock />;
-    if (knowledgeDetail.error) return <ErrorBlock />;
-    const detail = knowledgeDetail.data;
-    if (!detail?.gap) {
-      return <EmptyState title="Knowledge detail is empty" description="No matching domain data exists for this range." />;
-    }
-
-    return (
-      <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-4">
-          <MetricCard icon={Brain} label="Accuracy" value={formatPercentage(detail.gap.accuracyPercentage)} detail={detail.gap.knowledgeDomainName} />
-          <MetricCard icon={AlertTriangle} label="Failed answers" value={formatInteger(detail.gap.incorrectCount)} detail="Domain misses" />
-          <MetricCard icon={Target} label="Answers" value={formatInteger(detail.gap.answerCount)} detail="Recorded answers" />
-          <MetricCard icon={BookOpen} label="Sources" value={formatInteger(detail.gap.sourceDocuments.length)} detail="Linked documents" />
-        </div>
-        <QuizPerformanceTable quizzes={detail.relatedQuizzes} />
-        <FailureList failures={detail.failedQuestions} />
-      </div>
-    );
-  };
-
   return (
     <div className="min-h-full bg-background">
       <header className="sticky top-0 z-10 border-b bg-background/95 px-4 py-4 backdrop-blur md:px-0">
@@ -296,7 +202,6 @@ export const StatisticsPageContainer: React.FC = () => {
 
       <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
         {quizDetailRequest && renderQuizDetail()}
-        {knowledgeDetailRequest && renderKnowledgeDetail()}
 
         {!isDetailRoute && (
           <>
@@ -311,7 +216,6 @@ export const StatisticsPageContainer: React.FC = () => {
                 <TabsList className="flex flex-wrap">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="performance">Quiz Performance</TabsTrigger>
-                  <TabsTrigger value="knowledge">Knowledge Gaps</TabsTrigger>
                   <TabsTrigger value="time">Learning Time</TabsTrigger>
                 </TabsList>
 
@@ -337,48 +241,12 @@ export const StatisticsPageContainer: React.FC = () => {
                     />
                   </div>
 
-                  <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
-                    <KnowledgeGapChart gaps={statisticsApi.gaps.data?.gaps ?? []} />
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Target className="h-4 w-4 text-primary" />
-                          Recommended Review
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {(statisticsApi.overview.data?.recommendations ?? []).length === 0 && (
-                          <p className="text-sm text-muted-foreground">No recommendations for this range.</p>
-                        )}
-                        {(statisticsApi.overview.data?.recommendations ?? []).map((item) => (
-                          <Link
-                            key={item.id}
-                            to={knowledgePath(item.subjectKey, item.knowledgeDomainKey)}
-                            className="block rounded-md border p-3 transition-colors hover:bg-muted/40"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="font-medium text-foreground">{item.title}</p>
-                                <p className="mt-1 text-xs text-muted-foreground">{item.description}</p>
-                              </div>
-                              <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          </Link>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  </div>
-
                   <FailureList failures={statisticsApi.overview.data?.recentFailures ?? []} />
                 </TabsContent>
 
                 <TabsContent value="performance" className="mt-6 space-y-6">
                   <QuizPerformanceTable quizzes={statisticsApi.performance.data?.quizzes ?? []} />
                   <FailureList failures={statisticsApi.performance.data?.recentFailures ?? []} />
-                </TabsContent>
-
-                <TabsContent value="knowledge" className="mt-6">
-                  <KnowledgeGapChart gaps={statisticsApi.gaps.data?.gaps ?? []} />
                 </TabsContent>
 
                 <TabsContent value="time" className="mt-6 space-y-6">

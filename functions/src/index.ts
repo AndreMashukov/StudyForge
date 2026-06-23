@@ -214,10 +214,8 @@ export {
 export {
   getStatisticsOverviewEndpoint as getStatisticsOverview,
   getStatisticsQuizPerformanceEndpoint as getStatisticsQuizPerformance,
-  getStatisticsKnowledgeGapsEndpoint as getStatisticsKnowledgeGaps,
   getStatisticsLearningTimeEndpoint as getStatisticsLearningTime,
   getStatisticsQuizDetailEndpoint as getStatisticsQuizDetail,
-  getStatisticsKnowledgeDetailEndpoint as getStatisticsKnowledgeDetail,
 } from "./endpoints/statistics";
 
 // External HTTP API (API key authenticated)
