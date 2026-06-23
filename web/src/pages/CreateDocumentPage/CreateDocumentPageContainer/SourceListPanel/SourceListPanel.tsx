@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { cn } from '../../../../lib/utils';
 import { setSelectedSource, selectSelectedSource } from '../../../../store/slices/createDocumentPageSlice';
 import { SourceType } from '../../types/ISourceTypes';
+import { YouTubeBrandMark } from '../../../../components/icons';
 import { sourceListPanelStyles } from './SourceListPanel.styles';
 import type { RootState } from '../../../../store';
 
@@ -18,21 +19,14 @@ const sources = [
     id: 'website' as SourceType,
     icon: '🌐',
     title: 'Website URL',
-    description: 'Scrape web content',
+    description: 'Scrape web pages, YouTube, or other URLs',
     status: 'active' as const,
   },
   {
     id: 'file' as SourceType,
     icon: '📄',
     title: 'File Upload',
-    description: 'Upload MD file',
-    status: 'active' as const,
-  },
-  {
-    id: 'videoUrl' as SourceType,
-    icon: '🎥',
-    title: 'Video URL',
-    description: 'Extract from video',
+    description: 'Upload files',
     status: 'active' as const,
   },
 ];
@@ -81,7 +75,12 @@ export const SourceListPanel = () => {
               {source.icon}
             </div>
             <div className={sourceListPanelStyles.sourceInfo}>
-              <div className={sourceListPanelStyles.sourceName}>{source.title}</div>
+              <div className={sourceListPanelStyles.sourceName}>
+                {source.title}
+                {source.id === 'website' && (
+                  <YouTubeBrandMark size={16} className="ml-1.5 -mt-0.5" />
+                )}
+              </div>
               {isDisabled ? (
                 <span className={sourceListPanelStyles.soonBadge}>Coming Soon</span>
               ) : (
