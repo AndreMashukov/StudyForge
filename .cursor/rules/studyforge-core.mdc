@@ -19,6 +19,10 @@ NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run admin:lint
 NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run functions:serve
 ```
 
+## Domain Language
+
+Read [CONTEXT.md](../../CONTEXT.md) for StudyForge terminology (directory, artifact, rule, generation status, etc.). Use those terms consistently; update the glossary via `/grill-with-docs`.
+
 ## Must Follow
 
 - RTK Query for all API calls — never `httpsCallable` in components
