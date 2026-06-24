@@ -75,6 +75,7 @@
     "@expo/metro-runtime": "~55.0.11",
     "@google/genai": "^1.44.0",
     "@hookform/resolvers": "^5.2.2",
+    "@panzoom/panzoom": "^4.6.2",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-popover": "^1.1.15",
