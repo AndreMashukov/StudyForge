@@ -270,8 +270,76 @@ function sanitizeMermaidCode(source: string): string {
   );
 }
 
-const PANZOOM_MIN_SCALE = 0.5;
+const PANZOOM_MIN_SCALE = 0.05;
 const PANZOOM_MAX_SCALE = 4;
+const PANZOOM_VIEWPORT_PADDING_PX = 16;
+
+interface ISvgContentSize {
+  width: number;
+  height: number;
+}
+
+function getSvgContentSize(svgElement: SVGSVGElement): ISvgContentSize | null {
+  const viewBox = svgElement.viewBox.baseVal;
+  if (viewBox.width > 0 && viewBox.height > 0) {
+    return { width: viewBox.width, height: viewBox.height };
+  }
+
+  const bbox = svgElement.getBBox();
+  if (bbox.width > 0 && bbox.height > 0) {
+    return { width: bbox.width, height: bbox.height };
+  }
+
+  return null;
+}
+
+function normalizeMermaidSvgLayout(svgElement: SVGSVGElement): void {
+  svgElement.removeAttribute('width');
+  svgElement.removeAttribute('height');
+  svgElement.style.width = '';
+  svgElement.style.height = '';
+  svgElement.style.maxWidth = 'none';
+  svgElement.style.maxHeight = 'none';
+}
+
+function fitMermaidSvgToViewport(
+  svgElement: SVGSVGElement,
+  hostElement: HTMLElement,
+  panzoom: PanzoomObject
+): void {
+  normalizeMermaidSvgLayout(svgElement);
+
+  const contentSize = getSvgContentSize(svgElement);
+  if (!contentSize) {
+    return;
+  }
+
+  const availableWidth = Math.max(hostElement.clientWidth - PANZOOM_VIEWPORT_PADDING_PX, 1);
+  const availableHeight = Math.max(hostElement.clientHeight - PANZOOM_VIEWPORT_PADDING_PX, 1);
+
+  const fitScale = Math.min(
+    availableWidth / contentSize.width,
+    availableHeight / contentSize.height,
+    PANZOOM_MAX_SCALE
+  );
+  if (!Number.isFinite(fitScale) || fitScale <= 0) {
+    return;
+  }
+
+  const scaledWidth = contentSize.width * fitScale;
+  const scaledHeight = contentSize.height * fitScale;
+  const panX = (hostElement.clientWidth - scaledWidth) / 2;
+  const panY = (hostElement.clientHeight - scaledHeight) / 2;
+
+  panzoom.zoom(fitScale, { animate: false, force: true });
+  panzoom.pan(panX, panY, { animate: false, force: true });
+  panzoom.setOptions({
+    startScale: fitScale,
+    startX: panX,
+    startY: panY,
+    minScale: Math.min(PANZOOM_MIN_SCALE, fitScale),
+  });
+}
 
 export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
   code,
@@ -301,7 +369,14 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
   }, []);
 
   const handleResetZoom = useCallback(() => {
-    panzoomRef.current?.reset();
+    const panzoom = panzoomRef.current;
+    const host = svgHostRef.current;
+    const svgElement = host?.querySelector('svg');
+    if (panzoom && host && svgElement instanceof SVGSVGElement) {
+      fitMermaidSvgToViewport(svgElement, host, panzoom);
+      return;
+    }
+    panzoom?.reset();
   }, []);
 
   const handleRetry = () => {
@@ -428,15 +503,25 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       return undefined;
     }
 
+    normalizeMermaidSvgLayout(svgElement);
+
     const panzoom = Panzoom(svgElement, {
       minScale: PANZOOM_MIN_SCALE,
       maxScale: PANZOOM_MAX_SCALE,
       step: 0.25,
       canvas: true,
       cursor: 'grab',
-      contain: 'outside',
+      contain: 'inside',
     });
     panzoomRef.current = panzoom;
+
+    const applyFit = () => {
+      window.requestAnimationFrame(() => {
+        fitMermaidSvgToViewport(svgElement, host, panzoom);
+      });
+    };
+
+    applyFit();
 
     const handleWheel = (event: WheelEvent) => {
       panzoom.zoomWithWheel(event);
@@ -585,7 +670,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
         >
           <div
             ref={svgHostRef}
-            className="flex h-full w-full items-center justify-center"
+            className="relative h-full w-full"
             dangerouslySetInnerHTML={{ __html: svg }}
           />
         </div>
