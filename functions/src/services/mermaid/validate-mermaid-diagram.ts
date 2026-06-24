@@ -70,7 +70,7 @@ export interface IMermaidValidationResult {
 
 export async function validateMermaidDiagram(source: string): Promise<IMermaidValidationResult> {
   const sanitized = neutralizeMermaidQuizStyles(
-    applyMermaidLabelTooltips(sanitizeMermaidCode(source.trim()))
+    applyMermaidLabelTooltips(sanitizeMermaidCode(source.trim())).source
   );
   if (!sanitized) {
     return { ok: false, sanitized, error: 'Diagram source is empty' };

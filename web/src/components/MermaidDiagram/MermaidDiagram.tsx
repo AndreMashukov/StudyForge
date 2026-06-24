@@ -4,6 +4,7 @@ import Panzoom, { type PanzoomObject } from '@panzoom/panzoom';
 import { Focus, Maximize2, Minimize2, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { applyMermaidLabelTooltips } from '../../utils/applyMermaidLabelTooltips';
+import { finalizeMermaidSvg } from '../../utils/finalizeMermaidSvg';
 import { IMermaidDiagram } from './IMermaidDiagram';
 import { Spinner } from '../ui/Spinner';
 import { Button } from '../ui/Button';
@@ -380,6 +381,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const svgHostRef = useRef<HTMLDivElement | null>(null);
   const panzoomRef = useRef<PanzoomObject | null>(null);
+  const nodeTooltipsRef = useRef<Record<string, string>>({});
   const userHasInteractedRef = useRef(false);
   const lastFitHostSizeRef = useRef<{ width: number; height: number } | null>(null);
   const reactId = useId().replace(/:/g, '');
@@ -477,7 +479,10 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
     setError(null);
     setSvg(null);
 
-    const trimmed = applyMermaidLabelTooltips(sanitizeMermaidCode(code?.trim() ?? ''));
+    const { source: trimmed, nodeTooltips } = applyMermaidLabelTooltips(
+      sanitizeMermaidCode(code?.trim() ?? '')
+    );
+    nodeTooltipsRef.current = nodeTooltips;
     if (!trimmed) {
       return () => { cancelled = true; };
     }
@@ -573,6 +578,8 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       if (!svgElement || host.clientWidth <= 0 || host.clientHeight <= 0) {
         return;
       }
+
+      finalizeMermaidSvg(svgElement, nodeTooltipsRef.current);
 
       if (panzoom) {
         if (forceFit || shouldRefitForHostResize()) {
