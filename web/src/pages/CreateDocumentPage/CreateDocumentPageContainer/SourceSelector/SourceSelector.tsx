@@ -32,14 +32,6 @@ const sourceCards = [
     status: 'active' as const,
     order: 3,
   },
-  {
-    id: 'videoUrl' as SourceType,
-    icon: '🎥',
-    title: 'Video URL',
-    description: 'Extract from video',
-    status: 'active' as const,
-    order: 4,
-  },
 ];
 
 export const SourceSelector = () => {
