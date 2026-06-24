@@ -294,12 +294,20 @@ function getSvgContentSize(svgElement: SVGSVGElement): ISvgContentSize | null {
 }
 
 function normalizeMermaidSvgLayout(svgElement: SVGSVGElement): void {
-  svgElement.removeAttribute('width');
-  svgElement.removeAttribute('height');
   svgElement.style.width = '';
   svgElement.style.height = '';
   svgElement.style.maxWidth = 'none';
   svgElement.style.maxHeight = 'none';
+
+  const viewBox = svgElement.viewBox.baseVal;
+  if (viewBox.width > 0 && viewBox.height > 0) {
+    svgElement.setAttribute('width', String(viewBox.width));
+    svgElement.setAttribute('height', String(viewBox.height));
+    return;
+  }
+
+  svgElement.removeAttribute('width');
+  svgElement.removeAttribute('height');
 }
 
 interface IMermaidFitTransform {
@@ -372,6 +380,8 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const svgHostRef = useRef<HTMLDivElement | null>(null);
   const panzoomRef = useRef<PanzoomObject | null>(null);
+  const userHasInteractedRef = useRef(false);
+  const lastFitHostSizeRef = useRef<{ width: number; height: number } | null>(null);
   const reactId = useId().replace(/:/g, '');
   const [error, setError] = useState<string | null>(null);
   const [svg, setSvg] = useState<string | null>(null);
@@ -383,19 +393,23 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
   const fullscreenLabel = isFullscreen ? 'Exit fullscreen' : 'View fullscreen';
 
   const handleZoomIn = useCallback(() => {
+    userHasInteractedRef.current = true;
     panzoomRef.current?.zoomIn();
   }, []);
 
   const handleZoomOut = useCallback(() => {
+    userHasInteractedRef.current = true;
     panzoomRef.current?.zoomOut();
   }, []);
 
   const handleResetZoom = useCallback(() => {
+    userHasInteractedRef.current = false;
     const panzoom = panzoomRef.current;
     const host = svgHostRef.current;
     const svgElement = host?.querySelector('svg');
     if (panzoom && host && svgElement instanceof SVGSVGElement) {
       applyMermaidFitTransform(svgElement, host, panzoom);
+      lastFitHostSizeRef.current = { width: host.clientWidth, height: host.clientHeight };
       return;
     }
     panzoom?.reset();
@@ -520,18 +534,37 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       return undefined;
     }
 
+    userHasInteractedRef.current = false;
+    lastFitHostSizeRef.current = null;
+
     let cancelled = false;
     let panzoom: PanzoomObject | null = null;
     let wheelHandler: ((event: WheelEvent) => void) | null = null;
-    let outerFrame = 0;
-    let innerFrame = 0;
+    let scheduleFrame = 0;
+    let pendingForceFit = false;
 
     const getSvgElement = (): SVGSVGElement | null => {
       const svgElement = host.querySelector('svg');
       return svgElement instanceof SVGSVGElement ? svgElement : null;
     };
 
-    const ensurePanzoom = (): void => {
+    const shouldRefitForHostResize = (): boolean => {
+      if (userHasInteractedRef.current) {
+        return false;
+      }
+
+      const lastSize = lastFitHostSizeRef.current;
+      if (!lastSize) {
+        return true;
+      }
+
+      return (
+        Math.abs(host.clientWidth - lastSize.width) > 2 ||
+        Math.abs(host.clientHeight - lastSize.height) > 2
+      );
+    };
+
+    const ensurePanzoom = (forceFit = false): void => {
       if (cancelled) {
         return;
       }
@@ -542,66 +575,78 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       }
 
       if (panzoom) {
-        applyMermaidFitTransform(svgElement, host, panzoom);
-        return;
-      }
-
-      const fit = computeMermaidFitTransform(svgElement, host);
-      if (!fit) {
+        if (forceFit || shouldRefitForHostResize()) {
+          applyMermaidFitTransform(svgElement, host, panzoom);
+          lastFitHostSizeRef.current = { width: host.clientWidth, height: host.clientHeight };
+        }
         return;
       }
 
       panzoom = Panzoom(svgElement, {
-        minScale: fit.minScale,
+        minScale: PANZOOM_MIN_SCALE,
         maxScale: PANZOOM_MAX_SCALE,
         step: 0.25,
-        canvas: true,
         cursor: 'grab',
-        contain: 'inside',
-        startScale: fit.scale,
-        startX: fit.panX,
-        startY: fit.panY,
+        origin: '0 0',
       });
       panzoomRef.current = panzoom;
 
+      applyMermaidFitTransform(svgElement, host, panzoom);
+      lastFitHostSizeRef.current = { width: host.clientWidth, height: host.clientHeight };
+
       if (!wheelHandler) {
         wheelHandler = (event: WheelEvent) => {
+          userHasInteractedRef.current = true;
           panzoom?.zoomWithWheel(event);
         };
         viewport.addEventListener('wheel', wheelHandler, { passive: false });
       }
     };
 
-    const scheduleEnsurePanzoom = () => {
-      window.cancelAnimationFrame(outerFrame);
-      window.cancelAnimationFrame(innerFrame);
-      outerFrame = window.requestAnimationFrame(() => {
-        innerFrame = window.requestAnimationFrame(ensurePanzoom);
+    const scheduleEnsurePanzoom = (forceFit = false) => {
+      pendingForceFit = pendingForceFit || forceFit;
+      if (scheduleFrame !== 0) {
+        return;
+      }
+
+      scheduleFrame = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          scheduleFrame = 0;
+          const shouldForceFit = pendingForceFit;
+          pendingForceFit = false;
+          ensurePanzoom(shouldForceFit);
+        });
       });
     };
 
-    scheduleEnsurePanzoom();
+    scheduleEnsurePanzoom(true);
 
     const resizeObserver = new ResizeObserver(() => {
-      scheduleEnsurePanzoom();
+      scheduleEnsurePanzoom(false);
     });
     resizeObserver.observe(host);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        scheduleEnsurePanzoom();
+        scheduleEnsurePanzoom(!userHasInteractedRef.current);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('pageshow', scheduleEnsurePanzoom);
+    const handlePageShow = () => {
+      scheduleEnsurePanzoom(!userHasInteractedRef.current);
+    };
+    window.addEventListener('pageshow', handlePageShow);
 
     return () => {
       cancelled = true;
-      window.cancelAnimationFrame(outerFrame);
-      window.cancelAnimationFrame(innerFrame);
+      if (scheduleFrame !== 0) {
+        window.cancelAnimationFrame(scheduleFrame);
+        scheduleFrame = 0;
+      }
+      pendingForceFit = false;
       resizeObserver.disconnect();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pageshow', scheduleEnsurePanzoom);
+      window.removeEventListener('pageshow', handlePageShow);
       if (wheelHandler) {
         viewport.removeEventListener('wheel', wheelHandler);
       }
