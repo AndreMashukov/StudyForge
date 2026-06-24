@@ -1,6 +1,7 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import mermaid from 'mermaid';
-import { Maximize2, Minimize2, RotateCcw } from 'lucide-react';
+import Panzoom, { type PanzoomObject } from '@panzoom/panzoom';
+import { Focus, Maximize2, Minimize2, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { applyMermaidLabelTooltips } from '../../utils/applyMermaidLabelTooltips';
 import { IMermaidDiagram } from './IMermaidDiagram';
@@ -269,8 +270,18 @@ function sanitizeMermaidCode(source: string): string {
   );
 }
 
-export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) => {
+const PANZOOM_MIN_SCALE = 0.5;
+const PANZOOM_MAX_SCALE = 4;
+
+export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
+  code,
+  className,
+  enablePanZoom = true,
+}) => {
   const diagramRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const svgHostRef = useRef<HTMLDivElement | null>(null);
+  const panzoomRef = useRef<PanzoomObject | null>(null);
   const reactId = useId().replace(/:/g, '');
   const [error, setError] = useState<string | null>(null);
   const [svg, setSvg] = useState<string | null>(null);
@@ -280,6 +291,18 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
   const [fullscreenError, setFullscreenError] = useState<string | null>(null);
 
   const fullscreenLabel = isFullscreen ? 'Exit fullscreen' : 'View fullscreen';
+
+  const handleZoomIn = useCallback(() => {
+    panzoomRef.current?.zoomIn();
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    panzoomRef.current?.zoomOut();
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    panzoomRef.current?.reset();
+  }, []);
 
   const handleRetry = () => {
     setError(null);
@@ -389,6 +412,45 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
     };
   }, [code, reactId, renderAttempt]);
 
+  useEffect(() => {
+    if (!svg || !enablePanZoom) {
+      return undefined;
+    }
+
+    const host = svgHostRef.current;
+    const viewport = viewportRef.current;
+    if (!host || !viewport) {
+      return undefined;
+    }
+
+    const svgElement = host.querySelector('svg');
+    if (!(svgElement instanceof SVGSVGElement)) {
+      return undefined;
+    }
+
+    const panzoom = Panzoom(svgElement, {
+      minScale: PANZOOM_MIN_SCALE,
+      maxScale: PANZOOM_MAX_SCALE,
+      step: 0.25,
+      canvas: true,
+      cursor: 'grab',
+      contain: 'outside',
+    });
+    panzoomRef.current = panzoom;
+
+    const handleWheel = (event: WheelEvent) => {
+      panzoom.zoomWithWheel(event);
+    };
+
+    viewport.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      viewport.removeEventListener('wheel', handleWheel);
+      panzoom.destroy();
+      panzoomRef.current = null;
+    };
+  }, [svg, enablePanZoom, isFullscreen]);
+
   if (error) {
     return (
       <div
@@ -429,41 +491,113 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({ code, className }) =
         isFullscreen && 'h-screen max-h-none w-screen rounded-none border-0 bg-background'
       )}
     >
-      {isFullscreenSupported && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className={cn(
-                  'absolute right-3 top-3 z-10 h-8 w-8 shadow-sm',
-                  isFullscreen && 'right-4 top-4 h-10 w-10'
-                )}
-                onClick={handleFullscreenToggle}
-                aria-label={fullscreenLabel}
-                title={fullscreenLabel}
-              >
-                {isFullscreen ? (
-                  <Minimize2 className="h-4 w-4" />
-                ) : (
-                  <Maximize2 className="h-4 w-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">{fullscreenLabel}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+      <TooltipProvider>
+        <div
+          className={cn(
+            'absolute right-3 top-3 z-10 flex flex-col gap-1.5',
+            isFullscreen && 'right-4 top-4 gap-2'
+          )}
+        >
+          {enablePanZoom && (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className={cn('h-8 w-8 shadow-sm', isFullscreen && 'h-10 w-10')}
+                    onClick={handleZoomIn}
+                    aria-label="Zoom in"
+                    title="Zoom in"
+                  >
+                    <ZoomIn className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">Zoom in</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className={cn('h-8 w-8 shadow-sm', isFullscreen && 'h-10 w-10')}
+                    onClick={handleZoomOut}
+                    aria-label="Zoom out"
+                    title="Zoom out"
+                  >
+                    <ZoomOut className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">Zoom out</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className={cn('h-8 w-8 shadow-sm', isFullscreen && 'h-10 w-10')}
+                    onClick={handleResetZoom}
+                    aria-label="Reset zoom"
+                    title="Reset zoom"
+                  >
+                    <Focus className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">Reset zoom</TooltipContent>
+              </Tooltip>
+            </>
+          )}
+          {isFullscreenSupported && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className={cn('h-8 w-8 shadow-sm', isFullscreen && 'h-10 w-10')}
+                  onClick={handleFullscreenToggle}
+                  aria-label={fullscreenLabel}
+                  title={fullscreenLabel}
+                >
+                  {isFullscreen ? (
+                    <Minimize2 className="h-4 w-4" />
+                  ) : (
+                    <Maximize2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">{fullscreenLabel}</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      </TooltipProvider>
 
-      <div
-        className={cn(
-          'flex min-h-0 flex-1 justify-center overflow-auto p-4 [&_svg]:h-auto [&_svg]:max-w-full',
-          isFullscreen && 'h-full w-full items-center p-6 pt-16 [&_svg]:max-h-[calc(100vh-5rem)]'
-        )}
-        dangerouslySetInnerHTML={{ __html: svg }}
-      />
+      {enablePanZoom ? (
+        <div
+          ref={viewportRef}
+          className={cn(
+            'flex min-h-0 flex-1 touch-none overflow-hidden p-4 pt-14',
+            isFullscreen && 'h-full w-full p-6 pt-20'
+          )}
+        >
+          <div
+            ref={svgHostRef}
+            className="flex h-full w-full items-center justify-center"
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
+        </div>
+      ) : (
+        <div
+          className={cn(
+            'flex min-h-0 flex-1 justify-center overflow-auto p-4 [&_svg]:h-auto [&_svg]:max-w-full',
+            isFullscreen && 'h-full w-full items-center p-6 pt-16 [&_svg]:max-h-[calc(100vh-5rem)]'
+          )}
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
+      )}
 
       {fullscreenError && (
         <p
