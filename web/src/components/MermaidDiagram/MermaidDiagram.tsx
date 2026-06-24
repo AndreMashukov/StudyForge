@@ -387,6 +387,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
   const reactId = useId().replace(/:/g, '');
   const [error, setError] = useState<string | null>(null);
   const [svg, setSvg] = useState<string | null>(null);
+  const [isRendering, setIsRendering] = useState(false);
   const [renderAttempt, setRenderAttempt] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isFullscreenSupported, setIsFullscreenSupported] = useState(false);
@@ -406,12 +407,15 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
 
   const handleResetZoom = useCallback(() => {
     userHasInteractedRef.current = false;
+    lastFitHostSizeRef.current = null;
     const panzoom = panzoomRef.current;
     const host = svgHostRef.current;
     const svgElement = host?.querySelector('svg');
     if (panzoom && host && svgElement instanceof SVGSVGElement) {
       applyMermaidFitTransform(svgElement, host, panzoom);
       lastFitHostSizeRef.current = { width: host.clientWidth, height: host.clientHeight };
+      diagramRef.current?.classList.remove('opacity-0');
+      diagramRef.current?.classList.add('opacity-100');
       return;
     }
     panzoom?.reset();
@@ -475,15 +479,17 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
   useEffect(() => {
     let cancelled = false;
 
-    // Reset display state immediately so the spinner shows while waiting in queue.
     setError(null);
-    setSvg(null);
+    setIsRendering(true);
+    diagramRef.current?.classList.add('opacity-0');
+    diagramRef.current?.classList.remove('opacity-100');
 
     const { source: trimmed, nodeTooltips } = applyMermaidLabelTooltips(
       sanitizeMermaidCode(code?.trim() ?? '')
     );
     nodeTooltipsRef.current = nodeTooltips;
     if (!trimmed) {
+      setIsRendering(false);
       return () => { cancelled = true; };
     }
 
@@ -495,6 +501,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
         `Unsupported diagram type "${diagramType}". ` +
         `Only flowchart, graph, sequenceDiagram, classDiagram, erDiagram, and stateDiagram are supported.`
       );
+      setIsRendering(false);
       return () => { cancelled = true; };
     }
 
@@ -510,6 +517,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
           const { svg: out } = await mermaid.render(id, trimmed);
           if (!cancelled) {
             setSvg(out);
+            setIsRendering(false);
           }
         } catch (renderError) {
           // Mermaid appends an error SVG to <body> on failure (div#d${id}).
@@ -517,6 +525,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
           document.getElementById(`d${id}`)?.remove();
           if (!cancelled) {
             setSvg(null);
+            setIsRendering(false);
             setError(renderError instanceof Error ? renderError.message : 'Failed to render diagram');
           }
         }
@@ -527,6 +536,14 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       cancelled = true;
     };
   }, [code, reactId, renderAttempt]);
+
+  useEffect(() => {
+    const host = svgHostRef.current;
+    if (!host || !svg) {
+      return;
+    }
+    host.innerHTML = svg;
+  }, [svg]);
 
   useEffect(() => {
     if (!svg || !enablePanZoom) {
@@ -541,16 +558,28 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
 
     userHasInteractedRef.current = false;
     lastFitHostSizeRef.current = null;
+    diagramRef.current?.classList.add('opacity-0');
+    diagramRef.current?.classList.remove('opacity-100');
 
     let cancelled = false;
     let panzoom: PanzoomObject | null = null;
     let wheelHandler: ((event: WheelEvent) => void) | null = null;
     let scheduleFrame = 0;
     let pendingForceFit = false;
+    let hostSizeRetryTimeout = 0;
+    let visibilityRetryTimeout = 0;
 
     const getSvgElement = (): SVGSVGElement | null => {
       const svgElement = host.querySelector('svg');
       return svgElement instanceof SVGSVGElement ? svgElement : null;
+    };
+
+    const markFitted = (): void => {
+      if (cancelled) {
+        return;
+      }
+      diagramRef.current?.classList.remove('opacity-0');
+      diagramRef.current?.classList.add('opacity-100');
     };
 
     const shouldRefitForHostResize = (): boolean => {
@@ -576,6 +605,12 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
 
       const svgElement = getSvgElement();
       if (!svgElement || host.clientWidth <= 0 || host.clientHeight <= 0) {
+        if (!cancelled && (forceFit || hostSizeRetryTimeout === 0)) {
+          hostSizeRetryTimeout = window.setTimeout(() => {
+            hostSizeRetryTimeout = 0;
+            scheduleEnsurePanzoom(true);
+          }, 50);
+        }
         return;
       }
 
@@ -585,6 +620,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
         if (forceFit || shouldRefitForHostResize()) {
           applyMermaidFitTransform(svgElement, host, panzoom);
           lastFitHostSizeRef.current = { width: host.clientWidth, height: host.clientHeight };
+          markFitted();
         }
         return;
       }
@@ -600,6 +636,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
 
       applyMermaidFitTransform(svgElement, host, panzoom);
       lastFitHostSizeRef.current = { width: host.clientWidth, height: host.clientHeight };
+      markFitted();
 
       if (!wheelHandler) {
         wheelHandler = (event: WheelEvent) => {
@@ -632,15 +669,40 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       scheduleEnsurePanzoom(false);
     });
     resizeObserver.observe(host);
+    resizeObserver.observe(viewport);
+
+    const scheduleVisibilityRefit = (): void => {
+      if (userHasInteractedRef.current) {
+        return;
+      }
+
+      lastFitHostSizeRef.current = null;
+      diagramRef.current?.classList.add('opacity-0');
+      diagramRef.current?.classList.remove('opacity-100');
+      scheduleEnsurePanzoom(true);
+
+      if (visibilityRetryTimeout !== 0) {
+        window.clearTimeout(visibilityRetryTimeout);
+      }
+      visibilityRetryTimeout = window.setTimeout(() => {
+        visibilityRetryTimeout = 0;
+        if (!cancelled && !userHasInteractedRef.current) {
+          lastFitHostSizeRef.current = null;
+          scheduleEnsurePanzoom(true);
+        }
+      }, 150);
+    };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        scheduleEnsurePanzoom(!userHasInteractedRef.current);
+      if (document.visibilityState === 'hidden') {
+        lastFitHostSizeRef.current = null;
+        return;
       }
+      scheduleVisibilityRefit();
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     const handlePageShow = () => {
-      scheduleEnsurePanzoom(!userHasInteractedRef.current);
+      scheduleVisibilityRefit();
     };
     window.addEventListener('pageshow', handlePageShow);
 
@@ -649,6 +711,14 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       if (scheduleFrame !== 0) {
         window.cancelAnimationFrame(scheduleFrame);
         scheduleFrame = 0;
+      }
+      if (hostSizeRetryTimeout !== 0) {
+        window.clearTimeout(hostSizeRetryTimeout);
+        hostSizeRetryTimeout = 0;
+      }
+      if (visibilityRetryTimeout !== 0) {
+        window.clearTimeout(visibilityRetryTimeout);
+        visibilityRetryTimeout = 0;
       }
       pendingForceFit = false;
       resizeObserver.disconnect();
@@ -697,7 +767,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
     <div
       ref={diagramRef}
       className={cn(
-        'mermaid-diagram relative flex max-h-[min(70vh,520px)] overflow-hidden rounded-lg border border-border bg-card',
+        'mermaid-diagram relative flex max-h-[min(70vh,520px)] overflow-hidden rounded-lg border border-border bg-card opacity-0 transition-opacity duration-150',
         className,
         isFullscreen && 'h-screen max-h-none w-screen rounded-none border-0 bg-background'
       )}
@@ -786,6 +856,12 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
         </div>
       </TooltipProvider>
 
+      {isRendering && (
+        <div className="absolute inset-0 z-[1] flex items-center justify-center bg-background/40">
+          <Spinner size="sm" />
+        </div>
+      )}
+
       {enablePanZoom ? (
         <div
           ref={viewportRef}
@@ -797,16 +873,15 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
           <div
             ref={svgHostRef}
             className="relative h-full w-full"
-            dangerouslySetInnerHTML={{ __html: svg }}
           />
         </div>
       ) : (
         <div
+          ref={svgHostRef}
           className={cn(
             'flex min-h-0 flex-1 justify-center overflow-auto p-4 [&_svg]:h-auto [&_svg]:max-w-full',
             isFullscreen && 'h-full w-full items-center p-6 pt-16 [&_svg]:max-h-[calc(100vh-5rem)]'
           )}
-          dangerouslySetInnerHTML={{ __html: svg }}
         />
       )}
 

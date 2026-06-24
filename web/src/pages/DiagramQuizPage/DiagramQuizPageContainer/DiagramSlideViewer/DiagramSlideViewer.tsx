@@ -18,7 +18,7 @@ export const DiagramSlideViewer: React.FC<IDiagramSlideViewer> = ({
   className,
 }) => {
   const safeIndex = Math.min(Math.max(0, currentIndex), diagrams.length - 1);
-  const code = neutralizeMermaidQuizStyles(diagrams[safeIndex] ?? '');
+  const visibleDiagrams = diagrams.slice(0, 4);
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -27,8 +27,22 @@ export const DiagramSlideViewer: React.FC<IDiagramSlideViewer> = ({
           Option {LABELS[safeIndex]}
         </div>
         <Card className="overflow-hidden border-2">
-          <div className="aspect-video w-full min-h-[200px]">
-            <MermaidDiagram code={code} className="h-full min-h-[200px] border-0 bg-transparent" />
+          <div className="relative aspect-video w-full min-h-[200px]">
+            {visibleDiagrams.map((diagram, index) => (
+              <div
+                key={index}
+                className={cn(
+                  'absolute inset-0',
+                  index !== safeIndex && 'pointer-events-none invisible'
+                )}
+                aria-hidden={index !== safeIndex}
+              >
+                <MermaidDiagram
+                  code={neutralizeMermaidQuizStyles(diagram ?? '')}
+                  className="h-full max-h-none min-h-0 border-0 bg-transparent"
+                />
+              </div>
+            ))}
           </div>
         </Card>
       </div>
@@ -44,7 +58,7 @@ export const DiagramSlideViewer: React.FC<IDiagramSlideViewer> = ({
           <span className="ml-1 hidden sm:inline">Prev</span>
         </Button>
         <div className="flex flex-wrap justify-center gap-1.5">
-          {diagrams.slice(0, 4).map((_, i) => (
+          {visibleDiagrams.map((_, i) => (
             <button
               key={i}
               type="button"
@@ -61,7 +75,7 @@ export const DiagramSlideViewer: React.FC<IDiagramSlideViewer> = ({
           type="button"
           variant="outline"
           onClick={onNext}
-          disabled={safeIndex >= diagrams.length - 1}
+          disabled={safeIndex >= visibleDiagrams.length - 1}
           className="px-3 sm:px-4"
         >
           <span className="mr-1 hidden sm:inline">Next</span>
