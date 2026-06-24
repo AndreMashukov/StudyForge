@@ -526,13 +526,23 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
     let outerFrame = 0;
     let innerFrame = 0;
 
-    const initPanzoom = () => {
+    const getSvgElement = (): SVGSVGElement | null => {
+      const svgElement = host.querySelector('svg');
+      return svgElement instanceof SVGSVGElement ? svgElement : null;
+    };
+
+    const ensurePanzoom = (): void => {
       if (cancelled) {
         return;
       }
 
-      const svgElement = host.querySelector('svg');
-      if (!(svgElement instanceof SVGSVGElement)) {
+      const svgElement = getSvgElement();
+      if (!svgElement || host.clientWidth <= 0 || host.clientHeight <= 0) {
+        return;
+      }
+
+      if (panzoom) {
+        applyMermaidFitTransform(svgElement, host, panzoom);
         return;
       }
 
@@ -554,20 +564,44 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       });
       panzoomRef.current = panzoom;
 
-      wheelHandler = (event: WheelEvent) => {
-        panzoom?.zoomWithWheel(event);
-      };
-      viewport.addEventListener('wheel', wheelHandler, { passive: false });
+      if (!wheelHandler) {
+        wheelHandler = (event: WheelEvent) => {
+          panzoom?.zoomWithWheel(event);
+        };
+        viewport.addEventListener('wheel', wheelHandler, { passive: false });
+      }
     };
 
-    outerFrame = window.requestAnimationFrame(() => {
-      innerFrame = window.requestAnimationFrame(initPanzoom);
+    const scheduleEnsurePanzoom = () => {
+      window.cancelAnimationFrame(outerFrame);
+      window.cancelAnimationFrame(innerFrame);
+      outerFrame = window.requestAnimationFrame(() => {
+        innerFrame = window.requestAnimationFrame(ensurePanzoom);
+      });
+    };
+
+    scheduleEnsurePanzoom();
+
+    const resizeObserver = new ResizeObserver(() => {
+      scheduleEnsurePanzoom();
     });
+    resizeObserver.observe(host);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        scheduleEnsurePanzoom();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', scheduleEnsurePanzoom);
 
     return () => {
       cancelled = true;
       window.cancelAnimationFrame(outerFrame);
       window.cancelAnimationFrame(innerFrame);
+      resizeObserver.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', scheduleEnsurePanzoom);
       if (wheelHandler) {
         viewport.removeEventListener('wheel', wheelHandler);
       }
