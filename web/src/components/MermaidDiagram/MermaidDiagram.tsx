@@ -302,42 +302,64 @@ function normalizeMermaidSvgLayout(svgElement: SVGSVGElement): void {
   svgElement.style.maxHeight = 'none';
 }
 
-function fitMermaidSvgToViewport(
+interface IMermaidFitTransform {
+  scale: number;
+  panX: number;
+  panY: number;
+  minScale: number;
+}
+
+function computeMermaidFitTransform(
   svgElement: SVGSVGElement,
-  hostElement: HTMLElement,
-  panzoom: PanzoomObject
-): void {
+  hostElement: HTMLElement
+): IMermaidFitTransform | null {
   normalizeMermaidSvgLayout(svgElement);
 
   const contentSize = getSvgContentSize(svgElement);
   if (!contentSize) {
-    return;
+    return null;
   }
 
   const availableWidth = Math.max(hostElement.clientWidth - PANZOOM_VIEWPORT_PADDING_PX, 1);
   const availableHeight = Math.max(hostElement.clientHeight - PANZOOM_VIEWPORT_PADDING_PX, 1);
 
-  const fitScale = Math.min(
+  const scale = Math.min(
     availableWidth / contentSize.width,
     availableHeight / contentSize.height,
     PANZOOM_MAX_SCALE
   );
-  if (!Number.isFinite(fitScale) || fitScale <= 0) {
+  if (!Number.isFinite(scale) || scale <= 0) {
+    return null;
+  }
+
+  const scaledWidth = contentSize.width * scale;
+  const scaledHeight = contentSize.height * scale;
+
+  return {
+    scale,
+    panX: (hostElement.clientWidth - scaledWidth) / 2,
+    panY: (hostElement.clientHeight - scaledHeight) / 2,
+    minScale: Math.min(PANZOOM_MIN_SCALE, scale),
+  };
+}
+
+function applyMermaidFitTransform(
+  svgElement: SVGSVGElement,
+  hostElement: HTMLElement,
+  panzoom: PanzoomObject
+): void {
+  const fit = computeMermaidFitTransform(svgElement, hostElement);
+  if (!fit) {
     return;
   }
 
-  const scaledWidth = contentSize.width * fitScale;
-  const scaledHeight = contentSize.height * fitScale;
-  const panX = (hostElement.clientWidth - scaledWidth) / 2;
-  const panY = (hostElement.clientHeight - scaledHeight) / 2;
-
-  panzoom.zoom(fitScale, { animate: false, force: true });
-  panzoom.pan(panX, panY, { animate: false, force: true });
+  panzoom.zoom(fit.scale, { animate: false, force: true });
+  panzoom.pan(fit.panX, fit.panY, { animate: false, force: true });
   panzoom.setOptions({
-    startScale: fitScale,
-    startX: panX,
-    startY: panY,
-    minScale: Math.min(PANZOOM_MIN_SCALE, fitScale),
+    startScale: fit.scale,
+    startX: fit.panX,
+    startY: fit.panY,
+    minScale: fit.minScale,
   });
 }
 
@@ -373,7 +395,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
     const host = svgHostRef.current;
     const svgElement = host?.querySelector('svg');
     if (panzoom && host && svgElement instanceof SVGSVGElement) {
-      fitMermaidSvgToViewport(svgElement, host, panzoom);
+      applyMermaidFitTransform(svgElement, host, panzoom);
       return;
     }
     panzoom?.reset();
@@ -498,40 +520,58 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       return undefined;
     }
 
-    const svgElement = host.querySelector('svg');
-    if (!(svgElement instanceof SVGSVGElement)) {
-      return undefined;
-    }
+    let cancelled = false;
+    let panzoom: PanzoomObject | null = null;
+    let wheelHandler: ((event: WheelEvent) => void) | null = null;
+    let outerFrame = 0;
+    let innerFrame = 0;
 
-    normalizeMermaidSvgLayout(svgElement);
+    const initPanzoom = () => {
+      if (cancelled) {
+        return;
+      }
 
-    const panzoom = Panzoom(svgElement, {
-      minScale: PANZOOM_MIN_SCALE,
-      maxScale: PANZOOM_MAX_SCALE,
-      step: 0.25,
-      canvas: true,
-      cursor: 'grab',
-      contain: 'inside',
-    });
-    panzoomRef.current = panzoom;
+      const svgElement = host.querySelector('svg');
+      if (!(svgElement instanceof SVGSVGElement)) {
+        return;
+      }
 
-    const applyFit = () => {
-      window.requestAnimationFrame(() => {
-        fitMermaidSvgToViewport(svgElement, host, panzoom);
+      const fit = computeMermaidFitTransform(svgElement, host);
+      if (!fit) {
+        return;
+      }
+
+      panzoom = Panzoom(svgElement, {
+        minScale: fit.minScale,
+        maxScale: PANZOOM_MAX_SCALE,
+        step: 0.25,
+        canvas: true,
+        cursor: 'grab',
+        contain: 'inside',
+        startScale: fit.scale,
+        startX: fit.panX,
+        startY: fit.panY,
       });
+      panzoomRef.current = panzoom;
+
+      wheelHandler = (event: WheelEvent) => {
+        panzoom?.zoomWithWheel(event);
+      };
+      viewport.addEventListener('wheel', wheelHandler, { passive: false });
     };
 
-    applyFit();
-
-    const handleWheel = (event: WheelEvent) => {
-      panzoom.zoomWithWheel(event);
-    };
-
-    viewport.addEventListener('wheel', handleWheel, { passive: false });
+    outerFrame = window.requestAnimationFrame(() => {
+      innerFrame = window.requestAnimationFrame(initPanzoom);
+    });
 
     return () => {
-      viewport.removeEventListener('wheel', handleWheel);
-      panzoom.destroy();
+      cancelled = true;
+      window.cancelAnimationFrame(outerFrame);
+      window.cancelAnimationFrame(innerFrame);
+      if (wheelHandler) {
+        viewport.removeEventListener('wheel', wheelHandler);
+      }
+      panzoom?.destroy();
       panzoomRef.current = null;
     };
   }, [svg, enablePanZoom, isFullscreen]);
