@@ -33,13 +33,13 @@ export function LlmSetupsTable({ setups }: ILlmSetupsTableProps) {
                 </Link>
               </td>
               <td className="px-4 py-3 text-muted-foreground">
-                {setup.routes.text.providerType} / {setup.routes.text.model}
+                {setup.connectionLabels[setup.routes.text.connectionId] ?? setup.routes.text.connectionId} / {setup.routes.text.model}
               </td>
               <td className="px-4 py-3 text-muted-foreground">
-                {setup.routes.vision.providerType} / {setup.routes.vision.model}
+                {setup.connectionLabels[setup.routes.vision.connectionId] ?? setup.routes.vision.connectionId} / {setup.routes.vision.model}
               </td>
               <td className="px-4 py-3 text-muted-foreground">
-                {setup.routes.image.providerType} / {setup.routes.image.model}
+                {setup.connectionLabels[setup.routes.image.connectionId] ?? setup.routes.image.connectionId} / {setup.routes.image.model}
               </td>
               <td className="px-4 py-3">{setup.referencedGroupCount}</td>
               <td className="px-4 py-3">

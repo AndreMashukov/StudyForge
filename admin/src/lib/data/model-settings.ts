@@ -4,13 +4,22 @@ import * as admin from 'firebase-admin';
 import type {
   ActiveModelProviderType,
   IEncryptedSecretRecord,
+  IGeminiConnectionTestResult,
   IGeminiProviderConnection,
   IMiniMaxConnectionTestResult,
   IMiniMaxProviderConnection,
   IOpenRouterConnectionTestResult,
   IOpenRouterProviderConnection,
+  IUpdateGeminiSettingsRequest,
   IUpdateMiniMaxSettingsRequest,
   IUpdateOpenRouterSettingsRequest,
+  LlmModality,
+} from '@shared-types';
+import {
+  ALL_LLM_MODALITIES,
+  PRIMARY_GEMINI_CONNECTION_ID,
+  PRIMARY_MINIMAX_CONNECTION_ID,
+  PRIMARY_OPENROUTER_CONNECTION_ID,
 } from '@shared-types';
 import { requireAdminSession } from '../auth/session';
 import { getAdminFirestore } from '../firebase/admin';
@@ -20,8 +29,9 @@ import {
   isLlmSettingsEncryptionConfigured,
 } from '../security/llm-settings-encryption';
 
-const OPENROUTER_CONNECTION_ID = 'openrouter-primary';
-const MINIMAX_CONNECTION_ID = 'minimax-primary';
+const OPENROUTER_CONNECTION_ID = PRIMARY_OPENROUTER_CONNECTION_ID;
+const MINIMAX_CONNECTION_ID = PRIMARY_MINIMAX_CONNECTION_ID;
+const GEMINI_CONNECTION_ID = PRIMARY_GEMINI_CONNECTION_ID;
 const LEGACY_GEMINI_IMAGE_CONNECTION_ID = 'gemini-image-primary';
 const OPENROUTER_CONNECTIONS_COLLECTION = 'llmProviderConnections';
 const OPENROUTER_SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
@@ -52,30 +62,6 @@ export function isActiveModelProviderType(
   value: unknown
 ): value is ActiveModelProviderType {
   return value === 'gemini' || value === 'openrouter' || value === 'minimax';
-}
-
-function resolveActiveProviderIdLegacy(
-  openRouterConnection: IOpenRouterProviderConnection
-): ActiveModelProviderType {
-  return openRouterConnection.enabled ? 'openrouter' : 'gemini';
-}
-
-async function readActiveProviderId(
-  openRouterConnection: IOpenRouterProviderConnection,
-  miniMaxConnection: IMiniMaxProviderConnection
-): Promise<ActiveModelProviderType> {
-  const snapshot = await getActiveProviderRef().get();
-  const data = snapshot.data();
-
-  if (data && isActiveModelProviderType(data.activeProviderId)) {
-    return data.activeProviderId;
-  }
-
-  if (miniMaxConnection.enabled) {
-    return 'minimax';
-  }
-
-  return resolveActiveProviderIdLegacy(openRouterConnection);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -185,14 +171,44 @@ function toOpenRouterImageModelId(geminiModelId: string): string {
   return `google/${normalized}`;
 }
 
-function buildGeminiConnection(): IGeminiProviderConnection {
+function parseSupportedModalities(value: unknown): LlmModality[] {
+  if (Array.isArray(value)) {
+    const modalities = value.filter(
+      (entry): entry is LlmModality =>
+        entry === 'text' || entry === 'vision' || entry === 'image'
+    );
+    if (modalities.length > 0) {
+      return modalities;
+    }
+  }
+
+  return [...ALL_LLM_MODALITIES];
+}
+
+function getGeminiConnectionRef(): admin.firestore.DocumentReference {
+  return getAdminFirestore()
+    .collection(OPENROUTER_CONNECTIONS_COLLECTION)
+    .doc(GEMINI_CONNECTION_ID);
+}
+
+function getGeminiSecretRef(): admin.firestore.DocumentReference {
+  return getAdminFirestore()
+    .collection(OPENROUTER_SECRETS_COLLECTION)
+    .doc(GEMINI_CONNECTION_ID);
+}
+
+function buildDefaultGeminiConnection(
+  apiKeyConfigured: boolean
+): IGeminiProviderConnection {
   return {
-    providerType: 'gemini',
-    label: 'Gemini (server managed)',
-    enabled: true,
-    credentialMode: 'deployment-secret',
-    secretRef: 'GEMINI_API_KEY',
+    providerKind: 'gemini',
+    label: 'Primary Gemini',
+    credentialMode: 'encrypted-firestore',
+    apiKeyConfigured,
+    supportedModalities: [...ALL_LLM_MODALITIES],
     defaultModel: DEFAULT_GEMINI_MODEL,
+    defaultVisionModel: DEFAULT_GEMINI_MODEL,
+    defaultImageModel: DEFAULT_GEMINI_IMAGE_MODEL,
     lastValidationStatus: 'unknown',
   };
 }
@@ -201,11 +217,11 @@ function buildDefaultOpenRouterConnection(
   apiKeyConfigured: boolean
 ): IOpenRouterProviderConnection {
   return {
-    providerType: 'openrouter',
+    providerKind: 'openrouter',
     label: 'Primary OpenRouter',
-    enabled: false,
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured,
+    supportedModalities: [...ALL_LLM_MODALITIES],
     baseUrl: DEFAULT_OPENROUTER_BASE_URL,
     defaultModel: DEFAULT_OPENROUTER_MODEL,
     defaultVisionModel: DEFAULT_OPENROUTER_VISION_MODEL,
@@ -218,11 +234,11 @@ function buildDefaultMiniMaxConnection(
   apiKeyConfigured: boolean
 ): IMiniMaxProviderConnection {
   return {
-    providerType: 'minimax',
+    providerKind: 'minimax',
     label: 'Primary MiniMax',
-    enabled: false,
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured,
+    supportedModalities: [...ALL_LLM_MODALITIES],
     baseUrl: DEFAULT_MINIMAX_BASE_URL,
     defaultModel: DEFAULT_MINIMAX_MODEL,
     defaultVisionModel: DEFAULT_MINIMAX_VISION_MODEL,
@@ -294,7 +310,54 @@ async function readLegacyGeminiImageModel(): Promise<string | undefined> {
   return toOpenRouterImageModelId(data.defaultModel);
 }
 
-async function readOpenRouterConnection(): Promise<IOpenRouterProviderConnection> {
+export async function readGeminiConnection(): Promise<IGeminiProviderConnection> {
+  const [connectionSnapshot, secretSnapshot] = await Promise.all([
+    getGeminiConnectionRef().get(),
+    getGeminiSecretRef().get(),
+  ]);
+
+  const defaults = buildDefaultGeminiConnection(secretSnapshot.exists);
+  const data = connectionSnapshot.data();
+
+  if (!data) {
+    return defaults;
+  }
+
+  return {
+    ...defaults,
+    label: typeof data.label === 'string' ? data.label : defaults.label,
+    apiKeyConfigured:
+      secretSnapshot.exists || data.apiKeyConfigured === true || defaults.apiKeyConfigured,
+    supportedModalities: parseSupportedModalities(data.supportedModalities),
+    defaultModel:
+      typeof data.defaultModel === 'string' ? data.defaultModel : defaults.defaultModel,
+    defaultVisionModel:
+      typeof data.defaultVisionModel === 'string'
+        ? data.defaultVisionModel.trim() || undefined
+        : defaults.defaultVisionModel,
+    defaultImageModel:
+      typeof data.defaultImageModel === 'string'
+        ? normalizeImageModel(data.defaultImageModel, defaults.defaultImageModel ?? DEFAULT_GEMINI_IMAGE_MODEL)
+        : defaults.defaultImageModel,
+    updatedAt: toIsoString(data.updatedAt),
+    updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
+    lastValidatedAt: toIsoString(data.lastValidatedAt),
+    lastValidationError:
+      typeof data.lastValidationError === 'string'
+        ? data.lastValidationError
+        : data.lastValidationError === null
+          ? null
+          : undefined,
+    lastValidationStatus:
+      data.lastValidationStatus === 'healthy' ||
+      data.lastValidationStatus === 'unhealthy' ||
+      data.lastValidationStatus === 'unknown'
+        ? data.lastValidationStatus
+        : defaults.lastValidationStatus,
+  };
+}
+
+export async function readOpenRouterConnection(): Promise<IOpenRouterProviderConnection> {
   const [connectionSnapshot, secretSnapshot, legacyImageModel] = await Promise.all([
     getConnectionRef().get(),
     getSecretRef().get(),
@@ -319,10 +382,9 @@ async function readOpenRouterConnection(): Promise<IOpenRouterProviderConnection
   return {
     ...defaults,
     label: typeof data.label === 'string' ? data.label : defaults.label,
-    enabled:
-      typeof data.enabled === 'boolean' ? data.enabled : defaults.enabled,
     apiKeyConfigured:
       secretSnapshot.exists || data.apiKeyConfigured === true || defaults.apiKeyConfigured,
+    supportedModalities: parseSupportedModalities(data.supportedModalities),
     baseUrl:
       typeof data.baseUrl === 'string' ? data.baseUrl : defaults.baseUrl,
     defaultModel:
@@ -354,7 +416,7 @@ async function readOpenRouterConnection(): Promise<IOpenRouterProviderConnection
   };
 }
 
-async function readMiniMaxConnection(): Promise<IMiniMaxProviderConnection> {
+export async function readMiniMaxConnection(): Promise<IMiniMaxProviderConnection> {
   const [connectionSnapshot, secretSnapshot] = await Promise.all([
     getMiniMaxConnectionRef().get(),
     getMiniMaxSecretRef().get(),
@@ -370,10 +432,9 @@ async function readMiniMaxConnection(): Promise<IMiniMaxProviderConnection> {
   return {
     ...defaults,
     label: typeof data.label === 'string' ? data.label : defaults.label,
-    enabled:
-      typeof data.enabled === 'boolean' ? data.enabled : defaults.enabled,
     apiKeyConfigured:
       secretSnapshot.exists || data.apiKeyConfigured === true || defaults.apiKeyConfigured,
+    supportedModalities: parseSupportedModalities(data.supportedModalities),
     baseUrl:
       typeof data.baseUrl === 'string' ? data.baseUrl : defaults.baseUrl,
     defaultModel:
@@ -532,29 +593,17 @@ async function writeActiveProviderId(
 export async function getModelSettingsPageData(): Promise<IModelSettingsPageData> {
   await requireAdminSession();
 
-  const [openRouterConnection, miniMaxConnection] = await Promise.all([
+  const [geminiConnection, openRouterConnection, miniMaxConnection] = await Promise.all([
+    readGeminiConnection(),
     readOpenRouterConnection(),
     readMiniMaxConnection(),
   ]);
-  const activeProviderId = await readActiveProviderId(
-    openRouterConnection,
-    miniMaxConnection
-  );
 
   return {
-    activeProviderId,
-    geminiConnection: {
-      ...buildGeminiConnection(),
-      enabled: activeProviderId === 'gemini',
-    },
-    openRouterConnection: {
-      ...openRouterConnection,
-      enabled: activeProviderId === 'openrouter',
-    },
-    miniMaxConnection: {
-      ...miniMaxConnection,
-      enabled: activeProviderId === 'minimax',
-    },
+    activeProviderId: 'gemini',
+    geminiConnection,
+    openRouterConnection,
+    miniMaxConnection,
     encryptionConfigured: isLlmSettingsEncryptionConfigured(),
   };
 }
@@ -564,6 +613,16 @@ export async function setActiveModelProvider(
   actorUid: string
 ): Promise<IModelSettingsPageData> {
   await requireAdminSession();
+
+  if (providerType === 'gemini') {
+    const connection = await readGeminiConnection();
+
+    if (!connection.apiKeyConfigured) {
+      throw new Error(
+        'Gemini API key must be configured before activating this provider.'
+      );
+    }
+  }
 
   if (providerType === 'openrouter') {
     const connection = await readOpenRouterConnection();
@@ -587,24 +646,6 @@ export async function setActiveModelProvider(
 
   await writeActiveProviderId(providerType, actorUid);
 
-  await getConnectionRef().set(
-    {
-      enabled: providerType === 'openrouter',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedBy: actorUid,
-    },
-    { merge: true }
-  );
-
-  await getMiniMaxConnectionRef().set(
-    {
-      enabled: providerType === 'minimax',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedBy: actorUid,
-    },
-    { merge: true }
-  );
-
   return getModelSettingsPageData();
 }
 
@@ -625,11 +666,11 @@ export async function updateOpenRouterSettings(
   }
 
   const payload: Record<string, unknown> = {
-    providerType: 'openrouter',
+    providerKind: 'openrouter',
     label: currentConnection.label,
-    enabled: hasNewApiKey ? true : (input.enabled ?? currentConnection.enabled),
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
+    supportedModalities: [...ALL_LLM_MODALITIES],
     baseUrl: normalizeBaseUrl(input.baseUrl, 'OpenRouter'),
     defaultModel: normalizeModel(input.defaultModel, 'OpenRouter'),
     defaultVisionModel: normalizeVisionModel(input.defaultVisionModel),
@@ -742,11 +783,11 @@ export async function updateMiniMaxSettings(
   }
 
   const payload: Record<string, unknown> = {
-    providerType: 'minimax',
+    providerKind: 'minimax',
     label: currentConnection.label,
-    enabled: hasNewApiKey ? true : (input.enabled ?? currentConnection.enabled),
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
+    supportedModalities: [...ALL_LLM_MODALITIES],
     baseUrl: normalizeBaseUrl(input.baseUrl, 'MiniMax'),
     defaultModel: normalizeModel(input.defaultModel, 'MiniMax'),
     defaultVisionModel: normalizeVisionModel(input.defaultVisionModel),
@@ -774,6 +815,127 @@ export async function updateMiniMaxSettings(
   }
 
   return readMiniMaxConnection();
+}
+
+async function readStoredGeminiApiKey(): Promise<string> {
+  if (!isLlmSettingsEncryptionConfigured()) {
+    throw new Error('LLM_SETTINGS_ENCRYPTION_KEY is not configured.');
+  }
+
+  const snapshot = await getGeminiSecretRef().get();
+
+  if (!snapshot.exists) {
+    throw new Error('Gemini API key is not configured.');
+  }
+
+  return decryptSecret(readEncryptedSecret(snapshot.data(), 'Gemini'));
+}
+
+export async function updateGeminiSettings(
+  input: IUpdateGeminiSettingsRequest,
+  actorUid: string
+): Promise<IGeminiProviderConnection> {
+  const currentConnection = await readGeminiConnection();
+  const normalizedApiKey = input.apiKey?.trim();
+  const hasNewApiKey = Boolean(normalizedApiKey);
+
+  if (!currentConnection.apiKeyConfigured && !hasNewApiKey) {
+    throw new Error('Gemini API key is required on first save.');
+  }
+
+  if (hasNewApiKey && !isLlmSettingsEncryptionConfigured()) {
+    throw new Error('LLM_SETTINGS_ENCRYPTION_KEY is not configured.');
+  }
+
+  const payload: Record<string, unknown> = {
+    providerKind: 'gemini',
+    label: currentConnection.label,
+    credentialMode: 'encrypted-firestore',
+    apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
+    supportedModalities: [...ALL_LLM_MODALITIES],
+    defaultModel: normalizeModel(input.defaultModel, 'Gemini'),
+    defaultVisionModel: normalizeVisionModel(input.defaultVisionModel),
+    defaultImageModel: normalizeImageModel(
+      input.defaultImageModel,
+      DEFAULT_GEMINI_IMAGE_MODEL
+    ),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedBy: actorUid,
+  };
+
+  await getGeminiConnectionRef().set(payload, { merge: true });
+
+  if (hasNewApiKey && normalizedApiKey) {
+    const encrypted = encryptSecret(normalizedApiKey);
+    await getGeminiSecretRef().set(
+      {
+        ...encrypted,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedBy: actorUid,
+      },
+      { merge: true }
+    );
+  }
+
+  return readGeminiConnection();
+}
+
+export async function testStoredGeminiConnection(
+  actorUid: string
+): Promise<{
+  geminiConnection: IGeminiProviderConnection;
+  result: IGeminiConnectionTestResult;
+}> {
+  const connection = await readGeminiConnection();
+
+  try {
+    const apiKey = await readStoredGeminiApiKey();
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'GET',
+        cache: 'no-store',
+      }
+    );
+    const payload = (await response.json().catch(() => null)) as unknown;
+
+    if (!response.ok) {
+      throw new Error(
+        getResponseErrorMessage(payload, response.status, response.statusText, 'Gemini')
+      );
+    }
+
+    const modelCount =
+      isRecord(payload) && Array.isArray(payload.models) ? payload.models.length : 0;
+    const validatedAt = new Date().toISOString();
+
+    await updateValidationStatus(getGeminiConnectionRef(), actorUid, 'healthy', null);
+
+    return {
+      geminiConnection: await readGeminiConnection(),
+      result: {
+        success: true,
+        message:
+          modelCount > 0
+            ? `Validated Gemini access and discovered ${modelCount} available models.`
+            : 'Validated Gemini access successfully.',
+        validatedAt,
+        model: connection.defaultModel,
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Gemini validation failed.';
+
+    await updateValidationStatus(getGeminiConnectionRef(), actorUid, 'unhealthy', message);
+
+    return {
+      geminiConnection: await readGeminiConnection(),
+      result: {
+        success: false,
+        message,
+      },
+    };
+  }
 }
 
 export async function testStoredMiniMaxConnection(

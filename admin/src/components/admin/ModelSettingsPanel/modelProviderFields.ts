@@ -38,12 +38,20 @@ function getGeminiFieldValue(
   key: string,
   connection: IGeminiProviderConnection
 ): string {
-  if (key === 'credentialSource') {
-    return connection.secretRef;
-  }
-
   if (key === 'textModel') {
     return connection.defaultModel;
+  }
+
+  if (key === 'visionModel') {
+    return connection.defaultVisionModel?.trim() || connection.defaultModel;
+  }
+
+  if (key === 'imageModel') {
+    return connection.defaultImageModel ?? '—';
+  }
+
+  if (key === 'apiKey') {
+    return connection.apiKeyConfigured ? 'Configured' : 'Missing';
   }
 
   return '—';
@@ -124,7 +132,10 @@ function getProviderFieldValue(
 }
 
 function getEncryptedProviderStatusBadges(
-  connection: IOpenRouterProviderConnection | IMiniMaxProviderConnection
+  connection:
+    | IGeminiProviderConnection
+    | IOpenRouterProviderConnection
+    | IMiniMaxProviderConnection
 ): string[] {
   return [
     connection.lastValidationStatus || 'unknown',
@@ -139,6 +150,14 @@ function getActivationState(
   IModelProviderOverviewItem,
   'canActivate' | 'activationBlockedReason'
 > {
+  if (providerType === 'gemini' && !params.geminiConnection.apiKeyConfigured) {
+    return {
+      canActivate: false,
+      activationBlockedReason:
+        'Configure a Gemini API key before activating this provider.',
+    };
+  }
+
   if (providerType === 'openrouter' && !params.openRouterConnection.apiKeyConfigured) {
     return {
       canActivate: false,
@@ -192,11 +211,13 @@ export function buildProviderOverviewItems(
       isEditable: definition.isEditable,
       staticBadges: [...(definition.staticBadges ?? [])],
       statusBadges:
-        providerType === 'openrouter'
-          ? getEncryptedProviderStatusBadges(params.openRouterConnection)
-          : providerType === 'minimax'
-            ? getEncryptedProviderStatusBadges(params.miniMaxConnection)
-            : [],
+        providerType === 'gemini'
+          ? getEncryptedProviderStatusBadges(params.geminiConnection)
+          : providerType === 'openrouter'
+            ? getEncryptedProviderStatusBadges(params.openRouterConnection)
+            : providerType === 'minimax'
+              ? getEncryptedProviderStatusBadges(params.miniMaxConnection)
+              : [],
       overviewFields: overviewFieldDefs.map((field) => ({
         label: field.label,
         value: getProviderFieldValue(providerType, field.key, params),

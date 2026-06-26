@@ -6,7 +6,12 @@ import type {
   ILlmSetup,
   ILlmSetupRoutes,
   IUpdateLlmSetupRequest,
-  LlmProviderType,
+  LlmModality,
+} from '@shared-types';
+import {
+  PRIMARY_GEMINI_CONNECTION_ID,
+  PRIMARY_MINIMAX_CONNECTION_ID,
+  PRIMARY_OPENROUTER_CONNECTION_ID,
 } from '@shared-types';
 import * as admin from 'firebase-admin';
 import { requireAdminSession } from '../auth/session';
@@ -20,8 +25,11 @@ import {
   DEFAULT_OPENROUTER_IMAGE_MODEL,
   DEFAULT_OPENROUTER_MODEL,
   DEFAULT_OPENROUTER_VISION_MODEL,
-  getModelSettingsPageData,
 } from './model-settings';
+import {
+  listProviderConnectionCatalog,
+  validateModalityRoute,
+} from './provider-connections';
 
 const LLM_SETUPS_COLLECTION = 'llmSetups';
 const USER_GROUPS_COLLECTION = 'userGroups';
@@ -29,30 +37,27 @@ const USER_GROUPS_COLLECTION = 'userGroups';
 export interface IAdminLlmSetupSummary extends ILlmSetup {
   referencedGroupCount: number;
   providerWarnings: string[];
+  connectionLabels: Record<string, string>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isProviderType(value: unknown): value is LlmProviderType {
-  return value === 'gemini' || value === 'openrouter' || value === 'minimax';
-}
-
 function parseModalityRoute(value: unknown): ILlmModalityRoute | null {
-  if (!isRecord(value) || !isProviderType(value.providerType)) {
+  if (!isRecord(value)) {
     return null;
   }
 
+  const connectionId =
+    typeof value.connectionId === 'string' ? value.connectionId.trim() : '';
   const model = typeof value.model === 'string' ? value.model.trim() : '';
-  if (!model) {
+
+  if (!connectionId || !model) {
     return null;
   }
 
-  return {
-    providerType: value.providerType,
-    model,
-  };
+  return { connectionId, model };
 }
 
 function parseRoutes(value: unknown): ILlmSetupRoutes | null {
@@ -89,23 +94,32 @@ function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSe
   };
 }
 
-function normalizeModalityRoute(route: ILlmModalityRoute, label: string): ILlmModalityRoute {
+async function normalizeModalityRoute(
+  route: ILlmModalityRoute,
+  modality: LlmModality,
+  label: string
+): Promise<ILlmModalityRoute> {
   const model = route.model.trim();
+  const connectionId = route.connectionId.trim();
+
   if (!model) {
     throw new Error(`${label} model is required.`);
   }
 
-  return {
-    providerType: route.providerType,
-    model,
-  };
+  if (!connectionId) {
+    throw new Error(`${label} provider connection is required.`);
+  }
+
+  await validateModalityRoute({ connectionId, model }, modality, label);
+
+  return { connectionId, model };
 }
 
-function normalizeRoutes(routes: ILlmSetupRoutes): ILlmSetupRoutes {
+async function normalizeRoutes(routes: ILlmSetupRoutes): Promise<ILlmSetupRoutes> {
   return {
-    text: normalizeModalityRoute(routes.text, 'Text'),
-    vision: normalizeModalityRoute(routes.vision, 'Vision'),
-    image: normalizeModalityRoute(routes.image, 'Image'),
+    text: await normalizeModalityRoute(routes.text, 'text', 'Text'),
+    vision: await normalizeModalityRoute(routes.vision, 'vision', 'Vision'),
+    image: await normalizeModalityRoute(routes.image, 'image', 'Image'),
   };
 }
 
@@ -132,49 +146,72 @@ function toFirestoreLlmSetupDocument(
 
 export function createDefaultLlmSetupRoutes(): ILlmSetupRoutes {
   return {
-    text: { providerType: 'gemini', model: DEFAULT_GEMINI_MODEL },
-    vision: { providerType: 'gemini', model: DEFAULT_GEMINI_MODEL },
-    image: { providerType: 'gemini', model: DEFAULT_GEMINI_IMAGE_MODEL },
+    text: { connectionId: PRIMARY_GEMINI_CONNECTION_ID, model: DEFAULT_GEMINI_MODEL },
+    vision: { connectionId: PRIMARY_GEMINI_CONNECTION_ID, model: DEFAULT_GEMINI_MODEL },
+    image: { connectionId: PRIMARY_GEMINI_CONNECTION_ID, model: DEFAULT_GEMINI_IMAGE_MODEL },
   };
 }
 
 export function createOpenRouterDefaultRoutes(): ILlmSetupRoutes {
   return {
-    text: { providerType: 'openrouter', model: DEFAULT_OPENROUTER_MODEL },
-    vision: { providerType: 'openrouter', model: DEFAULT_OPENROUTER_VISION_MODEL },
-    image: { providerType: 'openrouter', model: DEFAULT_OPENROUTER_IMAGE_MODEL },
+    text: { connectionId: PRIMARY_OPENROUTER_CONNECTION_ID, model: DEFAULT_OPENROUTER_MODEL },
+    vision: {
+      connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
+      model: DEFAULT_OPENROUTER_VISION_MODEL,
+    },
+    image: {
+      connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
+      model: DEFAULT_OPENROUTER_IMAGE_MODEL,
+    },
   };
 }
 
 export function createMiniMaxDefaultRoutes(): ILlmSetupRoutes {
   return {
-    text: { providerType: 'minimax', model: DEFAULT_MINIMAX_MODEL },
-    vision: { providerType: 'minimax', model: DEFAULT_MINIMAX_VISION_MODEL },
-    image: { providerType: 'minimax', model: DEFAULT_MINIMAX_IMAGE_MODEL },
+    text: { connectionId: PRIMARY_MINIMAX_CONNECTION_ID, model: DEFAULT_MINIMAX_MODEL },
+    vision: { connectionId: PRIMARY_MINIMAX_CONNECTION_ID, model: DEFAULT_MINIMAX_VISION_MODEL },
+    image: { connectionId: PRIMARY_MINIMAX_CONNECTION_ID, model: DEFAULT_MINIMAX_IMAGE_MODEL },
   };
 }
 
 async function buildProviderWarnings(routes: ILlmSetupRoutes): Promise<string[]> {
-  const pageData = await getModelSettingsPageData();
+  const catalog = await listProviderConnectionCatalog();
   const warnings: string[] = [];
-
-  const providers = new Set<LlmProviderType>([
-    routes.text.providerType,
-    routes.vision.providerType,
-    routes.image.providerType,
+  const connectionIds = new Set([
+    routes.text.connectionId,
+    routes.vision.connectionId,
+    routes.image.connectionId,
   ]);
 
-  for (const providerType of providers) {
-    if (providerType === 'openrouter' && !pageData.openRouterConnection.apiKeyConfigured) {
-      warnings.push('OpenRouter credentials are not configured.');
+  for (const connectionId of connectionIds) {
+    const connection = catalog.find((entry) => entry.id === connectionId);
+    if (!connection) {
+      warnings.push(`Provider connection ${connectionId} does not exist.`);
+      continue;
     }
 
-    if (providerType === 'minimax' && !pageData.miniMaxConnection.apiKeyConfigured) {
-      warnings.push('MiniMax credentials are not configured.');
+    if (!connection.apiKeyConfigured) {
+      warnings.push(`${connection.label} credentials are not configured.`);
     }
   }
 
   return warnings;
+}
+
+function buildConnectionLabels(
+  routes: ILlmSetupRoutes,
+  catalog: Awaited<ReturnType<typeof listProviderConnectionCatalog>>
+): Record<string, string> {
+  const labels: Record<string, string> = {};
+
+  for (const route of [routes.text, routes.vision, routes.image]) {
+    const connection = catalog.find((entry) => entry.id === route.connectionId);
+    labels[route.connectionId] = connection
+      ? `${connection.label} (${connection.providerKind})`
+      : route.connectionId;
+  }
+
+  return labels;
 }
 
 async function countGroupsForSetup(setupId: string): Promise<number> {
@@ -189,7 +226,10 @@ async function countGroupsForSetup(setupId: string): Promise<number> {
 export async function listLlmSetups(): Promise<IAdminLlmSetupSummary[]> {
   await requireAdminSession();
 
-  const snapshot = await getAdminFirestore().collection(LLM_SETUPS_COLLECTION).get();
+  const [snapshot, catalog] = await Promise.all([
+    getAdminFirestore().collection(LLM_SETUPS_COLLECTION).get(),
+    listProviderConnectionCatalog(),
+  ]);
 
   const summaries: IAdminLlmSetupSummary[] = [];
 
@@ -203,6 +243,7 @@ export async function listLlmSetups(): Promise<IAdminLlmSetupSummary[]> {
       ...setup,
       referencedGroupCount: await countGroupsForSetup(doc.id),
       providerWarnings: await buildProviderWarnings(setup.routes),
+      connectionLabels: buildConnectionLabels(setup.routes, catalog),
     });
   }
 
@@ -212,7 +253,11 @@ export async function listLlmSetups(): Promise<IAdminLlmSetupSummary[]> {
 export async function getLlmSetupById(setupId: string): Promise<IAdminLlmSetupSummary | null> {
   await requireAdminSession();
 
-  const doc = await getAdminFirestore().collection(LLM_SETUPS_COLLECTION).doc(setupId).get();
+  const [doc, catalog] = await Promise.all([
+    getAdminFirestore().collection(LLM_SETUPS_COLLECTION).doc(setupId).get(),
+    listProviderConnectionCatalog(),
+  ]);
+
   if (!doc.exists) {
     return null;
   }
@@ -226,6 +271,7 @@ export async function getLlmSetupById(setupId: string): Promise<IAdminLlmSetupSu
     ...setup,
     referencedGroupCount: await countGroupsForSetup(doc.id),
     providerWarnings: await buildProviderWarnings(setup.routes),
+    connectionLabels: buildConnectionLabels(setup.routes, catalog),
   };
 }
 
@@ -240,7 +286,7 @@ export async function createLlmSetup(
     throw new Error('Setup name is required.');
   }
 
-  const routes = normalizeRoutes(input.routes);
+  const routes = await normalizeRoutes(input.routes);
   const now = new Date().toISOString();
   const docRef = getAdminFirestore().collection(LLM_SETUPS_COLLECTION).doc();
 
@@ -286,7 +332,7 @@ export async function updateLlmSetup(
     ...current,
     name: input.name?.trim() || current.name,
     description: nextDescription,
-    routes: input.routes ? normalizeRoutes(input.routes) : current.routes,
+    routes: input.routes ? await normalizeRoutes(input.routes) : current.routes,
     updatedAt: new Date().toISOString(),
     updatedBy: adminUid,
   };

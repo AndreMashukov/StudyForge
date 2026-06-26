@@ -30,9 +30,9 @@ export function ProviderConnectionsOverview({
     {
       href: '/provider-connections/gemini',
       label: 'Gemini',
-      description: 'Server-managed deployment secret.',
-      status: 'Configured',
-      editable: false,
+      description: 'Encrypted API key stored in Firestore.',
+      status: geminiConnection.apiKeyConfigured ? 'Configured' : 'Missing credentials',
+      editable: true,
     },
     {
       href: '/provider-connections/openrouter',
@@ -54,7 +54,7 @@ export function ProviderConnectionsOverview({
     <div className="space-y-4">
       {!encryptionConfigured ? (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-          LLM_SETTINGS_ENCRYPTION_KEY is not configured. OpenRouter and MiniMax credentials cannot be saved.
+          LLM_SETTINGS_ENCRYPTION_KEY is not configured. Provider credentials cannot be saved.
         </div>
       ) : null}
 

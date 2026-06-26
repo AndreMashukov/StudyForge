@@ -5,6 +5,7 @@ import { AdminPageHeader } from '../../../../components/admin/AdminPageHeader';
 import { LlmSetupForm } from '../../../../components/admin/LlmSetupForm';
 import { routesToFormValues } from '../../../../components/admin/LlmSetupForm/LlmSetupForm.form';
 import { getLlmSetupById } from '../../../../lib/data/llm-setups';
+import { listProviderConnectionCatalog } from '../../../../lib/data/provider-connections';
 
 export default async function LlmSetupDetailPage({
   params,
@@ -12,7 +13,10 @@ export default async function LlmSetupDetailPage({
   params: Promise<{ setupId: string }>;
 }) {
   const { setupId } = await params;
-  const setup = await getLlmSetupById(setupId);
+  const [setup, providerConnections] = await Promise.all([
+    getLlmSetupById(setupId),
+    listProviderConnectionCatalog(),
+  ]);
 
   if (!setup) {
     notFound();
@@ -36,6 +40,7 @@ export default async function LlmSetupDetailPage({
       <LlmSetupForm
         setupId={setup.id}
         defaultValues={routesToFormValues(setup.name, setup.description, setup.routes)}
+        providerConnections={providerConnections}
         providerWarnings={setup.providerWarnings}
       />
     </div>

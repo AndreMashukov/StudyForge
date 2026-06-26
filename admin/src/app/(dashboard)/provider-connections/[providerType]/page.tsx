@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { AdminPageHeader } from '../../../../components/admin/AdminPageHeader';
 import { ModelSettingsPanelSkeleton } from '../../../../components/admin/loading';
-import { GeminiSettingsPanel } from '../../../../components/admin/ModelSettingsPanel/GeminiSettingsPanel';
+import { GeminiSettingsForm } from '../../../../components/admin/ModelSettingsPanel/GeminiSettingsForm';
 import { MiniMaxSettingsForm } from '../../../../components/admin/ModelSettingsPanel/MiniMaxSettingsForm';
 import { OpenRouterSettingsForm } from '../../../../components/admin/ModelSettingsPanel/OpenRouterSettingsForm';
 import {
@@ -26,10 +26,9 @@ async function ProviderSettingsSection({
 
   if (providerType === 'gemini') {
     return (
-      <GeminiSettingsPanel
+      <GeminiSettingsForm
         geminiConnection={pageData.geminiConnection}
-        openRouterConnection={pageData.openRouterConnection}
-        miniMaxConnection={pageData.miniMaxConnection}
+        encryptionConfigured={pageData.encryptionConfigured}
       />
     );
   }

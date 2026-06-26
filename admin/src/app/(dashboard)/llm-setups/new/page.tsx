@@ -4,9 +4,13 @@ import { AdminPageHeader } from '../../../../components/admin/AdminPageHeader';
 import { LlmSetupForm } from '../../../../components/admin/LlmSetupForm';
 import { routesToFormValues } from '../../../../components/admin/LlmSetupForm/LlmSetupForm.form';
 import { createDefaultLlmSetupRoutes } from '../../../../lib/data/llm-setups';
+import { listProviderConnectionCatalog } from '../../../../lib/data/provider-connections';
 
-export default function NewLlmSetupPage() {
-  const defaultRoutes = createDefaultLlmSetupRoutes();
+export default async function NewLlmSetupPage() {
+  const [defaultRoutes, providerConnections] = await Promise.all([
+    Promise.resolve(createDefaultLlmSetupRoutes()),
+    listProviderConnectionCatalog(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -20,11 +24,12 @@ export default function NewLlmSetupPage() {
 
       <AdminPageHeader
         title="Create LLM setup"
-        description="Choose provider and model for each modality."
+        description="Choose provider connection and model for each modality."
       />
 
       <LlmSetupForm
         defaultValues={routesToFormValues('New setup', '', defaultRoutes)}
+        providerConnections={providerConnections}
       />
     </div>
   );

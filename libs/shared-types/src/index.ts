@@ -1679,9 +1679,21 @@ export interface GetStatisticsQuizDetailResponse {
   failedQuestions: StatisticsRecentFailure[];
 }
 
-export type LlmProviderType = 'gemini' | 'openrouter' | 'minimax';
+/** Provider family for a configured provider connection. */
+export type LlmProviderKind = 'gemini' | 'openrouter' | 'minimax';
 
-export type LlmCredentialMode = 'deployment-secret' | 'encrypted-firestore';
+/** @deprecated Use LlmProviderKind */
+export type LlmProviderType = LlmProviderKind;
+
+export const PRIMARY_GEMINI_CONNECTION_ID = 'gemini-primary';
+export const PRIMARY_OPENROUTER_CONNECTION_ID = 'openrouter-primary';
+export const PRIMARY_MINIMAX_CONNECTION_ID = 'minimax-primary';
+
+export const ALL_LLM_MODALITIES = ['text', 'vision', 'image'] as const;
+
+export type LlmModality = 'text' | 'vision' | 'image';
+
+export type LlmCredentialMode = 'encrypted-firestore';
 
 export type LlmConnectionValidationStatus =
   | 'unknown'
@@ -1697,12 +1709,28 @@ export interface ILlmConnectionAuditFields {
 }
 
 export interface IGeminiProviderConnection extends ILlmConnectionAuditFields {
-  providerType: 'gemini';
+  providerKind: 'gemini';
   label: string;
-  enabled: boolean;
-  credentialMode: 'deployment-secret';
-  secretRef: 'GEMINI_API_KEY';
+  credentialMode: 'encrypted-firestore';
+  apiKeyConfigured: boolean;
+  supportedModalities: LlmModality[];
   defaultModel: string;
+  defaultVisionModel?: string;
+  defaultImageModel?: string;
+}
+
+export interface IUpdateGeminiSettingsRequest {
+  defaultModel: string;
+  defaultVisionModel?: string;
+  defaultImageModel?: string;
+  apiKey?: string;
+}
+
+export interface IGeminiConnectionTestResult {
+  success: boolean;
+  message: string;
+  validatedAt?: string;
+  model?: string;
 }
 
 /** Admin-managed Gemini image generation (slide images, etc.). */
@@ -1733,11 +1761,11 @@ export interface IOpenRouterProviderHeaders {
 }
 
 export interface IOpenRouterProviderConnection extends ILlmConnectionAuditFields {
-  providerType: 'openrouter';
+  providerKind: 'openrouter';
   label: string;
-  enabled: boolean;
   credentialMode: 'encrypted-firestore';
   apiKeyConfigured: boolean;
+  supportedModalities: LlmModality[];
   baseUrl: string;
   defaultModel: string;
   /** Screenshot / image-understanding model (image-in → text-out) */
@@ -1769,11 +1797,11 @@ export interface IUpdateOpenRouterSettingsRequest {
 }
 
 export interface IMiniMaxProviderConnection extends ILlmConnectionAuditFields {
-  providerType: 'minimax';
+  providerKind: 'minimax';
   label: string;
-  enabled: boolean;
   credentialMode: 'encrypted-firestore';
   apiKeyConfigured: boolean;
+  supportedModalities: LlmModality[];
   /** OpenAI-compatible chat base URL (text + vision) */
   baseUrl: string;
   defaultModel: string;
@@ -1834,11 +1862,18 @@ export type LlmCapabilityKey =
 
 // --- LLM setup & user group routing ---
 
-export type LlmModality = 'text' | 'vision' | 'image';
-
 export interface ILlmModalityRoute {
-  providerType: LlmProviderType;
+  connectionId: string;
   model: string;
+}
+
+/** Admin picker entry for LLM setup route configuration. */
+export interface IProviderConnectionCatalogEntry {
+  id: string;
+  providerKind: LlmProviderKind;
+  label: string;
+  apiKeyConfigured: boolean;
+  supportedModalities: LlmModality[];
 }
 
 export interface ILlmSetupRoutes {

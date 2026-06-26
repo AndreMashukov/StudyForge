@@ -29,6 +29,10 @@ export class LlmProviderClientFactory {
       );
     }
 
-    return new GeminiProviderClient();
+    if (!providerApiKey) {
+      throw new Error('providerApiKey is required for Gemini provider');
+    }
+
+    return new GeminiProviderClient(providerApiKey, route.connectionId);
   }
 }

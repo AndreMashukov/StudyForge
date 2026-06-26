@@ -66,6 +66,28 @@ _Avoid_: stub, placeholder record
 Shared server-side pipeline (ADK-orchestrated) that generates an artifact, runs verification gates, self-repairs failures, and only marks the record completed when gates pass.
 _Avoid_: agent service, generation pipeline (when meaning this specific platform)
 
+## AI routing
+
+**LLM setup**:
+Admin-managed routing profile that selects which provider connection and model are used for each LLM modality.
+_Avoid_: model setting, active provider, preset
+
+**LLM modality**:
+One of the broad AI input/output lanes used for routing: text, vision, or image.
+_Avoid_: capability (when meaning the routing lane), model type
+
+**LLM setup route**:
+One modality entry inside an LLM setup. Points to a concrete provider connection and a model.
+_Avoid_: provider type mapping, global provider selection
+
+**Provider connection**:
+Admin-managed connection to an LLM provider, including its credential state, supported LLM modalities, and provider-specific defaults. Each connection has a stable ID (e.g. `gemini-primary`) and a **provider kind** (`gemini`, `openrouter`, or `minimax`). Credentials for all provider kinds are stored encrypted in Firestore — not as deployment secrets.
+_Avoid_: provider type (when meaning a configured connection), active provider
+
+**Provider kind**:
+The vendor/protocol family of a provider connection (`gemini`, `openrouter`, `minimax`). Distinct from a connection ID: multiple connections could share a kind in the future.
+_Avoid_: provider type (prefer **provider kind** on connection documents)
+
 ## Rules
 
 **Rule**:
@@ -96,6 +118,8 @@ _Avoid_: folder chat, library chat
 - **Artifacts** are generated from one or more **Documents** in the same directory
 - **Rules** attach to **Directories** and inherit down the tree
 - A **Generation job** drives async completion of a **Pending record**
+- A **LLM setup** has one **LLM setup route** per LLM modality
+- A **LLM setup route** points to one **Provider connection**
 
 ## Flagged ambiguities
 

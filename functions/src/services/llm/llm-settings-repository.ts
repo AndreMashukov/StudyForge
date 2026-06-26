@@ -20,27 +20,15 @@ function isActiveProviderId(value: unknown): value is ActiveLlmProviderId {
 
 export class LlmSettingsRepository {
   static async getActiveProviderId(): Promise<ActiveLlmProviderId> {
-    const [activeSnapshot, openRouterConnection, miniMaxConnection] = await Promise.all([
-      admin
-        .firestore()
-        .collection(ACTIVE_PROVIDER_COLLECTION)
-        .doc(ACTIVE_PROVIDER_DOC_ID)
-        .get(),
-      this.getOpenRouterConnection(),
-      this.getMiniMaxConnection(),
-    ]);
+    const activeSnapshot = await admin
+      .firestore()
+      .collection(ACTIVE_PROVIDER_COLLECTION)
+      .doc(ACTIVE_PROVIDER_DOC_ID)
+      .get();
 
     const activeProviderId = activeSnapshot.data()?.activeProviderId;
     if (isActiveProviderId(activeProviderId)) {
       return activeProviderId;
-    }
-
-    if (miniMaxConnection?.enabled) {
-      return 'minimax';
-    }
-
-    if (openRouterConnection?.enabled) {
-      return 'openrouter';
     }
 
     return 'gemini';

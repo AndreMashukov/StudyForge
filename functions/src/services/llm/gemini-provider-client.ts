@@ -1,13 +1,22 @@
 import { GoogleGenAI } from '@google/genai';
 import type { LlmProviderClient } from './llm-provider-client';
-import type { LlmTextRequest, LlmTextResult, LlmImageRequest, LlmImageResult, LlmVisionRequest, LlmVisionResult } from './types';
+import type {
+  LlmImageRequest,
+  LlmImageResult,
+  LlmTextRequest,
+  LlmTextResult,
+  LlmVisionRequest,
+  LlmVisionResult,
+} from './types';
 
 export class GeminiProviderClient implements LlmProviderClient {
-  async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
+  constructor(
+    private readonly apiKey: string,
+    private readonly connectionId: string
+  ) {}
 
-    const client = new GoogleGenAI({ apiKey });
+  async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
+    const client = new GoogleGenAI({ apiKey: this.apiKey });
     const response = await client.models.generateContent({
       model: request.config.model,
       contents: request.prompt,
@@ -20,13 +29,15 @@ export class GeminiProviderClient implements LlmProviderClient {
     });
 
     const text = response.text;
-    if (!text) throw new Error('Empty response from Gemini API');
+    if (!text) {
+      throw new Error('Empty response from Gemini API');
+    }
 
     return {
       text,
       model: request.config.model,
       providerType: 'gemini',
-      connectionId: 'gemini-primary',
+      connectionId: this.connectionId,
     };
   }
 
