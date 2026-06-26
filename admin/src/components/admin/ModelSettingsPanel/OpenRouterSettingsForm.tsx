@@ -72,9 +72,8 @@ function isOpenRouterProviderConnection(
   }
 
   return (
-    value.providerType === 'openrouter' &&
+    value.providerKind === 'openrouter' &&
     typeof value.label === 'string' &&
-    typeof value.enabled === 'boolean' &&
     value.credentialMode === 'encrypted-firestore' &&
     typeof value.apiKeyConfigured === 'boolean' &&
     typeof value.baseUrl === 'string' &&

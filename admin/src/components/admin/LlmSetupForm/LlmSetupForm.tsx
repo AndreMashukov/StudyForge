@@ -1,6 +1,6 @@
 'use client';
 
-import type { LlmProviderType } from '@shared-types';
+import type { IProviderConnectionCatalogEntry } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Input, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
@@ -13,29 +13,31 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
 import {
   type ILlmSetupFormValues,
+  filterConnectionsForModality,
   llmSetupFormSchema,
   toLlmSetupRoutes,
 } from './LlmSetupForm.form';
-
-const providerOptions: LlmProviderType[] = ['gemini', 'openrouter', 'minimax'];
 
 export type { ILlmSetupFormValues } from './LlmSetupForm.form';
 
 export interface ILlmSetupFormProps {
   setupId?: string;
   defaultValues: ILlmSetupFormValues;
+  providerConnections: IProviderConnectionCatalogEntry[];
   providerWarnings?: string[];
 }
 
 function ModalityFields({
   label,
-  providerName,
+  connectionName,
   modelName,
+  connections,
   register,
 }: {
   label: string;
-  providerName: 'textProviderType' | 'visionProviderType' | 'imageProviderType';
+  connectionName: 'textConnectionId' | 'visionConnectionId' | 'imageConnectionId';
   modelName: 'textModel' | 'visionModel' | 'imageModel';
+  connections: IProviderConnectionCatalogEntry[];
   register: ReturnType<typeof useForm<ILlmSetupFormValues>>['register'];
 }) {
   return (
@@ -43,15 +45,16 @@ function ModalityFields({
       <h3 className="text-sm font-medium">{label}</h3>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor={providerName}>Provider</Label>
+          <Label htmlFor={connectionName}>Provider connection</Label>
           <select
-            id={providerName}
+            id={connectionName}
             className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            {...register(providerName)}
+            {...register(connectionName)}
           >
-            {providerOptions.map((provider) => (
-              <option key={provider} value={provider}>
-                {provider}
+            {connections.map((connection) => (
+              <option key={connection.id} value={connection.id}>
+                {connection.label} ({connection.providerKind})
+                {!connection.apiKeyConfigured ? ' — missing credentials' : ''}
               </option>
             ))}
           </select>
@@ -65,7 +68,12 @@ function ModalityFields({
   );
 }
 
-export function LlmSetupForm({ setupId, defaultValues, providerWarnings = [] }: ILlmSetupFormProps) {
+export function LlmSetupForm({
+  setupId,
+  defaultValues,
+  providerConnections,
+  providerWarnings = [],
+}: ILlmSetupFormProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [notice, setNotice] = useState<string | null>(null);
@@ -76,6 +84,10 @@ export function LlmSetupForm({ setupId, defaultValues, providerWarnings = [] }: 
     resolver: zodResolver(llmSetupFormSchema),
     defaultValues,
   });
+
+  const textConnections = filterConnectionsForModality(providerConnections, 'text');
+  const visionConnections = filterConnectionsForModality(providerConnections, 'vision');
+  const imageConnections = filterConnectionsForModality(providerConnections, 'image');
 
   const handleSubmit = form.handleSubmit(async (values) => {
     setIsSubmitting(true);
@@ -181,20 +193,23 @@ export function LlmSetupForm({ setupId, defaultValues, providerWarnings = [] }: 
 
           <ModalityFields
             label="Text model"
-            providerName="textProviderType"
+            connectionName="textConnectionId"
             modelName="textModel"
+            connections={textConnections}
             register={form.register}
           />
           <ModalityFields
             label="Vision model"
-            providerName="visionProviderType"
+            connectionName="visionConnectionId"
             modelName="visionModel"
+            connections={visionConnections}
             register={form.register}
           />
           <ModalityFields
             label="Image model"
-            providerName="imageProviderType"
+            connectionName="imageConnectionId"
             modelName="imageModel"
+            connections={imageConnections}
             register={form.register}
           />
 

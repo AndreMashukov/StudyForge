@@ -1,29 +1,24 @@
-import type { ILlmSetupRoutes } from '@shared-types';
+import type { ILlmSetupRoutes, IProviderConnectionCatalogEntry } from '@shared-types';
 import { z } from 'zod';
-
-const modalityRouteSchema = z.object({
-  providerType: z.enum(['gemini', 'openrouter', 'minimax']),
-  model: z.string().trim().min(1, 'Model is required'),
-});
 
 export const llmSetupFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   description: z.string().optional(),
-  textProviderType: modalityRouteSchema.shape.providerType,
-  textModel: modalityRouteSchema.shape.model,
-  visionProviderType: modalityRouteSchema.shape.providerType,
-  visionModel: modalityRouteSchema.shape.model,
-  imageProviderType: modalityRouteSchema.shape.providerType,
-  imageModel: modalityRouteSchema.shape.model,
+  textConnectionId: z.string().trim().min(1, 'Text provider connection is required'),
+  textModel: z.string().trim().min(1, 'Model is required'),
+  visionConnectionId: z.string().trim().min(1, 'Vision provider connection is required'),
+  visionModel: z.string().trim().min(1, 'Model is required'),
+  imageConnectionId: z.string().trim().min(1, 'Image provider connection is required'),
+  imageModel: z.string().trim().min(1, 'Model is required'),
 });
 
 export type ILlmSetupFormValues = z.infer<typeof llmSetupFormSchema>;
 
 export function toLlmSetupRoutes(values: ILlmSetupFormValues): ILlmSetupRoutes {
   return {
-    text: { providerType: values.textProviderType, model: values.textModel.trim() },
-    vision: { providerType: values.visionProviderType, model: values.visionModel.trim() },
-    image: { providerType: values.imageProviderType, model: values.imageModel.trim() },
+    text: { connectionId: values.textConnectionId.trim(), model: values.textModel.trim() },
+    vision: { connectionId: values.visionConnectionId.trim(), model: values.visionModel.trim() },
+    image: { connectionId: values.imageConnectionId.trim(), model: values.imageModel.trim() },
   };
 }
 
@@ -35,11 +30,18 @@ export function routesToFormValues(
   return {
     name,
     description: description ?? '',
-    textProviderType: routes.text.providerType,
+    textConnectionId: routes.text.connectionId,
     textModel: routes.text.model,
-    visionProviderType: routes.vision.providerType,
+    visionConnectionId: routes.vision.connectionId,
     visionModel: routes.vision.model,
-    imageProviderType: routes.image.providerType,
+    imageConnectionId: routes.image.connectionId,
     imageModel: routes.image.model,
   };
+}
+
+export function filterConnectionsForModality(
+  connections: IProviderConnectionCatalogEntry[],
+  modality: 'text' | 'vision' | 'image'
+): IProviderConnectionCatalogEntry[] {
+  return connections.filter((connection) => connection.supportedModalities.includes(modality));
 }
