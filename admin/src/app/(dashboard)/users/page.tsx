@@ -14,10 +14,10 @@ export default function UsersPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="Users"
-        description="Read-only list from Firebase Auth and Firestore user profiles."
+        description="Manage user profiles and assign each user to exactly one group."
       />
 
-      <Suspense fallback={<TableSkeleton columns={4} rows={6} />}>
+      <Suspense fallback={<TableSkeleton columns={5} rows={6} />}>
         <UsersTableSection />
       </Suspense>
     </div>

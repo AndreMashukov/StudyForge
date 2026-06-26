@@ -2,7 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FileText, LayoutDashboard, LogOut, SlidersHorizontal, Users } from 'lucide-react';
+import {
+  Brain,
+  Cable,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  Users,
+  UsersRound,
+} from 'lucide-react';
 import {
   Sidebar,
   SidebarNav,
@@ -14,11 +22,16 @@ import {
 } from '@study-forge/ui';
 import { AdminNavLinkContent } from './AdminNavLinkContent';
 
-const navItems = [
+const platformNavItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/users', label: 'Users', icon: Users },
+  { href: '/user-groups', label: 'User groups', icon: UsersRound },
   { href: '/documents', label: 'Documents', icon: FileText },
-  { href: '/model-settings', label: 'Model Settings', icon: SlidersHorizontal },
+];
+
+const aiNavItems = [
+  { href: '/llm-setups', label: 'LLM setups', icon: Brain },
+  { href: '/provider-connections', label: 'Provider connections', icon: Cable },
 ];
 
 export interface IAdminSidebarProps {
@@ -37,6 +50,30 @@ export function AdminSidebar({ email, isOpen }: IAdminSidebarProps) {
   };
 
   const displayEmail = email ?? 'admin';
+
+  const renderNavItems = (items: typeof platformNavItems) =>
+    items.map(({ href, label, icon: Icon }) => {
+      const isActive =
+        href === '/'
+          ? currentPath === '/'
+          : currentPath === href || currentPath.startsWith(`${href}/`);
+
+      return (
+        <SidebarNavItem
+          key={href}
+          isActive={isActive}
+          asChild
+          className={cn(
+            !isOpen && 'justify-center relative group',
+            isActive && sidebarClassNames.navItemActive
+          )}
+        >
+          <Link href={href} aria-current={isActive ? 'page' : undefined}>
+            <AdminNavLinkContent label={label} icon={Icon} isOpen={isOpen} />
+          </Link>
+        </SidebarNavItem>
+      );
+    });
 
   return (
     <Sidebar
@@ -64,9 +101,7 @@ export function AdminSidebar({ email, isOpen }: IAdminSidebarProps) {
                 className={sidebarClassNames.navItemIcon}
               />
               {!isOpen ? (
-                <div className={sidebarClassNames.collapsedTooltip}>
-                  Sign out
-                </div>
+                <div className={sidebarClassNames.collapsedTooltip}>Sign out</div>
               ) : null}
             </button>
           }
@@ -75,40 +110,15 @@ export function AdminSidebar({ email, isOpen }: IAdminSidebarProps) {
       aria-label="Admin navigation"
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-hidden">
-        <SidebarSection label="Navigation" isOpen={isOpen}>
-          <SidebarNav
-            className={sidebarClassNames.navList}
-            aria-label="Admin navigation"
-          >
-            {navItems.map(({ href, label, icon: Icon }) => {
-              const isActive =
-                href === '/'
-                  ? currentPath === '/'
-                  : currentPath === href || currentPath.startsWith(`${href}/`);
+        <SidebarSection label="Platform" isOpen={isOpen}>
+          <SidebarNav className={sidebarClassNames.navList} aria-label="Platform navigation">
+            {renderNavItems(platformNavItems)}
+          </SidebarNav>
+        </SidebarSection>
 
-              return (
-                <SidebarNavItem
-                  key={href}
-                  isActive={isActive}
-                  asChild
-                  className={cn(
-                    !isOpen && 'justify-center relative group',
-                    isActive && sidebarClassNames.navItemActive
-                  )}
-                >
-                  <Link
-                    href={href}
-                    aria-current={isActive ? 'page' : undefined}
-                  >
-                    <AdminNavLinkContent
-                      label={label}
-                      icon={Icon}
-                      isOpen={isOpen}
-                    />
-                  </Link>
-                </SidebarNavItem>
-              );
-            })}
+        <SidebarSection label="AI" isOpen={isOpen}>
+          <SidebarNav className={sidebarClassNames.navList} aria-label="AI navigation">
+            {renderNavItems(aiNavItems)}
           </SidebarNav>
         </SidebarSection>
       </div>

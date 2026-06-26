@@ -53,6 +53,7 @@ export class ScreenshotDocumentGenerationService {
     }
 
     const generatedContent = await LlmGenerationService.generateDocumentFromScreenshot(
+      userId,
       input.imageBase64,
       input.prompt,
       rulesText || undefined
@@ -68,7 +69,7 @@ export class ScreenshotDocumentGenerationService {
     let documentId: string;
 
     if (input.pendingDocumentId) {
-      const generationModel = await resolveScreenshotGenerationModelLabel();
+      const generationModel = await resolveScreenshotGenerationModelLabel(userId);
 
       await DocumentCrudService.completePendingDocument(userId, input.pendingDocumentId, generatedContent, {
         title,

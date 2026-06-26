@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions';
-import { LlmRouteResolver, type RouteResolution } from './llm-route-resolver';
 import { LlmProviderClientFactory } from './llm-provider-client-factory';
+import { LlmRouteResolver, type RouteResolution } from './llm-route-resolver';
 import type { LlmCapability, LlmTextConfig } from './types';
 
 export interface TextRouteContext {
@@ -9,16 +9,19 @@ export interface TextRouteContext {
 }
 
 export async function resolveTextRoute(
+  userId: string,
   capability: LlmCapability,
   logLabel: string
 ): Promise<TextRouteContext> {
-  const resolution = await LlmRouteResolver.resolve(capability);
+  const resolution = await LlmRouteResolver.resolve(capability, { userId });
 
   functions.logger.info(`LLM route resolved for ${logLabel}`, {
+    userId,
     capability,
     providerType: resolution.route.providerType,
     model: resolution.route.model,
-    fallbackUsed: resolution.route.fallbackUsed,
+    userGroupId: resolution.userGroupId,
+    llmSetupId: resolution.llmSetupId,
   });
 
   return {

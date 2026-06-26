@@ -123,11 +123,12 @@ function parseFlashcardsJson(raw: string): FlashcardItem[] {
  */
 export class LlmGenerationService {
   static async generateQuiz(
+    userId: string,
     content: ScrapedContent,
     additionalPrompt?: string,
     capability: LlmCapability = 'quiz'
   ): Promise<GeminiQuizResponse> {
-    const ctx = await resolveTextRoute(capability, 'quiz');
+    const ctx = await resolveTextRoute(userId, capability, 'quiz');
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateQuiz(content, additionalPrompt);
     }
@@ -144,25 +145,28 @@ export class LlmGenerationService {
   }
 
   static async generateDiagramQuiz(
+    userId: string,
     content: ScrapedContent,
     additionalPrompt?: string
   ): Promise<GeminiDiagramQuizResponse> {
-    return generateDiagramQuizChunked(content, additionalPrompt);
+    return generateDiagramQuizChunked(userId, content, additionalPrompt);
   }
 
   /** @deprecated Use generateDiagramQuiz — routes to chunked generation for external providers. */
   static async generateDiagramQuizChunked(
+    userId: string,
     content: ScrapedContent,
     additionalPrompt?: string
   ): Promise<GeminiDiagramQuizResponse> {
-    return generateDiagramQuizChunked(content, additionalPrompt);
+    return generateDiagramQuizChunked(userId, content, additionalPrompt);
   }
 
   static async generateSequenceQuiz(
+    userId: string,
     content: ScrapedContent,
     additionalPrompt?: string
   ): Promise<GeminiSequenceQuizResponse> {
-    const ctx = await resolveTextRoute('sequenceQuiz', 'sequenceQuiz');
+    const ctx = await resolveTextRoute(userId, 'sequenceQuiz', 'sequenceQuiz');
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateSequenceQuiz(content, additionalPrompt);
     }
@@ -178,11 +182,12 @@ export class LlmGenerationService {
   }
 
   static async generateSubjectWorld(
+    userId: string,
     content: ScrapedContent,
     documentIds: string[],
     additionalPrompt?: string
   ): Promise<import('../gemini/gemini').GeminiSubjectWorldResponse> {
-    const ctx = await resolveTextRoute('subjectWorld', 'subjectWorld');
+    const ctx = await resolveTextRoute(userId, 'subjectWorld', 'subjectWorld');
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateSubjectWorld(content, documentIds, additionalPrompt);
     }
@@ -202,12 +207,13 @@ export class LlmGenerationService {
   }
 
   static async generateFlashcards(
+    userId: string,
     content: string,
     rules?: string,
     descriptionRules?: string,
     capability: LlmCapability = 'flashcards'
   ): Promise<FlashcardItem[]> {
-    const ctx = await resolveTextRoute(capability, 'flashcards');
+    const ctx = await resolveTextRoute(userId, capability, 'flashcards');
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateFlashcards(content, rules, descriptionRules);
     }
@@ -230,12 +236,13 @@ export class LlmGenerationService {
   }
 
   static async generateDocumentFromPrompt(
+    userId: string,
     userPrompt: string,
     files?: IFileContent[],
     rules?: string,
     capability: LlmCapability = 'documentFromPrompt'
   ): Promise<string> {
-    const ctx = await resolveTextRoute(capability, 'documentFromPrompt');
+    const ctx = await resolveTextRoute(userId, capability, 'documentFromPrompt');
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateDocumentFromPrompt(userPrompt, files, rules);
     }
@@ -264,53 +271,53 @@ export class LlmGenerationService {
   }
 
   static async generateDocumentFromScreenshot(
+    userId: string,
     imageBase64: string,
     userPrompt?: string,
     rules?: string
   ): Promise<string> {
-    const visionResolution = await LlmVisionRouteResolver.resolve('documentFromScreenshot');
+    const visionResolution = await LlmVisionRouteResolver.resolve('documentFromScreenshot', {
+      userId,
+    });
     const { route, providerApiKey } = visionResolution;
 
-    if (route.providerType !== 'gemini' && providerApiKey) {
-      try {
-        const normalized = normalizeScreenshotImage(imageBase64);
-        const prompt = ScreenshotPromptBuilder.buildDocumentPrompt({
-          userPrompt,
-          rules,
-        });
-        const client = LlmProviderClientFactory.create(route, providerApiKey);
-        const result = await client.generateVisionText({
-          prompt,
-          imageDataUrl: normalized.dataUrl,
-          config: {
-            model: route.model,
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 16384,
-          },
-          detail: 'auto',
-        });
-
-        functions.logger.info('Screenshot document generated via external provider vision', {
-          model: result.model,
-          responseLength: result.text.length,
-        });
-
-        return GeminiService.sanitizeDocumentResponse(stripCodeFences(result.text));
-      } catch (error) {
-        functions.logger.warn('External provider vision failed; falling back to Gemini', {
-          model: route.model,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+    if (route.providerType === 'gemini') {
+      return GeminiService.generateDocumentFromScreenshot(imageBase64, userPrompt, rules);
     }
 
-    return GeminiService.generateDocumentFromScreenshot(imageBase64, userPrompt, rules);
+    if (!providerApiKey) {
+      throw new Error('Vision provider API key is required for external providers');
+    }
+
+    const normalized = normalizeScreenshotImage(imageBase64);
+    const prompt = ScreenshotPromptBuilder.buildDocumentPrompt({
+      userPrompt,
+      rules,
+    });
+    const client = LlmProviderClientFactory.create(route, providerApiKey);
+    const result = await client.generateVisionText({
+      prompt,
+      imageDataUrl: normalized.dataUrl,
+      config: {
+        model: route.model,
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 16384,
+      },
+      detail: 'auto',
+    });
+
+    functions.logger.info('Screenshot document generated via external provider vision', {
+      model: result.model,
+      responseLength: result.text.length,
+    });
+
+    return GeminiService.sanitizeDocumentResponse(stripCodeFences(result.text));
   }
 
-  static async generateQuizFollowup(context: QuizFollowupContext): Promise<string> {
-    const ctx = await resolveTextRoute('quizFollowup', 'quizFollowup');
+  static async generateQuizFollowup(userId: string, context: QuizFollowupContext): Promise<string> {
+    const ctx = await resolveTextRoute(userId, 'quizFollowup', 'quizFollowup');
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateQuizFollowup(context);
     }
@@ -326,9 +333,10 @@ export class LlmGenerationService {
   }
 
   static async generateDocumentQuestionAnswer(
+    userId: string,
     context: DocumentQuestionContext
   ): Promise<string> {
-    const ctx = await resolveTextRoute('documentQuestion', 'documentQuestion');
+    const ctx = await resolveTextRoute(userId, 'documentQuestion', 'documentQuestion');
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateDocumentQuestionAnswer(context);
     }
@@ -344,9 +352,10 @@ export class LlmGenerationService {
   }
 
   static async generateDirectoryChatAnswer(
+    userId: string,
     context: DirectoryChatPromptContext
   ): Promise<string> {
-    const ctx = await resolveTextRoute('directoryChat', 'directoryChat');
+    const ctx = await resolveTextRoute(userId, 'directoryChat', 'directoryChat');
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateDirectoryChatAnswer(context);
     }
@@ -362,11 +371,12 @@ export class LlmGenerationService {
   }
 
   static async generateSlideDeckOutline(
+    userId: string,
     content: string,
     additionalPrompt?: string,
     rules?: string
   ): Promise<Array<{ title: string; content: string; speakerNotes?: string }>> {
-    const ctx = await resolveTextRoute('slideDeckText', 'slideDeckText');
+    const ctx = await resolveTextRoute(userId, 'slideDeckText', 'slideDeckText');
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateSlideDeckOutline(content, additionalPrompt, rules);
     }
@@ -386,12 +396,13 @@ export class LlmGenerationService {
   }
 
   static async generateSlideImageBrief(
+    userId: string,
     slideTitle: string,
     slideContent: string,
     rules?: string
   ): Promise<string | null> {
-    const ctx = await resolveTextRoute('slideDeckText', 'slideDeckImageBrief');
-    const imageResolution = await LlmImageRouteResolver.resolve('slideDeckImage');
+    const ctx = await resolveTextRoute(userId, 'slideDeckText', 'slideDeckImageBrief');
+    const imageResolution = await LlmImageRouteResolver.resolve('slideDeckImage', { userId });
     const usesMiniMaxImage =
       imageResolution.route.providerType === 'minimax' && !!imageResolution.providerApiKey;
 
@@ -429,11 +440,12 @@ export class LlmGenerationService {
   }
 
   static async generateSlideImage(
+    userId: string,
     slideTitle: string,
     slideContent: string,
     rules?: string
   ): Promise<string | null> {
-    const imageResolution = await LlmImageRouteResolver.resolve('slideDeckImage');
+    const imageResolution = await LlmImageRouteResolver.resolve('slideDeckImage', { userId });
     const usesMiniMaxImage =
       imageResolution.route.providerType === 'minimax' && !!imageResolution.providerApiKey;
     const prompt = SlideDeckPromptBuilder.buildSlideImagePrompt(
@@ -445,8 +457,8 @@ export class LlmGenerationService {
     return LlmGenerationService.generateSlideImageWithPrompt(prompt, imageResolution);
   }
 
-  static async generateSlideImageFromPrompt(prompt: string): Promise<string | null> {
-    const imageResolution = await LlmImageRouteResolver.resolve('slideDeckImage');
+  static async generateSlideImageFromPrompt(userId: string, prompt: string): Promise<string | null> {
+    const imageResolution = await LlmImageRouteResolver.resolve('slideDeckImage', { userId });
     return LlmGenerationService.generateSlideImageWithPrompt(prompt, imageResolution);
   }
 
@@ -469,38 +481,31 @@ export class LlmGenerationService {
     const { route, providerApiKey, geminiImageModel } = imageResolution;
 
     if (route.providerType !== 'gemini' && providerApiKey) {
-      try {
-        const imagePrompt =
-          route.providerType === 'minimax'
-            ? LlmGenerationService.prepareMiniMaxSlideImagePrompt(prompt)
-            : prompt;
+      const imagePrompt =
+        route.providerType === 'minimax'
+          ? LlmGenerationService.prepareMiniMaxSlideImagePrompt(prompt)
+          : prompt;
 
-        if (route.providerType === 'minimax' && imagePrompt.length !== prompt.length) {
-          functions.logger.info('MiniMax slide image prompt trimmed', {
-            originalLength: prompt.length,
-            finalLength: imagePrompt.length,
-          });
-        }
-
-        const client = LlmProviderClientFactory.create(route, providerApiKey);
-        const result = await client.generateImage({
-          prompt: imagePrompt,
-          config: { model: route.model },
-          imageConfig: { aspectRatio: '16:9' },
-        });
-
-        functions.logger.info('Slide image generated via external provider', {
-          model: result.model,
-          imageBytes: result.imageBase64.length,
-        });
-
-        return result.imageBase64;
-      } catch (error) {
-        functions.logger.warn('External provider image generation failed; falling back to Gemini', {
-          model: route.model,
-          error: error instanceof Error ? error.message : String(error),
+      if (route.providerType === 'minimax' && imagePrompt.length !== prompt.length) {
+        functions.logger.info('MiniMax slide image prompt trimmed', {
+          originalLength: prompt.length,
+          finalLength: imagePrompt.length,
         });
       }
+
+      const client = LlmProviderClientFactory.create(route, providerApiKey);
+      const result = await client.generateImage({
+        prompt: imagePrompt,
+        config: { model: route.model },
+        imageConfig: { aspectRatio: '16:9' },
+      });
+
+      functions.logger.info('Slide image generated via external provider', {
+        model: result.model,
+        imageBytes: result.imageBase64.length,
+      });
+
+      return result.imageBase64;
     }
 
     functions.logger.info('Slide image generated via Gemini', {
@@ -511,11 +516,12 @@ export class LlmGenerationService {
   }
 
   static async enhanceExtractedDocument(
+    userId: string,
     markdownContent: string,
     sourceFilename: string,
     rules?: string
   ): Promise<string> {
-    const ctx = await resolveTextRoute('sourceDocumentEnhancement', 'sourceDocumentEnhancement');
+    const ctx = await resolveTextRoute(userId, 'sourceDocumentEnhancement', 'sourceDocumentEnhancement');
     if (!ctx.usesExternalProvider) {
       return GeminiService.enhanceExtractedDocument(markdownContent, sourceFilename, rules);
     }
@@ -552,13 +558,15 @@ ${markdownContent}
     return GeminiService.sanitizeDocumentResponse(stripCodeFences(text));
   }
 
-  static async generateRule(params: {
+  static async generateRule(
+    userId: string,
+    params: {
     topic: string;
     description?: string;
     applicableTo?: string[];
     existingContent?: string;
   }): Promise<RuleGenerationResponse> {
-    const ctx = await resolveTextRoute('ruleGeneration', 'ruleGeneration');
+    const ctx = await resolveTextRoute(userId, 'ruleGeneration', 'ruleGeneration');
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateRule(params);
     }
@@ -585,8 +593,8 @@ ${markdownContent}
     return parseRuleResponse(text);
   }
 
-  static async generateScrapedContentMarkdown(prompt: string): Promise<string> {
-    const ctx = await resolveTextRoute('sourceDocumentEnhancement', 'scrapedContentMarkdown');
+  static async generateScrapedContentMarkdown(userId: string, prompt: string): Promise<string> {
+    const ctx = await resolveTextRoute(userId, 'sourceDocumentEnhancement', 'scrapedContentMarkdown');
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateContent(prompt);
     }
@@ -601,14 +609,16 @@ ${markdownContent}
     return text.trim();
   }
 
-  static async repairDiagramQuizDiagram(params: {
+  static async repairDiagramQuizDiagram(
+    userId: string,
+    params: {
     sourceContent: ScrapedContent;
     questionText: string;
     brokenDiagram: string;
     parseError: string;
     syntaxRules: string;
   }): Promise<string> {
-    const ctx = await resolveTextRoute('diagramQuizAgent', 'diagramQuizAgent');
+    const ctx = await resolveTextRoute(userId, 'diagramQuizAgent', 'diagramQuizAgent');
     const prompt = `Fix this broken Mermaid diagram for a diagram quiz question.
 
 Question: ${params.questionText}
@@ -639,12 +649,14 @@ Return ONLY the corrected Mermaid source with no markdown fences or commentary.`
     return stripCodeFences(text);
   }
 
-  static async runDiagramQuizCritic(params: {
+  static async runDiagramQuizCritic(
+    userId: string,
+    params: {
     sourceContent: ScrapedContent;
     draft: GeminiDiagramQuizResponse;
     styleRules?: string;
   }): Promise<string> {
-    const ctx = await resolveTextRoute('diagramQuizAgent', 'diagramQuizAgent');
+    const ctx = await resolveTextRoute(userId, 'diagramQuizAgent', 'diagramQuizAgent');
     const styleSection = params.styleRules?.trim()
       ? `\nDiagram quiz styling rules (must be enforced):\n${params.styleRules}\n`
       : '';
@@ -682,14 +694,16 @@ Use "revise" for fixable pedagogical issues and "fail" only for severe factual e
     );
   }
 
-  static async refineDiagramQuiz(params: {
+  static async refineDiagramQuiz(
+    userId: string,
+    params: {
     sourceContent: ScrapedContent;
     draft: GeminiDiagramQuizResponse;
     criticResult: import('@shared-types').IArtifactCriticResult;
     failingQuestionIndexes: number[];
     enhancedPrompt?: string;
   }): Promise<GeminiDiagramQuizResponse> {
-    const ctx = await resolveTextRoute('diagramQuiz', 'diagramQuiz');
+    const ctx = await resolveTextRoute(userId, 'diagramQuiz', 'diagramQuiz');
     const failingQuestions = params.failingQuestionIndexes.map((index) => ({
       index,
       ...params.draft.questions[index],

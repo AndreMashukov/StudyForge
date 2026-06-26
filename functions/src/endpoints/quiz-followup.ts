@@ -86,7 +86,7 @@ export const generateQuizFollowup = onCall(
       }
 
       // Generate followup content with Gemini
-      const followupContent = await LlmGenerationService.generateQuizFollowup(followupContext);
+      const followupContent = await LlmGenerationService.generateQuizFollowup(userId, followupContext);
 
       logger.info('Quiz followup explanation generated successfully', {
         originalDocId: data.documentId,

@@ -25,6 +25,9 @@ export function UsersTable({ users }: IUsersTableProps) {
               UID
             </th>
             <th className="px-4 py-3 font-medium" scope="col">
+              Group
+            </th>
+            <th className="px-4 py-3 font-medium" scope="col">
               Created
             </th>
             <th className="px-4 py-3 font-medium" scope="col">
@@ -45,6 +48,9 @@ export function UsersTable({ users }: IUsersTableProps) {
               </td>
               <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                 {user.uid}
+              </td>
+              <td className="px-4 py-3 text-muted-foreground">
+                {user.userGroupName ?? (user.userGroupId ? user.userGroupId : 'Unassigned')}
               </td>
               <td className="px-4 py-3 text-muted-foreground">
                 {user.createdAt

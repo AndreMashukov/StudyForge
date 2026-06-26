@@ -127,10 +127,11 @@ export const diagramQuizDefinition: ArtifactAgentDefinition<
   async generate(context, diagnostics) {
     const startedAt = Date.now();
     const draft = await LlmGenerationService.generateDiagramQuizChunked(
+      context.userId,
       context.sourceContent,
       context.enhancedPrompt
     );
-    const generationModel = await resolveTextGenerationModelLabel('diagramQuiz');
+    const generationModel = await resolveTextGenerationModelLabel(context.userId, 'diagramQuiz');
     recordModelUsage(diagnostics, {
       role: 'generator',
       capability: 'diagramQuiz',
@@ -147,9 +148,11 @@ export const diagramQuizDefinition: ArtifactAgentDefinition<
 
   async persistCompleted(result: ArtifactAgentResult<IDiagramQuizDraft>) {
     const generationModel =
-      result.generationModel || (await resolveTextGenerationModelLabel('diagramQuiz'));
+      result.generationModel ||
+      (await resolveTextGenerationModelLabel(result.context.userId, 'diagramQuiz'));
     const agentModel =
-      result.agentModel || (await resolveTextGenerationModelLabel('diagramQuizAgent'));
+      result.agentModel ||
+      (await resolveTextGenerationModelLabel(result.context.userId, 'diagramQuizAgent'));
 
     await completePendingDiagramQuiz(result.context.userId, result.context.recordId, {
       title: result.context.title,

@@ -37,10 +37,11 @@ const DIAGRAM_BATCH_MAX_OUTPUT_TOKENS = 8192;
  * Gemini direct routing keeps the existing one-shot generator.
  */
 export async function generateDiagramQuizChunked(
+  userId: string,
   content: ScrapedContent,
   additionalPrompt?: string
 ): Promise<GeminiDiagramQuizResponse> {
-  const ctx = await resolveTextRoute('diagramQuiz', 'diagramQuiz');
+  const ctx = await resolveTextRoute(userId, 'diagramQuiz', 'diagramQuiz');
   if (!ctx.usesExternalProvider) {
     return GeminiService.generateDiagramQuiz(content, additionalPrompt);
   }

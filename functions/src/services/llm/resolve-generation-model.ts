@@ -14,6 +14,7 @@ function formatGenerationModelLabel(route: ResolvedRoute): string {
 }
 
 export async function resolveTextGenerationModelLabel(
+  userId: string,
   capability: Extract<
     LlmCapability,
     | 'quiz'
@@ -27,19 +28,21 @@ export async function resolveTextGenerationModelLabel(
     | 'sourceDocumentEnhancement'
   >
 ): Promise<string> {
-  const { route } = await LlmRouteResolver.resolve(capability);
+  const { route } = await LlmRouteResolver.resolve(capability, { userId });
   return formatGenerationModelLabel(route);
 }
 
-export async function resolveScreenshotGenerationModelLabel(): Promise<string> {
-  const { route } = await LlmVisionRouteResolver.resolve('documentFromScreenshot');
+export async function resolveScreenshotGenerationModelLabel(userId: string): Promise<string> {
+  const { route } = await LlmVisionRouteResolver.resolve('documentFromScreenshot', {
+    userId,
+  });
   return formatGenerationModelLabel(route);
 }
 
-export async function resolveSlideDeckGenerationModelLabel(): Promise<string> {
+export async function resolveSlideDeckGenerationModelLabel(userId: string): Promise<string> {
   const [textResolution, imageResolution] = await Promise.all([
-    LlmRouteResolver.resolve('slideDeckText'),
-    LlmImageRouteResolver.resolve('slideDeckImage'),
+    LlmRouteResolver.resolve('slideDeckText', { userId }),
+    LlmImageRouteResolver.resolve('slideDeckImage', { userId }),
   ]);
 
   const textLabel = formatGenerationModelLabel(textResolution.route);

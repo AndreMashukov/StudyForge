@@ -54,7 +54,7 @@ export const generateRuleWithAI = onCall(
         mode: existingContent ? 'improve' : 'generate',
       });
 
-      const rule = await LlmGenerationService.generateRule({
+      const rule = await LlmGenerationService.generateRule(userId, {
         topic,
         description,
         applicableTo,

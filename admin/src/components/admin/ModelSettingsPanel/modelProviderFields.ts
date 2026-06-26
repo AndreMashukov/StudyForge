@@ -28,7 +28,7 @@ export interface IModelProviderOverviewItem {
 }
 
 interface IBuildProviderOverviewParams {
-  activeProviderId: ActiveModelProviderType;
+  activeProviderId?: ActiveModelProviderType;
   geminiConnection: IGeminiProviderConnection;
   openRouterConnection: IOpenRouterProviderConnection;
   miniMaxConnection: IMiniMaxProviderConnection;

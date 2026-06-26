@@ -1831,3 +1831,85 @@ export type LlmCapabilityKey =
   | 'slideDeckImage'
   | 'sourceDocumentEnhancement'
   | 'ruleGeneration';
+
+// --- LLM setup & user group routing ---
+
+export type LlmModality = 'text' | 'vision' | 'image';
+
+export interface ILlmModalityRoute {
+  providerType: LlmProviderType;
+  model: string;
+}
+
+export interface ILlmSetupRoutes {
+  text: ILlmModalityRoute;
+  vision: ILlmModalityRoute;
+  image: ILlmModalityRoute;
+}
+
+export interface ILlmSetup {
+  id: string;
+  name: string;
+  description?: string;
+  routes: ILlmSetupRoutes;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface IUserGroup {
+  id: string;
+  name: string;
+  llmSetupId: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+/** Firestore users/{uid} profile fields used for LLM routing. */
+export interface IUserProfile {
+  uid: string;
+  email?: string;
+  displayName?: string;
+  createdAt?: string;
+  userGroupId?: string;
+}
+
+export interface ICreateLlmSetupRequest {
+  name: string;
+  description?: string;
+  routes: ILlmSetupRoutes;
+}
+
+export interface IUpdateLlmSetupRequest {
+  name?: string;
+  description?: string;
+  routes?: ILlmSetupRoutes;
+}
+
+export interface ICreateUserGroupRequest {
+  name: string;
+  llmSetupId: string;
+}
+
+export interface IUpdateUserGroupRequest {
+  name?: string;
+  llmSetupId?: string;
+}
+
+export interface IAssignUserGroupRequest {
+  userGroupId: string;
+}
+
+/** Stable error codes surfaced to clients when LLM routing cannot proceed. */
+export type LlmRoutingErrorCode =
+  | 'USER_GROUP_NOT_ASSIGNED'
+  | 'USER_GROUP_NOT_FOUND'
+  | 'LLM_SETUP_NOT_FOUND'
+  | 'PROVIDER_NOT_CONFIGURED';
+
+export interface ILlmRoutingErrorDetails {
+  code: LlmRoutingErrorCode;
+  userId?: string;
+  userGroupId?: string;
+  llmSetupId?: string;
+  modality?: LlmModality;
+}
