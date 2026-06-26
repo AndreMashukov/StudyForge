@@ -627,7 +627,7 @@ export async function updateOpenRouterSettings(
   const payload: Record<string, unknown> = {
     providerType: 'openrouter',
     label: currentConnection.label,
-    enabled: input.enabled ?? currentConnection.enabled,
+    enabled: hasNewApiKey ? true : (input.enabled ?? currentConnection.enabled),
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
     baseUrl: normalizeBaseUrl(input.baseUrl, 'OpenRouter'),
@@ -744,7 +744,7 @@ export async function updateMiniMaxSettings(
   const payload: Record<string, unknown> = {
     providerType: 'minimax',
     label: currentConnection.label,
-    enabled: input.enabled ?? currentConnection.enabled,
+    enabled: hasNewApiKey ? true : (input.enabled ?? currentConnection.enabled),
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
     baseUrl: normalizeBaseUrl(input.baseUrl, 'MiniMax'),

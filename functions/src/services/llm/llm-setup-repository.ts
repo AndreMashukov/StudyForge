@@ -206,7 +206,17 @@ export class LlmSetupRepository {
 
     if (providerType === 'openrouter') {
       const connection = await LlmSettingsRepository.getOpenRouterConnection();
-      if (!connection || !connection.enabled || !connection.apiKeyConfigured) {
+      const isConfigured = await LlmSettingsRepository.isOpenRouterConfigured();
+
+      if (!connection || !isConfigured) {
+        functions.logger.error('OpenRouter provider not configured for setup route', {
+          userId,
+          userGroupId,
+          llmSetupId: setup.id,
+          modality,
+          hasConnectionDoc: Boolean(connection),
+          apiKeyConfigured: connection?.apiKeyConfigured ?? false,
+        });
         throw createProviderNotConfiguredError(
           userId,
           userGroupId,
@@ -254,8 +264,17 @@ export class LlmSetupRepository {
     if (providerType === 'minimax') {
       const connection = await LlmSettingsRepository.getMiniMaxConnection();
       const parsed = parseMiniMaxConnection(connection);
+      const isConfigured = await LlmSettingsRepository.isMiniMaxConfigured();
 
-      if (!connection || !connection.enabled || !connection.apiKeyConfigured) {
+      if (!connection || !isConfigured) {
+        functions.logger.error('MiniMax provider not configured for setup route', {
+          userId,
+          userGroupId,
+          llmSetupId: setup.id,
+          modality,
+          hasConnectionDoc: Boolean(connection),
+          apiKeyConfigured: connection?.apiKeyConfigured ?? false,
+        });
         throw createProviderNotConfiguredError(
           userId,
           userGroupId,
