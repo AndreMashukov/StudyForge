@@ -8,6 +8,7 @@ import type {
   IUpdateLlmSetupRequest,
   LlmProviderType,
 } from '@shared-types';
+import * as admin from 'firebase-admin';
 import { requireAdminSession } from '../auth/session';
 import { getAdminFirestore } from '../firebase/admin';
 import {
@@ -106,6 +107,27 @@ function normalizeRoutes(routes: ILlmSetupRoutes): ILlmSetupRoutes {
     vision: normalizeModalityRoute(routes.vision, 'Vision'),
     image: normalizeModalityRoute(routes.image, 'Image'),
   };
+}
+
+function toFirestoreLlmSetupDocument(
+  setup: ILlmSetup,
+  options?: { clearDescription?: boolean }
+): FirebaseFirestore.DocumentData {
+  const document: FirebaseFirestore.DocumentData = {
+    id: setup.id,
+    name: setup.name,
+    routes: setup.routes,
+    updatedAt: setup.updatedAt,
+    updatedBy: setup.updatedBy,
+  };
+
+  if (options?.clearDescription) {
+    document.description = admin.firestore.FieldValue.delete();
+  } else if (setup.description !== undefined) {
+    document.description = setup.description;
+  }
+
+  return document;
 }
 
 export function createDefaultLlmSetupRoutes(): ILlmSetupRoutes {
@@ -238,7 +260,7 @@ export async function createLlmSetup(
     updatedBy: adminUid,
   };
 
-  await docRef.set(setup);
+  await docRef.set(toFirestoreLlmSetupDocument(setup));
   return setup;
 }
 
@@ -261,11 +283,16 @@ export async function updateLlmSetup(
     throw new Error('LLM setup data is invalid.');
   }
 
+  const descriptionChanged = input.description !== undefined;
+  const trimmedDescription = input.description?.trim();
+  const nextDescription = descriptionChanged
+    ? trimmedDescription || undefined
+    : current.description;
+
   const next: ILlmSetup = {
     ...current,
     name: input.name?.trim() || current.name,
-    description:
-      input.description !== undefined ? input.description.trim() || undefined : current.description,
+    description: nextDescription,
     routes: input.routes ? normalizeRoutes(input.routes) : current.routes,
     updatedAt: new Date().toISOString(),
     updatedBy: adminUid,
@@ -275,7 +302,12 @@ export async function updateLlmSetup(
     throw new Error('Setup name is required.');
   }
 
-  await docRef.set(next, { merge: true });
+  await docRef.set(
+    toFirestoreLlmSetupDocument(next, {
+      clearDescription: descriptionChanged && nextDescription === undefined,
+    }),
+    { merge: true }
+  );
   return next;
 }
 
