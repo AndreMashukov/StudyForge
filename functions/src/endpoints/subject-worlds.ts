@@ -1,6 +1,7 @@
 import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
+import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
 import { LlmGenerationService, resolveTextGenerationModelLabel } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
@@ -176,6 +177,7 @@ export const generateSubjectWorld = onCall(
         followupIdsForSave = resolvedFollowupIds;
 
         const rawSpec = await LlmGenerationService.generateSubjectWorld(
+          userId,
           documentContent,
           documentIds,
           enhancedPrompt || undefined
@@ -189,7 +191,7 @@ export const generateSubjectWorld = onCall(
 
         const finalTitle = subjectWorldName || worldSpec.title || pendingTitle;
 
-        const generationModel = await resolveTextGenerationModelLabel('subjectWorld');
+        const generationModel = await resolveTextGenerationModelLabel(userId, 'subjectWorld');
 
         await completePendingSubjectWorld(userId, pendingSubjectWorldId, {
           title: finalTitle,
@@ -216,10 +218,7 @@ export const generateSubjectWorld = onCall(
       console.error("Error in generateSubjectWorld:", error);
       return {
         success: false,
-        error: {
-          code: "GENERATION_FAILED",
-          message: error instanceof Error ? error.message : "Failed to generate subject world",
-        },
+        error: getGenerationFailureEnvelope(error),
       };
     }
   }

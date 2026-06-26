@@ -78,7 +78,7 @@ export const askDocumentQuestion = onCall(
       }
 
       // Generate answer with Gemini
-      const answerContent = await LlmGenerationService.generateDocumentQuestionAnswer(questionContext);
+      const answerContent = await LlmGenerationService.generateDocumentQuestionAnswer(userId, questionContext);
 
       logger.info('Document question answered successfully', {
         userId,

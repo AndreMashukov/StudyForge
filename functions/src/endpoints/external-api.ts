@@ -307,6 +307,7 @@ export const api = onRequest(
           followupIdsForSave = resolvedFollowupIds;
 
           const geminiQuiz = await LlmGenerationService.generateQuiz(
+            userId,
             documentContent,
             enhancedPrompt
           );
@@ -324,7 +325,7 @@ export const api = onRequest(
             .get();
           const generationAttempt = existingSnap.size;
 
-          const quizGenerationModel = await resolveTextGenerationModelLabel('quiz');
+          const quizGenerationModel = await resolveTextGenerationModelLabel(userId, 'quiz');
 
           await completePendingQuiz(userId, pendingQuizId, {
             title: geminiQuiz.title,
@@ -473,7 +474,7 @@ export const api = onRequest(
           });
           followupIdsForSave = resolvedFollowupIds;
 
-          const geminiQuiz = await LlmGenerationService.generateDiagramQuiz(documentContent, enhancedPrompt);
+          const geminiQuiz = await LlmGenerationService.generateDiagramQuiz(userId, documentContent, enhancedPrompt);
 
           if (diagramQuizName) {
             geminiQuiz.title = diagramQuizName;
@@ -488,7 +489,7 @@ export const api = onRequest(
             .get();
           const generationAttempt = existingSnap.size;
 
-          const diagramQuizGenerationModel = await resolveTextGenerationModelLabel('diagramQuiz');
+          const diagramQuizGenerationModel = await resolveTextGenerationModelLabel(userId, 'diagramQuiz');
 
           await completePendingDiagramQuiz(userId, pendingDiagramQuizId, {
             title: geminiQuiz.title,
@@ -620,7 +621,7 @@ export const api = onRequest(
           followupIdsForSave = resolvedFollowupIds;
 
           const geminiQuiz = await LlmGenerationService.generateSequenceQuiz(
-            documentContent, enhancedPrompt || undefined
+            userId, documentContent, enhancedPrompt || undefined
           );
 
           if (sequenceQuizName) {
@@ -636,7 +637,7 @@ export const api = onRequest(
             .get();
           const generationAttempt = existingSnap.size;
 
-          const sequenceQuizGenerationModel = await resolveTextGenerationModelLabel('sequenceQuiz');
+          const sequenceQuizGenerationModel = await resolveTextGenerationModelLabel(userId, 'sequenceQuiz');
 
           await completePendingSequenceQuiz(userId, pendingSequenceQuizId, {
             title: geminiQuiz.title,
@@ -754,7 +755,7 @@ export const api = onRequest(
             injectedRules = base;
           }
 
-          const generatedFlashcards = await LlmGenerationService.generateFlashcards(combinedContent, injectedRules);
+          const generatedFlashcards = await LlmGenerationService.generateFlashcards(userId, combinedContent, injectedRules);
           const flashcardsWithIds: Flashcard[] = generatedFlashcards.map((card) => ({
             ...card,
             id: admin.firestore().collection("tmp").doc().id,
@@ -765,7 +766,7 @@ export const api = onRequest(
               ? `Flashcards for "${documentDataList[0].doc.title}"`
               : `Flashcards for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
 
-          const flashcardGenerationModel = await resolveTextGenerationModelLabel('flashcards');
+          const flashcardGenerationModel = await resolveTextGenerationModelLabel(userId, 'flashcards');
 
           await completePendingFlashcardSet(userId, pendingFlashcardSetId, {
             title,
@@ -877,7 +878,7 @@ export const api = onRequest(
           }
 
           const slideOutline = await LlmGenerationService.generateSlideDeckOutline(
-            combinedContent, additionalPrompt || undefined, injectedRules
+            userId, combinedContent, additionalPrompt || undefined, injectedRules
           );
 
           const CONCURRENCY = 3;
@@ -892,15 +893,15 @@ export const api = onRequest(
             const chunk = slides.slice(batch, batch + CONCURRENCY);
             await Promise.all(chunk.map(async (slide, ci) => {
               const i = batch + ci;
-              const brief = await LlmGenerationService.generateSlideImageBrief(slide.title, slide.content, injectedRules);
+              const brief = await LlmGenerationService.generateSlideImageBrief(userId, slide.title, slide.content, injectedRules);
               let imageBase64: string | null = null;
               if (brief) {
                 const { SlideDeckPromptBuilder } = await import("../services/gemini/prompt-builder/slide-deck");
                 const imagePrompt = SlideDeckPromptBuilder.buildSlideImageFromBriefPrompt(brief);
-                imageBase64 = await LlmGenerationService.generateSlideImageFromPrompt(imagePrompt);
+                imageBase64 = await LlmGenerationService.generateSlideImageFromPrompt(userId, imagePrompt);
               }
               if (!imageBase64) {
-                imageBase64 = await LlmGenerationService.generateSlideImage(slide.title, slide.content, injectedRules);
+                imageBase64 = await LlmGenerationService.generateSlideImage(userId, slide.title, slide.content, injectedRules);
               }
               if (imageBase64) {
                 const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.png`;
@@ -925,7 +926,7 @@ export const api = onRequest(
               ? `Slides for "${documentDataList[0].doc.title}"`
               : `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
 
-          const slideDeckGenerationModel = await resolveSlideDeckGenerationModelLabel();
+          const slideDeckGenerationModel = await resolveSlideDeckGenerationModelLabel(userId);
 
           await completePendingSlideDeck(userId, pendingSlideDeckId, {
             title: deckTitle,
@@ -1101,7 +1102,7 @@ export const api = onRequest(
           }
 
           const slideOutline = await LlmGenerationService.generateSlideDeckOutline(
-            combinedContent, additionalPrompt || undefined, injectedRules
+            userId, combinedContent, additionalPrompt || undefined, injectedRules
           );
 
           if (slideOutline.length !== parsedImages.length) {
@@ -1147,7 +1148,7 @@ export const api = onRequest(
               ? `Slides for "${documentDataList[0].doc.title}"`
               : `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
 
-          const slideDeckGenerationModel = await resolveSlideDeckGenerationModelLabel();
+          const slideDeckGenerationModel = await resolveSlideDeckGenerationModelLabel(userId);
 
           await completePendingSlideDeck(userId, pendingSlideDeckId, {
             title: deckTitle,
@@ -1259,6 +1260,7 @@ export const api = onRequest(
         let generatedContent: string;
         try {
           generatedContent = await LlmGenerationService.generateDocumentFromPrompt(
+            userId,
             trimmedPrompt,
             data.files,
             rulesText || undefined
@@ -1281,7 +1283,7 @@ export const api = onRequest(
 
         const wordCount = generatedContent.split(/\s+/).length;
 
-        const documentGenerationModel = await resolveTextGenerationModelLabel('documentFromPrompt');
+        const documentGenerationModel = await resolveTextGenerationModelLabel(userId, 'documentFromPrompt');
 
         let document: Awaited<ReturnType<typeof DocumentCrudService.completePendingDocument>>;
         try {

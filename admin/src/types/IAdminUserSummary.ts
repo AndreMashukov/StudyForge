@@ -4,4 +4,6 @@ export interface IAdminUserSummary {
   displayName?: string;
   createdAt?: string;
   disabled?: boolean;
+  userGroupId?: string;
+  userGroupName?: string;
 }

@@ -1,4 +1,8 @@
 import { isRejectedWithValue, Middleware } from '@reduxjs/toolkit';
+import {
+  getUserFacingLlmRoutingMessage,
+  normalizeGenerationErrorMessage,
+} from '../../utils/llmRoutingErrors';
 import { showToast } from '../slices/uiSlice';
 
 /**
@@ -19,16 +23,18 @@ export const errorToastMiddleware: Middleware = (api) => (next) => (action) => {
     if (actionType.startsWith('baseApi/')) {
       const payload = action.payload as {
         status?: string;
-        data?: { message?: string };
+        data?: { message?: string; code?: string; details?: { code?: string } };
       };
 
+      const routingCode = payload?.data?.code ?? payload?.data?.details?.code;
       const rawMessage =
-        payload?.data?.message ||
+        (typeof payload?.data?.message === 'string' ? payload.data.message : undefined) ||
         payload?.status ||
         'An unexpected error occurred';
 
-      // Strip prefixes like "Failed to update directory: ", "Failed to delete document: ", etc.
-      const message = rawMessage.replace(/^Failed to [^:]+:\s*/i, '').trim() || rawMessage;
+      const message = normalizeGenerationErrorMessage(
+        getUserFacingLlmRoutingMessage(routingCode, rawMessage) ?? rawMessage
+      );
 
       api.dispatch(showToast({ message, type: 'error' }));
     }

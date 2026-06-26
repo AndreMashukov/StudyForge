@@ -1,6 +1,7 @@
 import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
+import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
 import { LlmGenerationService, resolveTextGenerationModelLabel } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
@@ -190,6 +191,7 @@ export const generateSequenceQuiz = onCall(
         followupIdsForSave = resolvedFollowupIds;
 
         const geminiQuiz = await LlmGenerationService.generateSequenceQuiz(
+          userId,
           documentContent,
           enhancedPrompt || undefined
         );
@@ -199,7 +201,7 @@ export const generateSequenceQuiz = onCall(
             ? `Sequence Quiz from ${documentDataList[0].doc.title}`
             : `Sequence Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
 
-        const generationModel = await resolveTextGenerationModelLabel('sequenceQuiz');
+        const generationModel = await resolveTextGenerationModelLabel(userId, 'sequenceQuiz');
 
         await completePendingSequenceQuiz(userId, pendingSequenceQuizId, {
           title: finalTitle,
@@ -226,10 +228,7 @@ export const generateSequenceQuiz = onCall(
       console.error("Error in generateSequenceQuiz:", error);
       return {
         success: false,
-        error: {
-          code: "GENERATION_FAILED",
-          message: error instanceof Error ? error.message : "Failed to generate sequence quiz",
-        },
+        error: getGenerationFailureEnvelope(error),
       };
     }
   }

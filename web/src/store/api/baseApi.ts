@@ -1,6 +1,10 @@
 import { createApi, BaseQueryFn } from '@reduxjs/toolkit/query/react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../config/firebase';
+import {
+  getUserFacingLlmRoutingMessage,
+  normalizeGenerationErrorMessage,
+} from '../../utils/llmRoutingErrors';
 
 // Custom base query that uses Firebase callable functions
 const firebaseCallableBaseQuery: BaseQueryFn<
@@ -34,12 +38,24 @@ const firebaseCallableBaseQuery: BaseQueryFn<
     console.error(`Firebase Callable - message: ${firebaseError.message}`);
     console.error(`Firebase Callable - details:`, firebaseError.details);
 
+    const detailsRecord =
+      typeof firebaseError.details === 'object' && firebaseError.details !== null
+        ? (firebaseError.details as { code?: string; message?: string })
+        : undefined;
+
+    const routingCode = detailsRecord?.code;
+    const resolvedMessage =
+      getUserFacingLlmRoutingMessage(routingCode, firebaseError.message) ??
+      (typeof firebaseError.details === 'string' ? firebaseError.details : undefined) ??
+      firebaseError.message ??
+      'An unknown error occurred';
+
     return {
       error: {
         status: firebaseError.code || 'UNKNOWN_ERROR',
         data: {
-          message: firebaseError.details || firebaseError.message || 'An unknown error occurred',
-          code: firebaseError.code,
+          message: normalizeGenerationErrorMessage(resolvedMessage),
+          code: routingCode ?? firebaseError.code,
           details: firebaseError.details,
         },
       },

@@ -15,6 +15,7 @@ export interface PreparedUploadDocumentContent {
 }
 
 export interface PrepareUploadDocumentContentParams {
+  userId: string;
   extraction: FileExtractionResult;
   customTitle?: string;
   rulesText?: string;
@@ -34,6 +35,7 @@ export class SourceDocumentGenerationService {
       } else {
         try {
           content = await LlmGenerationService.enhanceExtractedDocument(
+            params.userId,
             content,
             params.extraction.filename,
             params.rulesText

@@ -50,7 +50,7 @@ export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft
 
     try {
       const startedAt = Date.now();
-      const fixedDiagram = await LlmGenerationService.repairDiagramQuizDiagram({
+      const fixedDiagram = await LlmGenerationService.repairDiagramQuizDiagram(context.userId, {
         sourceContent: context.sourceContent,
         questionText: question.question,
         brokenDiagram,
@@ -114,7 +114,7 @@ export const diagramQuizCriticStrategy = {
     diagnostics: IArtifactAgentDiagnostics
   ): Promise<IArtifactCriticResult> {
     const startedAt = Date.now();
-    const raw = await LlmGenerationService.runDiagramQuizCritic({
+    const raw = await LlmGenerationService.runDiagramQuizCritic(context.userId, {
       sourceContent: context.sourceContent,
       draft,
       styleRules: DiagramQuizPromptBuilder.getDiagramSyntaxRulesExcerpt(),
@@ -161,7 +161,7 @@ export const diagramQuizRefinerStrategy = {
 
     const startedAt = Date.now();
     try {
-      const refined = await LlmGenerationService.refineDiagramQuiz({
+      const refined = await LlmGenerationService.refineDiagramQuiz(context.userId, {
         sourceContent: context.sourceContent,
         draft,
         criticResult,

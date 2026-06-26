@@ -1,6 +1,7 @@
 import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
+import { getGenerationFailureEnvelope } from '../services/llm/llm-endpoint-error';
 import { LlmGenerationService, resolveTextGenerationModelLabel } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
@@ -167,7 +168,7 @@ export const generateQuiz = onCall(
         
         // Generate quiz — routes to OpenRouter if enabled, falls back to Gemini
         console.log("Generating quiz for document(s)...");
-        const geminiQuiz = await LlmGenerationService.generateQuiz(documentContent, enhancedPrompt);
+        const geminiQuiz = await LlmGenerationService.generateQuiz(userId, documentContent, enhancedPrompt);
         
         // Apply custom quiz name if provided
         if (requestData.quizName && requestData.quizName.trim()) {
@@ -185,7 +186,7 @@ export const generateQuiz = onCall(
           .get();
         const generationAttempt = existingSnap.size;
 
-        const generationModel = await resolveTextGenerationModelLabel('quiz');
+        const generationModel = await resolveTextGenerationModelLabel(userId, 'quiz');
 
         await completePendingQuiz(userId, pendingQuizId, {
           title: geminiQuiz.title,
@@ -229,10 +230,7 @@ export const generateQuiz = onCall(
       
       return {
         success: false,
-        error: {
-          code: "GENERATION_FAILED",
-          message: error instanceof Error ? error.message : "Failed to generate quiz",
-        },
+        error: getGenerationFailureEnvelope(error),
       };
     }
   }

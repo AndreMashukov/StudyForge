@@ -121,7 +121,7 @@ export class DirectoryChatService {
       ...(artifactContext ? { artifactContext } : {}),
     });
 
-    const answer = await LlmGenerationService.generateDirectoryChatAnswer(promptContext);
+    const answer = await LlmGenerationService.generateDirectoryChatAnswer(userId, promptContext);
     const assistantNow = new Date();
     const assistantMessageRef = FirestorePaths.directoryChatMessages(userId, directoryId).doc();
     const assistantMessage: DirectoryChatMessage = {

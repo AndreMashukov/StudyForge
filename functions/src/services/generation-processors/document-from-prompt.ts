@@ -74,6 +74,7 @@ export class DocumentFromPromptGenerationProcessor {
     });
 
     const generatedContent = await LlmGenerationService.generateDocumentFromPrompt(
+      job.userId,
       trimmedPrompt,
       data.files,
       rulesText || undefined
@@ -94,7 +95,7 @@ export class DocumentFromPromptGenerationProcessor {
       });
     }
 
-    const generationModel = await resolveTextGenerationModelLabel('documentFromPrompt');
+    const generationModel = await resolveTextGenerationModelLabel(job.userId, 'documentFromPrompt');
 
     await DocumentCrudService.completePendingDocument(job.userId, job.recordId, generatedContent, {
       title,

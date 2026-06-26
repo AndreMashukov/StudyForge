@@ -211,13 +211,14 @@ export const uploadAndCreateDocument = onCall(
         });
 
         const prepared = await SourceDocumentGenerationService.prepareUploadDocumentContent({
+          userId,
           extraction,
           customTitle: data.title,
           rulesText: rulesText || undefined,
         });
 
         const generationModel = prepared.wasEnhanced
-          ? await resolveTextGenerationModelLabel('sourceDocumentEnhancement')
+          ? await resolveTextGenerationModelLabel(userId, 'sourceDocumentEnhancement')
           : undefined;
 
         await DocumentCrudService.completePendingDocument(userId, uploadPendingDocId, prepared.content, {
@@ -401,6 +402,7 @@ export const createDocumentFromUrl = onCall(
         let generatedContent: string;
         try {
           generatedContent = await LlmGenerationService.generateDocumentFromPrompt(
+            userId,
             buildUrlDocumentPrompt({
               customTitle,
               sourceCount: summary.sourceUrls.length,
@@ -435,7 +437,7 @@ export const createDocumentFromUrl = onCall(
           ? `Scraped from: ${rawUrls[0]}`
           : `Merged from ${summary.successfulCount} URL${summary.successfulCount !== 1 ? 's' : ''}`;
 
-        const generationModel = await resolveTextGenerationModelLabel('documentFromPrompt');
+        const generationModel = await resolveTextGenerationModelLabel(userId, 'documentFromPrompt');
 
         await DocumentCrudService.completePendingDocument(userId, urlPendingDocId, generatedContent, {
           title,

@@ -162,7 +162,7 @@ export const generateSlideDeck = onCall(
 
           // Step 3: Generate slide outline
           logger.info('[generateSlideDeck] STEP 3: Generating slide outline.', { userIdHash: u });
-          const slideOutline = await LlmGenerationService.generateSlideDeckOutline(combinedContent, additionalPrompt || undefined, injectedRules);
+          const slideOutline = await LlmGenerationService.generateSlideDeckOutline(userId, combinedContent, additionalPrompt || undefined, injectedRules);
           logger.info(`[generateSlideDeck] STEP 4: Outline generated. Slides: ${slideOutline.length}`, { userIdHash: u });
 
           // Step 5: Generate images with two-phase approach + bounded concurrency (3 at a time)
@@ -184,17 +184,17 @@ export const generateSlideDeck = onCall(
               const i = batch + ci;
 
               // Phase 1: Generate detailed image brief using Gemini text model
-              const brief = await LlmGenerationService.generateSlideImageBrief(slide.title, slide.content, injectedRules);
+              const brief = await LlmGenerationService.generateSlideImageBrief(userId, slide.title, slide.content, injectedRules);
 
               // Phase 2: Generate the actual image from the brief (or fall back to direct prompt)
               let imageBase64: string | null = null;
               if (brief) {
                 const { SlideDeckPromptBuilder } = await import('../services/gemini/prompt-builder/slide-deck');
                 const imagePrompt = SlideDeckPromptBuilder.buildSlideImageFromBriefPrompt(brief);
-                imageBase64 = await LlmGenerationService.generateSlideImageFromPrompt(imagePrompt);
+                imageBase64 = await LlmGenerationService.generateSlideImageFromPrompt(userId, imagePrompt);
               }
               if (!imageBase64) {
-                imageBase64 = await LlmGenerationService.generateSlideImage(slide.title, slide.content, injectedRules);
+                imageBase64 = await LlmGenerationService.generateSlideImage(userId, slide.title, slide.content, injectedRules);
               }
 
               if (imageBase64) {
@@ -221,7 +221,7 @@ export const generateSlideDeck = onCall(
               ? `Slides for "${documentDataList[0].title}"`
               : `Slides for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
 
-          const generationModel = await resolveSlideDeckGenerationModelLabel();
+          const generationModel = await resolveSlideDeckGenerationModelLabel(userId);
 
           await completePendingSlideDeck(userId, pendingSlideDeckId, {
             title: finalTitle,

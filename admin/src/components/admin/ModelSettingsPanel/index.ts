@@ -2,8 +2,6 @@ export { MiniMaxSettingsForm } from './MiniMaxSettingsForm';
 export type { IMiniMaxSettingsFormProps } from './MiniMaxSettingsForm';
 export { GeminiSettingsPanel } from './GeminiSettingsPanel';
 export type { IGeminiSettingsPanelProps } from './GeminiSettingsPanel';
-export { ModelProviderOverview } from './ModelProviderOverview';
-export type { IModelProviderOverviewProps } from './ModelProviderOverview';
 export { OpenRouterSettingsForm } from './OpenRouterSettingsForm';
 export type { IOpenRouterSettingsFormProps } from './OpenRouterSettingsForm';
 export {

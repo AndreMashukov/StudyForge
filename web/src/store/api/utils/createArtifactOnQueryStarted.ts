@@ -2,6 +2,7 @@ import { ThunkDispatch, UnknownAction } from '@reduxjs/toolkit';
 import { ApiResponse } from '@shared-types';
 import { addPendingGeneration, removePendingGeneration, ArtifactPanelType } from '../../slices/artifactGenerationSlice';
 import { showToast } from '../../slices/uiSlice';
+import { normalizeGenerationErrorMessage } from '../../../utils/llmRoutingErrors';
 import type { AppDispatch } from '../../index';
 import {
   getOptimisticArtifactTitle,
@@ -68,7 +69,15 @@ export function createArtifactOnQueryStarted(
 
         dispatch(showToast({ message, type: 'success' }));
       } else {
-        dispatch(showToast({ message: `Failed to generate ${errorLabel}`, type: 'error' }));
+        const errorMessage =
+          typeof data?.error === 'object' &&
+          data.error !== null &&
+          'message' in data.error &&
+          typeof data.error.message === 'string'
+            ? normalizeGenerationErrorMessage(data.error.message)
+            : `Failed to generate ${errorLabel}`;
+
+        dispatch(showToast({ message: errorMessage, type: 'error' }));
       }
     } catch {
       dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType }));

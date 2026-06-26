@@ -2,6 +2,7 @@ import { onCall } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
+import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
@@ -174,10 +175,7 @@ export const generateDiagramQuiz = onCall(
       console.error("Error in generateDiagramQuiz:", error);
       return {
         success: false,
-        error: {
-          code: "GENERATION_FAILED",
-          message: error instanceof Error ? error.message : "Failed to generate diagram quiz",
-        },
+        error: getGenerationFailureEnvelope(error),
       };
     }
   }

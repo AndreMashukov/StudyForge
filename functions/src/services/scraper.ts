@@ -96,7 +96,11 @@ Please return only the clean markdown content, starting with the title heading:`
         finalPrompt = await promptBuilder.injectRules(basePrompt, ruleIds, userId);
       }
 
-      const response = await LlmGenerationService.generateScrapedContentMarkdown(finalPrompt);
+      if (!userId) {
+        throw new Error('userId is required for markdown conversion');
+      }
+
+      const response = await LlmGenerationService.generateScrapedContentMarkdown(userId, finalPrompt);
       
       if (!response || response.trim().length === 0) {
         throw new Error('Gemini returned empty response for markdown conversion');
