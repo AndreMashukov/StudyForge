@@ -36,14 +36,21 @@ The workflow references a secret that doesn't exist. Must be exactly `FIREBASE_S
 
 ### `Failed to authenticate, have you run firebase login?` / `Premature close`
 
-Usually **not** a bad service account secret. Known incompatibility between recent Node.js (22.23+, 24.17+) and firebase-tools 15.22.x's bundled `node-fetch` when exchanging OAuth tokens in CI.
+Usually **not** a bad service account secret. Known incompatibility between Node.js **22.23.0** (and 24.17+) and firebase-tools' bundled `node-fetch` when exchanging OAuth tokens or releasing Hosting versions in CI.
 
 Fix in `.github/workflows/firebase-hosting-merge.yml`:
 
-- Pin `NODE_VERSION` to `22.22.0` (or `24.16.0` if on Node 24)
-- Pin `firebaseToolsVersion: '15.21.0'` on the deploy action
+- Pin `NODE_VERSION` to `22.22.0` (or `22.23.1+` / `24.16.0`)
+- Pin `FIREBASE_TOOLS_VERSION` to `15.22.2`
+- Re-run the workflow from **latest main** — re-running an old failed job uses that commit's Node pins (often `22` → 22.23.0)
 
 Refs: [firebase-tools#10681](https://github.com/firebase/firebase-tools/issues/10681), [nodejs/node#63989](https://github.com/nodejs/node/issues/63989)
+
+### `Can't release ... supplied version is the current active version`
+
+The Hosting release often **already succeeded** on the server. firebase-tools 15.22.x retries after a premature close on the release POST; the retry then fails with HTTP 400 because that version is already live.
+
+Fix: same Node + firebase-tools pins above so the release completes without a premature close. Avoid overlapping deploys (`cancel-in-progress: false`). Your site may already be updated even when CI shows red.
 
 ### Build works locally but not in CI
 

@@ -10,11 +10,16 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
-  # Pin below 22.23 — firebase-tools OAuth fails with "Premature close" on newer Node (nodejs/node#63989)
+  # Avoid 22.23.0 — node-fetch gzip bug causes premature close (nodejs/node#63989).
+  # 22.22.x is stable; 22.23.1+ also works per firebase-tools#10692.
   NODE_VERSION: '22.22.0'
+  # 15.22.2+ retries without keep-alive after premature close, which can false-fail
+  # with "current active version" if the first release already succeeded. Prefer
+  # preventing premature close via Node pin over relying on that retry path.
+  FIREBASE_TOOLS_VERSION: '15.22.2'
 
 permissions:
   contents: read
@@ -80,6 +85,21 @@ jobs:
           NX_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NX_PUBLIC_FIREBASE_APP_ID }}
           NX_PUBLIC_GEMINI_API_KEY: ${{ secrets.NX_PUBLIC_GEMINI_API_KEY }}
 
+      - name: Verify Node version for Firebase CLI
+        run: |
+          echo "Node: $(node --version)"
+          case "$(node --version)" in
+            v22.22.*|v22.23.1|v22.23.2|v24.16.*|v24.18.*|v24.19.*|v24.20.*) ;;
+            v22.23.0)
+              echo "Node 22.23.0 breaks firebase-tools OAuth/release (nodejs/node#63989). Use 22.22.x or 22.23.1+."
+              exit 1
+              ;;
+            *)
+              echo "Unexpected Node for firebase-tools: $(node --version)"
+              exit 1
+              ;;
+          esac
+
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
@@ -87,5 +107,4 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_STUDY_FORGE_202604 }}'
           channelId: live
           projectId: study-forge-202604
-          # Avoid 15.22.x regressions with node-fetch gzip handling in CI
-          firebaseToolsVersion: '15.21.0'
+          firebaseToolsVersion: ${{ env.FIREBASE_TOOLS_VERSION }}
