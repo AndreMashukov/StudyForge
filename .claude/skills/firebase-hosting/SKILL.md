@@ -34,6 +34,17 @@ Verify with: `gh secret list`
 
 The workflow references a secret that doesn't exist. Must be exactly `FIREBASE_SERVICE_ACCOUNT_STUDY_FORGE_202604`.
 
+### `Failed to authenticate, have you run firebase login?` / `Premature close`
+
+Usually **not** a bad service account secret. Known incompatibility between recent Node.js (22.23+, 24.17+) and firebase-tools 15.22.x's bundled `node-fetch` when exchanging OAuth tokens in CI.
+
+Fix in `.github/workflows/firebase-hosting-merge.yml`:
+
+- Pin `NODE_VERSION` to `22.22.0` (or `24.16.0` if on Node 24)
+- Pin `firebaseToolsVersion: '15.21.0'` on the deploy action
+
+Refs: [firebase-tools#10681](https://github.com/firebase/firebase-tools/issues/10681), [nodejs/node#63989](https://github.com/nodejs/node/issues/63989)
+
 ### Build works locally but not in CI
 
 CI injects secrets at build time. Missing `NX_PUBLIC_*` secrets → app falls back to demo Firebase config in `web/src/config/firebase.ts`.
