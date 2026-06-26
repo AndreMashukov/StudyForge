@@ -1,10 +1,8 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { AdminPageHeader } from '../../../../components/admin/AdminPageHeader';
-import {
-  LlmSetupForm,
-  routesToFormValues,
-} from '../../../../components/admin/LlmSetupForm';
+import { LlmSetupForm } from '../../../../components/admin/LlmSetupForm';
+import { routesToFormValues } from '../../../../components/admin/LlmSetupForm/LlmSetupForm.form';
 import { createDefaultLlmSetupRoutes } from '../../../../lib/data/llm-setups';
 
 export default function NewLlmSetupPage() {

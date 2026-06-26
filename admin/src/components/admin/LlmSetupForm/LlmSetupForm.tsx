@@ -1,67 +1,30 @@
 'use client';
 
-import type { ILlmSetupRoutes, LlmProviderType } from '@shared-types';
+import type { LlmProviderType } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Input, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 import {
   isAdminUnauthorizedResponse,
   redirectToAdminLogin,
 } from '../../../lib/auth/client-login-redirect';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
+import {
+  type ILlmSetupFormValues,
+  llmSetupFormSchema,
+  toLlmSetupRoutes,
+} from './LlmSetupForm.form';
 
 const providerOptions: LlmProviderType[] = ['gemini', 'openrouter', 'minimax'];
 
-const modalityRouteSchema = z.object({
-  providerType: z.enum(['gemini', 'openrouter', 'minimax']),
-  model: z.string().trim().min(1, 'Model is required'),
-});
-
-const llmSetupFormSchema = z.object({
-  name: z.string().trim().min(1, 'Name is required'),
-  description: z.string().optional(),
-  textProviderType: modalityRouteSchema.shape.providerType,
-  textModel: modalityRouteSchema.shape.model,
-  visionProviderType: modalityRouteSchema.shape.providerType,
-  visionModel: modalityRouteSchema.shape.model,
-  imageProviderType: modalityRouteSchema.shape.providerType,
-  imageModel: modalityRouteSchema.shape.model,
-});
-
-export type ILlmSetupFormValues = z.infer<typeof llmSetupFormSchema>;
+export type { ILlmSetupFormValues } from './LlmSetupForm.form';
 
 export interface ILlmSetupFormProps {
   setupId?: string;
   defaultValues: ILlmSetupFormValues;
   providerWarnings?: string[];
-}
-
-function toRoutes(values: ILlmSetupFormValues): ILlmSetupRoutes {
-  return {
-    text: { providerType: values.textProviderType, model: values.textModel.trim() },
-    vision: { providerType: values.visionProviderType, model: values.visionModel.trim() },
-    image: { providerType: values.imageProviderType, model: values.imageModel.trim() },
-  };
-}
-
-export function routesToFormValues(
-  name: string,
-  description: string | undefined,
-  routes: ILlmSetupRoutes
-): ILlmSetupFormValues {
-  return {
-    name,
-    description: description ?? '',
-    textProviderType: routes.text.providerType,
-    textModel: routes.text.model,
-    visionProviderType: routes.vision.providerType,
-    visionModel: routes.vision.model,
-    imageProviderType: routes.image.providerType,
-    imageModel: routes.image.model,
-  };
 }
 
 function ModalityFields({
@@ -122,7 +85,7 @@ export function LlmSetupForm({ setupId, defaultValues, providerWarnings = [] }: 
       const payload = {
         name: values.name.trim(),
         description: values.description?.trim() || undefined,
-        routes: toRoutes(values),
+        routes: toLlmSetupRoutes(values),
       };
 
       const response = await fetch(setupId ? `/api/llm-setups/${setupId}` : '/api/llm-setups', {
