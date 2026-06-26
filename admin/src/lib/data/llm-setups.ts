@@ -165,19 +165,12 @@ async function buildProviderWarnings(routes: ILlmSetupRoutes): Promise<string[]>
   ]);
 
   for (const providerType of providers) {
-    if (providerType === 'openrouter') {
-      if (
-        !pageData.openRouterConnection.enabled ||
-        !pageData.openRouterConnection.apiKeyConfigured
-      ) {
-        warnings.push('OpenRouter credentials are not configured.');
-      }
+    if (providerType === 'openrouter' && !pageData.openRouterConnection.apiKeyConfigured) {
+      warnings.push('OpenRouter credentials are not configured.');
     }
 
-    if (providerType === 'minimax') {
-      if (!pageData.miniMaxConnection.enabled || !pageData.miniMaxConnection.apiKeyConfigured) {
-        warnings.push('MiniMax credentials are not configured.');
-      }
+    if (providerType === 'minimax' && !pageData.miniMaxConnection.apiKeyConfigured) {
+      warnings.push('MiniMax credentials are not configured.');
     }
   }
 

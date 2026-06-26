@@ -79,6 +79,12 @@ export class LlmSettingsRepository {
     return snap.data() as IEncryptedSecretRecord;
   }
 
+  /** Credentials are usable when an encrypted secret exists (setup-driven routing). */
+  static async isOpenRouterConfigured(): Promise<boolean> {
+    const secret = await this.getOpenRouterEncryptedSecret();
+    return secret !== null;
+  }
+
   static async getMiniMaxEncryptedSecret(): Promise<IEncryptedSecretRecord | null> {
     const snap = await admin
       .firestore()
@@ -88,5 +94,11 @@ export class LlmSettingsRepository {
 
     if (!snap.exists) return null;
     return snap.data() as IEncryptedSecretRecord;
+  }
+
+  /** Credentials are usable when an encrypted secret exists (setup-driven routing). */
+  static async isMiniMaxConfigured(): Promise<boolean> {
+    const secret = await this.getMiniMaxEncryptedSecret();
+    return secret !== null;
   }
 }
