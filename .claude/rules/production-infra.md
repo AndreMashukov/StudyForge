@@ -44,6 +44,7 @@ The `admin` app deploys separately to Vercel:
 
 | Error | Fix |
 |-------|-----|
+| `Failed to authenticate` / `Premature close` on deploy | Pin Node to `22.22.0` and `firebaseToolsVersion: '15.21.0'` — see `skills/firebase-hosting` |
 | `Input required: firebaseServiceAccount` | Secret name mismatch — must be `FIREBASE_SERVICE_ACCOUNT_STUDY_FORGE_202604` |
 | CORS 404 on callable functions | Emulator/deploy `--project` does not match `NX_PUBLIC_FIREBASE_PROJECT_ID` |
 | Build succeeds but app shows demo config | `NX_PUBLIC_*` secrets missing in the build step env block |
