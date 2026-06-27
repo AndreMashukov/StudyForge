@@ -30,7 +30,7 @@ const generateRuleRequestSchema = z.object({
  * Generates or improves a rule using the LLM routing layer (OpenRouter or Gemini).
  */
 export const generateRuleWithAI = onCall(
-  { region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey] },
+  { region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 300 },
   async (request) => {
     try {
       const userId = validateAuth(request);
