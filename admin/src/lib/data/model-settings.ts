@@ -2,7 +2,6 @@ import 'server-only';
 
 import * as admin from 'firebase-admin';
 import type {
-  ActiveModelProviderType,
   IEncryptedSecretRecord,
   IGeminiConnectionTestResult,
   IGeminiProviderConnection,
@@ -32,11 +31,8 @@ import {
 const OPENROUTER_CONNECTION_ID = PRIMARY_OPENROUTER_CONNECTION_ID;
 const MINIMAX_CONNECTION_ID = PRIMARY_MINIMAX_CONNECTION_ID;
 const GEMINI_CONNECTION_ID = PRIMARY_GEMINI_CONNECTION_ID;
-const LEGACY_GEMINI_IMAGE_CONNECTION_ID = 'gemini-image-primary';
 const OPENROUTER_CONNECTIONS_COLLECTION = 'llmProviderConnections';
 const OPENROUTER_SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
-const ACTIVE_PROVIDER_COLLECTION = 'llmSettings';
-const ACTIVE_PROVIDER_DOC_ID = 'activeProvider';
 
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 export const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
@@ -51,17 +47,10 @@ export const DEFAULT_MINIMAX_BASE_URL = 'https://api.minimax.io/v1';
 export const DEFAULT_MINIMAX_IMAGE_URL = 'https://api.minimax.io/v1/image_generation';
 
 export interface IModelSettingsPageData {
-  activeProviderId: ActiveModelProviderType;
   geminiConnection: IGeminiProviderConnection;
   openRouterConnection: IOpenRouterProviderConnection;
   miniMaxConnection: IMiniMaxProviderConnection;
   encryptionConfigured: boolean;
-}
-
-export function isActiveModelProviderType(
-  value: unknown
-): value is ActiveModelProviderType {
-  return value === 'gemini' || value === 'openrouter' || value === 'minimax';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -127,12 +116,6 @@ function normalizeImageModel(
   return normalized && normalized.length > 0 ? normalized : fallback;
 }
 
-function getActiveProviderRef(): admin.firestore.DocumentReference {
-  return getAdminFirestore()
-    .collection(ACTIVE_PROVIDER_COLLECTION)
-    .doc(ACTIVE_PROVIDER_DOC_ID);
-}
-
 function getConnectionRef(): admin.firestore.DocumentReference {
   return getAdminFirestore()
     .collection(OPENROUTER_CONNECTIONS_COLLECTION)
@@ -145,12 +128,6 @@ function getMiniMaxConnectionRef(): admin.firestore.DocumentReference {
     .doc(MINIMAX_CONNECTION_ID);
 }
 
-function getLegacyGeminiImageConnectionRef(): admin.firestore.DocumentReference {
-  return getAdminFirestore()
-    .collection(OPENROUTER_CONNECTIONS_COLLECTION)
-    .doc(LEGACY_GEMINI_IMAGE_CONNECTION_ID);
-}
-
 function getSecretRef(): admin.firestore.DocumentReference {
   return getAdminFirestore()
     .collection(OPENROUTER_SECRETS_COLLECTION)
@@ -161,14 +138,6 @@ function getMiniMaxSecretRef(): admin.firestore.DocumentReference {
   return getAdminFirestore()
     .collection(OPENROUTER_SECRETS_COLLECTION)
     .doc(MINIMAX_CONNECTION_ID);
-}
-
-function toOpenRouterImageModelId(geminiModelId: string): string {
-  const normalized = geminiModelId.trim();
-  if (normalized.includes('/')) {
-    return normalized;
-  }
-  return `google/${normalized}`;
 }
 
 function parseSupportedModalities(value: unknown): LlmModality[] {
@@ -300,16 +269,6 @@ function readPreferences(
   };
 }
 
-async function readLegacyGeminiImageModel(): Promise<string | undefined> {
-  const snapshot = await getLegacyGeminiImageConnectionRef().get();
-  const data = snapshot.data();
-  if (!data || typeof data.defaultModel !== 'string') {
-    return undefined;
-  }
-
-  return toOpenRouterImageModelId(data.defaultModel);
-}
-
 export async function readGeminiConnection(): Promise<IGeminiProviderConnection> {
   const [connectionSnapshot, secretSnapshot] = await Promise.all([
     getGeminiConnectionRef().get(),
@@ -358,26 +317,22 @@ export async function readGeminiConnection(): Promise<IGeminiProviderConnection>
 }
 
 export async function readOpenRouterConnection(): Promise<IOpenRouterProviderConnection> {
-  const [connectionSnapshot, secretSnapshot, legacyImageModel] = await Promise.all([
+  const [connectionSnapshot, secretSnapshot] = await Promise.all([
     getConnectionRef().get(),
     getSecretRef().get(),
-    readLegacyGeminiImageModel(),
   ]);
 
   const defaults = buildDefaultOpenRouterConnection(secretSnapshot.exists);
   const data = connectionSnapshot.data();
 
   if (!data) {
-    return {
-      ...defaults,
-      defaultImageModel: legacyImageModel ?? defaults.defaultImageModel,
-    };
+    return defaults;
   }
 
   const defaultImageModel =
     typeof data.defaultImageModel === 'string'
       ? normalizeImageModel(data.defaultImageModel, defaults.defaultImageModel ?? DEFAULT_OPENROUTER_IMAGE_MODEL)
-      : legacyImageModel ?? defaults.defaultImageModel;
+      : defaults.defaultImageModel;
 
   return {
     ...defaults,
@@ -576,20 +531,6 @@ function getResponseErrorMessage(
   return `${providerLabel} request failed (${status}): ${fallbackText}`;
 }
 
-async function writeActiveProviderId(
-  providerType: ActiveModelProviderType,
-  actorUid: string
-): Promise<void> {
-  await getActiveProviderRef().set(
-    {
-      activeProviderId: providerType,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedBy: actorUid,
-    },
-    { merge: true }
-  );
-}
-
 export async function getModelSettingsPageData(): Promise<IModelSettingsPageData> {
   await requireAdminSession();
 
@@ -600,53 +541,11 @@ export async function getModelSettingsPageData(): Promise<IModelSettingsPageData
   ]);
 
   return {
-    activeProviderId: 'gemini',
     geminiConnection,
     openRouterConnection,
     miniMaxConnection,
     encryptionConfigured: isLlmSettingsEncryptionConfigured(),
   };
-}
-
-export async function setActiveModelProvider(
-  providerType: ActiveModelProviderType,
-  actorUid: string
-): Promise<IModelSettingsPageData> {
-  await requireAdminSession();
-
-  if (providerType === 'gemini') {
-    const connection = await readGeminiConnection();
-
-    if (!connection.apiKeyConfigured) {
-      throw new Error(
-        'Gemini API key must be configured before activating this provider.'
-      );
-    }
-  }
-
-  if (providerType === 'openrouter') {
-    const connection = await readOpenRouterConnection();
-
-    if (!connection.apiKeyConfigured) {
-      throw new Error(
-        'OpenRouter API key must be configured before activating this provider.'
-      );
-    }
-  }
-
-  if (providerType === 'minimax') {
-    const connection = await readMiniMaxConnection();
-
-    if (!connection.apiKeyConfigured) {
-      throw new Error(
-        'MiniMax API key must be configured before activating this provider.'
-      );
-    }
-  }
-
-  await writeActiveProviderId(providerType, actorUid);
-
-  return getModelSettingsPageData();
 }
 
 export async function updateOpenRouterSettings(
