@@ -1733,21 +1733,6 @@ export interface IGeminiConnectionTestResult {
   model?: string;
 }
 
-/** Admin-managed Gemini image generation (slide images, etc.). */
-export interface IGeminiImageProviderConnection extends ILlmConnectionAuditFields {
-  providerType: 'gemini-image';
-  label: string;
-  enabled: boolean;
-  credentialMode: 'deployment-secret';
-  secretRef: 'GEMINI_API_KEY';
-  defaultModel: string;
-}
-
-export interface IUpdateGeminiImageSettingsRequest {
-  enabled: boolean;
-  defaultModel: string;
-}
-
 export interface IOpenRouterProviderPreferences {
   order?: string[];
   allowFallbacks?: boolean;
@@ -1828,12 +1813,6 @@ export interface IMiniMaxConnectionTestResult {
   message: string;
   validatedAt?: string;
   model?: string;
-}
-
-export type ActiveModelProviderType = 'gemini' | 'openrouter' | 'minimax';
-
-export interface ISetActiveModelProviderRequest {
-  providerType: ActiveModelProviderType;
 }
 
 export interface IOpenRouterConnectionTestResult {

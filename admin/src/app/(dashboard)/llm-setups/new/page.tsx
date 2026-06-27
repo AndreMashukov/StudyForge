@@ -8,7 +8,7 @@ import { listProviderConnectionCatalog } from '../../../../lib/data/provider-con
 
 export default async function NewLlmSetupPage() {
   const [defaultRoutes, providerConnections] = await Promise.all([
-    Promise.resolve(createDefaultLlmSetupRoutes()),
+    createDefaultLlmSetupRoutes(),
     listProviderConnectionCatalog(),
   ]);
 

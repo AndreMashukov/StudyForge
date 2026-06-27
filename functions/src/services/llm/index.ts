@@ -7,7 +7,6 @@ export {
 export { LlmRouteResolver } from './llm-route-resolver';
 export { LlmImageRouteResolver } from './llm-image-route-resolver';
 export { LlmVisionRouteResolver } from './llm-vision-route-resolver';
-export { LlmSettingsRepository } from './llm-settings-repository';
 export { LlmSetupRepository } from './llm-setup-repository';
 export { LlmRoutingError, isLlmRoutingError } from './llm-routing-error';
 export { decryptLlmSecret, isLlmEncryptionAvailable } from './llm-secret-resolver';

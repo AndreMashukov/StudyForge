@@ -10,22 +10,11 @@ import type {
 } from '@shared-types';
 import {
   PRIMARY_GEMINI_CONNECTION_ID,
-  PRIMARY_MINIMAX_CONNECTION_ID,
-  PRIMARY_OPENROUTER_CONNECTION_ID,
 } from '@shared-types';
 import * as admin from 'firebase-admin';
 import { requireAdminSession } from '../auth/session';
 import { getAdminFirestore } from '../firebase/admin';
-import {
-  DEFAULT_GEMINI_IMAGE_MODEL,
-  DEFAULT_GEMINI_MODEL,
-  DEFAULT_MINIMAX_IMAGE_MODEL,
-  DEFAULT_MINIMAX_MODEL,
-  DEFAULT_MINIMAX_VISION_MODEL,
-  DEFAULT_OPENROUTER_IMAGE_MODEL,
-  DEFAULT_OPENROUTER_MODEL,
-  DEFAULT_OPENROUTER_VISION_MODEL,
-} from './model-settings';
+import { readGeminiConnection } from './model-settings';
 import {
   listProviderConnectionCatalog,
   validateModalityRoute,
@@ -144,33 +133,19 @@ function toFirestoreLlmSetupDocument(
   return document;
 }
 
-export function createDefaultLlmSetupRoutes(): ILlmSetupRoutes {
-  return {
-    text: { connectionId: PRIMARY_GEMINI_CONNECTION_ID, model: DEFAULT_GEMINI_MODEL },
-    vision: { connectionId: PRIMARY_GEMINI_CONNECTION_ID, model: DEFAULT_GEMINI_MODEL },
-    image: { connectionId: PRIMARY_GEMINI_CONNECTION_ID, model: DEFAULT_GEMINI_IMAGE_MODEL },
-  };
-}
+export async function createDefaultLlmSetupRoutes(): Promise<ILlmSetupRoutes> {
+  const gemini = await readGeminiConnection();
 
-export function createOpenRouterDefaultRoutes(): ILlmSetupRoutes {
   return {
-    text: { connectionId: PRIMARY_OPENROUTER_CONNECTION_ID, model: DEFAULT_OPENROUTER_MODEL },
+    text: { connectionId: PRIMARY_GEMINI_CONNECTION_ID, model: gemini.defaultModel },
     vision: {
-      connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
-      model: DEFAULT_OPENROUTER_VISION_MODEL,
+      connectionId: PRIMARY_GEMINI_CONNECTION_ID,
+      model: gemini.defaultVisionModel ?? gemini.defaultModel,
     },
     image: {
-      connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
-      model: DEFAULT_OPENROUTER_IMAGE_MODEL,
+      connectionId: PRIMARY_GEMINI_CONNECTION_ID,
+      model: gemini.defaultImageModel ?? gemini.defaultModel,
     },
-  };
-}
-
-export function createMiniMaxDefaultRoutes(): ILlmSetupRoutes {
-  return {
-    text: { connectionId: PRIMARY_MINIMAX_CONNECTION_ID, model: DEFAULT_MINIMAX_MODEL },
-    vision: { connectionId: PRIMARY_MINIMAX_CONNECTION_ID, model: DEFAULT_MINIMAX_VISION_MODEL },
-    image: { connectionId: PRIMARY_MINIMAX_CONNECTION_ID, model: DEFAULT_MINIMAX_IMAGE_MODEL },
   };
 }
 
