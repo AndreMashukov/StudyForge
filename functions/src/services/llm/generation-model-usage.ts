@@ -26,7 +26,7 @@ export function toGenerationModelUsage(
     model: resolution.route.model,
     llmSetupId: resolution.llmSetupId,
     userGroupId: resolution.userGroupId,
-    durationMs,
+    ...(durationMs !== undefined ? { durationMs } : {}),
   };
 }
 
