@@ -124,7 +124,9 @@ export class MiniMaxProviderClient implements LlmProviderClient {
 
     const data = (await response.json()) as MiniMaxChatResponse;
     const rawText = data.choices?.[0]?.message?.content;
-    if (!rawText) throw new Error('Empty response from MiniMax vision API');
+    if (!rawText) {
+      throw new Error(`Empty response from MiniMax vision API. Raw data: ${JSON.stringify(data)}`);
+    }
     const text = stripRedactedThinking(rawText);
     if (!text) throw new Error('Empty response from MiniMax vision API after stripping thinking content');
 
