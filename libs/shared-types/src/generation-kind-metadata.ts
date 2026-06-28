@@ -60,7 +60,7 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
     label: 'Document from screenshot',
     description: 'Transcribe and structure content from screenshot images.',
     requiredModality: 'vision',
-    supportedWorkflows: ['direct'],
+    supportedWorkflows: ['direct', 'agentic'],
     defaultWorkflow: 'direct',
     group: 'production',
   },

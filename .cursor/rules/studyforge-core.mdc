@@ -31,6 +31,11 @@ Read [CONTEXT.md](../../CONTEXT.md) for StudyForge terminology (directory, artif
 - Check `@shared-types` and `web/src/types/` before creating new types
 - No type assertions (`as any`, `@ts-ignore`) — use type guards and Zod
 
+## Deploy
+
+- **Web hosting**: never `firebase deploy --only hosting` — push to `main`; CI (`firebase-hosting-merge.yml`) deploys.
+- **Functions**: `yarn nx run functions:deploy` when explicitly requested.
+
 ## Gotchas
 
 1. Emulator `--project` must match `NX_PUBLIC_FIREBASE_PROJECT_ID` or callables fail with CORS 404

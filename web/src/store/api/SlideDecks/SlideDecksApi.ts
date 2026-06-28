@@ -15,7 +15,9 @@ export const slideDecksApi = baseApi.injectEndpoints({
         data,
         timeout: 310_000, // 310s — matches the server-side 300s timeout + buffer
       }),
-      onQueryStarted: createArtifactOnQueryStarted('slides', 'Slide deck', 'slide deck'),
+      onQueryStarted: createArtifactOnQueryStarted('slides', 'Slide deck', 'slide deck', {
+        successMessage: 'Slide deck is preparing',
+      }),
       invalidatesTags: (result, error, arg) => [
         'UserSlideDecks',
         { type: 'Directory', id: 'CONTENTS' },

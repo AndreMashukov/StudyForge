@@ -19,7 +19,9 @@ export const quizApi = baseApi.injectEndpoints({
         functionName: 'generateQuiz',
         data,
       }),
-      onQueryStarted: createArtifactOnQueryStarted('quizzes', 'Quiz', 'quiz'),
+      onQueryStarted: createArtifactOnQueryStarted('quizzes', 'Quiz', 'quiz', {
+        successMessage: 'Quiz is preparing',
+      }),
       invalidatesTags: (result, error, arg) => [
         'UserQuizzes',
         'RecentQuizzes',

@@ -767,4 +767,65 @@ Include ONLY the listed indexes. Each diagram must be valid Mermaid source.`;
       params.failingQuestionIndexes
     );
   }
+
+  static async evaluateScreenshotRuleCompliance(
+    userId: string,
+    draft: string,
+    userPrompt?: string,
+    rulesText?: string
+  ): Promise<{ passed: boolean; summary?: string; revisedContent?: string }> {
+    const ctx = await resolveTextRoute(userId, 'ruleGeneration', 'ruleGeneration');
+    const prompt = `Review this screenshot-derived document draft against the user's prompt and PROMPT rules.
+
+User prompt:
+${userPrompt?.trim() || '(none)'}
+
+Rules:
+${rulesText?.trim() || '(none)'}
+
+Draft markdown:
+${draft}
+
+Respond with JSON only:
+{"passed": true|false, "summary": "short note", "revisedContent": "optional full corrected markdown when fixes are needed"}`;
+
+    const generationConfig = {
+      temperature: 0.2,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 16384,
+    };
+
+    const text = ctx.usesExternalProvider
+      ? await generateExternalProviderText(
+          ctx,
+          prompt,
+          { model: ctx.resolution.route.model, ...generationConfig },
+          'Screenshot rule compliance review'
+        )
+      : await GeminiService.generateContent(prompt, generationConfig);
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return { passed: true, summary: 'Compliance review returned non-JSON; keeping draft' };
+    }
+
+    try {
+      const parsed = JSON.parse(jsonMatch[0]) as {
+        passed?: boolean;
+        summary?: string;
+        revisedContent?: string;
+      };
+      return {
+        passed: parsed.passed !== false,
+        summary: typeof parsed.summary === 'string' ? parsed.summary : undefined,
+        revisedContent:
+          typeof parsed.revisedContent === 'string' && parsed.revisedContent.trim()
+            ? parsed.revisedContent
+            : undefined,
+      };
+    } catch {
+      return { passed: true, summary: 'Compliance review JSON parse failed; keeping draft' };
+    }
+  }
 }

@@ -15,6 +15,7 @@ import {
 import { GenerationJobPayloadStorage } from "../services/generation-job-payload-storage";
 import { GenerationJobsService } from "../services/generation-jobs";
 import { enqueueGenerationJobTask } from "../services/generation-task-queue";
+import { buildStartGenerationPayload } from "../lib/start-generation-response";
 import type { ArtifactAgentJobPayload } from "../services/artifact-agent";
 import {
   GenerateDiagramQuizRequest,
@@ -164,7 +165,9 @@ export const generateDiagramQuiz = onCall(
       return {
         success: true,
         data: {
-          diagramQuizId: pendingDiagramQuizId,
+          ...buildStartGenerationPayload('diagramQuiz', pendingDiagramQuizId, resolvedDirectoryId, {
+            diagramQuizId: pendingDiagramQuizId,
+          }),
           diagramQuiz: {
             id: pendingDiagramQuizId,
             generationStatus: 'pending',
