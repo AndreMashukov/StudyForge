@@ -41,8 +41,8 @@ import {
   truncateAtWordBoundary,
 } from './llm-image-prompt-utils';
 import { LlmProviderClientFactory } from './llm-provider-client-factory';
-import { LlmGenerationRouteResolver } from './llm-generation-route-resolver';
-import { generateExternalProviderText, resolveTextRoute } from './llm-text-runner';
+import { LlmGenerationRouteResolver, type GenerationRouteResolution } from './llm-generation-route-resolver';
+import { generateExternalProviderText, resolveTextRoute, type TextRouteContext } from './llm-text-runner';
 import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
 import type { LlmCapability } from './types';
@@ -769,12 +769,23 @@ Include ONLY the listed indexes. Each diagram must be valid Mermaid source.`;
   }
 
   static async evaluateScreenshotRuleCompliance(
-    userId: string,
+    routeResolution: GenerationRouteResolution,
     draft: string,
     userPrompt?: string,
     rulesText?: string
   ): Promise<{ passed: boolean; summary?: string; revisedContent?: string }> {
-    const ctx = await resolveTextRoute(userId, 'ruleGeneration', 'ruleGeneration');
+    const ctx: TextRouteContext = {
+      resolution: routeResolution,
+      usesExternalProvider: routeResolution.route.providerType !== 'gemini',
+    };
+
+    functions.logger.info('Screenshot compliance review route resolved', {
+      providerType: routeResolution.route.providerType,
+      model: routeResolution.route.model,
+      kind: routeResolution.kind,
+      workflow: routeResolution.workflow,
+    });
+
     const prompt = `Review this screenshot-derived document draft against the user's prompt and PROMPT rules.
 
 User prompt:
