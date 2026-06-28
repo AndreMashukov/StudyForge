@@ -1,29 +1,29 @@
 import { logger } from 'firebase-functions/v2';
-import {
-  DocumentSourceType,
-  GenerateFromScreenshotRequest,
-  GenerateFromScreenshotResponse,
-  RuleApplicability,
-} from '@shared-types';
-import { DocumentCrudService } from './document-crud';
+import type { GenerateFromScreenshotRequest } from '@shared-types';
 import { directoryService } from './directory';
-import { LlmGenerationService, resolveScreenshotGenerationModelLabel } from './llm';
-import { isRuleResolutionMode, resolveEffectiveRules } from './rule-resolution';
+import { GenerationJobPayloadStorage } from './generation-job-payload-storage';
+import { GenerationJobsService } from './generation-jobs';
+import { enqueueGenerationJobTask } from './generation-task-queue';
 
 const MAX_SCREENSHOT_BASE64_LENGTH = 14_000_000;
 
-export interface ScreenshotDocumentGenerationInput
-  extends GenerateFromScreenshotRequest {
+export interface ScreenshotEnqueueInput extends GenerateFromScreenshotRequest {
   userId: string;
-  /** Pre-created pending document ID. When provided, the service updates it
-   *  rather than creating a new document record. */
-  pendingDocumentId?: string;
+  pendingDocumentId: string;
+}
+
+export interface ScreenshotEnqueueResult {
+  success: boolean;
+  id: string;
+  documentId: string;
+  recordType: 'document';
+  directoryId: string;
+  generationStatus: 'pending';
+  title?: string;
 }
 
 export class ScreenshotDocumentGenerationService {
-  static async generate(
-    input: ScreenshotDocumentGenerationInput
-  ): Promise<GenerateFromScreenshotResponse> {
+  static async enqueue(input: ScreenshotEnqueueInput): Promise<ScreenshotEnqueueResult> {
     this.validateInput(input);
 
     const userId = input.userId;
@@ -31,84 +31,52 @@ export class ScreenshotDocumentGenerationService {
 
     await directoryService.validateDirectoryId(userId, directoryId);
 
-    const mode = input.ruleIds?.length
-      ? isRuleResolutionMode(input.ruleResolutionMode)
-        ? input.ruleResolutionMode
-        : 'explicit-only'
-      : 'inherit';
-
-    const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
-      userId,
+    const jobId = GenerationJobsService.newJobId(userId);
+    const payloadStoragePath = await GenerationJobPayloadStorage.saveJson(userId, jobId, {
+      imageBase64: input.imageBase64,
       directoryId,
-      operation: RuleApplicability.PROMPT,
-      additionalRuleIds: input.ruleIds || [],
-      mode,
-    });
-
-    if (rulesText) {
-      logger.info('Injecting effective rules into screenshot document generation', {
-        ruleCount: effectiveRuleIds.length,
-        mode,
-      });
-    }
-
-    const generatedContent = await LlmGenerationService.generateDocumentFromScreenshot(
-      userId,
-      input.imageBase64,
-      input.prompt,
-      rulesText || undefined
-    );
-
-    const title = this.resolveTitle({
-      generatedContent,
       title: input.title,
       prompt: input.prompt,
+      ruleIds: input.ruleIds,
+      ruleResolutionMode: input.ruleResolutionMode,
     });
-    const wordCount = this.countWords(generatedContent);
 
-    let documentId: string;
+    await GenerationJobsService.createJob({
+      jobId,
+      kind: 'documentFromScreenshot',
+      userId,
+      directoryId,
+      recordId: input.pendingDocumentId,
+      payloadStoragePath,
+    });
 
-    if (input.pendingDocumentId) {
-      const generationModel = await resolveScreenshotGenerationModelLabel(userId);
+    await enqueueGenerationJobTask({ userId, jobId });
 
-      await DocumentCrudService.completePendingDocument(userId, input.pendingDocumentId, generatedContent, {
-        title,
-        description: 'Captured from screenshot',
-        tags: ['screenshot', 'captured'],
-        appliedRuleIds: effectiveRuleIds,
-        generationModel,
-      });
-      documentId = input.pendingDocumentId;
-    } else {
-      const document = await DocumentCrudService.createDocument(userId, {
-        title,
-        description: 'Captured from screenshot',
-        content: generatedContent,
-        sourceType: DocumentSourceType.GENERATED,
-        status: undefined,
-        tags: ['screenshot', 'captured'],
-        directoryId,
-      });
-      documentId = document.id;
-    }
+    logger.info('Screenshot document generation queued', {
+      userId,
+      jobId,
+      documentId: input.pendingDocumentId,
+      directoryId,
+    });
 
     return {
-      documentId,
-      title,
-      content: generatedContent,
-      wordCount,
-      metadata: {
-        generatedAt: new Date().toISOString(),
-        sourceType: 'screenshot',
-        directoryId,
-        prompt: input.prompt,
-      },
+      success: true,
+      id: input.pendingDocumentId,
+      documentId: input.pendingDocumentId,
+      recordType: 'document',
+      directoryId,
+      generationStatus: 'pending',
+      title: input.title,
     };
   }
 
-  private static validateInput(input: ScreenshotDocumentGenerationInput): void {
+  private static validateInput(input: ScreenshotEnqueueInput): void {
     if (!input.userId || typeof input.userId !== 'string') {
       throw new Error('userId is required');
+    }
+
+    if (!input.pendingDocumentId || typeof input.pendingDocumentId !== 'string') {
+      throw new Error('pendingDocumentId is required');
     }
 
     if (!input.imageBase64 || typeof input.imageBase64 !== 'string') {
@@ -126,38 +94,5 @@ export class ScreenshotDocumentGenerationService {
     if (input.ruleIds && !Array.isArray(input.ruleIds)) {
       throw new Error('ruleIds must be an array');
     }
-  }
-
-  private static resolveTitle({
-    generatedContent,
-    title,
-    prompt,
-  }: {
-    generatedContent: string;
-    title?: string;
-    prompt?: string;
-  }): string {
-    if (title?.trim()) {
-      return title.trim();
-    }
-
-    const titleMatch = generatedContent.match(/^#\s+(.+)$/m);
-    if (titleMatch?.[1]) {
-      return titleMatch[1].trim();
-    }
-
-    if (prompt?.trim()) {
-      const trimmedPrompt = prompt.trim();
-      return trimmedPrompt.length > 50
-        ? `${trimmedPrompt.substring(0, 50)}...`
-        : trimmedPrompt;
-    }
-
-    return 'Captured Document';
-  }
-
-  private static countWords(content: string): number {
-    const trimmedContent = content.trim();
-    return trimmedContent ? trimmedContent.split(/\s+/).length : 0;
   }
 }

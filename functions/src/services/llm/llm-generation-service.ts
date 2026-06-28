@@ -41,7 +41,7 @@ import {
   truncateAtWordBoundary,
 } from './llm-image-prompt-utils';
 import { LlmProviderClientFactory } from './llm-provider-client-factory';
-import { LlmVisionRouteResolver } from './llm-vision-route-resolver';
+import { LlmGenerationRouteResolver } from './llm-generation-route-resolver';
 import { generateExternalProviderText, resolveTextRoute } from './llm-text-runner';
 import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
@@ -276,7 +276,7 @@ export class LlmGenerationService {
     userPrompt?: string,
     rules?: string
   ): Promise<string> {
-    const visionResolution = await LlmVisionRouteResolver.resolve('documentFromScreenshot', {
+    const visionResolution = await LlmGenerationRouteResolver.resolve('documentFromScreenshot', {
       userId,
     });
     const { route, providerApiKey } = visionResolution;

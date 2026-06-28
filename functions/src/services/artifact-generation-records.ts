@@ -20,7 +20,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { FirestorePaths } from '../lib/firestore-paths';
-import { GenerationStatus, IArtifactAgentDiagnostics } from '@shared-types';
+import { GenerationStatus, IArtifactAgentDiagnostics, type IGenerationModelUsage } from '@shared-types';
 
 function stripUndefinedDeep<T>(value: T): T {
   if (Array.isArray(value)) {
@@ -96,6 +96,7 @@ export async function completePendingQuiz(
     appliedRuleIds?: string[];
     generationAttempt?: number;
     generationModel?: string;
+    generationModelUsage?: IGenerationModelUsage[];
   }
 ): Promise<void> {
   const ref = FirestorePaths.quiz(userId, quizId);
@@ -109,6 +110,9 @@ export async function completePendingQuiz(
     appliedRuleIds: updates.appliedRuleIds || [],
     generationAttempt: updates.generationAttempt || 1,
     ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
+    ...(updates.generationModelUsage?.length
+      ? { generationModelUsage: updates.generationModelUsage }
+      : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -177,6 +181,7 @@ export async function completePendingFlashcardSet(
     appliedRuleIds?: string[];
     appliedDescriptionRuleIds?: string[];
     generationModel?: string;
+    generationModelUsage?: IGenerationModelUsage[];
   }
 ): Promise<void> {
   const ref = FirestorePaths.flashcardSet(userId, flashcardSetId);
@@ -190,6 +195,9 @@ export async function completePendingFlashcardSet(
     appliedRuleIds: updates.appliedRuleIds || [],
     appliedDescriptionRuleIds: updates.appliedDescriptionRuleIds || [],
     ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
+    ...(updates.generationModelUsage?.length
+      ? { generationModelUsage: updates.generationModelUsage }
+      : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -256,6 +264,7 @@ export async function completePendingSlideDeck(
     slides: object[];
     appliedRuleIds?: string[];
     generationModel?: string;
+    generationModelUsage?: IGenerationModelUsage[];
   }
 ): Promise<void> {
   const ref = FirestorePaths.slideDeck(userId, slideDeckId);
@@ -268,6 +277,9 @@ export async function completePendingSlideDeck(
     slides: updates.slides,
     appliedRuleIds: updates.appliedRuleIds || [],
     ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
+    ...(updates.generationModelUsage?.length
+      ? { generationModelUsage: updates.generationModelUsage }
+      : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -338,6 +350,7 @@ export async function completePendingDiagramQuiz(
     followupRuleIds?: string[];
     generationAttempt?: number;
     generationModel?: string;
+    generationModelUsage?: IGenerationModelUsage[];
     agentModel?: string;
     generationDiagnostics?: IArtifactAgentDiagnostics;
   }
@@ -354,6 +367,9 @@ export async function completePendingDiagramQuiz(
     ...(updates.followupRuleIds !== undefined ? { followupRuleIds: updates.followupRuleIds } : {}),
     generationAttempt: updates.generationAttempt || 1,
     ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
+    ...(updates.generationModelUsage?.length
+      ? { generationModelUsage: updates.generationModelUsage }
+      : {}),
     ...(updates.agentModel ? { agentModel: updates.agentModel } : {}),
     ...(updates.generationDiagnostics
       ? { generationDiagnostics: stripUndefinedDeep(updates.generationDiagnostics) }
@@ -434,6 +450,7 @@ export async function completePendingSequenceQuiz(
     followupRuleIds?: string[];
     generationAttempt?: number;
     generationModel?: string;
+    generationModelUsage?: IGenerationModelUsage[];
   }
 ): Promise<void> {
   const ref = FirestorePaths.sequenceQuiz(userId, sequenceQuizId);
@@ -448,6 +465,9 @@ export async function completePendingSequenceQuiz(
     ...(updates.followupRuleIds !== undefined ? { followupRuleIds: updates.followupRuleIds } : {}),
     generationAttempt: updates.generationAttempt || 1,
     ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
+    ...(updates.generationModelUsage?.length
+      ? { generationModelUsage: updates.generationModelUsage }
+      : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -518,6 +538,7 @@ export async function completePendingSubjectWorld(
     followupRuleIds?: string[];
     generationAttempt?: number;
     generationModel?: string;
+    generationModelUsage?: IGenerationModelUsage[];
   }
 ): Promise<void> {
   const ref = FirestorePaths.subjectWorld(userId, subjectWorldId);
@@ -532,6 +553,9 @@ export async function completePendingSubjectWorld(
     ...(updates.followupRuleIds !== undefined ? { followupRuleIds: updates.followupRuleIds } : {}),
     generationAttempt: updates.generationAttempt || 1,
     ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
+    ...(updates.generationModelUsage?.length
+      ? { generationModelUsage: updates.generationModelUsage }
+      : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),

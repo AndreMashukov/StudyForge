@@ -3,6 +3,7 @@ import { logger } from 'firebase-functions/v2';
 import { onTaskDispatched } from 'firebase-functions/v2/tasks';
 import { DocumentCrudService } from '../services/document-crud';
 import { DocumentFromPromptGenerationProcessor } from '../services/generation-processors/document-from-prompt';
+import { DocumentFromScreenshotGenerationProcessor } from '../services/generation-processors/document-from-screenshot';
 import { ArtifactAgentGenerationProcessor } from '../services/generation-processors/artifact-agent';
 import { failPendingDiagramQuiz } from '../services/artifact-generation-records';
 import { ArtifactAgentPipelineFailedError } from '../services/artifact-agent/artifact-agent-errors';
@@ -17,6 +18,9 @@ async function failVisibleRecord(job: GenerationJob, message: string): Promise<v
     case 'documentFromPrompt':
       await DocumentCrudService.failPendingDocument(job.userId, job.recordId, message);
       return;
+    case 'documentFromScreenshot':
+      await DocumentCrudService.failPendingDocument(job.userId, job.recordId, message);
+      return;
     case 'artifactAgent':
       await failPendingDiagramQuiz(job.userId, job.recordId, message);
       return;
@@ -29,6 +33,9 @@ async function processJob(job: GenerationJob): Promise<void> {
   switch (job.kind) {
     case 'documentFromPrompt':
       await DocumentFromPromptGenerationProcessor.process(job);
+      return;
+    case 'documentFromScreenshot':
+      await DocumentFromScreenshotGenerationProcessor.process(job);
       return;
     case 'artifactAgent':
       await ArtifactAgentGenerationProcessor.process(job);

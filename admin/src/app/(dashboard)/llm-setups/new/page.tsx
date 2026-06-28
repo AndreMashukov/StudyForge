@@ -2,13 +2,13 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { AdminPageHeader } from '../../../../components/admin/AdminPageHeader';
 import { LlmSetupForm } from '../../../../components/admin/LlmSetupForm';
-import { routesToFormValues } from '../../../../components/admin/LlmSetupForm/LlmSetupForm.form';
-import { createDefaultLlmSetupRoutes } from '../../../../lib/data/llm-setups';
+import { generationRoutesToFormValues } from '../../../../components/admin/LlmSetupForm/LlmSetupForm.form';
+import { createDefaultGenerationRoutes } from '../../../../lib/data/llm-setups';
 import { listProviderConnectionCatalog } from '../../../../lib/data/provider-connections';
 
 export default async function NewLlmSetupPage() {
-  const [defaultRoutes, providerConnections] = await Promise.all([
-    createDefaultLlmSetupRoutes(),
+  const [defaultGenerationRoutes, providerConnections] = await Promise.all([
+    createDefaultGenerationRoutes(),
     listProviderConnectionCatalog(),
   ]);
 
@@ -24,11 +24,11 @@ export default async function NewLlmSetupPage() {
 
       <AdminPageHeader
         title="Create LLM setup"
-        description="Choose provider connection and model for each modality."
+        description="Configure provider connection, model, and workflow for each generation kind."
       />
 
       <LlmSetupForm
-        defaultValues={routesToFormValues('New setup', '', defaultRoutes)}
+        defaultValues={generationRoutesToFormValues('New setup', '', defaultGenerationRoutes)}
         providerConnections={providerConnections}
       />
     </div>

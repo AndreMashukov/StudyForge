@@ -1,11 +1,12 @@
 'use client';
 
-import type { IProviderConnectionCatalogEntry } from '@shared-types';
+import type { GenerationKind, IProviderConnectionCatalogEntry } from '@shared-types';
+import { GENERATION_KIND_METADATA } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Input, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import {
   isAdminUnauthorizedResponse,
   redirectToAdminLogin,
@@ -14,8 +15,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
 import {
   type ILlmSetupFormValues,
   filterConnectionsForModality,
+  getGenerationKindGroups,
+  getSupportedWorkflowOptions,
+  isWorkflowOptionDisabled,
   llmSetupFormSchema,
-  toLlmSetupRoutes,
+  parseWorkflowValue,
+  toGenerationRoutes,
 } from './LlmSetupForm.form';
 
 export type { ILlmSetupFormValues } from './LlmSetupForm.form';
@@ -27,44 +32,74 @@ export interface ILlmSetupFormProps {
   providerWarnings?: string[];
 }
 
-function ModalityFields({
-  label,
-  connectionName,
-  modelName,
+function GenerationKindRow({
+  kind,
   connections,
+  control,
   register,
 }: {
-  label: string;
-  connectionName: 'textConnectionId' | 'visionConnectionId' | 'imageConnectionId';
-  modelName: 'textModel' | 'visionModel' | 'imageModel';
+  kind: GenerationKind;
   connections: IProviderConnectionCatalogEntry[];
+  control: ReturnType<typeof useForm<ILlmSetupFormValues>>['control'];
   register: ReturnType<typeof useForm<ILlmSetupFormValues>>['register'];
 }) {
+  const metadata = GENERATION_KIND_METADATA[kind];
+  const filteredConnections = filterConnectionsForModality(
+    connections,
+    metadata.requiredModality
+  );
+  const workflowOptions = getSupportedWorkflowOptions(kind);
+  const connectionField = `generationRoutes.${kind}.connectionId` as const;
+  const modelField = `generationRoutes.${kind}.model` as const;
+  const workflowField = `generationRoutes.${kind}.workflow` as const;
+
   return (
-    <div className="space-y-3 rounded-lg border border-border p-4">
-      <h3 className="text-sm font-medium">{label}</h3>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor={connectionName}>Provider connection</Label>
-          <select
-            id={connectionName}
-            className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            {...register(connectionName)}
-          >
-            {connections.map((connection) => (
-              <option key={connection.id} value={connection.id}>
-                {connection.label} ({connection.providerKind})
-                {!connection.apiKeyConfigured ? ' — missing credentials' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={modelName}>Model</Label>
-          <Input id={modelName} {...register(modelName)} />
-        </div>
-      </div>
-    </div>
+    <tr className="border-b border-border last:border-0">
+      <td className="px-3 py-3 align-top">
+        <div className="font-medium">{metadata.label}</div>
+        <p className="text-xs text-muted-foreground">{metadata.description}</p>
+        <p className="mt-1 text-xs text-muted-foreground">Modality: {metadata.requiredModality}</p>
+      </td>
+      <td className="px-3 py-3 align-top">
+        <select
+          className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          {...register(connectionField)}
+        >
+          {filteredConnections.map((connection) => (
+            <option key={connection.id} value={connection.id}>
+              {connection.label} ({connection.providerKind})
+              {!connection.apiKeyConfigured ? ' — missing credentials' : ''}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="px-3 py-3 align-top">
+        <Input {...register(modelField)} />
+      </td>
+      <td className="px-3 py-3 align-top">
+        <Controller
+          control={control}
+          name={workflowField}
+          render={({ field }) => (
+            <select
+              className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              value={field.value}
+              onChange={(event) => field.onChange(parseWorkflowValue(event.target.value))}
+            >
+              {workflowOptions.map((workflow) => (
+                <option
+                  key={workflow}
+                  value={workflow}
+                  disabled={isWorkflowOptionDisabled(kind, workflow)}
+                >
+                  {workflow}
+                </option>
+              ))}
+            </select>
+          )}
+        />
+      </td>
+    </tr>
   );
 }
 
@@ -85,10 +120,6 @@ export function LlmSetupForm({
     defaultValues,
   });
 
-  const textConnections = filterConnectionsForModality(providerConnections, 'text');
-  const visionConnections = filterConnectionsForModality(providerConnections, 'vision');
-  const imageConnections = filterConnectionsForModality(providerConnections, 'image');
-
   const handleSubmit = form.handleSubmit(async (values) => {
     setIsSubmitting(true);
     setNotice(null);
@@ -97,7 +128,7 @@ export function LlmSetupForm({
       const payload = {
         name: values.name.trim(),
         description: values.description?.trim() || undefined,
-        routes: toLlmSetupRoutes(values),
+        generationRoutes: toGenerationRoutes(values),
       };
 
       const response = await fetch(setupId ? `/api/llm-setups/${setupId}` : '/api/llm-setups', {
@@ -166,6 +197,8 @@ export function LlmSetupForm({
     }
   };
 
+  const groups = getGenerationKindGroups();
+
   return (
     <Card>
       <CardHeader>
@@ -191,27 +224,34 @@ export function LlmSetupForm({
             <Input id="description" {...form.register('description')} />
           </div>
 
-          <ModalityFields
-            label="Text model"
-            connectionName="textConnectionId"
-            modelName="textModel"
-            connections={textConnections}
-            register={form.register}
-          />
-          <ModalityFields
-            label="Vision model"
-            connectionName="visionConnectionId"
-            modelName="visionModel"
-            connections={visionConnections}
-            register={form.register}
-          />
-          <ModalityFields
-            label="Image model"
-            connectionName="imageConnectionId"
-            modelName="imageModel"
-            connections={imageConnections}
-            register={form.register}
-          />
+          {groups.map((group) => (
+            <div key={group.id} className="space-y-3">
+              <h3 className="text-sm font-medium">{group.label}</h3>
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-border bg-muted/50">
+                    <tr>
+                      <th className="px-3 py-2 font-medium" scope="col">Generation kind</th>
+                      <th className="px-3 py-2 font-medium" scope="col">Provider connection</th>
+                      <th className="px-3 py-2 font-medium" scope="col">Model</th>
+                      <th className="px-3 py-2 font-medium" scope="col">Workflow</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.kinds.map((kind) => (
+                      <GenerationKindRow
+                        key={kind}
+                        kind={kind}
+                        connections={providerConnections}
+                        control={form.control}
+                        register={form.register}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
 
           {notice ? <p className="text-sm text-destructive">{notice}</p> : null}
 

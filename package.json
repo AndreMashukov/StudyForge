@@ -67,7 +67,8 @@
     "restore:latest": "tsx scripts/restore-firebase-latest.ts",
     "test:storage-prod": "tsx scripts/test-storage-bucket-resolution.ts",
     "migrate:directory-centric": "tsx scripts/migrations/backfill-directory-centric.ts",
-    "migrate:llm-setup-routes": "tsx scripts/migrations/migrate-llm-setup-routes.ts"
+    "migrate:llm-setup-routes": "tsx scripts/migrations/migrate-llm-setup-routes.ts",
+    "migrate:generation-routes": "tsx scripts/migrations/migrate-generation-routes.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

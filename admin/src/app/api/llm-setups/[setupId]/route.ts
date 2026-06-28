@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import type { IUpdateLlmSetupRequest } from '@shared-types';
 import { revalidatePath } from 'next/cache';
 import { getAdminApiStatusCode } from '../../../../lib/api/route-utils';
 import { requireAdminSession } from '../../../../lib/auth/session';
 import {
   deleteLlmSetup,
   getLlmSetupById,
-  updateLlmSetup,
+  updateLlmSetupFromRequest,
 } from '../../../../lib/data/llm-setups';
 
 interface IRouteContext {
@@ -33,8 +32,8 @@ export async function PUT(request: Request, context: IRouteContext) {
   try {
     const session = await requireAdminSession();
     const { setupId } = await context.params;
-    const body = (await request.json()) as IUpdateLlmSetupRequest;
-    const setup = await updateLlmSetup(setupId, body, session.uid);
+    const body = (await request.json()) as Record<string, unknown>;
+    const setup = await updateLlmSetupFromRequest(setupId, body, session.uid);
     revalidatePath('/llm-setups');
     revalidatePath(`/llm-setups/${setupId}`);
     return NextResponse.json({ success: true, setup });

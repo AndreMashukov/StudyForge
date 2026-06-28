@@ -26,7 +26,7 @@ import {
   failPendingFlashcardSet,
 } from '../services/artifact-generation-records';
 import { DocumentService } from '../services/document-storage';
-import { LlmGenerationService, resolveTextGenerationModelLabel } from '../services/llm';
+import { LlmGenerationService, resolveTextGenerationAudit } from '../services/llm';
 import { validateAuth } from '../lib/auth';
 import { FirestorePaths } from '../lib/firestore-paths';
 
@@ -227,7 +227,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
           ? `Flashcards for "${documentDataList[0].title}"`
           : `Flashcards for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
 
-      const generationModel = await resolveTextGenerationModelLabel(userId, 'flashcards');
+      const { generationModel, generationModelUsage } = await resolveTextGenerationAudit(userId, 'flashcards');
 
       await completePendingFlashcardSet(userId, pendingFlashcardSetId, {
         title: finalTitle,
@@ -235,6 +235,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
         appliedRuleIds: appliedRuleIdsForSave,
         appliedDescriptionRuleIds: appliedDescriptionRuleIdsForSave,
         generationModel,
+        generationModelUsage,
       });
 
       logger.info(`[generateFlashcards] STEP 6: Complete. ID: ${redactId(pendingFlashcardSetId)}`, { userIdHash: u });

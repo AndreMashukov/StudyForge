@@ -8,7 +8,7 @@ import { UrlProcessingOrchestrator } from '../services/url-processing/url-proces
 import { FileExtractionError, FileExtractionService } from '../services/file-extraction';
 import {
   LlmGenerationService,
-  resolveTextGenerationModelLabel,
+  resolveTextGenerationAudit,
 } from '../services/llm';
 import { SourceDocumentGenerationService } from '../services/source-document-generation';
 import { ScreenshotDocumentGenerationService } from '../services/screenshot-document-generation';
@@ -217,8 +217,8 @@ export const uploadAndCreateDocument = onCall(
           rulesText: rulesText || undefined,
         });
 
-        const generationModel = prepared.wasEnhanced
-          ? await resolveTextGenerationModelLabel(userId, 'sourceDocumentEnhancement')
+        const enhancementAudit = prepared.wasEnhanced
+          ? await resolveTextGenerationAudit(userId, 'sourceDocumentEnhancement')
           : undefined;
 
         await DocumentCrudService.completePendingDocument(userId, uploadPendingDocId, prepared.content, {
@@ -226,7 +226,8 @@ export const uploadAndCreateDocument = onCall(
           description: `Uploaded from: ${data.fileName}`,
           tags: prepared.tags,
           appliedRuleIds: effectiveRuleIds,
-          generationModel,
+          generationModel: enhancementAudit?.generationModel,
+          generationModelUsage: enhancementAudit?.generationModelUsage,
         });
 
         logger.info('Document created from upload successfully', {
@@ -437,7 +438,7 @@ export const createDocumentFromUrl = onCall(
           ? `Scraped from: ${rawUrls[0]}`
           : `Merged from ${summary.successfulCount} URL${summary.successfulCount !== 1 ? 's' : ''}`;
 
-        const generationModel = await resolveTextGenerationModelLabel(userId, 'documentFromPrompt');
+        const { generationModel, generationModelUsage } = await resolveTextGenerationAudit(userId, 'documentFromPrompt');
 
         await DocumentCrudService.completePendingDocument(userId, urlPendingDocId, generatedContent, {
           title,
@@ -445,6 +446,7 @@ export const createDocumentFromUrl = onCall(
           tags,
           appliedRuleIds: effectiveRuleIds,
           generationModel,
+          generationModelUsage,
         });
 
         logger.info('Document created from URL(s) successfully', {
@@ -1018,14 +1020,14 @@ export const generateFromPrompt = onCall(
 );
 
 /**
- * Generate a document from a screenshot using Gemini AI
+ * Generate a document from a screenshot using async generation job queue
  */
 export const generateFromScreenshot = onCall(
   {
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey],
-    timeoutSeconds: 540,
+    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    timeoutSeconds: 60,
   },
   async (request) => {
     try {
@@ -1040,7 +1042,7 @@ export const generateFromScreenshot = onCall(
         throw new HttpsError('invalid-argument', 'directoryId is required');
       }
 
-      logger.info('Generating document from screenshot', {
+      logger.info('Queueing document from screenshot', {
         userId,
         directoryId: data.directoryId,
         imageSize: data.imageBase64.length,
@@ -1048,10 +1050,8 @@ export const generateFromScreenshot = onCall(
         ruleCount: data.ruleIds?.length || 0,
       });
 
-      // Validate directoryId before creating the pending record
       await directoryService.validateDirectoryId(userId, data.directoryId);
 
-      // Create pending document record so the UI shows it immediately
       const screenshotPendingTitle = data.title || (data.prompt
         ? (data.prompt.length > 50 ? `${data.prompt.substring(0, 50)}…` : data.prompt)
         : 'Captured Document');
@@ -1063,29 +1063,25 @@ export const generateFromScreenshot = onCall(
         tags: ['screenshot', 'captured'],
       });
 
-      let result;
       try {
-        result = await ScreenshotDocumentGenerationService.generate({
+        const result = await ScreenshotDocumentGenerationService.enqueue({
           ...data,
           userId,
           pendingDocumentId: screenshotPendingDocId,
         });
+
+        return result;
       } catch (innerError) {
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
         await DocumentCrudService.failPendingDocument(userId, screenshotPendingDocId, msg).catch(() => {/* best-effort */});
         throw innerError;
       }
-
-      return {
-        success: true,
-        ...result,
-      };
     } catch (error) {
       if (error instanceof HttpsError) {
         throw error;
       }
 
-      logger.error('Failed to generate document from screenshot', {
+      logger.error('Failed to queue document from screenshot', {
         error: error instanceof Error ? error.message : String(error),
         directoryId: request.data?.directoryId,
       });

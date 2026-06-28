@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import type { ICreateLlmSetupRequest } from '@shared-types';
 import { getAdminApiStatusCode } from '../../../lib/api/route-utils';
 import { requireAdminSession } from '../../../lib/auth/session';
-import { createLlmSetup, listLlmSetups } from '../../../lib/data/llm-setups';
+import { createLlmSetupFromRequest, listLlmSetups } from '../../../lib/data/llm-setups';
 
 export async function GET() {
   try {
@@ -17,8 +16,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await requireAdminSession();
-    const body = (await request.json()) as ICreateLlmSetupRequest;
-    const setup = await createLlmSetup(body, session.uid);
+    const body = (await request.json()) as Record<string, unknown>;
+    const setup = await createLlmSetupFromRequest(body, session.uid);
     return NextResponse.json({ success: true, setup });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create LLM setup.';

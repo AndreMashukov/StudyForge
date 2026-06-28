@@ -1,54 +1,30 @@
 import * as functions from 'firebase-functions';
-import { LlmSetupRepository } from './llm-setup-repository';
-import type { LlmCapability, ResolvedRoute } from './types';
+import { LlmGenerationRouteResolver } from './llm-generation-route-resolver';
+import type { LlmCapability } from './types';
 import type { LlmRouteOptions } from './llm-route-resolver';
 
-export type VisionCapability = Extract<LlmCapability, 'documentFromScreenshot'>;
+export type LlmVisionCapability = Extract<LlmCapability, 'documentFromScreenshot'>;
 
-export interface VisionRouteResolution {
-  route: ResolvedRoute;
-  providerApiKey?: string;
-  userGroupId?: string;
-  llmSetupId?: string;
-}
-
+/** @deprecated Use LlmGenerationRouteResolver */
 export class LlmVisionRouteResolver {
-  static async resolve(
-    capability: VisionCapability,
-    options: LlmRouteOptions
-  ): Promise<VisionRouteResolution> {
+  static async resolve(capability: LlmVisionCapability, options: LlmRouteOptions) {
     if (capability !== 'documentFromScreenshot') {
       throw new Error(`Unsupported vision capability: ${capability}`);
     }
 
-    try {
-      const setupResolution = await LlmSetupRepository.resolveModalityRoute(
-        options.userId,
-        'vision'
-      );
+    const resolution = await LlmGenerationRouteResolver.resolve(capability, options);
 
-      functions.logger.info('LLM vision route resolved', {
-        capability,
-        userId: options.userId,
-        userGroupId: setupResolution.userGroupId,
-        llmSetupId: setupResolution.llmSetupId,
-        providerType: setupResolution.route.providerType,
-        model: setupResolution.route.model,
-      });
+    functions.logger.info('LLM vision route resolved via generation resolver', {
+      capability,
+      userId: options.userId,
+      kind: resolution.kind,
+    });
 
-      return {
-        route: setupResolution.route,
-        providerApiKey: setupResolution.providerApiKey,
-        userGroupId: setupResolution.userGroupId,
-        llmSetupId: setupResolution.llmSetupId,
-      };
-    } catch (error) {
-      functions.logger.error('LlmVisionRouteResolver failed', {
-        capability,
-        userId: options.userId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
+    return {
+      route: resolution.route,
+      providerApiKey: resolution.providerApiKey,
+      userGroupId: resolution.userGroupId,
+      llmSetupId: resolution.llmSetupId,
+    };
   }
 }

@@ -1,10 +1,10 @@
 import * as functions from 'firebase-functions';
-import { LlmProviderClientFactory } from './llm-provider-client-factory';
-import { LlmRouteResolver, type RouteResolution } from './llm-route-resolver';
+import { LlmGenerationRouteResolver, type GenerationRouteResolution } from './llm-generation-route-resolver';
 import type { LlmCapability, LlmTextConfig } from './types';
+import { LlmProviderClientFactory } from './llm-provider-client-factory';
 
 export interface TextRouteContext {
-  resolution: RouteResolution;
+  resolution: GenerationRouteResolution;
   usesExternalProvider: boolean;
 }
 
@@ -13,15 +13,17 @@ export async function resolveTextRoute(
   capability: LlmCapability,
   logLabel: string
 ): Promise<TextRouteContext> {
-  const resolution = await LlmRouteResolver.resolve(capability, { userId });
+  const resolution = await LlmGenerationRouteResolver.resolve(capability, { userId });
 
   functions.logger.info(`LLM route resolved for ${logLabel}`, {
     userId,
     capability,
+    kind: resolution.kind,
     providerType: resolution.route.providerType,
     model: resolution.route.model,
     userGroupId: resolution.userGroupId,
     llmSetupId: resolution.llmSetupId,
+    workflow: resolution.workflow,
   });
 
   return {

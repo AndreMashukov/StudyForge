@@ -3,7 +3,10 @@ export {
   resolveTextGenerationModelLabel,
   resolveScreenshotGenerationModelLabel,
   resolveSlideDeckGenerationModelLabel,
+  resolveSlideDeckGenerationAudit,
 } from './resolve-generation-model';
+export { LlmGenerationRouteResolver } from './llm-generation-route-resolver';
+export { formatGenerationModelLabel, resolveTextGenerationAudit, toGenerationModelUsage } from './generation-model-usage';
 export { LlmRouteResolver } from './llm-route-resolver';
 export { LlmImageRouteResolver } from './llm-image-route-resolver';
 export { LlmVisionRouteResolver } from './llm-vision-route-resolver';

@@ -1,17 +1,7 @@
-import { LlmRouteResolver } from './llm-route-resolver';
-import { LlmVisionRouteResolver } from './llm-vision-route-resolver';
-import { LlmImageRouteResolver } from './llm-image-route-resolver';
-import type { LlmCapability, ResolvedRoute } from './types';
-
-function formatGenerationModelLabel(route: ResolvedRoute): string {
-  const provider =
-    route.providerType === 'openrouter'
-      ? 'OpenRouter'
-      : route.providerType === 'minimax'
-        ? 'MiniMax'
-        : 'Gemini';
-  return `${provider}: ${route.model}`;
-}
+import { LlmGenerationRouteResolver } from './llm-generation-route-resolver';
+import { formatGenerationModelLabel, toGenerationModelUsage } from './generation-model-usage';
+import type { IGenerationModelUsage } from '@shared-types';
+import type { LlmCapability } from './types';
 
 export async function resolveTextGenerationModelLabel(
   userId: string,
@@ -26,30 +16,34 @@ export async function resolveTextGenerationModelLabel(
     | 'subjectWorld'
     | 'slideDeckText'
     | 'sourceDocumentEnhancement'
+    | 'quizFollowup'
+    | 'documentQuestion'
+    | 'directoryChat'
+    | 'ruleGeneration'
   >
 ): Promise<string> {
-  const { route } = await LlmRouteResolver.resolve(capability, { userId });
-  return formatGenerationModelLabel(route);
+  const resolution = await LlmGenerationRouteResolver.resolve(capability, { userId });
+  return formatGenerationModelLabel(resolution.route);
 }
 
 export async function resolveScreenshotGenerationModelLabel(userId: string): Promise<string> {
-  const { route } = await LlmVisionRouteResolver.resolve('documentFromScreenshot', {
+  const resolution = await LlmGenerationRouteResolver.resolve('documentFromScreenshot', {
     userId,
   });
-  return formatGenerationModelLabel(route);
+  return formatGenerationModelLabel(resolution.route);
 }
 
 export async function resolveSlideDeckGenerationModelLabel(userId: string): Promise<string> {
   const [textResolution, imageResolution] = await Promise.all([
-    LlmRouteResolver.resolve('slideDeckText', { userId }),
-    LlmImageRouteResolver.resolve('slideDeckImage', { userId }),
+    LlmGenerationRouteResolver.resolve('slideDeckText', { userId }),
+    LlmGenerationRouteResolver.resolve('slideDeckImage', { userId }),
   ]);
 
   const textLabel = formatGenerationModelLabel(textResolution.route);
   const imageModel =
     imageResolution.route.providerType !== 'gemini' && imageResolution.providerApiKey
       ? imageResolution.route.model
-      : imageResolution.geminiImageModel;
+      : imageResolution.route.model;
   const imageLabel = formatGenerationModelLabel({
     ...imageResolution.route,
     providerType:
@@ -60,4 +54,21 @@ export async function resolveSlideDeckGenerationModelLabel(userId: string): Prom
   });
 
   return textLabel === imageLabel ? textLabel : `${textLabel}, ${imageLabel}`;
+}
+
+export async function resolveSlideDeckGenerationAudit(
+  userId: string
+): Promise<{ generationModel: string; generationModelUsage: IGenerationModelUsage[] }> {
+  const [textResolution, imageResolution] = await Promise.all([
+    LlmGenerationRouteResolver.resolve('slideDeckText', { userId }),
+    LlmGenerationRouteResolver.resolve('slideDeckImage', { userId }),
+  ]);
+
+  return {
+    generationModel: await resolveSlideDeckGenerationModelLabel(userId),
+    generationModelUsage: [
+      toGenerationModelUsage(textResolution),
+      toGenerationModelUsage(imageResolution),
+    ],
+  };
 }
