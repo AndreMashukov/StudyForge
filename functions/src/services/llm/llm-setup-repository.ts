@@ -1,7 +1,21 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
-import type { ILlmModalityRoute, ILlmSetup, IUserGroup, LlmModality } from '@shared-types';
+import type {
+  GenerationKind,
+  GenerationWorkflow,
+  IGenerationRoute,
+  IGenerationRoutes,
+  ILlmSetup,
+  IUserGroup,
+  LlmModality,
+} from '@shared-types';
 import {
+  ALL_GENERATION_KINDS,
+  GENERATION_KIND_METADATA,
+  isGenerationWorkflow,
+} from '@shared-types';
+import {
+  createGenerationRouteNotConfiguredError,
   createLlmSetupNotFoundError,
   createUserGroupNotAssignedError,
   createUserGroupNotFoundError,
@@ -20,11 +34,13 @@ export interface IUserRoutingContext {
   setup: ILlmSetup;
 }
 
-export interface SetupRouteResolution {
+export interface SetupGenerationRouteResolution {
   route: ResolvedRoute;
   providerApiKey?: string;
   userGroupId: string;
   llmSetupId: string;
+  kind: GenerationKind;
+  workflow: GenerationWorkflow;
   modality: LlmModality;
 }
 
@@ -32,7 +48,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function parseModalityRoute(value: unknown): ILlmModalityRoute | null {
+function parseGenerationRoute(value: unknown): IGenerationRoute | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -40,29 +56,50 @@ function parseModalityRoute(value: unknown): ILlmModalityRoute | null {
   const connectionId =
     typeof value.connectionId === 'string' ? value.connectionId.trim() : '';
   const model = typeof value.model === 'string' ? value.model.trim() : '';
+  const modality = value.modality;
+  const workflow = value.workflow;
 
-  if (!connectionId || !model) {
+  if (
+    !connectionId ||
+    !model ||
+    (modality !== 'text' && modality !== 'vision' && modality !== 'image') ||
+    typeof workflow !== 'string' ||
+    !isGenerationWorkflow(workflow)
+  ) {
     return null;
   }
 
-  return { connectionId, model };
+  return {
+    connectionId,
+    model,
+    modality,
+    workflow,
+  };
+}
+
+function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const routes = {} as IGenerationRoutes;
+
+  for (const kind of ALL_GENERATION_KINDS) {
+    const route = parseGenerationRoute(value[kind]);
+    if (!route) {
+      return null;
+    }
+    routes[kind] = route;
+  }
+
+  return routes;
 }
 
 function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSetup | null {
-  if (!isRecord(data.routes)) {
-    return null;
-  }
-
-  const text = parseModalityRoute(data.routes.text);
-  const vision = parseModalityRoute(data.routes.vision);
-  const image = parseModalityRoute(data.routes.image);
-
-  if (!text || !vision || !image) {
-    return null;
-  }
-
   const name = typeof data.name === 'string' ? data.name.trim() : '';
-  if (!name) {
+  const generationRoutes = parseGenerationRoutes(data.generationRoutes);
+
+  if (!name || !generationRoutes) {
     return null;
   }
 
@@ -70,7 +107,7 @@ function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSe
     id,
     name,
     description: typeof data.description === 'string' ? data.description : undefined,
-    routes: { text, vision, image },
+    generationRoutes,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
   };
@@ -142,26 +179,58 @@ export class LlmSetupRepository {
     };
   }
 
-  static async resolveModalityRoute(
+  static async resolveGenerationRoute(
     userId: string,
-    modality: LlmModality
-  ): Promise<SetupRouteResolution> {
+    kind: GenerationKind
+  ): Promise<SetupGenerationRouteResolution> {
     const context = await this.resolveUserRoutingContext(userId);
-    const modalityRoute = context.setup.routes[modality];
+    const generationRoute = context.setup.generationRoutes[kind];
+    const metadata = GENERATION_KIND_METADATA[kind];
 
-    functions.logger.info('Resolving LLM setup route', {
+    if (!generationRoute) {
+      throw createGenerationRouteNotConfiguredError(
+        userId,
+        context.userGroupId,
+        context.setup.id,
+        kind
+      );
+    }
+
+    if (generationRoute.modality !== metadata.requiredModality) {
+      throw createGenerationRouteNotConfiguredError(
+        userId,
+        context.userGroupId,
+        context.setup.id,
+        kind,
+        `Generation route ${kind} has invalid modality ${generationRoute.modality}.`
+      );
+    }
+
+    if (!metadata.supportedWorkflows.includes(generationRoute.workflow)) {
+      throw createGenerationRouteNotConfiguredError(
+        userId,
+        context.userGroupId,
+        context.setup.id,
+        kind,
+        `Generation route ${kind} workflow ${generationRoute.workflow} is not supported.`
+      );
+    }
+
+    functions.logger.info('Resolving generation route', {
       userId,
       userGroupId: context.userGroupId,
       llmSetupId: context.setup.id,
-      modality,
-      connectionId: modalityRoute.connectionId,
-      model: modalityRoute.model,
+      kind,
+      workflow: generationRoute.workflow,
+      modality: generationRoute.modality,
+      connectionId: generationRoute.connectionId,
+      model: generationRoute.model,
     });
 
     const resolution = await resolveProviderConnectionRoute({
-      connectionId: modalityRoute.connectionId,
-      model: modalityRoute.model,
-      modality,
+      connectionId: generationRoute.connectionId,
+      model: generationRoute.model,
+      modality: generationRoute.modality,
       userId: context.userId,
       userGroupId: context.userGroupId,
       llmSetupId: context.setup.id,
@@ -172,7 +241,9 @@ export class LlmSetupRepository {
       providerApiKey: resolution.providerApiKey,
       userGroupId: context.userGroupId,
       llmSetupId: context.setup.id,
-      modality,
+      kind,
+      workflow: generationRoute.workflow,
+      modality: generationRoute.modality,
     };
   }
 }

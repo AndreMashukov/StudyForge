@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { AdminPageHeader } from '../../../../components/admin/AdminPageHeader';
 import { LlmSetupForm } from '../../../../components/admin/LlmSetupForm';
-import { routesToFormValues } from '../../../../components/admin/LlmSetupForm/LlmSetupForm.form';
+import { generationRoutesToFormValues } from '../../../../components/admin/LlmSetupForm/LlmSetupForm.form';
 import { getLlmSetupById } from '../../../../lib/data/llm-setups';
 import { listProviderConnectionCatalog } from '../../../../lib/data/provider-connections';
 
@@ -34,12 +34,16 @@ export default async function LlmSetupDetailPage({
 
       <AdminPageHeader
         title={setup.name}
-        description={setup.description ?? 'Edit routing for this LLM setup.'}
+        description={setup.description ?? 'Edit generation routing for this LLM setup.'}
       />
 
       <LlmSetupForm
         setupId={setup.id}
-        defaultValues={routesToFormValues(setup.name, setup.description, setup.routes)}
+        defaultValues={generationRoutesToFormValues(
+          setup.name,
+          setup.description,
+          setup.generationRoutes
+        )}
         providerConnections={providerConnections}
         providerWarnings={setup.providerWarnings}
       />

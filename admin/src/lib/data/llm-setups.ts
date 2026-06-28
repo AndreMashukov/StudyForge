@@ -1,7 +1,10 @@
 import 'server-only';
 
 import type {
+  GenerationKind,
   ICreateLlmSetupRequest,
+  IGenerationRoute,
+  IGenerationRoutes,
   ILlmModalityRoute,
   ILlmSetup,
   ILlmSetupRoutes,
@@ -9,6 +12,10 @@ import type {
   LlmModality,
 } from '@shared-types';
 import {
+  ALL_GENERATION_KINDS,
+  GENERATION_KIND_METADATA,
+  isGenerationKind,
+  isGenerationWorkflow,
   PRIMARY_GEMINI_CONNECTION_ID,
 } from '@shared-types';
 import * as admin from 'firebase-admin';
@@ -65,11 +72,105 @@ function parseRoutes(value: unknown): ILlmSetupRoutes | null {
   return { text, vision, image };
 }
 
+function parseGenerationRoute(value: unknown): IGenerationRoute | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const connectionId =
+    typeof value.connectionId === 'string' ? value.connectionId.trim() : '';
+  const model = typeof value.model === 'string' ? value.model.trim() : '';
+  const modality = value.modality;
+  const workflow = value.workflow;
+
+  if (
+    !connectionId ||
+    !model ||
+    (modality !== 'text' && modality !== 'vision' && modality !== 'image') ||
+    typeof workflow !== 'string' ||
+    !isGenerationWorkflow(workflow)
+  ) {
+    return null;
+  }
+
+  return {
+    connectionId,
+    model,
+    modality,
+    workflow,
+  };
+}
+
+function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const routes = {} as IGenerationRoutes;
+
+  for (const kind of ALL_GENERATION_KINDS) {
+    const route = parseGenerationRoute(value[kind]);
+    if (!route) {
+      return null;
+    }
+    routes[kind] = route;
+  }
+
+  return routes;
+}
+
+function synthesizeGenerationRoutesFromLegacy(routes: ILlmSetupRoutes): IGenerationRoutes {
+  const textBase = {
+    connectionId: routes.text.connectionId,
+    model: routes.text.model,
+    modality: 'text' as const,
+    workflow: 'direct' as const,
+  };
+  const visionBase = {
+    connectionId: routes.vision.connectionId,
+    model: routes.vision.model,
+    modality: 'vision' as const,
+    workflow: 'direct' as const,
+  };
+  const imageBase = {
+    connectionId: routes.image.connectionId,
+    model: routes.image.model,
+    modality: 'image' as const,
+    workflow: 'direct' as const,
+  };
+
+  const routesByModality: Record<LlmModality, IGenerationRoute> = {
+    text: textBase,
+    vision: visionBase,
+    image: imageBase,
+  };
+
+  const generationRoutes = {} as IGenerationRoutes;
+
+  for (const kind of ALL_GENERATION_KINDS) {
+    const metadata = GENERATION_KIND_METADATA[kind];
+    const source = routesByModality[metadata.requiredModality];
+    generationRoutes[kind] = {
+      connectionId: source.connectionId,
+      model: source.model,
+      modality: metadata.requiredModality,
+      workflow: metadata.defaultWorkflow,
+    };
+  }
+
+  return generationRoutes;
+}
+
 function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSetup | null {
   const name = typeof data.name === 'string' ? data.name.trim() : '';
-  const routes = parseRoutes(data.routes);
+  if (!name) {
+    return null;
+  }
 
-  if (!name || !routes) {
+  const generationRoutes = parseGenerationRoutes(data.generationRoutes);
+  const legacyRoutes = parseRoutes(data.routes);
+
+  if (!generationRoutes && !legacyRoutes) {
     return null;
   }
 
@@ -77,39 +178,68 @@ function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSe
     id,
     name,
     description: typeof data.description === 'string' ? data.description : undefined,
-    routes,
+    routes: legacyRoutes ?? undefined,
+    generationRoutes: generationRoutes ?? synthesizeGenerationRoutesFromLegacy(legacyRoutes as ILlmSetupRoutes),
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
   };
 }
 
-async function normalizeModalityRoute(
-  route: ILlmModalityRoute,
-  modality: LlmModality,
-  label: string
-): Promise<ILlmModalityRoute> {
-  const model = route.model.trim();
+async function validateGenerationRoute(
+  kind: GenerationKind,
+  route: IGenerationRoute
+): Promise<IGenerationRoute> {
+  const metadata = GENERATION_KIND_METADATA[kind];
+  const label = metadata.label;
   const connectionId = route.connectionId.trim();
+  const model = route.model.trim();
 
   if (!model) {
-    throw new Error(`${label} model is required.`);
+    throw new Error(`${label}: model is required.`);
   }
 
   if (!connectionId) {
-    throw new Error(`${label} provider connection is required.`);
+    throw new Error(`${label}: provider connection is required.`);
   }
 
-  await validateModalityRoute({ connectionId, model }, modality, label);
+  if (route.modality !== metadata.requiredModality) {
+    throw new Error(
+      `${label}: modality must be ${metadata.requiredModality}, got ${route.modality}.`
+    );
+  }
 
-  return { connectionId, model };
+  if (!metadata.supportedWorkflows.includes(route.workflow)) {
+    throw new Error(`${label}: workflow ${route.workflow} is not supported.`);
+  }
+
+  await validateModalityRoute({ connectionId, model }, metadata.requiredModality, label);
+
+  return {
+    connectionId,
+    model,
+    modality: metadata.requiredModality,
+    workflow: route.workflow,
+  };
 }
 
-async function normalizeRoutes(routes: ILlmSetupRoutes): Promise<ILlmSetupRoutes> {
-  return {
-    text: await normalizeModalityRoute(routes.text, 'text', 'Text'),
-    vision: await normalizeModalityRoute(routes.vision, 'vision', 'Vision'),
-    image: await normalizeModalityRoute(routes.image, 'image', 'Image'),
-  };
+async function normalizeGenerationRoutes(routes: IGenerationRoutes): Promise<IGenerationRoutes> {
+  const normalized = {} as IGenerationRoutes;
+
+  for (const kind of ALL_GENERATION_KINDS) {
+    if (!isGenerationKind(kind)) {
+      throw new Error(`Unknown generation kind: ${kind}`);
+    }
+
+    normalized[kind] = await validateGenerationRoute(kind, routes[kind]);
+  }
+
+  return normalized;
+}
+
+function rejectLegacyRoutesPayload(body: Record<string, unknown>): void {
+  if ('routes' in body) {
+    throw new Error('Legacy routes are no longer accepted. Use generationRoutes.');
+  }
 }
 
 function toFirestoreLlmSetupDocument(
@@ -119,7 +249,7 @@ function toFirestoreLlmSetupDocument(
   const document: FirebaseFirestore.DocumentData = {
     id: setup.id,
     name: setup.name,
-    routes: setup.routes,
+    generationRoutes: setup.generationRoutes,
     updatedAt: setup.updatedAt,
     updatedBy: setup.updatedBy,
   };
@@ -133,10 +263,10 @@ function toFirestoreLlmSetupDocument(
   return document;
 }
 
-export async function createDefaultLlmSetupRoutes(): Promise<ILlmSetupRoutes> {
+export async function createDefaultGenerationRoutes(): Promise<IGenerationRoutes> {
   const gemini = await readGeminiConnection();
 
-  return {
+  const routesByModality: Record<LlmModality, ILlmModalityRoute> = {
     text: { connectionId: PRIMARY_GEMINI_CONNECTION_ID, model: gemini.defaultModel },
     vision: {
       connectionId: PRIMARY_GEMINI_CONNECTION_ID,
@@ -147,16 +277,31 @@ export async function createDefaultLlmSetupRoutes(): Promise<ILlmSetupRoutes> {
       model: gemini.defaultImageModel ?? gemini.defaultModel,
     },
   };
+
+  const generationRoutes = {} as IGenerationRoutes;
+
+  for (const kind of ALL_GENERATION_KINDS) {
+    const metadata = GENERATION_KIND_METADATA[kind];
+    const source = routesByModality[metadata.requiredModality];
+    generationRoutes[kind] = {
+      connectionId: source.connectionId,
+      model: source.model,
+      modality: metadata.requiredModality,
+      workflow: metadata.defaultWorkflow,
+    };
+  }
+
+  return generationRoutes;
 }
 
-async function buildProviderWarnings(routes: ILlmSetupRoutes): Promise<string[]> {
+async function buildProviderWarnings(generationRoutes: IGenerationRoutes): Promise<string[]> {
   const catalog = await listProviderConnectionCatalog();
   const warnings: string[] = [];
-  const connectionIds = new Set([
-    routes.text.connectionId,
-    routes.vision.connectionId,
-    routes.image.connectionId,
-  ]);
+  const connectionIds = new Set<string>();
+
+  for (const kind of ALL_GENERATION_KINDS) {
+    connectionIds.add(generationRoutes[kind].connectionId);
+  }
 
   for (const connectionId of connectionIds) {
     const connection = catalog.find((entry) => entry.id === connectionId);
@@ -174,16 +319,21 @@ async function buildProviderWarnings(routes: ILlmSetupRoutes): Promise<string[]>
 }
 
 function buildConnectionLabels(
-  routes: ILlmSetupRoutes,
+  generationRoutes: IGenerationRoutes,
   catalog: Awaited<ReturnType<typeof listProviderConnectionCatalog>>
 ): Record<string, string> {
   const labels: Record<string, string> = {};
+  const connectionIds = new Set<string>();
 
-  for (const route of [routes.text, routes.vision, routes.image]) {
-    const connection = catalog.find((entry) => entry.id === route.connectionId);
-    labels[route.connectionId] = connection
+  for (const kind of ALL_GENERATION_KINDS) {
+    connectionIds.add(generationRoutes[kind].connectionId);
+  }
+
+  for (const connectionId of connectionIds) {
+    const connection = catalog.find((entry) => entry.id === connectionId);
+    labels[connectionId] = connection
       ? `${connection.label} (${connection.providerKind})`
-      : route.connectionId;
+      : connectionId;
   }
 
   return labels;
@@ -217,8 +367,8 @@ export async function listLlmSetups(): Promise<IAdminLlmSetupSummary[]> {
     summaries.push({
       ...setup,
       referencedGroupCount: await countGroupsForSetup(doc.id),
-      providerWarnings: await buildProviderWarnings(setup.routes),
-      connectionLabels: buildConnectionLabels(setup.routes, catalog),
+      providerWarnings: await buildProviderWarnings(setup.generationRoutes),
+      connectionLabels: buildConnectionLabels(setup.generationRoutes, catalog),
     });
   }
 
@@ -245,8 +395,8 @@ export async function getLlmSetupById(setupId: string): Promise<IAdminLlmSetupSu
   return {
     ...setup,
     referencedGroupCount: await countGroupsForSetup(doc.id),
-    providerWarnings: await buildProviderWarnings(setup.routes),
-    connectionLabels: buildConnectionLabels(setup.routes, catalog),
+    providerWarnings: await buildProviderWarnings(setup.generationRoutes),
+    connectionLabels: buildConnectionLabels(setup.generationRoutes, catalog),
   };
 }
 
@@ -261,7 +411,7 @@ export async function createLlmSetup(
     throw new Error('Setup name is required.');
   }
 
-  const routes = await normalizeRoutes(input.routes);
+  const generationRoutes = await normalizeGenerationRoutes(input.generationRoutes);
   const now = new Date().toISOString();
   const docRef = getAdminFirestore().collection(LLM_SETUPS_COLLECTION).doc();
 
@@ -269,13 +419,30 @@ export async function createLlmSetup(
     id: docRef.id,
     name,
     description: input.description?.trim() || undefined,
-    routes,
+    generationRoutes,
     updatedAt: now,
     updatedBy: adminUid,
   };
 
   await docRef.set(toFirestoreLlmSetupDocument(setup));
   return setup;
+}
+
+export async function createLlmSetupFromRequest(
+  body: Record<string, unknown>,
+  adminUid: string
+): Promise<ILlmSetup> {
+  rejectLegacyRoutesPayload(body);
+
+  const name = typeof body.name === 'string' ? body.name : '';
+  const description = typeof body.description === 'string' ? body.description : undefined;
+  const generationRoutes = parseGenerationRoutes(body.generationRoutes);
+
+  if (!generationRoutes) {
+    throw new Error('generationRoutes must include every generation kind.');
+  }
+
+  return createLlmSetup({ name, description, generationRoutes }, adminUid);
 }
 
 export async function updateLlmSetup(
@@ -307,7 +474,9 @@ export async function updateLlmSetup(
     ...current,
     name: input.name?.trim() || current.name,
     description: nextDescription,
-    routes: input.routes ? await normalizeRoutes(input.routes) : current.routes,
+    generationRoutes: input.generationRoutes
+      ? await normalizeGenerationRoutes(input.generationRoutes)
+      : current.generationRoutes,
     updatedAt: new Date().toISOString(),
     updatedBy: adminUid,
   };
@@ -323,6 +492,34 @@ export async function updateLlmSetup(
     { merge: true }
   );
   return next;
+}
+
+export async function updateLlmSetupFromRequest(
+  setupId: string,
+  body: Record<string, unknown>,
+  adminUid: string
+): Promise<ILlmSetup> {
+  rejectLegacyRoutesPayload(body);
+
+  const input: IUpdateLlmSetupRequest = {};
+
+  if (typeof body.name === 'string') {
+    input.name = body.name;
+  }
+
+  if (typeof body.description === 'string') {
+    input.description = body.description;
+  }
+
+  if (body.generationRoutes !== undefined) {
+    const generationRoutes = parseGenerationRoutes(body.generationRoutes);
+    if (!generationRoutes) {
+      throw new Error('generationRoutes must include every generation kind.');
+    }
+    input.generationRoutes = generationRoutes;
+  }
+
+  return updateLlmSetup(setupId, input, adminUid);
 }
 
 export async function deleteLlmSetup(setupId: string): Promise<void> {

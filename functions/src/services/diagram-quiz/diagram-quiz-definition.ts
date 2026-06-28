@@ -2,7 +2,12 @@ import { RuleApplicability } from '@shared-types';
 import { FirestoreService } from '../firestore';
 import { DocumentCrudService } from '../document-crud';
 import { GeminiService } from '../gemini';
-import { LlmGenerationService, resolveTextGenerationModelLabel } from '../llm';
+import {
+  LlmGenerationService,
+  LlmGenerationRouteResolver,
+  formatGenerationModelLabel,
+  resolveTextGenerationAudit,
+} from '../llm';
 import { isRuleResolutionMode, resolveEffectiveRules } from '../rule-resolution';
 import {
   completePendingDiagramQuiz,
@@ -131,7 +136,10 @@ export const diagramQuizDefinition: ArtifactAgentDefinition<
       context.sourceContent,
       context.enhancedPrompt
     );
-    const generationModel = await resolveTextGenerationModelLabel(context.userId, 'diagramQuiz');
+    const routeResolution = await LlmGenerationRouteResolver.resolve('diagramQuiz', {
+      userId: context.userId,
+    });
+    const generationModel = formatGenerationModelLabel(routeResolution.route);
     recordModelUsage(diagnostics, {
       role: 'generator',
       capability: 'diagramQuiz',
@@ -147,12 +155,9 @@ export const diagramQuizDefinition: ArtifactAgentDefinition<
   refiner: diagramQuizRefinerStrategy,
 
   async persistCompleted(result: ArtifactAgentResult<IDiagramQuizDraft>) {
-    const generationModel =
-      result.generationModel ||
-      (await resolveTextGenerationModelLabel(result.context.userId, 'diagramQuiz'));
-    const agentModel =
-      result.agentModel ||
-      (await resolveTextGenerationModelLabel(result.context.userId, 'diagramQuizAgent'));
+    const diagramAudit = await resolveTextGenerationAudit(result.context.userId, 'diagramQuiz');
+    const generationModel = result.generationModel || diagramAudit.generationModel;
+    const agentModel = result.agentModel || diagramAudit.generationModel;
 
     await completePendingDiagramQuiz(result.context.userId, result.context.recordId, {
       title: result.context.title,
@@ -161,9 +166,20 @@ export const diagramQuizDefinition: ArtifactAgentDefinition<
       followupRuleIds: result.context.followupRuleIds,
       generationModel,
       agentModel,
+      generationModelUsage: diagramAudit.generationModelUsage,
       generationDiagnostics: {
         ...result.diagnostics,
         adkSessionId: result.context.jobId,
+        artifactDetails: {
+          ...(result.diagnostics.artifactDetails ?? {}),
+          generationRoute: {
+            kind: diagramAudit.generationModelUsage[0]?.kind,
+            workflow: diagramAudit.generationModelUsage[0]?.workflow,
+            connectionId: diagramAudit.generationModelUsage[0]?.connectionId,
+            model: diagramAudit.generationModelUsage[0]?.model,
+            llmSetupId: diagramAudit.generationModelUsage[0]?.llmSetupId,
+          },
+        },
       },
     });
   },

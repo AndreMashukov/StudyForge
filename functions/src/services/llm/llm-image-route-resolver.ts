@@ -1,18 +1,19 @@
 import * as functions from 'firebase-functions';
-import { LlmSetupRepository } from './llm-setup-repository';
-import type { LlmCapability, ResolvedRoute } from './types';
+import { LlmGenerationRouteResolver } from './llm-generation-route-resolver';
+import type { LlmCapability } from './types';
 import type { LlmRouteOptions } from './llm-route-resolver';
 
 export type LlmImageCapability = Extract<LlmCapability, 'slideDeckImage'>;
 
 export interface ImageRouteResolution {
-  route: ResolvedRoute;
+  route: Awaited<ReturnType<typeof LlmGenerationRouteResolver.resolve>>['route'];
   providerApiKey?: string;
   geminiImageModel: string;
   userGroupId?: string;
   llmSetupId?: string;
 }
 
+/** @deprecated Use LlmGenerationRouteResolver */
 export class LlmImageRouteResolver {
   static async resolve(
     capability: LlmImageCapability,
@@ -22,40 +23,20 @@ export class LlmImageRouteResolver {
       throw new Error(`Unsupported image capability: ${capability}`);
     }
 
-    try {
-      const setupResolution = await LlmSetupRepository.resolveModalityRoute(
-        options.userId,
-        'image'
-      );
+    const resolution = await LlmGenerationRouteResolver.resolve(capability, options);
 
-      const geminiImageModel =
-        setupResolution.route.providerType === 'gemini'
-          ? setupResolution.route.model
-          : setupResolution.route.model;
+    functions.logger.info('LLM image route resolved via generation resolver', {
+      capability,
+      userId: options.userId,
+      kind: resolution.kind,
+    });
 
-      functions.logger.info('LLM image route resolved', {
-        capability,
-        userId: options.userId,
-        userGroupId: setupResolution.userGroupId,
-        llmSetupId: setupResolution.llmSetupId,
-        providerType: setupResolution.route.providerType,
-        model: setupResolution.route.model,
-      });
-
-      return {
-        route: setupResolution.route,
-        providerApiKey: setupResolution.providerApiKey,
-        geminiImageModel,
-        userGroupId: setupResolution.userGroupId,
-        llmSetupId: setupResolution.llmSetupId,
-      };
-    } catch (error) {
-      functions.logger.error('LlmImageRouteResolver failed', {
-        capability,
-        userId: options.userId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
+    return {
+      route: resolution.route,
+      providerApiKey: resolution.providerApiKey,
+      geminiImageModel: resolution.route.model,
+      userGroupId: resolution.userGroupId,
+      llmSetupId: resolution.llmSetupId,
+    };
   }
 }

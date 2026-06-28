@@ -6,6 +6,21 @@ export interface ILlmSetupsTableProps {
   setups: IAdminLlmSetupSummary[];
 }
 
+function summarizeRoutes(setup: IAdminLlmSetupSummary): string {
+  const models = new Set<string>();
+
+  for (const route of Object.values(setup.generationRoutes)) {
+    const label = setup.connectionLabels[route.connectionId] ?? route.connectionId;
+    models.add(`${label} / ${route.model}`);
+  }
+
+  if (models.size === 1) {
+    return models.values().next().value ?? '—';
+  }
+
+  return `${models.size} distinct route configurations`;
+}
+
 export function LlmSetupsTable({ setups }: ILlmSetupsTableProps) {
   if (setups.length === 0) {
     return <p className="text-sm text-muted-foreground">No LLM setups yet.</p>;
@@ -17,9 +32,7 @@ export function LlmSetupsTable({ setups }: ILlmSetupsTableProps) {
         <thead className="border-b border-border bg-muted/50">
           <tr>
             <th className="px-4 py-3 font-medium" scope="col">Name</th>
-            <th className="px-4 py-3 font-medium" scope="col">Text</th>
-            <th className="px-4 py-3 font-medium" scope="col">Vision</th>
-            <th className="px-4 py-3 font-medium" scope="col">Image</th>
+            <th className="px-4 py-3 font-medium" scope="col">Generation routes</th>
             <th className="px-4 py-3 font-medium" scope="col">Groups</th>
             <th className="px-4 py-3 font-medium" scope="col">Status</th>
           </tr>
@@ -32,15 +45,7 @@ export function LlmSetupsTable({ setups }: ILlmSetupsTableProps) {
                   {setup.name}
                 </Link>
               </td>
-              <td className="px-4 py-3 text-muted-foreground">
-                {setup.connectionLabels[setup.routes.text.connectionId] ?? setup.routes.text.connectionId} / {setup.routes.text.model}
-              </td>
-              <td className="px-4 py-3 text-muted-foreground">
-                {setup.connectionLabels[setup.routes.vision.connectionId] ?? setup.routes.vision.connectionId} / {setup.routes.vision.model}
-              </td>
-              <td className="px-4 py-3 text-muted-foreground">
-                {setup.connectionLabels[setup.routes.image.connectionId] ?? setup.routes.image.connectionId} / {setup.routes.image.model}
-              </td>
+              <td className="px-4 py-3 text-muted-foreground">{summarizeRoutes(setup)}</td>
               <td className="px-4 py-3">{setup.referencedGroupCount}</td>
               <td className="px-4 py-3">
                 {setup.providerWarnings.length > 0 ? (

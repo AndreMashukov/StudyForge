@@ -2,7 +2,7 @@ import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
-import { LlmGenerationService, resolveTextGenerationModelLabel } from "../services/llm";
+import { LlmGenerationService, resolveTextGenerationAudit } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
@@ -201,7 +201,7 @@ export const generateSequenceQuiz = onCall(
             ? `Sequence Quiz from ${documentDataList[0].doc.title}`
             : `Sequence Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
 
-        const generationModel = await resolveTextGenerationModelLabel(userId, 'sequenceQuiz');
+        const { generationModel, generationModelUsage } = await resolveTextGenerationAudit(userId, 'sequenceQuiz');
 
         await completePendingSequenceQuiz(userId, pendingSequenceQuizId, {
           title: finalTitle,
@@ -209,6 +209,7 @@ export const generateSequenceQuiz = onCall(
           appliedRuleIds: appliedRuleIdsForSave,
           followupRuleIds: followupIdsForSave,
           generationModel,
+          generationModelUsage,
         });
 
         return {

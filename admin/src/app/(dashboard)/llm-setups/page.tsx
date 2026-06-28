@@ -17,14 +17,14 @@ export default function LlmSetupsPage() {
       <div className="flex items-start justify-between gap-4">
         <AdminPageHeader
           title="LLM setups"
-          description="Define text, vision, and image routing profiles. User groups reference these setups."
+          description="Define generation kind routing profiles. User groups reference these setups."
         />
         <Button asChild>
           <Link href="/llm-setups/new">Create setup</Link>
         </Button>
       </div>
 
-      <Suspense fallback={<TableSkeleton columns={6} rows={5} />}>
+      <Suspense fallback={<TableSkeleton columns={5} rows={5} />}>
         <LlmSetupsSection />
       </Suspense>
     </div>

@@ -7,8 +7,8 @@ import { directoryService } from "../services/directory";
 import { GeminiService } from "../services/gemini";
 import {
   LlmGenerationService,
-  resolveSlideDeckGenerationModelLabel,
-  resolveTextGenerationModelLabel,
+  resolveSlideDeckGenerationAudit,
+  resolveTextGenerationAudit,
 } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { ScreenshotDocumentGenerationService } from "../services/screenshot-document-generation";
@@ -325,7 +325,8 @@ export const api = onRequest(
             .get();
           const generationAttempt = existingSnap.size;
 
-          const quizGenerationModel = await resolveTextGenerationModelLabel(userId, 'quiz');
+          const { generationModel: quizGenerationModel, generationModelUsage: quizGenerationModelUsage } =
+            await resolveTextGenerationAudit(userId, 'quiz');
 
           await completePendingQuiz(userId, pendingQuizId, {
             title: geminiQuiz.title,
@@ -339,6 +340,7 @@ export const api = onRequest(
             appliedRuleIds: appliedRuleIdsForSave,
             generationAttempt,
             generationModel: quizGenerationModel,
+            generationModelUsage: quizGenerationModelUsage,
           });
           await FirestorePaths.quiz(userId, pendingQuizId).update({
             followupRuleIds: followupIdsForSave,
@@ -489,7 +491,8 @@ export const api = onRequest(
             .get();
           const generationAttempt = existingSnap.size;
 
-          const diagramQuizGenerationModel = await resolveTextGenerationModelLabel(userId, 'diagramQuiz');
+          const { generationModel: diagramQuizGenerationModel, generationModelUsage: diagramQuizGenerationModelUsage } =
+            await resolveTextGenerationAudit(userId, 'diagramQuiz');
 
           await completePendingDiagramQuiz(userId, pendingDiagramQuizId, {
             title: geminiQuiz.title,
@@ -505,6 +508,7 @@ export const api = onRequest(
             followupRuleIds: followupIdsForSave,
             generationAttempt,
             generationModel: diagramQuizGenerationModel,
+            generationModelUsage: diagramQuizGenerationModelUsage,
           });
           const saved = await FirestorePaths.diagramQuiz(userId, pendingDiagramQuizId).get();
 
@@ -637,7 +641,8 @@ export const api = onRequest(
             .get();
           const generationAttempt = existingSnap.size;
 
-          const sequenceQuizGenerationModel = await resolveTextGenerationModelLabel(userId, 'sequenceQuiz');
+          const { generationModel: sequenceQuizGenerationModel, generationModelUsage: sequenceQuizGenerationModelUsage } =
+            await resolveTextGenerationAudit(userId, 'sequenceQuiz');
 
           await completePendingSequenceQuiz(userId, pendingSequenceQuizId, {
             title: geminiQuiz.title,
@@ -651,6 +656,7 @@ export const api = onRequest(
             followupRuleIds: followupIdsForSave,
             generationAttempt,
             generationModel: sequenceQuizGenerationModel,
+            generationModelUsage: sequenceQuizGenerationModelUsage,
           });
           const saved = await FirestorePaths.sequenceQuiz(userId, pendingSequenceQuizId).get();
 
@@ -766,13 +772,15 @@ export const api = onRequest(
               ? `Flashcards for "${documentDataList[0].doc.title}"`
               : `Flashcards for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
 
-          const flashcardGenerationModel = await resolveTextGenerationModelLabel(userId, 'flashcards');
+          const { generationModel: flashcardGenerationModel, generationModelUsage: flashcardGenerationModelUsage } =
+            await resolveTextGenerationAudit(userId, 'flashcards');
 
           await completePendingFlashcardSet(userId, pendingFlashcardSetId, {
             title,
             flashcards: flashcardsWithIds,
             appliedRuleIds: appliedRuleIdsForSave,
             generationModel: flashcardGenerationModel,
+            generationModelUsage: flashcardGenerationModelUsage,
           });
 
           res.status(201).json({ success: true, data: { flashcardSetId: pendingFlashcardSetId } });
@@ -926,13 +934,15 @@ export const api = onRequest(
               ? `Slides for "${documentDataList[0].doc.title}"`
               : `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
 
-          const slideDeckGenerationModel = await resolveSlideDeckGenerationModelLabel(userId);
+          const { generationModel: slideDeckGenerationModel, generationModelUsage: slideDeckGenerationModelUsage } =
+            await resolveSlideDeckGenerationAudit(userId);
 
           await completePendingSlideDeck(userId, pendingSlideDeckId, {
             title: deckTitle,
             slides,
             appliedRuleIds: appliedRuleIdsForSave,
             generationModel: slideDeckGenerationModel,
+            generationModelUsage: slideDeckGenerationModelUsage,
           });
 
           res.status(201).json({ success: true, data: { slideDeckId: pendingSlideDeckId } });
@@ -1148,13 +1158,15 @@ export const api = onRequest(
               ? `Slides for "${documentDataList[0].doc.title}"`
               : `Slides for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
 
-          const slideDeckGenerationModel = await resolveSlideDeckGenerationModelLabel(userId);
+          const { generationModel: slideDeckGenerationModel, generationModelUsage: slideDeckGenerationModelUsage } =
+            await resolveSlideDeckGenerationAudit(userId);
 
           await completePendingSlideDeck(userId, pendingSlideDeckId, {
             title: deckTitle,
             slides,
             appliedRuleIds: appliedRuleIdsForSave,
             generationModel: slideDeckGenerationModel,
+            generationModelUsage: slideDeckGenerationModelUsage,
           });
 
           res.status(201).json({ success: true, data: { slideDeckId: pendingSlideDeckId } });
@@ -1283,7 +1295,8 @@ export const api = onRequest(
 
         const wordCount = generatedContent.split(/\s+/).length;
 
-        const documentGenerationModel = await resolveTextGenerationModelLabel(userId, 'documentFromPrompt');
+        const { generationModel: documentGenerationModel, generationModelUsage: documentGenerationModelUsage } =
+          await resolveTextGenerationAudit(userId, 'documentFromPrompt');
 
         let document: Awaited<ReturnType<typeof DocumentCrudService.completePendingDocument>>;
         try {
@@ -1297,6 +1310,7 @@ export const api = onRequest(
               tags: ["ai-generated", "prompt-based"],
               appliedRuleIds: effectiveRuleIds,
               generationModel: documentGenerationModel,
+              generationModelUsage: documentGenerationModelUsage,
             }
           );
         } catch (completeErr) {
@@ -1379,7 +1393,7 @@ export const api = onRequest(
         });
 
         try {
-          const result = await ScreenshotDocumentGenerationService.generate({
+          const result = await ScreenshotDocumentGenerationService.enqueue({
             ...data,
             userId,
             pendingDocumentId,

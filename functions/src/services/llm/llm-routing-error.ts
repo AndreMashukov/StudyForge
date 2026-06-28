@@ -1,4 +1,4 @@
-import type { ILlmRoutingErrorDetails, LlmModality, LlmRoutingErrorCode } from '@shared-types';
+import type { GenerationKind, ILlmRoutingErrorDetails, LlmModality, LlmRoutingErrorCode } from '@shared-types';
 
 export const USER_GROUP_ASSIGNMENT_MESSAGE =
   "Your account isn't assigned to a user group yet. Contact support.";
@@ -71,4 +71,22 @@ export function createProviderNotConfiguredError(
       modality,
     }
   );
+}
+
+export function createGenerationRouteNotConfiguredError(
+  userId: string,
+  userGroupId: string,
+  llmSetupId: string,
+  kind: GenerationKind,
+  detail?: string
+): LlmRoutingError {
+  const message =
+    detail ?? `Generation route ${kind} is not configured for LLM setup ${llmSetupId}.`;
+  return new LlmRoutingError('GENERATION_ROUTE_NOT_CONFIGURED', message, {
+    code: 'GENERATION_ROUTE_NOT_CONFIGURED',
+    userId,
+    userGroupId,
+    llmSetupId,
+    kind,
+  });
 }

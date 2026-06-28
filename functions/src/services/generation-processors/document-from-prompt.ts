@@ -5,7 +5,12 @@ import {
 } from '@shared-types';
 import { FirestorePaths } from '../../lib/firestore-paths';
 import { DocumentCrudService } from '../document-crud';
-import { LlmGenerationService, resolveTextGenerationModelLabel } from '../llm';
+import {
+  LlmGenerationRouteResolver,
+  LlmGenerationService,
+  formatGenerationModelLabel,
+  toGenerationModelUsage,
+} from '../llm';
 import { GenerationJob } from '../generation-jobs';
 import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 import { isRuleResolutionMode, resolveEffectiveRules } from '../rule-resolution';
@@ -73,12 +78,18 @@ export class DocumentFromPromptGenerationProcessor {
       },
     });
 
+    const routeResolution = await LlmGenerationRouteResolver.resolve('documentFromPrompt', {
+      userId: job.userId,
+    });
+    const startMs = Date.now();
+
     const generatedContent = await LlmGenerationService.generateDocumentFromPrompt(
       job.userId,
       trimmedPrompt,
       data.files,
       rulesText || undefined
     );
+    const durationMs = Date.now() - startMs;
 
     const titleMatch = generatedContent.match(/^#\s+(.+)$/m);
     const title = titleMatch?.[1]?.trim()
@@ -95,7 +106,8 @@ export class DocumentFromPromptGenerationProcessor {
       });
     }
 
-    const generationModel = await resolveTextGenerationModelLabel(job.userId, 'documentFromPrompt');
+    const generationModel = formatGenerationModelLabel(routeResolution.route);
+    const generationModelUsage = [toGenerationModelUsage(routeResolution, durationMs)];
 
     await DocumentCrudService.completePendingDocument(job.userId, job.recordId, generatedContent, {
       title,
@@ -103,6 +115,7 @@ export class DocumentFromPromptGenerationProcessor {
       tags: ['ai-generated', 'prompt-based'],
       appliedRuleIds: effectiveRuleIds,
       generationModel,
+      generationModelUsage,
     });
 
     await GenerationJobPayloadStorage.delete(job.payloadStoragePath).catch((error) => {

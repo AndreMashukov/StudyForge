@@ -118,16 +118,22 @@ export const createDocumentResponseSchema = z.object({
 
 export const generateFromScreenshotResponseSchema = z.object({
   success: z.boolean(),
+  id: z.string().optional(),
   documentId: z.string(),
-  title: z.string(),
-  content: z.string(),
-  wordCount: z.number(),
-  metadata: z.object({
-    generatedAt: z.string(),
-    sourceType: z.literal('screenshot'),
-    directoryId: z.string(),
-    prompt: z.string().optional(),
-  }),
+  recordType: z.literal('document').optional(),
+  directoryId: z.string().optional(),
+  generationStatus: z.enum(['pending', 'completed', 'failed']).optional(),
+  title: z.string().optional(),
+  content: z.string().optional(),
+  wordCount: z.number().optional(),
+  metadata: z
+    .object({
+      generatedAt: z.string().optional(),
+      sourceType: z.literal('screenshot').optional(),
+      directoryId: z.string().optional(),
+      prompt: z.string().optional(),
+    })
+    .optional(),
 });
 
 export function parseCallableResponse<T>(schema: z.ZodType<T>, data: unknown): T {

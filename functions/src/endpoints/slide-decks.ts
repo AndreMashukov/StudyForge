@@ -18,7 +18,7 @@ import {
   completePendingSlideDeck,
   failPendingSlideDeck,
 } from '../services/artifact-generation-records';
-import { LlmGenerationService, resolveSlideDeckGenerationModelLabel } from '../services/llm';
+import { LlmGenerationService, resolveSlideDeckGenerationAudit } from '../services/llm';
 import { validateAuth } from '../lib/auth';
 import { FirestorePaths } from '../lib/firestore-paths';
 
@@ -221,13 +221,14 @@ export const generateSlideDeck = onCall(
               ? `Slides for "${documentDataList[0].title}"`
               : `Slides for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
 
-          const generationModel = await resolveSlideDeckGenerationModelLabel(userId);
+          const { generationModel, generationModelUsage } = await resolveSlideDeckGenerationAudit(userId);
 
           await completePendingSlideDeck(userId, pendingSlideDeckId, {
             title: finalTitle,
             slides,
             appliedRuleIds: appliedRuleIdsForSave,
             generationModel,
+            generationModelUsage,
           });
 
           logger.info(`[generateSlideDeck] STEP 7: Complete. Deck ID: ${redactId(pendingSlideDeckId)}`, { userIdHash: u });

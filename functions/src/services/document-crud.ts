@@ -14,6 +14,7 @@ import {
   DocumentStatus,
   GenerationStatus,
   DOCUMENT_COLOR_PALETTE,
+  type IGenerationModelUsage,
 } from "@shared-types";
 
 /**
@@ -853,6 +854,7 @@ export class DocumentCrudService {
       tags?: string[];
       appliedRuleIds?: string[];
       generationModel?: string;
+      generationModelUsage?: IGenerationModelUsage[];
     }
   ): Promise<Document> {
     const wordCount = this.countWords(content);
@@ -892,6 +894,9 @@ export class DocumentCrudService {
       status: DocumentStatus.ACTIVE,
       appliedRuleIds: params.appliedRuleIds || [],
       ...(params.generationModel ? { generationModel: params.generationModel } : {}),
+      ...(params.generationModelUsage?.length
+        ? { generationModelUsage: params.generationModelUsage }
+        : {}),
       generationStatus: 'completed' as GenerationStatus,
       completedAt: now,
       updatedAt: now,
@@ -915,6 +920,9 @@ export class DocumentCrudService {
       status: DocumentStatus.ACTIVE,
       appliedRuleIds: params.appliedRuleIds || [],
       ...(params.generationModel ? { generationModel: params.generationModel } : {}),
+      ...(params.generationModelUsage?.length
+        ? { generationModelUsage: params.generationModelUsage }
+        : {}),
       generationStatus: 'completed' as GenerationStatus,
       completedAt: now,
       updatedAt: now,

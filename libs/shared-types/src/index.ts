@@ -456,6 +456,8 @@ export interface DiagramQuiz {
   generationDiagnostics?: IArtifactAgentDiagnostics;
   /** Model used for the primary generator pass */
   generationModel?: string;
+  /** Structured audit trail for routed generation calls. */
+  generationModelUsage?: IGenerationModelUsage[];
   /** Model used for agent helper passes (repair/critic/refiner) */
   agentModel?: string;
 }
@@ -599,6 +601,8 @@ export interface DocumentEnhanced {
   appliedRuleIds?: string[];
   /** Primary LLM model used during generation. */
   generationModel?: string;
+  /** Structured audit trail for routed generation calls. */
+  generationModelUsage?: IGenerationModelUsage[];
   /** Persistent accent color assigned at document creation. */
   color?: string;
 }
@@ -711,6 +715,8 @@ export interface ArtifactSummary {
   completedAt?: Date | Timestamp | string;
   /** Primary LLM model used during generation. */
   generationModel?: string;
+  /** Structured audit trail for routed generation calls. */
+  generationModelUsage?: IGenerationModelUsage[];
   /** Color of the primary source document, for left-rail rendering. */
   documentColor?: string;
   /** Colors of all source documents in documentIds order, for segmented rail. */
@@ -949,15 +955,15 @@ export interface GenerateFromScreenshotRequest {
   ruleResolutionMode?: RuleResolutionMode;
 }
 
-export interface GenerateFromScreenshotResponse {
+export interface GenerateFromScreenshotResponse extends StartGenerationResponse {
   documentId: string;
-  title: string;
-  content: string;
-  wordCount: number;
-  metadata: {
-    generatedAt: string;
-    sourceType: 'screenshot';
-    directoryId: string;
+  title?: string;
+  content?: string;
+  wordCount?: number;
+  metadata?: {
+    generatedAt?: string;
+    sourceType?: 'screenshot';
+    directoryId?: string;
     prompt?: string;
   };
 }
@@ -1841,9 +1847,45 @@ export type LlmCapabilityKey =
 
 // --- LLM setup & user group routing ---
 
+import type { GenerationKind, GenerationWorkflow } from './generation-kind-metadata';
+
+export type {
+  GenerationKind,
+  GenerationWorkflow,
+  IGenerationKindMetadata,
+} from './generation-kind-metadata';
+export {
+  ALL_GENERATION_KINDS,
+  GENERATION_KIND_ALIASES,
+  GENERATION_KIND_METADATA,
+  isGenerationKind,
+  isGenerationWorkflow,
+  resolveGenerationKind,
+} from './generation-kind-metadata';
+
 export interface ILlmModalityRoute {
   connectionId: string;
   model: string;
+}
+
+export interface IGenerationRoute extends ILlmModalityRoute {
+  modality: LlmModality;
+  workflow: GenerationWorkflow;
+}
+
+export type IGenerationRoutes = Record<GenerationKind, IGenerationRoute>;
+
+export interface IGenerationModelUsage {
+  kind: GenerationKind;
+  role: 'generation' | 'agent';
+  workflow: GenerationWorkflow;
+  modality: LlmModality;
+  providerKind: LlmProviderKind;
+  connectionId: string;
+  model: string;
+  llmSetupId: string;
+  userGroupId: string;
+  durationMs?: number;
 }
 
 /** Admin picker entry for LLM setup route configuration. */
@@ -1865,7 +1907,9 @@ export interface ILlmSetup {
   id: string;
   name: string;
   description?: string;
-  routes: ILlmSetupRoutes;
+  /** Legacy modality routes — migration source only; not written by admin after Task 14. */
+  routes?: ILlmSetupRoutes;
+  generationRoutes: IGenerationRoutes;
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -1890,13 +1934,13 @@ export interface IUserProfile {
 export interface ICreateLlmSetupRequest {
   name: string;
   description?: string;
-  routes: ILlmSetupRoutes;
+  generationRoutes: IGenerationRoutes;
 }
 
 export interface IUpdateLlmSetupRequest {
   name?: string;
   description?: string;
-  routes?: ILlmSetupRoutes;
+  generationRoutes?: IGenerationRoutes;
 }
 
 export interface ICreateUserGroupRequest {
@@ -1918,7 +1962,8 @@ export type LlmRoutingErrorCode =
   | 'USER_GROUP_NOT_ASSIGNED'
   | 'USER_GROUP_NOT_FOUND'
   | 'LLM_SETUP_NOT_FOUND'
-  | 'PROVIDER_NOT_CONFIGURED';
+  | 'PROVIDER_NOT_CONFIGURED'
+  | 'GENERATION_ROUTE_NOT_CONFIGURED';
 
 export interface ILlmRoutingErrorDetails {
   code: LlmRoutingErrorCode;
@@ -1926,4 +1971,15 @@ export interface ILlmRoutingErrorDetails {
   userGroupId?: string;
   llmSetupId?: string;
   modality?: LlmModality;
+  kind?: GenerationKind;
+}
+
+export interface IDocumentFromScreenshotJobPayload {
+  imageBase64: string;
+  directoryId: string;
+  title?: string;
+  prompt?: string;
+  ruleIds?: string[];
+  additionalRuleIds?: string[];
+  ruleResolutionMode?: RuleResolutionMode;
 }
