@@ -81,15 +81,25 @@ export function ReviewScreen() {
   const submitVisionDocument = async () => {
     try {
       const imageBase64 = await prepareImageBase64DataUrl(pendingScan.imageUri);
+      const formTitle = getValues('title').trim();
       const response = await generateFromScreenshotMutation.mutateAsync({
         imageBase64,
         directoryId: pendingScan.directoryId,
-        title: getValues('title') || undefined,
+        title: formTitle || undefined,
         prompt: getValues('content') || undefined,
       });
 
-      setLastResult(response.documentId, response.title);
-      setStatusMessage(`Created "${response.title}" from scanned image.`);
+      const displayTitle = response.title?.trim() || formTitle || 'Captured Document';
+      setLastResult(response.documentId, displayTitle);
+
+      if (response.generationStatus === 'pending') {
+        setStatusMessage(
+          `Document "${displayTitle}" is generating in StudyForge. Open the web app to view it when ready.`
+        );
+      } else {
+        setStatusMessage(`Created "${displayTitle}" from scanned image.`);
+      }
+
       setPendingScan(null);
       router.back();
     } catch (error) {
