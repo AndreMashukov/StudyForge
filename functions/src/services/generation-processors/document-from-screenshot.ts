@@ -12,6 +12,7 @@ import {
 import { GenerationJob } from '../generation-jobs';
 import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 import { isRuleResolutionMode, resolveEffectiveRules } from '../rule-resolution';
+import { runScreenshotDocumentAgentPipeline } from '../screenshot-document-agent/screenshot-document-agent-runner';
 
 export class DocumentFromScreenshotGenerationProcessor {
   static async process(job: GenerationJob): Promise<void> {
@@ -43,9 +44,22 @@ export class DocumentFromScreenshotGenerationProcessor {
       userId: job.userId,
     });
 
+    if (routeResolution.workflow === 'agentic') {
+      await runScreenshotDocumentAgentPipeline(job, data);
+      await GenerationJobPayloadStorage.delete(job.payloadStoragePath).catch((error) => {
+        logger.warn('Failed to delete screenshot generation job payload after completion', {
+          userId: job.userId,
+          jobId: job.id,
+          storagePath: job.payloadStoragePath,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+      return;
+    }
+
     if (routeResolution.workflow !== 'direct') {
       throw new Error(
-        `documentFromScreenshot workflow ${routeResolution.workflow} is not supported in Task 14 (direct only).`
+        `documentFromScreenshot workflow ${routeResolution.workflow} is not supported.`
       );
     }
 

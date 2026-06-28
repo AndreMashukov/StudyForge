@@ -32,27 +32,39 @@ const ARTIFACT_PANEL_CONFIG: Partial<
 > = {
   quizzes: {
     summaryType: 'quiz',
-    getRecordId: (data) => (data.data as { quizId?: string } | undefined)?.quizId,
+    getRecordId: (data) =>
+      (data.data as { quizId?: string; id?: string } | undefined)?.quizId
+      ?? (data.data as { id?: string } | undefined)?.id,
   },
   cards: {
     summaryType: 'flashcard',
-    getRecordId: (data) => (data.data as { flashcardSetId?: string } | undefined)?.flashcardSetId,
+    getRecordId: (data) =>
+      (data.data as { flashcardSetId?: string; id?: string } | undefined)?.flashcardSetId
+      ?? (data.data as { id?: string } | undefined)?.id,
   },
   slides: {
     summaryType: 'slideDeck',
-    getRecordId: (data) => (data.data as { slideDeckId?: string } | undefined)?.slideDeckId,
+    getRecordId: (data) =>
+      (data.data as { slideDeckId?: string; id?: string } | undefined)?.slideDeckId
+      ?? (data.data as { id?: string } | undefined)?.id,
   },
   diagramQuizzes: {
     summaryType: 'diagramQuiz',
-    getRecordId: (data) => (data.data as { diagramQuizId?: string } | undefined)?.diagramQuizId,
+    getRecordId: (data) =>
+      (data.data as { diagramQuizId?: string; id?: string } | undefined)?.diagramQuizId
+      ?? (data.data as { id?: string } | undefined)?.id,
   },
   sequenceQuizzes: {
     summaryType: 'sequenceQuiz',
-    getRecordId: (data) => (data.data as { sequenceQuizId?: string } | undefined)?.sequenceQuizId,
+    getRecordId: (data) =>
+      (data.data as { sequenceQuizId?: string; id?: string } | undefined)?.sequenceQuizId
+      ?? (data.data as { id?: string } | undefined)?.id,
   },
   subjectWorlds: {
     summaryType: 'subjectWorld',
-    getRecordId: (data) => (data.data as { subjectWorldId?: string } | undefined)?.subjectWorldId,
+    getRecordId: (data) =>
+      (data.data as { subjectWorldId?: string; id?: string } | undefined)?.subjectWorldId
+      ?? (data.data as { id?: string } | undefined)?.id,
   },
 };
 

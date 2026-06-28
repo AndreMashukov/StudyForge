@@ -7,7 +7,6 @@ import type {
   IGenerationRoutes,
   ILlmModalityRoute,
   ILlmSetup,
-  ILlmSetupRoutes,
   IUpdateLlmSetupRequest,
   LlmModality,
 } from '@shared-types';
@@ -38,38 +37,6 @@ export interface IAdminLlmSetupSummary extends ILlmSetup {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function parseModalityRoute(value: unknown): ILlmModalityRoute | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  const connectionId =
-    typeof value.connectionId === 'string' ? value.connectionId.trim() : '';
-  const model = typeof value.model === 'string' ? value.model.trim() : '';
-
-  if (!connectionId || !model) {
-    return null;
-  }
-
-  return { connectionId, model };
-}
-
-function parseRoutes(value: unknown): ILlmSetupRoutes | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  const text = parseModalityRoute(value.text);
-  const vision = parseModalityRoute(value.vision);
-  const image = parseModalityRoute(value.image);
-
-  if (!text || !vision || !image) {
-    return null;
-  }
-
-  return { text, vision, image };
 }
 
 function parseGenerationRoute(value: unknown): IGenerationRoute | null {
@@ -119,58 +86,11 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
   return routes;
 }
 
-function synthesizeGenerationRoutesFromLegacy(routes: ILlmSetupRoutes): IGenerationRoutes {
-  const textBase = {
-    connectionId: routes.text.connectionId,
-    model: routes.text.model,
-    modality: 'text' as const,
-    workflow: 'direct' as const,
-  };
-  const visionBase = {
-    connectionId: routes.vision.connectionId,
-    model: routes.vision.model,
-    modality: 'vision' as const,
-    workflow: 'direct' as const,
-  };
-  const imageBase = {
-    connectionId: routes.image.connectionId,
-    model: routes.image.model,
-    modality: 'image' as const,
-    workflow: 'direct' as const,
-  };
-
-  const routesByModality: Record<LlmModality, IGenerationRoute> = {
-    text: textBase,
-    vision: visionBase,
-    image: imageBase,
-  };
-
-  const generationRoutes = {} as IGenerationRoutes;
-
-  for (const kind of ALL_GENERATION_KINDS) {
-    const metadata = GENERATION_KIND_METADATA[kind];
-    const source = routesByModality[metadata.requiredModality];
-    generationRoutes[kind] = {
-      connectionId: source.connectionId,
-      model: source.model,
-      modality: metadata.requiredModality,
-      workflow: metadata.defaultWorkflow,
-    };
-  }
-
-  return generationRoutes;
-}
-
 function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSetup | null {
   const name = typeof data.name === 'string' ? data.name.trim() : '';
-  if (!name) {
-    return null;
-  }
-
   const generationRoutes = parseGenerationRoutes(data.generationRoutes);
-  const legacyRoutes = parseRoutes(data.routes);
 
-  if (!generationRoutes && !legacyRoutes) {
+  if (!name || !generationRoutes) {
     return null;
   }
 
@@ -178,8 +98,7 @@ function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSe
     id,
     name,
     description: typeof data.description === 'string' ? data.description : undefined,
-    routes: legacyRoutes ?? undefined,
-    generationRoutes: generationRoutes ?? synthesizeGenerationRoutesFromLegacy(legacyRoutes as ILlmSetupRoutes),
+    generationRoutes,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
   };

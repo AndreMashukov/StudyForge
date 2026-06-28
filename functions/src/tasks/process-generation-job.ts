@@ -1,33 +1,21 @@
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { onTaskDispatched } from 'firebase-functions/v2/tasks';
-import { DocumentCrudService } from '../services/document-crud';
+import { ArtifactAgentPipelineFailedError } from '../services/artifact-agent/artifact-agent-errors';
+import { failVisibleGenerationRecord } from '../services/generation-job-failures';
+import { GenerationJob, GenerationJobsService } from '../services/generation-jobs';
+import { ArtifactAgentGenerationProcessor } from '../services/generation-processors/artifact-agent';
 import { DocumentFromPromptGenerationProcessor } from '../services/generation-processors/document-from-prompt';
 import { DocumentFromScreenshotGenerationProcessor } from '../services/generation-processors/document-from-screenshot';
-import { ArtifactAgentGenerationProcessor } from '../services/generation-processors/artifact-agent';
-import { failPendingDiagramQuiz } from '../services/artifact-generation-records';
-import { ArtifactAgentPipelineFailedError } from '../services/artifact-agent/artifact-agent-errors';
-import { GenerationJob, GenerationJobsService } from '../services/generation-jobs';
+import { FlashcardsGenerationProcessor } from '../services/generation-processors/flashcards';
+import { QuizGenerationProcessor } from '../services/generation-processors/quiz';
+import { SequenceQuizGenerationProcessor } from '../services/generation-processors/sequence-quiz';
+import { SlideDeckGenerationProcessor } from '../services/generation-processors/slide-deck';
+import { SubjectWorldGenerationProcessor } from '../services/generation-processors/subject-world';
 import { ProcessGenerationJobTaskPayload } from '../services/generation-task-queue';
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
-
-async function failVisibleRecord(job: GenerationJob, message: string): Promise<void> {
-  switch (job.kind) {
-    case 'documentFromPrompt':
-      await DocumentCrudService.failPendingDocument(job.userId, job.recordId, message);
-      return;
-    case 'documentFromScreenshot':
-      await DocumentCrudService.failPendingDocument(job.userId, job.recordId, message);
-      return;
-    case 'artifactAgent':
-      await failPendingDiagramQuiz(job.userId, job.recordId, message);
-      return;
-    default:
-      throw new Error(`Unsupported generation job kind: ${job.kind}`);
-  }
-}
 
 async function processJob(job: GenerationJob): Promise<void> {
   switch (job.kind) {
@@ -39,6 +27,21 @@ async function processJob(job: GenerationJob): Promise<void> {
       return;
     case 'artifactAgent':
       await ArtifactAgentGenerationProcessor.process(job);
+      return;
+    case 'quiz':
+      await QuizGenerationProcessor.process(job);
+      return;
+    case 'flashcards':
+      await FlashcardsGenerationProcessor.process(job);
+      return;
+    case 'sequenceQuiz':
+      await SequenceQuizGenerationProcessor.process(job);
+      return;
+    case 'slideDeck':
+      await SlideDeckGenerationProcessor.process(job);
+      return;
+    case 'subjectWorld':
+      await SubjectWorldGenerationProcessor.process(job);
       return;
     default:
       throw new Error(`Unsupported generation job kind: ${job.kind}`);
@@ -83,7 +86,7 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
       const message = error instanceof Error ? error.message : String(error);
       logger.error('Generation job failed', { userId, jobId, kind: job.kind, recordId: job.recordId, error: message });
       if (!(error instanceof ArtifactAgentPipelineFailedError)) {
-        await failVisibleRecord(job, message).catch((failError) => {
+        await failVisibleGenerationRecord(job, message).catch((failError) => {
           logger.error('Failed to mark visible generation record as failed', {
             userId,
             jobId,

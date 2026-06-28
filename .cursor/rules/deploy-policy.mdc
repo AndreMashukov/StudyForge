@@ -1,0 +1,12 @@
+---
+description: Deployment policy — never Firebase Hosting CLI; use git push for web
+alwaysApply: true
+---
+
+# Deployment Policy
+
+**Never deploy Firebase Hosting** from the agent or local CLI (`firebase deploy --only hosting`, `web:deploy`, `web:deploy-fresh`). Production web hosting is deployed automatically via GitHub Actions on merge to `main`.
+
+When the user asks to "deploy" web changes: **commit and push** so CI deploys hosting.
+
+Functions deploy (`yarn nx run functions:deploy`) is allowed when explicitly requested. Admin deploys via Vercel on push — do not run Vercel CLI unless asked.

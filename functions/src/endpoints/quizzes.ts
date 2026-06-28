@@ -2,27 +2,21 @@ import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { getGenerationFailureEnvelope } from '../services/llm/llm-endpoint-error';
-import { LlmGenerationService, resolveTextGenerationAudit } from "../services/llm";
-import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
+import { FirestoreService } from "../services/firestore";
 import { directoryService } from "../services/directory";
-import { FirestorePaths } from "../lib/firestore-paths";
-import {
-  isRuleResolutionMode,
-  resolveEffectiveRules,
-} from "../services/rule-resolution";
 import {
   createPendingQuiz,
-  completePendingQuiz,
   failPendingQuiz,
 } from "../services/artifact-generation-records";
+import { enqueueGenerationJob } from "../services/generation-enqueue";
+import { buildStartGenerationPayload } from "../lib/start-generation-response";
 import { 
   GenerateQuizRequest, 
   GenerateQuizResponse, 
   GetQuizResponse,
   ApiResponse,
   Quiz,
-  RuleApplicability,
   getDocumentFallbackColor,
 } from "@shared-types";
 
@@ -39,8 +33,8 @@ export const generateQuiz = onCall(
     cors: true,
     secrets: [geminiApiKey, llmSettingsEncryptionKey],
     maxInstances: 5,
-    timeoutSeconds: 300,
-    memory: "1GiB",
+    timeoutSeconds: 60,
+    memory: "512MiB",
   },
   async (request): Promise<ApiResponse<GenerateQuizResponse>> => {
     try {
@@ -122,104 +116,23 @@ export const generateQuiz = onCall(
       });
 
       try {
-        // Inject rules: legacy explicit IDs, or auto-resolve from directory hierarchy
-        let enhancedPrompt = requestData.additionalPrompt || '';
-        let followupIdsForSave: string[] = [];
-        let appliedRuleIdsForSave: string[] = [];
-        const ruleResolutionMode = isRuleResolutionMode(
-          (requestData as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
-        )
-          ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
-          : undefined;
-        const hasLegacyExplicitRules = Boolean(
-          requestData.ruleIds?.length || requestData.quizRuleIds?.length || requestData.followupRuleIds?.length
-        );
-        const mode = ruleResolutionMode
-          ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
-        const selectedQuizRuleIds = requestData.ruleIds?.length
-          ? requestData.ruleIds
-          : requestData.quizRuleIds?.length
-          ? requestData.quizRuleIds
-          : requestData.additionalRuleIds;
-        const selectedFollowupRuleIds = hasLegacyExplicitRules
-          ? (requestData.followupRuleIds || [])
-          : requestData.additionalRuleIds;
-
-        const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+        await enqueueGenerationJob({
           userId,
           directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.QUIZ,
-          additionalRuleIds: selectedQuizRuleIds,
-          mode,
-        });
-        if (quizRulesText) {
-          enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-        }
-        appliedRuleIdsForSave = resolvedAppliedIds;
-
-        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
-          userId,
-          directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.FOLLOWUP,
-          additionalRuleIds: selectedFollowupRuleIds,
-          mode,
-        });
-        followupIdsForSave = resolvedFollowupIds;
-        
-        // Generate quiz — routes to OpenRouter if enabled, falls back to Gemini
-        console.log("Generating quiz for document(s)...");
-        const geminiQuiz = await LlmGenerationService.generateQuiz(userId, documentContent, enhancedPrompt);
-        
-        // Apply custom quiz name if provided
-        if (requestData.quizName && requestData.quizName.trim()) {
-          geminiQuiz.title = requestData.quizName.trim();
-        } else if (documentIds.length === 1) {
-          geminiQuiz.title = `Quiz from ${documentDataList[0].doc.title}`;
-        } else {
-          geminiQuiz.title = `Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`;
-        }
-
-        // Count existing quizzes for this document for attempt number
-        // (pending record already in collection, so size == attempt number)
-        const existingSnap = await FirestorePaths.quizzes(userId)
-          .where('documentId', '==', documentIds[0])
-          .get();
-        const generationAttempt = existingSnap.size;
-
-        const { generationModel, generationModelUsage } = await resolveTextGenerationAudit(userId, 'quiz');
-
-        await completePendingQuiz(userId, pendingQuizId, {
-          title: geminiQuiz.title,
-          questions: geminiQuiz.questions.map((q) => ({
-            question: q.question,
-            options: q.options,
-            correctAnswer: q.correctAnswer,
-            explanation: q.explanation,
-            ...(q.hint ? { hint: q.hint } : {}),
-            ...(q.knowledge ? { knowledge: q.knowledge } : {}),
-          })),
-          appliedRuleIds: appliedRuleIdsForSave,
-          generationAttempt,
-          generationModel,
-          generationModelUsage,
+          recordId: pendingQuizId,
+          kind: 'quiz',
+          payload: requestData,
         });
 
-        // Also persist followupRuleIds and documentTitle
-        await FirestorePaths.quiz(userId, pendingQuizId).update({
-          followupRuleIds: followupIdsForSave,
-          documentTitle: documentDataList[0].doc.title,
-        });
-        
-        console.log(`Successfully generated quiz from ${documentIds.length} document(s): ${pendingQuizId}`);
-        
         return {
           success: true,
           data: {
-            quizId: pendingQuizId,
-            quiz: { id: pendingQuizId } as Quiz,
+            ...buildStartGenerationPayload('quiz', pendingQuizId, resolvedDirectoryId, {
+              quizId: pendingQuizId,
+            }),
+            quiz: { id: pendingQuizId, generationStatus: 'pending' } as Quiz,
           },
         };
-
       } catch (innerError) {
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
         await failPendingQuiz(userId, pendingQuizId, msg).catch(() => {/* best-effort */});

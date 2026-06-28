@@ -2,20 +2,15 @@ import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
-import { LlmGenerationService, resolveTextGenerationAudit } from "../services/llm";
-import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
+import { FirestoreService } from "../services/firestore";
 import { directoryService } from "../services/directory";
 import {
-  isRuleResolutionMode,
-  resolveEffectiveRules,
-} from "../services/rule-resolution";
-import {
   createPendingSubjectWorld,
-  completePendingSubjectWorld,
   failPendingSubjectWorld,
 } from "../services/artifact-generation-records";
-import { normalizeSubjectWorldSpec } from "../services/subject-world-normalizer";
+import { enqueueGenerationJob } from "../services/generation-enqueue";
+import { buildStartGenerationPayload } from "../lib/start-generation-response";
 import { FirestorePaths } from "../lib/firestore-paths";
 import { FieldValue } from "firebase-admin/firestore";
 import {
@@ -24,7 +19,6 @@ import {
   ApiResponse,
   SubjectWorld,
   SubjectWorldProgressSnapshot,
-  RuleApplicability,
   getDocumentFallbackColor,
   SaveSubjectWorldProgressResponse,
 } from "@shared-types";
@@ -51,8 +45,8 @@ export const generateSubjectWorld = onCall(
     cors: true,
     secrets: [geminiApiKey, llmSettingsEncryptionKey],
     maxInstances: 5,
-    timeoutSeconds: 300,
-    memory: "1GiB",
+    timeoutSeconds: 60,
+    memory: "512MiB",
   },
   async (request): Promise<ApiResponse<GenerateSubjectWorldResponse>> => {
     try {
@@ -140,76 +134,31 @@ export const generateSubjectWorld = onCall(
       });
 
       try {
-        let enhancedPrompt = additionalPrompt || "";
-        let followupIdsForSave: string[] = [];
-
-        const additionalRuleIds = Array.isArray(requestData.additionalRuleIds)
-          ? (requestData.additionalRuleIds as string[])
-          : undefined;
-        const ruleIds = Array.isArray(requestData.ruleIds)
-          ? (requestData.ruleIds as string[])
-          : undefined;
-        const followupRuleIds = Array.isArray(requestData.followupRuleIds)
-          ? (requestData.followupRuleIds as string[])
-          : undefined;
-        const hasExplicitRules = Boolean(ruleIds?.length || followupRuleIds?.length);
-        const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
-          ? requestData.ruleResolutionMode
-          : (hasExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
-
-        const { text: worldRulesText, ruleIds: appliedRuleIdsForSave } = await resolveEffectiveRules({
+        await enqueueGenerationJob({
           userId,
           directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.SUBJECT_WORLD,
-          additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
-          mode,
-        });
-        if (worldRulesText) {
-          enhancedPrompt = `${worldRulesText}\n\n${enhancedPrompt}`;
-        }
-        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
-          userId,
-          directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.FOLLOWUP,
-          additionalRuleIds: hasExplicitRules ? (followupRuleIds || []) : additionalRuleIds,
-          mode,
-        });
-        followupIdsForSave = resolvedFollowupIds;
-
-        const rawSpec = await LlmGenerationService.generateSubjectWorld(
-          userId,
-          documentContent,
-          documentIds,
-          enhancedPrompt || undefined
-        );
-
-        const worldSpec = normalizeSubjectWorldSpec(
-          rawSpec,
-          documentIds,
-          pendingTitle
-        );
-
-        const finalTitle = subjectWorldName || worldSpec.title || pendingTitle;
-
-        const { generationModel, generationModelUsage } = await resolveTextGenerationAudit(userId, 'subjectWorld');
-
-        await completePendingSubjectWorld(userId, pendingSubjectWorldId, {
-          title: finalTitle,
-          worldSpec,
-          appliedRuleIds: appliedRuleIdsForSave,
-          followupRuleIds: followupIdsForSave,
-          generationModel,
-          generationModelUsage,
+          recordId: pendingSubjectWorldId,
+          kind: 'subjectWorld',
+          payload: {
+            documentIds,
+            subjectWorldName,
+            additionalPrompt,
+            ruleIds: Array.isArray(requestData.ruleIds) ? requestData.ruleIds : undefined,
+            followupRuleIds: Array.isArray(requestData.followupRuleIds) ? requestData.followupRuleIds : undefined,
+            additionalRuleIds: Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds : undefined,
+            ruleResolutionMode: requestData.ruleResolutionMode,
+          },
         });
 
         return {
           success: true,
           data: {
-            subjectWorldId: pendingSubjectWorldId,
-            subjectWorld: { id: pendingSubjectWorldId } as SubjectWorld,
+            ...buildStartGenerationPayload('subjectWorld', pendingSubjectWorldId, resolvedDirectoryId, {
+              subjectWorldId: pendingSubjectWorldId,
+            }),
+            subjectWorld: { id: pendingSubjectWorldId, generationStatus: 'pending' } as SubjectWorld,
           },
         };
-
       } catch (innerError) {
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
         await failPendingSubjectWorld(userId, pendingSubjectWorldId, msg).catch(() => {/* best-effort */});

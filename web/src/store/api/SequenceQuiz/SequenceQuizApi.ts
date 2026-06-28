@@ -18,7 +18,9 @@ export const sequenceQuizApi = baseApi.injectEndpoints({
         data,
         timeout: 300000,
       }),
-      onQueryStarted: createArtifactOnQueryStarted('sequenceQuizzes', 'Sequence quiz', 'sequence quiz'),
+      onQueryStarted: createArtifactOnQueryStarted('sequenceQuizzes', 'Sequence quiz', 'sequence quiz', {
+        successMessage: 'Sequence quiz is preparing',
+      }),
       invalidatesTags: (result, error, arg) => [
         'UserSequenceQuizzes',
         { type: 'Directory', id: 'CONTENTS' },

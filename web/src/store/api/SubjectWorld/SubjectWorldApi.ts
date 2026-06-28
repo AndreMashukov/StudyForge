@@ -21,7 +21,9 @@ export const subjectWorldApi = baseApi.injectEndpoints({
         data,
         timeout: 300000,
       }),
-      onQueryStarted: createArtifactOnQueryStarted('subjectWorlds', 'Subject world', 'subject world'),
+      onQueryStarted: createArtifactOnQueryStarted('subjectWorlds', 'Subject world', 'subject world', {
+        successMessage: 'Subject world is preparing',
+      }),
       invalidatesTags: (result, error, arg) => [
         'UserSubjectWorlds',
         { type: 'Directory', id: 'CONTENTS' },

@@ -2,25 +2,20 @@ import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
-import { LlmGenerationService, resolveTextGenerationAudit } from "../services/llm";
-import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
+import { FirestoreService } from "../services/firestore";
 import { directoryService } from "../services/directory";
 import {
-  isRuleResolutionMode,
-  resolveEffectiveRules,
-} from "../services/rule-resolution";
-import {
   createPendingSequenceQuiz,
-  completePendingSequenceQuiz,
   failPendingSequenceQuiz,
 } from "../services/artifact-generation-records";
+import { enqueueGenerationJob } from "../services/generation-enqueue";
+import { buildStartGenerationPayload } from "../lib/start-generation-response";
 import {
   GenerateSequenceQuizResponse,
   GetSequenceQuizResponse,
   ApiResponse,
   SequenceQuiz,
-  RuleApplicability,
   getDocumentFallbackColor,
 } from "@shared-types";
 
@@ -46,8 +41,8 @@ export const generateSequenceQuiz = onCall(
     cors: true,
     secrets: [geminiApiKey, llmSettingsEncryptionKey],
     maxInstances: 5,
-    timeoutSeconds: 300,
-    memory: "1GiB",
+    timeoutSeconds: 60,
+    memory: "512MiB",
   },
   async (request): Promise<ApiResponse<GenerateSequenceQuizResponse>> => {
     try {
@@ -154,72 +149,31 @@ export const generateSequenceQuiz = onCall(
       });
 
       try {
-        let enhancedPrompt = additionalPrompt || "";
-        let followupIdsForSave: string[] = [];
-
-        const additionalRuleIds = Array.isArray(requestData.additionalRuleIds)
-          ? (requestData.additionalRuleIds as string[])
-          : undefined;
-        const ruleIds = Array.isArray(requestData.ruleIds)
-          ? (requestData.ruleIds as string[])
-          : undefined;
-        const followupRuleIds = Array.isArray(requestData.followupRuleIds)
-          ? (requestData.followupRuleIds as string[])
-          : undefined;
-        const hasExplicitRules = Boolean(ruleIds?.length || followupRuleIds?.length);
-        const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
-          ? requestData.ruleResolutionMode
-          : (hasExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
-
-        const { text: quizRulesText, ruleIds: appliedRuleIdsForSave } = await resolveEffectiveRules({
+        await enqueueGenerationJob({
           userId,
           directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.SEQUENCE_QUIZ,
-          additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
-          mode,
-        });
-        if (quizRulesText) {
-          enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-        }
-        const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
-          userId,
-          directoryId: resolvedDirectoryId,
-          operation: RuleApplicability.FOLLOWUP,
-          additionalRuleIds: hasExplicitRules ? (followupRuleIds || []) : additionalRuleIds,
-          mode,
-        });
-        followupIdsForSave = resolvedFollowupIds;
-
-        const geminiQuiz = await LlmGenerationService.generateSequenceQuiz(
-          userId,
-          documentContent,
-          enhancedPrompt || undefined
-        );
-
-        const finalTitle = sequenceQuizName
-          || (documentIds.length === 1
-            ? `Sequence Quiz from ${documentDataList[0].doc.title}`
-            : `Sequence Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
-
-        const { generationModel, generationModelUsage } = await resolveTextGenerationAudit(userId, 'sequenceQuiz');
-
-        await completePendingSequenceQuiz(userId, pendingSequenceQuizId, {
-          title: finalTitle,
-          questions: geminiQuiz.questions,
-          appliedRuleIds: appliedRuleIdsForSave,
-          followupRuleIds: followupIdsForSave,
-          generationModel,
-          generationModelUsage,
+          recordId: pendingSequenceQuizId,
+          kind: 'sequenceQuiz',
+          payload: {
+            documentIds,
+            sequenceQuizName,
+            additionalPrompt,
+            ruleIds: Array.isArray(requestData.ruleIds) ? requestData.ruleIds : undefined,
+            followupRuleIds: Array.isArray(requestData.followupRuleIds) ? requestData.followupRuleIds : undefined,
+            additionalRuleIds: Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds : undefined,
+            ruleResolutionMode: requestData.ruleResolutionMode,
+          },
         });
 
         return {
           success: true,
           data: {
-            sequenceQuizId: pendingSequenceQuizId,
-            sequenceQuiz: { id: pendingSequenceQuizId } as SequenceQuiz,
+            ...buildStartGenerationPayload('sequenceQuiz', pendingSequenceQuizId, resolvedDirectoryId, {
+              sequenceQuizId: pendingSequenceQuizId,
+            }),
+            sequenceQuiz: { id: pendingSequenceQuizId, generationStatus: 'pending' } as SequenceQuiz,
           },
         };
-
       } catch (innerError) {
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
         await failPendingSequenceQuiz(userId, pendingSequenceQuizId, msg).catch(() => {/* best-effort */});

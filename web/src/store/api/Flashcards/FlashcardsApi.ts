@@ -16,7 +16,9 @@ export const flashcardsApi = baseApi.injectEndpoints({
         functionName: 'generateFlashcards',
         data,
       }),
-      onQueryStarted: createArtifactOnQueryStarted('cards', 'Flashcards', 'flashcards'),
+      onQueryStarted: createArtifactOnQueryStarted('cards', 'Flashcards', 'flashcards', {
+        successMessage: 'Flashcards are preparing',
+      }),
       invalidatesTags: (result, error, arg) => [
         'UserFlashcardSets',
         { type: 'Directory', id: 'CONTENTS' },

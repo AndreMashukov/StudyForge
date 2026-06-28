@@ -83,7 +83,7 @@ export interface GenerateFlashcardsRequest {
   ruleResolutionMode?: RuleResolutionMode;
 }
 
-export interface GenerateFlashcardsResponse {
+export interface GenerateFlashcardsResponse extends StartGenerationResponse {
   flashcardSetId: string;
   flashcardSet?: FlashcardSet;
 }
@@ -137,7 +137,7 @@ export interface GenerateSlideDeckRequest {
   ruleResolutionMode?: RuleResolutionMode;
 }
 
-export interface GenerateSlideDeckResponse {
+export interface GenerateSlideDeckResponse extends StartGenerationResponse {
   slideDeckId: string;
   slideDeck?: SlideDeck;
 }
@@ -236,7 +236,7 @@ export interface GenerateSequenceQuizRequest {
   ruleResolutionMode?: RuleResolutionMode;
 }
 
-export interface GenerateSequenceQuizResponse {
+export interface GenerateSequenceQuizResponse extends StartGenerationResponse {
   sequenceQuizId: string;
   sequenceQuiz?: SequenceQuiz;
 }
@@ -398,7 +398,7 @@ export interface GenerateSubjectWorldRequest {
   ruleResolutionMode?: RuleResolutionMode;
 }
 
-export interface GenerateSubjectWorldResponse {
+export interface GenerateSubjectWorldResponse extends StartGenerationResponse {
   subjectWorldId: string;
   subjectWorld?: SubjectWorld;
 }
@@ -474,7 +474,7 @@ export interface GenerateDiagramQuizRequest {
   ruleResolutionMode?: RuleResolutionMode;
 }
 
-export interface GenerateDiagramQuizResponse {
+export interface GenerateDiagramQuizResponse extends StartGenerationResponse {
   diagramQuizId: string;
   diagramQuiz?: DiagramQuiz;
 }
@@ -527,7 +527,8 @@ export type ArtifactKind =
   | 'slideDeck'
   | 'sequenceQuiz'
   | 'flashcards'
-  | 'subjectWorld';
+  | 'subjectWorld'
+  | 'documentFromScreenshot';
 
 export interface IArtifactCriticResult {
   overallVerdict: 'pass' | 'revise' | 'fail';
@@ -567,7 +568,8 @@ export type GenerationRecordType =
   | 'flashcardSet'
   | 'slideDeck'
   | 'diagramQuiz'
-  | 'sequenceQuiz';
+  | 'sequenceQuiz'
+  | 'subjectWorld';
 
 export interface StartGenerationResponse {
   success: boolean;
@@ -603,6 +605,8 @@ export interface DocumentEnhanced {
   generationModel?: string;
   /** Structured audit trail for routed generation calls. */
   generationModelUsage?: IGenerationModelUsage[];
+  /** Agentic pipeline diagnostics for screenshot document generation. */
+  generationDiagnostics?: IArtifactAgentDiagnostics;
   /** Persistent accent color assigned at document creation. */
   color?: string;
 }
@@ -795,9 +799,9 @@ export interface GenerateQuizRequest {
   ruleResolutionMode?: RuleResolutionMode;
 }
 
-export interface GenerateQuizResponse {
+export interface GenerateQuizResponse extends StartGenerationResponse {
   quizId: string;
-  quiz: Quiz;
+  quiz?: Quiz;
 }
 
 export interface GetQuizResponse {
@@ -1897,18 +1901,10 @@ export interface IProviderConnectionCatalogEntry {
   supportedModalities: LlmModality[];
 }
 
-export interface ILlmSetupRoutes {
-  text: ILlmModalityRoute;
-  vision: ILlmModalityRoute;
-  image: ILlmModalityRoute;
-}
-
 export interface ILlmSetup {
   id: string;
   name: string;
   description?: string;
-  /** Legacy modality routes — migration source only; not written by admin after Task 14. */
-  routes?: ILlmSetupRoutes;
   generationRoutes: IGenerationRoutes;
   updatedAt?: string;
   updatedBy?: string;

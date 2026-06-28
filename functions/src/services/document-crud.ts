@@ -15,6 +15,7 @@ import {
   GenerationStatus,
   DOCUMENT_COLOR_PALETTE,
   type IGenerationModelUsage,
+  type IArtifactAgentDiagnostics,
 } from "@shared-types";
 
 /**
@@ -855,6 +856,7 @@ export class DocumentCrudService {
       appliedRuleIds?: string[];
       generationModel?: string;
       generationModelUsage?: IGenerationModelUsage[];
+      generationDiagnostics?: IArtifactAgentDiagnostics;
     }
   ): Promise<Document> {
     const wordCount = this.countWords(content);
@@ -897,6 +899,7 @@ export class DocumentCrudService {
       ...(params.generationModelUsage?.length
         ? { generationModelUsage: params.generationModelUsage }
         : {}),
+      ...(params.generationDiagnostics ? { generationDiagnostics: params.generationDiagnostics } : {}),
       generationStatus: 'completed' as GenerationStatus,
       completedAt: now,
       updatedAt: now,

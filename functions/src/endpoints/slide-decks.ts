@@ -3,22 +3,18 @@ import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import { createHash, randomUUID } from 'crypto';
+import { createHash } from 'crypto';
 import { z } from 'zod';
 
-import { Slide, SlideDeck, RuleApplicability, getDocumentFallbackColor } from '@shared-types';
+import { SlideDeck, getDocumentFallbackColor } from '@shared-types';
 import { DocumentCrudService } from '../services/document-crud';
 import { directoryService } from '../services/directory';
 import {
-  isRuleResolutionMode,
-  resolveEffectiveRules,
-} from '../services/rule-resolution';
-import {
   createPendingSlideDeck,
-  completePendingSlideDeck,
   failPendingSlideDeck,
 } from '../services/artifact-generation-records';
-import { LlmGenerationService, resolveSlideDeckGenerationAudit } from '../services/llm';
+import { enqueueGenerationJob } from '../services/generation-enqueue';
+import { buildStartGenerationPayload } from '../lib/start-generation-response';
 import { validateAuth } from '../lib/auth';
 import { FirestorePaths } from '../lib/firestore-paths';
 
@@ -48,7 +44,7 @@ const slideDeckIdRequestSchema = z.object({
  * Generates a slide deck from a document using Gemini AI.
  */
 export const generateSlideDeck = onCall(
-  { region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 300, memory: '1GiB' },
+  { region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 60, memory: '512MiB' },
   async (request) => {
     try {
       const userId = validateAuth(request);
@@ -67,7 +63,6 @@ export const generateSlideDeck = onCall(
       const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, additionalRuleIds, ruleResolutionMode } = parseResult.data;
 
       const u = redactId(userId);
-      const uploadedPaths: string[] = [];
 
       logger.info('[generateSlideDeck] STEP 1: Function started.', {
         userIdHash: u,
@@ -132,118 +127,24 @@ export const generateSlideDeck = onCall(
         });
 
         try {
-          // Inject rules if provided
-          let injectedRules: string | undefined;
-          let appliedRuleIdsForSave: string[] = [];
-          const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
-          const mode = ruleResolutionMode
-            ?? (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
-          const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+          await enqueueGenerationJob({
             userId,
             directoryId: resolvedDirectoryId,
-            operation: RuleApplicability.SLIDE_DECK,
-            additionalRuleIds: explicitRuleIds,
-            mode: isRuleResolutionMode(mode) ? mode : 'inherit-plus-explicit',
-          });
-          appliedRuleIdsForSave = resolvedAppliedIds;
-          const base = additionalPrompt?.trim() || '';
-          if (rulesText && base) {
-            injectedRules = `${rulesText}\n\n${base}`;
-          } else if (rulesText) {
-            injectedRules = rulesText;
-          } else if (base) {
-            injectedRules = base;
-          }
-
-          logger.info('[generateSlideDeck] STEP 2.5: Resolved effective rules.', {
-            ruleCount: appliedRuleIdsForSave.length,
-            mode,
+            recordId: pendingSlideDeckId,
+            kind: 'slideDeck',
+            payload: parseResult.data,
           });
 
-          // Step 3: Generate slide outline
-          logger.info('[generateSlideDeck] STEP 3: Generating slide outline.', { userIdHash: u });
-          const slideOutline = await LlmGenerationService.generateSlideDeckOutline(userId, combinedContent, additionalPrompt || undefined, injectedRules);
-          logger.info(`[generateSlideDeck] STEP 4: Outline generated. Slides: ${slideOutline.length}`, { userIdHash: u });
-
-          // Step 5: Generate images with two-phase approach + bounded concurrency (3 at a time)
-          const CONCURRENCY = 3;
-          const slides: Slide[] = slideOutline.map((outline) => ({
-            id: admin.firestore().collection('tmp').doc().id,
-            title: outline.title,
-            content: outline.content,
-            speakerNotes: outline.speakerNotes,
-          }));
-
-          for (let batch = 0; batch < slides.length; batch += CONCURRENCY) {
-            const chunk = slides.slice(batch, batch + CONCURRENCY);
-            const chunkIndices = chunk.map((_, ci) => batch + ci);
-
-            logger.info(`[generateSlideDeck] STEP 5: Generating images for slides ${chunkIndices.join(',')}`, { userIdHash: u });
-
-            await Promise.all(chunk.map(async (slide, ci) => {
-              const i = batch + ci;
-
-              // Phase 1: Generate detailed image brief using Gemini text model
-              const brief = await LlmGenerationService.generateSlideImageBrief(userId, slide.title, slide.content, injectedRules);
-
-              // Phase 2: Generate the actual image from the brief (or fall back to direct prompt)
-              let imageBase64: string | null = null;
-              if (brief) {
-                const { SlideDeckPromptBuilder } = await import('../services/gemini/prompt-builder/slide-deck');
-                const imagePrompt = SlideDeckPromptBuilder.buildSlideImageFromBriefPrompt(brief);
-                imageBase64 = await LlmGenerationService.generateSlideImageFromPrompt(userId, imagePrompt);
-              }
-              if (!imageBase64) {
-                imageBase64 = await LlmGenerationService.generateSlideImage(userId, slide.title, slide.content, injectedRules);
-              }
-
-              if (imageBase64) {
-                const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.png`;
-                const downloadToken = randomUUID();
-                const file = admin.storage().bucket().file(storagePath);
-                await file.save(Buffer.from(imageBase64, 'base64'), {
-                  metadata: {
-                    contentType: 'image/png',
-                    metadata: { firebaseStorageDownloadTokens: downloadToken },
-                  },
-                  resumable: false,
-                });
-                slide.imageStoragePath = storagePath;
-                slide.imageDownloadToken = downloadToken;
-                uploadedPaths.push(storagePath);
-              }
-            }));
-          }
-
-          // Step 6: Complete the pending record
-          const finalTitle = customTitle?.trim()
-            || (documentIds.length === 1
-              ? `Slides for "${documentDataList[0].title}"`
-              : `Slides for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
-
-          const { generationModel, generationModelUsage } = await resolveSlideDeckGenerationAudit(userId);
-
-          await completePendingSlideDeck(userId, pendingSlideDeckId, {
-            title: finalTitle,
-            slides,
-            appliedRuleIds: appliedRuleIdsForSave,
-            generationModel,
-            generationModelUsage,
-          });
-
-          logger.info(`[generateSlideDeck] STEP 7: Complete. Deck ID: ${redactId(pendingSlideDeckId)}`, { userIdHash: u });
-          return { success: true, data: { slideDeckId: pendingSlideDeckId } };
-
+          logger.info(`[generateSlideDeck] Queued slide deck generation`, { userIdHash: u });
+          return {
+            success: true,
+            data: buildStartGenerationPayload('slideDeck', pendingSlideDeckId, resolvedDirectoryId, {
+              slideDeckId: pendingSlideDeckId,
+            }),
+          };
         } catch (innerError) {
-          // Mark pending record as failed
           const msg = innerError instanceof Error ? innerError.message : String(innerError);
           await failPendingSlideDeck(userId, pendingSlideDeckId, msg).catch(() => {/* best-effort */});
-          // Cleanup orphaned storage files
-          if (uploadedPaths.length > 0) {
-            logger.warn(`[generateSlideDeck] Cleaning up ${uploadedPaths.length} orphaned files after failure.`);
-            const bucket = admin.storage().bucket();
-            await Promise.allSettled(uploadedPaths.map(p => bucket.file(p).delete().catch(() => { /* ignore */ })));
-          }
           throw innerError;
         }
     } catch (error) {

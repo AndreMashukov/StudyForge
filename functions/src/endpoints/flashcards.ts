@@ -9,24 +9,18 @@ import { z } from 'zod';
 /** Redact identifier for info-level logs to reduce privacy/compliance risk. */
 const redactId = (id: string): string => createHash('sha256').update(id).digest('hex').slice(0, 8);
 import {
-  Flashcard,
   FlashcardSet,
-  RuleApplicability,
   getDocumentFallbackColor,
 } from '@shared-types';
 import { DocumentCrudService } from '../services/document-crud';
 import { directoryService } from '../services/directory';
 import {
-  isRuleResolutionMode,
-  resolveEffectiveRules,
-} from '../services/rule-resolution';
-import {
   createPendingFlashcardSet,
-  completePendingFlashcardSet,
   failPendingFlashcardSet,
 } from '../services/artifact-generation-records';
+import { enqueueGenerationJob } from '../services/generation-enqueue';
+import { buildStartGenerationPayload } from '../lib/start-generation-response';
 import { DocumentService } from '../services/document-storage';
-import { LlmGenerationService, resolveTextGenerationAudit } from '../services/llm';
 import { validateAuth } from '../lib/auth';
 import { FirestorePaths } from '../lib/firestore-paths';
 
@@ -81,25 +75,10 @@ const requireEmulator = (): void => {
   }
 };
 
-// Helper function that contains the core generation logic
-async function generateFlashcardsFromContent(userId: string, content: string, title: string, rules?: string, descriptionRules?: string): Promise<Pick<FlashcardSet, 'title' | 'flashcards'>> {
-  const generatedFlashcards = await LlmGenerationService.generateFlashcards(userId, content, rules, descriptionRules);
-
-  const flashcardsWithIds: Flashcard[] = generatedFlashcards.map((card) => ({
-    ...card,
-    id: admin.firestore().collection('tmp').doc().id, // Generate a unique random ID
-  }));
-
-  return {
-    title: `Flashcards for "${title}"`,
-    flashcards: flashcardsWithIds,
-  };
-}
-
 /**
  * Generates a new set of flashcards from a document.
  */
-export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 300 }, async (request) => {
+export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 60 }, async (request) => {
   try {
     const userId = validateAuth(request);
     const parseResult = generateFlashcardsRequestSchema.safeParse(request.data);
@@ -175,72 +154,21 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
     });
 
     try {
-      // Resolve rules to inject into the prompt
-      let injectedRules: string | undefined;
-      let appliedRuleIdsForSave: string[] = [];
-      let appliedDescriptionRuleIdsForSave: string[] = [];
-      const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
-      const mode = ruleResolutionMode
-        ?? (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
-      const resolvedMode = isRuleResolutionMode(mode) ? mode : 'inherit-plus-explicit';
-      const { text: rulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
+      await enqueueGenerationJob({
         userId,
         directoryId: resolvedDirectoryId,
-        operation: RuleApplicability.FLASHCARD,
-        additionalRuleIds: explicitRuleIds,
-        mode: resolvedMode,
-      });
-      appliedRuleIdsForSave = resolvedAppliedIds;
-      const base = additionalPrompt?.trim() ? `Additional instructions: ${additionalPrompt}` : '';
-      if (rulesText && base) {
-        injectedRules = `${rulesText}\n\n${base}`;
-      } else if (rulesText) {
-        injectedRules = rulesText;
-      } else if (base) {
-        injectedRules = base;
-      }
-
-      const selectedDescriptionRuleIds = descriptionRuleIds?.length ? descriptionRuleIds : explicitRuleIds;
-      const { text: descRulesText, ruleIds: resolvedDescriptionRuleIds } = await resolveEffectiveRules({
-        userId,
-        directoryId: resolvedDirectoryId,
-        operation: RuleApplicability.FLASHCARD_DESC,
-        additionalRuleIds: selectedDescriptionRuleIds,
-        mode: resolvedMode,
-      });
-      appliedDescriptionRuleIdsForSave = resolvedDescriptionRuleIds;
-
-      logger.info(`[generateFlashcards] STEP 2.5: Resolved effective rules.`, {
-        userIdHash: u,
-        ruleCount: appliedRuleIdsForSave.length,
-        descriptionRuleCount: appliedDescriptionRuleIdsForSave.length,
-        mode,
+        recordId: pendingFlashcardSetId,
+        kind: 'flashcards',
+        payload: parseResult.data,
       });
 
-      logger.info(`[generateFlashcards] STEP 3: Calling generateFlashcardsFromContent (LlmGenerationService).`, { userIdHash: u });
-      const generatedData = await generateFlashcardsFromContent(userId, combinedContent, combinedTitle, injectedRules, descRulesText || undefined);
-      logger.info(`[generateFlashcards] STEP 4: Flashcard generation complete. Flashcards created: ${generatedData.flashcards.length}`, { userIdHash: u });
-
-      // Apply custom title or auto-name
-      const finalTitle = customTitle?.trim()
-        || (documentIds.length === 1
-          ? `Flashcards for "${documentDataList[0].title}"`
-          : `Flashcards for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
-
-      const { generationModel, generationModelUsage } = await resolveTextGenerationAudit(userId, 'flashcards');
-
-      await completePendingFlashcardSet(userId, pendingFlashcardSetId, {
-        title: finalTitle,
-        flashcards: generatedData.flashcards,
-        appliedRuleIds: appliedRuleIdsForSave,
-        appliedDescriptionRuleIds: appliedDescriptionRuleIdsForSave,
-        generationModel,
-        generationModelUsage,
-      });
-
-      logger.info(`[generateFlashcards] STEP 6: Complete. ID: ${redactId(pendingFlashcardSetId)}`, { userIdHash: u });
-      return { success: true, data: { flashcardSetId: pendingFlashcardSetId } };
-
+      logger.info(`[generateFlashcards] Queued flashcard generation`, { userIdHash: u });
+      return {
+        success: true,
+        data: buildStartGenerationPayload('flashcardSet', pendingFlashcardSetId, resolvedDirectoryId, {
+          flashcardSetId: pendingFlashcardSetId,
+        }),
+      };
     } catch (innerError) {
       const msg = innerError instanceof Error ? innerError.message : String(innerError);
       await failPendingFlashcardSet(userId, pendingFlashcardSetId, msg).catch(() => {/* best-effort */});
