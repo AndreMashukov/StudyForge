@@ -72,6 +72,12 @@ export async function runScreenshotDocumentAgentPipeline(
     durationMs: Date.now() - extractStartMs,
   });
 
+  const extractDraft = draft;
+  diagnostics.artifactDetails = {
+    ...diagnostics.artifactDetails,
+    extractDraft,
+  };
+
   if (!draft.trim()) {
     diagnostics.residuals.push({
       gateId: 'nonEmptyDraft',
@@ -83,14 +89,15 @@ export async function runScreenshotDocumentAgentPipeline(
   if (rulesText?.trim()) {
     const complianceStartMs = Date.now();
     const compliance = await LlmGenerationService.evaluateScreenshotRuleCompliance(
-      job.userId,
+      routeResolution,
       draft,
       data.prompt,
       rulesText
     );
     recordModelUsage(diagnostics, {
       role: 'critic',
-      capability: 'ruleGeneration',
+      capability: 'documentFromScreenshot',
+      model: routeResolution.route.model,
       durationMs: Date.now() - complianceStartMs,
     });
     diagnostics.criticCycles += 1;
@@ -107,7 +114,8 @@ export async function runScreenshotDocumentAgentPipeline(
         draft = compliance.revisedContent;
         recordModelUsage(diagnostics, {
           role: 'refiner',
-          capability: 'ruleGeneration',
+          capability: 'documentFromScreenshot',
+          model: routeResolution.route.model,
           durationMs: Date.now() - refineStartMs,
         });
       }
