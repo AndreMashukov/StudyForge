@@ -1,7 +1,15 @@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Text, View } from 'react-native';
-import { Button, FieldError, FieldLabel, Screen, TextInputField } from '../../../components/ui';
+import {
+  Button,
+  FieldError,
+  FieldLabel,
+  Heading,
+  Screen,
+  Stack,
+  Text,
+  TextInputField,
+} from '@studyforge/mobile-ui';
 import { useAuthUser } from '../hooks/useAuthUser';
 import { ISignInFormValues, signInSchema } from '../schemas/authSchemas';
 
@@ -27,15 +35,17 @@ export function SignInScreen() {
 
   return (
     <Screen className="pt-12">
-      <View className="mb-8 gap-2">
-        <Text className="text-primary text-xs font-bold uppercase tracking-widest">StudyForge</Text>
-        <Text className="text-foreground text-3xl font-bold">Sign in to capture</Text>
-        <Text className="text-muted-foreground text-base leading-6">
+      <Stack gap="md" className="mb-8">
+        <Text variant="label" tone="primary">
+          StudyForge
+        </Text>
+        <Heading level={1}>Sign in to capture</Heading>
+        <Text tone="muted" className="leading-6">
           Use the same Firebase account as the web app.
         </Text>
-      </View>
+      </Stack>
 
-      <View className="gap-2">
+      <Stack gap="sm">
         <FieldLabel>Email</FieldLabel>
         <Controller
           control={form.control}
@@ -78,7 +88,7 @@ export function SignInScreen() {
           disabled={form.formState.isSubmitting}
           onPress={() => void onSubmit()}
         />
-      </View>
+      </Stack>
     </Screen>
   );
 }

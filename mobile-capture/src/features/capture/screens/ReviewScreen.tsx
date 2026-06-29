@@ -1,16 +1,19 @@
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Image, Text, View } from 'react-native';
+import { Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { DocumentSourceType } from '@shared-types';
 import {
   Button,
   FieldError,
   FieldLabel,
+  Heading,
   Screen,
+  Stack,
+  Text,
   TextInputField,
-} from '../../../components/ui';
+} from '@studyforge/mobile-ui';
 import {
   IReviewDocumentFormValues,
   reviewDocumentSchema,
@@ -52,7 +55,9 @@ export function ReviewScreen() {
   if (!pendingScan) {
     return (
       <Screen className="justify-center">
-        <Text className="text-muted-foreground text-base mb-4">No scan is ready for review.</Text>
+        <Text tone="muted" className="mb-4">
+          No scan is ready for review.
+        </Text>
         <Button label="Back to capture" onPress={() => router.back()} />
       </Screen>
     );
@@ -111,8 +116,10 @@ export function ReviewScreen() {
 
   return (
     <Screen className="pt-4">
-      <Text className="text-foreground text-2xl font-bold mb-1">Review capture</Text>
-      <Text className="text-muted-foreground text-sm mb-4">
+      <Heading level={2} className="mb-1">
+        Review capture
+      </Heading>
+      <Text tone="muted" className="mb-4">
         Edit OCR text or send the scanned image for AI document generation.
       </Text>
 
@@ -154,7 +161,7 @@ export function ReviewScreen() {
 
       <FieldError message={formState.errors.root?.message} />
 
-      <View className="gap-2.5 mt-2">
+      <Stack gap="sm" className="mt-2">
         <Button
           label={isSubmitting ? 'Saving…' : 'Save OCR text as document'}
           disabled={isSubmitting}
@@ -167,7 +174,7 @@ export function ReviewScreen() {
           onPress={() => void submitVisionDocument()}
         />
         <Button label="Cancel" variant="secondary" onPress={() => router.back()} />
-      </View>
+      </Stack>
     </Screen>
   );
 }

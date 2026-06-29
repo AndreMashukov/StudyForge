@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button, LoadingState, TextInputField } from '../../../components/ui';
+import {
+  Button,
+  Heading,
+  LoadingState,
+  Stack,
+  Text,
+  TextInputField,
+} from '@studyforge/mobile-ui';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import {
   filterDirectories,
@@ -49,14 +56,10 @@ export function SettingsScreen() {
       keyboardShouldPersistTaps="handled"
       className="flex-1 bg-background px-5 pt-4"
       ListHeaderComponent={
-        <View className="mb-5 gap-1">
-          <Text className="text-foreground text-3xl font-bold">Settings</Text>
-          <Text className="text-muted-foreground text-base">
-            Signed in as {user?.email ?? 'unknown user'}
-          </Text>
-          <Text className="text-foreground text-base font-semibold mt-4 mb-2">
-            Default capture directory
-          </Text>
+        <Stack gap="xs" className="mb-5">
+          <Heading level={1}>Settings</Heading>
+          <Text tone="muted">Signed in as {user?.email ?? 'unknown user'}</Text>
+          <Text className="font-semibold mt-4 mb-2">Default capture directory</Text>
           <TextInputField
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -65,21 +68,17 @@ export function SettingsScreen() {
             className="mb-3"
           />
           {directories.length > 0 ? (
-            <Text className="text-muted-foreground text-sm mb-2">
+            <Text tone="muted" className="mb-2">
               {hasSearchQuery
                 ? `${filteredDirectories.length} of ${directories.length} directories`
                 : `${directories.length} directories`}
             </Text>
           ) : null}
-          {error ? (
-            <Text className="text-destructive text-sm mb-3">
-              {getCallableErrorMessage(error)}
-            </Text>
-          ) : null}
-        </View>
+          {error ? <Text tone="destructive" className="mb-3">{getCallableErrorMessage(error)}</Text> : null}
+        </Stack>
       }
       ListEmptyComponent={
-        <Text className="text-muted-foreground text-base">
+        <Text tone="muted">
           {hasSearchQuery
             ? `No directories match "${debouncedSearchQuery.trim()}".`
             : 'No directories found. Create one in the web app first.'}
@@ -94,11 +93,11 @@ export function SettingsScreen() {
       )}
       ItemSeparatorComponent={() => <View className="h-2" />}
       ListFooterComponent={
-        <View className="gap-2.5 mt-5 pb-8">
+        <Stack gap="sm" className="mt-5 pb-8">
           <Button label="Refresh" variant="secondary" onPress={() => void refetch()} />
           <Button label="Back to capture" onPress={() => router.back()} />
           <Button label="Sign out" variant="secondary" onPress={() => void signOut()} />
-        </View>
+        </Stack>
       }
     />
   );
@@ -119,8 +118,10 @@ function DirectoryRow({
       onPress={onSelect}
       className={`rounded-xl border px-3.5 py-3.5 ${selected ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}
     >
-      <Text className="text-foreground text-base font-semibold">{directory.name}</Text>
-      <Text className="text-muted-foreground text-sm mt-1">{directory.path}</Text>
+      <Text className="font-semibold">{directory.name}</Text>
+      <Text tone="muted" className="mt-1">
+        {directory.path}
+      </Text>
     </Pressable>
   );
 }
