@@ -14,7 +14,6 @@ import { useAppFullscreen } from '../../contexts/FullscreenContext';
 import { Spinner } from '../ui/Spinner';
 import { MascotImage } from '../MascotImage';
 import { DirectoryRealtimeBridge } from '../DirectoryRealtimeBridge';
-import { useDirectoryTreeRealtimeCache } from '../../hooks/useDirectoryTreeRealtimeCache';
 import { prefetchDirectoryTree } from '../../pages/DocumentsPage/utils/prefetchDirectoryContents';
 import { useAppDispatch } from '../../hooks/redux';
 import { toggleSidebar } from '../../store/slices/uiSlice';
@@ -29,8 +28,6 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
       prefetchDirectoryTree(dispatch);
     }
   }, [user, dispatch]);
-
-  useDirectoryTreeRealtimeCache();
 
   if (loading) {
     return (

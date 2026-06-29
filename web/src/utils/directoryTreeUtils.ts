@@ -1,4 +1,44 @@
-import type { Directory, DirectoryTreeNode } from '@shared-types';
+import type { Directory, DirectoryTreeNode, GetDirectoryTreeResponse } from '@shared-types';
+
+/**
+ * Builds a nested directory tree from a flat list (mirrors backend DirectoryService.buildTree).
+ */
+export function buildDirectoryTreeFromDirectories(directories: Directory[]): DirectoryTreeNode[] {
+  const nodeMap = new Map<string, DirectoryTreeNode>();
+  const rootNodes: DirectoryTreeNode[] = [];
+
+  for (const dir of directories) {
+    nodeMap.set(dir.id, {
+      directory: dir,
+      children: [],
+    });
+  }
+
+  for (const dir of directories) {
+    const node = nodeMap.get(dir.id);
+    if (!node) {
+      continue;
+    }
+
+    if (dir.parentId && nodeMap.has(dir.parentId)) {
+      const parentNode = nodeMap.get(dir.parentId);
+      if (parentNode) {
+        parentNode.children.push(node);
+      }
+    } else {
+      rootNodes.push(node);
+    }
+  }
+
+  return rootNodes;
+}
+
+export function buildDirectoryTreeResponse(directories: Directory[]): GetDirectoryTreeResponse {
+  return {
+    tree: buildDirectoryTreeFromDirectories(directories),
+    totalDirectories: directories.length,
+  };
+}
 
 export function findTreeNode(
   tree: DirectoryTreeNode[] | undefined,
