@@ -16,7 +16,7 @@ import { EditDirectoryDialog } from './EditDirectoryDialog';
 import { DeleteDirectoryDialog } from './DeleteDirectoryDialog';
 import { MoveDirectoryDialog } from './MoveDirectoryDialog';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
-import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus, Menu, Layers, Presentation } from 'lucide-react';
+import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus, Menu, Layers, Presentation, Loader2 } from 'lucide-react';
 import { DocumentEnhanced, Directory, getDocumentFallbackColor } from "@shared-types";
 import { formatDate } from '../../../utils/dateUtils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -25,10 +25,7 @@ import { MascotImage } from '../../../components/MascotImage';
 
 export const DocumentsPageContainer = (): React.JSX.Element => {
   const navigate = useNavigate();
-  const { 
-    documentsApi,
-    handlers 
-  } = useDocumentsPageContext();
+  const { handlers } = useDocumentsPageContext();
 
   // Mobile state
   const isMobile = useIsMobile();
@@ -44,10 +41,11 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
 
   // Directory contents (folders + documents in current directory)
-  const { 
-    data: directoryContents, 
+  const {
+    data: directoryContents,
     isLoading: isLoadingContents,
-    error: contentsError
+    isFetching: isFetchingContents,
+    error: contentsError,
   } = useGetDirectoryContentsQuery(selectedDirectoryId || null);
 
   // Local state for dialogs
@@ -68,8 +66,8 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     setCreateDialogOpen(true);
   };
 
-  const isLoading = documentsApi.isLoading || isLoadingContents;
-  const error = documentsApi.error || contentsError;
+  const isLoading = isLoadingContents && !directoryContents;
+  const error = contentsError;
 
   // Early returns for loading and error states
   if (isLoading) {
@@ -168,6 +166,12 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                 </h1>
                 <p className={documentsPageStyles.subtitle}>
                   {subdirectories.length} folder(s), {documents.length} document(s)
+                  {isFetchingContents && directoryContents && (
+                    <Loader2
+                      className="inline-block ml-2 h-3.5 w-3.5 animate-spin text-muted-foreground"
+                      aria-label="Refreshing"
+                    />
+                  )}
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-2">

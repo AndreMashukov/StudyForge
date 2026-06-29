@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
 import { Menu } from 'lucide-react';
 import {
   ThemeToggle,
@@ -13,14 +12,22 @@ import { useAuth } from '../../contexts/AuthContext';
 import { IMainLayout } from './IMainLayout';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
 import { Spinner } from '../ui/Spinner';
-import { toggleSidebar } from '../../store/slices/uiSlice';
 import { MascotImage } from '../MascotImage';
 import { DirectoryRealtimeBridge } from '../DirectoryRealtimeBridge';
+import { useAppDispatch } from '../../hooks/redux';
+import { toggleSidebar } from '../../store/slices/uiSlice';
+import { prefetchDirectoryTree } from '../../pages/DocumentsPage/utils/prefetchDirectoryContents';
 
 export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
-  const { loading } = useAuth();
+  const { user, loading } = useAuth();
   const { isAppFullscreen } = useAppFullscreen();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    if (user) {
+      prefetchDirectoryTree(dispatch);
+    }
+  }, [user, dispatch]);
 
   if (loading) {
     return (
