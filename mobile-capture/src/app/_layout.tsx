@@ -3,10 +3,20 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
+import {
+  HankenGrotesk_400Regular,
+  HankenGrotesk_500Medium,
+  HankenGrotesk_600SemiBold,
+  HankenGrotesk_700Bold,
+} from '@expo-google-fonts/hanken-grotesk';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { LoadingState } from '@studyforge/mobile-ui';
 import { useAuthUser } from '../features/auth/hooks/useAuthUser';
 import { queryClient } from '../lib/api/queryClient';
 import { usePreferencesStore } from '../features/preferences/store/preferencesStore';
+
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, initializing } = useAuthUser();
@@ -43,11 +53,33 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    HankenGrotesk_400Regular,
+    HankenGrotesk_500Medium,
+    HankenGrotesk_600SemiBold,
+    HankenGrotesk_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      void SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <AuthGate>
-          <Stack screenOptions={{ headerShown: false }}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: 'rgb(18, 20, 20)' },
+            }}
+          >
             <Stack.Screen name="index" />
             <Stack.Screen name="settings" />
             <Stack.Screen

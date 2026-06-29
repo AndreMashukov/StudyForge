@@ -125,7 +125,7 @@ export function ReviewScreen() {
 
       <Image
         source={{ uri: pendingScan.imageUri }}
-        className="w-full h-40 rounded-xl border border-border mb-4"
+        className="w-full h-40 rounded-lg border border-border mb-4"
         resizeMode="cover"
       />
 

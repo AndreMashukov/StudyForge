@@ -20,7 +20,7 @@ export function TextInputField({
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}
-      placeholderTextColor={mobileUiColors.mutedForeground}
+      placeholderTextColor={mobileUiColors.placeholder}
       secureTextEntry={secureTextEntry}
       autoCapitalize={autoCapitalize}
       keyboardType={keyboardType}
@@ -29,7 +29,7 @@ export function TextInputField({
       editable={editable}
       textAlignVertical={multiline ? 'top' : 'center'}
       className={cn(
-        'bg-input border border-border rounded-xl px-3.5 py-3 text-foreground text-base mb-2',
+        'min-h-12 bg-input border border-border rounded-lg px-3.5 py-3 text-foreground text-base font-sans mb-2',
         multiline && 'min-h-[160px]',
         !editable && 'opacity-60',
         className

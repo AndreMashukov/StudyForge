@@ -13,8 +13,8 @@ const gapClasses: Record<NonNullable<IStack['gap']>, string> = {
   none: 'gap-0',
   xs: 'gap-1',
   sm: 'gap-2',
-  md: 'gap-3',
-  lg: 'gap-5',
+  md: 'gap-4',
+  lg: 'gap-6',
 };
 
 export function Stack({
