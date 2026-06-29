@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentsPageContext } from '../context/hooks/useDocumentsPageContext';
 import { selectSelectedDirectoryId } from '../../../store/slices/directorySlice';
-import { useGetDirectoryContentsQuery } from '../../../store/api/Directory/DirectoryApi';
+import {
+  useGetDirectoryContentsQuery,
+  useGetDirectoryTreeQuery,
+} from '../../../store/api/Directory/DirectoryApi';
 import { Page } from '../../../components/Page';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
@@ -19,6 +22,10 @@ import { documentsPageStyles } from './DocumentsPageContainer.styles';
 import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus, Menu, Layers, Presentation, Loader2 } from 'lucide-react';
 import { DocumentEnhanced, Directory, getDocumentFallbackColor } from "@shared-types";
 import { formatDate } from '../../../utils/dateUtils';
+import {
+  getDirectoryNameFromTree,
+  getSubdirectoriesForParent,
+} from '../../../utils/directoryTreeUtils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { Spinner } from '../../../components/ui/Spinner';
 import { MascotImage } from '../../../components/MascotImage';
@@ -40,7 +47,11 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
 
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
 
-  // Directory contents (folders + documents in current directory)
+  const {
+    data: treeData,
+    isLoading: isLoadingTree,
+  } = useGetDirectoryTreeQuery();
+
   const {
     data: directoryContents,
     isLoading: isLoadingContents,
@@ -66,11 +77,27 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     setCreateDialogOpen(true);
   };
 
-  const isLoading = isLoadingContents && !directoryContents;
+  const subdirectories = useMemo(() => {
+    const fromTree = getSubdirectoriesForParent(treeData?.tree, selectedDirectoryId);
+    if (fromTree !== undefined) {
+      return fromTree;
+    }
+    return directoryContents?.subdirectories ?? [];
+  }, [treeData?.tree, selectedDirectoryId, directoryContents?.subdirectories]);
+
+  const documents = directoryContents?.documents ?? [];
+  const isLoadingDocuments = isLoadingContents && !directoryContents;
+  const directoryTitle =
+    (selectedDirectoryId && directoryContents?.directory.name) ||
+    getDirectoryNameFromTree(treeData?.tree, selectedDirectoryId) ||
+    (selectedDirectoryId ? 'Folder' : 'All Documents');
+
+  const isInitialLoading =
+    (isLoadingTree && !treeData) &&
+    (isLoadingContents && !directoryContents);
   const error = contentsError;
 
-  // Early returns for loading and error states
-  if (isLoading) {
+  if (isInitialLoading) {
     return (
       <Page showSidebar={true}>
         <div className="flex justify-center items-center p-8">
@@ -80,7 +107,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     );
   }
 
-  if (error) {
+  if (error && !treeData && !directoryContents) {
     return (
       <Page showSidebar={true}>
         <Card className="m-4 border-destructive">
@@ -92,8 +119,10 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     );
   }
 
-  const subdirectories = directoryContents?.subdirectories || [];
-  const documents = directoryContents?.documents || [];
+  const showEmptyState =
+    !isLoadingDocuments &&
+    subdirectories.length === 0 &&
+    documents.length === 0;
 
   return (
     <Page showSidebar={true}>
@@ -162,11 +191,12 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
             <div className={documentsPageStyles.header}>
               <div className={documentsPageStyles.headerContent}>
                 <h1 className={documentsPageStyles.title}>
-                  {selectedDirectoryId ? directoryContents?.directory.name : 'All Documents'}
+                  {directoryTitle}
                 </h1>
                 <p className={documentsPageStyles.subtitle}>
-                  {subdirectories.length} folder(s), {documents.length} document(s)
-                  {isFetchingContents && directoryContents && (
+                  {subdirectories.length} folder(s),{' '}
+                  {isLoadingDocuments ? '…' : documents.length} document(s)
+                  {(isFetchingContents || isLoadingDocuments) && (directoryContents || treeData) && (
                     <Loader2
                       className="inline-block ml-2 h-3.5 w-3.5 animate-spin text-muted-foreground"
                       aria-label="Refreshing"
@@ -198,7 +228,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
             </div>
 
             {/* Empty State */}
-            {subdirectories.length === 0 && documents.length === 0 && (
+            {showEmptyState && (
               <Card className={documentsPageStyles.emptyState}>
                 <CardContent className="text-center p-6 md:p-8">
                   <MascotImage
@@ -239,7 +269,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
             )}
 
             {/* Content Section - Folders and Documents */}
-            {(subdirectories.length > 0 || documents.length > 0) && (
+            {(subdirectories.length > 0 || documents.length > 0 || isLoadingDocuments) && (
               <div className="space-y-6">
                 {/* Folders Section */}
                 {subdirectories.length > 0 && (
@@ -262,7 +292,11 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                 )}
 
                 {/* Documents Section */}
-                {documents.length > 0 && (
+                {isLoadingDocuments ? (
+                  <div className="flex justify-center items-center px-4 md:px-6 py-8">
+                    <Spinner size="md" />
+                  </div>
+                ) : documents.length > 0 ? (
                   <div className="px-4 md:px-6">
                     <h2 className="text-lg font-semibold mb-3">Documents</h2>
                     <div className={documentsPageStyles.documentsGrid}>
@@ -347,7 +381,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                       ))}
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
           </div>
