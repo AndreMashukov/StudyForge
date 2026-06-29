@@ -3,8 +3,10 @@ import { FlatList, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   Button,
-  Heading,
+  HeaderIconButton,
   LoadingState,
+  Screen,
+  ScreenHeader,
   Stack,
   Text,
   TextInputField,
@@ -49,57 +51,72 @@ export function SettingsScreen() {
   const hasSearchQuery = debouncedSearchQuery.trim().length > 0;
 
   return (
-    <FlatList
-      data={filteredDirectories}
-      keyExtractor={(item) => item.id}
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardShouldPersistTaps="handled"
-      className="flex-1 bg-background px-container pt-4 font-sans"
-      ListHeaderComponent={
-        <Stack gap="xs" className="mb-5">
-          <Heading level={1}>Settings</Heading>
-          <Text tone="muted">Signed in as {user?.email ?? 'unknown user'}</Text>
-          <Text className="font-sans-semibold mt-4 mb-2">Default capture directory</Text>
-          <TextInputField
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search by name or path…"
-            autoCapitalize="none"
-            className="mb-3"
+    <Screen className="pt-0">
+      <ScreenHeader
+        title="Settings"
+        leading={
+          <HeaderIconButton
+            icon="arrow-back"
+            accessibilityLabel="Back to capture"
+            onPress={() => router.back()}
           />
-          {directories.length > 0 ? (
-            <Text tone="muted" className="mb-2">
-              {hasSearchQuery
-                ? `${filteredDirectories.length} of ${directories.length} directories`
-                : `${directories.length} directories`}
-            </Text>
-          ) : null}
-          {error ? <Text tone="destructive" className="mb-3">{getCallableErrorMessage(error)}</Text> : null}
-        </Stack>
-      }
-      ListEmptyComponent={
-        <Text tone="muted">
-          {hasSearchQuery
-            ? `No directories match "${debouncedSearchQuery.trim()}".`
-            : 'No directories found. Create one in the web app first.'}
-        </Text>
-      }
-      renderItem={({ item }) => (
-        <DirectoryRow
-          directory={item}
-          selected={item.id === defaultDirectoryId}
-          onSelect={() => setDefaultDirectoryId(item.id)}
-        />
-      )}
-      ItemSeparatorComponent={() => <View className="h-gutter" />}
-      ListFooterComponent={
-        <Stack gap="sm" className="mt-5 pb-8">
-          <Button label="Refresh" variant="secondary" onPress={() => void refetch()} />
-          <Button label="Back to capture" onPress={() => router.back()} />
-          <Button label="Sign out" variant="secondary" onPress={() => void signOut()} />
-        </Stack>
-      }
-    />
+        }
+      />
+      <FlatList
+        data={filteredDirectories}
+        keyExtractor={(item) => item.id}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        className="flex-1 font-sans"
+        ListHeaderComponent={
+          <Stack gap="xs" className="mt-6 mb-5">
+            <Text tone="muted">Signed in as {user?.email ?? 'unknown user'}</Text>
+            <Text className="font-sans-semibold mt-4 mb-2">Default capture directory</Text>
+            <TextInputField
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search by name or path…"
+              autoCapitalize="none"
+              className="mb-3"
+            />
+            {directories.length > 0 ? (
+              <Text tone="muted" className="mb-2">
+                {hasSearchQuery
+                  ? `${filteredDirectories.length} of ${directories.length} directories`
+                  : `${directories.length} directories`}
+              </Text>
+            ) : null}
+            {error ? (
+              <Text tone="destructive" className="mb-3">
+                {getCallableErrorMessage(error)}
+              </Text>
+            ) : null}
+          </Stack>
+        }
+        ListEmptyComponent={
+          <Text tone="muted">
+            {hasSearchQuery
+              ? `No directories match "${debouncedSearchQuery.trim()}".`
+              : 'No directories found. Create one in the web app first.'}
+          </Text>
+        }
+        renderItem={({ item }) => (
+          <DirectoryRow
+            directory={item}
+            selected={item.id === defaultDirectoryId}
+            onSelect={() => setDefaultDirectoryId(item.id)}
+          />
+        )}
+        ItemSeparatorComponent={() => <View className="h-gutter" />}
+        ListFooterComponent={
+          <Stack gap="sm" className="mt-5 pb-8">
+            <Button label="Refresh" variant="secondary" onPress={() => void refetch()} />
+            <Button label="Back to capture" onPress={() => router.back()} />
+            <Button label="Sign out" variant="secondary" onPress={() => void signOut()} />
+          </Stack>
+        }
+      />
+    </Screen>
   );
 }
 

@@ -15,6 +15,7 @@ export const mobileUiColors = {
   ring: 'rgb(139, 92, 246)',
   surfaceContainerHigh: 'rgb(40, 42, 43)',
   outline: 'rgb(149, 142, 160)',
+  outlineVariant: 'rgb(73, 68, 84)',
 } as const;
 
 export const mobileUiDesignSystem = {

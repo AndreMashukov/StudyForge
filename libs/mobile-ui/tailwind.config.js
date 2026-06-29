@@ -39,6 +39,7 @@ const obsidianPulseTheme = {
       high: 'rgb(var(--surface-container-high) / <alpha-value>)',
     },
     outline: 'rgb(var(--outline) / <alpha-value>)',
+    'outline-variant': 'rgb(var(--outline-variant) / <alpha-value>)',
   },
 };
 

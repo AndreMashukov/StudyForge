@@ -4,9 +4,10 @@ import { useRouter } from 'expo-router';
 import {
   Button,
   Card,
-  Heading,
+  HeaderIconButton,
   LoadingState,
   Screen,
+  ScreenHeader,
   Stack,
   Text,
 } from '@studyforge/mobile-ui';
@@ -115,18 +116,19 @@ export function CaptureScreen() {
   }
 
   return (
-    <Screen className="pt-4">
-      <Stack direction="horizontal" gap="sm" className="justify-between items-start mb-6">
-        <Stack gap="xs" className="flex-1">
-          <Text variant="label" tone="primary">
-            StudyForge Capture
-          </Text>
-          <Heading level={2}>Scan to StudyForge</Heading>
-        </Stack>
-        <Button label="Settings" variant="secondary" onPress={() => router.push('/settings')} />
-      </Stack>
+    <Screen className="pt-0">
+      <ScreenHeader
+        title="Scan to StudyForge"
+        trailing={
+          <HeaderIconButton
+            icon="settings"
+            accessibilityLabel="Open settings"
+            onPress={() => router.push('/settings')}
+          />
+        }
+      />
 
-      <Card className="mb-5 gap-3">
+      <Card className="mt-6 mb-5 gap-3">
         <Text variant="label" tone="muted">
           Pipeline
         </Text>
