@@ -15,6 +15,11 @@ import {
   MoveDirectoryResponse,
   DeleteDirectoryResponse,
 } from '@shared-types';
+import { auth } from '../../../config/firebase';
+import {
+  fetchDirectoryTreeFromFirestore,
+  subscribeToDirectoryTreeIndex,
+} from '../../../services/directoryTreeIndex';
 
 export const directoryApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -71,11 +76,54 @@ export const directoryApi = baseApi.injectEndpoints({
       ],
     }),
 
-    // Get directory tree
+    // Directory tree — Firestore-native read with IndexedDB cache; callable fallback on failure.
     getDirectoryTree: builder.query<GetDirectoryTreeResponse, void>({
-      query: () => ({
-        functionName: 'getDirectoryTree',
-      }),
+      async queryFn(_arg, _api, _extraOptions, baseQuery) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Authentication required' },
+            },
+          };
+        }
+
+        try {
+          const data = await fetchDirectoryTreeFromFirestore(userId);
+          return { data };
+        } catch (firestoreError) {
+          console.warn('Firestore directory tree read failed, falling back to callable:', firestoreError);
+          const fallback = await baseQuery({ functionName: 'getDirectoryTree' });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          return { data: fallback.data as GetDirectoryTreeResponse };
+        }
+      },
+      async onCacheEntryAdded(_arg, { updateCachedData, cacheDataLoaded, cacheEntryRemoved }) {
+        try {
+          await cacheDataLoaded;
+        } catch {
+          return;
+        }
+
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          await cacheEntryRemoved;
+          return;
+        }
+
+        const unsubscribe = subscribeToDirectoryTreeIndex(userId, (tree: GetDirectoryTreeResponse) => {
+          updateCachedData(() => tree);
+        });
+
+        try {
+          await cacheEntryRemoved;
+        } finally {
+          unsubscribe();
+        }
+      },
       providesTags: [{ type: 'Directory', id: 'TREE' }],
       keepUnusedDataFor: 300, // 5 minutes
     }),
