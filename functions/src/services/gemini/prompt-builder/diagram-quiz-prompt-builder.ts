@@ -98,6 +98,7 @@ ${this.getDiagramSyntaxRules()}`;
 - Keep each diagram **compact**: at most ~12 nodes or participants per diagram so it renders reliably.
 - **No markdown code fences** inside JSON string values — put raw Mermaid source with newline characters escaped as needed.
 - **Do not** use double quotes inside Mermaid node labels; use single quotes or rephrase.
+- For **erDiagram** relationship labels (text after \`:\`), use bare identifiers only — **never** quote column or field names. Example: \`users ||--o{ documents : parent_id\`, not \`users ||--o{ documents : 'parent_id'\`.
 - **NEVER** use forward slashes (\`/\`) inside square-bracket node labels. \`[/text]\` triggers Mermaid trapezoid syntax and causes a lexical error. Write \`[text]\` or use parentheses \`(text)\` instead.
 - **NEVER** use backslashes (\`\\\\\`) inside square-bracket node labels for the same reason.
 - **NEVER** use \`@\` inside square-bracket node labels — it is a reserved Mermaid token and causes a parse error. Write the word out instead.
