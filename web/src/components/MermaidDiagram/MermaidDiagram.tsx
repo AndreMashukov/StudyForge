@@ -216,6 +216,51 @@ function sanitizeSquareBracketsInDiamondLabels(source: string): string {
  *   Choose[✅ Choose: Add to Sets, Board[r][c] = 'Q']
  *   → Choose[✅ Choose: Add to Sets, Board#91;r#93;#91;c#93; = 'Q']
  */
+function isErDiagramRelationshipLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed === '{' || trimmed === '}' || /^erDiagram\b/i.test(trimmed)) {
+    return false;
+  }
+  if (!trimmed.includes(':') || !/--|\.\./.test(trimmed)) {
+    return false;
+  }
+  if (/^\w+\s+\S+/.test(trimmed) && !/--|\.\./.test(trimmed)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * erDiagram relationship labels (text after `:`) must be bare identifiers.
+ * AI output often uses SQL-style quoted column names (`'owner_id'`), which Mermaid rejects.
+ */
+function sanitizeErDiagramRelationshipLabels(source: string): string {
+  if (!/^\s*erDiagram\b/im.test(source)) {
+    return source;
+  }
+
+  return source
+    .split('\n')
+    .map((line) => {
+      if (!isErDiagramRelationshipLine(line)) {
+        return line;
+      }
+
+      const colonIndex = line.indexOf(':');
+      if (colonIndex === -1) {
+        return line;
+      }
+
+      const prefix = line.slice(0, colonIndex + 1);
+      const label = line
+        .slice(colonIndex + 1)
+        .replace(/['"]/g, '')
+        .trim();
+      return label ? `${prefix} ${label}` : prefix.trimEnd();
+    })
+    .join('\n');
+}
+
 function sanitizeNestedBracketsInBracketLabels(source: string): string {
   return source
     .split('\n')
@@ -263,7 +308,7 @@ function sanitizeMermaidCode(source: string): string {
       sanitizeSquareBracketsInParenLabels(
         sanitizeSquareBracketsInDiamondLabels(
           sanitizeBracketLabels(
-            sanitizeNestedBracketsInBracketLabels(source),
+            sanitizeNestedBracketsInBracketLabels(sanitizeErDiagramRelationshipLabels(source)),
           ),
         ),
       ),
