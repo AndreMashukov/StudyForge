@@ -1,31 +1,29 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { DocumentsPageContext } from './DocumentsPageContext';
 import { IDocumentsPageContext } from '../types/IDocumentsPageContext';
-import { useFetchDocuments } from './hooks/api/useFetchDocuments';
 import { useDocumentsPageHandlers } from './hooks/useDocumentsPageHandlers';
 import { useDocumentsPageEffects } from './hooks/useDocumentsPageEffects';
 import { useRealtimeDirectorySync } from './hooks/useRealtimeDirectorySync';
+import { useAppDispatch } from '../../../hooks/redux';
+import { prefetchDirectoryContents } from '../utils/prefetchDirectoryContents';
 
 interface DocumentsPageProviderProps {
   children: React.ReactNode;
 }
 
 export const DocumentsPageProvider: React.FC<DocumentsPageProviderProps> = ({ children }) => {
-  const documentsApi = useFetchDocuments();
-  
+  const dispatch = useAppDispatch();
   const handlers = useDocumentsPageHandlers();
 
-  // Use effect hooks for non-fetch related side effects
-  useDocumentsPageEffects({
-    documents: documentsApi.documents,
-    handlers,
-  });
+  useDocumentsPageEffects({ handlers });
 
-  // Real-time Firestore listeners for the current directory
   useRealtimeDirectorySync();
 
+  useEffect(() => {
+    prefetchDirectoryContents(dispatch, null);
+  }, [dispatch]);
+
   const contextValue: IDocumentsPageContext = {
-    documentsApi,
     handlers,
   };
 

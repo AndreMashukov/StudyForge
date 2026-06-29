@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   ChevronRight,
@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Plus,
   MoreVertical,
+  Loader2,
 } from 'lucide-react';
 import { IDirectoryTree, IDirectoryTreeNodeProps } from './IDirectoryTree';
 import { useGetDirectoryTreeQuery } from '../../store/api/Directory/DirectoryApi';
@@ -19,6 +20,10 @@ import {
 } from '../../store/slices/directorySlice';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/Button';
+import { useAppDispatch } from '../../hooks/redux';
+import { prefetchDirectoryContents } from '../../pages/DocumentsPage/utils/prefetchDirectoryContents';
+
+const PREFETCH_DEBOUNCE_MS = 150;
 
 const DirectoryTreeNode: React.FC<IDirectoryTreeNodeProps> = ({
   node,
@@ -26,11 +31,13 @@ const DirectoryTreeNode: React.FC<IDirectoryTreeNodeProps> = ({
   onSelect,
   onToggleExpand,
   onContextMenu,
+  onPrefetchDirectory,
   isExpanded,
   isSelected,
 }) => {
   const hasChildren = node.children && node.children.length > 0;
   const FolderIcon = isExpanded ? FolderOpen : Folder;
+  const childDirectoryIds = node.children.map((child) => child.directory.id);
 
   return (
     <div>
@@ -42,13 +49,15 @@ const DirectoryTreeNode: React.FC<IDirectoryTreeNodeProps> = ({
         )}
         onClick={() => onSelect(node.directory.id)}
         onContextMenu={(e) => onContextMenu(e, node.directory.id)}
+        onMouseEnter={() => onPrefetchDirectory(node.directory.id)}
+        onFocus={() => onPrefetchDirectory(node.directory.id)}
       >
         {/* Expand/Collapse button */}
         <button
           onClick={(e) => {
             e.stopPropagation();
             if (hasChildren) {
-              onToggleExpand(node.directory.id);
+              onToggleExpand(node.directory.id, childDirectoryIds);
             }
           }}
           className={cn(
@@ -113,6 +122,7 @@ const DirectoryTreeNode: React.FC<IDirectoryTreeNodeProps> = ({
               onSelect={onSelect}
               onToggleExpand={onToggleExpand}
               onContextMenu={onContextMenu}
+              onPrefetchDirectory={onPrefetchDirectory}
             />
           ))}
         </div>
@@ -127,7 +137,8 @@ const DirectoryTreeNodeWrapper: React.FC<{
   onSelect: IDirectoryTreeNodeProps['onSelect'];
   onToggleExpand: IDirectoryTreeNodeProps['onToggleExpand'];
   onContextMenu: IDirectoryTreeNodeProps['onContextMenu'];
-}> = ({ node, level, onSelect, onToggleExpand, onContextMenu }) => {
+  onPrefetchDirectory: IDirectoryTreeNodeProps['onPrefetchDirectory'];
+}> = ({ node, level, onSelect, onToggleExpand, onContextMenu, onPrefetchDirectory }) => {
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
   const expandedDirectoryIds = useSelector(selectExpandedDirectoryIds);
 
@@ -141,6 +152,7 @@ const DirectoryTreeNodeWrapper: React.FC<{
       onSelect={onSelect}
       onToggleExpand={onToggleExpand}
       onContextMenu={onContextMenu}
+      onPrefetchDirectory={onPrefetchDirectory}
       isExpanded={isExpanded}
       isSelected={isSelected}
     />
@@ -151,37 +163,66 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
   className,
   onSelectDirectory,
   onCreateDirectory,
-  onEditDirectory,
-  onDeleteDirectory,
-  onMoveDirectory,
 }) => {
   const dispatch = useDispatch();
+  const appDispatch = useAppDispatch();
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
-  const { data, isLoading, error } = useGetDirectoryTreeQuery();
+  const expandedDirectoryIds = useSelector(selectExpandedDirectoryIds);
+  const { data, isLoading, isFetching, error } = useGetDirectoryTreeQuery();
+
+  const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const schedulePrefetch = useCallback(
+    (directoryId: string | null) => {
+      const key = directoryId ?? '__root__';
+      const existing = debounceTimersRef.current.get(key);
+      if (existing) {
+        clearTimeout(existing);
+      }
+
+      debounceTimersRef.current.set(
+        key,
+        setTimeout(() => {
+          prefetchDirectoryContents(appDispatch, directoryId);
+          debounceTimersRef.current.delete(key);
+        }, PREFETCH_DEBOUNCE_MS),
+      );
+    },
+    [appDispatch],
+  );
+
+  const handlePrefetchDirectory = useCallback(
+    (directoryId: string) => {
+      schedulePrefetch(directoryId);
+    },
+    [schedulePrefetch],
+  );
 
   const handleSelect = (directoryId: string) => {
     if (onSelectDirectory) {
-      // If parent provides a handler, use that (it will handle Redux + URL)
       onSelectDirectory(directoryId);
     } else {
-      // Fallback: only update Redux
       dispatch(setSelectedDirectory(directoryId));
     }
   };
 
-  const handleToggleExpand = (directoryId: string) => {
+  const handleToggleExpand = (directoryId: string, childDirectoryIds: string[]) => {
+    const wasExpanded = expandedDirectoryIds.includes(directoryId);
     dispatch(toggleExpandDirectory(directoryId));
+
+    if (!wasExpanded) {
+      childDirectoryIds.forEach((childId) => {
+        prefetchDirectoryContents(appDispatch, childId);
+      });
+    }
   };
 
   const handleContextMenu = (e: React.MouseEvent, directoryId: string) => {
     e.preventDefault();
-    // Select the directory first
     handleSelect(directoryId);
-    // Context menu handling - for now, we'll use the handlers passed from parent
-    // Future: implement actual context menu UI here
   };
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className={cn('flex items-center justify-center p-8', className)}>
         <Spinner size="md" />
@@ -217,7 +258,14 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
   }
 
   return (
-    <div className={cn('py-2', className)}>
+    <div className={cn('py-2 relative', className)}>
+      {isFetching && data && (
+        <Loader2
+          className="absolute top-2 right-2 h-3.5 w-3.5 animate-spin text-muted-foreground"
+          aria-label="Refreshing"
+        />
+      )}
+
       {/* Root directory option */}
       <div
         className={cn(
@@ -226,13 +274,13 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
         )}
         onClick={() => {
           if (onSelectDirectory) {
-            // If parent provides a handler, use that (it will handle Redux + URL)
             onSelectDirectory(null);
           } else {
-            // Fallback: only update Redux
             dispatch(setSelectedDirectory(null));
           }
         }}
+        onMouseEnter={() => schedulePrefetch(null)}
+        onFocus={() => schedulePrefetch(null)}
       >
         <Folder className="w-4 h-4 text-muted-foreground ml-4" />
         <span className="flex-1 text-sm">All Documents</span>
@@ -247,6 +295,7 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
           onSelect={handleSelect}
           onToggleExpand={handleToggleExpand}
           onContextMenu={handleContextMenu}
+          onPrefetchDirectory={handlePrefetchDirectory}
         />
       ))}
 

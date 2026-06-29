@@ -13,8 +13,9 @@ export interface IDirectoryTreeNodeProps {
   node: DirectoryTreeNode;
   level: number;
   onSelect: (directoryId: string) => void;
-  onToggleExpand: (directoryId: string) => void;
+  onToggleExpand: (directoryId: string, childDirectoryIds: string[]) => void;
   onContextMenu: (e: React.MouseEvent, directoryId: string) => void;
+  onPrefetchDirectory: (directoryId: string) => void;
   isExpanded: boolean;
   isSelected: boolean;
 }

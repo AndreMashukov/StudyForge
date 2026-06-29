@@ -90,8 +90,8 @@ export const directoryApi = baseApi.injectEndpoints({
         { type: 'Directory', id: directoryId || 'ROOT' },
         { type: 'Directory', id: 'CONTENTS' },
       ],
-      // Always refetch when the directory ID changes (don't rely on stale cache)
-      keepUnusedDataFor: 0, // Don't cache directory contents for long
+      // Retention for fast folder switching; mutations and Firestore invalidation keep data fresh.
+      keepUnusedDataFor: 300,
     }),
 
     getDirectoryContentsWithArtifacts: builder.query<
