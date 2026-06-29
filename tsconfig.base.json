@@ -18,6 +18,7 @@
       "@shared-types": ["libs/shared-types/src/index.ts"],
       "@admin/*": ["admin/src/*"],
       "@study-forge/ui": ["libs/ui/src/index.ts"],
+      "@studyforge/mobile-ui": ["libs/mobile-ui/src/index.ts"],
       "@mobile-capture/*": ["mobile-capture/src/*"]
     }
   },

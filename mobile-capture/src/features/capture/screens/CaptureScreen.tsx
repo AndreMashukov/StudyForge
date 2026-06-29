@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button, LoadingState, Screen } from '../../../components/ui';
+import {
+  Button,
+  Card,
+  Heading,
+  LoadingState,
+  Screen,
+  Stack,
+  Text,
+} from '@studyforge/mobile-ui';
 import { CaptureScanCommandHandler } from '../services/CaptureScanCommandHandler';
 import { CaptureState } from '../types/ICapture';
 import { useCaptureStore } from '../store/captureStore';
@@ -108,26 +116,30 @@ export function CaptureScreen() {
 
   return (
     <Screen className="pt-4">
-      <View className="flex-row justify-between items-start mb-6 gap-3">
-        <View className="flex-1">
-          <Text className="text-primary text-xs font-bold uppercase">StudyForge Capture</Text>
-          <Text className="text-foreground text-2xl font-bold mt-1">Scan to StudyForge</Text>
-        </View>
+      <Stack direction="horizontal" gap="sm" className="justify-between items-start mb-6">
+        <Stack gap="xs" className="flex-1">
+          <Text variant="label" tone="primary">
+            StudyForge Capture
+          </Text>
+          <Heading level={2}>Scan to StudyForge</Heading>
+        </Stack>
         <Button label="Settings" variant="secondary" onPress={() => router.push('/settings')} />
-      </View>
+      </Stack>
 
-      <View className="rounded-2xl border border-border bg-card p-5 mb-5 gap-3">
-        <Text className="text-muted-foreground text-xs uppercase tracking-wider">Pipeline</Text>
-        <Text className="text-foreground text-base">
-          Document scanner → on-device OCR → review → upload
+      <Card className="mb-5 gap-3">
+        <Text variant="label" tone="muted">
+          Pipeline
         </Text>
-      </View>
+        <Text>Document scanner → on-device OCR → review → upload</Text>
+      </Card>
 
-      <View className="gap-1 mb-5">
-        <Text className="text-muted-foreground text-xs uppercase tracking-wider">Status</Text>
-        <Text className="text-foreground text-base">{stateLabel(captureState)}</Text>
+      <Stack gap="xs" className="mb-5">
+        <Text variant="label" tone="muted">
+          Status
+        </Text>
+        <Text>{stateLabel(captureState)}</Text>
 
-        <Text className="text-muted-foreground text-xs uppercase tracking-wider mt-3 mb-2">
+        <Text variant="label" tone="muted" className="mt-3 mb-2">
           Default directory
         </Text>
         <Pressable
@@ -137,38 +149,34 @@ export function CaptureScreen() {
           className="rounded-xl border border-border bg-card px-3.5 py-3.5 mb-2"
         >
           {defaultDirectory ? (
-            <>
-              <Text className="text-foreground text-base font-semibold">{defaultDirectory.name}</Text>
-              <Text className="text-muted-foreground text-sm mt-1">{defaultDirectory.path}</Text>
-              <Text className="text-primary text-sm mt-2">Tap to change directory</Text>
-            </>
+            <Stack gap="xs">
+              <Text className="font-semibold">{defaultDirectory.name}</Text>
+              <Text tone="muted">{defaultDirectory.path}</Text>
+              <Text tone="primary">Tap to change directory</Text>
+            </Stack>
           ) : (
-            <>
-              <Text className="text-foreground text-base font-semibold">Not selected</Text>
-              <Text className="text-primary text-sm mt-2">Tap to choose a directory</Text>
-            </>
+            <Stack gap="xs">
+              <Text className="font-semibold">Not selected</Text>
+              <Text tone="primary">Tap to choose a directory</Text>
+            </Stack>
           )}
         </Pressable>
 
         {data && !error ? (
-          <Text className="text-muted-foreground text-sm">
+          <Text tone="muted">
             {directoryCount} director{directoryCount === 1 ? 'y' : 'ies'} in your library
           </Text>
         ) : null}
-        {error ? (
-          <Text className="text-destructive text-sm mt-2">
-            {getCallableErrorMessage(error)}
-          </Text>
-        ) : null}
-        {statusMessage ? <Text className="text-foreground text-sm mt-2">{statusMessage}</Text> : null}
+        {error ? <Text tone="destructive">{getCallableErrorMessage(error)}</Text> : null}
+        {statusMessage ? <Text className="mt-2">{statusMessage}</Text> : null}
         {lastDocumentId ? (
-          <Text className="text-accent text-sm mt-2">
+          <Text tone="accent" className="mt-2">
             Latest document: {lastTitle} ({lastDocumentId})
           </Text>
         ) : null}
-      </View>
+      </Stack>
 
-      <View className="gap-2.5">
+      <Stack gap="sm">
         <Button
           label={defaultDirectory ? 'Change directory' : 'Choose directory'}
           variant="secondary"
@@ -186,7 +194,7 @@ export function CaptureScreen() {
           onPress={() => void handleRefreshDirectories()}
         />
         <Button label="Sign out" variant="secondary" onPress={() => void signOut()} />
-      </View>
+      </Stack>
     </Screen>
   );
 }

@@ -3,8 +3,8 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { LoadingState } from '@studyforge/mobile-ui';
 import { useAuthUser } from '../features/auth/hooks/useAuthUser';
-import { LoadingState } from '../components/ui';
 import { queryClient } from '../lib/api/queryClient';
 import { usePreferencesStore } from '../features/preferences/store/preferencesStore';
 

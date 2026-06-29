@@ -1,0 +1,38 @@
+{
+  "name": "mobile-ui",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/mobile-ui/src",
+  "projectType": "library",
+  "tags": ["type:lib", "scope:mobile-ui"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "tsc -p libs/mobile-ui/tsconfig.lib.json --noEmit"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "eslint libs/mobile-ui --ext .ts,.tsx"
+      }
+    },
+    "storybook": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "storybook dev -c libs/mobile-ui/.storybook -p 4400"
+      }
+    },
+    "build-storybook": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "storybook build -c libs/mobile-ui/.storybook -o dist/storybook/mobile-ui"
+      }
+    }
+  }
+}
