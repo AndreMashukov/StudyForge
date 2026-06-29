@@ -4,8 +4,8 @@ import {
   Button,
   FieldError,
   FieldLabel,
-  Heading,
   Screen,
+  ScreenHeader,
   Stack,
   Text,
   TextInputField,
@@ -34,16 +34,12 @@ export function SignInScreen() {
   });
 
   return (
-    <Screen className="pt-12">
-      <Stack gap="lg" className="mb-8">
-        <Text variant="label" tone="primary">
-          StudyForge
-        </Text>
-        <Heading level={1}>Sign in to capture</Heading>
-        <Text tone="muted" className="leading-6">
-          Use the same Firebase account as the web app.
-        </Text>
-      </Stack>
+    <Screen className="pt-0">
+      <ScreenHeader title="Sign in to capture" />
+
+      <Text tone="muted" className="mt-6 mb-8 leading-6">
+        Use the same Firebase account as the web app.
+      </Text>
 
       <Stack gap="sm">
         <FieldLabel>Email</FieldLabel>

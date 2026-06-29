@@ -8,8 +8,9 @@ import {
   Button,
   FieldError,
   FieldLabel,
-  Heading,
+  HeaderIconButton,
   Screen,
+  ScreenHeader,
   Stack,
   Text,
   TextInputField,
@@ -54,8 +55,18 @@ export function ReviewScreen() {
 
   if (!pendingScan) {
     return (
-      <Screen className="justify-center">
-        <Text tone="muted" className="mb-4">
+      <Screen className="pt-0 justify-center">
+        <ScreenHeader
+          title="Review capture"
+          leading={
+            <HeaderIconButton
+              icon="arrow-back"
+              accessibilityLabel="Back to capture"
+              onPress={() => router.back()}
+            />
+          }
+        />
+        <Text tone="muted" className="mt-6 mb-4">
           No scan is ready for review.
         </Text>
         <Button label="Back to capture" onPress={() => router.back()} />
@@ -115,11 +126,18 @@ export function ReviewScreen() {
   const isSubmitting = createDocumentMutation.isPending || generateFromScreenshotMutation.isPending;
 
   return (
-    <Screen className="pt-4">
-      <Heading level={2} className="mb-1">
-        Review capture
-      </Heading>
-      <Text tone="muted" className="mb-4">
+    <Screen className="pt-0">
+      <ScreenHeader
+        title="Review capture"
+        leading={
+          <HeaderIconButton
+            icon="arrow-back"
+            accessibilityLabel="Back to capture"
+            onPress={() => router.back()}
+          />
+        }
+      />
+      <Text tone="muted" className="mt-6 mb-4">
         Edit OCR text or send the scanned image for AI document generation.
       </Text>
 
