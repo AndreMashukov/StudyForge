@@ -32,7 +32,11 @@ export const DirectoryRealtimeBridge = () => {
   }, [routeDirectoryId, searchParams, pathname]);
 
   useRealtimeDirectorySync(directoryId, { subdirectoriesOnly: true });
-  useDirectoryDocumentsRealtimeCache(directoryId, ARTIFACT_PAGE_LIMIT);
+  useDirectoryDocumentsRealtimeCache(directoryId, {
+    artifactLimit: ARTIFACT_PAGE_LIMIT,
+    patchArtifactSummaries: true,
+    patchDirectoryContents: false,
+  });
 
   return null;
 };
