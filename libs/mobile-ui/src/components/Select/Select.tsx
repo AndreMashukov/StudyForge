@@ -25,20 +25,27 @@ export function Select({
         disabled={disabled}
         onPress={() => setOpen(true)}
         className={cn(
-          'bg-input border border-border rounded-xl px-3.5 py-3 mb-2',
+          'min-h-12 bg-input border border-border rounded-lg px-3.5 py-3 mb-2',
           disabled && 'opacity-50',
           className
         )}
       >
-        <Text className={cn('text-base', value ? 'text-foreground' : 'text-muted-foreground')}>
+        <Text
+          className={cn(
+            'text-base font-sans',
+            value ? 'text-foreground' : 'text-muted-foreground'
+          )}
+        >
           {selectedLabel}
         </Text>
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable className="flex-1 bg-black/70 justify-end" onPress={() => setOpen(false)}>
-          <Pressable className="bg-card rounded-t-3xl border border-border px-4 pt-4 pb-8 max-h-[60%]">
-            <Text className="text-foreground text-lg font-semibold mb-3">Choose an option</Text>
+          <Pressable className="bg-surface-high rounded-t-2xl border border-border px-container pt-4 pb-8 max-h-[60%]">
+            <Text className="text-foreground text-lg leading-6 font-sans-semibold mb-3">
+              Choose an option
+            </Text>
             <ScrollView>
               {options.map((option) => {
                 const selected = option.value === value;
@@ -51,11 +58,11 @@ export function Select({
                       setOpen(false);
                     }}
                     className={cn(
-                      'rounded-xl border px-3.5 py-3.5 mb-2',
-                      selected ? 'border-primary bg-primary/10' : 'border-border bg-background'
+                      'min-h-12 rounded-lg border px-3.5 py-3 mb-gutter',
+                      selected ? 'border-primary bg-primary/10' : 'border-border bg-card'
                     )}
                   >
-                    <Text className="text-foreground text-base">{option.label}</Text>
+                    <Text className="text-foreground text-base font-sans">{option.label}</Text>
                   </Pressable>
                 );
               })}

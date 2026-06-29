@@ -2312,6 +2312,11 @@
     "@eslint/core" "^0.17.0"
     levn "^0.4.1"
 
+"@expo-google-fonts/hanken-grotesk@^0.4.3":
+  version "0.4.3"
+  resolved "https://registry.yarnpkg.com/@expo-google-fonts/hanken-grotesk/-/hanken-grotesk-0.4.3.tgz#3de1f795f8bccf4ca0017325bdb349e40ba4f7ab"
+  integrity sha512-TZn/Ux+nCxEjG/zAenCFbEhOAPxSXN3lo2YU2jHcPsNBPFeicm8feQStL81igJuAwJLCn62VvEOdTtmVEBDl0g==
+
 "@expo-google-fonts/material-symbols@^0.4.1":
   version "0.4.38"
   resolved "https://registry.yarnpkg.com/@expo-google-fonts/material-symbols/-/material-symbols-0.4.38.tgz#88982312fb1a2ff18cd002874aaa9bbee0157727"

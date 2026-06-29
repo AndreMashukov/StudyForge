@@ -9,9 +9,13 @@ export function Switch({ value, onValueChange, label, disabled, className }: ISw
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
       onPress={() => onValueChange(!value)}
-      className={cn('flex-row items-center justify-between gap-4', disabled && 'opacity-50', className)}
+      className={cn(
+        'min-h-12 flex-row items-center justify-between gap-4',
+        disabled && 'opacity-50',
+        className
+      )}
     >
-      <Text className="text-foreground text-base flex-1">{label}</Text>
+      <Text className="text-foreground text-base font-sans flex-1">{label}</Text>
       <View
         className={cn(
           'h-7 w-12 rounded-full border border-border p-0.5',

@@ -146,17 +146,17 @@ export function CaptureScreen() {
           accessibilityRole="button"
           accessibilityHint="Opens directory picker in Settings"
           onPress={() => router.push('/settings')}
-          className="rounded-xl border border-border bg-card px-3.5 py-3.5 mb-2"
+          className="rounded-lg border border-border bg-card px-3.5 py-3.5 min-h-12 mb-2"
         >
           {defaultDirectory ? (
             <Stack gap="xs">
-              <Text className="font-semibold">{defaultDirectory.name}</Text>
+              <Text className="font-sans-semibold">{defaultDirectory.name}</Text>
               <Text tone="muted">{defaultDirectory.path}</Text>
               <Text tone="primary">Tap to change directory</Text>
             </Stack>
           ) : (
             <Stack gap="xs">
-              <Text className="font-semibold">Not selected</Text>
+              <Text className="font-sans-semibold">Not selected</Text>
               <Text tone="primary">Tap to choose a directory</Text>
             </Stack>
           )}

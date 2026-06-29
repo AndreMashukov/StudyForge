@@ -35,7 +35,7 @@ export function SignInScreen() {
 
   return (
     <Screen className="pt-12">
-      <Stack gap="md" className="mb-8">
+      <Stack gap="lg" className="mb-8">
         <Text variant="label" tone="primary">
           StudyForge
         </Text>

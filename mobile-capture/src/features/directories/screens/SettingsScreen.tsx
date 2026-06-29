@@ -54,12 +54,12 @@ export function SettingsScreen() {
       keyExtractor={(item) => item.id}
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
-      className="flex-1 bg-background px-5 pt-4"
+      className="flex-1 bg-background px-container pt-4 font-sans"
       ListHeaderComponent={
         <Stack gap="xs" className="mb-5">
           <Heading level={1}>Settings</Heading>
           <Text tone="muted">Signed in as {user?.email ?? 'unknown user'}</Text>
-          <Text className="font-semibold mt-4 mb-2">Default capture directory</Text>
+          <Text className="font-sans-semibold mt-4 mb-2">Default capture directory</Text>
           <TextInputField
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -91,7 +91,7 @@ export function SettingsScreen() {
           onSelect={() => setDefaultDirectoryId(item.id)}
         />
       )}
-      ItemSeparatorComponent={() => <View className="h-2" />}
+      ItemSeparatorComponent={() => <View className="h-gutter" />}
       ListFooterComponent={
         <Stack gap="sm" className="mt-5 pb-8">
           <Button label="Refresh" variant="secondary" onPress={() => void refetch()} />
@@ -116,9 +116,9 @@ function DirectoryRow({
     <Pressable
       accessibilityRole="button"
       onPress={onSelect}
-      className={`rounded-xl border px-3.5 py-3.5 ${selected ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}
+      className={`min-h-12 rounded-lg border px-3.5 py-3.5 ${selected ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}
     >
-      <Text className="font-semibold">{directory.name}</Text>
+      <Text className="font-sans-semibold">{directory.name}</Text>
       <Text tone="muted" className="mt-1">
         {directory.path}
       </Text>

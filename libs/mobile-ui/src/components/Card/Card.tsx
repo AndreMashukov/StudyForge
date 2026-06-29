@@ -4,6 +4,6 @@ import type { ICard } from './ICard';
 
 export function Card({ children, className }: ICard) {
   return (
-    <View className={cn('rounded-2xl border border-border bg-card p-5', className)}>{children}</View>
+    <View className={cn('rounded-lg border border-border bg-card p-4', className)}>{children}</View>
   );
 }

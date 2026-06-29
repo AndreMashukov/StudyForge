@@ -34,7 +34,7 @@ const config: StorybookConfig = {
       ...(viteConfig.css ?? {}),
       postcss: {
         plugins: [
-          require('tailwindcss')({ config: path.join(libRoot, 'tailwind.config.js') }),
+          require('tailwindcss')({ config: path.join(storybookDir, 'tailwind.config.js') }),
           require('autoprefixer')(),
         ],
       },

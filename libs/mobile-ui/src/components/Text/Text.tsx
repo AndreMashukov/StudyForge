@@ -3,9 +3,9 @@ import { cn } from '../../lib/cn';
 import type { IText } from './IText';
 
 const variantClasses: Record<NonNullable<IText['variant']>, string> = {
-  body: 'text-base',
-  caption: 'text-sm',
-  label: 'text-xs font-semibold uppercase tracking-wider',
+  body: 'text-base leading-6 font-sans',
+  caption: 'text-sm leading-5 font-sans',
+  label: 'text-xs leading-4 font-sans-bold uppercase tracking-widest',
 };
 
 const toneClasses: Record<NonNullable<IText['tone']>, string> = {
