@@ -31,7 +31,6 @@ export interface IStatisticsPageApi {
   hasError: boolean;
   setTimeRange: (range: StatisticsTimeRangeKey) => void;
   setQuizType: (type: StatisticsQuizTypeFilter) => void;
-  refetchAll: () => void;
 }
 
 export interface IStatisticsPageContext {

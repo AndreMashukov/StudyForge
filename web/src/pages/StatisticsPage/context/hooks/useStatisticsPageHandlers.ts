@@ -26,10 +26,6 @@ export const useStatisticsPageHandlers = (statisticsApi: IStatisticsPageApi): IS
     [statisticsApi]
   );
 
-  const handleRefetchAll = useCallback(() => {
-    statisticsApi.refetchAll();
-  }, [statisticsApi]);
-
   const handleBackToStatistics = useCallback(() => {
     navigate('/statistics');
   }, [navigate]);
@@ -39,7 +35,6 @@ export const useStatisticsPageHandlers = (statisticsApi: IStatisticsPageApi): IS
     handleActiveTabChange,
     handleSetTimeRange,
     handleSetQuizType,
-    handleRefetchAll,
     handleBackToStatistics,
   };
 };

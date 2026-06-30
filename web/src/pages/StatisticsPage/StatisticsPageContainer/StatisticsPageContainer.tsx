@@ -7,7 +7,6 @@ import {
   BookOpen,
   Brain,
   Clock3,
-  RefreshCw,
   Target,
   TrendingUp,
 } from 'lucide-react';
@@ -132,10 +131,6 @@ export const StatisticsPageContainer: React.FC = () => {
           {option.label}
         </Button>
       ))}
-      <Button variant="outline" size="sm" onClick={handlers.handleRefetchAll}>
-        <RefreshCw className="mr-2 h-4 w-4" />
-        Refresh
-      </Button>
     </div>
   );
 
