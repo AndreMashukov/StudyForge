@@ -65,16 +65,6 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
       : overviewQuery.error || performanceQuery.error || timeQuery.error
   );
 
-  const refetchAll = () => {
-    if (isDetailRoute) {
-      if (quizDetailRequest) quizDetailQuery.refetch();
-      return;
-    }
-    overviewQuery.refetch();
-    performanceQuery.refetch();
-    timeQuery.refetch();
-  };
-
   return {
     filters: { timeRange, quizType },
     isDetailRoute,
@@ -107,6 +97,5 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
     hasError,
     setTimeRange,
     setQuizType,
-    refetchAll,
   };
 };

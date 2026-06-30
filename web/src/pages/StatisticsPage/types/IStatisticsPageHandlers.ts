@@ -7,6 +7,5 @@ export interface IStatisticsPageHandlers {
   handleActiveTabChange: (tab: StatisticsTab) => void;
   handleSetTimeRange: (range: StatisticsTimeRangeKey) => void;
   handleSetQuizType: (type: StatisticsQuizTypeFilter) => void;
-  handleRefetchAll: () => void;
   handleBackToStatistics: () => void;
 }
