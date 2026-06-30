@@ -63,7 +63,7 @@ export const useDirectoryDocumentsRealtimeCache = (
       return;
     }
 
-    if (patchArtifactSummaries && !directoryId) {
+    if (!directoryId) {
       return;
     }
 

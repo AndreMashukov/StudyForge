@@ -31,10 +31,18 @@ export const DirectoryRealtimeBridge = () => {
     return null;
   }, [routeDirectoryId, searchParams, pathname]);
 
-  useRealtimeDirectorySync(directoryId, { subdirectoriesOnly: true });
-  useDirectoryDocumentsRealtimeCache(directoryId, {
+  // Only run the bridge if we are actually on a route that needs it,
+  // to avoid setting up global listeners that duplicate the page-level ones
+  // or run unnecessarily when viewing other pages.
+  const isActive = 
+    pathname.startsWith('/directory/') || 
+    pathname.startsWith('/subject-world/') ||
+    pathname === '/subject-world/create';
+
+  useRealtimeDirectorySync(isActive ? directoryId : undefined, { subdirectoriesOnly: true });
+  useDirectoryDocumentsRealtimeCache(isActive ? directoryId : null, {
     artifactLimit: ARTIFACT_PAGE_LIMIT,
-    patchArtifactSummaries: true,
+    patchArtifactSummaries: isActive,
     patchDirectoryContents: false,
   });
 
