@@ -167,13 +167,7 @@ export const DirectoryDetailPageContainer = () => {
           <Button
             variant="ghost"
             className="self-start gap-2 text-muted-foreground"
-            onClick={() =>
-              navigate(
-                ancestors.length > 0
-                  ? `/directory/${ancestors[ancestors.length - 1].id}`
-                  : '/documents'
-              )
-            }
+            onClick={() => navigate('/documents')}
           >
             <ArrowLeft size={18} />
             Back
