@@ -64,10 +64,13 @@ export const useDocumentsPageHandlers = () => {
   const handleSelectDirectory = useCallback((directoryId: string | null) => {
     dispatch(setSelectedDirectory(directoryId));
     if (directoryId) {
-      navigate(`/directory/${directoryId}`);
+      // Use replace so the back button skips tree-browsing and returns to the
+      // page that mounted the tree (e.g. /documents), not the previously
+      // clicked folder.
+      navigate(`/directory/${directoryId}`, { replace: true });
     } else {
-      navigate('/documents');
-      setSearchParams({});
+      navigate('/documents', { replace: true });
+      setSearchParams({}, { replace: true });
     }
   }, [dispatch, navigate, setSearchParams]);
 
