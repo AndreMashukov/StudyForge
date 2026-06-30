@@ -917,7 +917,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
         >
           <div
             ref={svgHostRef}
-            className="relative h-full w-full"
+            className="relative h-full w-full [@media(hover:none)_and_(pointer:coarse)]:[&>svg]:pointer-events-none"
           />
         </div>
       ) : (
