@@ -1,0 +1,21 @@
+[
+  {
+    "origin": [
+      "http://localhost:4200",
+      "http://127.0.0.1:4200",
+      "http://localhost:4201",
+      "http://127.0.0.1:4201",
+      "https://study-forge-202604.web.app",
+      "https://study-forge-202604.firebaseapp.com"
+    ],
+    "method": ["GET", "HEAD"],
+    "responseHeader": [
+      "Content-Type",
+      "Authorization",
+      "Content-Length",
+      "User-Agent",
+      "x-goog-resumable"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

@@ -63,6 +63,15 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Subject worlds subcollection
+      match /subjectWorlds/{subjectWorldId} {
+        allow read, write: if isOwner(userId);
+
+        match /progress/{progressId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+
       // API keys are managed only via Cloud Functions.
       match /apiKeys/{keyId} {
         allow read, write: if false;

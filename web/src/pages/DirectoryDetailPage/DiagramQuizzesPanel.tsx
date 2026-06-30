@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Network } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
+import { useAppDispatch } from '../../hooks/redux';
+import { diagramQuizApi } from '../../store/api/DiagramQuiz/DiagramQuizApi';
 
 interface DiagramQuizzesPanelProps {
   diagramQuizzes: ArtifactSummary[];
@@ -21,6 +23,16 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
   onDeleteArtifact,
   ruleNamesMap,
 }) => {
+  const dispatch = useAppDispatch();
+  const prefetchDiagramQuiz = useCallback(
+    (diagramQuizId: string) => {
+      dispatch(
+        diagramQuizApi.util.prefetch('getDiagramQuiz', { diagramQuizId }, { force: false }),
+      );
+    },
+    [dispatch],
+  );
+
   const completedCount = diagramQuizzes.filter(
     (dq) => !dq.generationStatus || dq.generationStatus === 'completed'
   ).length;
@@ -69,6 +81,7 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
               generationError={dq.generationError}
               documentColor={dq.documentColor}
               documentColors={dq.documentColors}
+              onLinkHover={() => prefetchDiagramQuiz(dq.id)}
             />
           ))}
         </div>

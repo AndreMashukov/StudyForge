@@ -17,4 +17,5 @@ export interface IArtifactRow {
   documentColor?: string;
   /** Source document colors for multi-doc segmented rail. */
   documentColors?: string[];
+  onLinkHover?: () => void;
 }

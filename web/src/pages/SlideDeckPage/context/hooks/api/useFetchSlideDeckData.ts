@@ -7,7 +7,11 @@ export const useFetchSlideDeckData = (): ISlideDeckPageApiState => {
 
   const { data: response, isLoading, error } = useGetSlideDeckQuery(
     { slideDeckId: slideDeckId || '' },
-    { skip: !slideDeckId }
+    {
+      skip: !slideDeckId,
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
+    },
   );
 
   return {

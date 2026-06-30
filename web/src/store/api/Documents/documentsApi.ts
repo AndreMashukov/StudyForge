@@ -1,6 +1,10 @@
 import { baseApi } from '../baseApi';
 import { createDocumentOnQueryStarted } from '../utils/createDocumentOnQueryStarted';
 import { fetchDocumentContentFromStorage } from '../../../services/documentContentStorage';
+import { fetchDocumentFromFirestore } from '../../../services/documentFirestore';
+import { auth } from '../../../config/firebase';
+import { toFirestoreDoc } from '../../../services/firestoreReadUtils';
+import { attachArtifactDocListener } from '../utils/artifactDetailRealtime';
 import { 
   DocumentEnhanced, 
   CreateDocumentRequest,
@@ -46,16 +50,69 @@ export const documentsApi = baseApi.injectEndpoints({
     }),
     
     getDocument: builder.query<DocumentEnhanced, string>({
-      query: (documentId) => ({
-        functionName: 'getDocument',
-        data: { documentId }
-      }),
-      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) => {
-        return response.document;
+      async queryFn(documentId, _api, _extraOptions, baseQuery) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Authentication required' },
+            },
+          };
+        }
+
+        if (!documentId.trim()) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Document ID is required' },
+            },
+          };
+        }
+
+        try {
+          const document = await fetchDocumentFromFirestore(userId, documentId);
+          if (!document) {
+            return {
+              error: {
+                status: 'CUSTOM_ERROR',
+                data: { message: 'Document not found', code: 'NOT_FOUND' },
+              },
+            };
+          }
+
+          return { data: document };
+        } catch (firestoreError) {
+          console.warn('Firestore document read failed, falling back to callable:', firestoreError);
+          const fallback = await baseQuery({
+            functionName: 'getDocument',
+            data: { documentId },
+          });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          const response = fallback.data as { success: boolean; document: DocumentEnhanced };
+          return { data: response.document };
+        }
+      },
+      async onCacheEntryAdded(documentId, { updateCachedData, cacheDataLoaded, cacheEntryRemoved }) {
+        await attachArtifactDocListener({
+          collectionName: 'documents',
+          docId: documentId,
+          cacheDataLoaded,
+          cacheEntryRemoved,
+          onMapped: (document: DocumentEnhanced) => {
+            updateCachedData((draft) => {
+              Object.assign(draft, document);
+            });
+          },
+          mapSnapshot: (id, raw) => toFirestoreDoc<DocumentEnhanced>(id, raw),
+        });
       },
       providesTags: (result, error, documentId) => [
         { type: 'Document', id: documentId }
       ],
+      keepUnusedDataFor: 300,
     }),
     
     createDocument: builder.mutation<DocumentEnhanced, CreateDocumentRequest>({
@@ -158,7 +215,8 @@ export const documentsApi = baseApi.injectEndpoints({
         data
       }),
       invalidatesTags: (result, error, arg) => [
-        { type: 'Document', id: arg.documentId }
+        { type: 'Document', id: arg.documentId },
+        { type: 'Document', id: `${arg.documentId}-content` },
       ],
     }),
     

@@ -20,6 +20,11 @@ import {
   fetchDirectoryTreeFromFirestore,
   subscribeToDirectoryTreeIndex,
 } from '../../../services/directoryTreeIndex';
+import {
+  deriveAncestorsFromTree,
+  fetchDirectoryFromFirestore,
+} from '../../../services/directoryFirestore';
+import type { RootState } from '../../index';
 
 export const directoryApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -39,12 +44,44 @@ export const directoryApi = baseApi.injectEndpoints({
 
     // Get a single directory
     getDirectory: builder.query<Directory, string>({
-      query: (directoryId) => ({
-        functionName: 'getDirectory',
-        data: { directoryId },
-      }),
-      transformResponse: (response: GetDirectoryResponse) => response.directory,
+      async queryFn(directoryId, _api, _extraOptions, baseQuery) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Authentication required' },
+            },
+          };
+        }
+
+        try {
+          const directory = await fetchDirectoryFromFirestore(userId, directoryId);
+          if (!directory) {
+            return {
+              error: {
+                status: 'CUSTOM_ERROR',
+                data: { message: 'Directory not found', code: 'NOT_FOUND' },
+              },
+            };
+          }
+
+          return { data: directory };
+        } catch (firestoreError) {
+          console.warn('Firestore directory read failed, falling back to callable:', firestoreError);
+          const fallback = await baseQuery({
+            functionName: 'getDirectory',
+            data: { directoryId },
+          });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          const response = fallback.data as GetDirectoryResponse;
+          return { data: response.directory };
+        }
+      },
       providesTags: (result, error, id) => [{ type: 'Directory', id }],
+      keepUnusedDataFor: 300,
     }),
 
     // Update a directory
@@ -195,13 +232,49 @@ export const directoryApi = baseApi.injectEndpoints({
 
     // Get directory ancestors (breadcrumb)
     getDirectoryAncestors: builder.query<GetDirectoryAncestorsResponse, string>({
-      query: (directoryId) => ({
-        functionName: 'getDirectoryAncestors',
-        data: { directoryId },
-      }),
+      async queryFn(directoryId, api, _extraOptions, baseQuery) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Authentication required' },
+            },
+          };
+        }
+
+        const state = api.getState() as RootState;
+        const cachedTree = directoryApi.endpoints.getDirectoryTree.select()(state).data;
+        if (cachedTree) {
+          const derived = deriveAncestorsFromTree(cachedTree, directoryId);
+          if (derived) {
+            return { data: derived };
+          }
+        }
+
+        try {
+          const fallback = await baseQuery({
+            functionName: 'getDirectoryAncestors',
+            data: { directoryId },
+          });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          return { data: fallback.data as GetDirectoryAncestorsResponse };
+        } catch (error) {
+          console.warn('Directory ancestors callable fallback failed:', error);
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Failed to fetch directory ancestors' },
+            },
+          };
+        }
+      },
       providesTags: (result, error, directoryId) => [
         { type: 'Directory', id: `ANCESTORS_${directoryId}` },
       ],
+      keepUnusedDataFor: 300,
     }),
 
     // Move a directory

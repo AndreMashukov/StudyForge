@@ -14,7 +14,11 @@ export const useFetchQuizData = () => {
   // RTK Query hook to fetch quiz data
   const queryResult = useGetQuizQuery(
     { quizId: quizId || '' },
-    { skip: !quizId } // Skip query if no quizId
+    {
+      skip: !quizId,
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
+    },
   );
 
   // Transform Firestore Quiz data to UI Quiz format
@@ -36,8 +40,6 @@ export const useFetchQuizData = () => {
   const transformedQuestions = useMemo(() => {
     return firestoreQuiz ? transformQuizData(firestoreQuiz) : [];
   }, [firestoreQuiz, transformQuizData]);
-  const refetchFn = queryResult.refetch;
-
   // Load quiz data into Redux when it becomes available (fetch-related effect)
   useEffect(() => {
     if (firestoreQuiz && 
@@ -51,21 +53,6 @@ export const useFetchQuizData = () => {
       }));
     }
   }, [firestoreQuiz, transformedQuestions, dispatch]);
-
-  // Auto-refetch when page becomes visible (fetch-related effect)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && quizId) {
-        refetchFn();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [quizId, refetchFn]);
 
   return {
     // Original quiz data from Firestore

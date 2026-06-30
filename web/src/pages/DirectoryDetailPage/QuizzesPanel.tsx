@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Brain } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
+import { useAppDispatch } from '../../hooks/redux';
+import { quizApi } from '../../store/api/Quiz/QuizApi';
 
 interface QuizzesPanelProps {
   quizzes: ArtifactSummary[];
@@ -21,6 +23,14 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
   onDeleteArtifact,
   ruleNamesMap,
 }) => {
+  const dispatch = useAppDispatch();
+  const prefetchQuiz = useCallback(
+    (quizId: string) => {
+      dispatch(quizApi.util.prefetch('getQuiz', { quizId }, { force: false }));
+    },
+    [dispatch],
+  );
+
   const completedCount = quizzes.filter(
     (q) => !q.generationStatus || q.generationStatus === 'completed'
   ).length;
@@ -69,6 +79,7 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
               generationError={q.generationError}
               documentColor={q.documentColor}
               documentColors={q.documentColors}
+              onLinkHover={() => prefetchQuiz(q.id)}
             />
           ))}
         </div>

@@ -1,4 +1,6 @@
 import { baseApi } from '../baseApi';
+import { auth } from '../../../config/firebase';
+import { fetchRuleFromFirestore, fetchRulesFromFirestore } from '../../../services/rulesFirestore';
 import { 
   Rule,
   CreateRuleRequest,
@@ -16,39 +18,81 @@ import { GetApplicableRulesWithDefaultsResponse } from './IRulesApi';
 
 export const rulesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    /**
-     * Get all rules for the authenticated user
-     */
     getRules: builder.query<Rule[], void>({
-      query: () => ({
-        functionName: 'getRules',
-        data: {},
-      }),
-      transformResponse: (response: { success: boolean; rules: Rule[] }) => {
-        return response.rules;
+      async queryFn(_arg, _api, _extraOptions, baseQuery) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Authentication required' },
+            },
+          };
+        }
+
+        try {
+          const rules = await fetchRulesFromFirestore(userId);
+          return { data: rules };
+        } catch (firestoreError) {
+          console.warn('Firestore rules list read failed, falling back to callable:', firestoreError);
+          const fallback = await baseQuery({
+            functionName: 'getRules',
+            data: {},
+          });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          const response = fallback.data as { success: boolean; rules: Rule[] };
+          return { data: response.rules };
+        }
       },
       providesTags: ['Rules'],
+      keepUnusedDataFor: 300,
     }),
 
-    /**
-     * Get a single rule by ID
-     */
     getRule: builder.query<Rule, string>({
-      query: (ruleId) => ({
-        functionName: 'getRule',
-        data: { ruleId },
-      }),
-      transformResponse: (response: { success: boolean; rule: Rule }) => {
-        return response.rule;
+      async queryFn(ruleId, _api, _extraOptions, baseQuery) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Authentication required' },
+            },
+          };
+        }
+
+        try {
+          const rule = await fetchRuleFromFirestore(userId, ruleId);
+          if (!rule) {
+            return {
+              error: {
+                status: 'CUSTOM_ERROR',
+                data: { message: 'Rule not found', code: 'NOT_FOUND' },
+              },
+            };
+          }
+
+          return { data: rule };
+        } catch (firestoreError) {
+          console.warn('Firestore rule read failed, falling back to callable:', firestoreError);
+          const fallback = await baseQuery({
+            functionName: 'getRule',
+            data: { ruleId },
+          });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          const response = fallback.data as { success: boolean; rule: Rule };
+          return { data: response.rule };
+        }
       },
       providesTags: (result, error, ruleId) => [
         { type: 'Rules', id: ruleId },
       ],
+      keepUnusedDataFor: 300,
     }),
 
-    /**
-     * Create a new rule
-     */
     createRule: builder.mutation<Rule, CreateRuleRequest>({
       query: (data) => ({
         functionName: 'createRule',
@@ -60,9 +104,6 @@ export const rulesApi = baseApi.injectEndpoints({
       invalidatesTags: ['Rules'],
     }),
 
-    /**
-     * Update an existing rule
-     */
     updateRule: builder.mutation<Rule, UpdateRuleRequest>({
       query: (data) => ({
         functionName: 'updateRule',
@@ -77,9 +118,6 @@ export const rulesApi = baseApi.injectEndpoints({
       ],
     }),
 
-    /**
-     * Delete a rule (only if not attached to directories)
-     */
     deleteRule: builder.mutation<DeleteRuleResponse, DeleteRuleRequest>({
       query: (data) => ({
         functionName: 'deleteRule',
@@ -92,9 +130,6 @@ export const rulesApi = baseApi.injectEndpoints({
         result?.success ? ['Rules'] : [],
     }),
 
-    /**
-     * Attach a rule to a directory
-     */
     attachRuleToDirectory: builder.mutation<void, AttachRuleToDirectoryRequest>({
       query: (data) => ({
         functionName: 'attachRuleToDirectory',
@@ -107,9 +142,6 @@ export const rulesApi = baseApi.injectEndpoints({
       ],
     }),
 
-    /**
-     * Detach a rule from a directory
-     */
     detachRuleFromDirectory: builder.mutation<void, DetachRuleFromDirectoryRequest>({
       query: (data) => ({
         functionName: 'detachRuleFromDirectory',
@@ -122,9 +154,6 @@ export const rulesApi = baseApi.injectEndpoints({
       ],
     }),
 
-    /**
-     * Get rules for a directory (with optional cascading)
-     */
     getDirectoryRules: builder.query<GetDirectoryRulesResponse, GetDirectoryRulesRequest>({
       query: (data) => ({
         functionName: 'getDirectoryRules',
@@ -146,10 +175,6 @@ export const rulesApi = baseApi.injectEndpoints({
       ],
     }),
 
-    /**
-     * Get applicable rules for a specific operation in a directory
-     * Returns rules filtered by operation type with defaults pre-selected
-     */
     getApplicableRules: builder.query<
       GetApplicableRulesWithDefaultsResponse,
       GetApplicableRulesRequest
@@ -174,9 +199,6 @@ export const rulesApi = baseApi.injectEndpoints({
       ],
     }),
 
-    /**
-     * Format selected rules for AI prompt injection
-     */
     formatRulesForPrompt: builder.mutation<string, FormatRulesForPromptRequest>({
       query: (data) => ({
         functionName: 'formatRulesForPrompt',
@@ -187,9 +209,6 @@ export const rulesApi = baseApi.injectEndpoints({
       },
     }),
 
-    /**
-     * Get all unique tags used by user's rules
-     */
     getRuleTags: builder.query<string[], void>({
       query: () => ({
         functionName: 'getRuleTags',
@@ -201,9 +220,6 @@ export const rulesApi = baseApi.injectEndpoints({
       providesTags: ['Rules'],
     }),
 
-    /**
-     * Generate a rule using AI
-     */
     generateRuleWithAI: builder.mutation<{
       name: string;
       description: string;
