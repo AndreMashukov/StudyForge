@@ -31,6 +31,10 @@ export const useRealtimeDirectorySync = (
   const subdirectoriesOnly = options?.subdirectoriesOnly ?? false;
 
   const configs: FirestoreListenerConfig[] = useMemo(() => {
+    if (directoryId === undefined) {
+      return [];
+    }
+
     const dirValue = directoryId ?? null;
 
     const directoryTags = [

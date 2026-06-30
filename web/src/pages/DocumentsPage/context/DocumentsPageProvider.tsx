@@ -20,10 +20,14 @@ export const DocumentsPageProvider: React.FC<DocumentsPageProviderProps> = ({ ch
 
   useDocumentsPageEffects({ handlers });
 
-  useRealtimeDirectorySync(undefined, { subdirectoriesOnly: true });
-  useDirectoryDocumentsRealtimeCache(selectedDirectoryId, {
+  // Only run the documents page listeners when actually on the documents page
+  // to avoid duplicating the listeners from DirectoryRealtimeBridge
+  const isDocumentsPage = window.location.pathname === '/documents';
+
+  useRealtimeDirectorySync(isDocumentsPage ? undefined : null, { subdirectoriesOnly: true });
+  useDirectoryDocumentsRealtimeCache(isDocumentsPage ? selectedDirectoryId : null, {
     patchArtifactSummaries: false,
-    patchDirectoryContents: true,
+    patchDirectoryContents: isDocumentsPage,
   });
 
   useEffect(() => {
