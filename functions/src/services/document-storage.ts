@@ -227,23 +227,30 @@ export class DocumentService {
         filePath,
       });
 
-      // Check if file exists
-      const [exists] = await file.exists();
-      if (!exists) {
-        throw new Error('Document not found in storage');
+      try {
+        const [content] = await file.download();
+        const contentString = content.toString('utf8');
+
+        logger.info('Document retrieved successfully', {
+          userId,
+          documentId,
+          contentLength: contentString.length,
+        });
+
+        return contentString;
+      } catch (downloadError: unknown) {
+        const errorCode =
+          typeof downloadError === 'object' &&
+          downloadError !== null &&
+          'code' in downloadError
+            ? (downloadError as { code?: number }).code
+            : undefined;
+
+        if (errorCode === 404) {
+          throw new Error('Document not found in storage');
+        }
+        throw downloadError;
       }
-
-      // Download and return content
-      const [content] = await file.download();
-      const contentString = content.toString('utf8');
-
-      logger.info('Document retrieved successfully', {
-        userId,
-        documentId,
-        contentLength: contentString.length,
-      });
-
-      return contentString;
     } catch (error) {
       logger.error('Failed to retrieve document', {
         userId,

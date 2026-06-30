@@ -3,6 +3,7 @@ import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import { validateAuth } from '../lib/auth';
 import { DocumentCrudService } from '../services/document-crud';
+import { DocumentService } from '../services/document-storage';
 import { directoryService } from '../services/directory';
 import { UrlProcessingOrchestrator } from '../services/url-processing/url-processing-orchestrator';
 import { FileExtractionError, FileExtractionService } from '../services/file-extraction';
@@ -816,19 +817,23 @@ export const getDocumentContent = onCall(
         documentId,
       });
 
-      const documentWithContent = await DocumentCrudService.getDocumentWithContent(userId, documentId);
+      const content = await DocumentService.getDocumentContent(userId, documentId);
 
       return { 
         success: true, 
-        content: documentWithContent.content,
+        content,
       };
 
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('not found')) {
+        throw new HttpsError('not-found', message);
+      }
       logger.error('Failed to get document content', { 
-        error: error instanceof Error ? error.message : String(error),
+        error: message,
         documentId: request.data?.documentId,
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throw new HttpsError('internal', message);
     }
   }
 );

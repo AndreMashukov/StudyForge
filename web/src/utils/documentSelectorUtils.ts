@@ -8,9 +8,8 @@ import { IAttachedFile, FILE_UPLOAD_CONSTRAINTS } from '../types/fileUpload';
 import { calculateTokenCount } from './fileUploadUtils';
 
 /**
- * Fetches document content from the backend
- * Note: This should be called via RTK Query hook (useLazyGetDocumentContentQuery)
- * This function is a helper for type checking and processing
+ * Fetches document content via RTK Query (Storage-first, callable fallback).
+ * This function is a helper for type checking and processing lazy query results.
  */
 export async function fetchDocumentContent(
   fetchContentFn: (documentId: string) => Promise<{ data?: { content: string }; error?: { message?: string } }>,

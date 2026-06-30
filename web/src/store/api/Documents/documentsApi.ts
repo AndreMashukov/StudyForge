@@ -1,5 +1,6 @@
 import { baseApi } from '../baseApi';
 import { createDocumentOnQueryStarted } from '../utils/createDocumentOnQueryStarted';
+import { fetchDocumentContentFromStorage } from '../../../services/documentContentStorage';
 import { 
   DocumentEnhanced, 
   CreateDocumentRequest,
@@ -202,12 +203,25 @@ export const documentsApi = baseApi.injectEndpoints({
     }),
 
     getDocumentContent: builder.query<{ content: string }, string>({
-      query: (documentId) => ({
-        functionName: 'getDocumentContent',
-        data: { documentId }
-      }),
-      transformResponse: (response: { success: boolean; content: string }) => {
-        return { content: response.content };
+      async queryFn(documentId, _api, _extraOptions, baseQuery) {
+        try {
+          const content = await fetchDocumentContentFromStorage(documentId);
+          return { data: { content } };
+        } catch (storageError) {
+          console.warn(
+            'Storage document content read failed, falling back to callable:',
+            storageError,
+          );
+          const fallback = await baseQuery({
+            functionName: 'getDocumentContent',
+            data: { documentId },
+          });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          const response = fallback.data as { success: boolean; content: string };
+          return { data: { content: response.content } };
+        }
       },
       providesTags: (result, error, documentId) => [
         { type: 'Document', id: `${documentId}-content` }
