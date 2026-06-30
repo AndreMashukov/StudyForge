@@ -11,6 +11,8 @@ import {
 } from '@expo-google-fonts/hanken-grotesk';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LoadingState } from '@studyforge/mobile-ui';
 import { useAuthUser } from '../features/auth/hooks/useAuthUser';
 import { queryClient } from '../lib/api/queryClient';
@@ -71,27 +73,30 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <AuthGate>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: 'rgb(18, 20, 20)' },
-            }}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="settings" />
-            <Stack.Screen
-              name="scan/review"
-              options={{
-                presentation: 'formSheet',
-                sheetAllowedDetents: [0.5, 1],
+    <SafeAreaProvider>
+      <StatusBar style="light" />
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <QueryClientProvider client={queryClient}>
+          <AuthGate>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: 'rgb(18, 20, 20)' },
               }}
-            />
-          </Stack>
-        </AuthGate>
-      </QueryClientProvider>
-    </GestureHandlerRootView>
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="settings" />
+              <Stack.Screen
+                name="scan/review"
+                options={{
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: [0.5, 1],
+                }}
+              />
+            </Stack>
+          </AuthGate>
+        </QueryClientProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
