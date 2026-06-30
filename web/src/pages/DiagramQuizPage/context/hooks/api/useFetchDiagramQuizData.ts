@@ -17,7 +17,11 @@ export const useFetchDiagramQuizData = () => {
 
   const queryResult = useGetDiagramQuizQuery(
     { diagramQuizId: diagramQuizId || '' },
-    { skip: !diagramQuizId }
+    {
+      skip: !diagramQuizId,
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
+    },
   );
 
   const transform = useCallback((dq: DiagramQuiz): IDiagramQuizQuestion[] => {
@@ -54,16 +58,6 @@ export const useFetchDiagramQuizData = () => {
       );
     }
   }, [firestoreDiagramQuiz, transformedQuestions, dispatch]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && diagramQuizId) {
-        queryResult.refetch();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [diagramQuizId, queryResult.refetch]); // eslint-disable-line react-hooks/exhaustive-deps -- refetch is stable
 
   return {
     firestoreDiagramQuiz,

@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ListOrdered } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
+import { useAppDispatch } from '../../hooks/redux';
+import { sequenceQuizApi } from '../../store/api/SequenceQuiz/SequenceQuizApi';
 
 interface SequenceQuizzesPanelProps {
   sequenceQuizzes: ArtifactSummary[];
@@ -21,6 +23,16 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
   onDeleteArtifact,
   ruleNamesMap,
 }) => {
+  const dispatch = useAppDispatch();
+  const prefetchSequenceQuiz = useCallback(
+    (sequenceQuizId: string) => {
+      dispatch(
+        sequenceQuizApi.util.prefetch('getSequenceQuiz', { sequenceQuizId }, { force: false }),
+      );
+    },
+    [dispatch],
+  );
+
   const completedCount = sequenceQuizzes.filter(
     (sq) => !sq.generationStatus || sq.generationStatus === 'completed'
   ).length;
@@ -69,6 +81,7 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
               generationError={sq.generationError}
               documentColor={sq.documentColor}
               documentColors={sq.documentColors}
+              onLinkHover={() => prefetchSequenceQuiz(sq.id)}
             />
           ))}
         </div>

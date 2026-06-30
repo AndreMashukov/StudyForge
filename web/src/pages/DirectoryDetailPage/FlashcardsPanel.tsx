@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Layers } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
+import { useAppDispatch } from '../../hooks/redux';
+import { flashcardsApi } from '../../store/api/Flashcards/FlashcardsApi';
 
 interface FlashcardsPanelProps {
   flashcardSets: ArtifactSummary[];
@@ -21,6 +23,16 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
   onDeleteArtifact,
   ruleNamesMap,
 }) => {
+  const dispatch = useAppDispatch();
+  const prefetchFlashcardSet = useCallback(
+    (flashcardSetId: string) => {
+      dispatch(
+        flashcardsApi.util.prefetch('getFlashcardSet', { flashcardSetId }, { force: false }),
+      );
+    },
+    [dispatch],
+  );
+
   const completedCount = flashcardSets.filter(
     (f) => !f.generationStatus || f.generationStatus === 'completed'
   ).length;
@@ -69,6 +81,7 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
               generationError={f.generationError}
               documentColor={f.documentColor}
               documentColors={f.documentColors}
+              onLinkHover={() => prefetchFlashcardSet(f.id)}
             />
           ))}
         </div>

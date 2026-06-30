@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Box } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
+import { useAppDispatch } from '../../hooks/redux';
+import { subjectWorldApi } from '../../store/api/SubjectWorld/SubjectWorldApi';
 
 interface ISubjectWorldsPanelProps {
   subjectWorlds: ArtifactSummary[];
@@ -21,6 +23,16 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
   onDeleteArtifact,
   ruleNamesMap,
 }) => {
+  const dispatch = useAppDispatch();
+  const prefetchSubjectWorld = useCallback(
+    (subjectWorldId: string) => {
+      dispatch(
+        subjectWorldApi.util.prefetch('getSubjectWorld', { subjectWorldId }, { force: false }),
+      );
+    },
+    [dispatch],
+  );
+
   const completedCount = subjectWorlds.filter(
     (sw) => !sw.generationStatus || sw.generationStatus === 'completed'
   ).length;
@@ -69,6 +81,7 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
               generationError={sw.generationError}
               documentColor={sw.documentColor}
               documentColors={sw.documentColors}
+              onLinkHover={() => prefetchSubjectWorld(sw.id)}
             />
           ))}
         </div>

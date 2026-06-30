@@ -10,12 +10,20 @@ export const useFetchSubjectWorldData = () => {
 
   const queryResult = useGetSubjectWorldQuery(
     { subjectWorldId: subjectWorldId ?? '' },
-    { skip: !hasValidId }
+    {
+      skip: !hasValidId,
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
+    },
   );
 
   const progressQuery = useGetSubjectWorldProgressQuery(
     { subjectWorldId: subjectWorldId ?? '' },
-    { skip: !hasValidId }
+    {
+      skip: !hasValidId,
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
+    },
   );
 
   const subjectWorld = queryResult.data?.success ? queryResult.data.data?.subjectWorld : null;

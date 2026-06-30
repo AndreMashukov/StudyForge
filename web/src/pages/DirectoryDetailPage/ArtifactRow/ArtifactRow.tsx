@@ -40,6 +40,7 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
   generationError,
   documentColor,
   documentColors,
+  onLinkHover,
 }) => {
   const isPending = generationStatus === 'pending';
   const isFailed = generationStatus === 'failed';
@@ -91,6 +92,7 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
       <Link
         to={linkTo}
         className="flex items-center gap-3 flex-1 min-w-0 p-3"
+        onMouseEnter={onLinkHover}
       >
         <Icon size={18} className="shrink-0 text-muted-foreground" />
         <div className="flex-1 min-w-0">

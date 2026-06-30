@@ -16,7 +16,11 @@ export const useFetchSequenceQuizData = () => {
 
   const queryResult = useGetSequenceQuizQuery(
     { sequenceQuizId: sequenceQuizId || '' },
-    { skip: !sequenceQuizId }
+    {
+      skip: !sequenceQuizId,
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
+    },
   );
 
   const transform = useCallback((sq: SequenceQuiz): ISequenceQuizQuestion[] => {
@@ -50,16 +54,6 @@ export const useFetchSequenceQuizData = () => {
       );
     }
   }, [firestoreSequenceQuiz, transformedQuestions, dispatch]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && sequenceQuizId) {
-        queryResult.refetch();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [sequenceQuizId, queryResult.refetch]); // eslint-disable-line react-hooks/exhaustive-deps -- refetch is stable
 
   return {
     firestoreSequenceQuiz,

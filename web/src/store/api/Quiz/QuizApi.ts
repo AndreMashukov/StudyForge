@@ -1,5 +1,12 @@
 import { baseApi } from '../baseApi';
 import { createArtifactOnQueryStarted } from '../utils/createArtifactOnQueryStarted';
+import { auth } from '../../../config/firebase';
+import { fetchQuizFromFirestore, toQuiz } from '../../../services/quizFirestore';
+import {
+  fetchDocumentQuizzesFromFirestore,
+  fetchUserQuizzesFromFirestore,
+} from '../../../services/quizListFirestore';
+import { attachArtifactDocListener } from '../utils/artifactDetailRealtime';
 import {
   Quiz,
   GenerateQuizRequest,
@@ -33,22 +40,108 @@ export const quizApi = baseApi.injectEndpoints({
       ],
     }),
 
-    // Get a specific quiz by ID
+    // Get a specific quiz — Firestore-native read with IndexedDB cache; callable fallback on failure.
     getQuiz: builder.query<ApiResponse<GetQuizResponse>, { quizId: string }>({
-      query: (data) => ({
-        functionName: 'getQuiz',
-        data,
-      }),
+      async queryFn({ quizId }, _api, _extraOptions, baseQuery) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Authentication required' },
+            },
+          };
+        }
+
+        if (!quizId.trim()) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Quiz ID is required' },
+            },
+          };
+        }
+
+        try {
+          const quiz = await fetchQuizFromFirestore(userId, quizId);
+          if (!quiz) {
+            return {
+              error: {
+                status: 'CUSTOM_ERROR',
+                data: { message: 'Quiz not found', code: 'NOT_FOUND' },
+              },
+            };
+          }
+
+          return {
+            data: {
+              success: true,
+              data: { quiz },
+            },
+          };
+        } catch (firestoreError) {
+          console.warn('Firestore quiz read failed, falling back to callable:', firestoreError);
+          const fallback = await baseQuery({
+            functionName: 'getQuiz',
+            data: { quizId },
+          });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          return { data: fallback.data as ApiResponse<GetQuizResponse> };
+        }
+      },
+      async onCacheEntryAdded({ quizId }, { updateCachedData, cacheDataLoaded, cacheEntryRemoved }) {
+        await attachArtifactDocListener({
+          collectionName: 'quizzes',
+          docId: quizId,
+          cacheDataLoaded,
+          cacheEntryRemoved,
+          onMapped: (quiz: Quiz) => {
+            updateCachedData((draft) => {
+              if (!draft?.data?.quiz) {
+                return;
+              }
+              draft.data.quiz = quiz;
+            });
+          },
+          mapSnapshot: (id, raw) => toQuiz(id, raw),
+        });
+      },
       providesTags: (result, error, arg) => [{ type: 'Quiz', id: arg.quizId }],
+      keepUnusedDataFor: 300,
     }),
 
     // Get user's quiz history (requires authentication)
     getUserQuizzes: builder.query<ApiResponse<GetUserQuizzesResponse>, void>({
-      query: () => ({
-        functionName: 'getUserQuizzes',
-        data: {},
-      }),
+      async queryFn(_arg, _api, _extraOptions, baseQuery) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Authentication required' },
+            },
+          };
+        }
+
+        try {
+          const quizzes = await fetchUserQuizzesFromFirestore(userId);
+          return { data: { success: true, data: { quizzes } } };
+        } catch (firestoreError) {
+          console.warn('Firestore user quizzes read failed, falling back to callable:', firestoreError);
+          const fallback = await baseQuery({
+            functionName: 'getUserQuizzes',
+            data: {},
+          });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          return { data: fallback.data as ApiResponse<GetUserQuizzesResponse> };
+        }
+      },
       providesTags: ['UserQuizzes'],
+      keepUnusedDataFor: 300,
     }),
 
     // Get recent public quizzes
@@ -62,14 +155,46 @@ export const quizApi = baseApi.injectEndpoints({
 
     // Get all quizzes for a specific document
     getDocumentQuizzes: builder.query<ApiResponse<GetDocumentQuizzesResponse>, GetDocumentQuizzesRequest>({
-      query: (data) => ({
-        functionName: 'getDocumentQuizzes',
-        data,
-      }),
+      async queryFn({ documentId }, _api, _extraOptions, baseQuery) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Authentication required' },
+            },
+          };
+        }
+
+        if (!documentId.trim()) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Document ID is required' },
+            },
+          };
+        }
+
+        try {
+          const quizzes = await fetchDocumentQuizzesFromFirestore(userId, documentId);
+          return { data: { success: true, data: { quizzes } } };
+        } catch (firestoreError) {
+          console.warn('Firestore document quizzes read failed, falling back to callable:', firestoreError);
+          const fallback = await baseQuery({
+            functionName: 'getDocumentQuizzes',
+            data: { documentId },
+          });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          return { data: fallback.data as ApiResponse<GetDocumentQuizzesResponse> };
+        }
+      },
       providesTags: (result, error, arg) => [
         { type: 'DocumentQuizzes', id: arg.documentId },
         'UserQuizzes',
       ],
+      keepUnusedDataFor: 300,
     }),
 
     // Delete a quiz (if we implement this later)

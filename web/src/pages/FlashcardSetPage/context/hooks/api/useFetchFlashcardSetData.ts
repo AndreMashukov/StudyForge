@@ -6,7 +6,11 @@ export const useFetchFlashcardSetData = (): IFlashcardSetPageApiState => {
   const { flashcardSetId } = useParams<{ flashcardSetId: string }>();
   const { data: flashcardSetResponse, error, isLoading } = useGetFlashcardSetQuery(
     { flashcardSetId: flashcardSetId ?? '' },
-    { skip: !flashcardSetId }
+    {
+      skip: !flashcardSetId,
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
+    },
   );
   const flashcardSet = flashcardSetResponse?.success ? flashcardSetResponse.data : undefined;
 

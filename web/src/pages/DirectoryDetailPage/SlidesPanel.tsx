@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Presentation } from 'lucide-react';
 import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
+import { useAppDispatch } from '../../hooks/redux';
+import { slideDecksApi } from '../../store/api/SlideDecks/SlideDecksApi';
 
 interface SlidesPanelProps {
   slideDecks: ArtifactSummary[];
@@ -21,6 +23,14 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
   onDeleteArtifact,
   ruleNamesMap,
 }) => {
+  const dispatch = useAppDispatch();
+  const prefetchSlideDeck = useCallback(
+    (slideDeckId: string) => {
+      dispatch(slideDecksApi.util.prefetch('getSlideDeck', { slideDeckId }, { force: false }));
+    },
+    [dispatch],
+  );
+
   const completedCount = slideDecks.filter(
     (s) => !s.generationStatus || s.generationStatus === 'completed'
   ).length;
@@ -69,6 +79,7 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
               generationError={s.generationError}
               documentColor={s.documentColor}
               documentColors={s.documentColors}
+              onLinkHover={() => prefetchSlideDeck(s.id)}
             />
           ))}
         </div>
