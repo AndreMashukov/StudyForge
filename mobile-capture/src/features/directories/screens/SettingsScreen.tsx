@@ -6,6 +6,7 @@ import {
   HeaderIconButton,
   LoadingState,
   Screen,
+  ScreenFooter,
   ScreenHeader,
   Stack,
   Text,
@@ -108,14 +109,39 @@ export function SettingsScreen() {
           />
         )}
         ItemSeparatorComponent={() => <View className="h-gutter" />}
-        ListFooterComponent={
-          <Stack gap="sm" className="mt-5 pb-8">
-            <Button label="Refresh" variant="secondary" onPress={() => void refetch()} />
-            <Button label="Back to capture" onPress={() => router.back()} />
-            <Button label="Sign out" variant="secondary" onPress={() => void signOut()} />
-          </Stack>
-        }
       />
+      <ScreenFooter>
+        <Stack gap="sm">
+          <Stack direction="horizontal" gap="sm">
+            <Button
+              label="Refresh"
+              variant="secondary"
+              shape="pill"
+              size="sm"
+              icon="sync"
+              className="flex-1"
+              onPress={() => void refetch()}
+            />
+            <Button
+              label="Back to capture"
+              variant="secondary"
+              shape="pill"
+              size="sm"
+              icon="history"
+              className="flex-1"
+              onPress={() => router.back()}
+            />
+          </Stack>
+          <Button
+            label="Sign out"
+            variant="destructive"
+            shape="pill"
+            size="sm"
+            icon="logout"
+            onPress={() => void signOut()}
+          />
+        </Stack>
+      </ScreenFooter>
     </Screen>
   );
 }

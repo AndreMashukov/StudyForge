@@ -10,10 +10,13 @@ export const mobileUiColors = {
   mutedForeground: 'rgb(203, 195, 215)',
   placeholder: 'rgba(226, 226, 226, 0.4)',
   destructive: 'rgb(255, 180, 171)',
+  errorContainer: 'rgb(147, 0, 10)',
+  onErrorContainer: 'rgb(255, 218, 214)',
   border: 'rgb(38, 38, 38)',
   input: 'rgb(23, 23, 23)',
   ring: 'rgb(139, 92, 246)',
   surfaceContainerHigh: 'rgb(40, 42, 43)',
+  surfaceContainerLowest: 'rgb(12, 15, 15)',
   outline: 'rgb(149, 142, 160)',
   outlineVariant: 'rgb(73, 68, 84)',
 } as const;
