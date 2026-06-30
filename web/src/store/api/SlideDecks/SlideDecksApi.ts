@@ -27,7 +27,6 @@ export const slideDecksApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (result, error, arg) => [
         'UserSlideDecks',
-        { type: 'Directory', id: 'CONTENTS' },
         ...(arg.directoryId
           ? [{ type: 'Directory' as const, id: arg.directoryId }]
           : []),

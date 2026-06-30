@@ -49,8 +49,6 @@ const DirectoryTreeNode: React.FC<IDirectoryTreeNodeProps> = ({
         )}
         onClick={() => onSelect(node.directory.id)}
         onContextMenu={(e) => onContextMenu(e, node.directory.id)}
-        onMouseEnter={() => onPrefetchDirectory(node.directory.id)}
-        onFocus={() => onPrefetchDirectory(node.directory.id)}
       >
         {/* Expand/Collapse button */}
         <button
@@ -207,14 +205,7 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
   };
 
   const handleToggleExpand = (directoryId: string, childDirectoryIds: string[]) => {
-    const wasExpanded = expandedDirectoryIds.includes(directoryId);
     dispatch(toggleExpandDirectory(directoryId));
-
-    if (!wasExpanded) {
-      childDirectoryIds.forEach((childId) => {
-        prefetchDirectoryContents(appDispatch, childId);
-      });
-    }
   };
 
   const handleContextMenu = (e: React.MouseEvent, directoryId: string) => {
@@ -279,8 +270,6 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
             dispatch(setSelectedDirectory(null));
           }
         }}
-        onMouseEnter={() => schedulePrefetch(null)}
-        onFocus={() => schedulePrefetch(null)}
       >
         <Folder className="w-4 h-4 text-muted-foreground ml-4" />
         <span className="flex-1 text-sm">All Documents</span>

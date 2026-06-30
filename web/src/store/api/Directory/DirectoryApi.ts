@@ -37,7 +37,6 @@ export const directoryApi = baseApi.injectEndpoints({
       invalidatesTags: (result, error, arg) => [
         { type: 'Directory', id: 'TREE' },
         { type: 'Directory', id: 'LIST' },
-        { type: 'Directory', id: 'CONTENTS' },
         { type: 'Directory', id: arg.parentId || 'ROOT' }, // Invalidate parent directory's contents
       ],
     }),
@@ -95,7 +94,6 @@ export const directoryApi = baseApi.injectEndpoints({
         { type: 'Directory', id },
         { type: 'Directory', id: 'TREE' },
         { type: 'Directory', id: 'LIST' },
-        { type: 'Directory', id: 'CONTENTS' },
       ],
     }),
 
@@ -108,7 +106,6 @@ export const directoryApi = baseApi.injectEndpoints({
       invalidatesTags: [
         { type: 'Directory', id: 'TREE' },
         { type: 'Directory', id: 'LIST' },
-        { type: 'Directory', id: 'CONTENTS' },
         'Documents',
       ],
     }),
@@ -173,7 +170,6 @@ export const directoryApi = baseApi.injectEndpoints({
       }),
       providesTags: (result, error, directoryId) => [
         { type: 'Directory', id: directoryId || 'ROOT' },
-        { type: 'Directory', id: 'CONTENTS' },
       ],
       // Retention for fast folder switching; mutations and Firestore invalidation keep data fresh.
       keepUnusedDataFor: 300,
@@ -194,7 +190,6 @@ export const directoryApi = baseApi.injectEndpoints({
       }),
       providesTags: (result, error, arg) => [
         { type: 'Directory', id: arg.directoryId || 'ROOT' },
-        { type: 'Directory', id: 'CONTENTS' },
         'Documents',
         'UserQuizzes',
         'UserFlashcardSets',
@@ -219,7 +214,6 @@ export const directoryApi = baseApi.injectEndpoints({
       }),
       providesTags: (result, error, arg) => [
         { type: 'Directory', id: arg.directoryId || 'ROOT' },
-        { type: 'Directory', id: 'CONTENTS' },
         'Documents',
         'UserQuizzes',
         'UserFlashcardSets',
@@ -286,7 +280,6 @@ export const directoryApi = baseApi.injectEndpoints({
       invalidatesTags: [
         { type: 'Directory', id: 'TREE' },
         { type: 'Directory', id: 'LIST' },
-        { type: 'Directory', id: 'CONTENTS' },
         'InteractionStats',
       ],
     }),
@@ -310,7 +303,6 @@ export const directoryApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: [
         'Documents',
-        { type: 'Directory', id: 'CONTENTS' },
         { type: 'Directory', id: 'LIST' },
       ],
     }),
