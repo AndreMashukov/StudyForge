@@ -1,19 +1,19 @@
 import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { DocumentSourceType } from '@shared-types';
 import {
   Button,
-  FieldError,
-  FieldLabel,
+  Form,
+  FormRootError,
+  FormTextInput,
   HeaderIconButton,
   Screen,
   ScreenHeader,
   Stack,
   Text,
-  TextInputField,
 } from '@studyforge/mobile-ui';
 import {
   IReviewDocumentFormValues,
@@ -34,24 +34,23 @@ export function ReviewScreen() {
   const createDocumentMutation = useCreateDocumentMutation();
   const generateFromScreenshotMutation = useGenerateFromScreenshotMutation();
 
-  const { control, formState, getValues, handleSubmit, reset, setError } =
-    useForm<IReviewDocumentFormValues>({
-      resolver: zodResolver(reviewDocumentSchema),
-      defaultValues: {
-        title: '',
-        content: '',
-      },
-    });
+  const form = useForm<IReviewDocumentFormValues>({
+    resolver: zodResolver(reviewDocumentSchema),
+    defaultValues: {
+      title: '',
+      content: '',
+    },
+  });
 
   useEffect(() => {
     if (!pendingScan) {
       return;
     }
-    reset({
+    form.reset({
       title: deriveTitleFromContent(pendingScan.ocrText),
       content: pendingScan.ocrText || '',
     });
-  }, [pendingScan, reset]);
+  }, [form, pendingScan]);
 
   if (!pendingScan) {
     return (
@@ -74,7 +73,7 @@ export function ReviewScreen() {
     );
   }
 
-  const submitTextDocument = handleSubmit(async (values) => {
+  const submitTextDocument = form.handleSubmit(async (values) => {
     try {
       const response = await createDocumentMutation.mutateAsync({
         title: values.title,
@@ -90,19 +89,19 @@ export function ReviewScreen() {
       setPendingScan(null);
       router.back();
     } catch (error) {
-      setError('root', { message: getCallableErrorMessage(error) });
+      form.setError('root', { message: getCallableErrorMessage(error) });
     }
   });
 
   const submitVisionDocument = async () => {
     try {
       const imageBase64 = await prepareImageBase64DataUrl(pendingScan.imageUri);
-      const formTitle = getValues('title').trim();
+      const formTitle = form.getValues('title').trim();
       const response = await generateFromScreenshotMutation.mutateAsync({
         imageBase64,
         directoryId: pendingScan.directoryId,
         title: formTitle || undefined,
-        prompt: getValues('content') || undefined,
+        prompt: form.getValues('content') || undefined,
       });
 
       const displayTitle = response.title?.trim() || formTitle || 'Captured Document';
@@ -119,7 +118,7 @@ export function ReviewScreen() {
       setPendingScan(null);
       router.back();
     } catch (error) {
-      setError('root', { message: getCallableErrorMessage(error) });
+      form.setError('root', { message: getCallableErrorMessage(error) });
     }
   };
 
@@ -147,52 +146,40 @@ export function ReviewScreen() {
         resizeMode="cover"
       />
 
-      <FieldLabel>Title</FieldLabel>
-      <Controller
-        control={control}
-        name="title"
-        render={({ field, fieldState }) => (
-          <>
-            <TextInputField value={field.value} onChangeText={field.onChange} placeholder="Document title" />
-            <FieldError message={fieldState.error?.message} />
-          </>
-        )}
-      />
-
-      <FieldLabel>OCR text</FieldLabel>
-      <Controller
-        control={control}
-        name="content"
-        render={({ field, fieldState }) => (
-          <>
-            <TextInputField
-              value={field.value}
-              onChangeText={field.onChange}
-              placeholder="Recognized text"
-              multiline
-              numberOfLines={8}
-            />
-            <FieldError message={fieldState.error?.message} />
-          </>
-        )}
-      />
-
-      <FieldError message={formState.errors.root?.message} />
-
-      <Stack gap="sm" className="mt-2">
-        <Button
-          label={isSubmitting ? 'Saving…' : 'Save OCR text as document'}
-          disabled={isSubmitting}
-          onPress={() => void submitTextDocument()}
+      <Form {...form}>
+        <FormTextInput
+          control={form.control}
+          name="title"
+          label="Title"
+          placeholder="Document title"
         />
-        <Button
-          label={isSubmitting ? 'Sending…' : 'Send image to StudyForge AI'}
-          variant="secondary"
-          disabled={isSubmitting}
-          onPress={() => void submitVisionDocument()}
+
+        <FormTextInput
+          control={form.control}
+          name="content"
+          label="OCR text"
+          placeholder="Recognized text"
+          multiline
+          numberOfLines={8}
         />
-        <Button label="Cancel" variant="secondary" onPress={() => router.back()} />
-      </Stack>
+
+        <FormRootError />
+
+        <Stack gap="sm" className="mt-2">
+          <Button
+            label={isSubmitting ? 'Saving…' : 'Save OCR text as document'}
+            disabled={isSubmitting}
+            onPress={() => void submitTextDocument()}
+          />
+          <Button
+            label={isSubmitting ? 'Sending…' : 'Send image to StudyForge AI'}
+            variant="secondary"
+            disabled={isSubmitting}
+            onPress={() => void submitVisionDocument()}
+          />
+          <Button label="Cancel" variant="secondary" onPress={() => router.back()} />
+        </Stack>
+      </Form>
     </Screen>
   );
 }
