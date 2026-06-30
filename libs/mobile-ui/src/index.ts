@@ -5,6 +5,7 @@ export * from './components/Checkbox';
 export * from './components/Divider';
 export * from './components/FieldError';
 export * from './components/FieldLabel';
+export * from './components/Form';
 export * from './components/Heading';
 export * from './components/LoadingState';
 export * from './components/Screen';
