@@ -421,6 +421,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
   code,
   className,
   enablePanZoom = true,
+  enableWheelZoom = true,
 }) => {
   const diagramRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -683,7 +684,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       lastFitHostSizeRef.current = { width: host.clientWidth, height: host.clientHeight };
       markFitted();
 
-      if (!wheelHandler) {
+      if (enableWheelZoom && !wheelHandler) {
         wheelHandler = (event: WheelEvent) => {
           userHasInteractedRef.current = true;
           panzoom?.zoomWithWheel(event);
@@ -775,7 +776,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       panzoom?.destroy();
       panzoomRef.current = null;
     };
-  }, [svg, enablePanZoom, isFullscreen]);
+  }, [svg, enablePanZoom, enableWheelZoom, isFullscreen]);
 
   if (error) {
     return (

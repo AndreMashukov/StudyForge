@@ -40,6 +40,7 @@ export const DiagramSlideViewer: React.FC<IDiagramSlideViewer> = ({
                 <MermaidDiagram
                   code={neutralizeMermaidQuizStyles(diagram ?? '')}
                   className="h-full max-h-none min-h-0 border-0 bg-transparent"
+                  enableWheelZoom={false}
                 />
               </div>
             ))}

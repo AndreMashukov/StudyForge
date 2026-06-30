@@ -8,4 +8,6 @@ export interface IMermaidDiagram {
    * drag — only the zoom controls and fullscreen toggle remain interactive.
    */
   enablePanZoom?: boolean;
+  /** When false, mouse wheel / trackpad scroll does not zoom the diagram. Defaults to true. */
+  enableWheelZoom?: boolean;
 }
