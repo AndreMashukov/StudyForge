@@ -124,7 +124,7 @@ export const DirectoryDetailPageContainer = () => {
         <Card className="m-4 border-destructive">
           <CardContent className="p-4">
             <p className="text-destructive">Could not load this directory.</p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate('/documents')}>
+            <Button variant="outline" className="mt-4" onClick={() => navigate('/documents', { replace: true })}>
               Back to directories
             </Button>
           </CardContent>
@@ -171,7 +171,8 @@ export const DirectoryDetailPageContainer = () => {
               navigate(
                 ancestors.length > 0
                   ? `/directory/${ancestors[ancestors.length - 1].id}`
-                  : '/documents'
+                  : '/documents',
+                { replace: true }
               )
             }
           >
@@ -181,13 +182,13 @@ export const DirectoryDetailPageContainer = () => {
 
           {/* Breadcrumb */}
           <nav className="text-sm text-muted-foreground flex flex-wrap gap-1 items-center">
-            <Link to="/documents" className="hover:text-foreground">
+            <Link to="/documents" replace className="hover:text-foreground">
               Directories
             </Link>
             {ancestors.map((a: Directory) => (
               <span key={a.id} className="flex items-center gap-1">
                 <span className="text-border">/</span>
-                <Link to={`/directory/${a.id}`} className="hover:text-foreground">
+                <Link to={`/directory/${a.id}`} replace className="hover:text-foreground">
                   {a.name}
                 </Link>
               </span>
@@ -233,6 +234,7 @@ export const DirectoryDetailPageContainer = () => {
                   >
                     <Link
                       to={`/directory/${sub.id}`}
+                      replace
                       className="inline-flex items-center gap-1.5 px-3 py-1.5"
                     >
                       <IconComponent
