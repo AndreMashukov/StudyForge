@@ -9,6 +9,7 @@ export * from './components/Form';
 export * from './components/Heading';
 export * from './components/LoadingState';
 export * from './components/Screen';
+export * from './components/ScreenFooter';
 export * from './components/ScreenHeader';
 export * from './components/Select';
 export * from './components/Spinner';

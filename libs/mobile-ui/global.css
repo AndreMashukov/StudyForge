@@ -14,11 +14,14 @@
     --muted: 38 38 38;
     --muted-foreground: 203 195 215;
     --destructive: 255 180 171;
+    --error-container: 147 0 10;
+    --on-error-container: 255 218 214;
     --border: 38 38 38;
     --input: 23 23 23;
     --ring: 139 92 246;
     --radius: 0.5rem;
     --surface-container-high: 40 42 43;
+    --surface-container-lowest: 12 15 15;
     --outline: 149 142 160;
     --outline-variant: 73 68 84;
   }
