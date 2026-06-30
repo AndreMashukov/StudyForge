@@ -31,7 +31,6 @@ export const diagramQuizApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (result, error, arg) => [
         'UserDiagramQuizzes',
-        { type: 'Directory', id: 'CONTENTS' },
         ...(arg.directoryId
           ? ([{ type: 'Directory' as const, id: arg.directoryId }] as const)
           : []),

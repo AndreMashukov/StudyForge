@@ -35,7 +35,6 @@ export const useRealtimeDirectorySync = (
 
     const directoryTags = [
       { type: 'Directory' as const, id: directoryId || 'ROOT' },
-      { type: 'Directory' as const, id: 'CONTENTS' },
     ];
 
     const subdirectoryConfig: FirestoreListenerConfig = {

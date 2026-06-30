@@ -125,7 +125,6 @@ export const documentsApi = baseApi.injectEndpoints({
       },
       invalidatesTags: [
         'Document',
-        { type: 'Directory', id: 'CONTENTS' },
         { type: 'Directory', id: 'LIST' },
       ],
       onQueryStarted: createDocumentOnQueryStarted('Document', 'create document'),
@@ -141,7 +140,6 @@ export const documentsApi = baseApi.injectEndpoints({
       },
       invalidatesTags: [
         'Document',
-        { type: 'Directory', id: 'CONTENTS' },
         { type: 'Directory', id: 'LIST' },
       ],
       onQueryStarted: createDocumentOnQueryStarted('Document', 'create document from URL'),
@@ -158,7 +156,6 @@ export const documentsApi = baseApi.injectEndpoints({
       },
       invalidatesTags: [
         'Document',
-        { type: 'Directory', id: 'CONTENTS' },
         { type: 'Directory', id: 'LIST' },
       ],
       onQueryStarted: createDocumentOnQueryStarted('Document', 'upload document'),
@@ -204,7 +201,6 @@ export const documentsApi = baseApi.injectEndpoints({
       },
       invalidatesTags: [
         'Document',
-        { type: 'Directory', id: 'CONTENTS' }, // Invalidate directory contents
         { type: 'Directory', id: 'LIST' }, // Invalidate directory list
       ],
     }),
@@ -228,7 +224,6 @@ export const documentsApi = baseApi.injectEndpoints({
       invalidatesTags: (result, error, arg) => [
         { type: 'Document', id: arg.documentId },
         'Document', // Invalidate the general tag to refetch the documents list
-        { type: 'Directory', id: 'CONTENTS' }, // Invalidate directory contents
         { type: 'Directory', id: 'LIST' }, // Invalidate directory list
       ],
       // Optimistically update the cache to immediately remove the document

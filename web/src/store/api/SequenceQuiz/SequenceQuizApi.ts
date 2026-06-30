@@ -31,7 +31,6 @@ export const sequenceQuizApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (result, error, arg) => [
         'UserSequenceQuizzes',
-        { type: 'Directory', id: 'CONTENTS' },
         ...(arg.directoryId
           ? ([{ type: 'Directory' as const, id: arg.directoryId }] as const)
           : []),

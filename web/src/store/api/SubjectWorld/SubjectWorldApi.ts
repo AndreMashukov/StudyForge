@@ -35,7 +35,6 @@ export const subjectWorldApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (result, error, arg) => [
         'UserSubjectWorlds',
-        { type: 'Directory', id: 'CONTENTS' },
         ...(arg.directoryId
           ? ([{ type: 'Directory' as const, id: arg.directoryId }] as const)
           : []),
