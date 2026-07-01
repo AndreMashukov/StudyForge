@@ -1,5 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { useLocation, useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
+import { setSelectedDirectory } from '../../store/slices/directorySlice';
+import {
+  buildChildDirectoryNavigationState,
+  DIRECTORY_DOCUMENTS_BACK_TARGET,
+  resolveDirectoryBackTarget,
+  resolveParentBackState,
+} from '../../utils/directoryNavigationState';
 import {
   useGetDirectoryContentsWithArtifactSummariesQuery,
   useGetDirectoryAncestorsQuery,
@@ -55,6 +63,8 @@ const ARTIFACT_PAGE_LIMIT = 100;
 export const DirectoryDetailPageContainer = () => {
   const { directoryId } = useParams<{ directoryId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
 
   const getTabFromParams = (): PanelType => {
@@ -106,6 +116,24 @@ export const DirectoryDetailPageContainer = () => {
       document.title = 'StudyForge';
     };
   }, [titleDirectory, directoryId]);
+
+  const parentDirectoryId =
+    ancestorsData?.ancestors && ancestorsData.ancestors.length > 0
+      ? ancestorsData.ancestors[ancestorsData.ancestors.length - 1].id
+      : null;
+
+  const handleBack = useCallback(() => {
+    const backTarget = resolveDirectoryBackTarget(location.state, parentDirectoryId);
+    const parentBackState = resolveParentBackState(location.state);
+
+    if (backTarget === DIRECTORY_DOCUMENTS_BACK_TARGET) {
+      dispatch(setSelectedDirectory(null));
+    } else if (backTarget.startsWith('/directory/')) {
+      dispatch(setSelectedDirectory(backTarget.slice('/directory/'.length)));
+    }
+
+    navigate(backTarget, { replace: true, state: parentBackState });
+  }, [dispatch, location.state, navigate, parentDirectoryId]);
 
   if (!directoryId) {
     return (
@@ -174,7 +202,7 @@ export const DirectoryDetailPageContainer = () => {
           <Button
             variant="ghost"
             className="self-start gap-2 text-muted-foreground"
-            onClick={() => navigate('/documents')}
+            onClick={handleBack}
           >
             <ArrowLeft size={18} />
             Back
@@ -234,6 +262,7 @@ export const DirectoryDetailPageContainer = () => {
                   >
                     <Link
                       to={`/directory/${sub.id}`}
+                      state={buildChildDirectoryNavigationState(dir.id, location.state)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5"
                     >
                       <IconComponent
