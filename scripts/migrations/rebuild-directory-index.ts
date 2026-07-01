@@ -14,10 +14,38 @@
  *     npx tsx scripts/migrations/rebuild-directory-index.ts --dry-run
  */
 import * as admin from 'firebase-admin';
+import Module from 'module';
 import * as path from 'path';
 import { config } from 'dotenv';
 
 config({ path: path.join(process.cwd(), '.env.local') });
+
+const useEmulator = process.argv.includes('--emulator');
+if (!useEmulator) {
+  delete process.env.FIRESTORE_EMULATOR_HOST;
+  delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
+  delete process.env.FIREBASE_STORAGE_EMULATOR_HOST;
+  delete process.env.FIREBASE_FUNCTIONS_EMULATOR_HOST;
+}
+
+function registerSharedTypesAlias(): void {
+  const sharedTypesEntry = path.join(
+    process.cwd(),
+    'dist/out-tsc/libs/shared-types/src/index.js',
+  );
+  const originalResolveFilename = Module._resolveFilename;
+  Module._resolveFilename = function patchedResolveFilename(
+    request: string,
+    parent: Module | undefined,
+    isMain: boolean,
+    options?: Parameters<typeof Module._resolveFilename>[3],
+  ) {
+    if (request === '@shared-types') {
+      return sharedTypesEntry;
+    }
+    return originalResolveFilename.call(this, request, parent, isMain, options);
+  };
+}
 
 interface ParsedArgs {
   dryRun: boolean;
@@ -54,6 +82,7 @@ Rebuild directory item indexes (users/{uid}/directories/{dirId}/items/*)
 
   --dry-run           Report actions without writing
   --check-drift       Compare canonical vs index counts only
+  --emulator          Use Firestore emulator from env (default: production ADC)
   --user-id=UID       Limit to one user
   --directory-id=ID   Limit to one directory (requires --user-id)
   --help              Show this message
@@ -100,8 +129,10 @@ async function main(): Promise<void> {
     admin.initializeApp({ projectId });
   }
 
+  registerSharedTypesAlias();
+
   const { rebuildDirectoryItemsForDirectory, detectDirectoryIndexDrift } = await import(
-    '../../functions/src/services/directory-item-index.ts'
+    '../../functions/lib/src/services/directory-item-index.js'
   );
 
   const db = admin.firestore();
