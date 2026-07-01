@@ -17,6 +17,7 @@ import { enqueueGenerationJob } from '../services/generation-enqueue';
 import { buildStartGenerationPayload } from '../lib/start-generation-response';
 import { validateAuth } from '../lib/auth';
 import { FirestorePaths } from '../lib/firestore-paths';
+import { removeArtifactDirectoryIndex, syncIndexSafely } from '../services/directory-item-index';
 
 const redactId = (id: string): string =>
   createHash('sha256').update(id).digest('hex').slice(0, 8);
@@ -264,6 +265,7 @@ export const deleteSlideDeck = onCall({ region: 'asia-east1', cors: true }, asyn
 
     // Delete associated storage files
     const data = docSnap.data() as SlideDeck;
+    const directoryId = data.directoryId;
     if (data?.slides) {
       for (const slide of data.slides) {
         if (slide.imageStoragePath) {
@@ -292,6 +294,11 @@ export const deleteSlideDeck = onCall({ region: 'asia-east1', cors: true }, asyn
         });
       }
     });
+    if (directoryId) {
+      await syncIndexSafely('deleteSlideDeck', () =>
+        removeArtifactDirectoryIndex(userId, directoryId, 'slideDeck', slideDeckId),
+      );
+    }
     return { success: true };
   } catch (error) {
     logger.error('Error deleting slide deck:', error);

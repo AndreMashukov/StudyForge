@@ -39,6 +39,12 @@ export const FirestorePaths = {
   directory: (userId: string, dirId: string) =>
     FirestorePaths.directories(userId).doc(dirId),
 
+  directoryItems: (userId: string, dirId: string) =>
+    FirestorePaths.directory(userId, dirId).collection('items'),
+
+  directoryItem: (userId: string, dirId: string, itemId: string) =>
+    FirestorePaths.directoryItems(userId, dirId).doc(itemId),
+
   directoryChatThread: (userId: string, dirId: string) =>
     FirestorePaths.directory(userId, dirId).collection('chat').doc('thread'),
   directoryChatMessages: (userId: string, dirId: string) =>

@@ -21,6 +21,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { FirestorePaths } from '../lib/firestore-paths';
 import { GenerationStatus, IArtifactAgentDiagnostics, type IGenerationModelUsage } from '@shared-types';
+import { syncArtifactDirectoryIndex, syncIndexSafely } from './directory-item-index';
 
 function stripUndefinedDeep<T>(value: T): T {
   if (Array.isArray(value)) {
@@ -84,6 +85,9 @@ export async function createPendingQuiz(params: PendingQuizParams): Promise<stri
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.info('Pending quiz created', { quizId: ref.id, userId: params.userId });
+  await syncIndexSafely('createPendingQuiz', () =>
+    syncArtifactDirectoryIndex(params.userId, 'quiz', ref.id),
+  );
   return ref.id;
 }
 
@@ -125,6 +129,9 @@ export async function completePendingQuiz(
     });
   }
   logger.info('Pending quiz completed', { quizId, userId });
+  await syncIndexSafely('completePendingQuiz', () =>
+    syncArtifactDirectoryIndex(userId, 'quiz', quizId),
+  );
 }
 
 export async function failPendingQuiz(userId: string, quizId: string, error: string): Promise<void> {
@@ -134,6 +141,9 @@ export async function failPendingQuiz(userId: string, quizId: string, error: str
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.warn('Pending quiz marked as failed', { quizId, userId, error });
+  await syncIndexSafely('failPendingQuiz', () =>
+    syncArtifactDirectoryIndex(userId, 'quiz', quizId),
+  );
 }
 
 // ─── Flashcard Set ────────────────────────────────────────────────────────────
@@ -169,6 +179,9 @@ export async function createPendingFlashcardSet(params: PendingFlashcardSetParam
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.info('Pending flashcard set created', { flashcardSetId: ref.id, userId: params.userId });
+  await syncIndexSafely('createPendingFlashcardSet', () =>
+    syncArtifactDirectoryIndex(params.userId, 'flashcard', ref.id),
+  );
   return ref.id;
 }
 
@@ -210,6 +223,9 @@ export async function completePendingFlashcardSet(
     });
   }
   logger.info('Pending flashcard set completed', { flashcardSetId, userId });
+  await syncIndexSafely('completePendingFlashcardSet', () =>
+    syncArtifactDirectoryIndex(userId, 'flashcard', flashcardSetId),
+  );
 }
 
 export async function failPendingFlashcardSet(userId: string, flashcardSetId: string, error: string): Promise<void> {
@@ -219,6 +235,9 @@ export async function failPendingFlashcardSet(userId: string, flashcardSetId: st
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.warn('Pending flashcard set marked as failed', { flashcardSetId, userId, error });
+  await syncIndexSafely('failPendingFlashcardSet', () =>
+    syncArtifactDirectoryIndex(userId, 'flashcard', flashcardSetId),
+  );
 }
 
 // ─── Slide Deck ───────────────────────────────────────────────────────────────
@@ -253,6 +272,9 @@ export async function createPendingSlideDeck(params: PendingSlideDeckParams): Pr
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.info('Pending slide deck created', { slideDeckId: ref.id, userId: params.userId });
+  await syncIndexSafely('createPendingSlideDeck', () =>
+    syncArtifactDirectoryIndex(params.userId, 'slideDeck', ref.id),
+  );
   return ref.id;
 }
 
@@ -292,6 +314,9 @@ export async function completePendingSlideDeck(
     });
   }
   logger.info('Pending slide deck completed', { slideDeckId, userId });
+  await syncIndexSafely('completePendingSlideDeck', () =>
+    syncArtifactDirectoryIndex(userId, 'slideDeck', slideDeckId),
+  );
 }
 
 export async function failPendingSlideDeck(userId: string, slideDeckId: string, error: string): Promise<void> {
@@ -301,6 +326,9 @@ export async function failPendingSlideDeck(userId: string, slideDeckId: string, 
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.warn('Pending slide deck marked as failed', { slideDeckId, userId, error });
+  await syncIndexSafely('failPendingSlideDeck', () =>
+    syncArtifactDirectoryIndex(userId, 'slideDeck', slideDeckId),
+  );
 }
 
 // ─── Diagram Quiz ─────────────────────────────────────────────────────────────
@@ -337,6 +365,9 @@ export async function createPendingDiagramQuiz(params: PendingDiagramQuizParams)
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.info('Pending diagram quiz created', { diagramQuizId: ref.id, userId: params.userId });
+  await syncIndexSafely('createPendingDiagramQuiz', () =>
+    syncArtifactDirectoryIndex(params.userId, 'diagramQuiz', ref.id),
+  );
   return ref.id;
 }
 
@@ -386,6 +417,9 @@ export async function completePendingDiagramQuiz(
     });
   }
   logger.info('Pending diagram quiz completed', { diagramQuizId, userId });
+  await syncIndexSafely('completePendingDiagramQuiz', () =>
+    syncArtifactDirectoryIndex(userId, 'diagramQuiz', diagramQuizId),
+  );
 }
 
 export async function failPendingDiagramQuiz(
@@ -401,6 +435,9 @@ export async function failPendingDiagramQuiz(
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.warn('Pending diagram quiz marked as failed', { diagramQuizId, userId, error });
+  await syncIndexSafely('failPendingDiagramQuiz', () =>
+    syncArtifactDirectoryIndex(userId, 'diagramQuiz', diagramQuizId),
+  );
 }
 
 // ─── Sequence Quiz ────────────────────────────────────────────────────────────
@@ -437,6 +474,9 @@ export async function createPendingSequenceQuiz(params: PendingSequenceQuizParam
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.info('Pending sequence quiz created', { sequenceQuizId: ref.id, userId: params.userId });
+  await syncIndexSafely('createPendingSequenceQuiz', () =>
+    syncArtifactDirectoryIndex(params.userId, 'sequenceQuiz', ref.id),
+  );
   return ref.id;
 }
 
@@ -480,6 +520,9 @@ export async function completePendingSequenceQuiz(
     });
   }
   logger.info('Pending sequence quiz completed', { sequenceQuizId, userId });
+  await syncIndexSafely('completePendingSequenceQuiz', () =>
+    syncArtifactDirectoryIndex(userId, 'sequenceQuiz', sequenceQuizId),
+  );
 }
 
 export async function failPendingSequenceQuiz(userId: string, sequenceQuizId: string, error: string): Promise<void> {
@@ -489,6 +532,9 @@ export async function failPendingSequenceQuiz(userId: string, sequenceQuizId: st
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.warn('Pending sequence quiz marked as failed', { sequenceQuizId, userId, error });
+  await syncIndexSafely('failPendingSequenceQuiz', () =>
+    syncArtifactDirectoryIndex(userId, 'sequenceQuiz', sequenceQuizId),
+  );
 }
 
 // ─── Subject World ────────────────────────────────────────────────────────────
@@ -525,6 +571,9 @@ export async function createPendingSubjectWorld(params: PendingSubjectWorldParam
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.info('Pending subject world created', { subjectWorldId: ref.id, userId: params.userId });
+  await syncIndexSafely('createPendingSubjectWorld', () =>
+    syncArtifactDirectoryIndex(params.userId, 'subjectWorld', ref.id),
+  );
   return ref.id;
 }
 
@@ -568,6 +617,9 @@ export async function completePendingSubjectWorld(
     });
   }
   logger.info('Pending subject world completed', { subjectWorldId, userId });
+  await syncIndexSafely('completePendingSubjectWorld', () =>
+    syncArtifactDirectoryIndex(userId, 'subjectWorld', subjectWorldId),
+  );
 }
 
 export async function failPendingSubjectWorld(userId: string, subjectWorldId: string, error: string): Promise<void> {
@@ -577,4 +629,7 @@ export async function failPendingSubjectWorld(userId: string, subjectWorldId: st
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.warn('Pending subject world marked as failed', { subjectWorldId, userId, error });
+  await syncIndexSafely('failPendingSubjectWorld', () =>
+    syncArtifactDirectoryIndex(userId, 'subjectWorld', subjectWorldId),
+  );
 }

@@ -24,6 +24,11 @@ import {
   deriveAncestorsFromTree,
   fetchDirectoryFromFirestore,
 } from '../../../services/directoryFirestore';
+import {
+  fetchDirectoryItemsFromFirestore,
+  subscribeToDirectoryItems,
+} from '../../../services/directoryItemIndex';
+import { mapDirectoryItemsToContentsResponse } from '../../../services/directoryItemIndexMappers';
 import type { RootState } from '../../index';
 
 export const directoryApi = baseApi.injectEndpoints({
@@ -204,14 +209,124 @@ export const directoryApi = baseApi.injectEndpoints({
       GetDirectoryContentsWithArtifactSummariesResponse,
       { directoryId: string | null; artifactLimit?: number }
     >({
-      query: ({ directoryId, artifactLimit }) => ({
-        functionName: 'getDirectoryContentsWithArtifactSummaries',
-        data: {
-          directoryId,
-          includeRules: true,
-          artifactLimit: artifactLimit ?? 20,
-        },
-      }),
+      async queryFn({ directoryId, artifactLimit }, _api, _extraOptions, baseQuery) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Authentication required' },
+            },
+          };
+        }
+
+        if (!directoryId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Directory ID is required' },
+            },
+          };
+        }
+
+        const limit = artifactLimit ?? 20;
+
+        try {
+          const [directory, items, rulesResult] = await Promise.all([
+            fetchDirectoryFromFirestore(userId, directoryId),
+            fetchDirectoryItemsFromFirestore(userId, directoryId),
+            baseQuery({
+              functionName: 'getDirectoryRules',
+              data: { directoryId, includeAncestors: true },
+            }),
+          ]);
+
+          if (!directory) {
+            return {
+              error: {
+                status: 'CUSTOM_ERROR',
+                data: { message: 'Directory not found', code: 'NOT_FOUND' },
+              },
+            };
+          }
+
+          if (rulesResult.error) {
+            throw new Error('Failed to fetch directory rules');
+          }
+
+          const rulesResponse = rulesResult.data as {
+            success: boolean;
+            rules: GetDirectoryContentsWithArtifactSummariesResponse['resolvedRules']['rules'];
+            inheritanceMap: GetDirectoryContentsWithArtifactSummariesResponse['resolvedRules']['inheritanceMap'];
+          };
+
+          const mapped = mapDirectoryItemsToContentsResponse(directory, items, limit);
+          return {
+            data: {
+              ...mapped,
+              resolvedRules: {
+                rules: rulesResponse.rules,
+                inheritanceMap: rulesResponse.inheritanceMap,
+              },
+            },
+          };
+        } catch (firestoreError) {
+          console.warn(
+            'Firestore directory index read failed, falling back to callable:',
+            firestoreError,
+          );
+          const fallback = await baseQuery({
+            functionName: 'getDirectoryContentsWithArtifactSummaries',
+            data: {
+              directoryId,
+              includeRules: true,
+              artifactLimit: limit,
+            },
+          });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          return { data: fallback.data as GetDirectoryContentsWithArtifactSummariesResponse };
+        }
+      },
+      async onCacheEntryAdded(
+        { directoryId, artifactLimit },
+        { updateCachedData, cacheDataLoaded, cacheEntryRemoved },
+      ) {
+        if (!directoryId) {
+          await cacheEntryRemoved;
+          return;
+        }
+
+        try {
+          await cacheDataLoaded;
+        } catch {
+          return;
+        }
+
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          await cacheEntryRemoved;
+          return;
+        }
+
+        const limit = artifactLimit ?? 20;
+        const unsubscribe = subscribeToDirectoryItems(userId, directoryId, (items) => {
+          updateCachedData((draft) => {
+            const mapped = mapDirectoryItemsToContentsResponse(draft.directory, items, limit);
+            draft.subdirectories = mapped.subdirectories;
+            draft.documents = mapped.documents;
+            draft.artifactSummaries = mapped.artifactSummaries;
+            draft.totalCount = mapped.totalCount;
+          });
+        });
+
+        try {
+          await cacheEntryRemoved;
+        } finally {
+          unsubscribe();
+        }
+      },
       providesTags: (result, error, arg) => [
         { type: 'Directory', id: arg.directoryId || 'ROOT' },
         'Documents',
@@ -221,7 +336,7 @@ export const directoryApi = baseApi.injectEndpoints({
         'UserDiagramQuizzes',
         'UserSequenceQuizzes',
       ],
-      keepUnusedDataFor: 0,
+      keepUnusedDataFor: 300,
     }),
 
     // Get directory ancestors (breadcrumb)

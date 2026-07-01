@@ -3,27 +3,7 @@ import { db } from '../../../config/firebase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAppDispatch } from '../../../hooks/redux';
 import { useFirestoreEffect } from '../../../hooks/useFirestoreEffect';
-import type { ArtifactSummaryType } from '@shared-types';
-import {
-  patchArtifactInSummariesCache,
-  patchDocumentInArtifactSummariesCache,
-  patchDocumentInDirectoryContentsCache,
-} from '../../../hooks/directoryRealtimeCacheUtils';
-
-interface RealtimeCollectionConfig {
-  collectionName: string;
-  artifactType?: ArtifactSummaryType;
-}
-
-const REALTIME_COLLECTIONS: RealtimeCollectionConfig[] = [
-  { collectionName: 'documents' },
-  { collectionName: 'quizzes', artifactType: 'quiz' },
-  { collectionName: 'flashcardSets', artifactType: 'flashcard' },
-  { collectionName: 'slideDecks', artifactType: 'slideDeck' },
-  { collectionName: 'diagramQuizzes', artifactType: 'diagramQuiz' },
-  { collectionName: 'sequenceQuizzes', artifactType: 'sequenceQuiz' },
-  { collectionName: 'subjectWorlds', artifactType: 'subjectWorld' },
-];
+import { patchDocumentInDirectoryContentsCache } from '../../../hooks/directoryRealtimeCacheUtils';
 
 export interface IDirectoryDocumentsRealtimeCacheOptions {
   artifactLimit?: number;
@@ -34,19 +14,17 @@ export interface IDirectoryDocumentsRealtimeCacheOptions {
 }
 
 /**
- * Sets up Firestore real-time listeners for documents and generated artifacts in
- * the given directory, then immediately patches the RTK Query cache when records
- * change.
+ * Keeps directory listing caches fresh.
  *
- * The initial snapshot is processed to backfill records created between the
- * RTK Query fetch and listener subscription; patch helpers only add when missing.
+ * - Directory detail artifact summaries: handled by RTK `onCacheEntryAdded` on
+ *   `getDirectoryContentsWithArtifactSummaries` (single `items` subcollection listener).
+ * - Documents library: still listens to canonical `documents` collection when enabled.
  */
 export const useDirectoryDocumentsRealtimeCache = (
   directoryId: string | null,
   options: IDirectoryDocumentsRealtimeCacheOptions = {},
 ) => {
   const {
-    artifactLimit = 20,
     patchArtifactSummaries = true,
     patchDirectoryContents = false,
   } = options;
@@ -55,87 +33,43 @@ export const useDirectoryDocumentsRealtimeCache = (
   const uid = user?.uid;
 
   useFirestoreEffect(() => {
-    if (!uid) {
+    if (!uid || !directoryId) {
       return;
     }
 
-    if (!patchArtifactSummaries && !patchDirectoryContents) {
+    if (!patchDirectoryContents) {
       return;
     }
 
-    if (!directoryId) {
+    if (patchArtifactSummaries) {
+      // RTK Query owns the materialized index listener for directory detail.
       return;
     }
 
     let active = true;
+    const directoryQuery = query(
+      collection(db, 'users', uid, 'documents'),
+      where('directoryId', '==', directoryId),
+    );
 
-    const collections = REALTIME_COLLECTIONS.filter((config) => {
-      if (config.artifactType) {
-        return patchArtifactSummaries;
-      }
-      return patchArtifactSummaries || patchDirectoryContents;
-    });
+    const unsubscribe = onSnapshot(
+      directoryQuery,
+      (snapshot) => {
+        if (!active) {
+          return;
+        }
 
-    const unsubscribes = collections.map((config) => {
-      const directoryQuery = query(
-        collection(db, 'users', uid, config.collectionName),
-        where('directoryId', '==', directoryId),
-      );
-
-      let isInitial = true;
-
-      return onSnapshot(
-        directoryQuery,
-        (snapshot) => {
-          if (!active) {
-            return;
-          }
-          if (isInitial) {
-            isInitial = false;
-          }
-
-          for (const change of snapshot.docChanges()) {
-            if (!config.artifactType) {
-              if (patchDirectoryContents) {
-                patchDocumentInDirectoryContentsCache(dispatch, directoryId, change);
-              }
-              if (patchArtifactSummaries && directoryId) {
-                patchDocumentInArtifactSummariesCache(
-                  dispatch,
-                  directoryId,
-                  artifactLimit,
-                  change,
-                );
-              }
-              continue;
-            }
-
-            if (patchArtifactSummaries && directoryId) {
-              patchArtifactInSummariesCache(
-                dispatch,
-                directoryId,
-                artifactLimit,
-                change,
-                config.artifactType,
-              );
-            }
-          }
-        },
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        () => {},
-      );
-    });
+        for (const change of snapshot.docChanges()) {
+          patchDocumentInDirectoryContentsCache(dispatch, directoryId, change);
+        }
+      },
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      () => {},
+    );
 
     return () => {
       active = false;
-      unsubscribes.forEach((unsubscribe) => unsubscribe());
+      unsubscribe();
     };
-  }, [
-    uid,
-    directoryId,
-    artifactLimit,
-    patchArtifactSummaries,
-    patchDirectoryContents,
-    dispatch,
-  ]);
+  }, [uid, directoryId, patchArtifactSummaries, patchDirectoryContents, dispatch]);
 };

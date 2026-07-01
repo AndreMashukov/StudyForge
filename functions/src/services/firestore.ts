@@ -12,6 +12,7 @@ import {
 import type { GeminiDiagramQuizResponse, GeminiSequenceQuizResponse } from "./gemini/gemini";
 import * as functions from "firebase-functions";
 import { FirestorePaths } from '../lib/firestore-paths';
+import { removeArtifactDirectoryIndex, syncIndexSafely } from './directory-item-index';
 
 /**
  * Firestore service for managing URLs and Quizzes collections
@@ -166,6 +167,8 @@ export class FirestoreService {
     try {
       const quizRef = FirestorePaths.quiz(userId, quizId);
       const db = this.getDb();
+      const preSnap = await quizRef.get();
+      const directoryId = preSnap.exists ? (preSnap.data() as Quiz).directoryId : undefined;
       await db.runTransaction(async (transaction) => {
         const snap = await transaction.get(quizRef);
         if (!snap.exists) {
@@ -180,6 +183,11 @@ export class FirestoreService {
           });
         }
       });
+      if (directoryId) {
+        await syncIndexSafely('deleteQuiz', () =>
+          removeArtifactDirectoryIndex(userId, directoryId, 'quiz', quizId),
+        );
+      }
       functions.logger.info(`Deleted quiz: ${quizId}`);
     } catch (error) {
       functions.logger.error(`Error deleting quiz ${quizId}:`, error);
@@ -503,6 +511,8 @@ export class FirestoreService {
     try {
       const ref = FirestorePaths.diagramQuiz(userId, diagramQuizId);
       const db = this.getDb();
+      const preSnap = await ref.get();
+      const directoryId = preSnap.exists ? (preSnap.data() as DiagramQuiz).directoryId : undefined;
       await db.runTransaction(async (transaction) => {
         const snap = await transaction.get(ref);
         if (!snap.exists) {
@@ -520,6 +530,11 @@ export class FirestoreService {
           );
         }
       });
+      if (directoryId) {
+        await syncIndexSafely('deleteDiagramQuiz', () =>
+          removeArtifactDirectoryIndex(userId, directoryId, 'diagramQuiz', diagramQuizId),
+        );
+      }
       functions.logger.info(`Deleted diagram quiz: ${diagramQuizId}`);
     } catch (error) {
       functions.logger.error(`deleteDiagramQuiz ${diagramQuizId}:`, error);
@@ -627,6 +642,8 @@ export class FirestoreService {
     try {
       const ref = FirestorePaths.sequenceQuiz(userId, sequenceQuizId);
       const db = this.getDb();
+      const preSnap = await ref.get();
+      const directoryId = preSnap.exists ? (preSnap.data() as SequenceQuiz).directoryId : undefined;
       await db.runTransaction(async (transaction) => {
         const snap = await transaction.get(ref);
         if (!snap.exists) {
@@ -642,6 +659,11 @@ export class FirestoreService {
           });
         }
       });
+      if (directoryId) {
+        await syncIndexSafely('deleteSequenceQuiz', () =>
+          removeArtifactDirectoryIndex(userId, directoryId, 'sequenceQuiz', sequenceQuizId),
+        );
+      }
       functions.logger.info(`Deleted sequence quiz: ${sequenceQuizId}`);
     } catch (error) {
       functions.logger.error(`deleteSequenceQuiz ${sequenceQuizId}:`, error);
@@ -686,6 +708,10 @@ export class FirestoreService {
     try {
       const ref = FirestorePaths.subjectWorld(userId, subjectWorldId);
       const db = this.getDb();
+      const preSnap = await ref.get();
+      const directoryId = preSnap.exists
+        ? (preSnap.data() as import('@shared-types').SubjectWorld).directoryId
+        : undefined;
       await db.runTransaction(async (transaction) => {
         const snap = await transaction.get(ref);
         if (!snap.exists) {
@@ -701,6 +727,11 @@ export class FirestoreService {
           });
         }
       });
+      if (directoryId) {
+        await syncIndexSafely('deleteSubjectWorld', () =>
+          removeArtifactDirectoryIndex(userId, directoryId, 'subjectWorld', subjectWorldId),
+        );
+      }
       functions.logger.info(`Deleted subject world: ${subjectWorldId}`);
     } catch (error) {
       functions.logger.error(`deleteSubjectWorld ${subjectWorldId}:`, error);

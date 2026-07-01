@@ -4,6 +4,13 @@ import { logger } from 'firebase-functions/v2';
 import { DocumentService } from './document-storage';
 import { FirestorePaths } from '../lib/firestore-paths';
 import { directoryService } from './directory';
+import {
+  moveDocumentDirectoryIndex,
+  removeDocumentDirectoryIndex,
+  removeArtifactDirectoryIndex,
+  syncDocumentDirectoryIndex,
+  syncIndexSafely,
+} from './directory-item-index';
 import { 
   DocumentEnhanced as Document, 
   DocumentMetadataEnhanced as DocumentMetadata, 
@@ -104,6 +111,8 @@ export class DocumentCrudService {
       if (request.directoryId) {
         await this.updateDirectoryDocumentCount(userId, request.directoryId, 1);
       }
+
+      await syncIndexSafely('createDocument', () => syncDocumentDirectoryIndex(userId, documentId));
 
       logger.info('Document created successfully', { 
         userId, 
@@ -279,6 +288,7 @@ export class DocumentCrudService {
       const updatedDocument = await this.getDocument(userId, documentId);
 
       logger.info('Document updated successfully', { userId, documentId });
+      await syncIndexSafely('updateDocument', () => syncDocumentDirectoryIndex(userId, documentId));
       return updatedDocument;
     } catch (error) {
       logger.error('Failed to update document', {
@@ -345,6 +355,11 @@ export class DocumentCrudService {
           .get();
         for (const fcDoc of fcSnap.docs) {
           const fcData = fcDoc.data() as { directoryId?: string };
+          if (fcData.directoryId) {
+            await syncIndexSafely('deleteDocument.flashcard', () =>
+              removeArtifactDirectoryIndex(userId, fcData.directoryId as string, 'flashcard', fcDoc.id),
+            );
+          }
           await fcDoc.ref.delete();
           if (fcData.directoryId) {
             try {
@@ -389,6 +404,9 @@ export class DocumentCrudService {
           }
           await sdDoc.ref.delete();
           if (sdData.directoryId) {
+            await syncIndexSafely('deleteDocument.slideDeck', () =>
+              removeArtifactDirectoryIndex(userId, sdData.directoryId as string, 'slideDeck', sdDoc.id),
+            );
             try {
               await directoryService.adjustDirectoryArtifactCount(
                 userId,
@@ -422,6 +440,11 @@ export class DocumentCrudService {
 
       // Delete metadata from Firestore
       const docRef = FirestorePaths.document(userId, documentId);
+      if (document.directoryId) {
+        await syncIndexSafely('deleteDocument', () =>
+          removeDocumentDirectoryIndex(userId, document.directoryId as string, documentId),
+        );
+      }
       await docRef.delete();
 
       logger.info('Document deleted successfully', { 
@@ -755,6 +778,19 @@ export class DocumentCrudService {
         toDirectoryId: request.targetDirectoryId,
       });
 
+      if (currentDocument.directoryId) {
+        await syncIndexSafely('moveDocument', () =>
+          moveDocumentDirectoryIndex(
+            userId,
+            currentDocument.directoryId as string,
+            request.targetDirectoryId,
+            documentId,
+          ),
+        );
+      } else {
+        await syncIndexSafely('moveDocument', () => syncDocumentDirectoryIndex(userId, documentId));
+      }
+
       return updatedDocument;
     } catch (error) {
       logger.error('Failed to move document', {
@@ -837,6 +873,7 @@ export class DocumentCrudService {
     });
 
     logger.info('Pending document created', { userId, documentId: docRef.id, directoryId: params.directoryId });
+    await syncIndexSafely('createPendingDocument', () => syncDocumentDirectoryIndex(userId, docRef.id));
     return docRef.id;
   }
 
@@ -911,6 +948,7 @@ export class DocumentCrudService {
     }
 
     logger.info('Pending document completed', { userId, documentId });
+    await syncIndexSafely('completePendingDocument', () => syncDocumentDirectoryIndex(userId, documentId));
     return {
       ...existing,
       id: documentId,
@@ -948,5 +986,6 @@ export class DocumentCrudService {
       updatedAt: Timestamp.now(),
     });
     logger.warn('Pending document marked as failed', { userId, documentId, error });
+    await syncIndexSafely('failPendingDocument', () => syncDocumentDirectoryIndex(userId, documentId));
   }
 }

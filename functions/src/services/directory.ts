@@ -30,6 +30,13 @@ import {
 import { resolveRulesForDirectory } from './rule-resolution';
 import { recalculateStatsForDirectoryMove } from './interaction-tracking';
 import { FirestorePaths } from '../lib/firestore-paths';
+import {
+  deleteDirectoryItemsForDirectories,
+  moveSubdirectoryDirectoryIndex,
+  removeSubdirectoryDirectoryIndex,
+  syncIndexSafely,
+  syncSubdirectoryDirectoryIndex,
+} from './directory-item-index';
 
 export class DirectoryService {
 
@@ -115,6 +122,12 @@ export class DirectoryService {
     }
 
     logger.info('Directory created', { directoryId: docRef.id });
+
+    if (request.parentId) {
+      await syncIndexSafely('createDirectory', () =>
+        syncSubdirectoryDirectoryIndex(userId, docRef.id),
+      );
+    }
 
     return {
       id: docRef.id,
@@ -244,6 +257,10 @@ export class DirectoryService {
 
     logger.info('Directory updated', { directoryId });
 
+    await syncIndexSafely('updateDirectory', () =>
+      syncSubdirectoryDirectoryIndex(userId, directoryId),
+    );
+
     return {
       ...directory,
       ...updateData,
@@ -267,6 +284,14 @@ export class DirectoryService {
     // Get all descendant directories
     const descendants = await this.getDescendants(userId, directoryId);
     const allDirectoryIds = [directoryId, ...descendants.map(d => d.id)];
+
+    // Remove materialized index rows and parent subdirectory link before bulk delete.
+    await syncIndexSafely('deleteDirectory.items', () =>
+      deleteDirectoryItemsForDirectories(userId, allDirectoryIds),
+    );
+    await syncIndexSafely('deleteDirectory.parentLink', () =>
+      removeSubdirectoryDirectoryIndex(userId, directory.parentId, directoryId),
+    );
 
     // Delete documents (Firestore metadata + Storage content) in all directories
     let deletedDocumentCount = 0;
@@ -825,6 +850,15 @@ export class DirectoryService {
       directoryId,
       affectedDescendants: descendants,
     });
+
+    await syncIndexSafely('moveDirectory', () =>
+      moveSubdirectoryDirectoryIndex(
+        userId,
+        directoryId,
+        directory.parentId,
+        request.targetParentId ?? null,
+      ),
+    );
 
     return {
       directory: {

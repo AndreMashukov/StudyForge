@@ -707,6 +707,60 @@ export interface GetDirectoryContentsWithArtifactsResponse extends GetDirectoryC
 
 export type ArtifactSummaryType = 'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz' | 'subjectWorld';
 
+/** Materialized directory listing row stored under directories/{id}/items/{itemId}. */
+export type DirectoryItemType =
+  | 'subdirectory'
+  | 'document'
+  | 'quiz'
+  | 'flashcard'
+  | 'slideDeck'
+  | 'diagramQuiz'
+  | 'sequenceQuiz'
+  | 'subjectWorld';
+
+export function buildDirectoryItemId(itemType: DirectoryItemType, sourceId: string): string {
+  return `${itemType}_${sourceId}`;
+}
+
+export function directoryItemTypeToArtifactSummaryType(
+  itemType: DirectoryItemType,
+): ArtifactSummaryType | null {
+  switch (itemType) {
+    case 'quiz':
+    case 'flashcard':
+    case 'slideDeck':
+    case 'diagramQuiz':
+    case 'sequenceQuiz':
+    case 'subjectWorld':
+      return itemType;
+    default:
+      return null;
+  }
+}
+
+export interface DirectoryItemSummary {
+  id: string;
+  sourceId: string;
+  directoryId: string;
+  itemType: DirectoryItemType;
+  title: string;
+  createdAt: Date | Timestamp | string;
+  updatedAt?: Date | Timestamp | string;
+  generationStatus?: GenerationStatus;
+  generationError?: string;
+  completedAt?: Date | Timestamp | string;
+  appliedRuleIds?: string[];
+  generationModel?: string;
+  documentColor?: string;
+  documentColors?: string[];
+  /** Subdirectory accent; document color for sources. */
+  color?: string;
+  icon?: string;
+  wordCount?: number;
+  /** Lowercase name for client-side subdirectory sorting. */
+  sortName?: string;
+}
+
 export interface ArtifactSummary {
   id: string;
   title: string;

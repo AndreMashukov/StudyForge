@@ -23,6 +23,11 @@ import { buildStartGenerationPayload } from '../lib/start-generation-response';
 import { DocumentService } from '../services/document-storage';
 import { validateAuth } from '../lib/auth';
 import { FirestorePaths } from '../lib/firestore-paths';
+import {
+  removeArtifactDirectoryIndex,
+  syncArtifactDirectoryIndex,
+  syncIndexSafely,
+} from '../services/directory-item-index';
 
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -265,6 +270,10 @@ export const updateFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
 
     await docRef.update(updateData);
 
+    await syncIndexSafely('updateFlashcardSet', () =>
+      syncArtifactDirectoryIndex(userId, 'flashcard', flashcardSetId),
+    );
+
     return { success: true };
   } catch(error) {
     logger.error(`Error updating flashcard set ${request.data?.flashcardSetId}:`, error);
@@ -289,6 +298,8 @@ export const deleteFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
 
     const docRef = FirestorePaths.flashcardSets(userId).doc(flashcardSetId);
     const db = admin.firestore();
+    const preSnap = await docRef.get();
+    const directoryId = preSnap.exists ? (preSnap.data() as FlashcardSet).directoryId : undefined;
     await db.runTransaction(async (transaction) => {
       const snap = await transaction.get(docRef);
       if (!snap.exists) {
@@ -304,6 +315,12 @@ export const deleteFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
         });
       }
     });
+
+    if (directoryId) {
+      await syncIndexSafely('deleteFlashcardSet', () =>
+        removeArtifactDirectoryIndex(userId, directoryId, 'flashcard', flashcardSetId),
+      );
+    }
 
     return { success: true };
   } catch(error) {

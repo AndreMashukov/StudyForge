@@ -38,6 +38,12 @@ service cloud.firestore {
         allow create: if isOwner(userId) && isValidDirectory();
         allow update: if isOwner(userId) && isValidDirectory();
         allow delete: if isOwner(userId);
+
+        // Materialized directory listing index — server-maintained, client read-only.
+        match /items/{itemId} {
+          allow read: if isOwner(userId);
+          allow write: if false;
+        }
       }
 
       // Rules subcollection
