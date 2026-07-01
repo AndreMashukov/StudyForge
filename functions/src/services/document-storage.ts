@@ -135,7 +135,8 @@ export class DocumentService {
       await file.save(contentBuffer, {
         metadata: {
           contentType: 'text/markdown; charset=utf-8',
-          cacheControl: 'public, max-age=3600',
+          // Mutable document body — avoid CDN caching stale content after edits
+          cacheControl: 'private, max-age=0, must-revalidate',
           customMetadata: {
             documentId,
             title: metadata.title || 'Untitled Document',

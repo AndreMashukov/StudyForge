@@ -216,8 +216,23 @@ export const documentsApi = baseApi.injectEndpoints({
         response.document,
       invalidatesTags: (result, error, arg) => [
         { type: 'Document', id: arg.documentId },
-        { type: 'Document', id: `${arg.documentId}-content` },
       ],
+      async onQueryStarted({ documentId, content }, { dispatch, queryFulfilled }) {
+        const contentPatch =
+          content !== undefined
+            ? dispatch(
+                documentsApi.util.updateQueryData('getDocumentContent', documentId, (draft) => {
+                  draft.content = content;
+                })
+              )
+            : undefined;
+
+        try {
+          await queryFulfilled;
+        } catch {
+          contentPatch?.undo();
+        }
+      },
     }),
 
     reviseDocumentWithAI: builder.mutation<

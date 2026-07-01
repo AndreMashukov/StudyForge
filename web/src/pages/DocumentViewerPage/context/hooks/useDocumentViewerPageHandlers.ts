@@ -34,14 +34,12 @@ interface UseDocumentViewerPageHandlersProps {
   document: DocumentEnhanced | undefined;
   contentRef: React.RefObject<HTMLDivElement | null>;
   content?: string;
-  refetchContent: () => void;
 }
 
 export const useDocumentViewerPageHandlers = ({
   document,
   contentRef,
   content,
-  refetchContent,
 }: UseDocumentViewerPageHandlersProps) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -216,7 +214,6 @@ export const useDocumentViewerPageHandlers = ({
         content: editPreviewContent,
       }).unwrap();
 
-      refetchContent();
       dispatch(resetEditPanelState());
       showToast('Document updated successfully', 'success');
     } catch (error) {
@@ -227,14 +224,7 @@ export const useDocumentViewerPageHandlers = ({
     } finally {
       dispatch(setIsApplyingRevision(false));
     }
-  }, [
-    dispatch,
-    document,
-    editPreviewContent,
-    refetchContent,
-    showToast,
-    updateDocument,
-  ]);
+  }, [dispatch, document, editPreviewContent, showToast, updateDocument]);
 
   const handleDiscardRevision = useCallback(() => {
     dispatch(resetEditPreview());
