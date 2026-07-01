@@ -4,6 +4,7 @@ import {
   useGetDirectoryContentsWithArtifactSummariesQuery,
   useGetDirectoryAncestorsQuery,
 } from '../../store/api/Directory/DirectoryApi';
+import { useGetDirectoryRulesQuery } from '../../store/api/Rules/rulesApi';
 import { Page } from '../../components/Page';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -89,6 +90,12 @@ export const DirectoryDetailPageContainer = () => {
     skip: !directoryId,
   });
 
+  const { data: directoryRulesData, isLoading: isLoadingDirectoryRules } =
+    useGetDirectoryRulesQuery(
+      { directoryId: directoryId ?? '', includeAncestors: true },
+      { skip: !directoryId },
+    );
+
   const titleDirectory = contents?.directory;
 
   useEffect(() => {
@@ -143,9 +150,9 @@ export const DirectoryDetailPageContainer = () => {
   const diagramQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'diagramQuiz' } => a.type === 'diagramQuiz');
   const sequenceQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'sequenceQuiz' } => a.type === 'sequenceQuiz');
   const subjectWorlds = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'subjectWorld' } => a.type === 'subjectWorld');
-  const resolvedRules = contents.resolvedRules;
+  const directoryRules = directoryRulesData?.rules ?? [];
   const ruleNamesMap = new Map<string, string>(
-    (resolvedRules?.rules ?? []).map((r) => [r.id, r.name])
+    directoryRules.map((rule) => [rule.id, rule.name]),
   );
   const ancestors = ancestorsData?.ancestors || [];
 
@@ -358,8 +365,9 @@ export const DirectoryDetailPageContainer = () => {
             )}
             {activePanel === 'rules' && (
               <RulesPanel
-                rules={resolvedRules?.rules ?? []}
+                rules={directoryRules}
                 directoryId={directoryId}
+                isLoading={isLoadingDirectoryRules}
               />
             )}
           </div>

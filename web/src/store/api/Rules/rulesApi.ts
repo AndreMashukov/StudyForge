@@ -1,5 +1,9 @@
 import { baseApi } from '../baseApi';
 import { auth } from '../../../config/firebase';
+import {
+  resolveApplicableRulesClient,
+  resolveDirectoryRulesClient,
+} from '../../../services/directoryRulesResolution';
 import { fetchRuleFromFirestore, fetchRulesFromFirestore } from '../../../services/rulesFirestore';
 import { 
   Rule,
@@ -155,48 +159,124 @@ export const rulesApi = baseApi.injectEndpoints({
     }),
 
     getDirectoryRules: builder.query<GetDirectoryRulesResponse, GetDirectoryRulesRequest>({
-      query: (data) => ({
-        functionName: 'getDirectoryRules',
-        data,
-      }),
-      transformResponse: (response: { 
-        success: boolean; 
-        rules: Rule[]; 
-        inheritanceMap: { [directoryId: string]: Rule[] } 
-      }) => {
-        return {
-          rules: response.rules,
-          inheritanceMap: response.inheritanceMap,
-        };
+      async queryFn(data, _api, _extraOptions, baseQuery) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Authentication required' },
+            },
+          };
+        }
+
+        if (!data.directoryId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Directory ID is required' },
+            },
+          };
+        }
+
+        try {
+          const resolved = await resolveDirectoryRulesClient(userId, data.directoryId, {
+            includeAncestors: data.includeAncestors,
+          });
+          return { data: resolved };
+        } catch (firestoreError) {
+          console.warn(
+            'Firestore directory rules read failed, falling back to callable:',
+            firestoreError,
+          );
+          const fallback = await baseQuery({
+            functionName: 'getDirectoryRules',
+            data,
+          });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          const response = fallback.data as {
+            success: boolean;
+            rules: Rule[];
+            inheritanceMap: GetDirectoryRulesResponse['inheritanceMap'];
+          };
+          return {
+            data: {
+              rules: response.rules,
+              inheritanceMap: response.inheritanceMap,
+            },
+          };
+        }
       },
       providesTags: (result, error, arg) => [
         'DirectoryRules',
         { type: 'DirectoryRules', id: arg.directoryId },
       ],
+      keepUnusedDataFor: 300,
     }),
 
     getApplicableRules: builder.query<
       GetApplicableRulesWithDefaultsResponse,
       GetApplicableRulesRequest
     >({
-      query: (data) => ({
-        functionName: 'getApplicableRules',
-        data,
-      }),
-      transformResponse: (response: { 
-        success: boolean; 
-        rules: Rule[]; 
-        defaultRuleIds: string[] 
-      }) => {
-        return {
-          rules: response.rules,
-          defaultRuleIds: response.defaultRuleIds,
-        };
+      async queryFn(data, _api, _extraOptions, baseQuery) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Authentication required' },
+            },
+          };
+        }
+
+        if (!data.directoryId || !data.operation) {
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              data: { message: 'Directory ID and operation are required' },
+            },
+          };
+        }
+
+        try {
+          const resolved = await resolveApplicableRulesClient(
+            userId,
+            data.directoryId,
+            data.operation,
+          );
+          return { data: resolved };
+        } catch (firestoreError) {
+          console.warn(
+            'Firestore applicable rules read failed, falling back to callable:',
+            firestoreError,
+          );
+          const fallback = await baseQuery({
+            functionName: 'getApplicableRules',
+            data,
+          });
+          if (fallback.error) {
+            return { error: fallback.error };
+          }
+          const response = fallback.data as {
+            success: boolean;
+            rules: Rule[];
+            defaultRuleIds: string[];
+          };
+          return {
+            data: {
+              rules: response.rules,
+              defaultRuleIds: response.defaultRuleIds,
+            },
+          };
+        }
       },
       providesTags: (result, error, arg) => [
         'DirectoryRules',
         { type: 'DirectoryRules', id: `${arg.directoryId}-${arg.operation}` },
       ],
+      keepUnusedDataFor: 300,
     }),
 
     formatRulesForPrompt: builder.mutation<string, FormatRulesForPromptRequest>({

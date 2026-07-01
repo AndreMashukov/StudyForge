@@ -232,13 +232,9 @@ export const directoryApi = baseApi.injectEndpoints({
         const limit = artifactLimit ?? 20;
 
         try {
-          const [directory, items, rulesResult] = await Promise.all([
+          const [directory, items] = await Promise.all([
             fetchDirectoryFromFirestore(userId, directoryId),
             fetchDirectoryItemsFromFirestore(userId, directoryId),
-            baseQuery({
-              functionName: 'getDirectoryRules',
-              data: { directoryId, includeAncestors: true },
-            }),
           ]);
 
           if (!directory) {
@@ -250,25 +246,8 @@ export const directoryApi = baseApi.injectEndpoints({
             };
           }
 
-          if (rulesResult.error) {
-            throw new Error('Failed to fetch directory rules');
-          }
-
-          const rulesResponse = rulesResult.data as {
-            success: boolean;
-            rules: GetDirectoryContentsWithArtifactSummariesResponse['resolvedRules']['rules'];
-            inheritanceMap: GetDirectoryContentsWithArtifactSummariesResponse['resolvedRules']['inheritanceMap'];
-          };
-
-          const mapped = mapDirectoryItemsToContentsResponse(directory, items, limit);
           return {
-            data: {
-              ...mapped,
-              resolvedRules: {
-                rules: rulesResponse.rules,
-                inheritanceMap: rulesResponse.inheritanceMap,
-              },
-            },
+            data: mapDirectoryItemsToContentsResponse(directory, items, limit),
           };
         } catch (firestoreError) {
           console.warn(

@@ -4,13 +4,23 @@ import { Sparkles } from 'lucide-react';
 import { Rule } from '@shared-types';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { Spinner } from '../../components/ui/Spinner';
 
 interface RulesPanelProps {
   rules: Rule[];
   directoryId: string;
+  isLoading?: boolean;
 }
 
-export const RulesPanel: React.FC<RulesPanelProps> = ({ rules, directoryId }) => {
+export const RulesPanel: React.FC<RulesPanelProps> = ({ rules, directoryId, isLoading = false }) => {
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-16">
+        <Spinner size="md" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
