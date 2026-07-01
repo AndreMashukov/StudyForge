@@ -198,7 +198,7 @@ export const MarkdownRenderer = ({
       if (children && typeof children === 'string') {
         // Fenced mermaid block: ```mermaid
         if (language === 'mermaid') {
-          return <MermaidDiagram code={children.trim()} />;
+          return <MermaidDiagram code={children.trim()} enableWheelZoom={false} />;
         }
 
         if (language) {
@@ -218,7 +218,12 @@ export const MarkdownRenderer = ({
         // Strip the leading "mermaid\n" token and render as a diagram.
         const trimmed = children.trim();
         if (trimmed.startsWith('mermaid\n')) {
-          return <MermaidDiagram code={trimmed.slice('mermaid\n'.length).trim()} />;
+          return (
+            <MermaidDiagram
+              code={trimmed.slice('mermaid\n'.length).trim()}
+              enableWheelZoom={false}
+            />
+          );
         }
       }
       
