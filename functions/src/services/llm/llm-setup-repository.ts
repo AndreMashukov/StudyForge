@@ -85,7 +85,10 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
   const routes = {} as IGenerationRoutes;
 
   for (const kind of ALL_GENERATION_KINDS) {
-    const route = parseGenerationRoute(value[kind]);
+    let route = parseGenerationRoute(value[kind]);
+    if (!route && kind === 'documentRevise') {
+      route = parseGenerationRoute(value.documentFromPrompt);
+    }
     if (!route) {
       return null;
     }
@@ -184,7 +187,10 @@ export class LlmSetupRepository {
     kind: GenerationKind
   ): Promise<SetupGenerationRouteResolution> {
     const context = await this.resolveUserRoutingContext(userId);
-    const generationRoute = context.setup.generationRoutes[kind];
+    let generationRoute = context.setup.generationRoutes[kind];
+    if (!generationRoute && kind === 'documentRevise') {
+      generationRoute = context.setup.generationRoutes.documentFromPrompt;
+    }
     const metadata = GENERATION_KIND_METADATA[kind];
 
     if (!generationRoute) {

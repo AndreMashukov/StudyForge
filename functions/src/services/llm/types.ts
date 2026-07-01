@@ -11,6 +11,7 @@ export type LlmCapability =
   | 'documentFromScreenshot'
   | 'quizFollowup'
   | 'documentQuestion'
+  | 'documentRevise'
   | 'directoryChat'
   | 'diagramQuiz'
   | 'diagramQuizAgent'

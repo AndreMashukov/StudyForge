@@ -114,6 +114,10 @@ export {
   askDocumentQuestion,
 } from "./endpoints/document-question";
 
+export {
+  reviseDocumentWithAI,
+} from "./endpoints/document-revise";
+
 // Export directory chat functions
 export {
   getDirectoryChat,

@@ -13,7 +13,9 @@ import {
   DeleteDocumentRequest,
   GenerateFromPromptRequest,
   GenerateFromPromptResponse,
-  UploadDocumentRequest
+  UploadDocumentRequest,
+  ReviseDocumentWithAIRequest,
+  ReviseDocumentWithAIResponse,
 } from "@shared-types";
 
 interface ListDocumentsResponse {
@@ -206,14 +208,31 @@ export const documentsApi = baseApi.injectEndpoints({
     }),
     
     updateDocument: builder.mutation<DocumentEnhanced, UpdateDocumentRequest & { documentId: string }>({
-      query: (data) => ({
+      query: ({ documentId, ...updates }) => ({
         functionName: 'updateDocument',
-        data
+        data: { documentId, updates },
       }),
+      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) =>
+        response.document,
       invalidatesTags: (result, error, arg) => [
         { type: 'Document', id: arg.documentId },
         { type: 'Document', id: `${arg.documentId}-content` },
       ],
+    }),
+
+    reviseDocumentWithAI: builder.mutation<
+      ReviseDocumentWithAIResponse,
+      ReviseDocumentWithAIRequest
+    >({
+      query: (data) => ({
+        functionName: 'reviseDocumentWithAI',
+        data,
+        timeout: 300000,
+      }),
+      transformResponse: (response: {
+        success: boolean;
+        data: ReviseDocumentWithAIResponse;
+      }) => response.data,
     }),
     
     deleteDocument: builder.mutation<{ success: boolean }, DeleteDocumentRequest>({
@@ -296,6 +315,7 @@ export const {
   useCreateDocumentFromUrlMutation,
   useGenerateFromPromptMutation,
   useUpdateDocumentMutation,
+  useReviseDocumentWithAIMutation,
   useDeleteDocumentMutation,
   useSearchDocumentsQuery,
   useLazySearchDocumentsQuery,

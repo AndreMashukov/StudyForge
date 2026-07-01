@@ -1,4 +1,4 @@
-import { DocumentEnhanced } from "@shared-types";
+import { DocumentEnhanced } from '@shared-types';
 import { TocItem } from '../../../components/MarkdownRenderer';
 
 export interface IDocumentViewerPageContext {
@@ -22,8 +22,10 @@ export interface IDocumentViewerPageContext {
     handleToggleToc: () => void;
     handleTocItemClick: (id: string) => void;
     handleAskDocumentQuestion: (question: string) => void;
+    handleReviseWithAI: (instruction: string) => void;
+    handleApplyRevision: () => Promise<void>;
+    handleDiscardRevision: () => void;
     isExporting: boolean;
   };
   contentRef: React.RefObject<HTMLDivElement | null>;
-  // DON'T include: tocItems, showToc (access through Redux selectors)
 }

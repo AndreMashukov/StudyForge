@@ -27,6 +27,7 @@ export const DocumentViewerPageProvider: React.FC<DocumentViewerPageProviderProp
     document: documentApi.data, 
     contentRef,
     content: contentApi.data?.content,
+    refetchContent: contentApi.refetch,
   });
 
   // Effect hooks - self-contained side effects, manage their own dependencies

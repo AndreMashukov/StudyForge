@@ -76,7 +76,10 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
   const routes = {} as IGenerationRoutes;
 
   for (const kind of ALL_GENERATION_KINDS) {
-    const route = parseGenerationRoute(value[kind]);
+    let route = parseGenerationRoute(value[kind]);
+    if (!route && kind === 'documentRevise') {
+      route = parseGenerationRoute(value.documentFromPrompt);
+    }
     if (!route) {
       return null;
     }

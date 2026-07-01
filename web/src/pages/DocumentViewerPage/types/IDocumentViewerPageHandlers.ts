@@ -8,5 +8,8 @@ export interface IDocumentViewerPageHandlers {
   handleToggleToc: () => void;
   handleTocItemClick: (id: string) => void;
   handleAskDocumentQuestion: (question: string) => void;
+  handleReviseWithAI: (instruction: string) => void;
+  handleApplyRevision: () => Promise<void>;
+  handleDiscardRevision: () => void;
   isExporting: boolean;
 }

@@ -4,6 +4,7 @@ import type {
   IFileContent,
   QuizFollowupContext,
   DocumentQuestionContext,
+  DocumentReviseContext,
   DirectoryChatPromptContext,
 } from '@shared-types';
 import {
@@ -19,6 +20,7 @@ import {
   DocumentPromptBuilder,
   FollowupPromptBuilder,
   DocumentQuestionPromptBuilder,
+  DocumentRevisePromptBuilder,
   DirectoryChatPromptBuilder,
   SlideDeckPromptBuilder,
   DiagramQuizPromptBuilder,
@@ -349,6 +351,25 @@ export class LlmGenerationService {
       'Document question answer generated via OpenRouter'
     );
     return GeminiService.sanitizeMarkdownResponse(text);
+  }
+
+  static async reviseDocument(
+    userId: string,
+    context: DocumentReviseContext
+  ): Promise<string> {
+    const ctx = await resolveTextRoute(userId, 'documentRevise', 'documentRevise');
+    if (!ctx.usesExternalProvider) {
+      return GeminiService.reviseDocument(context);
+    }
+
+    const prompt = DocumentRevisePromptBuilder.buildPrompt(context);
+    const text = await generateExternalProviderText(
+      ctx,
+      prompt,
+      { model: ctx.resolution.route.model, temperature: 0.5, topK: 40, topP: 0.95, maxOutputTokens: 16384 },
+      'Document revision generated via OpenRouter'
+    );
+    return GeminiService.sanitizeDocumentResponse(text);
   }
 
   static async generateDirectoryChatAnswer(

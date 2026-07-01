@@ -1198,6 +1198,27 @@ export interface DocumentQuestionContext {
   customInstructions?: string;
 }
 
+/** Shared limits for AI revision flows (rules improve + document edit). */
+export const AI_REVISION_INSTRUCTION_MAX = 15_000;
+export const AI_REVISION_EXISTING_CONTENT_MAX = 100_000;
+
+export interface ReviseDocumentWithAIRequest {
+  documentId: string;
+  instruction: string;
+}
+
+export interface ReviseDocumentWithAIResponse {
+  content: string;
+}
+
+export interface DocumentReviseContext {
+  document: {
+    title: string;
+    content: string;
+  };
+  instruction: string;
+}
+
 // Directory Chat API Types
 export type DirectoryChatRole = 'user' | 'assistant';
 
@@ -1893,6 +1914,7 @@ export type LlmCapabilityKey =
   | 'documentFromScreenshot'
   | 'quizFollowup'
   | 'documentQuestion'
+  | 'documentRevise'
   | 'directoryChat'
   | 'diagramQuiz'
   | 'diagramQuizAgent'

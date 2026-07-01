@@ -6,6 +6,7 @@ import {
   ScrapedContent,
   QuizFollowupContext,
   DocumentQuestionContext,
+  DocumentReviseContext,
   DirectoryChatPromptContext,
   IFileContent,
   QuestionKnowledgeMetadata,
@@ -17,6 +18,7 @@ import {
   FollowupPromptBuilder,
   DocumentPromptBuilder,
   DocumentQuestionPromptBuilder,
+  DocumentRevisePromptBuilder,
   DirectoryChatPromptBuilder,
   FlashcardPromptBuilder,
   SlideDeckPromptBuilder,
@@ -786,6 +788,53 @@ This question is derived from: **${context.originalDocument.title}**
       );
       throw new Error(
         `Failed to generate answer: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  /**
+   * Revise an existing document and return full revised markdown.
+   */
+  public static async reviseDocument(context: DocumentReviseContext): Promise<string> {
+    try {
+      functions.logger.info('Revising document with Gemini AI', {
+        instructionLength: context.instruction.length,
+        documentLength: context.document.content.length,
+      });
+
+      const client = this.getClient();
+      const prompt = DocumentRevisePromptBuilder.buildPrompt(context);
+
+      const response = await client.models.generateContent({
+        model: GEMINI_PRO_MODEL,
+        contents: prompt,
+        config: {
+          temperature: 0.5,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 16384,
+        },
+      });
+
+      this.assertGeminiResponseCompleted(response, 'document revision');
+
+      const text = response.text;
+      if (!text) {
+        throw new Error('Empty response from Gemini API for document revision');
+      }
+
+      const validatedContent = this.validateAndFixDocumentContent(text);
+
+      functions.logger.info('Document revision generated successfully', {
+        length: validatedContent.length,
+      });
+      return validatedContent;
+    } catch (error) {
+      functions.logger.error('Error revising document with Gemini AI:', error);
+      throw new Error(
+        `Failed to revise document: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`
       );

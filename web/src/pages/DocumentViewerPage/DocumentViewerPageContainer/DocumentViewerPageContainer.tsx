@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Page } from '../../../components/Page';
@@ -7,21 +7,55 @@ import { MarkdownRenderer, TocItem } from '../../../components/MarkdownRenderer'
 import { Button } from '../../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { BreadcrumbNav } from '../../../components/BreadcrumbNav';
-import { Brain, ArrowLeft, Download, FileDown, List, X, Calendar, Layers, Presentation, Network, ListOrdered, Box } from 'lucide-react';
+import {
+  Brain,
+  ArrowLeft,
+  Download,
+  FileDown,
+  List,
+  X,
+  Calendar,
+  Layers,
+  Presentation,
+  Network,
+  ListOrdered,
+  Box,
+  Sparkles,
+} from 'lucide-react';
 import { useDocumentViewerPageContext } from '../context';
 import { Spinner } from '../../../components/ui/Spinner';
-import { 
-  selectTocItems, 
-  selectShowToc, 
+import {
+  selectTocItems,
+  selectShowToc,
   selectIsExporting,
   selectQuestionAnswer,
   selectIsAskingQuestion,
   selectQuestionError,
   clearQuestionAnswer,
+  selectIsEditPanelOpen,
+  selectEditAiState,
+  selectEditPreviewContent,
+  selectEditError,
+  selectIsApplyingRevision,
+  selectHasUnsavedEditPreview,
+  setEditPanelOpen,
+  resetEditPanelState,
+  resetEditPreview,
 } from '../../../store/slices/documentViewerPageSlice';
 import { setSelectedDirectory } from '../../../store/slices/directorySlice';
 import { formatDateWithOptions } from '../../../utils/dateUtils';
 import { DocumentQuestionForm } from './DocumentQuestionForm';
+import { MarkdownAIAssistantPanel } from '../../../components/MarkdownAIAssistantPanel';
+import { AI_REVISION_INSTRUCTION_MAX } from '@shared-types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../../components/ui/Dialog';
+import { cn } from '../../../lib/utils';
 
 // Recursive component to render nested TOC items
 const TocItemComponent: React.FC<{
@@ -87,11 +121,66 @@ export const DocumentViewerPageContainer = () => {
   const questionAnswer = useSelector(selectQuestionAnswer);
   const isAskingQuestion = useSelector(selectIsAskingQuestion);
   const questionError = useSelector(selectQuestionError);
+  const isEditPanelOpen = useSelector(selectIsEditPanelOpen);
+  const editAiState = useSelector(selectEditAiState);
+  const editPreviewContent = useSelector(selectEditPreviewContent);
+  const editError = useSelector(selectEditError);
+  const isApplyingRevision = useSelector(selectIsApplyingRevision);
+  const hasUnsavedEditPreview = useSelector(selectHasUnsavedEditPreview);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
-  // Clear Q&A state when navigating to a different document
   useEffect(() => {
     dispatch(clearQuestionAnswer());
+    dispatch(resetEditPanelState());
   }, [documentId, dispatch]);
+
+  const canEditWithAI = Boolean(
+    contentApi.data?.content?.trim() &&
+      !contentApi.isLoading &&
+      !documentApi.isLoading &&
+      documentApi.data?.generationStatus !== 'pending' &&
+      documentApi.data?.generationStatus !== 'failed'
+  );
+
+  const handleToggleEditPanel = () => {
+    if (isEditPanelOpen) {
+      if (hasUnsavedEditPreview) {
+        setShowDiscardConfirm(true);
+        return;
+      }
+      dispatch(setEditPanelOpen(false));
+      dispatch(resetEditPreview());
+      return;
+    }
+    dispatch(setEditPanelOpen(true));
+  };
+
+  const handleConfirmDiscardAndClose = () => {
+    setShowDiscardConfirm(false);
+    dispatch(resetEditPanelState());
+  };
+
+  const editPanel = (
+    <MarkdownAIAssistantPanel
+      title="Edit with AI"
+      idleDescription="Describe how you want to change this document."
+      instructionPlaceholder='e.g., "Add a summary section at the top" or "Convert the bullet lists into tables"'
+      generateLabel="Revise with AI"
+      generatingLabel="Revising document with AI..."
+      applyLabel={isApplyingRevision ? 'Saving...' : 'Apply'}
+      instructionMaxLength={AI_REVISION_INSTRUCTION_MAX}
+      aiState={editAiState}
+      aiError={editError}
+      previewContent={editPreviewContent}
+      onGenerate={handlers.handleReviseWithAI}
+      onApply={handlers.handleApplyRevision}
+      onDiscard={handlers.handleDiscardRevision}
+      isApplyDisabled={isApplyingRevision}
+      confirmBeforeApply
+      applyConfirmTitle="Replace document content?"
+      applyConfirmMessage="This will replace the entire document content. This action cannot be undone."
+    />
+  );
 
   const handleBreadcrumbNavigate = (directoryId: string | null) => {
     dispatch(setSelectedDirectory(directoryId));
@@ -205,7 +294,12 @@ export const DocumentViewerPageContainer = () => {
 
   return (
     <Page showSidebar={true}>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div
+        className={cn(
+          'mx-auto space-y-6',
+          isEditPanelOpen ? 'max-w-7xl px-4' : 'max-w-4xl'
+        )}
+      >
         {/* Header */}
         <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 border-b">
           <div className="flex items-center gap-3 px-4 py-2">
@@ -341,7 +435,13 @@ export const DocumentViewerPageContainer = () => {
         </Card>
 
         {/* Main Content Area */}
-        <div className="flex gap-6 relative">
+        {isEditPanelOpen && (
+          <div className="md:hidden fixed inset-0 z-40 bg-background flex flex-col p-4 pt-24 overflow-y-auto">
+            {editPanel}
+          </div>
+        )}
+
+        <div className={cn('flex gap-6 relative', isEditPanelOpen && 'md:flex-row md:items-start')}>
           {/* TOC Sidebar */}
           {showToc && tocItems.length > 0 && (
             <div className="w-72 flex-shrink-0 hidden lg:block">
@@ -412,7 +512,12 @@ export const DocumentViewerPageContainer = () => {
           )}
 
           {/* Content Area */}
-          <div className="flex-1 min-w-0">
+          <div
+            className={cn(
+              'flex-1 min-w-0',
+              isEditPanelOpen && 'hidden md:block md:w-[60%] md:flex-none'
+            )}
+          >
             <Card ref={contentRef}>
               <CardContent className="p-6">
                 {contentApi.isLoading ? (
@@ -456,23 +561,62 @@ export const DocumentViewerPageContainer = () => {
               </CardContent>
             </Card>
           </div>
+
+          {isEditPanelOpen && (
+            <div className="hidden md:block md:w-[40%] min-h-[32rem] sticky top-24 self-start">
+              {editPanel}
+            </div>
+          )}
         </div>
 
-        {/* Ask a Question */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold">Ask about this document</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DocumentQuestionForm
-              onSubmit={handlers.handleAskDocumentQuestion}
-              isLoading={isAskingQuestion}
-              answer={questionAnswer}
-              error={questionError}
-            />
-          </CardContent>
-        </Card>
+        {!isEditPanelOpen && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">Ask about this document</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DocumentQuestionForm
+                onSubmit={handlers.handleAskDocumentQuestion}
+                isLoading={isAskingQuestion}
+                answer={questionAnswer}
+                error={questionError}
+              />
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {canEditWithAI && (
+        <Button
+          type="button"
+          onClick={handleToggleEditPanel}
+          className="fixed bottom-6 right-6 z-50 shadow-lg gap-2"
+          aria-label={isEditPanelOpen ? 'Close AI editor' : 'Edit with AI'}
+        >
+          {isEditPanelOpen ? <X size={16} /> : <Sparkles size={16} />}
+          {isEditPanelOpen ? 'Close editor' : 'Edit with AI'}
+        </Button>
+      )}
+
+      <Dialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Discard unsaved changes?</DialogTitle>
+            <DialogDescription>
+              You have an AI revision preview that has not been applied. Discard it and close the
+              editor?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDiscardConfirm(false)}>
+              Keep editing
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDiscardAndClose}>
+              Discard
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Page>
   );
 };

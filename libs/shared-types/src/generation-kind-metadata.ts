@@ -7,6 +7,7 @@ export type GenerationKind =
   | 'documentFromScreenshot'
   | 'quizFollowup'
   | 'documentQuestion'
+  | 'documentRevise'
   | 'directoryChat'
   | 'diagramQuiz'
   | 'sequenceQuiz'
@@ -35,6 +36,7 @@ export const ALL_GENERATION_KINDS: GenerationKind[] = [
   'documentFromScreenshot',
   'quizFollowup',
   'documentQuestion',
+  'documentRevise',
   'directoryChat',
   'diagramQuiz',
   'sequenceQuiz',
@@ -158,6 +160,15 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
     kind: 'documentQuestion',
     label: 'Document question',
     description: 'Interactive Q&A about a single document.',
+    requiredModality: 'text',
+    supportedWorkflows: ['direct'],
+    defaultWorkflow: 'direct',
+    group: 'interactive',
+  },
+  documentRevise: {
+    kind: 'documentRevise',
+    label: 'Document revise',
+    description: 'AI-assisted revision of an existing document.',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',

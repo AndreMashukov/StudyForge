@@ -7,8 +7,9 @@
  *   2. Ensure Firestore user document exists
  *   3. Create "Study Materials" directory in Firestore
  *   4. Create a general prompt rule and attach it to the directory
- *   5. Inject a "Machine Learning" document into the directory in Firestore
- *   6. Upload the document content file to the Storage emulator
+ *   5. Inject sample documents into the directory in Firestore
+ *   6. Sync directory item index entries (required for the web directory UI)
+ *   7. Upload document content files to the Storage emulator
  *
  * Usage:
  *   npx tsx scripts/seed-setup/setup-seed-data.ts
@@ -210,6 +211,41 @@ function useDocuments() {
 Mastering these patterns leads to more maintainable, performant, and scalable React applications. Choose patterns based on your specific use case rather than applying them universally.
 `;
 
+interface SeedDocumentRecord {
+  id: string;
+  title: string;
+  description: string;
+  content: string;
+  tags: string[];
+}
+
+function buildDocumentDirectoryItemId(documentId: string): string {
+  return `document_${documentId}`;
+}
+
+async function syncDocumentDirectoryItem(
+  db: admin.firestore.Firestore,
+  userId: string,
+  directoryId: string,
+  doc: SeedDocumentRecord,
+  now: admin.firestore.Timestamp,
+): Promise<void> {
+  const itemId = buildDocumentDirectoryItemId(doc.id);
+  await db.doc(`users/${userId}/directories/${directoryId}/items/${itemId}`).set(
+    {
+      id: itemId,
+      sourceId: doc.id,
+      directoryId,
+      itemType: 'document',
+      title: doc.title,
+      createdAt: now,
+      updatedAt: now,
+      wordCount: doc.content.split(/\s+/).length,
+    },
+    { merge: true },
+  );
+}
+
 async function main() {
   // --- Emulator hosts (must be set before admin.initializeApp) ---
   process.env.FIREBASE_AUTH_EMULATOR_HOST =
@@ -322,34 +358,17 @@ async function main() {
   console.log(`   ✅ Rule created: ${ruleData.name} (ID: ${RULE_ID})`);
 
   // ── Step 5: Firestore document metadata ─────────────────────────────────
-  console.log('\n[5] Injecting document into Firestore …');
+  console.log('\n[5] Injecting documents into Firestore …');
   console.log(`   User: ${TARGET_UID}`);
-  console.log(`   Document ID: ${DOC_ID}`);
 
-  const docData = {
-    id: DOC_ID,
-    userId: TARGET_UID,
-    directoryId: DIR_ID,
-    title: 'Machine Learning',
-    description: 'A comprehensive introduction to machine learning concepts and applications.',
-    sourceType: 'generated',
-    status: 'active',
-    wordCount: DOCUMENT_CONTENT.split(/\s+/).length,
-    storagePath: `users/${TARGET_UID}/documents/${DOC_ID}/content.md`,
-    storageUrl: `http://${process.env.FIREBASE_STORAGE_EMULATOR_HOST}/v0/b/${STORAGE_BUCKET}/o/users%2F${encodeURIComponent(TARGET_UID)}%2Fdocuments%2F${DOC_ID}%2Fcontent.md?alt=media`,
-    tags: ['machine-learning', 'AI', 'neural-networks'],
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await db.doc(`users/${TARGET_UID}/documents/${DOC_ID}`).set(docData);
-  console.log('   ✅ Document metadata written');
-
-
-  // ── Step 5b: Additional documents ───────────────────────────────────────
-  console.log('\n[5b] Injecting additional documents ...');
-
-  const additionalDocs = [
+  const seedDocuments: SeedDocumentRecord[] = [
+    {
+      id: DOC_ID,
+      title: 'Machine Learning',
+      description: 'A comprehensive introduction to machine learning concepts and applications.',
+      content: DOCUMENT_CONTENT,
+      tags: ['machine-learning', 'AI', 'neural-networks'],
+    },
     {
       id: DOC_ID_2,
       title: 'Ruby vs JavaScript',
@@ -373,8 +392,8 @@ async function main() {
     },
   ];
 
-  for (const doc of additionalDocs) {
-    const additionalDocData = {
+  for (const doc of seedDocuments) {
+    const docData = {
       id: doc.id,
       userId: TARGET_UID,
       directoryId: DIR_ID,
@@ -389,26 +408,28 @@ async function main() {
       createdAt: now,
       updatedAt: now,
     };
-    await db.doc(`users/${TARGET_UID}/documents/${doc.id}`).set(additionalDocData);
+    await db.doc(`users/${TARGET_UID}/documents/${doc.id}`).set(docData);
+    console.log(`   ✅ Document metadata written: ${doc.title} (ID: ${doc.id})`);
+  }
 
-    const additionalFilePath = `users/${TARGET_UID}/documents/${doc.id}/content.md`;
-    const additionalFile = admin.storage().bucket(STORAGE_BUCKET).file(additionalFilePath);
-    await additionalFile.save(Buffer.from(doc.content, 'utf8'), {
+  // ── Step 6: Directory item index ────────────────────────────────────────
+  console.log('\n[6] Syncing directory item index …');
+  for (const doc of seedDocuments) {
+    await syncDocumentDirectoryItem(db, TARGET_UID, DIR_ID, doc, now);
+    console.log(`   ✅ Directory item synced: ${doc.title}`);
+  }
+
+  // ── Step 7: Storage content files ───────────────────────────────────────
+  console.log('\n[7] Uploading content to Storage emulator …');
+  for (const doc of seedDocuments) {
+    const filePath = `users/${TARGET_UID}/documents/${doc.id}/content.md`;
+    const file = admin.storage().bucket(STORAGE_BUCKET).file(filePath);
+    await file.save(Buffer.from(doc.content, 'utf8'), {
       metadata: { contentType: 'text/markdown; charset=utf-8' },
       resumable: false,
     });
-    console.log(`   ✅ Document seeded: ${doc.title} (ID: ${doc.id})`);
+    console.log(`   ✅ Content uploaded to: ${filePath}`);
   }
-  // ── Step 6: Storage content file ────────────────────────────────────────
-  console.log('\n[6] Uploading content to Storage emulator …');
-  const filePath = `users/${TARGET_UID}/documents/${DOC_ID}/content.md`;
-  const file = admin.storage().bucket(STORAGE_BUCKET).file(filePath);
-
-  await file.save(Buffer.from(DOCUMENT_CONTENT, 'utf8'), {
-    metadata: { contentType: 'text/markdown; charset=utf-8' },
-    resumable: false,
-  });
-  console.log(`   ✅ Content uploaded to: ${filePath}`);
 
   console.log('\n✅ E2E setup complete. Ready to run tests.');
 }
