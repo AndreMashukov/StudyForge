@@ -190,7 +190,6 @@ All rule-related Firebase Functions v2 that require IAM permissions:
 | `getApplicableRules` | `getapplicablerules` | Get applicable rules for an operation |
 | `formatRulesForPrompt` | `formatrulesforprompt` | Format rules for AI prompt injection |
 | `getRuleTags` | `getruletags` | Get all unique tags used by rules |
-| `debugDirectoryRules` | `debugdirectoryrules` | Debug rule attachment issues |
 
 **Note**: Cloud Run service names are lowercase versions of the function names.
 
@@ -201,7 +200,7 @@ All rule-related Firebase Functions v2 that require IAM permissions:
 for func in createrule getrule getrules updaterule deleterule \
             attachruletodirectory detachrulefromdirectory \
             getdirectoryrules getapplicablerules \
-            formatrulesforprompt getruletags debugdirectoryrules; do
+            formatrulesforprompt getruletags; do
   echo "Setting IAM for $func..."
   gcloud run services add-iam-policy-binding "$func" \
     --region=asia-east1 \
@@ -256,7 +255,6 @@ RULE_FUNCTIONS=(
   "getapplicablerules"
   "formatrulesforprompt"
   "getruletags"
-  "debugdirectoryrules"
 )
 
 # Other functions (add as needed)
@@ -456,7 +454,7 @@ catch (error) {
     for func in createrule getrule getrules updaterule deleterule \
                 attachruletodirectory detachrulefromdirectory \
                 getdirectoryrules getapplicablerules \
-                formatrulesforprompt getruletags debugdirectoryrules; do
+                formatrulesforprompt getruletags; do
       gcloud run services add-iam-policy-binding $func \
         --region=asia-east1 \
         --member="allUsers" \

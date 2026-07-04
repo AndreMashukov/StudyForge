@@ -106,7 +106,6 @@ CALLABLE_FUNCTIONS=(
   "getapplicablerules"
   "formatrulesforprompt"
   "getruletags"
-  "debugdirectoryrules"
   # Interaction tracking functions
   "flushinteractionsession"
   "getinteractionstats"

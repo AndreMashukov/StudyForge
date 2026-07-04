@@ -20,7 +20,6 @@ import {
 } from '../services/artifact-generation-records';
 import { enqueueGenerationJob } from '../services/generation-enqueue';
 import { buildStartGenerationPayload } from '../lib/start-generation-response';
-import { DocumentService } from '../services/document-storage';
 import { validateAuth } from '../lib/auth';
 import { FirestorePaths } from '../lib/firestore-paths';
 import {
@@ -69,16 +68,6 @@ const updateFlashcardSetRequestSchema = z.object({
 const getUserFlashcardSetsRequestSchema = z.object({
   limit: z.number().int().min(1).max(100).optional(),
 }).optional();
-
-// Helper to restrict to emulator-only (for debug endpoints)
-const requireEmulator = (): void => {
-  if (process.env.FUNCTIONS_EMULATOR !== 'true') {
-    throw new HttpsError(
-      'failed-precondition',
-      'This endpoint is only available when running in the Firebase emulator.'
-    );
-  }
-};
 
 /**
  * Generates a new set of flashcards from a document.
@@ -327,25 +316,5 @@ export const deleteFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
     logger.error(`Error deleting flashcard set ${request.data?.flashcardSetId}:`, error);
     if (error instanceof HttpsError) throw error;
     throw new HttpsError('internal', 'Could not delete flashcard set.');
-  }
-});
-
-/**
- * Debug endpoint: returns the resolved bucket name and lists files in the emulator bucket.
- * Useful for diagnosing Storage emulator bucket name mismatches.
- * Restricted to authenticated users and emulator-only usage.
- */
-export const debugStorageBucket = onCall({ region: 'asia-east1', cors: true }, async (request) => {
-  try {
-    validateAuth(request);
-    requireEmulator();
-
-    const result = await DocumentService.debugBucket();
-    logger.info('debugStorageBucket result', result);
-    return result;
-  } catch (error) {
-    logger.error('debugStorageBucket error:', error);
-    if (error instanceof HttpsError) throw error;
-    throw new HttpsError('internal', String(error));
   }
 });

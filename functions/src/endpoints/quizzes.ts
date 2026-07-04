@@ -254,42 +254,6 @@ export const getUserQuizzes = onCall(
 );
 
 /**
- * Get Recent Public Quizzes
- */
-export const getRecentQuizzes = onCall(
-  {
-    cors: true,
-  },
-  async (request): Promise<ApiResponse<{ quizzes: Quiz[] }>> => {
-    try {
-      const { limit = 20 } = request.data || {};
-
-      console.log(`Fetching ${limit} recent quizzes`);
-
-      const quizzes = await FirestoreService.getRecentQuizzes(limit);
-
-      return {
-        success: true,
-        data: {
-          quizzes,
-        },
-      };
-
-    } catch (error) {
-      console.error("Error in getRecentQuizzes:", error);
-      
-      return {
-        success: false,
-        error: {
-          code: "FETCH_FAILED",
-          message: error instanceof Error ? error.message : "Failed to fetch recent quizzes",
-        },
-      };
-    }
-  }
-);
-
-/**
  * Get Document Quizzes
  * Get all quizzes for a specific document
  * Requires authentication

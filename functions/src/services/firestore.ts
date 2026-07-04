@@ -133,34 +133,6 @@ export class FirestoreService {
   }
 
   /**
-   * Get recent quizzes (public/anonymous) using collection group query
-   */
-  public static async getRecentQuizzes(limit = 20): Promise<Quiz[]> {
-    try {
-      const db = this.getDb();
-      const snapshot = await db
-        .collectionGroup("quizzes")
-        .orderBy("createdAt", "desc")
-        .limit(limit)
-        .get();
-
-      return snapshot.docs.map((doc) => {
-        const data = doc.data() as Quiz;
-        // Strip userId from public response to avoid leaking user metadata
-        const { userId: _uid, ...publicData } = data;
-        return {
-          ...publicData,
-          id: doc.id,
-          createdAt: this.convertTimestamp(data.createdAt),
-        } as Quiz;
-      });
-    } catch (error) {
-      functions.logger.error("Error getting recent quizzes:", error);
-      throw new Error(`Failed to get recent quizzes: ${error}`);
-    }
-  }
-
-  /**
    * Delete quiz by ID
    */
   public static async deleteQuiz(quizId: string, userId: string): Promise<void> {

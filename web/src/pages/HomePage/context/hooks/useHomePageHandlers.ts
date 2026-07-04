@@ -9,7 +9,7 @@ export const useHomePageHandlers = () => {
   const navigate = useNavigate();
   
   // Get quiz data for refetching
-  const { userQuizzes, recentQuizzes } = useFetchQuizzes();
+  const { userQuizzes } = useFetchQuizzes();
 
 
 
@@ -36,7 +36,6 @@ export const useHomePageHandlers = () => {
 
   return {
     userQuizzes,
-    recentQuizzes,
     handleNavigateToQuiz,
     handleDeleteQuiz,
   };

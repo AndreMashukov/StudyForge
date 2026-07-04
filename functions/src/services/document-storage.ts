@@ -73,36 +73,6 @@ export class DocumentService {
   }
 
   /**
-   * Diagnostic helper: list all files in the bucket root to debug emulator bucket issues.
-   * Only useful in emulator mode. Call via debugStorageBucket() function.
-   */
-  static async debugBucket(): Promise<{ bucket: string; files: string[]; env: Record<string, string> }> {
-    const bucket = this.getBucket();
-    const env = {
-      FIREBASE_STORAGE_EMULATOR_HOST: process.env.FIREBASE_STORAGE_EMULATOR_HOST || '(not set)',
-      FUNCTIONS_EMULATOR: process.env.FUNCTIONS_EMULATOR || '(not set)',
-      STORAGE_BUCKET: process.env.STORAGE_BUCKET || '(not set)',
-      FIREBASE_CONFIG_storageBucket: (() => { try { return (JSON.parse(process.env.FIREBASE_CONFIG || '{}') as { storageBucket?: string }).storageBucket || '(not set)'; } catch { return '(parse error)'; } })(),
-      FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || '(not set)',
-    };
-
-    try {
-      const [files] = await bucket.getFiles({ maxResults: 50 });
-      return {
-        bucket: bucket.name,
-        files: files.map(f => f.name),
-        env,
-      };
-    } catch (err) {
-      return {
-        bucket: bucket.name,
-        files: [`ERROR listing files: ${err instanceof Error ? err.message : String(err)}`],
-        env,
-      };
-    }
-  }
-
-  /**
    * Upload markdown content to Firebase Storage
    * @param userId - The authenticated user's ID
    * @param documentId - The document identifier

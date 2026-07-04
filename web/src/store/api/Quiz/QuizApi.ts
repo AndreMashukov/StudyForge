@@ -31,7 +31,6 @@ export const quizApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (result, error, arg) => [
         'UserQuizzes',
-        'RecentQuizzes',
         ...(arg.directoryId
           ? ([{ type: 'Directory' as const, id: arg.directoryId }] as const)
           : []),
@@ -143,15 +142,6 @@ export const quizApi = baseApi.injectEndpoints({
       keepUnusedDataFor: 300,
     }),
 
-    // Get recent public quizzes
-    getRecentQuizzes: builder.query<ApiResponse<{ quizzes: Quiz[] }>, void>({
-      query: () => ({
-        functionName: 'getRecentQuizzes',
-        data: {},
-      }),
-      providesTags: ['RecentQuizzes'],
-    }),
-
     // Get all quizzes for a specific document
     getDocumentQuizzes: builder.query<ApiResponse<GetDocumentQuizzesResponse>, GetDocumentQuizzesRequest>({
       async queryFn({ documentId }, _api, _extraOptions, baseQuery) {
@@ -214,7 +204,6 @@ export const {
   useGenerateQuizMutation,
   useGetQuizQuery,
   useGetUserQuizzesQuery,
-  useGetRecentQuizzesQuery,
   useGetDocumentQuizzesQuery,
   useDeleteQuizMutation,
 } = quizApi;
