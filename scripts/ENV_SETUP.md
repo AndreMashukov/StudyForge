@@ -198,3 +198,27 @@ brew install gitleaks
 
 CI runs `gitleaks/gitleaks-action` on every push and PR (see `.github/workflows/ci.yml`).
 
+---
+
+## App Check (P0 security)
+
+Callable Cloud Functions enforce App Check globally. The web app initializes App Check in both production and emulator modes via `web/src/config/firebase.ts`.
+
+### Setup
+
+1. Register the web app in Firebase Console → **App Check** with reCAPTCHA v3.
+2. Set `NX_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` locally and as a GitHub secret for production builds.
+3. Deploy functions after changing enforcement: `yarn nx run functions:deploy`.
+
+### Local emulator
+
+With `enforceAppCheck: true`, emulator callables reject requests without a valid App Check token. The web dev client enables debug tokens automatically — register the token from the browser console under App Check → **Manage debug tokens**.
+
+### Firebase Console rollout (Firestore / Storage)
+
+Use monitor mode first, then enforce per product in App Check settings. Callable enforcement is controlled in functions code, not the Console.
+
+### HTTP (`onRequest`) routes
+
+`onRequest` handlers do not inherit `enforceAppCheck`. Use `functions/src/lib/app-check-verification.ts` for first-party HTTP routes. Public probes (`healthCheck`) and third-party API-key routes (`api`) intentionally skip App Check.
+

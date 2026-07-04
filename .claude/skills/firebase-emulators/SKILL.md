@@ -39,6 +39,16 @@ yarn firebase emulators:start --project "$NX_PUBLIC_FIREBASE_PROJECT_ID"
 
 Set `NX_PUBLIC_USE_FIREBASE_EMULATOR=true` for local dev.
 
+## App Check (required for callables)
+
+Functions enforce App Check globally (`enforceAppCheck: true`). The web app must initialize App Check in production and emulator modes.
+
+1. Create a reCAPTCHA v3 site key and register the web app in Firebase Console → App Check.
+2. Set `NX_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` in root `.env` / CI secrets.
+3. **Emulator:** the web client enables debug tokens automatically. Copy the debug token from the browser console and register it in Firebase Console → App Check → Manage debug tokens. Optionally set a fixed `NX_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN` in `.env.local` so the token does not change between reloads.
+4. **Emulator enforcement:** callable App Check enforcement is disabled while `functions:serve` runs (`FUNCTIONS_EMULATOR=true`). Production deploys still enforce App Check.
+5. **Production Console rollout:** enable App Check metrics first (monitor), then enforce for Firestore/Storage when ready. Callable enforcement is active in deployed functions.
+
 ## Seed Test Data
 
 Emulators start empty. With emulators running:

@@ -34,6 +34,74 @@ export const storage = getStorage(app);
 export const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' || 
                      import.meta.env.NX_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
 
+function resolveAppCheckSiteKey(): string | undefined {
+  const siteKey =
+    import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY ||
+    import.meta.env.NX_PUBLIC_FIREBASE_APPCHECK_SITE_KEY;
+
+  if (typeof siteKey !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = siteKey.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function resolveAppCheckDebugToken(): boolean | string {
+  const configured =
+    import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG_TOKEN ||
+    import.meta.env.NX_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN;
+
+  if (typeof configured === 'string' && configured.trim().length > 0) {
+    return configured.trim();
+  }
+
+  return true;
+}
+
+function initializeWebAppCheck(options: { enableDebugToken: boolean }): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const siteKey = resolveAppCheckSiteKey();
+  if (!siteKey) {
+    const setupHint =
+      'Set NX_PUBLIC_FIREBASE_APPCHECK_SITE_KEY to a reCAPTCHA v3 site key. Callable functions enforce App Check.';
+    if (useEmulator) {
+      console.warn(`⚠️ App Check: ${setupHint} Skipping App Check init in emulator.`);
+    } else {
+      console.error(`🔥 App Check: ${setupHint}`);
+    }
+    return;
+  }
+
+  if (options.enableDebugToken) {
+    const debugToken = resolveAppCheckDebugToken();
+    (globalThis as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean | string }).FIREBASE_APPCHECK_DEBUG_TOKEN =
+      debugToken;
+    if (typeof debugToken === 'string') {
+      console.log(
+        `ℹ️ App Check debug token (register in Firebase Console → App Check → Manage debug tokens): ${debugToken}`,
+      );
+    }
+  }
+
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(siteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+    console.log(
+      options.enableDebugToken
+        ? '✅ App Check initialized (emulator debug token enabled)'
+        : '✅ App Check initialized',
+    );
+  } catch (error) {
+    console.error('🔥 Failed to initialize App Check:', error);
+  }
+}
+
 if (typeof window !== 'undefined' && useEmulator) {
   console.log('🔧 Connecting to Firebase Emulators...');
   
@@ -65,23 +133,10 @@ if (typeof window !== 'undefined' && useEmulator) {
     console.log('⚠️ Storage emulator already connected or error:', error);
   }
 
-  try {
-    (globalThis as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-    const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY || import.meta.env.NX_PUBLIC_FIREBASE_APPCHECK_SITE_KEY;
-    if (!appCheckSiteKey) {
-      console.warn('⚠️ App Check: Set VITE_FIREBASE_APPCHECK_SITE_KEY or NX_PUBLIC_FIREBASE_APPCHECK_SITE_KEY in .env. Create a reCAPTCHA v3 key in the reCAPTCHA Admin Console for your dev domain. Skipping App Check init.');
-    } else {
-      initializeAppCheck(app, {
-        provider: new ReCaptchaV3Provider(appCheckSiteKey),
-        isTokenAutoRefreshEnabled: true,
-      });
-      console.log('✅ App Check Emulator connected');
-    }
-  } catch (error) {
-    console.error('🔥 Error connecting to App Check Emulator:', error);
-  }
-} else {
+  initializeWebAppCheck({ enableDebugToken: true });
+} else if (typeof window !== 'undefined') {
   console.log('☁️ Using Production Firebase Services');
+  initializeWebAppCheck({ enableDebugToken: false });
 }
 
 export default app;

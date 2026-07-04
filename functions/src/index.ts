@@ -27,13 +27,19 @@ import { GeminiService } from "./services/gemini";
 import { FirestoreService } from "./services/firestore";
 
 // Configure global options
+const runningInFunctionsEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+
 setGlobalOptions({
   maxInstances: 10,
   region: "asia-east1",
+  // Production callables enforce App Check. The emulator skips enforcement so local
+  // dev works without registering debug tokens; use production/staging to validate App Check.
+  enforceAppCheck: !runningInFunctionsEmulator,
 });
 
 /**
- * Health check endpoint (HTTP for monitoring)
+ * Health check endpoint (HTTP for monitoring).
+ * Public liveness probe — onRequest handlers do not inherit enforceAppCheck; no App Check here.
  */
 export const healthCheck = onRequest(
   {

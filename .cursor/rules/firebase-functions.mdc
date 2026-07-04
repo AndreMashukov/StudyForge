@@ -19,7 +19,8 @@ alwaysApply: false
 2. **MUST validate auth** — check `request.auth` before processing.
 3. **MUST return `{ success: boolean, ... }` envelopes** matching web `transformResponse`.
 4. **MUST use `defineSecret`** for `GEMINI_API_KEY` — never hardcode.
-5. **MUST keep functions thin** — delegate to `functions/src/services/`.
+5. **MUST enforce App Check** — global `enforceAppCheck: true` in `functions/src/index.ts`.
+6. **MUST keep functions thin** — delegate to `functions/src/services/`.
 
 ## Local Dev
 

@@ -29,6 +29,7 @@ Production deploys via GitHub Actions on push to `main`:
 | `NX_PUBLIC_FIREBASE_PROJECT_ID` | Client Firebase config + deploy `projectId` |
 | `NX_PUBLIC_FIREBASE_STORAGE_BUCKET` | Client Firebase config |
 | `NX_PUBLIC_GEMINI_API_KEY` | Client-side Gemini access |
+| `NX_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` | reCAPTCHA v3 site key for App Check (required for callable functions) |
 
 **Never commit** service account JSON or API keys to the repository.
 

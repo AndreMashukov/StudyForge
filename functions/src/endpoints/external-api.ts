@@ -76,6 +76,9 @@ async function cleanupUploadedFiles(paths: string[]): Promise<void> {
 /**
  * External HTTP API authenticated via API keys (X-API-Key or Authorization: Bearer).
  *
+ * Third-party clients use API keys, not App Check. onRequest handlers do not inherit
+ * enforceAppCheck; verify App Check manually only for first-party HTTP routes.
+ *
  * Base URL (production):
  *   https://asia-east1-{project-id}.cloudfunctions.net/api
  *

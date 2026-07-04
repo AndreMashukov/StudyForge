@@ -79,6 +79,7 @@ jobs:
           NX_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NX_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
           NX_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NX_PUBLIC_FIREBASE_APP_ID }}
           NX_PUBLIC_GEMINI_API_KEY: ${{ secrets.NX_PUBLIC_GEMINI_API_KEY }}
+          NX_PUBLIC_FIREBASE_APPCHECK_SITE_KEY: ${{ secrets.NX_PUBLIC_FIREBASE_APPCHECK_SITE_KEY }}
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0

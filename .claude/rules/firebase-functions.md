@@ -20,7 +20,8 @@ paths:
 3. **MUST return `{ success: boolean, ... }` envelopes** matching web `transformResponse` expectations.
 4. **MUST use `defineSecret`** for `GEMINI_API_KEY` — never hardcode API keys.
 5. **MUST import types** from `@shared-types` for request/response contracts.
-6. **MUST keep functions thin** — delegate to services in `functions/src/services/`.
+6. **MUST enforce App Check** — global `enforceAppCheck: true` in `functions/src/index.ts`; callable clients must send valid App Check tokens.
+7. **MUST keep functions thin** — delegate to services in `functions/src/services/`.
 
 ## NEVER Do
 
