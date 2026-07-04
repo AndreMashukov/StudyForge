@@ -73,6 +73,12 @@ web_modules/
 .env.*
 !.env.example
 
+# Local secret overrides (Firebase Functions emulator + dev scripts)
+.secret.local
+**/.secret.local
+!.secret.local.example
+!**/.secret.local.example
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

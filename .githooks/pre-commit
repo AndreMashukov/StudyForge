@@ -1,0 +1,12 @@
+#!/bin/sh
+# Block commits that introduce secrets (gitleaks).
+# Install: ./scripts/setup-git-hooks.sh
+
+set -eu
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "gitleaks not installed — skipping secret scan (brew install gitleaks)" >&2
+  exit 0
+fi
+
+gitleaks protect --staged --verbose --redact --config .gitleaks.toml

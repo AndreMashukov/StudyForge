@@ -136,3 +136,65 @@ yarn backup:firebase
 3. **Emulators** - Use for local development/testing, not production backups
 4. **Project ID** - Your project ID appears to be `code-insights-quiz-ai` based on the codebase
 
+---
+
+## Gemini API key rotation (P0 security)
+
+If a Gemini key was ever committed to git, treat it as **compromised** even after deleting the file. History and clones may still contain it.
+
+### 1. Revoke the exposed key
+
+1. Open [Google AI Studio → API keys](https://aistudio.google.com/apikey).
+2. Delete or restrict the leaked key immediately.
+
+### 2. Mint a replacement
+
+Create a new key in AI Studio. Store it only in approved secret stores — never in tracked files.
+
+| Environment | Where to store |
+|-------------|----------------|
+| **Production Functions** | Firebase / GCP Secret Manager |
+| **Local emulator** | `functions/.secret.local` (gitignored; copy from `functions/.secret.local.example`) |
+| **Local scripts / seed** | `functions/.env` or `functions/.env.local` |
+| **CI web build** | GitHub secret `NX_PUBLIC_GEMINI_API_KEY` (if used client-side) |
+
+Production secret commands (project `study-forge-202604`):
+
+```bash
+firebase functions:secrets:set GEMINI_API_KEY --project study-forge-202604
+firebase functions:secrets:set LLM_SETTINGS_ENCRYPTION_KEY --project study-forge-202604
+yarn nx run functions:deploy
+```
+
+### 3. Local setup after rotation
+
+```bash
+cp functions/.secret.local.example functions/.secret.local
+# Edit functions/.secret.local with your new key
+
+cp functions/.env.example functions/.env
+# Edit functions/.env with the same GEMINI_API_KEY for seed scripts
+```
+
+### 4. Purge leaked files from git history
+
+After untracking and gitignoring `.secret.local`, rewrite history and force-push (coordinate with all collaborators):
+
+```bash
+git filter-repo --path .secret.local --invert-paths --force
+git push --force-with-lease origin main
+```
+
+All contributors must re-clone or reset local branches after the force push.
+
+### 5. Secret scanning
+
+Install pre-commit scanning locally:
+
+```bash
+brew install gitleaks
+./scripts/setup-git-hooks.sh
+```
+
+CI runs `gitleaks/gitleaks-action` on every push and PR (see `.github/workflows/ci.yml`).
+

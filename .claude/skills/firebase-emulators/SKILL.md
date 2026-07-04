@@ -35,6 +35,7 @@ yarn firebase emulators:start --project "$NX_PUBLIC_FIREBASE_PROJECT_ID"
 | `admin/.env.local` | Next.js public + server secrets |
 | `functions/.env` | `GEMINI_API_KEY`, `STORAGE_BUCKET` |
 | `functions/.env.local` | Storage bucket `.appspot.com` form for emulator |
+| `functions/.secret.local` | Emulator secrets for `defineSecret()` (copy from `functions/.secret.local.example`) |
 
 Set `NX_PUBLIC_USE_FIREBASE_EMULATOR=true` for local dev.
 
