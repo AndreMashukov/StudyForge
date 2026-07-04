@@ -8,7 +8,12 @@ import {
 } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+import {
+  getToken,
+  initializeAppCheck,
+  ReCaptchaV3Provider,
+  type AppCheck,
+} from 'firebase/app-check';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -22,17 +27,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(),
-  }),
-});
-export const functions = getFunctions(app, 'asia-east1');
-export const storage = getStorage(app);
-
-export const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' || 
+export const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' ||
                      import.meta.env.NX_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
+
+let appCheckReadyPromise: Promise<void> | undefined;
 
 function resolveAppCheckSiteKey(): string | undefined {
   const siteKey =
@@ -57,6 +55,20 @@ function resolveAppCheckDebugToken(): boolean | string {
   }
 
   return true;
+}
+
+function startAppCheckTokenFetch(appCheck: AppCheck): void {
+  appCheckReadyPromise = getToken(appCheck, false)
+    .then(() => {
+      console.log('✅ App Check token ready');
+    })
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(
+        '🔥 App Check token fetch failed. Register the reCAPTCHA v3 secret in Firebase Console → App Check and add production domains in reCAPTCHA Admin:',
+        message,
+      );
+    });
 }
 
 function initializeWebAppCheck(options: { enableDebugToken: boolean }): void {
@@ -88,7 +100,7 @@ function initializeWebAppCheck(options: { enableDebugToken: boolean }): void {
   }
 
   try {
-    initializeAppCheck(app, {
+    const appCheck = initializeAppCheck(app, {
       provider: new ReCaptchaV3Provider(siteKey),
       isTokenAutoRefreshEnabled: true,
     });
@@ -97,28 +109,55 @@ function initializeWebAppCheck(options: { enableDebugToken: boolean }): void {
         ? '✅ App Check initialized (emulator debug token enabled)'
         : '✅ App Check initialized',
     );
+    startAppCheckTokenFetch(appCheck);
   } catch (error) {
     console.error('🔥 Failed to initialize App Check:', error);
   }
 }
 
+// App Check must initialize before other Firebase services are used.
+if (typeof window !== 'undefined') {
+  if (useEmulator) {
+    initializeWebAppCheck({ enableDebugToken: true });
+  } else {
+    console.log('☁️ Using Production Firebase Services');
+    initializeWebAppCheck({ enableDebugToken: false });
+  }
+}
+
+export const auth = getAuth(app);
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
+});
+export const functions = getFunctions(app, 'asia-east1');
+export const storage = getStorage(app);
+
+/** Resolves once the first App Check token is obtained (no-op when App Check is disabled). */
+export async function waitForAppCheckReady(): Promise<void> {
+  if (appCheckReadyPromise) {
+    await appCheckReadyPromise;
+  }
+}
+
 if (typeof window !== 'undefined' && useEmulator) {
   console.log('🔧 Connecting to Firebase Emulators...');
-  
+
   try {
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
     console.log('✅ Auth Emulator connected');
   } catch (error) {
     console.log('⚠️ Auth emulator already connected or error:', error);
   }
-  
+
   try {
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
     console.log('✅ Firestore Emulator connected');
   } catch (error) {
     console.log('⚠️ Firestore emulator already connected or error:', error);
   }
-  
+
   try {
     connectFunctionsEmulator(functions, '127.0.0.1', 5001);
     console.log('✅ Functions Emulator connected');
@@ -132,11 +171,6 @@ if (typeof window !== 'undefined' && useEmulator) {
   } catch (error) {
     console.log('⚠️ Storage emulator already connected or error:', error);
   }
-
-  initializeWebAppCheck({ enableDebugToken: true });
-} else if (typeof window !== 'undefined') {
-  console.log('☁️ Using Production Firebase Services');
-  initializeWebAppCheck({ enableDebugToken: false });
 }
 
 export default app;

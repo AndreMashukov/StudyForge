@@ -222,3 +222,14 @@ Use monitor mode first, then enforce per product in App Check settings. Callable
 
 `onRequest` handlers do not inherit `enforceAppCheck`. Use `functions/src/lib/app-check-verification.ts` for first-party HTTP routes. Public probes (`healthCheck`) and third-party API-key routes (`api`) intentionally skip App Check.
 
+### Production 401 / `functions/unauthenticated` with message `"Unauthenticated"`
+
+This is **App Check rejection**, not a missing login. Auth failures use the message `"The function must be called while authenticated."`
+
+Checklist:
+
+1. **Firebase Console → App Check** — register the **Web** app with provider **reCAPTCHA v3** and paste the **secret key** (not the site key). Site key goes in env; secret key goes only in Console.
+2. **reCAPTCHA Admin → Domains** — include `study-forge-202604.web.app`, `study-forge-202604.firebaseapp.com`, and any custom domain.
+3. **Browser console on production** — expect `✅ App Check initialized` then `✅ App Check token ready`. If token fetch fails, fix steps 1–2.
+4. Redeploy hosting after env/secret changes (`push` to `main` triggers CI).
+

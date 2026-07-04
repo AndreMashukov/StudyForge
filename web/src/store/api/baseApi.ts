@@ -1,6 +1,6 @@
 import { createApi, BaseQueryFn } from '@reduxjs/toolkit/query/react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '../../config/firebase';
+import { functions, waitForAppCheckReady } from '../../config/firebase';
 import {
   getUserFacingLlmRoutingMessage,
   normalizeGenerationErrorMessage,
@@ -18,6 +18,7 @@ const firebaseCallableBaseQuery: BaseQueryFn<
   unknown
 > = async ({ functionName, data, timeout }) => {
   try {
+    await waitForAppCheckReady();
     console.log(`Firebase Callable - Starting: ${functionName}`);
 
     const callable = httpsCallable(functions, functionName, timeout ? { timeout } : undefined);
@@ -44,8 +45,14 @@ const firebaseCallableBaseQuery: BaseQueryFn<
         : undefined;
 
     const routingCode = detailsRecord?.code;
+    const isAppCheckRejection =
+      firebaseError.code === 'functions/unauthenticated' &&
+      firebaseError.message === 'Unauthenticated';
     const resolvedMessage =
       getUserFacingLlmRoutingMessage(routingCode, firebaseError.message) ??
+      (isAppCheckRejection
+        ? 'App Check verification failed. Ensure the reCAPTCHA v3 secret is registered in Firebase Console → App Check and production domains are allowed in reCAPTCHA Admin.'
+        : undefined) ??
       (typeof firebaseError.details === 'string' ? firebaseError.details : undefined) ??
       firebaseError.message ??
       'An unknown error occurred';
