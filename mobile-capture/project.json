@@ -34,7 +34,15 @@
       "cache": false,
       "options": {
         "cwd": "{workspaceRoot}/mobile-capture",
-        "command": "npx expo run:android"
+        "command": "node scripts/run-android.mjs"
+      }
+    },
+    "emulator": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "{workspaceRoot}/mobile-capture",
+        "command": "node scripts/start-emulator.mjs"
       }
     },
     "prebuild-android": {
@@ -52,7 +60,7 @@
         "cwd": "{workspaceRoot}/mobile-capture",
         "commands": [
           "npx expo prebuild --platform android --clean --no-install",
-          "cd android && ./gradlew assembleRelease"
+          "node scripts/run-gradlew.mjs assembleRelease"
         ],
         "parallel": false
       },
@@ -60,7 +68,7 @@
         "debug": {
           "commands": [
             "npx expo prebuild --platform android --clean --no-install",
-            "cd android && ./gradlew assembleDebug"
+            "node scripts/run-gradlew.mjs assembleDebug"
           ]
         }
       }

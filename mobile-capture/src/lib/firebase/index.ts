@@ -8,10 +8,13 @@ import {
   getFirebasePublicConfig,
   useFirebaseEmulator,
 } from './config';
+import { initializeMobileAppCheck } from './appCheck';
 
 const firebaseConfig = getFirebasePublicConfig();
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
+initializeMobileAppCheck();
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
@@ -31,4 +34,5 @@ if (useFirebaseEmulator() && !emulatorsConnected) {
   }
 }
 
+export { waitForAppCheckReady } from './appCheck';
 export default app;

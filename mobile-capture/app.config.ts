@@ -18,6 +18,7 @@ const FIREBASE_PUBLIC_ENV_KEYS = [
   'NX_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
   'NX_PUBLIC_FIREBASE_APP_ID',
   'NX_PUBLIC_USE_FIREBASE_EMULATOR',
+  'NX_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN',
 ] as const;
 
 function readFirebasePublicEnv(): Record<string, string> {
@@ -53,6 +54,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'io.studyforge.capture',
+    googleServicesFile: './GoogleService-Info.plist',
     infoPlist: {
       NSCameraUsageDescription:
         'StudyForge needs camera access to scan documents and send them to your library.',
@@ -60,9 +62,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: 'io.studyforge.capture',
+    googleServicesFile: './google-services.json',
     permissions: ['android.permission.CAMERA'],
   },
   plugins: [
+    '@react-native-firebase/app',
+    '@react-native-firebase/app-check',
+    './plugins/withAndroidGradleCompat.js',
     'expo-router',
     'expo-dev-client',
     [

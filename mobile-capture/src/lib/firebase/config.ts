@@ -61,6 +61,12 @@ export function useFirebaseEmulator(): boolean {
   return env('NX_PUBLIC_USE_FIREBASE_EMULATOR') === 'true';
 }
 
+export function resolveAppCheckDebugToken(): string | undefined {
+  const configured = env('NX_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN');
+  const trimmed = configured.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export function getEmulatorHost(): string {
   return Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
 }

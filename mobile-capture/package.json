@@ -5,11 +5,15 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start --dev-client",
-    "android": "expo run:android",
-    "ios": "expo run:ios"
+    "android": "node scripts/run-android.mjs",
+    "ios": "expo run:ios",
+    "postinstall": "node scripts/patch-react-native-gradle-plugin.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/hanken-grotesk": "^0.4.3",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-firebase/app": "^22.4.0",
+    "@react-native-firebase/app-check": "^22.4.0",
     "expo": "~55.0.26",
     "expo-camera": "~55.0.18",
     "expo-constants": "~55.0.16",

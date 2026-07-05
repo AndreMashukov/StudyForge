@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { httpsCallable } from 'firebase/functions';
 import { CreateDocumentRequest, GenerateFromScreenshotRequest } from '@shared-types';
-import { functions } from '../firebase';
+import { functions, waitForAppCheckReady } from '../firebase';
 import {
   createDocumentResponseSchema,
   generateFromScreenshotResponseSchema,
@@ -18,6 +18,7 @@ async function callFunction<TRequest, TResponse>(
   schema: z.ZodType<TResponse>,
   timeoutMs?: number
 ): Promise<TResponse> {
+  await waitForAppCheckReady();
   const callable = httpsCallable(functions, functionName, timeoutMs ? { timeout: timeoutMs } : undefined);
   const result = await callable(data);
   return parseCallableResponse(schema, result.data);
@@ -42,8 +43,16 @@ export async function generateFromScreenshot(
 }
 
 export function getCallableErrorMessage(error: unknown): string {
-  if (isRecordWithMessage(error) && error.message) {
-    return error.code ? `${error.message} (${error.code})` : error.message;
+  if (isRecordWithMessage(error)) {
+    if (
+      error.code === 'functions/unauthenticated' &&
+      error.message === 'Unauthenticated'
+    ) {
+      return 'App Check verification failed. Register the mobile app in Firebase Console → App Check (debug token for dev builds, Play Integrity / App Attest for release).';
+    }
+    if (error.message) {
+      return error.code ? `${error.message} (${error.code})` : error.message;
+    }
   }
   if (error instanceof Error) {
     return error.message;

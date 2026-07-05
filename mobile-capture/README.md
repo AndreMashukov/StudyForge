@@ -22,6 +22,10 @@ Mobile reads Firebase config from the **workspace root** `.env` / `.env.local` (
 | **Local emulators** | `NX_PUBLIC_USE_FIREBASE_EMULATOR=true` and `NX_PUBLIC_FIREBASE_API_KEY=demo-api-key-for-emulator` |
 | **Production Firebase** | `NX_PUBLIC_USE_FIREBASE_EMULATOR=false` and real `NX_PUBLIC_FIREBASE_API_KEY` from Firebase Console |
 
+Production callables enforce **App Check**. Dev builds use the debug provider (`__DEV__`); register a debug token in Firebase Console → App Check → Manage debug tokens. Optional fixed token: `NX_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN` in `.env.local`. Release builds need Play Integrity (Android) / App Attest (iOS) registered for app **StudyForge Capture** (`io.studyforge.capture`).
+
+Native config files: [`google-services.json`](./google-services.json) and [`GoogleService-Info.plist`](./GoogleService-Info.plist). After changing native Firebase/App Check setup, rebuild the dev client (`mobile-capture:android` / `mobile-capture:ios`).
+
 `demo-api-key-for-emulator` only works with emulators enabled — not for real `@gmail.com` sign-in against production.
 
 Restart Metro after env changes: `yarn nx run mobile-capture:start-clear`
@@ -102,6 +106,58 @@ NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run mobile-capture:start
 ```
 
 ## Troubleshooting
+
+### `google-services.json is not defined`
+
+Set top-level paths in `app.config.ts` (not plugin options):
+
+- `android.googleServicesFile: './google-services.json'`
+- `ios.googleServicesFile: './GoogleService-Info.plist'`
+
+### Gradle / `IBM_SEMERU` build failure
+
+Expo SDK 55 + RN 0.83 ship Gradle 9 with `foojay-resolver-convention` 0.5.0, which breaks the build. This repo auto-patches via:
+
+1. `mobile-capture/scripts/patch-react-native-gradle-plugin.mjs` (runs on `yarn install` in `mobile-capture/`)
+2. `plugins/withAndroidGradleCompat.js` (pins Gradle 8.14.3 during prebuild)
+
+After pulling, run from repo root:
+
+```bash
+cd mobile-capture && yarn install
+npx expo prebuild --platform android --clean
+```
+
+### `ANDROID_HOME` / SDK location not found
+
+Install Android SDK (Android Studio or `brew install --cask android-commandlinetools`), then export:
+
+```bash
+export ANDROID_HOME="$HOME/Library/Android/sdk"   # Android Studio default
+# or: export ANDROID_HOME="/opt/homebrew/share/android-commandlinetools"
+```
+
+Create `mobile-capture/android/local.properties`:
+
+```properties
+sdk.dir=/path/to/your/android/sdk
+```
+
+(`android/` is gitignored; this file is local-only.)
+
+### Build without emulator (APK only)
+
+```bash
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run mobile-capture:build-apk --configuration=debug
+```
+
+`mobile-capture:android` (`expo run:android`) requires a device. If none is connected, the script auto-starts the **StudyForgeCapture** AVD (created via `avdmanager`). First boot can take a few minutes.
+
+Start the emulator only:
+
+```bash
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run mobile-capture:emulator
+```
 
 ### Metro 500 / `VirtualViewNativeComponent` / `onModeChange`
 
