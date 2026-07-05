@@ -1,1 +1,1 @@
-/// <reference types="react-native-css-interop/types" />
+/// <reference types="nativewind/types" />
