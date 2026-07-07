@@ -6,6 +6,7 @@ import {
 } from './firestoreReadUtils';
 
 const USER_QUIZZES_LIMIT = 50;
+const DOCUMENT_QUIZZES_LIMIT = 50;
 
 export function fetchUserQuizzesFromFirestore(userId: string): Promise<Quiz[]> {
   return fetchUserCollection<Quiz>(userId, 'quizzes', orderByCreatedAtDesc(USER_QUIZZES_LIMIT));
@@ -17,6 +18,6 @@ export function fetchDocumentQuizzesFromFirestore(
 ): Promise<Quiz[]> {
   return fetchUserCollection<Quiz>(userId, 'quizzes', [
     whereEquals('documentId', documentId),
-    ...orderByCreatedAtDesc(),
+    ...orderByCreatedAtDesc(DOCUMENT_QUIZZES_LIMIT),
   ]);
 }

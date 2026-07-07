@@ -12,19 +12,30 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Enforce bounded collection queries (rules are not filters).
+    function isBoundedList(maxLimit) {
+      return request.query.limit != null
+        && request.query.limit > 0
+        && request.query.limit <= maxLimit;
+    }
+
     // All user-scoped collections under users/{userId}/
     match /users/{userId} {
-      // Documents subcollection
+      // Documents — server-maintained via Cloud Functions; client read-only.
       match /documents/{documentId} {
-        allow read, write: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId) && isBoundedList(100);
+        allow create, update, delete: if false;
       }
 
-      // Quizzes subcollection
+      // Quizzes — server-maintained via Cloud Functions; client read-only.
       match /quizzes/{quizId} {
-        allow read, write: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId) && isBoundedList(50);
+        allow create, update, delete: if false;
       }
 
-      // Directories subcollection
+      // Directories subcollection — user-managed folders.
       match /directories/{directoryId} {
         function isValidDirectory() {
           return request.resource.data.name is string &&
@@ -46,35 +57,52 @@ service cloud.firestore {
         }
       }
 
-      // Rules subcollection
+      // Rules — server-maintained via Cloud Functions; client read-only.
       match /rules/{ruleId} {
-        allow read, write: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId) && isBoundedList(100);
+        allow create, update, delete: if false;
       }
 
+      // Flashcard sets — server-maintained via Cloud Functions; client read-only.
       match /flashcardSets/{flashcardSetId} {
-        allow read, write: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId) && isBoundedList(50);
+        allow create, update, delete: if false;
       }
 
+      // Slide decks — server-maintained via Cloud Functions; client read-only.
       match /slideDecks/{slideDeckId} {
-        allow read, write: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId) && isBoundedList(50);
+        allow create, update, delete: if false;
       }
 
-      // Diagram quizzes subcollection
+      // Diagram quizzes — server-maintained via Cloud Functions; client read-only.
       match /diagramQuizzes/{diagramQuizId} {
-        allow read, write: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId) && isBoundedList(50);
+        allow create, update, delete: if false;
       }
 
-      // Sequence quizzes subcollection
+      // Sequence quizzes — server-maintained via Cloud Functions; client read-only.
       match /sequenceQuizzes/{sequenceQuizId} {
-        allow read, write: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId) && isBoundedList(50);
+        allow create, update, delete: if false;
       }
 
-      // Subject worlds subcollection
+      // Subject worlds — server-maintained via Cloud Functions; client read-only.
       match /subjectWorlds/{subjectWorldId} {
-        allow read, write: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId) && isBoundedList(50);
+        allow create, update, delete: if false;
 
+        // Progress snapshots — written via Cloud Functions only.
         match /progress/{progressId} {
-          allow read, write: if isOwner(userId);
+          allow get: if isOwner(userId) && progressId == userId;
+          allow list: if false;
+          allow create, update, delete: if false;
         }
       }
 

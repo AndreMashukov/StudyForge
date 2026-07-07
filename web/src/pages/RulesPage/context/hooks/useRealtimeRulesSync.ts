@@ -14,6 +14,7 @@ export const useRealtimeRulesSync = () => {
     () => [
       {
         collectionName: 'rules',
+        listLimit: 100,
         tags: ['Rules' as const, 'DirectoryRules' as const],
       },
     ],

@@ -1,10 +1,12 @@
 import { useRef } from 'react';
 import {
   collection,
+  limit,
   query,
   where,
   onSnapshot,
   Unsubscribe,
+  type QueryConstraint,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +26,8 @@ import { useFirestoreEffect } from './useFirestoreEffect';
 export interface FirestoreListenerConfig {
   collectionName: string;
   filters?: { field: string; value: unknown }[];
+  /** Required for collections with bounded list rules in firestore.rules. */
+  listLimit?: number;
   invalidateOnInitial?: boolean;
   tags: Parameters<typeof baseApi.util.invalidateTags>[0];
 }
@@ -49,6 +53,7 @@ export const useFirestoreRealtimeSync = (
     configs.map((c) => ({
       c: c.collectionName,
       f: c.filters,
+      l: c.listLimit,
       i: c.invalidateOnInitial,
     })),
   );
@@ -71,10 +76,15 @@ export const useFirestoreRealtimeSync = (
 
       let q;
       if (cfg.filters && cfg.filters.length > 0) {
-        const constraints = cfg.filters.map((f) =>
+        const constraints: QueryConstraint[] = cfg.filters.map((f) =>
           where(f.field, '==', f.value),
         );
+        if (cfg.listLimit !== undefined) {
+          constraints.push(limit(cfg.listLimit));
+        }
         q = query(colRef, ...constraints);
+      } else if (cfg.listLimit !== undefined) {
+        q = query(colRef, limit(cfg.listLimit));
       } else {
         q = query(colRef);
       }

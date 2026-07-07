@@ -10,6 +10,7 @@
     "@babel/preset-react": "^7.14.5",
     "@crxjs/vite-plugin": "^2.4.0",
     "@eslint/js": "^9.8.0",
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@next/eslint-plugin-next": "^16.1.6",
     "@nx/eslint": "22.7.4",
     "@nx/eslint-plugin": "22.7.4",
@@ -73,7 +74,8 @@
     "migrate:directory-centric": "tsx scripts/migrations/backfill-directory-centric.ts",
     "migrate:llm-setup-routes": "tsx scripts/migrations/migrate-llm-setup-routes.ts",
     "migrate:generation-routes": "tsx scripts/migrations/migrate-generation-routes.ts",
-    "migrate:drop-legacy-llm-setup-routes": "tsx scripts/migrations/drop-legacy-llm-setup-routes.ts"
+    "migrate:drop-legacy-llm-setup-routes": "tsx scripts/migrations/drop-legacy-llm-setup-routes.ts",
+    "test:firestore-rules": "firebase emulators:exec --only firestore --project demo-study-forge-rules-test --config firebase.firestore-rules-test.json \"npx vitest run --config vitest.firestore-rules.config.ts\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

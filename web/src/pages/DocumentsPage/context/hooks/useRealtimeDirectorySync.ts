@@ -57,6 +57,7 @@ export const useRealtimeDirectorySync = (
       {
         collectionName: 'documents',
         filters: [{ field: 'directoryId', value: dirValue }],
+        listLimit: 100,
         invalidateOnInitial: true,
         tags: [...directoryTags, 'Documents' as const],
       },
@@ -64,35 +65,41 @@ export const useRealtimeDirectorySync = (
       {
         collectionName: 'quizzes',
         filters: [{ field: 'directoryId', value: dirValue }],
+        listLimit: 50,
         tags: [...directoryTags, 'UserQuizzes' as const],
       },
       // Flashcard sets in the current directory
       {
         collectionName: 'flashcardSets',
         filters: [{ field: 'directoryId', value: dirValue }],
+        listLimit: 50,
         tags: [...directoryTags, 'UserFlashcardSets' as const],
       },
       // Slide decks in the current directory
       {
         collectionName: 'slideDecks',
         filters: [{ field: 'directoryId', value: dirValue }],
+        listLimit: 50,
         tags: [...directoryTags, 'UserSlideDecks' as const],
       },
       // Diagram quizzes in the current directory
       {
         collectionName: 'diagramQuizzes',
         filters: [{ field: 'directoryId', value: dirValue }],
+        listLimit: 50,
         tags: [...directoryTags, 'UserDiagramQuizzes' as const],
       },
       // Sequence quizzes in the current directory
       {
         collectionName: 'sequenceQuizzes',
         filters: [{ field: 'directoryId', value: dirValue }],
+        listLimit: 50,
         tags: [...directoryTags, 'UserSequenceQuizzes' as const],
       },
       {
         collectionName: 'subjectWorlds',
         filters: [{ field: 'directoryId', value: dirValue }],
+        listLimit: 50,
         tags: [...directoryTags, 'UserSubjectWorlds' as const],
       },
     ];

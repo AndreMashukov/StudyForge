@@ -1,4 +1,4 @@
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAppDispatch } from '../../../hooks/redux';
@@ -50,6 +50,7 @@ export const useDirectoryDocumentsRealtimeCache = (
     const directoryQuery = query(
       collection(db, 'users', uid, 'documents'),
       where('directoryId', '==', directoryId),
+      limit(100),
     );
 
     const unsubscribe = onSnapshot(
