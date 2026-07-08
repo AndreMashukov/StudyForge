@@ -132,6 +132,31 @@ Grade script: compare selected radio to `data-answer`, highlight correct/wrong, 
 
 Questions must test understanding of **this** feature — not generic React trivia.
 
+### Quiz option design (avoid length tells)
+
+Readers can guess the correct answer when it is consistently the longest option. **Balance every question before shipping:**
+
+1. **Similar length** — all three options within ~±25% character count (roughly one line each). Pad distractors with plausible detail; never leave one option as a short phrase and another as a full sentence.
+2. **Vary the correct letter** — do not make `b` or `c` the answer on most questions; mix `a`, `b`, and `c` across the quiz.
+3. **Plausible distractors** — wrong answers should be believable misconceptions from the lab, not obvious filler.
+4. **Self-check** — read options only (hide `data-answer`); if you can spot the answer by length or wording pattern, rewrite.
+
+**Bad (correct answer is obviously longest):**
+
+```html
+<label>…</label> Auto mode has no firewall rules; custom mode does
+<label>…</label> Auto mode creates subnets in every region automatically; custom mode starts with none
+<label>…</label> Custom mode VMs cannot have external IPs
+```
+
+**Good (balanced, same structure):**
+
+```html
+<label>…</label> Auto mode auto-provisions subnets in every region; custom mode starts with none
+<label>…</label> Custom mode auto-provisions subnets in every region; auto mode starts with none
+<label>…</label> Both modes require manual subnet creation in each region before any VM deploy
+```
+
 ## Workflow
 
 1. Read the feature files and task context
@@ -154,3 +179,4 @@ Study these before authoring (patterns vary by layout — tabs vs sidebar):
 - Use MUI or external CSS frameworks
 - Fabricate code that does not exist in the repo
 - Ship quizzes without explanations on wrong answers
+- Write quiz options where the correct answer is always the longest or most detailed choice
