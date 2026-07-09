@@ -13,6 +13,7 @@ import {
   GenerateSlideDeckResponse,
   ApiResponse
 } from '@shared-types';
+import { resolveSlideDeckImageUrls } from '../../../utils/slideImageUtils';
 
 export const slideDecksApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -56,7 +57,7 @@ export const slideDecksApi = baseApi.injectEndpoints({
             };
           }
 
-          return { data: { success: true, data: slideDeck } };
+          return { data: { success: true, data: resolveSlideDeckImageUrls(slideDeck) } };
         } catch (firestoreError) {
           console.warn('Firestore slide deck read failed, falling back to callable:', firestoreError);
           const fallback = await baseQuery({
@@ -80,10 +81,11 @@ export const slideDecksApi = baseApi.injectEndpoints({
               if (!draft?.data) {
                 return;
               }
-              draft.data = slideDeck;
+              draft.data = resolveSlideDeckImageUrls(slideDeck);
             });
           },
-          mapSnapshot: (id, raw) => toFirestoreDoc<SlideDeck>(id, raw),
+          mapSnapshot: (id, raw) =>
+            resolveSlideDeckImageUrls(toFirestoreDoc<SlideDeck>(id, raw)),
         });
       },
       providesTags: (result, error, arg) => [{ type: 'SlideDeck', id: arg.slideDeckId }],
