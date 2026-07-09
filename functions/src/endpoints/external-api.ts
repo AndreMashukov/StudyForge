@@ -998,6 +998,8 @@ export const api = onRequest(
           return;
         }
 
+        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'slideDeckText');
+
         const rawImages = requestData.images;
         if (!Array.isArray(rawImages) || rawImages.length === 0) {
           res.status(400).json({
@@ -1027,7 +1029,8 @@ export const api = onRequest(
           if (dataUrlMatch) {
             contentType = dataUrlMatch[1].toLowerCase();
             dataField = dataUrlMatch[2];
-          }          if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
+          }
+          if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
             res.status(400).json({
               success: false,
               error: `images[${i}].contentType "${contentType}" is not allowed. Allowed: ${[...ALLOWED_IMAGE_TYPES].join(", ")}.`,
@@ -1083,8 +1086,6 @@ export const api = onRequest(
             return;
           }
         }
-
-        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'slideDeckText');
 
         const pendingTitle = customTitle
           || (documentIds.length === 1
