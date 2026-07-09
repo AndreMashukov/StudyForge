@@ -1,0 +1,20 @@
+---
+description: GCP lab → StudyForge learning materials workflow (local HTML + External API)
+globs: docs/tasks/**/03-labs/**
+alwaysApply: false
+---
+
+# Lab → StudyForge Materials
+
+When creating or publishing content under `docs/tasks/**/03-labs/`:
+
+1. **Read** `.claude/skills/lab-to-studyforge/SKILL.md` and `.claude/skills/interactive-html/SKILL.md`.
+2. **Local first** — each lab gets `<lab-slug>-lab.html`, `study-guide.md`, `images/`, and `slide-images/`.
+3. **StudyForge dirs** — lab subdirs under `tgnqY2C9X2YQtA06JqHB`; rules inherit from parent `lF9Hgmxxc42NdXKqKadY`.
+4. **API** — use `scripts/lab-studyforge/sf-api.sh` with `$STUDYFORGE_API_KEY` (never commit the key).
+5. **Exact names** — preserve firewall/MIG/LB/Cloud Armor resource names from the lab; scorers check these.
+6. **Mermaid** — prefer `flowchart`; quote labels starting with numbers (e.g. `"403 Forbidden"`).
+
+Artifact defaults: study document + quiz + flashcards + **sequence quiz** + diagram quiz (network labs) + **slide deck via `publish-slide-deck.sh`** with locally generated GCP-styled PNGs.
+
+Slide images: Google Cloud palette (#4285F4, #34A853, #FBBC04, #EA4335), flat vector, GCP product icons. Never use `POST /slide-decks/generate` for labs.

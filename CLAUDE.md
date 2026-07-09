@@ -54,6 +54,7 @@ Knowledge skills (loaded on demand):
 | Skill | Coverage |
 |-------|----------|
 | `interactive-html` | Self-contained HTML explainers — Mermaid, PNGs, quizzes, real code snippets |
+| `lab-to-studyforge` | Publish GCP labs to StudyForge — local HTML + External API artifacts |
 | `page-pattern` | Context-based page scaffolding, provider/container/hooks |
 | `styling-system` | shadcn/ui, design tokens, button variants |
 | `firebase-emulators` | Local emulator setup, seed data, port map |

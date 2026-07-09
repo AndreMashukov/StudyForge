@@ -299,6 +299,35 @@ curl "https://asia-east1-{project-id}.cloudfunctions.net/api/directories/dir_abc
   -H "X-API-Key: sf-your-key-here"
 ```
 
+#### `POST /directories/:id/rules` — Attach a rule to a directory
+
+Links an existing rule to a directory. The rule's content then inherits to descendant directories.
+
+**Body**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `ruleId` | string | ✓ | Rule to attach |
+
+```bash
+curl -X POST "https://asia-east1-{project-id}.cloudfunctions.net/api/directories/dir_abc123/rules" \
+  -H "X-API-Key: sf-your-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{"ruleId": "rule_xyz789"}'
+```
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "data": {
+    "directoryId": "dir_abc123",
+    "ruleId": "rule_xyz789"
+  }
+}
+```
+
 ---
 
 ### Rules
@@ -402,6 +431,40 @@ curl -X POST https://asia-east1-{project-id}.cloudfunctions.net/api/slide-decks/
     "additionalPrompt": "Keep slides concise, 3 bullet points max per slide"
   }'
 ```
+
+#### `POST /slide-decks/generate-with-images` — Generate a slide deck with caller-supplied images
+
+Generates slide text from the document(s), then binds pre-generated images **positionally**: `images[i]` → slide `i`. Image count must match the generated slide count exactly (otherwise `400` with `expectedImageCount` / `providedImageCount`).
+
+**Body**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `documentIds` | string[] | ✓ | Source documents (max 5) |
+| `directoryId` | string | ✓ | Target directory |
+| `title` | string | | Deck title |
+| `additionalPrompt` | string | | Outline guidance; use `"Produce exactly N slides…"` to control count |
+| `images` | object[] | ✓ | `{ data: base64, contentType?: "image/png" }` per slide, in order |
+| `ruleIds` | string[] | | Optional explicit rules |
+| `ruleResolutionMode` | string | | `inherit`, `inherit-plus-explicit`, or `explicit-only` |
+
+```bash
+curl -X POST https://asia-east1-{project-id}.cloudfunctions.net/api/slide-decks/generate-with-images \
+  -H "X-API-Key: sf-your-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "documentIds": ["doc_xyz789"],
+    "directoryId": "dir_abc123",
+    "title": "GCP Lab Review",
+    "additionalPrompt": "Produce exactly 2 slides: 1) Objectives 2) Architecture",
+    "images": [
+      {"data": "<base64-png>", "contentType": "image/png"},
+      {"data": "<base64-png>", "contentType": "image/png"}
+    ]
+  }'
+```
+
+**Lab workflow:** generate GCP-styled PNGs locally, then upload via this endpoint. See `scripts/lab-studyforge/publish-slide-deck.sh`.
 
 #### `GET /slide-decks` — List slide decks
 

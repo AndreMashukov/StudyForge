@@ -37,6 +37,7 @@ import {
   resolveRulesForDirectory,
 } from "../services/rule-resolution";
 import {
+  attachRuleToDirectory,
   createRule,
   getRule,
   getRules,
@@ -1518,6 +1519,30 @@ export const api = onRequest(
         return;
       }
 
+      // POST /directories/:id/rules — Attach a rule to a directory
+      if (method === "POST" && path.match(/^\/directories\/[^/]+\/rules$/)) {
+        const directoryId = path.split("/")[2];
+        const body: unknown = req.body;
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          res.status(400).json({ success: false, error: "Request body must be a JSON object." });
+          return;
+        }
+        const ruleId = (body as Record<string, unknown>).ruleId;
+        if (typeof ruleId !== "string" || !ruleId.trim()) {
+          res.status(400).json({ success: false, error: "ruleId is required." });
+          return;
+        }
+        try {
+          await attachRuleToDirectory(userId, ruleId.trim(), directoryId);
+          res.status(200).json({ success: true, data: { directoryId, ruleId: ruleId.trim() } });
+        } catch (attachError) {
+          const message = attachError instanceof Error ? attachError.message : "Failed to attach rule.";
+          const status = message.includes("not found") ? 404 : 400;
+          res.status(status).json({ success: false, error: message });
+        }
+        return;
+      }
+
       // POST /rules — Create a rule
       if (method === "POST" && path === "/rules") {
         const body: unknown = req.body;
@@ -1839,6 +1864,7 @@ export const api = onRequest(
           "GET /directories/:id",
           "GET /directories/:id/contents",
           "GET /directories/:id/rules",
+          "POST /directories/:id/rules",
           // Read — Rules (filterable by ?applicableTo=quiz,prompt,...)",
           "GET /rules",
           "GET /rules/:id",

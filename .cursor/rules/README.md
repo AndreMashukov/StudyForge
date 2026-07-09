@@ -15,6 +15,7 @@ Path-scoped rules that mirror [`.claude/rules/`](../../.claude/rules/) for Curso
 | `form-handling.mdc` | `.claude/rules/form-handling.md` | Forms in web + admin |
 | `firebase-functions.mdc` | `.claude/rules/firebase-functions.md` | `functions/src/**` |
 | `production-infra.mdc` | `.claude/rules/production-infra.md` | CI, Firebase config |
+| `lab-studyforge.mdc` | `.claude/skills/lab-to-studyforge/SKILL.md` | `docs/tasks/**/03-labs/**` |
 
 ## Shared Conventions
 
