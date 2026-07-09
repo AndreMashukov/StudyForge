@@ -4,6 +4,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { z } from 'zod';
 import { LlmGenerationService } from '../services/llm';
 import { validateAuth } from '../lib/auth';
+import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import {
   aiRevisionExistingContentSchema,
   aiRevisionInstructionSchema,
@@ -57,6 +58,8 @@ export const generateRuleWithAI = onCall(
       logger.info('[generateRuleWithAI] Starting LLM rule generation.', {
         mode: existingContent ? 'improve' : 'generate',
       });
+
+      await enforceCallableGenerationRateLimit(userId, 'ruleGeneration');
 
       const rule = await LlmGenerationService.generateRule(userId, {
         topic,

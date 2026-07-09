@@ -1,65 +1,59 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-
-const SCREENSHOT_COOLDOWN_MS = 15_000;
-const SCREENSHOT_HOURLY_LIMIT = 30;
-const ONE_HOUR_MS = 60 * 60 * 1000;
+import { GenerationKind } from '@shared-types';
+import { getGenerationRateLimitProfile } from './generation-rate-limit-profiles';
+import {
+  buildRateLimitDocId,
+  evaluateRateLimitState,
+  IRateLimitState,
+} from './generation-rate-limit-logic';
 
 export class RateLimitError extends Error {
   constructor(
     message: string,
-    public readonly retryAfterSeconds: number
+    public readonly retryAfterSeconds: number,
+    public readonly generationKind?: GenerationKind
   ) {
     super(message);
     this.name = 'RateLimitError';
   }
 }
 
+export interface GenerationRateLimitParams {
+  userId: string;
+  limiterKey: string;
+  generationKind: GenerationKind;
+}
+
+/** @deprecated Use enforceGenerationRateLimit with generationKind documentFromScreenshot */
 export interface ScreenshotRateLimitParams {
   userId: string;
   limiterKey: string;
 }
 
-interface RateLimitState {
-  lastRequestAtMs?: number;
-  windowStartAtMs?: number;
-  requestCount?: number;
-}
-
-export async function enforceScreenshotGenerationRateLimit({
+export async function enforceGenerationRateLimit({
   userId,
   limiterKey,
-}: ScreenshotRateLimitParams): Promise<void> {
+  generationKind,
+}: GenerationRateLimitParams): Promise<void> {
   const db = getFirestore();
-  const normalizedLimiterKey = limiterKey.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const profile = getGenerationRateLimitProfile(generationKind);
   const ref = db
     .collection('users')
     .doc(userId)
     .collection('apiRateLimits')
-    .doc(`screenshot_${normalizedLimiterKey}`);
+    .doc(buildRateLimitDocId(generationKind, limiterKey));
 
   await db.runTransaction(async (transaction) => {
     const now = Date.now();
     const snapshot = await transaction.get(ref);
-    const data = snapshot.data() as RateLimitState | undefined;
+    const data = snapshot.data() as IRateLimitState | undefined;
+    const decision = evaluateRateLimitState(data, profile, now);
 
-    const lastRequestAtMs = data?.lastRequestAtMs || 0;
-    const cooldownRemainingMs = SCREENSHOT_COOLDOWN_MS - (now - lastRequestAtMs);
-    if (lastRequestAtMs > 0 && cooldownRemainingMs > 0) {
+    if (decision.allowed === false) {
       throw new RateLimitError(
-        'Screenshot capture is cooling down. Try again in a few seconds.',
-        Math.ceil(cooldownRemainingMs / 1000)
-      );
-    }
-
-    const windowStartAtMs = data?.windowStartAtMs || now;
-    const isCurrentWindow = now - windowStartAtMs < ONE_HOUR_MS;
-    const requestCount = isCurrentWindow ? data?.requestCount || 0 : 0;
-
-    if (requestCount >= SCREENSHOT_HOURLY_LIMIT) {
-      const retryAfterMs = ONE_HOUR_MS - (now - windowStartAtMs);
-      throw new RateLimitError(
-        'Screenshot capture hourly limit reached. Try again later.',
-        Math.max(1, Math.ceil(retryAfterMs / 1000))
+        decision.message,
+        decision.retryAfterSeconds,
+        generationKind
       );
     }
 
@@ -67,12 +61,24 @@ export async function enforceScreenshotGenerationRateLimit({
       ref,
       {
         limiterKey,
-        lastRequestAtMs: now,
-        windowStartAtMs: isCurrentWindow ? windowStartAtMs : now,
-        requestCount: requestCount + 1,
+        generationKind,
+        lastRequestAtMs: decision.nextState.lastRequestAtMs,
+        windowStartAtMs: decision.nextState.windowStartAtMs,
+        requestCount: decision.nextState.requestCount,
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
+  });
+}
+
+export async function enforceScreenshotGenerationRateLimit({
+  userId,
+  limiterKey,
+}: ScreenshotRateLimitParams): Promise<void> {
+  await enforceGenerationRateLimit({
+    userId,
+    limiterKey,
+    generationKind: 'documentFromScreenshot',
   });
 }

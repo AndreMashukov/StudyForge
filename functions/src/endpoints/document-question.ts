@@ -1,7 +1,8 @@
-import { onCall } from 'firebase-functions/v2/https';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '../lib/auth';
+import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { DocumentCrudService } from '../services/document-crud';
 import { LlmGenerationService } from '../services/llm';
 import { resolveEffectiveRules } from '../services/rule-resolution';
@@ -47,6 +48,8 @@ export const askDocumentQuestion = onCall(
       if (data.question.length > 2000) {
         throw new Error('Question must be 2000 characters or less');
       }
+
+      await enforceCallableGenerationRateLimit(userId, 'documentQuestion');
 
       // Get original document with content
       const originalDocument = await DocumentCrudService.getDocumentWithContent(userId, data.documentId);
@@ -97,6 +100,7 @@ export const askDocumentQuestion = onCall(
       logger.error('Failed to answer document question', { 
         error: error instanceof Error ? error.message : String(error),
       });
+      if (error instanceof HttpsError) throw error;
       throw new Error(`Failed to answer question: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

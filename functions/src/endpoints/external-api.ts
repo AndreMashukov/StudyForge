@@ -12,7 +12,8 @@ import {
 } from "../services/llm";
 import { FirestoreService } from "../services/firestore";
 import { ScreenshotDocumentGenerationService } from "../services/screenshot-document-generation";
-import { enforceScreenshotGenerationRateLimit, RateLimitError } from "../services/api-rate-limit";
+import { RateLimitError } from "../services/api-rate-limit";
+import { enforceExternalGenerationRateLimit } from "../lib/generation-rate-limit";
 import {
   completePendingDiagramQuiz,
   completePendingFlashcardSet,
@@ -249,6 +250,8 @@ export const api = onRequest(
 
         GeminiService.validateContentForQuiz(documentContent);
 
+        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'quiz');
+
         const pendingTitle = quizName?.trim()
           || (documentIds.length === 1
             ? `Quiz from ${documentDataList[0].doc.title}`
@@ -425,6 +428,8 @@ export const api = onRequest(
 
         GeminiService.validateContentForQuiz(documentContent);
 
+        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'diagramQuiz');
+
         const pendingTitle = diagramQuizName
           || (documentIds.length === 1
             ? `Diagram Quiz from ${documentDataList[0].doc.title}`
@@ -585,6 +590,8 @@ export const api = onRequest(
 
         GeminiService.validateContentForQuiz(documentContent);
 
+        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'sequenceQuiz');
+
         const pendingTitle = sequenceQuizName
           || (documentIds.length === 1
             ? `Sequence Quiz from ${documentDataList[0].doc.title}`
@@ -723,6 +730,8 @@ export const api = onRequest(
           }
         }
 
+        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'flashcards');
+
         const pendingTitle = customTitle
           || (documentIds.length === 1
             ? `Flashcards for "${documentDataList[0].doc.title}"`
@@ -845,6 +854,8 @@ export const api = onRequest(
             return;
           }
         }
+
+        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'slideDeckText');
 
         const pendingTitle = customTitle
           || (documentIds.length === 1
@@ -1072,6 +1083,8 @@ export const api = onRequest(
           }
         }
 
+        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'slideDeckText');
+
         const pendingTitle = customTitle
           || (documentIds.length === 1
             ? `Slides for "${documentDataList[0].doc.title}"`
@@ -1245,6 +1258,8 @@ export const api = onRequest(
 
         // Create a pending document immediately so the UI reflects the in-progress state.
         // createPendingDocument validates the directoryId internally.
+        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'documentFromPrompt');
+
         const tentativeTitle = trimmedPrompt.length > 50
           ? `${trimmedPrompt.substring(0, 50)}...`
           : trimmedPrompt;
@@ -1377,10 +1392,7 @@ export const api = onRequest(
           return;
         }
 
-        await enforceScreenshotGenerationRateLimit({
-          userId,
-          limiterKey: authResult.limiterKey,
-        });
+        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'documentFromScreenshot');
 
         const promptTitle = data.prompt?.trim();
         const pendingTitle = data.title?.trim()
@@ -1855,6 +1867,7 @@ export const api = onRequest(
           success: false,
           error: err.message,
           retryAfterSeconds: err.retryAfterSeconds,
+          ...(err.generationKind ? { generationKind: err.generationKind } : {}),
         });
         return;
       }

@@ -16,6 +16,7 @@ import {
 import { enqueueGenerationJob } from '../services/generation-enqueue';
 import { buildStartGenerationPayload } from '../lib/start-generation-response';
 import { validateAuth } from '../lib/auth';
+import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { FirestorePaths } from '../lib/firestore-paths';
 import { removeArtifactDirectoryIndex, syncIndexSafely } from '../services/directory-item-index';
 
@@ -62,6 +63,8 @@ export const generateSlideDeck = onCall(
         throw new HttpsError('invalid-argument', msg);
       }
       const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, additionalRuleIds, ruleResolutionMode } = parseResult.data;
+
+      await enforceCallableGenerationRateLimit(userId, 'slideDeck');
 
       const u = redactId(userId);
 

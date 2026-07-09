@@ -2,6 +2,7 @@ import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
+import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { DocumentCrudService } from "../services/document-crud";
 import { FirestoreService } from "../services/firestore";
 import { directoryService } from "../services/directory";
@@ -64,6 +65,8 @@ export const generateSequenceQuiz = onCall(
       if (documentIds.length > 5) {
         throw new Error("Maximum 5 documents allowed per sequence quiz");
       }
+
+      await enforceCallableGenerationRateLimit(userId, 'sequenceQuiz');
 
       if (requestData.additionalRuleIds != null && !Array.isArray(requestData.additionalRuleIds)) {
         throw new Error("additionalRuleIds must be an array when provided");

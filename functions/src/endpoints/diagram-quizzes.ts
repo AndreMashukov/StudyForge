@@ -3,6 +3,7 @@ import { logger } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
+import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
 import { directoryService } from "../services/directory";
@@ -54,6 +55,8 @@ export const generateDiagramQuiz = onCall(
       if (documentIds.length > 5) {
         throw new Error("Maximum 5 documents allowed per diagram quiz");
       }
+
+      await enforceCallableGenerationRateLimit(userId, 'diagramQuiz');
 
       const { diagramQuizName, additionalPrompt, quizRuleIds, followupRuleIds } =
         requestData;

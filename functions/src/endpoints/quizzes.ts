@@ -2,6 +2,7 @@ import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { getGenerationFailureEnvelope } from '../services/llm/llm-endpoint-error';
+import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { DocumentCrudService } from "../services/document-crud";
 import { FirestoreService } from "../services/firestore";
 import { directoryService } from "../services/directory";
@@ -53,6 +54,8 @@ export const generateQuiz = onCall(
       if (documentIds.length > 5) {
         throw new Error("Maximum 5 documents allowed per quiz");
       }
+
+      await enforceCallableGenerationRateLimit(userId, 'quiz');
 
       console.log(`Generating quiz from ${documentIds.length} document(s): ${documentIds.join(', ')}`, {
         customQuizName: !!requestData.quizName,

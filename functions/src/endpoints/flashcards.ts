@@ -21,6 +21,7 @@ import {
 import { enqueueGenerationJob } from '../services/generation-enqueue';
 import { buildStartGenerationPayload } from '../lib/start-generation-response';
 import { validateAuth } from '../lib/auth';
+import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { FirestorePaths } from '../lib/firestore-paths';
 import {
   removeArtifactDirectoryIndex,
@@ -81,6 +82,8 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       throw new HttpsError('invalid-argument', msg);
     }
     const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, descriptionRuleIds, additionalRuleIds, ruleResolutionMode } = parseResult.data;
+
+    await enforceCallableGenerationRateLimit(userId, 'flashcards');
 
     const u = redactId(userId);
 

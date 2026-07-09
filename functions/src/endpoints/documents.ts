@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import { validateAuth } from '../lib/auth';
+import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { DocumentCrudService } from '../services/document-crud';
 import { DocumentService } from '../services/document-storage';
 import { directoryService } from '../services/directory';
@@ -182,6 +183,8 @@ export const uploadAndCreateDocument = onCall(
       }
       await directoryService.validateDirectoryId(userId, data.directoryId);
 
+      await enforceCallableGenerationRateLimit(userId, 'sourceDocumentEnhancement');
+
       const buffer = FileExtractionService.decodeBase64File(data.content, data.size);
       const extraction = await FileExtractionService.extractFromFile(
         buffer,
@@ -343,6 +346,8 @@ export const createDocumentFromUrl = onCall(
         throw new HttpsError('invalid-argument', 'directoryId is required');
       }
       await directoryService.validateDirectoryId(userId, directoryId);
+
+      await enforceCallableGenerationRateLimit(userId, 'sourceDocumentEnhancement');
 
       // Create pending document visible in the directory UI immediately
       const pendingTitle = customTitle || (rawUrls.length === 1 ? rawUrls[0] : `Importing from ${rawUrls.length} URLs…`);
@@ -951,6 +956,8 @@ export const generateFromPrompt = onCall(
       }
       await directoryService.validateDirectoryId(userId, data.directoryId);
 
+      await enforceCallableGenerationRateLimit(userId, 'documentFromPrompt');
+
       // Create pending document record visible in the directory UI immediately
       const pendingTitle = trimmedPrompt.length > 50
         ? `${trimmedPrompt.substring(0, 50)}…`
@@ -1019,6 +1026,7 @@ export const generateFromPrompt = onCall(
         error: error instanceof Error ? error.message : String(error),
         prompt: request.data?.prompt?.substring(0, 50),
       });
+      if (error instanceof HttpsError) throw error;
       throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }
   }
@@ -1056,6 +1064,8 @@ export const generateFromScreenshot = onCall(
       });
 
       await directoryService.validateDirectoryId(userId, data.directoryId);
+
+      await enforceCallableGenerationRateLimit(userId, 'documentFromScreenshot');
 
       const screenshotPendingTitle = data.title || (data.prompt
         ? (data.prompt.length > 50 ? `${data.prompt.substring(0, 50)}…` : data.prompt)

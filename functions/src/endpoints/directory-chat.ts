@@ -8,6 +8,7 @@ import {
   SendDirectoryChatMessageResponse,
 } from '@shared-types';
 import { validateAuth } from '../lib/auth';
+import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { DirectoryChatService } from '../services/directory-chat';
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -67,6 +68,8 @@ export const sendDirectoryChatMessage = onCall(
         hasSeedKey: Boolean(data.seedKey),
         artifactType: data.artifactContext?.type,
       });
+
+      await enforceCallableGenerationRateLimit(userId, 'directoryChat');
 
       return DirectoryChatService.sendMessage(
         userId,

@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '../lib/auth';
+import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import {
   AI_REVISION_EXISTING_CONTENT_MAX,
   reviseDocumentWithAIRequestSchema,
@@ -39,6 +40,8 @@ export const reviseDocumentWithAI = onCall(
         documentId,
         instructionLength: instruction.length,
       });
+
+      await enforceCallableGenerationRateLimit(userId, 'documentRevise');
 
       const originalDocument = await DocumentCrudService.getDocumentWithContent(
         userId,
