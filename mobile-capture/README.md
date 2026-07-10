@@ -22,7 +22,23 @@ Mobile reads Firebase config from the **workspace root** `.env` / `.env.local` (
 | **Local emulators** | `NX_PUBLIC_USE_FIREBASE_EMULATOR=true` and `NX_PUBLIC_FIREBASE_API_KEY=demo-api-key-for-emulator` |
 | **Production Firebase** | `NX_PUBLIC_USE_FIREBASE_EMULATOR=false` and real `NX_PUBLIC_FIREBASE_API_KEY` from Firebase Console |
 
-Production callables enforce **App Check**. Dev builds use the debug provider (`__DEV__`); register a debug token in Firebase Console → App Check → Manage debug tokens. Optional fixed token: `NX_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN` in `.env.local`. Release builds need Play Integrity (Android) / App Attest (iOS) registered for app **StudyForge Capture** (`io.studyforge.capture`).
+Production callables enforce **App Check**. Dev builds use the debug provider (`__DEV__`).
+
+**Dev App Check setup (required when `NX_PUBLIC_USE_FIREBASE_EMULATOR=false`):**
+
+1. Firebase Console → **App Check** → register **StudyForge Capture** Android (`io.studyforge.capture`) with the **Debug** provider (Play Integrity for release later).
+2. Overflow menu → **Manage debug tokens** → **Add debug token** → Generate (or paste one).
+3. Put that UUID in workspace root `.env.local`:
+   `NX_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN=<uuid>`
+4. Restart Metro with cache clear: `yarn nx run mobile-capture:start-clear`
+
+Without a fixed env token, grab the device UUID from logcat and register it instead:
+
+```bash
+adb logcat | grep DebugAppCheckProvider
+```
+
+Release builds need Play Integrity (Android) / App Attest (iOS) for **StudyForge Capture** (`io.studyforge.capture`).
 
 Native config files: [`google-services.json`](./google-services.json) and [`GoogleService-Info.plist`](./GoogleService-Info.plist). After changing native Firebase/App Check setup, rebuild the dev client (`mobile-capture:android` / `mobile-capture:ios`).
 
