@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import { z } from 'zod';
+import { RuleApplicability } from '@shared-types';
 import { LlmGenerationService } from '../services/llm';
 import { validateAuth } from '../lib/auth';
 import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
@@ -16,18 +17,7 @@ const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 const generateRuleRequestSchema = z.object({
   topic: aiRevisionInstructionSchema,
   description: z.string().max(500, 'Description must be 500 characters or less').nullish(),
-  applicableTo: z.array(z.enum([
-    'scraping',
-    'upload',
-    'prompt',
-    'quiz',
-    'followup',
-    'flashcard',
-    'flashcard_desc',
-    'slide_deck',
-    'diagram_quiz',
-    'sequence_quiz',
-  ])).nullish(),
+  applicableTo: z.array(z.nativeEnum(RuleApplicability)).nullish(),
   existingContent: aiRevisionExistingContentSchema.nullish(),
 });
 
