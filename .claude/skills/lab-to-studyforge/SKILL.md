@@ -4,9 +4,9 @@ description: >-
   Convert GCP/Qwiklabs lab instructions into StudyForge learning materials via
   the External API and local interactive HTML explainers. Creates a per-lab
   subdirectory, uploads a study document, generates artifacts (quiz, flashcards,
-  sequence quiz, diagram quiz, slide deck with local GCP images), and inherits
-  parent prompt rules. Use when the user asks to publish a lab to StudyForge,
-  create lab study materials, or run /lab-to-studyforge.
+  sequence quiz, diagram quiz, slide deck with local GCP images), attaching parent
+  prompt rules explicitly on every generation call. Use when the user asks to
+  publish a lab to StudyForge, create lab study materials, or run /lab-to-studyforge.
 ---
 
 # Lab → StudyForge Learning Materials
@@ -47,7 +47,7 @@ Lab publish progress:
 - [ ] 3. SF subdirectory — POST /directories under labs root
 - [ ] 4. Study document — POST /documents (from lab summary markdown)
 - [ ] 5. Artifacts — quiz, flashcards, sequence quiz, diagram quiz; slide deck with local images
-- [ ] 6. Verify — list directory contents; confirm inherited rules
+- [ ] 6. Verify — list directory contents; confirm artifacts queued with parent rules
 ```
 
 ### Step 1 — Parse the lab
@@ -119,32 +119,77 @@ DOC_ID=$(./scripts/lab-studyforge/sf-api.sh POST /documents \
     '{prompt: $prompt, directoryId: $directoryId, files: [{filename: "lab.txt", content: $f0, size: ($f0|length), type: "text/plain", source: "upload"}]}')"
 ```
 
-Inherited rules from `lF9Hgmxxc42NdXKqKadY` apply automatically (`ruleResolutionMode` defaults to inherit).
+### Step 5 — Generate artifacts (attach rules explicitly)
 
-### Step 5 — Generate artifacts
+**Always pass explicit `ruleIds` for the artifact type** from the rules parent (`lF9Hgmxxc42NdXKqKadY`). Do not rely on inheritance alone — attaching rules makes generation auditable and ensures the correct prompt templates apply.
 
-Run from the lab subdirectory. Rules inherit from parent — no explicit `ruleIds` needed unless overriding.
+Resolve IDs once per shell session:
 
 ```bash
-# Quiz
+source scripts/lab-studyforge/rule-ids.sh
+# Exports: RULE_QUIZ, RULE_FLASHCARDS, RULE_SEQUENCE_QUIZ, RULE_DIAGRAM_QUIZ,
+#          RULE_FOLLOWUP, RULE_SLIDE_DECK, RULE_STUDY_DOCUMENT, …
+```
+
+**Critical:** when you pass `ruleIds`, also pass `"ruleResolutionMode": "inherit-plus-explicit"`. If you omit `ruleResolutionMode`, the API defaults to **`explicit-only`** and drops inherited parent rules.
+
+Preferred — use the helper script (quiz, flashcards, sequence quiz, diagram quiz only):
+
+```bash
+./scripts/lab-studyforge/regenerate-artifacts.sh \
+  "$DOC_ID" "$LAB_DIR_ID" "$LAB_TITLE" \
+  "Focus on exact resource names, verification steps, and lab-specific gotchas."
+```
+
+Manual API calls — same pattern for every artifact type:
+
+```bash
+MODE="inherit-plus-explicit"
+
+# Quiz (+ follow-up rule for quiz generation)
 ./scripts/lab-studyforge/sf-api.sh POST /quizzes/generate \
-  "$(jq -nc --argjson ids "[\"$DOC_ID\"]" --arg dir "$LAB_DIR_ID" --arg name "$LAB_TITLE Quiz" \
-    '{documentIds: $ids, directoryId: $dir, quizName: $name, additionalPrompt: "Focus on exact resource names, balancing modes, and verification steps from this hands-on lab."}')"
+  "$(jq -nc \
+    --argjson ids "[\"$DOC_ID\"]" \
+    --arg dir "$LAB_DIR_ID" \
+    --arg name "$LAB_TITLE Quiz" \
+    --arg mode "$MODE" \
+    --arg quizRule "$RULE_QUIZ" \
+    --arg followup "$RULE_FOLLOWUP" \
+    '{documentIds: $ids, directoryId: $dir, quizName: $name,
+      additionalPrompt: "Focus on exact resource names and verification steps from this hands-on lab.",
+      ruleIds: [$quizRule], followupRuleIds: [$followup], ruleResolutionMode: $mode}')"
 
 # Flashcards
 ./scripts/lab-studyforge/sf-api.sh POST /flashcard-sets/generate \
-  "$(jq -nc --argjson ids "[\"$DOC_ID\"]" --arg dir "$LAB_DIR_ID" --arg title "$LAB_TITLE Flashcards" \
-    '{documentIds: $ids, directoryId: $dir, title: $title}')"
+  "$(jq -nc \
+    --argjson ids "[\"$DOC_ID\"]" \
+    --arg dir "$LAB_DIR_ID" \
+    --arg title "$LAB_TITLE Flashcards" \
+    --arg mode "$MODE" \
+    --arg fc "$RULE_FLASHCARDS" \
+    '{documentIds: $ids, directoryId: $dir, title: $title,
+      ruleIds: [$fc], ruleResolutionMode: $mode}')"
 
 # Sequence quiz — task order and procedural flows (always generate)
 ./scripts/lab-studyforge/sf-api.sh POST /sequence-quizzes/generate \
-  "$(jq -nc --argjson ids "[\"$DOC_ID\"]" --arg dir "$LAB_DIR_ID" \
-    '{documentIds: $ids, directoryId: $dir, additionalPrompt: "Focus on correct task order, setup dependencies, and verification sequence from this lab."}')"
+  "$(jq -nc \
+    --argjson ids "[\"$DOC_ID\"]" \
+    --arg dir "$LAB_DIR_ID" \
+    --arg mode "$MODE" \
+    --arg seq "$RULE_SEQUENCE_QUIZ" \
+    '{documentIds: $ids, directoryId: $dir,
+      additionalPrompt: "Focus on correct task order, setup dependencies, and verification sequence from this lab.",
+      ruleIds: [$seq], ruleResolutionMode: $mode}')"
 
 # Diagram quiz — architecture and traffic flows
 ./scripts/lab-studyforge/sf-api.sh POST /diagram-quizzes/generate \
-  "$(jq -nc --argjson ids "[\"$DOC_ID\"]" --arg dir "$LAB_DIR_ID" \
-    '{documentIds: $ids, directoryId: $dir}')"
+  "$(jq -nc \
+    --argjson ids "[\"$DOC_ID\"]" \
+    --arg dir "$LAB_DIR_ID" \
+    --arg mode "$MODE" \
+    --arg diag "$RULE_DIAGRAM_QUIZ" \
+    '{documentIds: $ids, directoryId: $dir,
+      ruleIds: [$diag], ruleResolutionMode: $mode}')"
 ```
 
 #### Slide deck with local GCP images (required)
@@ -178,13 +223,24 @@ Generation is async — artifacts appear as `pending` then `completed` in the ap
 ./scripts/lab-studyforge/sf-api.sh GET "/directories/$LAB_DIR_ID/rules"
 ```
 
-Confirm: 1 document, expected artifacts, inherited rules from parent.
+Confirm: 1 document, expected artifacts. Re-run generation used explicit parent rule IDs (see Step 5).
 
 ## Parent rules (one-time bootstrap)
 
-Five shared rules live on **`lF9Hgmxxc42NdXKqKadY`** and inherit to every lab subdir. Content templates: [parent-rules.md](parent-rules.md).
+Eight shared rules live on **`lF9Hgmxxc42NdXKqKadY`**. Lab subdirs inherit them in the directory tree, but **artifact generation must still attach the relevant rule ID(s) on each API call**. Content templates: [parent-rules.md](parent-rules.md).
 
-Seven rules total (document, quiz, flashcards, diagram quiz, **sequence quiz**, **slide deck**, follow-up).
+Rules: study document, quiz, flashcards, flashcard description, diagram quiz, sequence quiz, slide deck, follow-up.
+
+| Rule (name suffix) | Env var from `rule-ids.sh` |
+|--------------------|----------------------------|
+| Study Document | `RULE_STUDY_DOCUMENT` |
+| Quiz | `RULE_QUIZ` |
+| Flashcards | `RULE_FLASHCARDS` |
+| Flashcard Description | `RULE_FLASHCARD_DESC` |
+| Sequence Quiz | `RULE_SEQUENCE_QUIZ` |
+| Diagram Quiz | `RULE_DIAGRAM_QUIZ` |
+| Slide Deck | `RULE_SLIDE_DECK` |
+| Follow-up | `RULE_FOLLOWUP` |
 
 ```bash
 STUDYFORGE_API_KEY=sf-… ./scripts/lab-studyforge/bootstrap-parent-rules.sh
@@ -210,7 +266,18 @@ Always create local interactive HTML regardless of matrix. Always generate **seq
 - Skip the local HTML explainer — it complements SF artifacts
 - Use `POST /slide-decks/generate` for labs — always generate images locally and use `publish-slide-deck.sh`
 - Create lab subdirs outside `tgnqY2C9X2YQtA06JqHB`
-- Attach rules to each lab subdir — attach once on parent; subdirs inherit
+- Duplicate parent rules on each lab subdir — bootstrap once on `lF9Hgmxxc42NdXKqKadY` only
+- Call generate endpoints without `ruleIds` — always attach the type-specific parent rule explicitly
+- Pass `ruleIds` without `ruleResolutionMode: "inherit-plus-explicit"` — defaults to `explicit-only` and drops inheritance
+
+## Helper scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/lab-studyforge/rule-ids.sh` | Source to export parent rule ID env vars |
+| `scripts/lab-studyforge/regenerate-artifacts.sh` | Re-queue quiz, flashcards, sequence quiz, diagram quiz with explicit rules |
+| `scripts/lab-studyforge/publish-slide-deck.sh` | Slide deck with local PNGs (not covered by regenerate script) |
+| `scripts/lab-studyforge/bootstrap-parent-rules.sh` | One-time parent rule creation |
 
 ## Reference
 
