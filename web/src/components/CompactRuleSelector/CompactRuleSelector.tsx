@@ -11,7 +11,7 @@ import { ICompactRuleSelector } from "./ICompactRuleSelector";
  * Compact Rule Selector Component
  * 
  * A streamlined version of RuleSelector designed for inline use in forms
- * Shows selected rules as chips and provides a collapsible list
+ * Provides a collapsible checklist of applicable rules
  */
 export const CompactRuleSelector = ({
   directoryId,
@@ -99,23 +99,6 @@ export const CompactRuleSelector = ({
           </Button>
         )}
       </div>
-
-      {/* Selected Rules as Chips */}
-      {selectedRules.length > 0 && (
-        <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-md">
-          {selectedRules.map((rule) => (
-            <Badge
-              key={rule.id}
-              variant="secondary"
-              className="flex items-center gap-1 cursor-pointer hover:bg-secondary/80"
-              onClick={() => handleToggle(rule.id)}
-            >
-              {rule.name}
-              <span className="ml-1 text-muted-foreground hover:text-foreground">×</span>
-            </Badge>
-          ))}
-        </div>
-      )}
 
       {/* Compact Rules List */}
       <details className="group border rounded-md">

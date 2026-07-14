@@ -37,10 +37,6 @@ export const RuleSelector = ({
     }
   };
 
-  const selectedRules = rules.filter((rule) =>
-    selectedRuleIds.includes(rule.id)
-  );
-
   if (isLoading) {
     return (
       <div className={cn("border rounded-lg", compact ? "p-3" : "p-4")}>
@@ -65,23 +61,6 @@ export const RuleSelector = ({
           <span role="img" aria-label="rules">📋</span> {title} ({selectedRuleIds.length})
         </h3>
       </div>
-
-      {/* Selected Rules Chips */}
-      {selectedRules.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3 pb-3 border-b">
-          {selectedRules.map((rule) => (
-            <Badge
-              key={rule.id}
-              variant="secondary"
-              className="flex items-center gap-1 cursor-pointer hover:bg-secondary/80"
-              onClick={() => handleToggle(rule.id)}
-            >
-              {rule.name}
-              <span className="ml-1">×</span>
-            </Badge>
-          ))}
-        </div>
-      )}
 
       {/* Rules List */}
       <div className="space-y-2 max-h-[300px] overflow-y-auto">
