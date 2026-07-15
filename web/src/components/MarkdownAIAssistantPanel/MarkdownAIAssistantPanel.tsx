@@ -40,9 +40,11 @@ export const MarkdownAIAssistantPanel: React.FC<IMarkdownAIAssistantPanel> = ({
   const [instruction, setInstruction] = useState('');
   const [showApplyConfirm, setShowApplyConfirm] = useState(false);
 
+  const isGenerating = aiState === 'generating';
+
   const handleGenerate = () => {
     const trimmed = instruction.trim();
-    if (!trimmed) return;
+    if (!trimmed || isGenerating) return;
     onGenerate(trimmed);
   };
 
@@ -79,7 +81,7 @@ export const MarkdownAIAssistantPanel: React.FC<IMarkdownAIAssistantPanel> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4">
-          {(aiState === 'idle' || aiState === 'error') && (
+          {(aiState === 'idle' || aiState === 'error' || isGenerating) && (
             <div className="space-y-3">
               <p className="text-sm" style={{ color: colors.mutedForeground }}>
                 {idleDescription}
@@ -90,6 +92,7 @@ export const MarkdownAIAssistantPanel: React.FC<IMarkdownAIAssistantPanel> = ({
                 placeholder={instructionPlaceholder}
                 rows={4}
                 maxLength={instructionMaxLength}
+                disabled={isGenerating}
                 style={{
                   backgroundColor: colors.background,
                   borderColor: colors.border,
@@ -116,30 +119,35 @@ export const MarkdownAIAssistantPanel: React.FC<IMarkdownAIAssistantPanel> = ({
               )}
               <Button
                 onClick={handleGenerate}
-                disabled={!instruction.trim()}
+                disabled={!instruction.trim() || isGenerating}
                 className="w-full"
                 style={{
                   backgroundColor: colors.primary,
                   color: colors.primaryForeground,
                 }}
               >
-                <Sparkles size={16} className="mr-2" />
-                {aiState === 'error' ? 'Retry' : generateLabel}
+                {isGenerating ? (
+                  <>
+                    <Spinner size="xs" variant="on-primary" className="mr-2" />
+                    {generatingLabel}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} className="mr-2" />
+                    {aiState === 'error' ? 'Retry' : generateLabel}
+                  </>
+                )}
               </Button>
               {aiState === 'error' && (
-                <Button variant="outline" onClick={onDiscard} className="w-full">
+                <Button
+                  variant="outline"
+                  onClick={onDiscard}
+                  disabled={isGenerating}
+                  className="w-full"
+                >
                   Reset
                 </Button>
               )}
-            </div>
-          )}
-
-          {aiState === 'generating' && (
-            <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <Spinner size="md" />
-              <p className="text-sm" style={{ color: colors.mutedForeground }}>
-                {generatingLabel}
-              </p>
             </div>
           )}
 
@@ -169,7 +177,12 @@ export const MarkdownAIAssistantPanel: React.FC<IMarkdownAIAssistantPanel> = ({
                 >
                   {applyLabel}
                 </Button>
-                <Button variant="outline" onClick={onDiscard} className="flex-1">
+                <Button
+                  variant="outline"
+                  onClick={onDiscard}
+                  disabled={isApplyDisabled}
+                  className="flex-1"
+                >
                   Discard
                 </Button>
               </div>
@@ -185,10 +198,16 @@ export const MarkdownAIAssistantPanel: React.FC<IMarkdownAIAssistantPanel> = ({
             <DialogDescription>{applyConfirmMessage}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowApplyConfirm(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowApplyConfirm(false)}
+              disabled={isApplyDisabled}
+            >
               Cancel
             </Button>
-            <Button onClick={handleConfirmApply}>{applyLabel}</Button>
+            <Button onClick={handleConfirmApply} disabled={isApplyDisabled}>
+              {applyLabel}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -18,14 +18,13 @@ export const LOADING_OVERLAY_MUTATIONS = new Set<string>([
   'createDocumentFromUrl',
   'uploadAndCreateDocument',
   'generateFromPrompt',
-  'reviseDocumentWithAI',
   'generateQuiz',
   'generateFlashcards',
   'generateSlideDeck',
   'generateSequenceQuiz',
   'generateDiagramQuiz',
   'generateSubjectWorld',
-  'generateRuleWithAI',
+  'updateRule',
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
