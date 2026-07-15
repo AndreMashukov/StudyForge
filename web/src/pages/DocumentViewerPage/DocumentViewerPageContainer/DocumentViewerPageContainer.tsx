@@ -29,6 +29,7 @@ import {
   selectShowToc,
   selectIsExporting,
   selectQuestionAnswer,
+  selectIsAskingQuestion,
   selectQuestionError,
   clearQuestionAnswer,
   selectIsEditPanelOpen,
@@ -118,6 +119,7 @@ export const DocumentViewerPageContainer = () => {
   const showToc = useSelector(selectShowToc);
   const isExporting = useSelector(selectIsExporting);
   const questionAnswer = useSelector(selectQuestionAnswer);
+  const isAskingQuestion = useSelector(selectIsAskingQuestion);
   const questionError = useSelector(selectQuestionError);
   const isEditPanelOpen = useSelector(selectIsEditPanelOpen);
   const editAiState = useSelector(selectEditAiState);
@@ -575,6 +577,7 @@ export const DocumentViewerPageContainer = () => {
             <CardContent>
               <DocumentQuestionForm
                 onSubmit={handlers.handleAskDocumentQuestion}
+                isLoading={isAskingQuestion}
                 answer={questionAnswer}
                 error={questionError}
               />

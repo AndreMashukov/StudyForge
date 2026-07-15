@@ -386,13 +386,13 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
           rows={compact ? 2 : 3}
           maxLength={MAX_MESSAGE_LENGTH}
           showCharCount
-          disabled={!canChat}
+          disabled={!canChat || isSending}
         />
         <div className="mt-2 flex justify-end">
           <Button
             type="submit"
             size="sm"
-            disabled={!message.trim() || !canChat}
+            disabled={!message.trim() || !canChat || isSending}
             className="gap-2"
           >
             {isSending ? (

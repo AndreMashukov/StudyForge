@@ -12,6 +12,8 @@ import { setLoading } from '../slices/uiSlice';
  * Keep this list in sync with the grilling decision for global submit locking.
  */
 export const LOADING_OVERLAY_MUTATIONS = new Set<string>([
+  'createDirectory',
+  'deleteDirectory',
   'createDocument',
   'createDocumentFromUrl',
   'uploadAndCreateDocument',
@@ -24,9 +26,6 @@ export const LOADING_OVERLAY_MUTATIONS = new Set<string>([
   'generateDiagramQuiz',
   'generateSubjectWorld',
   'generateRuleWithAI',
-  'askDocumentQuestion',
-  'generateQuizFollowup',
-  'sendDirectoryChatMessage',
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
