@@ -27,6 +27,8 @@ export interface GenerationJob {
   completedAt?: Timestamp;
   failedAt?: Timestamp;
   error?: string;
+  lastError?: string;
+  lastRetryAt?: Timestamp;
 }
 
 export interface CreateGenerationJobParams {
@@ -116,6 +118,28 @@ export class GenerationJobsService {
       error,
       failedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  static async markRetryableFailure(userId: string, jobId: string, error: string): Promise<void> {
+    const ref = FirestorePaths.generationJob(userId, jobId);
+    await ref.firestore.runTransaction(async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists) {
+        throw new Error(`Generation job ${jobId} not found`);
+      }
+
+      const job = { id: snap.id, ...snap.data() } as GenerationJob;
+      if (job.status !== 'processing') {
+        throw new Error(`Generation job ${jobId} is not processing`);
+      }
+
+      transaction.update(ref, {
+        status: 'queued',
+        lastError: error,
+        lastRetryAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
     });
   }
 }
