@@ -1,4 +1,4 @@
-import { Timestamp, FieldValue, Query } from 'firebase-admin/firestore';
+import { AggregateField, Timestamp, FieldValue, Query } from 'firebase-admin/firestore';
 import * as admin from 'firebase-admin';
 import { logger } from 'firebase-functions/v2';
 import { DocumentService } from './document-storage';
@@ -657,38 +657,53 @@ export class DocumentCrudService {
     try {
       logger.info('Getting document statistics', { userId });
 
-      const snapshot = await FirestorePaths.documents(userId).get();
+      const documentsRef = FirestorePaths.documents(userId);
+      const sourceTypes = Object.values(DocumentSourceType) as DocumentSourceType[];
+      const statuses = Object.values(DocumentStatus) as DocumentStatus[];
 
-      const documents = snapshot.docs.map(doc => doc.data() as Document);
+      const [
+        baseAggSnapshot,
+        latestActivitySnapshot,
+        ...countSnapshots
+      ] = await Promise.all([
+        documentsRef.aggregate({
+          total: AggregateField.count(),
+          totalWordCount: AggregateField.sum('wordCount'),
+        }).get(),
+        documentsRef.orderBy('updatedAt', 'desc').limit(1).get(),
+        ...sourceTypes.map((type) =>
+          documentsRef.where('sourceType', '==', type).count().get()
+        ),
+        ...statuses.map((status) =>
+          documentsRef.where('status', '==', status).count().get()
+        ),
+      ]);
+
+      const baseData = baseAggSnapshot.data();
+
+      const bySourceType = {} as Record<DocumentSourceType, number>;
+      sourceTypes.forEach((type, index) => {
+        bySourceType[type] = countSnapshots[index].data().count;
+      });
+
+      const byStatus = {} as Record<DocumentStatus, number>;
+      statuses.forEach((status, index) => {
+        byStatus[status] = countSnapshots[sourceTypes.length + index].data().count;
+      });
+
+      let recentActivity: Date | null = null;
+      if (!latestActivitySnapshot.empty) {
+        const latestDoc = latestActivitySnapshot.docs[0].data() as Document;
+        recentActivity = this.toDate(latestDoc.updatedAt);
+      }
 
       const stats = {
-        total: documents.length,
-        bySourceType: {} as Record<DocumentSourceType, number>,
-        byStatus: {} as Record<DocumentStatus, number>,
-        totalWordCount: 0,
-        recentActivity: null as Date | null,
+        total: baseData.total,
+        bySourceType,
+        byStatus,
+        totalWordCount: baseData.totalWordCount ?? 0,
+        recentActivity,
       };
-
-      // Initialize counters
-      (Object.values(DocumentSourceType) as DocumentSourceType[]).forEach(type => {
-        stats.bySourceType[type] = 0;
-      });
-
-      (Object.values(DocumentStatus) as DocumentStatus[]).forEach(status => {
-        stats.byStatus[status] = 0;
-      });
-
-      // Calculate statistics
-      documents.forEach(doc => {
-        stats.bySourceType[doc.sourceType]++;
-        stats.byStatus[doc.status]++;
-        stats.totalWordCount += doc.wordCount;
-
-        const updatedAt = this.toDate(doc.updatedAt);
-        if (!stats.recentActivity || updatedAt > stats.recentActivity) {
-          stats.recentActivity = updatedAt;
-        }
-      });
 
       logger.info('Document statistics calculated', { userId, stats });
       return stats;
