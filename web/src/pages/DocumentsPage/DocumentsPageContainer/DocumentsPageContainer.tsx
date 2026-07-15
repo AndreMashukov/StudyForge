@@ -30,6 +30,7 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 import { Spinner } from '../../../components/ui/Spinner';
 import { IndeterminateLinearProgress } from '../../../components/ui/IndeterminateLinearProgress';
 import { MascotImage } from '../../../components/MascotImage';
+import { cn } from '../../../lib/utils';
 
 export const DocumentsPageContainer = (): React.JSX.Element => {
   const navigate = useNavigate();
@@ -183,15 +184,17 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
               </div>
             )}
 
-            {/* Breadcrumb Navigation */}
-            <BreadcrumbNav
-              directoryId={selectedDirectoryId}
-              onNavigate={(directoryId) => handlers.handleSelectDirectory(directoryId)}
-              className="px-4 md:px-6 pt-4 md:pt-6"
-            />
+            {/* Breadcrumb Navigation — hidden at root (redundant with Root title) */}
+            {!isRoot && (
+              <BreadcrumbNav
+                directoryId={selectedDirectoryId}
+                onNavigate={(directoryId) => handlers.handleSelectDirectory(directoryId)}
+                className="px-4 md:px-6 pt-4 md:pt-6"
+              />
+            )}
 
             {/* Header */}
-            <div className={documentsPageStyles.header}>
+            <div className={cn(documentsPageStyles.header, isRoot && 'pt-4 md:pt-6')}>
               <div className={documentsPageStyles.headerRow}>
                 <div className={documentsPageStyles.headerContent}>
                   <h1 className={documentsPageStyles.title}>
@@ -282,7 +285,9 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                 {/* Folders Section */}
                 {subdirectories.length > 0 && (
                   <div className="px-4 md:px-6">
-                    <h2 className="text-lg font-semibold mb-3">Folders</h2>
+                    {!isRoot && (
+                      <h2 className="text-lg font-semibold mb-3">Folders</h2>
+                    )}
                     <div className={documentsPageStyles.documentsGrid}>
                       {subdirectories.map((dir: Directory) => (
                         <FolderCard
