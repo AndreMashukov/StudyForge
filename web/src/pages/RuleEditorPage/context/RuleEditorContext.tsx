@@ -168,13 +168,15 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
     if (!aiResult) return;
     setFormData((prev) => ({
       ...prev,
-      name: aiResult.name || prev.name,
+      // Rule Name is user-owned in edit mode — AI proposals must not overwrite it.
+      // In create mode the name starts empty, so the AI's suggestion seeds the initial value.
+      name: mode === 'edit' ? prev.name : aiResult.name || prev.name,
       description: aiResult.description || prev.description,
       content: aiResult.content || prev.content,
     }));
     setAiState('idle');
     setAiResult(null);
-  }, [aiResult]);
+  }, [aiResult, mode]);
 
   const discardAIResult = useCallback(() => {
     setAiState('idle');
