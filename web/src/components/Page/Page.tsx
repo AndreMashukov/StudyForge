@@ -45,7 +45,7 @@ export const Page = ({ children, className, showSidebar = true }: IPage) => {
         {/* Main Content */}
         <main
           className={cn(
-            'flex-1 min-h-0 overflow-y-auto overscroll-contain',
+            'flex flex-1 min-h-0 flex-col overflow-y-auto overscroll-contain',
             'px-0 pb-0 md:px-6 md:pb-6',
             'scrollbar-thin scrollbar-track-muted scrollbar-thumb-muted-foreground'
           )}

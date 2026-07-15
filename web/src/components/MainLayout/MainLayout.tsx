@@ -46,7 +46,7 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
   }
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col bg-background text-foreground">
+    <div className="flex h-screen min-h-0 flex-col overflow-hidden overscroll-none bg-background text-foreground">
       <TopAppBar
         hidden={isAppFullscreen}
         start={
@@ -66,7 +66,7 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
         end={<ThemeToggle />}
       />
 
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <DirectoryRealtimeBridge />
         {children}
       </main>

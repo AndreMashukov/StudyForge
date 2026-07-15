@@ -20,13 +20,8 @@ export const RuleEditorHeader: React.FC = () => {
   };
 
   return (
-    <div
-      className="flex items-center justify-between px-6 py-4 border-b"
-      style={{
-        backgroundColor: colors.card,
-        borderColor: colors.border,
-      }}
-    >
+    <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
       {/* Left: Back button */}
       <Button
         variant="ghost"
@@ -38,10 +33,7 @@ export const RuleEditorHeader: React.FC = () => {
       </Button>
 
       {/* Center: Title */}
-      <h1
-        className="text-lg font-semibold"
-        style={{ color: colors.foreground }}
-      >
+      <h1 className="text-lg font-semibold text-foreground">
         {mode === 'create' ? 'Create Rule' : 'Edit Rule'}
       </h1>
 
@@ -95,6 +87,7 @@ export const RuleEditorHeader: React.FC = () => {
           {mode === 'create' ? 'Create Rule' : 'Save Changes'}
         </Button>
       </div>
+    </div>
     </div>
   );
 };
