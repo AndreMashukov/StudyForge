@@ -14,7 +14,6 @@ import {
   GetDirectoryContentsWithArtifactsResponse,
   GetDirectoryContentsWithArtifactSummariesResponse,
   ArtifactSummary,
-  ArtifactSummaryType,
   GetDirectoryAncestorsResponse,
   MoveDirectoryResponse,
   DeleteDirectoryResponse,
@@ -32,6 +31,7 @@ import { recalculateStatsForDirectoryMove } from './interaction-tracking';
 import { FirestorePaths } from '../lib/firestore-paths';
 import {
   deleteDirectoryItemsForDirectories,
+  listPaginatedArtifactSummaries,
   moveSubdirectoryDirectoryIndex,
   removeSubdirectoryDirectoryIndex,
   syncIndexSafely,
@@ -627,82 +627,29 @@ export class DirectoryService {
   async getDirectoryContentsWithArtifactSummaries(
     userId: string,
     directoryId: string | null,
-    options?: { includeRules?: boolean; artifactLimit?: number }
+    options?: { includeRules?: boolean; artifactLimit?: number; artifactCursor?: string }
   ): Promise<GetDirectoryContentsWithArtifactSummariesResponse> {
     const includeRules = options?.includeRules !== false;
     const artifactLimit = Math.min(options?.artifactLimit ?? 20, 100);
 
     const base = await this.getDirectoryContents(userId, directoryId);
 
-    const artifactSummaries: ArtifactSummary[] = [];
+    let artifactSummaries: ArtifactSummary[] = [];
+    let artifactHasMore = false;
+    let artifactNextCursor: string | undefined;
     let resolvedRules: { rules: Rule[]; inheritanceMap: { [key: string]: Rule[] } } = {
       rules: [],
       inheritanceMap: {},
     };
 
     if (directoryId) {
-      const [qSnap, fSnap, sSnap, dqSnap, sqSnap, swSnap] = await Promise.all([
-        FirestorePaths.quizzes(userId)
-          .where('directoryId', '==', directoryId)
-          .orderBy('createdAt', 'desc')
-          .limit(artifactLimit)
-          .select('title', 'createdAt', 'completedAt', 'appliedRuleIds', 'generationModel', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
-          .get(),
-        FirestorePaths.flashcardSets(userId)
-          .where('directoryId', '==', directoryId)
-          .orderBy('createdAt', 'desc')
-          .limit(artifactLimit)
-          .select('title', 'createdAt', 'completedAt', 'appliedRuleIds', 'generationModel', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
-          .get(),
-        FirestorePaths.slideDecks(userId)
-          .where('directoryId', '==', directoryId)
-          .orderBy('createdAt', 'desc')
-          .limit(artifactLimit)
-          .select('title', 'createdAt', 'completedAt', 'appliedRuleIds', 'generationModel', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
-          .get(),
-        FirestorePaths.diagramQuizzes(userId)
-          .where('directoryId', '==', directoryId)
-          .orderBy('createdAt', 'desc')
-          .limit(artifactLimit)
-          .select('title', 'createdAt', 'completedAt', 'appliedRuleIds', 'generationModel', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
-          .get(),
-        FirestorePaths.sequenceQuizzes(userId)
-          .where('directoryId', '==', directoryId)
-          .orderBy('createdAt', 'desc')
-          .limit(artifactLimit)
-          .select('title', 'createdAt', 'completedAt', 'appliedRuleIds', 'generationModel', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
-          .get(),
-        FirestorePaths.subjectWorlds(userId)
-          .where('directoryId', '==', directoryId)
-          .orderBy('createdAt', 'desc')
-          .limit(artifactLimit)
-          .select('title', 'createdAt', 'completedAt', 'appliedRuleIds', 'generationModel', 'generationStatus', 'generationError', 'documentColor', 'documentColors')
-          .get(),
-      ]);
-
-      const toSummaries = (snap: FirebaseFirestore.QuerySnapshot, type: ArtifactSummaryType): ArtifactSummary[] =>
-        snap.docs.map((d) => ({
-          id: d.id,
-          title: d.data().title as string,
-          createdAt: d.data().createdAt,
-          type,
-          appliedRuleIds: (d.data().appliedRuleIds as string[] | undefined) || [],
-          generationStatus: d.data().generationStatus as ArtifactSummary['generationStatus'] | undefined,
-          generationError: d.data().generationError as string | undefined,
-          completedAt: d.data().completedAt as ArtifactSummary['completedAt'] | undefined,
-          generationModel: typeof d.data().generationModel === 'string' ? d.data().generationModel as string : undefined,
-          documentColor: typeof d.data().documentColor === 'string' ? d.data().documentColor as string : undefined,
-          documentColors: Array.isArray(d.data().documentColors) ? d.data().documentColors as string[] : undefined,
-        }));
-
-      artifactSummaries.push(
-        ...toSummaries(qSnap, 'quiz'),
-        ...toSummaries(fSnap, 'flashcard'),
-        ...toSummaries(sSnap, 'slideDeck'),
-        ...toSummaries(dqSnap, 'diagramQuiz'),
-        ...toSummaries(sqSnap, 'sequenceQuiz'),
-        ...toSummaries(swSnap, 'subjectWorld'),
-      );
+      const artifactPage = await listPaginatedArtifactSummaries(userId, directoryId, {
+        limit: artifactLimit,
+        cursor: options?.artifactCursor,
+      });
+      artifactSummaries = artifactPage.artifactSummaries;
+      artifactHasMore = artifactPage.artifactHasMore;
+      artifactNextCursor = artifactPage.artifactNextCursor;
 
       if (includeRules) {
         resolvedRules = await resolveRulesForDirectory(userId, directoryId);
@@ -714,6 +661,8 @@ export class DirectoryService {
     return {
       ...base,
       artifactSummaries,
+      artifactHasMore,
+      artifactNextCursor,
       resolvedRules,
       totalCount,
     };

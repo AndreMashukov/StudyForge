@@ -5,6 +5,7 @@ import { validateAuth } from '../lib/auth';
 import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { DocumentCrudService } from '../services/document-crud';
 import { DocumentService } from '../services/document-storage';
+import { CursorPaginationError } from '../lib/cursor-pagination';
 import { directoryService } from '../services/directory';
 import { UrlProcessingOrchestrator } from '../services/url-processing/url-processing-orchestrator';
 import { FileExtractionError, FileExtractionService } from '../services/file-extraction';
@@ -678,6 +679,9 @@ export const getUserDocuments = onCall(
       };
 
     } catch (error) {
+      if (error instanceof CursorPaginationError) {
+        throw new HttpsError('invalid-argument', error.message);
+      }
       logger.error('Failed to get user documents', { 
         error: error instanceof Error ? error.message : String(error),
         options: request.data,
@@ -715,6 +719,9 @@ export const listDocuments = onCall(
       };
 
     } catch (error) {
+      if (error instanceof CursorPaginationError) {
+        throw new HttpsError('invalid-argument', error.message);
+      }
       logger.error('Failed to list documents', { 
         error: error instanceof Error ? error.message : String(error),
         options: request.data,

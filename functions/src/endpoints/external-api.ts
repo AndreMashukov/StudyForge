@@ -3,6 +3,7 @@ import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { ExternalAuthResult, validateExternalAuthFromRequest } from "../lib/api-key-auth";
 import { DocumentCrudService } from "../services/document-crud";
+import { CursorPaginationError } from "../lib/cursor-pagination";
 import { directoryService } from "../services/directory";
 import { GeminiService } from "../services/gemini";
 import {
@@ -1434,24 +1435,32 @@ export const api = onRequest(
       // GET /documents — List documents (with optional filters)
       if (method === "GET" && path === "/documents") {
         const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
-        const offset = parseInt(req.query.offset as string) || 0;
+        const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
         const directoryId = req.query.directoryId as string | undefined;
         const sourceType = req.query.sourceType as string | undefined;
         const status = req.query.status as string | undefined;
         const sortBy = (req.query.sortBy as string) || "createdAt";
         const sortOrder = (req.query.sortOrder as string) || "desc";
 
-        const result = await DocumentCrudService.listDocuments(userId, {
-          limit,
-          offset,
-          directoryId: directoryId || undefined,
-          sourceType: sourceType as DocumentSourceType | undefined,
-          status: status as DocumentStatus | undefined,
-          sortBy: sortBy as "createdAt" | "updatedAt" | "title",
-          sortOrder: sortOrder as "asc" | "desc",
-        });
+        try {
+          const result = await DocumentCrudService.listDocuments(userId, {
+            limit,
+            cursor,
+            directoryId: directoryId || undefined,
+            sourceType: sourceType as DocumentSourceType | undefined,
+            status: status as DocumentStatus | undefined,
+            sortBy: sortBy as "createdAt" | "updatedAt" | "title",
+            sortOrder: sortOrder as "asc" | "desc",
+          });
 
-        res.status(200).json({ success: true, data: result });
+          res.status(200).json({ success: true, data: result });
+        } catch (listError) {
+          if (listError instanceof CursorPaginationError) {
+            res.status(400).json({ success: false, error: listError.message });
+            return;
+          }
+          throw listError;
+        }
         return;
       }
 

@@ -692,6 +692,26 @@ export interface GetDirectoryContentsResponse {
   totalCount: number;
 }
 
+export interface CursorPaginationRequest {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface CursorPaginatedResult {
+  hasMore: boolean;
+  nextCursor?: string;
+}
+
+export interface ListDocumentsResult extends CursorPaginatedResult {
+  documents: DocumentEnhanced[];
+  total: number;
+}
+
+export interface ArtifactCursorPaginationResult {
+  artifactHasMore: boolean;
+  artifactNextCursor?: string;
+}
+
 export interface GetDirectoryContentsWithArtifactsResponse extends GetDirectoryContentsResponse {
   quizzes: Quiz[];
   flashcardSets: FlashcardSet[];
@@ -783,6 +803,8 @@ export interface ArtifactSummary {
 
 export interface GetDirectoryContentsWithArtifactSummariesResponse extends GetDirectoryContentsResponse {
   artifactSummaries: ArtifactSummary[];
+  artifactHasMore?: boolean;
+  artifactNextCursor?: string;
   resolvedRules: {
     rules: Rule[];
     inheritanceMap: { [directoryId: string]: Rule[] };

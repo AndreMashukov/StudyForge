@@ -12,6 +12,7 @@ interface ListDocumentsResponse {
   documents: DocumentEnhanced[];
   total: number;
   hasMore: boolean;
+  nextCursor?: string;
 }
 
 export interface IDocumentsApi {

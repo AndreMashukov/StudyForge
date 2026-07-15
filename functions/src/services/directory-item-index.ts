@@ -5,8 +5,15 @@ import {
   type Directory,
   type DirectoryItemSummary,
   type DirectoryItemType,
+  directoryItemTypeToArtifactSummaryType,
+  type ArtifactSummary,
 } from '@shared-types';
 import { FirestorePaths } from '../lib/firestore-paths';
+import {
+  applyOrderedQueryWithCursor,
+  buildNextCursor,
+  trimPage,
+} from '../lib/cursor-pagination';
 
 type FirestoreRecord = FirebaseFirestore.DocumentData;
 
@@ -418,4 +425,81 @@ export async function deleteDirectoryItemsForDirectories(
   for (const directoryId of directoryIds) {
     await deleteAllDirectoryItems(userId, directoryId);
   }
+}
+
+const ARTIFACT_DIRECTORY_ITEM_TYPES: DirectoryItemType[] = [
+  'quiz',
+  'flashcard',
+  'slideDeck',
+  'diagramQuiz',
+  'sequenceQuiz',
+  'subjectWorld',
+];
+
+function directoryItemRecordToSummary(item: DirectoryItemSummary): ArtifactSummary | null {
+  const type = directoryItemTypeToArtifactSummaryType(item.itemType);
+  if (!type) {
+    return null;
+  }
+
+  return {
+    id: item.sourceId,
+    title: item.title,
+    createdAt: item.createdAt,
+    type,
+    appliedRuleIds: item.appliedRuleIds,
+    generationStatus: item.generationStatus,
+    generationError: item.generationError,
+    completedAt: item.completedAt,
+    generationModel: item.generationModel,
+    documentColor: item.documentColor,
+    documentColors: item.documentColors,
+  };
+}
+
+export async function listPaginatedArtifactSummaries(
+  userId: string,
+  directoryId: string,
+  options: { limit?: number; cursor?: string },
+): Promise<{
+  artifactSummaries: ArtifactSummary[];
+  artifactHasMore: boolean;
+  artifactNextCursor?: string;
+}> {
+  const limit = Math.min(options.limit ?? 20, 100);
+  const sortConfig = { sortBy: 'createdAt', sortOrder: 'desc' as const };
+
+  let query = FirestorePaths.directoryItems(userId, directoryId)
+    .where('itemType', 'in', ARTIFACT_DIRECTORY_ITEM_TYPES);
+
+  query = applyOrderedQueryWithCursor(query, sortConfig, options.cursor);
+  query = query.limit(limit + 1);
+
+  const snapshot = await query.get();
+  const rows = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    sortValue: doc.data().createdAt,
+    item: {
+      id: doc.id,
+      ...doc.data(),
+    } as DirectoryItemSummary,
+  }));
+
+  const { page: pageRows, hasMore } = trimPage(rows, limit);
+  const artifactSummaries = pageRows
+    .map((row) => directoryItemRecordToSummary(row.item))
+    .filter((summary): summary is ArtifactSummary => summary !== null);
+
+  const artifactNextCursor = buildNextCursor(
+    pageRows,
+    hasMore,
+    sortConfig,
+    (row) => row.sortValue,
+  );
+
+  return {
+    artifactSummaries,
+    artifactHasMore: hasMore,
+    artifactNextCursor,
+  };
 }

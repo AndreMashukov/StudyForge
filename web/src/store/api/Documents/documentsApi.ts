@@ -22,11 +22,13 @@ interface ListDocumentsResponse {
   documents: DocumentEnhanced[];
   total: number;
   hasMore: boolean;
+  nextCursor?: string;
 }
 
 export interface IGetUserDocumentsArgs {
   limit?: number;
   directoryId?: string;
+  cursor?: string;
 }
 
 const DEFAULT_USER_DOCUMENTS_LIMIT = 100;
@@ -39,13 +41,21 @@ export const documentsApi = baseApi.injectEndpoints({
         data: {
           limit: args?.limit ?? DEFAULT_USER_DOCUMENTS_LIMIT,
           ...(args?.directoryId ? { directoryId: args.directoryId } : {}),
+          ...(args?.cursor ? { cursor: args.cursor } : {}),
         },
       }),
-      transformResponse: (response: { success: boolean; documents: DocumentEnhanced[]; total: number; hasMore: boolean }) => {
+      transformResponse: (response: {
+        success: boolean;
+        documents: DocumentEnhanced[];
+        total: number;
+        hasMore: boolean;
+        nextCursor?: string;
+      }) => {
         return {
           documents: response.documents,
           total: response.total,
           hasMore: response.hasMore,
+          nextCursor: response.nextCursor,
         };
       },
       providesTags: ['Document'],

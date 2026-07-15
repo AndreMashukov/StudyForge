@@ -207,9 +207,9 @@ export const directoryApi = baseApi.injectEndpoints({
 
     getDirectoryContentsWithArtifactSummaries: builder.query<
       GetDirectoryContentsWithArtifactSummariesResponse,
-      { directoryId: string | null; artifactLimit?: number }
+      { directoryId: string | null; artifactLimit?: number; artifactCursor?: string }
     >({
-      async queryFn({ directoryId, artifactLimit }, _api, _extraOptions, baseQuery) {
+      async queryFn({ directoryId, artifactLimit, artifactCursor }, _api, _extraOptions, baseQuery) {
         const userId = auth.currentUser?.uid;
         if (!userId) {
           return {
@@ -260,6 +260,7 @@ export const directoryApi = baseApi.injectEndpoints({
               directoryId,
               includeRules: true,
               artifactLimit: limit,
+              ...(artifactCursor ? { artifactCursor } : {}),
             },
           });
           if (fallback.error) {

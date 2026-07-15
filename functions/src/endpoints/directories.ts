@@ -3,6 +3,7 @@ import { logger } from 'firebase-functions/v2';
 import { directoryService } from '../services/directory';
 import { validateAuth } from '../lib/auth';
 import { throwCallableError } from '../lib/callable-error';
+import { CursorPaginationError } from '../lib/cursor-pagination';
 import {
   CreateDirectoryRequest,
   UpdateDirectoryRequest,
@@ -366,10 +367,12 @@ export const getDirectoryContentsWithArtifactSummaries = onCall(
         directoryId,
         includeRules = true,
         artifactLimit = 20,
+        artifactCursor,
       } = request.data as {
         directoryId?: string | null;
         includeRules?: boolean;
         artifactLimit?: number;
+        artifactCursor?: string;
       };
 
       logger.info('Getting directory contents with artifact summaries', {
@@ -377,15 +380,19 @@ export const getDirectoryContentsWithArtifactSummaries = onCall(
         directoryId,
         includeRules,
         artifactLimit,
+        hasArtifactCursor: Boolean(artifactCursor),
       });
 
       const result = await directoryService.getDirectoryContentsWithArtifactSummaries(
         userId,
         directoryId ?? null,
-        { includeRules, artifactLimit }
+        { includeRules, artifactLimit, artifactCursor }
       );
       return result;
     } catch (error) {
+      if (error instanceof CursorPaginationError) {
+        throwCallableError(error, error.message);
+      }
       logger.error('Error getting directory contents with artifact summaries', {
         error: error instanceof Error ? error.message : String(error),
       });

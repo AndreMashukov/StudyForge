@@ -3,6 +3,13 @@ import * as admin from 'firebase-admin';
 import { logger } from 'firebase-functions/v2';
 import { DocumentService } from './document-storage';
 import { FirestorePaths } from '../lib/firestore-paths';
+import {
+  applyOrderedQueryWithCursor,
+  buildNextCursor,
+  CursorPaginationError,
+  resolvePageLimit,
+  trimPage,
+} from '../lib/cursor-pagination';
 import { directoryService } from './directory';
 import {
   moveDocumentDirectoryIndex,
@@ -472,7 +479,7 @@ export class DocumentCrudService {
     userId: string,
     options: {
       limit?: number;
-      offset?: number;
+      cursor?: string;
       sourceType?: DocumentSourceType;
       status?: DocumentStatus;
       tags?: string[];
@@ -480,7 +487,7 @@ export class DocumentCrudService {
       sortBy?: 'createdAt' | 'updatedAt' | 'title';
       sortOrder?: 'asc' | 'desc';
     } = {}
-  ): Promise<{ documents: Document[]; total: number; hasMore: boolean }> {
+  ): Promise<{ documents: Document[]; total: number; hasMore: boolean; nextCursor?: string }> {
     try {
       logger.info('Listing documents for user', { 
         userId, 
@@ -513,31 +520,25 @@ export class DocumentCrudService {
         query = query.where('directoryId', '==', options.directoryId);
       }
 
-      // Apply sorting
       const sortBy = options.sortBy || 'updatedAt';
       const sortOrder = options.sortOrder || 'desc';
-      query = query.orderBy(sortBy, sortOrder);
+      const sortConfig = { sortBy, sortOrder };
 
       // Get total count (for pagination)
       const countSnapshot = await query.count().get();
       const total = countSnapshot.data().count;
 
-      // Apply pagination
-      if (options.offset) {
-        query = query.offset(options.offset);
-      }
-
-      const limit = Math.min(options.limit || 20, 100); // Max 100 per request
-      query = query.limit(limit + 1); // Get one extra to check if there are more
+      const limit = resolvePageLimit(options.limit);
+      let dataQuery = applyOrderedQueryWithCursor(query, sortConfig, options.cursor);
+      dataQuery = dataQuery.limit(limit + 1); // Get one extra to check if there are more
 
       // Execute query
-      const snapshot = await query.get();
-      const documents = snapshot.docs.map(doc => {
+      const snapshot = await dataQuery.get();
+      const rows = snapshot.docs.map((doc) => {
         const data = doc.data() as Document;
-        // Ensure document has an ID from the Firestore document ID
         const documentWithId = {
           ...data,
-          id: doc.id, // Use Firestore document ID
+          id: doc.id,
         };
         logger.info('Document retrieved from Firestore', { 
           userId, 
@@ -545,14 +546,21 @@ export class DocumentCrudService {
           hasId: !!documentWithId.id,
           title: documentWithId.title 
         });
-        return documentWithId;
+        return {
+          id: doc.id,
+          sortValue: doc.data()[sortBy],
+          document: documentWithId,
+        };
       });
 
-      // Check if there are more documents
-      const hasMore = documents.length > limit;
-      if (hasMore) {
-        documents.pop(); // Remove the extra document
-      }
+      const { page: pageRows, hasMore } = trimPage(rows, limit);
+      const documents = pageRows.map((row) => row.document);
+      const nextCursor = buildNextCursor(
+        pageRows,
+        hasMore,
+        sortConfig,
+        (row) => row.sortValue,
+      );
 
       logger.info('Documents listed successfully', { 
         userId, 
@@ -566,8 +574,12 @@ export class DocumentCrudService {
         documents,
         total,
         hasMore,
+        nextCursor,
       };
     } catch (error) {
+      if (error instanceof CursorPaginationError) {
+        throw error;
+      }
       logger.error('Failed to list documents', {
         userId,
         error: error instanceof Error ? error.message : String(error),
