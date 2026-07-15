@@ -32,13 +32,14 @@ const RuleEditorContent: React.FC = () => {
 
   return (
     <div
-      className="flex flex-col h-full"
+      className="flex flex-1 min-h-0 flex-col overflow-hidden"
       style={{ backgroundColor: colors.background }}
     >
       <RuleEditorHeader />
-      <div className="flex-1 flex flex-col md:flex-row gap-4 p-4 min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 md:flex-row">
         {/* Left column - Form */}
-        <div className="w-full md:w-[60%] overflow-y-auto rounded-lg border"
+        <div
+          className="min-h-0 w-full overflow-y-auto overscroll-contain rounded-lg border md:w-[60%]"
           style={{
             backgroundColor: colors.card,
             borderColor: colors.border,
@@ -48,7 +49,7 @@ const RuleEditorContent: React.FC = () => {
         </div>
 
         {/* Right column - AI Assistant */}
-        <div className="w-full md:w-[40%] min-h-[300px] md:min-h-0">
+        <div className="flex min-h-[300px] w-full flex-col md:min-h-0 md:w-[40%]">
           <AIAssistantPanel />
         </div>
       </div>

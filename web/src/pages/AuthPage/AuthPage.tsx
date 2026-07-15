@@ -31,7 +31,7 @@ const workflowTags = ['Quizzes', 'Flashcards', 'Slide decks', 'Diagram drills'] 
 
 export const AuthPage: React.FC = () => {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+    <div className="relative h-full overflow-y-auto overscroll-contain bg-background text-foreground">
       <div
         className="absolute inset-0 opacity-90"
         style={{

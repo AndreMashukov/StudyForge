@@ -4,7 +4,7 @@ import { RuleEditorContainer } from './components/RuleEditorContainer';
 
 export const RuleEditorPage = () => {
   return (
-    <Page showSidebar={true}>
+    <Page showSidebar={true} className="h-full overflow-hidden">
       <ProtectedRoute>
         <RuleEditorContainer />
       </ProtectedRoute>
