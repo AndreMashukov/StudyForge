@@ -28,6 +28,7 @@ import {
 } from '../../../utils/directoryTreeUtils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { Spinner } from '../../../components/ui/Spinner';
+import { IndeterminateLinearProgress } from '../../../components/ui/IndeterminateLinearProgress';
 import { MascotImage } from '../../../components/MascotImage';
 
 export const DocumentsPageContainer = (): React.JSX.Element => {
@@ -86,11 +87,13 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
   }, [treeData?.tree, selectedDirectoryId, directoryContents?.subdirectories]);
 
   const documents = directoryContents?.documents ?? [];
+  const isRoot = !selectedDirectoryId;
   const isLoadingDocuments = isLoadingContents && !directoryContents;
+  const showRootLoadingIndicator = isRoot && (isLoadingDocuments || isFetchingContents);
   const directoryTitle =
     (selectedDirectoryId && directoryContents?.directory.name) ||
     getDirectoryNameFromTree(treeData?.tree, selectedDirectoryId) ||
-    (selectedDirectoryId ? 'Folder' : 'All Documents');
+    (selectedDirectoryId ? 'Folder' : 'Root');
 
   const isInitialLoading =
     (isLoadingTree && !treeData) &&
@@ -189,42 +192,47 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
 
             {/* Header */}
             <div className={documentsPageStyles.header}>
-              <div className={documentsPageStyles.headerContent}>
-                <h1 className={documentsPageStyles.title}>
-                  {directoryTitle}
-                </h1>
-                <p className={documentsPageStyles.subtitle}>
-                  {subdirectories.length} folder(s),{' '}
-                  {isLoadingDocuments ? '…' : documents.length} document(s)
-                  {(isFetchingContents || isLoadingDocuments) && (directoryContents || treeData) && (
-                    <Loader2
-                      className="inline-block ml-2 h-3.5 w-3.5 animate-spin text-muted-foreground"
-                      aria-label="Refreshing"
-                    />
+              <div className={documentsPageStyles.headerRow}>
+                <div className={documentsPageStyles.headerContent}>
+                  <h1 className={documentsPageStyles.title}>
+                    {directoryTitle}
+                  </h1>
+                  {!isRoot && (
+                    <p className={documentsPageStyles.subtitle}>
+                      {subdirectories.length} folder(s),{' '}
+                      {isLoadingDocuments ? '…' : documents.length} document(s)
+                      {(isFetchingContents || isLoadingDocuments) && (directoryContents || treeData) && (
+                        <Loader2
+                          className="inline-block ml-2 h-3.5 w-3.5 animate-spin text-muted-foreground"
+                          aria-label="Refreshing"
+                        />
+                      )}
+                    </p>
                   )}
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handleCreateDirectory(selectedDirectoryId)}
-                  className="w-full sm:w-auto gap-2"
-                >
-                  <FolderPlus size={16} />
-                  <span className="hidden sm:inline">New Folder</span>
-                  <span className="sm:hidden">Folder</span>
-                </Button>
-                {selectedDirectoryId && (
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
-                    onClick={handlers.handleCreateDocument}
-                    className={documentsPageStyles.createButton}
+                    variant="outline"
+                    onClick={() => handleCreateDirectory(selectedDirectoryId)}
+                    className="w-full sm:w-auto gap-2"
                   >
-                    <Plus size={16} />
-                    <span className="hidden sm:inline">Create Document</span>
-                    <span className="sm:hidden">Document</span>
+                    <FolderPlus size={16} />
+                    <span className="hidden sm:inline">New Folder</span>
+                    <span className="sm:hidden">Folder</span>
                   </Button>
-                )}
+                  {selectedDirectoryId && (
+                    <Button
+                      onClick={handlers.handleCreateDocument}
+                      className={documentsPageStyles.createButton}
+                    >
+                      <Plus size={16} />
+                      <span className="hidden sm:inline">Create Document</span>
+                      <span className="sm:hidden">Document</span>
+                    </Button>
+                  )}
+                </div>
               </div>
+              {showRootLoadingIndicator && <IndeterminateLinearProgress />}
             </div>
 
             {/* Empty State */}
@@ -292,7 +300,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                 )}
 
                 {/* Documents Section */}
-                {isLoadingDocuments ? (
+                {isLoadingDocuments && !isRoot ? (
                   <div className="flex justify-center items-center px-4 md:px-6 py-8">
                     <Spinner size="md" />
                   </div>

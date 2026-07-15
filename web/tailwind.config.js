@@ -120,11 +120,17 @@ module.exports = {
           from: { transform: "translateY(100%)" },
           to: { transform: "translateY(0)" },
         },
+        "linear-indeterminate": {
+          "0%": { transform: "translateX(-100%) scaleX(0.4)" },
+          "50%": { transform: "translateX(0%) scaleX(0.6)" },
+          "100%": { transform: "translateX(100%) scaleX(0.4)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "slide-up": "slide-up 0.3s ease-out",
+        "linear-indeterminate": "linear-indeterminate 1.5s ease-in-out infinite",
       },
     },
   },

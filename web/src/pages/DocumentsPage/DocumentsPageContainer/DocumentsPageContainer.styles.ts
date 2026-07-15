@@ -2,8 +2,9 @@ import { cn } from "../../../lib/utils";
 
 export const documentsPageStyles = {
   container: "max-w-6xl mx-auto space-y-4 md:space-y-6 pb-6",
-  header: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-4 md:px-6",
-  headerContent: "space-y-1",
+  header: "flex flex-col gap-2 px-4 md:px-6",
+  headerRow: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4",
+  headerContent: "space-y-1 min-w-0",
   title: "text-2xl md:text-3xl font-bold font-heading text-foreground truncate",
   subtitle: "text-sm md:text-base text-muted-foreground",
   createButton: "flex items-center gap-2 w-full sm:w-auto justify-center",

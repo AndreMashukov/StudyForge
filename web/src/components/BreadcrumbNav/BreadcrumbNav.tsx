@@ -45,10 +45,10 @@ export const BreadcrumbNav = ({ directoryId, onNavigate, className, lastItemClic
       <button
         onClick={() => onNavigate(null)}
         className={breadcrumbNavStyles.homeButton}
-        aria-label="Navigate to all documents"
+        aria-label="Navigate to root"
       >
         <Home size={16} />
-        <span>All Documents</span>
+        <span>Root</span>
       </button>
 
       {/* Directory path */}

@@ -272,7 +272,7 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
         }}
       >
         <Folder className="w-4 h-4 text-muted-foreground ml-4" />
-        <span className="flex-1 text-sm">All Documents</span>
+        <span className="flex-1 text-sm">Root</span>
       </div>
 
       {/* Directory tree */}
