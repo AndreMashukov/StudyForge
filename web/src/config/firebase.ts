@@ -5,6 +5,8 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
   connectFirestoreEmulator,
+  clearIndexedDbPersistence,
+  terminate,
 } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
@@ -133,6 +135,25 @@ export const db = initializeFirestore(app, {
 });
 export const functions = getFunctions(app, 'asia-east1');
 export const storage = getStorage(app);
+
+/**
+ * Terminates Firestore and clears IndexedDB persistence. Must run after terminate()
+ * when the instance has already started. Best-effort only — callers should not block
+ * sign-out if another tab holds persistence or the browser rejects eviction.
+ */
+export async function evictFirestoreLocalCache(): Promise<void> {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    await terminate(db);
+    await clearIndexedDbPersistence(db);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('Firestore local cache eviction failed (sign-out continues):', message);
+  }
+}
 
 /** Resolves once the first App Check token is obtained (no-op when App Check is disabled). */
 export async function waitForAppCheckReady(): Promise<void> {

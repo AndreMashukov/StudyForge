@@ -3,18 +3,14 @@ import { Page } from '../../components/Page';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { useSignOut } from 'react-firebase-hooks/auth';
-import { auth } from '../../config/firebase';
-import { useNavigate } from 'react-router-dom';
+import { useSecureSignOut } from '../../hooks/useSecureSignOut';
 
 export const ProfilePage: React.FC = () => {
   const { user } = useAuth();
-  const [signOut, loading] = useSignOut(auth);
-  const navigate = useNavigate();
+  const { signOut, loading } = useSecureSignOut();
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/auth');
   };
 
   return (

@@ -10,8 +10,7 @@ import {
   LogOut,
   BarChart3,
 } from 'lucide-react';
-import { useSignOut } from 'react-firebase-hooks/auth';
-import { auth } from '../../config/firebase';
+import { useSecureSignOut } from '../../hooks/useSecureSignOut';
 import {
   Sidebar as SharedSidebar,
   SidebarNav,
@@ -57,7 +56,7 @@ export const Sidebar = ({ className }: ISidebar) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [signOut] = useSignOut(auth);
+  const { signOut } = useSecureSignOut();
 
   const isOpen = useSelector(selectSidebarIsOpen);
 
@@ -86,10 +85,7 @@ export const Sidebar = ({ className }: ISidebar) => {
   };
 
   const handleSignOut = async () => {
-    const success = await signOut();
-    if (success) {
-      navigate('/auth');
-    }
+    await signOut();
   };
 
   const isItemActive = (path: string) => location.pathname === path;

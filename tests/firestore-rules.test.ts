@@ -137,6 +137,37 @@ describe('firestore.rules client write hardening', () => {
         deleteDoc(doc(owner.firestore(), `users/${OWNER_UID}/documents/${documentId}`)),
       );
     });
+
+    it('denies owner access to unknown nested subcollections', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(
+          doc(
+            context.firestore(),
+            `users/${OWNER_UID}/documents/${documentId}/notes/note-1`,
+          ),
+          { body: 'server-only note' },
+        );
+      });
+
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertFails(
+        getDoc(
+          doc(
+            owner.firestore(),
+            `users/${OWNER_UID}/documents/${documentId}/notes/note-1`,
+          ),
+        ),
+      );
+      await assertFails(
+        setDoc(
+          doc(
+            owner.firestore(),
+            `users/${OWNER_UID}/documents/${documentId}/notes/new-note`,
+          ),
+          { body: 'blocked create' },
+        ),
+      );
+    });
   });
 
   describe('rules collection', () => {
@@ -262,6 +293,113 @@ describe('firestore.rules client write hardening', () => {
             `users/${OWNER_UID}/subjectWorlds/${subjectWorldId}/progress/${OWNER_UID}`,
           ),
           { progress: { completedGates: ['gate-1'] } },
+        ),
+      );
+    });
+
+    it('denies other-user progress get', async () => {
+      const other = testEnv.authenticatedContext(OTHER_UID);
+      await assertFails(
+        getDoc(
+          doc(
+            other.firestore(),
+            `users/${OWNER_UID}/subjectWorlds/${subjectWorldId}/progress/${OWNER_UID}`,
+          ),
+        ),
+      );
+    });
+  });
+
+  describe('server-only collections', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const firestore = context.firestore();
+        await setDoc(doc(firestore, `users/${OWNER_UID}/generationJobs/job-1`), {
+          status: 'completed',
+        });
+        await setDoc(doc(firestore, `users/${OWNER_UID}/interactionStats/stat-1`), {
+          totalSeconds: 120,
+        });
+        await setDoc(doc(firestore, `users/${OWNER_UID}/learningEvents/event-1`), {
+          type: 'quiz_answer',
+        });
+      });
+    });
+
+    it('denies owner read, list, and write on generationJobs', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertFails(
+        getDoc(doc(owner.firestore(), `users/${OWNER_UID}/generationJobs/job-1`)),
+      );
+      await assertFails(
+        getDocs(
+          query(collection(owner.firestore(), `users/${OWNER_UID}/generationJobs`), limit(1)),
+        ),
+      );
+      await assertFails(
+        setDoc(doc(owner.firestore(), `users/${OWNER_UID}/generationJobs/new-job`), {
+          status: 'pending',
+        }),
+      );
+    });
+
+    it('denies owner read on interactionStats and learningEvents', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertFails(
+        getDoc(doc(owner.firestore(), `users/${OWNER_UID}/interactionStats/stat-1`)),
+      );
+      await assertFails(
+        getDoc(doc(owner.firestore(), `users/${OWNER_UID}/learningEvents/event-1`)),
+      );
+    });
+  });
+
+  describe('directory chat', () => {
+    const directoryId = 'dir-1';
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const firestore = context.firestore();
+        await setDoc(doc(firestore, `users/${OWNER_UID}/directories/${directoryId}`), {
+          name: 'Study folder',
+          level: 0,
+        });
+        await setDoc(
+          doc(firestore, `users/${OWNER_UID}/directories/${directoryId}/chat/thread`),
+          { summary: 'Previous chat summary' },
+        );
+        await setDoc(
+          doc(
+            firestore,
+            `users/${OWNER_UID}/directories/${directoryId}/chat/thread/messages/msg-1`,
+          ),
+          { role: 'user', content: 'Hello' },
+        );
+      });
+    });
+
+    it('denies owner read and write on chat thread and messages', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertFails(
+        getDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/directories/${directoryId}/chat/thread`),
+        ),
+      );
+      await assertFails(
+        getDoc(
+          doc(
+            owner.firestore(),
+            `users/${OWNER_UID}/directories/${directoryId}/chat/thread/messages/msg-1`,
+          ),
+        ),
+      );
+      await assertFails(
+        setDoc(
+          doc(
+            owner.firestore(),
+            `users/${OWNER_UID}/directories/${directoryId}/chat/thread/messages/new-msg`,
+          ),
+          { role: 'user', content: 'blocked' },
         ),
       );
     });

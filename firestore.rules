@@ -26,6 +26,10 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(100);
         allow create, update, delete: if false;
+
+        match /{nestedPath=**} {
+          allow read, write: if false;
+        }
       }
 
       // Quizzes — server-maintained via Cloud Functions; client read-only.
@@ -33,6 +37,10 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(50);
         allow create, update, delete: if false;
+
+        match /{nestedPath=**} {
+          allow read, write: if false;
+        }
       }
 
       // Directories subcollection — user-managed folders.
@@ -55,6 +63,19 @@ service cloud.firestore {
           allow read: if isOwner(userId);
           allow write: if false;
         }
+
+        // Directory chat — server-maintained via Cloud Functions; callable API only.
+        match /chat/{threadId} {
+          allow read, write: if false;
+
+          match /messages/{messageId} {
+            allow read, write: if false;
+          }
+        }
+
+        match /{otherNested=**} {
+          allow read, write: if false;
+        }
       }
 
       // Rules — server-maintained via Cloud Functions; client read-only.
@@ -62,6 +83,10 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(100);
         allow create, update, delete: if false;
+
+        match /{nestedPath=**} {
+          allow read, write: if false;
+        }
       }
 
       // Flashcard sets — server-maintained via Cloud Functions; client read-only.
@@ -69,6 +94,10 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(50);
         allow create, update, delete: if false;
+
+        match /{nestedPath=**} {
+          allow read, write: if false;
+        }
       }
 
       // Slide decks — server-maintained via Cloud Functions; client read-only.
@@ -76,6 +105,10 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(50);
         allow create, update, delete: if false;
+
+        match /{nestedPath=**} {
+          allow read, write: if false;
+        }
       }
 
       // Diagram quizzes — server-maintained via Cloud Functions; client read-only.
@@ -83,6 +116,10 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(50);
         allow create, update, delete: if false;
+
+        match /{nestedPath=**} {
+          allow read, write: if false;
+        }
       }
 
       // Sequence quizzes — server-maintained via Cloud Functions; client read-only.
@@ -90,6 +127,10 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(50);
         allow create, update, delete: if false;
+
+        match /{nestedPath=**} {
+          allow read, write: if false;
+        }
       }
 
       // Subject worlds — server-maintained via Cloud Functions; client read-only.
@@ -98,12 +139,56 @@ service cloud.firestore {
         allow list: if isOwner(userId) && isBoundedList(50);
         allow create, update, delete: if false;
 
-        // Progress snapshots — written via Cloud Functions only.
+        // Progress snapshots — owner get only; writes via Cloud Functions.
         match /progress/{progressId} {
           allow get: if isOwner(userId) && progressId == userId;
           allow list: if false;
           allow create, update, delete: if false;
         }
+
+        match /{otherNested=**} {
+          allow read, write: if false;
+        }
+      }
+
+      // Generation jobs — server-maintained via Cloud Functions.
+      match /generationJobs/{jobId} {
+        allow read, write: if false;
+      }
+
+      // Interaction tracking — server-maintained via Cloud Functions.
+      match /interactionSessions/{sessionId} {
+        allow read, write: if false;
+      }
+
+      match /interactionStats/{statId} {
+        allow read, write: if false;
+      }
+
+      // Learning telemetry — server-maintained via Cloud Functions.
+      match /learningEvents/{eventId} {
+        allow read, write: if false;
+      }
+
+      match /quizAttempts/{attemptId} {
+        allow read, write: if false;
+      }
+
+      match /quizStats/{statId} {
+        allow read, write: if false;
+      }
+
+      match /questionStats/{statId} {
+        allow read, write: if false;
+      }
+
+      match /knowledgeStats/{statId} {
+        allow read, write: if false;
+      }
+
+      // API rate limits — server-maintained via Cloud Functions.
+      match /apiRateLimits/{limitId} {
+        allow read, write: if false;
       }
 
       // API keys are managed only via Cloud Functions.

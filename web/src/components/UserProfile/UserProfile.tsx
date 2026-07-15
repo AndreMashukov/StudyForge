@@ -1,6 +1,5 @@
 import React from 'react';
-import { useSignOut } from 'react-firebase-hooks/auth';
-import { auth } from '../../config/firebase';
+import { useSecureSignOut } from '../../hooks/useSecureSignOut';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
@@ -9,7 +8,7 @@ import { userProfileStyles, getInfoIconClasses, getInfoValueClasses } from './Us
 
 export const UserProfile = () => {
   const { user } = useAuth();
-  const [signOut, loading, error] = useSignOut(auth);
+  const { signOut, loading, error } = useSecureSignOut();
 
   if (!user) {
     return null;
