@@ -45,7 +45,10 @@ export const Page = ({ children, className, showSidebar = true }: IPage) => {
         {/* Main Content */}
         <main
           className={cn(
+            // Direct children need w-full so max-w-* mx-auto pages don't shrink
+            // to content width once this main is a flex column.
             'flex flex-1 min-h-0 flex-col overflow-y-auto overscroll-contain',
+            '[&>*]:w-full',
             'px-0 pb-0 md:px-6 md:pb-6',
             'scrollbar-thin scrollbar-track-muted scrollbar-thumb-muted-foreground'
           )}
