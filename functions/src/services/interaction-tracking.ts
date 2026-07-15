@@ -1,5 +1,6 @@
 import { FieldPath, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
+import { computeExpiresAt } from '../lib/firestore-ttl';
 import { FirestorePaths } from '../lib/firestore-paths';
 import { ArtifactType, InteractionStat } from '../../libs/shared-types/src/index';
 
@@ -72,6 +73,7 @@ export async function flushInteractionSession(
     lastActiveAt: Timestamp.now(),
     activeSeconds,
     date,
+    expiresAt: computeExpiresAt(now, 'interactionSession'),
   });
 
   // 2. Get ancestor chain for hierarchical rollup

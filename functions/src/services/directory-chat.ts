@@ -5,6 +5,7 @@ import {
   GetDirectoryChatResponse,
   SendDirectoryChatMessageResponse,
 } from '@shared-types';
+import { computeExpiresAt } from '../lib/firestore-ttl';
 import { FirestorePaths } from '../lib/firestore-paths';
 import { directoryService } from './directory';
 import { DirectoryChatContextAssembler } from './directory-chat-context-assembler';
@@ -117,6 +118,7 @@ export class DirectoryChatService {
       role: 'user',
       content: trimmedMessage,
       createdAt: Timestamp.fromDate(now),
+      expiresAt: computeExpiresAt(now, 'directoryChat'),
       ...(seedKey ? { seedKey } : {}),
       ...(artifactContext ? { artifactContext } : {}),
     });
@@ -135,6 +137,7 @@ export class DirectoryChatService {
       role: 'assistant',
       content: answer,
       createdAt: Timestamp.fromDate(assistantNow),
+      expiresAt: computeExpiresAt(assistantNow, 'directoryChat'),
     });
 
     const messages = [...previousMessages, userMessage, assistantMessage];
@@ -151,10 +154,12 @@ export class DirectoryChatService {
   }
 
   private static async ensureThread(userId: string, directoryId: string, summary?: string): Promise<void> {
+    const threadUpdatedAt = new Date();
     await FirestorePaths.directoryChatThread(userId, directoryId).set(
       {
         directoryId,
         updatedAt: FieldValue.serverTimestamp(),
+        expiresAt: computeExpiresAt(threadUpdatedAt, 'directoryChat'),
         ...(summary ? { summary } : {}),
       },
       { merge: true }
@@ -168,11 +173,13 @@ export class DirectoryChatService {
     currentSummary?: string
   ): Promise<string | undefined> {
     const nextSummary = this.buildRollingSummary(messages, currentSummary);
+    const threadUpdatedAt = new Date();
 
     await FirestorePaths.directoryChatThread(userId, directoryId).set(
       {
         directoryId,
         updatedAt: FieldValue.serverTimestamp(),
+        expiresAt: computeExpiresAt(threadUpdatedAt, 'directoryChat'),
         ...(nextSummary ? { summary: nextSummary } : {}),
       },
       { merge: true }

@@ -1,4 +1,5 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { computeExpiresAt } from '../lib/firestore-ttl';
 import { FirestorePaths } from '../lib/firestore-paths';
 
 export type GenerationJobKind =
@@ -105,19 +106,23 @@ export class GenerationJobsService {
   }
 
   static async markCompleted(userId: string, jobId: string): Promise<void> {
+    const terminalAt = new Date();
     await FirestorePaths.generationJob(userId, jobId).update({
       status: 'completed',
       completedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
+      expiresAt: computeExpiresAt(terminalAt, 'generationJob'),
     });
   }
 
   static async markFailed(userId: string, jobId: string, error: string): Promise<void> {
+    const terminalAt = new Date();
     await FirestorePaths.generationJob(userId, jobId).update({
       status: 'failed',
       error,
       failedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
+      expiresAt: computeExpiresAt(terminalAt, 'generationJob'),
     });
   }
 

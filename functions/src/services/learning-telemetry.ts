@@ -1,4 +1,5 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { computeExpiresAt } from '../lib/firestore-ttl';
 import { FirestorePaths } from '../lib/firestore-paths';
 import {
   DiagramQuiz,
@@ -277,6 +278,7 @@ export async function recordQuizAttempt(
       percentage,
       answers,
       date,
+      expiresAt: computeExpiresAt(completedAt, 'learningRaw'),
     });
 
     transaction.set(eventRef, {
@@ -286,6 +288,7 @@ export async function recordQuizAttempt(
       quizId: data.quizId,
       quizType: data.quizType,
       occurredAt: Timestamp.fromDate(completedAt),
+      expiresAt: computeExpiresAt(completedAt, 'learningRaw'),
     });
 
     transaction.set(quizStatRef, {
@@ -327,6 +330,7 @@ export async function recordQuizAttempt(
         isCorrect: answer.isCorrect,
         knowledge: answer.knowledge,
         occurredAt: Timestamp.fromDate(completedAt),
+        expiresAt: computeExpiresAt(completedAt, 'learningRaw'),
       });
 
       transaction.set(questionStatRef, questionStatPayload(userId, data.quizId, data.quizType, answer, {
@@ -381,6 +385,7 @@ export async function recordQuizExplanationRequest(
     questionIndex: data.questionIndex,
     knowledge,
     occurredAt: Timestamp.fromDate(requestedAt),
+    expiresAt: computeExpiresAt(requestedAt, 'learningRaw'),
   });
   batch.set(quizStatRef, {
     userId,
