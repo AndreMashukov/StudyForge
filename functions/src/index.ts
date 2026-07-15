@@ -22,10 +22,6 @@ register({
 import { setGlobalOptions } from "firebase-functions";
 import { onRequest } from "firebase-functions/v2/https";
 
-// Services
-import { GeminiService } from "./services/gemini";
-import { FirestoreService } from "./services/firestore";
-
 // Configure global options
 const runningInFunctionsEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
 
@@ -40,36 +36,17 @@ setGlobalOptions({
 /**
  * Health check endpoint (HTTP for monitoring).
  * Public liveness probe — onRequest handlers do not inherit enforceAppCheck; no App Check here.
+ * Returns process liveness only; no Gemini or Firestore calls.
  */
 export const healthCheck = onRequest(
   {
     cors: true,
   },
-  async (req, res) => {
-    try {
-      // Check Gemini AI availability
-      const geminiInfo = await GeminiService.getModelInfo();
-      
-      // Get basic stats
-      const stats = await FirestoreService.getStats();
-
-      res.json({
-        status: "healthy",
-        timestamp: new Date().toISOString(),
-        services: {
-          firestore: "available",
-          gemini: geminiInfo.available ? "available" : "unavailable",
-        },
-        stats,
-      });
-    } catch (error) {
-      console.error("Health check failed:", error);
-      res.status(500).json({
-        status: "unhealthy",
-        timestamp: new Date().toISOString(),
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
+  async (_req, res) => {
+    res.json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+    });
   }
 );
 
