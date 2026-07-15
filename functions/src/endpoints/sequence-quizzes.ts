@@ -2,6 +2,7 @@ import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
+import { mapErrorToArtifactEnvelope } from '../lib/callable-error';
 import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { DocumentCrudService } from "../services/document-crud";
 import { FirestoreService } from "../services/firestore";
@@ -223,10 +224,7 @@ export const getSequenceQuiz = onCall(
       console.error("Error in getSequenceQuiz:", error);
       return {
         success: false,
-        error: {
-          code: "FETCH_FAILED",
-          message: error instanceof Error ? error.message : "Failed to fetch sequence quiz",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'FETCH_FAILED'),
       };
     }
   }
@@ -253,10 +251,7 @@ export const getUserSequenceQuizzes = onCall(
       console.error("Error in getUserSequenceQuizzes:", error);
       return {
         success: false,
-        error: {
-          code: "FETCH_FAILED",
-          message: error instanceof Error ? error.message : "Failed to fetch sequence quizzes",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'FETCH_FAILED'),
       };
     }
   }
@@ -292,10 +287,7 @@ export const deleteSequenceQuiz = onCall(
       console.error("Error in deleteSequenceQuiz:", error);
       return {
         success: false,
-        error: {
-          code: "DELETE_FAILED",
-          message: error instanceof Error ? error.message : "Failed to delete sequence quiz",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'DELETE_FAILED'),
       };
     }
   }

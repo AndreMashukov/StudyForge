@@ -1,6 +1,7 @@
-import { onCall } from 'firebase-functions/v2/https';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '../lib/auth';
+import { throwCallableError } from '../lib/callable-error';
 import {
   GetStatisticsQuizDetailRequest,
   StatisticsDateRangeRequest,
@@ -26,9 +27,7 @@ export const getStatisticsOverviewEndpoint = onCall(
       logger.error('Error getting statistics overview', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to get statistics overview: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throwCallableError(error, 'Failed to get statistics overview');
     }
   }
 );
@@ -43,9 +42,7 @@ export const getStatisticsQuizPerformanceEndpoint = onCall(
       logger.error('Error getting statistics quiz performance', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to get statistics quiz performance: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throwCallableError(error, 'Failed to get statistics quiz performance');
     }
   }
 );
@@ -60,9 +57,7 @@ export const getStatisticsLearningTimeEndpoint = onCall(
       logger.error('Error getting statistics learning time', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to get statistics learning time: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throwCallableError(error, 'Failed to get statistics learning time');
     }
   }
 );
@@ -74,16 +69,14 @@ export const getStatisticsQuizDetailEndpoint = onCall(
       const userId = await validateAuth(request);
       const data = request.data as GetStatisticsQuizDetailRequest;
       if (!data.quizId || !data.quizType) {
-        throw new Error('quizId and quizType are required');
+        throw new HttpsError('invalid-argument', 'quizId and quizType are required');
       }
       return await getStatisticsQuizDetail(userId, data);
     } catch (error) {
       logger.error('Error getting statistics quiz detail', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to get statistics quiz detail: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throwCallableError(error, 'Failed to get statistics quiz detail');
     }
   }
 );

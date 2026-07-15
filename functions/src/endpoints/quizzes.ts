@@ -2,6 +2,7 @@ import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { getGenerationFailureEnvelope } from '../services/llm/llm-endpoint-error';
+import { mapErrorToArtifactEnvelope } from '../lib/callable-error';
 import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { DocumentCrudService } from "../services/document-crud";
 import { FirestoreService } from "../services/firestore";
@@ -200,10 +201,7 @@ export const getQuiz = onCall(
       
       return {
         success: false,
-        error: {
-          code: "FETCH_FAILED",
-          message: error instanceof Error ? error.message : "Failed to fetch quiz",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'FETCH_FAILED'),
       };
     }
   }
@@ -247,10 +245,7 @@ export const getUserQuizzes = onCall(
       
       return {
         success: false,
-        error: {
-          code: "FETCH_FAILED",
-          message: error instanceof Error ? error.message : "Failed to fetch user quizzes",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'FETCH_FAILED'),
       };
     }
   }
@@ -306,10 +301,7 @@ export const getDocumentQuizzes = onCall(
       
       return {
         success: false,
-        error: {
-          code: "FETCH_FAILED",
-          message: error instanceof Error ? error.message : "Failed to fetch document quizzes",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'FETCH_FAILED'),
       };
     }
   }
@@ -364,10 +356,7 @@ export const deleteQuiz = onCall(
       
       return {
         success: false,
-        error: {
-          code: "DELETE_FAILED",
-          message: error instanceof Error ? error.message : "Failed to delete quiz",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'DELETE_FAILED'),
       };
     }
   }

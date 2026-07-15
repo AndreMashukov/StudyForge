@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { directoryService } from '../services/directory';
 import { validateAuth } from '../lib/auth';
+import { throwCallableError } from '../lib/callable-error';
 import {
   CreateDirectoryRequest,
   UpdateDirectoryRequest,
@@ -48,7 +49,7 @@ export const createDirectory = onCall(
         error: error instanceof Error ? error.message : String(error),
         data: request.data,
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -85,7 +86,7 @@ export const getDirectory = onCall(
       logger.error('Error getting directory', { 
         error: error instanceof Error ? error.message : String(error) 
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -117,7 +118,7 @@ export const updateDirectory = onCall(
       logger.error('Error updating directory', { 
         error: error instanceof Error ? error.message : String(error) 
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -147,7 +148,7 @@ export const deleteDirectory = onCall(
       logger.error('Error deleting directory', { 
         error: error instanceof Error ? error.message : String(error) 
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -172,7 +173,7 @@ export const getDirectoryTree = onCall(
       logger.error('Error getting directory tree', { 
         error: error instanceof Error ? error.message : String(error) 
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -198,7 +199,7 @@ export const getDirectoryContents = onCall(
       logger.error('Error getting directory contents', { 
         error: error instanceof Error ? error.message : String(error) 
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -228,7 +229,7 @@ export const getDirectoryAncestors = onCall(
       logger.error('Error getting directory ancestors', { 
         error: error instanceof Error ? error.message : String(error) 
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -262,7 +263,7 @@ export const moveDirectory = onCall(
       logger.error('Error moving directory', { 
         error: error instanceof Error ? error.message : String(error) 
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -298,7 +299,7 @@ export const getDirectoryByPath = onCall(
       logger.error('Error getting directory by path', { 
         error: error instanceof Error ? error.message : String(error) 
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -344,7 +345,7 @@ export const getDirectoryContentsWithArtifacts = onCall(
       logger.error('Error getting directory contents with artifacts', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -388,7 +389,7 @@ export const getDirectoryContentsWithArtifactSummaries = onCall(
       logger.error('Error getting directory contents with artifact summaries', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );

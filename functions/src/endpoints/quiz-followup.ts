@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '../lib/auth';
+import { throwCallableError } from '../lib/callable-error';
 import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { DocumentCrudService } from '../services/document-crud';
 import { LlmGenerationService } from '../services/llm';
@@ -42,7 +43,10 @@ export const generateQuizFollowup = onCall(
 
       // Validate request
       if (!data.documentId || !data.questionText || !data.userSelectedAnswer) {
-        throw new Error('Missing required fields: documentId, questionText, userSelectedAnswer');
+        throw new HttpsError(
+          'invalid-argument',
+          'Missing required fields: documentId, questionText, userSelectedAnswer'
+        );
       }
 
       await enforceCallableGenerationRateLimit(userId, 'quizFollowup');
@@ -108,7 +112,7 @@ export const generateQuizFollowup = onCall(
         error: error instanceof Error ? error.message : String(error),
       });
       if (error instanceof HttpsError) throw error;
-      throw new Error(`Failed to generate followup explanation: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throwCallableError(error, 'Failed to generate followup explanation');
     }
   }
 );

@@ -1,6 +1,7 @@
-import { onCall } from 'firebase-functions/v2/https';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '../lib/auth';
+import { throwCallableError } from '../lib/callable-error';
 import {
   FlushInteractionSessionRequest,
   GetInteractionStatsRequest,
@@ -21,10 +22,13 @@ export const flushInteractionSessionEndpoint = onCall(
       const data = request.data as FlushInteractionSessionRequest;
 
       if (!data.artifactId || !data.artifactType || !data.directoryId) {
-        throw new Error('artifactId, artifactType, and directoryId are required');
+        throw new HttpsError(
+          'invalid-argument',
+          'artifactId, artifactType, and directoryId are required'
+        );
       }
       if (!data.activeSeconds || data.activeSeconds <= 0) {
-        throw new Error('activeSeconds must be a positive number');
+        throw new HttpsError('invalid-argument', 'activeSeconds must be a positive number');
       }
 
       const sessionId = await flushInteractionSession(userId, {
@@ -40,9 +44,7 @@ export const flushInteractionSessionEndpoint = onCall(
       logger.error('Error flushing interaction session', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to flush interaction session: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throwCallableError(error, 'Failed to flush interaction session');
     }
   }
 );
@@ -58,7 +60,7 @@ export const getInteractionStatsEndpoint = onCall(
       const data = request.data as GetInteractionStatsRequest;
 
       if (!data.startDate || !data.endDate) {
-        throw new Error('startDate and endDate are required');
+        throw new HttpsError('invalid-argument', 'startDate and endDate are required');
       }
 
       const stats = await getInteractionStats(userId, {
@@ -72,9 +74,7 @@ export const getInteractionStatsEndpoint = onCall(
       logger.error('Error getting interaction stats', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to get interaction stats: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throwCallableError(error, 'Failed to get interaction stats');
     }
   }
 );

@@ -1,6 +1,7 @@
-import { onCall } from 'firebase-functions/v2/https';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '../lib/auth';
+import { throwCallableError } from '../lib/callable-error';
 import {
   GetQuizStatsRequest,
   RecordQuizAttemptRequest,
@@ -20,10 +21,10 @@ export const recordQuizAttemptEndpoint = onCall(
       const data = request.data as RecordQuizAttemptRequest;
 
       if (!data.quizId || !data.quizType) {
-        throw new Error('quizId and quizType are required');
+        throw new HttpsError('invalid-argument', 'quizId and quizType are required');
       }
       if (!Array.isArray(data.answers)) {
-        throw new Error('answers must be an array');
+        throw new HttpsError('invalid-argument', 'answers must be an array');
       }
 
       const attemptId = await recordQuizAttempt(userId, data);
@@ -32,9 +33,7 @@ export const recordQuizAttemptEndpoint = onCall(
       logger.error('Error recording quiz attempt', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to record quiz attempt: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throwCallableError(error, 'Failed to record quiz attempt');
     }
   }
 );
@@ -47,7 +46,10 @@ export const recordQuizExplanationRequestEndpoint = onCall(
       const data = request.data as RecordQuizExplanationRequest;
 
       if (!data.quizId || !data.quizType || data.questionIndex === undefined) {
-        throw new Error('quizId, quizType, and questionIndex are required');
+        throw new HttpsError(
+          'invalid-argument',
+          'quizId, quizType, and questionIndex are required'
+        );
       }
 
       const eventId = await recordQuizExplanationRequest(userId, data);
@@ -56,9 +58,7 @@ export const recordQuizExplanationRequestEndpoint = onCall(
       logger.error('Error recording quiz explanation request', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to record quiz explanation request: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throwCallableError(error, 'Failed to record quiz explanation request');
     }
   }
 );
@@ -71,7 +71,7 @@ export const getQuizStatsEndpoint = onCall(
       const data = request.data as GetQuizStatsRequest;
 
       if (!data.quizId || !data.quizType) {
-        throw new Error('quizId and quizType are required');
+        throw new HttpsError('invalid-argument', 'quizId and quizType are required');
       }
 
       const stats = await getQuizStats(userId, data.quizType, data.quizId);
@@ -80,9 +80,7 @@ export const getQuizStatsEndpoint = onCall(
       logger.error('Error getting quiz stats', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Failed to get quiz stats: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throwCallableError(error, 'Failed to get quiz stats');
     }
   }
 );

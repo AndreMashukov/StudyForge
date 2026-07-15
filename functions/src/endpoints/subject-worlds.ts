@@ -2,6 +2,7 @@ import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
+import { mapErrorToArtifactEnvelope } from '../lib/callable-error';
 import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { DocumentCrudService } from "../services/document-crud";
 import { FirestoreService } from "../services/firestore";
@@ -208,10 +209,7 @@ export const getSubjectWorld = onCall(
       console.error("Error in getSubjectWorld:", error);
       return {
         success: false,
-        error: {
-          code: "FETCH_FAILED",
-          message: error instanceof Error ? error.message : "Failed to fetch subject world",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'FETCH_FAILED'),
       };
     }
   }
@@ -238,10 +236,7 @@ export const getUserSubjectWorlds = onCall(
       console.error("Error in getUserSubjectWorlds:", error);
       return {
         success: false,
-        error: {
-          code: "FETCH_FAILED",
-          message: error instanceof Error ? error.message : "Failed to fetch subject worlds",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'FETCH_FAILED'),
       };
     }
   }
@@ -268,10 +263,7 @@ export const deleteSubjectWorld = onCall(
       console.error("Error in deleteSubjectWorld:", error);
       return {
         success: false,
-        error: {
-          code: "DELETE_FAILED",
-          message: error instanceof Error ? error.message : "Failed to delete subject world",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'DELETE_FAILED'),
       };
     }
   }
@@ -313,10 +305,7 @@ export const saveSubjectWorldProgress = onCall(
       console.error("Error in saveSubjectWorldProgress:", error);
       return {
         success: false,
-        error: {
-          code: "SAVE_FAILED",
-          message: error instanceof Error ? error.message : "Failed to save progress",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'SAVE_FAILED'),
       };
     }
   }
@@ -348,10 +337,7 @@ export const getSubjectWorldProgress = onCall(
       console.error("Error in getSubjectWorldProgress:", error);
       return {
         success: false,
-        error: {
-          code: "FETCH_FAILED",
-          message: error instanceof Error ? error.message : "Failed to fetch progress",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'FETCH_FAILED'),
       };
     }
   }

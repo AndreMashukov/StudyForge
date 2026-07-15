@@ -3,6 +3,7 @@ import { logger } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
 import { GeminiService } from "../services/gemini";
 import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
+import { mapErrorToArtifactEnvelope } from '../lib/callable-error';
 import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { FirestoreService } from "../services/firestore";
 import { DocumentCrudService } from "../services/document-crud";
@@ -217,10 +218,7 @@ export const getDiagramQuiz = onCall(
       console.error("Error in getDiagramQuiz:", error);
       return {
         success: false,
-        error: {
-          code: "FETCH_FAILED",
-          message: error instanceof Error ? error.message : "Failed to fetch diagram quiz",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'FETCH_FAILED'),
       };
     }
   }
@@ -247,11 +245,7 @@ export const getUserDiagramQuizzes = onCall(
       console.error("Error in getUserDiagramQuizzes:", error);
       return {
         success: false,
-        error: {
-          code: "FETCH_FAILED",
-          message:
-            error instanceof Error ? error.message : "Failed to fetch diagram quizzes",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'FETCH_FAILED'),
       };
     }
   }
@@ -286,10 +280,7 @@ export const deleteDiagramQuiz = onCall(
       console.error("Error in deleteDiagramQuiz:", error);
       return {
         success: false,
-        error: {
-          code: "DELETE_FAILED",
-          message: error instanceof Error ? error.message : "Failed to delete diagram quiz",
-        },
+        error: mapErrorToArtifactEnvelope(error, 'DELETE_FAILED'),
       };
     }
   }

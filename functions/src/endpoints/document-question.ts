@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '../lib/auth';
+import { throwCallableError } from '../lib/callable-error';
 import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { DocumentCrudService } from '../services/document-crud';
 import { LlmGenerationService } from '../services/llm';
@@ -42,11 +43,11 @@ export const askDocumentQuestion = onCall(
 
       // Validate request
       if (!data.documentId || !data.question) {
-        throw new Error('Missing required fields: documentId, question');
+        throw new HttpsError('invalid-argument', 'Missing required fields: documentId, question');
       }
 
       if (data.question.length > 2000) {
-        throw new Error('Question must be 2000 characters or less');
+        throw new HttpsError('invalid-argument', 'Question must be 2000 characters or less');
       }
 
       await enforceCallableGenerationRateLimit(userId, 'documentQuestion');
@@ -101,7 +102,7 @@ export const askDocumentQuestion = onCall(
         error: error instanceof Error ? error.message : String(error),
       });
       if (error instanceof HttpsError) throw error;
-      throw new Error(`Failed to answer question: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throwCallableError(error, 'Failed to answer question');
     }
   }
 );

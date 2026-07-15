@@ -27,6 +27,7 @@ import {
   getDirectoryRules,
 } from '../services/rule-resolution';
 import { validateAuth } from '../lib/auth';
+import { throwCallableError } from '../lib/callable-error';
 
 /**
  * Create a new rule
@@ -90,7 +91,7 @@ export const createRuleEndpoint = onCall(
         error: error instanceof Error ? error.message : String(error),
         data: request.data,
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -125,7 +126,7 @@ export const getRuleEndpoint = onCall(
       logger.error('Failed to get rule', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -151,7 +152,7 @@ export const getRulesEndpoint = onCall(
       logger.error('Failed to get rules', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -206,7 +207,7 @@ export const updateRuleEndpoint = onCall(
         error: error instanceof Error ? error.message : String(error),
         data: request.data,
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -258,7 +259,7 @@ export const deleteRuleEndpoint = onCall(
       logger.error('Failed to delete rule', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -300,7 +301,7 @@ export const attachRuleToDirectoryEndpoint = onCall(
       logger.error('Failed to attach rule to directory', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -342,7 +343,7 @@ export const detachRuleFromDirectoryEndpoint = onCall(
       logger.error('Failed to detach rule from directory', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -391,7 +392,7 @@ export const getDirectoryRulesEndpoint = onCall(
       logger.error('Failed to get directory rules', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -427,7 +428,7 @@ export const getApplicableRulesEndpoint = onCall(
       logger.error('Failed to get applicable rules', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -458,7 +459,7 @@ export const formatRulesForPromptEndpoint = onCall(
       logger.error('Failed to format rules for prompt', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
@@ -484,7 +485,7 @@ export const getRuleTagsEndpoint = onCall(
       logger.error('Failed to get rule tags', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+      throwCallableError(error, 'Unknown error');
     }
   }
 );
