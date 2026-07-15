@@ -19,7 +19,6 @@ const quizFormConfig: ArtifactFormConfig = {
   generateLabels: {
     single: 'Generate Quiz',
     plural: (count) => `Generate Quiz from ${count} documents`,
-    submitting: 'Generating Quiz...',
   },
   directoryTab: 'quizzes',
 };
@@ -35,7 +34,6 @@ export const CreateQuizPageContainer = () => {
       documentsApi={documentsApi}
       form={form}
       onSubmit={handlers.handleSubmit}
-      isSubmitting={handlers.isSubmitting}
     />
   );
 };

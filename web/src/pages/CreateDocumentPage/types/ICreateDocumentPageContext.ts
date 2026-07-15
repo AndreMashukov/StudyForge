@@ -14,9 +14,6 @@ export interface ICreateDocumentPageHandlers {
       getFilesForSubmission: () => IFileContent[];
     }
   ) => void;
-  isLoading: boolean;
-  isTextPromptLoading: boolean;
-  textPromptProgress: number;
   error: string | null;
 }
 

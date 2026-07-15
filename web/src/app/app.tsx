@@ -1,11 +1,13 @@
 import { Route, Routes } from 'react-router-dom';
-import { Provider } from 'react-redux';
+import { Provider, useSelector } from 'react-redux';
 import { ThemeProvider, useTheme } from '@study-forge/ui';
 import { store } from '../store';
+import { selectIsLoading } from '../store/slices/uiSlice';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { FullscreenProvider } from '../contexts/FullscreenContext';
 import { ToastProvider, ToastContainer } from '../components/Toast';
 import { ReduxToastBridge } from '../components/Toast/ReduxToastBridge';
+import { GlobalLoadingOverlay } from '../components/GlobalLoadingOverlay';
 import { MainLayout } from '../components/MainLayout';
 import { ProtectedRoute } from '../utils/ProtectedRoute';
 import { Spinner } from '../components/ui/Spinner';
@@ -45,7 +47,7 @@ export function App() {
           <FullscreenProvider>
             <ToastProvider>
               <ReduxToastBridge />
-              <AppContent />
+              <AppShell />
               <ToastContainer />
             </ToastProvider>
           </FullscreenProvider>
@@ -54,6 +56,19 @@ export function App() {
     </Provider>
   );
 }
+
+const AppShell = () => {
+  const isLoading = useSelector(selectIsLoading);
+
+  return (
+    <>
+      <div inert={isLoading ? true : undefined}>
+        <AppContent />
+      </div>
+      <GlobalLoadingOverlay />
+    </>
+  );
+};
 
 const AppContent = () => {
   const { loading } = useAuth();

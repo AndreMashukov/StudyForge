@@ -18,7 +18,6 @@ const subjectWorldFormConfig: ArtifactFormConfig = {
   generateLabels: {
     single: 'Generate Subject World',
     plural: (count) => `Generate subject world from ${count} documents`,
-    submitting: 'Generating Subject World...',
   },
   directoryTab: 'subjectWorlds',
 };
@@ -33,7 +32,6 @@ export const CreateSubjectWorldPageContainer: React.FC = () => {
       documentsApi={documentsApi}
       form={form}
       onSubmit={handlers.handleSubmit}
-      isSubmitting={handlers.isSubmitting}
     />
   );
 };

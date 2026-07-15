@@ -13,7 +13,7 @@ interface UseCreateQuizPageHandlersProps {
 export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPageHandlersProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [generateQuiz, { isLoading: isSubmitting }] = useGenerateQuizMutation();
+  const [generateQuiz] = useGenerateQuizMutation();
 
   const handleSubmit = useCallback(async (formData: ICreateQuizFormData) => {
     if (!formData.documentIds || formData.documentIds.length === 0) {
@@ -45,7 +45,6 @@ export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPage
 
   return {
     handleSubmit: form.handleSubmit(handleSubmit),
-    isSubmitting,
   };
 };
 

@@ -26,7 +26,6 @@ export interface ArtifactFormLayoutProps<T extends FieldValues> {
   };
   form: UseFormReturn<T>;
   onSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
-  isSubmitting: boolean;
 }
 
 export const ArtifactFormLayout = <T extends FieldValues>({
@@ -34,7 +33,6 @@ export const ArtifactFormLayout = <T extends FieldValues>({
   documentsApi,
   form,
   onSubmit,
-  isSubmitting,
 }: ArtifactFormLayoutProps<T>) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -111,9 +109,8 @@ export const ArtifactFormLayout = <T extends FieldValues>({
   };
 
   const docCount = (watchedDocumentIds as unknown as string[])?.length ?? 0;
-  const generateLabel = isSubmitting
-    ? config.generateLabels.submitting
-    : docCount > 1
+  const generateLabel =
+    docCount > 1
       ? config.generateLabels.plural(docCount)
       : config.generateLabels.single;
 
@@ -252,14 +249,13 @@ export const ArtifactFormLayout = <T extends FieldValues>({
                     variant="outline"
                     onClick={handleBack}
                     className={artifactFormLayoutStyles.cancelButton}
-                    disabled={isSubmitting}
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
                     className={artifactFormLayoutStyles.submitButton}
-                    disabled={isSubmitting || docCount === 0}
+                    disabled={docCount === 0}
                   >
                     {generateLabel}
                   </Button>

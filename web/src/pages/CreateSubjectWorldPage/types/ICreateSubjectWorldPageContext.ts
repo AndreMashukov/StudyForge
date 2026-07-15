@@ -12,6 +12,5 @@ export interface ICreateSubjectWorldPageContext {
   form: UseFormReturn<ICreateSubjectWorldFormData>;
   handlers: {
     handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
-    isSubmitting: boolean;
   };
 }

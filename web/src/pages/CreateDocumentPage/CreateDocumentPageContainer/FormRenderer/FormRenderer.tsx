@@ -2,10 +2,6 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import {
   selectSelectedSource,
-  selectUrlFormLoading,
-  selectFileFormLoading,
-  selectTextPromptFormLoading,
-  selectTextPromptFormProgress,
 } from '../../../../store/slices/createDocumentPageSlice';
 import { useCreateDocumentPageContext } from '../../context/hooks/useCreateDocumentPageContext';
 import { UrlScrapingForm } from '../UrlScrapingForm';
@@ -60,10 +56,6 @@ export const FormRenderer = () => {
   
   // Redux selectors for state
   const selectedSource = useSelector((state: RootState) => selectSelectedSource(state));
-  const isUrlLoading = useSelector((state: RootState) => selectUrlFormLoading(state));
-  const isFileLoading = useSelector((state: RootState) => selectFileFormLoading(state));
-  const isTextPromptLoading = useSelector((state: RootState) => selectTextPromptFormLoading(state));
-  const textPromptProgress = useSelector((state: RootState) => selectTextPromptFormProgress(state));
 
   // Handle text prompt submission
   const handleTextPromptSubmit = async (data: ITextPromptFormData) => {
@@ -94,22 +86,18 @@ export const FormRenderer = () => {
       {/* Form content */}
       {selectedSource === 'website' && (
         <UrlScrapingForm
-          isLoading={isUrlLoading}
           onSubmit={handlers.handleCreateFromUrl}
         />
       )}
       
       {selectedSource === 'file' && (
         <FileUploadForm
-          isLoading={isFileLoading}
           onSubmit={handlers.handleCreateFromFile}
         />
       )}
       
       {selectedSource === 'textPrompt' && (
         <TextPromptForm
-          isLoading={isTextPromptLoading}
-          progress={textPromptProgress}
           onSubmit={handleTextPromptSubmit}
         />
       )}

@@ -13,7 +13,7 @@ interface IProps {
 export const useCreateDiagramQuizPageHandlers = ({ form, documents }: IProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [generateDiagramQuiz, { isLoading: isSubmitting }] =
+  const [generateDiagramQuiz] =
     useGenerateDiagramQuizMutation();
 
   const handleSubmit = useCallback(
@@ -47,6 +47,5 @@ export const useCreateDiagramQuizPageHandlers = ({ form, documents }: IProps) =>
 
   return {
     handleSubmit: form.handleSubmit(handleSubmit),
-    isSubmitting,
   };
 };

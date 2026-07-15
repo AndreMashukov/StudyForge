@@ -17,12 +17,7 @@ import {
 import { 
   setError, 
   clearError, 
-  setFileFormLoading,
   selectCreateDocumentPageError,
-  selectUrlFormLoading,
-  selectFileFormLoading,
-  selectTextPromptFormLoading,
-  selectTextPromptFormProgress,
   clearFiles,
 } from '../../../../store/slices/createDocumentPageSlice';
 import { selectSelectedDirectoryId } from '../../../../store/slices/directorySlice';
@@ -34,17 +29,11 @@ export const useCreateDocumentPageHandlers = () => {
   
   // Redux selectors
   const error = useSelector((state: RootState) => selectCreateDocumentPageError(state));
-  const isUrlLoading = useSelector((state: RootState) => selectUrlFormLoading(state));
-  const isFileLoading = useSelector((state: RootState) => selectFileFormLoading(state));
-  const isTextPromptLoading = useSelector((state: RootState) => selectTextPromptFormLoading(state));
-  const textPromptProgress = useSelector((state: RootState) => selectTextPromptFormProgress(state));
   const directoryId = useSelector((state: RootState) => selectSelectedDirectoryId(state)); // 🆕 Get directoryId from global directory selection
   
   const [createDocumentFromUrl] = useCreateDocumentFromUrlMutation();
   const [uploadAndCreateDocument] = useUploadAndCreateDocumentMutation();
   const [generateFromPrompt] = useGenerateFromPromptMutation();
-  
-  const isLoading = isUrlLoading || isFileLoading || isTextPromptLoading;
 
   const handleGoBack = useCallback(() => {
     if (directoryId) {
@@ -77,7 +66,6 @@ export const useCreateDocumentPageHandlers = () => {
       return;
     }
 
-    dispatch(setFileFormLoading(true));
     try {
       const content = await readFileAsBase64(data.file);
       const uploadPromise = uploadAndCreateDocument({
@@ -93,15 +81,10 @@ export const useCreateDocumentPageHandlers = () => {
 
       navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
 
-      void uploadPromise
-        .catch((error) => {
-          dispatch(setError(getSubmissionErrorMessage(error)));
-        })
-        .finally(() => {
-          dispatch(setFileFormLoading(false));
-        });
+      void uploadPromise.catch((error) => {
+        dispatch(setError(getSubmissionErrorMessage(error)));
+      });
     } catch (error) {
-      dispatch(setFileFormLoading(false));
       dispatch(setError(getSubmissionErrorMessage(error)));
     }
   }, [uploadAndCreateDocument, navigate, dispatch, directoryId]);
@@ -146,9 +129,6 @@ export const useCreateDocumentPageHandlers = () => {
     handleCreateFromUrl,
     handleCreateFromFile,
     handleCreateFromTextPrompt,
-    isLoading,
-    isTextPromptLoading,
-    textPromptProgress,
     error,
   };
 };

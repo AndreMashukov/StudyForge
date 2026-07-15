@@ -5,7 +5,6 @@ import { Textarea } from '../../../../components/ui/Textarea';
 import { Input } from '../../../../components/ui/Input';
 import { Label } from '../../../../components/ui/Label';
 import { Globe } from 'lucide-react';
-import { Spinner } from '../../../../components/ui/Spinner';
 import { CompactRuleSelector } from '../../../../components/CompactRuleSelector';
 import { RuleApplicability } from '@shared-types';
 import {
@@ -35,7 +34,7 @@ function isValidUrl(urlString: string): boolean {
   }
 }
 
-export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) => {
+export const UrlScrapingForm = ({ onSubmit }: IUrlScrapingFormProps) => {
   const dispatch = useDispatch();
   const [rawUrls, setRawUrls] = useState('');
   const [title, setTitle] = useState('');
@@ -79,7 +78,6 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
           placeholder={`https://example.com/article\nhttps://youtu.be/dQw4w9WgXcQ`}
           value={rawUrls}
           onChange={(e) => setRawUrls(e.target.value)}
-          disabled={isLoading}
           rows={4}
         />
         <p className={urlScrapingFormStyles.helpText}>
@@ -115,7 +113,6 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className={urlScrapingFormStyles.input}
-          disabled={isLoading}
         />
         <p className={urlScrapingFormStyles.helpText}>
           Custom title for your document. If empty, the source title will be used.
@@ -144,20 +141,11 @@ export const UrlScrapingForm = ({ isLoading, onSubmit }: IUrlScrapingFormProps) 
 
       <Button
         type="submit"
-        disabled={!canSubmit || isLoading}
+        disabled={!canSubmit}
         className={urlScrapingFormStyles.submitButton}
       >
-        {isLoading ? (
-          <>
-            <Spinner size="xs" />
-            Processing...
-          </>
-        ) : (
-          <>
-            <Globe size={16} />
-            Create Document from URL{validUrls.length > 1 ? 's' : ''}
-          </>
-        )}
+        <Globe size={16} />
+        Create Document from URL{validUrls.length > 1 ? 's' : ''}
       </Button>
     </form>
   );

@@ -13,7 +13,7 @@ interface IProps {
 export const useCreateSubjectWorldPageHandlers = ({ form, documents }: IProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [generateSubjectWorld, { isLoading: isSubmitting }] =
+  const [generateSubjectWorld] =
     useGenerateSubjectWorldMutation();
 
   const handleSubmit = useCallback(
@@ -47,6 +47,5 @@ export const useCreateSubjectWorldPageHandlers = ({ form, documents }: IProps) =
 
   return {
     handleSubmit: form.handleSubmit(handleSubmit),
-    isSubmitting,
   };
 };

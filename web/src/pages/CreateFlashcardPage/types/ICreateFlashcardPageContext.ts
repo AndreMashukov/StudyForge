@@ -12,6 +12,5 @@ export interface ICreateFlashcardPageContext {
   form: UseFormReturn<ICreateFlashcardFormData>;
   handlers: {
     handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
-    isSubmitting: boolean;
   };
 }

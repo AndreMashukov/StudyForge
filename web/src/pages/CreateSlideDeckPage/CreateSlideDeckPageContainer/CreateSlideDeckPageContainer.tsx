@@ -18,7 +18,6 @@ const slideDeckFormConfig: ArtifactFormConfig = {
   generateLabels: {
     single: 'Generate Slide Deck',
     plural: (count) => `Generate Slide Deck from ${count} documents`,
-    submitting: 'Generating Slide Deck...',
   },
   directoryTab: 'slides',
 };
@@ -34,7 +33,6 @@ export const CreateSlideDeckPageContainer = () => {
       documentsApi={documentsApi}
       form={form}
       onSubmit={handlers.handleSubmit}
-      isSubmitting={handlers.isSubmitting}
     />
   );
 };

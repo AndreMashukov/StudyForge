@@ -18,7 +18,6 @@ const diagramQuizFormConfig: ArtifactFormConfig = {
   generateLabels: {
     single: 'Generate Diagram Quiz',
     plural: (count) => `Generate diagram quiz from ${count} documents`,
-    submitting: 'Generating Diagram Quiz...',
   },
   directoryTab: 'diagramQuizzes',
 };
@@ -34,7 +33,6 @@ export const CreateDiagramQuizPageContainer: React.FC = () => {
       documentsApi={documentsApi}
       form={form}
       onSubmit={handlers.handleSubmit}
-      isSubmitting={handlers.isSubmitting}
     />
   );
 };

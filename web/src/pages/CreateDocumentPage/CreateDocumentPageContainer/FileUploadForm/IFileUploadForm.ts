@@ -5,6 +5,5 @@ export interface IFileUploadFormData {
 }
 
 export interface IFileUploadFormProps {
-  isLoading: boolean;
   onSubmit: (data: IFileUploadFormData) => void;
 }

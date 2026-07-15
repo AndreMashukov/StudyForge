@@ -48,7 +48,7 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
   const [createRule, { isLoading: isCreating }] = useCreateRuleMutation();
   const [updateRule, { isLoading: isUpdating }] = useUpdateRuleMutation();
   const [deleteRuleMutation] = useDeleteRuleMutation();
-  const [generateRuleWithAI, { isLoading: isGenerating }] = useGenerateRuleWithAIMutation();
+  const [generateRuleWithAI] = useGenerateRuleWithAIMutation();
 
   // Form state
   const [formData, setFormData] = useState<IRuleEditorFormData>(DEFAULT_FORM_DATA);
@@ -186,7 +186,7 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
     mode,
     ruleId: ruleId ?? null,
     isLoading: isLoadingRule,
-    isSaving: isCreating || isUpdating || isGenerating,
+    isSaving: isCreating || isUpdating,
     formData,
     formErrors,
     updateField,

@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { baseApi } from './api/baseApi';
 import { errorToastMiddleware } from './middleware/errorToastMiddleware';
+import { loadingOverlayMiddleware } from './middleware/loadingOverlayMiddleware';
 import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
 import quizPageReducer from './slices/quizPageSlice';
@@ -37,7 +38,7 @@ export const store = configureStore({
         ],
         ignoredPaths: ['auth.user'],
       },
-    }).concat(baseApi.middleware, errorToastMiddleware),
+    }).concat(baseApi.middleware, errorToastMiddleware, loadingOverlayMiddleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

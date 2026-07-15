@@ -4,7 +4,6 @@ import { Button } from '../../../../components/ui/Button';
 import { Label } from '../../../../components/ui/Label';
 import { Textarea } from '../../../../components/ui/Textarea';
 import { Sparkles } from 'lucide-react';
-import { Spinner } from '../../../../components/ui/Spinner';
 import { ITextPromptFormProps } from './ITextPromptForm';
 import { textPromptFormStyles } from './TextPromptForm.styles';
 import { cn } from '../../../../lib/utils';
@@ -19,11 +18,7 @@ import type { RootState } from '../../../../store';
 
 const MIN_CHARACTERS = 10;
 
-export const TextPromptForm = ({ 
-  isLoading, 
-  progress = 0, 
-  onSubmit,
-}: ITextPromptFormProps) => {
+export const TextPromptForm = ({ onSubmit }: ITextPromptFormProps) => {
   const dispatch = useDispatch();
 
   // Redux selectors
@@ -49,7 +44,7 @@ export const TextPromptForm = ({
   const characterCount = prompt.length;
   const isUnderMinimum = characterCount > 0 && characterCount < MIN_CHARACTERS;
   
-  const canSubmit = characterCount >= MIN_CHARACTERS && !isLoading;
+  const canSubmit = characterCount >= MIN_CHARACTERS;
 
   return (
     <form onSubmit={handleSubmit} className={textPromptFormStyles.container}>
@@ -78,7 +73,6 @@ export const TextPromptForm = ({
             "min-h-[120px]",
             isUnderMinimum && "border-destructive focus-visible:ring-destructive/20"
           )}
-          disabled={isLoading}
           rows={5}
         />
         {isUnderMinimum && (
@@ -106,36 +100,13 @@ export const TextPromptForm = ({
         </div>
       )}
 
-      {isLoading && progress > 0 && (
-        <div className={textPromptFormStyles.progressContainer}>
-          <div className={textPromptFormStyles.progressBar}>
-            <div 
-              className={textPromptFormStyles.progressFill}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <p className={textPromptFormStyles.progressText}>
-            Generating your document... This may take 10-30 seconds
-          </p>
-        </div>
-      )}
-
       <Button
         type="submit"
         disabled={!canSubmit}
         className={textPromptFormStyles.submitButton}
       >
-        {isLoading ? (
-          <>
-            <Spinner size="xs" />
-            Generating Document...
-          </>
-        ) : (
-          <>
-            <Sparkles size={16} />
-            Generate Document
-          </>
-        )}
+        <Sparkles size={16} />
+        Generate Document
       </Button>
     </form>
   );

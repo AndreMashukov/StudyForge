@@ -20,7 +20,6 @@ const sequenceQuizFormConfig: ArtifactFormConfig = {
   generateLabels: {
     single: 'Generate Sequence Quiz',
     plural: (count) => `Generate sequence quiz from ${count} documents`,
-    submitting: 'Generating Sequence Quiz...',
   },
   directoryTab: 'sequenceQuizzes',
 };
@@ -36,7 +35,6 @@ export const CreateSequenceQuizPageContainer: React.FC = () => {
       documentsApi={documentsApi}
       form={form}
       onSubmit={handlers.handleSubmit}
-      isSubmitting={handlers.isSubmitting}
     />
   );
 };

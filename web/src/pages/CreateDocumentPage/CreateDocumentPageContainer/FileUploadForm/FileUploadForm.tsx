@@ -4,7 +4,6 @@ import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
 import { Label } from '../../../../components/ui/Label';
 import { Upload, FileText, AlertCircle } from 'lucide-react';
-import { Spinner } from '../../../../components/ui/Spinner';
 import { RuleSelector } from '../../../../components/RuleSelector';
 import { RuleApplicability } from '@shared-types';
 import {
@@ -24,7 +23,7 @@ import {
 } from '../../../../utils/documentUploadUtils';
 import type { RootState } from '../../../../store';
 
-export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) => {
+export const FileUploadForm = ({ onSubmit }: IFileUploadFormProps) => {
   const dispatch = useDispatch();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
@@ -124,7 +123,6 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
             accept={DOCUMENT_UPLOAD_CONSTRAINTS.ACCEPT}
             onChange={handleFileInputChange}
             className="hidden"
-            disabled={isLoading}
           />
         </div>
 
@@ -166,7 +164,6 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className={fileUploadFormStyles.input}
-          disabled={isLoading}
         />
         <p className={fileUploadFormStyles.helpText}>
           Custom title for your document.
@@ -196,20 +193,11 @@ export const FileUploadForm = ({ isLoading, onSubmit }: IFileUploadFormProps) =>
 
       <Button
         type="submit"
-        disabled={!canSubmit || isLoading}
+        disabled={!canSubmit}
         className={fileUploadFormStyles.submitButton}
       >
-        {isLoading ? (
-          <>
-            <Spinner size="xs" />
-            Uploading File...
-          </>
-        ) : (
-          <>
-            <Upload size={16} />
-            Create Document from File
-          </>
-        )}
+        <Upload size={16} />
+        Create Document from File
       </Button>
     </form>
   );

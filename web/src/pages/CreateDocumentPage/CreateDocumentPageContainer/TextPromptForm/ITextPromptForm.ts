@@ -4,7 +4,5 @@ export interface ITextPromptFormData {
 }
 
 export interface ITextPromptFormProps {
-  isLoading: boolean;
-  progress?: number;
   onSubmit: (data: ITextPromptFormData) => void;
 }

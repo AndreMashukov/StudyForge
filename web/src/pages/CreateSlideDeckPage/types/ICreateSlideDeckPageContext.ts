@@ -12,6 +12,5 @@ export interface ICreateSlideDeckPageContext {
   form: UseFormReturn<ICreateSlideDeckFormData>;
   handlers: {
     handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
-    isSubmitting: boolean;
   };
 }

@@ -19,7 +19,6 @@ const flashcardFormConfig: ArtifactFormConfig = {
   generateLabels: {
     single: 'Generate Flashcards',
     plural: (count) => `Generate Flashcards from ${count} documents`,
-    submitting: 'Generating Flashcards...',
   },
   directoryTab: 'cards',
 };
@@ -35,7 +34,6 @@ export const CreateFlashcardPageContainer = () => {
       documentsApi={documentsApi}
       form={form}
       onSubmit={handlers.handleSubmit}
-      isSubmitting={handlers.isSubmitting}
     />
   );
 };

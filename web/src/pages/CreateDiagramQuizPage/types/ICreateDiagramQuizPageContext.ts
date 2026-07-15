@@ -12,6 +12,5 @@ export interface ICreateDiagramQuizPageContext {
   form: UseFormReturn<ICreateDiagramQuizFormData>;
   handlers: {
     handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
-    isSubmitting: boolean;
   };
 }

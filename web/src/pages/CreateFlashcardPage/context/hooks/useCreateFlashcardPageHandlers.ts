@@ -13,7 +13,7 @@ interface UseCreateFlashcardPageHandlersProps {
 export const useCreateFlashcardPageHandlers = ({ form, documents }: UseCreateFlashcardPageHandlersProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [generateFlashcards, { isLoading: isSubmitting }] = useGenerateFlashcardsMutation();
+  const [generateFlashcards] = useGenerateFlashcardsMutation();
 
   const handleSubmit = useCallback(async (formData: ICreateFlashcardFormData) => {
     if (!formData.documentIds || formData.documentIds.length === 0) {
@@ -45,7 +45,6 @@ export const useCreateFlashcardPageHandlers = ({ form, documents }: UseCreateFla
 
   return {
     handleSubmit: form.handleSubmit(handleSubmit),
-    isSubmitting,
   };
 };
 

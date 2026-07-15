@@ -12,6 +12,5 @@ export interface ICreateSequenceQuizPageContext {
   form: UseFormReturn<ICreateSequenceQuizFormData>;
   handlers: {
     handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
-    isSubmitting: boolean;
   };
 }

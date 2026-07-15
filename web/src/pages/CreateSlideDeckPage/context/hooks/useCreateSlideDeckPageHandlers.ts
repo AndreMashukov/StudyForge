@@ -13,7 +13,7 @@ interface UseCreateSlideDeckPageHandlersProps {
 export const useCreateSlideDeckPageHandlers = ({ form, documents }: UseCreateSlideDeckPageHandlersProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [generateSlideDeck, { isLoading: isSubmitting }] = useGenerateSlideDeckMutation();
+  const [generateSlideDeck] = useGenerateSlideDeckMutation();
 
   const handleSubmit = useCallback(async (formData: ICreateSlideDeckFormData) => {
     if (!formData.documentIds || formData.documentIds.length === 0) {
@@ -42,7 +42,6 @@ export const useCreateSlideDeckPageHandlers = ({ form, documents }: UseCreateSli
 
   return {
     handleSubmit: form.handleSubmit(handleSubmit),
-    isSubmitting,
   };
 };
 

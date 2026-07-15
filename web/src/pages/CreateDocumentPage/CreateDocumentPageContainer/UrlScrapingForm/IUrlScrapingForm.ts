@@ -5,6 +5,5 @@ export interface IUrlScrapingFormData {
 }
 
 export interface IUrlScrapingFormProps {
-  isLoading: boolean;
   onSubmit: (data: IUrlScrapingFormData) => void;
 }

@@ -6,11 +6,9 @@ import { Card, CardContent } from '../../../../components/ui/Card';
 import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 import { IDocumentQuestionForm } from './IDocumentQuestionForm';
 import { documentQuestionFormStyles as styles } from './DocumentQuestionForm.styles';
-import { Spinner } from '../../../../components/ui/Spinner';
 
 export const DocumentQuestionForm: React.FC<IDocumentQuestionForm> = ({
   onSubmit,
-  isLoading,
   answer,
   error,
 }) => {
@@ -19,7 +17,7 @@ export const DocumentQuestionForm: React.FC<IDocumentQuestionForm> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = question.trim();
-    if (!trimmed || isLoading) return;
+    if (!trimmed) return;
     onSubmit(trimmed);
   };
 
@@ -30,7 +28,6 @@ export const DocumentQuestionForm: React.FC<IDocumentQuestionForm> = ({
           placeholder="Ask a question about this document..."
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          disabled={isLoading}
           rows={3}
           maxLength={2000}
           showCharCount
@@ -38,20 +35,11 @@ export const DocumentQuestionForm: React.FC<IDocumentQuestionForm> = ({
         <div className={styles.buttonRow}>
           <Button
             type="submit"
-            disabled={!question.trim() || isLoading}
+            disabled={!question.trim()}
             size="lg"
           >
-            {isLoading ? (
-              <>
-                <Spinner size="xs" variant="on-primary" className="mr-2" />
-                Generating Answer...
-              </>
-            ) : (
-              <>
-                <Send size={16} className="mr-2" />
-                Ask Question
-              </>
-            )}
+            <Send size={16} className="mr-2" />
+            Ask Question
           </Button>
         </div>
       </form>

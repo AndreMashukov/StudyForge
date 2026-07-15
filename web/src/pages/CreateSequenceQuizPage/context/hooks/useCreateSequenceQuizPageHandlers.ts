@@ -13,7 +13,7 @@ interface IProps {
 export const useCreateSequenceQuizPageHandlers = ({ form, documents }: IProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [generateSequenceQuiz, { isLoading: isSubmitting }] =
+  const [generateSequenceQuiz] =
     useGenerateSequenceQuizMutation();
 
   const handleSubmit = useCallback(
@@ -47,6 +47,5 @@ export const useCreateSequenceQuizPageHandlers = ({ form, documents }: IProps) =
 
   return {
     handleSubmit: form.handleSubmit(handleSubmit),
-    isSubmitting,
   };
 };
