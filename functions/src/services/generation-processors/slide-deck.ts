@@ -9,6 +9,7 @@ import { GenerationJob } from '../generation-jobs';
 import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 import { LlmGenerationService, resolveSlideDeckGenerationAudit } from '../llm';
 import { isRuleResolutionMode, resolveEffectiveRules } from '../rule-resolution';
+import { enforceJobGenerationRateLimit } from '../../lib/generation-rate-limit';
 
 const redactId = (id: string): string =>
   createHash('sha256').update(id).digest('hex').slice(0, 8);
@@ -106,6 +107,7 @@ export class SlideDeckGenerationProcessor {
 
         await Promise.all(chunk.map(async (slide, ci) => {
           const i = batch + ci;
+          await enforceJobGenerationRateLimit(job.userId, 'slideDeckImage');
           const brief = await LlmGenerationService.generateSlideImageBrief(
             job.userId,
             slide.title,

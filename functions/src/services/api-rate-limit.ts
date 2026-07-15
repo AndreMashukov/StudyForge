@@ -3,7 +3,7 @@ import { GenerationKind } from '@shared-types';
 import { getGenerationRateLimitProfile } from './generation-rate-limit-profiles';
 import {
   buildRateLimitDocId,
-  evaluateRateLimitState,
+  evaluateMultiBucketRateLimitStates,
   IRateLimitState,
 } from './generation-rate-limit-logic';
 
@@ -24,30 +24,48 @@ export interface GenerationRateLimitParams {
   generationKind: GenerationKind;
 }
 
+export interface MultiBucketGenerationRateLimitParams {
+  userId: string;
+  limiterKeys: string[];
+  generationKind: GenerationKind;
+}
+
 /** @deprecated Use enforceGenerationRateLimit with generationKind documentFromScreenshot */
 export interface ScreenshotRateLimitParams {
   userId: string;
   limiterKey: string;
 }
 
-export async function enforceGenerationRateLimit({
+function uniqueLimiterKeys(limiterKeys: string[]): string[] {
+  return [...new Set(limiterKeys)];
+}
+
+export async function enforceGenerationRateLimitMultiBucket({
   userId,
-  limiterKey,
+  limiterKeys,
   generationKind,
-}: GenerationRateLimitParams): Promise<void> {
+}: MultiBucketGenerationRateLimitParams): Promise<void> {
+  const keys = uniqueLimiterKeys(limiterKeys);
+  if (keys.length === 0) {
+    return;
+  }
+
   const db = getFirestore();
   const profile = getGenerationRateLimitProfile(generationKind);
-  const ref = db
-    .collection('users')
-    .doc(userId)
-    .collection('apiRateLimits')
-    .doc(buildRateLimitDocId(generationKind, limiterKey));
+  const refs = keys.map((limiterKey) => ({
+    limiterKey,
+    ref: db
+      .collection('users')
+      .doc(userId)
+      .collection('apiRateLimits')
+      .doc(buildRateLimitDocId(generationKind, limiterKey)),
+  }));
 
   await db.runTransaction(async (transaction) => {
     const now = Date.now();
-    const snapshot = await transaction.get(ref);
-    const data = snapshot.data() as IRateLimitState | undefined;
-    const decision = evaluateRateLimitState(data, profile, now);
+    const snapshots = await Promise.all(refs.map(({ ref }) => transaction.get(ref)));
+    const states = snapshots.map((snapshot) => snapshot.data() as IRateLimitState | undefined);
+    const decision = evaluateMultiBucketRateLimitStates(states, profile, now);
 
     if (decision.allowed === false) {
       throw new RateLimitError(
@@ -57,18 +75,33 @@ export async function enforceGenerationRateLimit({
       );
     }
 
-    transaction.set(
-      ref,
-      {
-        limiterKey,
-        generationKind,
-        lastRequestAtMs: decision.nextState.lastRequestAtMs,
-        windowStartAtMs: decision.nextState.windowStartAtMs,
-        requestCount: decision.nextState.requestCount,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+    refs.forEach(({ limiterKey, ref }, index) => {
+      const nextState = decision.nextStates[index];
+      transaction.set(
+        ref,
+        {
+          limiterKey,
+          generationKind,
+          lastRequestAtMs: nextState.lastRequestAtMs,
+          windowStartAtMs: nextState.windowStartAtMs,
+          requestCount: nextState.requestCount,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    });
+  });
+}
+
+export async function enforceGenerationRateLimit({
+  userId,
+  limiterKey,
+  generationKind,
+}: GenerationRateLimitParams): Promise<void> {
+  await enforceGenerationRateLimitMultiBucket({
+    userId,
+    limiterKeys: [limiterKey],
+    generationKind,
   });
 }
 

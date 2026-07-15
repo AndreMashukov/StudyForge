@@ -97,3 +97,33 @@ export function evaluateGenerationRateLimit(
 ): RateLimitDecision {
   return evaluateRateLimitState(state, getGenerationRateLimitProfile(generationKind), now);
 }
+
+export interface IMultiBucketRateLimitAllowed {
+  allowed: true;
+  nextStates: Array<{
+    lastRequestAtMs: number;
+    windowStartAtMs: number;
+    requestCount: number;
+  }>;
+}
+
+export function evaluateMultiBucketRateLimitStates(
+  states: Array<IRateLimitState | undefined>,
+  profile: IGenerationRateLimitProfile,
+  now: number
+): IMultiBucketRateLimitAllowed | IRateLimitDecisionBlocked {
+  const nextStates: IMultiBucketRateLimitAllowed['nextStates'] = [];
+
+  for (const state of states) {
+    const decision = evaluateRateLimitState(state, profile, now);
+    if (decision.allowed === false) {
+      return decision;
+    }
+    nextStates.push(decision.nextState);
+  }
+
+  return {
+    allowed: true,
+    nextStates,
+  };
+}

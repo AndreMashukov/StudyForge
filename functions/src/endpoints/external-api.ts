@@ -13,7 +13,7 @@ import {
 import { FirestoreService } from "../services/firestore";
 import { ScreenshotDocumentGenerationService } from "../services/screenshot-document-generation";
 import { RateLimitError } from "../services/api-rate-limit";
-import { enforceExternalGenerationRateLimit } from "../lib/generation-rate-limit";
+import { enforceExternalDualGenerationRateLimit } from "../lib/generation-rate-limit";
 import {
   completePendingDiagramQuiz,
   completePendingFlashcardSet,
@@ -251,7 +251,7 @@ export const api = onRequest(
 
         GeminiService.validateContentForQuiz(documentContent);
 
-        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'quiz');
+        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'quiz');
 
         const pendingTitle = quizName?.trim()
           || (documentIds.length === 1
@@ -429,7 +429,7 @@ export const api = onRequest(
 
         GeminiService.validateContentForQuiz(documentContent);
 
-        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'diagramQuiz');
+        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'diagramQuiz');
 
         const pendingTitle = diagramQuizName
           || (documentIds.length === 1
@@ -591,7 +591,7 @@ export const api = onRequest(
 
         GeminiService.validateContentForQuiz(documentContent);
 
-        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'sequenceQuiz');
+        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'sequenceQuiz');
 
         const pendingTitle = sequenceQuizName
           || (documentIds.length === 1
@@ -731,7 +731,7 @@ export const api = onRequest(
           }
         }
 
-        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'flashcards');
+        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'flashcards');
 
         const pendingTitle = customTitle
           || (documentIds.length === 1
@@ -856,7 +856,7 @@ export const api = onRequest(
           }
         }
 
-        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'slideDeckText');
+        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'slideDeckText');
 
         const pendingTitle = customTitle
           || (documentIds.length === 1
@@ -916,6 +916,7 @@ export const api = onRequest(
             const chunk = slides.slice(batch, batch + CONCURRENCY);
             await Promise.all(chunk.map(async (slide, ci) => {
               const i = batch + ci;
+              await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'slideDeckImage');
               const brief = await LlmGenerationService.generateSlideImageBrief(userId, slide.title, slide.content, injectedRules);
               let imageBase64: string | null = null;
               if (brief) {
@@ -998,7 +999,7 @@ export const api = onRequest(
           return;
         }
 
-        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'slideDeckText');
+        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'slideDeckText');
 
         const rawImages = requestData.images;
         if (!Array.isArray(rawImages) || rawImages.length === 0) {
@@ -1260,7 +1261,7 @@ export const api = onRequest(
 
         // Create a pending document immediately so the UI reflects the in-progress state.
         // createPendingDocument validates the directoryId internally.
-        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'documentFromPrompt');
+        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'documentFromPrompt');
 
         const tentativeTitle = trimmedPrompt.length > 50
           ? `${trimmedPrompt.substring(0, 50)}...`
@@ -1394,7 +1395,7 @@ export const api = onRequest(
           return;
         }
 
-        await enforceExternalGenerationRateLimit(userId, authResult.limiterKey, 'documentFromScreenshot');
+        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'documentFromScreenshot');
 
         const promptTitle = data.prompt?.trim();
         const pendingTitle = data.title?.trim()

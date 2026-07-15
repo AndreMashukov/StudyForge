@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildRateLimitDocId,
   evaluateGenerationRateLimit,
+  evaluateMultiBucketRateLimitStates,
   evaluateRateLimitState,
   normalizeLimiterKey,
   resolveRateLimitGenerationKind,
@@ -89,5 +90,82 @@ describe('generation-rate-limit-logic', () => {
     const apiKeyBucket = buildRateLimitDocId('quiz', 'api_key_1');
 
     expect(userBucket).not.toBe(apiKeyBucket);
+  });
+
+  it('uses separate external user and API key buckets', () => {
+    const externalUserBucket = buildRateLimitDocId('quiz', 'external_user_uid_a');
+    const apiKeyBucket = buildRateLimitDocId('quiz', 'api_key_1');
+
+    expect(externalUserBucket).not.toBe(apiKeyBucket);
+    expect(externalUserBucket).toBe('quiz_external_user_uid_a');
+  });
+
+  it('blocks multi-bucket evaluation on the first failing bucket without advancing later buckets', () => {
+    const now = 1_000_000;
+    const profile = {
+      cooldownMs: 10_000,
+      hourlyLimit: 60,
+      windowMs: ONE_HOUR_MS,
+      cooldownMessage: 'cooldown',
+      hourlyMessage: 'hourly',
+    };
+
+    const decision = evaluateMultiBucketRateLimitStates(
+      [
+        {
+          lastRequestAtMs: now - 20_000,
+          windowStartAtMs: now - 30_000,
+          requestCount: 1,
+        },
+        {
+          lastRequestAtMs: now - 2_000,
+          windowStartAtMs: now - 30_000,
+          requestCount: 1,
+        },
+      ],
+      profile,
+      now
+    );
+
+    expect(decision.allowed).toBe(false);
+    if (!decision.allowed) {
+      expect(decision.message).toBe('cooldown');
+      expect(decision.retryAfterSeconds).toBe(8);
+    }
+  });
+
+  it('allows multi-bucket evaluation when every bucket has capacity', () => {
+    const now = 1_000_000;
+    const profile = {
+      cooldownMs: 10_000,
+      hourlyLimit: 60,
+      windowMs: ONE_HOUR_MS,
+      cooldownMessage: 'cooldown',
+      hourlyMessage: 'hourly',
+    };
+
+    const decision = evaluateMultiBucketRateLimitStates(
+      [
+        {
+          lastRequestAtMs: now - 20_000,
+          windowStartAtMs: now - 30_000,
+          requestCount: 1,
+        },
+        {
+          lastRequestAtMs: now - 20_000,
+          windowStartAtMs: now - 30_000,
+          requestCount: 2,
+        },
+      ],
+      profile,
+      now
+    );
+
+    expect(decision.allowed).toBe(true);
+    if (decision.allowed) {
+      expect(decision.nextStates).toHaveLength(2);
+      expect(decision.nextStates[0].requestCount).toBe(2);
+      expect(decision.nextStates[1].requestCount).toBe(3);
+    }
   });
 });
