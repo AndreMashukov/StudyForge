@@ -3,7 +3,8 @@ import { Request } from "firebase-functions/v2/https";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 
-const API_KEY_BEARER_PREFIXES = ["sf-", "ciai_"];
+const API_KEY_BEARER_PREFIX = "sf-";
+export const LAST_USED_AT_UPDATE_INTERVAL_MS = 60_000;
 
 export interface ExternalAuthResult {
   userId: string;
@@ -17,6 +18,37 @@ export interface ExternalAuthResult {
  */
 export function hashApiKey(rawKey: string): string {
   return crypto.createHash("sha256").update(rawKey).digest("hex");
+}
+
+function hasToDate(value: unknown): value is { toDate: () => Date } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof value.toDate === "function"
+  );
+}
+
+export function isLastUsedAtUpdateDue(
+  lastUsedAt: unknown,
+  nowMs: number = Date.now()
+): boolean {
+  if (!lastUsedAt) {
+    return true;
+  }
+
+  let lastUsedMs: number | null = null;
+  if (hasToDate(lastUsedAt)) {
+    lastUsedMs = lastUsedAt.toDate().getTime();
+  } else if (lastUsedAt instanceof Date) {
+    lastUsedMs = lastUsedAt.getTime();
+  }
+
+  if (lastUsedMs === null) {
+    return true;
+  }
+
+  return nowMs - lastUsedMs >= LAST_USED_AT_UPDATE_INTERVAL_MS;
 }
 
 /**
@@ -54,7 +86,7 @@ export async function validateExternalAuthFromRequest(req: Request): Promise<Ext
   const token = authHeader.slice(7).trim();
 
   // --- Path 2: API key in Bearer (starts with our prefix) ---
-  if (API_KEY_BEARER_PREFIXES.some((prefix) => token.startsWith(prefix))) {
+  if (token.startsWith(API_KEY_BEARER_PREFIX)) {
     return validateStoredApiKey(token);
   }
 
@@ -88,10 +120,11 @@ async function validateStoredApiKey(rawKey: string): Promise<ExternalAuthResult>
     throw new Error("Invalid or revoked API key.");
   }
 
-  // Update lastUsedAt in the background — don't block the request
-  doc.ref.update({ lastUsedAt: new Date() }).catch((e) => {
-    console.warn("Failed to update lastUsedAt for API key:", e);
-  });
+  if (isLastUsedAtUpdateDue(data.lastUsedAt)) {
+    doc.ref.update({ lastUsedAt: new Date() }).catch((e) => {
+      console.warn("Failed to update lastUsedAt for API key:", e);
+    });
+  }
 
   const userId = doc.ref.parent.parent?.id;
   if (!userId) {

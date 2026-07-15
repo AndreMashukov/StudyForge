@@ -42,7 +42,7 @@ export class ExtensionSettingsValidator {
 
   private isSupportedApiKey(apiKey: string): boolean {
     const trimmedKey = apiKey.trim();
-    return trimmedKey.startsWith('sf-') || trimmedKey.startsWith('ciai_');
+    return trimmedKey.startsWith('sf-');
   }
 
   private isValidUrl(value: string): boolean {
