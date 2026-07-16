@@ -9,7 +9,6 @@ import { GenerationJob } from '../generation-jobs';
 import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 import { LlmGenerationService, resolveSlideDeckGenerationAudit } from '../llm';
 import { isRuleResolutionMode, resolveEffectiveRules } from '../rule-resolution';
-import { enforceJobGenerationRateLimit } from '../../lib/generation-rate-limit';
 
 const redactId = (id: string): string =>
   createHash('sha256').update(id).digest('hex').slice(0, 8);
@@ -107,7 +106,10 @@ export class SlideDeckGenerationProcessor {
 
         await Promise.all(chunk.map(async (slide, ci) => {
           const i = batch + ci;
-          await enforceJobGenerationRateLimit(job.userId, 'slideDeckImage');
+          // Per-image rate limiting is intentionally skipped here: the deck-level
+          // rate limit (slideDeckText, enforced at callable entry) already gates
+          // user-initiated requests. A per-image cooldown would make batched
+          // generation of 6-7 slides impossible within a single job.
           const brief = await LlmGenerationService.generateSlideImageBrief(
             job.userId,
             slide.title,
