@@ -1,9 +1,10 @@
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, type DocumentReference } from 'firebase-admin/firestore';
 import { computeExpiresAt } from '../lib/firestore-ttl';
 import { FirestorePaths } from '../lib/firestore-paths';
 import {
   getJobStaleReferenceTime,
   isStaleByAge,
+  STALE_ORPHAN_PENDING_MS,
   STALE_PROCESSING_JOB_MS,
 } from './generation-stale';
 import { MAX_GENERATION_JOB_ATTEMPTS } from './generation-job-retry';
@@ -18,6 +19,24 @@ export type GenerationJobKind =
   | 'slideDeck'
   | 'subjectWorld';
 export type GenerationJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
+
+const GENERATION_JOB_KINDS: ReadonlySet<string> = new Set([
+  'documentFromPrompt',
+  'documentFromScreenshot',
+  'artifactAgent',
+  'quiz',
+  'flashcards',
+  'sequenceQuiz',
+  'slideDeck',
+  'subjectWorld',
+]);
+
+const GENERATION_JOB_STATUSES: ReadonlySet<string> = new Set([
+  'queued',
+  'processing',
+  'completed',
+  'failed',
+]);
 
 export interface GenerationJob {
   id: string;
@@ -38,6 +57,116 @@ export interface GenerationJob {
   lastRetryAt?: Timestamp;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseOptionalTimestamp(
+  value: unknown
+): { ok: true; value?: Timestamp } | { ok: false } {
+  if (value === undefined || value === null) {
+    return { ok: true, value: undefined };
+  }
+  if (value instanceof Timestamp) {
+    return { ok: true, value };
+  }
+  return { ok: false };
+}
+
+function parseOptionalString(
+  value: unknown
+): { ok: true; value?: string } | { ok: false } {
+  if (value === undefined || value === null) {
+    return { ok: true, value: undefined };
+  }
+  if (typeof value === 'string') {
+    return { ok: true, value };
+  }
+  return { ok: false };
+}
+
+function isGenerationJobKind(value: string): value is GenerationJobKind {
+  return GENERATION_JOB_KINDS.has(value);
+}
+
+function isGenerationJobStatus(value: string): value is GenerationJobStatus {
+  return GENERATION_JOB_STATUSES.has(value);
+}
+
+/**
+ * Validate Firestore job document data before treating it as GenerationJob.
+ * Rejects missing/malformed required fields (same style as LLM repository parsers).
+ */
+export function parseGenerationJob(id: string, data: unknown): GenerationJob | null {
+  if (!isRecord(data)) {
+    return null;
+  }
+
+  if (typeof data.kind !== 'string' || !isGenerationJobKind(data.kind)) {
+    return null;
+  }
+  if (typeof data.status !== 'string' || !isGenerationJobStatus(data.status)) {
+    return null;
+  }
+  if (typeof data.userId !== 'string' || data.userId.trim().length === 0) {
+    return null;
+  }
+  if (typeof data.directoryId !== 'string' || data.directoryId.trim().length === 0) {
+    return null;
+  }
+  if (typeof data.recordId !== 'string' || data.recordId.trim().length === 0) {
+    return null;
+  }
+  if (typeof data.payloadStoragePath !== 'string' || data.payloadStoragePath.trim().length === 0) {
+    return null;
+  }
+  if (typeof data.attempts !== 'number' || !Number.isFinite(data.attempts) || data.attempts < 0) {
+    return null;
+  }
+
+  const createdAt = parseOptionalTimestamp(data.createdAt);
+  const updatedAt = parseOptionalTimestamp(data.updatedAt);
+  const startedAt = parseOptionalTimestamp(data.startedAt);
+  const completedAt = parseOptionalTimestamp(data.completedAt);
+  const failedAt = parseOptionalTimestamp(data.failedAt);
+  const lastRetryAt = parseOptionalTimestamp(data.lastRetryAt);
+  if (
+    !createdAt.ok
+    || !updatedAt.ok
+    || !startedAt.ok
+    || !completedAt.ok
+    || !failedAt.ok
+    || !lastRetryAt.ok
+  ) {
+    return null;
+  }
+
+  const error = parseOptionalString(data.error);
+  const lastError = parseOptionalString(data.lastError);
+  if (!error.ok || !lastError.ok) {
+    return null;
+  }
+
+  return {
+    id,
+    kind: data.kind,
+    status: data.status,
+    userId: data.userId,
+    directoryId: data.directoryId,
+    recordId: data.recordId,
+    payloadStoragePath: data.payloadStoragePath,
+    attempts: data.attempts,
+    ...(createdAt.value ? { createdAt: createdAt.value } : {}),
+    ...(updatedAt.value ? { updatedAt: updatedAt.value } : {}),
+    ...(startedAt.value ? { startedAt: startedAt.value } : {}),
+    ...(completedAt.value ? { completedAt: completedAt.value } : {}),
+    ...(failedAt.value ? { failedAt: failedAt.value } : {}),
+    ...(error.value !== undefined ? { error: error.value } : {}),
+    ...(lastError.value !== undefined ? { lastError: lastError.value } : {}),
+    ...(lastRetryAt.value ? { lastRetryAt: lastRetryAt.value } : {}),
+  };
+}
+
 export interface CreateGenerationJobParams {
   jobId: string;
   kind: GenerationJobKind;
@@ -53,11 +182,52 @@ export type ClaimJobForProcessingResult =
   | { type: 'skip'; job: GenerationJob }
   | { type: 'failed_stale'; job: GenerationJob };
 
+/** Thrown when createJob races with orphan sweep that already failed the record. */
+export class GenerationRecordUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GenerationRecordUnavailableError';
+  }
+}
+
+export function recordRefForGenerationJob(
+  userId: string,
+  kind: GenerationJobKind,
+  recordId: string
+): DocumentReference {
+  switch (kind) {
+    case 'documentFromPrompt':
+    case 'documentFromScreenshot':
+      return FirestorePaths.document(userId, recordId);
+    case 'quiz':
+      return FirestorePaths.quiz(userId, recordId);
+    case 'flashcards':
+      return FirestorePaths.flashcardSet(userId, recordId);
+    case 'sequenceQuiz':
+      return FirestorePaths.sequenceQuiz(userId, recordId);
+    case 'slideDeck':
+      return FirestorePaths.slideDeck(userId, recordId);
+    case 'artifactAgent':
+      return FirestorePaths.diagramQuiz(userId, recordId);
+    case 'subjectWorld':
+      return FirestorePaths.subjectWorld(userId, recordId);
+    default: {
+      const _exhaustive: never = kind;
+      throw new Error(`Unsupported generation job kind: ${_exhaustive}`);
+    }
+  }
+}
+
 export class GenerationJobsService {
   static newJobId(userId: string): string {
     return FirestorePaths.generationJobs(userId).doc().id;
   }
 
+  /**
+   * Creates a queued job and associates it with the pending record in one
+   * transaction (`generationJobId` on the record). Serialized with orphan
+   * sweep so a late fail cannot race past an actively created job.
+   */
   static async createJob(params: CreateGenerationJobParams): Promise<GenerationJob> {
     const job: GenerationJob = {
       id: params.jobId,
@@ -70,10 +240,38 @@ export class GenerationJobsService {
       attempts: 0,
     };
 
-    await FirestorePaths.generationJob(params.userId, params.jobId).set({
-      ...job,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+    const jobRef = FirestorePaths.generationJob(params.userId, params.jobId);
+    const recordRef = recordRefForGenerationJob(params.userId, params.kind, params.recordId);
+
+    await jobRef.firestore.runTransaction(async (transaction) => {
+      const recordSnap = await transaction.get(recordRef);
+      if (!recordSnap.exists) {
+        throw new GenerationRecordUnavailableError(
+          `Pending generation record ${params.recordId} not found`
+        );
+      }
+
+      const recordData = recordSnap.data() as { generationStatus?: string };
+      if (recordData.generationStatus === 'failed') {
+        throw new GenerationRecordUnavailableError(
+          `Cannot create generation job for failed record ${params.recordId}`
+        );
+      }
+      if (recordData.generationStatus === 'completed') {
+        throw new GenerationRecordUnavailableError(
+          `Cannot create generation job for completed record ${params.recordId}`
+        );
+      }
+
+      transaction.set(jobRef, {
+        ...job,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.update(recordRef, {
+        generationJobId: params.jobId,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
     });
 
     return job;
@@ -84,7 +282,7 @@ export class GenerationJobsService {
     if (!snap.exists) {
       return null;
     }
-    return { id: snap.id, ...snap.data() } as GenerationJob;
+    return parseGenerationJob(snap.id, snap.data());
   }
 
   static async claimQueuedJob(userId: string, jobId: string): Promise<GenerationJob | null> {
@@ -105,7 +303,10 @@ export class GenerationJobsService {
       return { type: 'missing' };
     }
 
-    const existingJob = { id: existingSnap.id, ...existingSnap.data() } as GenerationJob;
+    const existingJob = parseGenerationJob(existingSnap.id, existingSnap.data());
+    if (!existingJob) {
+      return { type: 'missing' };
+    }
 
     if (existingJob.status === 'completed' || existingJob.status === 'failed') {
       return { type: 'skip', job: existingJob };
@@ -231,6 +432,49 @@ export class GenerationJobsService {
       failedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
       expiresAt: computeExpiresAt(terminalAt, 'generationJob'),
+    });
+  }
+
+  /**
+   * Atomically fail a job only if it is still queued/processing and stale.
+   * Prevents overwriting concurrent claim/completion transitions.
+   * Returns the job snapshot used for the transition, or null if skipped.
+   */
+  static async markFailedIfStale(
+    userId: string,
+    jobId: string,
+    error: string,
+    nowMs: number = Date.now()
+  ): Promise<GenerationJob | null> {
+    const ref = FirestorePaths.generationJob(userId, jobId);
+    return ref.firestore.runTransaction(async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists) {
+        return null;
+      }
+
+      const job = { id: snap.id, ...snap.data() } as GenerationJob;
+      if (job.status !== 'queued' && job.status !== 'processing') {
+        return null;
+      }
+
+      const staleThreshold = job.status === 'processing'
+        ? STALE_PROCESSING_JOB_MS
+        : STALE_ORPHAN_PENDING_MS;
+      if (!isStaleByAge(getJobStaleReferenceTime(job), staleThreshold, nowMs)) {
+        return null;
+      }
+
+      const terminalAt = new Date(nowMs);
+      transaction.update(ref, {
+        status: 'failed',
+        error,
+        failedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        expiresAt: computeExpiresAt(terminalAt, 'generationJob'),
+      });
+
+      return job;
     });
   }
 

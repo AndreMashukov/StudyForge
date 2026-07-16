@@ -1,6 +1,10 @@
-import { Timestamp } from 'firebase-admin/firestore';
+import {
+  FieldValue,
+  Timestamp,
+  type DocumentReference,
+  getFirestore,
+} from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
-import { getFirestore } from 'firebase-admin/firestore';
 import { DocumentCrudService } from './document-crud';
 import {
   failPendingDiagramQuiz,
@@ -41,37 +45,109 @@ function parseUserIdFromPath(path: string): string | null {
   return match?.[1] ?? null;
 }
 
-async function hasActiveGenerationJobForRecord(
+/**
+ * Atomically fail a pending record only when no active job is associated.
+ * Shares the record document with {@link GenerationJobsService.createJob}
+ * (`generationJobId`) so orphan sweep and job creation serialize.
+ */
+async function failOrphanPendingRecord(
   userId: string,
-  recordId: string
+  recordRef: DocumentReference,
+  failFn: (userId: string, recordId: string, error: string) => Promise<void>
 ): Promise<boolean> {
-  const snap = await FirestorePaths.generationJobs(userId)
-    .where('recordId', '==', recordId)
-    .where('status', 'in', ['queued', 'processing'])
-    .limit(1)
-    .get();
-  return !snap.empty;
+  const db = getFirestore();
+  const claimed = await db.runTransaction(async (transaction) => {
+    const recordSnap = await transaction.get(recordRef);
+    if (!recordSnap.exists) {
+      return false;
+    }
+
+    const recordData = recordSnap.data() as {
+      generationStatus?: string;
+      generationJobId?: string;
+    };
+
+    if (recordData.generationStatus !== 'pending') {
+      return false;
+    }
+
+    if (recordData.generationJobId) {
+      const jobSnap = await transaction.get(
+        FirestorePaths.generationJob(userId, recordData.generationJobId)
+      );
+      if (jobSnap.exists) {
+        const job = jobSnap.data() as GenerationJob;
+        if (job.status === 'queued' || job.status === 'processing') {
+          return false;
+        }
+      }
+    } else {
+      // Legacy records created before generationJobId association.
+      const legacyJobs = await transaction.get(
+        FirestorePaths.generationJobs(userId)
+          .where('recordId', '==', recordRef.id)
+          .where('status', 'in', ['queued', 'processing'])
+          .limit(1)
+      );
+      if (!legacyJobs.empty) {
+        return false;
+      }
+    }
+
+    transaction.update(recordRef, {
+      generationStatus: 'failed',
+      generationError: STALE_PENDING_SWEEP_MESSAGE,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  });
+
+  if (!claimed) {
+    return false;
+  }
+
+  // Re-run typed fail helper for directory-index sync (idempotent status write).
+  await failFn(userId, recordRef.id, STALE_PENDING_SWEEP_MESSAGE);
+  return true;
 }
 
-async function failStaleGenerationJob(job: GenerationJob): Promise<void> {
-  await failVisibleGenerationRecord(job, STALE_PENDING_SWEEP_MESSAGE).catch((error) => {
-    logger.error('Sweeper failed to mark visible generation record as failed', {
-      userId: job.userId,
-      jobId: job.id,
-      recordId: job.recordId,
-      kind: job.kind,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  });
-  await GenerationJobsService.markFailed(job.userId, job.id, STALE_PENDING_SWEEP_MESSAGE).catch((error) => {
+async function failStaleGenerationJob(
+  userId: string,
+  jobId: string,
+  nowMs: number
+): Promise<boolean> {
+  let failedJob: GenerationJob | null;
+  try {
+    failedJob = await GenerationJobsService.markFailedIfStale(
+      userId,
+      jobId,
+      STALE_PENDING_SWEEP_MESSAGE,
+      nowMs
+    );
+  } catch (error) {
     logger.error('Sweeper failed to mark generation job as failed', {
-      userId: job.userId,
-      jobId: job.id,
-      recordId: job.recordId,
-      kind: job.kind,
+      userId,
+      jobId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+
+  if (!failedJob) {
+    return false;
+  }
+
+  await failVisibleGenerationRecord(failedJob, STALE_PENDING_SWEEP_MESSAGE).catch((error) => {
+    logger.error('Sweeper failed to mark visible generation record as failed', {
+      userId: failedJob.userId,
+      jobId: failedJob.id,
+      recordId: failedJob.recordId,
+      kind: failedJob.kind,
       error: error instanceof Error ? error.message : String(error),
     });
   });
+
+  return true;
 }
 
 async function sweepStaleGenerationJobs(nowMs: number): Promise<number> {
@@ -98,6 +174,7 @@ async function sweepStaleGenerationJobs(nowMs: number): Promise<number> {
       ? STALE_PROCESSING_JOB_MS
       : STALE_ORPHAN_PENDING_MS;
 
+    // Cheap prefilter from query snapshot; authoritative check is transactional.
     if (!isStaleByAge(referenceTime, staleThreshold, nowMs)) {
       continue;
     }
@@ -111,24 +188,13 @@ async function sweepStaleGenerationJobs(nowMs: number): Promise<number> {
       attempts: job.attempts,
     });
 
-    await failStaleGenerationJob({ ...job, userId });
-    failed += 1;
+    const didFail = await failStaleGenerationJob(userId, job.id, nowMs);
+    if (didFail) {
+      failed += 1;
+    }
   }
 
   return failed;
-}
-
-async function failOrphanPendingRecord(
-  userId: string,
-  recordId: string,
-  failFn: (userId: string, recordId: string, error: string) => Promise<void>
-): Promise<boolean> {
-  if (await hasActiveGenerationJobForRecord(userId, recordId)) {
-    return false;
-  }
-
-  await failFn(userId, recordId, STALE_PENDING_SWEEP_MESSAGE);
-  return true;
 }
 
 async function sweepOrphanPendingDocuments(nowMs: number): Promise<number> {
@@ -156,7 +222,7 @@ async function sweepOrphanPendingDocuments(nowMs: number): Promise<number> {
 
     const didFail = await failOrphanPendingRecord(
       userId,
-      doc.id,
+      doc.ref,
       DocumentCrudService.failPendingDocument.bind(DocumentCrudService)
     );
     if (didFail) {
@@ -195,7 +261,7 @@ async function sweepOrphanPendingArtifacts(
       continue;
     }
 
-    const didFail = await failOrphanPendingRecord(userId, doc.id, failFn);
+    const didFail = await failOrphanPendingRecord(userId, doc.ref, failFn);
     if (didFail) {
       logger.warn('Sweeping orphan pending artifact', {
         userId,
