@@ -18,6 +18,39 @@ const MAX_NODES_HEURISTIC = 12;
 const MAX_OPTION_STRUCTURE_LINE_SPREAD = 2;
 const MAX_OPTION_STRUCTURE_LINE_RATIO = 1.5;
 
+/**
+ * Find Mermaid bracket labels that open with a single quote.
+ * Mermaid does not treat `'` as a delimiter — `Node['Label']` renders quotes literally.
+ * Double-quoted labels (`Node["Label"]`) are allowed and are not flagged.
+ */
+export function findSingleQuotedBracketLabels(diagram: string): string[] {
+  const found: string[] = [];
+  for (let i = 0; i < diagram.length; i += 1) {
+    if (diagram[i] !== '[') {
+      continue;
+    }
+
+    let contentStart = i + 1;
+    // Stadium / subroutine shapes use [[label]]
+    if (diagram[contentStart] === '[') {
+      contentStart += 1;
+    }
+
+    while (contentStart < diagram.length && /\s/.test(diagram[contentStart])) {
+      contentStart += 1;
+    }
+
+    if (diagram[contentStart] !== "'") {
+      continue;
+    }
+
+    const close = diagram.indexOf(']', contentStart);
+    const snippet = diagram.slice(i, close === -1 ? Math.min(i + 48, diagram.length) : close + 1);
+    found.push(snippet.replace(/\s+/g, ' ').trim());
+  }
+  return found;
+}
+
 function countStructuralDiagramLines(diagram: string): number {
   return diagram
     .split('\n')
@@ -168,6 +201,21 @@ function validatePolicy(draft: IDiagramQuizDraft): ArtifactGateFailure[] {
           gateId: 'diagramPolicy',
           severity: 'warning',
           message: `Question ${questionIndex + 1}, diagram ${diagramIndex + 1}: diagram may be too large (${nodeCount} lines)`,
+          path,
+          repairTarget: { questionIndex, diagramIndex },
+        });
+      }
+
+      const singleQuotedLabels = findSingleQuotedBracketLabels(diagram);
+      if (singleQuotedLabels.length > 0) {
+        const example = singleQuotedLabels[0];
+        failures.push({
+          gateId: 'diagramPolicy',
+          severity: 'blocker',
+          message:
+            `Question ${questionIndex + 1}, diagram ${diagramIndex + 1}: ` +
+            `Mermaid node label uses single quotes (invalid delimiter). ` +
+            `Use plain brackets or double quotes — e.g. Node[Label] or Node["special=chars"], not ${example}`,
           path,
           repairTarget: { questionIndex, diagramIndex },
         });

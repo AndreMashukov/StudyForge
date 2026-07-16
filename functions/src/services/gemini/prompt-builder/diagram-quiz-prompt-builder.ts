@@ -97,12 +97,13 @@ ${this.getDiagramSyntaxRules()}`;
 - **BANNED diagram types** (will fail to render): \`mindmap\`, \`timeline\`, \`gantt\`, \`pie\`, \`gitGraph\`, \`journey\`, \`sankey\`, \`xychart\`, \`block\`, \`packet\`, \`kanban\`, \`architecture\`. Do NOT use any of these.
 - Keep each diagram **compact**: at most ~12 nodes or participants per diagram so it renders reliably.
 - **No markdown code fences** inside JSON string values — put raw Mermaid source with newline characters escaped as needed.
-- **Do not** use double quotes inside Mermaid node labels; use single quotes or rephrase.
+- Prefer plain bracket labels without quotes: \`User[User Request]\`, \`Agent[LlmAgent]\`.
+- **NEVER** wrap Mermaid node labels in single quotes (\`Node['Label']\`, \`Node[''Label'']\`). Mermaid does not treat \`'\` as a string delimiter — single quotes render literally and break escaping.
 - For **erDiagram** relationship labels (text after \`:\`), use bare identifiers only — **never** quote column or field names. Example: \`users ||--o{ documents : parent_id\`, not \`users ||--o{ documents : 'parent_id'\`.
 - **NEVER** use forward slashes (\`/\`) inside square-bracket node labels. \`[/text]\` triggers Mermaid trapezoid syntax and causes a lexical error. Write \`[text]\` or use parentheses \`(text)\` instead.
 - **NEVER** use backslashes (\`\\\\\`) inside square-bracket node labels for the same reason.
 - **NEVER** use \`@\` inside square-bracket node labels — it is a reserved Mermaid token and causes a parse error. Write the word out instead.
-- If a label must contain a special character (\`/\`, \`\\\\\`, \`@\`, \`#\`, \`&\`), **quote the label** with double quotes inside the brackets: e.g. \`A["@mention"]\` or \`B["/path"]\`.
+- If a label must contain a special character (\`/\`, \`\\\\\`, \`@\`, \`#\`, \`&\`, \`=\`), quote it with **double quotes** inside the brackets: e.g. \`A["@mention"]\`, \`B["/path"]\`, \`cfg["include_contents=none"]\`. Do not nest quotes inside the label — rephrase instead.
 - **NEVER** use spaces in \`subgraph\` IDs. Always use camelCase/snake_case for the ID and put the display label in **square brackets**: \`subgraph topFrame["Top Frame"]\`. Do NOT use parentheses for subgraph labels — \`subgraph Init ('1D DP Array')\` is INVALID syntax; use \`subgraph initArray["1D DP Array"]\` instead.
 - **NEVER** use a colon (\`:\`) inside a parenthesis-style node label \`(text)\` — colons inside \`()\` confuse the Mermaid lexer. Use a dash or spell it out: \`(Size - Capacity plus 1)\` instead of \`(Size: Capacity + 1)\`.
 - **NEVER** put a bare negative number directly inside a circle node \`((text))\`. \`A((-1))\` causes a parse error because Mermaid tokenizes \`(-\` as an operator. **Always quote it**: \`A(("-1"))\`.
