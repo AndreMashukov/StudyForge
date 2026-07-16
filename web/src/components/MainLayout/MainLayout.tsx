@@ -29,6 +29,19 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
     }
   }, [user, dispatch]);
 
+  // The shell uses overflow:hidden on html/body; only inner panes scroll. Focus
+  // scroll-into-view on hidden inputs can still move window.scrollY and shift layout.
+  useEffect(() => {
+    const lockWindowScroll = () => {
+      if (window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    window.addEventListener('scroll', lockWindowScroll, { passive: true });
+    return () => window.removeEventListener('scroll', lockWindowScroll);
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
