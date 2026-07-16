@@ -1,6 +1,12 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { computeExpiresAt } from '../lib/firestore-ttl';
 import { FirestorePaths } from '../lib/firestore-paths';
+import {
+  getJobStaleReferenceTime,
+  isStaleByAge,
+  STALE_PROCESSING_JOB_MS,
+} from './generation-stale';
+import { MAX_GENERATION_JOB_ATTEMPTS } from './generation-job-retry';
 
 export type GenerationJobKind =
   | 'documentFromPrompt'
@@ -41,6 +47,12 @@ export interface CreateGenerationJobParams {
   payloadStoragePath: string;
 }
 
+export type ClaimJobForProcessingResult =
+  | { type: 'claimed'; job: GenerationJob }
+  | { type: 'missing' }
+  | { type: 'skip'; job: GenerationJob }
+  | { type: 'failed_stale'; job: GenerationJob };
+
 export class GenerationJobsService {
   static newJobId(userId: string): string {
     return FirestorePaths.generationJobs(userId).doc().id;
@@ -76,7 +88,95 @@ export class GenerationJobsService {
   }
 
   static async claimQueuedJob(userId: string, jobId: string): Promise<GenerationJob | null> {
+    const result = await this.claimJobForProcessing(userId, jobId);
+    if (result.type === 'claimed') {
+      return result.job;
+    }
+    return null;
+  }
+
+  static async claimJobForProcessing(
+    userId: string,
+    jobId: string
+  ): Promise<ClaimJobForProcessingResult> {
     const ref = FirestorePaths.generationJob(userId, jobId);
+    const existingSnap = await ref.get();
+    if (!existingSnap.exists) {
+      return { type: 'missing' };
+    }
+
+    const existingJob = { id: existingSnap.id, ...existingSnap.data() } as GenerationJob;
+
+    if (existingJob.status === 'completed' || existingJob.status === 'failed') {
+      return { type: 'skip', job: existingJob };
+    }
+
+    if (existingJob.status === 'processing') {
+      const referenceTime = getJobStaleReferenceTime(existingJob);
+      if (!isStaleByAge(referenceTime, STALE_PROCESSING_JOB_MS)) {
+        return { type: 'skip', job: existingJob };
+      }
+
+      if (existingJob.attempts >= MAX_GENERATION_JOB_ATTEMPTS) {
+        return { type: 'failed_stale', job: existingJob };
+      }
+
+      const reclaimed = await ref.firestore.runTransaction(async (transaction) => {
+        const snap = await transaction.get(ref);
+        if (!snap.exists) {
+          return false;
+        }
+
+        const job = { id: snap.id, ...snap.data() } as GenerationJob;
+        if (job.status !== 'processing') {
+          return false;
+        }
+
+        const staleReferenceTime = getJobStaleReferenceTime(job);
+        if (!isStaleByAge(staleReferenceTime, STALE_PROCESSING_JOB_MS)) {
+          return false;
+        }
+
+        if (job.attempts >= MAX_GENERATION_JOB_ATTEMPTS) {
+          return false;
+        }
+
+        transaction.update(ref, {
+          status: 'processing',
+          attempts: FieldValue.increment(1),
+          startedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          lastError: 'Reclaimed after stale processing timeout',
+        });
+
+        return true;
+      });
+
+      if (!reclaimed) {
+        const latest = await this.getJob(userId, jobId);
+        if (!latest) {
+          return { type: 'missing' };
+        }
+        if (latest.status === 'completed' || latest.status === 'failed') {
+          return { type: 'skip', job: latest };
+        }
+        if (
+          latest.status === 'processing'
+          && isStaleByAge(getJobStaleReferenceTime(latest), STALE_PROCESSING_JOB_MS)
+          && latest.attempts >= MAX_GENERATION_JOB_ATTEMPTS
+        ) {
+          return { type: 'failed_stale', job: latest };
+        }
+        return { type: 'skip', job: latest };
+      }
+
+      const reclaimedJob = await this.getJob(userId, jobId);
+      if (!reclaimedJob) {
+        return { type: 'missing' };
+      }
+      return { type: 'claimed', job: reclaimedJob };
+    }
+
     const claimed = await ref.firestore.runTransaction(async (transaction) => {
       const snap = await transaction.get(ref);
       if (!snap.exists) {
@@ -99,10 +199,18 @@ export class GenerationJobsService {
     });
 
     if (!claimed) {
-      return null;
+      const latest = await this.getJob(userId, jobId);
+      if (!latest) {
+        return { type: 'missing' };
+      }
+      return { type: 'skip', job: latest };
     }
 
-    return this.getJob(userId, jobId);
+    const claimedJob = await this.getJob(userId, jobId);
+    if (!claimedJob) {
+      return { type: 'missing' };
+    }
+    return { type: 'claimed', job: claimedJob };
   }
 
   static async markCompleted(userId: string, jobId: string): Promise<void> {

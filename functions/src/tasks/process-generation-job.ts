@@ -8,6 +8,7 @@ import {
   MAX_GENERATION_JOB_ATTEMPTS,
   shouldRetryGenerationJob,
 } from '../services/generation-job-retry';
+import { STALE_PENDING_SWEEP_MESSAGE } from '../services/generation-stale';
 import { GenerationJob, GenerationJobsService } from '../services/generation-jobs';
 import { ArtifactAgentGenerationProcessor } from '../services/generation-processors/artifact-agent';
 import { DocumentFromPromptGenerationProcessor } from '../services/generation-processors/document-from-prompt';
@@ -77,16 +78,50 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
       return;
     }
 
-    const job = await GenerationJobsService.claimQueuedJob(userId, jobId);
-    if (!job) {
-      const existingJob = await GenerationJobsService.getJob(userId, jobId);
-      if (!existingJob) {
-        logger.error('Generation job not found for task', { userId, jobId });
-        return;
-      }
-      logger.info('Skipping non-queued generation job', { userId, jobId, status: existingJob.status });
+    const claimResult = await GenerationJobsService.claimJobForProcessing(userId, jobId);
+    if (claimResult.type === 'missing') {
+      logger.error('Generation job not found for task', { userId, jobId });
       return;
     }
+
+    if (claimResult.type === 'failed_stale') {
+      const staleJob = claimResult.job;
+      logger.warn('Failing stale processing generation job', {
+        userId,
+        jobId,
+        kind: staleJob.kind,
+        recordId: staleJob.recordId,
+        attempts: staleJob.attempts,
+      });
+      await failVisibleGenerationRecord(staleJob, STALE_PENDING_SWEEP_MESSAGE).catch((failError) => {
+        logger.error('Failed to mark visible generation record as failed for stale job', {
+          userId,
+          jobId,
+          recordId: staleJob.recordId,
+          error: failError instanceof Error ? failError.message : String(failError),
+        });
+      });
+      await GenerationJobsService.markFailed(userId, jobId, STALE_PENDING_SWEEP_MESSAGE).catch((failError) => {
+        logger.error('Failed to mark stale generation job as failed', {
+          userId,
+          jobId,
+          recordId: staleJob.recordId,
+          error: failError instanceof Error ? failError.message : String(failError),
+        });
+      });
+      return;
+    }
+
+    if (claimResult.type === 'skip') {
+      logger.info('Skipping non-queued generation job', {
+        userId,
+        jobId,
+        status: claimResult.job.status,
+      });
+      return;
+    }
+
+    const job = claimResult.job;
 
     try {
       await processJob(job);

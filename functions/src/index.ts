@@ -64,6 +64,10 @@ export {
 } from "./tasks/process-generation-job";
 
 export {
+  sweepStaleGenerationsSchedule,
+} from "./tasks/sweep-stale-generations";
+
+export {
   generateDiagramQuiz,
   getDiagramQuiz,
   getUserDiagramQuizzes,

@@ -285,11 +285,12 @@ export const uploadAndCreateDocument = onCall(
  * YouTube URLs are processed via transcript extraction; all others are web-scraped.
  */
 export const createDocumentFromUrl = onCall(
-  { 
+  {
     region: 'asia-east1',
     cors: true,
     secrets: [geminiApiKey, llmSettingsEncryptionKey, apifyApiToken],
     timeoutSeconds: 540,
+    memory: '1GiB',
   },
   async (request) => {
     try {

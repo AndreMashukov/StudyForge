@@ -54,6 +54,18 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
             <div className="font-medium truncate text-muted-foreground">{title}</div>
             <Badge variant="secondary" className="mt-1 text-xs">Preparing</Badge>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            aria-label={deleteAriaLabel}
+          >
+            <Trash2 size={16} />
+          </Button>
         </div>
       </div>
     );

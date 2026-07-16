@@ -49,6 +49,15 @@ export const SourceRow: React.FC<SourceRowProps> = ({
             <div className="font-medium truncate text-muted-foreground">{document.title}</div>
             <Badge variant="secondary" className="mt-1 text-xs">Preparing</Badge>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(document)}
+            aria-label={`Cancel ${document.title}`}
+          >
+            <Trash2 size={14} />
+          </Button>
         </div>
       </div>
     );
