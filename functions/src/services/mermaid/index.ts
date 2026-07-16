@@ -1,5 +1,10 @@
 export { applyMermaidLabelTooltips } from './apply-mermaid-label-tooltips';
-export { sanitizeMermaidCode } from './sanitize-mermaid-code';
+export {
+  findSingleQuotedBracketLabels,
+  normalizeSingleQuotedLabelContent,
+  sanitizeMermaidCode,
+  sanitizeSingleQuotedBracketLabels,
+} from './sanitize-mermaid-code';
 export {
   enforceUniformMermaidQuizPalette,
   extractMermaidFillSignatures,

@@ -47,6 +47,94 @@ let renderQueue: Promise<void> = Promise.resolve();
  * All matches are intentionally kept within a single line (via \n exclusion)
  * to prevent the greedy quantifiers from spanning multiple nodes.
  */
+
+/** Characters that require a double-quoted Mermaid bracket label. */
+const SPECIAL_BRACKET_LABEL_CHARS = /[/@\\()#&={}$[\]]/;
+
+/**
+ * Normalize label text that was incorrectly wrapped in single quotes.
+ * Mermaid does not treat `'` as a delimiter — strip wrappers and remaining
+ * apostrophe "escaping", then use plain or double-quoted form.
+ */
+function normalizeSingleQuotedLabelContent(rawInner: string): string {
+  let text = rawInner.trim();
+
+  while (text.length >= 2 && text.startsWith("'") && text.endsWith("'")) {
+    if (text.startsWith("''") && text.endsWith("''") && text.length >= 4) {
+      text = text.slice(2, -2).trim();
+    } else {
+      text = text.slice(1, -1).trim();
+    }
+  }
+
+  text = text.replace(/'/g, '').trim();
+  if (!text) {
+    return 'label';
+  }
+
+  if (SPECIAL_BRACKET_LABEL_CHARS.test(text) || text.includes('"')) {
+    return `"${text.replace(/"/g, '')}"`;
+  }
+
+  return text;
+}
+
+/**
+ * Rewrite `Node['Label']` / `Node[''Label'']` into plain or double-quoted labels.
+ * Example: `cfg['include_contents='none'']` → `cfg["include_contents=none"]`.
+ * Kept in sync with functions/src/services/mermaid/sanitize-mermaid-code.ts.
+ */
+function sanitizeSingleQuotedBracketLabels(source: string): string {
+  let result = '';
+  let index = 0;
+
+  while (index < source.length) {
+    if (source[index] !== '[') {
+      result += source[index];
+      index += 1;
+      continue;
+    }
+
+    let opener = '[';
+    let contentStart = index + 1;
+    if (source[contentStart] === '[') {
+      opener = '[[';
+      contentStart += 1;
+    }
+
+    let scan = contentStart;
+    while (scan < source.length && /\s/.test(source[scan])) {
+      scan += 1;
+    }
+
+    if (source[scan] !== "'") {
+      result += source[index];
+      index += 1;
+      continue;
+    }
+
+    const closeBracket = source.indexOf(']', contentStart);
+    if (closeBracket === -1) {
+      result += source[index];
+      index += 1;
+      continue;
+    }
+
+    let closeEnd = closeBracket + 1;
+    if (opener === '[[' && source[closeEnd] === ']') {
+      closeEnd += 1;
+    }
+
+    const inner = source.slice(contentStart, closeBracket);
+    const normalized = normalizeSingleQuotedLabelContent(inner);
+    const closer = opener === '[[' ? ']]' : ']';
+    result += `${opener}${normalized}${closer}`;
+    index = closeEnd;
+  }
+
+  return result;
+}
+
 function sanitizeBracketLabels(source: string): string {
   // Handle labels containing special shape-syntax chars: / @ \ ( )
   let result = source.replace(
@@ -308,11 +396,13 @@ function sanitizeMermaidCode(source: string): string {
       sanitizeSquareBracketsInParenLabels(
         sanitizeSquareBracketsInDiamondLabels(
           sanitizeBracketLabels(
-            sanitizeNestedBracketsInBracketLabels(sanitizeErDiagramRelationshipLabels(source)),
-          ),
-        ),
-      ),
-    ),
+            sanitizeNestedBracketsInBracketLabels(
+              sanitizeSingleQuotedBracketLabels(sanitizeErDiagramRelationshipLabels(source))
+            )
+          )
+        )
+      )
+    )
   );
 }
 

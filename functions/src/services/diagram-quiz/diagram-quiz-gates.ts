@@ -5,6 +5,8 @@ import {
   enforceUniformMermaidQuizPalette,
   extractDiagramType,
   extractMermaidFillSignatures,
+  findSingleQuotedBracketLabels,
+  sanitizeSingleQuotedBracketLabels,
   validateMermaidDiagram,
 } from '../mermaid';
 import type {
@@ -18,38 +20,7 @@ const MAX_NODES_HEURISTIC = 12;
 const MAX_OPTION_STRUCTURE_LINE_SPREAD = 2;
 const MAX_OPTION_STRUCTURE_LINE_RATIO = 1.5;
 
-/**
- * Find Mermaid bracket labels that open with a single quote.
- * Mermaid does not treat `'` as a delimiter — `Node['Label']` renders quotes literally.
- * Double-quoted labels (`Node["Label"]`) are allowed and are not flagged.
- */
-export function findSingleQuotedBracketLabels(diagram: string): string[] {
-  const found: string[] = [];
-  for (let i = 0; i < diagram.length; i += 1) {
-    if (diagram[i] !== '[') {
-      continue;
-    }
-
-    let contentStart = i + 1;
-    // Stadium / subroutine shapes use [[label]]
-    if (diagram[contentStart] === '[') {
-      contentStart += 1;
-    }
-
-    while (contentStart < diagram.length && /\s/.test(diagram[contentStart])) {
-      contentStart += 1;
-    }
-
-    if (diagram[contentStart] !== "'") {
-      continue;
-    }
-
-    const close = diagram.indexOf(']', contentStart);
-    const snippet = diagram.slice(i, close === -1 ? Math.min(i + 48, diagram.length) : close + 1);
-    found.push(snippet.replace(/\s+/g, ' ').trim());
-  }
-  return found;
-}
+export { findSingleQuotedBracketLabels, sanitizeSingleQuotedBracketLabels };
 
 function countStructuralDiagramLines(diagram: string): number {
   return diagram
@@ -160,7 +131,13 @@ function validatePolicy(draft: IDiagramQuizDraft): ArtifactGateFailure[] {
 
   draft.questions.forEach((question, questionIndex) => {
     question.diagrams.forEach((diagram, diagramIndex) => {
-      const diagramType = extractDiagramType(diagram);
+      // Deterministic rewrite: Node['Label'] → plain or double-quoted labels.
+      const rewritten = sanitizeSingleQuotedBracketLabels(diagram);
+      if (rewritten !== diagram) {
+        question.diagrams[diagramIndex] = rewritten;
+      }
+      const effectiveDiagram = question.diagrams[diagramIndex];
+      const diagramType = extractDiagramType(effectiveDiagram);
       const path = `questions[${questionIndex}].diagrams[${diagramIndex}]`;
 
       if (!diagramType) {
@@ -195,7 +172,7 @@ function validatePolicy(draft: IDiagramQuizDraft): ArtifactGateFailure[] {
         });
       }
 
-      const nodeCount = diagram.split('\n').filter((line) => line.trim().length > 0).length;
+      const nodeCount = effectiveDiagram.split('\n').filter((line) => line.trim().length > 0).length;
       if (nodeCount > MAX_NODES_HEURISTIC + 2) {
         failures.push({
           gateId: 'diagramPolicy',
@@ -206,7 +183,7 @@ function validatePolicy(draft: IDiagramQuizDraft): ArtifactGateFailure[] {
         });
       }
 
-      const singleQuotedLabels = findSingleQuotedBracketLabels(diagram);
+      const singleQuotedLabels = findSingleQuotedBracketLabels(effectiveDiagram);
       if (singleQuotedLabels.length > 0) {
         const example = singleQuotedLabels[0];
         failures.push({
