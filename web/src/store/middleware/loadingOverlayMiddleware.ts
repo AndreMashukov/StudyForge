@@ -14,16 +14,6 @@ import { setLoading } from '../slices/uiSlice';
 export const LOADING_OVERLAY_MUTATIONS = new Set<string>([
   'createDirectory',
   'deleteDirectory',
-  'createDocument',
-  'createDocumentFromUrl',
-  'uploadAndCreateDocument',
-  'generateFromPrompt',
-  'generateQuiz',
-  'generateFlashcards',
-  'generateSlideDeck',
-  'generateSequenceQuiz',
-  'generateDiagramQuiz',
-  'generateSubjectWorld',
   'updateRule',
 ]);
 
