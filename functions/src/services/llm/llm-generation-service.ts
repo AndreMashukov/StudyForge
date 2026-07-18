@@ -128,27 +128,83 @@ function parseFlashcardsJson(raw: string): FlashcardItem[] {
   }
 }
 
+function parseClassificationConfidence(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.min(1, Math.max(0, value));
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value.trim());
+    if (Number.isFinite(parsed)) {
+      return Math.min(1, Math.max(0, parsed));
+    }
+  }
+  return 0;
+}
+
+function parseClassificationIsLanguageLearning(value: unknown): boolean {
+  return value === true || value === 1 || value === 'true' || value === 'True';
+}
+
+function tryParseJsonObject(raw: string): Record<string, unknown> | null {
+  const candidates = [
+    stripCodeFences(raw),
+    JsonSanitizer.initialCleanup(raw),
+  ];
+
+  let sanitized = JsonSanitizer.initialCleanup(raw);
+  sanitized = JsonSanitizer.sanitizeJsonText(sanitized);
+  sanitized = JsonSanitizer.applyComprehensiveCleanup(sanitized);
+  sanitized = JsonSanitizer.applyStateBased(sanitized);
+  candidates.push(sanitized);
+
+  const relaxed = stripCodeFences(raw)
+    .replace(/\bTrue\b/g, 'true')
+    .replace(/\bFalse\b/g, 'false')
+    .replace(/\bNone\b/g, 'null');
+  const relaxedObject = relaxed.match(/(\{[\s\S]*\})/);
+  if (relaxedObject) {
+    candidates.push(relaxedObject[1]);
+  }
+
+  for (const candidate of candidates) {
+    const objectMatch = candidate.match(/(\{[\s\S]*\})/);
+    const text = objectMatch ? objectMatch[1] : candidate;
+    try {
+      const parsed: unknown = JSON.parse(text);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+
+  try {
+    const fallback = JsonSanitizer.tryFallbackParsing(sanitized);
+    if (fallback && typeof fallback === 'object' && !Array.isArray(fallback)) {
+      return fallback as Record<string, unknown>;
+    }
+  } catch {
+    // fall through
+  }
+
+  return null;
+}
+
 function parseFlashcardLanguageClassification(
   raw: string
 ): import('@shared-types').FlashcardLanguageClassification {
-  const text = stripCodeFences(raw);
-  const objectMatch = text.match(/(\{[\s\S]*\})/);
-  const candidate = objectMatch ? objectMatch[1] : text;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(candidate);
-  } catch {
+  const record = tryParseJsonObject(raw);
+  if (!record) {
+    functions.logger.error('Could not parse flashcard language classification JSON', {
+      responsePreview: raw.slice(0, 500),
+      responseLength: raw.length,
+    });
     throw new Error('Could not parse flashcard language classification JSON');
   }
 
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Flashcard language classification must be a JSON object');
-  }
-
-  const record = parsed as Record<string, unknown>;
-  const isLanguageLearning = record.isLanguageLearning === true;
-  const confidenceRaw = typeof record.confidence === 'number' ? record.confidence : 0;
-  const confidence = Math.min(1, Math.max(0, confidenceRaw));
+  const isLanguageLearning = parseClassificationIsLanguageLearning(record.isLanguageLearning);
+  const confidence = parseClassificationConfidence(record.confidence);
   const targetLanguageCode =
     typeof record.targetLanguageCode === 'string' && record.targetLanguageCode.trim()
       ? record.targetLanguageCode.trim()
@@ -320,6 +376,7 @@ export class LlmGenerationService {
         model: ctx.resolution.route.model,
         temperature: 0.1,
         maxOutputTokens: 512,
+        responseMimeType: 'application/json',
       },
     });
 
@@ -327,6 +384,7 @@ export class LlmGenerationService {
       userId,
       model: result.model,
       responseLength: result.text.length,
+      responsePreview: result.text.slice(0, 200),
     });
 
     return parseFlashcardLanguageClassification(result.text);

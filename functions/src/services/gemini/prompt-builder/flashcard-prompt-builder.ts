@@ -18,14 +18,14 @@ export const FlashcardPromptBuilder = {
 
 Be conservative: only mark isLanguageLearning=true when the document clearly teaches words/phrases in a target language (word lists, bilingual vocab, language textbook excerpts, phrase drills). General topic study in English (or any single language of instruction that is not vocabulary study) is NOT language learning.
 
-Return a single JSON object only:
-{"isLanguageLearning":boolean,"confidence":number,"targetLanguageCode":string|null,"targetLanguageName":string|null}
+Return a single JSON object only (double-quoted keys/strings, lowercase true/false, no markdown):
+{"isLanguageLearning":true,"confidence":0.0,"targetLanguageCode":null,"targetLanguageName":null}
 
 Rules:
-- confidence is from 0 to 1
+- confidence is a number from 0 to 1
 - When isLanguageLearning is false, set targetLanguageCode and targetLanguageName to null
-- When isLanguageLearning is true, targetLanguageCode must be a BCP-47 code (e.g. "es", "ja", "zh-Hans") and targetLanguageName a display name (e.g. "Spanish")
-- Do not wrap in markdown
+- When isLanguageLearning is true, targetLanguageCode must be a BCP-47 code (e.g. "es", "ja", "zh-Hans", "yue") and targetLanguageName a display name (e.g. "Spanish", "Cantonese")
+- Do not wrap in markdown or add commentary
 
 Document excerpt:
 ---

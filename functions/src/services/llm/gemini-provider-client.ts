@@ -25,6 +25,9 @@ export class GeminiProviderClient implements LlmProviderClient {
         topK: request.config.topK,
         topP: request.config.topP,
         maxOutputTokens: request.config.maxOutputTokens,
+        ...(request.config.responseMimeType
+          ? { responseMimeType: request.config.responseMimeType }
+          : {}),
       },
     });
 

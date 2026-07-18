@@ -28,6 +28,8 @@ export interface LlmTextConfig {
   topP?: number;
   topK?: number;
   maxOutputTokens?: number;
+  /** Gemini: force JSON object responses when supported. */
+  responseMimeType?: 'application/json' | 'text/plain';
 }
 
 export interface LlmTextRequest {
