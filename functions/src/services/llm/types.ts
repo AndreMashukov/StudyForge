@@ -30,6 +30,11 @@ export interface LlmTextConfig {
   maxOutputTokens?: number;
   /** Gemini: force JSON object responses when supported. */
   responseMimeType?: 'application/json' | 'text/plain';
+  /**
+   * Gemini thinking budget in tokens. 0 disables when the model allows it;
+   * omit to keep model defaults.
+   */
+  thinkingBudget?: number;
 }
 
 export interface LlmTextRequest {

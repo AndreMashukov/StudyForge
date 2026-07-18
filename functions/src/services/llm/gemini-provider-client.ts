@@ -28,12 +28,23 @@ export class GeminiProviderClient implements LlmProviderClient {
         ...(request.config.responseMimeType
           ? { responseMimeType: request.config.responseMimeType }
           : {}),
+        ...(request.config.thinkingBudget !== undefined
+          ? { thinkingConfig: { thinkingBudget: request.config.thinkingBudget } }
+          : {}),
       },
     });
 
     const text = response.text;
     if (!text) {
       throw new Error('Empty response from Gemini API');
+    }
+
+    const finishReason = response.candidates?.[0]?.finishReason;
+    if (finishReason && finishReason !== 'STOP') {
+      throw new Error(
+        `Gemini text generation stopped before completion (${finishReason}); `
+        + `response length ${text.length}`
+      );
     }
 
     return {

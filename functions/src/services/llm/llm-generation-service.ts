@@ -375,7 +375,9 @@ export class LlmGenerationService {
       config: {
         model: ctx.resolution.route.model,
         temperature: 0.1,
-        maxOutputTokens: 512,
+        // Thinking models (e.g. gemini-pro-latest) spend output budget on thoughts;
+        // 512 was truncating JSON mid-key (responseLength 23).
+        maxOutputTokens: 16384,
         responseMimeType: 'application/json',
       },
     });
