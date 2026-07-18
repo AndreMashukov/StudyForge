@@ -30,6 +30,8 @@ export interface LlmTextConfig {
   maxOutputTokens?: number;
   /** Gemini: force JSON object responses when supported. */
   responseMimeType?: 'application/json' | 'text/plain';
+  /** Gemini structured-output schema (used with application/json). */
+  responseSchema?: Record<string, unknown>;
   /**
    * Gemini thinking budget in tokens. 0 disables when the model allows it;
    * omit to keep model defaults.

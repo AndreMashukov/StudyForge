@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { logger } from 'firebase-functions/v2';
 import type { LlmProviderClient } from './llm-provider-client';
 import type {
   LlmImageRequest,
@@ -12,7 +13,7 @@ import type {
 export class GeminiProviderClient implements LlmProviderClient {
   constructor(
     private readonly apiKey: string,
-    private readonly connectionId: string
+    private readonly connectionId: string,
   ) {}
 
   async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
@@ -28,8 +29,13 @@ export class GeminiProviderClient implements LlmProviderClient {
         ...(request.config.responseMimeType
           ? { responseMimeType: request.config.responseMimeType }
           : {}),
+        ...(request.config.responseSchema
+          ? { responseSchema: request.config.responseSchema }
+          : {}),
         ...(request.config.thinkingBudget !== undefined
-          ? { thinkingConfig: { thinkingBudget: request.config.thinkingBudget } }
+          ? {
+              thinkingConfig: { thinkingBudget: request.config.thinkingBudget },
+            }
           : {}),
       },
     });
@@ -41,10 +47,12 @@ export class GeminiProviderClient implements LlmProviderClient {
 
     const finishReason = response.candidates?.[0]?.finishReason;
     if (finishReason && finishReason !== 'STOP') {
-      throw new Error(
-        `Gemini text generation stopped before completion (${finishReason}); `
-        + `response length ${text.length}`
-      );
+      // Caller may still recover truncated JSON (e.g. missing closing brace).
+      logger.warn('Gemini text generation stopped before STOP', {
+        finishReason,
+        responseLength: text.length,
+        model: request.config.model,
+      });
     }
 
     return {
@@ -55,15 +63,19 @@ export class GeminiProviderClient implements LlmProviderClient {
     };
   }
 
-  async generateVisionText(request: LlmVisionRequest): Promise<LlmVisionResult> {
+  async generateVisionText(
+    request: LlmVisionRequest,
+  ): Promise<LlmVisionResult> {
     void request;
     throw new Error(
-      'Gemini vision is handled by GeminiService.generateDocumentFromScreenshot'
+      'Gemini vision is handled by GeminiService.generateDocumentFromScreenshot',
     );
   }
 
   async generateImage(request: LlmImageRequest): Promise<LlmImageResult> {
     void request;
-    throw new Error('Gemini image generation is handled by GeminiService slide image methods');
+    throw new Error(
+      'Gemini image generation is handled by GeminiService slide image methods',
+    );
   }
 }
