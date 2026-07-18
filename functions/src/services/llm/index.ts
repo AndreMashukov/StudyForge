@@ -1,4 +1,5 @@
 export { LlmGenerationService } from './llm-generation-service';
+export type { GenerateFlashcardsResult } from './llm-generation-service';
 export {
   resolveTextGenerationModelLabel,
   resolveScreenshotGenerationModelLabel,

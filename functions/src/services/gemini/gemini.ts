@@ -942,7 +942,8 @@ This question is derived from: **${context.originalDocument.title}**
   public static async generateFlashcards(
     content: string,
     rules?: string,
-    descriptionRules?: string
+    descriptionRules?: string,
+    options?: import('./prompt-builder/flashcard-prompt-builder').FlashcardPromptOptions
   ): Promise<{
     front: string;
     back: string;
@@ -959,7 +960,8 @@ This question is derived from: **${context.originalDocument.title}**
       const prompt = FlashcardPromptBuilder.buildFlashcardPrompt(
         content,
         rules,
-        descriptionRules
+        descriptionRules,
+        options
       );
       functions.logger.debug(
         'Sending flashcard generation request to Gemini AI',

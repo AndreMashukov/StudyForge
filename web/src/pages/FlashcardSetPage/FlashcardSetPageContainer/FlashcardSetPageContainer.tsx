@@ -10,6 +10,8 @@ import {
   ChevronLeft,
   Maximize2,
   Minimize2,
+  Check,
+  X,
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -23,9 +25,18 @@ export const FlashcardSetPageContainer = () => {
     currentIndex,
     isFlipped,
     isFullscreen,
+    activeQueue,
+    learnedCount,
+    failedCount,
+    isSessionComplete,
+    canStartRetake,
+    canAdvanceNext,
     handleNext,
     handlePrev,
     handleFlip,
+    handleMarkLearned,
+    handleMarkFailed,
+    handleStartRetake,
     handleRestart,
     handleGoBack,
     handleToggleFullscreen,
@@ -76,10 +87,17 @@ export const FlashcardSetPageContainer = () => {
     );
   }
 
-  const totalCards = flashcardSet.flashcards.length;
-  const currentCard = flashcardSet.flashcards[currentIndex];
-  const progressPct = Math.round(((currentIndex + 1) / totalCards) * 100);
-  const isLast = currentIndex === totalCards - 1;
+  const cardById = new Map(flashcardSet.flashcards.map((card) => [card.id, card]));
+  const queueLength = activeQueue.length;
+  const safeIndex = Math.min(currentIndex, Math.max(queueLength - 1, 0));
+  const currentCardId = activeQueue[safeIndex];
+  const currentCard = currentCardId ? cardById.get(currentCardId) : undefined;
+  const reviewedCount = isSessionComplete ? queueLength : safeIndex + 1;
+  const progressPct =
+    queueLength === 0 ? 0 : Math.round((reviewedCount / queueLength) * 100);
+  const positionLabel = isSessionComplete
+    ? `${queueLength} / ${queueLength}`
+    : `${safeIndex + 1} / ${queueLength}`;
 
   const frontHtml = resolveFlashcardHtml(currentCard?.frontHtml, currentCard?.front);
   const backHtml = resolveFlashcardHtml(currentCard?.backHtml, currentCard?.back);
@@ -89,8 +107,90 @@ export const FlashcardSetPageContainer = () => {
   );
   const hasDescription = !!descriptionHtml;
 
-  // Shared card UI — used in both normal and fullscreen mode
-  const cardArea = (
+  const studyControls = (
+    <div className="max-w-2xl mx-auto flex items-center justify-center gap-3 sm:gap-4">
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        onClick={(event) => {
+          event.stopPropagation();
+          handlePrev();
+        }}
+        disabled={currentIndex === 0 || isSessionComplete}
+        aria-label="Previous card"
+        className="h-12 w-12 rounded-full active:scale-95"
+      >
+        <ArrowLeft className="h-5 w-5 text-primary" />
+      </Button>
+
+      <Button
+        type="button"
+        variant="destructive"
+        onClick={(event) => {
+          event.stopPropagation();
+          handleMarkFailed();
+        }}
+        disabled={isSessionComplete || !currentCard}
+        aria-label="Mark card as failed"
+        className="h-12 min-w-[4.5rem] gap-2 rounded-full px-4 active:scale-95"
+      >
+        <X className="h-5 w-5" />
+        <span className="text-sm font-semibold tabular-nums">{failedCount}</span>
+      </Button>
+
+      <Button
+        type="button"
+        variant="default"
+        onClick={(event) => {
+          event.stopPropagation();
+          handleMarkLearned();
+        }}
+        disabled={isSessionComplete || !currentCard}
+        aria-label="Mark card as learned"
+        className="h-12 min-w-[4.5rem] gap-2 rounded-full px-4 active:scale-95"
+      >
+        <span className="text-sm font-semibold tabular-nums">{learnedCount}</span>
+        <Check className="h-5 w-5" />
+      </Button>
+
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        onClick={(event) => {
+          event.stopPropagation();
+          handleNext();
+        }}
+        disabled={!canAdvanceNext}
+        aria-label="Next card"
+        className="h-12 w-12 rounded-full active:scale-95"
+      >
+        <ArrowRight className="h-5 w-5 text-primary" />
+      </Button>
+    </div>
+  );
+
+  const endOfTurnActions = isSessionComplete ? (
+    <div className="mt-5 text-center space-y-3">
+      <p className="text-sm font-semibold text-muted-foreground">
+        {canStartRetake
+          ? `Turn complete — ${failedCount} card${failedCount === 1 ? '' : 's'} to retake.`
+          : 'All cards in this turn are learned.'}
+      </p>
+      <div className="flex items-center justify-center gap-2">
+        {canStartRetake ? (
+          <Button onClick={handleStartRetake}>Retake failed cards</Button>
+        ) : null}
+        <Button variant="outline" onClick={handleRestart}>
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Restart set
+        </Button>
+      </div>
+    </div>
+  ) : null;
+
+  const cardArea = currentCard ? (
     <div
       className="w-full max-w-xl cursor-pointer hover:[filter:drop-shadow(0_0_14px_color-mix(in_srgb,var(--primary)_20%,transparent))] transition-[filter] duration-300"
       style={{ perspective: '1200px', height: 'clamp(240px, 40vh, 380px)' }}
@@ -102,63 +202,67 @@ export const FlashcardSetPageContainer = () => {
           isFlipped && '[transform:rotateY(180deg)]'
         )}
       >
-        {/* FRONT */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center [backface-visibility:hidden] [-webkit-backface-visibility:hidden] rounded-[var(--radius,0.5rem)] border border-border bg-card text-card-foreground shadow-[0_4px_6px_-1px_rgba(0,0,0,0.25),0_10px_40px_-10px_rgba(0,0,0,0.3)]">
-          <div className="px-6 sm:px-8 text-center">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
-              Tap to reveal
-            </p>
+        <div className="absolute inset-0 flex flex-col [backface-visibility:hidden] [-webkit-backface-visibility:hidden] rounded-[var(--radius,0.5rem)] border border-border bg-card text-card-foreground shadow-[0_4px_6px_-1px_rgba(0,0,0,0.25),0_10px_40px_-10px_rgba(0,0,0,0.3)]">
+          <div className="flex items-center justify-between px-4 pt-3">
+            <p className="text-xs text-muted-foreground tabular-nums">{positionLabel}</p>
+          </div>
+          <div className="flex flex-1 flex-col items-center justify-center px-6 sm:px-8 text-center">
             <FlashcardHtmlContent
               html={frontHtml}
               className="text-lg sm:text-2xl font-bold leading-snug text-center"
             />
           </div>
+          <p className="pb-4 text-center text-xs text-muted-foreground">
+            {isFlipped ? '' : 'See answer'}
+          </p>
         </div>
 
-        {/* BACK */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)] rounded-[var(--radius,0.5rem)] border border-border bg-card text-card-foreground shadow-[0_4px_6px_-1px_rgba(0,0,0,0.25),0_10px_40px_-10px_rgba(0,0,0,0.3)]">
-          <div className="flex flex-col items-center gap-3 px-6 sm:px-8 text-center overflow-y-auto max-h-full py-4">
+        <div className="absolute inset-0 flex flex-col [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)] rounded-[var(--radius,0.5rem)] border border-border bg-card text-card-foreground shadow-[0_4px_6px_-1px_rgba(0,0,0,0.25),0_10px_40px_-10px_rgba(0,0,0,0.3)]">
+          <div className="flex items-center justify-between px-4 pt-3">
+            <p className="text-xs text-muted-foreground tabular-nums">{positionLabel}</p>
+          </div>
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 sm:px-8 text-center overflow-y-auto py-4">
             <FlashcardHtmlContent
               html={backHtml}
               className="text-base sm:text-xl font-semibold leading-relaxed text-center"
             />
-            {currentCard?.explanation && (
+            {currentCard.explanation ? (
               <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
                 {currentCard.explanation}
               </p>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
     </div>
+  ) : (
+    <div className="w-full max-w-xl rounded-[var(--radius,0.5rem)] border border-border bg-card p-8 text-center text-muted-foreground">
+      No cards remaining in this turn.
+    </div>
   );
 
-  // Fullscreen mode — covers the entire viewport, no app bar or sidebar visible
   if (isFullscreen) {
     return (
       <Page showSidebar={true}>
         <div className="fixed inset-0 z-[2000] bg-background flex flex-col">
-          {/* Fullscreen header */}
           <div className="px-4 sm:px-6 pt-4 pb-3 border-b border-border bg-background shrink-0">
             <div className="max-w-3xl mx-auto flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <h1 className="text-base sm:text-lg font-bold leading-tight truncate">
                   {flashcardSet.title}
                 </h1>
-                {flashcardSet.documentTitle && (
+                {flashcardSet.documentTitle ? (
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     {flashcardSet.documentTitle}
                   </p>
-                )}
+                ) : null}
               </div>
               <div className="flex items-start gap-2 shrink-0">
                 <div className="text-right">
                   <p className="text-xs font-semibold text-primary uppercase tracking-wider">
-                    {currentIndex + 1} / {totalCards}
+                    {positionLabel}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {progressPct}%
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{progressPct}%</p>
                 </div>
                 <button
                   onClick={handleToggleFullscreen}
@@ -169,7 +273,6 @@ export const FlashcardSetPageContainer = () => {
                 </button>
               </div>
             </div>
-            {/* Progress bar */}
             <div className="mt-2 max-w-3xl mx-auto h-1.5 w-full rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
@@ -178,71 +281,20 @@ export const FlashcardSetPageContainer = () => {
             </div>
           </div>
 
-          {/* Card area */}
           <div className="flex-1 flex flex-col items-center px-4 sm:px-6 py-5 sm:py-6 overflow-y-auto">
             <div className="flex flex-col items-center justify-center w-full flex-1">
               {cardArea}
-              {isLast && (
-                <div className="mt-5 text-center">
-                  <p className="text-sm font-semibold text-muted-foreground mb-3">
-                    You&apos;ve reached the end of the set!
-                  </p>
-                </div>
-              )}
+              {endOfTurnActions}
             </div>
-            {hasDescription && isFlipped && (
+            {hasDescription && isFlipped && currentCard ? (
               <div className="w-full max-w-2xl mx-auto mt-4 rounded-xl border border-border bg-muted/40 px-4 py-3">
                 <FlashcardHtmlContent html={descriptionHtml} />
               </div>
-            )}
+            ) : null}
           </div>
 
-          {/* Navigation */}
           <div className="border-t border-border bg-background px-4 sm:px-6 py-4 shrink-0">
-            <div className="max-w-2xl mx-auto flex items-center gap-2 sm:gap-3">
-              <button
-                onClick={handlePrev}
-                disabled={currentIndex === 0}
-                className={cn(
-                  'flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 rounded-xl border border-border text-sm font-semibold transition-all',
-                  currentIndex === 0
-                    ? 'opacity-40 cursor-not-allowed'
-                    : 'hover:bg-muted active:scale-95'
-                )}
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Previous</span>
-              </button>
-
-              {isLast ? (
-                <button
-                  onClick={handleRestart}
-                  aria-label="Restart"
-                  className="flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-3 rounded-xl bg-muted border border-border text-sm font-semibold hover:bg-muted/80 active:scale-95 transition-all"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </button>
-              ) : null}
-
-              <button
-                onClick={() => handleNext(totalCards)}
-                disabled={isLast}
-                className={cn(
-                  'flex-[2] flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 rounded-xl text-sm font-semibold transition-all',
-                  isLast
-                    ? 'bg-primary/40 text-primary-foreground cursor-not-allowed opacity-60'
-                    : 'bg-primary text-primary-foreground hover:opacity-90 active:scale-95'
-                )}
-              >
-                {isLast ? (
-                  'Completed'
-                ) : (
-                  <>
-                    Next <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
-            </div>
+            {studyControls}
           </div>
         </div>
       </Page>
@@ -252,7 +304,6 @@ export const FlashcardSetPageContainer = () => {
   return (
     <Page showSidebar={true}>
       <div className="flex flex-col">
-        {/* ── Top header ─────────────────────────────────────────── */}
         <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 border-b border-border bg-background">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-start justify-between mb-1 gap-2">
@@ -267,39 +318,30 @@ export const FlashcardSetPageContainer = () => {
                 <h1 className="text-base sm:text-lg font-bold leading-tight truncate">
                   {flashcardSet.title}
                 </h1>
-                {flashcardSet.documentTitle && (
+                {flashcardSet.documentTitle ? (
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     {flashcardSet.documentTitle}
                   </p>
-                )}
+                ) : null}
               </div>
 
               <div className="flex items-start gap-2 shrink-0">
                 <div className="text-right">
                   <p className="text-xs font-semibold text-primary uppercase tracking-wider">
-                    {currentIndex + 1} / {totalCards}
+                    {positionLabel}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {progressPct}%
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{progressPct}%</p>
                 </div>
                 <button
                   onClick={handleToggleFullscreen}
                   className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  aria-label={
-                    isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
-                  }
+                  aria-label="Enter fullscreen"
                 >
-                  {isFullscreen ? (
-                    <Minimize2 size={16} />
-                  ) : (
-                    <Maximize2 size={16} />
-                  )}
+                  <Maximize2 size={16} />
                 </button>
               </div>
             </div>
 
-            {/* Progress bar */}
             <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
@@ -309,81 +351,22 @@ export const FlashcardSetPageContainer = () => {
           </div>
         </div>
 
-        {/* ── Card area ──────────────────────────────────────────── */}
         <div className="flex flex-col items-center justify-center px-4 sm:px-6 py-5 sm:py-6">
           {cardArea}
-
-          {/* End-of-set message */}
-          {isLast && (
-            <div className="mt-5 text-center">
-              <p className="text-sm font-semibold text-muted-foreground mb-3">
-                <span role="img" aria-label="Celebration">
-                  🎉
-                </span>{' '}
-                You&apos;ve reached the end of the set!
-              </p>
-            </div>
-          )}
+          {endOfTurnActions}
         </div>
 
-        {/* ── Bottom navigation ──────────────────────────────────── */}
         <div className="border-t border-border bg-background px-4 sm:px-6 py-4">
-          <div className="max-w-2xl mx-auto flex items-center gap-2 sm:gap-3">
-            {/* Previous */}
-            <button
-              onClick={handlePrev}
-              disabled={currentIndex === 0}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 rounded-xl border border-border text-sm font-semibold transition-all',
-                currentIndex === 0
-                  ? 'opacity-40 cursor-not-allowed'
-                  : 'hover:bg-muted active:scale-95'
-              )}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Previous</span>
-            </button>
-
-            {/* Restart — on last card */}
-            {isLast ? (
-              <button
-                onClick={handleRestart}
-                aria-label="Restart"
-                className="flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-3 rounded-xl bg-muted border border-border text-sm font-semibold hover:bg-muted/80 active:scale-95 transition-all"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </button>
-            ) : null}
-
-            {/* Next */}
-            <button
-              onClick={() => handleNext(totalCards)}
-              disabled={isLast}
-              className={cn(
-                'flex-[2] flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 rounded-xl text-sm font-semibold transition-all',
-                isLast
-                  ? 'bg-primary/40 text-primary-foreground cursor-not-allowed opacity-60'
-                  : 'bg-primary text-primary-foreground hover:opacity-90 active:scale-95'
-              )}
-            >
-              {isLast ? (
-                'Completed'
-              ) : (
-                <>
-                  Next <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
-          </div>
+          {studyControls}
         </div>
 
-        {hasDescription && isFlipped && (
+        {hasDescription && isFlipped && currentCard ? (
           <div className="px-4 sm:px-6 pb-5">
             <div className="max-w-2xl mx-auto rounded-xl border border-border bg-muted/40 px-4 py-3">
               <FlashcardHtmlContent html={descriptionHtml} />
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </Page>
   );

@@ -11,7 +11,7 @@ interface FlashcardSetPageProviderProps {
 
 export const FlashcardSetPageProvider: React.FC<FlashcardSetPageProviderProps> = ({ children }) => {
   const api = useFetchFlashcardSetData();
-  const handlers = useFlashcardSetPageHandlers(api.flashcardSet?.directoryId);
+  const handlers = useFlashcardSetPageHandlers(api.flashcardSet);
 
   useInteractionTracker({
     artifactId: api.flashcardSet?.id,

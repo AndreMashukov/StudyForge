@@ -40,6 +40,18 @@ _Avoid_: ordering quiz, sort quiz
 Front/back cards (with optional descriptions) derived from source documents.
 _Avoid_: deck (alone — prefer "flashcard set"), cards
 
+**Language-learning flashcard set**:
+A flashcard set whose purpose is vocabulary study in a target language. Distinct from general study flashcard sets; only this kind participates in learned-vocabulary tracking.
+_Avoid_: language deck, vocab set, bilingual flashcards
+
+**Target language**:
+The language being learned in a language-learning flashcard set, identified by a BCP-47 code and a display name.
+_Avoid_: language (alone), locale, L2
+
+**Learned vocabulary item**:
+A user-level normalized target-language term or phrase marked learned from a language-learning flashcard set. Soft-deprioritized when generating new language-learning flashcard sets.
+_Avoid_: learned word, mastered card, vocabulary entry
+
 **Slide deck**:
 Presentation slides with speaker notes, optionally with generated images.
 _Avoid_: presentation, deck (when meaning slides)
@@ -89,7 +101,7 @@ One generation kind entry inside an LLM setup. Points to a provider connection, 
 _Avoid_: generation mapping, capability route, LLM setup route
 
 **Generation workflow**:
-Orchestration policy on a generation route: `direct` (single-pass provider call) or `agentic` (artifact agent platform — draft, gates, repair/refine loops). Most kinds support `direct` only; `diagramQuiz` requires `agentic`. Screenshot `agentic` ships after Task 14.
+Orchestration policy on a generation route: `direct` (single-pass provider call) or `agentic` (artifact agent platform — draft, gates, repair/refine loops). Most kinds support `direct` only; `diagramQuiz` and `flashcards` require `agentic`. Screenshot `agentic` ships after Task 14.
 _Avoid_: sync mode, inline workflow
 
 **Provider connection**:
@@ -137,6 +149,8 @@ _Avoid_: folder chat, library chat
 - A **LLM setup** has one **generation route** per **generation kind**
 - A **generation route** points to one **Provider connection** and declares a required **LLM modality**
 - Every routed LLM call resolves a **generation route** by **generation kind** (full resolver coverage; legacy modality routes are migration-only)
+- A **Language-learning flashcard set** has one **Target language**
+- Checking a card in a **Language-learning flashcard set** may create a **Learned vocabulary item** for that user and **Target language**
 
 ## Flagged ambiguities
 

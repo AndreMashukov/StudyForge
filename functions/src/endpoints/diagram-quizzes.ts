@@ -156,6 +156,7 @@ export const generateDiagramQuiz = onCall(
         directoryId: resolvedDirectoryId,
         recordId: pendingDiagramQuizId,
         payloadStoragePath,
+        artifactKind: 'diagramQuiz',
       });
       await enqueueGenerationJobTask({ userId, jobId });
 

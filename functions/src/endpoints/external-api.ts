@@ -775,7 +775,11 @@ export const api = onRequest(
             injectedRules = base;
           }
 
-          const generatedFlashcards = await LlmGenerationService.generateFlashcards(userId, combinedContent, injectedRules);
+          const {
+            flashcards: generatedFlashcards,
+            generationModel: flashcardGenerationModel,
+            generationModelUsage: flashcardGenerationModelUsage,
+          } = await LlmGenerationService.generateFlashcards(userId, combinedContent, injectedRules);
           const flashcardsWithIds: Flashcard[] = generatedFlashcards.map((card) => ({
             ...card,
             id: admin.firestore().collection("tmp").doc().id,
@@ -785,9 +789,6 @@ export const api = onRequest(
             || (documentIds.length === 1
               ? `Flashcards for "${documentDataList[0].doc.title}"`
               : `Flashcards for "${documentDataList[0].doc.title}" + ${documentIds.length - 1} more`);
-
-          const { generationModel: flashcardGenerationModel, generationModelUsage: flashcardGenerationModelUsage } =
-            await resolveTextGenerationAudit(userId, 'flashcards');
 
           await completePendingFlashcardSet(userId, pendingFlashcardSetId, {
             title,

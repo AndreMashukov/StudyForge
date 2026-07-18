@@ -11,7 +11,10 @@ export { DocumentPromptBuilder } from './document-prompt-builder';
 export { DocumentQuestionPromptBuilder } from './document-question-prompt-builder';
 export { DocumentRevisePromptBuilder } from './document-revise-prompt-builder';
 export { DirectoryChatPromptBuilder } from './directory-chat-prompt-builder';
-export { FlashcardPromptBuilder } from './flashcard-prompt-builder';
+export {
+  FlashcardPromptBuilder,
+  type FlashcardPromptOptions,
+} from './flashcard-prompt-builder';
 export { buildFlashcardDescriptionRulesSection } from './flashcard-desc-prompt-builder';
 export {
   buildQuizHintFieldInstruction,

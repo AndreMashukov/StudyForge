@@ -202,6 +202,18 @@ export class LlmSetupRepository {
       );
     }
 
+    // Flashcards are agentic-only; coerce legacy direct routes at resolve time.
+    if (
+      kind === 'flashcards'
+      && generationRoute.workflow === 'direct'
+      && metadata.supportedWorkflows.includes('agentic')
+    ) {
+      generationRoute = {
+        ...generationRoute,
+        workflow: 'agentic',
+      };
+    }
+
     if (generationRoute.modality !== metadata.requiredModality) {
       throw createGenerationRouteNotConfiguredError(
         userId,

@@ -195,6 +195,12 @@ export async function completePendingFlashcardSet(
     appliedDescriptionRuleIds?: string[];
     generationModel?: string;
     generationModelUsage?: IGenerationModelUsage[];
+    agentModel?: string;
+    generationDiagnostics?: IArtifactAgentDiagnostics;
+    isLanguageLearning?: boolean;
+    languageLearningConfidence?: number;
+    targetLanguageCode?: string;
+    targetLanguageName?: string;
   }
 ): Promise<void> {
   const ref = FirestorePaths.flashcardSet(userId, flashcardSetId);
@@ -210,6 +216,22 @@ export async function completePendingFlashcardSet(
     ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
     ...(updates.generationModelUsage?.length
       ? { generationModelUsage: updates.generationModelUsage }
+      : {}),
+    ...(updates.agentModel ? { agentModel: updates.agentModel } : {}),
+    ...(updates.generationDiagnostics
+      ? { generationDiagnostics: stripUndefinedDeep(updates.generationDiagnostics) }
+      : {}),
+    ...(updates.isLanguageLearning !== undefined
+      ? { isLanguageLearning: updates.isLanguageLearning }
+      : {}),
+    ...(updates.languageLearningConfidence !== undefined
+      ? { languageLearningConfidence: updates.languageLearningConfidence }
+      : {}),
+    ...(updates.targetLanguageCode
+      ? { targetLanguageCode: updates.targetLanguageCode }
+      : {}),
+    ...(updates.targetLanguageName
+      ? { targetLanguageName: updates.targetLanguageName }
       : {}),
     generationStatus: 'completed' as GenerationStatus,
     completedAt: FieldValue.serverTimestamp(),
@@ -228,10 +250,16 @@ export async function completePendingFlashcardSet(
   );
 }
 
-export async function failPendingFlashcardSet(userId: string, flashcardSetId: string, error: string): Promise<void> {
+export async function failPendingFlashcardSet(
+  userId: string,
+  flashcardSetId: string,
+  error: string,
+  diagnostics?: IArtifactAgentDiagnostics
+): Promise<void> {
   await FirestorePaths.flashcardSet(userId, flashcardSetId).update({
     generationStatus: 'failed' as GenerationStatus,
     generationError: error,
+    ...(diagnostics ? { generationDiagnostics: stripUndefinedDeep(diagnostics) } : {}),
     updatedAt: FieldValue.serverTimestamp(),
   });
   logger.warn('Pending flashcard set marked as failed', { flashcardSetId, userId, error });

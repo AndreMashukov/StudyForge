@@ -46,6 +46,8 @@ export interface ArtifactAgentContext {
     content: string;
     wordCount: number;
   };
+  /** Optional artifact-specific values carried from loadContext into generate/persist. */
+  extras?: Record<string, unknown>;
 }
 
 export interface ArtifactGateFailure {

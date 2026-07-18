@@ -8,7 +8,7 @@ import {
 } from '../artifact-generation-records';
 import { GenerationJob } from '../generation-jobs';
 import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
-import { LlmGenerationService, resolveTextGenerationAudit } from '../llm';
+import { LlmGenerationService } from '../llm';
 import { isRuleResolutionMode, resolveEffectiveRules } from '../rule-resolution';
 
 export class FlashcardsGenerationProcessor {
@@ -100,7 +100,11 @@ export class FlashcardsGenerationProcessor {
     });
     appliedDescriptionRuleIdsForSave = resolvedDescriptionRuleIds;
 
-    const generatedFlashcards = await LlmGenerationService.generateFlashcards(
+    const {
+      flashcards: generatedFlashcards,
+      generationModel,
+      generationModelUsage,
+    } = await LlmGenerationService.generateFlashcards(
       job.userId,
       combinedContent,
       injectedRules,
@@ -116,11 +120,6 @@ export class FlashcardsGenerationProcessor {
       || (documentIds.length === 1
         ? `Flashcards for "${documentDataList[0].title}"`
         : `Flashcards for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
-
-    const { generationModel, generationModelUsage } = await resolveTextGenerationAudit(
-      job.userId,
-      'flashcards'
-    );
 
     await completePendingFlashcardSet(job.userId, job.recordId, {
       title: finalTitle,

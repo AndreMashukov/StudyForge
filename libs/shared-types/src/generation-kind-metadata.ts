@@ -78,10 +78,10 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
   flashcards: {
     kind: 'flashcards',
     label: 'Flashcards',
-    description: 'Front/back flashcard set generation.',
+    description: 'Front/back flashcard set generation via the artifact agent platform.',
     requiredModality: 'text',
-    supportedWorkflows: ['direct'],
-    defaultWorkflow: 'direct',
+    supportedWorkflows: ['agentic'],
+    defaultWorkflow: 'agentic',
     group: 'production',
   },
   diagramQuiz: {

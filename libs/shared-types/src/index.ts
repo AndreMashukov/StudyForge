@@ -36,6 +36,11 @@ export type RuleResolutionMode =
   | 'inherit-plus-explicit'
   | 'explicit-only';
 
+export {
+  canonicalizeBcp47LanguageCode,
+  isBcp47LanguageCode,
+} from './language-code';
+
 // Flashcard Types
 export interface Flashcard {
   id: string;    // Unique ID for each card
@@ -46,6 +51,17 @@ export interface Flashcard {
   frontHtml?: string; // Optional HTML fragment for front display
   backHtml?: string; // Optional HTML fragment for back display
   descriptionHtml?: string; // Optional HTML fragment for below-card description display
+}
+
+/** AI classification of whether a flashcard set is for vocabulary study. */
+export interface FlashcardLanguageClassification {
+  isLanguageLearning: boolean;
+  /** Model confidence in [0, 1]. Learned-vocabulary behavior requires a high value. */
+  confidence: number;
+  /** BCP-47 language code when language-learning (e.g. `es`). */
+  targetLanguageCode?: string;
+  /** Display name for the target language (e.g. `Spanish`). */
+  targetLanguageName?: string;
 }
 
 export interface FlashcardSet {
@@ -68,6 +84,35 @@ export interface FlashcardSet {
   documentColor?: string;
   /** Colors of all source documents in documentIds order, for segmented rail. */
   documentColors?: string[];
+  /** True when AI classified this set as vocabulary study with sufficient confidence. */
+  isLanguageLearning?: boolean;
+  /** Classification confidence in [0, 1]. */
+  languageLearningConfidence?: number;
+  /** BCP-47 code for the target language when language-learning. */
+  targetLanguageCode?: string;
+  /** Display name for the target language when language-learning. */
+  targetLanguageName?: string;
+  generationDiagnostics?: IArtifactAgentDiagnostics;
+  generationModel?: string;
+  generationModelUsage?: IGenerationModelUsage[];
+  agentModel?: string;
+}
+
+/** User-level normalized vocabulary term learned from language-learning flashcard sets. */
+export interface LearnedVocabularyItem {
+  id: string;
+  userId: string;
+  /** BCP-47 language code. */
+  languageCode: string;
+  languageName: string;
+  /** Normalized term used for matching/deprioritization. */
+  normalizedTerm: string;
+  /** Display form of the term (typically the card front). */
+  term: string;
+  sourceFlashcardSetId?: string;
+  sourceFlashcardId?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 // Flashcard API Types
@@ -92,6 +137,18 @@ export interface UpdateFlashcardSetRequest {
   flashcardSetId: string;
   title?: string;
   flashcards?: Flashcard[];
+}
+
+export interface RecordLearnedVocabularyRequest {
+  flashcardSetId: string;
+  flashcardId: string;
+  /** Optional override; defaults to the card front. */
+  term?: string;
+}
+
+export interface RecordLearnedVocabularyResponse {
+  learnedVocabularyId: string;
+  created: boolean;
 }
 
 // Slide Deck Types

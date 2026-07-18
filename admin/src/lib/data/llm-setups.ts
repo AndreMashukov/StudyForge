@@ -83,6 +83,14 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
     if (!route) {
       return null;
     }
+    // Flashcards are agentic-only; normalize legacy direct values on read.
+    if (
+      kind === 'flashcards'
+      && route.workflow === 'direct'
+      && GENERATION_KIND_METADATA.flashcards.supportedWorkflows.includes('agentic')
+    ) {
+      route = { ...route, workflow: 'agentic' };
+    }
     routes[kind] = route;
   }
 

@@ -10,6 +10,7 @@ import sequenceQuizPageReducer from './slices/sequenceQuizPageSlice';
 import subjectWorldPageReducer from './slices/subjectWorldPageSlice';
 import documentViewerPageReducer from './slices/documentViewerPageSlice';
 import createDocumentPageReducer from './slices/createDocumentPageSlice';
+import flashcardSetPageReducer from './slices/flashcardSetPageSlice';
 import rulesReducer from './slices/rulesSlice';
 import directoryReducer from './slices/directorySlice';
 import artifactGenerationReducer from './slices/artifactGenerationSlice';
@@ -24,6 +25,7 @@ export const store = configureStore({
     subjectWorldPage: subjectWorldPageReducer,
     documentViewerPage: documentViewerPageReducer,
     createDocumentPage: createDocumentPageReducer,
+    flashcardSetPage: flashcardSetPageReducer,
     rules: rulesReducer,
     directory: directoryReducer,
     artifactGeneration: artifactGenerationReducer,

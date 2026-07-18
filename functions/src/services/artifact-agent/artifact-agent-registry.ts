@@ -1,6 +1,7 @@
 import type { ArtifactKind } from '@shared-types';
 import type { ArtifactAgentDefinition } from './artifact-agent-definition';
 import { diagramQuizDefinition } from '../diagram-quiz/diagram-quiz-definition';
+import { flashcardsDefinition } from '../flashcards/flashcard-definition';
 
 const registry = new Map<ArtifactKind, ArtifactAgentDefinition<unknown, unknown>>();
 
@@ -14,6 +15,7 @@ function register<TDraft, TPayload>(
 }
 
 register(diagramQuizDefinition);
+register(flashcardsDefinition);
 
 export class ArtifactAgentRegistry {
   static get<TDraft = unknown, TPayload = unknown>(

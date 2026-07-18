@@ -11,6 +11,8 @@ import {
   FlashcardSet,
   GenerateFlashcardsRequest,
   GenerateFlashcardsResponse,
+  RecordLearnedVocabularyRequest,
+  RecordLearnedVocabularyResponse,
   UpdateFlashcardSetRequest,
   ApiResponse
 } from '@shared-types';
@@ -136,6 +138,16 @@ export const flashcardsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['UserFlashcardSets'],
     }),
+
+    recordLearnedVocabulary: builder.mutation<
+      ApiResponse<RecordLearnedVocabularyResponse>,
+      RecordLearnedVocabularyRequest
+    >({
+      query: (data) => ({
+        functionName: 'recordLearnedVocabulary',
+        data,
+      }),
+    }),
   }),
 });
 
@@ -145,4 +157,5 @@ export const {
   useGetUserFlashcardSetsQuery,
   useUpdateFlashcardSetMutation,
   useDeleteFlashcardSetMutation,
+  useRecordLearnedVocabularyMutation,
 } = flashcardsApi;

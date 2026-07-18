@@ -64,6 +64,13 @@ export const FirestorePaths = {
   flashcardSet: (userId: string, setId: string) =>
     FirestorePaths.flashcardSets(userId).doc(setId),
 
+  learnedVocabulary: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('learnedVocabulary');
+  },
+  learnedVocabularyItem: (userId: string, itemId: string) =>
+    FirestorePaths.learnedVocabulary(userId).doc(itemId),
+
   slideDecks: (userId: string) => {
     validateUserId(userId);
     return db().collection('users').doc(userId).collection('slideDecks');

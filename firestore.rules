@@ -100,6 +100,11 @@ service cloud.firestore {
         }
       }
 
+      // Learned vocabulary — server-maintained via Cloud Functions.
+      match /learnedVocabulary/{itemId} {
+        allow read, write: if false;
+      }
+
       // Slide decks — server-maintained via Cloud Functions; client read-only.
       match /slideDecks/{slideDeckId} {
         allow get: if isOwner(userId);

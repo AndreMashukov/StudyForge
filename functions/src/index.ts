@@ -171,6 +171,7 @@ export {
   getUserFlashcardSets,
   updateFlashcardSet,
   deleteFlashcardSet,
+  recordLearnedVocabulary,
 } from "./endpoints/flashcards";
 
 // Export slide deck management functions

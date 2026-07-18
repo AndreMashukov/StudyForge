@@ -1,3 +1,4 @@
+import type { ArtifactKind } from '@shared-types';
 import { FieldValue, Timestamp, type DocumentReference } from 'firebase-admin/firestore';
 import { computeExpiresAt } from '../lib/firestore-ttl';
 import { FirestorePaths } from '../lib/firestore-paths';
@@ -8,6 +9,10 @@ import {
   STALE_PROCESSING_JOB_MS,
 } from './generation-stale';
 import { MAX_GENERATION_JOB_ATTEMPTS } from './generation-job-retry';
+import {
+  isArtifactKind,
+  recordRefForArtifactKind,
+} from './artifact-agent/artifact-agent-record-paths';
 
 export type GenerationJobKind =
   | 'documentFromPrompt'
@@ -47,6 +52,8 @@ export interface GenerationJob {
   recordId: string;
   payloadStoragePath: string;
   attempts: number;
+  /** Present when kind is artifactAgent — selects the pending record collection. */
+  artifactKind?: ArtifactKind;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
   startedAt?: Timestamp;
@@ -147,6 +154,11 @@ export function parseGenerationJob(id: string, data: unknown): GenerationJob | n
     return null;
   }
 
+  const artifactKind =
+    typeof data.artifactKind === 'string' && isArtifactKind(data.artifactKind)
+      ? data.artifactKind
+      : undefined;
+
   return {
     id,
     kind: data.kind,
@@ -156,6 +168,7 @@ export function parseGenerationJob(id: string, data: unknown): GenerationJob | n
     recordId: data.recordId,
     payloadStoragePath: data.payloadStoragePath,
     attempts: data.attempts,
+    ...(artifactKind ? { artifactKind } : {}),
     ...(createdAt.value ? { createdAt: createdAt.value } : {}),
     ...(updatedAt.value ? { updatedAt: updatedAt.value } : {}),
     ...(startedAt.value ? { startedAt: startedAt.value } : {}),
@@ -174,6 +187,7 @@ export interface CreateGenerationJobParams {
   directoryId: string;
   recordId: string;
   payloadStoragePath: string;
+  artifactKind?: ArtifactKind;
 }
 
 export type ClaimJobForProcessingResult =
@@ -193,7 +207,8 @@ export class GenerationRecordUnavailableError extends Error {
 export function recordRefForGenerationJob(
   userId: string,
   kind: GenerationJobKind,
-  recordId: string
+  recordId: string,
+  artifactKind?: ArtifactKind
 ): DocumentReference {
   switch (kind) {
     case 'documentFromPrompt':
@@ -208,7 +223,7 @@ export function recordRefForGenerationJob(
     case 'slideDeck':
       return FirestorePaths.slideDeck(userId, recordId);
     case 'artifactAgent':
-      return FirestorePaths.diagramQuiz(userId, recordId);
+      return recordRefForArtifactKind(userId, artifactKind ?? 'diagramQuiz', recordId);
     case 'subjectWorld':
       return FirestorePaths.subjectWorld(userId, recordId);
     default: {
@@ -238,10 +253,16 @@ export class GenerationJobsService {
       recordId: params.recordId,
       payloadStoragePath: params.payloadStoragePath,
       attempts: 0,
+      ...(params.artifactKind ? { artifactKind: params.artifactKind } : {}),
     };
 
     const jobRef = FirestorePaths.generationJob(params.userId, params.jobId);
-    const recordRef = recordRefForGenerationJob(params.userId, params.kind, params.recordId);
+    const recordRef = recordRefForGenerationJob(
+      params.userId,
+      params.kind,
+      params.recordId,
+      params.artifactKind
+    );
 
     await jobRef.firestore.runTransaction(async (transaction) => {
       const recordSnap = await transaction.get(recordRef);

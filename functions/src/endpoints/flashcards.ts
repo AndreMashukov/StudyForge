@@ -18,7 +18,10 @@ import {
   createPendingFlashcardSet,
   failPendingFlashcardSet,
 } from '../services/artifact-generation-records';
-import { enqueueGenerationJob } from '../services/generation-enqueue';
+import { GenerationJobPayloadStorage } from '../services/generation-job-payload-storage';
+import { GenerationJobsService } from '../services/generation-jobs';
+import { enqueueGenerationJobTask } from '../services/generation-task-queue';
+import type { ArtifactAgentJobPayload } from '../services/artifact-agent';
 import { buildStartGenerationPayload } from '../lib/start-generation-response';
 import { validateAuth } from '../lib/auth';
 import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
@@ -28,6 +31,12 @@ import {
   syncArtifactDirectoryIndex,
   syncIndexSafely,
 } from '../services/directory-item-index';
+import { isRuleResolutionMode } from '../services/rule-resolution';
+import {
+  isRecordLearnedVocabularyError,
+  recordLearnedVocabularyFromFlashcard,
+  type IFlashcardJobPayload,
+} from '../services/flashcards';
 
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -70,6 +79,12 @@ const getUserFlashcardSetsRequestSchema = z.object({
   limit: z.number().int().min(1).max(100).optional(),
 }).optional();
 
+const recordLearnedVocabularyRequestSchema = z.object({
+  flashcardSetId: z.string().min(1, 'flashcardSetId is required'),
+  flashcardId: z.string().min(1, 'flashcardId is required'),
+  term: z.string().min(1).max(200).optional(),
+});
+
 /**
  * Generates a new set of flashcards from a document.
  */
@@ -81,7 +96,16 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
       throw new HttpsError('invalid-argument', msg);
     }
-    const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, descriptionRuleIds, additionalRuleIds, ruleResolutionMode } = parseResult.data;
+    const {
+      documentIds,
+      directoryId: requestDirectoryId,
+      title: customTitle,
+      additionalPrompt,
+      ruleIds,
+      descriptionRuleIds,
+      additionalRuleIds,
+      ruleResolutionMode,
+    } = parseResult.data;
 
     await enforceCallableGenerationRateLimit(userId, 'flashcards');
 
@@ -95,8 +119,6 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       ruleCount: ruleIds?.length || 0,
     });
 
-    // Fetch all documents and their content in parallel
-    // Each fetch is wrapped in try-catch to preserve error context before Promise.all short-circuits
     const documentDataList = await Promise.all(
       documentIds.map(async (docId, index) => {
         try {
@@ -112,12 +134,6 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       })
     );
 
-    // Build combined content
-    const combinedContent = documentDataList
-      .map((d) => d.content)
-      .join('\n\n---\n\n');
-    const combinedTitle = documentDataList.map((d) => d.title).join(' + ');
-
     logger.info(`[generateFlashcards] STEP 2: Documents retrieved.`, { userIdHash: u, documentCount: documentDataList.length });
 
     const resolvedDirectoryId = requestDirectoryId ?? documentDataList[0]?.directoryId;
@@ -131,7 +147,6 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       }
     }
 
-    // Determine pending title before the expensive Gemini work
     const pendingTitle = customTitle?.trim()
       || (documentIds.length === 1
         ? `Flashcards for "${documentDataList[0].title}"`
@@ -151,15 +166,42 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
     });
 
     try {
-      await enqueueGenerationJob({
+      const mode = isRuleResolutionMode(ruleResolutionMode)
+        ? ruleResolutionMode
+        : (ruleIds?.length || descriptionRuleIds?.length
+          ? 'explicit-only'
+          : 'inherit-plus-explicit');
+      const selectedRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
+
+      const jobId = GenerationJobsService.newJobId(userId);
+      const payload: ArtifactAgentJobPayload<IFlashcardJobPayload> = {
+        artifactKind: 'flashcards',
+        documentIds,
+        directoryId: resolvedDirectoryId,
+        recordId: pendingFlashcardSetId,
+        title: pendingTitle,
+        additionalPrompt: additionalPrompt ?? undefined,
+        ruleIds: selectedRuleIds,
+        additionalRuleIds,
+        ruleResolutionMode: mode,
+        artifactPayload: {
+          descriptionRuleIds,
+        },
+      };
+
+      const payloadStoragePath = await GenerationJobPayloadStorage.saveJson(userId, jobId, payload);
+      await GenerationJobsService.createJob({
+        jobId,
+        kind: 'artifactAgent',
         userId,
         directoryId: resolvedDirectoryId,
         recordId: pendingFlashcardSetId,
-        kind: 'flashcards',
-        payload: parseResult.data,
+        payloadStoragePath,
+        artifactKind: 'flashcards',
       });
+      await enqueueGenerationJobTask({ userId, jobId });
 
-      logger.info(`[generateFlashcards] Queued flashcard generation`, { userIdHash: u });
+      logger.info(`[generateFlashcards] Queued flashcard generation`, { userIdHash: u, jobId });
       return {
         success: true,
         data: buildStartGenerationPayload('flashcardSet', pendingFlashcardSetId, resolvedDirectoryId, {
@@ -274,6 +316,43 @@ export const updateFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
   }
 });
 
+
+/**
+ * Records a learned vocabulary item when a language-learning flashcard is marked learned.
+ */
+export const recordLearnedVocabulary = onCall({ region: 'asia-east1', cors: true }, async (request) => {
+  try {
+    const userId = validateAuth(request);
+    const parseResult = recordLearnedVocabularyRequestSchema.safeParse(request.data);
+    if (!parseResult.success) {
+      const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
+      throw new HttpsError('invalid-argument', msg);
+    }
+
+    const { flashcardSetId, flashcardId, term } = parseResult.data;
+    const result = await recordLearnedVocabularyFromFlashcard({
+      userId,
+      flashcardSetId,
+      flashcardId,
+      term,
+    });
+
+    return {
+      success: true,
+      data: {
+        learnedVocabularyId: result.id,
+        created: result.created,
+      },
+    };
+  } catch (error) {
+    logger.error('Error recording learned vocabulary:', error);
+    if (error instanceof HttpsError) throw error;
+    if (isRecordLearnedVocabularyError(error)) {
+      throw new HttpsError(error.code, error.message);
+    }
+    throw new HttpsError('internal', 'Could not record learned vocabulary.');
+  }
+});
 
 /**
  * Deletes a flashcard set.

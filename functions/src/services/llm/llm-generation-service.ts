@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions';
 import type {
   ScrapedContent,
   IFileContent,
+  IGenerationModelUsage,
   QuizFollowupContext,
   DocumentQuestionContext,
   DocumentReviseContext,
@@ -44,6 +45,7 @@ import {
 } from './llm-image-prompt-utils';
 import { LlmProviderClientFactory } from './llm-provider-client-factory';
 import { LlmGenerationRouteResolver, type GenerationRouteResolution } from './llm-generation-route-resolver';
+import { formatGenerationModelLabel, toGenerationModelUsage } from './generation-model-usage';
 import { generateExternalProviderText, resolveTextRoute, type TextRouteContext } from './llm-text-runner';
 import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
@@ -58,6 +60,13 @@ type FlashcardItem = {
   backHtml?: string;
   descriptionHtml?: string;
 };
+
+export interface GenerateFlashcardsResult {
+  flashcards: FlashcardItem[];
+  /** Route that actually ran generation — reuse for diagnostics/persistence. */
+  generationModel: string;
+  generationModelUsage: IGenerationModelUsage[];
+}
 
 function stripCodeFences(text: string): string {
   return text
@@ -117,6 +126,48 @@ function parseFlashcardsJson(raw: string): FlashcardItem[] {
     }
     throw new Error('Could not extract a valid JSON array from OpenRouter flashcard response');
   }
+}
+
+function parseFlashcardLanguageClassification(
+  raw: string
+): import('@shared-types').FlashcardLanguageClassification {
+  const text = stripCodeFences(raw);
+  const objectMatch = text.match(/(\{[\s\S]*\})/);
+  const candidate = objectMatch ? objectMatch[1] : text;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(candidate);
+  } catch {
+    throw new Error('Could not parse flashcard language classification JSON');
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Flashcard language classification must be a JSON object');
+  }
+
+  const record = parsed as Record<string, unknown>;
+  const isLanguageLearning = record.isLanguageLearning === true;
+  const confidenceRaw = typeof record.confidence === 'number' ? record.confidence : 0;
+  const confidence = Math.min(1, Math.max(0, confidenceRaw));
+  const targetLanguageCode =
+    typeof record.targetLanguageCode === 'string' && record.targetLanguageCode.trim()
+      ? record.targetLanguageCode.trim()
+      : undefined;
+  const targetLanguageName =
+    typeof record.targetLanguageName === 'string' && record.targetLanguageName.trim()
+      ? record.targetLanguageName.trim()
+      : undefined;
+
+  if (!isLanguageLearning) {
+    return { isLanguageLearning: false, confidence };
+  }
+
+  return {
+    isLanguageLearning: true,
+    confidence,
+    ...(targetLanguageCode ? { targetLanguageCode } : {}),
+    ...(targetLanguageName ? { targetLanguageName } : {}),
+  };
 }
 
 /**
@@ -213,28 +264,72 @@ export class LlmGenerationService {
     content: string,
     rules?: string,
     descriptionRules?: string,
-    capability: LlmCapability = 'flashcards'
-  ): Promise<FlashcardItem[]> {
+    capability: LlmCapability = 'flashcards',
+    options?: import('../gemini/prompt-builder/flashcard-prompt-builder').FlashcardPromptOptions
+  ): Promise<GenerateFlashcardsResult> {
     const ctx = await resolveTextRoute(userId, capability, 'flashcards');
+    const generationModel = formatGenerationModelLabel(ctx.resolution.route);
+    const generationModelUsage = [toGenerationModelUsage(ctx.resolution)];
+
+    let cards: FlashcardItem[];
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateFlashcards(content, rules, descriptionRules);
+      cards = await GeminiService.generateFlashcards(content, rules, descriptionRules, options);
+    } else {
+      const prompt = FlashcardPromptBuilder.buildFlashcardPrompt(
+        content,
+        rules,
+        descriptionRules,
+        options
+      );
+      const text = await generateExternalProviderText(
+        ctx,
+        prompt,
+        { model: ctx.resolution.route.model, temperature: 0.4, maxOutputTokens: 8192 },
+        'Flashcards generated via OpenRouter'
+      );
+
+      cards = parseFlashcardsJson(text);
+      cards.forEach((card, idx) => {
+        if (!card.front || !card.back) {
+          throw new Error(`Invalid flashcard at index ${idx}: missing front or back`);
+        }
+      });
     }
 
-    const prompt = FlashcardPromptBuilder.buildFlashcardPrompt(content, rules, descriptionRules);
-    const text = await generateExternalProviderText(
-      ctx,
-      prompt,
-      { model: ctx.resolution.route.model, temperature: 0.4, maxOutputTokens: 8192 },
-      'Flashcards generated via OpenRouter'
-    );
+    return {
+      flashcards: cards,
+      generationModel,
+      generationModelUsage,
+    };
+  }
 
-    const cards = parseFlashcardsJson(text);
-    cards.forEach((card, idx) => {
-      if (!card.front || !card.back) {
-        throw new Error(`Invalid flashcard at index ${idx}: missing front or back`);
-      }
+  static async classifyFlashcardLanguageLearning(
+    userId: string,
+    content: string,
+    capability: LlmCapability = 'flashcards'
+  ): Promise<import('@shared-types').FlashcardLanguageClassification> {
+    const ctx = await resolveTextRoute(userId, capability, 'flashcard-language-classification');
+    const prompt = FlashcardPromptBuilder.buildLanguageClassificationPrompt(content);
+    const client = LlmProviderClientFactory.create(
+      ctx.resolution.route,
+      ctx.resolution.providerApiKey
+    );
+    const result = await client.generateText({
+      prompt,
+      config: {
+        model: ctx.resolution.route.model,
+        temperature: 0.1,
+        maxOutputTokens: 512,
+      },
     });
-    return cards;
+
+    functions.logger.info('Flashcard language classification completed', {
+      userId,
+      model: result.model,
+      responseLength: result.text.length,
+    });
+
+    return parseFlashcardLanguageClassification(result.text);
   }
 
   static async generateDocumentFromPrompt(
