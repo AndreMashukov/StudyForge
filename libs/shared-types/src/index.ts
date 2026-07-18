@@ -44,8 +44,13 @@ export {
 // Flashcard Types
 export interface Flashcard {
   id: string;    // Unique ID for each card
-  front: string; // The term or question (plain text fallback)
+  front: string; // Presentation text (may include emoji / romanization)
   back: string;  // The definition or answer (plain text fallback)
+  /**
+   * Target-language word or phrase for language-learning sets.
+   * Presentation-free (no emoji / romanization). Used for learned vocabulary.
+   */
+  term?: string;
   explanation?: string; // Optional longer explanation
   description?: string; // Optional plain-text or markdown usage example (legacy fallback)
   frontHtml?: string; // Optional HTML fragment for front display
@@ -142,7 +147,7 @@ export interface UpdateFlashcardSetRequest {
 export interface RecordLearnedVocabularyRequest {
   flashcardSetId: string;
   flashcardId: string;
-  /** Optional override; defaults to the card front. */
+  /** Optional override; defaults to the card `term` field. */
   term?: string;
 }
 

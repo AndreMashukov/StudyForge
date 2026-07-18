@@ -1,6 +1,8 @@
 import type { FlashcardLanguageClassification, IGenerationModelUsage } from '@shared-types';
 
 export interface IFlashcardCardDraft {
+  /** Target-language lemma for language-learning sets (no presentation). */
+  term?: string;
   front: string;
   back: string;
   description?: string;

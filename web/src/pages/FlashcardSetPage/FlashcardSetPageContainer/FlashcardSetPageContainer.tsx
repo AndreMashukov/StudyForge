@@ -32,6 +32,7 @@ export const FlashcardSetPageContainer = () => {
     isSessionComplete,
     canStartRetake,
     canAdvanceNext,
+    pendingMark,
     handleNext,
     handlePrev,
     handleFlip,
@@ -132,11 +133,16 @@ export const FlashcardSetPageContainer = () => {
           event.stopPropagation();
           handleMarkFailed();
         }}
-        disabled={isSessionComplete || !currentCard}
-        aria-label="Mark card as failed"
+        disabled={isSessionComplete || !currentCard || pendingMark !== null}
+        aria-label={pendingMark === 'failed' ? 'Marking card as failed' : 'Mark card as failed'}
+        aria-busy={pendingMark === 'failed'}
         className="h-12 min-w-[4.5rem] gap-2 rounded-full px-4 active:scale-95"
       >
-        <X className="h-5 w-5" />
+        {pendingMark === 'failed' ? (
+          <Spinner size="xs" variant="on-primary" />
+        ) : (
+          <X className="h-5 w-5" />
+        )}
         <span className="text-sm font-semibold tabular-nums">{failedCount}</span>
       </Button>
 
@@ -147,12 +153,17 @@ export const FlashcardSetPageContainer = () => {
           event.stopPropagation();
           handleMarkLearned();
         }}
-        disabled={isSessionComplete || !currentCard}
-        aria-label="Mark card as learned"
+        disabled={isSessionComplete || !currentCard || pendingMark !== null}
+        aria-label={pendingMark === 'learned' ? 'Marking card as learned' : 'Mark card as learned'}
+        aria-busy={pendingMark === 'learned'}
         className="h-12 min-w-[4.5rem] gap-2 rounded-full px-4 active:scale-95"
       >
         <span className="text-sm font-semibold tabular-nums">{learnedCount}</span>
-        <Check className="h-5 w-5" />
+        {pendingMark === 'learned' ? (
+          <Spinner size="xs" variant="on-primary" />
+        ) : (
+          <Check className="h-5 w-5" />
+        )}
       </Button>
 
       <Button

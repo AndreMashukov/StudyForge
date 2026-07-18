@@ -15,7 +15,7 @@ export interface FlashcardSetLearnedVocabRecord {
   isLanguageLearning?: boolean;
   targetLanguageCode?: string;
   targetLanguageName?: string;
-  flashcards: Array<{ id: string; front: string }>;
+  flashcards: Array<{ id: string; front: string; term?: string }>;
 }
 
 export function isFlashcardSetLearnedVocabRecord(
@@ -54,7 +54,13 @@ export function isFlashcardSetLearnedVocabRecord(
       return false;
     }
     const entry = card as Record<string, unknown>;
-    return typeof entry.id === 'string' && typeof entry.front === 'string';
+    if (typeof entry.id !== 'string' || typeof entry.front !== 'string') {
+      return false;
+    }
+    if (entry.term !== undefined && typeof entry.term !== 'string') {
+      return false;
+    }
+    return true;
   });
 }
 
@@ -123,9 +129,12 @@ export async function recordLearnedVocabularyFromFlashcard(
     throw new RecordLearnedVocabularyError('not-found', 'Flashcard not found in set.');
   }
 
-  const term = (params.term ?? card.front).trim();
+  const term = (params.term ?? card.term)?.trim() ?? '';
   if (!term) {
-    throw new RecordLearnedVocabularyError('invalid-argument', 'Term is required.');
+    throw new RecordLearnedVocabularyError(
+      'failed-precondition',
+      'Flashcard term is required to record learned vocabulary.'
+    );
   }
 
   return upsertLearnedVocabularyItem({

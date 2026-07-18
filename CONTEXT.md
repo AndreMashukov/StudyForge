@@ -48,8 +48,12 @@ _Avoid_: language deck, vocab set, bilingual flashcards
 The language being learned in a language-learning flashcard set, identified by a BCP-47 code and a display name.
 _Avoid_: language (alone), locale, L2
 
+**Flashcard term**:
+On a language-learning flashcard, the presentation-free target-language word or phrase being learned. Distinct from the card front, which is display-only.
+_Avoid_: front (when meaning the vocabulary lemma), lemma, headword
+
 **Learned vocabulary item**:
-A user-level normalized target-language term or phrase marked learned from a language-learning flashcard set. Soft-deprioritized when generating new language-learning flashcard sets.
+A user-level normalized **Flashcard term** marked learned from a language-learning flashcard set. Soft-deprioritized when generating new language-learning flashcard sets.
 _Avoid_: learned word, mastered card, vocabulary entry
 
 **Slide deck**:

@@ -73,13 +73,24 @@ function languageShapeGateFailures(draft: IFlashcardDraft): ArtifactGateFailure[
 
   const seen = new Set<string>();
   draft.flashcards.forEach((card, index) => {
-    const normalized = normalizeVocabularyTerm(card.front || '');
+    const term = card.term?.trim() ?? '';
+    if (!term) {
+      failures.push({
+        gateId: 'languageShape',
+        severity: 'blocker',
+        message: `Card ${index + 1}: term is required for language-learning sets`,
+        path: `flashcards[${index}].term`,
+      });
+      return;
+    }
+
+    const normalized = normalizeVocabularyTerm(term);
     if (!normalized) {
       failures.push({
         gateId: 'languageShape',
         severity: 'blocker',
-        message: `Card ${index + 1}: front must be a target-language term or phrase`,
-        path: `flashcards[${index}].front`,
+        message: `Card ${index + 1}: term must be a target-language word or phrase`,
+        path: `flashcards[${index}].term`,
       });
       return;
     }
@@ -87,8 +98,8 @@ function languageShapeGateFailures(draft: IFlashcardDraft): ArtifactGateFailure[
       failures.push({
         gateId: 'languageShape',
         severity: 'warning',
-        message: `Duplicate vocabulary term: ${card.front}`,
-        path: `flashcards[${index}].front`,
+        message: `Duplicate vocabulary term: ${term}`,
+        path: `flashcards[${index}].term`,
       });
     }
     seen.add(normalized);

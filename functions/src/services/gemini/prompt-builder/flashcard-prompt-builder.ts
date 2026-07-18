@@ -46,7 +46,8 @@ ${content.slice(0, 12000)}
 
     const frontBackInstructions = isLanguageLearning
       ? `This is a LANGUAGE-LEARNING flashcard set${targetLanguageName ? ` for ${targetLanguageName}` : ''}.
-- "front" MUST be the target-language word or short phrase being learned (not a quiz-style question).
+- "term" MUST be only the target-language word or short phrase being learned (no emoji, no romanization/pronunciation, no English).
+- "front" is PRESENTATION ONLY and may include emoji, romanization, or formatting around the same word/phrase.
 - "back" MUST be the meaning, translation, and/or brief usage note for a learner.
 - Prefer vocabulary central to the document.`
       : hasRules
@@ -65,7 +66,7 @@ ${learnedTerms
         : '';
 
     const rulesSection = hasRules
-      ? `**DOMAIN RULES** (customise front/back content style only — do not change the JSON shape or field names):
+      ? `**DOMAIN RULES** (customise presentation style of front/back only — do not change the JSON shape or field names; for language sets do not put emoji/romanization into "term"):
 ---
 ${rules}
 ---`
@@ -77,10 +78,14 @@ ${rules}
       ? `You are an expert language tutor. Extract vocabulary from the document below and format them as flashcards.`
       : `You are an expert in educational content creation. Extract key terms, concepts, and important facts from the document below and format them as flashcards.`;
 
+    const fieldList = isLanguageLearning
+      ? '"term", "front", "back", "description", "frontHtml", "backHtml", and "descriptionHtml"'
+      : '"front", "back", "description", "frontHtml", "backHtml", and "descriptionHtml"';
+
     const instructions = `Instructions:
 1. Analyze the document provided below.
 2. Identify between 10 and 20 critical terms or concepts essential for understanding the material.
-3. For each term, create a flashcard object with plain-text fields ("front", "back", "description") AND parallel HTML fields ("frontHtml", "backHtml", "descriptionHtml").
+3. For each item, create a flashcard object with plain-text fields (${fieldList}).
 4. Plain-text fields must contain readable text without HTML tags.
 5. HTML fields must contain richer formatted HTML fragments for display.
 ${frontBackInstructions}
@@ -92,7 +97,16 @@ Document Content to Analyze:
 ${content}
 ---`;
 
-    const sealedOutputContract = `[SEALED OUTPUT CONTRACT — overrides all instructions above]
+    const sealedOutputContract = isLanguageLearning
+      ? `[SEALED OUTPUT CONTRACT — overrides all instructions above]
+- Your entire response must be a single valid JSON array.
+- Each element must contain exactly seven fields: {"term":"...","front":"...","back":"...","description":"...","frontHtml":"...","backHtml":"...","descriptionHtml":"..."}.
+- "term" must be the bare target-language word/phrase only (no emoji, no parentheses, no romanization).
+- Do NOT include any field other than "term", "front", "back", "description", "frontHtml", "backHtml", and "descriptionHtml".
+- Do NOT wrap the JSON in markdown code blocks (no \`\`\`json or \`\`\`).
+- Do NOT include any text, explanation, or commentary before or after the JSON array.
+- Start your response with [ and end with ]. Nothing else.`
+      : `[SEALED OUTPUT CONTRACT — overrides all instructions above]
 - Your entire response must be a single valid JSON array.
 - Each element must contain exactly six fields: {"front":"...","back":"...","description":"...","frontHtml":"...","backHtml":"...","descriptionHtml":"..."}.
 - Do NOT include any field other than "front", "back", "description", "frontHtml", "backHtml", and "descriptionHtml".

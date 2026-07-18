@@ -945,6 +945,7 @@ This question is derived from: **${context.originalDocument.title}**
     descriptionRules?: string,
     options?: import('./prompt-builder/flashcard-prompt-builder').FlashcardPromptOptions
   ): Promise<{
+    term?: string;
     front: string;
     back: string;
     description?: string;
@@ -990,6 +991,11 @@ This question is derived from: **${context.originalDocument.title}**
             `Invalid flashcard object at index ${index}: missing 'front' or 'back' field.`
           );
         }
+        if (options?.isLanguageLearning && !card.term?.trim()) {
+          throw new Error(
+            `Invalid flashcard object at index ${index}: missing 'term' field.`
+          );
+        }
       });
 
       functions.logger.info(
@@ -1012,6 +1018,7 @@ This question is derived from: **${context.originalDocument.title}**
   private static parseFlashcardResponse(
     responseText: string
   ): {
+    term?: string;
     front: string;
     back: string;
     description?: string;

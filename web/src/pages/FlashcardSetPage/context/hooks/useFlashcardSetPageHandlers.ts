@@ -30,6 +30,7 @@ export const useFlashcardSetPageHandlers = (
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [isFlipped, setIsFlipped] = useState(false);
+  const [pendingMark, setPendingMark] = useState<'learned' | 'failed' | null>(null);
   const currentIndex = useSelector(selectFlashcardSetCurrentIndex);
   const activeQueue = useSelector(selectFlashcardSetActiveQueue);
   const outcomes = useSelector(selectFlashcardSetOutcomes);
@@ -132,23 +133,27 @@ export const useFlashcardSetPageHandlers = (
       return;
     }
 
-    if (flashcardSet.isLanguageLearning) {
-      isMarkingRef.current = true;
-      try {
-        await recordLearnedVocabulary({
-          flashcardSetId: flashcardSet.id,
-          flashcardId: cardId,
-        }).unwrap();
-      } catch {
-        // Keep the learner on this card; do not mark learned or advance.
-        return;
-      } finally {
-        isMarkingRef.current = false;
+    isMarkingRef.current = true;
+    setPendingMark('learned');
+    try {
+      if (flashcardSet.isLanguageLearning) {
+        try {
+          await recordLearnedVocabulary({
+            flashcardSetId: flashcardSet.id,
+            flashcardId: cardId,
+          }).unwrap();
+        } catch {
+          // Keep the learner on this card; do not mark learned or advance.
+          return;
+        }
       }
-    }
 
-    dispatch(markCardOutcome({ cardId, outcome: 'learned' }));
-    advanceAfterMark();
+      dispatch(markCardOutcome({ cardId, outcome: 'learned' }));
+      advanceAfterMark();
+    } finally {
+      isMarkingRef.current = false;
+      setPendingMark(null);
+    }
   }, [
     activeQueue,
     advanceAfterMark,
@@ -171,8 +176,15 @@ export const useFlashcardSetPageHandlers = (
       return;
     }
 
-    dispatch(markCardOutcome({ cardId, outcome: 'failed' }));
-    advanceAfterMark();
+    isMarkingRef.current = true;
+    setPendingMark('failed');
+    try {
+      dispatch(markCardOutcome({ cardId, outcome: 'failed' }));
+      advanceAfterMark();
+    } finally {
+      isMarkingRef.current = false;
+      setPendingMark(null);
+    }
   }, [
     activeQueue,
     advanceAfterMark,
@@ -209,6 +221,7 @@ export const useFlashcardSetPageHandlers = (
     isSessionComplete,
     canStartRetake,
     canAdvanceNext,
+    pendingMark,
     handleGoBack,
     handleNext,
     handlePrev,

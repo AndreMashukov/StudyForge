@@ -53,6 +53,7 @@ import type { LlmCapability } from './types';
 import { generateDiagramQuizChunked } from '../diagram-quiz/diagram-quiz-chunked-generator';
 
 type FlashcardItem = {
+  term?: string;
   front: string;
   back: string;
   description?: string;
@@ -348,6 +349,9 @@ export class LlmGenerationService {
       cards.forEach((card, idx) => {
         if (!card.front || !card.back) {
           throw new Error(`Invalid flashcard at index ${idx}: missing front or back`);
+        }
+        if (options?.isLanguageLearning && !card.term?.trim()) {
+          throw new Error(`Invalid flashcard at index ${idx}: missing term`);
         }
       });
     }

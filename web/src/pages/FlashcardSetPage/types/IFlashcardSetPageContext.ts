@@ -23,6 +23,8 @@ export interface IFlashcardSetPageHandlers {
   canStartRetake: boolean;
   /** True when Next may move forward or finish the turn from the last card. */
   canAdvanceNext: boolean;
+  /** Outcome button currently waiting on mark/persist work. */
+  pendingMark: FlashcardCardOutcome | null;
   handleNext: () => void;
   handlePrev: () => void;
   handleFlip: () => void;

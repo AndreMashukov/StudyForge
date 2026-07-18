@@ -225,10 +225,15 @@ export const flashcardsDefinition: ArtifactAgentDefinition<
   async persistCompleted(result: ArtifactAgentResult<IFlashcardDraft>) {
     const { generationModel, generationModelUsage } = result.draft;
 
-    const flashcardsWithIds = result.draft.flashcards.map((card) => ({
-      ...card,
-      id: admin.firestore().collection('tmp').doc().id,
-    }));
+    const flashcardsWithIds = result.draft.flashcards.map((card) => {
+      const term = card.term?.trim();
+      const { term: _ignored, ...rest } = card;
+      return {
+        ...rest,
+        ...(term ? { term } : {}),
+        id: admin.firestore().collection('tmp').doc().id,
+      };
+    });
 
     const confident = isConfidentLanguageLearning(result.draft.classification);
 
