@@ -17,9 +17,11 @@ export interface IFlashcardSetPageHandlers {
   activeQueue: string[];
   learnedCount: number;
   failedCount: number;
+  /** Non-learned cards in the active queue (failed + ungraded) for the next turn. */
+  retakeCount: number;
   isSessionComplete: boolean;
   canStartRetake: boolean;
-  /** True when the current card is graded and Next may move forward. */
+  /** True when Next may move forward or finish the turn from the last card. */
   canAdvanceNext: boolean;
   handleNext: () => void;
   handlePrev: () => void;

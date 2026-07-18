@@ -32,10 +32,10 @@ const flashcardSetPageSlice = createSlice({
       state.currentIndex += 1;
     },
     goToNextCard: (state) => {
-      state.currentIndex = Math.min(
-        state.currentIndex + 1,
-        Math.max(state.activeQueue.length - 1, 0)
-      );
+      // Allow index === activeQueue.length to mean "turn finished".
+      if (state.currentIndex < state.activeQueue.length) {
+        state.currentIndex += 1;
+      }
     },
     goToPrevCard: (state) => {
       state.currentIndex = Math.max(state.currentIndex - 1, 0);

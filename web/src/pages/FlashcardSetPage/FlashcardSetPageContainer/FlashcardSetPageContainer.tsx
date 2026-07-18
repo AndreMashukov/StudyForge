@@ -28,6 +28,7 @@ export const FlashcardSetPageContainer = () => {
     activeQueue,
     learnedCount,
     failedCount,
+    retakeCount,
     isSessionComplete,
     canStartRetake,
     canAdvanceNext,
@@ -175,7 +176,7 @@ export const FlashcardSetPageContainer = () => {
     <div className="mt-5 text-center space-y-3">
       <p className="text-sm font-semibold text-muted-foreground">
         {canStartRetake
-          ? `Turn complete — ${failedCount} card${failedCount === 1 ? '' : 's'} to retake.`
+          ? `Turn complete — ${retakeCount} card${retakeCount === 1 ? '' : 's'} to retake.`
           : 'All cards in this turn are learned.'}
       </p>
       <div className="flex items-center justify-center gap-2">

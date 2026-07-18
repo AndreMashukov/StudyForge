@@ -2,10 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { FlashcardSet } from '@shared-types';
-import {
-  FlashcardCardOutcome,
-  IFlashcardSetPageHandlers,
-} from '../../types/IFlashcardSetPageContext';
+import { IFlashcardSetPageHandlers } from '../../types/IFlashcardSetPageContext';
 import { useFullscreen } from '../../../../hooks/useFullscreen';
 import { useRecordLearnedVocabularyMutation } from '../../../../store/api/Flashcards/FlashcardsApi';
 import {
@@ -24,12 +21,6 @@ import {
 
 function buildInitialQueue(flashcardSet: FlashcardSet | null | undefined): string[] {
   return (flashcardSet?.flashcards ?? []).map((card) => card.id);
-}
-
-function hasRecordedOutcome(
-  outcome: FlashcardCardOutcome | undefined
-): outcome is FlashcardCardOutcome {
-  return outcome === 'learned' || outcome === 'failed';
 }
 
 export const useFlashcardSetPageHandlers = (
@@ -77,27 +68,26 @@ export const useFlashcardSetPageHandlers = (
     [outcomes]
   );
 
+  // Turn ends when the learner leaves the last card (Next on last, or grade auto-advance past end).
   const isSessionComplete = useMemo(
-    () =>
-      activeQueue.length > 0
-      && activeQueue.every((cardId) => hasRecordedOutcome(outcomes[cardId])),
+    () => activeQueue.length > 0 && currentIndex >= activeQueue.length,
+    [activeQueue.length, currentIndex]
+  );
+
+  const retakeCount = useMemo(
+    () => activeQueue.filter((cardId) => outcomes[cardId] !== 'learned').length,
     [activeQueue, outcomes]
   );
 
   const canStartRetake = useMemo(
-    () =>
-      isSessionComplete
-      && activeQueue.some((cardId) => outcomes[cardId] !== 'learned'),
-    [activeQueue, isSessionComplete, outcomes]
+    () => isSessionComplete && retakeCount > 0,
+    [isSessionComplete, retakeCount]
   );
 
-  const canAdvanceNext = useMemo(() => {
-    if (isSessionComplete || currentIndex >= activeQueue.length - 1) {
-      return false;
-    }
-    const cardId = activeQueue[currentIndex];
-    return Boolean(cardId && hasRecordedOutcome(outcomes[cardId]));
-  }, [activeQueue, currentIndex, isSessionComplete, outcomes]);
+  const canAdvanceNext = useMemo(
+    () => activeQueue.length > 0 && currentIndex < activeQueue.length,
+    [activeQueue.length, currentIndex]
+  );
 
   const handleGoBack = useCallback(() => {
     if (resolvedDirectoryId) {
@@ -117,14 +107,9 @@ export const useFlashcardSetPageHandlers = (
       return;
     }
 
-    const cardId = activeQueue[currentIndex];
-    if (!cardId || !hasRecordedOutcome(outcomes[cardId])) {
-      return;
-    }
-
     setIsFlipped(false);
     dispatch(goToNextCard());
-  }, [activeQueue, currentIndex, dispatch, isSessionComplete, outcomes]);
+  }, [dispatch, isSessionComplete]);
 
   const handlePrev = useCallback(() => {
     if (isMarkingRef.current) {
@@ -220,6 +205,7 @@ export const useFlashcardSetPageHandlers = (
     activeQueue,
     learnedCount,
     failedCount,
+    retakeCount,
     isSessionComplete,
     canStartRetake,
     canAdvanceNext,
