@@ -14,6 +14,8 @@ import {
   GetDirectoryAncestorsResponse,
   MoveDirectoryResponse,
   DeleteDirectoryResponse,
+  IBulkDeleteDirectoriesRequest,
+  IBulkOperationResponse,
 } from '@shared-types';
 import { auth } from '../../../config/firebase';
 import {
@@ -112,6 +114,19 @@ export const directoryApi = baseApi.injectEndpoints({
         { type: 'Directory', id: 'TREE' },
         { type: 'Directory', id: 'LIST' },
         'Documents',
+      ],
+    }),
+
+    bulkDeleteDirectories: builder.mutation<IBulkOperationResponse, IBulkDeleteDirectoriesRequest>({
+      query: (data) => ({
+        functionName: 'bulkDeleteDirectories',
+        data,
+      }),
+      invalidatesTags: [
+        { type: 'Directory', id: 'TREE' },
+        { type: 'Directory', id: 'LIST' },
+        'Documents',
+        'Document',
       ],
     }),
 
@@ -409,6 +424,7 @@ export const {
   useGetDirectoryQuery,
   useUpdateDirectoryMutation,
   useDeleteDirectoryMutation,
+  useBulkDeleteDirectoriesMutation,
   useGetDirectoryTreeQuery,
   useGetDirectoryContentsQuery,
   useGetDirectoryContentsWithArtifactsQuery,

@@ -127,6 +127,7 @@ export {
   getDocumentStats,
   getDocumentContent,
   moveDocument,
+  bulkDeleteDocuments,
 } from "./endpoints/documents";
 
 // Export rules management functions
@@ -138,6 +139,8 @@ export {
   deleteRuleEndpoint as deleteRule,
   attachRuleToDirectoryEndpoint as attachRuleToDirectory,
   detachRuleFromDirectoryEndpoint as detachRuleFromDirectory,
+  bulkDeleteRulesEndpoint as bulkDeleteRules,
+  bulkDetachRulesFromDirectoryEndpoint as bulkDetachRulesFromDirectory,
   getDirectoryRulesEndpoint as getDirectoryRules,
   getApplicableRulesEndpoint as getApplicableRules,
   formatRulesForPromptEndpoint as formatRulesForPrompt,
@@ -157,6 +160,7 @@ export {
   getDirectoryAncestors,
   moveDirectory,
   getDirectoryByPath,
+  bulkDeleteDirectories,
 } from "./endpoints/directories";
 
 // Export flashcard management functions
@@ -211,4 +215,8 @@ export {
   createApiKey,
   listApiKeys,
   revokeApiKey,
+  bulkRevokeApiKeys,
 } from "./endpoints/api-keys";
+
+// Bulk artifact delete (directory detail panels)
+export { bulkDeleteArtifacts } from "./endpoints/bulk-artifacts";

@@ -8,6 +8,7 @@ import {
 } from '../../../store/api/Rules';
 import { useGetDirectoryQuery } from '../../../store/api/Directory/DirectoryApi';
 import { Rule } from '@shared-types';
+import { useBulkDetachDirectoryRules } from './hooks/useBulkDetachDirectoryRules';
 
 interface DirectoryRulesPageProviderProps {
   children: ReactNode;
@@ -94,6 +95,11 @@ export const DirectoryRulesPageProvider = ({
     setIsAssignModalOpen(false);
   }, []);
 
+  const bulkDetach = useBulkDetachDirectoryRules({
+    directoryId: directoryId || '',
+    directRules,
+  });
+
   const contextValue: IDirectoryRulesPageContext = {
     state: {
       directoryId: directoryId || '',
@@ -113,6 +119,7 @@ export const DirectoryRulesPageProvider = ({
       handleToggleCascadeView,
       handleCloseAssignModal,
     },
+    bulkDetach,
   };
 
   return (

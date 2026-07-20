@@ -4,8 +4,10 @@ import { Loader2, Trash2, AlertCircle } from 'lucide-react';
 import { formatDate } from '../../../utils/dateUtils';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
+import { BulkSelectCheckbox } from '../../../components/BulkSelectCheckbox';
 import { GenerationInfoTooltip } from '../../../components/GenerationInfoTooltip';
 import { getColorRailStyle, getSegmentedRailColors, isMultiColor } from '../../../utils/sourceColorRail';
+import { cn } from '../../../lib/utils';
 import type { IArtifactRow } from './IArtifactRow';
 
 const ColorRail: React.FC<{ documentColor?: string; documentColors?: string[] }> = ({
@@ -23,7 +25,12 @@ const ColorRail: React.FC<{ documentColor?: string; documentColors?: string[] }>
     );
   }
   const style = getColorRailStyle(documentColor);
-  return <div className="w-[4px] self-stretch shrink-0 rounded-l-lg" style={{ backgroundColor: style.borderLeftColor as string }} />;
+  return (
+    <div
+      className="w-[4px] self-stretch shrink-0 rounded-l-lg"
+      style={{ backgroundColor: style.borderLeftColor as string }}
+    />
+  );
 };
 
 export const ArtifactRow: React.FC<IArtifactRow> = ({
@@ -41,18 +48,38 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
   documentColor,
   documentColors,
   onLinkHover,
+  selected = false,
+  onSelectChange,
 }) => {
   const isPending = generationStatus === 'pending';
   const isFailed = generationStatus === 'failed';
+
+  const selectionControl = onSelectChange ? (
+    <BulkSelectCheckbox
+      checked={selected}
+      onCheckedChange={onSelectChange}
+      label={`Select ${title}`}
+      className="pl-2"
+    />
+  ) : null;
+
   if (isPending) {
     return (
-      <div className="flex items-center rounded-lg border border-border bg-muted/30 opacity-70 overflow-hidden">
+      <div
+        className={cn(
+          'flex items-center rounded-lg border border-border bg-muted/30 opacity-70 overflow-hidden',
+          selected && 'ring-2 ring-primary',
+        )}
+      >
         <ColorRail documentColor={documentColor} documentColors={documentColors} />
+        {selectionControl}
         <div className="flex items-center gap-2 flex-1 min-w-0 p-3">
           <Loader2 size={18} className="shrink-0 text-muted-foreground animate-spin" />
           <div className="flex-1 min-w-0">
             <div className="font-medium truncate text-muted-foreground">{title}</div>
-            <Badge variant="secondary" className="mt-1 text-xs">Preparing</Badge>
+            <Badge variant="secondary" className="mt-1 text-xs">
+              Preparing
+            </Badge>
           </div>
           <Button
             variant="ghost"
@@ -73,13 +100,21 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
 
   if (isFailed) {
     return (
-      <div className="flex items-center rounded-lg border border-destructive/40 bg-destructive/5 overflow-hidden">
+      <div
+        className={cn(
+          'flex items-center rounded-lg border border-destructive/40 bg-destructive/5 overflow-hidden',
+          selected && 'ring-2 ring-primary',
+        )}
+      >
         <ColorRail documentColor={documentColor} documentColors={documentColors} />
+        {selectionControl}
         <div className="flex items-center gap-2 flex-1 min-w-0 p-3">
           <AlertCircle size={18} className="shrink-0 text-destructive" />
           <div className="flex-1 min-w-0">
             <div className="font-medium truncate text-destructive">{title}</div>
-            <div className="text-xs text-destructive/70 truncate">{generationError || 'Generation failed'}</div>
+            <div className="text-xs text-destructive/70 truncate">
+              {generationError || 'Generation failed'}
+            </div>
           </div>
           <Button
             variant="ghost"
@@ -99,8 +134,14 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
   }
 
   return (
-    <div className="group flex items-center rounded-lg border border-border hover:bg-muted/50 transition-colors overflow-hidden">
+    <div
+      className={cn(
+        'group flex items-center rounded-lg border border-border hover:bg-muted/50 transition-colors overflow-hidden',
+        selected && 'ring-2 ring-primary',
+      )}
+    >
       <ColorRail documentColor={documentColor} documentColors={documentColors} />
+      {selectionControl}
       <Link
         to={linkTo}
         className="flex items-center gap-3 flex-1 min-w-0 p-3"

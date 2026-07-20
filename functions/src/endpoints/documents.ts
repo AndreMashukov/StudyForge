@@ -653,6 +653,31 @@ export const deleteDocument = onCall(
 );
 
 /**
+ * Best-effort bulk delete for documents.
+ */
+export const bulkDeleteDocuments = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
+  async (request) => {
+    const userId = await validateAuth(request);
+    const { documentIds } = (request.data ?? {}) as { documentIds?: unknown };
+
+    if (!Array.isArray(documentIds) || !documentIds.every((id) => typeof id === 'string')) {
+      throw new HttpsError('invalid-argument', 'documentIds must be an array of strings.');
+    }
+
+    const { executeBulkOperation } = await import('../services/bulk-operation.js');
+    return executeBulkOperation({
+      items: documentIds,
+      getItemId: (id) => id,
+      runItem: (documentId) => DocumentCrudService.deleteDocument(userId, documentId),
+    });
+  }
+);
+
+/**
  * Get user documents (alias for listDocuments for frontend compatibility)
  */
 export const getUserDocuments = onCall(

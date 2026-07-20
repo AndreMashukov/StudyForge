@@ -143,3 +143,37 @@ export const revokeApiKey = onCall(
     return { success: true };
   }
 );
+
+/**
+ * Best-effort bulk revoke for API keys owned by the authenticated user.
+ */
+export const bulkRevokeApiKeys = onCall(
+  { region: "asia-east1", cors: true },
+  async (request) => {
+    const userId = validateAuth(request);
+    const { keyIds } = (request.data ?? {}) as { keyIds?: unknown };
+
+    if (!Array.isArray(keyIds) || !keyIds.every((id) => typeof id === "string")) {
+      throw new HttpsError("invalid-argument", "keyIds must be an array of strings.");
+    }
+
+    const db = getFirestore();
+    const { executeBulkOperation } = await import("../services/bulk-operation.js");
+
+    return executeBulkOperation({
+      items: keyIds,
+      getItemId: (id) => id,
+      runItem: async (keyId) => {
+        const ref = getUserApiKeysCollection(db, userId).doc(keyId);
+        const doc = await ref.get();
+        if (!doc.exists) {
+          throw new HttpsError(
+            "not-found",
+            "API key not found or does not belong to you."
+          );
+        }
+        await ref.update({ active: false });
+      },
+    });
+  }
+);

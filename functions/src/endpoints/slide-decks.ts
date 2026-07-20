@@ -2,7 +2,6 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
 import { createHash } from 'crypto';
 import { z } from 'zod';
 
@@ -17,8 +16,6 @@ import { enqueueGenerationJob } from '../services/generation-enqueue';
 import { buildStartGenerationPayload } from '../lib/start-generation-response';
 import { validateAuth } from '../lib/auth';
 import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
-import { FirestorePaths } from '../lib/firestore-paths';
-import { removeArtifactDirectoryIndex, syncIndexSafely } from '../services/directory-item-index';
 
 const redactId = (id: string): string =>
   createHash('sha256').update(id).digest('hex').slice(0, 8);
@@ -258,50 +255,8 @@ export const deleteSlideDeck = onCall({ region: 'asia-east1', cors: true }, asyn
       throw new HttpsError('invalid-argument', parseResult.error.issues[0]?.message ?? 'Invalid request.');
     }
     const { slideDeckId } = parseResult.data;
-
-    const docRef = FirestorePaths.slideDecks(userId).doc(slideDeckId);
-    const docSnap = await docRef.get();
-
-    if (!docSnap.exists) {
-      throw new HttpsError('not-found', 'No slide deck found with that ID.');
-    }
-
-    // Delete associated storage files
-    const data = docSnap.data() as SlideDeck;
-    const directoryId = data.directoryId;
-    if (data?.slides) {
-      for (const slide of data.slides) {
-        if (slide.imageStoragePath) {
-          try {
-            await admin.storage().bucket().file(slide.imageStoragePath).delete();
-          } catch {
-            logger.warn(`Failed to delete slide image: ${slide.imageStoragePath}`);
-          }
-        }
-      }
-    }
-
-    const db = admin.firestore();
-    await db.runTransaction(async (transaction) => {
-      const snap = await transaction.get(docRef);
-      if (!snap.exists) {
-        throw new HttpsError('not-found', 'No slide deck found with that ID.');
-      }
-      const deck = snap.data() as SlideDeck;
-      transaction.delete(docRef);
-      const gs = deck.generationStatus;
-      if (deck.directoryId && (!gs || gs === 'completed')) {
-        transaction.update(FirestorePaths.directory(userId, deck.directoryId), {
-          slideDeckCount: FieldValue.increment(-1),
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-      }
-    });
-    if (directoryId) {
-      await syncIndexSafely('deleteSlideDeck', () =>
-        removeArtifactDirectoryIndex(userId, directoryId, 'slideDeck', slideDeckId),
-      );
-    }
+    const { deleteSlideDeckForUser } = await import('../services/artifact-delete.js');
+    await deleteSlideDeckForUser(userId, slideDeckId);
     return { success: true };
   } catch (error) {
     logger.error('Error deleting slide deck:', error);

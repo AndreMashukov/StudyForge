@@ -155,6 +155,33 @@ export const deleteDirectory = onCall(
 );
 
 /**
+ * Best-effort bulk delete for directories (recursive contents included per directory).
+ */
+export const bulkDeleteDirectories = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
+  async (request) => {
+    const userId = await validateAuth(request);
+    const { directoryIds } = (request.data ?? {}) as { directoryIds?: unknown };
+
+    if (!Array.isArray(directoryIds) || !directoryIds.every((id) => typeof id === 'string')) {
+      throw new HttpsError('invalid-argument', 'directoryIds must be an array of strings.');
+    }
+
+    const { executeBulkOperation } = await import('../services/bulk-operation.js');
+    return executeBulkOperation({
+      items: directoryIds,
+      getItemId: (id) => id,
+      runItem: async (directoryId) => {
+        await directoryService.deleteDirectory(userId, directoryId);
+      },
+    });
+  }
+);
+
+/**
  * Get directory tree for the user
  */
 export const getDirectoryTree = onCall(

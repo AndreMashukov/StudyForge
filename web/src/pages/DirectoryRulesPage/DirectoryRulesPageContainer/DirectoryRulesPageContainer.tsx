@@ -9,7 +9,7 @@ import { RuleCascadeVisualization } from './RuleCascadeVisualization';
 import { Spinner } from '../../../components/ui/Spinner';
 
 export const DirectoryRulesPageContainer = () => {
-  const { state, handlers } = useDirectoryRulesPage();
+  const { state, handlers, bulkDetach } = useDirectoryRulesPage();
   const { currentTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -20,7 +20,7 @@ export const DirectoryRulesPageContainer = () => {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <Spinner size="lg" variant="muted" className="mx-auto" />
-              <p 
+              <p
                 className="mt-4 font-medium"
                 style={{ color: currentTheme.colors.mutedForeground }}
               >
@@ -41,7 +41,7 @@ export const DirectoryRulesPageContainer = () => {
             <p style={{ color: currentTheme.colors.destructive }}>
               {state.error || 'Directory not found'}
             </p>
-            <Button 
+            <Button
               onClick={() => navigate('/documents')}
               className="mt-4"
             >
@@ -79,7 +79,7 @@ export const DirectoryRulesPageContainer = () => {
                 <span>←</span>
                 <span>Back</span>
               </button>
-              <h1 
+              <h1
                 className="text-3xl font-bold font-heading"
                 style={{ color: currentTheme.colors.foreground }}
               >
@@ -98,8 +98,8 @@ export const DirectoryRulesPageContainer = () => {
               </Button>
             </div>
           </div>
-          
-          <div 
+
+          <div
             className="text-sm"
             style={{ color: currentTheme.colors.mutedForeground }}
           >
@@ -116,15 +116,15 @@ export const DirectoryRulesPageContainer = () => {
 
         {/* Rules Assigned to This Directory */}
         <div className="mb-8">
-          <div 
+          <div
             className="rounded-lg border p-6"
-            style={{ 
+            style={{
               backgroundColor: currentTheme.colors.card,
               borderColor: currentTheme.colors.border,
             }}
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 
+              <h2
                 className="text-xl font-semibold flex items-center gap-2"
                 style={{ color: currentTheme.colors.foreground }}
               >
@@ -136,7 +136,7 @@ export const DirectoryRulesPageContainer = () => {
             </div>
 
             {directRules.length === 0 ? (
-              <div 
+              <div
                 className="text-center py-8"
                 style={{ color: currentTheme.colors.mutedForeground }}
               >
@@ -147,6 +147,7 @@ export const DirectoryRulesPageContainer = () => {
               </div>
             ) : (
               <div className="space-y-3">
+                {bulkDetach.toolbar}
                 {directRules.map((rule) => (
                   <RuleCard
                     key={rule.id}
@@ -154,6 +155,12 @@ export const DirectoryRulesPageContainer = () => {
                     onEdit={() => handleEditRule(rule.id)}
                     onRemove={() => handleRemoveRule(rule.id)}
                     showRemoveButton
+                    selected={bulkDetach.isSelected(rule.id)}
+                    onSelectChange={(checked) => {
+                      if (checked !== bulkDetach.isSelected(rule.id)) {
+                        bulkDetach.toggle(rule.id);
+                      }
+                    }}
                   />
                 ))}
               </div>
@@ -164,14 +171,14 @@ export const DirectoryRulesPageContainer = () => {
         {/* Inherited Rules */}
         {Object.keys(parentRules).length > 0 && (
           <div className="mb-8">
-            <div 
+            <div
               className="rounded-lg border p-6"
-              style={{ 
+              style={{
                 backgroundColor: currentTheme.colors.card,
                 borderColor: currentTheme.colors.border,
               }}
             >
-              <h2 
+              <h2
                 className="text-xl font-semibold mb-4 flex items-center gap-2"
                 style={{ color: currentTheme.colors.foreground }}
               >
@@ -184,14 +191,14 @@ export const DirectoryRulesPageContainer = () => {
               <div className="space-y-6">
                 {Object.entries(parentRules).map(([dirId, rules]) => (
                   <div key={dirId}>
-                    <div 
+                    <div
                       className="rounded-lg border p-4"
-                      style={{ 
+                      style={{
                         backgroundColor: currentTheme.colors.background,
                         borderColor: currentTheme.colors.border,
                       }}
                     >
-                      <div 
+                      <div
                         className="text-sm font-medium mb-3 flex items-center gap-2"
                         style={{ color: currentTheme.colors.mutedForeground }}
                       >
@@ -225,6 +232,8 @@ export const DirectoryRulesPageContainer = () => {
           <AssignRuleModal onClose={handleCloseAssignModal} />
         )}
       </div>
+
+      {bulkDetach.dialogs}
     </Page>
   );
 };

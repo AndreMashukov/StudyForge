@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../../../../components/ui/DropdownMenu';
+import { BulkSelectCheckbox } from '../../../../components/BulkSelectCheckbox';
 import { MoreVertical, Edit, Trash2, Star, FolderOpen } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { getRuleApplicabilityLabel } from '../../../../utils/ruleApplicabilityUtils';
@@ -24,7 +25,14 @@ const ruleColorClasses: Record<string, string> = {
   gray: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
 };
 
-export const RuleCard = ({ rule, onEdit, onDelete, viewMode }: IRuleCard) => {
+export const RuleCard = ({
+  rule,
+  onEdit,
+  onDelete,
+  viewMode,
+  selected = false,
+  onSelectChange,
+}: IRuleCard) => {
   const handleEdit = () => {
     onEdit(rule);
   };
@@ -36,15 +44,28 @@ export const RuleCard = ({ rule, onEdit, onDelete, viewMode }: IRuleCard) => {
     }
   };
 
-  const truncatedContent = rule.content.length > 150 
-    ? `${rule.content.substring(0, 150)}...` 
+  const truncatedContent = rule.content.length > 150
+    ? `${rule.content.substring(0, 150)}...`
     : rule.content;
 
   if (viewMode === 'list') {
     return (
-      <Card className="hover:border-primary/50 transition-colors">
+      <Card
+        className={cn(
+          'hover:border-primary/50 transition-colors',
+          selected && 'ring-2 ring-primary',
+        )}
+      >
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-4">
+            {onSelectChange && (
+              <BulkSelectCheckbox
+                checked={selected}
+                onCheckedChange={onSelectChange}
+                label={`Select rule ${rule.name}`}
+                className="mt-1"
+              />
+            )}
             <div className="flex-1 min-w-0">
               {/* Header */}
               <div className="flex items-center gap-2 mb-2">
@@ -127,11 +148,23 @@ export const RuleCard = ({ rule, onEdit, onDelete, viewMode }: IRuleCard) => {
 
   // Grid view
   return (
-    <Card className="hover:border-primary/50 transition-colors h-full flex flex-col">
+    <Card
+      className={cn(
+        'hover:border-primary/50 transition-colors h-full flex flex-col',
+        selected && 'ring-2 ring-primary',
+      )}
+    >
       <CardContent className="p-4 flex-1 flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
+            {onSelectChange && (
+              <BulkSelectCheckbox
+                checked={selected}
+                onCheckedChange={onSelectChange}
+                label={`Select rule ${rule.name}`}
+              />
+            )}
             <div
               className={cn(
                 'w-3 h-3 rounded-full border flex-shrink-0',
@@ -145,7 +178,7 @@ export const RuleCard = ({ rule, onEdit, onDelete, viewMode }: IRuleCard) => {
               <Star size={14} className="text-yellow-500 flex-shrink-0" />
             )}
           </div>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="flex-shrink-0 -mt-1">

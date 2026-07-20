@@ -1,13 +1,17 @@
 import { Rule, RuleApplicability, RuleColor } from '@shared-types';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { Button } from '../../../../components/ui/Button';
+import { BulkSelectCheckbox } from '../../../../components/BulkSelectCheckbox';
+import { cn } from '../../../../lib/utils';
 
-interface RuleCardProps {
+export interface IDirectoryRuleCard {
   rule: Rule;
   onEdit: () => void;
   onRemove?: () => void;
   isInherited?: boolean;
   showRemoveButton?: boolean;
+  selected?: boolean;
+  onSelectChange?: (selected: boolean) => void;
 }
 
 const ruleAccentColors: Record<RuleColor, string> = {
@@ -48,14 +52,19 @@ export const RuleCard = ({
   onRemove,
   isInherited = false,
   showRemoveButton = false,
-}: RuleCardProps) => {
+  selected = false,
+  onSelectChange,
+}: IDirectoryRuleCard) => {
   const { currentTheme } = useTheme();
   const colors = currentTheme.colors;
   const ruleAccentColor = getRuleAccentColor(rule.color);
 
   return (
     <div
-      className="relative overflow-hidden rounded-lg border p-4 pl-5 transition-colors"
+      className={cn(
+        'relative overflow-hidden rounded-lg border p-4 pl-5 transition-colors',
+        selected && 'ring-2 ring-primary',
+      )}
       style={{
         backgroundColor: colors.card,
         backgroundImage: `linear-gradient(90deg, color-mix(in srgb, ${ruleAccentColor} 10%, transparent), transparent 72px)`,
@@ -70,65 +79,75 @@ export const RuleCard = ({
         }}
       />
       <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <h3
-              className="font-semibold"
-              style={{ color: colors.cardForeground }}
-            >
-              {rule.name}
-            </h3>
-            {isInherited && (
-              <span
-                className="text-xs px-2 py-0.5 rounded"
-                style={{
-                  backgroundColor: colors.muted,
-                  color: colors.mutedForeground,
-                }}
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          {onSelectChange && !isInherited && (
+            <BulkSelectCheckbox
+              checked={selected}
+              onCheckedChange={onSelectChange}
+              label={`Select rule ${rule.name}`}
+              className="mt-1"
+            />
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <h3
+                className="font-semibold"
+                style={{ color: colors.cardForeground }}
               >
-                Inherited
-              </span>
-            )}
-          </div>
-
-          {/* Applicability badges */}
-          <div className="flex flex-wrap gap-1 mb-2">
-            {rule.applicableTo.map((applicability) => (
-              <span
-                key={applicability}
-                className="text-xs px-2 py-1 rounded-md"
-                style={{
-                  backgroundColor: colors.secondary,
-                  color: colors.secondaryForeground,
-                }}
-              >
-                {getApplicabilityLabel(applicability)}
-              </span>
-            ))}
-          </div>
-
-          {/* Tags */}
-          {rule.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 items-center">
-              <span 
-                className="text-xs"
-                style={{ color: colors.mutedForeground }}
-              >
-                <span role="img" aria-label="tags">
-                  🏷️
-                </span>
-              </span>
-              {rule.tags.map((tag) => (
+                {rule.name}
+              </h3>
+              {isInherited && (
                 <span
-                  key={tag}
-                  className="text-xs"
-                  style={{ color: colors.mutedForeground }}
+                  className="text-xs px-2 py-0.5 rounded"
+                  style={{
+                    backgroundColor: colors.muted,
+                    color: colors.mutedForeground,
+                  }}
                 >
-                  {tag}
+                  Inherited
+                </span>
+              )}
+            </div>
+
+            {/* Applicability badges */}
+            <div className="flex flex-wrap gap-1 mb-2">
+              {rule.applicableTo.map((applicability) => (
+                <span
+                  key={applicability}
+                  className="text-xs px-2 py-1 rounded-md"
+                  style={{
+                    backgroundColor: colors.secondary,
+                    color: colors.secondaryForeground,
+                  }}
+                >
+                  {getApplicabilityLabel(applicability)}
                 </span>
               ))}
             </div>
-          )}
+
+            {/* Tags */}
+            {rule.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 items-center">
+                <span
+                  className="text-xs"
+                  style={{ color: colors.mutedForeground }}
+                >
+                  <span role="img" aria-label="tags">
+                    🏷️
+                  </span>
+                </span>
+                {rule.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-xs"
+                    style={{ color: colors.mutedForeground }}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Actions */}
@@ -156,7 +175,7 @@ export const RuleCard = ({
 
       {/* Description */}
       {rule.description && (
-        <p 
+        <p
           className="text-sm mt-2"
           style={{ color: colors.mutedForeground }}
         >

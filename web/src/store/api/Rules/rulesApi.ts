@@ -17,6 +17,9 @@ import {
   GetDirectoryRulesResponse,
   GetApplicableRulesRequest,
   FormatRulesForPromptRequest,
+  IBulkDeleteRulesRequest,
+  IBulkDetachRulesFromDirectoryRequest,
+  IBulkOperationResponse,
 } from '@shared-types';
 import { GetApplicableRulesWithDefaultsResponse } from './IRulesApi';
 
@@ -156,6 +159,27 @@ export const rulesApi = baseApi.injectEndpoints({
         'Rules',
         'DirectoryRules',
       ],
+    }),
+
+    bulkDeleteRules: builder.mutation<IBulkOperationResponse, IBulkDeleteRulesRequest>({
+      query: (data) => ({
+        functionName: 'bulkDeleteRules',
+        data,
+      }),
+      invalidatesTags: (result) =>
+        result && result.succeeded > 0 ? ['Rules'] : [],
+    }),
+
+    bulkDetachRulesFromDirectory: builder.mutation<
+      IBulkOperationResponse,
+      IBulkDetachRulesFromDirectoryRequest
+    >({
+      query: (data) => ({
+        functionName: 'bulkDetachRulesFromDirectory',
+        data,
+      }),
+      invalidatesTags: (result) =>
+        result && result.succeeded > 0 ? ['Rules', 'DirectoryRules'] : [],
     }),
 
     getDirectoryRules: builder.query<GetDirectoryRulesResponse, GetDirectoryRulesRequest>({
@@ -334,6 +358,8 @@ export const {
   useDeleteRuleMutation,
   useAttachRuleToDirectoryMutation,
   useDetachRuleFromDirectoryMutation,
+  useBulkDeleteRulesMutation,
+  useBulkDetachRulesFromDirectoryMutation,
   useGetDirectoryRulesQuery,
   useGetApplicableRulesQuery,
   useFormatRulesForPromptMutation,

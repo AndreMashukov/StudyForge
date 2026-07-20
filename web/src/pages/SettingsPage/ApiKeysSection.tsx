@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Key, Plus, Trash2, Copy, Check, AlertTriangle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -6,15 +6,28 @@ import { Input } from '../../components/ui/Input';
 import { Label } from '../../components/ui/Label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/Dialog';
 import { Badge } from '../../components/ui/Badge';
-import { useListApiKeysQuery, useCreateApiKeyMutation, useRevokeApiKeyMutation } from '../../store/api/ApiKeys/apiKeysApi';
+import { BulkSelectCheckbox } from '../../components/BulkSelectCheckbox';
+import { BulkSelectionToolbar } from '../../components/BulkSelectionToolbar';
+import { BulkActionConfirmDialog } from '../../components/BulkActionConfirmDialog';
+import { BulkActionResultDialog } from '../../components/BulkActionResultDialog';
+import {
+  useListApiKeysQuery,
+  useCreateApiKeyMutation,
+  useRevokeApiKeyMutation,
+  useBulkRevokeApiKeysMutation,
+} from '../../store/api/ApiKeys/apiKeysApi';
 import { IApiKey } from '../../store/api/ApiKeys/IApiKeysApi';
 import { cn } from '../../lib/utils';
 import { formatDate } from '../../utils/dateUtils';
+import { useBulkSelection } from '../../hooks/useBulkSelection';
+import { useBulkActionFlow } from '../../hooks/useBulkActionFlow';
 
 export const ApiKeysSection: React.FC = () => {
   const { data, isLoading, error } = useListApiKeysQuery();
   const [createApiKey, { isLoading: isCreating }] = useCreateApiKeyMutation();
   const [revokeApiKey, { isLoading: isRevoking }] = useRevokeApiKeyMutation();
+  const [bulkRevokeApiKeys, { isLoading: isBulkRevoking }] =
+    useBulkRevokeApiKeysMutation();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [keyName, setKeyName] = useState('');
@@ -23,6 +36,22 @@ export const ApiKeysSection: React.FC = () => {
 
   const [showRevokeDialog, setShowRevokeDialog] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<IApiKey | null>(null);
+
+  const activeKeys = useMemo(
+    () => data?.keys?.filter((k) => k.active) ?? [],
+    [data?.keys],
+  );
+  const visibleIds = useMemo(
+    () => activeKeys.map((key) => key.keyId),
+    [activeKeys],
+  );
+  const selection = useBulkSelection({ visibleIds });
+  const bulkFlow = useBulkActionFlow();
+
+  const labelsById = useMemo(
+    () => Object.fromEntries(activeKeys.map((key) => [key.keyId, key.name])),
+    [activeKeys],
+  );
 
   const handleOpenCreate = () => {
     setKeyName('');
@@ -71,8 +100,6 @@ export const ApiKeysSection: React.FC = () => {
     }
   };
 
-  const activeKeys = data?.keys?.filter((k) => k.active) ?? [];
-
   return (
     <>
       <Card>
@@ -109,46 +136,76 @@ export const ApiKeysSection: React.FC = () => {
           )}
 
           {!isLoading && !error && activeKeys.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="pb-2 font-medium text-muted-foreground">Name</th>
-                    <th className="pb-2 font-medium text-muted-foreground">Key</th>
-                    <th className="pb-2 font-medium text-muted-foreground">Created</th>
-                    <th className="pb-2 font-medium text-muted-foreground">Last used</th>
-                    <th className="pb-2 font-medium text-muted-foreground" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeKeys.map((key) => (
-                    <tr key={key.keyId} className="border-b border-border/50 last:border-0">
-                      <td className="py-3 pr-4 font-medium text-foreground">{key.name}</td>
-                      <td className="py-3 pr-4">
-                        <Badge variant="secondary" className="font-mono text-xs">
-                          {key.keyPrefix.replace(/\.\.\.$/,  '')}...
-                        </Badge>
-                      </td>
-                      <td className="py-3 pr-4 text-muted-foreground">
-                        {key.createdAt ? formatDate(key.createdAt) : '—'}
-                      </td>
-                      <td className="py-3 pr-4 text-muted-foreground">
-                        {key.lastUsedAt ? formatDate(key.lastUsedAt) : 'Never'}
-                      </td>
-                      <td className="py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Revoke ${key.name}`}
-                          onClick={() => handleOpenRevoke(key)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </td>
+            <div className="space-y-3">
+              <BulkSelectionToolbar
+                selectedCount={selection.selectedCount}
+                allVisibleSelected={selection.allVisibleSelected}
+                onSelectAllVisible={selection.selectAllVisible}
+                onClear={selection.clear}
+                actionLabel={`Revoke selected (${selection.selectedCount})`}
+                onAction={bulkFlow.openConfirm}
+              />
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      <th className="pb-2 pr-2 w-10 font-medium text-muted-foreground">
+                        <span className="sr-only">Select</span>
+                      </th>
+                      <th className="pb-2 font-medium text-muted-foreground">Name</th>
+                      <th className="pb-2 font-medium text-muted-foreground">Key</th>
+                      <th className="pb-2 font-medium text-muted-foreground">Created</th>
+                      <th className="pb-2 font-medium text-muted-foreground">Last used</th>
+                      <th className="pb-2 font-medium text-muted-foreground" />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {activeKeys.map((key) => (
+                      <tr
+                        key={key.keyId}
+                        className={cn(
+                          'border-b border-border/50 last:border-0',
+                          selection.isSelected(key.keyId) && 'bg-muted/30',
+                        )}
+                      >
+                        <td className="py-3 pr-2 align-middle">
+                          <BulkSelectCheckbox
+                            checked={selection.isSelected(key.keyId)}
+                            onCheckedChange={(checked) => {
+                              if (checked !== selection.isSelected(key.keyId)) {
+                                selection.toggle(key.keyId);
+                              }
+                            }}
+                            label={`Select API key ${key.name}`}
+                          />
+                        </td>
+                        <td className="py-3 pr-4 font-medium text-foreground">{key.name}</td>
+                        <td className="py-3 pr-4">
+                          <Badge variant="secondary" className="font-mono text-xs">
+                            {key.keyPrefix.replace(/\.\.\.$/, '')}...
+                          </Badge>
+                        </td>
+                        <td className="py-3 pr-4 text-muted-foreground">
+                          {key.createdAt ? formatDate(key.createdAt) : '—'}
+                        </td>
+                        <td className="py-3 pr-4 text-muted-foreground">
+                          {key.lastUsedAt ? formatDate(key.lastUsedAt) : 'Never'}
+                        </td>
+                        <td className="py-3 text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Revoke ${key.name}`}
+                            onClick={() => handleOpenRevoke(key)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </CardContent>
@@ -242,6 +299,41 @@ export const ApiKeysSection: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BulkActionConfirmDialog
+        open={bulkFlow.confirmOpen}
+        onOpenChange={(open) => !open && bulkFlow.closeConfirm()}
+        title={`Revoke ${selection.selectedCount} API key${selection.selectedCount === 1 ? '' : 's'}?`}
+        description={
+          <p>
+            Selected keys will stop working immediately. Applications using them will
+            lose access.
+          </p>
+        }
+        confirmLabel={`Revoke ${selection.selectedCount} key${selection.selectedCount === 1 ? '' : 's'}`}
+        mode="simple"
+        isLoading={isBulkRevoking}
+        error={bulkFlow.error}
+        onConfirm={async () => {
+          await bulkFlow.runBulkAction(
+            () =>
+              bulkRevokeApiKeys({
+                keyIds: selection.selectedIds,
+              }).unwrap(),
+            selection,
+          );
+        }}
+      />
+
+      <BulkActionResultDialog
+        open={bulkFlow.resultOpen}
+        onOpenChange={(open) => !open && bulkFlow.closeResult()}
+        title="API key revoke results"
+        succeeded={bulkFlow.result?.succeeded ?? 0}
+        failed={bulkFlow.result?.failed ?? 0}
+        results={bulkFlow.result?.results ?? []}
+        labelsById={labelsById}
+      />
     </>
   );
 };

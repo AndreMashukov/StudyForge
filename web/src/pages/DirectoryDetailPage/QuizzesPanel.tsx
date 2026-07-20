@@ -5,6 +5,7 @@ import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
+import { useBulkArtifactPanel } from './hooks/useBulkArtifactPanel';
 import { useAppDispatch } from '../../hooks/redux';
 import { quizApi } from '../../store/api/Quiz/QuizApi';
 
@@ -39,6 +40,11 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
     'quizzes',
     quizzes,
   );
+  const bulk = useBulkArtifactPanel({
+    artifacts: quizzes,
+    artifactType: 'quiz',
+    entityLabel: 'quizzes',
+  });
 
   return (
     <div className="space-y-4">
@@ -54,6 +60,7 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
           <span>Showing first {quizzes.length} quizzes — more may exist.</span>
         </div>
       )}
+      {bulk.toolbar}
       {quizzes.length === 0 && !showOptimisticRow ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
           No quizzes in this directory yet.
@@ -80,10 +87,13 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
               documentColor={q.documentColor}
               documentColors={q.documentColors}
               onLinkHover={() => prefetchQuiz(q.id)}
+              selected={bulk.isSelected(q.id)}
+              onSelectChange={() => bulk.toggle(q.id)}
             />
           ))}
         </div>
       )}
+      {bulk.dialogs}
     </div>
   );
 };

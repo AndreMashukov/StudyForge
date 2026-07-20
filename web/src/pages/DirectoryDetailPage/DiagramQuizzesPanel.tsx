@@ -5,6 +5,7 @@ import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
+import { useBulkArtifactPanel } from './hooks/useBulkArtifactPanel';
 import { useAppDispatch } from '../../hooks/redux';
 import { diagramQuizApi } from '../../store/api/DiagramQuiz/DiagramQuizApi';
 
@@ -41,6 +42,11 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
     'diagramQuizzes',
     diagramQuizzes,
   );
+  const bulk = useBulkArtifactPanel({
+    artifacts: diagramQuizzes,
+    artifactType: 'diagramQuiz',
+    entityLabel: 'diagram quizzes',
+  });
 
   return (
     <div className="space-y-4">
@@ -56,6 +62,7 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
           <span>Showing first {diagramQuizzes.length} diagram quizzes — more may exist.</span>
         </div>
       )}
+      {bulk.toolbar}
       {diagramQuizzes.length === 0 && !showOptimisticRow ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
           No diagram quizzes in this directory yet.
@@ -82,10 +89,13 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
               documentColor={dq.documentColor}
               documentColors={dq.documentColors}
               onLinkHover={() => prefetchDiagramQuiz(dq.id)}
+              selected={bulk.isSelected(dq.id)}
+              onSelectChange={() => bulk.toggle(dq.id)}
             />
           ))}
         </div>
       )}
+      {bulk.dialogs}
     </div>
   );
 };

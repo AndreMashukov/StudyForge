@@ -1,5 +1,6 @@
 import { baseApi } from '../baseApi';
 import { IApiKey, ICreateApiKeyResponse } from './IApiKeysApi';
+import { IBulkOperationResponse, IBulkRevokeApiKeysRequest } from '@shared-types';
 
 export const apiKeysApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -26,6 +27,15 @@ export const apiKeysApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['ApiKeys'],
     }),
+
+    bulkRevokeApiKeys: builder.mutation<IBulkOperationResponse, IBulkRevokeApiKeysRequest>({
+      query: (data) => ({
+        functionName: 'bulkRevokeApiKeys',
+        data,
+      }),
+      invalidatesTags: (result) =>
+        result && result.succeeded > 0 ? ['ApiKeys'] : [],
+    }),
   }),
 });
 
@@ -33,4 +43,5 @@ export const {
   useListApiKeysQuery,
   useCreateApiKeyMutation,
   useRevokeApiKeyMutation,
+  useBulkRevokeApiKeysMutation,
 } = apiKeysApi;

@@ -6,7 +6,9 @@ import { selectSelectedDirectoryId } from '../../../store/slices/directorySlice'
 import {
   useGetDirectoryContentsQuery,
   useGetDirectoryTreeQuery,
+  useBulkDeleteDirectoriesMutation,
 } from '../../../store/api/Directory/DirectoryApi';
+import { useBulkDeleteDocumentsMutation } from '../../../store/api/Documents/documentsApi';
 import { Page } from '../../../components/Page';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
@@ -18,6 +20,10 @@ import { CreateDirectoryDialog } from './CreateDirectoryDialog';
 import { EditDirectoryDialog } from './EditDirectoryDialog';
 import { DeleteDirectoryDialog } from './DeleteDirectoryDialog';
 import { MoveDirectoryDialog } from './MoveDirectoryDialog';
+import { BulkSelectCheckbox } from '../../../components/BulkSelectCheckbox';
+import { BulkSelectionToolbar } from '../../../components/BulkSelectionToolbar';
+import { BulkActionConfirmDialog } from '../../../components/BulkActionConfirmDialog';
+import { BulkActionResultDialog } from '../../../components/BulkActionResultDialog';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
 import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus, Menu, Layers, Presentation, Loader2 } from 'lucide-react';
 import { DocumentEnhanced, Directory, getDocumentFallbackColor } from "@shared-types";
@@ -27,6 +33,8 @@ import {
   getSubdirectoriesForParent,
 } from '../../../utils/directoryTreeUtils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { useBulkSelection } from '../../../hooks/useBulkSelection';
+import { useBulkActionFlow } from '../../../hooks/useBulkActionFlow';
 import { Spinner } from '../../../components/ui/Spinner';
 import { IndeterminateLinearProgress } from '../../../components/ui/IndeterminateLinearProgress';
 import { MascotImage } from '../../../components/MascotImage';
@@ -87,7 +95,10 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     return directoryContents?.subdirectories ?? [];
   }, [treeData?.tree, selectedDirectoryId, directoryContents?.subdirectories]);
 
-  const documents = directoryContents?.documents ?? [];
+  const documents = useMemo(
+    () => directoryContents?.documents ?? [],
+    [directoryContents?.documents],
+  );
   const isRoot = !selectedDirectoryId;
   const isLoadingDocuments = isLoadingContents && !directoryContents;
   const showRootLoadingIndicator = isRoot && (isLoadingDocuments || isFetchingContents);
@@ -95,6 +106,33 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     (selectedDirectoryId && directoryContents?.directory.name) ||
     getDirectoryNameFromTree(treeData?.tree, selectedDirectoryId) ||
     (selectedDirectoryId ? 'Folder' : 'Root');
+
+  const folderVisibleIds = useMemo(
+    () => subdirectories.map((dir) => dir.id),
+    [subdirectories],
+  );
+  const documentVisibleIds = useMemo(
+    () => documents.map((doc) => doc.id),
+    [documents],
+  );
+
+  const folderSelection = useBulkSelection({ visibleIds: folderVisibleIds });
+  const documentSelection = useBulkSelection({ visibleIds: documentVisibleIds });
+  const folderBulkFlow = useBulkActionFlow();
+  const documentBulkFlow = useBulkActionFlow();
+  const [bulkDeleteDirectories, { isLoading: isBulkDeletingDirectories }] =
+    useBulkDeleteDirectoriesMutation();
+  const [bulkDeleteDocuments, { isLoading: isBulkDeletingDocuments }] =
+    useBulkDeleteDocumentsMutation();
+
+  const folderLabelsById = useMemo(
+    () => Object.fromEntries(subdirectories.map((dir) => [dir.id, dir.name])),
+    [subdirectories],
+  );
+  const documentLabelsById = useMemo(
+    () => Object.fromEntries(documents.map((doc) => [doc.id, doc.title])),
+    [documents],
+  );
 
   const isInitialLoading =
     (isLoadingTree && !treeData) &&
@@ -284,10 +322,18 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
               <div className="space-y-6">
                 {/* Folders Section */}
                 {subdirectories.length > 0 && (
-                  <div className="px-4 md:px-6">
+                  <div className="px-4 md:px-6 space-y-3">
                     {!isRoot && (
-                      <h2 className="text-lg font-semibold mb-3">Folders</h2>
+                      <h2 className="text-lg font-semibold">Folders</h2>
                     )}
+                    <BulkSelectionToolbar
+                      selectedCount={folderSelection.selectedCount}
+                      allVisibleSelected={folderSelection.allVisibleSelected}
+                      onSelectAllVisible={folderSelection.selectAllVisible}
+                      onClear={folderSelection.clear}
+                      actionLabel={`Delete selected (${folderSelection.selectedCount})`}
+                      onAction={folderBulkFlow.openConfirm}
+                    />
                     <div className={documentsPageStyles.documentsGrid}>
                       {subdirectories.map((dir: Directory) => (
                         <FolderCard
@@ -298,6 +344,12 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                           onDelete={() => setDeleteDialog({ open: true, directory: dir })}
                           onMove={() => setMoveDialog({ directory: dir })}
                           onManageRules={() => navigate(`/directories/${dir.id}/rules`)}
+                          selected={folderSelection.isSelected(dir.id)}
+                          onSelectChange={(checked) => {
+                            if (checked !== folderSelection.isSelected(dir.id)) {
+                              folderSelection.toggle(dir.id);
+                            }
+                          }}
                         />
                       ))}
                     </div>
@@ -310,17 +362,33 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                     <Spinner size="md" />
                   </div>
                 ) : documents.length > 0 ? (
-                  <div className="px-4 md:px-6">
-                    <h2 className="text-lg font-semibold mb-3">Documents</h2>
+                  <div className="px-4 md:px-6 space-y-3">
+                    <h2 className="text-lg font-semibold">Documents</h2>
+                    <BulkSelectionToolbar
+                      selectedCount={documentSelection.selectedCount}
+                      allVisibleSelected={documentSelection.allVisibleSelected}
+                      onSelectAllVisible={documentSelection.selectAllVisible}
+                      onClear={documentSelection.clear}
+                      actionLabel={`Delete selected (${documentSelection.selectedCount})`}
+                      onAction={documentBulkFlow.openConfirm}
+                    />
                     <div className={documentsPageStyles.documentsGrid}>
                       {documents.map((document: DocumentEnhanced) => (
                         <Card
                           key={document.id}
-                          className={documentsPageStyles.documentCard + ' border-l-[4px]'}
+                          className={cn(
+                            documentsPageStyles.documentCard + ' border-l-[4px]',
+                            documentSelection.isSelected(document.id) && 'ring-2 ring-primary',
+                          )}
                           style={{ borderLeftColor: document.color ?? getDocumentFallbackColor(document.id) }}
                         >
                           <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between">
+                            <div className="flex items-start justify-between gap-2">
+                              <BulkSelectCheckbox
+                                checked={documentSelection.isSelected(document.id)}
+                                onCheckedChange={() => documentSelection.toggle(document.id)}
+                                label={`Select document ${document.title}`}
+                              />
                               <div className="flex-1 min-w-0">
                                 <CardTitle className="text-base md:text-lg truncate">{document.title}</CardTitle>
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-2">
@@ -441,6 +509,73 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
         onSuccess={() => {
           // Refetch is handled automatically by RTK Query
         }}
+      />
+
+      <BulkActionConfirmDialog
+        open={folderBulkFlow.confirmOpen}
+        onOpenChange={(open) => !open && folderBulkFlow.closeConfirm()}
+        title={`Delete ${folderSelection.selectedCount} folder${folderSelection.selectedCount === 1 ? '' : 's'}?`}
+        description={
+          <p>
+            This permanently deletes the selected folders and all nested contents.
+            This cannot be undone.
+          </p>
+        }
+        confirmLabel={`Delete ${folderSelection.selectedCount} folder${folderSelection.selectedCount === 1 ? '' : 's'}`}
+        mode="destructive"
+        isLoading={isBulkDeletingDirectories}
+        error={folderBulkFlow.error}
+        onConfirm={async () => {
+          await folderBulkFlow.runBulkAction(
+            () =>
+              bulkDeleteDirectories({
+                directoryIds: folderSelection.selectedIds,
+              }).unwrap(),
+            folderSelection,
+          );
+        }}
+      />
+
+      <BulkActionResultDialog
+        open={folderBulkFlow.resultOpen}
+        onOpenChange={(open) => !open && folderBulkFlow.closeResult()}
+        title="Folder delete results"
+        succeeded={folderBulkFlow.result?.succeeded ?? 0}
+        failed={folderBulkFlow.result?.failed ?? 0}
+        results={folderBulkFlow.result?.results ?? []}
+        labelsById={folderLabelsById}
+      />
+
+      <BulkActionConfirmDialog
+        open={documentBulkFlow.confirmOpen}
+        onOpenChange={(open) => !open && documentBulkFlow.closeConfirm()}
+        title={`Delete ${documentSelection.selectedCount} document${documentSelection.selectedCount === 1 ? '' : 's'}?`}
+        description={
+          <p>This permanently deletes the selected documents and cannot be undone.</p>
+        }
+        confirmLabel={`Delete ${documentSelection.selectedCount} document${documentSelection.selectedCount === 1 ? '' : 's'}`}
+        mode="destructive"
+        isLoading={isBulkDeletingDocuments}
+        error={documentBulkFlow.error}
+        onConfirm={async () => {
+          await documentBulkFlow.runBulkAction(
+            () =>
+              bulkDeleteDocuments({
+                documentIds: documentSelection.selectedIds,
+              }).unwrap(),
+            documentSelection,
+          );
+        }}
+      />
+
+      <BulkActionResultDialog
+        open={documentBulkFlow.resultOpen}
+        onOpenChange={(open) => !open && documentBulkFlow.closeResult()}
+        title="Document delete results"
+        succeeded={documentBulkFlow.result?.succeeded ?? 0}
+        failed={documentBulkFlow.result?.failed ?? 0}
+        results={documentBulkFlow.result?.results ?? []}
+        labelsById={documentLabelsById}
       />
     </Page>
   );

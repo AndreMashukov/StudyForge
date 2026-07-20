@@ -5,6 +5,7 @@ import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
+import { useBulkArtifactPanel } from './hooks/useBulkArtifactPanel';
 import { useAppDispatch } from '../../hooks/redux';
 import { subjectWorldApi } from '../../store/api/SubjectWorld/SubjectWorldApi';
 
@@ -41,6 +42,11 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
     'subjectWorlds',
     subjectWorlds,
   );
+  const bulk = useBulkArtifactPanel({
+    artifacts: subjectWorlds,
+    artifactType: 'subjectWorld',
+    entityLabel: 'subject worlds',
+  });
 
   return (
     <div className="space-y-4">
@@ -56,6 +62,7 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
           <span>Showing first {subjectWorlds.length} subject worlds — more may exist.</span>
         </div>
       )}
+      {bulk.toolbar}
       {subjectWorlds.length === 0 && !showOptimisticRow ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
           No subject worlds in this directory yet.
@@ -82,10 +89,13 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
               documentColor={sw.documentColor}
               documentColors={sw.documentColors}
               onLinkHover={() => prefetchSubjectWorld(sw.id)}
+              selected={bulk.isSelected(sw.id)}
+              onSelectChange={() => bulk.toggle(sw.id)}
             />
           ))}
         </div>
       )}
+      {bulk.dialogs}
     </div>
   );
 };
