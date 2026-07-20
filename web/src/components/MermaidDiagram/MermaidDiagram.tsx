@@ -410,6 +410,35 @@ const PANZOOM_MIN_SCALE = 0.05;
 const PANZOOM_MAX_SCALE = 4;
 const PANZOOM_VIEWPORT_PADDING_PX = 16;
 
+interface IMermaidLabelTooltipState {
+  text: string;
+  x: number;
+  y: number;
+}
+
+function getMermaidTooltipTarget(element: Element | null): Element | null {
+  return element?.closest('[data-mermaid-tooltip]') ?? null;
+}
+
+function positionLabelTooltip(
+  target: Element,
+  container: HTMLElement
+): IMermaidLabelTooltipState | null {
+  const text = target.getAttribute('data-mermaid-tooltip');
+  if (!text) {
+    return null;
+  }
+
+  const nodeRect = target.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+
+  return {
+    text,
+    x: nodeRect.left - containerRect.left + nodeRect.width / 2,
+    y: nodeRect.top - containerRect.top - 8,
+  };
+}
+
 interface ISvgContentSize {
   width: number;
   height: number;
@@ -528,22 +557,26 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isFullscreenSupported, setIsFullscreenSupported] = useState(false);
   const [fullscreenError, setFullscreenError] = useState<string | null>(null);
+  const [labelTooltip, setLabelTooltip] = useState<IMermaidLabelTooltipState | null>(null);
 
   const fullscreenLabel = isFullscreen ? 'Exit fullscreen' : 'View fullscreen';
 
   const handleZoomIn = useCallback(() => {
     userHasInteractedRef.current = true;
+    setLabelTooltip(null);
     panzoomRef.current?.zoomIn();
   }, []);
 
   const handleZoomOut = useCallback(() => {
     userHasInteractedRef.current = true;
+    setLabelTooltip(null);
     panzoomRef.current?.zoomOut();
   }, []);
 
   const handleResetZoom = useCallback(() => {
     userHasInteractedRef.current = false;
     lastFitHostSizeRef.current = null;
+    setLabelTooltip(null);
     const panzoom = panzoomRef.current;
     const host = svgHostRef.current;
     const svgElement = host?.querySelector('svg');
@@ -682,6 +715,105 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
   }, [svg]);
 
   useEffect(() => {
+    const host = svgHostRef.current;
+    const container = diagramRef.current;
+    if (!host || !container || !svg) {
+      return undefined;
+    }
+
+    const svgElement = host.querySelector('svg');
+    if (!(svgElement instanceof SVGSVGElement)) {
+      return undefined;
+    }
+
+    finalizeMermaidSvg(svgElement, nodeTooltipsRef.current);
+
+    const showTooltipForTarget = (target: Element): void => {
+      const positioned = positionLabelTooltip(target, container);
+      if (positioned) {
+        setLabelTooltip(positioned);
+      }
+    };
+
+    const handlePointerOver = (event: PointerEvent): void => {
+      const target = getMermaidTooltipTarget(event.target instanceof Element ? event.target : null);
+      if (target) {
+        showTooltipForTarget(target);
+      }
+    };
+
+    const handlePointerOut = (event: PointerEvent): void => {
+      const fromTarget = getMermaidTooltipTarget(
+        event.target instanceof Element ? event.target : null
+      );
+      if (!fromTarget) {
+        return;
+      }
+
+      const relatedTarget =
+        event.relatedTarget instanceof Element ? event.relatedTarget : null;
+      if (relatedTarget && fromTarget.contains(relatedTarget)) {
+        return;
+      }
+      if (getMermaidTooltipTarget(relatedTarget)) {
+        return;
+      }
+
+      setLabelTooltip(null);
+    };
+
+    const handleFocusIn = (event: FocusEvent): void => {
+      const target = getMermaidTooltipTarget(
+        event.target instanceof Element ? event.target : null
+      );
+      if (target) {
+        showTooltipForTarget(target);
+      }
+    };
+
+    const handleFocusOut = (event: FocusEvent): void => {
+      const fromTarget = getMermaidTooltipTarget(
+        event.target instanceof Element ? event.target : null
+      );
+      if (!fromTarget) {
+        return;
+      }
+
+      const relatedTarget =
+        event.relatedTarget instanceof Element ? event.relatedTarget : null;
+      if (relatedTarget && fromTarget.contains(relatedTarget)) {
+        return;
+      }
+      if (getMermaidTooltipTarget(relatedTarget)) {
+        return;
+      }
+
+      setLabelTooltip(null);
+    };
+
+    const handlePanzoomChange = (): void => {
+      setLabelTooltip(null);
+    };
+
+    host.addEventListener('pointerover', handlePointerOver);
+    host.addEventListener('pointerout', handlePointerOut);
+    host.addEventListener('focusin', handleFocusIn);
+    host.addEventListener('focusout', handleFocusOut);
+    container.addEventListener('mousedown', handlePanzoomChange);
+    svgElement.addEventListener('panzoomchange', handlePanzoomChange);
+
+    return () => {
+      setLabelTooltip(null);
+      host.removeEventListener('pointerover', handlePointerOver);
+      host.removeEventListener('pointerout', handlePointerOut);
+      host.removeEventListener('focusin', handleFocusIn);
+      host.removeEventListener('focusout', handleFocusOut);
+      container.removeEventListener('mousedown', handlePanzoomChange);
+      svgElement.removeEventListener('panzoomchange', handlePanzoomChange);
+    };
+  }, [svg]);
+
+  useEffect(() => {
     if (!svg || !enablePanZoom) {
       return undefined;
     }
@@ -777,6 +909,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       if (enableWheelZoom && !wheelHandler) {
         wheelHandler = (event: WheelEvent) => {
           userHasInteractedRef.current = true;
+          setLabelTooltip(null);
           panzoom?.zoomWithWheel(event);
         };
         viewport.addEventListener('wheel', wheelHandler, { passive: false });
@@ -1028,6 +1161,16 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
         >
           {fullscreenError}
         </p>
+      )}
+
+      {labelTooltip && (
+        <div
+          className="pointer-events-none absolute z-20 max-w-xs -translate-x-1/2 -translate-y-full rounded-md border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md"
+          style={{ left: labelTooltip.x, top: labelTooltip.y }}
+          role="tooltip"
+        >
+          {labelTooltip.text}
+        </div>
       )}
     </div>
   );

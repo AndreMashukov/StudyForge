@@ -28,8 +28,18 @@ function applyNodeTooltips(
     const nodeElement =
       svgElement.querySelector(`[id^="flowchart-${nodeId}-"]`) ??
       svgElement.querySelector(`[id^="classId-${nodeId}-"]`);
-    if (nodeElement instanceof Element) {
-      nodeElement.setAttribute('title', tooltip);
+    if (!(nodeElement instanceof Element)) {
+      continue;
+    }
+
+    nodeElement.setAttribute('data-mermaid-tooltip', tooltip);
+    nodeElement.setAttribute('tabindex', '0');
+    nodeElement.setAttribute('role', 'button');
+    nodeElement.setAttribute('aria-label', tooltip);
+    nodeElement.removeAttribute('title');
+
+    if (nodeElement instanceof SVGElement) {
+      nodeElement.style.cursor = 'help';
     }
   }
 }
