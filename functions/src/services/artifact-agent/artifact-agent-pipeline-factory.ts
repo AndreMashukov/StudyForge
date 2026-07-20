@@ -97,12 +97,25 @@ class GenerateAgent extends BaseAgent {
     const diagnostics = readDiagnostics(context);
     const draft = await this.definition.generate(agentContext, diagnostics);
     diagnostics.generatorAttempts += 1;
+
+    // Prefer the latest generator usage entry that recorded a model label.
+    const generatorModel = [...diagnostics.modelUsage]
+      .reverse()
+      .find((entry) => entry.role === 'generator' && typeof entry.model === 'string' && entry.model.trim())
+      ?.model;
+
     yield createEvent({
       author: this.name,
       actions: createEventActions({
         stateDelta: {
           [ARTIFACT_PIPELINE_STATE_KEYS.draft]: draft,
           [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]: diagnostics,
+          ...(generatorModel
+            ? {
+                [ARTIFACT_PIPELINE_STATE_KEYS.generationModel]: generatorModel,
+                [ARTIFACT_PIPELINE_STATE_KEYS.agentModel]: generatorModel,
+              }
+            : {}),
         },
       }),
     });
@@ -282,7 +295,19 @@ class FinalizeAgent extends BaseAgent {
       | undefined;
 
     const gateResult = await runArtifactGates(this.definition.gates, draft, agentContext);
-    mergeFailuresIntoDiagnostics(diagnostics, gateResult.failures);
+    // GateAgent already records residuals during the repair loop. Only append
+    // failures that are new on this final draft (e.g. after critic/refiner).
+    const novelFailures = gateResult.failures.filter(
+      (failure) =>
+        !diagnostics.residuals.some(
+          (residual) =>
+            residual.gateId === failure.gateId &&
+            residual.severity === failure.severity &&
+            residual.message === failure.message &&
+            residual.path === failure.path
+        )
+    );
+    mergeFailuresIntoDiagnostics(diagnostics, novelFailures);
 
     const criticFailed =
       criticResult?.overallVerdict === 'fail' ||
