@@ -2,7 +2,6 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
 import { createHash } from 'crypto';
 import { z } from 'zod';
 
@@ -27,7 +26,6 @@ import { validateAuth } from '../lib/auth';
 import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
 import { FirestorePaths } from '../lib/firestore-paths';
 import {
-  removeArtifactDirectoryIndex,
   syncArtifactDirectoryIndex,
   syncIndexSafely,
 } from '../services/directory-item-index';
@@ -366,33 +364,8 @@ export const deleteFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
       throw new HttpsError('invalid-argument', msg);
     }
     const { flashcardSetId } = parseResult.data;
-
-    const docRef = FirestorePaths.flashcardSets(userId).doc(flashcardSetId);
-    const db = admin.firestore();
-    const preSnap = await docRef.get();
-    const directoryId = preSnap.exists ? (preSnap.data() as FlashcardSet).directoryId : undefined;
-    await db.runTransaction(async (transaction) => {
-      const snap = await transaction.get(docRef);
-      if (!snap.exists) {
-        throw new HttpsError('not-found', 'No flashcard set found with that ID.');
-      }
-      const existing = snap.data() as FlashcardSet;
-      transaction.delete(docRef);
-      const gs = existing.generationStatus;
-      if (existing.directoryId && (!gs || gs === 'completed')) {
-        transaction.update(FirestorePaths.directory(userId, existing.directoryId), {
-          flashcardSetCount: FieldValue.increment(-1),
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-      }
-    });
-
-    if (directoryId) {
-      await syncIndexSafely('deleteFlashcardSet', () =>
-        removeArtifactDirectoryIndex(userId, directoryId, 'flashcard', flashcardSetId),
-      );
-    }
-
+    const { deleteFlashcardSetForUser } = await import('../services/artifact-delete.js');
+    await deleteFlashcardSetForUser(userId, flashcardSetId);
     return { success: true };
   } catch(error) {
     logger.error(`Error deleting flashcard set ${request.data?.flashcardSetId}:`, error);

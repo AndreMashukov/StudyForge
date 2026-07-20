@@ -5,6 +5,7 @@ import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
+import { useBulkArtifactPanel } from './hooks/useBulkArtifactPanel';
 import { useAppDispatch } from '../../hooks/redux';
 import { slideDecksApi } from '../../store/api/SlideDecks/SlideDecksApi';
 
@@ -39,6 +40,11 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
     'slides',
     slideDecks,
   );
+  const bulk = useBulkArtifactPanel({
+    artifacts: slideDecks,
+    artifactType: 'slideDeck',
+    entityLabel: 'slide decks',
+  });
 
   return (
     <div className="space-y-4">
@@ -54,6 +60,7 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
           <span>Showing first {slideDecks.length} slide decks — more may exist.</span>
         </div>
       )}
+      {bulk.toolbar}
       {slideDecks.length === 0 && !showOptimisticRow ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
           No slide decks in this directory yet.
@@ -80,10 +87,13 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
               documentColor={s.documentColor}
               documentColors={s.documentColors}
               onLinkHover={() => prefetchSlideDeck(s.id)}
+              selected={bulk.isSelected(s.id)}
+              onSelectChange={() => bulk.toggle(s.id)}
             />
           ))}
         </div>
       )}
+      {bulk.dialogs}
     </div>
   );
 };

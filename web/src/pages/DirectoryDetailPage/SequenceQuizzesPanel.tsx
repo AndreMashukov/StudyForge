@@ -5,6 +5,7 @@ import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
+import { useBulkArtifactPanel } from './hooks/useBulkArtifactPanel';
 import { useAppDispatch } from '../../hooks/redux';
 import { sequenceQuizApi } from '../../store/api/SequenceQuiz/SequenceQuizApi';
 
@@ -41,6 +42,11 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
     'sequenceQuizzes',
     sequenceQuizzes,
   );
+  const bulk = useBulkArtifactPanel({
+    artifacts: sequenceQuizzes,
+    artifactType: 'sequenceQuiz',
+    entityLabel: 'sequence quizzes',
+  });
 
   return (
     <div className="space-y-4">
@@ -56,6 +62,7 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
           <span>Showing first {sequenceQuizzes.length} sequence quizzes — more may exist.</span>
         </div>
       )}
+      {bulk.toolbar}
       {sequenceQuizzes.length === 0 && !showOptimisticRow ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
           No sequence quizzes in this directory yet.
@@ -82,10 +89,13 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
               documentColor={sq.documentColor}
               documentColors={sq.documentColors}
               onLinkHover={() => prefetchSequenceQuiz(sq.id)}
+              selected={bulk.isSelected(sq.id)}
+              onSelectChange={() => bulk.toggle(sq.id)}
             />
           ))}
         </div>
       )}
+      {bulk.dialogs}
     </div>
   );
 };

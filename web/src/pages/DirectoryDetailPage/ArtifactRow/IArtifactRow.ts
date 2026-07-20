@@ -18,4 +18,6 @@ export interface IArtifactRow {
   /** Source document colors for multi-doc segmented rail. */
   documentColors?: string[];
   onLinkHover?: () => void;
+  selected?: boolean;
+  onSelectChange?: (selected: boolean) => void;
 }

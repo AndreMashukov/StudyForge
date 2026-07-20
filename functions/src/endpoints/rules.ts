@@ -349,6 +349,63 @@ export const detachRuleFromDirectoryEndpoint = onCall(
 );
 
 /**
+ * Best-effort bulk delete for rules (skips rules still attached to directories).
+ */
+export const bulkDeleteRulesEndpoint = onCall(
+  {
+    cors: true,
+  },
+  async (request) => {
+    const userId = await validateAuth(request);
+    const { ruleIds } = (request.data ?? {}) as { ruleIds?: unknown };
+
+    if (!Array.isArray(ruleIds) || !ruleIds.every((id) => typeof id === 'string')) {
+      throw new HttpsError('invalid-argument', 'ruleIds must be an array of strings.');
+    }
+
+    const { executeBulkOperation, runSoftResultItem } = await import(
+      '../services/bulk-operation.js'
+    );
+    return executeBulkOperation({
+      items: ruleIds,
+      getItemId: (id) => id,
+      runItem: (ruleId) => runSoftResultItem(() => deleteRule(userId, ruleId)),
+    });
+  }
+);
+
+/**
+ * Best-effort bulk detach of rules from a directory.
+ */
+export const bulkDetachRulesFromDirectoryEndpoint = onCall(
+  {
+    cors: true,
+  },
+  async (request) => {
+    const userId = await validateAuth(request);
+    const data = (request.data ?? {}) as {
+      directoryId?: unknown;
+      ruleIds?: unknown;
+    };
+
+    if (typeof data.directoryId !== 'string' || !data.directoryId) {
+      throw new HttpsError('invalid-argument', 'directoryId is required.');
+    }
+    if (!Array.isArray(data.ruleIds) || !data.ruleIds.every((id) => typeof id === 'string')) {
+      throw new HttpsError('invalid-argument', 'ruleIds must be an array of strings.');
+    }
+
+    const directoryId = data.directoryId;
+    const { executeBulkOperation } = await import('../services/bulk-operation.js');
+    return executeBulkOperation({
+      items: data.ruleIds,
+      getItemId: (id) => id,
+      runItem: (ruleId) => detachRuleFromDirectory(userId, ruleId, directoryId),
+    });
+  }
+);
+
+/**
  * Get all rules for a directory (including cascading from ancestors)
  */
 export const getDirectoryRulesEndpoint = onCall(

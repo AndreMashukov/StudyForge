@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { RuleApplicability } from '@shared-types';
 import { useRulesPageContext } from '../context/hooks/useRulesPageContext';
 import { Page } from '../../../components/Page';
@@ -11,11 +12,17 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '../../../components/ui/DropdownMenu';
+import { BulkSelectionToolbar } from '../../../components/BulkSelectionToolbar';
+import { BulkActionConfirmDialog } from '../../../components/BulkActionConfirmDialog';
+import { BulkActionResultDialog } from '../../../components/BulkActionResultDialog';
 import { Plus, Search, Grid3x3, List, Filter, ChevronDown, X } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { cn } from '../../../lib/utils';
 import { Spinner } from '../../../components/ui/Spinner';
 import { getRuleApplicabilityLabel } from '../../../utils/ruleApplicabilityUtils';
+import { useBulkSelection } from '../../../hooks/useBulkSelection';
+import { useBulkActionFlow } from '../../../hooks/useBulkActionFlow';
+import { useBulkDeleteRulesMutation } from '../../../store/api/Rules/rulesApi';
 
 const ruleTypeOptions = Object.values(RuleApplicability);
 
@@ -35,8 +42,22 @@ export const RulesPageContainer = () => {
     searchQuery,
     filteredRules,
   } = useRulesPageContext();
-  
+
   const { currentTheme } = useTheme();
+
+  const visibleIds = useMemo(
+    () => filteredRules.map((rule) => rule.id),
+    [filteredRules],
+  );
+  const selection = useBulkSelection({ visibleIds });
+  const bulkFlow = useBulkActionFlow();
+  const [bulkDeleteRules, { isLoading: isBulkDeleting }] =
+    useBulkDeleteRulesMutation();
+
+  const labelsById = useMemo(
+    () => Object.fromEntries(filteredRules.map((rule) => [rule.id, rule.name])),
+    [filteredRules],
+  );
 
   const selectedRuleTypeCount = filters.applicableTo.length;
   const hasRuleTypeFilter = selectedRuleTypeCount > 0;
@@ -213,7 +234,7 @@ export const RulesPageContainer = () => {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-            
+
               <div
                 className="flex rounded-lg border p-1"
                 style={{
@@ -351,6 +372,15 @@ export const RulesPageContainer = () => {
               </p>
             </div>
 
+            <BulkSelectionToolbar
+              selectedCount={selection.selectedCount}
+              allVisibleSelected={selection.allVisibleSelected}
+              onSelectAllVisible={selection.selectAllVisible}
+              onClear={selection.clear}
+              actionLabel={`Delete selected (${selection.selectedCount})`}
+              onAction={bulkFlow.openConfirm}
+            />
+
             <div
               className={cn(
                 viewMode === 'grid'
@@ -365,12 +395,53 @@ export const RulesPageContainer = () => {
                   onEdit={handlers.handleEditRule}
                   onDelete={handlers.handleDeleteRule}
                   viewMode={viewMode}
+                  selected={selection.isSelected(rule.id)}
+                  onSelectChange={(checked) => {
+                    if (checked !== selection.isSelected(rule.id)) {
+                      selection.toggle(rule.id);
+                    }
+                  }}
                 />
               ))}
             </div>
           </>
         )}
       </div>
+
+      <BulkActionConfirmDialog
+        open={bulkFlow.confirmOpen}
+        onOpenChange={(open) => !open && bulkFlow.closeConfirm()}
+        title={`Delete ${selection.selectedCount} rule${selection.selectedCount === 1 ? '' : 's'}?`}
+        description={
+          <p>
+            This permanently deletes the selected rules and cannot be undone.
+            Rules assigned to directories will be detached.
+          </p>
+        }
+        confirmLabel={`Delete ${selection.selectedCount} rule${selection.selectedCount === 1 ? '' : 's'}`}
+        mode="destructive"
+        isLoading={isBulkDeleting}
+        error={bulkFlow.error}
+        onConfirm={async () => {
+          await bulkFlow.runBulkAction(
+            () =>
+              bulkDeleteRules({
+                ruleIds: selection.selectedIds,
+              }).unwrap(),
+            selection,
+          );
+        }}
+      />
+
+      <BulkActionResultDialog
+        open={bulkFlow.resultOpen}
+        onOpenChange={(open) => !open && bulkFlow.closeResult()}
+        title="Rule delete results"
+        succeeded={bulkFlow.result?.succeeded ?? 0}
+        failed={bulkFlow.result?.failed ?? 0}
+        results={bulkFlow.result?.results ?? []}
+        labelsById={labelsById}
+      />
     </Page>
   );
 };

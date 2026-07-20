@@ -2142,3 +2142,57 @@ export interface IDocumentFromScreenshotJobPayload {
   additionalRuleIds?: string[];
   ruleResolutionMode?: RuleResolutionMode;
 }
+
+// ─── Bulk operations ──────────────────────────────────────────────────────────
+
+/** Default max items accepted by bulk callables. */
+export const BULK_OPERATION_MAX_ITEMS = 50;
+
+export interface IBulkOperationItemResult {
+  id: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface IBulkOperationResponse {
+  results: IBulkOperationItemResult[];
+  succeeded: number;
+  failed: number;
+}
+
+export interface IBulkDeleteByIdsRequest {
+  ids: string[];
+}
+
+export interface IBulkDeleteDocumentsRequest {
+  documentIds: string[];
+}
+
+export interface IBulkDeleteDirectoriesRequest {
+  directoryIds: string[];
+}
+
+export interface IBulkDeleteRulesRequest {
+  ruleIds: string[];
+}
+
+export interface IBulkDetachRulesFromDirectoryRequest {
+  directoryId: string;
+  ruleIds: string[];
+}
+
+export interface IBulkRevokeApiKeysRequest {
+  keyIds: string[];
+}
+
+/** Artifact types that can be bulk-deleted from directory detail panels. */
+export type BulkDeletableArtifactType = ArtifactSummaryType;
+
+export interface IBulkDeleteArtifactItem {
+  id: string;
+  type: BulkDeletableArtifactType;
+}
+
+export interface IBulkDeleteArtifactsRequest {
+  artifacts: IBulkDeleteArtifactItem[];
+}

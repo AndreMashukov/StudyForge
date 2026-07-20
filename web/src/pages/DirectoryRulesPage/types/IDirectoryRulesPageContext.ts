@@ -1,4 +1,5 @@
 import { Rule, Directory } from '@shared-types';
+import { IBulkDetachDirectoryRules } from '../context/hooks/useBulkDetachDirectoryRules';
 
 export interface IDirectoryRulesPageContext {
   state: {
@@ -19,4 +20,5 @@ export interface IDirectoryRulesPageContext {
     handleToggleCascadeView: () => void;
     handleCloseAssignModal: () => void;
   };
+  bulkDetach: IBulkDetachDirectoryRules;
 }

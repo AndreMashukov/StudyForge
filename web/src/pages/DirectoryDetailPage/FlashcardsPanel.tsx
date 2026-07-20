@@ -5,6 +5,7 @@ import { ArtifactSummary } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
+import { useBulkArtifactPanel } from './hooks/useBulkArtifactPanel';
 import { useAppDispatch } from '../../hooks/redux';
 import { flashcardsApi } from '../../store/api/Flashcards/FlashcardsApi';
 
@@ -41,6 +42,11 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
     'cards',
     flashcardSets,
   );
+  const bulk = useBulkArtifactPanel({
+    artifacts: flashcardSets,
+    artifactType: 'flashcard',
+    entityLabel: 'flashcard sets',
+  });
 
   return (
     <div className="space-y-4">
@@ -56,6 +62,7 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
           <span>Showing first {flashcardSets.length} flashcard sets — more may exist.</span>
         </div>
       )}
+      {bulk.toolbar}
       {flashcardSets.length === 0 && !showOptimisticRow ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
           No flashcard sets in this directory yet.
@@ -82,10 +89,13 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
               documentColor={f.documentColor}
               documentColors={f.documentColors}
               onLinkHover={() => prefetchFlashcardSet(f.id)}
+              selected={bulk.isSelected(f.id)}
+              onSelectChange={() => bulk.toggle(f.id)}
             />
           ))}
         </div>
       )}
+      {bulk.dialogs}
     </div>
   );
 };

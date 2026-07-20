@@ -16,6 +16,8 @@ import {
   UploadDocumentRequest,
   ReviseDocumentWithAIRequest,
   ReviseDocumentWithAIResponse,
+  IBulkDeleteDocumentsRequest,
+  IBulkOperationResponse,
 } from "@shared-types";
 
 interface ListDocumentsResponse {
@@ -290,6 +292,18 @@ export const documentsApi = baseApi.injectEndpoints({
         }
       },
     }),
+
+    bulkDeleteDocuments: builder.mutation<IBulkOperationResponse, IBulkDeleteDocumentsRequest>({
+      query: (data) => ({
+        functionName: 'bulkDeleteDocuments',
+        data,
+      }),
+      invalidatesTags: [
+        'Document',
+        'Documents',
+        { type: 'Directory', id: 'LIST' },
+      ],
+    }),
     
     searchDocuments: builder.query<ListDocumentsResponse, string>({
       query: (query) => ({
@@ -342,6 +356,7 @@ export const {
   useUpdateDocumentMutation,
   useReviseDocumentWithAIMutation,
   useDeleteDocumentMutation,
+  useBulkDeleteDocumentsMutation,
   useSearchDocumentsQuery,
   useLazySearchDocumentsQuery,
 } = documentsApi;
