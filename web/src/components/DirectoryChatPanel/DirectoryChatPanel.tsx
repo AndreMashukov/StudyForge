@@ -41,9 +41,6 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   expanded,
   onExpandedChange,
   expandable = true,
-  defaultHeightExpanded = false,
-  heightExpanded,
-  onHeightExpandedChange,
   seedMessage,
   seedKey,
   artifactContext,
@@ -57,6 +54,9 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
 
   const handleExpandedChange = useCallback(
     (next: boolean) => {
+      if (!next) {
+        setIsPageWide(false);
+      }
       if (!isControlled) {
         setUncontrolledExpanded(next);
       }
@@ -65,27 +65,27 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
     [isControlled, onExpandedChange],
   );
 
-  const isHeightExpandedControlled = heightExpanded !== undefined;
-  const [uncontrolledHeightExpanded, setUncontrolledHeightExpanded] = useState(
-    defaultHeightExpanded,
-  );
-  const isHeightExpanded = isHeightExpandedControlled
-    ? heightExpanded
-    : uncontrolledHeightExpanded;
+  const [isPageWide, setIsPageWide] = useState(false);
 
-  const handleHeightExpandedChange = useCallback(
-    (next: boolean) => {
-      if (!isHeightExpandedControlled) {
-        setUncontrolledHeightExpanded(next);
+  const togglePageWide = useCallback(() => {
+    setIsPageWide((prev) => !prev);
+  }, []);
+
+  const exitPageWide = useCallback(() => {
+    setIsPageWide(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isPageWide) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        exitPageWide();
       }
-      onHeightExpandedChange?.(next);
-    },
-    [isHeightExpandedControlled, onHeightExpandedChange],
-  );
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isPageWide, exitPageWide]);
 
-  const toggleHeightExpanded = useCallback(() => {
-    handleHeightExpandedChange(!isHeightExpanded);
-  }, [handleHeightExpandedChange, isHeightExpanded]);
   const [message, setMessage] = useState('');
   const [visibleMessages, setVisibleMessages] = useState<
     IDirectoryChatMessage[]
@@ -231,21 +231,24 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
     );
   }
 
-  const panelHeightClass = (() => {
+  const panelSizeClass = (() => {
+    if (isPageWide) {
+      return 'fixed inset-4 z-50 h-auto w-auto max-w-none bg-background/95 shadow-2xl backdrop-blur';
+    }
     if (collapsible) {
-      return isHeightExpanded ? 'h-[480px] w-96' : 'h-80 w-96';
+      return 'h-80 w-96';
     }
     if (compact) {
-      return isHeightExpanded ? 'h-[900px]' : 'h-[600px]';
+      return 'h-[600px]';
     }
-    return isHeightExpanded ? 'h-[1200px]' : 'h-[800px]';
+    return 'h-[800px]';
   })();
 
   return (
     <section
       className={cn(
         'flex flex-col rounded-lg border border-border bg-card/40',
-        panelHeightClass,
+        panelSizeClass,
         className,
       )}
       aria-label="Directory chat"
@@ -269,13 +272,13 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={toggleHeightExpanded}
+              onClick={togglePageWide}
               aria-label={
-                isHeightExpanded ? 'Restore chat height' : 'Expand chat height'
+                isPageWide ? 'Exit expanded chat' : 'Expand chat'
               }
-              aria-expanded={isHeightExpanded}
+              aria-expanded={isPageWide}
             >
-              {isHeightExpanded ? (
+              {isPageWide ? (
                 <Minimize2 size={16} />
               ) : (
                 <Maximize2 size={16} />

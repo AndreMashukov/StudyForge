@@ -10,11 +10,8 @@ export interface IDirectoryChatPanel {
   defaultExpanded?: boolean;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
-  /** When true (default), shows a header toggle that expands the panel height by 50%. */
+  /** When true (default), shows a header toggle for page-wide expansion. */
   expandable?: boolean;
-  defaultHeightExpanded?: boolean;
-  heightExpanded?: boolean;
-  onHeightExpandedChange?: (expanded: boolean) => void;
   seedMessage?: string;
   seedKey?: string;
   artifactContext?: DirectoryChatArtifactContext;
