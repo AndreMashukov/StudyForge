@@ -601,10 +601,13 @@ export interface IArtifactCriticResult {
   }>;
 }
 
+export type ArtifactAgentOrchestrationMode = 'adk-runner' | 'imperative';
+
 export interface IArtifactAgentDiagnostics {
   artifactKind: ArtifactKind;
   agentDefinitionVersion: string;
   adkSessionId?: string;
+  orchestrationMode?: ArtifactAgentOrchestrationMode;
   generatorAttempts: number;
   repairCount: number;
   criticCycles: number;

@@ -150,6 +150,7 @@ export function createEmptyDiagnostics(
   return {
     artifactKind: definition.artifactKind,
     agentDefinitionVersion: definition.agentDefinitionVersion,
+    orchestrationMode: 'adk-runner',
     generatorAttempts: 0,
     repairCount: 0,
     criticCycles: 0,

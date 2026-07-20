@@ -21,7 +21,10 @@ export {
 } from './artifact-agent-definition';
 export { ArtifactAgentRegistry } from './artifact-agent-registry';
 export {
+  ARTIFACT_PIPELINE_STATE_KEYS,
   createArtifactPipeline,
-  runArtifactPipelineOrchestration,
+  createInitialSessionState,
+  readPipelineFailureMessage,
+  readPipelineOutcome,
 } from './artifact-agent-pipeline-factory';
 export { runArtifactAgentPipeline } from './artifact-agent-runner';
