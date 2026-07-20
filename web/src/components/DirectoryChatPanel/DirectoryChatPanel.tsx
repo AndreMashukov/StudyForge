@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useSelector } from 'react-redux';
 import {
   AlertCircle,
   ChevronDown,
@@ -27,9 +28,17 @@ import {
   IDirectoryChatMessage,
   IOptimisticDirectoryChatMessage,
 } from '../../store/api/DirectoryChat';
+import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
+import { useAppFullscreen } from '../../contexts/FullscreenContext';
 import { IDirectoryChatPanel } from './IDirectoryChatPanel';
 
 const MAX_MESSAGE_LENGTH = 4000;
+/** Matches TopAppBar `h-12` and Sidebar `top-12`. */
+const APP_BAR_HEIGHT_PX = 48;
+/** Matches Page / Sidebar expanded & collapsed widths. */
+const SIDEBAR_EXPANDED_PX = 220;
+const SIDEBAR_COLLAPSED_PX = 64;
+const PAGE_WIDE_GAP_PX = 16;
 
 export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   directoryId,
@@ -66,6 +75,34 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   );
 
   const [isPageWide, setIsPageWide] = useState(false);
+  const sidebarIsOpen = useSelector(selectSidebarIsOpen);
+  const { isAppFullscreen } = useAppFullscreen();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const pageWideStyle = useMemo(() => {
+    if (!isPageWide) return undefined;
+    const sidebarWidth = sidebarIsOpen
+      ? SIDEBAR_EXPANDED_PX
+      : SIDEBAR_COLLAPSED_PX;
+    const contentLeft =
+      !isMobile && !isAppFullscreen ? sidebarWidth : 0;
+    const contentTop = isAppFullscreen ? 0 : APP_BAR_HEIGHT_PX;
+    return {
+      top: contentTop + PAGE_WIDE_GAP_PX,
+      left: contentLeft + PAGE_WIDE_GAP_PX,
+      right: PAGE_WIDE_GAP_PX,
+      bottom: PAGE_WIDE_GAP_PX,
+    };
+  }, [isAppFullscreen, isMobile, isPageWide, sidebarIsOpen]);
 
   const togglePageWide = useCallback(() => {
     setIsPageWide((prev) => !prev);
@@ -233,7 +270,9 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
 
   const panelSizeClass = (() => {
     if (isPageWide) {
-      return 'fixed inset-4 z-50 h-auto w-auto max-w-none bg-background/95 shadow-2xl backdrop-blur';
+      // Position via pageWideStyle so expansion stays inside the content shell
+      // (below TopAppBar, to the right of Sidebar) instead of covering chrome.
+      return 'fixed z-50 h-auto w-auto max-w-none bg-background/95 shadow-2xl backdrop-blur transition-[top,left] duration-300';
     }
     if (collapsible) {
       return 'h-80 w-96';
@@ -251,6 +290,7 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
         panelSizeClass,
         className,
       )}
+      style={pageWideStyle}
       aria-label="Directory chat"
     >
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
