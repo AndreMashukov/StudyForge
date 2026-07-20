@@ -313,6 +313,8 @@ export const rulesApi = baseApi.injectEndpoints({
       query: (data) => ({
         functionName: 'generateRuleWithAI',
         data,
+        // Server-side timeout is 300s; override the 70s client-side default to match.
+        timeout: 300000,
       }),
       transformResponse: (response: {
         success: boolean;
@@ -320,7 +322,6 @@ export const rulesApi = baseApi.injectEndpoints({
       }) => {
         return response.result;
       },
-      invalidatesTags: ['Rules'],
     }),
   }),
 });
