@@ -25,6 +25,21 @@ function shortenLabel(text: string): string {
   return `${text.slice(0, MAX_VISIBLE_LABEL_CHARS - 1).trimEnd()}…`;
 }
 
+/**
+ * Decode Mermaid label encoding for human-readable tooltips/aria labels.
+ * Mermaid renders `#91;` / `<br>` inside SVG nodes, but plain-text tooltips
+ * must expand entity shorthand and break tags for display.
+ */
+export function decodeMermaidLabelForDisplay(label: string): string {
+  return label
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/#quot;/g, '"')
+    .replace(/#(\d+);/g, (_match, code: string) => {
+      const charCode = Number.parseInt(code, 10);
+      return Number.isFinite(charCode) ? String.fromCharCode(charCode) : _match;
+    });
+}
+
 function shouldSkipLine(trimmedLine: string): boolean {
   return /^(click|style|classDef|class|linkStyle|subgraph|end|flowchart|graph|sequenceDiagram|classDiagram|erDiagram|participant|actor|%%)/i.test(
     trimmedLine
@@ -85,7 +100,7 @@ function applyFlowchartLabelTooltips(source: string): IMermaidLabelTooltipsResul
         }
 
         const shortLabel = shortenLabel(fullLabel);
-        nodeTooltips[nodeId] = fullLabel;
+        nodeTooltips[nodeId] = decodeMermaidLabelForDisplay(fullLabel);
         return formatShortNodeLabel(nodeId, shortLabel, delimiter);
       });
     }
@@ -120,7 +135,7 @@ function applyClassDiagramLabelTooltips(source: string): IMermaidLabelTooltipsRe
       }
 
       const shortLabel = shortenLabel(fullLabel);
-      nodeTooltips[className] = fullLabel;
+      nodeTooltips[className] = decodeMermaidLabelForDisplay(fullLabel);
       return `class ${className}["${shortLabel.replace(/"/g, '#quot;')}"]`;
     });
   });
