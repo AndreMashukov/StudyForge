@@ -71,6 +71,7 @@
     "backup:all": "tsx scripts/backup-firebase.ts",
     "restore:latest": "tsx scripts/restore-firebase-latest.ts",
     "test:storage-prod": "tsx scripts/test-storage-bucket-resolution.ts",
+    "test:together-concurrency": "tsx scripts/test-together-concurrency.ts",
     "migrate:directory-centric": "tsx scripts/migrations/backfill-directory-centric.ts",
     "migrate:llm-setup-routes": "tsx scripts/migrations/migrate-llm-setup-routes.ts",
     "migrate:generation-routes": "tsx scripts/migrations/migrate-generation-routes.ts",
@@ -157,6 +158,7 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.184.0",
+    "together-ai": "^0.42.0",
     "turndown": "^7.2.0",
     "zod": "^4.1.9",
     "zustand": "^5.0.14"
