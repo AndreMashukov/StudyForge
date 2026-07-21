@@ -15,12 +15,12 @@ import {
   GENERATION_KIND_METADATA,
   isGenerationKind,
   isGenerationWorkflow,
-  PRIMARY_GEMINI_CONNECTION_ID,
+  PRIMARY_TOGETHER_CONNECTION_ID,
 } from '@shared-types';
 import * as admin from 'firebase-admin';
 import { requireAdminSession } from '../auth/session';
 import { getAdminFirestore } from '../firebase/admin';
-import { readGeminiConnection } from './model-settings';
+import { readTogetherConnection } from './model-settings';
 import {
   listProviderConnectionCatalog,
   validateModalityRoute,
@@ -194,17 +194,17 @@ function toFirestoreLlmSetupDocument(
 }
 
 export async function createDefaultGenerationRoutes(): Promise<IGenerationRoutes> {
-  const gemini = await readGeminiConnection();
+  const together = await readTogetherConnection();
 
   const routesByModality: Record<LlmModality, ILlmModalityRoute> = {
-    text: { connectionId: PRIMARY_GEMINI_CONNECTION_ID, model: gemini.defaultModel },
+    text: { connectionId: PRIMARY_TOGETHER_CONNECTION_ID, model: together.defaultModel },
     vision: {
-      connectionId: PRIMARY_GEMINI_CONNECTION_ID,
-      model: gemini.defaultVisionModel ?? gemini.defaultModel,
+      connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
+      model: together.defaultVisionModel ?? together.defaultModel,
     },
     image: {
-      connectionId: PRIMARY_GEMINI_CONNECTION_ID,
-      model: gemini.defaultImageModel ?? gemini.defaultModel,
+      connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
+      model: together.defaultImageModel ?? together.defaultModel,
     },
   };
 

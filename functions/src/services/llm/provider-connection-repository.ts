@@ -21,7 +21,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseProviderKind(data: Record<string, unknown>): LlmProviderKind | null {
   const kind = data.providerKind ?? data.providerType;
-  if (kind === 'gemini' || kind === 'openrouter' || kind === 'minimax') {
+  if (kind === 'gemini' || kind === 'openrouter' || kind === 'minimax' || kind === 'together') {
     return kind;
   }
   return null;

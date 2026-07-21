@@ -12,6 +12,7 @@ async function ProviderConnectionsSection() {
       geminiConnection={pageData.geminiConnection}
       openRouterConnection={pageData.openRouterConnection}
       miniMaxConnection={pageData.miniMaxConnection}
+      togetherConnection={pageData.togetherConnection}
       encryptionConfigured={pageData.encryptionConfigured}
     />
   );

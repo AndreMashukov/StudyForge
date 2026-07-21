@@ -11,6 +11,7 @@ import {
   PRIMARY_GEMINI_CONNECTION_ID,
   PRIMARY_MINIMAX_CONNECTION_ID,
   PRIMARY_OPENROUTER_CONNECTION_ID,
+  PRIMARY_TOGETHER_CONNECTION_ID,
 } from '@shared-types';
 import { requireAdminSession } from '../auth/session';
 import { getAdminFirestore } from '../firebase/admin';
@@ -18,6 +19,7 @@ import {
   readGeminiConnection,
   readMiniMaxConnection,
   readOpenRouterConnection,
+  readTogetherConnection,
 } from './model-settings';
 
 const CONNECTIONS_COLLECTION = 'llmProviderConnections';
@@ -27,6 +29,7 @@ const PRIMARY_CONNECTION_IDS = [
   PRIMARY_GEMINI_CONNECTION_ID,
   PRIMARY_OPENROUTER_CONNECTION_ID,
   PRIMARY_MINIMAX_CONNECTION_ID,
+  PRIMARY_TOGETHER_CONNECTION_ID,
 ] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -35,7 +38,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseProviderKind(data: Record<string, unknown>): LlmProviderKind | null {
   const kind = data.providerKind ?? data.providerType;
-  if (kind === 'gemini' || kind === 'openrouter' || kind === 'minimax') {
+  if (kind === 'gemini' || kind === 'openrouter' || kind === 'minimax' || kind === 'together') {
     return kind;
   }
   return null;
@@ -98,10 +101,11 @@ export async function listProviderConnectionCatalog(): Promise<IProviderConnecti
   }
 
   if (entries.length === 0) {
-    const [gemini, openRouter, miniMax] = await Promise.all([
+    const [gemini, openRouter, miniMax, together] = await Promise.all([
       readGeminiConnection(),
       readOpenRouterConnection(),
       readMiniMaxConnection(),
+      readTogetherConnection(),
     ]);
 
     return [
@@ -125,6 +129,13 @@ export async function listProviderConnectionCatalog(): Promise<IProviderConnecti
         label: miniMax.label,
         apiKeyConfigured: miniMax.apiKeyConfigured,
         supportedModalities: miniMax.supportedModalities,
+      },
+      {
+        id: PRIMARY_TOGETHER_CONNECTION_ID,
+        providerKind: 'together',
+        label: together.label,
+        apiKeyConfigured: together.apiKeyConfigured,
+        supportedModalities: together.supportedModalities,
       },
     ];
   }

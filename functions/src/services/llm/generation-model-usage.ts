@@ -8,7 +8,9 @@ export function formatGenerationModelLabel(route: ResolvedRoute): string {
       ? 'OpenRouter'
       : route.providerType === 'minimax'
         ? 'MiniMax'
-        : 'Gemini';
+        : route.providerType === 'together'
+          ? 'Together'
+          : 'Gemini';
   return `${provider}: ${route.model}`;
 }
 

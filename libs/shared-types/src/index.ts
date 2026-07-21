@@ -1852,7 +1852,7 @@ export interface GetStatisticsQuizDetailResponse {
 }
 
 /** Provider family for a configured provider connection. */
-export type LlmProviderKind = 'gemini' | 'openrouter' | 'minimax';
+export type LlmProviderKind = 'gemini' | 'openrouter' | 'minimax' | 'together';
 
 /** @deprecated Use LlmProviderKind */
 export type LlmProviderType = LlmProviderKind;
@@ -1860,6 +1860,7 @@ export type LlmProviderType = LlmProviderKind;
 export const PRIMARY_GEMINI_CONNECTION_ID = 'gemini-primary';
 export const PRIMARY_OPENROUTER_CONNECTION_ID = 'openrouter-primary';
 export const PRIMARY_MINIMAX_CONNECTION_ID = 'minimax-primary';
+export const PRIMARY_TOGETHER_CONNECTION_ID = 'together-primary';
 
 export const ALL_LLM_MODALITIES = ['text', 'vision', 'image'] as const;
 
@@ -1981,6 +1982,36 @@ export interface IUpdateMiniMaxSettingsRequest {
 }
 
 export interface IMiniMaxConnectionTestResult {
+  success: boolean;
+  message: string;
+  validatedAt?: string;
+  model?: string;
+}
+
+export interface ITogetherProviderConnection extends ILlmConnectionAuditFields {
+  providerKind: 'together';
+  label: string;
+  credentialMode: 'encrypted-firestore';
+  apiKeyConfigured: boolean;
+  supportedModalities: LlmModality[];
+  baseUrl: string;
+  defaultModel: string;
+  /** Screenshot / image-understanding model (image-in → text-out) */
+  defaultVisionModel?: string;
+  /** Slide deck image generation model (text-in → image-out) */
+  defaultImageModel?: string;
+}
+
+export interface IUpdateTogetherSettingsRequest {
+  enabled?: boolean;
+  baseUrl: string;
+  defaultModel: string;
+  defaultVisionModel?: string;
+  defaultImageModel?: string;
+  apiKey?: string;
+}
+
+export interface ITogetherConnectionTestResult {
   success: boolean;
   message: string;
   validatedAt?: string;

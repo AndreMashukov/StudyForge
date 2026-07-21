@@ -36,6 +36,7 @@ const SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
 const PRIMARY_GEMINI_CONNECTION_ID = 'gemini-primary';
 const PRIMARY_OPENROUTER_CONNECTION_ID = 'openrouter-primary';
 const PRIMARY_MINIMAX_CONNECTION_ID = 'minimax-primary';
+const PRIMARY_TOGETHER_CONNECTION_ID = 'together-primary';
 
 const ALL_MODALITIES = ['text', 'vision', 'image'] as const;
 
@@ -43,6 +44,7 @@ const PROVIDER_TO_CONNECTION: Record<string, string> = {
   gemini: PRIMARY_GEMINI_CONNECTION_ID,
   openrouter: PRIMARY_OPENROUTER_CONNECTION_ID,
   minimax: PRIMARY_MINIMAX_CONNECTION_ID,
+  together: PRIMARY_TOGETHER_CONNECTION_ID,
 };
 
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
@@ -157,7 +159,7 @@ function parseLegacyModalityRoute(value: unknown): { connectionId: string; model
 
 function buildPrimaryConnectionDoc(
   connectionId: string,
-  providerKind: 'gemini' | 'openrouter' | 'minimax',
+  providerKind: 'gemini' | 'openrouter' | 'minimax' | 'together',
   existing: Record<string, unknown> | undefined
 ): Record<string, unknown> | null {
   const next: Record<string, unknown> = {
@@ -173,7 +175,9 @@ function buildPrimaryConnectionDoc(
         ? 'Primary Gemini'
         : providerKind === 'openrouter'
           ? 'Primary OpenRouter'
-          : 'Primary MiniMax';
+          : providerKind === 'minimax'
+            ? 'Primary MiniMax'
+            : 'Primary Together';
   }
 
   const changed =
@@ -258,6 +262,7 @@ async function migrateConnectionDocs(
     { id: PRIMARY_GEMINI_CONNECTION_ID, providerKind: 'gemini' },
     { id: PRIMARY_OPENROUTER_CONNECTION_ID, providerKind: 'openrouter' },
     { id: PRIMARY_MINIMAX_CONNECTION_ID, providerKind: 'minimax' },
+    { id: PRIMARY_TOGETHER_CONNECTION_ID, providerKind: 'together' },
   ];
 
   for (const { id, providerKind } of primaryConnections) {

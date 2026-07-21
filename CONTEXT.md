@@ -109,11 +109,11 @@ Orchestration policy on a generation route: `direct` (single-pass provider call)
 _Avoid_: sync mode, inline workflow
 
 **Provider connection**:
-Admin-managed connection to an LLM provider, including its credential state, supported LLM modalities, and provider-specific defaults. Each connection has a stable ID (e.g. `gemini-primary`) and a **provider kind** (`gemini`, `openrouter`, or `minimax`). Credentials for all provider kinds are stored encrypted in Firestore — not as deployment secrets.
+Admin-managed connection to an LLM provider, including its credential state, supported LLM modalities, and provider-specific defaults. Each connection has a stable ID (e.g. `gemini-primary`) and a **provider kind** (`gemini`, `openrouter`, `minimax`, or `together`). Credentials for all provider kinds are stored encrypted in Firestore — not as deployment secrets.
 _Avoid_: provider type (when meaning a configured connection), active provider
 
 **Provider kind**:
-The vendor/protocol family of a provider connection (`gemini`, `openrouter`, `minimax`). Distinct from a connection ID: multiple connections could share a kind in the future.
+The vendor/protocol family of a provider connection (`gemini`, `openrouter`, `minimax`, `together`). Distinct from a connection ID: multiple connections could share a kind in the future.
 _Avoid_: provider type (prefer **provider kind** on connection documents)
 
 **Generation model usage**:

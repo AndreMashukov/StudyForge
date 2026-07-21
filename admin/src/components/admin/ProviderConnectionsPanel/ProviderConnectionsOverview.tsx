@@ -11,12 +11,14 @@ import type {
   IGeminiProviderConnection,
   IMiniMaxProviderConnection,
   IOpenRouterProviderConnection,
+  ITogetherProviderConnection,
 } from '@shared-types';
 
 export interface IProviderConnectionsOverviewProps {
   geminiConnection: IGeminiProviderConnection;
   openRouterConnection: IOpenRouterProviderConnection;
   miniMaxConnection: IMiniMaxProviderConnection;
+  togetherConnection: ITogetherProviderConnection;
   encryptionConfigured: boolean;
 }
 
@@ -24,6 +26,7 @@ export function ProviderConnectionsOverview({
   geminiConnection,
   openRouterConnection,
   miniMaxConnection,
+  togetherConnection,
   encryptionConfigured,
 }: IProviderConnectionsOverviewProps) {
   const providers = [
@@ -48,6 +51,13 @@ export function ProviderConnectionsOverview({
       status: miniMaxConnection.apiKeyConfigured ? 'Configured' : 'Missing credentials',
       editable: true,
     },
+    {
+      href: '/provider-connections/together',
+      label: 'Together AI',
+      description: 'Encrypted API key stored in Firestore.',
+      status: togetherConnection.apiKeyConfigured ? 'Configured' : 'Missing credentials',
+      editable: true,
+    },
   ];
 
   return (
@@ -58,7 +68,7 @@ export function ProviderConnectionsOverview({
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {providers.map((provider) => (
           <Card key={provider.href}>
             <CardHeader>

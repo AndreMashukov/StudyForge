@@ -3,6 +3,7 @@ import type { ResolvedRoute } from './types';
 import { GeminiProviderClient } from './gemini-provider-client';
 import { MiniMaxProviderClient } from './minimax-provider-client';
 import { OpenRouterProviderClient } from './openrouter-provider-client';
+import { TogetherProviderClient } from './together-provider-client';
 
 export class LlmProviderClientFactory {
   static create(route: ResolvedRoute, providerApiKey?: string): LlmProviderClient {
@@ -25,6 +26,17 @@ export class LlmProviderClientFactory {
         providerApiKey,
         route.miniMaxBaseUrl ?? 'https://api.minimax.io/v1',
         route.miniMaxImageUrl ?? 'https://api.minimax.io/v1/image_generation',
+        route.connectionId
+      );
+    }
+
+    if (route.providerType === 'together') {
+      if (!providerApiKey) {
+        throw new Error('providerApiKey is required for Together provider');
+      }
+      return new TogetherProviderClient(
+        providerApiKey,
+        route.togetherBaseUrl ?? 'https://api.together.ai/v1',
         route.connectionId
       );
     }

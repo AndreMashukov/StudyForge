@@ -8,6 +8,7 @@ import type { ResolvedRoute } from './types';
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const MINIMAX_BASE_URL = 'https://api.minimax.io/v1';
 const MINIMAX_IMAGE_URL = 'https://api.minimax.io/v1/image_generation';
+const TOGETHER_BASE_URL = 'https://api.together.ai/v1';
 
 export interface IProviderConnectionResolveParams {
   connectionId: string;
@@ -140,6 +141,19 @@ export async function resolveProviderConnectionRoute(
         fallbackUsed: false,
         miniMaxBaseUrl: connection.baseUrl || MINIMAX_BASE_URL,
         miniMaxImageUrl: connection.imageGenerationUrl || MINIMAX_IMAGE_URL,
+      },
+      providerApiKey,
+    };
+  }
+
+  if (connection.providerKind === 'together') {
+    return {
+      route: {
+        connectionId,
+        providerType: 'together',
+        model,
+        fallbackUsed: false,
+        togetherBaseUrl: connection.baseUrl || TOGETHER_BASE_URL,
       },
       providerApiKey,
     };

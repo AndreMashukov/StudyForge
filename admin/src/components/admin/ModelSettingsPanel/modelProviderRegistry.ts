@@ -165,6 +165,55 @@ export const modelProviderRegistry = {
       },
     ],
   },
+  together: {
+    label: 'Together AI',
+    description:
+      'Configure Together AI models for text, vision, and slide image generation. Saved settings are preserved when another provider is active.',
+    credentialMode: 'encrypted-firestore',
+    isEditable: true,
+    fields: [
+      {
+        key: 'baseUrl',
+        label: 'Base URL',
+        kind: 'url',
+        showInOverview: true,
+        placeholder: 'https://api.together.ai/v1',
+      },
+      {
+        key: 'textModel',
+        label: 'Default text model',
+        kind: 'modelId',
+        showInOverview: true,
+        placeholder: 'MiniMaxAI/MiniMax-M3',
+        helpText:
+          'Used for quiz, flashcards, documents, chat, and other text generation.',
+      },
+      {
+        key: 'visionModel',
+        label: 'Default vision model',
+        kind: 'modelId',
+        showInOverview: true,
+        placeholder: 'MiniMaxAI/MiniMax-M3',
+        helpText:
+          'Used for screenshot and image input to text via OpenAI-compatible chat.',
+      },
+      {
+        key: 'imageModel',
+        label: 'Default image model',
+        kind: 'modelId',
+        showInOverview: true,
+        placeholder: 'black-forest-labs/FLUX.1-schnell',
+        helpText:
+          'Used for slide deck image generation via Together image generation API.',
+      },
+      {
+        key: 'apiKey',
+        label: 'API key',
+        kind: 'secret',
+        helpText: 'The key is encrypted server-side and never returned after save.',
+      },
+    ],
+  },
 } as const satisfies Record<string, IModelProviderDefinition>;
 
 export type ModelProviderType = keyof typeof modelProviderRegistry;

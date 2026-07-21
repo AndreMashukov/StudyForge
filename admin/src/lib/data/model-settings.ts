@@ -9,9 +9,12 @@ import type {
   IMiniMaxProviderConnection,
   IOpenRouterConnectionTestResult,
   IOpenRouterProviderConnection,
+  ITogetherConnectionTestResult,
+  ITogetherProviderConnection,
   IUpdateGeminiSettingsRequest,
   IUpdateMiniMaxSettingsRequest,
   IUpdateOpenRouterSettingsRequest,
+  IUpdateTogetherSettingsRequest,
   LlmModality,
 } from '@shared-types';
 import {
@@ -19,6 +22,7 @@ import {
   PRIMARY_GEMINI_CONNECTION_ID,
   PRIMARY_MINIMAX_CONNECTION_ID,
   PRIMARY_OPENROUTER_CONNECTION_ID,
+  PRIMARY_TOGETHER_CONNECTION_ID,
 } from '@shared-types';
 import { requireAdminSession } from '../auth/session';
 import { getAdminFirestore } from '../firebase/admin';
@@ -31,6 +35,7 @@ import {
 const OPENROUTER_CONNECTION_ID = PRIMARY_OPENROUTER_CONNECTION_ID;
 const MINIMAX_CONNECTION_ID = PRIMARY_MINIMAX_CONNECTION_ID;
 const GEMINI_CONNECTION_ID = PRIMARY_GEMINI_CONNECTION_ID;
+const TOGETHER_CONNECTION_ID = PRIMARY_TOGETHER_CONNECTION_ID;
 const OPENROUTER_CONNECTIONS_COLLECTION = 'llmProviderConnections';
 const OPENROUTER_SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
 
@@ -45,11 +50,16 @@ export const DEFAULT_MINIMAX_VISION_MODEL = 'MiniMax-M3';
 export const DEFAULT_MINIMAX_IMAGE_MODEL = 'image-01';
 export const DEFAULT_MINIMAX_BASE_URL = 'https://api.minimax.io/v1';
 export const DEFAULT_MINIMAX_IMAGE_URL = 'https://api.minimax.io/v1/image_generation';
+export const DEFAULT_TOGETHER_MODEL = 'MiniMaxAI/MiniMax-M3';
+export const DEFAULT_TOGETHER_VISION_MODEL = 'MiniMaxAI/MiniMax-M3';
+export const DEFAULT_TOGETHER_IMAGE_MODEL = 'black-forest-labs/FLUX.1-schnell';
+export const DEFAULT_TOGETHER_BASE_URL = 'https://api.together.ai/v1';
 
 export interface IModelSettingsPageData {
   geminiConnection: IGeminiProviderConnection;
   openRouterConnection: IOpenRouterProviderConnection;
   miniMaxConnection: IMiniMaxProviderConnection;
+  togetherConnection: ITogetherProviderConnection;
   encryptionConfigured: boolean;
 }
 
@@ -140,6 +150,18 @@ function getMiniMaxSecretRef(): admin.firestore.DocumentReference {
     .doc(MINIMAX_CONNECTION_ID);
 }
 
+function getTogetherConnectionRef(): admin.firestore.DocumentReference {
+  return getAdminFirestore()
+    .collection(OPENROUTER_CONNECTIONS_COLLECTION)
+    .doc(TOGETHER_CONNECTION_ID);
+}
+
+function getTogetherSecretRef(): admin.firestore.DocumentReference {
+  return getAdminFirestore()
+    .collection(OPENROUTER_SECRETS_COLLECTION)
+    .doc(TOGETHER_CONNECTION_ID);
+}
+
 function parseSupportedModalities(value: unknown): LlmModality[] {
   if (Array.isArray(value)) {
     const modalities = value.filter(
@@ -213,6 +235,23 @@ function buildDefaultMiniMaxConnection(
     defaultVisionModel: DEFAULT_MINIMAX_VISION_MODEL,
     defaultImageModel: DEFAULT_MINIMAX_IMAGE_MODEL,
     imageGenerationUrl: DEFAULT_MINIMAX_IMAGE_URL,
+    lastValidationStatus: 'unknown',
+  };
+}
+
+function buildDefaultTogetherConnection(
+  apiKeyConfigured: boolean
+): ITogetherProviderConnection {
+  return {
+    providerKind: 'together',
+    label: 'Primary Together',
+    credentialMode: 'encrypted-firestore',
+    apiKeyConfigured,
+    supportedModalities: [...ALL_LLM_MODALITIES],
+    baseUrl: DEFAULT_TOGETHER_BASE_URL,
+    defaultModel: DEFAULT_TOGETHER_MODEL,
+    defaultVisionModel: DEFAULT_TOGETHER_VISION_MODEL,
+    defaultImageModel: DEFAULT_TOGETHER_IMAGE_MODEL,
     lastValidationStatus: 'unknown',
   };
 }
@@ -426,6 +465,60 @@ export async function readMiniMaxConnection(): Promise<IMiniMaxProviderConnectio
   };
 }
 
+export async function readTogetherConnection(): Promise<ITogetherProviderConnection> {
+  const [connectionSnapshot, secretSnapshot] = await Promise.all([
+    getTogetherConnectionRef().get(),
+    getTogetherSecretRef().get(),
+  ]);
+
+  const defaults = buildDefaultTogetherConnection(secretSnapshot.exists);
+  const data = connectionSnapshot.data();
+
+  if (!data) {
+    return defaults;
+  }
+
+  return {
+    ...defaults,
+    label: typeof data.label === 'string' ? data.label : defaults.label,
+    apiKeyConfigured:
+      secretSnapshot.exists || data.apiKeyConfigured === true || defaults.apiKeyConfigured,
+    supportedModalities: parseSupportedModalities(data.supportedModalities),
+    baseUrl:
+      typeof data.baseUrl === 'string' ? data.baseUrl : defaults.baseUrl,
+    defaultModel:
+      typeof data.defaultModel === 'string'
+        ? data.defaultModel
+        : defaults.defaultModel,
+    defaultVisionModel:
+      typeof data.defaultVisionModel === 'string'
+        ? data.defaultVisionModel.trim() || undefined
+        : defaults.defaultVisionModel,
+    defaultImageModel:
+      typeof data.defaultImageModel === 'string'
+        ? normalizeImageModel(
+            data.defaultImageModel,
+            defaults.defaultImageModel ?? DEFAULT_TOGETHER_IMAGE_MODEL
+          )
+        : defaults.defaultImageModel,
+    updatedAt: toIsoString(data.updatedAt),
+    updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
+    lastValidatedAt: toIsoString(data.lastValidatedAt),
+    lastValidationError:
+      typeof data.lastValidationError === 'string'
+        ? data.lastValidationError
+        : data.lastValidationError === null
+          ? null
+          : undefined,
+    lastValidationStatus:
+      data.lastValidationStatus === 'healthy' ||
+      data.lastValidationStatus === 'unhealthy' ||
+      data.lastValidationStatus === 'unknown'
+        ? data.lastValidationStatus
+        : defaults.lastValidationStatus,
+  };
+}
+
 function readEncryptedSecret(data: unknown, providerLabel: string): IEncryptedSecretRecord {
   if (!isRecord(data)) {
     throw new Error(`Stored ${providerLabel} credential is malformed.`);
@@ -481,6 +574,20 @@ async function readStoredMiniMaxApiKey(): Promise<string> {
   return decryptSecret(readEncryptedSecret(snapshot.data(), 'MiniMax'));
 }
 
+async function readStoredTogetherApiKey(): Promise<string> {
+  if (!isLlmSettingsEncryptionConfigured()) {
+    throw new Error('LLM_SETTINGS_ENCRYPTION_KEY is not configured.');
+  }
+
+  const snapshot = await getTogetherSecretRef().get();
+
+  if (!snapshot.exists) {
+    throw new Error('Together API key is not configured.');
+  }
+
+  return decryptSecret(readEncryptedSecret(snapshot.data(), 'Together'));
+}
+
 async function updateValidationStatus(
   connectionRef: admin.firestore.DocumentReference,
   actorUid: string,
@@ -534,16 +641,19 @@ function getResponseErrorMessage(
 export async function getModelSettingsPageData(): Promise<IModelSettingsPageData> {
   await requireAdminSession();
 
-  const [geminiConnection, openRouterConnection, miniMaxConnection] = await Promise.all([
+  const [geminiConnection, openRouterConnection, miniMaxConnection, togetherConnection] =
+    await Promise.all([
     readGeminiConnection(),
     readOpenRouterConnection(),
     readMiniMaxConnection(),
+    readTogetherConnection(),
   ]);
 
   return {
     geminiConnection,
     openRouterConnection,
     miniMaxConnection,
+    togetherConnection,
     encryptionConfigured: isLlmSettingsEncryptionConfigured(),
   };
 }
@@ -892,6 +1002,119 @@ export async function testStoredMiniMaxConnection(
 
     return {
       miniMaxConnection: await readMiniMaxConnection(),
+      result: {
+        success: false,
+        message,
+      },
+    };
+  }
+}
+
+export async function updateTogetherSettings(
+  input: IUpdateTogetherSettingsRequest,
+  actorUid: string
+): Promise<ITogetherProviderConnection> {
+  const currentConnection = await readTogetherConnection();
+  const normalizedApiKey = input.apiKey?.trim();
+  const hasNewApiKey = Boolean(normalizedApiKey);
+
+  if (!currentConnection.apiKeyConfigured && !hasNewApiKey) {
+    throw new Error('Together API key is required on first save.');
+  }
+
+  if (hasNewApiKey && !isLlmSettingsEncryptionConfigured()) {
+    throw new Error('LLM_SETTINGS_ENCRYPTION_KEY is not configured.');
+  }
+
+  const payload: Record<string, unknown> = {
+    providerKind: 'together',
+    label: currentConnection.label,
+    credentialMode: 'encrypted-firestore',
+    apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
+    supportedModalities: [...ALL_LLM_MODALITIES],
+    baseUrl: normalizeBaseUrl(input.baseUrl, 'Together'),
+    defaultModel: normalizeModel(input.defaultModel, 'Together'),
+    defaultVisionModel: normalizeVisionModel(input.defaultVisionModel),
+    defaultImageModel: normalizeImageModel(
+      input.defaultImageModel,
+      DEFAULT_TOGETHER_IMAGE_MODEL
+    ),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedBy: actorUid,
+  };
+
+  await getTogetherConnectionRef().set(payload, { merge: true });
+
+  if (hasNewApiKey && normalizedApiKey) {
+    const encrypted = encryptSecret(normalizedApiKey);
+    await getTogetherSecretRef().set(
+      {
+        ...encrypted,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedBy: actorUid,
+      },
+      { merge: true }
+    );
+  }
+
+  return readTogetherConnection();
+}
+
+export async function testStoredTogetherConnection(
+  actorUid: string
+): Promise<{
+  togetherConnection: ITogetherProviderConnection;
+  result: ITogetherConnectionTestResult;
+}> {
+  const connection = await readTogetherConnection();
+
+  try {
+    const apiKey = await readStoredTogetherApiKey();
+    const response = await fetch(
+      `${normalizeBaseUrl(connection.baseUrl, 'Together')}/models`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      }
+    );
+    const payload = (await response.json().catch(() => null)) as unknown;
+
+    if (!response.ok) {
+      throw new Error(
+        getResponseErrorMessage(payload, response.status, response.statusText, 'Together')
+      );
+    }
+
+    const modelCount =
+      isRecord(payload) && Array.isArray(payload.data) ? payload.data.length : 0;
+    const validatedAt = new Date().toISOString();
+
+    await updateValidationStatus(getTogetherConnectionRef(), actorUid, 'healthy', null);
+
+    return {
+      togetherConnection: await readTogetherConnection(),
+      result: {
+        success: true,
+        message:
+          modelCount > 0
+            ? `Validated Together access and discovered ${modelCount} available models.`
+            : 'Validated Together access successfully.',
+        validatedAt,
+        model: connection.defaultModel,
+      },
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Together validation failed.';
+
+    await updateValidationStatus(getTogetherConnectionRef(), actorUid, 'unhealthy', message);
+
+    return {
+      togetherConnection: await readTogetherConnection(),
       result: {
         success: false,
         message,

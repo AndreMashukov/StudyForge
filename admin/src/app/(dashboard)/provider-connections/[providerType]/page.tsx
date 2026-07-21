@@ -7,6 +7,7 @@ import { ModelSettingsPanelSkeleton } from '../../../../components/admin/loading
 import { GeminiSettingsForm } from '../../../../components/admin/ModelSettingsPanel/GeminiSettingsForm';
 import { MiniMaxSettingsForm } from '../../../../components/admin/ModelSettingsPanel/MiniMaxSettingsForm';
 import { OpenRouterSettingsForm } from '../../../../components/admin/ModelSettingsPanel/OpenRouterSettingsForm';
+import { TogetherSettingsForm } from '../../../../components/admin/ModelSettingsPanel/TogetherSettingsForm';
 import {
   getModelProviderDefinition,
   isModelProviderType,
@@ -42,9 +43,27 @@ async function ProviderSettingsSection({
     );
   }
 
+  if (providerType === 'together') {
+    return (
+      <TogetherSettingsForm
+        togetherConnection={pageData.togetherConnection}
+        encryptionConfigured={pageData.encryptionConfigured}
+      />
+    );
+  }
+
+  if (providerType === 'openrouter') {
+    return (
+      <OpenRouterSettingsForm
+        openRouterConnection={pageData.openRouterConnection}
+        encryptionConfigured={pageData.encryptionConfigured}
+      />
+    );
+  }
+
   return (
-    <OpenRouterSettingsForm
-      openRouterConnection={pageData.openRouterConnection}
+    <GeminiSettingsForm
+      geminiConnection={pageData.geminiConnection}
       encryptionConfigured={pageData.encryptionConfigured}
     />
   );
