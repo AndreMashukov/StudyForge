@@ -50,9 +50,9 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Subject worlds ({completedCount})</h2>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex items-center justify-between gap-2 min-h-9">
+        <h2 className="text-lg font-semibold truncate min-w-0">Subject worlds ({completedCount})</h2>
+        <div className="flex items-center justify-end gap-2 shrink-0">
           {bulk.toolbar}
           <Button size="sm" asChild>
             <Link to={`/subject-world/create?directoryId=${encodeURIComponent(directoryId)}`}>+ Create subject world</Link>

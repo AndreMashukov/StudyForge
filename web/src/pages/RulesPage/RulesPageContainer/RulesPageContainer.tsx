@@ -363,9 +363,9 @@ export const RulesPageContainer = () => {
         {/* Rules Grid/List */}
         {hasFilteredRules && (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 min-h-9">
               <p
-                className="text-sm"
+                className="text-sm truncate"
                 style={{ color: currentTheme.colors.mutedForeground }}
               >
                 {filteredRules.length} {filteredRules.length === 1 ? 'rule' : 'rules'} found

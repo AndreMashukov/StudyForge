@@ -16,7 +16,7 @@ export interface IBulkSelectionToolbar {
 
 /**
  * Compact inline actions for a section header row.
- * Returns null when nothing is selected so the header height stays stable.
+ * Returns null when nothing is selected; pair with a min-h-9 header so the list does not jump.
  */
 export const BulkSelectionToolbar: React.FC<IBulkSelectionToolbar> = ({
   selectedCount,
@@ -36,7 +36,7 @@ export const BulkSelectionToolbar: React.FC<IBulkSelectionToolbar> = ({
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center justify-end gap-1.5 sm:gap-2',
+        'flex items-center justify-end gap-1.5 sm:gap-2 shrink-0',
         className,
       )}
       role="region"
@@ -52,7 +52,7 @@ export const BulkSelectionToolbar: React.FC<IBulkSelectionToolbar> = ({
         onClick={onSelectAllVisible}
         disabled={allVisibleSelected}
       >
-        Select all visible
+        Select all
       </Button>
       <Button type="button" variant="ghost" size="sm" onClick={onClear}>
         Clear

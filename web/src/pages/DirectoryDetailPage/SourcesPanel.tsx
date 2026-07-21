@@ -42,8 +42,8 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Sources ({documents.length})</h2>
+      <div className="flex items-center justify-between gap-2 min-h-9">
+        <h2 className="text-lg font-semibold truncate">Sources ({documents.length})</h2>
         <BulkSelectionToolbar
           selectedCount={selection.selectedCount}
           allVisibleSelected={selection.allVisibleSelected}

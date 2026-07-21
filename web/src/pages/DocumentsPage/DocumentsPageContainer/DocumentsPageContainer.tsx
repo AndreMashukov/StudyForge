@@ -323,9 +323,9 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                 {/* Folders Section */}
                 {subdirectories.length > 0 && (
                   <div className="px-4 md:px-6 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2 min-h-9">
                       {!isRoot ? (
-                        <h2 className="text-lg font-semibold">Folders</h2>
+                        <h2 className="text-lg font-semibold truncate">Folders</h2>
                       ) : (
                         <span />
                       )}
@@ -367,8 +367,8 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                   </div>
                 ) : documents.length > 0 ? (
                   <div className="px-4 md:px-6 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h2 className="text-lg font-semibold">Documents</h2>
+                    <div className="flex items-center justify-between gap-2 min-h-9">
+                      <h2 className="text-lg font-semibold truncate">Documents</h2>
                       <BulkSelectionToolbar
                         selectedCount={documentSelection.selectedCount}
                         allVisibleSelected={documentSelection.allVisibleSelected}

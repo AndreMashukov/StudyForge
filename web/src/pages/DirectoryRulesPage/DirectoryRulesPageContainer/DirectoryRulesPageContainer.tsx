@@ -123,9 +123,9 @@ export const DirectoryRulesPageContainer = () => {
               borderColor: currentTheme.colors.border,
             }}
           >
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div className="flex items-center justify-between gap-2 min-h-9 mb-4">
               <h2
-                className="text-xl font-semibold flex items-center gap-2"
+                className="text-xl font-semibold flex items-center gap-2 truncate min-w-0"
                 style={{ color: currentTheme.colors.foreground }}
               >
                 <span role="img" aria-label="clipboard">
