@@ -1,4 +1,9 @@
-import { collection, getDocs, onSnapshot, type Unsubscribe } from 'firebase/firestore';
+import {
+  collection,
+  getDocsFromServer,
+  onSnapshot,
+  type Unsubscribe,
+} from 'firebase/firestore';
 import type { DirectoryItemSummary } from '@shared-types';
 import { db } from '../config/firebase';
 import { serializeCommonTimestamps } from '../hooks/directoryRealtimeCacheUtils';
@@ -15,7 +20,10 @@ export async function fetchDirectoryItemsFromFirestore(
   directoryId: string,
 ): Promise<DirectoryItemSummary[]> {
   const itemsRef = collection(db, 'users', userId, 'directories', directoryId, 'items');
-  const snapshot = await getDocs(itemsRef);
+  // Bypass persistentLocalCache — Admin SDK index writes are often not in the
+  // client cache yet when createDirectory invalidates tags, and a stale getDocs
+  // overwrite races the items onSnapshot patch (subdir missing until remount).
+  const snapshot = await getDocsFromServer(itemsRef);
   return snapshot.docs.map((doc) => toDirectoryItemSummary(doc.id, doc.data()));
 }
 

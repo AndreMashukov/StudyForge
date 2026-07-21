@@ -31,6 +31,7 @@ import {
   subscribeToDirectoryItems,
 } from '../../../services/directoryItemIndex';
 import { mapDirectoryItemsToContentsResponse } from '../../../services/directoryItemIndexMappers';
+import { upsertSubdirectoryInDirectoryCaches } from '../../../hooks/directoryRealtimeCacheUtils';
 import type { RootState } from '../../index';
 
 export const directoryApi = baseApi.injectEndpoints({
@@ -41,10 +42,24 @@ export const directoryApi = baseApi.injectEndpoints({
         functionName: 'createDirectory',
         data,
       }),
-      invalidatesTags: (result, error, arg) => [
+      async onQueryStarted(arg, { dispatch, getState, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          upsertSubdirectoryInDirectoryCaches(
+            dispatch,
+            getState as () => RootState,
+            arg.parentId ?? null,
+            data.directory,
+          );
+        } catch {
+          // Error toast handled by middleware; cache stays unchanged.
+        }
+      },
+      invalidatesTags: (_result, _error, arg) => [
         { type: 'Directory', id: 'TREE' },
         { type: 'Directory', id: 'LIST' },
-        { type: 'Directory', id: arg.parentId || 'ROOT' }, // Invalidate parent directory's contents
+        // Refetch uses getDocsFromServer; onQueryStarted also patches for instant UI.
+        { type: 'Directory', id: arg.parentId || 'ROOT' },
       ],
     }),
 

@@ -1,6 +1,7 @@
 import { Timestamp, type DocumentChange, type DocumentData } from 'firebase/firestore';
-import type { AppDispatch } from '../store';
+import type { AppDispatch, RootState } from '../store';
 import { directoryApi } from '../store/api/Directory/DirectoryApi';
+import { baseApi } from '../store/api/baseApi';
 import type {
   ArtifactSummary,
   ArtifactSummaryType,
@@ -155,6 +156,78 @@ function insertDirectoryIntoTree(tree: DirectoryTreeNode[], directory: Directory
   } else {
     parentNode.children.push(newNode);
   }
+}
+
+function compareDirectoryName(left: Directory, right: Directory): number {
+  return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+}
+
+/** Callable responses often serialize Timestamps as `{}`; keep Redux serializable ISO strings. */
+function normalizeDirectoryTimestamp(value: unknown): Directory['createdAt'] {
+  if (value instanceof Date) {
+    return value.toISOString() as unknown as Directory['createdAt'];
+  }
+  const serialized = serializeTimestamp(value);
+  if (typeof serialized === 'string' && serialized.length > 0) {
+    return serialized as unknown as Directory['createdAt'];
+  }
+  return new Date().toISOString() as unknown as Directory['createdAt'];
+}
+
+/** Insert/update a subdirectory in live directory detail + library caches after create. */
+export function upsertSubdirectoryInDirectoryCaches(
+  dispatch: AppDispatch,
+  getState: () => RootState,
+  parentId: string | null,
+  directory: Directory,
+): void {
+  if (!parentId) {
+    return;
+  }
+
+  const normalized: Directory = {
+    ...directory,
+    createdAt: normalizeDirectoryTimestamp(directory.createdAt),
+    updatedAt: normalizeDirectoryTimestamp(directory.updatedAt ?? directory.createdAt),
+  };
+
+  const queries = getState()[baseApi.reducerPath].queries;
+  for (const entry of Object.values(queries)) {
+    if (!entry || entry.endpointName !== 'getDirectoryContentsWithArtifactSummaries') {
+      continue;
+    }
+    const args = entry.originalArgs as
+      | { directoryId: string | null; artifactLimit?: number }
+      | undefined;
+    if (!args || args.directoryId !== parentId) {
+      continue;
+    }
+    dispatch(
+      directoryApi.util.updateQueryData('getDirectoryContentsWithArtifactSummaries', args, (draft) => {
+        const idx = draft.subdirectories.findIndex((sub) => sub.id === normalized.id);
+        if (idx >= 0) {
+          draft.subdirectories[idx] = { ...draft.subdirectories[idx], ...normalized };
+        } else {
+          draft.subdirectories.push(normalized);
+          draft.subdirectories.sort(compareDirectoryName);
+          draft.totalCount += 1;
+        }
+      }),
+    );
+  }
+
+  dispatch(
+    directoryApi.util.updateQueryData('getDirectoryContents', parentId, (draft) => {
+      const idx = draft.subdirectories.findIndex((sub) => sub.id === normalized.id);
+      if (idx >= 0) {
+        draft.subdirectories[idx] = { ...draft.subdirectories[idx], ...normalized };
+      } else {
+        draft.subdirectories.push(normalized);
+        draft.subdirectories.sort(compareDirectoryName);
+        draft.totalCount += 1;
+      }
+    }),
+  );
 }
 
 export function patchDirectoryTreeCache(
