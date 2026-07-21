@@ -196,38 +196,41 @@ export const DirectoryDetailPageContainer = () => {
     <TooltipProvider>
     <Page showSidebar>
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
-        {/* Header: Back button + Breadcrumb + Directory title + Action buttons */}
-        <div className="flex flex-col gap-4">
-          {/* Back button */}
-          <Button
-            variant="ghost"
-            className="self-start gap-2 text-muted-foreground"
-            onClick={handleBack}
-          >
-            <ArrowLeft size={18} />
-            Back
-          </Button>
-
-          {/* Breadcrumb */}
-          <nav className="text-sm text-muted-foreground flex flex-wrap gap-1 items-center">
-            <Link to="/documents" className="hover:text-foreground">
-              Directories
-            </Link>
-            {ancestors.map((a: Directory) => (
-              <span key={a.id} className="flex items-center gap-1">
-                <span className="text-border">/</span>
-                <Link to={`/directory/${a.id}`} className="hover:text-foreground">
-                  {a.name}
-                </Link>
-              </span>
-            ))}
-            <span className="text-border">/</span>
-            <span className="text-foreground font-medium">{dir.name}</span>
-          </nav>
+        {/* Header: compact Back + Breadcrumb, title/actions, subfolder pills */}
+        <div className="flex flex-col gap-2">
+          {/* Back + breadcrumb on one row */}
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+              onClick={handleBack}
+            >
+              <ArrowLeft size={14} />
+              Back
+            </button>
+            <span className="text-border" aria-hidden="true">
+              |
+            </span>
+            <nav className="flex flex-wrap items-center gap-1">
+              <Link to="/documents" className="hover:text-foreground">
+                Directories
+              </Link>
+              {ancestors.map((a: Directory) => (
+                <span key={a.id} className="flex items-center gap-1">
+                  <span className="text-border">/</span>
+                  <Link to={`/directory/${a.id}`} className="hover:text-foreground">
+                    {a.name}
+                  </Link>
+                </span>
+              ))}
+              <span className="text-border">/</span>
+              <span className="text-foreground font-medium">{dir.name}</span>
+            </nav>
+          </div>
 
           {/* Directory title + actions row */}
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="min-w-0">
               <h1 className="text-2xl font-semibold flex items-center gap-2">
                 {(() => {
                   const TitleIcon = ICON_MAP[dir.icon || 'Folder'] || Folder;
@@ -236,10 +239,10 @@ export const DirectoryDetailPageContainer = () => {
                 {dir.name}
               </h1>
               {dir.description && (
-                <p className="text-muted-foreground mt-2 max-w-2xl">{dir.description}</p>
+                <p className="text-muted-foreground mt-1 text-sm max-w-2xl">{dir.description}</p>
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 shrink-0">
               <Button variant="outline" size="sm" className="gap-2" onClick={() => setCreateDialogOpen(true)}>
                 <FolderPlus size={16} />
                 New subfolder
@@ -263,7 +266,7 @@ export const DirectoryDetailPageContainer = () => {
                     <Link
                       to={`/directory/${sub.id}`}
                       state={buildChildDirectoryNavigationState(dir.id, location.state)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5"
+                      className="inline-flex items-center gap-1.5 px-3 py-1"
                     >
                       <IconComponent
                         size={14}
@@ -277,7 +280,7 @@ export const DirectoryDetailPageContainer = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+                          className="h-6 w-6 rounded-full text-muted-foreground hover:text-foreground"
                           onClick={(e) => e.stopPropagation()}
                           aria-label={`Actions for ${sub.name}`}
                         >
