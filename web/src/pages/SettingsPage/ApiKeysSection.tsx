@@ -103,7 +103,7 @@ export const ApiKeysSection: React.FC = () => {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2 space-y-0">
           <div className="space-y-1">
             <CardTitle className="flex items-center gap-2">
               <Key className="h-5 w-5 text-primary" />
@@ -113,10 +113,22 @@ export const ApiKeysSection: React.FC = () => {
               Use API keys to access Code Insights AI from external applications.
             </CardDescription>
           </div>
-          <Button size="sm" onClick={handleOpenCreate}>
-            <Plus className="h-4 w-4 mr-1" />
-            New Key
-          </Button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {!isLoading && !error && activeKeys.length > 0 && (
+              <BulkSelectionToolbar
+                selectedCount={selection.selectedCount}
+                allVisibleSelected={selection.allVisibleSelected}
+                onSelectAllVisible={selection.selectAllVisible}
+                onClear={selection.clear}
+                actionLabel={`Revoke selected (${selection.selectedCount})`}
+                onAction={bulkFlow.openConfirm}
+              />
+            )}
+            <Button size="sm" onClick={handleOpenCreate}>
+              <Plus className="h-4 w-4 mr-1" />
+              New Key
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading && (
@@ -137,14 +149,6 @@ export const ApiKeysSection: React.FC = () => {
 
           {!isLoading && !error && activeKeys.length > 0 && (
             <div className="space-y-3">
-              <BulkSelectionToolbar
-                selectedCount={selection.selectedCount}
-                allVisibleSelected={selection.allVisibleSelected}
-                onSelectAllVisible={selection.selectAllVisible}
-                onClear={selection.clear}
-                actionLabel={`Revoke selected (${selection.selectedCount})`}
-                onAction={bulkFlow.openConfirm}
-              />
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>

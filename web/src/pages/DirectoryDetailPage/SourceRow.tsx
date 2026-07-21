@@ -12,8 +12,10 @@ import {
   DropdownMenuTrigger,
 } from '../../components/ui/DropdownMenu';
 import { Badge } from '../../components/ui/Badge';
+import { BulkSelectCheckbox } from '../../components/BulkSelectCheckbox';
 import { GenerationInfoTooltip } from '../../components/GenerationInfoTooltip';
 import { getColorRailStyle } from '../../utils/sourceColorRail';
+import { cn } from '../../lib/utils';
 
 interface SourceRowProps {
   document: DocumentEnhanced;
@@ -22,6 +24,8 @@ interface SourceRowProps {
   onMove: (document: DocumentEnhanced) => void;
   appliedRuleNames?: string[];
   generationModel?: string;
+  selected?: boolean;
+  onSelectChange?: (selected: boolean) => void;
 }
 
 export const SourceRow: React.FC<SourceRowProps> = ({
@@ -31,18 +35,33 @@ export const SourceRow: React.FC<SourceRowProps> = ({
   onMove,
   appliedRuleNames = [],
   generationModel,
+  selected = false,
+  onSelectChange,
 }) => {
   const navigate = useNavigate();
   const isPending = document.generationStatus === 'pending';
   const isFailed = document.generationStatus === 'failed';
   const colorRailStyle = getColorRailStyle(document.color, document.id);
 
+  const selectionControl = onSelectChange ? (
+    <BulkSelectCheckbox
+      checked={selected}
+      onCheckedChange={onSelectChange}
+      label={`Select ${document.title}`}
+      className="pl-2"
+    />
+  ) : null;
+
   if (isPending) {
     return (
       <div
-        className="rounded-lg border border-border border-l-[4px] bg-muted/30 opacity-70 flex"
+        className={cn(
+          'rounded-lg border border-border border-l-[4px] bg-muted/30 opacity-70 flex items-center',
+          selected && 'ring-2 ring-primary',
+        )}
         style={colorRailStyle}
       >
+        {selectionControl}
         <div className="flex flex-1 items-center gap-3 p-3 min-w-0">
           <Loader2 size={18} className="shrink-0 text-muted-foreground animate-spin" />
           <div className="flex-1 min-w-0">
@@ -66,9 +85,13 @@ export const SourceRow: React.FC<SourceRowProps> = ({
   if (isFailed) {
     return (
       <div
-        className="rounded-lg border border-destructive/40 border-l-[4px] bg-destructive/5 flex"
+        className={cn(
+          'rounded-lg border border-destructive/40 border-l-[4px] bg-destructive/5 flex items-center',
+          selected && 'ring-2 ring-primary',
+        )}
         style={colorRailStyle}
       >
+        {selectionControl}
         <div className="flex flex-1 items-center gap-3 p-3 min-w-0">
           <AlertCircle size={18} className="shrink-0 text-destructive" />
           <div className="flex-1 min-w-0">
@@ -91,9 +114,13 @@ export const SourceRow: React.FC<SourceRowProps> = ({
 
   return (
     <div
-      className="group rounded-lg border border-border border-l-[4px] hover:bg-muted/50 transition-colors flex"
+      className={cn(
+        'group rounded-lg border border-border border-l-[4px] hover:bg-muted/50 transition-colors flex items-center',
+        selected && 'ring-2 ring-primary',
+      )}
       style={colorRailStyle}
     >
+      {selectionControl}
       <div className="flex flex-1 items-center gap-3 p-3 min-w-0">
         <FileText size={18} className="shrink-0 text-muted-foreground" />
 

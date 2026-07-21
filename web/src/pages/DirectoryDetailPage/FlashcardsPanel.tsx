@@ -50,11 +50,14 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Flashcards ({completedCount})</h2>
-        <Button size="sm" asChild>
-          <Link to={`/flashcards/create?directoryId=${directoryId}`}>+ Create flashcards</Link>
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {bulk.toolbar}
+          <Button size="sm" asChild>
+            <Link to={`/flashcards/create?directoryId=${directoryId}`}>+ Create flashcards</Link>
+          </Button>
+        </div>
       </div>
       {mayBeTruncated && (
         <div className="flex items-center gap-2 rounded-md border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-primary">
@@ -62,7 +65,6 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
           <span>Showing first {flashcardSets.length} flashcard sets — more may exist.</span>
         </div>
       )}
-      {bulk.toolbar}
       {flashcardSets.length === 0 && !showOptimisticRow ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
           No flashcard sets in this directory yet.

@@ -323,17 +323,21 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                 {/* Folders Section */}
                 {subdirectories.length > 0 && (
                   <div className="px-4 md:px-6 space-y-3">
-                    {!isRoot && (
-                      <h2 className="text-lg font-semibold">Folders</h2>
-                    )}
-                    <BulkSelectionToolbar
-                      selectedCount={folderSelection.selectedCount}
-                      allVisibleSelected={folderSelection.allVisibleSelected}
-                      onSelectAllVisible={folderSelection.selectAllVisible}
-                      onClear={folderSelection.clear}
-                      actionLabel={`Delete selected (${folderSelection.selectedCount})`}
-                      onAction={folderBulkFlow.openConfirm}
-                    />
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      {!isRoot ? (
+                        <h2 className="text-lg font-semibold">Folders</h2>
+                      ) : (
+                        <span />
+                      )}
+                      <BulkSelectionToolbar
+                        selectedCount={folderSelection.selectedCount}
+                        allVisibleSelected={folderSelection.allVisibleSelected}
+                        onSelectAllVisible={folderSelection.selectAllVisible}
+                        onClear={folderSelection.clear}
+                        actionLabel={`Delete selected (${folderSelection.selectedCount})`}
+                        onAction={folderBulkFlow.openConfirm}
+                      />
+                    </div>
                     <div className={documentsPageStyles.documentsGrid}>
                       {subdirectories.map((dir: Directory) => (
                         <FolderCard
@@ -363,15 +367,17 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                   </div>
                 ) : documents.length > 0 ? (
                   <div className="px-4 md:px-6 space-y-3">
-                    <h2 className="text-lg font-semibold">Documents</h2>
-                    <BulkSelectionToolbar
-                      selectedCount={documentSelection.selectedCount}
-                      allVisibleSelected={documentSelection.allVisibleSelected}
-                      onSelectAllVisible={documentSelection.selectAllVisible}
-                      onClear={documentSelection.clear}
-                      actionLabel={`Delete selected (${documentSelection.selectedCount})`}
-                      onAction={documentBulkFlow.openConfirm}
-                    />
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h2 className="text-lg font-semibold">Documents</h2>
+                      <BulkSelectionToolbar
+                        selectedCount={documentSelection.selectedCount}
+                        allVisibleSelected={documentSelection.allVisibleSelected}
+                        onSelectAllVisible={documentSelection.selectAllVisible}
+                        onClear={documentSelection.clear}
+                        actionLabel={`Delete selected (${documentSelection.selectedCount})`}
+                        onAction={documentBulkFlow.openConfirm}
+                      />
+                    </div>
                     <div className={documentsPageStyles.documentsGrid}>
                       {documents.map((document: DocumentEnhanced) => (
                         <Card

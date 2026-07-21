@@ -50,11 +50,14 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Subject worlds ({completedCount})</h2>
-        <Button size="sm" asChild>
-          <Link to={`/subject-world/create?directoryId=${encodeURIComponent(directoryId)}`}>+ Create subject world</Link>
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {bulk.toolbar}
+          <Button size="sm" asChild>
+            <Link to={`/subject-world/create?directoryId=${encodeURIComponent(directoryId)}`}>+ Create subject world</Link>
+          </Button>
+        </div>
       </div>
       {mayBeTruncated && (
         <div className="flex items-center gap-2 rounded-md border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-primary">
@@ -62,7 +65,6 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
           <span>Showing first {subjectWorlds.length} subject worlds — more may exist.</span>
         </div>
       )}
-      {bulk.toolbar}
       {subjectWorlds.length === 0 && !showOptimisticRow ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
           No subject worlds in this directory yet.

@@ -123,7 +123,7 @@ export const DirectoryRulesPageContainer = () => {
               borderColor: currentTheme.colors.border,
             }}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <h2
                 className="text-xl font-semibold flex items-center gap-2"
                 style={{ color: currentTheme.colors.foreground }}
@@ -133,6 +133,7 @@ export const DirectoryRulesPageContainer = () => {
                 </span>{' '}
                 Rules Assigned to This Directory ({directRules.length})
               </h2>
+              {directRules.length > 0 ? bulkDetach.toolbar : null}
             </div>
 
             {directRules.length === 0 ? (
@@ -147,7 +148,6 @@ export const DirectoryRulesPageContainer = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {bulkDetach.toolbar}
                 {directRules.map((rule) => (
                   <RuleCard
                     key={rule.id}

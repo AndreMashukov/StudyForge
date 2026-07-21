@@ -3,14 +3,12 @@ import { DocumentEnhanced } from '@shared-types';
 import { SourceRow } from './SourceRow';
 import { ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
-import { BulkSelectCheckbox } from '../../components/BulkSelectCheckbox';
 import { BulkSelectionToolbar } from '../../components/BulkSelectionToolbar';
 import { BulkActionConfirmDialog } from '../../components/BulkActionConfirmDialog';
 import { BulkActionResultDialog } from '../../components/BulkActionResultDialog';
 import { useBulkSelection } from '../../hooks/useBulkSelection';
 import { useBulkActionFlow } from '../../hooks/useBulkActionFlow';
 import { useBulkDeleteDocumentsMutation } from '../../store/api/Documents/documentsApi';
-import { cn } from '../../lib/utils';
 
 interface ISourcesPanelProps {
   documents: DocumentEnhanced[];
@@ -44,16 +42,17 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Sources ({documents.length})</h2>
-
-      <BulkSelectionToolbar
-        selectedCount={selection.selectedCount}
-        allVisibleSelected={selection.allVisibleSelected}
-        onSelectAllVisible={selection.selectAllVisible}
-        onClear={selection.clear}
-        actionLabel={`Delete selected (${selection.selectedCount})`}
-        onAction={flow.openConfirm}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">Sources ({documents.length})</h2>
+        <BulkSelectionToolbar
+          selectedCount={selection.selectedCount}
+          allVisibleSelected={selection.allVisibleSelected}
+          onSelectAllVisible={selection.selectAllVisible}
+          onClear={selection.clear}
+          actionLabel={`Delete selected (${selection.selectedCount})`}
+          onAction={flow.openConfirm}
+        />
+      </div>
 
       {documents.length === 0 && !showOptimisticRow ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
@@ -63,31 +62,17 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
         <div className="space-y-2">
           {showOptimisticRow && <ArtifactRowGenerating title={optimisticTitle} />}
           {documents.map((doc) => (
-            <div
+            <SourceRow
               key={doc.id}
-              className={cn(
-                'flex items-stretch gap-0',
-                selection.isSelected(doc.id) && 'rounded-lg ring-2 ring-primary',
-              )}
-            >
-              <div className="flex items-center pl-2">
-                <BulkSelectCheckbox
-                  checked={selection.isSelected(doc.id)}
-                  onCheckedChange={() => selection.toggle(doc.id)}
-                  label={`Select ${doc.title}`}
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <SourceRow
-                  document={doc}
-                  directoryId={directoryId}
-                  onDelete={onDeleteDocument}
-                  onMove={onMoveDocument}
-                  appliedRuleNames={doc.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
-                  generationModel={doc.generationModel}
-                />
-              </div>
-            </div>
+              document={doc}
+              directoryId={directoryId}
+              onDelete={onDeleteDocument}
+              onMove={onMoveDocument}
+              appliedRuleNames={doc.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
+              generationModel={doc.generationModel}
+              selected={selection.isSelected(doc.id)}
+              onSelectChange={() => selection.toggle(doc.id)}
+            />
           ))}
         </div>
       )}

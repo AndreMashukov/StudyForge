@@ -48,11 +48,14 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Quizzes ({completedCount})</h2>
-        <Button size="sm" asChild>
-          <Link to={`/quiz/create?directoryId=${directoryId}`}>+ Create quiz</Link>
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {bulk.toolbar}
+          <Button size="sm" asChild>
+            <Link to={`/quiz/create?directoryId=${directoryId}`}>+ Create quiz</Link>
+          </Button>
+        </div>
       </div>
       {mayBeTruncated && (
         <div className="flex items-center gap-2 rounded-md border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-primary">
@@ -60,7 +63,6 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
           <span>Showing first {quizzes.length} quizzes — more may exist.</span>
         </div>
       )}
-      {bulk.toolbar}
       {quizzes.length === 0 && !showOptimisticRow ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
           No quizzes in this directory yet.

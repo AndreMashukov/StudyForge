@@ -30,11 +30,12 @@ export const Checkbox = ({
   };
 
   const isChecked = checked || indeterminate;
+  const hasText = Boolean(label || description);
 
   return (
     <label
       className={cn(
-        checkboxStyles.wrapper,
+        hasText ? checkboxStyles.wrapper : checkboxStyles.wrapperStandalone,
         disabled && checkboxStyles.wrapperDisabled,
         className,
       )}
@@ -55,7 +56,7 @@ export const Checkbox = ({
       <span
         aria-hidden="true"
         className={cn(
-          checkboxStyles.box,
+          hasText ? checkboxStyles.box : checkboxStyles.boxStandalone,
           isChecked && !error && checkboxStyles.boxChecked,
           error && !isChecked && checkboxStyles.boxError,
           error && isChecked && checkboxStyles.boxErrorChecked,

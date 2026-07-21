@@ -14,6 +14,10 @@ export interface IBulkSelectionToolbar {
   className?: string;
 }
 
+/**
+ * Compact inline actions for a section header row.
+ * Returns null when nothing is selected so the header height stays stable.
+ */
 export const BulkSelectionToolbar: React.FC<IBulkSelectionToolbar> = ({
   selectedCount,
   allVisibleSelected,
@@ -32,29 +36,27 @@ export const BulkSelectionToolbar: React.FC<IBulkSelectionToolbar> = ({
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2',
+        'flex flex-wrap items-center justify-end gap-1.5 sm:gap-2',
         className,
       )}
       role="region"
       aria-label="Bulk selection"
     >
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-medium">
-          {selectedCount} selected
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onSelectAllVisible}
-          disabled={allVisibleSelected}
-        >
-          Select all visible
-        </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={onClear}>
-          Clear
-        </Button>
-      </div>
+      <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+        {selectedCount} selected
+      </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={onSelectAllVisible}
+        disabled={allVisibleSelected}
+      >
+        Select all visible
+      </Button>
+      <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+        Clear
+      </Button>
       <Button
         type="button"
         variant={actionVariant}
