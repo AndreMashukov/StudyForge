@@ -50,14 +50,17 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 min-h-9">
-        <h2 className="text-lg font-semibold truncate min-w-0">Diagram quizzes ({completedCount})</h2>
-        <div className="flex items-center justify-end gap-2 shrink-0">
-          {bulk.toolbar}
-          <Button size="sm" asChild>
-            <Link to={`/diagram-quiz/create?directoryId=${directoryId}`}>+ Create diagram quiz</Link>
-          </Button>
-        </div>
+      <div className="min-h-10">
+        {bulk.selectedIds.length > 0 ? (
+          bulk.toolbar
+        ) : (
+          <div className="flex min-h-10 items-center justify-between gap-2">
+            <h2 className="truncate text-lg font-semibold">Diagram quizzes ({completedCount})</h2>
+            <Button size="sm" asChild>
+              <Link to={`/diagram-quiz/create?directoryId=${directoryId}`}>+ Create diagram quiz</Link>
+            </Button>
+          </div>
+        )}
       </div>
       {mayBeTruncated && (
         <div className="flex items-center gap-2 rounded-md border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-primary">

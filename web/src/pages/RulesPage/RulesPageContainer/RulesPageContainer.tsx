@@ -363,21 +363,24 @@ export const RulesPageContainer = () => {
         {/* Rules Grid/List */}
         {hasFilteredRules && (
           <>
-            <div className="flex items-center justify-between gap-2 min-h-9">
-              <p
-                className="text-sm truncate"
-                style={{ color: currentTheme.colors.mutedForeground }}
-              >
-                {filteredRules.length} {filteredRules.length === 1 ? 'rule' : 'rules'} found
-              </p>
-              <BulkSelectionToolbar
-                selectedCount={selection.selectedCount}
-                allVisibleSelected={selection.allVisibleSelected}
-                onSelectAllVisible={selection.selectAllVisible}
-                onClear={selection.clear}
-                actionLabel={`Delete selected (${selection.selectedCount})`}
-                onAction={bulkFlow.openConfirm}
-              />
+            <div className="min-h-10">
+              {selection.selectedCount > 0 ? (
+                <BulkSelectionToolbar
+                  selectedCount={selection.selectedCount}
+                  allVisibleSelected={selection.allVisibleSelected}
+                  onSelectAllVisible={selection.selectAllVisible}
+                  onClear={selection.clear}
+                  actionLabel={`Delete selected (${selection.selectedCount})`}
+                  onAction={bulkFlow.openConfirm}
+                />
+              ) : (
+                <p
+                  className="flex min-h-10 items-center text-sm"
+                  style={{ color: currentTheme.colors.mutedForeground }}
+                >
+                  {filteredRules.length} {filteredRules.length === 1 ? 'rule' : 'rules'} found
+                </p>
+              )}
             </div>
 
             <div

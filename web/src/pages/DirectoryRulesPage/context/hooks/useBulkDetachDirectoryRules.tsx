@@ -8,6 +8,7 @@ import { useBulkActionFlow } from '../../../../hooks/useBulkActionFlow';
 import { useBulkDetachRulesFromDirectoryMutation } from '../../../../store/api/Rules/rulesApi';
 
 export interface IBulkDetachDirectoryRules {
+  selectedCount: number;
   isSelected: (id: string) => boolean;
   toggle: (id: string) => void;
   toolbar: React.ReactNode;
@@ -93,6 +94,7 @@ export function useBulkDetachDirectoryRules({
   );
 
   return {
+    selectedCount: selection.selectedCount,
     isSelected: selection.isSelected,
     toggle: selection.toggle,
     toolbar,

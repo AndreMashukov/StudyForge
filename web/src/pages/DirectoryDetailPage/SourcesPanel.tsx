@@ -42,16 +42,21 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 min-h-9">
-        <h2 className="text-lg font-semibold truncate">Sources ({documents.length})</h2>
-        <BulkSelectionToolbar
-          selectedCount={selection.selectedCount}
-          allVisibleSelected={selection.allVisibleSelected}
-          onSelectAllVisible={selection.selectAllVisible}
-          onClear={selection.clear}
-          actionLabel={`Delete selected (${selection.selectedCount})`}
-          onAction={flow.openConfirm}
-        />
+      <div className="min-h-10">
+        {selection.selectedCount > 0 ? (
+          <BulkSelectionToolbar
+            selectedCount={selection.selectedCount}
+            allVisibleSelected={selection.allVisibleSelected}
+            onSelectAllVisible={selection.selectAllVisible}
+            onClear={selection.clear}
+            actionLabel={`Delete selected (${selection.selectedCount})`}
+            onAction={flow.openConfirm}
+          />
+        ) : (
+          <h2 className="flex min-h-10 items-center text-lg font-semibold">
+            Sources ({documents.length})
+          </h2>
+        )}
       </div>
 
       {documents.length === 0 && !showOptimisticRow ? (

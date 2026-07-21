@@ -8,9 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../../../components/ui/DropdownMenu";
-import { BulkSelectCheckbox } from "../../../../components/BulkSelectCheckbox";
 import { ICON_MAP } from "../folderConstants";
-import { cn } from "../../../../lib/utils";
 
 export const FolderCard = ({
   directory,
@@ -19,14 +17,12 @@ export const FolderCard = ({
   onDelete,
   onMove,
   onManageRules,
-  selected = false,
-  onSelectChange,
 }: IFolderCard) => {
   const IconComponent = ICON_MAP[directory.icon || "Folder"] || Folder;
 
   return (
     <div
-      className={cn(folderCardStyles.card, selected && "ring-2 ring-primary")}
+      className={folderCardStyles.card}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -37,16 +33,6 @@ export const FolderCard = ({
         }
       }}
     >
-      {onSelectChange && (
-        <div className="absolute top-2 left-2 z-10">
-          <BulkSelectCheckbox
-            checked={selected}
-            onCheckedChange={onSelectChange}
-            label={`Select folder ${directory.name}`}
-          />
-        </div>
-      )}
-
       {/* Icon */}
       <div className={folderCardStyles.iconContainer}>
         <IconComponent
