@@ -8,6 +8,7 @@ export const QuizProgressBar: React.FC<IQuizProgressBar> = ({
   totalQuestions,
   score,
   answeredCount,
+  leadingAction,
 }) => {
   return (
     <>
@@ -18,11 +19,14 @@ export const QuizProgressBar: React.FC<IQuizProgressBar> = ({
         />
       </div>
 
-      <div className="flex items-center justify-between px-6 pt-4">
-        <span className="text-xs font-medium text-muted-foreground">
-          Question {currentQuestion} of {totalQuestions}
-        </span>
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+      <div className="flex items-center justify-between gap-3 px-6 pt-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {leadingAction}
+          <span className="text-xs font-medium text-muted-foreground">
+            Question {currentQuestion} of {totalQuestions}
+          </span>
+        </div>
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-full shrink-0">
           <CheckCircle2 className="w-3 h-3 text-success" />
           <span className="text-success font-semibold">{score}</span>
           <span>/ {answeredCount} correct</span>

@@ -21,7 +21,7 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useState, useRef, useLayoutEffect } from 'react';
+import { useState, useLayoutEffect, ReactNode } from 'react';
 import { useSelector } from 'react-redux';
 import { GripVertical, X, Package, Layers, CheckCircle, XCircle, Sparkles } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
@@ -46,6 +46,7 @@ interface ISequenceQuestionCardProps {
   showExplanation: boolean;
   handlers: ISequenceQuizPageHandlers;
   isLastQuestion: boolean;
+  backAction?: ReactNode;
 }
 
 // Droppable zone IDs
@@ -174,6 +175,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   showExplanation,
   handlers,
   isLastQuestion,
+  backAction,
 }) => {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   // Live ordered copy of placedItems updated during drag for smooth reorder preview
@@ -181,18 +183,6 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   // Holds the committed live order after drag end until Redux placedItems propagates,
   // preventing the snap-back glitch (activeId → null before parent re-renders with new props).
   const [pendingCommit, setPendingCommit] = useState<string[] | null>(null);
-
-  // Measure the source zone's natural height on first render (before any items are moved)
-  // so both zones share the same fixed height regardless of text wrapping.
-  const sourceZoneMeasureRef = useRef<HTMLDivElement>(null);
-  const [fixedHeight, setFixedHeight] = useState<number | null>(null);
-
-  useLayoutEffect(() => {
-    if (sourceZoneMeasureRef.current && fixedHeight === null) {
-      setFixedHeight(sourceZoneMeasureRef.current.offsetHeight);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Once Redux has propagated the reorder back via placedItems, drop the optimistic commit.
   // This must only fire when placedItems changes, not on every render.
@@ -202,8 +192,6 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placedItems]);
-
-  const zoneStyle = fixedHeight !== null ? { height: fixedHeight } : undefined;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -347,19 +335,17 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
           totalQuestions={totalQuestions}
           score={quizState.score}
           answeredCount={answeredCount}
+          leadingAction={backAction}
         />
       )}
-      <CardHeader>
-        <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-1">
-          Question
-        </p>
+      <CardHeader className="px-6 pt-3 pb-3 space-y-0">
         <div className="flex items-start gap-2">
-          <CardTitle className="text-lg font-semibold leading-snug flex-1">{question.question}</CardTitle>
+          <CardTitle className="text-base font-semibold leading-snug flex-1">{question.question}</CardTitle>
           <QuizHintTooltip hint={question.hint} className="mt-0.5" />
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -367,10 +353,10 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:items-stretch">
           {/* Source pool */}
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2 px-0.5">
+          <div className="flex min-h-0 flex-col">
+            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 px-0.5">
               <Package size={13} />
               <span>Available Blocks</span>
               <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
@@ -378,16 +364,14 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
               </span>
             </div>
             <SortableContext items={sourceIds} strategy={verticalListSortingStrategy}>
-              <div ref={sourceZoneMeasureRef}>
               <DroppableZone
                 id={SOURCE_ZONE}
                 className={cn(
-                  'border-2 border-dashed rounded-lg p-2 space-y-1.5 transition-colors overflow-y-auto',
+                  'min-h-[60vh] flex-1 border-2 border-dashed rounded-lg p-2 space-y-1.5 transition-colors overflow-y-auto',
                   availableItems.length === 0
                     ? 'border-border/50'
                     : 'border-border'
                 )}
-                style={zoneStyle}
               >
                 {availableItems.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center gap-1 text-muted-foreground opacity-40 py-6">
@@ -406,13 +390,12 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
                   ))
                 )}
               </DroppableZone>
-              </div>
             </SortableContext>
           </div>
 
           {/* Target sequence board */}
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-primary mb-2 px-0.5">
+          <div className="flex min-h-0 flex-col">
+            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-primary mb-1.5 px-0.5">
               <Layers size={13} />
               <span>Your Sequence</span>
               <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
@@ -423,12 +406,11 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
               <DroppableZone
                 id={TARGET_ZONE}
                 className={cn(
-                  'border-2 border-dashed rounded-lg p-2 space-y-1.5 transition-colors overflow-y-auto',
+                  'min-h-[60vh] flex-1 border-2 border-dashed rounded-lg p-2 space-y-1.5 transition-colors overflow-y-auto',
                   placedItems.length === 0
                     ? 'border-primary/20'
                     : 'border-primary/30'
                 )}
-                style={zoneStyle}
               >
                 {placedItems.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center gap-1 text-muted-foreground opacity-40 py-6">

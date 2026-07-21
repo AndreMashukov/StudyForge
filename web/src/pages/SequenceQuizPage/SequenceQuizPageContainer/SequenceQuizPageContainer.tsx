@@ -46,6 +46,17 @@ export const SequenceQuizPageContainer: React.FC = () => {
     </button>
   );
 
+  const inlineBackAction = (
+    <button
+      type="button"
+      onClick={handleBackToDirectory}
+      className="flex items-center gap-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
+      Back
+    </button>
+  );
+
   if (!sequenceQuizApi.hasValidId) {
     return (
       <div className="mx-auto max-w-4xl px-6 py-16">
@@ -129,8 +140,7 @@ export const SequenceQuizPageContainer: React.FC = () => {
   const detailedExplanationMessage = 'Explain this sequence quiz in detail. Include why my ordering is right or wrong, how to reason through the correct sequence, and the source details that support it.';
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-6 py-16">
-      {backButton}
+    <div className="mx-auto max-w-4xl space-y-4 px-6 py-4">
       <SequenceQuestionCard
         question={currentQuestion}
         availableItems={quizState.availableItems}
@@ -140,6 +150,7 @@ export const SequenceQuizPageContainer: React.FC = () => {
         showExplanation={quizState.showExplanation}
         handlers={handlers}
         isLastQuestion={isLastQuestion}
+        backAction={inlineBackAction}
       />
 
       {quizState.followupChatOpen[questionIndex] && directoryId && (
