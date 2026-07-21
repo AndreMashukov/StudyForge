@@ -1165,7 +1165,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
 
       {labelTooltip && (
         <div
-          className="pointer-events-none absolute z-20 max-w-xs -translate-x-1/2 -translate-y-full rounded-md border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md"
+          className="pointer-events-none absolute z-20 max-w-xs -translate-x-1/2 -translate-y-full whitespace-pre-wrap rounded-md border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md"
           style={{ left: labelTooltip.x, top: labelTooltip.y }}
           role="tooltip"
         >

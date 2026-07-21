@@ -35,6 +35,28 @@ function shortenLabel(text: string): string {
   return `${text.slice(0, MAX_VISIBLE_LABEL_CHARS - 1).trimEnd()}…`;
 }
 
+/**
+ * Convert Mermaid source-label escapes into human-readable tooltip text.
+ * Sanitization encodes brackets/parens as `#91;` / `#40;` etc. and AI labels
+ * often use `<br>` for line breaks — neither should appear literally in UI.
+ */
+export function decodeMermaidLabelForDisplay(label: string): string {
+  return label
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/#quot;/gi, '"')
+    .replace(/#(\d+);/g, (match, code: string) => {
+      const codePoint = Number(code);
+      if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff) {
+        return match;
+      }
+      try {
+        return String.fromCodePoint(codePoint);
+      } catch {
+        return match;
+      }
+    });
+}
+
 function shouldSkipLine(trimmedLine: string): boolean {
   return /^(click|style|classDef|class|linkStyle|subgraph|end|flowchart|graph|sequenceDiagram|classDiagram|erDiagram|participant|actor|%%)/i.test(
     trimmedLine
@@ -95,7 +117,7 @@ function applyFlowchartLabelTooltips(source: string): IMermaidLabelTooltipsResul
         }
 
         const shortLabel = shortenLabel(fullLabel);
-        nodeTooltips[nodeId] = fullLabel;
+        nodeTooltips[nodeId] = decodeMermaidLabelForDisplay(fullLabel);
         return formatShortNodeLabel(nodeId, shortLabel, delimiter);
       });
     }
@@ -130,7 +152,7 @@ function applyClassDiagramLabelTooltips(source: string): IMermaidLabelTooltipsRe
       }
 
       const shortLabel = shortenLabel(fullLabel);
-      nodeTooltips[className] = fullLabel;
+      nodeTooltips[className] = decodeMermaidLabelForDisplay(fullLabel);
       return `class ${className}["${shortLabel.replace(/"/g, '#quot;')}"]`;
     });
   });
