@@ -8,6 +8,13 @@ import {
   redirectToAdminLogin,
 } from '../../../lib/auth/client-login-redirect';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../ui/Select';
 
 export interface IUserGroupAssignmentFormProps {
   userId: string;
@@ -67,19 +74,21 @@ export function UserGroupAssignmentForm({
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <Label htmlFor="userGroupId">User group</Label>
-            <select
-              id="userGroupId"
-              className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              value={selectedGroupId}
-              onChange={(event) => setSelectedGroupId(event.target.value)}
+            <Select
+              value={selectedGroupId || undefined}
+              onValueChange={setSelectedGroupId}
             >
-              <option value="">Unassigned</option>
-              {groupOptions.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="userGroupId" aria-label="User group">
+                <SelectValue placeholder="Unassigned" />
+              </SelectTrigger>
+              <SelectContent>
+                {groupOptions.map((group) => (
+                  <SelectItem key={group.id} value={group.id}>
+                    {group.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {notice ? <p className="text-sm text-destructive">{notice}</p> : null}

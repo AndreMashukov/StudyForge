@@ -1,5 +1,6 @@
+export { Select } from './Select';
+export type { ISelectProps } from './ISelect';
 export {
-  Select,
   SelectContent,
   SelectGroup,
   SelectItem,
@@ -11,7 +12,6 @@ export {
   SelectValue,
 } from '@study-forge/ui';
 export type {
-  ISelect as ISelectProps,
   ISelectContent as ISelectContentProps,
   ISelectItem as ISelectItemProps,
   ISelectTrigger as ISelectTriggerProps,

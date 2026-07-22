@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Input, Label } from '@study-forge/ui';
+import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -11,6 +11,14 @@ import {
   redirectToAdminLogin,
 } from '../../../lib/auth/client-login-redirect';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
+import { Input } from '../../ui/Input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../ui/Select';
 
 const userGroupFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
@@ -125,23 +133,23 @@ export function UserGroupForm({ groupId, defaultValues, setupOptions }: IUserGro
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
-            <Input id="name" {...form.register('name')} />
+            <Input id="name" control={form.control} name="name" />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="llmSetupId">LLM setup</Label>
-            <select
-              id="llmSetupId"
-              className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              {...form.register('llmSetupId')}
-            >
-              <option value="">Select a setup</option>
-              {setupOptions.map((setup) => (
-                <option key={setup.id} value={setup.id}>
-                  {setup.name}
-                </option>
-              ))}
-            </select>
+            <Select control={form.control} name="llmSetupId">
+              <SelectTrigger id="llmSetupId" aria-label="LLM setup">
+                <SelectValue placeholder="Select a setup" />
+              </SelectTrigger>
+              <SelectContent>
+                {setupOptions.map((setup) => (
+                  <SelectItem key={setup.id} value={setup.id}>
+                    {setup.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {notice ? <p className="text-sm text-destructive">{notice}</p> : null}

@@ -3,24 +3,23 @@
 import type { GenerationKind, IProviderConnectionCatalogEntry } from '@shared-types';
 import { GENERATION_KIND_METADATA } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  Button,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@study-forge/ui';
+import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import {
   isAdminUnauthorizedResponse,
   redirectToAdminLogin,
 } from '../../../lib/auth/client-login-redirect';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
+import { Input } from '../../ui/Input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../ui/Select';
 import {
   type ILlmSetupFormValues,
   filterConnectionsForModality,
@@ -45,12 +44,10 @@ function GenerationKindRow({
   kind,
   connections,
   control,
-  register,
 }: {
   kind: GenerationKind;
   connections: IProviderConnectionCatalogEntry[];
   control: ReturnType<typeof useForm<ILlmSetupFormValues>>['control'];
-  register: ReturnType<typeof useForm<ILlmSetupFormValues>>['register'];
 }) {
   const metadata = GENERATION_KIND_METADATA[kind];
   const filteredConnections = filterConnectionsForModality(
@@ -70,58 +67,44 @@ function GenerationKindRow({
         <p className="mt-1 text-xs text-muted-foreground">Modality: {metadata.requiredModality}</p>
       </td>
       <td className="px-3 py-3 align-top">
-        <Controller
-          control={control}
-          name={connectionField}
-          render={({ field }) => (
-            <Select
-              value={field.value || undefined}
-              onValueChange={field.onChange}
-            >
-              <SelectTrigger aria-label={`${metadata.label} provider connection`}>
-                <SelectValue placeholder="Select connection" />
-              </SelectTrigger>
-              <SelectContent>
-                {filteredConnections.map((connection) => (
-                  <SelectItem key={connection.id} value={connection.id}>
-                    {connection.label} ({connection.providerKind})
-                    {!connection.apiKeyConfigured ? ' — missing credentials' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
+        <Select control={control} name={connectionField}>
+          <SelectTrigger aria-label={`${metadata.label} provider connection`}>
+            <SelectValue placeholder="Select connection" />
+          </SelectTrigger>
+          <SelectContent>
+            {filteredConnections.map((connection) => (
+              <SelectItem key={connection.id} value={connection.id}>
+                {connection.label} ({connection.providerKind})
+                {!connection.apiKeyConfigured ? ' — missing credentials' : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </td>
       <td className="px-3 py-3 align-top">
-        <Input {...register(modelField)} />
+        <Input control={control} name={modelField} />
       </td>
       <td className="px-3 py-3 align-top">
-        <Controller
+        <Select
           control={control}
           name={workflowField}
-          render={({ field }) => (
-            <Select
-              value={field.value}
-              onValueChange={(value) => field.onChange(parseWorkflowValue(value))}
-            >
-              <SelectTrigger aria-label={`${metadata.label} workflow`}>
-                <SelectValue placeholder="Select workflow" />
-              </SelectTrigger>
-              <SelectContent>
-                {workflowOptions.map((workflow) => (
-                  <SelectItem
-                    key={workflow}
-                    value={workflow}
-                    disabled={isWorkflowOptionDisabled(kind, workflow)}
-                  >
-                    {workflow}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
+          transformValue={parseWorkflowValue}
+        >
+          <SelectTrigger aria-label={`${metadata.label} workflow`}>
+            <SelectValue placeholder="Select workflow" />
+          </SelectTrigger>
+          <SelectContent>
+            {workflowOptions.map((workflow) => (
+              <SelectItem
+                key={workflow}
+                value={workflow}
+                disabled={isWorkflowOptionDisabled(kind, workflow)}
+              >
+                {workflow}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </td>
     </tr>
   );
@@ -240,12 +223,12 @@ export function LlmSetupForm({
 
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
-            <Input id="name" {...form.register('name')} />
+            <Input id="name" control={form.control} name="name" />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
-            <Input id="description" {...form.register('description')} />
+            <Input id="description" control={form.control} name="description" />
           </div>
 
           {groups.map((group) => (
@@ -268,7 +251,6 @@ export function LlmSetupForm({
                         kind={kind}
                         connections={providerConnections}
                         control={form.control}
-                        register={form.register}
                       />
                     ))}
                   </tbody>

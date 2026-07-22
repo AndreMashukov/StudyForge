@@ -5,7 +5,7 @@ import type {
   ITogetherProviderConnection,
 } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Input, Label } from '@study-forge/ui';
+import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -20,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from '../../ui/Card';
+import { Input } from '../../ui/Input';
 import {
   getTogetherSettingsDefaultValues,
   normalizeTogetherSettingsSubmitPayload,
@@ -166,7 +167,7 @@ export function TogetherSettingsForm({
   });
 
   const {
-    register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -292,7 +293,8 @@ export function TogetherSettingsForm({
               placeholder="https://api.together.ai/v1"
               autoComplete="off"
               aria-invalid={errors.baseUrl ? 'true' : 'false'}
-              {...register('baseUrl')}
+              control={control}
+              name="baseUrl"
             />
             {errors.baseUrl ? (
               <p className="text-sm text-destructive" role="alert">
@@ -308,7 +310,8 @@ export function TogetherSettingsForm({
               placeholder="MiniMaxAI/MiniMax-M3"
               autoComplete="off"
               aria-invalid={errors.defaultModel ? 'true' : 'false'}
-              {...register('defaultModel')}
+              control={control}
+              name="defaultModel"
             />
             {errors.defaultModel ? (
               <p className="text-sm text-destructive" role="alert">
@@ -327,7 +330,8 @@ export function TogetherSettingsForm({
               placeholder="MiniMaxAI/MiniMax-M3"
               autoComplete="off"
               aria-invalid={errors.defaultVisionModel ? 'true' : 'false'}
-              {...register('defaultVisionModel')}
+              control={control}
+              name="defaultVisionModel"
             />
             {errors.defaultVisionModel ? (
               <p className="text-sm text-destructive" role="alert">
@@ -346,7 +350,8 @@ export function TogetherSettingsForm({
               placeholder="black-forest-labs/FLUX.1-schnell"
               autoComplete="off"
               aria-invalid={errors.defaultImageModel ? 'true' : 'false'}
-              {...register('defaultImageModel')}
+              control={control}
+              name="defaultImageModel"
             />
             {errors.defaultImageModel ? (
               <p className="text-sm text-destructive" role="alert">
@@ -370,7 +375,8 @@ export function TogetherSettingsForm({
               }
               autoComplete="new-password"
               aria-invalid={errors.apiKey ? 'true' : 'false'}
-              {...register('apiKey')}
+              control={control}
+              name="apiKey"
             />
             {errors.apiKey ? (
               <p className="text-sm text-destructive" role="alert">

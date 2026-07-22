@@ -5,7 +5,7 @@ import type {
   IGeminiProviderConnection,
 } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Input, Label } from '@study-forge/ui';
+import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -20,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from '../../ui/Card';
+import { Input } from '../../ui/Input';
 import {
   geminiSettingsFormSchema,
   getGeminiSettingsDefaultValues,
@@ -186,17 +187,32 @@ export function GeminiSettingsForm({
         <form className="space-y-4" onSubmit={form.handleSubmit(handleSave)}>
           <div className="space-y-2">
             <Label htmlFor="gemini-model">Default text model</Label>
-            <Input id="gemini-model" autoComplete="off" {...form.register('defaultModel')} />
+            <Input
+              id="gemini-model"
+              autoComplete="off"
+              control={form.control}
+              name="defaultModel"
+            />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="gemini-vision-model">Default vision model</Label>
-            <Input id="gemini-vision-model" autoComplete="off" {...form.register('defaultVisionModel')} />
+            <Input
+              id="gemini-vision-model"
+              autoComplete="off"
+              control={form.control}
+              name="defaultVisionModel"
+            />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="gemini-image-model">Default image model</Label>
-            <Input id="gemini-image-model" autoComplete="off" {...form.register('defaultImageModel')} />
+            <Input
+              id="gemini-image-model"
+              autoComplete="off"
+              control={form.control}
+              name="defaultImageModel"
+            />
           </div>
 
           <div className="space-y-2">
@@ -210,7 +226,8 @@ export function GeminiSettingsForm({
                   : 'Paste Gemini API key'
               }
               autoComplete="new-password"
-              {...form.register('apiKey')}
+              control={form.control}
+              name="apiKey"
             />
           </div>
 

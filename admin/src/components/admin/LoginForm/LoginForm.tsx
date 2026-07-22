@@ -6,8 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { auth } from '../../../lib/firebase/client';
-import { Button, Input, Label } from '@study-forge/ui';
+import { Button, Label } from '@study-forge/ui';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/Card';
+import { Input } from '../../ui/Input';
 import {
   loginFormDefaultValues,
   loginFormSchema,
@@ -28,7 +29,7 @@ export function LoginForm() {
   });
 
   const {
-    register,
+    control,
     handleSubmit,
     formState: { errors },
   } = form;
@@ -95,8 +96,9 @@ export function LoginForm() {
               id="email"
               type="email"
               autoComplete="email"
+              control={control}
+              name="email"
               aria-invalid={errors.email ? 'true' : 'false'}
-              {...register('email')}
             />
             {errors.email ? (
               <p className="text-sm text-destructive" role="alert">
@@ -110,8 +112,9 @@ export function LoginForm() {
               id="password"
               type="password"
               autoComplete="current-password"
+              control={control}
+              name="password"
               aria-invalid={errors.password ? 'true' : 'false'}
-              {...register('password')}
             />
             {errors.password ? (
               <p className="text-sm text-destructive" role="alert">
