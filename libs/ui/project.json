@@ -4,6 +4,21 @@
   "sourceRoot": "libs/ui/src",
   "projectType": "library",
   "tags": ["type:lib", "scope:ui"],
-  "// targets": "to see all targets run: nx show project ui --web",
-  "targets": {}
+  "targets": {
+    "storybook": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "storybook dev -c libs/ui/.storybook -p 4401"
+      }
+    },
+    "build-storybook": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "storybook build -c libs/ui/.storybook -o dist/storybook/ui"
+      }
+    }
+  }
 }

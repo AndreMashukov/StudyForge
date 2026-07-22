@@ -21,6 +21,31 @@ export type { IInput } from './lib/Input';
 export { Label } from './lib/Label';
 export type { ILabel } from './lib/Label';
 export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectScrollDownButton,
+  SelectScrollUpButton,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from './lib/Select';
+export type {
+  ISelect,
+  ISelectContent,
+  ISelectGroup,
+  ISelectItem,
+  ISelectLabel,
+  ISelectScrollDownButton,
+  ISelectScrollUpButton,
+  ISelectSeparator,
+  ISelectTrigger,
+  ISelectValue,
+} from './lib/Select';
+
+export {
   TopAppBar,
   TopAppBarBrand,
   TopAppBarBrandContent,

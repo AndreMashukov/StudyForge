@@ -1,7 +1,17 @@
 # ui
 
-This library was generated with [Nx](https://nx.dev).
+Shared React UI primitives for StudyForge web surfaces (shadcn/ui + Tailwind).
 
-## Running unit tests
+## Storybook
 
-Run `nx test ui` to execute the unit tests via [Vitest](https://vitest.dev/).
+```bash
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run ui:storybook
+```
+
+Opens on [http://localhost:4401](http://localhost:4401).
+
+Static build:
+
+```bash
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run ui:build-storybook
+```

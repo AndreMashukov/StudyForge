@@ -3,7 +3,16 @@
 import type { GenerationKind, IProviderConnectionCatalogEntry } from '@shared-types';
 import { GENERATION_KIND_METADATA } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Input, Label } from '@study-forge/ui';
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -61,17 +70,28 @@ function GenerationKindRow({
         <p className="mt-1 text-xs text-muted-foreground">Modality: {metadata.requiredModality}</p>
       </td>
       <td className="px-3 py-3 align-top">
-        <select
-          className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-          {...register(connectionField)}
-        >
-          {filteredConnections.map((connection) => (
-            <option key={connection.id} value={connection.id}>
-              {connection.label} ({connection.providerKind})
-              {!connection.apiKeyConfigured ? ' — missing credentials' : ''}
-            </option>
-          ))}
-        </select>
+        <Controller
+          control={control}
+          name={connectionField}
+          render={({ field }) => (
+            <Select
+              value={field.value || undefined}
+              onValueChange={field.onChange}
+            >
+              <SelectTrigger aria-label={`${metadata.label} provider connection`}>
+                <SelectValue placeholder="Select connection" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredConnections.map((connection) => (
+                  <SelectItem key={connection.id} value={connection.id}>
+                    {connection.label} ({connection.providerKind})
+                    {!connection.apiKeyConfigured ? ' — missing credentials' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </td>
       <td className="px-3 py-3 align-top">
         <Input {...register(modelField)} />
@@ -81,21 +101,25 @@ function GenerationKindRow({
           control={control}
           name={workflowField}
           render={({ field }) => (
-            <select
-              className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            <Select
               value={field.value}
-              onChange={(event) => field.onChange(parseWorkflowValue(event.target.value))}
+              onValueChange={(value) => field.onChange(parseWorkflowValue(value))}
             >
-              {workflowOptions.map((workflow) => (
-                <option
-                  key={workflow}
-                  value={workflow}
-                  disabled={isWorkflowOptionDisabled(kind, workflow)}
-                >
-                  {workflow}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger aria-label={`${metadata.label} workflow`}>
+                <SelectValue placeholder="Select workflow" />
+              </SelectTrigger>
+              <SelectContent>
+                {workflowOptions.map((workflow) => (
+                  <SelectItem
+                    key={workflow}
+                    value={workflow}
+                    disabled={isWorkflowOptionDisabled(kind, workflow)}
+                  >
+                    {workflow}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         />
       </td>

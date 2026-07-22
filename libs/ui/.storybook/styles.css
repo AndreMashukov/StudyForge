@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: transparent;
+  }
+
+  html {
+    color-scheme: dark;
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100%;
+    font-family:
+      Inter,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      Roboto,
+      Oxygen,
+      Ubuntu,
+      Cantarell,
+      sans-serif;
+    line-height: 1.5;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: rgb(var(--background));
+    color: rgb(var(--foreground));
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-heading {
+    font-family: 'Space Grotesk', Inter, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  svg {
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
+
+@layer utilities {
+  .linear-transition {
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .linear-glass {
+    background: rgb(var(--background) / 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgb(var(--border) / 0.3);
+  }
+
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-title-responsive {
+    display: inline;
+  }
+}

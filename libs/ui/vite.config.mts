@@ -48,6 +48,7 @@ export default defineConfig(() => ({
         'react-dom',
         'react/jsx-runtime',
         '@radix-ui/react-label',
+        '@radix-ui/react-select',
         '@radix-ui/react-slot',
         'class-variance-authority',
         'clsx',
