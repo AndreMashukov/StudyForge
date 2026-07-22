@@ -85,3 +85,45 @@ export const WithDisabledItem: Story = {
     </Select>
   ),
 };
+
+/** Reproduces admin LLM-setup stacked selects in an overflow container. */
+export const StackedInOverflow: Story = {
+  parameters: {
+    layout: 'padded',
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-80 overflow-x-auto rounded-lg border border-border p-3">
+        <Story />
+      </div>
+    ),
+  ],
+  render: () => {
+    const options = [
+      { value: 'gemini', label: 'Primary Gemini (gemini)' },
+      { value: 'minimax', label: 'Primary MiniMax (minimax)' },
+      { value: 'openrouter', label: 'Primary OpenRouter (openrouter)' },
+      { value: 'together', label: 'Primary Together (together)' },
+    ];
+
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-sm font-medium">Provider connection</p>
+        {['a', 'b', 'c'].map((row) => (
+          <Select key={row} defaultValue="gemini">
+            <SelectTrigger aria-label={`Provider connection ${row}`}>
+              <SelectValue placeholder="Select connection" />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ))}
+      </div>
+    );
+  },
+};

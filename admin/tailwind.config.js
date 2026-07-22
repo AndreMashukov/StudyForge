@@ -56,6 +56,10 @@ module.exports = {
           DEFAULT: 'rgb(var(--card))',
           foreground: 'rgb(var(--card-foreground))',
         },
+        popover: {
+          DEFAULT: 'rgb(var(--popover))',
+          foreground: 'rgb(var(--popover-foreground))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',
