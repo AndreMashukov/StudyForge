@@ -8,11 +8,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import {
   isAdminUnauthorizedResponse,
   redirectToAdminLogin,
 } from '../../../lib/auth/client-login-redirect';
+import {
+  formatModelsSyncedAt,
+  isModelInCatalogForModality,
+} from '../../../lib/provider-model-catalog-ui';
 import {
   Card,
   CardContent,
@@ -21,6 +25,7 @@ import {
   CardTitle,
 } from '../../ui/Card';
 import { Input } from '../../ui/Input';
+import { ConnectionModelSelect } from '../ConnectionModelSelect';
 import {
   getMiniMaxSettingsDefaultValues,
   miniMaxSettingsFormSchema,
@@ -174,8 +179,53 @@ export function MiniMaxSettingsForm({
     formState: { errors },
   } = form;
 
+  const defaultModelValue = useWatch({ control, name: 'defaultModel' }) ?? '';
+  const defaultVisionModelValue =
+    useWatch({ control, name: 'defaultVisionModel' }) ?? '';
+  const defaultImageModelValue =
+    useWatch({ control, name: 'defaultImageModel' }) ?? '';
+  const availableModels = miniMaxConnection.availableModels ?? [];
+  const hasModelCatalog = availableModels.length > 0;
+
   const handleSave = async (values: IMiniMaxSettingsFormValues) => {
     setNotice(null);
+
+    if (hasModelCatalog) {
+      if (
+        !isModelInCatalogForModality(availableModels, values.defaultModel, 'text')
+      ) {
+        setNotice({
+          type: 'error',
+          message: 'Default text model is not in the uploaded catalog.',
+        });
+        return;
+      }
+
+      const visionModel = values.defaultVisionModel?.trim();
+      if (
+        visionModel &&
+        !isModelInCatalogForModality(availableModels, visionModel, 'vision')
+      ) {
+        setNotice({
+          type: 'error',
+          message: 'Default vision model is not in the uploaded catalog.',
+        });
+        return;
+      }
+
+      const imageModel = values.defaultImageModel?.trim();
+      if (
+        imageModel &&
+        !isModelInCatalogForModality(availableModels, imageModel, 'image')
+      ) {
+        setNotice({
+          type: 'error',
+          message: 'Default image model is not in the uploaded catalog.',
+        });
+        return;
+      }
+    }
+
     setIsSaving(true);
 
     try {
@@ -306,13 +356,13 @@ export function MiniMaxSettingsForm({
 
           <div className="space-y-2">
             <Label htmlFor="minimax-model">Default text model</Label>
-            <Input
-              id="minimax-model"
-              placeholder="MiniMax-M3"
-              autoComplete="off"
-              aria-invalid={errors.defaultModel ? 'true' : 'false'}
+            <ConnectionModelSelect
               control={control}
               name="defaultModel"
+              models={availableModels}
+              modality="text"
+              currentValue={defaultModelValue}
+              ariaLabel="Default text model"
             />
             {errors.defaultModel ? (
               <p className="text-sm text-destructive" role="alert">
@@ -326,13 +376,14 @@ export function MiniMaxSettingsForm({
 
           <div className="space-y-2">
             <Label htmlFor="minimax-vision-model">Default vision model</Label>
-            <Input
-              id="minimax-vision-model"
-              placeholder="MiniMax-M3"
-              autoComplete="off"
-              aria-invalid={errors.defaultVisionModel ? 'true' : 'false'}
+            <ConnectionModelSelect
               control={control}
               name="defaultVisionModel"
+              models={availableModels}
+              modality="vision"
+              currentValue={defaultVisionModelValue}
+              ariaLabel="Default vision model"
+              allowEmpty
             />
             {errors.defaultVisionModel ? (
               <p className="text-sm text-destructive" role="alert">
@@ -346,13 +397,14 @@ export function MiniMaxSettingsForm({
 
           <div className="space-y-2">
             <Label htmlFor="minimax-image-model">Default image model</Label>
-            <Input
-              id="minimax-image-model"
-              placeholder="image-01"
-              autoComplete="off"
-              aria-invalid={errors.defaultImageModel ? 'true' : 'false'}
+            <ConnectionModelSelect
               control={control}
               name="defaultImageModel"
+              models={availableModels}
+              modality="image"
+              currentValue={defaultImageModelValue}
+              ariaLabel="Default image model"
+              allowEmpty
             />
             {errors.defaultImageModel ? (
               <p className="text-sm text-destructive" role="alert">
@@ -438,7 +490,7 @@ export function MiniMaxSettingsForm({
           </div>
         </form>
 
-        <div className="grid gap-3 text-sm sm:grid-cols-2">
+        <div className="grid gap-3 text-sm sm:grid-cols-3">
           <div className="rounded-lg border border-border p-4">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
               Last updated
@@ -455,6 +507,19 @@ export function MiniMaxSettingsForm({
             <p className="mt-2">{formatDate(miniMaxConnection.lastValidatedAt)}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {miniMaxConnection.lastValidationError || 'No validation error recorded.'}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Model catalog
+            </p>
+            <p className="mt-2">
+              {formatModelsSyncedAt(miniMaxConnection.modelsSyncedAt)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {availableModels.length > 0
+                ? `${availableModels.length} models uploaded`
+                : 'Test or save with credentials to sync models.'}
             </p>
           </div>
         </div>

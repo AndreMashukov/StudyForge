@@ -9,6 +9,7 @@ import type {
   IMiniMaxProviderConnection,
   IOpenRouterConnectionTestResult,
   IOpenRouterProviderConnection,
+  IProviderAvailableModel,
   ITogetherConnectionTestResult,
   ITogetherProviderConnection,
   IUpdateGeminiSettingsRequest,
@@ -16,6 +17,7 @@ import type {
   IUpdateOpenRouterSettingsRequest,
   IUpdateTogetherSettingsRequest,
   LlmModality,
+  ProviderModelSyncSource,
 } from '@shared-types';
 import {
   ALL_LLM_MODALITIES,
@@ -31,6 +33,13 @@ import {
   encryptSecret,
   isLlmSettingsEncryptionConfigured,
 } from '../security/llm-settings-encryption';
+import {
+  assertModelInCatalog,
+  normalizeProviderModels,
+  parseAvailableModels,
+  parseModelsSyncSource,
+} from './provider-model-catalog';
+import { toIsoString } from './firestore-iso';
 
 const OPENROUTER_CONNECTION_ID = PRIMARY_OPENROUTER_CONNECTION_ID;
 const MINIMAX_CONNECTION_ID = PRIMARY_MINIMAX_CONNECTION_ID;
@@ -65,27 +74,6 @@ export interface IModelSettingsPageData {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function toIsoString(value: unknown): string | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  if (
-    typeof value === 'object' &&
-    value !== null &&
-    'toDate' in value &&
-    typeof (value as { toDate: () => Date }).toDate === 'function'
-  ) {
-    return (value as { toDate: () => Date }).toDate().toISOString();
-  }
-
-  return undefined;
 }
 
 function normalizeBaseUrl(baseUrl: string, providerLabel: string): string {
@@ -337,6 +325,9 @@ export async function readGeminiConnection(): Promise<IGeminiProviderConnection>
       typeof data.defaultImageModel === 'string'
         ? normalizeImageModel(data.defaultImageModel, defaults.defaultImageModel ?? DEFAULT_GEMINI_IMAGE_MODEL)
         : defaults.defaultImageModel,
+    availableModels: parseAvailableModels(data.availableModels),
+    modelsSyncedAt: toIsoString(data.modelsSyncedAt),
+    modelsSyncSource: parseModelsSyncSource(data.modelsSyncSource),
     updatedAt: toIsoString(data.updatedAt),
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
     lastValidatedAt: toIsoString(data.lastValidatedAt),
@@ -392,6 +383,9 @@ export async function readOpenRouterConnection(): Promise<IOpenRouterProviderCon
     defaultImageModel,
     headers: readHeaders(data.headers),
     providerPreferences: readPreferences(data.providerPreferences),
+    availableModels: parseAvailableModels(data.availableModels),
+    modelsSyncedAt: toIsoString(data.modelsSyncedAt),
+    modelsSyncSource: parseModelsSyncSource(data.modelsSyncSource),
     updatedAt: toIsoString(data.updatedAt),
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
     lastValidatedAt: toIsoString(data.lastValidatedAt),
@@ -447,6 +441,9 @@ export async function readMiniMaxConnection(): Promise<IMiniMaxProviderConnectio
       typeof data.imageGenerationUrl === 'string'
         ? data.imageGenerationUrl
         : defaults.imageGenerationUrl,
+    availableModels: parseAvailableModels(data.availableModels),
+    modelsSyncedAt: toIsoString(data.modelsSyncedAt),
+    modelsSyncSource: parseModelsSyncSource(data.modelsSyncSource),
     updatedAt: toIsoString(data.updatedAt),
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
     lastValidatedAt: toIsoString(data.lastValidatedAt),
@@ -501,6 +498,9 @@ export async function readTogetherConnection(): Promise<ITogetherProviderConnect
             defaults.defaultImageModel ?? DEFAULT_TOGETHER_IMAGE_MODEL
           )
         : defaults.defaultImageModel,
+    availableModels: parseAvailableModels(data.availableModels),
+    modelsSyncedAt: toIsoString(data.modelsSyncedAt),
+    modelsSyncSource: parseModelsSyncSource(data.modelsSyncSource),
     updatedAt: toIsoString(data.updatedAt),
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
     lastValidatedAt: toIsoString(data.lastValidatedAt),
@@ -607,6 +607,194 @@ async function updateValidationStatus(
   );
 }
 
+async function persistAvailableModels(
+  connectionRef: admin.firestore.DocumentReference,
+  actorUid: string,
+  models: IProviderAvailableModel[],
+  source: ProviderModelSyncSource
+): Promise<void> {
+  await connectionRef.set(
+    {
+      availableModels: models,
+      modelsSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+      modelsSyncSource: source,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedBy: actorUid,
+    },
+    { merge: true }
+  );
+}
+
+function assertDefaultModelsAgainstCatalog(
+  models: IProviderAvailableModel[],
+  connectionLabel: string,
+  defaults: {
+    defaultModel: string;
+    defaultVisionModel?: string;
+    defaultImageModel?: string;
+  }
+): void {
+  if (models.length === 0) {
+    return;
+  }
+
+  assertModelInCatalog(
+    models,
+    defaults.defaultModel,
+    'text',
+    `${connectionLabel} default text model`,
+    connectionLabel
+  );
+
+  if (defaults.defaultVisionModel) {
+    assertModelInCatalog(
+      models,
+      defaults.defaultVisionModel,
+      'vision',
+      `${connectionLabel} default vision model`,
+      connectionLabel
+    );
+  }
+
+  if (defaults.defaultImageModel) {
+    assertModelInCatalog(
+      models,
+      defaults.defaultImageModel,
+      'image',
+      `${connectionLabel} default image model`,
+      connectionLabel
+    );
+  }
+}
+
+const MODEL_CATALOG_FETCH_TIMEOUT_MS = 15_000;
+
+async function fetchModelCatalog(
+  url: string,
+  init: RequestInit,
+  providerLabel: string
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), MODEL_CATALOG_FETCH_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(
+        `${providerLabel} model catalog request timed out after ${MODEL_CATALOG_FETCH_TIMEOUT_MS}ms`
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function fetchGeminiModelCatalog(apiKey: string): Promise<IProviderAvailableModel[]> {
+  const response = await fetchModelCatalog(
+    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: 'GET',
+      cache: 'no-store',
+    },
+    'Gemini'
+  );
+  const payload = (await response.json().catch(() => null)) as unknown;
+
+  if (!response.ok) {
+    throw new Error(
+      getResponseErrorMessage(payload, response.status, response.statusText, 'Gemini')
+    );
+  }
+
+  return normalizeProviderModels('gemini', payload);
+}
+
+async function fetchOpenRouterModelCatalog(
+  baseUrl: string,
+  apiKey: string
+): Promise<IProviderAvailableModel[]> {
+  const response = await fetchModelCatalog(
+    `${normalizeBaseUrl(baseUrl, 'OpenRouter')}/models/user`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    },
+    'OpenRouter'
+  );
+  const payload = (await response.json().catch(() => null)) as unknown;
+
+  if (!response.ok) {
+    throw new Error(
+      getResponseErrorMessage(payload, response.status, response.statusText, 'OpenRouter')
+    );
+  }
+
+  return normalizeProviderModels('openrouter', payload);
+}
+
+async function fetchMiniMaxModelCatalog(
+  baseUrl: string,
+  apiKey: string
+): Promise<IProviderAvailableModel[]> {
+  const response = await fetchModelCatalog(
+    `${normalizeBaseUrl(baseUrl, 'MiniMax')}/models`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    },
+    'MiniMax'
+  );
+  const payload = (await response.json().catch(() => null)) as unknown;
+
+  if (!response.ok) {
+    throw new Error(
+      getResponseErrorMessage(payload, response.status, response.statusText, 'MiniMax')
+    );
+  }
+
+  return normalizeProviderModels('minimax', payload);
+}
+
+async function fetchTogetherModelCatalog(
+  baseUrl: string,
+  apiKey: string
+): Promise<IProviderAvailableModel[]> {
+  const response = await fetchModelCatalog(
+    `${normalizeBaseUrl(baseUrl, 'Together')}/models`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    },
+    'Together'
+  );
+  const payload = (await response.json().catch(() => null)) as unknown;
+
+  if (!response.ok) {
+    throw new Error(
+      getResponseErrorMessage(payload, response.status, response.statusText, 'Together')
+    );
+  }
+
+  return normalizeProviderModels('together', payload);
+}
+
 function getResponseErrorMessage(
   payload: unknown,
   status: number,
@@ -665,6 +853,13 @@ export async function updateOpenRouterSettings(
   const currentConnection = await readOpenRouterConnection();
   const normalizedApiKey = input.apiKey?.trim();
   const hasNewApiKey = Boolean(normalizedApiKey);
+  const nextBaseUrl = normalizeBaseUrl(input.baseUrl, 'OpenRouter');
+  const nextDefaultModel = normalizeModel(input.defaultModel, 'OpenRouter');
+  const nextDefaultVisionModel = normalizeVisionModel(input.defaultVisionModel);
+  const nextDefaultImageModel = normalizeImageModel(
+    input.defaultImageModel,
+    DEFAULT_OPENROUTER_IMAGE_MODEL
+  );
 
   if (!currentConnection.apiKeyConfigured && !hasNewApiKey) {
     throw new Error('OpenRouter API key is required on first save.');
@@ -674,19 +869,26 @@ export async function updateOpenRouterSettings(
     throw new Error('LLM_SETTINGS_ENCRYPTION_KEY is not configured.');
   }
 
+  assertDefaultModelsAgainstCatalog(
+    currentConnection.availableModels ?? [],
+    currentConnection.label,
+    {
+      defaultModel: nextDefaultModel,
+      defaultVisionModel: nextDefaultVisionModel,
+      defaultImageModel: nextDefaultImageModel,
+    }
+  );
+
   const payload: Record<string, unknown> = {
     providerKind: 'openrouter',
     label: currentConnection.label,
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
     supportedModalities: [...ALL_LLM_MODALITIES],
-    baseUrl: normalizeBaseUrl(input.baseUrl, 'OpenRouter'),
-    defaultModel: normalizeModel(input.defaultModel, 'OpenRouter'),
-    defaultVisionModel: normalizeVisionModel(input.defaultVisionModel),
-    defaultImageModel: normalizeImageModel(
-      input.defaultImageModel,
-      DEFAULT_OPENROUTER_IMAGE_MODEL
-    ),
+    baseUrl: nextBaseUrl,
+    defaultModel: nextDefaultModel,
+    defaultVisionModel: nextDefaultVisionModel,
+    defaultImageModel: nextDefaultImageModel,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedBy: actorUid,
   };
@@ -709,6 +911,22 @@ export async function updateOpenRouterSettings(
     );
   }
 
+  const shouldSyncModels =
+    hasNewApiKey || nextBaseUrl !== currentConnection.baseUrl;
+
+  if (shouldSyncModels) {
+    const apiKey = hasNewApiKey && normalizedApiKey
+      ? normalizedApiKey
+      : await readStoredOpenRouterApiKey();
+    const models = await fetchOpenRouterModelCatalog(nextBaseUrl, apiKey);
+    await persistAvailableModels(
+      getConnectionRef(),
+      actorUid,
+      models,
+      'provider-save'
+    );
+  }
+
   return readOpenRouterConnection();
 }
 
@@ -722,39 +940,25 @@ export async function testStoredOpenRouterConnection(
 
   try {
     const apiKey = await readStoredOpenRouterApiKey();
-    const response = await fetch(
-      `${normalizeBaseUrl(connection.baseUrl, 'OpenRouter')}/models/user`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
-      }
-    );
-    const payload = (await response.json().catch(() => null)) as unknown;
-
-    if (!response.ok) {
-      throw new Error(
-        getResponseErrorMessage(payload, response.status, response.statusText, 'OpenRouter')
-      );
-    }
-
-    const modelCount =
-      isRecord(payload) && Array.isArray(payload.data) ? payload.data.length : 0;
+    const models = await fetchOpenRouterModelCatalog(connection.baseUrl, apiKey);
     const validatedAt = new Date().toISOString();
 
     await updateValidationStatus(getConnectionRef(), actorUid, 'healthy', null);
+    await persistAvailableModels(
+      getConnectionRef(),
+      actorUid,
+      models,
+      'provider-test'
+    );
 
     return {
       openRouterConnection: await readOpenRouterConnection(),
       result: {
         success: true,
         message:
-          modelCount > 0
-            ? `Validated OpenRouter access and discovered ${modelCount} available models.`
-            : 'Validated OpenRouter access successfully.',
+          models.length > 0
+            ? `Validated OpenRouter access and uploaded ${models.length} available models.`
+            : 'Validated OpenRouter access successfully, but no models were returned.',
         validatedAt,
         model: connection.defaultModel,
       },
@@ -782,6 +986,13 @@ export async function updateMiniMaxSettings(
   const currentConnection = await readMiniMaxConnection();
   const normalizedApiKey = input.apiKey?.trim();
   const hasNewApiKey = Boolean(normalizedApiKey);
+  const nextBaseUrl = normalizeBaseUrl(input.baseUrl, 'MiniMax');
+  const nextDefaultModel = normalizeModel(input.defaultModel, 'MiniMax');
+  const nextDefaultVisionModel = normalizeVisionModel(input.defaultVisionModel);
+  const nextDefaultImageModel = normalizeImageModel(
+    input.defaultImageModel,
+    DEFAULT_MINIMAX_IMAGE_MODEL
+  );
 
   if (!currentConnection.apiKeyConfigured && !hasNewApiKey) {
     throw new Error('MiniMax API key is required on first save.');
@@ -791,19 +1002,26 @@ export async function updateMiniMaxSettings(
     throw new Error('LLM_SETTINGS_ENCRYPTION_KEY is not configured.');
   }
 
+  assertDefaultModelsAgainstCatalog(
+    currentConnection.availableModels ?? [],
+    currentConnection.label,
+    {
+      defaultModel: nextDefaultModel,
+      defaultVisionModel: nextDefaultVisionModel,
+      defaultImageModel: nextDefaultImageModel,
+    }
+  );
+
   const payload: Record<string, unknown> = {
     providerKind: 'minimax',
     label: currentConnection.label,
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
     supportedModalities: [...ALL_LLM_MODALITIES],
-    baseUrl: normalizeBaseUrl(input.baseUrl, 'MiniMax'),
-    defaultModel: normalizeModel(input.defaultModel, 'MiniMax'),
-    defaultVisionModel: normalizeVisionModel(input.defaultVisionModel),
-    defaultImageModel: normalizeImageModel(
-      input.defaultImageModel,
-      DEFAULT_MINIMAX_IMAGE_MODEL
-    ),
+    baseUrl: nextBaseUrl,
+    defaultModel: nextDefaultModel,
+    defaultVisionModel: nextDefaultVisionModel,
+    defaultImageModel: nextDefaultImageModel,
     imageGenerationUrl: normalizeBaseUrl(input.imageGenerationUrl, 'MiniMax image'),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedBy: actorUid,
@@ -820,6 +1038,22 @@ export async function updateMiniMaxSettings(
         updatedBy: actorUid,
       },
       { merge: true }
+    );
+  }
+
+  const shouldSyncModels =
+    hasNewApiKey || nextBaseUrl !== currentConnection.baseUrl;
+
+  if (shouldSyncModels) {
+    const apiKey = hasNewApiKey && normalizedApiKey
+      ? normalizedApiKey
+      : await readStoredMiniMaxApiKey();
+    const models = await fetchMiniMaxModelCatalog(nextBaseUrl, apiKey);
+    await persistAvailableModels(
+      getMiniMaxConnectionRef(),
+      actorUid,
+      models,
+      'provider-save'
     );
   }
 
@@ -847,6 +1081,12 @@ export async function updateGeminiSettings(
   const currentConnection = await readGeminiConnection();
   const normalizedApiKey = input.apiKey?.trim();
   const hasNewApiKey = Boolean(normalizedApiKey);
+  const nextDefaultModel = normalizeModel(input.defaultModel, 'Gemini');
+  const nextDefaultVisionModel = normalizeVisionModel(input.defaultVisionModel);
+  const nextDefaultImageModel = normalizeImageModel(
+    input.defaultImageModel,
+    DEFAULT_GEMINI_IMAGE_MODEL
+  );
 
   if (!currentConnection.apiKeyConfigured && !hasNewApiKey) {
     throw new Error('Gemini API key is required on first save.');
@@ -856,18 +1096,25 @@ export async function updateGeminiSettings(
     throw new Error('LLM_SETTINGS_ENCRYPTION_KEY is not configured.');
   }
 
+  assertDefaultModelsAgainstCatalog(
+    currentConnection.availableModels ?? [],
+    currentConnection.label,
+    {
+      defaultModel: nextDefaultModel,
+      defaultVisionModel: nextDefaultVisionModel,
+      defaultImageModel: nextDefaultImageModel,
+    }
+  );
+
   const payload: Record<string, unknown> = {
     providerKind: 'gemini',
     label: currentConnection.label,
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
     supportedModalities: [...ALL_LLM_MODALITIES],
-    defaultModel: normalizeModel(input.defaultModel, 'Gemini'),
-    defaultVisionModel: normalizeVisionModel(input.defaultVisionModel),
-    defaultImageModel: normalizeImageModel(
-      input.defaultImageModel,
-      DEFAULT_GEMINI_IMAGE_MODEL
-    ),
+    defaultModel: nextDefaultModel,
+    defaultVisionModel: nextDefaultVisionModel,
+    defaultImageModel: nextDefaultImageModel,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedBy: actorUid,
   };
@@ -886,6 +1133,16 @@ export async function updateGeminiSettings(
     );
   }
 
+  if (hasNewApiKey && normalizedApiKey) {
+    const models = await fetchGeminiModelCatalog(normalizedApiKey);
+    await persistAvailableModels(
+      getGeminiConnectionRef(),
+      actorUid,
+      models,
+      'provider-save'
+    );
+  }
+
   return readGeminiConnection();
 }
 
@@ -899,35 +1156,25 @@ export async function testStoredGeminiConnection(
 
   try {
     const apiKey = await readStoredGeminiApiKey();
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: 'GET',
-        cache: 'no-store',
-      }
-    );
-    const payload = (await response.json().catch(() => null)) as unknown;
-
-    if (!response.ok) {
-      throw new Error(
-        getResponseErrorMessage(payload, response.status, response.statusText, 'Gemini')
-      );
-    }
-
-    const modelCount =
-      isRecord(payload) && Array.isArray(payload.models) ? payload.models.length : 0;
+    const models = await fetchGeminiModelCatalog(apiKey);
     const validatedAt = new Date().toISOString();
 
     await updateValidationStatus(getGeminiConnectionRef(), actorUid, 'healthy', null);
+    await persistAvailableModels(
+      getGeminiConnectionRef(),
+      actorUid,
+      models,
+      'provider-test'
+    );
 
     return {
       geminiConnection: await readGeminiConnection(),
       result: {
         success: true,
         message:
-          modelCount > 0
-            ? `Validated Gemini access and discovered ${modelCount} available models.`
-            : 'Validated Gemini access successfully.',
+          models.length > 0
+            ? `Validated Gemini access and uploaded ${models.length} available models.`
+            : 'Validated Gemini access successfully, but no models were returned.',
         validatedAt,
         model: connection.defaultModel,
       },
@@ -957,39 +1204,25 @@ export async function testStoredMiniMaxConnection(
 
   try {
     const apiKey = await readStoredMiniMaxApiKey();
-    const response = await fetch(
-      `${normalizeBaseUrl(connection.baseUrl, 'MiniMax')}/models`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
-      }
-    );
-    const payload = (await response.json().catch(() => null)) as unknown;
-
-    if (!response.ok) {
-      throw new Error(
-        getResponseErrorMessage(payload, response.status, response.statusText, 'MiniMax')
-      );
-    }
-
-    const modelCount =
-      isRecord(payload) && Array.isArray(payload.data) ? payload.data.length : 0;
+    const models = await fetchMiniMaxModelCatalog(connection.baseUrl, apiKey);
     const validatedAt = new Date().toISOString();
 
     await updateValidationStatus(getMiniMaxConnectionRef(), actorUid, 'healthy', null);
+    await persistAvailableModels(
+      getMiniMaxConnectionRef(),
+      actorUid,
+      models,
+      'provider-test'
+    );
 
     return {
       miniMaxConnection: await readMiniMaxConnection(),
       result: {
         success: true,
         message:
-          modelCount > 0
-            ? `Validated MiniMax access and discovered ${modelCount} available models.`
-            : 'Validated MiniMax access successfully.',
+          models.length > 0
+            ? `Validated MiniMax access and uploaded ${models.length} available models.`
+            : 'Validated MiniMax access successfully, but no models were returned.',
         validatedAt,
         model: connection.defaultModel,
       },
@@ -1017,6 +1250,13 @@ export async function updateTogetherSettings(
   const currentConnection = await readTogetherConnection();
   const normalizedApiKey = input.apiKey?.trim();
   const hasNewApiKey = Boolean(normalizedApiKey);
+  const nextBaseUrl = normalizeBaseUrl(input.baseUrl, 'Together');
+  const nextDefaultModel = normalizeModel(input.defaultModel, 'Together');
+  const nextDefaultVisionModel = normalizeVisionModel(input.defaultVisionModel);
+  const nextDefaultImageModel = normalizeImageModel(
+    input.defaultImageModel,
+    DEFAULT_TOGETHER_IMAGE_MODEL
+  );
 
   if (!currentConnection.apiKeyConfigured && !hasNewApiKey) {
     throw new Error('Together API key is required on first save.');
@@ -1026,19 +1266,26 @@ export async function updateTogetherSettings(
     throw new Error('LLM_SETTINGS_ENCRYPTION_KEY is not configured.');
   }
 
+  assertDefaultModelsAgainstCatalog(
+    currentConnection.availableModels ?? [],
+    currentConnection.label,
+    {
+      defaultModel: nextDefaultModel,
+      defaultVisionModel: nextDefaultVisionModel,
+      defaultImageModel: nextDefaultImageModel,
+    }
+  );
+
   const payload: Record<string, unknown> = {
     providerKind: 'together',
     label: currentConnection.label,
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
     supportedModalities: [...ALL_LLM_MODALITIES],
-    baseUrl: normalizeBaseUrl(input.baseUrl, 'Together'),
-    defaultModel: normalizeModel(input.defaultModel, 'Together'),
-    defaultVisionModel: normalizeVisionModel(input.defaultVisionModel),
-    defaultImageModel: normalizeImageModel(
-      input.defaultImageModel,
-      DEFAULT_TOGETHER_IMAGE_MODEL
-    ),
+    baseUrl: nextBaseUrl,
+    defaultModel: nextDefaultModel,
+    defaultVisionModel: nextDefaultVisionModel,
+    defaultImageModel: nextDefaultImageModel,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedBy: actorUid,
   };
@@ -1057,6 +1304,22 @@ export async function updateTogetherSettings(
     );
   }
 
+  const shouldSyncModels =
+    hasNewApiKey || nextBaseUrl !== currentConnection.baseUrl;
+
+  if (shouldSyncModels) {
+    const apiKey = hasNewApiKey && normalizedApiKey
+      ? normalizedApiKey
+      : await readStoredTogetherApiKey();
+    const models = await fetchTogetherModelCatalog(nextBaseUrl, apiKey);
+    await persistAvailableModels(
+      getTogetherConnectionRef(),
+      actorUid,
+      models,
+      'provider-save'
+    );
+  }
+
   return readTogetherConnection();
 }
 
@@ -1070,39 +1333,25 @@ export async function testStoredTogetherConnection(
 
   try {
     const apiKey = await readStoredTogetherApiKey();
-    const response = await fetch(
-      `${normalizeBaseUrl(connection.baseUrl, 'Together')}/models`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
-      }
-    );
-    const payload = (await response.json().catch(() => null)) as unknown;
-
-    if (!response.ok) {
-      throw new Error(
-        getResponseErrorMessage(payload, response.status, response.statusText, 'Together')
-      );
-    }
-
-    const modelCount =
-      isRecord(payload) && Array.isArray(payload.data) ? payload.data.length : 0;
+    const models = await fetchTogetherModelCatalog(connection.baseUrl, apiKey);
     const validatedAt = new Date().toISOString();
 
     await updateValidationStatus(getTogetherConnectionRef(), actorUid, 'healthy', null);
+    await persistAvailableModels(
+      getTogetherConnectionRef(),
+      actorUid,
+      models,
+      'provider-test'
+    );
 
     return {
       togetherConnection: await readTogetherConnection(),
       result: {
         success: true,
         message:
-          modelCount > 0
-            ? `Validated Together access and discovered ${modelCount} available models.`
-            : 'Validated Together access successfully.',
+          models.length > 0
+            ? `Validated Together access and uploaded ${models.length} available models.`
+            : 'Validated Together access successfully, but no models were returned.',
         validatedAt,
         model: connection.defaultModel,
       },

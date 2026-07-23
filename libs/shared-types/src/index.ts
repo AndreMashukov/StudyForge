@@ -1881,7 +1881,24 @@ export interface ILlmConnectionAuditFields {
   lastValidationStatus?: LlmConnectionValidationStatus;
 }
 
-export interface IGeminiProviderConnection extends ILlmConnectionAuditFields {
+/** Normalized model entry uploaded from a provider list-models response. */
+export interface IProviderAvailableModel {
+  id: string;
+  label: string;
+  supportedModalities: LlmModality[];
+}
+
+export type ProviderModelSyncSource = 'provider-test' | 'provider-save';
+
+export interface IProviderModelCatalogFields {
+  availableModels?: IProviderAvailableModel[];
+  modelsSyncedAt?: string;
+  modelsSyncSource?: ProviderModelSyncSource;
+}
+
+export interface IGeminiProviderConnection
+  extends ILlmConnectionAuditFields,
+    IProviderModelCatalogFields {
   providerKind: 'gemini';
   label: string;
   credentialMode: 'encrypted-firestore';
@@ -1918,7 +1935,9 @@ export interface IOpenRouterProviderHeaders {
   title?: string;
 }
 
-export interface IOpenRouterProviderConnection extends ILlmConnectionAuditFields {
+export interface IOpenRouterProviderConnection
+  extends ILlmConnectionAuditFields,
+    IProviderModelCatalogFields {
   providerKind: 'openrouter';
   label: string;
   credentialMode: 'encrypted-firestore';
@@ -1954,7 +1973,9 @@ export interface IUpdateOpenRouterSettingsRequest {
   headers?: IOpenRouterProviderHeaders;
 }
 
-export interface IMiniMaxProviderConnection extends ILlmConnectionAuditFields {
+export interface IMiniMaxProviderConnection
+  extends ILlmConnectionAuditFields,
+    IProviderModelCatalogFields {
   providerKind: 'minimax';
   label: string;
   credentialMode: 'encrypted-firestore';
@@ -1988,7 +2009,9 @@ export interface IMiniMaxConnectionTestResult {
   model?: string;
 }
 
-export interface ITogetherProviderConnection extends ILlmConnectionAuditFields {
+export interface ITogetherProviderConnection
+  extends ILlmConnectionAuditFields,
+    IProviderModelCatalogFields {
   providerKind: 'together';
   label: string;
   credentialMode: 'encrypted-firestore';
@@ -2093,6 +2116,8 @@ export interface IProviderConnectionCatalogEntry {
   label: string;
   apiKeyConfigured: boolean;
   supportedModalities: LlmModality[];
+  availableModels: IProviderAvailableModel[];
+  modelsSyncedAt?: string;
 }
 
 export interface ILlmSetup {

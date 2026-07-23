@@ -8,11 +8,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import {
   isAdminUnauthorizedResponse,
   redirectToAdminLogin,
 } from '../../../lib/auth/client-login-redirect';
+import {
+  formatModelsSyncedAt,
+  isModelInCatalogForModality,
+} from '../../../lib/provider-model-catalog-ui';
 import {
   Card,
   CardContent,
@@ -21,6 +25,7 @@ import {
   CardTitle,
 } from '../../ui/Card';
 import { Input } from '../../ui/Input';
+import { ConnectionModelSelect } from '../ConnectionModelSelect';
 import {
   geminiSettingsFormSchema,
   getGeminiSettingsDefaultValues,
@@ -82,8 +87,51 @@ export function GeminiSettingsForm({
     defaultValues: getGeminiSettingsDefaultValues(initialGeminiConnection),
   });
 
+  const defaultModelValue = useWatch({ control: form.control, name: 'defaultModel' }) ?? '';
+  const defaultVisionModelValue =
+    useWatch({ control: form.control, name: 'defaultVisionModel' }) ?? '';
+  const defaultImageModelValue =
+    useWatch({ control: form.control, name: 'defaultImageModel' }) ?? '';
+  const availableModels = geminiConnection.availableModels ?? [];
+  const hasModelCatalog = availableModels.length > 0;
+
   const handleSave = async (values: IGeminiSettingsFormValues) => {
     setNotice(null);
+
+    if (hasModelCatalog) {
+      if (!isModelInCatalogForModality(availableModels, values.defaultModel, 'text')) {
+        setNotice({
+          type: 'error',
+          message: 'Default text model is not in the uploaded catalog.',
+        });
+        return;
+      }
+
+      const visionModel = values.defaultVisionModel?.trim();
+      if (
+        visionModel &&
+        !isModelInCatalogForModality(availableModels, visionModel, 'vision')
+      ) {
+        setNotice({
+          type: 'error',
+          message: 'Default vision model is not in the uploaded catalog.',
+        });
+        return;
+      }
+
+      const imageModel = values.defaultImageModel?.trim();
+      if (
+        imageModel &&
+        !isModelInCatalogForModality(availableModels, imageModel, 'image')
+      ) {
+        setNotice({
+          type: 'error',
+          message: 'Default image model is not in the uploaded catalog.',
+        });
+        return;
+      }
+    }
+
     setIsSaving(true);
 
     try {
@@ -187,31 +235,39 @@ export function GeminiSettingsForm({
         <form className="space-y-4" onSubmit={form.handleSubmit(handleSave)}>
           <div className="space-y-2">
             <Label htmlFor="gemini-model">Default text model</Label>
-            <Input
-              id="gemini-model"
-              autoComplete="off"
+            <ConnectionModelSelect
               control={form.control}
               name="defaultModel"
+              models={availableModels}
+              modality="text"
+              currentValue={defaultModelValue}
+              ariaLabel="Default text model"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="gemini-vision-model">Default vision model</Label>
-            <Input
-              id="gemini-vision-model"
-              autoComplete="off"
+            <ConnectionModelSelect
               control={form.control}
               name="defaultVisionModel"
+              models={availableModels}
+              modality="vision"
+              currentValue={defaultVisionModelValue}
+              ariaLabel="Default vision model"
+              allowEmpty
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="gemini-image-model">Default image model</Label>
-            <Input
-              id="gemini-image-model"
-              autoComplete="off"
+            <ConnectionModelSelect
               control={form.control}
               name="defaultImageModel"
+              models={availableModels}
+              modality="image"
+              currentValue={defaultImageModelValue}
+              ariaLabel="Default image model"
+              allowEmpty
             />
           </div>
 
@@ -254,6 +310,18 @@ export function GeminiSettingsForm({
             </Button>
           </div>
         </form>
+
+        <div className="rounded-lg border border-border p-4 text-sm">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Model catalog
+          </p>
+          <p className="mt-2">{formatModelsSyncedAt(geminiConnection.modelsSyncedAt)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {availableModels.length > 0
+              ? `${availableModels.length} models uploaded`
+              : 'Test or save with credentials to sync models.'}
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

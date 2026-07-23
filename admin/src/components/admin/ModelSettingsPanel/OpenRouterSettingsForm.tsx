@@ -8,11 +8,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import {
   isAdminUnauthorizedResponse,
   redirectToAdminLogin,
 } from '../../../lib/auth/client-login-redirect';
+import {
+  formatModelsSyncedAt,
+  isModelInCatalogForModality,
+} from '../../../lib/provider-model-catalog-ui';
 import {
   Card,
   CardContent,
@@ -21,6 +25,7 @@ import {
   CardTitle,
 } from '../../ui/Card';
 import { Input } from '../../ui/Input';
+import { ConnectionModelSelect } from '../ConnectionModelSelect';
 import {
   getOpenRouterSettingsDefaultValues,
   normalizeOpenRouterSettingsSubmitPayload,
@@ -173,8 +178,53 @@ export function OpenRouterSettingsForm({
     formState: { errors },
   } = form;
 
+  const defaultModelValue = useWatch({ control, name: 'defaultModel' }) ?? '';
+  const defaultVisionModelValue =
+    useWatch({ control, name: 'defaultVisionModel' }) ?? '';
+  const defaultImageModelValue =
+    useWatch({ control, name: 'defaultImageModel' }) ?? '';
+  const availableModels = openRouterConnection.availableModels ?? [];
+  const hasModelCatalog = availableModels.length > 0;
+
   const handleSave = async (values: IOpenRouterSettingsFormValues) => {
     setNotice(null);
+
+    if (hasModelCatalog) {
+      if (
+        !isModelInCatalogForModality(availableModels, values.defaultModel, 'text')
+      ) {
+        setNotice({
+          type: 'error',
+          message: 'Default text model is not in the uploaded catalog.',
+        });
+        return;
+      }
+
+      const visionModel = values.defaultVisionModel?.trim();
+      if (
+        visionModel &&
+        !isModelInCatalogForModality(availableModels, visionModel, 'vision')
+      ) {
+        setNotice({
+          type: 'error',
+          message: 'Default vision model is not in the uploaded catalog.',
+        });
+        return;
+      }
+
+      const imageModel = values.defaultImageModel?.trim();
+      if (
+        imageModel &&
+        !isModelInCatalogForModality(availableModels, imageModel, 'image')
+      ) {
+        setNotice({
+          type: 'error',
+          message: 'Default image model is not in the uploaded catalog.',
+        });
+        return;
+      }
+    }
+
     setIsSaving(true);
 
     try {
@@ -305,13 +355,13 @@ export function OpenRouterSettingsForm({
 
           <div className="space-y-2">
             <Label htmlFor="openrouter-model">Default text model</Label>
-            <Input
-              id="openrouter-model"
-              placeholder="anthropic/claude-sonnet-4.6"
-              autoComplete="off"
-              aria-invalid={errors.defaultModel ? 'true' : 'false'}
+            <ConnectionModelSelect
               control={control}
               name="defaultModel"
+              models={availableModels}
+              modality="text"
+              currentValue={defaultModelValue}
+              ariaLabel="Default text model"
             />
             {errors.defaultModel ? (
               <p className="text-sm text-destructive" role="alert">
@@ -325,13 +375,14 @@ export function OpenRouterSettingsForm({
 
           <div className="space-y-2">
             <Label htmlFor="openrouter-vision-model">Default vision model</Label>
-            <Input
-              id="openrouter-vision-model"
-              placeholder="google/gemini-2.5-flash"
-              autoComplete="off"
-              aria-invalid={errors.defaultVisionModel ? 'true' : 'false'}
+            <ConnectionModelSelect
               control={control}
               name="defaultVisionModel"
+              models={availableModels}
+              modality="vision"
+              currentValue={defaultVisionModelValue}
+              ariaLabel="Default vision model"
+              allowEmpty
             />
             {errors.defaultVisionModel ? (
               <p className="text-sm text-destructive" role="alert">
@@ -346,13 +397,14 @@ export function OpenRouterSettingsForm({
 
           <div className="space-y-2">
             <Label htmlFor="openrouter-image-model">Default image model</Label>
-            <Input
-              id="openrouter-image-model"
-              placeholder="google/gemini-3.1-flash-image-preview"
-              autoComplete="off"
-              aria-invalid={errors.defaultImageModel ? 'true' : 'false'}
+            <ConnectionModelSelect
               control={control}
               name="defaultImageModel"
+              models={availableModels}
+              modality="image"
+              currentValue={defaultImageModelValue}
+              ariaLabel="Default image model"
+              allowEmpty
             />
             {errors.defaultImageModel ? (
               <p className="text-sm text-destructive" role="alert">
@@ -421,7 +473,7 @@ export function OpenRouterSettingsForm({
           </div>
         </form>
 
-        <div className="grid gap-3 text-sm sm:grid-cols-2">
+        <div className="grid gap-3 text-sm sm:grid-cols-3">
           <div className="rounded-lg border border-border p-4">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
               Last updated
@@ -438,6 +490,19 @@ export function OpenRouterSettingsForm({
             <p className="mt-2">{formatDate(openRouterConnection.lastValidatedAt)}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {openRouterConnection.lastValidationError || 'No validation error recorded.'}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Model catalog
+            </p>
+            <p className="mt-2">
+              {formatModelsSyncedAt(openRouterConnection.modelsSyncedAt)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {availableModels.length > 0
+                ? `${availableModels.length} models uploaded`
+                : 'Test or save with credentials to sync models.'}
             </p>
           </div>
         </div>

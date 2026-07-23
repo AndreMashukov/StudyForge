@@ -243,6 +243,32 @@ async function buildProviderWarnings(generationRoutes: IGenerationRoutes): Promi
     if (!connection.apiKeyConfigured) {
       warnings.push(`${connection.label} credentials are not configured.`);
     }
+
+    if (connection.availableModels.length === 0) {
+      warnings.push(
+        `${connection.label} has no uploaded model catalog. Test or save the provider connection to sync models.`
+      );
+    }
+  }
+
+  for (const kind of ALL_GENERATION_KINDS) {
+    const route = generationRoutes[kind];
+    const metadata = GENERATION_KIND_METADATA[kind];
+    const connection = catalog.find((entry) => entry.id === route.connectionId);
+    if (!connection || connection.availableModels.length === 0) {
+      continue;
+    }
+
+    const modelExists = connection.availableModels.some(
+      (model) =>
+        model.id === route.model &&
+        model.supportedModalities.includes(metadata.requiredModality)
+    );
+    if (!modelExists) {
+      warnings.push(
+        `${metadata.label}: model "${route.model}" is not in the ${connection.label} catalog for ${metadata.requiredModality}.`
+      );
+    }
   }
 
   return warnings;

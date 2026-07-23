@@ -21,6 +21,11 @@ import {
   readOpenRouterConnection,
   readTogetherConnection,
 } from './model-settings';
+import {
+  assertModelInCatalog,
+  parseAvailableModels,
+} from './provider-model-catalog';
+import { toIsoString } from './firestore-iso';
 
 const CONNECTIONS_COLLECTION = 'llmProviderConnections';
 const SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
@@ -84,6 +89,8 @@ async function readCatalogEntry(connectionId: string): Promise<IProviderConnecti
     label: typeof data.label === 'string' ? data.label.trim() : connectionId,
     apiKeyConfigured: secretSnapshot.exists || data.apiKeyConfigured === true,
     supportedModalities: parseSupportedModalities(data.supportedModalities),
+    availableModels: parseAvailableModels(data.availableModels),
+    modelsSyncedAt: toIsoString(data.modelsSyncedAt),
   };
 }
 
@@ -115,6 +122,8 @@ export async function listProviderConnectionCatalog(): Promise<IProviderConnecti
         label: gemini.label,
         apiKeyConfigured: gemini.apiKeyConfigured,
         supportedModalities: gemini.supportedModalities,
+        availableModels: gemini.availableModels ?? [],
+        modelsSyncedAt: gemini.modelsSyncedAt,
       },
       {
         id: PRIMARY_OPENROUTER_CONNECTION_ID,
@@ -122,6 +131,8 @@ export async function listProviderConnectionCatalog(): Promise<IProviderConnecti
         label: openRouter.label,
         apiKeyConfigured: openRouter.apiKeyConfigured,
         supportedModalities: openRouter.supportedModalities,
+        availableModels: openRouter.availableModels ?? [],
+        modelsSyncedAt: openRouter.modelsSyncedAt,
       },
       {
         id: PRIMARY_MINIMAX_CONNECTION_ID,
@@ -129,6 +140,8 @@ export async function listProviderConnectionCatalog(): Promise<IProviderConnecti
         label: miniMax.label,
         apiKeyConfigured: miniMax.apiKeyConfigured,
         supportedModalities: miniMax.supportedModalities,
+        availableModels: miniMax.availableModels ?? [],
+        modelsSyncedAt: miniMax.modelsSyncedAt,
       },
       {
         id: PRIMARY_TOGETHER_CONNECTION_ID,
@@ -136,6 +149,8 @@ export async function listProviderConnectionCatalog(): Promise<IProviderConnecti
         label: together.label,
         apiKeyConfigured: together.apiKeyConfigured,
         supportedModalities: together.supportedModalities,
+        availableModels: together.availableModels ?? [],
+        modelsSyncedAt: together.modelsSyncedAt,
       },
     ];
   }
@@ -171,6 +186,14 @@ export async function validateModalityRoute(
   if (!connection.apiKeyConfigured) {
     throw new Error(`${label}: ${connection.label} credentials are not configured.`);
   }
+
+  assertModelInCatalog(
+    connection.availableModels,
+    route.model,
+    modality,
+    label,
+    connection.label
+  );
 }
 
 export function getPrimaryConnectionIds(): readonly string[] {

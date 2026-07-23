@@ -109,8 +109,12 @@ Orchestration policy on a generation route: `direct` (single-pass provider call)
 _Avoid_: sync mode, inline workflow
 
 **Provider connection**:
-Admin-managed connection to an LLM provider, including its credential state, supported LLM modalities, and provider-specific defaults. Each connection has a stable ID (e.g. `gemini-primary`) and a **provider kind** (`gemini`, `openrouter`, `minimax`, or `together`). Credentials for all provider kinds are stored encrypted in Firestore — not as deployment secrets.
+Admin-managed connection to an LLM provider, including its credential state, supported LLM modalities, provider-specific defaults, and an uploaded **provider model catalog**. Each connection has a stable ID (e.g. `gemini-primary`) and a **provider kind** (`gemini`, `openrouter`, `minimax`, or `together`). Credentials for all provider kinds are stored encrypted in Firestore — not as deployment secrets.
 _Avoid_: provider type (when meaning a configured connection), active provider
+
+**Provider model catalog**:
+The set of available models uploaded onto a provider connection (from the provider’s list-models response), each with an ID, display label, and supported LLM modalities. Admin uses this catalog to populate model dropdowns for connection defaults and LLM setup routes; models not in the catalog are invalid for save.
+_Avoid_: model list (alone), available models (when meaning the connection-owned catalog), model allowlist
 
 **Provider kind**:
 The vendor/protocol family of a provider connection (`gemini`, `openrouter`, `minimax`, `together`). Distinct from a connection ID: multiple connections could share a kind in the future.

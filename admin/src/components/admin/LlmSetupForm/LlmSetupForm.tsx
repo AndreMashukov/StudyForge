@@ -1,16 +1,24 @@
 'use client';
 
-import type { GenerationKind, IProviderConnectionCatalogEntry } from '@shared-types';
+import type {
+  GenerationKind,
+  IProviderConnectionCatalogEntry,
+  LlmModality,
+} from '@shared-types';
 import { GENERATION_KIND_METADATA } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch, type Control, type UseFormSetValue } from 'react-hook-form';
 import {
   isAdminUnauthorizedResponse,
   redirectToAdminLogin,
 } from '../../../lib/auth/client-login-redirect';
+import {
+  filterModelsForModality,
+  isModelInCatalogForModality,
+} from '../../../lib/provider-model-catalog-ui';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
 import { Input } from '../../ui/Input';
 import {
@@ -20,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../ui/Select';
+import { ConnectionModelSelect } from '../ConnectionModelSelect';
 import {
   type ILlmSetupFormValues,
   filterConnectionsForModality,
@@ -40,14 +49,28 @@ export interface ILlmSetupFormProps {
   providerWarnings?: string[];
 }
 
+function defaultModelForConnection(
+  connection: IProviderConnectionCatalogEntry | undefined,
+  modality: LlmModality
+): string {
+  if (!connection) {
+    return '';
+  }
+
+  const models = filterModelsForModality(connection.availableModels, modality);
+  return models[0]?.id ?? '';
+}
+
 function GenerationKindRow({
   kind,
   connections,
   control,
+  setValue,
 }: {
   kind: GenerationKind;
   connections: IProviderConnectionCatalogEntry[];
-  control: ReturnType<typeof useForm<ILlmSetupFormValues>>['control'];
+  control: Control<ILlmSetupFormValues>;
+  setValue: UseFormSetValue<ILlmSetupFormValues>;
 }) {
   const metadata = GENERATION_KIND_METADATA[kind];
   const filteredConnections = filterConnectionsForModality(
@@ -59,6 +82,12 @@ function GenerationKindRow({
   const modelField = `generationRoutes.${kind}.model` as const;
   const workflowField = `generationRoutes.${kind}.workflow` as const;
 
+  const connectionId = useWatch({ control, name: connectionField }) ?? '';
+  const modelValue = useWatch({ control, name: modelField }) ?? '';
+  const selectedConnection = connections.find(
+    (connection) => connection.id === connectionId
+  );
+
   return (
     <tr className="border-b border-border last:border-0">
       <td className="px-3 py-3 align-top">
@@ -67,7 +96,20 @@ function GenerationKindRow({
         <p className="mt-1 text-xs text-muted-foreground">Modality: {metadata.requiredModality}</p>
       </td>
       <td className="px-3 py-3 align-top">
-        <Select control={control} name={connectionField}>
+        <Select
+          control={control}
+          name={connectionField}
+          onValueChange={(nextConnectionId) => {
+            const nextConnection = connections.find(
+              (connection) => connection.id === nextConnectionId
+            );
+            const nextModel = defaultModelForConnection(
+              nextConnection,
+              metadata.requiredModality
+            );
+            setValue(modelField, nextModel, { shouldDirty: true, shouldValidate: true });
+          }}
+        >
           <SelectTrigger aria-label={`${metadata.label} provider connection`}>
             <SelectValue placeholder="Select connection" />
           </SelectTrigger>
@@ -76,13 +118,22 @@ function GenerationKindRow({
               <SelectItem key={connection.id} value={connection.id}>
                 {connection.label} ({connection.providerKind})
                 {!connection.apiKeyConfigured ? ' — missing credentials' : ''}
+                {connection.availableModels.length === 0 ? ' — models not synced' : ''}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </td>
       <td className="px-3 py-3 align-top">
-        <Input control={control} name={modelField} />
+        <ConnectionModelSelect
+          control={control}
+          name={modelField}
+          models={selectedConnection?.availableModels ?? []}
+          modality={metadata.requiredModality}
+          currentValue={modelValue}
+          ariaLabel={`${metadata.label} model`}
+          emptyHint="Open Provider connections, then Test or Save to sync models."
+        />
       </td>
       <td className="px-3 py-3 align-top">
         <Select
@@ -110,6 +161,39 @@ function GenerationKindRow({
   );
 }
 
+function hasInvalidCatalogSelections(
+  values: ILlmSetupFormValues,
+  providerConnections: IProviderConnectionCatalogEntry[]
+): string | null {
+  for (const kind of Object.keys(values.generationRoutes) as GenerationKind[]) {
+    const route = values.generationRoutes[kind];
+    const metadata = GENERATION_KIND_METADATA[kind];
+    const connection = providerConnections.find(
+      (entry) => entry.id === route.connectionId
+    );
+
+    if (!connection) {
+      return `${metadata.label}: selected provider connection does not exist.`;
+    }
+
+    if (connection.availableModels.length === 0) {
+      return `${metadata.label}: ${connection.label} has no uploaded model catalog. Test or save the provider connection first.`;
+    }
+
+    if (
+      !isModelInCatalogForModality(
+        connection.availableModels,
+        route.model,
+        metadata.requiredModality
+      )
+    ) {
+      return `${metadata.label}: model "${route.model}" is not in the ${connection.label} catalog for ${metadata.requiredModality}.`;
+    }
+  }
+
+  return null;
+}
+
 export function LlmSetupForm({
   setupId,
   defaultValues,
@@ -130,6 +214,13 @@ export function LlmSetupForm({
   const handleSubmit = form.handleSubmit(async (values) => {
     setIsSubmitting(true);
     setNotice(null);
+
+    const catalogError = hasInvalidCatalogSelections(values, providerConnections);
+    if (catalogError) {
+      setNotice(catalogError);
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const payload = {
@@ -251,6 +342,7 @@ export function LlmSetupForm({
                         kind={kind}
                         connections={providerConnections}
                         control={form.control}
+                        setValue={form.setValue}
                       />
                     ))}
                   </tbody>
