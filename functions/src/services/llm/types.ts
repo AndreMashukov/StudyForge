@@ -37,6 +37,12 @@ export interface LlmTextConfig {
    * omit to keep model defaults.
    */
   thinkingBudget?: number;
+  /**
+   * Prefer non-reasoning / non-thinking mode for structured, latency-sensitive
+   * generation (Together `reasoning.enabled=false`, MiniMax `thinking.disabled`,
+   * Gemini `thinkingBudget=0` when unset).
+   */
+  disableReasoning?: boolean;
 }
 
 export interface LlmTextRequest {

@@ -62,17 +62,17 @@ import {
 } from './llm-text-runner';
 import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
-import {
-  parseFlashcardsJson,
-  type IParsedFlashcardItem,
-} from './flashcard-response-parser';
+import type { IParsedFlashcardItem } from './flashcard-response-parser';
 import type { LlmCapability } from './types';
+import { generateFlashcardsChunked } from '../flashcards/flashcard-chunked-generator';
 import { generateDiagramQuizChunked } from '../diagram-quiz/diagram-quiz-chunked-generator';
 
 type FlashcardItem = IParsedFlashcardItem;
 
 export interface GenerateFlashcardsResult {
   flashcards: FlashcardItem[];
+  plannedTerms: string[];
+  learnedTerms: string[];
   /** Route that actually ran generation — reuse for diagnostics/persistence. */
   generationModel: string;
   generationModelUsage: IGenerationModelUsage[];
@@ -396,147 +396,40 @@ export class LlmGenerationService {
     const generationModel = formatGenerationModelLabel(ctx.resolution.route);
     const generationModelUsage = [toGenerationModelUsage(ctx.resolution)];
 
-    let cards: FlashcardItem[];
-    if (!ctx.usesExternalProvider) {
-      cards = await GeminiService.generateFlashcards(
-        content,
-        rules,
-        descriptionRules,
-        options,
-      );
-    } else {
-      const prompt = FlashcardPromptBuilder.buildFlashcardPrompt(
-        content,
-        rules,
-        descriptionRules,
-        options,
-      );
-      const text = await generateExternalProviderText(
-        ctx,
-        prompt,
-        {
-          model: ctx.resolution.route.model,
-          temperature: 0.4,
-          // Thinking models (Together MiniMax-M3, etc.) spend output budget on
-          // reasoning before content; keep headroom so card JSON is not truncated.
-          maxOutputTokens: 16384,
-        },
-        'Flashcards generated via OpenRouter',
-      );
-
-      cards = parseFlashcardsJson(text);
-      functions.logger.info('Parsed flashcards from external provider', {
-        cardCount: cards.length,
-        responseLength: text.length,
-        isLanguageLearning: Boolean(options?.isLanguageLearning),
-      });
-      if (cards.length < 10) {
-        functions.logger.warn('Flashcard response below target count', {
-          cardCount: cards.length,
-          targetMin: 10,
-          responsePreview: text.slice(0, 300),
-        });
-      }
-      cards.forEach((card, idx) => {
-        if (!card.front || !card.back) {
-          throw new Error(
-            `Invalid flashcard at index ${idx}: missing front or back`,
-          );
-        }
-        if (options?.isLanguageLearning && !card.term?.trim()) {
-          throw new Error(`Invalid flashcard at index ${idx}: missing term`);
-        }
-      });
-    }
-
-    return {
+    const {
       flashcards: cards,
-      generationModel,
-      generationModelUsage,
-    };
-  }
-
-  static async generateFlashcardTopUp(
-    userId: string,
-    params: {
-      content: string;
-      needed: number;
-      existingLabels: string[];
-      rules?: string;
-      descriptionRules?: string;
-      options?: import('../gemini/prompt-builder/flashcard-prompt-builder').FlashcardPromptOptions;
-    },
-  ): Promise<GenerateFlashcardsResult> {
-    const ctx = await resolveTextRoute(userId, 'flashcards', 'flashcard-top-up');
-    const generationModel = formatGenerationModelLabel(ctx.resolution.route);
-    const generationModelUsage = [toGenerationModelUsage(ctx.resolution)];
-
-    if (!ctx.usesExternalProvider) {
-      const topUpRules = [
-        params.rules,
-        `TOP-UP: return at least ${params.needed} NEW flashcards. Do not repeat these: ${params.existingLabels
-          .slice(0, 40)
-          .join('; ')}`,
-      ]
-        .filter((value): value is string => Boolean(value?.trim()))
-        .join('\n\n');
-      const geminiCards = await GeminiService.generateFlashcards(
-        params.content,
-        topUpRules,
-        params.descriptionRules,
-        params.options,
-      );
-      functions.logger.info('Flashcard top-up generated via Gemini', {
-        requested: params.needed,
-        cardCount: geminiCards.length,
-      });
-      return {
-        flashcards: geminiCards,
-        generationModel,
-        generationModelUsage,
-      };
-    }
-
-    const prompt = FlashcardPromptBuilder.buildFlashcardTopUpPrompt({
-      content: params.content,
-      needed: params.needed,
-      existingLabels: params.existingLabels,
-      rules: params.rules,
-      descriptionRules: params.descriptionRules,
-      options: params.options,
+      plannedTerms,
+      learnedTerms,
+    } = await generateFlashcardsChunked(userId, {
+      content,
+      rules,
+      descriptionRules,
+      options,
     });
 
-    const text = await generateExternalProviderText(
-      ctx,
-      prompt,
-      {
-        model: ctx.resolution.route.model,
-        temperature: 0.4,
-        maxOutputTokens: 16384,
-      },
-      'Flashcard top-up generated via external provider',
-    );
-
-    const cards = parseFlashcardsJson(text);
-    functions.logger.info('Parsed flashcard top-up from external provider', {
-      requested: params.needed,
+    functions.logger.info('Flashcards generated via chunked pipeline', {
       cardCount: cards.length,
-      responseLength: text.length,
+      plannedTerms: plannedTerms.length,
+      learnedExcludeCount: learnedTerms.length,
+      providerType: ctx.resolution.route.providerType,
+      model: ctx.resolution.route.model,
     });
 
     cards.forEach((card, idx) => {
       if (!card.front || !card.back) {
         throw new Error(
-          `Invalid top-up flashcard at index ${idx}: missing front or back`,
+          `Invalid flashcard at index ${idx}: missing front or back`,
         );
       }
-      if (params.options?.isLanguageLearning && !card.term?.trim()) {
-        throw new Error(`Invalid top-up flashcard at index ${idx}: missing term`);
+      if (options?.isLanguageLearning && !card.term?.trim()) {
+        throw new Error(`Invalid flashcard at index ${idx}: missing term`);
       }
     });
 
     return {
       flashcards: cards,
+      plannedTerms,
+      learnedTerms,
       generationModel,
       generationModelUsage,
     };
@@ -563,9 +456,9 @@ export class LlmGenerationService {
       config: {
         model: ctx.resolution.route.model,
         temperature: 0.1,
-        // Thinking models (e.g. gemini-pro-latest) spend output budget on thoughts;
-        // keep headroom so the JSON object is not truncated mid-field.
-        maxOutputTokens: 16384,
+        // Classification is a tiny JSON object — disable reasoning/thinking.
+        maxOutputTokens: 1024,
+        disableReasoning: true,
         responseMimeType: 'application/json',
         responseSchema: {
           type: 'object',

@@ -1,105 +1,136 @@
 import type { ArtifactRepairStrategy } from '../artifact-agent/artifact-agent-definition';
 import { recordModelUsage } from '../artifact-agent/artifact-agent-definition';
-import { LlmGenerationService } from '../llm';
-import type { IFlashcardCardDraft, IFlashcardDraft } from './flashcard-types';
-import {
-  LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD,
-  MIN_FLASHCARD_COUNT,
-  TARGET_FLASHCARD_COUNT,
+import type {
+  IFlashcardCardDraft,
+  IFlashcardDraft,
+  IFlashcardSlotArrays,
 } from './flashcard-types';
-import { normalizeVocabularyTerm } from './learned-vocabulary';
+import { LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD, PLANNED_FLASHCARD_COUNT } from './flashcard-types';
+import {
+  buildFlashcardExcludedTerms,
+  findFlashcardRepairSlotIndexes,
+} from './flashcard-gates';
+import {
+  expandFlashcardSlotsForRepair,
+  replanFlashcardReplacementTerms,
+} from './flashcard-chunked-generator';
 
-function cardIdentity(card: IFlashcardCardDraft, isLanguageLearning: boolean): string {
-  if (isLanguageLearning) {
-    return normalizeVocabularyTerm(card.term ?? '') || card.front.trim().toLowerCase();
+function ensureFlashcardArrayLength(
+  flashcards: IFlashcardCardDraft[],
+  plannedTerms: string[]
+): IFlashcardSlotArrays {
+  const nextCards = [...flashcards];
+  const nextTerms = [...plannedTerms];
+
+  while (nextCards.length < PLANNED_FLASHCARD_COUNT) {
+    nextCards.push({ front: '', back: '' });
   }
-  return card.front.trim().toLowerCase();
-}
-
-function mergeFlashcards(
-  existing: IFlashcardCardDraft[],
-  additions: IFlashcardCardDraft[],
-  isLanguageLearning: boolean
-): IFlashcardCardDraft[] {
-  const merged = [...existing];
-  const seen = new Set(
-    merged
-      .map((card) => cardIdentity(card, isLanguageLearning))
-      .filter((value) => value.length > 0)
-  );
-
-  for (const card of additions) {
-    if (merged.length >= TARGET_FLASHCARD_COUNT) {
-      break;
-    }
-    const identity = cardIdentity(card, isLanguageLearning);
-    if (!identity || seen.has(identity)) {
-      continue;
-    }
-    seen.add(identity);
-    merged.push(card);
+  while (nextTerms.length < PLANNED_FLASHCARD_COUNT) {
+    nextTerms.push('');
   }
 
-  return merged;
+  return {
+    flashcards: nextCards.slice(0, PLANNED_FLASHCARD_COUNT),
+    plannedTerms: nextTerms.slice(0, PLANNED_FLASHCARD_COUNT),
+  };
 }
 
 export const flashcardRepairStrategy: ArtifactRepairStrategy<IFlashcardDraft> = {
   async repair(draft, failures, context, diagnostics) {
-    const countFailure = failures.find((failure) => failure.gateId === 'cardCount');
-    if (!countFailure) {
+    const repairable = failures.some(
+      (failure) =>
+        failure.gateId === 'cardCount'
+        || failure.gateId === 'learnedExclude'
+        || failure.gateId === 'schema'
+    );
+    if (!repairable) {
       return draft;
     }
 
-    const needed = Math.max(MIN_FLASHCARD_COUNT - draft.flashcards.length, 0);
-    if (needed === 0) {
+    const badIndexes = findFlashcardRepairSlotIndexes(draft);
+    if (badIndexes.length === 0) {
+      // Oversized drafts can pass every per-slot check while still failing cardCount.
+      if (draft.flashcards.length > PLANNED_FLASHCARD_COUNT) {
+        const normalized = ensureFlashcardArrayLength(draft.flashcards, draft.plannedTerms);
+        return {
+          ...draft,
+          flashcards: normalized.flashcards,
+          plannedTerms: normalized.plannedTerms,
+        };
+      }
       return draft;
     }
 
     const isLanguageLearning =
-      draft.classification.isLanguageLearning &&
-      draft.classification.confidence >= LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD;
-
-    const existingLabels = draft.flashcards
-      .map((card) => (isLanguageLearning ? card.term?.trim() || card.front : card.front))
-      .filter((value): value is string => Boolean(value?.trim()));
+      draft.classification.isLanguageLearning
+      && draft.classification.confidence >= LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD;
 
     const descriptionRulesText =
       typeof context.extras?.descriptionRulesText === 'string'
         ? context.extras.descriptionRulesText
         : undefined;
 
+    const excludedTerms = buildFlashcardExcludedTerms(draft);
     const startedAt = Date.now();
-    const {
-      flashcards: additions,
-      generationModel,
-      generationModelUsage,
-    } = await LlmGenerationService.generateFlashcardTopUp(context.userId, {
+
+    const replacementTerms = await replanFlashcardReplacementTerms(context.userId, {
       content: context.sourceContent.content,
-      needed,
-      existingLabels,
       rules: context.enhancedPrompt || undefined,
       descriptionRules: descriptionRulesText,
       options: isLanguageLearning
         ? {
             isLanguageLearning: true,
             targetLanguageName: draft.classification.targetLanguageName,
+            learnedTerms: draft.learnedTerms,
           }
         : undefined,
+      needed: badIndexes.length,
+      excludedTerms,
+    });
+
+    const slots = badIndexes.map((index, slotOrder) => ({
+      index,
+      term: replacementTerms[slotOrder] ?? draft.plannedTerms[index] ?? '',
+    }));
+
+    const repairedCards = await expandFlashcardSlotsForRepair(context.userId, {
+      content: context.sourceContent.content,
+      rules: context.enhancedPrompt || undefined,
+      descriptionRules: descriptionRulesText,
+      options: isLanguageLearning
+        ? {
+            isLanguageLearning: true,
+            targetLanguageName: draft.classification.targetLanguageName,
+            learnedTerms: draft.learnedTerms,
+          }
+        : undefined,
+      slots,
     });
 
     recordModelUsage(diagnostics, {
       role: 'repair',
       capability: 'flashcards',
-      model: generationModel,
+      model: draft.generationModel,
       durationMs: Date.now() - startedAt,
     });
 
-    const merged = mergeFlashcards(draft.flashcards, additions, isLanguageLearning);
+    const padded = ensureFlashcardArrayLength(draft.flashcards, draft.plannedTerms);
+    const nextFlashcards = [...padded.flashcards];
+    const nextPlannedTerms = [...padded.plannedTerms];
+
+    for (const slot of slots) {
+      const repaired = repairedCards.get(slot.index);
+      if (!repaired) {
+        continue;
+      }
+      nextFlashcards[slot.index] = repaired;
+      nextPlannedTerms[slot.index] = slot.term;
+    }
 
     return {
       ...draft,
-      flashcards: merged,
-      generationModelUsage: [...draft.generationModelUsage, ...generationModelUsage],
+      flashcards: nextFlashcards,
+      plannedTerms: nextPlannedTerms,
     };
   },
 };

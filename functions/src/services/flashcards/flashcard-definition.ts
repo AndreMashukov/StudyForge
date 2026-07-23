@@ -183,6 +183,8 @@ export const flashcardsDefinition: ArtifactAgentDefinition<
     const generateStartedAt = Date.now();
     const {
       flashcards: cards,
+      plannedTerms,
+      learnedTerms: learnedTermsForDraft,
       generationModel,
       generationModelUsage,
     } = await LlmGenerationService.generateFlashcards(
@@ -207,8 +209,16 @@ export const flashcardsDefinition: ArtifactAgentDefinition<
       durationMs: Date.now() - generateStartedAt,
     });
 
+    diagnostics.artifactDetails = {
+      ...(diagnostics.artifactDetails ?? {}),
+      flashcardPlanCount: plannedTerms.length,
+      learnedExcludeCount: learnedTermsForDraft.length,
+    };
+
     return {
       flashcards: cards,
+      plannedTerms,
+      learnedTerms: learnedTermsForDraft,
       classification: confidentLanguageLearning
         ? classification
         : {

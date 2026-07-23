@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { JsonSanitizer } from '../gemini/json-sanitizer';
 import type { GeminiDiagramQuizResponse } from '../gemini';
+import { buildIndexBatches, mapWithConcurrency } from '../llm/concurrency';
+
+export { mapWithConcurrency };
 
 export const DEFAULT_DIAGRAM_QUIZ_QUESTION_COUNT = 5;
 export const DIAGRAM_BATCH_SIZE = 2;
@@ -72,38 +75,7 @@ export function parseDiagramQuizDiagramBatchResponse(raw: string): IDiagramQuizD
 
 /** Split question indexes into batches of 2, merging a lone remainder into the previous batch when possible. */
 export function buildDiagramQuestionBatches(questionCount: number): number[][] {
-  if (questionCount <= 0) {
-    return [];
-  }
-
-  const batches: number[][] = [];
-  let index = 0;
-
-  while (index < questionCount) {
-    const remaining = questionCount - index;
-    let batchSize = Math.min(DIAGRAM_BATCH_SIZE, remaining);
-
-    if (remaining === 1 && batches.length > 0) {
-      const previous = batches[batches.length - 1];
-      if (previous.length < DIAGRAM_BATCH_MAX_SIZE) {
-        previous.push(index);
-        break;
-      }
-    }
-
-    if (remaining === 3 && batchSize === DIAGRAM_BATCH_SIZE) {
-      batchSize = DIAGRAM_BATCH_MAX_SIZE;
-    }
-
-    const batch: number[] = [];
-    for (let offset = 0; offset < batchSize; offset += 1) {
-      batch.push(index + offset);
-    }
-    batches.push(batch);
-    index += batchSize;
-  }
-
-  return batches;
+  return buildIndexBatches(questionCount, DIAGRAM_BATCH_SIZE, DIAGRAM_BATCH_MAX_SIZE);
 }
 
 export function mergeQuestionPlansWithDiagramBatches(
@@ -146,28 +118,3 @@ export function mergeQuestionPlansWithDiagramBatches(
   };
 }
 
-export async function mapWithConcurrency<T, R>(
-  items: T[],
-  concurrency: number,
-  mapper: (item: T, itemIndex: number) => Promise<R>
-): Promise<R[]> {
-  if (items.length === 0) {
-    return [];
-  }
-
-  const results = new Array<R>(items.length);
-  let nextIndex = 0;
-
-  async function worker(): Promise<void> {
-    while (nextIndex < items.length) {
-      const currentIndex = nextIndex;
-      nextIndex += 1;
-      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
-    }
-  }
-
-  const workerCount = Math.min(concurrency, items.length);
-  await Promise.all(Array.from({ length: workerCount }, () => worker()));
-
-  return results;
-}

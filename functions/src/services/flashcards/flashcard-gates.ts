@@ -5,9 +5,14 @@ import type {
 import type { IFlashcardDraft } from './flashcard-types';
 import {
   LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD,
-  MIN_FLASHCARD_COUNT,
+  PLANNED_FLASHCARD_COUNT,
   TARGET_FLASHCARD_COUNT,
 } from './flashcard-types';
+import {
+  buildLearnedTermSet,
+  cardMatchesLearnedTerm,
+  normalizePlanTermIdentity,
+} from './flashcard-chunked-types';
 import { normalizeVocabularyTerm } from './learned-vocabulary';
 
 function schemaGateFailures(draft: IFlashcardDraft): ArtifactGateFailure[] {
@@ -27,7 +32,7 @@ function schemaGateFailures(draft: IFlashcardDraft): ArtifactGateFailure[] {
     failures.push({
       gateId: 'schema',
       severity: 'warning',
-      message: `Flashcard set has ${draft.flashcards.length} cards; prefer ${MIN_FLASHCARD_COUNT}–${TARGET_FLASHCARD_COUNT}`,
+      message: `Flashcard set has ${draft.flashcards.length} cards; expected ${PLANNED_FLASHCARD_COUNT}`,
       path: 'flashcards',
     });
   }
@@ -112,6 +117,32 @@ function languageShapeGateFailures(draft: IFlashcardDraft): ArtifactGateFailure[
   return failures;
 }
 
+function learnedExcludeGateFailures(draft: IFlashcardDraft): ArtifactGateFailure[] {
+  const learnedSet = buildLearnedTermSet(draft.learnedTerms);
+  if (learnedSet.size === 0) {
+    return [];
+  }
+
+  const isLanguageLearning =
+    draft.classification.isLanguageLearning
+    && draft.classification.confidence >= LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD;
+
+  const failures: ArtifactGateFailure[] = [];
+  draft.flashcards.forEach((card, index) => {
+    if (cardMatchesLearnedTerm(card, learnedSet, isLanguageLearning)) {
+      const label = isLanguageLearning ? card.term?.trim() || card.front : card.front;
+      failures.push({
+        gateId: 'learnedExclude',
+        severity: 'blocker',
+        message: `Card ${index + 1} reuses learned vocabulary: ${label}`,
+        path: `flashcards[${index}]`,
+      });
+    }
+  });
+
+  return failures;
+}
+
 export const flashcardSchemaGate: ArtifactGate<IFlashcardDraft> = {
   id: 'schema',
   async run(draft: IFlashcardDraft) {
@@ -132,17 +163,24 @@ export const flashcardCardCountGate: ArtifactGate<IFlashcardDraft> = {
     if (!Array.isArray(draft.flashcards) || draft.flashcards.length === 0) {
       return [];
     }
-    if (draft.flashcards.length >= MIN_FLASHCARD_COUNT) {
+    if (draft.flashcards.length === PLANNED_FLASHCARD_COUNT) {
       return [];
     }
     return [
       {
         gateId: 'cardCount',
         severity: 'blocker',
-        message: `Flashcard set has ${draft.flashcards.length} cards; need at least ${MIN_FLASHCARD_COUNT}`,
+        message: `Flashcard set has ${draft.flashcards.length} cards; need exactly ${PLANNED_FLASHCARD_COUNT}`,
         path: 'flashcards',
       },
     ];
+  },
+};
+
+export const flashcardLearnedExcludeGate: ArtifactGate<IFlashcardDraft> = {
+  id: 'learnedExclude',
+  async run(draft: IFlashcardDraft) {
+    return learnedExcludeGateFailures(draft);
   },
 };
 
@@ -150,4 +188,45 @@ export const flashcardGates: ArtifactGate<IFlashcardDraft>[] = [
   flashcardSchemaGate,
   flashcardCardCountGate,
   flashcardLanguageShapeGate,
+  flashcardLearnedExcludeGate,
 ];
+
+export function findFlashcardRepairSlotIndexes(draft: IFlashcardDraft): number[] {
+  const isLanguageLearning =
+    draft.classification.isLanguageLearning
+    && draft.classification.confidence >= LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD;
+  const learnedSet = buildLearnedTermSet(draft.learnedTerms);
+  const badIndexes: number[] = [];
+
+  for (let index = 0; index < PLANNED_FLASHCARD_COUNT; index += 1) {
+    const card = draft.flashcards[index];
+    const missing = !card?.front?.trim() || !card?.back?.trim();
+    const learned = card ? cardMatchesLearnedTerm(card, learnedSet, isLanguageLearning) : false;
+    if (missing || learned) {
+      badIndexes.push(index);
+    }
+  }
+
+  return badIndexes;
+}
+
+export function buildFlashcardExcludedTerms(draft: IFlashcardDraft): string[] {
+  const isLanguageLearning =
+    draft.classification.isLanguageLearning
+    && draft.classification.confidence >= LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD;
+
+  const excluded = new Set<string>();
+  for (const term of draft.plannedTerms) {
+    const identity = normalizePlanTermIdentity(term, isLanguageLearning);
+    if (identity) {
+      excluded.add(term.trim());
+    }
+  }
+  for (const term of draft.learnedTerms) {
+    if (term.trim()) {
+      excluded.add(term.trim());
+    }
+  }
+
+  return [...excluded];
+}

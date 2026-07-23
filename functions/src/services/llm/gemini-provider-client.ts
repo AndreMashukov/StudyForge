@@ -18,6 +18,12 @@ export class GeminiProviderClient implements LlmProviderClient {
 
   async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
     const client = new GoogleGenAI({ apiKey: this.apiKey });
+    const thinkingBudget =
+      request.config.thinkingBudget !== undefined
+        ? request.config.thinkingBudget
+        : request.config.disableReasoning
+          ? 0
+          : undefined;
     const response = await client.models.generateContent({
       model: request.config.model,
       contents: request.prompt,
@@ -32,9 +38,9 @@ export class GeminiProviderClient implements LlmProviderClient {
         ...(request.config.responseSchema
           ? { responseSchema: request.config.responseSchema }
           : {}),
-        ...(request.config.thinkingBudget !== undefined
+        ...(thinkingBudget !== undefined
           ? {
-              thinkingConfig: { thinkingBudget: request.config.thinkingBudget },
+              thinkingConfig: { thinkingBudget },
             }
           : {}),
       },

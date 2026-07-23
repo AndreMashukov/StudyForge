@@ -42,6 +42,9 @@ export class OpenRouterProviderClient implements LlmProviderClient {
       temperature: request.config.temperature ?? 0.7,
       top_p: request.config.topP,
       max_tokens: request.config.maxOutputTokens ?? 16384,
+      ...(request.config.disableReasoning
+        ? { reasoning: { enabled: false } }
+        : {}),
     });
 
     const response = await fetch(url, {

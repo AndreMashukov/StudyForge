@@ -53,6 +53,9 @@ export class MiniMaxProviderClient implements LlmProviderClient {
       top_p: request.config.topP,
       max_tokens: request.config.maxOutputTokens ?? 16384,
       reasoning_split: true,
+      ...(request.config.disableReasoning
+        ? { thinking: { type: 'disabled' } }
+        : {}),
     });
 
     const response = await fetch(url, {
