@@ -62,18 +62,14 @@ import {
 } from './llm-text-runner';
 import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
+import {
+  parseFlashcardsJson,
+  type IParsedFlashcardItem,
+} from './flashcard-response-parser';
 import type { LlmCapability } from './types';
 import { generateDiagramQuizChunked } from '../diagram-quiz/diagram-quiz-chunked-generator';
 
-type FlashcardItem = {
-  term?: string;
-  front: string;
-  back: string;
-  description?: string;
-  frontHtml?: string;
-  backHtml?: string;
-  descriptionHtml?: string;
-};
+type FlashcardItem = IParsedFlashcardItem;
 
 export interface GenerateFlashcardsResult {
   flashcards: FlashcardItem[];
@@ -116,34 +112,6 @@ function parseQuizJson(raw: string): GeminiQuizResponse {
     } catch {
       throw new Error(`Failed to parse quiz JSON from OpenRouter: ${err}`);
     }
-  }
-}
-
-function parseFlashcardsJson(raw: string): FlashcardItem[] {
-  const text = stripCodeFences(raw);
-  try {
-    const parsed = JSON.parse(text);
-    if (Array.isArray(parsed)) return parsed as FlashcardItem[];
-    throw new Error('Parsed value is not an array');
-  } catch {
-    const arrayMatch = text.match(/(\[[\s\S]*\])/);
-    if (arrayMatch) {
-      try {
-        const parsed = JSON.parse(arrayMatch[1]);
-        if (Array.isArray(parsed)) return parsed as FlashcardItem[];
-      } catch {
-        // fall through
-      }
-    }
-    const sanitized = JsonSanitizer.initialCleanup(text);
-    const sanitizedMatch = sanitized.match(/(\[[\s\S]*\])/);
-    if (sanitizedMatch) {
-      const parsed = JSON.parse(sanitizedMatch[1]);
-      if (Array.isArray(parsed)) return parsed as FlashcardItem[];
-    }
-    throw new Error(
-      'Could not extract a valid JSON array from OpenRouter flashcard response',
-    );
   }
 }
 
@@ -449,12 +417,26 @@ export class LlmGenerationService {
         {
           model: ctx.resolution.route.model,
           temperature: 0.4,
-          maxOutputTokens: 8192,
+          // Thinking models (Together MiniMax-M3, etc.) spend output budget on
+          // reasoning before content; keep headroom so card JSON is not truncated.
+          maxOutputTokens: 16384,
         },
         'Flashcards generated via OpenRouter',
       );
 
       cards = parseFlashcardsJson(text);
+      functions.logger.info('Parsed flashcards from external provider', {
+        cardCount: cards.length,
+        responseLength: text.length,
+        isLanguageLearning: Boolean(options?.isLanguageLearning),
+      });
+      if (cards.length < 10) {
+        functions.logger.warn('Flashcard response below target count', {
+          cardCount: cards.length,
+          targetMin: 10,
+          responsePreview: text.slice(0, 300),
+        });
+      }
       cards.forEach((card, idx) => {
         if (!card.front || !card.back) {
           throw new Error(
@@ -466,6 +448,92 @@ export class LlmGenerationService {
         }
       });
     }
+
+    return {
+      flashcards: cards,
+      generationModel,
+      generationModelUsage,
+    };
+  }
+
+  static async generateFlashcardTopUp(
+    userId: string,
+    params: {
+      content: string;
+      needed: number;
+      existingLabels: string[];
+      rules?: string;
+      descriptionRules?: string;
+      options?: import('../gemini/prompt-builder/flashcard-prompt-builder').FlashcardPromptOptions;
+    },
+  ): Promise<GenerateFlashcardsResult> {
+    const ctx = await resolveTextRoute(userId, 'flashcards', 'flashcard-top-up');
+    const generationModel = formatGenerationModelLabel(ctx.resolution.route);
+    const generationModelUsage = [toGenerationModelUsage(ctx.resolution)];
+
+    if (!ctx.usesExternalProvider) {
+      const topUpRules = [
+        params.rules,
+        `TOP-UP: return at least ${params.needed} NEW flashcards. Do not repeat these: ${params.existingLabels
+          .slice(0, 40)
+          .join('; ')}`,
+      ]
+        .filter((value): value is string => Boolean(value?.trim()))
+        .join('\n\n');
+      const geminiCards = await GeminiService.generateFlashcards(
+        params.content,
+        topUpRules,
+        params.descriptionRules,
+        params.options,
+      );
+      functions.logger.info('Flashcard top-up generated via Gemini', {
+        requested: params.needed,
+        cardCount: geminiCards.length,
+      });
+      return {
+        flashcards: geminiCards,
+        generationModel,
+        generationModelUsage,
+      };
+    }
+
+    const prompt = FlashcardPromptBuilder.buildFlashcardTopUpPrompt({
+      content: params.content,
+      needed: params.needed,
+      existingLabels: params.existingLabels,
+      rules: params.rules,
+      descriptionRules: params.descriptionRules,
+      options: params.options,
+    });
+
+    const text = await generateExternalProviderText(
+      ctx,
+      prompt,
+      {
+        model: ctx.resolution.route.model,
+        temperature: 0.4,
+        maxOutputTokens: 16384,
+      },
+      'Flashcard top-up generated via external provider',
+    );
+
+    const cards = parseFlashcardsJson(text);
+    functions.logger.info('Parsed flashcard top-up from external provider', {
+      requested: params.needed,
+      cardCount: cards.length,
+      responseLength: text.length,
+    });
+
+    cards.forEach((card, idx) => {
+      if (!card.front || !card.back) {
+        throw new Error(
+          `Invalid top-up flashcard at index ${idx}: missing front or back`,
+        );
+      }
+      if (params.options?.isLanguageLearning && !card.term?.trim()) {
+        throw new Error(`Invalid top-up flashcard at index ${idx}: missing term`);
+      }
+    });
 
     return {
       flashcards: cards,

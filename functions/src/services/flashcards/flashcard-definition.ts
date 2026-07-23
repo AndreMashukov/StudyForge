@@ -16,6 +16,7 @@ import type {
 } from '../artifact-agent/artifact-agent-definition';
 import { recordModelUsage } from '../artifact-agent/artifact-agent-definition';
 import { flashcardGates } from './flashcard-gates';
+import { flashcardRepairStrategy } from './flashcard-repair';
 import type { IFlashcardDraft, IFlashcardJobPayload } from './flashcard-types';
 import { LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD } from './flashcard-types';
 import { listLearnedVocabularyTerms } from './learned-vocabulary';
@@ -221,6 +222,7 @@ export const flashcardsDefinition: ArtifactAgentDefinition<
   },
 
   gates: flashcardGates,
+  repair: flashcardRepairStrategy,
 
   async persistCompleted(result: ArtifactAgentResult<IFlashcardDraft>) {
     const { generationModel, generationModelUsage } = result.draft;
@@ -281,7 +283,7 @@ export const flashcardsDefinition: ArtifactAgentDefinition<
   },
 
   limits: {
-    maxRepairIterations: 1,
+    maxRepairIterations: 2,
     maxCriticIterations: 0,
     timeoutSeconds: 480,
   },

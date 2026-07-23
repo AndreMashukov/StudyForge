@@ -26,3 +26,7 @@ export interface IFlashcardJobPayload {
 
 /** Minimum confidence required to treat a set as language-learning. */
 export const LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD = 0.75;
+
+/** Prompt and gate target for a complete flashcard set. */
+export const MIN_FLASHCARD_COUNT = 10;
+export const TARGET_FLASHCARD_COUNT = 20;

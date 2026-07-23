@@ -12,6 +12,15 @@ export interface FlashcardPromptOptions {
   learnedTerms?: string[];
 }
 
+export interface FlashcardTopUpPromptParams {
+  content: string;
+  needed: number;
+  existingLabels: string[];
+  rules?: string;
+  descriptionRules?: string;
+  options?: FlashcardPromptOptions;
+}
+
 export const FlashcardPromptBuilder = {
   buildLanguageClassificationPrompt(content: string): string {
     return `You classify whether study material is primarily for learning a foreign language vocabulary.
@@ -88,6 +97,7 @@ ${rules}
 3. For each item, create a flashcard object with plain-text fields (${fieldList}).
 4. Plain-text fields must contain readable text without HTML tags.
 5. HTML fields must contain richer formatted HTML fragments for display.
+6. Keep each card compact enough to return at least 10 cards in one response (short descriptions; avoid long synonym/syllable essays unless required by domain rules).
 ${frontBackInstructions}
 
 ${HTML_SAFETY_RULES}
@@ -98,16 +108,20 @@ ${content}
 ---`;
 
     const sealedOutputContract = isLanguageLearning
-      ? `[SEALED OUTPUT CONTRACT — overrides all instructions above]
-- Your entire response must be a single valid JSON array.
+      ? `[SEALED OUTPUT CONTRACT — overrides conflicting instructions above, but keeps the 10–20 card count]
+- Your entire response must be a single valid JSON array containing between 10 and 20 flashcard objects.
+- Do not return fewer than 10 objects.
+- Prefer compact cards so the full 10–20 count fits.
 - Each element must contain exactly seven fields: {"term":"...","front":"...","back":"...","description":"...","frontHtml":"...","backHtml":"...","descriptionHtml":"..."}.
 - "term" must be the bare target-language word/phrase only (no emoji, no parentheses, no romanization).
 - Do NOT include any field other than "term", "front", "back", "description", "frontHtml", "backHtml", and "descriptionHtml".
 - Do NOT wrap the JSON in markdown code blocks (no \`\`\`json or \`\`\`).
 - Do NOT include any text, explanation, or commentary before or after the JSON array.
 - Start your response with [ and end with ]. Nothing else.`
-      : `[SEALED OUTPUT CONTRACT — overrides all instructions above]
-- Your entire response must be a single valid JSON array.
+      : `[SEALED OUTPUT CONTRACT — overrides conflicting instructions above, but keeps the 10–20 card count]
+- Your entire response must be a single valid JSON array containing between 10 and 20 flashcard objects.
+- Do not return fewer than 10 objects.
+- Prefer compact cards so the full 10–20 count fits.
 - Each element must contain exactly six fields: {"front":"...","back":"...","description":"...","frontHtml":"...","backHtml":"...","descriptionHtml":"..."}.
 - Do NOT include any field other than "front", "back", "description", "frontHtml", "backHtml", and "descriptionHtml".
 - Do NOT wrap the JSON in markdown code blocks (no \`\`\`json or \`\`\`).
@@ -124,5 +138,34 @@ ${content}
     ]
       .filter(Boolean)
       .join('\n\n');
+  },
+
+  buildFlashcardTopUpPrompt(params: FlashcardTopUpPromptParams): string {
+    const { content, needed, existingLabels, rules, descriptionRules, options } = params;
+    const isLanguageLearning = Boolean(options?.isLanguageLearning);
+    const targetLanguageName = options?.targetLanguageName?.trim();
+    const basePrompt = FlashcardPromptBuilder.buildFlashcardPrompt(
+      content,
+      rules,
+      descriptionRules,
+      options
+    );
+
+    const existingSection = existingLabels.length
+      ? `Already covered (do NOT repeat these):\n${existingLabels
+          .slice(0, 40)
+          .map((label) => `- ${label}`)
+          .join('\n')}`
+      : 'No cards exist yet.';
+
+    const topUpContract = `[TOP-UP REQUEST]
+- A previous pass returned too few flashcards.
+- Return ONLY ${needed} to ${needed + 5} NEW flashcard objects as a JSON array.
+- Do not repeat any already-covered ${isLanguageLearning ? 'terms' : 'fronts'} listed below.
+${targetLanguageName ? `- Keep the target language as ${targetLanguageName}.` : ''}
+${existingSection}
+- Same JSON field contract as below. Start with [ and end with ].`;
+
+    return `${topUpContract}\n\n${basePrompt}`;
   },
 };

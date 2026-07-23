@@ -1,4 +1,9 @@
+import * as functions from 'firebase-functions';
 import type { LlmProviderClient } from './llm-provider-client';
+import {
+  parseTogetherChatContent,
+  summarizeTogetherChatPayload,
+} from './together-chat-content';
 import type {
   LlmImageRequest,
   LlmImageResult,
@@ -18,24 +23,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function parseTogetherChatContent(payload: unknown): string | null {
-  if (!isRecord(payload) || !Array.isArray(payload.choices) || payload.choices.length === 0) {
-    return null;
-  }
-
-  const choice = payload.choices[0];
-  if (!isRecord(choice) || !isRecord(choice.message)) {
-    return null;
-  }
-
-  const content = choice.message.content;
-  if (typeof content !== 'string' || content.length === 0) {
-    return null;
-  }
-
-  return content;
-}
-
 function parseTogetherImageBase64(payload: unknown): string | null {
   if (!isRecord(payload) || !Array.isArray(payload.data) || payload.data.length === 0) {
     return null;
@@ -52,6 +39,21 @@ function parseTogetherImageBase64(payload: unknown): string | null {
   }
 
   return imageBase64;
+}
+
+function throwEmptyTogetherChatResponse(payload: unknown, label: string): never {
+  const diagnostics = summarizeTogetherChatPayload(payload);
+  functions.logger.warn(`Empty Together ${label} response`, diagnostics);
+
+  if (diagnostics.finishReason === 'length' && diagnostics.hasReasoning) {
+    throw new Error(
+      `Malformed or empty response from Together ${label}: output truncated after reasoning ` +
+        `(finish_reason=length, reasoningLength=${diagnostics.reasoningLength}). ` +
+        'Increase maxOutputTokens for thinking models.'
+    );
+  }
+
+  throw new Error(`Malformed or empty response from Together ${label}`);
 }
 
 async function fetchWithTimeout(
@@ -136,7 +138,7 @@ export class TogetherProviderClient implements LlmProviderClient {
     const payload: unknown = await response.json();
     const text = parseTogetherChatContent(payload);
     if (!text) {
-      throw new Error('Malformed or empty response from Together API');
+      throwEmptyTogetherChatResponse(payload, 'API');
     }
 
     return {
@@ -189,7 +191,7 @@ export class TogetherProviderClient implements LlmProviderClient {
     const payload: unknown = await response.json();
     const text = parseTogetherChatContent(payload);
     if (!text) {
-      throw new Error('Malformed or empty response from Together vision API');
+      throwEmptyTogetherChatResponse(payload, 'vision API');
     }
 
     return {

@@ -3,7 +3,11 @@ import type {
   ArtifactGateFailure,
 } from '../artifact-agent/artifact-agent-definition';
 import type { IFlashcardDraft } from './flashcard-types';
-import { LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD } from './flashcard-types';
+import {
+  LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD,
+  MIN_FLASHCARD_COUNT,
+  TARGET_FLASHCARD_COUNT,
+} from './flashcard-types';
 import { normalizeVocabularyTerm } from './learned-vocabulary';
 
 function schemaGateFailures(draft: IFlashcardDraft): ArtifactGateFailure[] {
@@ -19,11 +23,11 @@ function schemaGateFailures(draft: IFlashcardDraft): ArtifactGateFailure[] {
     return failures;
   }
 
-  if (draft.flashcards.length > 40) {
+  if (draft.flashcards.length > TARGET_FLASHCARD_COUNT) {
     failures.push({
       gateId: 'schema',
       severity: 'warning',
-      message: `Flashcard set has ${draft.flashcards.length} cards; prefer 10–20`,
+      message: `Flashcard set has ${draft.flashcards.length} cards; prefer ${MIN_FLASHCARD_COUNT}–${TARGET_FLASHCARD_COUNT}`,
       path: 'flashcards',
     });
   }
@@ -122,7 +126,28 @@ export const flashcardLanguageShapeGate: ArtifactGate<IFlashcardDraft> = {
   },
 };
 
+export const flashcardCardCountGate: ArtifactGate<IFlashcardDraft> = {
+  id: 'cardCount',
+  async run(draft: IFlashcardDraft) {
+    if (!Array.isArray(draft.flashcards) || draft.flashcards.length === 0) {
+      return [];
+    }
+    if (draft.flashcards.length >= MIN_FLASHCARD_COUNT) {
+      return [];
+    }
+    return [
+      {
+        gateId: 'cardCount',
+        severity: 'blocker',
+        message: `Flashcard set has ${draft.flashcards.length} cards; need at least ${MIN_FLASHCARD_COUNT}`,
+        path: 'flashcards',
+      },
+    ];
+  },
+};
+
 export const flashcardGates: ArtifactGate<IFlashcardDraft>[] = [
   flashcardSchemaGate,
+  flashcardCardCountGate,
   flashcardLanguageShapeGate,
 ];
