@@ -37,7 +37,9 @@ export function buildDirectoryPathWithOptionalName(
   name?: string,
   tab?: string,
 ): string {
-  const base = name ? buildDirectoryPathFromParts(id, name) : `${DIRECTORY_PATH_PREFIX}${id}`;
+  const base = name
+    ? buildDirectoryPathFromParts(id, name)
+    : `${DIRECTORY_PATH_PREFIX}${encodeURIComponent(id)}`;
   return tab ? `${base}?tab=${encodeURIComponent(tab)}` : base;
 }
 
