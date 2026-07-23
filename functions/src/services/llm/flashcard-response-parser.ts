@@ -88,7 +88,7 @@ function closeOpenBrackets(text: string): string {
  * Returns a possibly truncated slice when the closing bracket is missing.
  */
 export function extractBalancedJsonArray(text: string): string | null {
-  const startMatch = /\[\s*[\{\["]/.exec(text);
+  const startMatch = /\[\s*[{["]/.exec(text);
   if (!startMatch || startMatch.index === undefined) {
     return null;
   }
