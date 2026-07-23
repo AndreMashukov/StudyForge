@@ -36,6 +36,29 @@ export const ARTIFACT_PIPELINE_STATE_KEYS = {
 
 export type ArtifactPipelineOutcome = 'completed' | 'failed';
 
+function readCriticFailureMessage(
+  criticResult: IArtifactCriticResult | undefined
+): string | undefined {
+  if (!criticResult) {
+    return undefined;
+  }
+
+  const blocker = criticResult.items.find((item) => item.severity === 'blocker');
+  if (blocker) {
+    const issue = blocker.issues.find((text) => text.trim().length > 0);
+    if (issue) {
+      return `Question ${blocker.itemIndex + 1}: ${issue}`;
+    }
+    return `Question ${blocker.itemIndex + 1}: critic flagged a blocker`;
+  }
+
+  if (criticResult.overallVerdict === 'fail') {
+    return 'Critic rejected the artifact';
+  }
+
+  return undefined;
+}
+
 function readContext(context: InvocationContext): ArtifactAgentContext {
   const agentContext = context.session.state[ARTIFACT_PIPELINE_STATE_KEYS.context];
   if (!agentContext) {
@@ -316,6 +339,7 @@ class FinalizeAgent extends BaseAgent {
     if (hasBlockerFailures(gateResult.failures) || criticFailed) {
       const failureMessage =
         gateResult.failures.find((failure) => failure.severity === 'blocker')?.message ||
+        readCriticFailureMessage(criticResult) ||
         'Automated verification failed';
       await this.definition.markFailed({
         context: agentContext,
@@ -379,12 +403,15 @@ export function createArtifactPipeline(
   ];
 
   if (definition.critic && definition.refiner) {
+    // Refiner runs first so it can no-op on the opening iteration, then Critic
+    // always evaluates the latest draft. Finalize must never see a stale critic
+    // result from before the last refine.
     subAgents.push(
       new LoopAgent({
         name: 'verificationLoop',
-        description: 'Critic/refiner verification loop',
+        description: 'Refiner/critic verification loop',
         maxIterations: definition.limits.maxCriticIterations,
-        subAgents: [new CriticAgent(definition), new RefinerAgent(definition)],
+        subAgents: [new RefinerAgent(definition), new CriticAgent(definition)],
       })
     );
   }
