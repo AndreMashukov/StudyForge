@@ -59,7 +59,7 @@ export const BreadcrumbNav = ({ directoryId, onNavigate, className, lastItemClic
           <div key={dir.id} className="flex items-center gap-2">
             <ChevronRight size={16} className={breadcrumbNavStyles.separator} />
             <button
-              onClick={() => !isCurrent && onNavigate(dir.id)}
+              onClick={() => !isCurrent && onNavigate({ id: dir.id, name: dir.name })}
               className={getBreadcrumbClassName(isCurrent)}
               aria-label={`Navigate to ${dir.name}`}
               aria-current={isCurrent ? "page" : undefined}

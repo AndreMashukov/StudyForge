@@ -22,6 +22,7 @@ import {
 } from '../../../../store/slices/createDocumentPageSlice';
 import { selectSelectedDirectoryId } from '../../../../store/slices/directorySlice';
 import type { RootState } from '../../../../store';
+import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 
 export const useCreateDocumentPageHandlers = () => {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export const useCreateDocumentPageHandlers = () => {
 
   const handleGoBack = useCallback(() => {
     if (directoryId) {
-      navigate(`/directory/${encodeURIComponent(directoryId)}`);
+      navigate(buildDirectoryPathWithOptionalName(directoryId));
     } else {
       navigate('/documents');
     }
@@ -56,7 +57,7 @@ export const useCreateDocumentPageHandlers = () => {
       ruleIds: data.ruleIds || [],
       ruleResolutionMode: 'explicit-only',
     });
-    navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
+    navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, 'sources'));
   }, [createDocumentFromUrl, navigate, dispatch, directoryId]);
 
   const handleCreateFromFile = useCallback(async (data: IFileUploadFormData) => {
@@ -79,7 +80,7 @@ export const useCreateDocumentPageHandlers = () => {
         ruleResolutionMode: 'explicit-only',
       }).unwrap();
 
-      navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
+      navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, 'sources'));
 
       void uploadPromise.catch((error) => {
         dispatch(setError(getSubmissionErrorMessage(error)));
@@ -121,7 +122,7 @@ export const useCreateDocumentPageHandlers = () => {
     if (fileUploadHelpers) {
       dispatch(clearFiles());
     }
-    navigate(`/directory/${encodeURIComponent(directoryId)}?tab=sources`);
+    navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, 'sources'));
   }, [generateFromPrompt, navigate, dispatch, directoryId]);
 
   return {

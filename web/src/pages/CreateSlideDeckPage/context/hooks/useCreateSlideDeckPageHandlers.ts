@@ -4,6 +4,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { useGenerateSlideDeckMutation } from '../../../../store/api/SlideDecks/SlideDecksApi';
 import { ICreateSlideDeckFormData } from '../../types/ICreateSlideDeckPageTypes';
 import { DocumentEnhanced } from '@shared-types';
+import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 
 interface UseCreateSlideDeckPageHandlersProps {
   form: UseFormReturn<ICreateSlideDeckFormData>;
@@ -37,7 +38,7 @@ export const useCreateSlideDeckPageHandlers = ({ form, documents }: UseCreateSli
       ruleIds: formData.ruleIds || [],
       ruleResolutionMode: 'explicit-only',
     });
-    navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=slides`);
+    navigate(buildDirectoryPathWithOptionalName(resolvedDirectoryId, undefined, 'slides'));
   }, [generateSlideDeck, navigate, documents, searchParams]);
 
   return {

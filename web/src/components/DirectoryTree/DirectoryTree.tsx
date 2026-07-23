@@ -47,8 +47,8 @@ const DirectoryTreeNode: React.FC<IDirectoryTreeNodeProps> = ({
           isSelected && 'bg-primary/10 hover:bg-primary/15',
           level > 0 && 'ml-4'
         )}
-        onClick={() => onSelect(node.directory.id)}
-        onContextMenu={(e) => onContextMenu(e, node.directory.id)}
+        onClick={() => onSelect(node.directory.id, node.directory.name)}
+        onContextMenu={(e) => onContextMenu(e, node.directory.id, node.directory.name)}
       >
         {/* Expand/Collapse button */}
         <button
@@ -102,7 +102,7 @@ const DirectoryTreeNode: React.FC<IDirectoryTreeNodeProps> = ({
           className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={(e: React.MouseEvent) => {
             e.stopPropagation();
-            onContextMenu(e, node.directory.id);
+            onContextMenu(e, node.directory.id, node.directory.name);
           }}
         >
           <MoreVertical className="w-4 h-4" />
@@ -196,9 +196,9 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
     [schedulePrefetch],
   );
 
-  const handleSelect = (directoryId: string) => {
+  const handleSelect = (directoryId: string, directoryName: string) => {
     if (onSelectDirectory) {
-      onSelectDirectory(directoryId);
+      onSelectDirectory(directoryId, directoryName);
     } else {
       dispatch(setSelectedDirectory(directoryId));
     }
@@ -208,9 +208,9 @@ export const DirectoryTree: React.FC<IDirectoryTree> = ({
     dispatch(toggleExpandDirectory(directoryId));
   };
 
-  const handleContextMenu = (e: React.MouseEvent, directoryId: string) => {
+  const handleContextMenu = (e: React.MouseEvent, directoryId: string, directoryName: string) => {
     e.preventDefault();
-    handleSelect(directoryId);
+    handleSelect(directoryId, directoryName);
   };
 
   if (isLoading && !data) {

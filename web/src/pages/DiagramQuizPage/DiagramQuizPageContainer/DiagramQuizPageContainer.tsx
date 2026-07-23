@@ -14,6 +14,7 @@ import {
   selectDiagramQuizStats,
 } from '../../../store/slices/diagramQuizPageSlice';
 import { IQuizStats } from '../../QuizPage/types/IQuizTypes';
+import { buildDirectoryPathWithOptionalName } from '../../../utils/directoryUrl';
 
 export const DiagramQuizPageContainer: React.FC = () => {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ export const DiagramQuizPageContainer: React.FC = () => {
 
   const handleBackToDirectory = () => {
     if (directoryIdForBack) {
-      navigate(`/directory/${directoryIdForBack}?tab=diagramQuizzes`);
+      navigate(buildDirectoryPathWithOptionalName(directoryIdForBack, undefined, 'diagramQuizzes'));
     } else {
       navigate('/');
     }

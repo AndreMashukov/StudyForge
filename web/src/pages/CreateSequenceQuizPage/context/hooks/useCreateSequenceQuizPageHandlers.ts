@@ -4,6 +4,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { useGenerateSequenceQuizMutation } from '../../../../store/api/SequenceQuiz/SequenceQuizApi';
 import { ICreateSequenceQuizFormData } from '../../types/ICreateSequenceQuizPageTypes';
 import { DocumentEnhanced } from '@shared-types';
+import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 
 interface IProps {
   form: UseFormReturn<ICreateSequenceQuizFormData>;
@@ -40,7 +41,7 @@ export const useCreateSequenceQuizPageHandlers = ({ form, documents }: IProps) =
         followupRuleIds: formData.followupRuleIds || [],
         ruleResolutionMode: 'explicit-only',
       });
-      navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=sequenceQuizzes`);
+      navigate(buildDirectoryPathWithOptionalName(resolvedDirectoryId, undefined, 'sequenceQuizzes'));
     },
     [generateSequenceQuiz, navigate, documents, searchParams]
   );

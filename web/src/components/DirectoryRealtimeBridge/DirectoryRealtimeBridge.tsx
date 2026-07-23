@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useDirectoryDocumentsRealtimeCache } from '../../pages/DirectoryDetailPage/hooks/useDirectoryDocumentsRealtimeCache';
+import { extractDirectoryIdFromRouteParam } from '../../utils/directoryUrl';
 
 const ARTIFACT_PAGE_LIMIT = 100;
 
@@ -20,7 +21,9 @@ export const DirectoryRealtimeBridge = () => {
   const { pathname } = useLocation();
 
   const directoryId = useMemo(() => {
-    if (routeDirectoryId) return routeDirectoryId;
+    if (routeDirectoryId) {
+      return extractDirectoryIdFromRouteParam(routeDirectoryId);
+    }
 
     const fromQuery = searchParams.get('directoryId')?.trim();
     if (!fromQuery) return null;

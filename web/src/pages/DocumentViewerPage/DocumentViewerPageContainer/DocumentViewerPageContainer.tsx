@@ -43,6 +43,7 @@ import {
   resetEditPreview,
 } from '../../../store/slices/documentViewerPageSlice';
 import { setSelectedDirectory } from '../../../store/slices/directorySlice';
+import { buildDirectoryPath } from '../../../utils/directoryUrl';
 import { formatDateWithOptions } from '../../../utils/dateUtils';
 import { DocumentQuestionForm } from './DocumentQuestionForm';
 import { MarkdownAIAssistantPanel } from '../../../components/MarkdownAIAssistantPanel';
@@ -182,10 +183,10 @@ export const DocumentViewerPageContainer = () => {
     />
   );
 
-  const handleBreadcrumbNavigate = (directoryId: string | null) => {
-    dispatch(setSelectedDirectory(directoryId));
-    if (directoryId) {
-      navigate(`/directory/${directoryId}`);
+  const handleBreadcrumbNavigate = (directory: { id: string; name: string } | null) => {
+    dispatch(setSelectedDirectory(directory?.id ?? null));
+    if (directory) {
+      navigate(buildDirectoryPath(directory));
       return;
     }
     navigate('/documents');

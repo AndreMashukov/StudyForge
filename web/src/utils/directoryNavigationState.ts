@@ -1,3 +1,6 @@
+import type { Directory } from '@shared-types';
+import { buildDirectoryPathFromParts } from './directoryUrl';
+
 export const DIRECTORY_DOCUMENTS_BACK_TARGET = '/documents';
 
 export interface IDirectoryNavigationState {
@@ -19,13 +22,13 @@ export function isDirectoryNavigationState(
 
 export function resolveDirectoryBackTarget(
   locationState: unknown,
-  parentDirectoryId: string | null
+  parentDirectory: Pick<Directory, 'id' | 'name'> | null,
 ): string {
   if (isDirectoryNavigationState(locationState)) {
     return locationState.backTarget;
   }
-  if (parentDirectoryId) {
-    return `/directory/${parentDirectoryId}`;
+  if (parentDirectory) {
+    return buildDirectoryPathFromParts(parentDirectory.id, parentDirectory.name);
   }
   return DIRECTORY_DOCUMENTS_BACK_TARGET;
 }
@@ -40,15 +43,15 @@ export function resolveParentBackState(
 }
 
 export function buildChildDirectoryNavigationState(
-  parentDirectoryId: string,
-  locationState: unknown
+  parentDirectory: Pick<Directory, 'id' | 'name'>,
+  locationState: unknown,
 ): IDirectoryNavigationState {
   const parentBackTarget = isDirectoryNavigationState(locationState)
     ? locationState.backTarget
     : DIRECTORY_DOCUMENTS_BACK_TARGET;
 
   return {
-    backTarget: `/directory/${parentDirectoryId}`,
+    backTarget: buildDirectoryPathFromParts(parentDirectory.id, parentDirectory.name),
     parentBackTarget,
   };
 }

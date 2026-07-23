@@ -146,8 +146,8 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
             <div className="fixed inset-y-0 left-0 w-64 bg-background border-r z-50 overflow-y-auto">
               <div className="p-4">
                 <DirectoryTree 
-                  onSelectDirectory={(id) => {
-                    handlers.handleSelectDirectory(id);
+                  onSelectDirectory={(id, name) => {
+                    handlers.handleSelectDirectory(id, name);
                     setIsMobileSidebarOpen(false);
                   }}
                   onCreateDirectory={handleCreateDirectory}
@@ -191,7 +191,9 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
             {!isRoot && (
               <BreadcrumbNav
                 directoryId={selectedDirectoryId}
-                onNavigate={(directoryId) => handlers.handleSelectDirectory(directoryId)}
+                onNavigate={(directory) =>
+                  handlers.handleSelectDirectory(directory?.id ?? null, directory?.name)
+                }
                 className="px-4 md:px-6 pt-4 md:pt-6"
               />
             )}
@@ -296,7 +298,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                         <FolderCard
                           key={dir.id}
                           directory={dir}
-                          onClick={() => handlers.handleSelectDirectory(dir.id)}
+                          onClick={() => handlers.handleSelectDirectory(dir.id, dir.name)}
                           onEdit={() => setEditDialog({ open: true, directory: dir })}
                           onDelete={() => setDeleteDialog({ open: true, directory: dir })}
                           onMove={() => setMoveDialog({ directory: dir })}
