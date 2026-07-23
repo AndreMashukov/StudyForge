@@ -179,17 +179,30 @@ function normalizeOpenRouterModels(payload: unknown): IProviderAvailableModel[] 
   return dedupeModels(models);
 }
 
+function extractModelEntries(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (isRecord(payload) && Array.isArray(payload.data)) {
+    return payload.data;
+  }
+
+  return [];
+}
+
 function normalizeOpenAiStyleModels(
   payload: unknown,
   providerKind: 'minimax' | 'together'
 ): IProviderAvailableModel[] {
-  if (!isRecord(payload) || !Array.isArray(payload.data)) {
+  const entries = extractModelEntries(payload);
+  if (entries.length === 0) {
     return [];
   }
 
   const models: IProviderAvailableModel[] = [];
 
-  for (const entry of payload.data) {
+  for (const entry of entries) {
     if (!isRecord(entry)) {
       continue;
     }
@@ -204,10 +217,13 @@ function normalizeOpenAiStyleModels(
       continue;
     }
 
+    const displayName =
+      typeof entry.display_name === 'string' ? entry.display_name.trim() : '';
+    const name = typeof entry.name === 'string' ? entry.name.trim() : '';
     const label =
-      typeof entry.name === 'string' && entry.name.trim() && entry.name.trim() !== id
-        ? entry.name.trim()
-        : id;
+      (displayName && displayName !== id ? displayName : '') ||
+      (name && name !== id ? name : '') ||
+      id;
 
     const type =
       typeof entry.type === 'string'
@@ -217,12 +233,19 @@ function normalizeOpenAiStyleModels(
           : '';
     const lowerId = id.toLowerCase();
 
-    if (includesAny(lowerId, ['embed', 'embedding', 'rerank']) || type.includes('embed')) {
+    if (
+      type === 'embedding' ||
+      type === 'moderation' ||
+      type === 'rerank' ||
+      includesAny(lowerId, ['embed', 'embedding', 'rerank']) ||
+      type.includes('embed')
+    ) {
       continue;
     }
 
     const modalities: LlmModality[] = [];
     const isImage =
+      type === 'image' ||
       type.includes('image') ||
       includesAny(lowerId, ['flux', 'image', 'sdxl', 'stable-diffusion', 'imagen']);
 
@@ -231,16 +254,19 @@ function normalizeOpenAiStyleModels(
     }
 
     const isChatOrLanguage =
+      type === 'chat' ||
+      type === 'language' ||
+      type === 'code' ||
       type.includes('chat') ||
       type.includes('language') ||
       type.includes('text') ||
       type === '' ||
-      (!isImage && (providerKind === 'minimax' || providerKind === 'together'));
+      (!isImage && providerKind === 'minimax');
 
     if (isChatOrLanguage && !isImage) {
       modalities.push('text');
       // MiniMax/Together chat endpoints are used for screenshot vision in-product;
-      // mark chat models as vision-capable unless the type is clearly text-only embedding-adjacent.
+      // mark chat models as vision-capable unless clearly non-chat.
       if (
         providerKind === 'minimax' ||
         providerKind === 'together' ||
