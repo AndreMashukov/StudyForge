@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ISlideDeckPageHandlers } from '../../types/ISlideDeckPageHandlers';
+import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 
 export const useSlideDeckPageHandlers = (
   directoryIdFromData?: string | null
@@ -17,7 +18,7 @@ export const useSlideDeckPageHandlers = (
 
   const handleNavigateBack = useCallback(() => {
     if (resolvedDirectoryId) {
-      navigate(`/directory/${resolvedDirectoryId}?tab=slides`);
+      navigate(buildDirectoryPathWithOptionalName(resolvedDirectoryId, undefined, 'slides'));
     } else {
       navigate('/');
     }

@@ -15,6 +15,7 @@ import { ArrowLeft } from 'lucide-react';
 import { IDocumentListResponse } from '../../store/api/Documents/IDocumentsApi';
 import { ArtifactFormConfig } from './types';
 import { artifactFormLayoutStyles } from './ArtifactFormLayout.styles';
+import { buildDirectoryPathWithOptionalName } from '../../utils/directoryUrl';
 
 export interface ArtifactFormLayoutProps<T extends FieldValues> {
   config: ArtifactFormConfig;
@@ -73,9 +74,9 @@ export const ArtifactFormLayout = <T extends FieldValues>({
   const handleBack = () => {
     const tab = config.directoryTab;
     if (directoryIdParam) {
-      navigate(`/directory/${directoryIdParam}?tab=${tab}`);
+      navigate(buildDirectoryPathWithOptionalName(directoryIdParam, undefined, tab));
     } else if (selectedDirectoryId) {
-      navigate(`/directory/${selectedDirectoryId}?tab=${tab}`);
+      navigate(buildDirectoryPathWithOptionalName(selectedDirectoryId, undefined, tab));
     } else {
       navigate('/documents');
     }

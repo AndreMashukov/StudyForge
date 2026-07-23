@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { setSelectedDocument, setSelectedDirectory, selectSelectedDirectoryId } from '../../../../store/slices/directorySlice';
 import { buildTreeDirectoryNavigationState } from '../../../../utils/directoryNavigationState';
+import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 import { useDeleteDocument } from './api/useDeleteDocument';
 import type { RootState } from '../../../../store';
 
@@ -62,13 +63,13 @@ export const useDocumentsPageHandlers = () => {
     }
   }, [deleteDocument]);
 
-  const handleSelectDirectory = useCallback((directoryId: string | null) => {
+  const handleSelectDirectory = useCallback((directoryId: string | null, directoryName?: string) => {
     dispatch(setSelectedDirectory(directoryId));
     if (directoryId) {
       // Use replace so the back button skips tree-browsing and returns to the
       // page that mounted the tree (e.g. /documents), not the previously
       // clicked folder.
-      navigate(`/directory/${directoryId}`, {
+      navigate(buildDirectoryPathWithOptionalName(directoryId, directoryName), {
         replace: true,
         state: buildTreeDirectoryNavigationState(),
       });

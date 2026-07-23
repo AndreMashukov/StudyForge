@@ -19,6 +19,7 @@ import {
   selectFollowupError,
   selectFollowupChatOpen,
 } from '../../../store/slices/quizPageSlice';
+import { buildDirectoryPathWithOptionalName } from '../../../utils/directoryUrl';
 
 export const QuizPageContainer: React.FC = () => {
   const navigate = useNavigate();
@@ -46,7 +47,7 @@ export const QuizPageContainer: React.FC = () => {
 
   const handleBackToDirectory = () => {
     if (directoryIdForBack) {
-      navigate(`/directory/${directoryIdForBack}?tab=quizzes`);
+      navigate(buildDirectoryPathWithOptionalName(directoryIdForBack, undefined, 'quizzes'));
     } else {
       navigate('/');
     }

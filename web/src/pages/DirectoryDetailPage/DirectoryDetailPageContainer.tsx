@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { setSelectedDirectory } from '../../store/slices/directorySlice';
@@ -53,6 +53,11 @@ import { SubjectWorldsPanel } from './SubjectWorldsPanel';
 import { RulesPanel } from './RulesPanel';
 import { TooltipProvider } from '../../components/ui/Tooltip';
 import { DirectoryChatPanel } from '../../components/DirectoryChatPanel';
+import {
+  buildDirectoryPath,
+  extractDirectoryIdFromDirectoryPath,
+  extractDirectoryIdFromRouteParam,
+} from '../../utils/directoryUrl';
 
 /** Valid tab values that can be passed via URL search param. */
 const VALID_TABS = new Set<string>(['sources', 'quizzes', 'cards', 'slides', 'diagramQuizzes', 'sequenceQuizzes', 'subjectWorlds', 'chat', 'rules']);
@@ -61,7 +66,11 @@ const VALID_TABS = new Set<string>(['sources', 'quizzes', 'cards', 'slides', 'di
 const ARTIFACT_PAGE_LIMIT = 100;
 
 export const DirectoryDetailPageContainer = () => {
-  const { directoryId } = useParams<{ directoryId: string }>();
+  const { directoryId: directoryRouteParam } = useParams<{ directoryId: string }>();
+  const directoryId = useMemo(
+    () => extractDirectoryIdFromRouteParam(directoryRouteParam),
+    [directoryRouteParam],
+  );
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
@@ -109,6 +118,20 @@ export const DirectoryDetailPageContainer = () => {
   const titleDirectory = contents?.directory;
 
   useEffect(() => {
+    if (!directoryId || !titleDirectory || titleDirectory.id !== directoryId) {
+      return;
+    }
+
+    const canonicalPath = buildDirectoryPath(titleDirectory);
+    if (location.pathname !== canonicalPath) {
+      navigate(`${canonicalPath}${location.search}`, {
+        replace: true,
+        state: location.state,
+      });
+    }
+  }, [directoryId, titleDirectory, location.pathname, location.search, location.state, navigate]);
+
+  useEffect(() => {
     const directoryName = titleDirectory && titleDirectory.id === directoryId ? titleDirectory.name : undefined;
     document.title = directoryName ? `StudyForge - ${directoryName}` : 'StudyForge';
 
@@ -117,23 +140,26 @@ export const DirectoryDetailPageContainer = () => {
     };
   }, [titleDirectory, directoryId]);
 
-  const parentDirectoryId =
+  const parentDirectory =
     ancestorsData?.ancestors && ancestorsData.ancestors.length > 0
-      ? ancestorsData.ancestors[ancestorsData.ancestors.length - 1].id
+      ? ancestorsData.ancestors[ancestorsData.ancestors.length - 1]
       : null;
 
   const handleBack = useCallback(() => {
-    const backTarget = resolveDirectoryBackTarget(location.state, parentDirectoryId);
+    const backTarget = resolveDirectoryBackTarget(location.state, parentDirectory);
     const parentBackState = resolveParentBackState(location.state);
 
     if (backTarget === DIRECTORY_DOCUMENTS_BACK_TARGET) {
       dispatch(setSelectedDirectory(null));
     } else if (backTarget.startsWith('/directory/')) {
-      dispatch(setSelectedDirectory(backTarget.slice('/directory/'.length)));
+      const backDirectoryId = extractDirectoryIdFromDirectoryPath(backTarget);
+      if (backDirectoryId) {
+        dispatch(setSelectedDirectory(backDirectoryId));
+      }
     }
 
     navigate(backTarget, { replace: true, state: parentBackState });
-  }, [dispatch, location.state, navigate, parentDirectoryId]);
+  }, [dispatch, location.state, navigate, parentDirectory]);
 
   if (!directoryId) {
     return (
@@ -218,7 +244,7 @@ export const DirectoryDetailPageContainer = () => {
               {ancestors.map((a: Directory) => (
                 <span key={a.id} className="flex items-center gap-1">
                   <span className="text-border">/</span>
-                  <Link to={`/directory/${a.id}`} className="hover:text-foreground">
+                  <Link to={buildDirectoryPath(a)} className="hover:text-foreground">
                     {a.name}
                   </Link>
                 </span>
@@ -264,8 +290,8 @@ export const DirectoryDetailPageContainer = () => {
                     className="group/pill inline-flex items-center gap-0.5 rounded-full border border-border text-sm hover:bg-muted/50 transition-colors"
                   >
                     <Link
-                      to={`/directory/${sub.id}`}
-                      state={buildChildDirectoryNavigationState(dir.id, location.state)}
+                      to={buildDirectoryPath(sub)}
+                      state={buildChildDirectoryNavigationState(dir, location.state)}
                       className="inline-flex items-center gap-1.5 px-3 py-1"
                     >
                       <IconComponent

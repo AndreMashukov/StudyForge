@@ -4,6 +4,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { useGenerateFlashcardsMutation } from '../../../../store/api/Flashcards/FlashcardsApi';
 import { ICreateFlashcardFormData } from '../../types/ICreateFlashcardPageTypes';
 import { DocumentEnhanced } from '@shared-types';
+import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 
 interface UseCreateFlashcardPageHandlersProps {
   form: UseFormReturn<ICreateFlashcardFormData>;
@@ -40,7 +41,7 @@ export const useCreateFlashcardPageHandlers = ({ form, documents }: UseCreateFla
       descriptionRuleIds: formData.descriptionRuleIds || [],
       ruleResolutionMode: 'explicit-only',
     });
-    navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=cards`);
+    navigate(buildDirectoryPathWithOptionalName(resolvedDirectoryId, undefined, 'cards'));
   }, [generateFlashcards, navigate, documents, searchParams]);
 
   return {

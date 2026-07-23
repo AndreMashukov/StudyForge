@@ -4,6 +4,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { useGenerateSubjectWorldMutation } from '../../../../store/api/SubjectWorld/SubjectWorldApi';
 import { ICreateSubjectWorldFormData } from '../../types/ICreateSubjectWorldPageTypes';
 import { DocumentEnhanced } from '@shared-types';
+import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 
 interface IProps {
   form: UseFormReturn<ICreateSubjectWorldFormData>;
@@ -40,7 +41,7 @@ export const useCreateSubjectWorldPageHandlers = ({ form, documents }: IProps) =
         followupRuleIds: formData.followupRuleIds || [],
         ruleResolutionMode: 'explicit-only',
       });
-      navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=subjectWorlds`);
+      navigate(buildDirectoryPathWithOptionalName(resolvedDirectoryId, undefined, 'subjectWorlds'));
     },
     [generateSubjectWorld, navigate, documents, searchParams]
   );

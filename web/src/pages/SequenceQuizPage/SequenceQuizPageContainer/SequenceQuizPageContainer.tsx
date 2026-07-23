@@ -13,6 +13,7 @@ import {
   selectSequenceQuizStats,
 } from '../../../store/slices/sequenceQuizPageSlice';
 import { IQuizStats, IQuizAnswer } from '../../QuizPage/types/IQuizTypes';
+import { buildDirectoryPathWithOptionalName } from '../../../utils/directoryUrl';
 
 export const SequenceQuizPageContainer: React.FC = () => {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ export const SequenceQuizPageContainer: React.FC = () => {
 
   const handleBackToDirectory = () => {
     if (directoryIdForBack) {
-      navigate(`/directory/${directoryIdForBack}?tab=sequenceQuizzes`);
+      navigate(buildDirectoryPathWithOptionalName(directoryIdForBack, undefined, 'sequenceQuizzes'));
     } else {
       navigate('/');
     }

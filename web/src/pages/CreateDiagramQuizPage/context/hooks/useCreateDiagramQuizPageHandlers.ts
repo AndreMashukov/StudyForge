@@ -4,6 +4,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { useGenerateDiagramQuizMutation } from '../../../../store/api/DiagramQuiz/DiagramQuizApi';
 import { ICreateDiagramQuizFormData } from '../../types/ICreateDiagramQuizPageTypes';
 import { DocumentEnhanced } from '@shared-types';
+import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 
 interface IProps {
   form: UseFormReturn<ICreateDiagramQuizFormData>;
@@ -40,7 +41,7 @@ export const useCreateDiagramQuizPageHandlers = ({ form, documents }: IProps) =>
         followupRuleIds: formData.followupRuleIds || [],
         ruleResolutionMode: 'explicit-only',
       });
-      navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=diagramQuizzes`);
+      navigate(buildDirectoryPathWithOptionalName(resolvedDirectoryId, undefined, 'diagramQuizzes'));
     },
     [generateDiagramQuiz, navigate, documents, searchParams]
   );

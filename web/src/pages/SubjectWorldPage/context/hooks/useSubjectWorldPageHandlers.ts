@@ -26,6 +26,7 @@ import {
   selectBestDialogueNode,
 } from '../../utils/subjectWorldDialogueUtils';
 import { ISubjectWorldPageHandlers } from '../../types/ISubjectWorldPageHandlers';
+import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 
 function applyQuestCompletions(
   dispatch: ReturnType<typeof useDispatch>,
@@ -85,7 +86,7 @@ export const useSubjectWorldPageHandlers = (
       searchParams.get('directoryId')?.trim() ||
       null;
     if (directoryId) {
-      navigate(`/directory/${directoryId}?tab=subjectWorlds`);
+      navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, 'subjectWorlds'));
     } else {
       navigate('/');
     }

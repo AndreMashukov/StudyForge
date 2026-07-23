@@ -18,6 +18,7 @@ import {
   selectFlashcardSetQueueInitializedForSetId,
   startRetake,
 } from '../../../../store/slices/flashcardSetPageSlice';
+import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 
 function buildInitialQueue(flashcardSet: FlashcardSet | null | undefined): string[] {
   return (flashcardSet?.flashcards ?? []).map((card) => card.id);
@@ -92,7 +93,7 @@ export const useFlashcardSetPageHandlers = (
 
   const handleGoBack = useCallback(() => {
     if (resolvedDirectoryId) {
-      navigate(`/directory/${resolvedDirectoryId}?tab=cards`);
+      navigate(buildDirectoryPathWithOptionalName(resolvedDirectoryId, undefined, 'cards'));
     } else {
       navigate('/');
     }

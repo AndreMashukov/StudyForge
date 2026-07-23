@@ -4,6 +4,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { useGenerateQuizMutation } from '../../../../store/api/Quiz/QuizApi';
 import { ICreateQuizFormData } from '../../types/ICreateQuizPageTypes';
 import { DocumentEnhanced } from '@shared-types';
+import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 
 interface UseCreateQuizPageHandlersProps {
   form: UseFormReturn<ICreateQuizFormData>;
@@ -40,7 +41,7 @@ export const useCreateQuizPageHandlers = ({ form, documents }: UseCreateQuizPage
       followupRuleIds: formData.followupRuleIds || [],
       ruleResolutionMode: 'explicit-only',
     });
-    navigate(`/directory/${encodeURIComponent(resolvedDirectoryId)}?tab=quizzes`);
+    navigate(buildDirectoryPathWithOptionalName(resolvedDirectoryId, undefined, 'quizzes'));
   }, [generateQuiz, navigate, documents, searchParams]);
 
   return {
