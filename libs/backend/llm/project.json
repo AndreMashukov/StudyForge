@@ -4,16 +4,5 @@
   "sourceRoot": "libs/backend/llm/src",
   "projectType": "library",
   "tags": ["type:lib", "scope:backend"],
-  "targets": {
-    "build": {
-      "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "outputPath": "dist/libs/backend/llm",
-        "main": "libs/backend/llm/src/index.ts",
-        "tsConfig": "libs/backend/llm/tsconfig.lib.json",
-        "assets": ["libs/backend/llm/*.md"]
-      }
-    }
-  }
+  "targets": {}
 }

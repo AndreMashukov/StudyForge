@@ -4,16 +4,5 @@
   "sourceRoot": "libs/backend/documents/src",
   "projectType": "library",
   "tags": ["type:lib", "scope:backend"],
-  "targets": {
-    "build": {
-      "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "outputPath": "dist/libs/backend/documents",
-        "main": "libs/backend/documents/src/index.ts",
-        "tsConfig": "libs/backend/documents/tsconfig.lib.json",
-        "assets": ["libs/backend/documents/*.md"]
-      }
-    }
-  }
+  "targets": {}
 }
