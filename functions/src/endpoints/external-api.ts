@@ -1,20 +1,21 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
-import { ExternalAuthResult, validateExternalAuthFromRequest } from "../lib/api-key-auth";
-import { DocumentCrudService } from "../services/document-crud";
-import { CursorPaginationError } from "../lib/cursor-pagination";
-import { directoryService } from "../services/directory";
-import { GeminiService } from "../services/gemini";
+import { ExternalAuthResult, validateExternalAuthFromRequest } from '@study-forge/backend-core/lib/api-key-auth';
+import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
+import { CursorPaginationError } from '@study-forge/backend-core/lib/cursor-pagination';
+import { directoryService } from '@study-forge/backend-directories/directory';
+import { GeminiService } from '@study-forge/backend-llm/gemini';
+import { SlideDeckPromptBuilder } from '@study-forge/backend-llm/gemini/prompt-builder/slide-deck';
 import {
   LlmGenerationService,
   resolveSlideDeckGenerationAudit,
   resolveTextGenerationAudit,
-} from "../services/llm";
-import { FirestoreService } from "../services/firestore";
-import { ScreenshotDocumentGenerationService } from "../services/screenshot-document-generation";
-import { RateLimitError } from "../services/api-rate-limit";
-import { enforceExternalDualGenerationRateLimit } from "../lib/generation-rate-limit";
+} from '@study-forge/backend-llm/llm';
+import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
+import { ScreenshotDocumentGenerationService } from '@study-forge/backend-documents/screenshot-document-generation';
+import { RateLimitError } from '@study-forge/backend-core/services/api-rate-limit';
+import { enforceExternalDualGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
 import {
   completePendingDiagramQuiz,
   completePendingFlashcardSet,
@@ -31,20 +32,20 @@ import {
   failPendingQuiz,
   failPendingSequenceQuiz,
   failPendingSlideDeck,
-} from "../services/artifact-generation-records";
+} from '@study-forge/backend-artifacts/artifact-generation-records';
 import {
   isRuleResolutionMode,
   resolveEffectiveRules,
   resolveRulesForDirectory,
-} from "../services/rule-resolution";
+} from '@study-forge/backend-directories/rule-resolution';
 import {
   attachRuleToDirectory,
   createRule,
   getRule,
   getRules,
   updateRule,
-} from "../services/rule-crud";
-import { FirestorePaths } from "../lib/firestore-paths";
+} from '@study-forge/backend-directories/rule-crud';
+import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { randomUUID } from "crypto";
 import {
   CreateDocumentRequest,
@@ -922,7 +923,6 @@ export const api = onRequest(
               const brief = await LlmGenerationService.generateSlideImageBrief(userId, slide.title, slide.content, injectedRules);
               let imageBase64: string | null = null;
               if (brief) {
-                const { SlideDeckPromptBuilder } = await import("../services/gemini/prompt-builder/slide-deck");
                 const imagePrompt = SlideDeckPromptBuilder.buildSlideImageFromBriefPrompt(brief);
                 imageBase64 = await LlmGenerationService.generateSlideImageFromPrompt(userId, imagePrompt);
               }

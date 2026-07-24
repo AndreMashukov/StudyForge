@@ -1,9 +1,10 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { directoryService } from '../services/directory';
-import { validateAuth } from '../lib/auth';
-import { throwCallableError } from '../lib/callable-error';
-import { CursorPaginationError } from '../lib/cursor-pagination';
+import { directoryService } from '@study-forge/backend-directories/directory';
+import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
+import { CursorPaginationError } from '@study-forge/backend-core/lib/cursor-pagination';
+import { executeBulkOperation } from '@study-forge/backend-artifacts/bulk-operation';
 import {
   CreateDirectoryRequest,
   UpdateDirectoryRequest,
@@ -15,7 +16,7 @@ import {
   // GetDirectoryAncestorsResponse,
   // MoveDirectoryResponse,
   // DeleteDirectoryResponse,
-} from '../../libs/shared-types/src/index';
+} from '@shared-types';
 
 /**
  * Create a new directory
@@ -170,7 +171,6 @@ export const bulkDeleteDirectories = onCall(
       throw new HttpsError('invalid-argument', 'directoryIds must be an array of strings.');
     }
 
-    const { executeBulkOperation } = await import('../services/bulk-operation.js');
     return executeBulkOperation({
       items: directoryIds,
       getItemId: (id) => id,

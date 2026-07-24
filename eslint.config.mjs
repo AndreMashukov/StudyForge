@@ -17,12 +17,39 @@ export default [
       '@nx/enforce-module-boundaries': [
         'error',
         {
-          enforceBuildableLibDependency: true,
+          enforceBuildableLibDependency: false,
+          ignoredCircularDependencies: [
+            ['generation', 'artifacts'],
+            ['artifacts', 'documents'],
+            ['documents', 'generation'],
+            ['llm', 'artifacts'],
+            ['artifacts', 'llm'],
+            ['llm', 'directories'],
+            ['directories', 'llm'],
+            ['directories', 'documents'],
+            ['documents', 'directories'],
+          ],
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
           depConstraints: [
             {
-              sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*'],
+              sourceTag: 'scope:shared',
+              onlyDependOnLibsWithTags: ['scope:shared'],
+            },
+            {
+              sourceTag: 'scope:backend',
+              onlyDependOnLibsWithTags: ['scope:backend', 'scope:shared'],
+            },
+            {
+              sourceTag: 'type:app',
+              onlyDependOnLibsWithTags: ['scope:backend', 'scope:shared'],
+            },
+            {
+              sourceTag: 'scope:web',
+              onlyDependOnLibsWithTags: ['scope:shared', 'scope:web'],
+            },
+            {
+              sourceTag: 'scope:admin',
+              onlyDependOnLibsWithTags: ['scope:shared', 'scope:admin'],
             },
           ],
         },

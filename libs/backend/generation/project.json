@@ -1,0 +1,19 @@
+{
+  "name": "generation",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/backend/generation/src",
+  "projectType": "library",
+  "tags": ["type:lib", "scope:backend"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/backend/generation",
+        "main": "libs/backend/generation/src/index.ts",
+        "tsConfig": "libs/backend/generation/tsconfig.lib.json",
+        "assets": ["libs/backend/generation/*.md"]
+      }
+    }
+  }
+}

@@ -1,17 +1,17 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { validateAuth } from '../lib/auth';
-import { throwCallableError } from '../lib/callable-error';
+import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
 import {
   GetStatisticsQuizDetailRequest,
   StatisticsDateRangeRequest,
-} from '../../libs/shared-types/src/index';
+} from '@shared-types';
 import {
   getStatisticsLearningTime,
   getStatisticsOverview,
   getStatisticsQuizDetail,
   getStatisticsQuizPerformance,
-} from '../services/statistics';
+} from '@study-forge/backend-core/services/statistics';
 
 function rangeData(data: unknown): StatisticsDateRangeRequest {
   return (data ?? {}) as StatisticsDateRangeRequest;

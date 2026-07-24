@@ -1,12 +1,12 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
-import { validateAuth } from '../lib/auth';
-import { throwCallableError } from '../lib/callable-error';
-import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
-import { DocumentCrudService } from '../services/document-crud';
-import { LlmGenerationService } from '../services/llm';
-import { resolveEffectiveRules } from '../services/rule-resolution';
+import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
+import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
+import { LlmGenerationService } from '@study-forge/backend-llm/llm';
+import { resolveEffectiveRules } from '@study-forge/backend-directories/rule-resolution';
 import { 
   GenerateFollowupRequest, 
   GenerateFollowupResponse,

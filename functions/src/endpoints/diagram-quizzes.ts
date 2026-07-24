@@ -1,24 +1,24 @@
 import { onCall } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
-import { GeminiService } from "../services/gemini";
-import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
-import { mapErrorToArtifactEnvelope } from '../lib/callable-error';
-import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
-import { FirestoreService } from "../services/firestore";
-import { DocumentCrudService } from "../services/document-crud";
-import { directoryService } from "../services/directory";
+import { GeminiService } from '@study-forge/backend-llm/gemini';
+import { getGenerationFailureEnvelope } from '@study-forge/backend-llm/llm/llm-endpoint-error';
+import { mapErrorToArtifactEnvelope } from '@study-forge/backend-core/lib/callable-error';
+import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
+import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
+import { directoryService } from '@study-forge/backend-directories/directory';
 import {
   isRuleResolutionMode,
-} from "../services/rule-resolution";
+} from '@study-forge/backend-directories/rule-resolution';
 import {
   createPendingDiagramQuiz,
-} from "../services/artifact-generation-records";
-import { GenerationJobPayloadStorage } from "../services/generation-job-payload-storage";
-import { GenerationJobsService } from "../services/generation-jobs";
-import { enqueueGenerationJobTask } from "../services/generation-task-queue";
-import { buildStartGenerationPayload } from "../lib/start-generation-response";
-import type { ArtifactAgentJobPayload } from "../services/artifact-agent";
+} from '@study-forge/backend-artifacts/artifact-generation-records';
+import { GenerationJobPayloadStorage } from "@study-forge/backend-generation/generation-job-payload-storage";
+import { GenerationJobsService } from '@study-forge/backend-generation/generation-jobs';
+import { enqueueGenerationJobTask } from '@study-forge/backend-generation/generation-task-queue';
+import { buildStartGenerationPayload } from '@study-forge/backend-core/lib/start-generation-response';
+import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/artifact-agent';
 import {
   GenerateDiagramQuizRequest,
   GenerateDiagramQuizResponse,

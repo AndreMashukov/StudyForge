@@ -19,7 +19,33 @@
       "@admin/*": ["admin/src/*"],
       "@study-forge/ui": ["libs/ui/src/index.ts"],
       "@studyforge/mobile-ui": ["libs/mobile-ui/src/index.ts"],
-      "@mobile-capture/*": ["mobile-capture/src/*"]
+      "@mobile-capture/*": ["mobile-capture/src/*"],
+      "@study-forge/backend-core": ["./libs/backend/core/src/index.ts"],
+      "@study-forge/backend-core/*": ["./libs/backend/core/src/*"],
+      "@study-forge/backend-llm": ["./libs/backend/llm/src/index.ts"],
+      "@study-forge/backend-llm/*": ["./libs/backend/llm/src/*"],
+      "@study-forge/backend-generation": [
+        "./libs/backend/generation/src/index.ts"
+      ],
+      "@study-forge/backend-generation/*": ["./libs/backend/generation/src/*"],
+      "@study-forge/backend-documents": [
+        "./libs/backend/documents/src/index.ts"
+      ],
+      "@study-forge/backend-documents/*": ["./libs/backend/documents/src/*"],
+      "@study-forge/backend-directories": [
+        "./libs/backend/directories/src/index.ts"
+      ],
+      "@study-forge/backend-directories/*": [
+        "./libs/backend/directories/src/*"
+      ],
+      "@study-forge/backend-artifacts": [
+        "./libs/backend/artifacts/src/index.ts"
+      ],
+      "@study-forge/backend-artifacts/*": ["./libs/backend/artifacts/src/*"],
+      "firebase-functions": ["functions/node_modules/firebase-functions"],
+      "firebase-functions/*": ["functions/node_modules/firebase-functions/*"],
+      "firebase-admin": ["functions/node_modules/firebase-admin"],
+      "firebase-admin/*": ["functions/node_modules/firebase-admin/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]

@@ -11,30 +11,31 @@ import {
   FlashcardSet,
   getDocumentFallbackColor,
 } from '@shared-types';
-import { DocumentCrudService } from '../services/document-crud';
-import { directoryService } from '../services/directory';
+import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
+import { directoryService } from '@study-forge/backend-directories/directory';
 import {
   createPendingFlashcardSet,
   failPendingFlashcardSet,
-} from '../services/artifact-generation-records';
-import { GenerationJobPayloadStorage } from '../services/generation-job-payload-storage';
-import { GenerationJobsService } from '../services/generation-jobs';
-import { enqueueGenerationJobTask } from '../services/generation-task-queue';
-import type { ArtifactAgentJobPayload } from '../services/artifact-agent';
-import { buildStartGenerationPayload } from '../lib/start-generation-response';
-import { validateAuth } from '../lib/auth';
-import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
-import { FirestorePaths } from '../lib/firestore-paths';
+} from '@study-forge/backend-artifacts/artifact-generation-records';
+import { GenerationJobPayloadStorage } from '@study-forge/backend-generation/generation-job-payload-storage';
+import { GenerationJobsService } from '@study-forge/backend-generation/generation-jobs';
+import { enqueueGenerationJobTask } from '@study-forge/backend-generation/generation-task-queue';
+import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/artifact-agent';
+import { buildStartGenerationPayload } from '@study-forge/backend-core/lib/start-generation-response';
+import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
+import { deleteFlashcardSetForUser } from '@study-forge/backend-artifacts/artifact-delete';
 import {
   syncArtifactDirectoryIndex,
   syncIndexSafely,
-} from '../services/directory-item-index';
-import { isRuleResolutionMode } from '../services/rule-resolution';
+} from '@study-forge/backend-directories/directory-item-index';
+import { isRuleResolutionMode } from '@study-forge/backend-directories/rule-resolution';
 import {
   isRecordLearnedVocabularyError,
   recordLearnedVocabularyFromFlashcard,
   type IFlashcardJobPayload,
-} from '../services/flashcards';
+} from '@study-forge/backend-artifacts/flashcards';
 
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -364,7 +365,6 @@ export const deleteFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
       throw new HttpsError('invalid-argument', msg);
     }
     const { flashcardSetId } = parseResult.data;
-    const { deleteFlashcardSetForUser } = await import('../services/artifact-delete.js');
     await deleteFlashcardSetForUser(userId, flashcardSetId);
     return { success: true };
   } catch(error) {

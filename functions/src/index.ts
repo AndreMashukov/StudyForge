@@ -8,30 +8,8 @@
  * - API endpoints: generateQuiz and getQuiz
  */
 
-// Register TypeScript path mappings for runtime module resolution
-import { register } from "tsconfig-paths";
-import { resolve } from "path";
-
-register({
-  baseUrl: resolve(__dirname, "../"), // Resolve to functions/lib (where shared-types is compiled)
-  paths: {
-    "@shared-types": ["libs/shared-types/src/index.js"],
-  },
-});
-
-import { setGlobalOptions } from "firebase-functions";
+import './global-options';
 import { onRequest } from "firebase-functions/v2/https";
-
-// Configure global options
-const runningInFunctionsEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
-
-setGlobalOptions({
-  maxInstances: 10,
-  region: "asia-east1",
-  // Production callables enforce App Check. The emulator skips enforcement so local
-  // dev works without registering debug tokens; use production/staging to validate App Check.
-  enforceAppCheck: !runningInFunctionsEmulator,
-});
 
 /**
  * Health check endpoint (HTTP for monitoring).

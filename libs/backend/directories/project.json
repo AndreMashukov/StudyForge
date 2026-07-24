@@ -1,0 +1,19 @@
+{
+  "name": "directories",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/backend/directories/src",
+  "projectType": "library",
+  "tags": ["type:lib", "scope:backend"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/backend/directories",
+        "main": "libs/backend/directories/src/index.ts",
+        "tsConfig": "libs/backend/directories/tsconfig.lib.json",
+        "assets": ["libs/backend/directories/*.md"]
+      }
+    }
+  }
+}

@@ -7,9 +7,9 @@ import {
   SendDirectoryChatMessageRequest,
   SendDirectoryChatMessageResponse,
 } from '@shared-types';
-import { validateAuth } from '../lib/auth';
-import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
-import { DirectoryChatService } from '../services/directory-chat';
+import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { DirectoryChatService } from '@study-forge/backend-directories/directory-chat';
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');

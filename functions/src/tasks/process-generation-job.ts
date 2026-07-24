@@ -1,24 +1,24 @@
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { onTaskDispatched } from 'firebase-functions/v2/tasks';
-import { ArtifactAgentPipelineFailedError } from '../services/artifact-agent/artifact-agent-errors';
-import { failVisibleGenerationRecord } from '../services/generation-job-failures';
+import { ArtifactAgentPipelineFailedError } from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-errors';
+import { failVisibleGenerationRecord } from '@study-forge/backend-generation/generation-job-failures';
 import {
   formatGenerationError,
   MAX_GENERATION_JOB_ATTEMPTS,
   shouldRetryGenerationJob,
-} from '../services/generation-job-retry';
-import { STALE_PENDING_SWEEP_MESSAGE } from '../services/generation-stale';
-import { GenerationJob, GenerationJobsService } from '../services/generation-jobs';
-import { ArtifactAgentGenerationProcessor } from '../services/generation-processors/artifact-agent';
-import { DocumentFromPromptGenerationProcessor } from '../services/generation-processors/document-from-prompt';
-import { DocumentFromScreenshotGenerationProcessor } from '../services/generation-processors/document-from-screenshot';
-import { FlashcardsGenerationProcessor } from '../services/generation-processors/flashcards';
-import { QuizGenerationProcessor } from '../services/generation-processors/quiz';
-import { SequenceQuizGenerationProcessor } from '../services/generation-processors/sequence-quiz';
-import { SlideDeckGenerationProcessor } from '../services/generation-processors/slide-deck';
-import { SubjectWorldGenerationProcessor } from '../services/generation-processors/subject-world';
-import { ProcessGenerationJobTaskPayload } from '../services/generation-task-queue';
+} from '@study-forge/backend-generation/generation-job-retry';
+import { STALE_PENDING_SWEEP_MESSAGE } from '@study-forge/backend-generation/generation-stale';
+import { GenerationJob, GenerationJobsService } from '@study-forge/backend-generation/generation-jobs';
+import { ArtifactAgentGenerationProcessor } from '@study-forge/backend-generation/generation-processors/artifact-agent';
+import { DocumentFromPromptGenerationProcessor } from '@study-forge/backend-generation/generation-processors/document-from-prompt';
+import { DocumentFromScreenshotGenerationProcessor } from '@study-forge/backend-generation/generation-processors/document-from-screenshot';
+import { FlashcardsGenerationProcessor } from '@study-forge/backend-generation/generation-processors/flashcards';
+import { QuizGenerationProcessor } from '@study-forge/backend-generation/generation-processors/quiz';
+import { SequenceQuizGenerationProcessor } from '@study-forge/backend-generation/generation-processors/sequence-quiz';
+import { SlideDeckGenerationProcessor } from '@study-forge/backend-generation/generation-processors/slide-deck';
+import { SubjectWorldGenerationProcessor } from '@study-forge/backend-generation/generation-processors/subject-world';
+import { ProcessGenerationJobTaskPayload } from '@study-forge/backend-generation/generation-task-queue';
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');

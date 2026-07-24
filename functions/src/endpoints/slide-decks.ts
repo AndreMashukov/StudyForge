@@ -6,16 +6,17 @@ import { createHash } from 'crypto';
 import { z } from 'zod';
 
 import { SlideDeck, getDocumentFallbackColor } from '@shared-types';
-import { DocumentCrudService } from '../services/document-crud';
-import { directoryService } from '../services/directory';
+import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
+import { directoryService } from '@study-forge/backend-directories/directory';
 import {
   createPendingSlideDeck,
   failPendingSlideDeck,
-} from '../services/artifact-generation-records';
-import { enqueueGenerationJob } from '../services/generation-enqueue';
-import { buildStartGenerationPayload } from '../lib/start-generation-response';
-import { validateAuth } from '../lib/auth';
-import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
+} from '@study-forge/backend-artifacts/artifact-generation-records';
+import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
+import { buildStartGenerationPayload } from '@study-forge/backend-core/lib/start-generation-response';
+import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { deleteSlideDeckForUser } from '@study-forge/backend-artifacts/artifact-delete';
 
 const redactId = (id: string): string =>
   createHash('sha256').update(id).digest('hex').slice(0, 8);
@@ -255,7 +256,6 @@ export const deleteSlideDeck = onCall({ region: 'asia-east1', cors: true }, asyn
       throw new HttpsError('invalid-argument', parseResult.error.issues[0]?.message ?? 'Invalid request.');
     }
     const { slideDeckId } = parseResult.data;
-    const { deleteSlideDeckForUser } = await import('../services/artifact-delete.js');
     await deleteSlideDeckForUser(userId, slideDeckId);
     return { success: true };
   } catch (error) {

@@ -3,7 +3,6 @@
   "compilerOptions": {
     "module": "commonjs",
     "outDir": "lib",
-    "rootDir": "src",
     "target": "es2017",
     "strict": false,
     "skipLibCheck": true,
@@ -14,7 +13,25 @@
     "types": ["node"],
     "baseUrl": "..",
     "paths": {
-      "@shared-types": ["dist/out-tsc/libs/shared-types/src/index.d.ts"]
+      "@shared-types": ["libs/shared-types/src/index.ts"],
+      "@study-forge/backend-core": ["libs/backend/core/src/index.ts"],
+      "@study-forge/backend-core/*": ["libs/backend/core/src/*"],
+      "@study-forge/backend-llm": ["libs/backend/llm/src/index.ts"],
+      "@study-forge/backend-llm/*": ["libs/backend/llm/src/*"],
+      "@study-forge/backend-generation": ["libs/backend/generation/src/index.ts"],
+      "@study-forge/backend-generation/*": ["libs/backend/generation/src/*"],
+      "@study-forge/backend-documents": ["libs/backend/documents/src/index.ts"],
+      "@study-forge/backend-documents/*": ["libs/backend/documents/src/*"],
+      "@study-forge/backend-directories": ["libs/backend/directories/src/index.ts"],
+      "@study-forge/backend-directories/*": ["libs/backend/directories/src/*"],
+      "@study-forge/backend-artifacts": ["libs/backend/artifacts/src/index.ts"],
+      "@study-forge/backend-artifacts/*": ["libs/backend/artifacts/src/*"],
+      "@google/adk": ["functions/node_modules/@google/adk"],
+      "@google/genai": ["functions/node_modules/@google/genai"],
+      "firebase-functions": ["functions/node_modules/firebase-functions"],
+      "firebase-functions/*": ["functions/node_modules/firebase-functions/*"],
+      "firebase-admin": ["functions/node_modules/firebase-admin"],
+      "firebase-admin/*": ["functions/node_modules/firebase-admin/*"]
     }
   },
   "include": ["src/**/*"],

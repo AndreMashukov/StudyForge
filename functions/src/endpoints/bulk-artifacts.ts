@@ -4,9 +4,9 @@ import {
   IBulkDeleteArtifactItem,
   IBulkOperationResponse,
 } from '@shared-types';
-import { validateAuth } from '../lib/auth';
-import { deleteArtifactByType } from '../services/artifact-delete';
-import { executeBulkOperation } from '../services/bulk-operation';
+import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { deleteArtifactByType } from '@study-forge/backend-artifacts/artifact-delete';
+import { executeBulkOperation } from '@study-forge/backend-artifacts/bulk-operation';
 
 const BULK_DELETABLE_ARTIFACT_TYPES = new Set<BulkDeletableArtifactType>([
   'quiz',

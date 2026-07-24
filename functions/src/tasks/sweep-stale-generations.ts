@@ -1,6 +1,6 @@
 import { logger } from 'firebase-functions/v2';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { sweepStaleGenerations } from '../services/stale-generation-sweeper';
+import { sweepStaleGenerations } from '@study-forge/backend-generation/stale-generation-sweeper';
 
 export const sweepStaleGenerationsSchedule = onSchedule(
   {

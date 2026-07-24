@@ -3,17 +3,20 @@
   "$schema": "../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "functions/src",
   "projectType": "application",
+  "tags": ["type:app", "scope:backend"],
   "targets": {
     "build": {
-      "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/functions/lib/src/index.js"],
       "options": {
-        "outputPath": "functions/lib",
-        "main": "functions/src/index.ts",
-        "tsConfig": "functions/tsconfig.json",
-        "assets": []
-      },
-      "dependsOn": ["^build"]
+        "command": "node functions/esbuild.config.mjs"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p functions/tsconfig.json --noEmit"
+      }
     },
     "build-with-deps": {
       "executor": "nx:run-commands",
@@ -26,7 +29,10 @@
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
-        "lintFilePatterns": ["functions/src/**/*.{ts,tsx}"]
+        "lintFilePatterns": [
+          "functions/src/**/*.{ts,tsx}",
+          "libs/backend/**/*.{ts,tsx}"
+        ]
       }
     },
     "serve": {
@@ -58,6 +64,13 @@
       }
     }
   },
-  "tags": ["type:app", "platform:firebase", "scope:backend"],
-  "implicitDependencies": ["shared-types"]
+  "implicitDependencies": [
+    "shared-types",
+    "core",
+    "llm",
+    "generation",
+    "documents",
+    "directories",
+    "artifacts"
+  ]
 }

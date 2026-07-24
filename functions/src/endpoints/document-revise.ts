@@ -1,14 +1,14 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
-import { validateAuth } from '../lib/auth';
-import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
+import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
 import {
   AI_REVISION_EXISTING_CONTENT_MAX,
   reviseDocumentWithAIRequestSchema,
-} from '../lib/ai-revision-validation';
-import { DocumentCrudService } from '../services/document-crud';
-import { LlmGenerationService } from '../services/llm';
+} from '@study-forge/backend-core/lib/ai-revision-validation';
+import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
+import { LlmGenerationService } from '@study-forge/backend-llm/llm';
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');

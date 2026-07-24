@@ -1,27 +1,28 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
-import { validateAuth } from '../lib/auth';
-import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
-import { DocumentCrudService } from '../services/document-crud';
-import { DocumentService } from '../services/document-storage';
-import { CursorPaginationError } from '../lib/cursor-pagination';
-import { directoryService } from '../services/directory';
-import { UrlProcessingOrchestrator } from '../services/url-processing/url-processing-orchestrator';
-import { FileExtractionError, FileExtractionService } from '../services/file-extraction';
+import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
+import { DocumentService } from '@study-forge/backend-documents/document-storage';
+import { CursorPaginationError } from '@study-forge/backend-core/lib/cursor-pagination';
+import { directoryService } from '@study-forge/backend-directories/directory';
+import { UrlProcessingOrchestrator } from '@study-forge/backend-documents/url-processing/url-processing-orchestrator';
+import { FileExtractionError, FileExtractionService } from '@study-forge/backend-documents/file-extraction';
 import {
   LlmGenerationService,
   resolveTextGenerationAudit,
-} from '../services/llm';
-import { SourceDocumentGenerationService } from '../services/source-document-generation';
-import { ScreenshotDocumentGenerationService } from '../services/screenshot-document-generation';
-import { GenerationJobPayloadStorage } from '../services/generation-job-payload-storage';
-import { GenerationJobsService } from '../services/generation-jobs';
-import { enqueueGenerationJobTask } from '../services/generation-task-queue';
+} from '@study-forge/backend-llm/llm';
+import { SourceDocumentGenerationService } from '@study-forge/backend-documents/source-document-generation';
+import { ScreenshotDocumentGenerationService } from '@study-forge/backend-documents/screenshot-document-generation';
+import { executeBulkOperation } from '@study-forge/backend-artifacts/bulk-operation';
+import { GenerationJobPayloadStorage } from '@study-forge/backend-generation/generation-job-payload-storage';
+import { GenerationJobsService } from '@study-forge/backend-generation/generation-jobs';
+import { enqueueGenerationJobTask } from '@study-forge/backend-generation/generation-task-queue';
 import {
   isRuleResolutionMode,
   resolveEffectiveRules,
-} from '../services/rule-resolution';
+} from '@study-forge/backend-directories/rule-resolution';
 import { 
   CreateDocumentRequest, 
   UpdateDocumentRequest, 
@@ -668,7 +669,6 @@ export const bulkDeleteDocuments = onCall(
       throw new HttpsError('invalid-argument', 'documentIds must be an array of strings.');
     }
 
-    const { executeBulkOperation } = await import('../services/bulk-operation.js');
     return executeBulkOperation({
       items: documentIds,
       getItemId: (id) => id,

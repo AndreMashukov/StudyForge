@@ -1,8 +1,9 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as crypto from "crypto";
 import { getFirestore } from "firebase-admin/firestore";
-import { validateAuth } from "../lib/auth";
-import { hashApiKey } from "../lib/api-key-auth";
+import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { hashApiKey } from '@study-forge/backend-core/lib/api-key-auth';
+import { executeBulkOperation } from '@study-forge/backend-artifacts/bulk-operation';
 
 const MAX_KEYS_PER_USER = 10;
 const API_KEY_PREFIX = "sf-";
@@ -158,7 +159,6 @@ export const bulkRevokeApiKeys = onCall(
     }
 
     const db = getFirestore();
-    const { executeBulkOperation } = await import("../services/bulk-operation.js");
 
     return executeBulkOperation({
       items: keyIds,

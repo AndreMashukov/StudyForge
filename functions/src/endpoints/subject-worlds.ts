@@ -1,19 +1,19 @@
 import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
-import { GeminiService } from "../services/gemini";
-import { getGenerationFailureEnvelope } from "../services/llm/llm-endpoint-error";
-import { mapErrorToArtifactEnvelope } from '../lib/callable-error';
-import { enforceCallableGenerationRateLimit } from '../lib/generation-rate-limit';
-import { DocumentCrudService } from "../services/document-crud";
-import { FirestoreService } from "../services/firestore";
-import { directoryService } from "../services/directory";
+import { GeminiService } from '@study-forge/backend-llm/gemini';
+import { getGenerationFailureEnvelope } from '@study-forge/backend-llm/llm/llm-endpoint-error';
+import { mapErrorToArtifactEnvelope } from '@study-forge/backend-core/lib/callable-error';
+import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
+import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
+import { directoryService } from '@study-forge/backend-directories/directory';
 import {
   createPendingSubjectWorld,
   failPendingSubjectWorld,
-} from "../services/artifact-generation-records";
-import { enqueueGenerationJob } from "../services/generation-enqueue";
-import { buildStartGenerationPayload } from "../lib/start-generation-response";
-import { FirestorePaths } from "../lib/firestore-paths";
+} from '@study-forge/backend-artifacts/artifact-generation-records';
+import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
+import { buildStartGenerationPayload } from '@study-forge/backend-core/lib/start-generation-response';
+import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { FieldValue } from "firebase-admin/firestore";
 import {
   GenerateSubjectWorldResponse,

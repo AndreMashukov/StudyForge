@@ -1,6 +1,8 @@
 ---
 description: Firebase Functions v2 callable endpoint patterns
-globs: "functions/src/**/*.ts"
+globs:
+  - functions/src/**/*.ts
+  - libs/backend/**/*.ts
 alwaysApply: false
 ---
 
@@ -12,6 +14,7 @@ alwaysApply: false
 - Callable functions consumed by web via RTK Query
 - Gemini via `defineSecret('GEMINI_API_KEY')`
 - Shared types from `@shared-types`
+- Domain services in `@study-forge/backend-*` libraries under `libs/backend/`
 
 ## MUST Follow
 
@@ -20,7 +23,19 @@ alwaysApply: false
 3. **MUST return `{ success: boolean, ... }` envelopes** matching web `transformResponse`.
 4. **MUST use `defineSecret`** for `GEMINI_API_KEY` — never hardcode.
 5. **MUST enforce App Check** — global `enforceAppCheck: true` in `functions/src/index.ts`.
-6. **MUST keep functions thin** — delegate to `functions/src/services/`.
+6. **MUST keep functions thin** — delegate to `@study-forge/backend-*` libraries.
+7. **MUST use static imports** for backend libs (Nx forbids mixed dynamic/static imports of the same library).
+
+## Backend libraries
+
+| Library | Import |
+|---------|--------|
+| Core (auth, paths, rate limits) | `@study-forge/backend-core` |
+| LLM / Gemini | `@study-forge/backend-llm` |
+| Generation jobs | `@study-forge/backend-generation` |
+| Documents | `@study-forge/backend-documents` |
+| Directories / rules | `@study-forge/backend-directories` |
+| Artifacts | `@study-forge/backend-artifacts` |
 
 ## Local Dev
 
@@ -32,4 +47,5 @@ Emulator `--project` MUST match `NX_PUBLIC_FIREBASE_PROJECT_ID`.
 
 ## Reference
 
+- [docs/adr/001-backend-nx-libraries.md](../../docs/adr/001-backend-nx-libraries.md)
 - [docs/EXTERNAL_API.md](../../docs/EXTERNAL_API.md)

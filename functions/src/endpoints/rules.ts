@@ -19,15 +19,19 @@ import {
   attachRuleToDirectory,
   detachRuleFromDirectory,
   getRuleTags,
-} from '../services/rule-crud';
+} from '@study-forge/backend-directories/rule-crud';
 import {
   resolveRulesForDirectory,
   getApplicableRules,
   formatRulesForPrompt,
   getDirectoryRules,
-} from '../services/rule-resolution';
-import { validateAuth } from '../lib/auth';
-import { throwCallableError } from '../lib/callable-error';
+} from '@study-forge/backend-directories/rule-resolution';
+import {
+  executeBulkOperation,
+  runSoftResultItem,
+} from '@study-forge/backend-artifacts/bulk-operation';
+import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
 
 /**
  * Create a new rule
@@ -363,9 +367,6 @@ export const bulkDeleteRulesEndpoint = onCall(
       throw new HttpsError('invalid-argument', 'ruleIds must be an array of strings.');
     }
 
-    const { executeBulkOperation, runSoftResultItem } = await import(
-      '../services/bulk-operation.js'
-    );
     return executeBulkOperation({
       items: ruleIds,
       getItemId: (id) => id,
@@ -396,7 +397,6 @@ export const bulkDetachRulesFromDirectoryEndpoint = onCall(
     }
 
     const directoryId = data.directoryId;
-    const { executeBulkOperation } = await import('../services/bulk-operation.js');
     return executeBulkOperation({
       items: data.ruleIds,
       getItemId: (id) => id,

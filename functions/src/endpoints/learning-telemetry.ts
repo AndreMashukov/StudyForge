@@ -1,17 +1,17 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { validateAuth } from '../lib/auth';
-import { throwCallableError } from '../lib/callable-error';
+import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
 import {
   GetQuizStatsRequest,
   RecordQuizAttemptRequest,
   RecordQuizExplanationRequest,
-} from '../../libs/shared-types/src/index';
+} from '@shared-types';
 import {
   getQuizStats,
   recordQuizAttempt,
   recordQuizExplanationRequest,
-} from '../services/learning-telemetry';
+} from '@study-forge/backend-core/services/learning-telemetry';
 
 export const recordQuizAttemptEndpoint = onCall(
   { region: 'asia-east1', cors: true },
