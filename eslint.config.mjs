@@ -40,16 +40,20 @@ export default [
               onlyDependOnLibsWithTags: ['scope:backend', 'scope:shared'],
             },
             {
-              sourceTag: 'type:app',
-              onlyDependOnLibsWithTags: ['scope:backend', 'scope:shared'],
-            },
-            {
               sourceTag: 'scope:web',
-              onlyDependOnLibsWithTags: ['scope:shared', 'scope:web'],
+              onlyDependOnLibsWithTags: ['scope:shared', 'scope:ui'],
             },
             {
               sourceTag: 'scope:admin',
-              onlyDependOnLibsWithTags: ['scope:shared', 'scope:admin'],
+              onlyDependOnLibsWithTags: ['scope:shared', 'scope:ui'],
+            },
+            {
+              sourceTag: 'scope:mobile-capture',
+              onlyDependOnLibsWithTags: ['scope:shared', 'scope:mobile-ui'],
+            },
+            {
+              sourceTag: 'scope:extension',
+              onlyDependOnLibsWithTags: ['scope:shared'],
             },
           ],
         },
