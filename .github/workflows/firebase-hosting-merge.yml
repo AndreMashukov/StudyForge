@@ -41,6 +41,10 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Install Cloud Functions dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
+        working-directory: functions
+
       - name: Lint affected projects
         run: yarn nx affected -t lint --parallel=3
 
