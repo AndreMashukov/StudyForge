@@ -143,7 +143,7 @@ Rule used for post-generation help — directory chat and per-question follow-up
 _Avoid_: chat rule, explanation rule
 
 **Always apply**:
-Rule flag that auto-selects the rule for applicable operations (stored as `isDefault`). Deselecting the rule during an operation clears the flag; re-selecting for that operation does not turn it back on.
+Rule flag that auto-selects the rule for applicable operations (stored as `isDefault`). Selecting a rule during an operation turns the flag on; deselecting turns it off. Next time that operation opens, always-apply rules are preselected.
 _Avoid_: default rule, auto-select rule (prefer **always apply** in product copy)
 
 ## Learning & chat
