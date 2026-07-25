@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Badge } from "../ui/Badge";
 import { Checkbox } from "../ui/Checkbox";
 import {
@@ -17,21 +17,33 @@ export const RuleSelector = ({
   title = "Rules",
   compact = false,
 }: IRuleSelector) => {
-  const { data, isLoading } = useGetApplicableRulesQuery({
+  const { data, isLoading, isSuccess } = useGetApplicableRulesQuery({
     directoryId,
     operation,
   });
   const [updateRule] = useUpdateRuleMutation();
+  const initializedKeyRef = useRef<string | null>(null);
+  const selectionKey = `${directoryId}:${operation}`;
 
   const rules = data?.rules || [];
   const defaultRuleIds = useMemo(() => data?.defaultRuleIds || [], [data?.defaultRuleIds]);
 
-  // Initialize with always-apply rules on first load
+  // Initialize with always-apply rules once per directory/operation
   useEffect(() => {
+    if (!isSuccess || initializedKeyRef.current === selectionKey) {
+      return;
+    }
+    initializedKeyRef.current = selectionKey;
     if (selectedRuleIds.length === 0 && defaultRuleIds.length > 0) {
       onSelectionChange(defaultRuleIds);
     }
-  }, [defaultRuleIds, selectedRuleIds.length, onSelectionChange]);
+  }, [
+    isSuccess,
+    selectionKey,
+    defaultRuleIds,
+    selectedRuleIds.length,
+    onSelectionChange,
+  ]);
 
   const handleToggle = (ruleId: string) => {
     if (selectedRuleIds.includes(ruleId)) {
