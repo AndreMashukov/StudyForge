@@ -71,7 +71,7 @@ export const DirectorySettingsModal = ({
         isDefault: !rule.isDefault,
       }).unwrap();
       showToast(
-        `Rule "${rule.name}" ${!rule.isDefault ? "set as" : "removed from"} default`,
+        `Rule "${rule.name}" ${!rule.isDefault ? "set to always apply" : "no longer always applies"}`,
         "success"
       );
     } catch {
@@ -189,7 +189,7 @@ export const DirectorySettingsModal = ({
                         </div>
                         {rule.isDefault && (
                           <Badge variant="secondary" className="text-xs">
-                            Default
+                            Always apply
                           </Badge>
                         )}
                       </div>
@@ -219,7 +219,7 @@ export const DirectorySettingsModal = ({
                             onClick={() => handleToggleDefault(rule)}
                             disabled={isUpdating}
                           >
-                            {rule.isDefault ? "Remove Default" : "Set as Default"}
+                            {rule.isDefault ? "Remove Always Apply" : "Always Apply"}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem

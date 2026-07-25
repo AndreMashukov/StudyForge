@@ -48,7 +48,7 @@ export const RuleFormSkeleton = () => {
         <div className="h-4 bg-muted-foreground/20 rounded w-32" />
       </div>
 
-      {/* Default rule checkbox skeleton */}
+      {/* Always apply checkbox skeleton */}
       <div className="flex items-start gap-2 pt-4 border-t">
         <div className="w-4 h-4 mt-0.5 rounded bg-muted-foreground/20" />
         <div className="flex-1">

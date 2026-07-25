@@ -382,14 +382,14 @@ export const RuleFormModal = ({
               </div>
             </div>
 
-            {/* Default Rule Checkbox */}
+            {/* Always apply checkbox */}
             <Checkbox
               id="isDefault"
               checked={formData.isDefault}
               onChange={(checked) =>
                 setFormData((prev) => ({ ...prev, isDefault: checked }))
               }
-              label="Set as default rule (Auto-select for applicable operations)"
+              label="Always apply"
             />
 
           </DialogBody>

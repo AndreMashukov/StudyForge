@@ -1427,7 +1427,7 @@ export interface Rule {
   color: RuleColor;
   tags: string[];
   applicableTo: RuleApplicability[];
-  isDefault: boolean; // Auto-selected for operations
+  isDefault: boolean; // Always apply — auto-selected for applicable operations
   directoryIds: string[]; // Directories this rule is attached to
   createdAt: Date | { toDate(): Date };
   updatedAt: Date | { toDate(): Date };

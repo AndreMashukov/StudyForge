@@ -58,7 +58,7 @@ export const useRulesPageFilters = (rules: Rule[] | undefined) => {
         if (!filters.colors.includes(rule.color)) return false;
       }
 
-      // Default only filter
+      // Always-apply only filter
       if (filters.showDefaultOnly && !rule.isDefault) {
         return false;
       }

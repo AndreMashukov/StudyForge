@@ -225,12 +225,12 @@ export const RuleFormSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Default Rule Checkbox */}
+      {/* Always apply checkbox */}
       <Checkbox
         id="rule-isDefault"
         checked={formData.isDefault}
         onChange={(checked) => updateField('isDefault', checked)}
-        label="Set as default rule (Auto-select for applicable operations)"
+        label="Always apply"
       />
 
     </div>

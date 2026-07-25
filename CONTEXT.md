@@ -142,6 +142,10 @@ _Avoid_: rule merge mode, inheritance setting
 Rule used for post-generation help — directory chat and per-question follow-up explanations — not for initial artifact content.
 _Avoid_: chat rule, explanation rule
 
+**Always apply**:
+Rule flag that auto-selects the rule for applicable operations (stored as `isDefault`). Deselecting the rule during an operation clears the flag; re-selecting for that operation does not turn it back on.
+_Avoid_: default rule, auto-select rule (prefer **always apply** in product copy)
+
 ## Learning & chat
 
 **Directory chat**:
