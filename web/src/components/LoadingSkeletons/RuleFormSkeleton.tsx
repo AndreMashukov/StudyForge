@@ -1,6 +1,6 @@
 /**
  * RuleFormSkeleton Component
- *
+ * 
  * Loading skeleton for rule form in RuleFormModal component
  */
 export const RuleFormSkeleton = () => {
@@ -17,10 +17,7 @@ export const RuleFormSkeleton = () => {
         <div className="h-4 bg-muted-foreground/20 rounded w-20" />
         <div className="flex gap-2">
           {Array.from({ length: 9 }).map((_, i) => (
-            <div
-              key={i}
-              className="w-8 h-8 rounded-full bg-muted-foreground/20"
-            />
+            <div key={i} className="w-8 h-8 rounded-full bg-muted-foreground/20" />
           ))}
         </div>
       </div>

@@ -1,18 +1,18 @@
-import { useEffect, useMemo } from 'react';
-import { RotateCcw, Tag } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
-import { Checkbox } from '../ui/Checkbox';
+import { useEffect, useMemo } from "react";
+import { RotateCcw, Tag } from "lucide-react";
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
+import { Checkbox } from "../ui/Checkbox";
 import {
   useGetApplicableRulesQuery,
   useUpdateRuleMutation,
-} from '../../store/api/Rules/rulesApi';
-import { RuleListSkeleton } from '../LoadingSkeletons';
-import { ICompactRuleSelector } from './ICompactRuleSelector';
+} from "../../store/api/Rules/rulesApi";
+import { RuleListSkeleton } from "../LoadingSkeletons";
+import { ICompactRuleSelector } from "./ICompactRuleSelector";
 
 /**
  * Compact Rule Selector Component
- *
+ * 
  * A streamlined version of RuleSelector designed for inline use in forms
  * Provides a collapsible checklist of applicable rules
  */
@@ -21,7 +21,7 @@ export const CompactRuleSelector = ({
   operation,
   selectedRuleIds,
   onSelectionChange,
-  label = 'Rules',
+  label = "Rules",
   showResetButton = true,
 }: ICompactRuleSelector) => {
   const { data, isLoading } = useGetApplicableRulesQuery({
@@ -31,10 +31,7 @@ export const CompactRuleSelector = ({
   const [updateRule] = useUpdateRuleMutation();
 
   const rules = data?.rules || [];
-  const defaultRuleIds = useMemo(
-    () => data?.defaultRuleIds || [],
-    [data?.defaultRuleIds],
-  );
+  const defaultRuleIds = useMemo(() => data?.defaultRuleIds || [], [data?.defaultRuleIds]);
 
   // Initialize with always-apply rules on first load
   useEffect(() => {
@@ -60,7 +57,7 @@ export const CompactRuleSelector = ({
   };
 
   const selectedRules = rules.filter((rule) =>
-    selectedRuleIds.includes(rule.id),
+    selectedRuleIds.includes(rule.id)
   );
 
   if (isLoading) {
@@ -115,13 +112,13 @@ export const CompactRuleSelector = ({
       <details className="group border rounded-md">
         <summary className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors">
           <span className="text-sm font-medium">
-            {selectedRules.length === rules.length
-              ? 'All rules selected'
+            {selectedRules.length === rules.length 
+              ? "All rules selected" 
               : `${rules.length - selectedRules.length} more available`}
           </span>
           <span className="transition-transform group-open:rotate-180">▼</span>
         </summary>
-
+        
         <div className="p-3 pt-0 space-y-2 max-h-[200px] overflow-y-auto">
           {rules.map((rule) => (
             <Checkbox

@@ -1,20 +1,20 @@
-import { useEffect, useMemo } from 'react';
-import { Badge } from '../ui/Badge';
-import { Checkbox } from '../ui/Checkbox';
+import { useEffect, useMemo } from "react";
+import { Badge } from "../ui/Badge";
+import { Checkbox } from "../ui/Checkbox";
 import {
   useGetApplicableRulesQuery,
   useUpdateRuleMutation,
-} from '../../store/api/Rules/rulesApi';
-import { RuleListSkeleton } from '../LoadingSkeletons';
-import { IRuleSelector } from './IRuleSelector';
-import { cn } from '../../lib/utils';
+} from "../../store/api/Rules/rulesApi";
+import { RuleListSkeleton } from "../LoadingSkeletons";
+import { IRuleSelector } from "./IRuleSelector";
+import { cn } from "../../lib/utils";
 
 export const RuleSelector = ({
   directoryId,
   operation,
   selectedRuleIds,
   onSelectionChange,
-  title = 'Rules',
+  title = "Rules",
   compact = false,
 }: IRuleSelector) => {
   const { data, isLoading } = useGetApplicableRulesQuery({
@@ -24,10 +24,7 @@ export const RuleSelector = ({
   const [updateRule] = useUpdateRuleMutation();
 
   const rules = data?.rules || [];
-  const defaultRuleIds = useMemo(
-    () => data?.defaultRuleIds || [],
-    [data?.defaultRuleIds],
-  );
+  const defaultRuleIds = useMemo(() => data?.defaultRuleIds || [], [data?.defaultRuleIds]);
 
   // Initialize with always-apply rules on first load
   useEffect(() => {
@@ -50,7 +47,7 @@ export const RuleSelector = ({
 
   if (isLoading) {
     return (
-      <div className={cn('border rounded-lg', compact ? 'p-3' : 'p-4')}>
+      <div className={cn("border rounded-lg", compact ? "p-3" : "p-4")}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium flex items-center gap-2">
             <span role="img" aria-label="rules">
@@ -65,14 +62,11 @@ export const RuleSelector = ({
   }
 
   return (
-    <div className={cn('border rounded-lg', compact ? 'p-3' : 'p-4')}>
+    <div className={cn("border rounded-lg", compact ? "p-3" : "p-4")}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium flex items-center gap-2">
-          <span role="img" aria-label="rules">
-            📋
-          </span>{' '}
-          {title} ({selectedRuleIds.length})
+          <span role="img" aria-label="rules">📋</span> {title} ({selectedRuleIds.length})
         </h3>
       </div>
 
@@ -106,13 +100,12 @@ export const RuleSelector = ({
           ))
         ) : (
           <p className="text-sm text-muted-foreground text-center py-4">
-            <span role="img" aria-label="info">
-              📭
-            </span>{' '}
-            No rules available for this operation
+            <span role="img" aria-label="info">📭</span> No rules available for this operation
           </p>
         )}
       </div>
+
+
     </div>
   );
 };

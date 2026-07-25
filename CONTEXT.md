@@ -15,7 +15,7 @@ The user's full set of directories and documents — not a separate datastore, b
 _Avoid_: corpus, datastore
 
 **Document**:
-User-owned source material (upload, URL import, or prompt-generated markdown) used as input for artifact generation. Distinct from artifacts: a document is _read_; an artifact is _studied_.
+User-owned source material (upload, URL import, or prompt-generated markdown) used as input for artifact generation. Distinct from artifacts: a document is *read*; an artifact is *studied*.
 _Avoid_: source doc, file (when meaning study content), content item
 
 ## Generated content
@@ -96,7 +96,7 @@ _Avoid_: capability (when meaning admin routing), artifact type (when meaning ro
 Required input/output lane for a generation route: `text`, `vision`, or `image`. Validates that the chosen provider connection supports the kind — not a routing key.
 _Avoid_: capability (when meaning the routing lane), model type, routing lane
 
-**LLM setup route** _(legacy)_:
+**LLM setup route** *(legacy)*:
 Deprecated modality-keyed route (`routes.text`, `routes.vision`, `routes.image`). Migration backfill source only — removed from admin UI in Task 14; resolver never reads after backfill.
 _Avoid_: provider type mapping, global provider selection
 

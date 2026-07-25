@@ -23,45 +23,32 @@ export const useRulesPageFilters = (rules: Rule[] | undefined) => {
       if (query) {
         const normalizedTypeQuery = query.replace(/\s+/g, '_');
         const matchesName = rule.name.toLowerCase().includes(query);
-        const matchesDescription = rule.description
-          ?.toLowerCase()
-          .includes(query);
+        const matchesDescription = rule.description?.toLowerCase().includes(query);
         const matchesContent = rule.content.toLowerCase().includes(query);
-        const matchesTags = rule.tags.some((tag) =>
-          tag.toLowerCase().includes(query),
-        );
+        const matchesTags = rule.tags.some(tag => tag.toLowerCase().includes(query));
         const matchesApplicability = rule.applicableTo.some((applicability) => {
           const label = getRuleApplicabilityLabel(applicability).toLowerCase();
 
-          return (
-            label.includes(query) ||
-            applicability.toLowerCase().includes(normalizedTypeQuery)
-          );
+          return label.includes(query) || applicability.toLowerCase().includes(normalizedTypeQuery);
         });
-
-        if (
-          !matchesName &&
-          !matchesDescription &&
-          !matchesContent &&
-          !matchesTags &&
-          !matchesApplicability
-        ) {
+        
+        if (!matchesName && !matchesDescription && !matchesContent && !matchesTags && !matchesApplicability) {
           return false;
         }
       }
 
       // Tag filter
       if (filters.tags.length > 0) {
-        const hasMatchingTag = filters.tags.some((filterTag) =>
-          rule.tags.includes(filterTag),
+        const hasMatchingTag = filters.tags.some(filterTag => 
+          rule.tags.includes(filterTag)
         );
         if (!hasMatchingTag) return false;
       }
 
       // Applicable to filter
       if (filters.applicableTo.length > 0) {
-        const hasMatchingApplicability = filters.applicableTo.some(
-          (filterApp) => rule.applicableTo.includes(filterApp),
+        const hasMatchingApplicability = filters.applicableTo.some(filterApp => 
+          rule.applicableTo.includes(filterApp)
         );
         if (!hasMatchingApplicability) return false;
       }
