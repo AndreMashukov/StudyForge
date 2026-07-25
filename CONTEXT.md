@@ -15,7 +15,7 @@ The user's full set of directories and documents — not a separate datastore, b
 _Avoid_: corpus, datastore
 
 **Document**:
-User-owned source material (upload, URL import, or prompt-generated markdown) used as input for artifact generation. Distinct from artifacts: a document is *read*; an artifact is *studied*.
+User-owned source material (upload, URL import, or prompt-generated markdown) used as input for artifact generation. Distinct from artifacts: a document is _read_; an artifact is _studied_.
 _Avoid_: source doc, file (when meaning study content), content item
 
 ## Generated content
@@ -96,7 +96,7 @@ _Avoid_: capability (when meaning admin routing), artifact type (when meaning ro
 Required input/output lane for a generation route: `text`, `vision`, or `image`. Validates that the chosen provider connection supports the kind — not a routing key.
 _Avoid_: capability (when meaning the routing lane), model type, routing lane
 
-**LLM setup route** *(legacy)*:
+**LLM setup route** _(legacy)_:
 Deprecated modality-keyed route (`routes.text`, `routes.vision`, `routes.image`). Migration backfill source only — removed from admin UI in Task 14; resolver never reads after backfill.
 _Avoid_: provider type mapping, global provider selection
 
@@ -141,6 +141,10 @@ _Avoid_: rule merge mode, inheritance setting
 **Follow-up rule**:
 Rule used for post-generation help — directory chat and per-question follow-up explanations — not for initial artifact content.
 _Avoid_: chat rule, explanation rule
+
+**Always apply**:
+Rule flag that auto-selects the rule for applicable operations (stored as `isDefault`). Deselecting the rule during an operation clears the flag; re-selecting for that operation does not turn it back on.
+_Avoid_: default rule, auto-select rule (prefer **always apply** in product copy)
 
 ## Learning & chat
 

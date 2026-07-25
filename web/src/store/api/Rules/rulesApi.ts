@@ -127,6 +127,7 @@ export const rulesApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, arg) => [
         { type: 'Rules', id: arg.ruleId },
         'Rules',
+        'DirectoryRules',
       ],
     }),
 

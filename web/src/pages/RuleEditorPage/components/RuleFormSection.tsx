@@ -43,7 +43,10 @@ export const RuleFormSection: React.FC = () => {
   };
 
   const handleTagRemove = (tag: string) => {
-    updateField('tags', formData.tags.filter((t) => t !== tag));
+    updateField(
+      'tags',
+      formData.tags.filter((t) => t !== tag),
+    );
   };
 
   const toggleApplicability = (operation: RuleApplicability) => {
@@ -72,10 +75,16 @@ export const RuleFormSection: React.FC = () => {
           onChange={(e) => updateField('name', e.target.value.slice(0, 100))}
           placeholder="DSA Code Examples"
           maxLength={100}
-          style={formErrors.name ? { ...inputStyle, borderColor: colors.destructive } : inputStyle}
+          style={
+            formErrors.name
+              ? { ...inputStyle, borderColor: colors.destructive }
+              : inputStyle
+          }
         />
         {formErrors.name && (
-          <p className="text-sm" style={{ color: colors.destructive }}>{formErrors.name}</p>
+          <p className="text-sm" style={{ color: colors.destructive }}>
+            {formErrors.name}
+          </p>
         )}
       </div>
 
@@ -108,8 +117,16 @@ export const RuleFormSection: React.FC = () => {
               onClick={() => toggleApplicability(operation)}
               style={
                 formData.applicableTo.includes(operation)
-                  ? { backgroundColor: colors.primary, color: colors.primaryForeground, borderColor: colors.primary }
-                  : { backgroundColor: colors.secondary, color: colors.secondaryForeground, borderColor: colors.border }
+                  ? {
+                      backgroundColor: colors.primary,
+                      color: colors.primaryForeground,
+                      borderColor: colors.primary,
+                    }
+                  : {
+                      backgroundColor: colors.secondary,
+                      color: colors.secondaryForeground,
+                      borderColor: colors.border,
+                    }
               }
             >
               {formData.applicableTo.includes(operation) && '✓ '}
@@ -118,7 +135,9 @@ export const RuleFormSection: React.FC = () => {
           ))}
         </div>
         {formErrors.applicableTo && (
-          <p className="text-sm" style={{ color: colors.destructive }}>{formErrors.applicableTo}</p>
+          <p className="text-sm" style={{ color: colors.destructive }}>
+            {formErrors.applicableTo}
+          </p>
         )}
       </div>
 
@@ -136,7 +155,10 @@ export const RuleFormSection: React.FC = () => {
               onClick={() => updateField('color', option.value)}
               style={
                 formData.color === option.value
-                  ? { borderColor: colors.primary, backgroundColor: `${colors.primary}15` }
+                  ? {
+                      borderColor: colors.primary,
+                      backgroundColor: `${colors.primary}15`,
+                    }
                   : { borderColor: colors.border }
               }
             >
@@ -209,10 +231,18 @@ export const RuleFormSection: React.FC = () => {
           <Textarea
             id="rule-content"
             value={formData.content}
-            onChange={(e) => updateField('content', e.target.value.slice(0, 100000))}
-            placeholder={'When generating DSA content:\n- Include Python and Java implementations\n- Add time/space complexity analysis\n- Provide step-by-step walkthrough'}
+            onChange={(e) =>
+              updateField('content', e.target.value.slice(0, 100000))
+            }
+            placeholder={
+              'When generating DSA content:\n- Include Python and Java implementations\n- Add time/space complexity analysis\n- Provide step-by-step walkthrough'
+            }
             rows={10}
-            style={formErrors.content ? { ...inputStyle, borderColor: colors.destructive } : inputStyle}
+            style={
+              formErrors.content
+                ? { ...inputStyle, borderColor: colors.destructive }
+                : inputStyle
+            }
           />
         )}
         <div className="flex items-center justify-between">
@@ -220,19 +250,20 @@ export const RuleFormSection: React.FC = () => {
             Characters: {formData.content.length} / 100,000
           </span>
           {formErrors.content && (
-            <p className="text-sm" style={{ color: colors.destructive }}>{formErrors.content}</p>
+            <p className="text-sm" style={{ color: colors.destructive }}>
+              {formErrors.content}
+            </p>
           )}
         </div>
       </div>
 
-      {/* Default Rule Checkbox */}
+      {/* Always apply checkbox */}
       <Checkbox
         id="rule-isDefault"
         checked={formData.isDefault}
         onChange={(checked) => updateField('isDefault', checked)}
-        label="Set as default rule (Auto-select for applicable operations)"
+        label="Always apply"
       />
-
     </div>
   );
 };
