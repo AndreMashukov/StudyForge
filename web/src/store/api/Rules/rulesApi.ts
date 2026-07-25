@@ -4,8 +4,16 @@ import {
   resolveApplicableRulesClient,
   resolveDirectoryRulesClient,
 } from '../../../services/directoryRulesResolution';
-import { fetchRuleFromFirestore, fetchRulesFromFirestore } from '../../../services/rulesFirestore';
-import { 
+import {
+  fetchRuleFromFirestore,
+  fetchRulesFromFirestore,
+  fetchRuleTagsFromFirestore,
+} from '../../../services/rulesFirestore';
+import {
+  authRequiredError,
+  notFoundError,
+} from '../../../services/firestoreReadUtils';
+import {
   Rule,
   CreateRuleRequest,
   UpdateRuleRequest,
@@ -23,34 +31,41 @@ import {
 } from '@shared-types';
 import { GetApplicableRulesWithDefaultsResponse } from './IRulesApi';
 
+function firestoreReadError(message: string) {
+  return {
+    error: {
+      status: 'CUSTOM_ERROR' as const,
+      data: { message },
+    },
+  };
+}
+
+function getFirestoreErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  return fallback;
+}
+
 export const rulesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getRules: builder.query<Rule[], void>({
-      async queryFn(_arg, _api, _extraOptions, baseQuery) {
+      async queryFn() {
         const userId = auth.currentUser?.uid;
         if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
+          return authRequiredError();
         }
 
         try {
           const rules = await fetchRulesFromFirestore(userId);
           return { data: rules };
-        } catch (firestoreError) {
-          console.warn('Firestore rules list read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({
-            functionName: 'getRules',
-            data: {},
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          const response = fallback.data as { success: boolean; rules: Rule[] };
-          return { data: response.rules };
+        } catch (error) {
+          return firestoreReadError(
+            getFirestoreErrorMessage(
+              error,
+              'Failed to load rules from Firestore',
+            ),
+          );
         }
       },
       providesTags: ['Rules'],
@@ -58,43 +73,29 @@ export const rulesApi = baseApi.injectEndpoints({
     }),
 
     getRule: builder.query<Rule, string>({
-      async queryFn(ruleId, _api, _extraOptions, baseQuery) {
+      async queryFn(ruleId) {
         const userId = auth.currentUser?.uid;
         if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
+          return authRequiredError();
         }
 
         try {
           const rule = await fetchRuleFromFirestore(userId, ruleId);
           if (!rule) {
-            return {
-              error: {
-                status: 'CUSTOM_ERROR',
-                data: { message: 'Rule not found', code: 'NOT_FOUND' },
-              },
-            };
+            return notFoundError('Rule not found');
           }
 
           return { data: rule };
-        } catch (firestoreError) {
-          console.warn('Firestore rule read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({
-            functionName: 'getRule',
-            data: { ruleId },
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          const response = fallback.data as { success: boolean; rule: Rule };
-          return { data: response.rule };
+        } catch (error) {
+          return firestoreReadError(
+            getFirestoreErrorMessage(
+              error,
+              'Failed to load rule from Firestore',
+            ),
+          );
         }
       },
-      providesTags: (result, error, ruleId) => [
+      providesTags: (_result, _error, ruleId) => [
         { type: 'Rules', id: ruleId },
       ],
       keepUnusedDataFor: 300,
@@ -105,7 +106,11 @@ export const rulesApi = baseApi.injectEndpoints({
         functionName: 'createRule',
         data,
       }),
-      transformResponse: (response: { success: boolean; ruleId: string; rule: Rule }) => {
+      transformResponse: (response: {
+        success: boolean;
+        ruleId: string;
+        rule: Rule;
+      }) => {
         return response.rule;
       },
       invalidatesTags: ['Rules'],
@@ -119,7 +124,7 @@ export const rulesApi = baseApi.injectEndpoints({
       transformResponse: (response: { success: boolean; rule: Rule }) => {
         return response.rule;
       },
-      invalidatesTags: (result, error, arg) => [
+      invalidatesTags: (_result, _error, arg) => [
         { type: 'Rules', id: arg.ruleId },
         'Rules',
       ],
@@ -133,35 +138,42 @@ export const rulesApi = baseApi.injectEndpoints({
       transformResponse: (response: DeleteRuleResponse) => {
         return response;
       },
-      invalidatesTags: (result, error) => 
-        result?.success ? ['Rules'] : [],
+      invalidatesTags: (result) => (result?.success ? ['Rules'] : []),
     }),
 
-    attachRuleToDirectory: builder.mutation<void, AttachRuleToDirectoryRequest>({
-      query: (data) => ({
-        functionName: 'attachRuleToDirectory',
-        data,
-      }),
-      invalidatesTags: (result, error, arg) => [
-        { type: 'Rules', id: arg.ruleId },
-        'Rules',
-        'DirectoryRules',
-      ],
-    }),
+    attachRuleToDirectory: builder.mutation<void, AttachRuleToDirectoryRequest>(
+      {
+        query: (data) => ({
+          functionName: 'attachRuleToDirectory',
+          data,
+        }),
+        invalidatesTags: (_result, _error, arg) => [
+          { type: 'Rules', id: arg.ruleId },
+          'Rules',
+          'DirectoryRules',
+        ],
+      },
+    ),
 
-    detachRuleFromDirectory: builder.mutation<void, DetachRuleFromDirectoryRequest>({
+    detachRuleFromDirectory: builder.mutation<
+      void,
+      DetachRuleFromDirectoryRequest
+    >({
       query: (data) => ({
         functionName: 'detachRuleFromDirectory',
         data,
       }),
-      invalidatesTags: (result, error, arg) => [
+      invalidatesTags: (_result, _error, arg) => [
         { type: 'Rules', id: arg.ruleId },
         'Rules',
         'DirectoryRules',
       ],
     }),
 
-    bulkDeleteRules: builder.mutation<IBulkOperationResponse, IBulkDeleteRulesRequest>({
+    bulkDeleteRules: builder.mutation<
+      IBulkOperationResponse,
+      IBulkDeleteRulesRequest
+    >({
       query: (data) => ({
         functionName: 'bulkDeleteRules',
         data,
@@ -182,58 +194,39 @@ export const rulesApi = baseApi.injectEndpoints({
         result && result.succeeded > 0 ? ['Rules', 'DirectoryRules'] : [],
     }),
 
-    getDirectoryRules: builder.query<GetDirectoryRulesResponse, GetDirectoryRulesRequest>({
-      async queryFn(data, _api, _extraOptions, baseQuery) {
+    getDirectoryRules: builder.query<
+      GetDirectoryRulesResponse,
+      GetDirectoryRulesRequest
+    >({
+      async queryFn(data) {
         const userId = auth.currentUser?.uid;
         if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
+          return authRequiredError();
         }
 
         if (!data.directoryId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Directory ID is required' },
-            },
-          };
+          return firestoreReadError('Directory ID is required');
         }
 
         try {
-          const resolved = await resolveDirectoryRulesClient(userId, data.directoryId, {
-            includeAncestors: data.includeAncestors,
-          });
-          return { data: resolved };
-        } catch (firestoreError) {
-          console.warn(
-            'Firestore directory rules read failed, falling back to callable:',
-            firestoreError,
-          );
-          const fallback = await baseQuery({
-            functionName: 'getDirectoryRules',
-            data,
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          const response = fallback.data as {
-            success: boolean;
-            rules: Rule[];
-            inheritanceMap: GetDirectoryRulesResponse['inheritanceMap'];
-          };
-          return {
-            data: {
-              rules: response.rules,
-              inheritanceMap: response.inheritanceMap,
+          const resolved = await resolveDirectoryRulesClient(
+            userId,
+            data.directoryId,
+            {
+              includeAncestors: data.includeAncestors,
             },
-          };
+          );
+          return { data: resolved };
+        } catch (error) {
+          return firestoreReadError(
+            getFirestoreErrorMessage(
+              error,
+              'Failed to load directory rules from Firestore',
+            ),
+          );
         }
       },
-      providesTags: (result, error, arg) => [
+      providesTags: (_result, _error, arg) => [
         'DirectoryRules',
         { type: 'DirectoryRules', id: arg.directoryId },
       ],
@@ -244,24 +237,14 @@ export const rulesApi = baseApi.injectEndpoints({
       GetApplicableRulesWithDefaultsResponse,
       GetApplicableRulesRequest
     >({
-      async queryFn(data, _api, _extraOptions, baseQuery) {
+      async queryFn(data) {
         const userId = auth.currentUser?.uid;
         if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
+          return authRequiredError();
         }
 
         if (!data.directoryId || !data.operation) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Directory ID and operation are required' },
-            },
-          };
+          return firestoreReadError('Directory ID and operation are required');
         }
 
         try {
@@ -271,69 +254,73 @@ export const rulesApi = baseApi.injectEndpoints({
             data.operation,
           );
           return { data: resolved };
-        } catch (firestoreError) {
-          console.warn(
-            'Firestore applicable rules read failed, falling back to callable:',
-            firestoreError,
+        } catch (error) {
+          return firestoreReadError(
+            getFirestoreErrorMessage(
+              error,
+              'Failed to load applicable rules from Firestore',
+            ),
           );
-          const fallback = await baseQuery({
-            functionName: 'getApplicableRules',
-            data,
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          const response = fallback.data as {
-            success: boolean;
-            rules: Rule[];
-            defaultRuleIds: string[];
-          };
-          return {
-            data: {
-              rules: response.rules,
-              defaultRuleIds: response.defaultRuleIds,
-            },
-          };
         }
       },
-      providesTags: (result, error, arg) => [
+      providesTags: (_result, _error, arg) => [
         'DirectoryRules',
         { type: 'DirectoryRules', id: `${arg.directoryId}-${arg.operation}` },
       ],
       keepUnusedDataFor: 300,
     }),
 
-    formatRulesForPrompt: builder.mutation<string, FormatRulesForPromptRequest>({
-      query: (data) => ({
-        functionName: 'formatRulesForPrompt',
-        data,
-      }),
-      transformResponse: (response: { success: boolean; formattedRules: string }) => {
-        return response.formattedRules;
+    formatRulesForPrompt: builder.mutation<string, FormatRulesForPromptRequest>(
+      {
+        query: (data) => ({
+          functionName: 'formatRulesForPrompt',
+          data,
+        }),
+        transformResponse: (response: {
+          success: boolean;
+          formattedRules: string;
+        }) => {
+          return response.formattedRules;
+        },
       },
-    }),
+    ),
 
     getRuleTags: builder.query<string[], void>({
-      query: () => ({
-        functionName: 'getRuleTags',
-        data: {},
-      }),
-      transformResponse: (response: { success: boolean; tags: string[] }) => {
-        return response.tags;
+      async queryFn() {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          return authRequiredError();
+        }
+
+        try {
+          const tags = await fetchRuleTagsFromFirestore(userId);
+          return { data: tags };
+        } catch (error) {
+          return firestoreReadError(
+            getFirestoreErrorMessage(
+              error,
+              'Failed to load rule tags from Firestore',
+            ),
+          );
+        }
       },
       providesTags: ['Rules'],
+      keepUnusedDataFor: 300,
     }),
 
-    generateRuleWithAI: builder.mutation<{
-      name: string;
-      description: string;
-      content: string;
-    }, {
-      topic: string;
-      description?: string;
-      applicableTo?: string[];
-      existingContent?: string;
-    }>({
+    generateRuleWithAI: builder.mutation<
+      {
+        name: string;
+        description: string;
+        content: string;
+      },
+      {
+        topic: string;
+        description?: string;
+        applicableTo?: string[];
+        existingContent?: string;
+      }
+    >({
       query: (data) => ({
         functionName: 'generateRuleWithAI',
         data,
