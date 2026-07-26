@@ -53,14 +53,17 @@ export const CompactRuleSelector = ({
   ]);
 
   const handleToggle = (ruleId: string) => {
+    const rule = rules.find((r) => r.id === ruleId);
     if (selectedRuleIds.includes(ruleId)) {
       onSelectionChange(selectedRuleIds.filter((id) => id !== ruleId));
-      const rule = rules.find((r) => r.id === ruleId);
       if (rule?.isDefault) {
         void updateRule({ ruleId, isDefault: false });
       }
     } else {
       onSelectionChange([...selectedRuleIds, ruleId]);
+      if (rule && !rule.isDefault) {
+        void updateRule({ ruleId, isDefault: true });
+      }
     }
   };
 
