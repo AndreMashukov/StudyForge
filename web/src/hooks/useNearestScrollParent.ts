@@ -34,7 +34,7 @@ export function measureScrollMargin(
 export function useNearestScrollParent(
   elementRef: RefObject<HTMLElement | null>,
   enabled: boolean,
-  remountKey?: unknown,
+  remountKey?: string | number | boolean,
 ): { scrollElement: HTMLElement | null; scrollMargin: number } {
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
   const [scrollMargin, setScrollMargin] = useState(0);

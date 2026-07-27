@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentsPageContext } from '../context/hooks/useDocumentsPageContext';
@@ -106,6 +106,111 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     (isLoadingTree && !treeData) &&
     (isLoadingContents && !directoryContents);
   const error = contentsError;
+
+  const renderFolderCard = useCallback(
+    (dir: Directory) => (
+      <FolderCard
+        directory={dir}
+        onClick={() => handlers.handleSelectDirectory(dir.id, dir.name)}
+        onEdit={() => setEditDialog({ open: true, directory: dir })}
+        onDelete={() => setDeleteDialog({ open: true, directory: dir })}
+        onMove={() => setMoveDialog({ directory: dir })}
+        onManageRules={() => navigate(`/directories/${dir.id}/rules`)}
+      />
+    ),
+    [handlers, navigate],
+  );
+
+  const renderDocumentCard = useCallback(
+    (document: DocumentEnhanced) => (
+      <Card
+        className={cn(documentsPageStyles.documentCard + ' border-l-[4px]')}
+        style={{ borderLeftColor: document.color ?? getDocumentFallbackColor(document.id) }}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-base md:text-lg truncate">{document.title}</CardTitle>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-2">
+                <span className="flex items-center gap-1">
+                  <FileText size={14} />
+                  {document.wordCount} words
+                </span>
+                <span className="flex items-center gap-1">
+                  <Calendar size={14} />
+                  {formatDate(document.createdAt)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md text-xs">
+                {document.sourceType === 'url' ? '🌐 URL' : '📁 Upload'}
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
+              {document.description || `Document with ${document.wordCount} words`}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handlers.handleViewDocument(document.id)}
+                aria-label="View document"
+              >
+                <Eye size={16} />
+              </Button>
+              <ActionsDropdown
+                items={[
+                  {
+                    id: 'create-quiz',
+                    label: 'Create Quiz',
+                    icon: <Brain size={14} />,
+                    onClick: () =>
+                      handlers.handleCreateQuizFromDocument(document.id, document.directoryId),
+                  },
+                  {
+                    id: 'generate-flashcards',
+                    label: 'Generate Flashcards',
+                    icon: <Layers size={14} />,
+                    onClick: () =>
+                      handlers.handleGenerateFlashcardsFromDocument(
+                        document.id,
+                        document.directoryId,
+                      ),
+                  },
+                  {
+                    id: 'generate-slide-deck',
+                    label: 'Generate Slide Deck',
+                    icon: <Presentation size={14} />,
+                    onClick: () =>
+                      handlers.handleGenerateSlideDeckFromDocument(
+                        document.id,
+                        document.directoryId,
+                      ),
+                  },
+                ]}
+                className="flex-1 w-full sm:w-auto"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handlers.handleDeleteDocument(document.id)}
+                className="text-destructive hover:text-destructive"
+                aria-label="Delete document"
+              >
+                <Trash2 size={16} />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    ),
+    [handlers],
+  );
 
   if (isInitialLoading) {
     return (
@@ -299,15 +404,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                     {isRoot ? (
                       <div className={documentsPageStyles.documentsGrid}>
                         {subdirectories.map((dir: Directory) => (
-                          <FolderCard
-                            key={dir.id}
-                            directory={dir}
-                            onClick={() => handlers.handleSelectDirectory(dir.id, dir.name)}
-                            onEdit={() => setEditDialog({ open: true, directory: dir })}
-                            onDelete={() => setDeleteDialog({ open: true, directory: dir })}
-                            onMove={() => setMoveDialog({ directory: dir })}
-                            onManageRules={() => navigate(`/directories/${dir.id}/rules`)}
-                          />
+                          <React.Fragment key={dir.id}>{renderFolderCard(dir)}</React.Fragment>
                         ))}
                       </div>
                     ) : (
@@ -317,17 +414,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                         scrollMode="window"
                         estimateRowSize={140}
                         gap={16}
-                        renderItem={(dir: Directory) => (
-                          <FolderCard
-                            key={dir.id}
-                            directory={dir}
-                            onClick={() => handlers.handleSelectDirectory(dir.id, dir.name)}
-                            onEdit={() => setEditDialog({ open: true, directory: dir })}
-                            onDelete={() => setDeleteDialog({ open: true, directory: dir })}
-                            onMove={() => setMoveDialog({ directory: dir })}
-                            onManageRules={() => navigate(`/directories/${dir.id}/rules`)}
-                          />
-                        )}
+                        renderItem={renderFolderCard}
                       />
                     )}
                   </div>
@@ -344,83 +431,9 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                     {isRoot ? (
                       <div className={documentsPageStyles.documentsGrid}>
                         {documents.map((document: DocumentEnhanced) => (
-                          <Card
-                            key={document.id}
-                            className={cn(documentsPageStyles.documentCard + ' border-l-[4px]')}
-                            style={{ borderLeftColor: document.color ?? getDocumentFallbackColor(document.id) }}
-                          >
-                            <CardHeader className="pb-3">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <CardTitle className="text-base md:text-lg truncate">{document.title}</CardTitle>
-                                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-2">
-                                    <span className="flex items-center gap-1">
-                                      <FileText size={14} />
-                                      {document.wordCount} words
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <Calendar size={14} />
-                                      {formatDate(document.createdAt)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-3">
-                                <div className="text-sm text-muted-foreground">
-                                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md text-xs">
-                                    {document.sourceType === 'url' ? '🌐 URL' : '📁 Upload'}
-                                  </span>
-                                </div>
-                                <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
-                                  {document.description || `Document with ${document.wordCount} words`}
-                                </p>
-                                <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                                  <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => handlers.handleViewDocument(document.id)}
-                                    aria-label="View document"
-                                  >
-                                    <Eye size={16} />
-                                  </Button>
-                                  <ActionsDropdown
-                                    items={[
-                                      {
-                                        id: 'create-quiz',
-                                        label: 'Create Quiz',
-                                        icon: <Brain size={14} />,
-                                        onClick: () => handlers.handleCreateQuizFromDocument(document.id, document.directoryId),
-                                      },
-                                      {
-                                        id: 'generate-flashcards',
-                                        label: 'Generate Flashcards',
-                                        icon: <Layers size={14} />,
-                                        onClick: () => handlers.handleGenerateFlashcardsFromDocument(document.id, document.directoryId),
-                                      },
-                                      {
-                                        id: 'generate-slide-deck',
-                                        label: 'Generate Slide Deck',
-                                        icon: <Presentation size={14} />,
-                                        onClick: () => handlers.handleGenerateSlideDeckFromDocument(document.id, document.directoryId),
-                                      },
-                                    ]}
-                                    className="flex-1 w-full sm:w-auto"
-                                  />
-                                  <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => handlers.handleDeleteDocument(document.id)}
-                                    className="text-destructive hover:text-destructive"
-                                    aria-label="Delete document"
-                                  >
-                                    <Trash2 size={16} />
-                                  </Button>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
+                          <React.Fragment key={document.id}>
+                            {renderDocumentCard(document)}
+                          </React.Fragment>
                         ))}
                       </div>
                     ) : (
@@ -430,85 +443,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                         scrollMode="window"
                         estimateRowSize={320}
                         gap={16}
-                        renderItem={(document: DocumentEnhanced) => (
-                          <Card
-                            key={document.id}
-                            className={cn(documentsPageStyles.documentCard + ' border-l-[4px]')}
-                            style={{ borderLeftColor: document.color ?? getDocumentFallbackColor(document.id) }}
-                          >
-                            <CardHeader className="pb-3">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <CardTitle className="text-base md:text-lg truncate">{document.title}</CardTitle>
-                                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-2">
-                                    <span className="flex items-center gap-1">
-                                      <FileText size={14} />
-                                      {document.wordCount} words
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <Calendar size={14} />
-                                      {formatDate(document.createdAt)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-3">
-                                <div className="text-sm text-muted-foreground">
-                                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md text-xs">
-                                    {document.sourceType === 'url' ? '🌐 URL' : '📁 Upload'}
-                                  </span>
-                                </div>
-                                <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
-                                  {document.description || `Document with ${document.wordCount} words`}
-                                </p>
-                                <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                                  <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => handlers.handleViewDocument(document.id)}
-                                    aria-label="View document"
-                                  >
-                                    <Eye size={16} />
-                                  </Button>
-                                  <ActionsDropdown
-                                    items={[
-                                      {
-                                        id: 'create-quiz',
-                                        label: 'Create Quiz',
-                                        icon: <Brain size={14} />,
-                                        onClick: () => handlers.handleCreateQuizFromDocument(document.id, document.directoryId),
-                                      },
-                                      {
-                                        id: 'generate-flashcards',
-                                        label: 'Generate Flashcards',
-                                        icon: <Layers size={14} />,
-                                        onClick: () => handlers.handleGenerateFlashcardsFromDocument(document.id, document.directoryId),
-                                      },
-                                      {
-                                        id: 'generate-slide-deck',
-                                        label: 'Generate Slide Deck',
-                                        icon: <Presentation size={14} />,
-                                        onClick: () => handlers.handleGenerateSlideDeckFromDocument(document.id, document.directoryId),
-                                      },
-                                    ]}
-                                    className="flex-1 w-full sm:w-auto"
-                                  />
-                                  <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => handlers.handleDeleteDocument(document.id)}
-                                    className="text-destructive hover:text-destructive"
-                                    aria-label="Delete document"
-                                  >
-                                    <Trash2 size={16} />
-                                  </Button>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
+                        renderItem={renderDocumentCard}
                       />
                     )}
                   </div>

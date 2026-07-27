@@ -70,7 +70,7 @@ export function VirtualizedGrid<T>({
   const { scrollElement, scrollMargin } = useNearestScrollParent(
     gridRef,
     isPageScroll,
-    [leadingContent, columns],
+    `${columns}:${leadingContent != null}`,
   );
 
   const rowCount = getVirtualRowCount(items.length, columns, hasMore, isLoadingMore, loadError);

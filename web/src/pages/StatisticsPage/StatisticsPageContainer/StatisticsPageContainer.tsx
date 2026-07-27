@@ -52,37 +52,41 @@ const QuizPerformanceTable = ({ quizzes }: { quizzes: StatisticsQuizPerformanceI
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="overflow-x-auto border-b bg-muted/30 text-left text-xs uppercase text-muted-foreground">
-          <div className="grid min-w-[720px] grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] px-4 py-3 font-medium">
-            <span>Quiz</span>
-            <span>Accuracy</span>
-            <span>Failed</span>
-            <span>Explanations</span>
-            <span>Last attempt</span>
+        <div className="overflow-x-auto">
+          <div className="min-w-[720px]">
+            <div className="border-b bg-muted/30 text-left text-xs uppercase text-muted-foreground">
+              <div className="grid grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] px-4 py-3 font-medium">
+                <span>Quiz</span>
+                <span>Accuracy</span>
+                <span>Failed</span>
+                <span>Explanations</span>
+                <span>Last attempt</span>
+              </div>
+            </div>
+            <VirtualizedList
+              items={quizzes}
+              scrollMode="window"
+              estimateSize={88}
+              renderItem={(quiz) => (
+                <div className="grid grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] border-b border-border/60 px-4 py-3 text-sm last:border-0">
+                  <div>
+                    <Link className="font-medium text-foreground hover:text-primary" to={detailQuizPath(quiz.quizType, quiz.quizId)}>
+                      {quiz.quizTitle || 'Untitled quiz'}
+                    </Link>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">{quizTypeLabel(quiz.quizType)}</Badge>
+                      <span className="text-xs text-muted-foreground">{quiz.attemptCount} attempts</span>
+                    </div>
+                  </div>
+                  <div className="font-semibold">{formatPercentage(quiz.accuracyPercentage)}</div>
+                  <div>{formatInteger(quiz.incorrectAnswerCount)}</div>
+                  <div>{formatInteger(quiz.explanationRequestCount)}</div>
+                  <div className="text-muted-foreground">{formatDateTime(quiz.lastAttemptAt)}</div>
+                </div>
+              )}
+            />
           </div>
         </div>
-        <VirtualizedList
-          items={quizzes}
-          scrollMode="window"
-          estimateSize={88}
-          renderItem={(quiz) => (
-            <div className="grid min-w-[720px] grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] border-b border-border/60 px-4 py-3 text-sm last:border-0">
-              <div>
-                <Link className="font-medium text-foreground hover:text-primary" to={detailQuizPath(quiz.quizType, quiz.quizId)}>
-                  {quiz.quizTitle || 'Untitled quiz'}
-                </Link>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">{quizTypeLabel(quiz.quizType)}</Badge>
-                  <span className="text-xs text-muted-foreground">{quiz.attemptCount} attempts</span>
-                </div>
-              </div>
-              <div className="font-semibold">{formatPercentage(quiz.accuracyPercentage)}</div>
-              <div>{formatInteger(quiz.incorrectAnswerCount)}</div>
-              <div>{formatInteger(quiz.explanationRequestCount)}</div>
-              <div className="text-muted-foreground">{formatDateTime(quiz.lastAttemptAt)}</div>
-            </div>
-          )}
-        />
       </CardContent>
     </Card>
   );

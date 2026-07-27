@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DocumentEnhanced } from '@shared-types';
 import {
   IGetUserDocumentsArgs,
@@ -36,6 +36,10 @@ function mergeDocuments(
   return merged;
 }
 
+function buildQueryKey(directoryId: string | undefined, limit: number | undefined): string {
+  return `${directoryId ?? ''}:${limit ?? ''}`;
+}
+
 /**
  * Accumulates paginated user documents using existing getUserDocuments cursors.
  */
@@ -64,8 +68,10 @@ export function usePaginatedUserDocuments(
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const queryKeyRef = useRef(buildQueryKey(queryArgs.directoryId, queryArgs.limit));
 
   useEffect(() => {
+    queryKeyRef.current = buildQueryKey(queryArgs.directoryId, queryArgs.limit);
     setExtraDocuments([]);
     setNextCursor(undefined);
     setHasMore(false);
@@ -90,6 +96,8 @@ export function usePaginatedUserDocuments(
       return;
     }
 
+    const requestKey = buildQueryKey(queryArgs.directoryId, queryArgs.limit);
+
     setIsLoadingMore(true);
     setLoadError(null);
 
@@ -98,6 +106,10 @@ export function usePaginatedUserDocuments(
         ...queryArgs,
         cursor: nextCursor,
       }).unwrap();
+
+      if (queryKeyRef.current !== requestKey) {
+        return;
+      }
 
       setExtraDocuments((previous) => {
         const existingIds = new Set([
@@ -110,11 +122,16 @@ export function usePaginatedUserDocuments(
       setHasMore(result.hasMore);
       setNextCursor(result.nextCursor);
     } catch (loadMoreError) {
+      if (queryKeyRef.current !== requestKey) {
+        return;
+      }
       setLoadError(
         loadMoreError instanceof Error ? loadMoreError.message : 'Failed to load more documents',
       );
     } finally {
-      setIsLoadingMore(false);
+      if (queryKeyRef.current === requestKey) {
+        setIsLoadingMore(false);
+      }
     }
   }, [hasMore, isLoadingMore, nextCursor, fetchMore, queryArgs, data?.documents]);
 

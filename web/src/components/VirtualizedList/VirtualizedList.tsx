@@ -1,9 +1,16 @@
-import React, { useRef } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from '../../lib/utils';
 import { useAutoLoadMore } from '../../hooks/useAutoLoadMore';
 import { useNearestScrollParent } from '../../hooks/useNearestScrollParent';
 import { VirtualizedLoadStateRow } from './VirtualizedLoadStateRow';
+
+export interface IVirtualizedListHandle {
+  scrollToIndex: (
+    index: number,
+    options?: { align?: 'auto' | 'start' | 'center' | 'end'; behavior?: ScrollBehavior },
+  ) => void;
+}
 
 export interface IVirtualizedListProps<T> {
   items: T[];
@@ -45,24 +52,27 @@ function isLoadStateIndex(index: number, itemCount: number): boolean {
   return index >= itemCount;
 }
 
-export function VirtualizedList<T>({
-  items,
-  renderItem,
-  estimateSize = 72,
-  gap = 8,
-  overscan = 8,
-  scrollMode = 'container',
-  className,
-  containerClassName,
-  listClassName,
-  hasMore = false,
-  isLoadingMore = false,
-  loadMore,
-  loadError = null,
-  onRetryLoad,
-  leadingContent,
-  trailingContent,
-}: IVirtualizedListProps<T>): React.JSX.Element {
+function VirtualizedListInner<T>(
+  {
+    items,
+    renderItem,
+    estimateSize = 72,
+    gap = 8,
+    overscan = 8,
+    scrollMode = 'container',
+    className,
+    containerClassName,
+    listClassName,
+    hasMore = false,
+    isLoadingMore = false,
+    loadMore,
+    loadError = null,
+    onRetryLoad,
+    leadingContent,
+    trailingContent,
+  }: IVirtualizedListProps<T>,
+  ref: React.ForwardedRef<IVirtualizedListHandle>,
+): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const isPageScroll = scrollMode === 'window';
@@ -70,7 +80,7 @@ export function VirtualizedList<T>({
   const { scrollElement, scrollMargin } = useNearestScrollParent(
     listRef,
     isPageScroll,
-    leadingContent,
+    leadingContent != null,
   );
 
   const itemCount = items.length;
@@ -86,6 +96,19 @@ export function VirtualizedList<T>({
     scrollMargin: isPageScroll ? scrollMargin : 0,
     enabled: isPageScroll ? scrollElement != null : true,
   });
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToIndex: (index, options) => {
+        virtualizer.scrollToIndex(index, {
+          align: options?.align ?? 'center',
+          behavior: options?.behavior,
+        });
+      },
+    }),
+    [virtualizer],
+  );
 
   const virtualItems = virtualizer.getVirtualItems();
 
@@ -152,3 +175,7 @@ export function VirtualizedList<T>({
     </div>
   );
 }
+
+export const VirtualizedList = forwardRef(VirtualizedListInner) as <T>(
+  props: IVirtualizedListProps<T> & { ref?: React.Ref<IVirtualizedListHandle> },
+) => React.ReactElement;

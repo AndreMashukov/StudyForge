@@ -3,7 +3,7 @@ import { BookOpen, FileText, AlertTriangle, Calendar } from 'lucide-react';
 import { DocumentEnhanced } from '@shared-types';
 import { Button } from '../ui/Button';
 import { Checkbox } from '../ui/Checkbox';
-import { VirtualizedList } from '../VirtualizedList';
+import { VirtualizedList, type IVirtualizedListHandle } from '../VirtualizedList';
 import { IDocumentSelector } from './IDocumentSelector';
 import { documentSelectorStyles } from './DocumentSelector.styles';
 import { cn } from '../../lib/utils';
@@ -26,6 +26,7 @@ export const DocumentSelector = ({
 }: IDocumentSelector) => {
   const isSingleSelect = maxSelections === 1;
   const hasScrolledRef = useRef(false);
+  const listRef = useRef<IVirtualizedListHandle>(null);
 
   useEffect(() => {
     if (hasScrolledRef.current || selectedDocumentIds.length === 0 || documents.length === 0) {
@@ -33,11 +34,13 @@ export const DocumentSelector = ({
     }
 
     const selectedId = selectedDocumentIds[0];
-    const selectedElement = document.querySelector(`[data-document-id="${selectedId}"]`);
-    if (selectedElement) {
-      selectedElement.scrollIntoView({ block: 'center' });
-      hasScrolledRef.current = true;
+    const selectedIndex = documents.findIndex((doc) => doc.id === selectedId);
+    if (selectedIndex < 0) {
+      return;
     }
+
+    listRef.current?.scrollToIndex(selectedIndex, { align: 'center' });
+    hasScrolledRef.current = true;
   }, [selectedDocumentIds, documents]);
 
   const effectiveCanSelectMore =
@@ -166,6 +169,7 @@ export const DocumentSelector = ({
   return (
     <div className={cn(documentSelectorStyles.container, className)}>
       <VirtualizedList
+        ref={listRef}
         items={documents}
         scrollMode="container"
         containerClassName={documentSelectorStyles.scrollContainer}

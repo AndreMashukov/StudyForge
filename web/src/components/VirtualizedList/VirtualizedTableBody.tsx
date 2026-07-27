@@ -88,7 +88,7 @@ export function VirtualizedTableBody<T>({
 
     if (isLoadState) {
       return (
-        <tr key={virtualItem.key} aria-hidden="true">
+        <tr key={virtualItem.key}>
           <td colSpan={1000} className="p-0">
             <div
               data-index={virtualItem.index}
