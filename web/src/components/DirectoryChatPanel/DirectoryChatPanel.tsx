@@ -31,6 +31,7 @@ import {
 import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
 import { IDirectoryChatPanel } from './IDirectoryChatPanel';
+import { DirectoryChatSourceSelector } from './DirectoryChatSourceSelector';
 
 const MAX_MESSAGE_LENGTH = 4000;
 /** Matches TopAppBar `h-12` and Sidebar `top-12`. */
@@ -142,8 +143,12 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
     useSendDirectoryChatMessageMutation();
 
   const hasLoadError = Boolean(error);
-  const effectiveSourceCount = data?.documentCount ?? sourceCount;
-  const canChat = effectiveSourceCount > 0;
+  const totalSourceCount = data?.documentCount ?? sourceCount;
+  const selectedSourceIds = data?.selectedDocumentIds ?? [];
+  const availableSources = data?.sources ?? [];
+  const selectedSourceCount = selectedSourceIds.length;
+  const hasDirectorySources = totalSourceCount > 0;
+  const canChat = hasDirectorySources && selectedSourceCount > 0;
 
   useEffect(() => {
     if (data?.messages) {
@@ -260,8 +265,11 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
         <MessageSquare size={18} className="shrink-0 text-primary" />
         <span className="text-sm font-semibold">Chat</span>
         <span className="text-xs text-muted-foreground">
-          {effectiveSourceCount}{' '}
-          {effectiveSourceCount === 1 ? 'source' : 'sources'}
+          {hasDirectorySources
+            ? `${selectedSourceCount}/${totalSourceCount} ${
+                totalSourceCount === 1 ? 'source' : 'sources'
+              }`
+            : 'No sources'}
         </span>
         <ChevronUp size={16} className="ml-1 text-muted-foreground" />
       </button>
@@ -298,10 +306,14 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
           <MessageSquare size={18} className="shrink-0 text-primary" />
           <div className="min-w-0">
             <h2 className="truncate text-base font-semibold">Chat</h2>
-            <p className="text-xs text-muted-foreground">
-              {effectiveSourceCount}{' '}
-              {effectiveSourceCount === 1 ? 'source' : 'sources'} in scope
-            </p>
+            <DirectoryChatSourceSelector
+              directoryId={directoryId}
+              sources={availableSources}
+              selectedDocumentIds={selectedSourceIds}
+              totalSourceCount={totalSourceCount}
+              disabled={!hasDirectorySources || isLoading}
+              className="mt-0.5"
+            />
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -349,7 +361,13 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
           </div>
         )}
 
-        {!hasLoadError && !canChat && !isLoading && (
+        {!hasLoadError && hasDirectorySources && !canChat && !isLoading && (
+          <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+            Select at least one source to start chatting.
+          </div>
+        )}
+
+        {!hasLoadError && !hasDirectorySources && !isLoading && (
           <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
             Add a source to this directory to start chatting.
           </div>
@@ -424,7 +442,9 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
           placeholder={
             canChat
               ? 'Ask about this directory...'
-              : 'Add a source before chatting'
+              : hasDirectorySources
+                ? 'Select at least one source before chatting'
+                : 'Add a source before chatting'
           }
           rows={compact ? 2 : 3}
           maxLength={MAX_MESSAGE_LENGTH}

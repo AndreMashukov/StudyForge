@@ -1350,6 +1350,11 @@ export interface DirectoryChatPromptContext {
   artifactContext?: DirectoryChatArtifactContext;
 }
 
+export interface DirectoryChatSourceSummary {
+  id: string;
+  title: string;
+}
+
 export interface GetDirectoryChatRequest {
   directoryId: string;
 }
@@ -1357,6 +1362,8 @@ export interface GetDirectoryChatRequest {
 export interface GetDirectoryChatResponse {
   directoryId: string;
   documentCount: number;
+  selectedDocumentIds: string[];
+  sources: DirectoryChatSourceSummary[];
   messages: DirectoryChatMessage[];
   summary?: string;
 }
@@ -1371,10 +1378,24 @@ export interface SendDirectoryChatMessageRequest {
 export interface SendDirectoryChatMessageResponse {
   directoryId: string;
   documentCount: number;
+  selectedDocumentIds: string[];
+  sources: DirectoryChatSourceSummary[];
   userMessage: DirectoryChatMessage;
   assistantMessage?: DirectoryChatMessage;
   messages: DirectoryChatMessage[];
   summary?: string;
+}
+
+export interface UpdateDirectoryChatSourcesRequest {
+  directoryId: string;
+  selectedDocumentIds: string[];
+}
+
+export interface UpdateDirectoryChatSourcesResponse {
+  directoryId: string;
+  documentCount: number;
+  selectedDocumentIds: string[];
+  sources: DirectoryChatSourceSummary[];
 }
 
 // Auth Types

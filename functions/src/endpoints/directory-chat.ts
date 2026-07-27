@@ -6,6 +6,8 @@ import {
   GetDirectoryChatResponse,
   SendDirectoryChatMessageRequest,
   SendDirectoryChatMessageResponse,
+  UpdateDirectoryChatSourcesRequest,
+  UpdateDirectoryChatSourcesResponse,
 } from '@shared-types';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
 import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
@@ -80,6 +82,40 @@ export const sendDirectoryChatMessage = onCall(
       );
     } catch (error) {
       logger.error('Failed to send directory chat message', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+);
+
+export const updateDirectoryChatSources = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
+  async (request): Promise<UpdateDirectoryChatSourcesResponse> => {
+    try {
+      const userId = await validateAuth(request);
+      const data = request.data as UpdateDirectoryChatSourcesRequest;
+
+      if (!data.directoryId) {
+        throw new HttpsError('invalid-argument', 'directoryId is required');
+      }
+
+      if (!Array.isArray(data.selectedDocumentIds)) {
+        throw new HttpsError('invalid-argument', 'selectedDocumentIds is required');
+      }
+
+      return DirectoryChatService.updateSelectedSources(
+        userId,
+        data.directoryId,
+        data.selectedDocumentIds
+      );
+    } catch (error) {
+      logger.error('Failed to update directory chat sources', {
         error: error instanceof Error ? error.message : String(error),
       });
 

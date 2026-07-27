@@ -23,11 +23,11 @@ export interface DirectoryChatContextAssemblerParams {
   previousMessages: DirectoryChatMessage[];
   conversationSummary?: string;
   artifactContext?: DirectoryChatArtifactContext;
+  selectedDocumentIds: string[];
 }
 
 export interface DirectoryChatContextAssemblerResult {
   promptContext: DirectoryChatPromptContext;
-  documentCount: number;
 }
 
 export class DirectoryChatContextAssembler {
@@ -36,10 +36,14 @@ export class DirectoryChatContextAssembler {
   ) {}
 
   async assemble(params: DirectoryChatContextAssemblerParams): Promise<DirectoryChatContextAssemblerResult> {
-    const documents = await this.loadDirectDirectoryDocuments(params.userId, params.directory.id);
+    const documents = await this.loadDirectDirectoryDocuments(
+      params.userId,
+      params.directory.id,
+      params.selectedDocumentIds
+    );
 
     if (documents.length === 0) {
-      throw new Error('Add a source to this directory before starting chat.');
+      throw new Error('Select at least one source for chat.');
     }
 
     const followupRuleIds = this.getFollowupRuleIds(params.artifactContext);
@@ -67,7 +71,6 @@ export class DirectoryChatContextAssembler {
     ]);
 
     return {
-      documentCount: documents.length,
       promptContext: {
         directoryName: params.directory.name,
         userMessage: params.message,
@@ -92,13 +95,20 @@ export class DirectoryChatContextAssembler {
     return artifactContext.followupRuleIds;
   }
 
-  private async loadDirectDirectoryDocuments(userId: string, directoryId: string): Promise<DirectoryChatSourceDocument[]> {
+  private async loadDirectDirectoryDocuments(
+    userId: string,
+    directoryId: string,
+    selectedDocumentIds: string[]
+  ): Promise<DirectoryChatSourceDocument[]> {
+    const selectedIds = new Set(selectedDocumentIds);
     const docsSnapshot = await FirestorePaths.documents(userId)
       .where('directoryId', '==', directoryId)
       .get();
 
+    const selectedDocs = docsSnapshot.docs.filter((docSnapshot) => selectedIds.has(docSnapshot.id));
+
     return Promise.all(
-      docsSnapshot.docs.map(async (docSnapshot) => {
+      selectedDocs.map(async (docSnapshot) => {
         const document = await DocumentCrudService.getDocumentWithContent(userId, docSnapshot.id);
         return {
           id: document.id,
