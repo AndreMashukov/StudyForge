@@ -5,7 +5,6 @@ import {
   DirectoryChatPromptContext,
   RuleApplicability,
 } from '@shared-types';
-import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { resolveEffectiveRules } from './rule-resolution';
 import {
@@ -36,9 +35,8 @@ export class DirectoryChatContextAssembler {
   ) {}
 
   async assemble(params: DirectoryChatContextAssemblerParams): Promise<DirectoryChatContextAssemblerResult> {
-    const documents = await this.loadDirectDirectoryDocuments(
+    const documents = await this.loadSelectedDocuments(
       params.userId,
-      params.directory.id,
       params.selectedDocumentIds
     );
 
@@ -95,21 +93,13 @@ export class DirectoryChatContextAssembler {
     return artifactContext.followupRuleIds;
   }
 
-  private async loadDirectDirectoryDocuments(
+  private async loadSelectedDocuments(
     userId: string,
-    directoryId: string,
     selectedDocumentIds: string[]
   ): Promise<DirectoryChatSourceDocument[]> {
-    const selectedIds = new Set(selectedDocumentIds);
-    const docsSnapshot = await FirestorePaths.documents(userId)
-      .where('directoryId', '==', directoryId)
-      .get();
-
-    const selectedDocs = docsSnapshot.docs.filter((docSnapshot) => selectedIds.has(docSnapshot.id));
-
     return Promise.all(
-      selectedDocs.map(async (docSnapshot) => {
-        const document = await DocumentCrudService.getDocumentWithContent(userId, docSnapshot.id);
+      selectedDocumentIds.map(async (documentId) => {
+        const document = await DocumentCrudService.getDocumentWithContent(userId, documentId);
         return {
           id: document.id,
           title: document.title,

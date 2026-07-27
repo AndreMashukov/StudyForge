@@ -32,6 +32,8 @@ interface DirectoryChatSourceState {
   documentCount: number;
 }
 
+type ThreadDocumentData = FirebaseFirestore.DocumentData | undefined;
+
 export class DirectoryChatService {
   private static readonly contextAssembler = new DirectoryChatContextAssembler();
 
@@ -41,11 +43,13 @@ export class DirectoryChatService {
       throw new Error('Directory not found');
     }
 
-    const [messages, summary, sourceState] = await Promise.all([
+    const [messages, threadSnapshot] = await Promise.all([
       this.getMessages(userId, directoryId),
-      this.getSummary(userId, directoryId),
-      this.resolveSourceState(userId, directoryId),
+      FirestorePaths.directoryChatThread(userId, directoryId).get(),
     ]);
+    const threadData = threadSnapshot.data();
+    const summary = this.extractSummary(threadData);
+    const sourceState = await this.resolveSourceState(userId, directoryId, threadData);
 
     return {
       directoryId,
@@ -110,7 +114,10 @@ export class DirectoryChatService {
       throw new Error('Directory not found');
     }
 
-    const sourceState = await this.resolveSourceState(userId, directoryId);
+    const threadSnapshot = await FirestorePaths.directoryChatThread(userId, directoryId).get();
+    const threadData = threadSnapshot.data();
+    const summary = this.extractSummary(threadData);
+    const sourceState = await this.resolveSourceState(userId, directoryId, threadData);
 
     if (sourceState.selectedDocumentIds.length === 0) {
       throw new Error('Select at least one source for chat.');
@@ -119,10 +126,7 @@ export class DirectoryChatService {
     if (seedKey) {
       const existing = await this.findSeededMessage(userId, directoryId, seedKey);
       if (existing) {
-        const [messages, summary] = await Promise.all([
-          this.getMessages(userId, directoryId),
-          this.getSummary(userId, directoryId),
-        ]);
+        const messages = await this.getMessages(userId, directoryId);
         const existingIndex = messages.findIndex((item) => item.id === existing.id);
         const assistantMessage = existingIndex >= 0
           ? messages.slice(existingIndex + 1).find((item) => item.role === 'assistant')
@@ -142,7 +146,6 @@ export class DirectoryChatService {
     }
 
     const previousMessages = await this.getMessages(userId, directoryId);
-    const summary = await this.getSummary(userId, directoryId);
     const { promptContext } = await this.contextAssembler.assemble({
       userId,
       directory,
@@ -213,7 +216,8 @@ export class DirectoryChatService {
 
   private static async resolveSourceState(
     userId: string,
-    directoryId: string
+    directoryId: string,
+    threadData?: ThreadDocumentData
   ): Promise<DirectoryChatSourceState> {
     const docsSnapshot = await FirestorePaths.documents(userId)
       .where('directoryId', '==', directoryId)
@@ -232,7 +236,9 @@ export class DirectoryChatService {
     });
 
     const allDocumentIds = sources.map((source) => source.id);
-    const storedSelectedDocumentIds = await this.getStoredSelectedDocumentIds(userId, directoryId);
+    const storedSelectedDocumentIds = threadData === undefined
+      ? await this.fetchStoredSelectedDocumentIds(userId, directoryId)
+      : this.extractSelectedDocumentIds(threadData);
     const selectedDocumentIds = this.normalizeSelectedDocumentIds(
       storedSelectedDocumentIds,
       allDocumentIds
@@ -276,18 +282,29 @@ export class DirectoryChatService {
     return validSelectedIds.length > 0 ? validSelectedIds : [...allDocumentIds];
   }
 
-  private static async getStoredSelectedDocumentIds(
-    userId: string,
-    directoryId: string
-  ): Promise<string[] | undefined> {
-    const threadSnapshot = await FirestorePaths.directoryChatThread(userId, directoryId).get();
-    const selectedDocumentIds = threadSnapshot.data()?.selectedDocumentIds;
+  private static extractSummary(threadData?: ThreadDocumentData): string | undefined {
+    const summary = threadData?.summary;
+    return typeof summary === 'string' && summary.trim() ? summary : undefined;
+  }
+
+  private static extractSelectedDocumentIds(
+    threadData?: ThreadDocumentData
+  ): string[] | undefined {
+    const selectedDocumentIds = threadData?.selectedDocumentIds;
 
     if (!Array.isArray(selectedDocumentIds)) {
       return undefined;
     }
 
     return selectedDocumentIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
+  }
+
+  private static async fetchStoredSelectedDocumentIds(
+    userId: string,
+    directoryId: string
+  ): Promise<string[] | undefined> {
+    const threadSnapshot = await FirestorePaths.directoryChatThread(userId, directoryId).get();
+    return this.extractSelectedDocumentIds(threadSnapshot.data());
   }
 
   private static async persistSelectedDocumentIds(
@@ -375,12 +392,6 @@ export class DirectoryChatService {
       .get();
 
     return snapshot.docs.map((doc) => this.mapMessage(doc.id, doc.data() as StoredChatMessage));
-  }
-
-  private static async getSummary(userId: string, directoryId: string): Promise<string | undefined> {
-    const threadSnapshot = await FirestorePaths.directoryChatThread(userId, directoryId).get();
-    const summary = threadSnapshot.data()?.summary;
-    return typeof summary === 'string' && summary.trim() ? summary : undefined;
   }
 
   private static async findSeededMessage(
