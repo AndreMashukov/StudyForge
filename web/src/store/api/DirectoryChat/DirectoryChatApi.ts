@@ -4,6 +4,8 @@ import {
   IGetDirectoryChatRequest,
   ISendDirectoryChatMessageApiResponse,
   ISendDirectoryChatMessageRequest,
+  IUpdateDirectoryChatSourcesApiResponse,
+  IUpdateDirectoryChatSourcesRequest,
 } from './IDirectoryChatApi';
 
 export const directoryChatApi = baseApi.injectEndpoints({
@@ -31,10 +33,24 @@ export const directoryChatApi = baseApi.injectEndpoints({
         { type: 'DirectoryChat', id: arg.directoryId },
       ],
     }),
+
+    updateDirectoryChatSources: builder.mutation<
+      IUpdateDirectoryChatSourcesApiResponse,
+      IUpdateDirectoryChatSourcesRequest
+    >({
+      query: (data) => ({
+        functionName: 'updateDirectoryChatSources',
+        data,
+      }),
+      invalidatesTags: (result, error, arg) => [
+        { type: 'DirectoryChat', id: arg.directoryId },
+      ],
+    }),
   }),
 });
 
 export const {
   useGetDirectoryChatQuery,
   useSendDirectoryChatMessageMutation,
+  useUpdateDirectoryChatSourcesMutation,
 } = directoryChatApi;

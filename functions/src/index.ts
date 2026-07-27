@@ -86,6 +86,7 @@ export {
 export {
   getDirectoryChat,
   sendDirectoryChatMessage,
+  updateDirectoryChatSources,
 } from "./endpoints/directory-chat";
 
 // Export document management functions

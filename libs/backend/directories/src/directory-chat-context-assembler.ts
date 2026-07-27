@@ -5,7 +5,6 @@ import {
   DirectoryChatPromptContext,
   RuleApplicability,
 } from '@shared-types';
-import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { resolveEffectiveRules } from './rule-resolution';
 import {
@@ -23,11 +22,11 @@ export interface DirectoryChatContextAssemblerParams {
   previousMessages: DirectoryChatMessage[];
   conversationSummary?: string;
   artifactContext?: DirectoryChatArtifactContext;
+  selectedDocumentIds: string[];
 }
 
 export interface DirectoryChatContextAssemblerResult {
   promptContext: DirectoryChatPromptContext;
-  documentCount: number;
 }
 
 export class DirectoryChatContextAssembler {
@@ -36,10 +35,13 @@ export class DirectoryChatContextAssembler {
   ) {}
 
   async assemble(params: DirectoryChatContextAssemblerParams): Promise<DirectoryChatContextAssemblerResult> {
-    const documents = await this.loadDirectDirectoryDocuments(params.userId, params.directory.id);
+    const documents = await this.loadSelectedDocuments(
+      params.userId,
+      params.selectedDocumentIds
+    );
 
     if (documents.length === 0) {
-      throw new Error('Add a source to this directory before starting chat.');
+      throw new Error('Select at least one source for chat.');
     }
 
     const followupRuleIds = this.getFollowupRuleIds(params.artifactContext);
@@ -67,7 +69,6 @@ export class DirectoryChatContextAssembler {
     ]);
 
     return {
-      documentCount: documents.length,
       promptContext: {
         directoryName: params.directory.name,
         userMessage: params.message,
@@ -92,14 +93,13 @@ export class DirectoryChatContextAssembler {
     return artifactContext.followupRuleIds;
   }
 
-  private async loadDirectDirectoryDocuments(userId: string, directoryId: string): Promise<DirectoryChatSourceDocument[]> {
-    const docsSnapshot = await FirestorePaths.documents(userId)
-      .where('directoryId', '==', directoryId)
-      .get();
-
+  private async loadSelectedDocuments(
+    userId: string,
+    selectedDocumentIds: string[]
+  ): Promise<DirectoryChatSourceDocument[]> {
     return Promise.all(
-      docsSnapshot.docs.map(async (docSnapshot) => {
-        const document = await DocumentCrudService.getDocumentWithContent(userId, docSnapshot.id);
+      selectedDocumentIds.map(async (documentId) => {
+        const document = await DocumentCrudService.getDocumentWithContent(userId, documentId);
         return {
           id: document.id,
           title: document.title,
