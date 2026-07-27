@@ -9,7 +9,7 @@ admin.initializeApp({ projectId: 'study-forge-202604' });
 const db = admin.firestore();
 
 const USER_ID = '4ZBsEPIUJ4jrlylcXkg7t3sFdPZv';
-const DIR_ID = 'e2e-study-materials';
+const DIR_ID = 'e2estudymaterials';
 const DOC_ID = 'perfect-doc-ml';
 
 async function seed() {

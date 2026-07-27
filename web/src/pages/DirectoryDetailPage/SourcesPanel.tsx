@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback } from 'react';
 import { DocumentEnhanced } from '@shared-types';
 import { SourceRow } from './SourceRow';
 import { ArtifactRowGenerating } from './ArtifactRow';
@@ -6,6 +6,7 @@ import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
 import { BulkSelectionToolbar } from '../../components/BulkSelectionToolbar';
 import { BulkActionConfirmDialog } from '../../components/BulkActionConfirmDialog';
 import { BulkActionResultDialog } from '../../components/BulkActionResultDialog';
+import { VirtualizedList } from '../../components/VirtualizedList';
 import { useBulkSelection } from '../../hooks/useBulkSelection';
 import { useBulkActionFlow } from '../../hooks/useBulkActionFlow';
 import { useBulkDeleteDocumentsMutation } from '../../store/api/Documents/documentsApi';
@@ -31,14 +32,32 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
     documents,
   );
 
-  const visibleIds = useMemo(() => documents.map((doc) => doc.id), [documents]);
-  const labelsById = useMemo(
+  const visibleIds = React.useMemo(() => documents.map((doc) => doc.id), [documents]);
+  const labelsById = React.useMemo(
     () => Object.fromEntries(documents.map((doc) => [doc.id, doc.title])),
     [documents],
   );
   const selection = useBulkSelection({ visibleIds });
   const flow = useBulkActionFlow();
   const [bulkDeleteDocuments, { isLoading }] = useBulkDeleteDocumentsMutation();
+
+  const renderSource = useCallback(
+    (document: DocumentEnhanced) => (
+      <SourceRow
+        document={document}
+        directoryId={directoryId}
+        onDelete={onDeleteDocument}
+        onMove={onMoveDocument}
+        appliedRuleNames={document.appliedRuleIds?.map(
+          (id) => ruleNamesMap?.get(id) ?? 'Unknown rule',
+        )}
+        generationModel={document.generationModel}
+        selected={selection.isSelected(document.id)}
+        onSelectChange={() => selection.toggle(document.id)}
+      />
+    ),
+    [directoryId, onDeleteDocument, onMoveDocument, ruleNamesMap, selection],
+  );
 
   return (
     <div className="space-y-4">
@@ -60,26 +79,20 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
       </div>
 
       {documents.length === 0 && !showOptimisticRow ? (
-        <div className="text-sm text-muted-foreground py-8 text-center">
+        <div className="py-8 text-center text-sm text-muted-foreground">
           No documents yet. Add a URL, upload markdown, or generate from a prompt.
         </div>
       ) : (
-        <div className="space-y-2">
-          {showOptimisticRow && <ArtifactRowGenerating title={optimisticTitle} />}
-          {documents.map((doc) => (
-            <SourceRow
-              key={doc.id}
-              document={doc}
-              directoryId={directoryId}
-              onDelete={onDeleteDocument}
-              onMove={onMoveDocument}
-              appliedRuleNames={doc.appliedRuleIds?.map((id) => ruleNamesMap?.get(id) ?? 'Unknown rule')}
-              generationModel={doc.generationModel}
-              selected={selection.isSelected(doc.id)}
-              onSelectChange={() => selection.toggle(doc.id)}
-            />
-          ))}
-        </div>
+        <VirtualizedList
+          items={documents}
+          scrollMode="window"
+          estimateSize={88}
+          gap={8}
+          leadingContent={
+            showOptimisticRow ? <ArtifactRowGenerating title={optimisticTitle} /> : null
+          }
+          renderItem={renderSource}
+        />
       )}
 
       <BulkActionConfirmDialog

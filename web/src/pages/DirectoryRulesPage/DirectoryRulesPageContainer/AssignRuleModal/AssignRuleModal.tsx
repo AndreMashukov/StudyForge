@@ -14,6 +14,7 @@ import { useDirectoryRulesPage } from '../../context/DirectoryRulesPageContext';
 import { useGetRulesQuery, useAttachRuleToDirectoryMutation } from '../../../../store/api/Rules';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { Checkbox } from '../../../../components/ui/Checkbox';
+import { VirtualizedList } from '../../../../components/VirtualizedList';
 
 interface AssignRuleModalProps {
   onClose: () => void;
@@ -161,8 +162,8 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
         </div>
 
         {/* Rules List */}
-        <div 
-          className="border rounded-lg max-h-96 overflow-y-auto"
+        <div
+          className="border rounded-lg"
           style={{ borderColor: currentTheme.colors.border }}
         >
           {isLoading ? (
@@ -170,28 +171,34 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
               <Spinner size="md" variant="muted" className="mx-auto" />
             </div>
           ) : filteredRules.length === 0 ? (
-            <div 
+            <div
               className="p-8 text-center"
               style={{ color: currentTheme.colors.mutedForeground }}
             >
               No rules found matching your criteria.
             </div>
           ) : (
-            <div className="divide-y" style={{ borderColor: currentTheme.colors.border }}>
-              {filteredRules.map((rule) => {
+            <VirtualizedList
+              items={filteredRules}
+              scrollMode="container"
+              containerClassName="max-h-96"
+              estimateSize={96}
+              renderItem={(rule) => {
                 const isAssigned = assignedRuleIds.has(rule.id);
                 const isSelected = selectedRuleIds.has(rule.id);
 
                 return (
                   <div
-                    key={rule.id}
-                    className="flex items-start gap-3 p-4 hover:bg-opacity-50 cursor-pointer"
+                    className="flex items-start gap-3 border-b p-4 hover:bg-opacity-50 cursor-pointer last:border-b-0"
                     style={{
+                      borderColor: currentTheme.colors.border,
                       backgroundColor: isSelected
                         ? currentTheme.colors.accent
                         : 'transparent',
                     }}
-                    onClick={() => { if (!isAssigned) handleToggleRule(rule.id); }}
+                    onClick={() => {
+                      if (!isAssigned) handleToggleRule(rule.id);
+                    }}
                   >
                     <span onClick={(e) => e.stopPropagation()}>
                       <Checkbox
@@ -202,16 +209,16 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
                     </span>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span 
+                        <span
                           className="font-medium"
                           style={{ color: currentTheme.colors.foreground }}
                         >
                           {rule.name}
                         </span>
                         {isAssigned && (
-                          <span 
+                          <span
                             className="text-xs px-2 py-0.5 rounded"
-                            style={{ 
+                            style={{
                               backgroundColor: currentTheme.colors.primary,
                               color: currentTheme.colors.primaryForeground,
                             }}
@@ -220,8 +227,7 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
                           </span>
                         )}
                       </div>
-                      
-                      {/* Applicability badges */}
+
                       <div className="flex flex-wrap gap-1 mb-1">
                         {rule.applicableTo.map((app) => (
                           <span
@@ -237,10 +243,9 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
                         ))}
                       </div>
 
-                      {/* Tags */}
                       {rule.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 items-center">
-                          <span 
+                          <span
                             className="text-xs"
                             style={{ color: currentTheme.colors.mutedForeground }}
                           >
@@ -262,8 +267,8 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              }}
+            />
           )}
         </div>
 

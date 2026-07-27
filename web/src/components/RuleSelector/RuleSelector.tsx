@@ -6,6 +6,7 @@ import {
   useUpdateRuleMutation,
 } from "../../store/api/Rules/rulesApi";
 import { RuleListSkeleton } from "../LoadingSkeletons";
+import { VirtualizedList } from "../VirtualizedList";
 import { IRuleSelector } from "./IRuleSelector";
 import { cn } from "../../lib/utils";
 
@@ -86,11 +87,19 @@ export const RuleSelector = ({
       </div>
 
       {/* Rules List */}
-      <div className="space-y-2 max-h-[300px] overflow-y-auto">
-        {rules.length > 0 ? (
-          rules.map((rule) => (
+      {rules.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">
+          <span role="img" aria-label="info">📭</span> No rules available for this operation
+        </p>
+      ) : (
+        <VirtualizedList
+          items={rules}
+          scrollMode="container"
+          containerClassName="max-h-[300px]"
+          estimateSize={72}
+          gap={8}
+          renderItem={(rule) => (
             <Checkbox
-              key={rule.id}
               checked={selectedRuleIds.includes(rule.id)}
               onChange={() => handleToggle(rule.id)}
               className="flex w-full items-center gap-2 p-2 rounded-md hover:bg-accent transition-colors"
@@ -112,13 +121,9 @@ export const RuleSelector = ({
                 </div>
               }
             />
-          ))
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            <span role="img" aria-label="info">📭</span> No rules available for this operation
-          </p>
-        )}
-      </div>
+          )}
+        />
+      )}
 
 
     </div>

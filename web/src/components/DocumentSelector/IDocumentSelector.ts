@@ -19,4 +19,9 @@ export interface IDocumentSelector {
   isLoading: boolean;
   disabled?: boolean;
   className?: string;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  loadMore?: () => void;
+  loadError?: string | null;
+  onRetryLoad?: () => void;
 }

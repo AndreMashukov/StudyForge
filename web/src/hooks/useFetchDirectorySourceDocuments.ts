@@ -1,8 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
-import {
-  useGetUserDocumentsQuery,
-  IGetUserDocumentsArgs,
-} from '../store/api/Documents/documentsApi';
+import { IGetUserDocumentsArgs } from '../store/api/Documents/documentsApi';
+import { usePaginatedUserDocuments } from './usePaginatedUserDocuments';
 
 const ARTIFACT_SOURCE_DOCUMENTS_LIMIT = 100;
 
@@ -19,5 +17,23 @@ export const useFetchDirectorySourceDocuments = () => {
     ? { directoryId, limit: ARTIFACT_SOURCE_DOCUMENTS_LIMIT }
     : { limit: ARTIFACT_SOURCE_DOCUMENTS_LIMIT };
 
-  return useGetUserDocumentsQuery(queryArgs);
+  const paginated = usePaginatedUserDocuments(queryArgs);
+
+  return {
+    data: {
+      documents: paginated.documents,
+      total: paginated.total ?? paginated.documents.length,
+      hasMore: paginated.hasMore,
+    },
+    isLoading: paginated.isLoading,
+    isFetching: paginated.isFetching,
+    error: paginated.error,
+    refetch: () => {
+      void paginated.refetch();
+    },
+    hasMore: paginated.hasMore,
+    isLoadingMore: paginated.isLoadingMore,
+    loadMore: paginated.loadMore,
+    loadError: paginated.loadError,
+  };
 };

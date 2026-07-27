@@ -10,6 +10,7 @@ import { BulkSelectCheckbox } from '../../components/BulkSelectCheckbox';
 import { BulkSelectionToolbar } from '../../components/BulkSelectionToolbar';
 import { BulkActionConfirmDialog } from '../../components/BulkActionConfirmDialog';
 import { BulkActionResultDialog } from '../../components/BulkActionResultDialog';
+import { VirtualizedList } from '../../components/VirtualizedList';
 import {
   useListApiKeysQuery,
   useCreateApiKeyMutation,
@@ -152,29 +153,40 @@ export const ApiKeysSection: React.FC = () => {
           {!isLoading && !error && activeKeys.length > 0 && (
             <div className="space-y-3">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left">
-                      <th className="pb-2 pr-2 w-10 font-medium text-muted-foreground">
-                        <span className="sr-only">Select</span>
-                      </th>
-                      <th className="pb-2 font-medium text-muted-foreground">Name</th>
-                      <th className="pb-2 font-medium text-muted-foreground">Key</th>
-                      <th className="pb-2 font-medium text-muted-foreground">Created</th>
-                      <th className="pb-2 font-medium text-muted-foreground">Last used</th>
-                      <th className="pb-2 font-medium text-muted-foreground" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeKeys.map((key) => (
-                      <tr
-                        key={key.keyId}
+                <div
+                  role="table"
+                  aria-label="API keys"
+                  className="min-w-[720px] text-sm"
+                >
+                  <div
+                    role="row"
+                    className="grid grid-cols-[2.5rem_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] border-b border-border px-1 pb-2 text-left text-muted-foreground"
+                  >
+                    <div role="columnheader" className="pr-2 font-medium">
+                      <span className="sr-only">Select</span>
+                    </div>
+                    <div role="columnheader" className="font-medium">Name</div>
+                    <div role="columnheader" className="font-medium">Key</div>
+                    <div role="columnheader" className="font-medium">Created</div>
+                    <div role="columnheader" className="font-medium">Last used</div>
+                    <div role="columnheader" className="font-medium">
+                      <span className="sr-only">Actions</span>
+                    </div>
+                  </div>
+                  <VirtualizedList
+                    items={activeKeys}
+                    scrollMode="container"
+                    containerClassName="max-h-[480px]"
+                    estimateSize={56}
+                    renderItem={(key) => (
+                      <div
+                        role="row"
                         className={cn(
-                          'border-b border-border/50 last:border-0',
+                          'grid grid-cols-[2.5rem_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] items-center border-b border-border/50 px-1 last:border-0',
                           selection.isSelected(key.keyId) && 'bg-muted/30',
                         )}
                       >
-                        <td className="py-3 pr-2 align-middle">
+                        <div role="cell" className="py-3 pr-2">
                           <BulkSelectCheckbox
                             checked={selection.isSelected(key.keyId)}
                             onCheckedChange={(checked) => {
@@ -184,20 +196,22 @@ export const ApiKeysSection: React.FC = () => {
                             }}
                             label={`Select API key ${key.name}`}
                           />
-                        </td>
-                        <td className="py-3 pr-4 font-medium text-foreground">{key.name}</td>
-                        <td className="py-3 pr-4">
+                        </div>
+                        <div role="cell" className="py-3 pr-4 font-medium text-foreground">
+                          {key.name}
+                        </div>
+                        <div role="cell" className="py-3 pr-4">
                           <Badge variant="secondary" className="font-mono text-xs">
                             {key.keyPrefix.replace(/\.\.\.$/, '')}...
                           </Badge>
-                        </td>
-                        <td className="py-3 pr-4 text-muted-foreground">
+                        </div>
+                        <div role="cell" className="py-3 pr-4 text-muted-foreground">
                           {key.createdAt ? formatDate(key.createdAt) : '—'}
-                        </td>
-                        <td className="py-3 pr-4 text-muted-foreground">
+                        </div>
+                        <div role="cell" className="py-3 pr-4 text-muted-foreground">
                           {key.lastUsedAt ? formatDate(key.lastUsedAt) : 'Never'}
-                        </td>
-                        <td className="py-3 text-right">
+                        </div>
+                        <div role="cell" className="py-3 text-right">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -206,11 +220,11 @@ export const ApiKeysSection: React.FC = () => {
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                    )}
+                  />
+                </div>
               </div>
             </div>
           )}

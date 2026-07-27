@@ -24,6 +24,10 @@ export interface ArtifactFormLayoutProps<T extends FieldValues> {
     isLoading: boolean;
     error?: unknown;
     refetch: () => void;
+    hasMore?: boolean;
+    isLoadingMore?: boolean;
+    loadMore?: () => void;
+    loadError?: string | null;
   };
   form: UseFormReturn<T>;
   onSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
@@ -41,7 +45,7 @@ export const ArtifactFormLayout = <T extends FieldValues>({
   const directoryIdParam = searchParams.get('directoryId');
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
 
-  const { data: documentsResponse, isLoading, error: documentsError, refetch: refetchDocuments } = documentsApi;
+  const { data: documentsResponse, isLoading, error: documentsError, refetch: refetchDocuments, hasMore, isLoadingMore, loadMore, loadError } = documentsApi;
   const allDocuments = useMemo(() => documentsResponse?.documents || [], [documentsResponse]);
   const resolvedDirectoryId = directoryIdParam || selectedDirectoryId;
   const documents = useMemo(
@@ -157,6 +161,11 @@ export const ArtifactFormLayout = <T extends FieldValues>({
                       maxSelections={5}
                       isLoading={isLoading}
                       disabled={isLoading}
+                      hasMore={hasMore}
+                      isLoadingMore={isLoadingMore}
+                      loadMore={loadMore}
+                      loadError={loadError ?? null}
+                      onRetryLoad={loadMore}
                     />
                   )}
                   {errors.documentIds && (

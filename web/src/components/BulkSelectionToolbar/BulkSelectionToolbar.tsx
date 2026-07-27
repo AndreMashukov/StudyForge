@@ -65,7 +65,7 @@ export const BulkSelectionToolbar: React.FC<IBulkSelectionToolbar> = ({
             'disabled:pointer-events-none disabled:opacity-40',
           )}
         >
-          Select all
+          Select all loaded
         </button>
         <button
           type="button"
