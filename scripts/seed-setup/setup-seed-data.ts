@@ -35,7 +35,8 @@ const TARGET_UID = '4ZBsEPIUJ4jrlylcXkg7t3sFdPZv';
 const TEST_EMAIL = 'test@example.com';
 const TEST_PASSWORD = 'Test123456!';
 const DOC_ID = 'perfect-doc-ml';
-const DIR_ID = 'e2e-study-materials';
+// No hyphens: directory URLs are `slug-id` and the parser takes the segment after the last `-`.
+const DIR_ID = 'e2estudymaterials';
 const RULE_ID = 'e2e-prompt-rule';
 
 const RULE_CONTENT = `Focus on key concepts and use clear, concise language in all responses.

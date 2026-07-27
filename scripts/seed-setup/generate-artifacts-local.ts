@@ -29,7 +29,7 @@ const FUNCTIONS_BASE = (region: string) =>
 const TEST_EMAIL = 'test@example.com';
 const TEST_PASSWORD = 'Test123456!';
 const DOC_ID = 'perfect-doc-ml';
-const DIR_ID = 'e2e-study-materials';
+const DIR_ID = 'e2estudymaterials';
 
 interface AuthSignInResponse {
   idToken?: string;

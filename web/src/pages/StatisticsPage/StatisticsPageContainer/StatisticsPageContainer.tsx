@@ -31,6 +31,7 @@ import {
 } from '../utils/statisticsPageUtils';
 import { FailureList } from './FailureList';
 import { EmptyState, ErrorBlock, LoadingBlock, MetricCard } from './StatisticsShared';
+import { VirtualizedList } from '../../../components/VirtualizedList';
 
 const QuizPerformanceTable = ({ quizzes }: { quizzes: StatisticsQuizPerformanceItem[] }) => {
   if (quizzes.length === 0) {
@@ -51,38 +52,37 @@ const QuizPerformanceTable = ({ quizzes }: { quizzes: StatisticsQuizPerformanceI
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b bg-muted/30 text-left text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-medium">Quiz</th>
-                <th className="px-4 py-3 font-medium">Accuracy</th>
-                <th className="px-4 py-3 font-medium">Failed</th>
-                <th className="px-4 py-3 font-medium">Explanations</th>
-                <th className="px-4 py-3 font-medium">Last attempt</th>
-              </tr>
-            </thead>
-            <tbody>
-              {quizzes.map((quiz) => (
-                <tr key={quiz.id} className="border-b border-border/60 last:border-0">
-                  <td className="px-4 py-3">
-                    <Link className="font-medium text-foreground hover:text-primary" to={detailQuizPath(quiz.quizType, quiz.quizId)}>
-                      {quiz.quizTitle || 'Untitled quiz'}
-                    </Link>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <Badge variant="outline">{quizTypeLabel(quiz.quizType)}</Badge>
-                      <span className="text-xs text-muted-foreground">{quiz.attemptCount} attempts</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-semibold">{formatPercentage(quiz.accuracyPercentage)}</td>
-                  <td className="px-4 py-3">{formatInteger(quiz.incorrectAnswerCount)}</td>
-                  <td className="px-4 py-3">{formatInteger(quiz.explanationRequestCount)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDateTime(quiz.lastAttemptAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="overflow-x-auto border-b bg-muted/30 text-left text-xs uppercase text-muted-foreground">
+          <div className="grid min-w-[720px] grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] px-4 py-3 font-medium">
+            <span>Quiz</span>
+            <span>Accuracy</span>
+            <span>Failed</span>
+            <span>Explanations</span>
+            <span>Last attempt</span>
+          </div>
         </div>
+        <VirtualizedList
+          items={quizzes}
+          scrollMode="window"
+          estimateSize={88}
+          renderItem={(quiz) => (
+            <div className="grid min-w-[720px] grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] border-b border-border/60 px-4 py-3 text-sm last:border-0">
+              <div>
+                <Link className="font-medium text-foreground hover:text-primary" to={detailQuizPath(quiz.quizType, quiz.quizId)}>
+                  {quiz.quizTitle || 'Untitled quiz'}
+                </Link>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">{quizTypeLabel(quiz.quizType)}</Badge>
+                  <span className="text-xs text-muted-foreground">{quiz.attemptCount} attempts</span>
+                </div>
+              </div>
+              <div className="font-semibold">{formatPercentage(quiz.accuracyPercentage)}</div>
+              <div>{formatInteger(quiz.incorrectAnswerCount)}</div>
+              <div>{formatInteger(quiz.explanationRequestCount)}</div>
+              <div className="text-muted-foreground">{formatDateTime(quiz.lastAttemptAt)}</div>
+            </div>
+          )}
+        />
       </CardContent>
     </Card>
   );
@@ -155,15 +155,21 @@ export const StatisticsPageContainer: React.FC = () => {
           <CardHeader>
             <CardTitle className="text-base">Attempts</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {detail.attempts.map((attempt) => (
-              <div key={attempt.attemptId} className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm">
-                <span className="text-muted-foreground">{formatDateTime(attempt.completedAt)}</span>
-                <span className="font-medium">{attempt.score}/{attempt.totalQuestions}</span>
-                <span>{formatPercentage(attempt.percentage)}</span>
-                <span className="text-muted-foreground">{formatDurationMs(attempt.durationMs)}</span>
-              </div>
-            ))}
+          <CardContent>
+            <VirtualizedList
+              items={detail.attempts}
+              scrollMode="window"
+              estimateSize={72}
+              gap={12}
+              renderItem={(attempt) => (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm">
+                  <span className="text-muted-foreground">{formatDateTime(attempt.completedAt)}</span>
+                  <span className="font-medium">{attempt.score}/{attempt.totalQuestions}</span>
+                  <span>{formatPercentage(attempt.percentage)}</span>
+                  <span className="text-muted-foreground">{formatDurationMs(attempt.durationMs)}</span>
+                </div>
+              )}
+            />
           </CardContent>
         </Card>
         <FailureList failures={detail.failedQuestions} />
@@ -271,31 +277,43 @@ export const StatisticsPageContainer: React.FC = () => {
                       <CardHeader>
                         <CardTitle className="text-base">Time by Activity</CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-3">
-                        {(statisticsApi.learningTime.data?.byArtifactType ?? []).map((row) => (
-                          <div key={row.artifactType} className="flex items-center justify-between rounded-md border p-3">
-                            <span className="font-medium">{artifactTypeLabel(row.artifactType)}</span>
-                            <span className="text-muted-foreground">{formatSeconds(row.totalSeconds)}</span>
-                          </div>
-                        ))}
+                      <CardContent>
+                        <VirtualizedList
+                          items={statisticsApi.learningTime.data?.byArtifactType ?? []}
+                          scrollMode="window"
+                          estimateSize={64}
+                          gap={12}
+                          renderItem={(row) => (
+                            <div className="flex items-center justify-between rounded-md border p-3">
+                              <span className="font-medium">{artifactTypeLabel(row.artifactType)}</span>
+                              <span className="text-muted-foreground">{formatSeconds(row.totalSeconds)}</span>
+                            </div>
+                          )}
+                        />
                       </CardContent>
                     </Card>
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-base">Most Engaged</CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-3">
-                        {(statisticsApi.learningTime.data?.topArtifacts ?? []).map((artifact) => (
-                          <div key={artifact.id} className="rounded-md border p-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="truncate font-medium text-foreground">{artifact.title}</p>
-                                <p className="text-xs text-muted-foreground">{artifactTypeLabel(artifact.artifactType)}</p>
+                      <CardContent>
+                        <VirtualizedList
+                          items={statisticsApi.learningTime.data?.topArtifacts ?? []}
+                          scrollMode="window"
+                          estimateSize={88}
+                          gap={12}
+                          renderItem={(artifact) => (
+                            <div className="rounded-md border p-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="truncate font-medium text-foreground">{artifact.title}</p>
+                                  <p className="text-xs text-muted-foreground">{artifactTypeLabel(artifact.artifactType)}</p>
+                                </div>
+                                <span className="text-sm text-muted-foreground">{formatSeconds(artifact.totalSeconds)}</span>
                               </div>
-                              <span className="text-sm text-muted-foreground">{formatSeconds(artifact.totalSeconds)}</span>
                             </div>
-                          </div>
-                        ))}
+                          )}
+                        />
                       </CardContent>
                     </Card>
                   </div>

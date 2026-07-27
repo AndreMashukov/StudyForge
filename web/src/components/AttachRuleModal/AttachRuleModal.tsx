@@ -16,6 +16,7 @@ import {
   useAttachRuleToDirectoryMutation,
 } from "../../store/api/Rules/rulesApi";
 import { useToast } from "../Toast";
+import { VirtualizedList } from "../VirtualizedList";
 import { IAttachRuleModal } from "./IAttachRuleModal";
 import { RuleApplicability } from "@shared-types";
 import { cn } from "../../lib/utils";
@@ -193,10 +194,14 @@ export const AttachRuleModal = ({
               Loading rules...
             </div>
           ) : availableRules.length > 0 ? (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {availableRules.map((rule) => (
+            <VirtualizedList
+              items={availableRules}
+              scrollMode="container"
+              containerClassName="max-h-[400px]"
+              estimateSize={140}
+              gap={8}
+              renderItem={(rule) => (
                 <button
-                  key={rule.id}
                   onClick={() => handleToggleSelection(rule.id)}
                   className={cn(
                     "w-full text-left border rounded-lg p-3 space-y-2 transition-colors",
@@ -238,8 +243,8 @@ export const AttachRuleModal = ({
                     </div>
                   )}
                 </button>
-              ))}
-            </div>
+              )}
+            />
           ) : (
             <div className="text-sm text-muted-foreground text-center py-8 border border-dashed border-border rounded-lg">
               {searchQuery || filterApplicability

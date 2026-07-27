@@ -10,6 +10,7 @@ import { BulkSelectCheckbox } from '../../components/BulkSelectCheckbox';
 import { BulkSelectionToolbar } from '../../components/BulkSelectionToolbar';
 import { BulkActionConfirmDialog } from '../../components/BulkActionConfirmDialog';
 import { BulkActionResultDialog } from '../../components/BulkActionResultDialog';
+import { VirtualizedList } from '../../components/VirtualizedList';
 import {
   useListApiKeysQuery,
   useCreateApiKeyMutation,
@@ -165,52 +166,59 @@ export const ApiKeysSection: React.FC = () => {
                       <th className="pb-2 font-medium text-muted-foreground" />
                     </tr>
                   </thead>
-                  <tbody>
-                    {activeKeys.map((key) => (
-                      <tr
-                        key={key.keyId}
-                        className={cn(
-                          'border-b border-border/50 last:border-0',
-                          selection.isSelected(key.keyId) && 'bg-muted/30',
-                        )}
-                      >
-                        <td className="py-3 pr-2 align-middle">
-                          <BulkSelectCheckbox
-                            checked={selection.isSelected(key.keyId)}
-                            onCheckedChange={(checked) => {
-                              if (checked !== selection.isSelected(key.keyId)) {
-                                selection.toggle(key.keyId);
-                              }
-                            }}
-                            label={`Select API key ${key.name}`}
-                          />
-                        </td>
-                        <td className="py-3 pr-4 font-medium text-foreground">{key.name}</td>
-                        <td className="py-3 pr-4">
-                          <Badge variant="secondary" className="font-mono text-xs">
-                            {key.keyPrefix.replace(/\.\.\.$/, '')}...
-                          </Badge>
-                        </td>
-                        <td className="py-3 pr-4 text-muted-foreground">
-                          {key.createdAt ? formatDate(key.createdAt) : '—'}
-                        </td>
-                        <td className="py-3 pr-4 text-muted-foreground">
-                          {key.lastUsedAt ? formatDate(key.lastUsedAt) : 'Never'}
-                        </td>
-                        <td className="py-3 text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Revoke ${key.name}`}
-                            onClick={() => handleOpenRevoke(key)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
                 </table>
+                <VirtualizedList
+                  items={activeKeys}
+                  scrollMode="container"
+                  containerClassName="max-h-[480px]"
+                  estimateSize={56}
+                  renderItem={(key) => (
+                    <table className="w-full text-sm">
+                      <tbody>
+                        <tr
+                          className={cn(
+                            'border-b border-border/50 last:border-0',
+                            selection.isSelected(key.keyId) && 'bg-muted/30',
+                          )}
+                        >
+                          <td className="py-3 pr-2 w-10 align-middle">
+                            <BulkSelectCheckbox
+                              checked={selection.isSelected(key.keyId)}
+                              onCheckedChange={(checked) => {
+                                if (checked !== selection.isSelected(key.keyId)) {
+                                  selection.toggle(key.keyId);
+                                }
+                              }}
+                              label={`Select API key ${key.name}`}
+                            />
+                          </td>
+                          <td className="py-3 pr-4 font-medium text-foreground">{key.name}</td>
+                          <td className="py-3 pr-4">
+                            <Badge variant="secondary" className="font-mono text-xs">
+                              {key.keyPrefix.replace(/\.\.\.$/, '')}...
+                            </Badge>
+                          </td>
+                          <td className="py-3 pr-4 text-muted-foreground">
+                            {key.createdAt ? formatDate(key.createdAt) : '—'}
+                          </td>
+                          <td className="py-3 pr-4 text-muted-foreground">
+                            {key.lastUsedAt ? formatDate(key.lastUsedAt) : 'Never'}
+                          </td>
+                          <td className="py-3 text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Revoke ${key.name}`}
+                              onClick={() => handleOpenRevoke(key)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                />
               </div>
             </div>
           )}

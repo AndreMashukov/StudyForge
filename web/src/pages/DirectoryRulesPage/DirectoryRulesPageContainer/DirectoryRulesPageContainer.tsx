@@ -7,6 +7,7 @@ import { RuleCard } from './RuleCard';
 import { AssignRuleModal } from './AssignRuleModal';
 import { RuleCascadeVisualization } from './RuleCascadeVisualization';
 import { Spinner } from '../../../components/ui/Spinner';
+import { VirtualizedList } from '../../../components/VirtualizedList';
 
 export const DirectoryRulesPageContainer = () => {
   const { state, handlers, bulkDetach } = useDirectoryRulesPage();
@@ -150,8 +151,12 @@ export const DirectoryRulesPageContainer = () => {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {directRules.map((rule) => (
+              <VirtualizedList
+                items={directRules}
+                scrollMode="window"
+                estimateSize={120}
+                gap={12}
+                renderItem={(rule) => (
                   <RuleCard
                     key={rule.id}
                     rule={rule}
@@ -165,8 +170,8 @@ export const DirectoryRulesPageContainer = () => {
                       }
                     }}
                   />
-                ))}
-              </div>
+                )}
+              />
             )}
           </div>
         </div>
@@ -212,16 +217,20 @@ export const DirectoryRulesPageContainer = () => {
                         <span className="text-xs">(Inherited)</span>
                       </div>
 
-                      <div className="space-y-2">
-                        {rules.map((rule) => (
+                      <VirtualizedList
+                        items={rules}
+                        scrollMode="window"
+                        estimateSize={96}
+                        gap={8}
+                        renderItem={(rule) => (
                           <RuleCard
                             key={rule.id}
                             rule={rule}
                             onEdit={() => handleEditRule(rule.id)}
                             isInherited
                           />
-                        ))}
-                      </div>
+                        )}
+                      />
                     </div>
                   </div>
                 ))}

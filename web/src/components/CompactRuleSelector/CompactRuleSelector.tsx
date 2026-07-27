@@ -8,6 +8,7 @@ import {
   useUpdateRuleMutation,
 } from "../../store/api/Rules/rulesApi";
 import { RuleListSkeleton } from "../LoadingSkeletons";
+import { VirtualizedList } from "../VirtualizedList";
 import { ICompactRuleSelector } from "./ICompactRuleSelector";
 
 /**
@@ -134,32 +135,38 @@ export const CompactRuleSelector = ({
           <span className="transition-transform group-open:rotate-180">▼</span>
         </summary>
         
-        <div className="p-3 pt-0 space-y-2 max-h-[200px] overflow-y-auto">
-          {rules.map((rule) => (
-            <Checkbox
-              key={rule.id}
-              checked={selectedRuleIds.includes(rule.id)}
-              onChange={() => handleToggle(rule.id)}
-              className="flex w-full items-start gap-2 p-2 rounded-md hover:bg-accent transition-colors"
-              label={
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium">{rule.name}</span>
-                    {rule.isDefault && (
-                      <Badge variant="outline" className="text-xs">
-                        Always apply
-                      </Badge>
+        <div className="p-3 pt-0">
+          <VirtualizedList
+            items={rules}
+            scrollMode="container"
+            containerClassName="max-h-[200px]"
+            estimateSize={72}
+            gap={8}
+            renderItem={(rule) => (
+              <Checkbox
+                checked={selectedRuleIds.includes(rule.id)}
+                onChange={() => handleToggle(rule.id)}
+                className="flex w-full items-start gap-2 p-2 rounded-md hover:bg-accent transition-colors"
+                label={
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium">{rule.name}</span>
+                      {rule.isDefault && (
+                        <Badge variant="outline" className="text-xs">
+                          Always apply
+                        </Badge>
+                      )}
+                    </div>
+                    {rule.description && (
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {rule.description}
+                      </p>
                     )}
                   </div>
-                  {rule.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      {rule.description}
-                    </p>
-                  )}
-                </div>
-              }
-            />
-          ))}
+                }
+              />
+            )}
+          />
         </div>
       </details>
     </div>

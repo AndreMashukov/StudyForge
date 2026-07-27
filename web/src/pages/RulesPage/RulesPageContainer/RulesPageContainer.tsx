@@ -7,6 +7,8 @@ import { Input } from '../../../components/ui/Input';
 import { Badge } from '../../../components/ui/Badge';
 import { RuleCard } from './RuleCard';
 import { Checkbox } from '../../../components/ui/Checkbox';
+import { VirtualizedGrid, VirtualizedList } from '../../../components/VirtualizedList';
+import { useGridColumns } from '../../../hooks/useGridColumns';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +19,6 @@ import { BulkActionConfirmDialog } from '../../../components/BulkActionConfirmDi
 import { BulkActionResultDialog } from '../../../components/BulkActionResultDialog';
 import { Plus, Search, Grid3x3, List, Filter, ChevronDown, X } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { cn } from '../../../lib/utils';
 import { Spinner } from '../../../components/ui/Spinner';
 import { getRuleApplicabilityLabel } from '../../../utils/ruleApplicabilityUtils';
 import { useBulkSelection } from '../../../hooks/useBulkSelection';
@@ -44,6 +45,7 @@ export const RulesPageContainer = () => {
   } = useRulesPageContext();
 
   const { currentTheme } = useTheme();
+  const gridColumns = useGridColumns({ default: 1, md: 2, lg: 3 });
 
   const visibleIds = useMemo(
     () => filteredRules.map((rule) => rule.id),
@@ -383,29 +385,52 @@ export const RulesPageContainer = () => {
               )}
             </div>
 
-            <div
-              className={cn(
-                viewMode === 'grid'
-                  ? 'grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-                  : 'space-y-3'
-              )}
-            >
-              {filteredRules.map((rule) => (
-                <RuleCard
-                  key={rule.id}
-                  rule={rule}
-                  onEdit={handlers.handleEditRule}
-                  onDelete={handlers.handleDeleteRule}
-                  viewMode={viewMode}
-                  selected={selection.isSelected(rule.id)}
-                  onSelectChange={(checked) => {
-                    if (checked !== selection.isSelected(rule.id)) {
-                      selection.toggle(rule.id);
-                    }
-                  }}
-                />
-              ))}
-            </div>
+            {viewMode === 'grid' ? (
+              <VirtualizedGrid
+                items={filteredRules}
+                columns={gridColumns}
+                scrollMode="window"
+                estimateRowSize={260}
+                gap={16}
+                renderItem={(rule) => (
+                  <RuleCard
+                    key={rule.id}
+                    rule={rule}
+                    onEdit={handlers.handleEditRule}
+                    onDelete={handlers.handleDeleteRule}
+                    viewMode={viewMode}
+                    selected={selection.isSelected(rule.id)}
+                    onSelectChange={(checked) => {
+                      if (checked !== selection.isSelected(rule.id)) {
+                        selection.toggle(rule.id);
+                      }
+                    }}
+                  />
+                )}
+              />
+            ) : (
+              <VirtualizedList
+                items={filteredRules}
+                scrollMode="window"
+                estimateSize={120}
+                gap={12}
+                renderItem={(rule) => (
+                  <RuleCard
+                    key={rule.id}
+                    rule={rule}
+                    onEdit={handlers.handleEditRule}
+                    onDelete={handlers.handleDeleteRule}
+                    viewMode={viewMode}
+                    selected={selection.isSelected(rule.id)}
+                    onSelectChange={(checked) => {
+                      if (checked !== selection.isSelected(rule.id)) {
+                        selection.toggle(rule.id);
+                      }
+                    }}
+                  />
+                )}
+              />
+            )}
           </>
         )}
       </div>

@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { Rule } from '@shared-types';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
+import { VirtualizedList } from '../../components/VirtualizedList';
 
 interface RulesPanelProps {
   rules: Rule[];
@@ -12,7 +13,25 @@ interface RulesPanelProps {
   isLoading?: boolean;
 }
 
-export const RulesPanel: React.FC<RulesPanelProps> = ({ rules, directoryId, isLoading = false }) => {
+export const RulesPanel: React.FC<RulesPanelProps> = ({
+  rules,
+  directoryId,
+  isLoading = false,
+}) => {
+  const renderRule = useCallback(
+    (rule: Rule) => (
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-sm">{rule.name}</CardTitle>
+        </CardHeader>
+        <CardContent className="text-xs text-muted-foreground line-clamp-4">
+          {rule.content}
+        </CardContent>
+      </Card>
+    ),
+    [],
+  );
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-16">
@@ -38,18 +57,13 @@ export const RulesPanel: React.FC<RulesPanelProps> = ({ rules, directoryId, isLo
           No rules attached. Manage rules from the Rules button.
         </div>
       ) : (
-        <div className="space-y-3">
-          {rules.map((rule) => (
-            <Card key={rule.id}>
-              <CardHeader className="py-3">
-                <CardTitle className="text-sm">{rule.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-xs text-muted-foreground line-clamp-4">
-                {rule.content}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <VirtualizedList
+          items={rules}
+          scrollMode="window"
+          estimateSize={140}
+          gap={12}
+          renderItem={renderRule}
+        />
       )}
     </div>
   );
