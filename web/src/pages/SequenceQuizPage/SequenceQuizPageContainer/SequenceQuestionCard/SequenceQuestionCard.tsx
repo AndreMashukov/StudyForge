@@ -25,11 +25,10 @@ import { useState, useLayoutEffect, ReactNode } from 'react';
 import { useSelector } from 'react-redux';
 import { GripVertical, X, Package, Layers, CheckCircle, XCircle, Sparkles } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
+import { Card, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { Spinner } from '../../../../components/ui/Spinner';
-import { QuizHintTooltip } from '../../../../components/QuizHintTooltip';
-import { QuizProgressBar } from '../../../../components/QuizProgressBar';
+import { QuizQuestionHeader } from '../../../../components/QuizQuestionHeader';
 import {
   selectSequenceQuizState,
   selectSequenceQuizProgress,
@@ -328,22 +327,16 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
 
   return (
     <Card className="overflow-hidden">
-      {totalQuestions > 0 && (
-        <QuizProgressBar
-          progress={progress}
-          currentQuestion={currentQuestion}
-          totalQuestions={totalQuestions}
-          score={quizState.score}
-          answeredCount={answeredCount}
-          leadingAction={backAction}
-        />
-      )}
-      <CardHeader className="px-6 pt-3 pb-3 space-y-0">
-        <div className="flex items-start gap-2">
-          <CardTitle className="text-base font-semibold leading-snug flex-1">{question.question}</CardTitle>
-          <QuizHintTooltip hint={question.hint} className="mt-0.5" />
-        </div>
-      </CardHeader>
+      <QuizQuestionHeader
+        progress={progress}
+        currentQuestion={currentQuestion}
+        totalQuestions={totalQuestions}
+        score={quizState.score}
+        answeredCount={answeredCount}
+        questionText={question.question}
+        hint={question.hint}
+        leadingAction={backAction}
+      />
 
       <CardContent className="space-y-3">
       <DndContext

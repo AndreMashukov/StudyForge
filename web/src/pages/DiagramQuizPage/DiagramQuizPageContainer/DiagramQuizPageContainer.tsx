@@ -63,6 +63,17 @@ export const DiagramQuizPageContainer: React.FC = () => {
     </button>
   );
 
+  const inlineBackAction = (
+    <button
+      type="button"
+      onClick={handleBackToDirectory}
+      className="flex items-center gap-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
+      Back
+    </button>
+  );
+
   if (diagramQuizApi.isLoading || !diagramQuizApi.hasValidId) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -126,8 +137,7 @@ export const DiagramQuizPageContainer: React.FC = () => {
   const detailedExplanationMessage = 'Explain this diagram quiz question in detail. Include why my selected diagram is right or wrong, how to inspect the diagram, and the source details that support the correct answer.';
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 px-6 py-16">
-      {backButton}
+    <div className="mx-auto max-w-4xl space-y-4 px-6 py-4">
       <DiagramQuestionCard
         question={currentQuestion}
         currentDiagramIndex={quizState.currentDiagramIndex}
@@ -142,6 +152,7 @@ export const DiagramQuizPageContainer: React.FC = () => {
         onGenerateFollowup={handlers.handleGenerateFollowup}
         isGeneratingFollowup={quizState.isGeneratingFollowup}
         isFollowupGenerated={!!quizState.followupGenerated[questionIndex]}
+        backAction={inlineBackAction}
       />
 
       {quizState.followupChatOpen[questionIndex] && directoryId && (

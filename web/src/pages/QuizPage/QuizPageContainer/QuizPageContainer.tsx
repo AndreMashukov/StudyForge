@@ -75,10 +75,21 @@ export const QuizPageContainer: React.FC = () => {
     <button
       type="button"
       onClick={handleBackToDirectory}
-      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-6"
+      className="mb-6 flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
     >
       <ChevronLeft className="h-4 w-4 shrink-0" />
       Back to directory
+    </button>
+  );
+
+  const inlineBackAction = (
+    <button
+      type="button"
+      onClick={handleBackToDirectory}
+      className="flex items-center gap-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
+      Back
     </button>
   );
 
@@ -157,10 +168,7 @@ export const QuizPageContainer: React.FC = () => {
   const detailedExplanationMessage = 'Explain this quiz question in detail. Include why my answer is right or wrong, how to reason toward the correct answer, and the key source details that matter.';
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-16 space-y-8">
-      {backButton}
-
-      {/* Question Card (with embedded progress bar) */}
+    <div className="mx-auto max-w-4xl space-y-4 px-6 py-4">
       <QuestionCard
         question={currentQuestion}
         selectedAnswer={formState.selectedAnswer}
@@ -171,6 +179,7 @@ export const QuizPageContainer: React.FC = () => {
         isGeneratingFollowup={isGeneratingFollowup}
         isFollowupGenerated={isCurrentFollowupGenerated}
         isLastQuestion={isLastQuestion}
+        backAction={inlineBackAction}
       />
 
       {isCurrentFollowupChatOpen && directoryId && (

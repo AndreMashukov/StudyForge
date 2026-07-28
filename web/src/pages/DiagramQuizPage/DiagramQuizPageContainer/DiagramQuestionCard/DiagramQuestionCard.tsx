@@ -1,11 +1,10 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { Check, X } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
+import { Card, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
-import { QuizHintTooltip } from '../../../../components/QuizHintTooltip';
-import { QuizProgressBar } from '../../../../components/QuizProgressBar';
+import { QuizQuestionHeader } from '../../../../components/QuizQuestionHeader';
 import { DiagramSlideViewer } from '../DiagramSlideViewer';
 import { DiagramAnswerBar } from '../DiagramAnswerBar';
 import { Spinner } from '../../../../components/ui/Spinner';
@@ -27,6 +26,7 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
   onDiagramDotClick,
   isLastQuestion,
   className,
+  backAction,
   onGenerateFollowup,
   isGeneratingFollowup = false,
   isFollowupGenerated = false,
@@ -40,24 +40,17 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
 
   return (
     <Card className={cn('w-full overflow-hidden', className)}>
-      {totalQuestions > 0 && (
-        <QuizProgressBar
-          progress={progress}
-          currentQuestion={currentQuestion}
-          totalQuestions={totalQuestions}
-          score={quizState.score}
-          answeredCount={answeredCount}
-        />
-      )}
+      <QuizQuestionHeader
+        progress={progress}
+        currentQuestion={currentQuestion}
+        totalQuestions={totalQuestions}
+        score={quizState.score}
+        answeredCount={answeredCount}
+        questionText={question.question}
+        hint={question.hint}
+        leadingAction={backAction}
+      />
 
-      <CardHeader>
-        <div className="flex items-start gap-2">
-          <CardTitle className="flex-1 text-lg font-medium leading-relaxed text-foreground">
-            {question.question}
-          </CardTitle>
-          <QuizHintTooltip hint={question.hint} className="mt-0.5" />
-        </div>
-      </CardHeader>
       <CardContent className="space-y-4">
         <DiagramSlideViewer
           diagrams={question.diagrams}

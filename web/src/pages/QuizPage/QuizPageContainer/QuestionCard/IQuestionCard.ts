@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { IQuizQuestion } from '../../types/IQuizTypes';
 
 export interface IQuestionCard {
@@ -8,6 +9,7 @@ export interface IQuestionCard {
   onNextQuestion: () => void;
   isLastQuestion: boolean;
   className?: string;
+  backAction?: ReactNode;
   onGenerateFollowup?: () => void;
   isGeneratingFollowup?: boolean;
   isFollowupGenerated?: boolean;

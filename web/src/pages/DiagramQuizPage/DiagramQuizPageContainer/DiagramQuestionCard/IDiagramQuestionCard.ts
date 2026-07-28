@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { IDiagramQuizQuestion } from '../../types/IDiagramQuizTypes';
 
 export interface IDiagramQuestionCard {
@@ -12,6 +13,7 @@ export interface IDiagramQuestionCard {
   onDiagramDotClick: (index: number) => void;
   isLastQuestion: boolean;
   className?: string;
+  backAction?: ReactNode;
   onGenerateFollowup?: () => void;
   isGeneratingFollowup?: boolean;
   isFollowupGenerated?: boolean;

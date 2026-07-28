@@ -1,11 +1,10 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { Check, X } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
+import { Card, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
-import { QuizHintTooltip } from '../../../../components/QuizHintTooltip';
-import { QuizProgressBar } from '../../../../components/QuizProgressBar';
+import { QuizQuestionHeader } from '../../../../components/QuizQuestionHeader';
 import { Spinner } from '../../../../components/ui/Spinner';
 import {
   selectQuizState,
@@ -21,6 +20,7 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
   onNextQuestion,
   isLastQuestion,
   className,
+  backAction,
   onGenerateFollowup,
   isGeneratingFollowup = false,
   isFollowupGenerated = false,
@@ -48,25 +48,17 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
 
   return (
     <Card className={cn('w-full overflow-hidden', className)}>
-      {totalQuestions > 0 && (
-        <QuizProgressBar
-          progress={progress}
-          currentQuestion={currentQuestion}
-          totalQuestions={totalQuestions}
-          score={quizState.score}
-          answeredCount={answeredCount}
-        />
-      )}
+      <QuizQuestionHeader
+        progress={progress}
+        currentQuestion={currentQuestion}
+        totalQuestions={totalQuestions}
+        score={quizState.score}
+        answeredCount={answeredCount}
+        questionText={question.question}
+        hint={question.hint}
+        leadingAction={backAction}
+      />
 
-      <CardHeader>
-        <div className="flex items-start gap-2">
-          <CardTitle className="flex-1 text-lg font-medium leading-relaxed text-foreground">
-            {question.question}
-          </CardTitle>
-          <QuizHintTooltip hint={question.hint} className="mt-0.5" />
-        </div>
-      </CardHeader>
-      
       <CardContent className="space-y-3">
         {question.options.map((option, index) => (
           <button
