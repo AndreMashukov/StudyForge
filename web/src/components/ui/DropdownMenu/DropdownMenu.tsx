@@ -63,6 +63,7 @@ export const DropdownMenuContent = React.forwardRef<
         'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2',
         className,
       )}
+      onOpenAutoFocus={(event) => event.preventDefault()}
       onCloseAutoFocus={(event) => event.preventDefault()}
     >
       {children}
@@ -97,7 +98,7 @@ export const DropdownMenuItem = React.forwardRef<
       className={cn(
         'relative flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors',
         'hover:bg-accent hover:text-accent-foreground',
-        'focus:bg-accent focus:text-accent-foreground',
+        'focus-visible:bg-accent focus-visible:text-accent-foreground',
         'disabled:pointer-events-none disabled:opacity-50',
         className,
       )}
