@@ -1,106 +1,75 @@
-import * as React from "react";
-import { cn } from "../../../lib/utils";
+import * as React from 'react';
+import * as Popover from '@radix-ui/react-popover';
+import { cn } from '../../../lib/utils';
 
 interface IDropdownMenu {
   children: React.ReactNode;
 }
 
+const DropdownMenuContext = React.createContext<{
+  setOpen: (open: boolean) => void;
+} | null>(null);
+
 export const DropdownMenu = ({ children }: IDropdownMenu) => {
   const [open, setOpen] = React.useState(false);
 
   return (
-    <div className="relative inline-block">
-      {React.Children.map(children, (child) => {
-        if (React.isValidElement(child)) {
-          return React.cloneElement(child as React.ReactElement<{
-            open?: boolean;
-            setOpen?: (open: boolean) => void;
-          }>, {
-            open,
-            setOpen,
-          });
-        }
-        return child;
-      })}
-    </div>
+    <DropdownMenuContext.Provider value={{ setOpen }}>
+      <Popover.Root open={open} onOpenChange={setOpen}>
+        {children}
+      </Popover.Root>
+    </DropdownMenuContext.Provider>
   );
 };
 
 interface IDropdownMenuTrigger {
   children: React.ReactNode;
-  open?: boolean;
-  setOpen?: (open: boolean) => void;
   asChild?: boolean;
 }
 
 export const DropdownMenuTrigger = ({
   children,
-  open,
-  setOpen,
   asChild,
 }: IDropdownMenuTrigger) => {
-  const handleClick = () => {
-    setOpen?.(!open);
-  };
-
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement<{
-      onClick?: () => void;
-    }>, {
-      onClick: handleClick,
-    });
+    return <Popover.Trigger asChild>{children}</Popover.Trigger>;
   }
 
-  return <button onClick={handleClick}>{children}</button>;
+  return <Popover.Trigger asChild><button type="button">{children}</button></Popover.Trigger>;
 };
 
 interface IDropdownMenuContent {
   children: React.ReactNode;
-  open?: boolean;
-  setOpen?: (open: boolean) => void;
-  align?: "start" | "end";
+  align?: 'start' | 'end' | 'center';
   className?: string;
+  sideOffset?: number;
 }
 
 export const DropdownMenuContent = React.forwardRef<
   HTMLDivElement,
   IDropdownMenuContent
->(({ children, open, setOpen, align = "end", className }, ref) => {
-  const contentRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        contentRef.current &&
-        !contentRef.current.contains(event.target as Node)
-      ) {
-        setOpen?.(false);
-      }
-    };
-
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [open, setOpen]);
-
-  if (!open) return null;
-
-  return (
-    <div
-      ref={contentRef}
+>(({ children, align = 'end', className, sideOffset = 8 }, ref) => (
+  <Popover.Portal>
+    <Popover.Content
+      ref={ref}
+      align={align}
+      sideOffset={sideOffset}
+      collisionPadding={10}
       className={cn(
-        "absolute z-50 mt-2 min-w-[180px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
-        align === "end" ? "right-0" : "left-0",
-        className
+        'z-50 min-w-[180px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-none',
+        'data-[state=open]:animate-in data-[state=closed]:animate-out',
+        'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+        'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+        'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2',
+        className,
       )}
+      onCloseAutoFocus={(event) => event.preventDefault()}
     >
       {children}
-    </div>
-  );
-});
-DropdownMenuContent.displayName = "DropdownMenuContent";
+    </Popover.Content>
+  </Popover.Portal>
+));
+DropdownMenuContent.displayName = 'DropdownMenuContent';
 
 interface IDropdownMenuItem {
   children: React.ReactNode;
@@ -112,23 +81,32 @@ interface IDropdownMenuItem {
 export const DropdownMenuItem = React.forwardRef<
   HTMLButtonElement,
   IDropdownMenuItem
->(({ children, onClick, className, disabled }, ref) => (
-  <button
-    ref={ref}
-    onClick={onClick}
-    disabled={disabled}
-    className={cn(
-      "relative flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors",
-      "hover:bg-accent hover:text-accent-foreground",
-      "focus:bg-accent focus:text-accent-foreground",
-      "disabled:pointer-events-none disabled:opacity-50",
-      className
-    )}
-  >
-    {children}
-  </button>
-));
-DropdownMenuItem.displayName = "DropdownMenuItem";
+>(({ children, onClick, className, disabled }, ref) => {
+  const ctx = React.useContext(DropdownMenuContext);
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={() => {
+        if (disabled) return;
+        onClick?.();
+        ctx?.setOpen(false);
+      }}
+      disabled={disabled}
+      className={cn(
+        'relative flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors',
+        'hover:bg-accent hover:text-accent-foreground',
+        'focus:bg-accent focus:text-accent-foreground',
+        'disabled:pointer-events-none disabled:opacity-50',
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+});
+DropdownMenuItem.displayName = 'DropdownMenuItem';
 
 interface IDropdownMenuSeparator {
   className?: string;
@@ -138,9 +116,6 @@ export const DropdownMenuSeparator = React.forwardRef<
   HTMLDivElement,
   IDropdownMenuSeparator
 >(({ className }, ref) => (
-  <div
-    ref={ref}
-    className={cn("my-1 h-px bg-muted", className)}
-  />
+  <div ref={ref} className={cn('my-1 h-px bg-muted', className)} />
 ));
-DropdownMenuSeparator.displayName = "DropdownMenuSeparator";
+DropdownMenuSeparator.displayName = 'DropdownMenuSeparator';
