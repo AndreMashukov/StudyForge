@@ -13,6 +13,7 @@ const flashcardHtmlStyles =
   '[&_p]:mb-2 [&_p:last-child]:mb-0 ' +
   '[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 ' +
   '[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 ' +
+  '[&_pre_code]:rounded-none [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:px-0 ' +
   '[&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-muted [&_pre]:p-2 ' +
   '[&_table]:w-full [&_table]:border-collapse ' +
   '[&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-1 ' +
