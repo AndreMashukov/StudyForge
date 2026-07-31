@@ -47,7 +47,44 @@ function getCodeLanguage(className: string): string | undefined {
   return match?.[1];
 }
 
-function renderHtmlNode(node: ChildNode, key: string): React.ReactNode {
+const inferredLanguageNames: Array<[RegExp, string]> = [
+  [/\bpython\b/i, 'python'],
+  [/\btypescript\b/i, 'typescript'],
+  [/\bjavascript\b/i, 'javascript'],
+  [/\bsql\b/i, 'sql'],
+  [/\bbash\b|\bshell\b|\bterminal\b/i, 'bash'],
+  [/\bjson\b/i, 'json'],
+  [/\bhtml\b/i, 'html'],
+  [/\bcss\b/i, 'css'],
+];
+
+function inferCodeLanguage(text: string): string | undefined {
+  return inferredLanguageNames.find(([pattern]) => pattern.test(text))?.[1];
+}
+
+function getElementLanguageHint(
+  element: HTMLElement,
+  fallback: string | undefined,
+): string | undefined {
+  if (element.tagName.toLowerCase() === 'details') {
+    const summary = Array.from(element.children).find(
+      (child) => child.tagName.toLowerCase() === 'summary',
+    );
+    const summaryLanguage = inferCodeLanguage(summary?.textContent ?? '');
+    if (summaryLanguage) {
+      return summaryLanguage;
+    }
+  }
+
+  const classLanguage = getCodeLanguage(element.className);
+  return classLanguage ?? fallback;
+}
+
+function renderHtmlNode(
+  node: ChildNode,
+  key: string,
+  languageHint?: string,
+): React.ReactNode {
   if (node.nodeType === Node.TEXT_NODE) {
     return node.textContent;
   }
@@ -63,7 +100,8 @@ function renderHtmlNode(node: ChildNode, key: string): React.ReactNode {
       (child) => child.tagName.toLowerCase() === 'code',
     );
     const codeClassName = codeElement?.getAttribute('class') ?? '';
-    const language = getCodeLanguage(`${node.className} ${codeClassName}`);
+    const language =
+      getCodeLanguage(`${node.className} ${codeClassName}`) ?? languageHint;
 
     return (
       <CodeBlock
@@ -75,8 +113,9 @@ function renderHtmlNode(node: ChildNode, key: string): React.ReactNode {
     );
   }
 
+  const nextLanguageHint = getElementLanguageHint(node, languageHint);
   const children = Array.from(node.childNodes).map((child, index) =>
-    renderHtmlNode(child, `${key}-${index}`),
+    renderHtmlNode(child, `${key}-${index}`, nextLanguageHint),
   );
   const props: IElementRenderProps = { key };
   if (node.className) {
