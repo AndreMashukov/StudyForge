@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { cn } from '../../../lib/utils';
+import { CodeBlock } from '../../../components/MarkdownRenderer/CodeBlock';
 
 interface IFlashcardHtmlContent {
   html: string;
   className?: string;
+  highlightCodeBlocks?: boolean;
 }
 
 const flashcardHtmlStyles =
@@ -34,8 +36,85 @@ const flashcardHtmlStyles =
   '[&_details]:rounded-md [&_details]:border [&_details]:border-border [&_details]:px-3 [&_details]:py-2 [&_details]:mb-2 ' +
   '[&_summary]:cursor-pointer [&_summary]:font-semibold [&_summary]:text-primary';
 
-export const FlashcardHtmlContent = ({ html, className }: IFlashcardHtmlContent) => {
+interface IElementRenderProps {
+  key: string;
+  className?: string;
+  open?: boolean;
+}
+
+function getCodeLanguage(className: string): string | undefined {
+  const match = /(?:^|\s)language-([\w-]+)/.exec(className);
+  return match?.[1];
+}
+
+function renderHtmlNode(node: ChildNode, key: string): React.ReactNode {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.textContent;
+  }
+
+  if (!(node instanceof HTMLElement)) {
+    return null;
+  }
+
+  const tagName = node.tagName.toLowerCase();
+
+  if (tagName === 'pre') {
+    const codeElement = Array.from(node.children).find(
+      (child) => child.tagName.toLowerCase() === 'code',
+    );
+    const codeClassName = codeElement?.getAttribute('class') ?? '';
+    const language = getCodeLanguage(`${node.className} ${codeClassName}`);
+
+    return (
+      <CodeBlock
+        key={key}
+        code={(codeElement?.textContent ?? node.textContent ?? '').trim()}
+        language={language}
+        showCopyButton={true}
+      />
+    );
+  }
+
+  const children = Array.from(node.childNodes).map((child, index) =>
+    renderHtmlNode(child, `${key}-${index}`),
+  );
+  const props: IElementRenderProps = { key };
+  if (node.className) {
+    props.className = node.className;
+  }
+  if (tagName === 'details' && node.hasAttribute('open')) {
+    props.open = true;
+  }
+
+  return React.createElement(tagName, props, ...children);
+}
+
+function renderHtmlWithHighlightedCode(html: string): React.ReactNode[] {
+  const parser = new DOMParser();
+  const document = parser.parseFromString(html, 'text/html');
+
+  return Array.from(document.body.childNodes).map((node, index) =>
+    renderHtmlNode(node, `flashcard-html-${index}`),
+  );
+}
+
+export const FlashcardHtmlContent = ({
+  html,
+  className,
+  highlightCodeBlocks = false,
+}: IFlashcardHtmlContent) => {
+  const renderedHtml = useMemo(
+    () => (highlightCodeBlocks ? renderHtmlWithHighlightedCode(html) : null),
+    [highlightCodeBlocks, html],
+  );
+
   if (!html) return null;
+
+  if (highlightCodeBlocks) {
+    return (
+      <div className={cn(flashcardHtmlStyles, className)}>{renderedHtml}</div>
+    );
+  }
 
   return (
     <div

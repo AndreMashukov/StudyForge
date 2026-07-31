@@ -300,7 +300,10 @@ export const FlashcardSetPageContainer = () => {
             </div>
             {hasDescription && isFlipped && currentCard ? (
               <div className="w-full max-w-2xl mx-auto mt-4 rounded-xl border border-border bg-muted/40 px-4 py-3">
-                <FlashcardHtmlContent html={descriptionHtml} />
+                <FlashcardHtmlContent
+                  html={descriptionHtml}
+                  highlightCodeBlocks={true}
+                />
               </div>
             ) : null}
           </div>
@@ -375,7 +378,10 @@ export const FlashcardSetPageContainer = () => {
         {hasDescription && isFlipped && currentCard ? (
           <div className="px-4 sm:px-6 pb-5">
             <div className="max-w-2xl mx-auto rounded-xl border border-border bg-muted/40 px-4 py-3">
-              <FlashcardHtmlContent html={descriptionHtml} />
+              <FlashcardHtmlContent
+                html={descriptionHtml}
+                highlightCodeBlocks={true}
+              />
             </div>
           </div>
         ) : null}
