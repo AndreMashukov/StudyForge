@@ -11,6 +11,7 @@ interface FlashcardsPanelProps {
   mayBeTruncated?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'flashcard' }) => void;
   ruleNamesMap?: Map<string, string>;
+  onCreate: () => void;
 }
 
 export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
@@ -19,6 +20,7 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
   mayBeTruncated = false,
   onDeleteArtifact,
   ruleNamesMap,
+  onCreate,
 }) => {
   const dispatch = useAppDispatch();
   const prefetchFlashcardSet = useCallback(
@@ -37,7 +39,7 @@ export const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({
       panelType="cards"
       title="Flashcards"
       createLabel="+ Create flashcards"
-      createPath={`/flashcards/create?directoryId=${directoryId}`}
+      onCreate={onCreate}
       emptyMessage="No flashcard sets in this directory yet."
       entityLabel="flashcard sets"
       artifactType="flashcard"

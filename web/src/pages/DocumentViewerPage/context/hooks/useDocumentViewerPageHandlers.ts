@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { TocItem, exportToPDF } from '../../../../components/MarkdownRenderer';
 import { downloadMarkdownFile } from '../../../../utils/downloadUtils';
@@ -41,7 +40,6 @@ export const useDocumentViewerPageHandlers = ({
   contentRef,
   content,
 }: UseDocumentViewerPageHandlersProps) => {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { showToast } = useToast();
   const isExporting = useSelector(selectIsExporting);
@@ -49,42 +47,6 @@ export const useDocumentViewerPageHandlers = ({
   const [askDocumentQuestion] = useAskDocumentQuestionMutation();
   const [reviseDocumentWithAI] = useReviseDocumentWithAIMutation();
   const [updateDocument] = useUpdateDocumentMutation();
-
-  const handleCreateQuizFromDocument = useCallback(
-    (docId: string) => {
-      const directoryId = document?.directoryId;
-      const params = new URLSearchParams({ documentId: docId });
-      if (directoryId) {
-        params.set('directoryId', directoryId);
-      }
-      navigate(`/quiz/create?${params.toString()}`);
-    },
-    [navigate, document?.directoryId]
-  );
-
-  const handleGenerateFlashcards = useCallback(
-    (docId: string) => {
-      const directoryId = document?.directoryId;
-      const params = new URLSearchParams({ documentId: docId });
-      if (directoryId) {
-        params.set('directoryId', directoryId);
-      }
-      navigate(`/flashcards/create?${params.toString()}`);
-    },
-    [navigate, document?.directoryId]
-  );
-
-  const handleGenerateSlideDeck = useCallback(
-    (docId: string) => {
-      const directoryId = document?.directoryId;
-      const params = new URLSearchParams({ documentId: docId });
-      if (directoryId) {
-        params.set('directoryId', directoryId);
-      }
-      navigate(`/slides/create?${params.toString()}`);
-    },
-    [navigate, document?.directoryId]
-  );
 
   const handleTocGenerated = useCallback(
     (toc: TocItem[]) => {
@@ -231,9 +193,6 @@ export const useDocumentViewerPageHandlers = ({
   }, [dispatch]);
 
   return {
-    handleCreateQuizFromDocument,
-    handleGenerateFlashcards,
-    handleGenerateSlideDeck,
     handleTocGenerated,
     handleExportPDF,
     handleDownloadMd,

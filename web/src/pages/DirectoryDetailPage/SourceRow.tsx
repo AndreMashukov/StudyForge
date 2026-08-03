@@ -1,5 +1,6 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { CreateArtifactModalType } from '../../components/CreateArtifactModal';
 import {
   FileText,
   Trash2,
@@ -42,6 +43,7 @@ interface SourceRowProps {
   generationModel?: string;
   selected?: boolean;
   onSelectChange?: (selected: boolean) => void;
+  onCreateArtifact?: (artifactType: CreateArtifactModalType, documentId: string) => void;
 }
 
 export const SourceRow: React.FC<SourceRowProps> = ({
@@ -53,8 +55,8 @@ export const SourceRow: React.FC<SourceRowProps> = ({
   generationModel,
   selected = false,
   onSelectChange,
+  onCreateArtifact,
 }) => {
-  const navigate = useNavigate();
   const {
     isEditingTitle,
     draftTitle,
@@ -221,35 +223,31 @@ export const SourceRow: React.FC<SourceRowProps> = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onClick={() => navigate(`/quiz/create?directoryId=${directoryId}&documentId=${document.id}`)}
+                onClick={() => onCreateArtifact?.('quizzes', document.id)}
               >
                 <Brain size={14} className="mr-2" />
                 Quiz
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => navigate(`/flashcards/create?directoryId=${directoryId}&documentId=${document.id}`)}
+                onClick={() => onCreateArtifact?.('cards', document.id)}
               >
                 <Layers size={14} className="mr-2" />
                 Flashcards
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => navigate(`/slides/create?directoryId=${directoryId}&documentId=${document.id}`)}
+                onClick={() => onCreateArtifact?.('slides', document.id)}
               >
                 <Presentation size={14} className="mr-2" />
                 Slide deck
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() =>
-                  navigate(`/diagram-quiz/create?directoryId=${directoryId}&documentId=${document.id}`)
-                }
+                onClick={() => onCreateArtifact?.('diagramQuizzes', document.id)}
               >
                 <Network size={14} className="mr-2" />
                 Diagram quiz
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() =>
-                  navigate(`/sequence-quiz/create?directoryId=${directoryId}&documentId=${document.id}`)
-                }
+                onClick={() => onCreateArtifact?.('sequenceQuizzes', document.id)}
               >
                 <ListOrdered size={14} className="mr-2" />
                 Sequence quiz

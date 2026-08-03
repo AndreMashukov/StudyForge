@@ -11,6 +11,7 @@ interface DiagramQuizzesPanelProps {
   mayBeTruncated?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'diagramQuiz' }) => void;
   ruleNamesMap?: Map<string, string>;
+  onCreate: () => void;
 }
 
 export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
@@ -19,6 +20,7 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
   mayBeTruncated = false,
   onDeleteArtifact,
   ruleNamesMap,
+  onCreate,
 }) => {
   const dispatch = useAppDispatch();
   const prefetchDiagramQuiz = useCallback(
@@ -37,7 +39,7 @@ export const DiagramQuizzesPanel: React.FC<DiagramQuizzesPanelProps> = ({
       panelType="diagramQuizzes"
       title="Diagram quizzes"
       createLabel="+ Create diagram quiz"
-      createPath={`/diagram-quiz/create?directoryId=${directoryId}`}
+      onCreate={onCreate}
       emptyMessage="No diagram quizzes in this directory yet."
       entityLabel="diagram quizzes"
       artifactType="diagramQuiz"

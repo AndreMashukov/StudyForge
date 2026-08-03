@@ -11,6 +11,7 @@ interface QuizzesPanelProps {
   mayBeTruncated?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'quiz' }) => void;
   ruleNamesMap?: Map<string, string>;
+  onCreate: () => void;
 }
 
 export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
@@ -19,6 +20,7 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
   mayBeTruncated = false,
   onDeleteArtifact,
   ruleNamesMap,
+  onCreate,
 }) => {
   const dispatch = useAppDispatch();
   const prefetchQuiz = useCallback(
@@ -35,7 +37,7 @@ export const QuizzesPanel: React.FC<QuizzesPanelProps> = ({
       panelType="quizzes"
       title="Quizzes"
       createLabel="+ Create quiz"
-      createPath={`/quiz/create?directoryId=${directoryId}`}
+      onCreate={onCreate}
       emptyMessage="No quizzes in this directory yet."
       entityLabel="quizzes"
       artifactType="quiz"

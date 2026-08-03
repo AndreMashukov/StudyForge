@@ -11,6 +11,7 @@ interface ISubjectWorldsPanelProps {
   mayBeTruncated?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'subjectWorld' }) => void;
   ruleNamesMap?: Map<string, string>;
+  onCreate: () => void;
 }
 
 export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
@@ -19,6 +20,7 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
   mayBeTruncated = false,
   onDeleteArtifact,
   ruleNamesMap,
+  onCreate,
 }) => {
   const dispatch = useAppDispatch();
   const prefetchSubjectWorld = useCallback(
@@ -37,7 +39,7 @@ export const SubjectWorldsPanel: React.FC<ISubjectWorldsPanelProps> = ({
       panelType="subjectWorlds"
       title="Subject worlds"
       createLabel="+ Create subject world"
-      createPath={`/subject-world/create?directoryId=${encodeURIComponent(directoryId)}`}
+      onCreate={onCreate}
       emptyMessage="No subject worlds in this directory yet."
       entityLabel="subject worlds"
       artifactType="subjectWorld"

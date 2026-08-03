@@ -6,7 +6,7 @@ import { useGetDocumentQuery } from '../../../../store/api/Documents';
 
 interface IUseDocumentsPageEffects {
   handlers: {
-    handleCreateQuizFromDocument: (documentId: string) => void;
+    handleCreateQuizFromDocument: (documentId: string, directoryId?: string) => void;
   };
 }
 
@@ -41,7 +41,7 @@ export const useDocumentsPageEffects = ({
       return;
     }
 
-    handlers.handleCreateQuizFromDocument(highlightDocId);
+    handlers.handleCreateQuizFromDocument(highlightDocId, highlightedDocument.directoryId);
     setSearchParams({});
   }, [
     shouldFetchHighlight,

@@ -11,6 +11,7 @@ interface SlidesPanelProps {
   mayBeTruncated?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'slideDeck' }) => void;
   ruleNamesMap?: Map<string, string>;
+  onCreate: () => void;
 }
 
 export const SlidesPanel: React.FC<SlidesPanelProps> = ({
@@ -19,6 +20,7 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
   mayBeTruncated = false,
   onDeleteArtifact,
   ruleNamesMap,
+  onCreate,
 }) => {
   const dispatch = useAppDispatch();
   const prefetchSlideDeck = useCallback(
@@ -35,7 +37,7 @@ export const SlidesPanel: React.FC<SlidesPanelProps> = ({
       panelType="slides"
       title="Slide decks"
       createLabel="+ Create slides"
-      createPath={`/slides/create?directoryId=${directoryId}`}
+      onCreate={onCreate}
       emptyMessage="No slide decks in this directory yet."
       entityLabel="slide decks"
       artifactType="slideDeck"

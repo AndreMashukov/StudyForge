@@ -29,8 +29,7 @@ export const DirectoryRealtimeBridge = () => {
     if (!fromQuery) return null;
 
     if (
-      pathname.startsWith('/subject-world/') ||
-      pathname === '/subject-world/create'
+      pathname.startsWith('/subject-world/')
     ) {
       return fromQuery;
     }
@@ -41,10 +40,9 @@ export const DirectoryRealtimeBridge = () => {
   // Only run the bridge if we are actually on a route that needs it,
   // to avoid setting up global listeners that duplicate the page-level ones
   // or run unnecessarily when viewing other pages.
-  const isActive = 
-    pathname.startsWith('/directory/') || 
-    pathname.startsWith('/subject-world/') ||
-    pathname === '/subject-world/create';
+  const isActive =
+    pathname.startsWith('/directory/') ||
+    pathname.startsWith('/subject-world/');
 
   useDirectoryDocumentsRealtimeCache(isActive ? directoryId : null, {
     artifactLimit: ARTIFACT_PAGE_LIMIT,

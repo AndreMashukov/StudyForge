@@ -14,7 +14,6 @@ import { Spinner } from '../components/ui/Spinner';
 import { HomePage } from '../pages/HomePage';
 import { AuthPage } from '../pages/AuthPage';
 import { QuizPage } from '../pages/QuizPage';
-import { CreateQuizPage } from '../pages/CreateQuizPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { DocumentsPage } from '../pages/DocumentsPage';
 import { CreateDocumentPage } from '../pages/CreateDocumentPage';
@@ -23,21 +22,17 @@ import { RulesPage } from '../pages/RulesPage';
 import { RuleEditorPage } from '../pages/RuleEditorPage';
 import { DirectoryRulesPage } from '../pages/DirectoryRulesPage';
 import { FlashcardSetPage } from '../pages/FlashcardSetPage';
-import { CreateFlashcardPage } from '../pages/CreateFlashcardPage';
-import { CreateSlideDeckPage } from '../pages/CreateSlideDeckPage';
 import { SlideDeckPage } from '../pages/SlideDeckPage';
 import { DiagramQuizPage } from '../pages/DiagramQuizPage';
-import { CreateDiagramQuizPage } from '../pages/CreateDiagramQuizPage';
 import { SequenceQuizPage } from '../pages/SequenceQuizPage';
-import { CreateSequenceQuizPage } from '../pages/CreateSequenceQuizPage';
 import { SubjectWorldPage } from '../pages/SubjectWorldPage';
-import { CreateSubjectWorldPage } from '../pages/CreateSubjectWorldPage';
 import { StatisticsPage } from '../pages/StatisticsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { Page } from '../components/Page';
 import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
 import { QuizIndexRedirect } from '../utils/QuizIndexRedirect';
 import { MascotImage } from '../components/MascotImage';
+import { CreateArtifactRouteRedirect } from '../utils/CreateArtifactRouteRedirect';
 
 export function App() {
   return (
@@ -119,7 +114,7 @@ const AppContent = () => {
         element={
           <MainLayout>
             <ProtectedRoute>
-              <CreateQuizPage />
+              <CreateArtifactRouteRedirect directoryTab="quizzes" artifactType="quizzes" />
             </ProtectedRoute>
           </MainLayout>
         }
@@ -212,7 +207,7 @@ const AppContent = () => {
         element={
           <MainLayout>
             <ProtectedRoute>
-              <CreateFlashcardPage />
+              <CreateArtifactRouteRedirect directoryTab="cards" artifactType="cards" />
             </ProtectedRoute>
           </MainLayout>
         }
@@ -234,7 +229,7 @@ const AppContent = () => {
         element={
           <MainLayout>
             <ProtectedRoute>
-              <CreateSlideDeckPage />
+              <CreateArtifactRouteRedirect directoryTab="slides" artifactType="slides" />
             </ProtectedRoute>
           </MainLayout>
         }
@@ -255,7 +250,10 @@ const AppContent = () => {
         element={
           <MainLayout>
             <ProtectedRoute>
-              <CreateDiagramQuizPage />
+              <CreateArtifactRouteRedirect
+                directoryTab="diagramQuizzes"
+                artifactType="diagramQuizzes"
+              />
             </ProtectedRoute>
           </MainLayout>
         }
@@ -276,7 +274,10 @@ const AppContent = () => {
         element={
           <MainLayout>
             <ProtectedRoute>
-              <CreateSequenceQuizPage />
+              <CreateArtifactRouteRedirect
+                directoryTab="sequenceQuizzes"
+                artifactType="sequenceQuizzes"
+              />
             </ProtectedRoute>
           </MainLayout>
         }
@@ -297,7 +298,10 @@ const AppContent = () => {
         element={
           <MainLayout>
             <ProtectedRoute>
-              <CreateSubjectWorldPage />
+              <CreateArtifactRouteRedirect
+                directoryTab="subjectWorlds"
+                artifactType="subjectWorlds"
+              />
             </ProtectedRoute>
           </MainLayout>
         }

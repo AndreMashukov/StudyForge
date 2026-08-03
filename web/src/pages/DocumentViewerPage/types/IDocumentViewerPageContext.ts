@@ -15,7 +15,6 @@ export interface IDocumentViewerPageContext {
     refetch: () => void;
   };
   handlers: {
-    handleCreateQuizFromDocument: (docId: string) => void;
     handleTocGenerated: (toc: TocItem[]) => void;
     handleExportPDF: () => Promise<void>;
     handleDownloadMd: () => void;

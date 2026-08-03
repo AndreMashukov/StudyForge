@@ -6,6 +6,38 @@ import { buildTreeDirectoryNavigationState } from '../../../../utils/directoryNa
 import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 import { useDeleteDocument } from './api/useDeleteDocument';
 import type { RootState } from '../../../../store';
+import { CreateArtifactModalType } from '../../../../components/CreateArtifactModal';
+
+function navigateToCreateArtifact(
+  navigate: ReturnType<typeof useNavigate>,
+  artifactType: CreateArtifactModalType,
+  documentId: string,
+  directoryId?: string,
+) {
+  if (!directoryId) {
+    navigate('/documents');
+    return;
+  }
+
+  const tabByType: Record<CreateArtifactModalType, string> = {
+    quizzes: 'quizzes',
+    cards: 'cards',
+    slides: 'slides',
+    diagramQuizzes: 'diagramQuizzes',
+    sequenceQuizzes: 'sequenceQuizzes',
+    subjectWorlds: 'subjectWorlds',
+  };
+
+  navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, tabByType[artifactType]), {
+    state: {
+      openCreateArtifact: {
+        artifactType,
+        directoryId,
+        preselectedDocumentIds: [documentId],
+      },
+    },
+  });
+}
 
 export const useDocumentsPageHandlers = () => {
   const navigate = useNavigate();
@@ -30,29 +62,15 @@ export const useDocumentsPageHandlers = () => {
   }, [navigate, dispatch]);
 
   const handleCreateQuizFromDocument = useCallback((documentId: string, directoryId?: string) => {
-    console.log('Navigating to create quiz page for document:', documentId);
-    // Navigate to create quiz page with pre-selected document
-    const params = new URLSearchParams({ documentId });
-    if (directoryId) {
-      params.set('directoryId', directoryId);
-    }
-    navigate(`/quiz/create?${params.toString()}`);
+    navigateToCreateArtifact(navigate, 'quizzes', documentId, directoryId);
   }, [navigate]);
 
   const handleGenerateFlashcardsFromDocument = useCallback((documentId: string, directoryId?: string) => {
-    const params = new URLSearchParams({ documentId });
-    if (directoryId) {
-      params.set('directoryId', directoryId);
-    }
-    navigate(`/flashcards/create?${params.toString()}`);
+    navigateToCreateArtifact(navigate, 'cards', documentId, directoryId);
   }, [navigate]);
 
   const handleGenerateSlideDeckFromDocument = useCallback((documentId: string, directoryId?: string) => {
-    const params = new URLSearchParams({ documentId });
-    if (directoryId) {
-      params.set('directoryId', directoryId);
-    }
-    navigate(`/slides/create?${params.toString()}`);
+    navigateToCreateArtifact(navigate, 'slides', documentId, directoryId);
   }, [navigate]);
 
   const handleDeleteDocument = useCallback(async (documentId: string) => {

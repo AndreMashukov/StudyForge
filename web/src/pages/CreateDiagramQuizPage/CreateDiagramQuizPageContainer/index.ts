@@ -1,1 +1,0 @@
-export { CreateDiagramQuizPageContainer } from './CreateDiagramQuizPageContainer';

@@ -54,6 +54,11 @@ import { RulesPanel } from './RulesPanel';
 import { TooltipProvider } from '../../components/ui/Tooltip';
 import { DirectoryChatPanel } from '../../components/DirectoryChatPanel';
 import {
+  CreateArtifactModal,
+  CreateArtifactModalType,
+  ICreateArtifactModalOpenState,
+} from '../../components/CreateArtifactModal';
+import {
   buildDirectoryPath,
   extractDirectoryIdFromDirectoryPath,
   extractDirectoryIdFromRouteParam,
@@ -95,6 +100,46 @@ export const DirectoryDetailPageContainer = () => {
   const [deleteDocDialog, setDeleteDocDialog] = useState<{ document: DocumentEnhanced | null }>({ document: null });
   const [moveDocDialog, setMoveDocDialog] = useState<{ document: DocumentEnhanced | null }>({ document: null });
   const [deleteArtifactDialog, setDeleteArtifactDialog] = useState<{ artifact: ArtifactToDelete | null }>({ artifact: null });
+  const [createArtifactModal, setCreateArtifactModal] = useState<ICreateArtifactModalOpenState | null>(null);
+
+  const handleOpenCreateArtifact = useCallback(
+    (artifactType: CreateArtifactModalType, preselectedDocumentIds?: string[]) => {
+      if (!directoryId) {
+        return;
+      }
+      setCreateArtifactModal({
+        artifactType,
+        directoryId,
+        ...(preselectedDocumentIds?.length
+          ? { preselectedDocumentIds }
+          : {}),
+      });
+    },
+    [directoryId],
+  );
+
+  const handleOpenCreateArtifactFromDocument = useCallback(
+    (artifactType: CreateArtifactModalType, documentId: string) => {
+      handleOpenCreateArtifact(artifactType, [documentId]);
+    },
+    [handleOpenCreateArtifact],
+  );
+
+  useEffect(() => {
+    const state = location.state as { openCreateArtifact?: ICreateArtifactModalOpenState } | null;
+    if (!state?.openCreateArtifact || !directoryId) {
+      return;
+    }
+    if (state.openCreateArtifact.directoryId !== directoryId) {
+      return;
+    }
+    setCreateArtifactModal(state.openCreateArtifact);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [directoryId, location.pathname, location.search, location.state, navigate]);
+
+  const handleCloseCreateArtifact = useCallback(() => {
+    setCreateArtifactModal(null);
+  }, []);
 
   const {
     data: contents,
@@ -359,6 +404,7 @@ export const DirectoryDetailPageContainer = () => {
                 onDeleteDocument={(doc) => setDeleteDocDialog({ document: doc })}
                 onMoveDocument={(doc) => setMoveDocDialog({ document: doc })}
                 ruleNamesMap={ruleNamesMap}
+                onCreateArtifactFromDocument={handleOpenCreateArtifactFromDocument}
               />
             )}
             {activePanel === 'quizzes' && (
@@ -368,6 +414,7 @@ export const DirectoryDetailPageContainer = () => {
                 mayBeTruncated={quizzesTruncated}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
                 ruleNamesMap={ruleNamesMap}
+                onCreate={() => handleOpenCreateArtifact('quizzes')}
               />
             )}
             {activePanel === 'cards' && (
@@ -377,6 +424,7 @@ export const DirectoryDetailPageContainer = () => {
                 mayBeTruncated={flashcardsTruncated}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
                 ruleNamesMap={ruleNamesMap}
+                onCreate={() => handleOpenCreateArtifact('cards')}
               />
             )}
             {activePanel === 'slides' && (
@@ -386,6 +434,7 @@ export const DirectoryDetailPageContainer = () => {
                 mayBeTruncated={slidesTruncated}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
                 ruleNamesMap={ruleNamesMap}
+                onCreate={() => handleOpenCreateArtifact('slides')}
               />
             )}
             {activePanel === 'diagramQuizzes' && (
@@ -395,6 +444,7 @@ export const DirectoryDetailPageContainer = () => {
                 mayBeTruncated={diagramQuizzesTruncated}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
                 ruleNamesMap={ruleNamesMap}
+                onCreate={() => handleOpenCreateArtifact('diagramQuizzes')}
               />
             )}
             {activePanel === 'sequenceQuizzes' && (
@@ -404,6 +454,7 @@ export const DirectoryDetailPageContainer = () => {
                 mayBeTruncated={sequenceQuizzesTruncated}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
                 ruleNamesMap={ruleNamesMap}
+                onCreate={() => handleOpenCreateArtifact('sequenceQuizzes')}
               />
             )}
             {activePanel === 'subjectWorlds' && (
@@ -413,6 +464,7 @@ export const DirectoryDetailPageContainer = () => {
                 mayBeTruncated={subjectWorldsTruncated}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
                 ruleNamesMap={ruleNamesMap}
+                onCreate={() => handleOpenCreateArtifact('subjectWorlds')}
               />
             )}
             {activePanel === 'chat' && (
@@ -480,6 +532,12 @@ export const DirectoryDetailPageContainer = () => {
         isOpen={!!deleteArtifactDialog.artifact}
         onClose={() => setDeleteArtifactDialog({ artifact: null })}
         artifact={deleteArtifactDialog.artifact}
+      />
+
+      <CreateArtifactModal
+        open={createArtifactModal !== null}
+        state={createArtifactModal}
+        onClose={handleCloseCreateArtifact}
       />
     </Page>
     </TooltipProvider>

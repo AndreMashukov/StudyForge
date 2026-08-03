@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { CreateArtifactModalType } from '../../components/CreateArtifactModal';
 import { DocumentEnhanced } from '@shared-types';
 import { SourceRow } from './SourceRow';
 import { ArtifactRowGenerating } from './ArtifactRow';
@@ -17,6 +18,10 @@ interface ISourcesPanelProps {
   onDeleteDocument: (document: DocumentEnhanced) => void;
   onMoveDocument: (document: DocumentEnhanced) => void;
   ruleNamesMap?: Map<string, string>;
+  onCreateArtifactFromDocument: (
+    artifactType: CreateArtifactModalType,
+    documentId: string,
+  ) => void;
 }
 
 export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
@@ -25,6 +30,7 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
   onDeleteDocument,
   onMoveDocument,
   ruleNamesMap,
+  onCreateArtifactFromDocument,
 }) => {
   const { showOptimisticRow, optimisticTitle } = useOptimisticGeneratingRow(
     directoryId,
@@ -54,9 +60,10 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
         generationModel={document.generationModel}
         selected={selection.isSelected(document.id)}
         onSelectChange={() => selection.toggle(document.id)}
+        onCreateArtifact={onCreateArtifactFromDocument}
       />
     ),
-    [directoryId, onDeleteDocument, onMoveDocument, ruleNamesMap, selection],
+    [directoryId, onCreateArtifactFromDocument, onDeleteDocument, onMoveDocument, ruleNamesMap, selection],
   );
 
   return (

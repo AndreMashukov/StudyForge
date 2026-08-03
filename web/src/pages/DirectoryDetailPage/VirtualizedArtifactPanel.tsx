@@ -1,5 +1,4 @@
 import React, { useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { AlertTriangle, LucideIcon } from 'lucide-react';
 import { ArtifactSummary, ArtifactSummaryType } from '@shared-types';
 import { Button } from '../../components/ui/Button';
@@ -15,7 +14,7 @@ interface IVirtualizedArtifactPanelProps<TType extends ArtifactSummaryType> {
   panelType: ArtifactPanelType;
   title: string;
   createLabel: string;
-  createPath: string;
+  onCreate: () => void;
   emptyMessage: string;
   entityLabel: string;
   artifactType: TType;
@@ -33,7 +32,7 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
   panelType,
   title,
   createLabel,
-  createPath,
+  onCreate,
   emptyMessage,
   entityLabel,
   artifactType,
@@ -96,8 +95,8 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
             <h2 className="truncate text-lg font-semibold">
               {title} ({completedCount})
             </h2>
-            <Button size="sm" asChild>
-              <Link to={createPath}>{createLabel}</Link>
+            <Button size="sm" type="button" onClick={onCreate}>
+              {createLabel}
             </Button>
           </div>
         )}

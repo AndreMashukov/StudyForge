@@ -11,6 +11,7 @@ interface SequenceQuizzesPanelProps {
   mayBeTruncated?: boolean;
   onDeleteArtifact: (artifact: { id: string; title: string; type: 'sequenceQuiz' }) => void;
   ruleNamesMap?: Map<string, string>;
+  onCreate: () => void;
 }
 
 export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
@@ -19,6 +20,7 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
   mayBeTruncated = false,
   onDeleteArtifact,
   ruleNamesMap,
+  onCreate,
 }) => {
   const dispatch = useAppDispatch();
   const prefetchSequenceQuiz = useCallback(
@@ -37,7 +39,7 @@ export const SequenceQuizzesPanel: React.FC<SequenceQuizzesPanelProps> = ({
       panelType="sequenceQuizzes"
       title="Sequence quizzes"
       createLabel="+ Create sequence quiz"
-      createPath={`/sequence-quiz/create?directoryId=${encodeURIComponent(directoryId)}`}
+      onCreate={onCreate}
       emptyMessage="No sequence quizzes in this directory yet."
       entityLabel="sequence quizzes"
       artifactType="sequenceQuiz"

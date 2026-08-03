@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Page } from '../../../components/Page';
@@ -57,6 +57,12 @@ import {
   DialogTitle,
 } from '../../../components/ui/Dialog';
 import { cn } from '../../../lib/utils';
+import {
+  CreateArtifactModal,
+  CreateArtifactModalType,
+  ICreateArtifactModalOpenState,
+} from '../../../components/CreateArtifactModal';
+import { useToast } from '../../../components/Toast';
 
 // Recursive component to render nested TOC items
 const TocItemComponent: React.FC<{
@@ -129,6 +135,8 @@ export const DocumentViewerPageContainer = () => {
   const isApplyingRevision = useSelector(selectIsApplyingRevision);
   const hasUnsavedEditPreview = useSelector(selectHasUnsavedEditPreview);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [createArtifactModal, setCreateArtifactModal] = useState<ICreateArtifactModalOpenState | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     dispatch(clearQuestionAnswer());
@@ -192,55 +200,30 @@ export const DocumentViewerPageContainer = () => {
     navigate('/documents');
   };
 
-  const handleCreateFlashcards = () => {
-    if (!documentId) return;
-    const directoryId = documentApi.data?.directoryId;
-    const params = new URLSearchParams({ documentId });
-    if (directoryId) {
-      params.set('directoryId', directoryId);
-    }
-    navigate(`/flashcards/create?${params.toString()}`);
-  };
+  const handleOpenCreateArtifact = useCallback(
+    (artifactType: CreateArtifactModalType) => {
+      if (!documentId) {
+        return;
+      }
 
-  const handleCreateSlideDeck = () => {
-    if (!documentId) return;
-    const directoryId = documentApi.data?.directoryId;
-    const params = new URLSearchParams({ documentId });
-    if (directoryId) {
-      params.set('directoryId', directoryId);
-    }
-    navigate(`/slides/create?${params.toString()}`);
-  };
+      const directoryId = documentApi.data?.directoryId;
+      if (!directoryId) {
+        showToast('This document must belong to a directory before generating artifacts.', 'error');
+        return;
+      }
 
-  const handleCreateDiagramQuiz = () => {
-    if (!documentId) return;
-    const directoryId = documentApi.data?.directoryId;
-    const params = new URLSearchParams({ documentId });
-    if (directoryId) {
-      params.set('directoryId', directoryId);
-    }
-    navigate(`/diagram-quiz/create?${params.toString()}`);
-  };
+      setCreateArtifactModal({
+        artifactType,
+        directoryId,
+        preselectedDocumentIds: [documentId],
+      });
+    },
+    [documentApi.data?.directoryId, documentId, showToast],
+  );
 
-  const handleCreateSequenceQuiz = () => {
-    if (!documentId) return;
-    const directoryId = documentApi.data?.directoryId;
-    const params = new URLSearchParams({ documentId });
-    if (directoryId) {
-      params.set('directoryId', directoryId);
-    }
-    navigate(`/sequence-quiz/create?${params.toString()}`);
-  };
-
-  const handleCreateSubjectWorld = () => {
-    if (!documentId) return;
-    const directoryId = documentApi.data?.directoryId;
-    const params = new URLSearchParams({ documentId });
-    if (directoryId) {
-      params.set('directoryId', directoryId);
-    }
-    navigate(`/subject-world/create?${params.toString()}`);
-  };
+  const handleCloseCreateArtifact = useCallback(() => {
+    setCreateArtifactModal(null);
+  }, []);
 
   // Early returns for loading and error states
   if (!documentId) {
@@ -384,37 +367,37 @@ export const DocumentViewerPageContainer = () => {
                       id: 'create-quiz',
                       label: 'Create Quiz',
                       icon: <Brain size={16} />,
-                      onClick: () => documentId && handlers.handleCreateQuizFromDocument(documentId),
+                      onClick: () => handleOpenCreateArtifact('quizzes'),
                     },
                     {
                       id: 'generate-flashcards',
                       label: 'Generate Flashcards',
                       icon: <Layers size={16} />,
-                      onClick: handleCreateFlashcards,
+                      onClick: () => handleOpenCreateArtifact('cards'),
                     },
                     {
                       id: 'generate-slide-deck',
                       label: 'Generate Slide Deck',
                       icon: <Presentation size={16} />,
-                      onClick: handleCreateSlideDeck,
+                      onClick: () => handleOpenCreateArtifact('slides'),
                     },
                     {
                       id: 'create-diagram-quiz',
                       label: 'Create Diagram Quiz',
                       icon: <Network size={16} />,
-                      onClick: handleCreateDiagramQuiz,
+                      onClick: () => handleOpenCreateArtifact('diagramQuizzes'),
                     },
                     {
                       id: 'create-sequence-quiz',
                       label: 'Create Sequence Quiz',
                       icon: <ListOrdered size={16} />,
-                      onClick: handleCreateSequenceQuiz,
+                      onClick: () => handleOpenCreateArtifact('sequenceQuizzes'),
                     },
                     {
                       id: 'create-subject-world',
                       label: 'Explore as Game',
                       icon: <Box size={16} />,
-                      onClick: handleCreateSubjectWorld,
+                      onClick: () => handleOpenCreateArtifact('subjectWorlds'),
                     },
                   ]}
                 />
@@ -598,6 +581,12 @@ export const DocumentViewerPageContainer = () => {
           {isEditPanelOpen ? 'Close editor' : 'Edit with AI'}
         </Button>
       )}
+
+      <CreateArtifactModal
+        open={createArtifactModal !== null}
+        state={createArtifactModal}
+        onClose={handleCloseCreateArtifact}
+      />
 
       <Dialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
         <DialogContent>
