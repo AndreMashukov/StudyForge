@@ -1,51 +1,62 @@
 import type { QuestionKnowledgeMetadata, SubjectWorldSpec } from '@shared-types';
 
-export interface QuizGenerationResponse {
-  title: string;
-  questions: Array<{
-    question: string;
-    options: string[];
-    correctAnswer: number;
-    explanation: string;
-    hint?: string;
-    knowledge?: QuestionKnowledgeMetadata;
-  }>;
+export interface IQuizGenerationQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
+  hint?: string;
+  knowledge?: QuestionKnowledgeMetadata;
 }
 
-export interface DiagramQuizGenerationResponse {
+export interface IQuizGenerationResponse {
   title: string;
-  questions: Array<{
-    question: string;
-    diagrams: string[];
-    correctAnswer: number;
-    explanation: string;
-    hint?: string;
-    diagramLabels?: string[];
-    knowledge?: QuestionKnowledgeMetadata;
-  }>;
+  questions: IQuizGenerationQuestion[];
 }
 
-export interface SequenceQuizGenerationResponse {
-  title: string;
-  questions: Array<{
-    question: string;
-    items: string[];
-    explanation: string;
-    hint?: string;
-    knowledge?: QuestionKnowledgeMetadata;
-  }>;
+export interface IDiagramQuizGenerationQuestion {
+  question: string;
+  diagrams: string[];
+  correctAnswer: number;
+  explanation: string;
+  hint?: string;
+  diagramLabels?: string[];
+  knowledge?: QuestionKnowledgeMetadata;
 }
 
-export type SubjectWorldGenerationResponse = SubjectWorldSpec;
+export interface IDiagramQuizGenerationResponse {
+  title: string;
+  questions: IDiagramQuizGenerationQuestion[];
+}
 
-/** @deprecated Use QuizGenerationResponse */
-export type GeminiQuizResponse = QuizGenerationResponse;
+export interface ISequenceQuizGenerationQuestion {
+  question: string;
+  items: string[];
+  explanation: string;
+  hint?: string;
+  knowledge?: QuestionKnowledgeMetadata;
+}
 
-/** @deprecated Use DiagramQuizGenerationResponse */
-export type GeminiDiagramQuizResponse = DiagramQuizGenerationResponse;
+export interface ISequenceQuizGenerationResponse {
+  title: string;
+  questions: ISequenceQuizGenerationQuestion[];
+}
 
-/** @deprecated Use SequenceQuizGenerationResponse */
-export type GeminiSequenceQuizResponse = SequenceQuizGenerationResponse;
+export type ISubjectWorldGenerationResponse = SubjectWorldSpec;
 
-/** @deprecated Use SubjectWorldGenerationResponse */
-export type GeminiSubjectWorldResponse = SubjectWorldGenerationResponse;
+export type QuizGenerationResponse = IQuizGenerationResponse;
+export type DiagramQuizGenerationResponse = IDiagramQuizGenerationResponse;
+export type SequenceQuizGenerationResponse = ISequenceQuizGenerationResponse;
+export type SubjectWorldGenerationResponse = ISubjectWorldGenerationResponse;
+
+/** @deprecated Use IQuizGenerationResponse */
+export type GeminiQuizResponse = IQuizGenerationResponse;
+
+/** @deprecated Use IDiagramQuizGenerationResponse */
+export type GeminiDiagramQuizResponse = IDiagramQuizGenerationResponse;
+
+/** @deprecated Use ISequenceQuizGenerationResponse */
+export type GeminiSequenceQuizResponse = ISequenceQuizGenerationResponse;
+
+/** @deprecated Use ISubjectWorldGenerationResponse */
+export type GeminiSubjectWorldResponse = ISubjectWorldGenerationResponse;

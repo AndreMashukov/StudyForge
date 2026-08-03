@@ -349,6 +349,7 @@ export class GeminiService {
   public static async generateContent(
     prompt: string,
     options?: {
+      model?: string;
       maxOutputTokens?: number;
       temperature?: number;
       topK?: number;
@@ -362,7 +363,7 @@ export class GeminiService {
 
       const fullPrompt = QuizPromptBuilder.buildContentPrompt(prompt);
       const response = await client.models.generateContent({
-        model: GEMINI_PRO_MODEL,
+        model: options?.model ?? GEMINI_PRO_MODEL,
         contents: fullPrompt,
         config: {
           temperature: options?.temperature ?? 0.3,

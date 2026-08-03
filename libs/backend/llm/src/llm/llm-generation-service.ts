@@ -64,7 +64,7 @@ import {
 import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
 import type { IParsedFlashcardItem } from './flashcard-response-parser';
-import type { LlmCapability } from './types';
+import type { LlmCapability, IGenerateTextOptions } from './types';
 import { generateFlashcardsChunked } from '@study-forge/backend-artifacts/flashcards/flashcard-chunked-generator';
 import { generateDiagramQuizChunked } from '@study-forge/backend-artifacts/diagram-quiz/diagram-quiz-chunked-generator';
 import { parseQuizJson } from './quiz-response-parser';
@@ -251,14 +251,7 @@ export class LlmGenerationService {
     userId: string,
     capability: LlmCapability,
     prompt: string,
-    options?: {
-      logLabel?: string;
-      successLogMessage?: string;
-      temperature?: number;
-      topK?: number;
-      topP?: number;
-      maxOutputTokens?: number;
-    },
+    options?: IGenerateTextOptions,
   ): Promise<string> {
     const logLabel = options?.logLabel ?? capability;
     const ctx = await resolveTextRoute(userId, capability, logLabel);
@@ -271,7 +264,10 @@ export class LlmGenerationService {
     };
 
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateContent(prompt, generationConfig);
+      return GeminiService.generateContent(prompt, {
+        ...generationConfig,
+        model: ctx.resolution.route.model,
+      });
     }
 
     return generateExternalProviderText(

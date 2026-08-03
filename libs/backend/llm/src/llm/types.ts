@@ -50,6 +50,16 @@ export interface LlmTextRequest {
   config: LlmTextConfig;
 }
 
+/** Options for {@link LlmGenerationService.generateText}. */
+export interface IGenerateTextOptions {
+  logLabel?: string;
+  successLogMessage?: string;
+  temperature?: number;
+  topK?: number;
+  topP?: number;
+  maxOutputTokens?: number;
+}
+
 export type LlmVisionDetail = 'auto' | 'low' | 'high';
 
 export interface LlmVisionRequest {

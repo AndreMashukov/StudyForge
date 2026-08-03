@@ -44,5 +44,5 @@ export function validateContentForArtifactGeneration(
   }
 }
 
-/** @deprecated Use validateContentForArtifactGeneration */
+/** @deprecated Use validateContentForArtifactGeneration. Pre-flight validation alias. */
 export const validateContentForQuiz = validateContentForArtifactGeneration;

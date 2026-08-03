@@ -10,6 +10,13 @@ export {
   type DiagramQuizGenerationResponse,
   type SequenceQuizGenerationResponse,
   type SubjectWorldGenerationResponse,
+  type IQuizGenerationQuestion,
+  type IQuizGenerationResponse,
+  type IDiagramQuizGenerationQuestion,
+  type IDiagramQuizGenerationResponse,
+  type ISequenceQuizGenerationQuestion,
+  type ISequenceQuizGenerationResponse,
+  type ISubjectWorldGenerationResponse,
   type GeminiQuizResponse,
   type GeminiDiagramQuizResponse,
   type GeminiSequenceQuizResponse,
@@ -31,5 +38,5 @@ export { LlmVisionRouteResolver } from './llm-vision-route-resolver';
 export { LlmSetupRepository } from './llm-setup-repository';
 export { LlmRoutingError, isLlmRoutingError } from './llm-routing-error';
 export { decryptLlmSecret, isLlmEncryptionAvailable } from './llm-secret-resolver';
-export type { LlmCapability, LlmTextConfig, LlmTextRequest, LlmTextResult, ResolvedRoute } from './types';
+export type { LlmCapability, LlmTextConfig, LlmTextRequest, LlmTextResult, ResolvedRoute, IGenerateTextOptions } from './types';
 export type { LlmProviderClient } from './llm-provider-client';
