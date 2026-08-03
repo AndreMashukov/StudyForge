@@ -149,6 +149,14 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
       });
 
       if (error instanceof ArtifactAgentPipelineFailedError || error instanceof DocumentAgentPipelineFailedError) {
+        await failVisibleGenerationRecord(job, message).catch((failError) => {
+          logger.error('Failed to mark visible generation record as failed', {
+            userId,
+            jobId,
+            recordId: job.recordId,
+            error: failError instanceof Error ? failError.message : String(failError),
+          });
+        });
         await GenerationJobsService.markFailed(userId, jobId, message).catch((failError) => {
           logger.error('Failed to mark generation job as failed', {
             userId,
