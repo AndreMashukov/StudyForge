@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DocumentEnhanced } from '@shared-types';
-import {
-  IGetUserDocumentsArgs,
-  useGetUserDocumentsQuery,
-  useLazyGetUserDocumentsQuery,
-} from '../store/api/Documents/documentsApi';
+import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { useAuth } from '../contexts/AuthContext';
+import { fetchUserDocumentsFromFirestore } from '../services/documentFirestore';
+
+export interface IGetUserDocumentsArgs {
+  limit?: number;
+  directoryId?: string;
+}
 
 interface IUsePaginatedUserDocumentsResult {
   documents: DocumentEnhanced[];
@@ -19,33 +22,20 @@ interface IUsePaginatedUserDocumentsResult {
   loadError: string | null;
 }
 
-function mergeDocuments(
-  firstPage: DocumentEnhanced[],
-  extraPages: DocumentEnhanced[],
-): DocumentEnhanced[] {
-  const seen = new Set(firstPage.map((document) => document.id));
-  const merged = [...firstPage];
-
-  for (const document of extraPages) {
-    if (!seen.has(document.id)) {
-      merged.push(document);
-      seen.add(document.id);
-    }
-  }
-
-  return merged;
-}
-
-function buildQueryKey(directoryId: string | undefined, limit: number | undefined): string {
+function buildQueryKey(
+  directoryId: string | undefined,
+  limit: number | undefined,
+): string {
   return `${directoryId ?? ''}:${limit ?? ''}`;
 }
 
 /**
- * Accumulates paginated user documents using existing getUserDocuments cursors.
+ * Accumulates paginated user documents from Firestore.
  */
 export function usePaginatedUserDocuments(
   args: IGetUserDocumentsArgs,
 ): IUsePaginatedUserDocumentsResult {
+  const { user, loading: isAuthLoading } = useAuth();
   const queryArgs = useMemo(
     () => ({
       limit: args.limit,
@@ -54,45 +44,79 @@ export function usePaginatedUserDocuments(
     [args.directoryId, args.limit],
   );
 
-  const {
-    data,
-    isLoading,
-    isFetching,
-    error,
-    refetch,
-  } = useGetUserDocumentsQuery(queryArgs);
-  const [fetchMore] = useLazyGetUserDocumentsQuery();
-
-  const [extraDocuments, setExtraDocuments] = useState<DocumentEnhanced[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [documents, setDocuments] = useState<DocumentEnhanced[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
+  const [error, setError] = useState<unknown>();
+  const [nextCursor, setNextCursor] =
+    useState<QueryDocumentSnapshot<DocumentData>>();
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const queryKeyRef = useRef(buildQueryKey(queryArgs.directoryId, queryArgs.limit));
-
-  useEffect(() => {
-    queryKeyRef.current = buildQueryKey(queryArgs.directoryId, queryArgs.limit);
-    setExtraDocuments([]);
-    setNextCursor(undefined);
-    setHasMore(false);
-    setLoadError(null);
-  }, [queryArgs.directoryId, queryArgs.limit]);
-
-  useEffect(() => {
-    if (!data) {
-      return;
-    }
-    setHasMore(data.hasMore);
-    setNextCursor(data.nextCursor);
-  }, [data]);
-
-  const documents = useMemo(
-    () => mergeDocuments(data?.documents ?? [], extraDocuments),
-    [data?.documents, extraDocuments],
+  const [reloadToken, setReloadToken] = useState(0);
+  const queryKeyRef = useRef(
+    buildQueryKey(queryArgs.directoryId, queryArgs.limit),
   );
 
+  useEffect(() => {
+    let isActive = true;
+    const queryKey = buildQueryKey(queryArgs.directoryId, queryArgs.limit);
+    queryKeyRef.current = queryKey;
+
+    if (isAuthLoading) {
+      setIsLoading(true);
+      return;
+    }
+
+    if (!user) {
+      setDocuments([]);
+      setNextCursor(undefined);
+      setHasMore(false);
+      setLoadError(null);
+      setError(new Error('Authentication required'));
+      setIsLoading(false);
+      setIsFetching(false);
+      return;
+    }
+
+    const loadInitialPage = async () => {
+      setIsLoading(true);
+      setIsFetching(true);
+      setError(undefined);
+      setLoadError(null);
+      setDocuments([]);
+      setNextCursor(undefined);
+      setHasMore(false);
+
+      try {
+        const page = await fetchUserDocumentsFromFirestore(user.uid, queryArgs);
+        if (!isActive || queryKeyRef.current !== queryKey) {
+          return;
+        }
+        setDocuments(page.documents);
+        setNextCursor(page.nextCursor);
+        setHasMore(page.hasMore);
+      } catch (fetchError) {
+        if (isActive && queryKeyRef.current === queryKey) {
+          setError(fetchError);
+        }
+      } finally {
+        if (isActive && queryKeyRef.current === queryKey) {
+          setIsLoading(false);
+          setIsFetching(false);
+        }
+      }
+    };
+
+    void loadInitialPage();
+
+    return () => {
+      isActive = false;
+    };
+  }, [isAuthLoading, queryArgs, reloadToken, user]);
+
   const loadMore = useCallback(async () => {
-    if (!hasMore || isLoadingMore || !nextCursor) {
+    if (!user || !hasMore || isLoadingMore || !nextCursor) {
       return;
     }
 
@@ -102,21 +126,20 @@ export function usePaginatedUserDocuments(
     setLoadError(null);
 
     try {
-      const result = await fetchMore({
+      const result = await fetchUserDocumentsFromFirestore(user.uid, {
         ...queryArgs,
         cursor: nextCursor,
-      }).unwrap();
+      });
 
       if (queryKeyRef.current !== requestKey) {
         return;
       }
 
-      setExtraDocuments((previous) => {
-        const existingIds = new Set([
-          ...(data?.documents ?? []).map((document) => document.id),
-          ...previous.map((document) => document.id),
-        ]);
-        const nextBatch = result.documents.filter((document) => !existingIds.has(document.id));
+      setDocuments((previous) => {
+        const existingIds = new Set(previous.map((document) => document.id));
+        const nextBatch = result.documents.filter(
+          (document) => !existingIds.has(document.id),
+        );
         return [...previous, ...nextBatch];
       });
       setHasMore(result.hasMore);
@@ -126,22 +149,26 @@ export function usePaginatedUserDocuments(
         return;
       }
       setLoadError(
-        loadMoreError instanceof Error ? loadMoreError.message : 'Failed to load more documents',
+        loadMoreError instanceof Error
+          ? loadMoreError.message
+          : 'Failed to load more documents',
       );
     } finally {
       if (queryKeyRef.current === requestKey) {
         setIsLoadingMore(false);
       }
     }
-  }, [hasMore, isLoadingMore, nextCursor, fetchMore, queryArgs, data?.documents]);
+  }, [hasMore, isLoadingMore, nextCursor, queryArgs, user]);
 
   return {
     documents,
-    total: data?.total,
+    total: documents.length,
     isLoading,
     isFetching,
     error,
-    refetch,
+    refetch: () => {
+      setReloadToken((previous) => previous + 1);
+    },
     hasMore,
     isLoadingMore,
     loadMore,
