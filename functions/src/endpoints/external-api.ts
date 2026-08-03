@@ -5,13 +5,13 @@ import { ExternalAuthResult, validateExternalAuthFromRequest } from '@study-forg
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { CursorPaginationError } from '@study-forge/backend-core/lib/cursor-pagination';
 import { directoryService } from '@study-forge/backend-directories/directory';
-import { GeminiService } from '@study-forge/backend-llm/gemini';
-import { SlideDeckPromptBuilder } from '@study-forge/backend-llm/gemini/prompt-builder/slide-deck';
 import {
   LlmGenerationService,
   resolveSlideDeckGenerationAudit,
   resolveTextGenerationAudit,
+  validateContentForArtifactGeneration,
 } from '@study-forge/backend-llm/llm';
+import { SlideDeckPromptBuilder } from '@study-forge/backend-llm/llm/prompt-builder';
 import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
 import { ScreenshotDocumentGenerationService } from '@study-forge/backend-documents/screenshot-document-generation';
 import { RateLimitError } from '@study-forge/backend-core/services/api-rate-limit';
@@ -289,7 +289,7 @@ export const api = onRequest(
           wordCount: combinedContent.split(/\s+/).length,
         };
 
-        GeminiService.validateContentForQuiz(documentContent);
+        validateContentForArtifactGeneration(documentContent);
 
         await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'quiz');
 
@@ -467,7 +467,7 @@ export const api = onRequest(
           wordCount: combinedContent.split(/\s+/).length,
         };
 
-        GeminiService.validateContentForQuiz(documentContent);
+        validateContentForArtifactGeneration(documentContent);
 
         await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'diagramQuiz');
 
@@ -629,7 +629,7 @@ export const api = onRequest(
           wordCount: combinedContent.split(/\s+/).length,
         };
 
-        GeminiService.validateContentForQuiz(documentContent);
+        validateContentForArtifactGeneration(documentContent);
 
         await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'sequenceQuiz');
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { JsonSanitizer } from '@study-forge/backend-llm/gemini/json-sanitizer';
+import { JsonSanitizer } from '@study-forge/backend-llm/llm/json-sanitizer';
 import type { IParsedFlashcardItem } from '@study-forge/backend-llm/llm/flashcard-response-parser';
 import { buildIndexBatches, mapWithConcurrency } from '@study-forge/backend-llm/llm/concurrency';
 import { normalizeVocabularyTerm } from './learned-vocabulary';

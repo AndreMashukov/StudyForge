@@ -1,7 +1,10 @@
 import { logger } from 'firebase-functions/v2';
 import type { ScrapedContent } from '@shared-types';
-import { DiagramQuizPromptBuilder } from '@study-forge/backend-llm/gemini/prompt-builder';
-import { GeminiService, type GeminiDiagramQuizResponse } from '@study-forge/backend-llm/gemini';
+import { DiagramQuizPromptBuilder } from '@study-forge/backend-llm/llm/prompt-builder';
+import {
+  generateDiagramQuizDirect,
+  type DiagramQuizGenerationResponse,
+} from '@study-forge/backend-llm/llm';
 import { generateExternalProviderText, resolveTextRoute } from '@study-forge/backend-llm/llm/llm-text-runner';
 import type { TextRouteContext } from '@study-forge/backend-llm/llm/llm-text-runner';
 import {
@@ -40,10 +43,10 @@ export async function generateDiagramQuizChunked(
   userId: string,
   content: ScrapedContent,
   additionalPrompt?: string
-): Promise<GeminiDiagramQuizResponse> {
+): Promise<DiagramQuizGenerationResponse> {
   const ctx = await resolveTextRoute(userId, 'diagramQuiz', 'diagramQuiz');
   if (!ctx.usesExternalProvider) {
-    return GeminiService.generateDiagramQuiz(content, additionalPrompt);
+    return generateDiagramQuizDirect(content, additionalPrompt);
   }
 
   const questionCount = DEFAULT_DIAGRAM_QUIZ_QUESTION_COUNT;

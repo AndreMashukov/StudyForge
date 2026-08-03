@@ -3,7 +3,7 @@ import { RuleApplicability } from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
-import { GeminiService } from '@study-forge/backend-llm/gemini';
+import { validateContentForArtifactGeneration } from '@study-forge/backend-llm/llm';
 import { completePendingSubjectWorld } from '@study-forge/backend-artifacts/artifact-generation-records';
 import { normalizeSubjectWorldSpec } from '@study-forge/backend-artifacts/subject-world-normalizer';
 import { GenerationJob } from '../generation-jobs';
@@ -65,7 +65,7 @@ export class SubjectWorldGenerationProcessor {
       wordCount: combinedWordCount,
     };
 
-    GeminiService.validateContentForQuiz(documentContent);
+    validateContentForArtifactGeneration(documentContent);
 
     const pendingTitle = requestData.subjectWorldName
       || (documentIds.length === 1

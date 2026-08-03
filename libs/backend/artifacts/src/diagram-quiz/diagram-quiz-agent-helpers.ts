@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { logger } from 'firebase-functions/v2';
 import type { IArtifactAgentDiagnostics, IArtifactCriticResult } from '@shared-types';
-import { JsonSanitizer } from '@study-forge/backend-llm/gemini';
-import { DiagramQuizPromptBuilder } from '@study-forge/backend-llm/gemini/prompt-builder';
+import { JsonSanitizer } from '@study-forge/backend-llm/llm/json-sanitizer';
+import { DiagramQuizPromptBuilder } from '@study-forge/backend-llm/llm/prompt-builder';
 import { LlmGenerationService } from '@study-forge/backend-llm/llm';
 import type {
   ArtifactAgentContext,

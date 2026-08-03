@@ -8,7 +8,7 @@ import { completePendingSlideDeck } from '@study-forge/backend-artifacts/artifac
 import { GenerationJob } from '../generation-jobs';
 import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 import { LlmGenerationService, resolveSlideDeckGenerationAudit } from '@study-forge/backend-llm/llm';
-import { SlideDeckPromptBuilder } from '@study-forge/backend-llm/gemini/prompt-builder/slide-deck';
+import { SlideDeckPromptBuilder } from '@study-forge/backend-llm/llm/prompt-builder';
 import { isRuleResolutionMode, resolveEffectiveRules } from '@study-forge/backend-directories/rule-resolution';
 
 const redactId = (id: string): string =>

@@ -244,6 +244,47 @@ function parseFlashcardLanguageClassification(
  * Text capabilities may route to OpenRouter; image/multimodal flows use configured Gemini image models.
  */
 export class LlmGenerationService {
+  /**
+   * Generic routed text generation for backend callers that already build prompts.
+   */
+  static async generateText(
+    userId: string,
+    capability: LlmCapability,
+    prompt: string,
+    options?: {
+      logLabel?: string;
+      successLogMessage?: string;
+      temperature?: number;
+      topK?: number;
+      topP?: number;
+      maxOutputTokens?: number;
+    },
+  ): Promise<string> {
+    const logLabel = options?.logLabel ?? capability;
+    const ctx = await resolveTextRoute(userId, capability, logLabel);
+
+    const generationConfig = {
+      temperature: options?.temperature ?? 0.4,
+      topK: options?.topK ?? 40,
+      topP: options?.topP ?? 0.95,
+      maxOutputTokens: options?.maxOutputTokens ?? 16384,
+    };
+
+    if (!ctx.usesExternalProvider) {
+      return GeminiService.generateContent(prompt, generationConfig);
+    }
+
+    return generateExternalProviderText(
+      ctx,
+      prompt,
+      {
+        model: ctx.resolution.route.model,
+        ...generationConfig,
+      },
+      options?.successLogMessage ?? `Text generated via external provider (${logLabel})`,
+    );
+  }
+
   static async generateQuiz(
     userId: string,
     content: ScrapedContent,

@@ -2,11 +2,8 @@ import { logger } from 'firebase-functions/v2';
 import { z } from 'zod';
 import type { IFileContent, IArtifactAgentDiagnostics } from '@shared-types';
 import { buildHtmlDocumentPrompt, buildSealedHtmlOutputContract } from '@shared-types';
-import { GeminiService } from '@study-forge/backend-llm/gemini';
-import {
-  generateExternalProviderText,
-  resolveTextRoute,
-} from '@study-forge/backend-llm/llm/llm-text-runner';
+import { LlmGenerationService } from '@study-forge/backend-llm/llm';
+import { resolveTextRoute } from '@study-forge/backend-llm/llm/llm-text-runner';
 import { recordModelUsage } from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-definition';
 import type { DocumentRule } from '../document-html/types';
 import { formatValidationFindings } from '../document-html/types';
@@ -76,20 +73,14 @@ async function generateText(
   const route = await resolveTextRoute(userId, capability, `document-agent-${role}`);
   const startMs = Date.now();
 
-  const text = route.usesExternalProvider
-    ? await generateExternalProviderText(
-        route,
-        prompt,
-        {
-          model: route.resolution.route.model,
-          temperature: 0.4,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 16384,
-        },
-        'Document agent text generated'
-      )
-    : await GeminiService.generateContent(prompt);
+  const text = await LlmGenerationService.generateText(userId, capability, prompt, {
+    logLabel: `document-agent-${role}`,
+    successLogMessage: 'Document agent text generated',
+    temperature: 0.4,
+    topK: 40,
+    topP: 0.95,
+    maxOutputTokens: 16384,
+  });
 
   recordModelUsage(diagnostics, {
     role,

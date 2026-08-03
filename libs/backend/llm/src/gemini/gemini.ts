@@ -35,6 +35,7 @@ import {
   validateContextFiles,
   estimateContextTokens,
 } from './prompt-builder/withContextFiles';
+import { validateContentForArtifactGeneration } from '../llm/content-validation';
 
 const GEMINI_PRO_MODEL = 'gemini-pro-latest';
 
@@ -1663,36 +1664,7 @@ This question is derived from: **${context.originalDocument.title}**
     content: string;
     wordCount: number;
   }): void {
-    if (!content.title || content.title.trim().length === 0) {
-      throw new Error('Content must have a title');
-    }
-
-    if (!content.content || content.content.trim().length === 0) {
-      throw new Error('Content cannot be empty');
-    }
-
-    if (content.wordCount < 50) {
-      throw new Error(
-        'Content is too short for quiz generation (minimum 50 words required)'
-      );
-    }
-
-    if (content.wordCount > 10000) {
-      functions.logger.warn(
-        `Content is very long (${content.wordCount} words), quiz generation may take longer`
-      );
-    }
-
-    // Check for potentially problematic patterns
-    if (
-      content.content.includes('```') ||
-      content.content.includes('{') ||
-      content.content.includes('}')
-    ) {
-      functions.logger.info(
-        'Content contains code-like patterns, will sanitize during generation'
-      );
-    }
+    validateContentForArtifactGeneration(content);
   }
 
   /**
