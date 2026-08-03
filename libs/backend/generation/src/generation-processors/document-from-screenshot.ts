@@ -1,7 +1,7 @@
 import { logger } from 'firebase-functions/v2';
 import type { IDocumentAgentJobPayload, IDocumentFromScreenshotJobPayload } from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
-import { runDocumentAgentPipeline } from '@study-forge/backend-documents/document-agent/document-agent-runner';
+import { runScreenshotDocumentGeneration } from '@study-forge/backend-documents/direct-document-generation';
 import { GenerationJob } from '../generation-jobs';
 import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 
@@ -47,13 +47,13 @@ export class DocumentFromScreenshotGenerationProcessor {
               : 'Screenshot capture',
           };
 
-    logger.info('Starting async screenshot document generation (HTML ADK)', {
+    logger.info('Starting async screenshot document generation', {
       userId: job.userId,
       jobId: job.id,
       documentId: job.recordId,
     });
 
-    await runDocumentAgentPipeline(job, payload);
+    await runScreenshotDocumentGeneration(job, payload);
 
     await GenerationJobPayloadStorage.delete(job.payloadStoragePath).catch((error) => {
       logger.warn('Failed to delete screenshot generation job payload after completion', {

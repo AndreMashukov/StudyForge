@@ -4,7 +4,7 @@ import {
   IDocumentAgentJobPayload,
 } from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
-import { runDocumentAgentPipeline } from '@study-forge/backend-documents/document-agent/document-agent-runner';
+import { runPromptDocumentGeneration } from '@study-forge/backend-documents/direct-document-generation';
 import { GenerationJob } from '../generation-jobs';
 import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 
@@ -45,14 +45,14 @@ export class DocumentFromPromptGenerationProcessor {
             ruleResolutionMode: data.ruleResolutionMode,
           };
 
-    logger.info('Starting async prompt document generation (HTML ADK)', {
+    logger.info('Starting async prompt document generation', {
       userId: job.userId,
       jobId: job.id,
       documentId: job.recordId,
       promptLength: payload.prompt?.trim().length ?? 0,
     });
 
-    await runDocumentAgentPipeline(job, payload);
+    await runPromptDocumentGeneration(job, payload);
 
     await GenerationJobPayloadStorage.delete(job.payloadStoragePath).catch((error) => {
       logger.warn('Failed to delete generation job payload after completion', {

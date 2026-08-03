@@ -595,6 +595,48 @@ export class LlmGenerationService {
     return GeminiService.sanitizeDocumentResponse(stripCodeFences(result.text));
   }
 
+  static async generateVisionHtmlFragment(
+    userId: string,
+    capability: 'documentFromScreenshot',
+    imageBase64: string,
+    prompt: string,
+  ): Promise<string> {
+    const visionResolution = await LlmGenerationRouteResolver.resolve(capability, {
+      userId,
+    });
+    const { route, providerApiKey } = visionResolution;
+
+    if (route.providerType === 'gemini') {
+      return GeminiService.generateVisionHtmlFragment(imageBase64, prompt, route.model);
+    }
+
+    if (!providerApiKey) {
+      throw new Error('Vision provider API key is required for external providers');
+    }
+
+    const normalized = normalizeScreenshotImage(imageBase64);
+    const client = LlmProviderClientFactory.create(route, providerApiKey);
+    const result = await client.generateVisionText({
+      prompt,
+      imageDataUrl: normalized.dataUrl,
+      config: {
+        model: route.model,
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 32768,
+      },
+      detail: 'auto',
+    });
+
+    functions.logger.info('Vision HTML fragment generated via external provider', {
+      model: result.model,
+      responseLength: result.text.length,
+    });
+
+    return stripCodeFences(result.text);
+  }
+
   static async generateQuizFollowup(
     userId: string,
     context: QuizFollowupContext,

@@ -101,10 +101,10 @@ export function buildDocumentAgentContext(
   };
 }
 
-export async function runDocumentAgentPipeline(
+export async function prepareDocumentAgentContext(
   job: GenerationJob,
   payload: IDocumentAgentJobPayload
-): Promise<void> {
+): Promise<DocumentAgentContext> {
   const mode: RuleResolutionMode = payload.ruleIds?.length
     ? isRuleResolutionMode(payload.ruleResolutionMode)
       ? payload.ruleResolutionMode
@@ -121,7 +121,14 @@ export async function runDocumentAgentPipeline(
     mode,
   });
 
-  const agentContext = buildDocumentAgentContext(job, payload, rulesText, effectiveRuleIds);
+  return buildDocumentAgentContext(job, payload, rulesText, effectiveRuleIds);
+}
+
+export async function runDocumentAgentPipeline(
+  job: GenerationJob,
+  payload: IDocumentAgentJobPayload
+): Promise<void> {
+  const agentContext = await prepareDocumentAgentContext(job, payload);
   const diagnostics: IArtifactAgentDiagnostics = {
     ...createEmptyDiagnostics({
       artifactKind: 'documentFromPrompt',

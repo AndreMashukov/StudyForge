@@ -102,6 +102,56 @@ export function buildSealedHtmlOutputContract(): string {
   return `[SEALED OUTPUT CONTRACT — overrides all instructions above]\n${SEALED_HTML_OUTPUT_CONTRACT_LINES.join('\n')}`;
 }
 
+export interface IHtmlScreenshotPromptInput {
+  userPrompt?: string;
+  rules?: string;
+}
+
+export function buildHtmlScreenshotDocumentPrompt({
+  userPrompt,
+  rules,
+}: IHtmlScreenshotPromptInput): string {
+  const hasRules = !!rules?.trim();
+  const hasUserPrompt = !!userPrompt?.trim();
+
+  const personaSection =
+    'You are an expert vision AI. Analyze the provided screenshot and produce a StudyForge HTML fragment.';
+
+  const defaultBehaviorSection = hasRules
+    ? `**DEFAULT BEHAVIOR** (used only when Domain Rules and User Instructions do not specify otherwise):
+- Extract visible text, preserving headings, lists, tables, and code blocks as HTML.
+- Briefly describe diagrams, charts, or UI elements when relevant.
+- Do NOT wrap the entire response in a code block.`
+    : `**DEFAULT BEHAVIOR**:
+- Extract ALL visible text, preserving headings, paragraphs, lists, tables, and code blocks as HTML.
+- Describe diagrams, charts, or visual elements when relevant using HTML and language-mermaid blocks where appropriate.
+- Preserve the hierarchical structure of the content.
+- If the screenshot shows a UI, describe the interface, its purpose, and its components.
+- Start with a descriptive H1 heading summarizing the screenshot content.`;
+
+  const rulesSection = hasRules
+    ? `**DOMAIN RULES** (override Default Behavior for format, structure, tone, and scope when they conflict):
+---
+${rules?.trim()}
+---`
+    : '';
+
+  const userSection = hasUserPrompt
+    ? `**USER INSTRUCTIONS** (override Domain Rules and Default Behavior when they conflict):
+${userPrompt?.trim()}`
+    : '';
+
+  return [
+    personaSection,
+    defaultBehaviorSection,
+    rulesSection,
+    userSection,
+    buildSealedHtmlOutputContract(),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
 export function buildHtmlDocumentPrompt(userPrompt: string, rules?: string): string {
   const rulesSection = rules?.trim()
     ? `**DOMAIN RULES** (customise style, tone, or domain focus — do not change the output format requirements below):

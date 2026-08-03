@@ -51,7 +51,8 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
   documentFromPrompt: {
     kind: 'documentFromPrompt',
     label: 'Document from prompt',
-    description: 'Generate HTML documents from a user prompt via the ADK pipeline.',
+    description:
+      'Generate HTML documents from a user prompt. Direct: one LLM call. Agentic: ADK pipeline with repair and critic loops.',
     requiredModality: 'text',
     supportedWorkflows: ['direct', 'agentic'],
     defaultWorkflow: 'agentic',
@@ -60,7 +61,8 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
   documentFromScreenshot: {
     kind: 'documentFromScreenshot',
     label: 'Document from screenshot',
-    description: 'Transcribe and structure content from screenshot images.',
+    description:
+      'Transcribe screenshot images into HTML documents. Direct: one vision call. Agentic: ADK HTML pipeline.',
     requiredModality: 'vision',
     supportedWorkflows: ['direct', 'agentic'],
     defaultWorkflow: 'direct',

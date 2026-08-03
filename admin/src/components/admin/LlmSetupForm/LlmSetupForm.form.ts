@@ -145,3 +145,35 @@ export function parseWorkflowValue(value: string): GenerationWorkflow {
 
   return 'direct';
 }
+
+const DOCUMENT_WORKFLOW_KINDS: ReadonlySet<GenerationKind> = new Set([
+  'documentFromPrompt',
+  'documentFromScreenshot',
+]);
+
+export function formatWorkflowOptionLabel(
+  kind: GenerationKind,
+  workflow: GenerationWorkflow
+): string {
+  if (!DOCUMENT_WORKFLOW_KINDS.has(kind)) {
+    return workflow;
+  }
+
+  if (workflow === 'direct') {
+    return 'direct — single-pass HTML (faster)';
+  }
+
+  return 'agentic — ADK repair/critic pipeline';
+}
+
+export function getWorkflowHelpText(kind: GenerationKind): string | null {
+  if (kind === 'documentFromPrompt') {
+    return 'Direct runs one text generation call, validates HTML, then stores. Agentic runs plan, draft, repair, and critic/refiner loops (~4+ minutes).';
+  }
+
+  if (kind === 'documentFromScreenshot') {
+    return 'Direct runs one vision call, validates HTML, then stores. Agentic runs the full ADK HTML pipeline.';
+  }
+
+  return null;
+}

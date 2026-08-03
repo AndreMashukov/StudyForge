@@ -34,6 +34,8 @@ import {
   filterConnectionsForModality,
   getGenerationKindGroups,
   getSupportedWorkflowOptions,
+  getWorkflowHelpText,
+  formatWorkflowOptionLabel,
   isWorkflowOptionDisabled,
   llmSetupFormSchema,
   parseWorkflowValue,
@@ -78,6 +80,7 @@ function GenerationKindRow({
     metadata.requiredModality
   );
   const workflowOptions = getSupportedWorkflowOptions(kind);
+  const workflowHelpText = getWorkflowHelpText(kind);
   const connectionField = `generationRoutes.${kind}.connectionId` as const;
   const modelField = `generationRoutes.${kind}.model` as const;
   const workflowField = `generationRoutes.${kind}.workflow` as const;
@@ -151,11 +154,14 @@ function GenerationKindRow({
                 value={workflow}
                 disabled={isWorkflowOptionDisabled(kind, workflow)}
               >
-                {workflow}
+                {formatWorkflowOptionLabel(kind, workflow)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {workflowHelpText ? (
+          <p className="mt-1 text-xs text-muted-foreground">{workflowHelpText}</p>
+        ) : null}
       </td>
     </tr>
   );

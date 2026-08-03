@@ -564,43 +564,15 @@ ${markdownContent}
         rules,
       });
 
-      const response = await client.models.generateContent({
+      return this.generateVisionTextFragment({
+        client,
         model: GEMINI_PRO_MODEL,
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                inlineData: {
-                  mimeType,
-                  data: normalizedBase64,
-                },
-              },
-              { text: prompt },
-            ],
-          },
-        ],
-        config: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 16384,
-        },
+        mimeType,
+        normalizedBase64,
+        prompt,
+        logLabel: 'screenshot document',
+        sanitize: (text) => this.validateAndFixDocumentContent(text),
       });
-
-      const text = response.text;
-      if (!text) {
-        throw new Error('Empty response from Gemini API for screenshot document generation');
-      }
-
-      const validatedContent = this.validateAndFixDocumentContent(text);
-
-      functions.logger.info('Document generated from screenshot successfully', {
-        length: validatedContent.length,
-        wasFixed: validatedContent !== text,
-      });
-
-      return validatedContent;
     } catch (error) {
       functions.logger.error('Error generating document from screenshot:', error);
       throw new Error(
@@ -609,6 +581,78 @@ ${markdownContent}
         }`
       );
     }
+  }
+
+  public static async generateVisionHtmlFragment(
+    imageBase64: string,
+    prompt: string,
+    model: string = GEMINI_PRO_MODEL
+  ): Promise<string> {
+    const { mimeType, normalizedBase64 } = normalizeScreenshotImage(imageBase64);
+
+    functions.logger.info('Vision HTML fragment generated via Gemini', {
+      imageSize: imageBase64.length,
+      promptLength: prompt.length,
+      model,
+    });
+
+    const client = this.getClient();
+    return this.generateVisionTextFragment({
+      client,
+      model,
+      mimeType,
+      normalizedBase64,
+      prompt,
+      logLabel: 'vision HTML fragment',
+    });
+  }
+
+  private static async generateVisionTextFragment(params: {
+    client: ReturnType<typeof GeminiService.getClient>;
+    model: string;
+    mimeType: string;
+    normalizedBase64: string;
+    prompt: string;
+    logLabel: string;
+    sanitize?: (text: string) => string;
+  }): Promise<string> {
+    const response = await params.client.models.generateContent({
+      model: params.model,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              inlineData: {
+                mimeType: params.mimeType,
+                data: params.normalizedBase64,
+              },
+            },
+            { text: params.prompt },
+          ],
+        },
+      ],
+      config: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 16384,
+      },
+    });
+
+    const text = response.text;
+    if (!text) {
+      throw new Error(`Empty response from Gemini API for ${params.logLabel}`);
+    }
+
+    const output = params.sanitize ? params.sanitize(text) : text.trim();
+
+    functions.logger.info('Gemini vision fragment generated successfully', {
+      label: params.logLabel,
+      length: output.length,
+    });
+
+    return output;
   }
 
   /**
