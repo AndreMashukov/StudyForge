@@ -4,7 +4,6 @@ import { ITextPromptFormData } from '../CreateDocumentPageContainer/TextPromptFo
 import { IFileContent } from '@shared-types';
 
 export interface ICreateDocumentPageHandlers {
-  handleGoBack: () => void;
   handleCreateFromUrl: (data: IUrlScrapingFormData) => void;
   handleCreateFromFile: (data: IFileUploadFormData) => void;
   handleCreateFromTextPrompt: (
@@ -19,4 +18,5 @@ export interface ICreateDocumentPageHandlers {
 
 export interface ICreateDocumentPageContext {
   handlers: ICreateDocumentPageHandlers;
+  isReady?: boolean;
 }

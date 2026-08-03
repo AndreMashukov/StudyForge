@@ -1,5 +1,4 @@
 export interface IDocumentsPageHandlers {
-  handleCreateDocument: () => void;
   handleViewDocument: (documentId: string) => void;
   handleDeleteDocument: (documentId: string) => void;
   handleCreateQuizFromDocument: (documentId: string, directoryId?: string) => void;

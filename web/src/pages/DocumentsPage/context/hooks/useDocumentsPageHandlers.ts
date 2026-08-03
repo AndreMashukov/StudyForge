@@ -1,11 +1,10 @@
 import { useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { setSelectedDocument, setSelectedDirectory, selectSelectedDirectoryId } from '../../../../store/slices/directorySlice';
+import { useDispatch } from 'react-redux';
+import { setSelectedDocument, setSelectedDirectory } from '../../../../store/slices/directorySlice';
 import { buildTreeDirectoryNavigationState } from '../../../../utils/directoryNavigationState';
 import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 import { useDeleteDocument } from './api/useDeleteDocument';
-import type { RootState } from '../../../../store';
 import { CreateArtifactModalType } from '../../../../components/CreateArtifactModal';
 
 function navigateToCreateArtifact(
@@ -45,17 +44,6 @@ export const useDocumentsPageHandlers = () => {
   const { deleteDocument } = useDeleteDocument();
   const [, setSearchParams] = useSearchParams();
   
-  // Get current directory ID from Redux
-  const currentDirectoryId = useSelector((state: RootState) => selectSelectedDirectoryId(state));
-
-  const handleCreateDocument = useCallback(() => {
-    if (!currentDirectoryId) {
-      window.alert('Select or create a folder first, then add documents inside it.');
-      return;
-    }
-    navigate(`/documents/create?directoryId=${currentDirectoryId}`);
-  }, [navigate, currentDirectoryId]);
-
   const handleViewDocument = useCallback((documentId: string) => {
     dispatch(setSelectedDocument(documentId));
     navigate(`/document/${documentId}`);
@@ -98,7 +86,6 @@ export const useDocumentsPageHandlers = () => {
   }, [dispatch, navigate, setSearchParams]);
 
   return {
-    handleCreateDocument,
     handleViewDocument,
     handleDeleteDocument,
     handleCreateQuizFromDocument,

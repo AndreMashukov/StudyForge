@@ -33,6 +33,8 @@ import { Spinner } from '../../../components/ui/Spinner';
 import { IndeterminateLinearProgress } from '../../../components/ui/IndeterminateLinearProgress';
 import { MascotImage } from '../../../components/MascotImage';
 import { cn } from '../../../lib/utils';
+import { CreateDocumentModal } from '../../../components/CreateDocumentModal';
+import { buildDirectoryPathWithOptionalName } from '../../../utils/directoryUrl';
 
 export const DocumentsPageContainer = (): React.JSX.Element => {
   const navigate = useNavigate();
@@ -75,6 +77,25 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     directory: null,
   });
   const [moveDialog, setMoveDialog] = useState<{ directory: Directory | null }>({ directory: null });
+  const [createDocumentModalDirectoryId, setCreateDocumentModalDirectoryId] = useState<string | null>(null);
+
+  const handleOpenCreateDocumentModal = useCallback(() => {
+    if (!selectedDirectoryId) {
+      window.alert('Select or create a folder first, then add documents inside it.');
+      return;
+    }
+
+    setCreateDocumentModalDirectoryId(selectedDirectoryId);
+  }, [selectedDirectoryId]);
+
+  const handleCloseCreateDocumentModal = useCallback(() => {
+    setCreateDocumentModalDirectoryId(null);
+  }, []);
+
+  const handleCreateDocumentRequestStarted = useCallback((directoryId: string) => {
+    setCreateDocumentModalDirectoryId(null);
+    navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, 'sources'));
+  }, [navigate]);
 
   const handleCreateDirectory = (parentId: string | null) => {
     setCreateDialogParentId(parentId);
@@ -338,7 +359,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                   </Button>
                   {selectedDirectoryId && (
                     <Button
-                      onClick={handlers.handleCreateDocument}
+                      onClick={handleOpenCreateDocumentModal}
                       className={documentsPageStyles.createButton}
                     >
                       <Plus size={16} />
@@ -380,7 +401,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                     </Button>
                     {selectedDirectoryId && (
                       <Button 
-                        onClick={handlers.handleCreateDocument}
+                        onClick={handleOpenCreateDocumentModal}
                         className="w-full sm:w-auto"
                       >
                         <Plus size={16} />
@@ -494,6 +515,13 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
         onSuccess={() => {
           // Refetch is handled automatically by RTK Query
         }}
+      />
+
+      <CreateDocumentModal
+        open={createDocumentModalDirectoryId !== null}
+        directoryId={createDocumentModalDirectoryId}
+        onClose={handleCloseCreateDocumentModal}
+        onRequestStarted={handleCreateDocumentRequestStarted}
       />
     </Page>
   );

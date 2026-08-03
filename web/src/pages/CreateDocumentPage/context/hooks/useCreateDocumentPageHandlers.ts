@@ -24,9 +24,16 @@ import { selectSelectedDirectoryId } from '../../../../store/slices/directorySli
 import type { RootState } from '../../../../store';
 import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 
-export const useCreateDocumentPageHandlers = () => {
+interface UseCreateDocumentPageHandlersOptions {
+  onRequestStarted?: (directoryId: string) => void;
+}
+
+export const useCreateDocumentPageHandlers = (
+  options?: UseCreateDocumentPageHandlersOptions,
+) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const onRequestStarted = options?.onRequestStarted;
   
   // Redux selectors
   const error = useSelector((state: RootState) => selectCreateDocumentPageError(state));
@@ -36,13 +43,14 @@ export const useCreateDocumentPageHandlers = () => {
   const [uploadAndCreateDocument] = useUploadAndCreateDocumentMutation();
   const [generateFromPrompt] = useGenerateFromPromptMutation();
 
-  const handleGoBack = useCallback(() => {
-    if (directoryId) {
-      navigate(buildDirectoryPathWithOptionalName(directoryId));
-    } else {
-      navigate('/documents');
+  const navigateToSources = useCallback((targetDirectoryId: string) => {
+    if (onRequestStarted) {
+      onRequestStarted(targetDirectoryId);
+      return;
     }
-  }, [navigate, directoryId]);
+
+    navigate(buildDirectoryPathWithOptionalName(targetDirectoryId, undefined, 'sources'));
+  }, [navigate, onRequestStarted]);
 
   const handleCreateFromUrl = useCallback((data: IUrlScrapingFormData) => {
     dispatch(clearError());
@@ -57,8 +65,8 @@ export const useCreateDocumentPageHandlers = () => {
       ruleIds: data.ruleIds || [],
       ruleResolutionMode: 'explicit-only',
     });
-    navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, 'sources'));
-  }, [createDocumentFromUrl, navigate, dispatch, directoryId]);
+    navigateToSources(directoryId);
+  }, [createDocumentFromUrl, navigateToSources, dispatch, directoryId]);
 
   const handleCreateFromFile = useCallback(async (data: IFileUploadFormData) => {
     dispatch(clearError());
@@ -80,7 +88,7 @@ export const useCreateDocumentPageHandlers = () => {
         ruleResolutionMode: 'explicit-only',
       }).unwrap();
 
-      navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, 'sources'));
+      navigateToSources(directoryId);
 
       void uploadPromise.catch((error) => {
         dispatch(setError(getSubmissionErrorMessage(error)));
@@ -88,7 +96,7 @@ export const useCreateDocumentPageHandlers = () => {
     } catch (error) {
       dispatch(setError(getSubmissionErrorMessage(error)));
     }
-  }, [uploadAndCreateDocument, navigate, dispatch, directoryId]);
+  }, [uploadAndCreateDocument, navigateToSources, dispatch, directoryId]);
 
   const handleCreateFromTextPrompt = useCallback((
     data: ITextPromptFormData,
@@ -122,11 +130,10 @@ export const useCreateDocumentPageHandlers = () => {
     if (fileUploadHelpers) {
       dispatch(clearFiles());
     }
-    navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, 'sources'));
-  }, [generateFromPrompt, navigate, dispatch, directoryId]);
+    navigateToSources(directoryId);
+  }, [generateFromPrompt, navigateToSources, dispatch, directoryId]);
 
   return {
-    handleGoBack,
     handleCreateFromUrl,
     handleCreateFromFile,
     handleCreateFromTextPrompt,

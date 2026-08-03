@@ -58,8 +58,10 @@ import {
   CreateArtifactModalType,
   ICreateArtifactModalOpenState,
 } from '../../components/CreateArtifactModal';
+import { CreateDocumentModal } from '../../components/CreateDocumentModal';
 import {
   buildDirectoryPath,
+  buildDirectoryPathWithOptionalName,
   extractDirectoryIdFromDirectoryPath,
   extractDirectoryIdFromRouteParam,
 } from '../../utils/directoryUrl';
@@ -101,6 +103,7 @@ export const DirectoryDetailPageContainer = () => {
   const [moveDocDialog, setMoveDocDialog] = useState<{ document: DocumentEnhanced | null }>({ document: null });
   const [deleteArtifactDialog, setDeleteArtifactDialog] = useState<{ artifact: ArtifactToDelete | null }>({ artifact: null });
   const [createArtifactModal, setCreateArtifactModal] = useState<ICreateArtifactModalOpenState | null>(null);
+  const [createDocumentModalOpen, setCreateDocumentModalOpen] = useState(false);
 
   const handleOpenCreateArtifact = useCallback(
     (artifactType: CreateArtifactModalType, preselectedDocumentIds?: string[]) => {
@@ -140,6 +143,22 @@ export const DirectoryDetailPageContainer = () => {
   const handleCloseCreateArtifact = useCallback(() => {
     setCreateArtifactModal(null);
   }, []);
+
+  const handleOpenCreateDocumentModal = useCallback(() => {
+    setCreateDocumentModalOpen(true);
+  }, []);
+
+  const handleCloseCreateDocumentModal = useCallback(() => {
+    setCreateDocumentModalOpen(false);
+  }, []);
+
+  const handleCreateDocumentRequestStarted = useCallback(() => {
+    setCreateDocumentModalOpen(false);
+    setActivePanel('sources');
+    if (directoryId) {
+      navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, 'sources'), { replace: true });
+    }
+  }, [directoryId, navigate]);
 
   const {
     data: contents,
@@ -318,8 +337,8 @@ export const DirectoryDetailPageContainer = () => {
                 <FolderPlus size={16} />
                 New subfolder
               </Button>
-              <Button size="sm" asChild>
-                <Link to={`/documents/create?directoryId=${directoryId}`}>Add source</Link>
+              <Button size="sm" className="gap-2" onClick={handleOpenCreateDocumentModal}>
+                Add source
               </Button>
             </div>
           </div>
@@ -538,6 +557,13 @@ export const DirectoryDetailPageContainer = () => {
         open={createArtifactModal !== null}
         state={createArtifactModal}
         onClose={handleCloseCreateArtifact}
+      />
+
+      <CreateDocumentModal
+        open={createDocumentModalOpen}
+        directoryId={directoryId}
+        onClose={handleCloseCreateDocumentModal}
+        onRequestStarted={handleCreateDocumentRequestStarted}
       />
     </Page>
     </TooltipProvider>

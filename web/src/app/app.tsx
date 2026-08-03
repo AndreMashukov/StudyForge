@@ -16,7 +16,6 @@ import { AuthPage } from '../pages/AuthPage';
 import { QuizPage } from '../pages/QuizPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { DocumentsPage } from '../pages/DocumentsPage';
-import { CreateDocumentPage } from '../pages/CreateDocumentPage';
 import { DocumentViewerPage } from '../pages/DocumentViewerPage';
 import { RulesPage } from '../pages/RulesPage';
 import { RuleEditorPage } from '../pages/RuleEditorPage';
@@ -168,16 +167,6 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <DocumentsPage />
-            </ProtectedRoute>
-          </MainLayout>
-        }
-      />
-      <Route
-        path="/documents/create"
-        element={
-          <MainLayout>
-            <ProtectedRoute>
-              <CreateDocumentPage />
             </ProtectedRoute>
           </MainLayout>
         }
