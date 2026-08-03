@@ -10,6 +10,7 @@ import {
   DirectoryChatPromptContext,
   IFileContent,
   QuestionKnowledgeMetadata,
+  resolveDocumentContentFormat,
   SubjectWorldSpec,
 } from '@shared-types';
 import { JsonSanitizer } from './json-sanitizer';
@@ -824,7 +825,10 @@ This question is derived from: **${context.originalDocument.title}**
         throw new Error('Empty response from Gemini API for document revision');
       }
 
-      const validatedContent = this.validateAndFixDocumentContent(text);
+      const validatedContent =
+        resolveDocumentContentFormat(context.contentFormat) === 'html'
+          ? this.sanitizeHtmlRevisionResponse(text)
+          : this.validateAndFixDocumentContent(text);
 
       functions.logger.info('Document revision generated successfully', {
         length: validatedContent.length,
@@ -1008,6 +1012,13 @@ This question is derived from: **${context.originalDocument.title}**
 
   public static sanitizeDocumentResponse(content: string): string {
     return this.validateAndFixDocumentContent(content);
+  }
+
+  public static sanitizeHtmlRevisionResponse(content: string): string {
+    return content
+      .replace(/^```(?:html|markdown)?\s*\n?/i, '')
+      .replace(/\n?```\s*$/i, '')
+      .trim();
   }
 
   /**

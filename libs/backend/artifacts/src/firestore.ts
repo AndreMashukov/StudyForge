@@ -13,6 +13,8 @@ import type { GeminiDiagramQuizResponse, GeminiSequenceQuizResponse } from "@stu
 import * as functions from "firebase-functions";
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { DocumentService } from '@study-forge/backend-documents/document-storage';
+import { adaptDocumentContentForLlm } from '@study-forge/backend-documents/document-html/html-utils';
+import type { DocumentContentFormat } from '@shared-types';
 import { removeArtifactDirectoryIndex, syncIndexSafely } from '@study-forge/backend-directories/directory-item-index';
 
 /**
@@ -282,7 +284,12 @@ export class FirestoreService {
    */
   public static async getDocumentContent(userId: string, documentId: string): Promise<string> {
     try {
-      return await DocumentService.getDocumentContent(userId, documentId);
+      const document = await this.getDocument(userId, documentId);
+      const stored = await DocumentService.getDocumentContentWithFormat(userId, documentId, {
+        storagePath: document.storagePath || undefined,
+        contentFormat: document.contentFormat as DocumentContentFormat | undefined,
+      });
+      return adaptDocumentContentForLlm(stored.content, stored.contentFormat);
     } catch (error) {
       functions.logger.error(`Error getting document content ${documentId}:`, error);
       throw error;

@@ -3,7 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Page } from '../../../components/Page';
 import { ActionsDropdown } from '../../../components/ui/ActionsDropdown';
-import { MarkdownRenderer, TocItem } from '../../../components/MarkdownRenderer';
+import { DocumentContentRenderer } from '../../../components/DocumentContentRenderer';
+import { TocItem } from '../../../components/MarkdownRenderer';
+import { resolveDocumentContentFormat } from '@shared-types';
 import { Button } from '../../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { BreadcrumbNav } from '../../../components/BreadcrumbNav';
@@ -143,8 +145,14 @@ export const DocumentViewerPageContainer = () => {
     dispatch(resetEditPanelState());
   }, [documentId, dispatch]);
 
+  const contentFormat = resolveDocumentContentFormat(
+    contentApi.data?.contentFormat ?? documentApi.data?.contentFormat
+  );
+  const isLegacyMarkdown = contentFormat === 'markdown';
+
   const canEditWithAI = Boolean(
-    contentApi.data?.content?.trim() &&
+    !isLegacyMarkdown &&
+      contentApi.data?.content?.trim() &&
       !contentApi.isLoading &&
       !documentApi.isLoading &&
       documentApi.data?.generationStatus !== 'pending' &&
@@ -523,10 +531,18 @@ export const DocumentViewerPageContainer = () => {
                     </Button>
                   </div>
                 ) : contentApi.data?.content ? (
-                  <MarkdownRenderer
-                    content={contentApi.data.content}
-                    onTocGenerated={handlers.handleTocGenerated}
-                  />
+                  <>
+                    {isLegacyMarkdown ? (
+                      <p className="mb-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                        Legacy markdown document. Content is read-only; new documents are generated as HTML.
+                      </p>
+                    ) : null}
+                    <DocumentContentRenderer
+                      content={contentApi.data.content}
+                      contentFormat={contentFormat}
+                      onTocGenerated={handlers.handleTocGenerated}
+                    />
+                  </>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     <p className="mb-4">No content available</p>

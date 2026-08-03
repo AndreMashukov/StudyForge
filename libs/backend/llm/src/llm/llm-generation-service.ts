@@ -7,6 +7,7 @@ import type {
   DocumentQuestionContext,
   DocumentReviseContext,
   DirectoryChatPromptContext,
+  resolveDocumentContentFormat,
 } from '@shared-types';
 import {
   GeminiService,
@@ -637,7 +638,9 @@ export class LlmGenerationService {
       },
       'Document revision generated via OpenRouter',
     );
-    return GeminiService.sanitizeDocumentResponse(text);
+    return resolveDocumentContentFormat(context.contentFormat) === 'html'
+      ? GeminiService.sanitizeHtmlRevisionResponse(text)
+      : GeminiService.sanitizeDocumentResponse(text);
   }
 
   static async generateDirectoryChatAnswer(

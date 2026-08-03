@@ -15,7 +15,7 @@ The user's full set of directories and documents — not a separate datastore, b
 _Avoid_: corpus, datastore
 
 **Document**:
-User-owned source material (upload, URL import, or prompt-generated markdown) used as input for artifact generation. Distinct from artifacts: a document is *read*; an artifact is *studied*.
+User-owned source material (upload, URL import, or prompt-generated HTML) used as input for artifact generation. Legacy documents may still use markdown storage (`content.md`). Distinct from artifacts: a document is *read*; an artifact is *studied*.
 _Avoid_: source doc, file (when meaning study content), content item
 
 ## Generated content
@@ -166,6 +166,6 @@ _Avoid_: folder chat, library chat
 
 ## Flagged ambiguities
 
-- **Document vs artifact** — both can be AI-generated; "document" means source material, "artifact" means study output. Prompt-generated markdown is a document, not an artifact.
+- **Document vs artifact** — both can be AI-generated; "document" means source material, "artifact" means study output. Prompt-generated HTML is a document, not an artifact.
 - **Quiz** — used generically in some API paths; prefer the specific kind (diagram quiz, sequence quiz) when the distinction matters.
 - **Record vs job** — the user-visible Firestore entity (document/artifact) vs the `GenerationJob` tracking async work; don't conflate their status fields.

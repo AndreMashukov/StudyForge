@@ -17,6 +17,11 @@ import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 import * as path from 'path';
 import { config } from 'dotenv';
+import {
+  buildHtmlStoragePath,
+  buildHtmlStorageUrl,
+  markdownToHtmlDocument,
+} from './seed-html-utils';
 
 config({ path: path.join(process.cwd(), '.env.local') });
 
@@ -117,9 +122,10 @@ async function main() {
     const id = `bulk-doc-${String(i).padStart(3, '0')}`;
     const title = `${topic} Notes ${i}`;
     const content = buildDocContent(title, i);
+    const htmlContent = markdownToHtmlDocument(content, title);
     const wordCount = content.split(/\s+/).length;
-    const storagePath = `users/${TARGET_UID}/documents/${id}/content.md`;
-    const storageUrl = `http://${storageHost}/v0/b/${STORAGE_BUCKET}/o/users%2F${encodeURIComponent(TARGET_UID)}%2Fdocuments%2F${id}%2Fcontent.md?alt=media`;
+    const storagePath = buildHtmlStoragePath(TARGET_UID, id);
+    const storageUrl = buildHtmlStorageUrl(TARGET_UID, id, storageHost, STORAGE_BUCKET);
 
     documentWriters.push((batch) => {
       batch.set(db.doc(`users/${TARGET_UID}/documents/${id}`), {
@@ -131,6 +137,7 @@ async function main() {
         sourceType: 'generated',
         status: 'active',
         wordCount,
+        contentFormat: 'html',
         storagePath,
         storageUrl,
         tags: [topic.toLowerCase().replace(/\s+/g, '-'), 'bulk-seed', 'virtualization'],
@@ -149,7 +156,7 @@ async function main() {
       });
     });
 
-    storageUploads.push({ path: storagePath, content });
+    storageUploads.push({ path: storagePath, content: htmlContent });
   }
 
   await commitInBatches(db, documentWriters);
@@ -162,7 +169,7 @@ async function main() {
     await Promise.all(
       slice.map(async (file) => {
         await bucket.file(file.path).save(Buffer.from(file.content, 'utf8'), {
-          metadata: { contentType: 'text/markdown; charset=utf-8' },
+          metadata: { contentType: 'text/html; charset=utf-8' },
           resumable: false,
         });
       }),

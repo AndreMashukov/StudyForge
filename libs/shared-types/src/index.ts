@@ -41,6 +41,16 @@ export {
   isBcp47LanguageCode,
 } from './language-code';
 
+export * from './document-contract';
+
+export type DocumentContentFormat = 'html' | 'markdown';
+
+export function resolveDocumentContentFormat(
+  contentFormat: DocumentContentFormat | undefined
+): DocumentContentFormat {
+  return contentFormat ?? 'markdown';
+}
+
 // Flashcard Types
 export interface Flashcard {
   id: string;    // Unique ID for each card
@@ -674,6 +684,8 @@ export interface DocumentEnhanced {
   generationDiagnostics?: IArtifactAgentDiagnostics;
   /** Persistent accent color assigned at document creation. */
   color?: string;
+  /** Body storage format. Missing means legacy markdown (`content.md`). */
+  contentFormat?: DocumentContentFormat;
 }
 
 // Directory Types
@@ -1304,6 +1316,7 @@ export interface DocumentReviseContext {
     content: string;
   };
   instruction: string;
+  contentFormat?: DocumentContentFormat;
 }
 
 // Directory Chat API Types
@@ -2218,6 +2231,38 @@ export interface IDocumentFromScreenshotJobPayload {
   ruleIds?: string[];
   additionalRuleIds?: string[];
   ruleResolutionMode?: RuleResolutionMode;
+}
+
+export type DocumentAgentSourceKind =
+  | 'prompt'
+  | 'upload'
+  | 'url'
+  | 'screenshot'
+  | 'content';
+
+export interface IDocumentAgentJobPayload {
+  sourceKind: DocumentAgentSourceKind;
+  title?: string;
+  description?: string;
+  tags?: string[];
+  prompt?: string;
+  files?: IFileContent[];
+  /** Pre-extracted source text (upload/url/content paths). */
+  sourceText?: string;
+  sourceFilename?: string;
+  imageBase64?: string;
+  ruleIds?: string[];
+  additionalRuleIds?: string[];
+  ruleResolutionMode?: RuleResolutionMode;
+  /** URL import metadata for description/tags. */
+  sourceUrls?: string[];
+  sourceUrl?: string;
+}
+
+export interface IDocumentContentResult {
+  content: string;
+  contentFormat: DocumentContentFormat;
+  storagePath: string;
 }
 
 // ─── Bulk operations ──────────────────────────────────────────────────────────

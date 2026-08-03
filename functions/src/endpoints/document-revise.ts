@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
+import { resolveDocumentContentFormat } from '@shared-types';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
 import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
 import {
@@ -8,13 +9,15 @@ import {
   reviseDocumentWithAIRequestSchema,
 } from '@study-forge/backend-core/lib/ai-revision-validation';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
+import { extractBodyHtml } from '@study-forge/backend-documents/document-html/html-utils';
+import { prepareHtmlDocumentForStorage } from '@study-forge/backend-documents/document-html';
 import { LlmGenerationService } from '@study-forge/backend-llm/llm';
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
 /**
- * Generate a revised markdown preview for an existing document (preview only — client applies via updateDocument).
+ * Generate a revised document preview for an existing document (preview only — client applies via updateDocument).
  */
 export const reviseDocumentWithAI = onCall(
   {
@@ -58,6 +61,14 @@ export const reviseDocumentWithAI = onCall(
         );
       }
 
+      const contentFormat = resolveDocumentContentFormat(originalDocument.contentFormat);
+      if (contentFormat === 'markdown') {
+        throw new HttpsError(
+          'failed-precondition',
+          'Legacy markdown documents are read-only and cannot be revised.'
+        );
+      }
+
       const content = originalDocument.content?.trim() ?? '';
       if (!content) {
         throw new HttpsError('failed-precondition', 'Document has no content to revise.');
@@ -70,30 +81,40 @@ export const reviseDocumentWithAI = onCall(
         );
       }
 
-      const revisedContent = await LlmGenerationService.reviseDocument(userId, {
+      const bodyHtml = extractBodyHtml(content);
+      const revisedFragment = await LlmGenerationService.reviseDocument(userId, {
         document: {
           title: originalDocument.title,
-          content,
+          content: bodyHtml,
         },
         instruction,
+        contentFormat: 'html',
       });
+
+      const prepared = await prepareHtmlDocumentForStorage(
+        revisedFragment,
+        originalDocument.title
+      );
 
       logger.info('[reviseDocumentWithAI] Revision completed', {
         userId,
         documentId,
-        revisedLength: revisedContent.length,
+        revisedLength: prepared.fullHtml.length,
       });
 
       return {
         success: true,
         data: {
-          content: revisedContent,
+          content: prepared.fullHtml,
         },
       };
     } catch (error) {
       logger.error('Error in reviseDocumentWithAI:', error);
       if (error instanceof HttpsError) {
         throw error;
+      }
+      if (error instanceof Error && error.message.startsWith('Invalid HTML document content:')) {
+        throw new HttpsError('invalid-argument', error.message);
       }
       throw new HttpsError(
         'internal',

@@ -12,7 +12,7 @@
  *   MINIMAX_API_KEY=... LLM_SETTINGS_ENCRYPTION_KEY=... npx tsx scripts/seed-setup/seed-llm-setup.ts
  *
  * Env (also loaded from .env.local, functions/.env.local, functions/.env):
- *   MINIMAX_API_KEY — required unless already seeded in Firestore
+ *   MINIMAX_API_KEY — required unless already seeded in Firestore, or production copy succeeds
  *   LLM_SETTINGS_ENCRYPTION_KEY — required to encrypt provider secrets
  *   GCLOUD_PROJECT — defaults to study-forge-202604
  */
@@ -126,7 +126,76 @@ function buildGenerationRoutes(): IGenerationRoutes {
   return routes;
 }
 
-async function main(): Promise<void> {
+async function ensureMinimaxSecretFromProduction(db: admin.firestore.Firestore): Promise<boolean> {
+  const secretRef = db.collection(SECRETS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID);
+  if ((await secretRef.get()).exists) {
+    return true;
+  }
+
+  if (!process.env.LLM_SETTINGS_ENCRYPTION_KEY?.trim()) {
+    return false;
+  }
+
+  console.log('   MiniMax secret missing locally — trying production copy …');
+  const savedEmulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
+  delete process.env.FIRESTORE_EMULATOR_HOST;
+
+  const existing = admin.apps.find((app) => app?.name === 'production-minimax-seed');
+  if (existing) {
+    await existing.delete();
+  }
+
+  try {
+    const prodApp = admin.initializeApp({ projectId: PROJECT_ID }, 'production-minimax-seed');
+    const prodDb = prodApp.firestore();
+    const [connectionSnap, secretSnap] = await Promise.all([
+      prodDb.collection(CONNECTIONS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID).get(),
+      prodDb.collection(SECRETS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID).get(),
+    ]);
+
+    if (!connectionSnap.exists || !secretSnap.exists) {
+      console.warn('   ⚠️ Production MiniMax connection/secret not found — skip copy');
+      return false;
+    }
+
+    if (savedEmulatorHost) {
+      process.env.FIRESTORE_EMULATOR_HOST = savedEmulatorHost;
+    }
+
+    const now = new Date().toISOString();
+    await db.collection(CONNECTIONS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID).set(
+      {
+        ...connectionSnap.data(),
+        updatedAt: now,
+        updatedBy: 'seed-llm-setup',
+      },
+      { merge: true }
+    );
+    await secretRef.set({
+      ...secretSnap.data(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedBy: 'seed-llm-setup',
+    });
+    console.log('   ✅ Copied MiniMax connection + secret from production');
+    return true;
+  } catch (error) {
+    console.warn(
+      '   ⚠️ Production MiniMax copy failed:',
+      error instanceof Error ? error.message : String(error)
+    );
+    return false;
+  } finally {
+    const prodApp = admin.apps.find((app) => app?.name === 'production-minimax-seed');
+    if (prodApp) {
+      await prodApp.delete().catch(() => undefined);
+    }
+    if (savedEmulatorHost) {
+      process.env.FIRESTORE_EMULATOR_HOST = savedEmulatorHost;
+    }
+  }
+}
+
+export async function seedLlmSetup(options?: { userId?: string }): Promise<void> {
   process.env.FIREBASE_AUTH_EMULATOR_HOST =
     process.env.FIREBASE_AUTH_EMULATOR_HOST || 'localhost:9099';
   process.env.FIRESTORE_EMULATOR_HOST =
@@ -137,13 +206,19 @@ async function main(): Promise<void> {
   }
 
   const db = admin.firestore();
+  const userId = options?.userId ?? TARGET_UID;
   const now = new Date().toISOString();
   const minimaxApiKey = process.env.MINIMAX_API_KEY?.trim();
 
-  console.log('\n[1] MiniMax provider connection …');
+  console.log('\n[LLM] MiniMax provider connection …');
   const connectionRef = db.collection(CONNECTIONS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID);
   const secretRef = db.collection(SECRETS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID);
-  const existingSecret = await secretRef.get();
+  let existingSecret = await secretRef.get();
+
+  if (!existingSecret.exists && !minimaxApiKey) {
+    await ensureMinimaxSecretFromProduction(db);
+    existingSecret = await secretRef.get();
+  }
 
   await connectionRef.set(
     {
@@ -170,11 +245,11 @@ async function main(): Promise<void> {
   if (!existingSecret.exists) {
     if (!minimaxApiKey) {
       throw new Error(
-        'MINIMAX_API_KEY is required to seed minimax-primary credentials. Set it in the environment or functions/.env.local.'
+        'MINIMAX_API_KEY is required to seed minimax-primary credentials (or copy production secret via ADC). Set it in functions/.env.local.'
       );
     }
 
-    console.log('\n[2] Encrypting MiniMax API key …');
+    console.log('\n[LLM] Encrypting MiniMax API key …');
     const encrypted = encryptSecret(minimaxApiKey);
     await secretRef.set({
       ...encrypted,
@@ -184,10 +259,10 @@ async function main(): Promise<void> {
     await connectionRef.set({ apiKeyConfigured: true }, { merge: true });
     console.log('   ✅ minimax-primary secret stored');
   } else {
-    console.log('\n[2] MiniMax secret already exists — skip');
+    console.log('\n[LLM] MiniMax secret already exists — skip');
   }
 
-  console.log('\n[3] LLM setup (MiniMax M3 routes) …');
+  console.log('\n[LLM] LLM setup (MiniMax M3 routes) …');
   const generationRoutes = buildGenerationRoutes();
   await db.collection(LLM_SETUPS_COLLECTION).doc(SETUP_ID).set({
     name: 'E2E MiniMax M3',
@@ -198,7 +273,7 @@ async function main(): Promise<void> {
   });
   console.log(`   ✅ LLM setup ${SETUP_ID}`);
 
-  console.log('\n[4] User group …');
+  console.log('\n[LLM] User group …');
   await db.collection(USER_GROUPS_COLLECTION).doc(GROUP_ID).set({
     name: 'E2E Default Group',
     llmSetupId: SETUP_ID,
@@ -207,18 +282,24 @@ async function main(): Promise<void> {
   });
   console.log(`   ✅ User group ${GROUP_ID} → ${SETUP_ID}`);
 
-  console.log('\n[5] Assign test user to group …');
-  await db.collection('users').doc(TARGET_UID).set(
+  console.log('\n[LLM] Assign test user to group …');
+  await db.collection('users').doc(userId).set(
     { userGroupId: GROUP_ID },
     { merge: true }
   );
-  console.log(`   ✅ users/${TARGET_UID}.userGroupId = ${GROUP_ID}`);
+  console.log(`   ✅ users/${userId}.userGroupId = ${GROUP_ID}`);
 
   console.log('\n✅ LLM setup seed complete (MiniMax-M3 on minimax-primary).');
+}
+
+async function main(): Promise<void> {
+  await seedLlmSetup();
   console.log('   Restart the Functions emulator if it was running before seeding secrets.');
 }
 
-main().catch((err) => {
-  console.error('\n❌ LLM setup seed failed:', err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('\n❌ LLM setup seed failed:', err instanceof Error ? err.message : err);
+    process.exit(1);
+  });
+}

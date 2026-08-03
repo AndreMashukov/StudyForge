@@ -1,4 +1,4 @@
-import { DocumentEnhanced } from '@shared-types';
+import { DocumentContentFormat, DocumentEnhanced } from '@shared-types';
 import { TocItem } from '../../../components/MarkdownRenderer';
 
 export interface IDocumentViewerPageContext {
@@ -9,7 +9,7 @@ export interface IDocumentViewerPageContext {
     refetch: () => void;
   };
   contentApi: {
-    data?: { content: string };
+    data?: { content: string; contentFormat: DocumentContentFormat };
     isLoading: boolean;
     error?: unknown;
     refetch: () => void;

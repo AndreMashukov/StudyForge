@@ -6,10 +6,11 @@
  *   1. Create / update Auth user with a fixed UID and admin custom claim in the Auth emulator
  *   2. Ensure Firestore user document exists
  *   3. Create "Study Materials" directory in Firestore
- *   4. Create a general prompt rule and attach it to the directory
+ *   4. Create HTML / Plotly / math document rules and attach them to the directory
  *   5. Inject sample documents into the directory in Firestore
  *   6. Sync directory item index entries (required for the web directory UI)
  *   7. Upload document content files to the Storage emulator
+ *   8. Seed LLM setup, user group, and assign the test user (required for generation)
  *
  * Usage:
  *   npx tsx scripts/seed-setup/setup-seed-data.ts
@@ -21,13 +22,25 @@
  *
  * Prerequisites:
  *   - Firebase emulators running (Auth:9099, Firestore:8080, Storage:9199)
+ *   - LLM_SETTINGS_ENCRYPTION_KEY in functions/.secret.local
+ *   - MINIMAX_API_KEY in env, or ADC access to copy production MiniMax secret
  */
 
 import * as admin from 'firebase-admin';
 import * as path from 'path';
 import { config } from 'dotenv';
+import {
+  buildHtmlStoragePath,
+  buildHtmlStorageUrl,
+  markdownToHtmlDocument,
+} from './seed-html-utils';
+import { SEED_DOCUMENT_RULES } from './seed-document-rules';
+import { seedLlmSetup } from './seed-llm-setup';
 
 config({ path: path.join(process.cwd(), '.env.local') });
+config({ path: path.join(process.cwd(), 'functions/.env.local') });
+config({ path: path.join(process.cwd(), 'functions/.env') });
+config({ path: path.join(process.cwd(), 'functions/.secret.local') });
 
 const PROJECT_ID = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'study-forge-202604';
 const STORAGE_BUCKET = 'study-forge-202604.appspot.com';
@@ -37,11 +50,7 @@ const TEST_PASSWORD = 'Test123456!';
 const DOC_ID = 'perfect-doc-ml';
 // No hyphens: directory URLs are `slug-id` and the parser takes the segment after the last `-`.
 const DIR_ID = 'e2estudymaterials';
-const RULE_ID = 'e2e-prompt-rule';
-
-const RULE_CONTENT = `Focus on key concepts and use clear, concise language in all responses.
-When summarising or generating content from this material, highlight the most important ideas first.
-Avoid unnecessary jargon and always explain technical terms when they first appear.`;
+const SEED_RULE_IDS = SEED_DOCUMENT_RULES.map((rule) => rule.id);
 
 const DOCUMENT_CONTENT = `# Machine Learning
 
@@ -332,31 +341,35 @@ async function main() {
     quizCount: 0,
     flashcardSetCount: 0,
     slideDeckCount: 0,
-    ruleIds: [RULE_ID],
+    ruleIds: SEED_RULE_IDS,
     createdAt: now,
     updatedAt: now,
   };
   await db.doc(`users/${TARGET_UID}/directories/${DIR_ID}`).set(dirData);
   console.log(`   ✅ Directory created: ${dirData.name} (ID: ${DIR_ID})`);
 
-  // ── Step 4: Rule ─────────────────────────────────────────────────────────
-  console.log('\n[4] Creating general prompt rule …');
-  const ruleData = {
-    id: RULE_ID,
-    userId: TARGET_UID,
-    name: 'General Study Rule',
-    description: 'Default prompt rule for study materials',
-    content: RULE_CONTENT,
-    color: 'blue',
-    tags: ['study', 'general'],
-    applicableTo: ['prompt', 'quiz', 'flashcard', 'slide_deck'],
-    isDefault: true,
-    directoryIds: [DIR_ID],
-    createdAt: now,
-    updatedAt: now,
-  };
-  await db.doc(`users/${TARGET_UID}/rules/${RULE_ID}`).set(ruleData);
-  console.log(`   ✅ Rule created: ${ruleData.name} (ID: ${RULE_ID})`);
+  // ── Step 4: Document HTML / Plotly / math rules ──────────────────────────
+  console.log('\n[4] Creating document generation rules …');
+  for (const rule of SEED_DOCUMENT_RULES) {
+    const ruleData = {
+      id: rule.id,
+      userId: TARGET_UID,
+      name: rule.name,
+      description: rule.description,
+      content: rule.content,
+      color: rule.color,
+      tags: rule.tags,
+      applicableTo: rule.applicableTo,
+      isDefault: rule.isDefault,
+      directoryIds: [DIR_ID],
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db.doc(`users/${TARGET_UID}/rules/${rule.id}`).set(ruleData);
+    console.log(`   ✅ Rule created: ${rule.name} (ID: ${rule.id})`);
+  }
+  // Remove legacy seed rule if present from older setups.
+  await db.doc(`users/${TARGET_UID}/rules/e2e-prompt-rule`).delete().catch(() => undefined);
 
   // ── Step 5: Firestore document metadata ─────────────────────────────────
   console.log('\n[5] Injecting documents into Firestore …');
@@ -394,6 +407,9 @@ async function main() {
   ];
 
   for (const doc of seedDocuments) {
+    const storagePath = buildHtmlStoragePath(TARGET_UID, doc.id);
+    const storageHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST || 'localhost:9199';
+    const storageUrl = buildHtmlStorageUrl(TARGET_UID, doc.id, storageHost, STORAGE_BUCKET);
     const docData = {
       id: doc.id,
       userId: TARGET_UID,
@@ -403,8 +419,9 @@ async function main() {
       sourceType: 'generated',
       status: 'active',
       wordCount: doc.content.split(/\s+/).length,
-      storagePath: `users/${TARGET_UID}/documents/${doc.id}/content.md`,
-      storageUrl: `http://${process.env.FIREBASE_STORAGE_EMULATOR_HOST}/v0/b/${STORAGE_BUCKET}/o/users%2F${encodeURIComponent(TARGET_UID)}%2Fdocuments%2F${doc.id}%2Fcontent.md?alt=media`,
+      contentFormat: 'html',
+      storagePath,
+      storageUrl,
       tags: doc.tags,
       createdAt: now,
       updatedAt: now,
@@ -423,14 +440,19 @@ async function main() {
   // ── Step 7: Storage content files ───────────────────────────────────────
   console.log('\n[7] Uploading content to Storage emulator …');
   for (const doc of seedDocuments) {
-    const filePath = `users/${TARGET_UID}/documents/${doc.id}/content.md`;
+    const htmlContent = markdownToHtmlDocument(doc.content, doc.title);
+    const filePath = buildHtmlStoragePath(TARGET_UID, doc.id);
     const file = admin.storage().bucket(STORAGE_BUCKET).file(filePath);
-    await file.save(Buffer.from(doc.content, 'utf8'), {
-      metadata: { contentType: 'text/markdown; charset=utf-8' },
+    await file.save(Buffer.from(htmlContent, 'utf8'), {
+      metadata: { contentType: 'text/html; charset=utf-8' },
       resumable: false,
     });
     console.log(`   ✅ Content uploaded to: ${filePath}`);
   }
+
+  // ── Step 8: LLM setup + user group assignment ───────────────────────────
+  console.log('\n[8] Seeding LLM setup and user group …');
+  await seedLlmSetup({ userId: TARGET_UID });
 
   console.log('\n✅ E2E setup complete. Ready to run tests.');
 }
