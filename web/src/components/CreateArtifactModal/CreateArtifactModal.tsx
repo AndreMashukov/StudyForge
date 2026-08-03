@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useSelector } from 'react-redux';
@@ -67,6 +68,10 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
   const sidebarIsOpen = useSelector(selectSidebarIsOpen);
   const { isAppFullscreen } = useAppFullscreen();
   const [isMobile, setIsMobile] = useState(false);
+  // Mount rules after the form reset so CompactRuleSelector can apply always-apply defaults
+  // without getting cleared by a later reset.
+  const [isRulesReady, setIsRulesReady] = useState(false);
+  const formInitKeyRef = useRef<string | null>(null);
 
   const artifactType = state?.artifactType;
   const directoryId = state?.directoryId ?? null;
@@ -111,18 +116,32 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!open || !artifactType || !directoryId) {
+    if (!open) {
+      formInitKeyRef.current = null;
+      setIsRulesReady(false);
       return;
     }
 
-    if (isLoadingDocuments) {
+    if (!artifactType || !directoryId || isLoadingDocuments) {
       return;
     }
 
+    const initKey = [
+      artifactType,
+      directoryId,
+      (preselectedDocumentIds ?? []).join(','),
+    ].join(':');
+
+    if (formInitKeyRef.current === initKey) {
+      return;
+    }
+
+    formInitKeyRef.current = initKey;
     reset({
       ...EMPTY_FORM_VALUES,
       documentIds: resolveInitialDocumentIds(documents, preselectedDocumentIds),
     });
+    setIsRulesReady(true);
   }, [
     open,
     artifactType,
@@ -280,22 +299,24 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
               <p className="text-sm text-destructive">{errors.additionalPrompt.message}</p>
             ) : null}
 
-            <CreateArtifactRulesSection
-              directoryId={directoryId}
-              ruleApplicability={config.ruleApplicability}
-              followupRuleApplicability={config.followupRuleApplicability}
-              descriptionRuleApplicability={config.descriptionRuleApplicability}
-              ruleIds={watchedRuleIds}
-              followupRuleIds={watchedFollowupRuleIds}
-              descriptionRuleIds={watchedDescriptionRuleIds}
-              onRuleIdsChange={(ruleIds) => setValue('ruleIds', ruleIds)}
-              onFollowupRuleIdsChange={(followupRuleIds) =>
-                setValue('followupRuleIds', followupRuleIds)
-              }
-              onDescriptionRuleIdsChange={(descriptionRuleIds) =>
-                setValue('descriptionRuleIds', descriptionRuleIds)
-              }
-            />
+            {isRulesReady ? (
+              <CreateArtifactRulesSection
+                directoryId={directoryId}
+                ruleApplicability={config.ruleApplicability}
+                followupRuleApplicability={config.followupRuleApplicability}
+                descriptionRuleApplicability={config.descriptionRuleApplicability}
+                ruleIds={watchedRuleIds}
+                followupRuleIds={watchedFollowupRuleIds}
+                descriptionRuleIds={watchedDescriptionRuleIds}
+                onRuleIdsChange={(ruleIds) => setValue('ruleIds', ruleIds)}
+                onFollowupRuleIdsChange={(followupRuleIds) =>
+                  setValue('followupRuleIds', followupRuleIds)
+                }
+                onDescriptionRuleIdsChange={(descriptionRuleIds) =>
+                  setValue('descriptionRuleIds', descriptionRuleIds)
+                }
+              />
+            ) : null}
           </div>
 
           <div className="flex items-center justify-end gap-2 border-t border-border p-3">
