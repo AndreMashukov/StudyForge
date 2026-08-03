@@ -1,13 +1,27 @@
 import { getStorage } from 'firebase-admin/storage';
-import { DocumentEnhanced as Document, DocumentMetadataEnhanced as DocumentMetadata, StorageFile, StorageMetadata } from "@shared-types";
+import {
+  DocumentEnhanced as Document,
+  DocumentMetadataEnhanced as DocumentMetadata,
+  DocumentContentFormat,
+  IDocumentContentResult,
+  resolveDocumentContentFormat,
+  StorageFile,
+  StorageMetadata,
+} from '@shared-types';
 import { logger } from 'firebase-functions/v2';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
+import {
+  buildDocumentHtmlStoragePath,
+  buildDocumentMarkdownStoragePath,
+  countWordsFromContent,
+  resolveDocumentStoragePath,
+} from './document-html/html-utils';
 
 const MAX_DOCUMENT_CONTENT_BYTES = 5 * 1024 * 1024;
 
 /**
- * Service for managing document storage in Firebase Storage
- * Handles markdown document upload, download, and management operations
+ * Service for managing document storage in Firebase Storage.
+ * Supports HTML (`content.html`) and legacy markdown (`content.md`) bodies.
  */
 export class DocumentService {
   private static _storage: ReturnType<typeof getStorage> | null = null;
@@ -84,34 +98,37 @@ export class DocumentService {
     userId: string,
     documentId: string,
     content: string,
-    metadata: DocumentMetadata
+    metadata: DocumentMetadata,
+    options?: { contentFormat?: DocumentContentFormat }
   ): Promise<StorageFile> {
+    const contentFormat = options?.contentFormat ?? 'markdown';
     try {
       const bucket = this.getBucket();
-      const filePath = `users/${userId}/documents/${documentId}/content.md`;
+      const filePath = resolveDocumentStoragePath(userId, documentId, contentFormat);
       const file = bucket.file(filePath);
+      const contentType =
+        contentFormat === 'html' ? 'text/html; charset=utf-8' : 'text/markdown; charset=utf-8';
 
       logger.info('Uploading document to Storage', {
         userId,
         documentId,
         filePath,
+        contentFormat,
         contentLength: content.length,
       });
 
-      // Prepare content as Buffer with UTF-8 encoding
       const contentBuffer = Buffer.from(content, 'utf8');
 
-      // Upload the markdown content with metadata
       await file.save(contentBuffer, {
         metadata: {
-          contentType: 'text/markdown; charset=utf-8',
-          // Mutable document body — avoid CDN caching stale content after edits
+          contentType,
           cacheControl: 'private, max-age=0, must-revalidate',
           customMetadata: {
             documentId,
             title: metadata.title || 'Untitled Document',
             sourceType: metadata.sourceType || 'upload',
             wordCount: (metadata.wordCount || 0).toString(),
+            contentFormat,
             createdAt: (metadata.createdAt || new Date()).toISOString(),
             updatedAt: new Date().toISOString(),
           },
@@ -155,7 +172,7 @@ export class DocumentService {
         path: filePath,
         downloadUrl,
         metadata: {
-          contentType: fileMetadata.contentType || 'text/markdown',
+          contentType: fileMetadata.contentType || contentType,
           size: parseInt(String(fileMetadata.size || '0'), 10),
           timeCreated: fileMetadata.timeCreated || new Date().toISOString(),
           updated: fileMetadata.updated || new Date().toISOString(),
@@ -187,41 +204,84 @@ export class DocumentService {
    * @returns The markdown content as string
    */
   static async getDocumentContent(userId: string, documentId: string): Promise<string> {
+    const result = await this.getDocumentContentWithFormat(userId, documentId);
+    return result.content;
+  }
+
+  static async getDocumentContentWithFormat(
+    userId: string,
+    documentId: string,
+    hint?: { storagePath?: string; contentFormat?: DocumentContentFormat }
+  ): Promise<IDocumentContentResult> {
     try {
       const bucket = this.getBucket();
-      const filePath = `users/${userId}/documents/${documentId}/content.md`;
-      const file = bucket.file(filePath);
+      const candidatePaths: Array<{ path: string; format: DocumentContentFormat }> = [];
 
-      logger.info('Retrieving document from Storage', {
-        userId,
-        documentId,
-        filePath,
-      });
+      if (hint?.storagePath) {
+        candidatePaths.push({
+          path: hint.storagePath,
+          format: resolveDocumentContentFormat(hint.contentFormat),
+        });
+      } else if (hint?.contentFormat === 'html') {
+        candidatePaths.push({
+          path: buildDocumentHtmlStoragePath(userId, documentId),
+          format: 'html',
+        });
+      } else if (hint?.contentFormat === 'markdown') {
+        candidatePaths.push({
+          path: buildDocumentMarkdownStoragePath(userId, documentId),
+          format: 'markdown',
+        });
+      } else {
+        candidatePaths.push(
+          { path: buildDocumentHtmlStoragePath(userId, documentId), format: 'html' },
+          { path: buildDocumentMarkdownStoragePath(userId, documentId), format: 'markdown' }
+        );
+      }
 
-      try {
-        const [content] = await file.download();
-        const contentString = content.toString('utf8');
-
-        logger.info('Document retrieved successfully', {
+      let lastError: unknown;
+      for (const candidate of candidatePaths) {
+        const file = bucket.file(candidate.path);
+        logger.info('Retrieving document from Storage', {
           userId,
           documentId,
-          contentLength: contentString.length,
+          filePath: candidate.path,
+          contentFormat: candidate.format,
         });
 
-        return contentString;
-      } catch (downloadError: unknown) {
-        const errorCode =
-          typeof downloadError === 'object' &&
-          downloadError !== null &&
-          'code' in downloadError
-            ? (downloadError as { code?: number }).code
-            : undefined;
-
-        if (errorCode === 404) {
-          throw new Error('Document not found in storage');
+        try {
+          const [content] = await file.download();
+          const contentString = content.toString('utf8');
+          logger.info('Document retrieved successfully', {
+            userId,
+            documentId,
+            contentLength: contentString.length,
+            contentFormat: candidate.format,
+          });
+          return {
+            content: contentString,
+            contentFormat: candidate.format,
+            storagePath: candidate.path,
+          };
+        } catch (downloadError: unknown) {
+          lastError = downloadError;
+          const errorCode =
+            typeof downloadError === 'object' &&
+            downloadError !== null &&
+            'code' in downloadError
+              ? (downloadError as { code?: number }).code
+              : undefined;
+          if (errorCode === 404) {
+            continue;
+          }
+          throw downloadError;
         }
-        throw downloadError;
       }
+
+      if (lastError) {
+        throw lastError;
+      }
+      throw new Error('Document not found in storage');
     } catch (error) {
       logger.error('Failed to retrieve document', {
         userId,
@@ -240,25 +300,18 @@ export class DocumentService {
   static async deleteDocument(userId: string, documentId: string): Promise<void> {
     try {
       const bucket = this.getBucket();
-      const filePath = `users/${userId}/documents/${documentId}/content.md`;
-      const file = bucket.file(filePath);
+      const paths = [
+        buildDocumentHtmlStoragePath(userId, documentId),
+        buildDocumentMarkdownStoragePath(userId, documentId),
+      ];
 
-      logger.info('Deleting document from Storage', {
-        userId,
-        documentId,
-        filePath,
-      });
-
-      // Check if file exists before attempting deletion
-      const [exists] = await file.exists();
-      if (exists) {
-        await file.delete();
-        logger.info('Document deleted successfully', { userId, documentId });
-      } else {
-        logger.warn('Document not found in storage during deletion', {
-          userId,
-          documentId,
-        });
+      for (const filePath of paths) {
+        const file = bucket.file(filePath);
+        const [exists] = await file.exists();
+        if (exists) {
+          await file.delete();
+          logger.info('Document body deleted from Storage', { userId, documentId, filePath });
+        }
       }
     } catch (error) {
       logger.error('Failed to delete document from storage', {
@@ -280,12 +333,15 @@ export class DocumentService {
   static async getDownloadUrl(
     userId: string,
     documentId: string,
-    expiresInMinutes = 60
+    expiresInMinutes = 60,
+    contentFormat?: DocumentContentFormat
   ): Promise<string> {
     try {
       const bucket = this.getBucket();
-      const filePath = `users/${userId}/documents/${documentId}/content.md`;
-      const file = bucket.file(filePath);
+      const resolved = await this.getDocumentContentWithFormat(userId, documentId, {
+        contentFormat,
+      });
+      const file = bucket.file(resolved.storagePath);
 
       logger.info('Generating download URL', {
         userId,
@@ -393,18 +449,25 @@ export class DocumentService {
       }
 
       const currentDoc = docSnap.data() as Document;
+      const contentFormat = resolveDocumentContentFormat(currentDoc.contentFormat);
 
-      // Merge metadata
       const mergedMetadata: DocumentMetadata = {
         title: updateMetadata?.title || currentDoc.title,
-        sourceType: currentDoc.sourceType, // Don't change source type on update
-        wordCount: updateMetadata?.wordCount || this.countWords(newContent),
+        sourceType: currentDoc.sourceType,
+        wordCount:
+          updateMetadata?.wordCount ??
+          countWordsFromContent(newContent, contentFormat),
         createdAt: this.toDate(currentDoc.createdAt),
         updatedAt: new Date(),
       };
 
-      // Upload updated content
-      const storageFile = await this.uploadDocument(userId, documentId, newContent, mergedMetadata);
+      const storageFile = await this.uploadDocument(
+        userId,
+        documentId,
+        newContent,
+        mergedMetadata,
+        { contentFormat }
+      );
 
       logger.info('Document updated successfully', { userId, documentId });
       return storageFile;

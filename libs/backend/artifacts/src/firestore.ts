@@ -13,11 +13,21 @@ import type { GeminiDiagramQuizResponse, GeminiSequenceQuizResponse } from "@stu
 import * as functions from "firebase-functions";
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { DocumentService } from '@study-forge/backend-documents/document-storage';
+import { adaptDocumentContentForLlm } from '@study-forge/backend-documents/document-html/html-utils';
+import type { DocumentContentFormat } from '@shared-types';
 import { removeArtifactDirectoryIndex, syncIndexSafely } from '@study-forge/backend-directories/directory-item-index';
 
 /**
  * Firestore service for managing URLs and Quizzes collections
  */
+
+interface IDocumentArtifactMetadata {
+  id: string;
+  title: string;
+  wordCount?: number;
+  storagePath?: string;
+  contentFormat?: DocumentContentFormat;
+}
 
 export class FirestoreService {
   private static db: admin.firestore.Firestore;
@@ -44,6 +54,10 @@ export class FirestoreService {
              'toDate' in value &&
              typeof (value as { toDate?: unknown }).toDate === 'function';
     }
+  }
+
+  private static resolveDocumentContentFormat(value: unknown): DocumentContentFormat | undefined {
+    return value === 'html' || value === 'markdown' ? value : undefined;
   }
 
   /**
@@ -253,7 +267,7 @@ export class FirestoreService {
   /**
    * Get document metadata from documents collection
    */
-  public static async getDocument(userId: string, documentId: string): Promise<{ id: string; title: string; wordCount?: number }> {
+  public static async getDocument(userId: string, documentId: string): Promise<IDocumentArtifactMetadata> {
     try {
       const doc = await FirestorePaths.document(userId, documentId).get();
       
@@ -270,6 +284,8 @@ export class FirestoreService {
         id: doc.id,
         title: data.title,
         wordCount: data.wordCount,
+        storagePath: typeof data.storagePath === 'string' ? data.storagePath : undefined,
+        contentFormat: this.resolveDocumentContentFormat(data.contentFormat),
       };
     } catch (error) {
       functions.logger.error(`Error getting document ${documentId}:`, error);
@@ -282,7 +298,12 @@ export class FirestoreService {
    */
   public static async getDocumentContent(userId: string, documentId: string): Promise<string> {
     try {
-      return await DocumentService.getDocumentContent(userId, documentId);
+      const document = await this.getDocument(userId, documentId);
+      const stored = await DocumentService.getDocumentContentWithFormat(userId, documentId, {
+        storagePath: document.storagePath || undefined,
+        contentFormat: document.contentFormat,
+      });
+      return adaptDocumentContentForLlm(stored.content, stored.contentFormat);
     } catch (error) {
       functions.logger.error(`Error getting document content ${documentId}:`, error);
       throw error;

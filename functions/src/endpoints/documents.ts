@@ -31,6 +31,7 @@ import {
   GenerateFromPromptRequest,
   GenerateFromScreenshotRequest,
   IFileContent,
+  IDocumentAgentJobPayload,
   MoveDocumentRequest,
   RuleApplicability,
   UploadDocumentRequest,
@@ -41,6 +42,33 @@ const geminiApiKey = defineSecret("GEMINI_API_KEY");
 const llmSettingsEncryptionKey = defineSecret("LLM_SETTINGS_ENCRYPTION_KEY");
 const apifyApiToken = defineSecret("APIFY_API_TOKEN");
 const MAX_URL_DOCUMENT_SOURCES = 3;
+
+type DocumentAgentJobKind = 'documentFromContent' | 'documentFromUpload' | 'documentFromUrl';
+
+async function enqueueDocumentAgentJob(params: {
+  userId: string;
+  directoryId: string;
+  documentId: string;
+  kind: DocumentAgentJobKind;
+  payload: IDocumentAgentJobPayload;
+}): Promise<string> {
+  const jobId = GenerationJobsService.newJobId(params.userId);
+  const payloadStoragePath = await GenerationJobPayloadStorage.saveJson(
+    params.userId,
+    jobId,
+    params.payload
+  );
+  await GenerationJobsService.createJob({
+    jobId,
+    kind: params.kind,
+    userId: params.userId,
+    directoryId: params.directoryId,
+    recordId: params.documentId,
+    payloadStoragePath,
+  });
+  await enqueueGenerationJobTask({ userId: params.userId, jobId });
+  return jobId;
+}
 
 function extractMarkdownTitle(content: string): string | null {
   const titleMatch = content.match(/^#\s+(.+)$/m);
@@ -85,19 +113,19 @@ export const createDocument = onCall(
   { 
     region: 'asia-east1',
     cors: true,
+    secrets: [geminiApiKey, llmSettingsEncryptionKey],
   },
   async (request) => {
     try {
       const userId = await validateAuth(request);
       const data = request.data as CreateDocumentRequest;
 
-      logger.info('Creating document', { 
+      logger.info('Creating document (async HTML ADK)', { 
         userId,
         sourceType: data.sourceType,
         title: data.title?.substring(0, 50),
       });
 
-      // Validate request
       if (!data.sourceType || !Object.values(DocumentSourceType).includes(data.sourceType)) {
         throw new HttpsError('invalid-argument', 'Invalid or missing sourceType');
       }
@@ -114,22 +142,50 @@ export const createDocument = onCall(
         throw new HttpsError('invalid-argument', 'directoryId is required');
       }
       await directoryService.validateDirectoryId(userId, data.directoryId);
+      await enforceCallableGenerationRateLimit(userId, 'documentFromPrompt');
 
-      // Create document
-      const document = await DocumentCrudService.createDocument(userId, data);
-
-      logger.info('Document created successfully', { 
-        userId,
-        documentId: document.id,
-        title: document.title,
+      const pendingDocId = await DocumentCrudService.createPendingDocument(userId, {
+        directoryId: data.directoryId,
+        title: data.title,
+        description: data.description || '',
+        sourceType: data.sourceType,
+        sourceUrl: data.sourceUrl,
+        tags: data.tags || [],
       });
 
-      return { 
-        success: true, 
-        document,
-      };
+      try {
+        await enqueueDocumentAgentJob({
+          userId,
+          directoryId: data.directoryId,
+          documentId: pendingDocId,
+          kind: 'documentFromContent',
+          payload: {
+            sourceKind: 'content',
+            title: data.title,
+            description: data.description,
+            tags: data.tags,
+            sourceText: data.content,
+            ruleIds: data.ruleIds,
+            ruleResolutionMode: data.ruleResolutionMode,
+          },
+        });
+
+        return {
+          success: true,
+          id: pendingDocId,
+          documentId: pendingDocId,
+          recordType: 'document',
+          directoryId: data.directoryId,
+          generationStatus: 'pending',
+        };
+      } catch (innerError) {
+        const msg = innerError instanceof Error ? innerError.message : String(innerError);
+        await DocumentCrudService.failPendingDocument(userId, pendingDocId, msg).catch(() => {/* best-effort */});
+        throw innerError;
+      }
 
     } catch (error) {
+      if (error instanceof HttpsError) throw error;
       logger.error('Failed to create document', { 
         error: error instanceof Error ? error.message : String(error),
         data: request.data,
@@ -205,50 +261,40 @@ export const uploadAndCreateDocument = onCall(
       });
 
       try {
-        const mode = isRuleResolutionMode(data.ruleResolutionMode)
-          ? data.ruleResolutionMode
-          : (data.ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
-        const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
+        await enqueueDocumentAgentJob({
           userId,
           directoryId: data.directoryId,
-          operation: RuleApplicability.UPLOAD,
-          additionalRuleIds: data.ruleIds?.length ? data.ruleIds : data.additionalRuleIds,
-          mode,
+          documentId: uploadPendingDocId,
+          kind: 'documentFromUpload',
+          payload: {
+            sourceKind: 'upload',
+            title: uploadPendingTitle,
+            description: `Uploaded from: ${data.fileName}`,
+            tags: ['uploaded', 'ai-generated'],
+            sourceText: extraction.markdownContent,
+            sourceFilename: data.fileName,
+            ruleIds: data.ruleIds,
+            additionalRuleIds: data.additionalRuleIds,
+            ruleResolutionMode: data.ruleResolutionMode,
+          },
         });
 
-        const prepared = await SourceDocumentGenerationService.prepareUploadDocumentContent({
-          userId,
-          extraction,
-          customTitle: data.title,
-          rulesText: rulesText || undefined,
-        });
-
-        const enhancementAudit = prepared.wasEnhanced
-          ? await resolveTextGenerationAudit(userId, 'sourceDocumentEnhancement')
-          : undefined;
-
-        await DocumentCrudService.completePendingDocument(userId, uploadPendingDocId, prepared.content, {
-          title: prepared.title,
-          description: `Uploaded from: ${data.fileName}`,
-          tags: prepared.tags,
-          appliedRuleIds: effectiveRuleIds,
-          generationModel: enhancementAudit?.generationModel,
-          generationModelUsage: enhancementAudit?.generationModelUsage,
-        });
-
-        logger.info('Document created from upload successfully', {
+        logger.info('Upload document generation queued', {
           userId,
           documentId: uploadPendingDocId,
           fileName: data.fileName,
           extension: extraction.extension,
           originalSize: extraction.originalSize,
           sourceWordCount: extraction.wordCount,
-          warningCount: prepared.warnings.length,
         });
 
         return {
           success: true,
-          document: { id: uploadPendingDocId, title: prepared.title },
+          id: uploadPendingDocId,
+          documentId: uploadPendingDocId,
+          recordType: 'document',
+          directoryId: data.directoryId,
+          generationStatus: 'pending',
           extraction: {
             filename: extraction.filename,
             extension: extraction.extension,
@@ -256,7 +302,7 @@ export const uploadAndCreateDocument = onCall(
             originalSize: extraction.originalSize,
             wordCount: extraction.wordCount,
             metadata: extraction.metadata,
-            warnings: prepared.warnings,
+            warnings: extraction.warnings,
           },
         };
       } catch (innerError) {
@@ -314,6 +360,11 @@ export const createDocumentFromUrl = onCall(
         : [];
 
       const { title: customTitle, directoryId, ruleIds, additionalRuleIds, ruleResolutionMode } = data;
+      const mode = isRuleResolutionMode(ruleResolutionMode)
+        ? ruleResolutionMode
+        : ruleIds?.length
+          ? 'explicit-only'
+          : 'inherit-plus-explicit';
 
       logger.info('Creating document from URL(s)', {
         userId,
@@ -364,19 +415,6 @@ export const createDocumentFromUrl = onCall(
       });
 
       try {
-        // Resolve content generation rules once for all URL sources.
-        const mode = isRuleResolutionMode(ruleResolutionMode)
-          ? ruleResolutionMode
-          : (ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
-        const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
-          userId,
-          directoryId,
-          operation: RuleApplicability.PROMPT,
-          additionalRuleIds: ruleIds?.length ? ruleIds : additionalRuleIds,
-          mode,
-        });
-
-        // Process all URLs via the orchestrator
         let summary;
         try {
           summary = await UrlProcessingOrchestrator.processUrls(rawUrls, undefined, userId);
@@ -390,44 +428,13 @@ export const createDocumentFromUrl = onCall(
         const hasYouTubeSource = summary.results.some((r) => r.type === 'youtube' && !r.error);
         const hasWebSource = summary.results.some((r) => r.type === 'web' && !r.error);
 
-        const sourceContextFile: IFileContent = {
-          filename: isSingleUrl && firstSuccess
-            ? `${firstSuccess.title || 'url-source'}.md`
-            : 'url-sources.md',
-          content: summary.mergedMarkdown,
-          size: Buffer.byteLength(summary.mergedMarkdown, 'utf8'),
-          type: 'text/markdown',
-        };
-
-        logger.info('Generating final document from URL source context', {
+        logger.info('Queueing HTML document generation from URL source context', {
           userId,
           urlCount: summary.sourceUrls.length,
           sourceWordCount: summary.totalWordCount,
-          ruleCount: effectiveRuleIds.length,
-          hasRules: !!rulesText,
           hasYouTubeSource,
           hasWebSource,
         });
-
-        let generatedContent: string;
-        try {
-          generatedContent = await LlmGenerationService.generateDocumentFromPrompt(
-            userId,
-            buildUrlDocumentPrompt({
-              customTitle,
-              sourceCount: summary.sourceUrls.length,
-              successfulCount: summary.successfulCount,
-              failedCount: summary.failedCount,
-              hasYouTubeSource,
-              sourceUrls: summary.sourceUrls,
-            }),
-            [sourceContextFile],
-            rulesText || undefined
-          );
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          throw new HttpsError('internal', `URL document generation failed: ${message}`);
-        }
 
         const tags = ['scraped', 'ai-generated'];
         if (hasYouTubeSource) {
@@ -437,9 +444,7 @@ export const createDocumentFromUrl = onCall(
           tags.push('article');
         }
 
-        const generatedTitle = extractMarkdownTitle(generatedContent);
         const title = customTitle
-          || generatedTitle
           || (isSingleUrl && firstSuccess ? firstSuccess.title : null)
           || (isSingleUrl ? rawUrls[0] : `Merged Document (${summary.successfulCount} sources)`);
 
@@ -447,35 +452,45 @@ export const createDocumentFromUrl = onCall(
           ? `Scraped from: ${rawUrls[0]}`
           : `Merged from ${summary.successfulCount} URL${summary.successfulCount !== 1 ? 's' : ''}`;
 
-        const { generationModel, generationModelUsage } = await resolveTextGenerationAudit(userId, 'documentFromPrompt');
-
-        await DocumentCrudService.completePendingDocument(userId, urlPendingDocId, generatedContent, {
-          title,
-          description,
-          tags,
-          appliedRuleIds: effectiveRuleIds,
-          generationModel,
-          generationModelUsage,
+        await enqueueDocumentAgentJob({
+          userId,
+          directoryId,
+          documentId: urlPendingDocId,
+          kind: 'documentFromUrl',
+          payload: {
+            sourceKind: 'url',
+            title: title ?? undefined,
+            description,
+            tags,
+            sourceText: summary.mergedMarkdown,
+            sourceUrls: summary.sourceUrls,
+            sourceUrl: rawUrls[0],
+            ruleIds,
+            additionalRuleIds,
+            ruleResolutionMode: mode,
+          },
         });
 
-        logger.info('Document created from URL(s) successfully', {
+        logger.info('URL document generation queued', {
           userId,
           documentId: urlPendingDocId,
           urlCount: rawUrls.length,
           successful: summary.successfulCount,
           failed: summary.failedCount,
-          wordCount: generatedContent.split(/\s+/).length,
         });
 
         return {
           success: true,
-          document: { id: urlPendingDocId, title },
+          id: urlPendingDocId,
+          documentId: urlPendingDocId,
+          recordType: 'document',
+          directoryId,
+          generationStatus: 'pending',
           summary: {
             urlCount: rawUrls.length,
             successfulCount: summary.successfulCount,
             failedCount: summary.failedCount,
             sourceWordCount: summary.totalWordCount,
-            totalWordCount: generatedContent.split(/\s+/).length,
           },
         };
 
@@ -855,11 +870,16 @@ export const getDocumentContent = onCall(
         documentId,
       });
 
-      const content = await DocumentService.getDocumentContent(userId, documentId);
+      const document = await DocumentCrudService.getDocument(userId, documentId);
+      const stored = await DocumentService.getDocumentContentWithFormat(userId, documentId, {
+        storagePath: document.storagePath || undefined,
+        contentFormat: document.contentFormat,
+      });
 
       return { 
         success: true, 
-        content,
+        content: stored.content,
+        contentFormat: stored.contentFormat,
       };
 
     } catch (error) {

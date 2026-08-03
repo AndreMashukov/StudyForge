@@ -1,5 +1,6 @@
 import { baseApi } from '../baseApi';
 import { createDocumentOnQueryStarted } from '../utils/createDocumentOnQueryStarted';
+import type { DocumentContentFormat } from '@shared-types';
 import { fetchDocumentContentFromStorage } from '../../../services/documentContentStorage';
 import { fetchDocumentFromFirestore } from '../../../services/documentFirestore';
 import { auth } from '../../../config/firebase';
@@ -313,11 +314,16 @@ export const documentsApi = baseApi.injectEndpoints({
       providesTags: ['Document'],
     }),
 
-    getDocumentContent: builder.query<{ content: string }, string>({
-      async queryFn(documentId, _api, _extraOptions, baseQuery) {
+    getDocumentContent: builder.query<{ content: string; contentFormat: DocumentContentFormat }, string>({
+      async queryFn(documentId, api, _extraOptions, baseQuery) {
         try {
-          const content = await fetchDocumentContentFromStorage(documentId);
-          return { data: { content } };
+          const cachedDocument = documentsApi.endpoints.getDocument.select(documentId)(api.getState() as never)
+            ?.data;
+          const fetched = await fetchDocumentContentFromStorage(documentId, {
+            storagePath: cachedDocument?.storagePath || undefined,
+            contentFormat: cachedDocument?.contentFormat,
+          });
+          return { data: fetched };
         } catch (storageError) {
           console.warn(
             'Storage document content read failed, falling back to callable:',
@@ -330,8 +336,17 @@ export const documentsApi = baseApi.injectEndpoints({
           if (fallback.error) {
             return { error: fallback.error };
           }
-          const response = fallback.data as { success: boolean; content: string };
-          return { data: { content: response.content } };
+          const response = fallback.data as {
+            success: boolean;
+            content: string;
+            contentFormat?: DocumentContentFormat;
+          };
+          return {
+            data: {
+              content: response.content,
+              contentFormat: response.contentFormat ?? 'markdown',
+            },
+          };
         }
       },
       providesTags: (result, error, documentId) => [

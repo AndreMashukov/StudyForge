@@ -20,6 +20,16 @@ service firebase.storage {
                   && request.auth.uid == userId
                   && validateMarkdownUpload(request.resource);
     }
+
+    // HTML document body files (canonical format for new documents)
+    match /users/{userId}/documents/{documentId}/content.html {
+      allow read: if request.auth != null 
+                  && request.auth.uid == userId;
+      
+      allow write: if request.auth != null 
+                  && request.auth.uid == userId
+                  && validateHtmlUpload(request.resource);
+    }
     
     // Metadata files (if stored separately from Firestore)
     match /users/{userId}/documents/{documentId}/metadata.json {
@@ -46,8 +56,8 @@ service firebase.storage {
 
 // Validation function for document file names
 function validDocumentFileName(fileName) {
-  return fileName.matches('(content\\.md|metadata\\.json)')
-      || fileName.matches('versions/v\\d+\\.md');
+  return fileName.matches('(content\\.(md|html)|metadata\\.json)')
+      || fileName.matches('versions/v\\d+\\.(md|html)');
 }
 
 // Validation function for markdown file uploads
@@ -56,6 +66,15 @@ function validateMarkdownUpload(resource) {
       && resource.size > 0
       && resource.size < 100 * 1024 // 100KB max size
       && resource.contentType in ['text/markdown', 'text/plain']
+      && hasValidContent(resource);
+}
+
+// Validation function for HTML file uploads
+function validateHtmlUpload(resource) {
+  return resource != null
+      && resource.size > 0
+      && resource.size < 5 * 1024 * 1024 // 5MB max for HTML learning docs
+      && resource.contentType.matches('text/html.*')
       && hasValidContent(resource);
 }
 

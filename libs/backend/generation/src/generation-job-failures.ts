@@ -35,6 +35,9 @@ export async function failVisibleGenerationRecord(job: GenerationJob, message: s
   switch (job.kind) {
     case 'documentFromPrompt':
     case 'documentFromScreenshot':
+    case 'documentFromUpload':
+    case 'documentFromUrl':
+    case 'documentFromContent':
       await DocumentCrudService.failPendingDocument(job.userId, job.recordId, message);
       return;
     case 'artifactAgent': {

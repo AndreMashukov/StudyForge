@@ -2,6 +2,8 @@ import { AggregateField, Timestamp, FieldValue, Query } from 'firebase-admin/fir
 import * as admin from 'firebase-admin';
 import { logger } from 'firebase-functions/v2';
 import { DocumentService } from './document-storage';
+import { countWordsFromContent } from './document-html/html-utils';
+import { prepareHtmlDocumentForStorage } from './document-html';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
 import {
@@ -29,6 +31,8 @@ import {
   DocumentStatus,
   GenerationStatus,
   DOCUMENT_COLOR_PALETTE,
+  DocumentContentFormat,
+  resolveDocumentContentFormat,
   type IGenerationModelUsage,
   type IArtifactAgentDiagnostics,
 } from "@shared-types";
@@ -187,23 +191,28 @@ export class DocumentCrudService {
    * @param documentId - The document identifier
    * @returns Document with content included
    */
-  static async getDocumentWithContent(userId: string, documentId: string): Promise<Document & { content: string }> {
+  static async getDocumentWithContent(
+    userId: string,
+    documentId: string
+  ): Promise<Document & { content: string; contentFormat: DocumentContentFormat }> {
     try {
-      // Get document metadata
       const document = await this.getDocument(userId, documentId);
+      const stored = await DocumentService.getDocumentContentWithFormat(userId, documentId, {
+        storagePath: document.storagePath || undefined,
+        contentFormat: document.contentFormat,
+      });
 
-      // Get content from storage
-      const content = await DocumentService.getDocumentContent(userId, documentId);
-
-      logger.info('Document with content retrieved successfully', { 
-        userId, 
+      logger.info('Document with content retrieved successfully', {
+        userId,
         documentId,
-        contentLength: content.length,
+        contentLength: stored.content.length,
+        contentFormat: stored.contentFormat,
       });
 
       return {
         ...document,
-        content,
+        content: stored.content,
+        contentFormat: stored.contentFormat,
       };
     } catch (error) {
       logger.error('Failed to retrieve document with content', {
@@ -238,17 +247,25 @@ export class DocumentCrudService {
       // Get current document
       const currentDocument = await this.getDocument(userId, documentId);
       const docRef = FirestorePaths.document(userId, documentId);
+      const contentFormat = resolveDocumentContentFormat(currentDocument.contentFormat);
 
       let storageFile;
       let wordCount = currentDocument.wordCount;
 
       // Update content in storage if provided
       if (updates.content !== undefined) {
+        if (contentFormat === 'markdown') {
+          throw new Error('Legacy markdown documents are read-only and cannot be edited.');
+        }
+
         DocumentService.validateDocumentContent(updates.content);
-        wordCount = this.countWords(updates.content);
+
+        const title = updates.title || currentDocument.title;
+        const prepared = await prepareHtmlDocumentForStorage(updates.content, title);
+        wordCount = prepared.wordCount;
 
         const metadata: DocumentMetadata = {
-          title: updates.title || currentDocument.title,
+          title,
           sourceType: currentDocument.sourceType,
           wordCount,
           createdAt: this.toDate(currentDocument.createdAt),
@@ -258,8 +275,9 @@ export class DocumentCrudService {
         storageFile = await DocumentService.uploadDocument(
           userId,
           documentId,
-          updates.content,
-          metadata
+          prepared.fullHtml,
+          metadata,
+          { contentFormat: 'html' }
         );
       }
 
@@ -921,9 +939,11 @@ export class DocumentCrudService {
       generationModel?: string;
       generationModelUsage?: IGenerationModelUsage[];
       generationDiagnostics?: IArtifactAgentDiagnostics;
+      contentFormat?: DocumentContentFormat;
     }
   ): Promise<Document> {
-    const wordCount = this.countWords(content);
+    const contentFormat = params.contentFormat ?? 'html';
+    const wordCount = countWordsFromContent(content, contentFormat);
 
     const metadata: DocumentMetadata = {
       title: params.title,
@@ -937,7 +957,8 @@ export class DocumentCrudService {
       userId,
       documentId,
       content,
-      metadata
+      metadata,
+      { contentFormat }
     );
 
     const now = Timestamp.now();
@@ -957,6 +978,7 @@ export class DocumentCrudService {
       wordCount,
       storageUrl: storageFile.downloadUrl,
       storagePath: storageFile.path,
+      contentFormat,
       status: DocumentStatus.ACTIVE,
       appliedRuleIds: params.appliedRuleIds || [],
       ...(params.generationModel ? { generationModel: params.generationModel } : {}),
@@ -985,6 +1007,7 @@ export class DocumentCrudService {
       wordCount,
       storageUrl: storageFile.downloadUrl,
       storagePath: storageFile.path,
+      contentFormat,
       status: DocumentStatus.ACTIVE,
       appliedRuleIds: params.appliedRuleIds || [],
       ...(params.generationModel ? { generationModel: params.generationModel } : {}),

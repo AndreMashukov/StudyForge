@@ -16,6 +16,7 @@ import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
 import { ScreenshotDocumentGenerationService } from '@study-forge/backend-documents/screenshot-document-generation';
 import { RateLimitError } from '@study-forge/backend-core/services/api-rate-limit';
 import { enforceExternalDualGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
 import {
   completePendingDiagramQuiz,
   completePendingFlashcardSet,
@@ -146,8 +147,45 @@ export const api = onRequest(
         }
         const data = b as unknown as CreateDocumentRequest;
 
-        const doc = await DocumentCrudService.createDocument(userId, data);
-        res.status(201).json({ success: true, data: doc });
+        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'documentFromPrompt');
+
+        const pendingDocumentId = await DocumentCrudService.createPendingDocument(userId, {
+          directoryId: data.directoryId,
+          title: data.title,
+          description: data.description || '',
+          sourceType: data.sourceType,
+          tags: data.tags || [],
+        });
+
+        try {
+          const jobId = await enqueueGenerationJob({
+            userId,
+            directoryId: data.directoryId,
+            recordId: pendingDocumentId,
+            kind: 'documentFromContent',
+            payload: {
+              sourceKind: 'content',
+              title: data.title,
+              description: data.description,
+              tags: data.tags,
+              sourceText: data.content,
+            },
+          });
+
+          const doc = await DocumentCrudService.getDocument(userId, pendingDocumentId);
+          res.status(201).json({
+            success: true,
+            data: {
+              ...doc,
+              jobId,
+              generationStatus: 'pending',
+            },
+          });
+        } catch (innerError) {
+          const msg = innerError instanceof Error ? innerError.message : String(innerError);
+          await DocumentCrudService.failPendingDocument(userId, pendingDocumentId, msg).catch(() => { /* best-effort */ });
+          throw innerError;
+        }
         return;
       }
 
@@ -1292,74 +1330,47 @@ export const api = onRequest(
           mode,
         });
 
-        let generatedContent: string;
         try {
-          generatedContent = await LlmGenerationService.generateDocumentFromPrompt(
+          const jobId = await enqueueGenerationJob({
             userId,
-            trimmedPrompt,
-            data.files,
-            rulesText || undefined
-          );
-        } catch (genErr) {
-          await DocumentCrudService.failPendingDocument(
-            userId,
-            pendingDocumentId,
-            genErr instanceof Error ? genErr.message : "Generation failed"
-          );
-          res.status(500).json({ success: false, error: "Document generation failed." });
-          return;
-        }
-
-        let title = tentativeTitle;
-        const titleMatch = generatedContent.match(/^#\s+(.+)$/m);
-        if (titleMatch && titleMatch[1]) {
-          title = titleMatch[1].trim();
-        }
-
-        const wordCount = generatedContent.split(/\s+/).length;
-
-        const { generationModel: documentGenerationModel, generationModelUsage: documentGenerationModelUsage } =
-          await resolveTextGenerationAudit(userId, 'documentFromPrompt');
-
-        let document: Awaited<ReturnType<typeof DocumentCrudService.completePendingDocument>>;
-        try {
-          document = await DocumentCrudService.completePendingDocument(
-            userId,
-            pendingDocumentId,
-            generatedContent,
-            {
-              title,
+            directoryId: data.directoryId,
+            recordId: pendingDocumentId,
+            kind: 'documentFromPrompt',
+            payload: {
+              sourceKind: 'prompt',
+              prompt: trimmedPrompt,
+              files: data.files,
+              ruleIds: effectiveRuleIds,
+              ruleResolutionMode: mode,
+              title: tentativeTitle,
               description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? "..." : ""}`,
               tags: ["ai-generated", "prompt-based"],
-              appliedRuleIds: effectiveRuleIds,
-              generationModel: documentGenerationModel,
-              generationModelUsage: documentGenerationModelUsage,
-            }
-          );
-        } catch (completeErr) {
-          await DocumentCrudService.failPendingDocument(
-            userId,
-            pendingDocumentId,
-            completeErr instanceof Error ? completeErr.message : "Failed to save generated document"
-          );
-          res.status(500).json({ success: false, error: "Failed to save generated document." });
-          return;
-        }
-
-        res.status(201).json({
-          success: true,
-          data: {
-            documentId: document.id,
-            title: document.title,
-            content: generatedContent,
-            wordCount,
-            metadata: {
-              originalPrompt: trimmedPrompt,
-              generatedAt: new Date().toISOString(),
-              filesUsed: data.files?.length || 0,
             },
-          },
-        });
+          });
+
+          const document = await DocumentCrudService.getDocument(userId, pendingDocumentId);
+
+          res.status(201).json({
+            success: true,
+            data: {
+              documentId: document.id,
+              jobId,
+              title: document.title,
+              generationStatus: 'pending',
+              metadata: {
+                originalPrompt: trimmedPrompt,
+                queuedAt: new Date().toISOString(),
+                filesUsed: data.files?.length || 0,
+                appliedRuleIds: effectiveRuleIds,
+                rulesApplied: Boolean(rulesText?.trim()),
+              },
+            },
+          });
+        } catch (innerError) {
+          const msg = innerError instanceof Error ? innerError.message : String(innerError);
+          await DocumentCrudService.failPendingDocument(userId, pendingDocumentId, msg).catch(() => { /* best-effort */ });
+          res.status(500).json({ success: false, error: "Document generation failed." });
+        }
         return;
       }
 

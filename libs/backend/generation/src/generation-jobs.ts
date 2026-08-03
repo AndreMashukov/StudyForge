@@ -17,6 +17,9 @@ import {
 export type GenerationJobKind =
   | 'documentFromPrompt'
   | 'documentFromScreenshot'
+  | 'documentFromUpload'
+  | 'documentFromUrl'
+  | 'documentFromContent'
   | 'artifactAgent'
   | 'quiz'
   | 'flashcards'
@@ -28,6 +31,9 @@ export type GenerationJobStatus = 'queued' | 'processing' | 'completed' | 'faile
 const GENERATION_JOB_KINDS: ReadonlySet<string> = new Set([
   'documentFromPrompt',
   'documentFromScreenshot',
+  'documentFromUpload',
+  'documentFromUrl',
+  'documentFromContent',
   'artifactAgent',
   'quiz',
   'flashcards',
@@ -213,6 +219,9 @@ export function recordRefForGenerationJob(
   switch (kind) {
     case 'documentFromPrompt':
     case 'documentFromScreenshot':
+    case 'documentFromUpload':
+    case 'documentFromUrl':
+    case 'documentFromContent':
       return FirestorePaths.document(userId, recordId);
     case 'quiz':
       return FirestorePaths.quiz(userId, recordId);

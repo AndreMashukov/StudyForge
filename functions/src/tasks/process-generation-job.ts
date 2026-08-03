@@ -2,6 +2,8 @@ import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { onTaskDispatched } from 'firebase-functions/v2/tasks';
 import { ArtifactAgentPipelineFailedError } from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-errors';
+import { DocumentAgentPipelineFailedError } from '@study-forge/backend-documents/document-agent/document-agent-errors';
+import { DocumentAgentGenerationProcessor } from '@study-forge/backend-generation/generation-processors/document-agent';
 import { failVisibleGenerationRecord } from '@study-forge/backend-generation/generation-job-failures';
 import {
   formatGenerationError,
@@ -30,6 +32,11 @@ async function processJob(job: GenerationJob): Promise<void> {
       return;
     case 'documentFromScreenshot':
       await DocumentFromScreenshotGenerationProcessor.process(job);
+      return;
+    case 'documentFromUpload':
+    case 'documentFromUrl':
+    case 'documentFromContent':
+      await DocumentAgentGenerationProcessor.process(job);
       return;
     case 'artifactAgent':
       await ArtifactAgentGenerationProcessor.process(job);
@@ -141,7 +148,7 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
         error: message,
       });
 
-      if (error instanceof ArtifactAgentPipelineFailedError) {
+      if (error instanceof ArtifactAgentPipelineFailedError || error instanceof DocumentAgentPipelineFailedError) {
         await GenerationJobsService.markFailed(userId, jobId, message).catch((failError) => {
           logger.error('Failed to mark generation job as failed', {
             userId,

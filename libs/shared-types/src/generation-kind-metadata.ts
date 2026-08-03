@@ -51,10 +51,10 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
   documentFromPrompt: {
     kind: 'documentFromPrompt',
     label: 'Document from prompt',
-    description: 'Generate markdown documents from a user prompt.',
+    description: 'Generate HTML documents from a user prompt via the ADK pipeline.',
     requiredModality: 'text',
-    supportedWorkflows: ['direct'],
-    defaultWorkflow: 'direct',
+    supportedWorkflows: ['direct', 'agentic'],
+    defaultWorkflow: 'agentic',
     group: 'production',
   },
   documentFromScreenshot: {

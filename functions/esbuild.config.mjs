@@ -12,6 +12,7 @@ const externalPackages = [
   'dompurify',
   'fast-xml-parser',
   'firebase',
+  'html-validate',
   'jsdom',
   'jszip',
   'mammoth',
@@ -19,6 +20,7 @@ const externalPackages = [
   'node-fetch',
   'papaparse',
   'pdf-parse',
+  'sanitize-html',
   'turndown',
   'zod',
 ];

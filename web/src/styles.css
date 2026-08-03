@@ -329,3 +329,403 @@
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* Document HTML content — scoped so global page h1/h2 sizes do not leak in */
+.document-html-content {
+  line-height: 1.75;
+  color: var(--foreground);
+  max-width: none;
+}
+
+.document-html-content :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1.25rem 0 0.75rem;
+  font-family: 'Space Grotesk', 'Inter Variable', 'Inter', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.document-html-content :is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0;
+}
+
+.document-html-content h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: color-mix(in srgb, var(--primary) 72%, white);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.14);
+}
+
+.document-html-content h2 {
+  margin-top: 2.25rem;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: color-mix(in srgb, var(--primary) 60%, white);
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.12);
+}
+
+.document-html-content h3 {
+  margin-top: 1.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: color-mix(in srgb, var(--primary) 50%, white);
+}
+
+.document-html-content h4 {
+  font-size: 1.05rem;
+  color: color-mix(in srgb, var(--primary) 42%, white);
+}
+
+.document-html-content h5 {
+  font-size: 1rem;
+  color: color-mix(in srgb, var(--primary) 34%, white);
+}
+
+.document-html-content h6 {
+  font-size: 0.95rem;
+  color: color-mix(in srgb, var(--primary) 28%, white);
+}
+
+.document-html-content p {
+  margin: 0 0 1.05rem;
+}
+
+.document-html-content p:last-child {
+  margin-bottom: 0;
+}
+
+.document-html-content ul,
+.document-html-content ol {
+  margin: 0 0 1.05rem;
+  padding-left: 1.5rem;
+}
+
+.document-html-content ul {
+  list-style: disc;
+}
+
+.document-html-content ol {
+  list-style: decimal;
+}
+
+.document-html-content li {
+  margin-bottom: 0.45rem;
+}
+
+.document-html-content strong,
+.document-html-content b {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.document-html-content em,
+.document-html-content i {
+  font-style: italic;
+}
+
+.document-html-content a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.document-html-content blockquote {
+  margin: 0 0 0.875rem;
+  padding: 0.5rem 0.875rem;
+  border-left: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.document-html-content hr {
+  margin: 1.25rem 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.document-html-content code {
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.375rem;
+  background: rgb(34 30 40 / 0.8);
+  font-size: 0.875em;
+}
+
+.document-html-content pre {
+  margin: 0 0 0.875rem;
+  padding: 0.875rem;
+  border-radius: 0.625rem;
+  background: rgb(16 13 22);
+  overflow-x: auto;
+}
+
+.document-html-content pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.document-table-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 1.15rem;
+  /* overflow-y:hidden clips the horizontal scrollbar in Chromium */
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 0.5rem;
+  background: rgb(18 18 18);
+  /* Concrete colors: rgb(var(--token) / a) is dropped by the CSS pipeline on scrollbar rules */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 155, 184, 0.85) rgba(255, 255, 255, 0.08);
+}
+
+.document-table-wrap.is-overflowing {
+  padding-bottom: 0.625rem;
+  box-shadow: inset 0 -0.625rem 0 rgb(255 255 255 / 0.06);
+}
+
+.document-table-wrap.is-overflowing::after {
+  content: 'Scroll horizontally';
+  position: sticky;
+  left: 0.75rem;
+  bottom: 0;
+  display: block;
+  width: max-content;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: rgb(18 18 18 / 0.95);
+  color: rgb(255 255 255 / 0.58);
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.document-table-wrap::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.document-table-wrap::-webkit-scrollbar-track {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+
+.document-table-wrap::-webkit-scrollbar-thumb {
+  background-color: rgba(168, 155, 184, 0.85);
+  border-radius: 6px;
+  border: 2px solid rgba(18, 18, 18, 0.9);
+}
+
+.document-table-wrap::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(220, 214, 230, 0.95);
+}
+
+.document-table-wrap:last-child {
+  margin-bottom: 0;
+}
+
+.document-html-content .document-table-wrap table {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  width: 100%;
+  min-width: 100%;
+  /* Prefer wrapping inside the card; horizontal scroll only when columns cannot shrink */
+  max-width: none;
+  overflow: visible;
+  table-layout: auto;
+}
+
+.document-html-content table {
+  width: 100%;
+  margin: 0 0 1.15rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 0.5rem;
+  background: rgb(18 18 18);
+}
+
+.document-html-content th,
+.document-html-content td {
+  padding: 0.875rem 1rem;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid rgb(255 255 255 / 0.12);
+  vertical-align: middle;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.document-html-content tr:last-child th,
+.document-html-content tr:last-child td {
+  border-bottom: none;
+}
+
+.document-html-content th {
+  color: color-mix(in srgb, var(--primary) 55%, white);
+  background: rgb(255 255 255 / 0.05);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.document-html-content td {
+  color: rgb(255 255 255 / 0.87);
+  background: transparent;
+}
+
+.document-html-content tbody tr:hover td {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.document-html-content .katex {
+  color: inherit;
+  font-size: 1.05em;
+}
+
+.document-html-content .katex-display {
+  margin: 1rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
+.document-section-collapse {
+  margin: 2rem 0 1.25rem;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 0.75rem;
+  background: rgb(255 255 255 / 0.02);
+  /* Keep visible so nested table scrollbars are not clipped */
+  overflow: visible;
+}
+
+.document-section-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.document-section-summary:hover {
+  background: rgb(210 187 255 / 0.06);
+}
+
+.document-section-summary-title {
+  font-family: 'Space Grotesk', 'Inter Variable', 'Inter', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--primary) 60%, white);
+}
+
+.document-section-summary-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.document-section-chevron {
+  transition: transform 0.18s ease;
+}
+
+.document-section-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.document-section-body {
+  padding: 0 1rem 1rem;
+}
+
+.document-section-body.is-collapsed {
+  display: none;
+}
+
+.document-section-collapse.is-glossary .document-section-body {
+  padding-top: 0.25rem;
+}
+
+.document-plotly {
+  margin: 0 0 1.15rem;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 0.625rem;
+  background: rgb(18 18 18);
+}
+
+.document-plotly:last-child {
+  margin-bottom: 0;
+}
+
+.document-plotly-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.document-plotly-toolbar-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  letter-spacing: 0.02em;
+}
+
+.document-plotly-stage {
+  overflow-x: auto;
+  padding: 0.5rem 0.25rem 0.25rem;
+  min-height: 360px;
+}
+
+.document-plotly-loading {
+  padding: 1rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  min-height: 360px;
+}
+
+.document-plotly-error {
+  padding: 1rem;
+  color: var(--destructive);
+}
+
+.document-plotly-error p {
+  margin: 0 0 0.5rem;
+}
+
+.document-plotly-error-detail {
+  color: var(--muted-foreground) !important;
+  font-size: 0.875rem;
+}
+
+.document-plotly-error pre {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  background: rgb(16 13 22);
+  color: var(--muted-foreground);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.8rem;
+}

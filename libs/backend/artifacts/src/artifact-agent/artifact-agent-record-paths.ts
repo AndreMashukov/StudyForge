@@ -19,6 +19,7 @@ export function recordRefForArtifactKind(
     case 'subjectWorld':
       return FirestorePaths.subjectWorld(userId, recordId);
     case 'documentFromScreenshot':
+    case 'documentFromPrompt':
       return FirestorePaths.document(userId, recordId);
     default: {
       const _exhaustive: never = artifactKind;
@@ -35,5 +36,6 @@ export function isArtifactKind(value: unknown): value is ArtifactKind {
     || value === 'sequenceQuiz'
     || value === 'subjectWorld'
     || value === 'documentFromScreenshot'
+    || value === 'documentFromPrompt'
   );
 }
