@@ -20,7 +20,29 @@ export const HtmlWithMath = memo(function HtmlWithMath({
 
     element.innerHTML = html;
     renderMathInHtmlElement(element);
+
+    const tableWraps = Array.from(
+      element.querySelectorAll<HTMLElement>('.document-table-wrap')
+    );
+    const updateTableOverflow = () => {
+      tableWraps.forEach((wrap) => {
+        wrap.classList.toggle(
+          'is-overflowing',
+          wrap.scrollWidth > wrap.clientWidth + 1
+        );
+      });
+    };
+    updateTableOverflow();
+
+    const resizeObserver = new ResizeObserver(updateTableOverflow);
+    tableWraps.forEach((wrap) => {
+      resizeObserver.observe(wrap);
+    });
+
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, [html]);
 
-  return <div ref={containerRef} className={cn('document-html-content', className)} />;
+  return <div ref={containerRef} className={cn(className)} />;
 });

@@ -17,7 +17,7 @@ function wrapTablesInHtml(html: string): string {
     if (table.includes('document-table-wrap')) {
       return table;
     }
-    return `<div class="document-table-wrap overflow-x-auto my-4">${table}</div>`;
+    return `<div class="document-table-wrap">${table}</div>`;
   });
 }
 

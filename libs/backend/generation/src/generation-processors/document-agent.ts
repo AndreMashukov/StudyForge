@@ -1,9 +1,9 @@
 import type { IDocumentAgentJobPayload } from '@shared-types';
-import type { GenerationJob } from '@study-forge/backend-generation/generation-jobs';
-import { GenerationJobPayloadStorage } from '@study-forge/backend-generation/generation-job-payload-storage';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { logger } from 'firebase-functions/v2';
 import { runDocumentAgentPipeline } from '@study-forge/backend-documents/document-agent/document-agent-runner';
+import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
+import type { GenerationJob } from '../generation-jobs';
 
 export class DocumentAgentGenerationProcessor {
   static async process(job: GenerationJob): Promise<void> {

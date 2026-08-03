@@ -298,17 +298,18 @@ class FinalizeAgent extends BaseAgent {
   async *runAsyncImpl(context: InvocationContext) {
     const agentContext = readContext(context);
     const diagnostics = readDiagnostics(context);
-    const validationReport = readValidationReport(context);
     const repairCount = readRepairCount(context);
+    const htmlFragment = normalizeGeneratedHtml(readHtmlFragment(context));
+    const validationReport = await validateDocumentHtml(htmlFragment);
 
-    if (!validationReport?.passed) {
+    if (!validationReport.passed) {
       yield createEvent({
         author: this.name,
         actions: createEventActions({
           stateDelta: {
             [STATE_KEYS.outcome]: 'failed' satisfies PipelineOutcome,
             [STATE_KEYS.failureMessage]:
-              formatValidationErrorsForRepair(validationReport?.findings ?? []) ||
+              formatValidationErrorsForRepair(validationReport.findings) ||
               'Document validation failed',
           },
         }),
@@ -316,7 +317,6 @@ class FinalizeAgent extends BaseAgent {
       return;
     }
 
-    const htmlFragment = normalizeGeneratedHtml(readHtmlFragment(context));
     const title =
       agentContext.titleHint?.trim() ||
       extractDocumentTitle(htmlFragment, 'html') ||
@@ -324,7 +324,12 @@ class FinalizeAgent extends BaseAgent {
     const wrappedHtml = wrapHtmlDocument(htmlFragment, title);
     const generationModelLabel =
       (context.session.state[STATE_KEYS.generationModel] as string | undefined) ||
-      formatGenerationModelLabel({ providerType: 'gemini', model: 'gemini', connectionId: 'default' });
+      formatGenerationModelLabel({
+        providerType: 'gemini',
+        model: 'gemini',
+        connectionId: 'default',
+        fallbackUsed: false,
+      });
 
     await DocumentCrudService.completePendingDocument(
       agentContext.userId,
@@ -336,23 +341,6 @@ class FinalizeAgent extends BaseAgent {
         tags: agentContext.tags,
         appliedRuleIds: agentContext.appliedRuleIds,
         generationModel: generationModelLabel,
-        generationModelUsage: diagnostics.modelUsage.length
-          ? [
-              {
-                kind: 'documentFromPrompt',
-                role: 'agent',
-                workflow: 'agentic',
-                modality: 'text',
-                providerKind: 'gemini',
-                connectionId: 'default',
-                model: generationModelLabel,
-                durationMs: diagnostics.modelUsage.reduce(
-                  (total, entry) => total + (entry.durationMs ?? 0),
-                  0
-                ),
-              },
-            ]
-          : undefined,
         generationDiagnostics: {
           ...diagnostics,
           artifactDetails: {

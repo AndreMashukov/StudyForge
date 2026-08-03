@@ -7,8 +7,8 @@ import type {
   DocumentQuestionContext,
   DocumentReviseContext,
   DirectoryChatPromptContext,
-  resolveDocumentContentFormat,
 } from '@shared-types';
+import { resolveDocumentContentFormat } from '@shared-types';
 import {
   GeminiService,
   JsonSanitizer,

@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { MermaidDiagram } from '../MermaidDiagram';
 import { CodeBlock } from '../MarkdownRenderer/CodeBlock/CodeBlock';
 import { HtmlWithMath } from './HtmlWithMath';
@@ -6,7 +6,6 @@ import { PlotlyGraph } from './PlotlyGraph';
 import { splitCollapsibleSections } from '../../lib/document-html-enhance';
 import { cn } from '../../lib/utils';
 import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
 
 type HtmlSegment = { type: 'html'; html: string };
 type CodeSegment = { type: 'code'; code: string; language: string };
@@ -32,6 +31,18 @@ function extractLanguage(attrs: string): string {
   return match?.[1]?.toLowerCase() ?? 'text';
 }
 
+function sectionSlug(title: string) {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function sectionStorageKey(title: string) {
+  return `doc-section-open:${sectionSlug(title)}`;
+}
+
 export function splitHtmlByCodeBlocks(html: string): Segment[] {
   const segments: Segment[] = [];
   let lastIndex = 0;
@@ -48,10 +59,10 @@ export function splitHtmlByCodeBlocks(html: string): Segment[] {
 
     if (language === 'mermaid') {
       segments.push({ type: 'mermaid', code });
-    } else if (language === 'plotly' || language === 'graph') {
+    } else if (language === 'plotly') {
       segments.push({ type: 'plotly', code });
     } else {
-      segments.push({ type: 'code', language, code });
+      segments.push({ type: 'code', code, language });
     }
 
     lastIndex = index + match[0].length;
@@ -71,19 +82,61 @@ function CollapsibleDocSection({
   title: string;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(true);
+  const normalized = title.trim().toLowerCase();
+  const contentId = `doc-section-${sectionSlug(title) || 'section'}`;
+  const storageKey = sectionStorageKey(title);
+  const [open, setOpen] = useState(normalized === 'glossary' ? false : true);
+
+  useEffect(() => {
+    const stored = window.sessionStorage.getItem(storageKey);
+    if (stored === '1') {
+      setOpen(true);
+    } else if (stored === '0') {
+      setOpen(false);
+    }
+  }, [storageKey]);
+
+  const handleToggle = () => {
+    setOpen((current) => {
+      const next = !current;
+      window.sessionStorage.setItem(storageKey, next ? '1' : '0');
+      return next;
+    });
+  };
+
   return (
-    <div className="my-4 rounded-lg border border-border">
+    <section
+      className={cn(
+        'document-section-collapse',
+        normalized === 'glossary' && 'is-glossary'
+      )}
+      data-section={normalized}
+    >
       <button
         type="button"
-        className="flex w-full items-center justify-between px-4 py-3 text-left font-medium"
-        onClick={() => setOpen((value) => !value)}
+        className="document-section-summary"
+        aria-expanded={open}
+        aria-controls={contentId}
+        onClick={handleToggle}
       >
-        <span>{title}</span>
-        <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
+        <span className="document-section-summary-title">{title}</span>
+        <span className="document-section-summary-meta">
+          <span>{open ? 'Collapse' : 'Expand'}</span>
+          <ChevronDown
+            size={16}
+            className={cn('document-section-chevron', open && 'is-open')}
+            aria-hidden
+          />
+        </span>
       </button>
-      {open ? <div className="px-4 pb-4">{children}</div> : null}
-    </div>
+      <div
+        id={contentId}
+        className={cn('document-section-body', !open && 'is-collapsed')}
+        hidden={!open}
+      >
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -102,7 +155,13 @@ function DocumentSegmentList({
         const key = `${keyPrefix}-${index}`;
 
         if (segment.type === 'mermaid') {
-          return <MermaidDiagram key={key} code={segment.code} />;
+          return (
+            <MermaidDiagram
+              key={key}
+              code={segment.code}
+              enableWheelZoom={false}
+            />
+          );
         }
 
         if (segment.type === 'plotly') {
@@ -139,7 +198,7 @@ export const DocumentHtmlContent = memo(function DocumentHtmlContent({
   }
 
   return (
-    <div className={cn('document-html-content space-y-4 prose prose-invert max-w-none', className)}>
+    <div className={cn('document-html-content', className)}>
       {sections.map((section, index) => {
         const keyPrefix = `section-${index}`;
         const body = <DocumentSegmentList html={section.html} keyPrefix={keyPrefix} />;

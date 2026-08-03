@@ -360,6 +360,11 @@ export const createDocumentFromUrl = onCall(
         : [];
 
       const { title: customTitle, directoryId, ruleIds, additionalRuleIds, ruleResolutionMode } = data;
+      const mode = isRuleResolutionMode(ruleResolutionMode)
+        ? ruleResolutionMode
+        : ruleIds?.length
+          ? 'explicit-only'
+          : 'inherit-plus-explicit';
 
       logger.info('Creating document from URL(s)', {
         userId,
@@ -462,7 +467,7 @@ export const createDocumentFromUrl = onCall(
             sourceUrl: rawUrls[0],
             ruleIds,
             additionalRuleIds,
-            ruleResolutionMode,
+            ruleResolutionMode: mode,
           },
         });
 

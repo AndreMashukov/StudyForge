@@ -600,6 +600,7 @@ export type ArtifactKind =
   | 'sequenceQuiz'
   | 'flashcards'
   | 'subjectWorld'
+  | 'documentFromPrompt'
   | 'documentFromScreenshot';
 
 export interface IArtifactCriticResult {

@@ -39,10 +39,10 @@ export function PlotlyGraph({
 
   if (!parsed.ok) {
     return (
-      <div className={cn('document-plotly rounded-lg border border-destructive/40 p-4 my-4', className)}>
-        <p className="text-destructive text-sm">Failed to render Plotly graph.</p>
-        <p className="text-muted-foreground text-xs mt-1">{parsed.error}</p>
-        <pre className="mt-2 overflow-x-auto text-xs">{code}</pre>
+      <div className={cn('document-plotly document-plotly-error', className)}>
+        <p>Failed to render Plotly graph.</p>
+        <p className="document-plotly-error-detail">{parsed.error}</p>
+        <pre>{code}</pre>
       </div>
     );
   }
@@ -52,27 +52,39 @@ export function PlotlyGraph({
     if (!trace || typeof trace !== 'object' || Array.isArray(trace)) {
       return false;
     }
-    const type = typeof (trace as Record<string, unknown>).type === 'string'
-      ? ((trace as Record<string, unknown>).type as string)
-      : '';
+    const type =
+      typeof (trace as Record<string, unknown>).type === 'string'
+        ? ((trace as Record<string, unknown>).type as string)
+        : '';
     return type.includes('3d') || type === 'surface' || type === 'mesh3d';
   });
 
   return (
-    <div className={cn('document-plotly my-4', className)}>
-      <Suspense fallback={<div className="text-sm text-muted-foreground py-6">Loading graph...</div>}>
-        <Plot
-          data={data as Data[]}
-          layout={{
-            ...mergePlotlyDarkLayout(layout),
-            autosize: true,
-            height: has3d ? 420 : 360,
-          }}
-          config={{ ...DEFAULT_CONFIG, ...(config as Partial<Config> | undefined) }}
-          style={{ width: '100%', minHeight: has3d ? 420 : 360 }}
-          useResizeHandler
-        />
-      </Suspense>
+    <div className={cn('document-plotly', className)}>
+      <div className="document-plotly-toolbar">
+        <span className="document-plotly-toolbar-label">
+          {has3d ? '3D Graph' : 'Graph'}
+        </span>
+      </div>
+      <div className="document-plotly-stage">
+        <Suspense
+          fallback={
+            <div className="document-plotly-loading">Loading graph...</div>
+          }
+        >
+          <Plot
+            data={data as Data[]}
+            layout={{
+              ...mergePlotlyDarkLayout(layout),
+              autosize: true,
+              height: has3d ? 420 : 360,
+            }}
+            config={{ ...DEFAULT_CONFIG, ...(config as Partial<Config> | undefined) }}
+            style={{ width: '100%', minHeight: has3d ? 420 : 360 }}
+            useResizeHandler
+          />
+        </Suspense>
+      </div>
     </div>
   );
 }

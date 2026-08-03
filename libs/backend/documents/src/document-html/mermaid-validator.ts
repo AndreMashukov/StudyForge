@@ -4,7 +4,7 @@ import type { ValidationFinding } from './types';
 const MERMAID_BLOCK_PATTERN =
   /<pre>\s*<code[^>]*class=["'][^"']*language-mermaid[^"']*["'][^>]*>([\s\S]*?)<\/code>\s*<\/pre>/gi;
 
-const INVALID_MERMAID_LABEL_CHARS = /\[([^\]]*[/\\@][^\]]*)\]/g;
+const INVALID_MERMAID_LABEL_CHARS = /\[([^\]]*[/\\@][^\]]*)\]/;
 
 export function extractMermaidBlocks(htmlFragment: string): string[] {
   const blocks: string[] = [];
