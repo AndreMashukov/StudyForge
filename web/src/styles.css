@@ -476,17 +476,17 @@
   overflow-x: auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  border: 1px solid rgb(255 255 255 / 0.12);
+  border: 1px solid rgb(var(--border) / 0.35);
   border-radius: 0.5rem;
-  background: rgb(18 18 18);
+  background: rgb(var(--card));
   /* Concrete colors: rgb(var(--token) / a) is dropped by the CSS pipeline on scrollbar rules */
   scrollbar-width: thin;
-  scrollbar-color: rgba(168, 155, 184, 0.85) rgba(255, 255, 255, 0.08);
+  scrollbar-color: rgb(var(--muted-foreground)) rgb(var(--muted));
 }
 
 .document-table-wrap.is-overflowing {
   padding-bottom: 0.625rem;
-  box-shadow: inset 0 -0.625rem 0 rgb(255 255 255 / 0.06);
+  box-shadow: inset 0 -0.625rem 0 rgb(var(--border) / 0.2);
 }
 
 .document-table-wrap.is-overflowing::after {
@@ -498,8 +498,8 @@
   width: max-content;
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
-  background: rgb(18 18 18 / 0.95);
-  color: rgb(255 255 255 / 0.58);
+  background: rgb(var(--card) / 0.95);
+  color: rgb(var(--muted-foreground));
   font-size: 0.6875rem;
   line-height: 1.2;
   pointer-events: none;
@@ -508,22 +508,22 @@
 .document-table-wrap::-webkit-scrollbar {
   height: 12px;
   width: 12px;
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgb(var(--muted));
 }
 
 .document-table-wrap::-webkit-scrollbar-track {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgb(var(--muted));
   border-radius: 0 0 0.5rem 0.5rem;
 }
 
 .document-table-wrap::-webkit-scrollbar-thumb {
-  background-color: rgba(168, 155, 184, 0.85);
+  background-color: rgb(var(--muted-foreground));
   border-radius: 6px;
-  border: 2px solid rgba(18, 18, 18, 0.9);
+  border: 2px solid rgb(var(--card));
 }
 
 .document-table-wrap::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(220, 214, 230, 0.95);
+  background-color: rgb(var(--foreground));
 }
 
 .document-table-wrap:last-child {
@@ -536,7 +536,7 @@
   border-radius: 0;
   width: 100%;
   min-width: 100%;
-  /* Prefer wrapping inside the card; horizontal scroll only when columns cannot shrink */
+  /* Headers stay intact; horizontal scroll when column mins exceed the card */
   max-width: none;
   overflow: visible;
   table-layout: auto;
@@ -548,23 +548,20 @@
   border-collapse: separate;
   border-spacing: 0;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 0.12);
+  border: 1px solid rgb(var(--border) / 0.35);
   border-radius: 0.5rem;
-  background: rgb(18 18 18);
+  background: rgb(var(--card));
 }
 
 .document-html-content th,
 .document-html-content td {
-  padding: 0.875rem 1rem;
+  padding: 0.625rem 0.75rem;
   text-align: left;
   border: none;
-  border-bottom: 1px solid rgb(255 255 255 / 0.12);
+  border-bottom: 1px solid rgb(var(--border) / 0.25);
   vertical-align: middle;
-  font-size: 0.875rem;
-  line-height: 1.45;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
 .document-html-content tr:last-child th,
@@ -573,19 +570,25 @@
 }
 
 .document-html-content th {
-  color: color-mix(in srgb, var(--primary) 55%, white);
-  background: rgb(255 255 255 / 0.05);
-  font-weight: 500;
+  color: rgb(var(--foreground));
+  background: rgb(var(--muted) / 0.55);
+  font-weight: 600;
   letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .document-html-content td {
-  color: rgb(255 255 255 / 0.87);
+  color: rgb(var(--foreground));
   background: transparent;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .document-html-content tbody tr:hover td {
-  background: rgb(255 255 255 / 0.08);
+  background: rgb(var(--muted) / 0.35);
 }
 
 .document-html-content .katex {
