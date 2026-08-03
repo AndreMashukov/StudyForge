@@ -21,6 +21,18 @@ describe('document-html utils', () => {
     expect(normalized).toBe('<p>Hello</p>');
   });
 
+  it('strips trailing whitespace so validation does not fail on cosmetic LLM output', async () => {
+    const withTrailing = '<h1>Title</h1>  \n<p>Body</p>\t\n';
+    const normalized = normalizeGeneratedHtmlFragment(withTrailing);
+    expect(normalized).toBe('<h1>Title</h1>\n<p>Body</p>');
+
+    const report = await validateDocumentHtml(withTrailing);
+    expect(report.passed).toBe(true);
+    expect(
+      report.findings.some((finding) => finding.code === 'HTML_no-trailing-whitespace')
+    ).toBe(false);
+  });
+
   it('converts html to readable text', () => {
     const text = htmlToReadableText('<h1>Heading</h1><p>Paragraph</p>');
     expect(text).toContain('Heading');

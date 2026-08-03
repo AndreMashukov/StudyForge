@@ -7,6 +7,8 @@ const htmlValidator = new HtmlValidate({
     'no-inline-style': 'error',
     'script-type': 'error',
     'void-style': 'off',
+    // Cosmetic; also stripped in normalizeGeneratedHtmlFragment.
+    'no-trailing-whitespace': 'off',
     'no-raw-characters': 'warn',
   },
 });
