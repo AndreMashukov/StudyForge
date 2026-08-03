@@ -4,7 +4,7 @@ import { RuleApplicability, getDocumentFallbackColor } from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
-import { GeminiService } from '@study-forge/backend-llm/gemini';
+import { validateContentForArtifactGeneration } from '@study-forge/backend-llm/llm';
 import {
   completePendingQuiz,
   failPendingQuiz,
@@ -62,7 +62,7 @@ export class QuizGenerationProcessor {
       wordCount: combinedWordCount,
     };
 
-    GeminiService.validateContentForQuiz(documentContent);
+    validateContentForArtifactGeneration(documentContent);
 
     let enhancedPrompt = requestData.additionalPrompt || '';
     let followupIdsForSave: string[] = [];

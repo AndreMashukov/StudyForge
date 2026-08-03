@@ -64,7 +64,7 @@ import {
 import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
 import type { IParsedFlashcardItem } from './flashcard-response-parser';
-import type { LlmCapability } from './types';
+import type { LlmCapability, IGenerateTextOptions } from './types';
 import { generateFlashcardsChunked } from '@study-forge/backend-artifacts/flashcards/flashcard-chunked-generator';
 import { generateDiagramQuizChunked } from '@study-forge/backend-artifacts/diagram-quiz/diagram-quiz-chunked-generator';
 import { parseQuizJson } from './quiz-response-parser';
@@ -244,6 +244,43 @@ function parseFlashcardLanguageClassification(
  * Text capabilities may route to OpenRouter; image/multimodal flows use configured Gemini image models.
  */
 export class LlmGenerationService {
+  /**
+   * Generic routed text generation for backend callers that already build prompts.
+   */
+  static async generateText(
+    userId: string,
+    capability: LlmCapability,
+    prompt: string,
+    options?: IGenerateTextOptions,
+  ): Promise<string> {
+    const logLabel = options?.logLabel ?? capability;
+    const ctx = await resolveTextRoute(userId, capability, logLabel);
+
+    const generationConfig = {
+      temperature: options?.temperature ?? 0.4,
+      topK: options?.topK ?? 40,
+      topP: options?.topP ?? 0.95,
+      maxOutputTokens: options?.maxOutputTokens ?? 16384,
+    };
+
+    if (!ctx.usesExternalProvider) {
+      return GeminiService.generateContent(prompt, {
+        ...generationConfig,
+        model: ctx.resolution.route.model,
+      });
+    }
+
+    return generateExternalProviderText(
+      ctx,
+      prompt,
+      {
+        model: ctx.resolution.route.model,
+        ...generationConfig,
+      },
+      options?.successLogMessage ?? `Text generated via external provider (${logLabel})`,
+    );
+  }
+
   static async generateQuiz(
     userId: string,
     content: ScrapedContent,

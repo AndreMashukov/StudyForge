@@ -1,7 +1,7 @@
 import type { DiagramQuizQuestion } from '@shared-types';
-import type { GeminiDiagramQuizResponse } from '@study-forge/backend-llm/gemini';
+import type { DiagramQuizGenerationResponse } from '@study-forge/backend-llm/llm';
 
-export interface IDiagramQuizDraft extends GeminiDiagramQuizResponse {
+export interface IDiagramQuizDraft extends DiagramQuizGenerationResponse {
   questions: DiagramQuizQuestion[];
 }
 

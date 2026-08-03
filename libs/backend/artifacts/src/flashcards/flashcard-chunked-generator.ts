@@ -2,7 +2,7 @@ import { logger } from 'firebase-functions/v2';
 import {
   FlashcardPromptBuilder,
   type FlashcardPromptOptions,
-} from '@study-forge/backend-llm/gemini/prompt-builder/flashcard-prompt-builder';
+} from '@study-forge/backend-llm/llm/prompt-builder';
 import { generateExternalProviderText, resolveTextRoute } from '@study-forge/backend-llm/llm/llm-text-runner';
 import type { TextRouteContext } from '@study-forge/backend-llm/llm/llm-text-runner';
 import type { IParsedFlashcardItem } from '@study-forge/backend-llm/llm/flashcard-response-parser';

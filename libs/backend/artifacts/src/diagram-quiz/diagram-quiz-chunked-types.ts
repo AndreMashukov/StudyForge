@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { JsonSanitizer } from '@study-forge/backend-llm/gemini/json-sanitizer';
-import type { GeminiDiagramQuizResponse } from '@study-forge/backend-llm/gemini';
+import { JsonSanitizer } from '@study-forge/backend-llm/llm/json-sanitizer';
+import type { DiagramQuizGenerationResponse } from '@study-forge/backend-llm/llm';
 import { buildIndexBatches, mapWithConcurrency } from '@study-forge/backend-llm/llm/concurrency';
 
 export { mapWithConcurrency };
@@ -81,7 +81,7 @@ export function buildDiagramQuestionBatches(questionCount: number): number[][] {
 export function mergeQuestionPlansWithDiagramBatches(
   planResponse: IDiagramQuizQuestionPlanResponse,
   batchResponses: IDiagramQuizDiagramBatchResponse[]
-): GeminiDiagramQuizResponse {
+): DiagramQuizGenerationResponse {
   const diagramsByIndex = new Map<number, [string, string, string, string]>();
 
   for (const batch of batchResponses) {

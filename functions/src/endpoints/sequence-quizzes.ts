@@ -1,6 +1,6 @@
 import { onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
-import { GeminiService } from '@study-forge/backend-llm/gemini';
+import { validateContentForArtifactGeneration } from '@study-forge/backend-llm/llm';
 import { getGenerationFailureEnvelope } from '@study-forge/backend-llm/llm/llm-endpoint-error';
 import { mapErrorToArtifactEnvelope } from '@study-forge/backend-core/lib/callable-error';
 import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
@@ -132,7 +132,7 @@ export const generateSequenceQuiz = onCall(
         wordCount: combinedWordCount,
       };
 
-      GeminiService.validateContentForQuiz(documentContent);
+      validateContentForArtifactGeneration(documentContent);
 
       const pendingTitle = sequenceQuizName
         || (documentIds.length === 1

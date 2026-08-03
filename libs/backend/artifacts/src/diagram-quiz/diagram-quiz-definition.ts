@@ -1,7 +1,7 @@
 import { RuleApplicability } from '@shared-types';
 import { FirestoreService } from '../firestore';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
-import { GeminiService } from '@study-forge/backend-llm/gemini';
+import { validateContentForArtifactGeneration } from '@study-forge/backend-llm/llm';
 import {
   LlmGenerationService,
   LlmGenerationRouteResolver,
@@ -55,7 +55,7 @@ async function loadDiagramQuizContext(
     wordCount: combinedContent.split(/\s+/).length,
   };
 
-  GeminiService.validateContentForQuiz(documentContent);
+  validateContentForArtifactGeneration(documentContent);
 
   let enhancedPrompt = payload.additionalPrompt || '';
   const hasLegacyExplicitRules = Boolean(

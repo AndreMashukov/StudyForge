@@ -9,7 +9,10 @@ import {
   SequenceQuiz,
   SequenceQuizQuestion,
 } from "@shared-types";
-import type { GeminiDiagramQuizResponse, GeminiSequenceQuizResponse } from "@study-forge/backend-llm/gemini/gemini";
+import type {
+  DiagramQuizGenerationResponse,
+  SequenceQuizGenerationResponse,
+} from '@study-forge/backend-llm/llm';
 import * as functions from "firebase-functions";
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { DocumentService } from '@study-forge/backend-documents/document-storage';
@@ -397,7 +400,7 @@ export class FirestoreService {
    */
   public static async saveDiagramQuizFromDocument(
     documentId: string,
-    geminiQuiz: GeminiDiagramQuizResponse,
+    geminiQuiz: DiagramQuizGenerationResponse,
     userId: string,
     directoryId: string,
     followupRuleIds?: string[],
@@ -540,7 +543,7 @@ export class FirestoreService {
 
   public static async saveSequenceQuizFromDocument(
     documentId: string,
-    geminiQuiz: GeminiSequenceQuizResponse,
+    geminiQuiz: SequenceQuizGenerationResponse,
     userId: string,
     directoryId: string,
     followupRuleIds?: string[],
