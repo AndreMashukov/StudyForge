@@ -189,6 +189,9 @@ export {
 // External HTTP API (API key authenticated)
 export { api } from "./endpoints/external-api";
 
+// Global directory agent (Firebase ID token + App Check SSE)
+export { agentMessageStream } from "./endpoints/agent-message-stream";
+
 // API key management (callable — used by the web app)
 export {
   createApiKey,

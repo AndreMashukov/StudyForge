@@ -1,4 +1,4 @@
-export type LlmModality = 'text' | 'vision' | 'image';
+export type LlmModality = 'text' | 'vision' | 'image' | 'embedding';
 
 export type GenerationKind =
   | 'quiz'
@@ -15,7 +15,9 @@ export type GenerationKind =
   | 'slideDeckText'
   | 'slideDeckImage'
   | 'sourceDocumentEnhancement'
-  | 'ruleGeneration';
+  | 'ruleGeneration'
+  | 'directoryAgent'
+  | 'agentKnowledgeEmbedding';
 
 export type GenerationWorkflow = 'direct' | 'agentic';
 
@@ -45,6 +47,8 @@ export const ALL_GENERATION_KINDS: GenerationKind[] = [
   'slideDeckImage',
   'sourceDocumentEnhancement',
   'ruleGeneration',
+  'directoryAgent',
+  'agentKnowledgeEmbedding',
 ];
 
 export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMetadata> = {
@@ -181,6 +185,24 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
     label: 'Quiz follow-up',
     description: 'Per-question follow-up explanations.',
     requiredModality: 'text',
+    supportedWorkflows: ['direct'],
+    defaultWorkflow: 'direct',
+    group: 'interactive',
+  },
+  directoryAgent: {
+    kind: 'directoryAgent',
+    label: 'Directory agent',
+    description: 'Global workspace agent with tool calling and streaming responses.',
+    requiredModality: 'text',
+    supportedWorkflows: ['direct'],
+    defaultWorkflow: 'direct',
+    group: 'interactive',
+  },
+  agentKnowledgeEmbedding: {
+    kind: 'agentKnowledgeEmbedding',
+    label: 'Agent knowledge embedding',
+    description: 'Embedding model for agent RAG indexing and semantic memory retrieval.',
+    requiredModality: 'embedding',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',
     group: 'interactive',

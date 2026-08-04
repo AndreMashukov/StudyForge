@@ -53,7 +53,7 @@ function parseGenerationRoute(value: unknown): IGenerationRoute | null {
   if (
     !connectionId ||
     !model ||
-    (modality !== 'text' && modality !== 'vision' && modality !== 'image') ||
+    (modality !== 'text' && modality !== 'vision' && modality !== 'image' && modality !== 'embedding') ||
     typeof workflow !== 'string' ||
     !isGenerationWorkflow(workflow)
   ) {
@@ -205,6 +205,10 @@ export async function createDefaultGenerationRoutes(): Promise<IGenerationRoutes
     image: {
       connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
       model: together.defaultImageModel ?? together.defaultModel,
+    },
+    embedding: {
+      connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
+      model: together.defaultModel,
     },
   };
 

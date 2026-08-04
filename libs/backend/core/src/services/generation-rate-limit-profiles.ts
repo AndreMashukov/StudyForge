@@ -59,6 +59,8 @@ export const GENERATION_RATE_LIMIT_PROFILES: Record<GenerationKind, IGenerationR
   documentQuestion: INTERACTIVE_PROFILE,
   documentRevise: INTERACTIVE_PROFILE,
   directoryChat: INTERACTIVE_PROFILE,
+  directoryAgent: INTERACTIVE_PROFILE,
+  agentKnowledgeEmbedding: PRODUCTION_PROFILE,
   diagramQuiz: PRODUCTION_PROFILE,
   sequenceQuiz: PRODUCTION_PROFILE,
   subjectWorld: PRODUCTION_PROFILE,
