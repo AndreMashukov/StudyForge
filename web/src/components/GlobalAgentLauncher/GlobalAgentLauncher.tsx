@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Bot } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
@@ -9,8 +10,13 @@ import { cn } from '../../lib/utils';
 export const GlobalAgentLauncher: React.FC = () => {
   const { user } = useAuth();
   const { isAppFullscreen } = useAppFullscreen();
+  const location = useLocation();
   const directoryId = useAgentDirectoryContext();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     if (!open) {
