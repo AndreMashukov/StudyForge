@@ -85,6 +85,14 @@ export async function resolveProviderConnectionRoute(
   }
 
   if (!isLlmEncryptionAvailable()) {
+    functions.logger.error('LLM settings encryption key unavailable in function environment', {
+      userId,
+      userGroupId,
+      llmSetupId,
+      modality,
+      connectionId,
+      providerKind: connection.providerKind,
+    });
     throw createProviderNotConfiguredError(
       userId,
       userGroupId,
@@ -96,6 +104,14 @@ export async function resolveProviderConnectionRoute(
 
   const encryptedSecret = await ProviderConnectionRepository.getEncryptedSecret(connectionId);
   if (!encryptedSecret) {
+    functions.logger.error('Provider connection encrypted secret missing', {
+      userId,
+      userGroupId,
+      llmSetupId,
+      modality,
+      connectionId,
+      providerKind: connection.providerKind,
+    });
     throw createProviderNotConfiguredError(
       userId,
       userGroupId,

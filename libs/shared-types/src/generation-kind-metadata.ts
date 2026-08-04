@@ -51,6 +51,11 @@ export const ALL_GENERATION_KINDS: GenerationKind[] = [
   'agentKnowledgeEmbedding',
 ];
 
+/** Generation kinds shown and edited in the admin LLM setup form. */
+export const ADMIN_CONFIGURABLE_GENERATION_KINDS = ALL_GENERATION_KINDS.filter(
+  (kind): kind is Exclude<GenerationKind, 'directoryAgent'> => kind !== 'directoryAgent'
+);
+
 export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMetadata> = {
   documentFromPrompt: {
     kind: 'documentFromPrompt',
@@ -155,8 +160,9 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
   },
   directoryChat: {
     kind: 'directoryChat',
-    label: 'Directory chat',
-    description: 'Interactive directory-scoped chat assistant.',
+    label: 'Agent Chat',
+    description:
+      'Tool-capable chat for the global workspace agent and directory-scoped chat assistant.',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',
@@ -213,16 +219,17 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
 export const GENERATION_KIND_ALIASES: Record<string, GenerationKind> = {
   diagramQuizAgent: 'diagramQuiz',
   slideDeckImageBrief: 'slideDeckText',
+  directoryAgent: 'directoryChat',
 };
 
 export function resolveGenerationKind(kind: string): GenerationKind {
-  if (kind in GENERATION_KIND_METADATA) {
-    return kind as GenerationKind;
-  }
-
   const alias = GENERATION_KIND_ALIASES[kind];
   if (alias) {
     return alias;
+  }
+
+  if (kind in GENERATION_KIND_METADATA) {
+    return kind as GenerationKind;
   }
 
   throw new Error(`Unknown generation kind: ${kind}`);

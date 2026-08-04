@@ -194,6 +194,14 @@ async function normalizeGenerationRoutes(routes: IGenerationRoutes): Promise<IGe
     normalized[kind] = await validateGenerationRoute(kind, routes[kind]);
   }
 
+  const agentChatRoute = normalized.directoryChat;
+  normalized.directoryAgent = {
+    connectionId: agentChatRoute.connectionId,
+    model: agentChatRoute.model,
+    modality: 'text',
+    workflow: agentChatRoute.workflow,
+  };
+
   return normalized;
 }
 

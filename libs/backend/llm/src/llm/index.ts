@@ -38,5 +38,11 @@ export { LlmVisionRouteResolver } from './llm-vision-route-resolver';
 export { LlmSetupRepository } from './llm-setup-repository';
 export { LlmRoutingError, isLlmRoutingError } from './llm-routing-error';
 export { decryptLlmSecret, isLlmEncryptionAvailable } from './llm-secret-resolver';
+export {
+  callToolChatCompletions,
+  resolveToolChatCompletionsUrl,
+  type ILlmOpenAiToolDefinition,
+  type ILlmToolChatMessage,
+} from './llm-tool-chat';
 export type { LlmCapability, LlmTextConfig, LlmTextRequest, LlmTextResult, ResolvedRoute, IGenerateTextOptions } from './types';
 export type { LlmProviderClient } from './llm-provider-client';

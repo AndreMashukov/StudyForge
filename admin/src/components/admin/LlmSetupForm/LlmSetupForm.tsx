@@ -1,16 +1,15 @@
 'use client';
 
-import type {
-  GenerationKind,
-  IProviderConnectionCatalogEntry,
-  LlmModality,
+import type { IProviderConnectionCatalogEntry } from '@shared-types';
+import {
+  ADMIN_CONFIGURABLE_GENERATION_KINDS,
+  GENERATION_KIND_METADATA,
 } from '@shared-types';
-import { GENERATION_KIND_METADATA } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useForm, useWatch, type Control, type UseFormSetValue } from 'react-hook-form';
+import { useForm, useWatch, type Control, type Path, type UseFormSetValue } from 'react-hook-form';
 import {
   isAdminUnauthorizedResponse,
   redirectToAdminLogin,
@@ -36,6 +35,7 @@ import {
   getSupportedWorkflowOptions,
   getWorkflowHelpText,
   formatWorkflowOptionLabel,
+  type IAdminConfigurableGenerationKind,
   isWorkflowOptionDisabled,
   llmSetupFormSchema,
   parseWorkflowValue,
@@ -53,7 +53,7 @@ export interface ILlmSetupFormProps {
 
 function defaultModelForConnection(
   connection: IProviderConnectionCatalogEntry | undefined,
-  modality: LlmModality
+  modality: import('@shared-types').LlmModality
 ): string {
   if (!connection) {
     return '';
@@ -63,13 +63,20 @@ function defaultModelForConnection(
   return models[0]?.id ?? '';
 }
 
+function generationRouteField(
+  kind: IAdminConfigurableGenerationKind,
+  field: 'connectionId' | 'model' | 'workflow'
+): Path<ILlmSetupFormValues> {
+  return `generationRoutes.${kind}.${field}`;
+}
+
 function GenerationKindRow({
   kind,
   connections,
   control,
   setValue,
 }: {
-  kind: GenerationKind;
+  kind: IAdminConfigurableGenerationKind;
   connections: IProviderConnectionCatalogEntry[];
   control: Control<ILlmSetupFormValues>;
   setValue: UseFormSetValue<ILlmSetupFormValues>;
@@ -81,12 +88,12 @@ function GenerationKindRow({
   );
   const workflowOptions = getSupportedWorkflowOptions(kind);
   const workflowHelpText = getWorkflowHelpText(kind);
-  const connectionField = `generationRoutes.${kind}.connectionId` as const;
-  const modelField = `generationRoutes.${kind}.model` as const;
-  const workflowField = `generationRoutes.${kind}.workflow` as const;
+  const connectionField = generationRouteField(kind, 'connectionId');
+  const modelField = generationRouteField(kind, 'model');
+  const workflowField = generationRouteField(kind, 'workflow');
 
-  const connectionId = useWatch({ control, name: connectionField }) ?? '';
-  const modelValue = useWatch({ control, name: modelField }) ?? '';
+  const connectionId = (useWatch({ control, name: connectionField }) ?? '') as string;
+  const modelValue = (useWatch({ control, name: modelField }) ?? '') as string;
   const selectedConnection = connections.find(
     (connection) => connection.id === connectionId
   );
@@ -171,7 +178,7 @@ function hasInvalidCatalogSelections(
   values: ILlmSetupFormValues,
   providerConnections: IProviderConnectionCatalogEntry[]
 ): string | null {
-  for (const kind of Object.keys(values.generationRoutes) as GenerationKind[]) {
+  for (const kind of ADMIN_CONFIGURABLE_GENERATION_KINDS) {
     const route = values.generationRoutes[kind];
     const metadata = GENERATION_KIND_METADATA[kind];
     const connection = providerConnections.find(

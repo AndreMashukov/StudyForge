@@ -1,10 +1,12 @@
 import { onRequest } from 'firebase-functions/v2/https';
+import { defineSecret } from 'firebase-functions/params';
 import { agentMessageSchema } from '@shared-types';
 import { validateExternalAuthFromRequest } from '@study-forge/backend-core/lib/api-key-auth';
 import { verifyAppCheckHeader } from '@study-forge/backend-core/lib/app-check-verification';
 import { DirectoryAgentService } from '@study-forge/backend-agent';
 
 const runningInFunctionsEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
 const ALLOWED_AGENT_ORIGINS = [
   'http://localhost:4200',
@@ -29,6 +31,7 @@ export const agentMessageStream = onRequest(
     timeoutSeconds: 300,
     memory: '1GiB',
     region: 'asia-east1',
+    secrets: [llmSettingsEncryptionKey],
   },
   async (req, res) => {
     if (req.method !== 'POST') {

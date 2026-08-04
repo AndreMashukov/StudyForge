@@ -2118,6 +2118,7 @@ export type {
   IGenerationKindMetadata,
 } from './generation-kind-metadata';
 export {
+  ADMIN_CONFIGURABLE_GENERATION_KINDS,
   ALL_GENERATION_KINDS,
   GENERATION_KIND_ALIASES,
   GENERATION_KIND_METADATA,
