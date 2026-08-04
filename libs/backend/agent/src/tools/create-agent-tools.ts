@@ -3,10 +3,18 @@ import type {
   AgentActionResult,
   AgentProposedDelete,
   AgentScope,
+  UpdateRuleRequest,
 } from '@shared-types';
 import { DocumentSourceType, RuleApplicability, RuleColor } from '@shared-types';
 import { directoryService } from '@study-forge/backend-directories/directory';
-import { createRule, getRules, attachRuleToDirectory } from '@study-forge/backend-directories/rule-crud';
+import {
+  attachRuleToDirectory,
+  createRule,
+  detachRuleFromDirectory,
+  getRule,
+  getRules,
+  updateRule,
+} from '@study-forge/backend-directories/rule-crud';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import {
   normalizeGeneratedHtml,
@@ -18,6 +26,15 @@ import { createPendingQuiz } from '@study-forge/backend-artifacts/artifact-gener
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { AgentKnowledgeIndexService } from '../knowledge/agent-knowledge-index-service';
 import { AgentKnowledgeLifecycle } from '../knowledge/agent-knowledge-lifecycle';
+import {
+  parseOptionalBoolean,
+  parseOptionalRuleApplicabilityArray,
+  parseOptionalRuleColor,
+  parseRuleApplicabilityArray,
+  parseStringArray,
+  RULE_APPLICABILITY_ENUM,
+  RULE_COLOR_ENUM,
+} from './rule-tool-args';
 
 export interface AgentToolRuntimeContext {
   userId: string;
@@ -299,29 +316,134 @@ export function createAgentToolDefinitions(
     },
     {
       name: 'create_rule',
-      description: 'Create a reusable rule.',
+      description:
+        'Create a reusable rule. Set applicableTo to control which generation kinds use the rule (for example slide_deck, quiz, chat).',
       parameters: {
         type: 'object',
         properties: {
           name: { type: 'string' },
           content: { type: 'string' },
           description: { type: 'string' },
+          color: { type: 'string', enum: RULE_COLOR_ENUM },
+          tags: { type: 'array', items: { type: 'string' } },
+          applicableTo: {
+            type: 'array',
+            items: { type: 'string', enum: RULE_APPLICABILITY_ENUM },
+          },
+          isDefault: { type: 'boolean' },
         },
         required: ['name', 'content'],
       },
       execute: async (args) => {
+        const name = typeof args.name === 'string' ? args.name.trim() : '';
+        const content = typeof args.content === 'string' ? args.content.trim() : '';
+        if (!name || !content) {
+          throw new Error('name and content are required');
+        }
+
+        const applicableTo =
+          args.applicableTo === undefined
+            ? [RuleApplicability.CHAT]
+            : parseRuleApplicabilityArray(args.applicableTo);
+
         const rule = await createRule(context.userId, {
-          name: typeof args.name === 'string' ? args.name : '',
-          content: typeof args.content === 'string' ? args.content : '',
+          name,
+          content,
           description: typeof args.description === 'string' ? args.description : '',
-          color: RuleColor.PURPLE,
-          tags: [],
-          applicableTo: [RuleApplicability.CHAT],
+          color:
+            args.color === undefined ? RuleColor.PURPLE : parseOptionalRuleColor(args.color) ?? RuleColor.PURPLE,
+          tags: args.tags === undefined ? [] : parseStringArray(args.tags),
+          applicableTo,
+          isDefault: parseOptionalBoolean(args.isDefault) ?? false,
         });
         await AgentKnowledgeLifecycle.indexRule(context.userId, rule.id);
         pushAction(context, {
           kind: 'create_rule',
           summary: `Created rule "${rule.name}"`,
+          entityType: 'rule',
+          entityId: rule.id,
+        });
+        return rule;
+      },
+    },
+    {
+      name: 'update_rule',
+      description:
+        'Update an existing rule. Provide ruleId and any fields to change (name, description, content, color, tags, applicableTo, isDefault).',
+      parameters: {
+        type: 'object',
+        properties: {
+          ruleId: { type: 'string' },
+          name: { type: 'string' },
+          description: { type: 'string' },
+          content: { type: 'string' },
+          color: { type: 'string', enum: RULE_COLOR_ENUM },
+          tags: { type: 'array', items: { type: 'string' } },
+          applicableTo: {
+            type: 'array',
+            items: { type: 'string', enum: RULE_APPLICABILITY_ENUM },
+          },
+          isDefault: { type: 'boolean' },
+        },
+        required: ['ruleId'],
+      },
+      execute: async (args) => {
+        const ruleId = typeof args.ruleId === 'string' ? args.ruleId.trim() : '';
+        if (!ruleId) {
+          throw new Error('ruleId is required');
+        }
+
+        const updateRequest: UpdateRuleRequest = { ruleId };
+
+        if (args.name !== undefined) {
+          if (typeof args.name !== 'string' || args.name.trim().length === 0) {
+            throw new Error('name must be a non-empty string');
+          }
+          updateRequest.name = args.name.trim();
+        }
+        if (args.description !== undefined) {
+          if (typeof args.description !== 'string') {
+            throw new Error('description must be a string');
+          }
+          updateRequest.description = args.description;
+        }
+        if (args.content !== undefined) {
+          if (typeof args.content !== 'string' || args.content.trim().length === 0) {
+            throw new Error('content must be a non-empty string');
+          }
+          updateRequest.content = args.content;
+        }
+        if (args.color !== undefined) {
+          updateRequest.color = parseOptionalRuleColor(args.color);
+        }
+        if (args.tags !== undefined) {
+          updateRequest.tags = parseStringArray(args.tags);
+        }
+        if (args.applicableTo !== undefined) {
+          updateRequest.applicableTo = parseOptionalRuleApplicabilityArray(args.applicableTo);
+        }
+        if (args.isDefault !== undefined) {
+          updateRequest.isDefault = parseOptionalBoolean(args.isDefault);
+        }
+
+        const hasUpdates =
+          updateRequest.name !== undefined ||
+          updateRequest.description !== undefined ||
+          updateRequest.content !== undefined ||
+          updateRequest.color !== undefined ||
+          updateRequest.tags !== undefined ||
+          updateRequest.applicableTo !== undefined ||
+          updateRequest.isDefault !== undefined;
+
+        if (!hasUpdates) {
+          throw new Error('Provide at least one field to update');
+        }
+
+        const rule = await updateRule(context.userId, updateRequest);
+        await AgentKnowledgeLifecycle.indexRule(context.userId, rule.id);
+        pushAction(context, {
+          kind: 'update_rule',
+          summary: `Updated rule "${rule.name}"`,
           entityType: 'rule',
           entityId: rule.id,
         });
@@ -342,8 +464,11 @@ export function createAgentToolDefinitions(
       execute: async (args) => {
         const directoryId = typeof args.directoryId === 'string' ? args.directoryId : '';
         const ruleId = typeof args.ruleId === 'string' ? args.ruleId : '';
+        if (!directoryId || !ruleId) {
+          throw new Error('directoryId and ruleId are required');
+        }
         assertDirectoryInScope(context, directoryId);
-        await attachRuleToDirectory(context.userId, directoryId, ruleId);
+        await attachRuleToDirectory(context.userId, ruleId, directoryId);
         pushAction(context, {
           kind: 'attach_rule',
           summary: 'Attached rule to directory',
@@ -351,6 +476,65 @@ export function createAgentToolDefinitions(
           entityId: ruleId,
         });
         return { directoryId, ruleId };
+      },
+    },
+    {
+      name: 'detach_rule_from_directory',
+      description: 'Detach a rule from a directory.',
+      parameters: {
+        type: 'object',
+        properties: {
+          directoryId: { type: 'string' },
+          ruleId: { type: 'string' },
+        },
+        required: ['directoryId', 'ruleId'],
+      },
+      execute: async (args) => {
+        const directoryId = typeof args.directoryId === 'string' ? args.directoryId : '';
+        const ruleId = typeof args.ruleId === 'string' ? args.ruleId : '';
+        if (!directoryId || !ruleId) {
+          throw new Error('directoryId and ruleId are required');
+        }
+        assertDirectoryInScope(context, directoryId);
+        await detachRuleFromDirectory(context.userId, ruleId, directoryId);
+        pushAction(context, {
+          kind: 'detach_rule',
+          summary: 'Detached rule from directory',
+          entityType: 'rule',
+          entityId: ruleId,
+        });
+        return { directoryId, ruleId };
+      },
+    },
+    {
+      name: 'propose_delete_rule',
+      description: 'Propose deleting a rule for user confirmation.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ruleId: { type: 'string' },
+          reason: { type: 'string' },
+        },
+        required: ['ruleId'],
+      },
+      execute: async (args) => {
+        const ruleId = typeof args.ruleId === 'string' ? args.ruleId.trim() : '';
+        if (!ruleId) {
+          throw new Error('ruleId is required');
+        }
+
+        const rule = await getRule(context.userId, ruleId);
+        if (!rule) {
+          throw new Error('Rule not found');
+        }
+
+        context.proposedDeletes.push({
+          targetType: 'rule',
+          targetId: ruleId,
+          label: rule.name,
+          reason: typeof args.reason === 'string' ? args.reason : undefined,
+        });
+        return { proposed: true };
       },
     },
     {
@@ -444,7 +628,9 @@ export function actionKindFromToolName(toolName: string): AgentActionKind | unde
     create_document: 'create_document',
     generate_quiz: 'generate_quiz',
     create_rule: 'create_rule',
+    update_rule: 'update_rule',
     attach_rule_to_directory: 'attach_rule',
+    detach_rule_from_directory: 'detach_rule',
   };
   return mapping[toolName];
 }

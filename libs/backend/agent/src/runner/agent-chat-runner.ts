@@ -61,9 +61,7 @@ function buildEmptyModelFallback(toolNames: string[]): string {
   const uniqueNames = [...new Set(toolNames)];
   return (
     `I finished the tool steps (${uniqueNames.join(', ')}), ` +
-    'but the model returned no summary text. ' +
-    'If you asked to update a rule, note that update_rule is not available yet - ' +
-    'only list_rules, create_rule, and attach_rule_to_directory.'
+    'but the model returned no summary text.'
   );
 }
 
