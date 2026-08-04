@@ -68,6 +68,37 @@ function parseGenerationRoute(value: unknown): IGenerationRoute | null {
   };
 }
 
+function fallbackGenerationRoute(
+  kind: GenerationKind,
+  value: Record<string, unknown>
+): IGenerationRoute | null {
+  if (kind === 'documentRevise') {
+    return parseGenerationRoute(value.documentFromPrompt);
+  }
+
+  if (kind === 'directoryAgent') {
+    return parseGenerationRoute(value.directoryChat);
+  }
+
+  if (kind === 'agentKnowledgeEmbedding') {
+    const source =
+      parseGenerationRoute(value.directoryChat) ??
+      parseGenerationRoute(value.documentFromPrompt) ??
+      parseGenerationRoute(value.quiz);
+    if (!source) {
+      return null;
+    }
+    return {
+      connectionId: source.connectionId,
+      model: source.model,
+      modality: 'embedding',
+      workflow: GENERATION_KIND_METADATA.agentKnowledgeEmbedding.defaultWorkflow,
+    };
+  }
+
+  return null;
+}
+
 function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
   if (!isRecord(value)) {
     return null;
@@ -76,10 +107,7 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
   const routes = {} as IGenerationRoutes;
 
   for (const kind of ALL_GENERATION_KINDS) {
-    let route = parseGenerationRoute(value[kind]);
-    if (!route && kind === 'documentRevise') {
-      route = parseGenerationRoute(value.documentFromPrompt);
-    }
+    let route = parseGenerationRoute(value[kind]) ?? fallbackGenerationRoute(kind, value);
     if (!route) {
       return null;
     }
