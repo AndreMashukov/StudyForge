@@ -2059,6 +2059,8 @@ export interface ITogetherProviderConnection
   defaultVisionModel?: string;
   /** Slide deck image generation model (text-in → image-out) */
   defaultImageModel?: string;
+  /** Agent knowledge embedding model (text-in → vector-out) */
+  defaultEmbeddingModel?: string;
 }
 
 export interface IUpdateTogetherSettingsRequest {
@@ -2067,6 +2069,7 @@ export interface IUpdateTogetherSettingsRequest {
   defaultModel: string;
   defaultVisionModel?: string;
   defaultImageModel?: string;
+  defaultEmbeddingModel?: string;
   apiKey?: string;
 }
 

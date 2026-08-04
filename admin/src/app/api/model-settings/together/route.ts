@@ -47,6 +47,7 @@ export async function PUT(request: Request) {
         defaultModel: body.defaultModel ?? '',
         defaultVisionModel: body.defaultVisionModel,
         defaultImageModel: body.defaultImageModel,
+        defaultEmbeddingModel: body.defaultEmbeddingModel,
         apiKey: body.apiKey,
       },
       session.uid

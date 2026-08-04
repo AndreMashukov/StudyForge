@@ -20,7 +20,10 @@ import {
 import * as admin from 'firebase-admin';
 import { requireAdminSession } from '../auth/session';
 import { getAdminFirestore } from '../firebase/admin';
-import { readTogetherConnection } from './model-settings';
+import {
+  DEFAULT_TOGETHER_EMBEDDING_MODEL,
+  readTogetherConnection,
+} from './model-settings';
 import {
   listProviderConnectionCatalog,
   validateModalityRoute,
@@ -236,7 +239,8 @@ export async function createDefaultGenerationRoutes(): Promise<IGenerationRoutes
     },
     embedding: {
       connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
-      model: together.defaultModel,
+      model:
+        together.defaultEmbeddingModel ?? DEFAULT_TOGETHER_EMBEDDING_MODEL,
     },
   };
 

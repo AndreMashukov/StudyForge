@@ -62,6 +62,8 @@ export const DEFAULT_MINIMAX_IMAGE_URL = 'https://api.minimax.io/v1/image_genera
 export const DEFAULT_TOGETHER_MODEL = 'MiniMaxAI/MiniMax-M3';
 export const DEFAULT_TOGETHER_VISION_MODEL = 'MiniMaxAI/MiniMax-M3';
 export const DEFAULT_TOGETHER_IMAGE_MODEL = 'black-forest-labs/FLUX.1-schnell';
+export const DEFAULT_TOGETHER_EMBEDDING_MODEL =
+  'intfloat/multilingual-e5-large-instruct';
 export const DEFAULT_TOGETHER_BASE_URL = 'https://api.together.ai/v1';
 
 export interface IModelSettingsPageData {
@@ -154,7 +156,10 @@ function parseSupportedModalities(value: unknown): LlmModality[] {
   if (Array.isArray(value)) {
     const modalities = value.filter(
       (entry): entry is LlmModality =>
-        entry === 'text' || entry === 'vision' || entry === 'image'
+        entry === 'text' ||
+        entry === 'vision' ||
+        entry === 'image' ||
+        entry === 'embedding'
     );
     if (modalities.length > 0) {
       return modalities;
@@ -240,6 +245,7 @@ function buildDefaultTogetherConnection(
     defaultModel: DEFAULT_TOGETHER_MODEL,
     defaultVisionModel: DEFAULT_TOGETHER_VISION_MODEL,
     defaultImageModel: DEFAULT_TOGETHER_IMAGE_MODEL,
+    defaultEmbeddingModel: DEFAULT_TOGETHER_EMBEDDING_MODEL,
     lastValidationStatus: 'unknown',
   };
 }
@@ -498,6 +504,10 @@ export async function readTogetherConnection(): Promise<ITogetherProviderConnect
             defaults.defaultImageModel ?? DEFAULT_TOGETHER_IMAGE_MODEL
           )
         : defaults.defaultImageModel,
+    defaultEmbeddingModel:
+      typeof data.defaultEmbeddingModel === 'string'
+        ? data.defaultEmbeddingModel.trim() || undefined
+        : defaults.defaultEmbeddingModel,
     availableModels: parseAvailableModels(data.availableModels),
     modelsSyncedAt: toIsoString(data.modelsSyncedAt),
     modelsSyncSource: parseModelsSyncSource(data.modelsSyncSource),
@@ -632,6 +642,7 @@ function assertDefaultModelsAgainstCatalog(
     defaultModel: string;
     defaultVisionModel?: string;
     defaultImageModel?: string;
+    defaultEmbeddingModel?: string;
   }
 ): void {
   if (models.length === 0) {
@@ -662,6 +673,16 @@ function assertDefaultModelsAgainstCatalog(
       defaults.defaultImageModel,
       'image',
       `${connectionLabel} default image model`,
+      connectionLabel
+    );
+  }
+
+  if (defaults.defaultEmbeddingModel) {
+    assertModelInCatalog(
+      models,
+      defaults.defaultEmbeddingModel,
+      'embedding',
+      `${connectionLabel} default embedding model`,
       connectionLabel
     );
   }
@@ -1257,6 +1278,7 @@ export async function updateTogetherSettings(
     input.defaultImageModel,
     DEFAULT_TOGETHER_IMAGE_MODEL
   );
+  const nextDefaultEmbeddingModel = normalizeVisionModel(input.defaultEmbeddingModel);
 
   if (!currentConnection.apiKeyConfigured && !hasNewApiKey) {
     throw new Error('Together API key is required on first save.');
@@ -1273,6 +1295,7 @@ export async function updateTogetherSettings(
       defaultModel: nextDefaultModel,
       defaultVisionModel: nextDefaultVisionModel,
       defaultImageModel: nextDefaultImageModel,
+      defaultEmbeddingModel: nextDefaultEmbeddingModel,
     }
   );
 
@@ -1286,6 +1309,7 @@ export async function updateTogetherSettings(
     defaultModel: nextDefaultModel,
     defaultVisionModel: nextDefaultVisionModel,
     defaultImageModel: nextDefaultImageModel,
+    defaultEmbeddingModel: nextDefaultEmbeddingModel,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedBy: actorUid,
   };

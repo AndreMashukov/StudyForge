@@ -4,7 +4,11 @@ import {
   parseTogetherChatContent,
   summarizeTogetherChatPayload,
 } from './together-chat-content';
-import { stripRedactedThinking } from './llm-response-text-utils';
+import {
+  createStreamingThinkingFilter,
+  stripRedactedThinking,
+  stripRedactedThinkingIncludingPartial,
+} from './llm-response-text-utils';
 
 describe('normalizeTogetherMessageContent', () => {
   it('returns string content', () => {
@@ -96,5 +100,38 @@ describe('stripRedactedThinking', () => {
       '<redacted_thinking>hidden</redacted_thinking>keep' +
       '<mm:think>also hidden</mm:think>-me';
     expect(stripRedactedThinking(input)).toBe('keep-me');
+  });
+});
+
+describe('createStreamingThinkingFilter', () => {
+  const thinkingOpen = `<${'redacted'}_${'thinking'}>`;
+  const thinkingClose = `</${'redacted'}_${'thinking'}>`;
+
+  it('strips thinking blocks across streamed chunks', () => {
+    const filter = createStreamingThinkingFilter();
+
+    expect(filter.append('<redacted_th')).toBe('');
+    expect(filter.append(`inking>secret${thinkingClose}Hello`)).toBe('Hello');
+    expect(filter.finalize()).toBe('');
+  });
+
+  it('holds back partial opening tags until the stream completes', () => {
+    const filter = createStreamingThinkingFilter();
+
+    expect(filter.append('Answer: ')).toBe('Answer: ');
+    expect(filter.append(`${thinkingOpen}hidden`)).toBe('');
+    expect(filter.append(` reasoning${thinkingClose} world`)).toBe(' world');
+  });
+});
+
+describe('stripRedactedThinkingIncludingPartial', () => {
+  it('removes incomplete thinking blocks at the end of a stream', () => {
+    const thinkingOpen = `<${'redacted'}_${'thinking'}>`;
+
+    expect(
+      stripRedactedThinkingIncludingPartial(
+        `visible${thinkingOpen}still streaming`,
+      ),
+    ).toBe('visible');
   });
 });

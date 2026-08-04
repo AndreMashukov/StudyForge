@@ -151,7 +151,10 @@ export class AgentThreadStore {
     };
 
     await docRef.set({
-      ...thread,
+      id: thread.id,
+      userId: thread.userId,
+      scope: thread.scope,
+      ...(thread.directoryId ? { directoryId: thread.directoryId } : {}),
       createdAt: Timestamp.fromDate(new Date(now)),
       updatedAt: Timestamp.fromDate(new Date(now)),
       lastMessageAt: Timestamp.fromDate(new Date(now)),

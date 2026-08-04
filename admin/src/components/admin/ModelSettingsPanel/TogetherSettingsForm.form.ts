@@ -22,6 +22,7 @@ export const togetherSettingsFormSchema = z.object({
     .min(1, 'Default text model is required'),
   defaultVisionModel: optionalModelField,
   defaultImageModel: optionalModelField,
+  defaultEmbeddingModel: optionalModelField,
   apiKey: z.string().optional(),
 });
 
@@ -37,6 +38,7 @@ export function getTogetherSettingsDefaultValues(
     defaultModel: connection.defaultModel,
     defaultVisionModel: connection.defaultVisionModel ?? '',
     defaultImageModel: connection.defaultImageModel ?? '',
+    defaultEmbeddingModel: connection.defaultEmbeddingModel ?? '',
     apiKey: '',
   };
 }
@@ -46,12 +48,14 @@ export function normalizeTogetherSettingsSubmitPayload(
 ): IUpdateTogetherSettingsRequest {
   const trimmedVisionModel = values.defaultVisionModel?.trim();
   const trimmedImageModel = values.defaultImageModel?.trim();
+  const trimmedEmbeddingModel = values.defaultEmbeddingModel?.trim();
 
   return {
     baseUrl: values.baseUrl.trim(),
     defaultModel: values.defaultModel.trim(),
     defaultVisionModel: trimmedVisionModel || undefined,
     defaultImageModel: trimmedImageModel || undefined,
+    defaultEmbeddingModel: trimmedEmbeddingModel || undefined,
     apiKey: values.apiKey?.trim() ? values.apiKey : undefined,
   };
 }

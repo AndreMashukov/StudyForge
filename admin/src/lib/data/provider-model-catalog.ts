@@ -12,7 +12,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function uniqueModalities(modalities: LlmModality[]): LlmModality[] {
-  return (['text', 'vision', 'image'] as const).filter((modality) =>
+  return (['text', 'vision', 'image', 'embedding'] as const).filter((modality) =>
     modalities.includes(modality)
   );
 }
@@ -233,13 +233,25 @@ function normalizeOpenAiStyleModels(
           : '';
     const lowerId = id.toLowerCase();
 
-    if (
-      type === 'embedding' ||
-      type === 'moderation' ||
+    const isRerank =
       type === 'rerank' ||
-      includesAny(lowerId, ['embed', 'embedding', 'rerank']) ||
-      type.includes('embed')
-    ) {
+      type.includes('rerank') ||
+      includesAny(lowerId, ['rerank']);
+    const isModeration = type === 'moderation';
+    const isEmbedding =
+      type === 'embedding' ||
+      type.includes('embed') ||
+      includesAny(lowerId, ['embed', 'embedding']);
+
+    if (isRerank || isModeration) {
+      continue;
+    }
+
+    if (isEmbedding) {
+      const model = buildModel(id, label, ['embedding']);
+      if (model) {
+        models.push(model);
+      }
       continue;
     }
 
@@ -325,7 +337,10 @@ export function parseAvailableModels(value: unknown): IProviderAvailableModel[] 
     const modalities = Array.isArray(entry.supportedModalities)
       ? entry.supportedModalities.filter(
           (modality): modality is LlmModality =>
-            modality === 'text' || modality === 'vision' || modality === 'image'
+            modality === 'text' ||
+            modality === 'vision' ||
+            modality === 'image' ||
+            modality === 'embedding'
         )
       : [];
 

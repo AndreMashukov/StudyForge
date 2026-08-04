@@ -1,18 +1,23 @@
 #!/usr/bin/env node
 /**
- * Seed LLM routing for local emulator E2E — MiniMax M3 via minimax-primary.
+ * Seed LLM routing for local emulator E2E — MiniMax M3 + Together embeddings.
  *
  * Creates:
  *   - llmProviderConnections/minimax-primary (+ encrypted API key)
- *   - llmSetups/e2e-minimax-m3 (all generation routes → MiniMax-M3 / image-01)
+ *   - llmProviderConnections/together-primary (+ encrypted API key)
+ *   - llmSetups/e2e-minimax-m3
+ *       text/vision/image → MiniMax-M3 / image-01
+ *       agentKnowledgeEmbedding → Together intfloat/multilingual-e5-large-instruct (1024-d)
  *   - userGroups/e2e-default-group
  *   - users/{uid}.userGroupId assignment
  *
  * Usage:
- *   MINIMAX_API_KEY=... LLM_SETTINGS_ENCRYPTION_KEY=... npx tsx scripts/seed-setup/seed-llm-setup.ts
+ *   MINIMAX_API_KEY=... TOGETHER_AI_API_KEY=... LLM_SETTINGS_ENCRYPTION_KEY=... \
+ *     npx tsx scripts/seed-setup/seed-llm-setup.ts
  *
  * Env (also loaded from .env.local, functions/.env.local, functions/.env):
  *   MINIMAX_API_KEY — required unless already seeded in Firestore, or production copy succeeds
+ *   TOGETHER_AI_API_KEY / TOGETHER_API_KEY — required for Together embeddings unless already seeded
  *   LLM_SETTINGS_ENCRYPTION_KEY — required to encrypt provider secrets
  *   GCLOUD_PROJECT — defaults to study-forge-202604
  */
@@ -30,6 +35,7 @@ import {
 } from '../../libs/shared-types/src/generation-kind-metadata';
 import {
   PRIMARY_MINIMAX_CONNECTION_ID,
+  PRIMARY_TOGETHER_CONNECTION_ID,
   type IGenerationRoutes,
   type IProviderAvailableModel,
 } from '../../libs/shared-types/src/index';
@@ -48,8 +54,10 @@ const GROUP_ID = 'e2e-default-group';
 const TEXT_MODEL = 'MiniMax-M3';
 const VISION_MODEL = 'MiniMax-M3';
 const IMAGE_MODEL = 'image-01';
+const EMBEDDING_MODEL = 'intfloat/multilingual-e5-large-instruct';
 const MINIMAX_BASE_URL = 'https://api.minimax.io/v1';
 const MINIMAX_IMAGE_URL = 'https://api.minimax.io/v1/image_generation';
+const TOGETHER_BASE_URL = 'https://api.together.xyz/v1';
 
 const CONNECTIONS_COLLECTION = 'llmProviderConnections';
 const SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
@@ -69,6 +77,14 @@ const MINIMAX_CATALOG: IProviderAvailableModel[] = [
     id: IMAGE_MODEL,
     label: 'MiniMax Image 01',
     supportedModalities: ['image'],
+  },
+];
+
+const TOGETHER_CATALOG: IProviderAvailableModel[] = [
+  {
+    id: EMBEDDING_MODEL,
+    label: 'Multilingual E5 Large Instruct (1024-d)',
+    supportedModalities: ['embedding'],
   },
 ];
 
@@ -108,6 +124,17 @@ function buildGenerationRoutes(): IGenerationRoutes {
 
   for (const kind of ALL_GENERATION_KINDS) {
     const metadata = GENERATION_KIND_METADATA[kind];
+
+    if (metadata.requiredModality === 'embedding') {
+      routes[kind] = {
+        connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
+        model: EMBEDDING_MODEL,
+        modality: 'embedding',
+        workflow: metadata.defaultWorkflow,
+      };
+      continue;
+    }
+
     const model =
       metadata.requiredModality === 'text'
         ? TEXT_MODEL
@@ -124,6 +151,14 @@ function buildGenerationRoutes(): IGenerationRoutes {
   }
 
   return routes;
+}
+
+function resolveTogetherApiKey(): string | undefined {
+  return (
+    process.env.TOGETHER_AI_API_KEY?.trim() ||
+    process.env.TOGETHER_API_KEY?.trim() ||
+    undefined
+  );
 }
 
 async function ensureMinimaxSecretFromProduction(db: admin.firestore.Firestore): Promise<boolean> {
@@ -195,6 +230,39 @@ async function ensureMinimaxSecretFromProduction(db: admin.firestore.Firestore):
   }
 }
 
+async function ensureProviderSecret(input: {
+  db: admin.firestore.Firestore;
+  connectionId: string;
+  apiKey: string | undefined;
+  label: string;
+}): Promise<void> {
+  const secretRef = input.db.collection(SECRETS_COLLECTION).doc(input.connectionId);
+  const existingSecret = await secretRef.get();
+  if (existingSecret.exists) {
+    console.log(`\n[LLM] ${input.label} secret already exists — skip`);
+    return;
+  }
+
+  if (!input.apiKey) {
+    throw new Error(
+      `${input.label} API key is required to seed ${input.connectionId}. Set it in .env.local or functions/.env.local.`
+    );
+  }
+
+  console.log(`\n[LLM] Encrypting ${input.label} API key …`);
+  const encrypted = encryptSecret(input.apiKey);
+  await secretRef.set({
+    ...encrypted,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedBy: 'seed-llm-setup',
+  });
+  await input.db.collection(CONNECTIONS_COLLECTION).doc(input.connectionId).set(
+    { apiKeyConfigured: true },
+    { merge: true }
+  );
+  console.log(`   ✅ ${input.connectionId} secret stored`);
+}
+
 export async function seedLlmSetup(options?: { userId?: string }): Promise<void> {
   process.env.FIREBASE_AUTH_EMULATOR_HOST =
     process.env.FIREBASE_AUTH_EMULATOR_HOST || 'localhost:9099';
@@ -209,6 +277,7 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
   const userId = options?.userId ?? TARGET_UID;
   const now = new Date().toISOString();
   const minimaxApiKey = process.env.MINIMAX_API_KEY?.trim();
+  const togetherApiKey = resolveTogetherApiKey();
 
   console.log('\n[LLM] MiniMax provider connection …');
   const connectionRef = db.collection(CONNECTIONS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID);
@@ -243,35 +312,61 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
   console.log(`   ✅ Connection ${PRIMARY_MINIMAX_CONNECTION_ID}`);
 
   if (!existingSecret.exists) {
-    if (!minimaxApiKey) {
-      throw new Error(
-        'MINIMAX_API_KEY is required to seed minimax-primary credentials (or copy production secret via ADC). Set it in functions/.env.local.'
-      );
-    }
-
-    console.log('\n[LLM] Encrypting MiniMax API key …');
-    const encrypted = encryptSecret(minimaxApiKey);
-    await secretRef.set({
-      ...encrypted,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedBy: 'seed-llm-setup',
+    await ensureProviderSecret({
+      db,
+      connectionId: PRIMARY_MINIMAX_CONNECTION_ID,
+      apiKey: minimaxApiKey,
+      label: 'MiniMax',
     });
-    await connectionRef.set({ apiKeyConfigured: true }, { merge: true });
-    console.log('   ✅ minimax-primary secret stored');
   } else {
     console.log('\n[LLM] MiniMax secret already exists — skip');
   }
 
-  console.log('\n[LLM] LLM setup (MiniMax M3 routes) …');
+  console.log('\n[LLM] Together provider connection (embeddings) …');
+  const togetherConnectionRef = db
+    .collection(CONNECTIONS_COLLECTION)
+    .doc(PRIMARY_TOGETHER_CONNECTION_ID);
+  const togetherSecretRef = db.collection(SECRETS_COLLECTION).doc(PRIMARY_TOGETHER_CONNECTION_ID);
+  const existingTogetherSecret = await togetherSecretRef.get();
+
+  await togetherConnectionRef.set(
+    {
+      providerKind: 'together',
+      label: 'Primary Together',
+      credentialMode: 'encrypted-firestore',
+      supportedModalities: ['text', 'vision', 'image', 'embedding'],
+      baseUrl: TOGETHER_BASE_URL,
+      defaultModel: EMBEDDING_MODEL,
+      availableModels: TOGETHER_CATALOG,
+      modelsSyncedAt: now,
+      modelsSyncSource: 'provider-save',
+      apiKeyConfigured: existingTogetherSecret.exists || Boolean(togetherApiKey),
+      updatedAt: now,
+      updatedBy: 'seed-llm-setup',
+    },
+    { merge: true }
+  );
+  console.log(`   ✅ Connection ${PRIMARY_TOGETHER_CONNECTION_ID}`);
+
+  await ensureProviderSecret({
+    db,
+    connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
+    apiKey: togetherApiKey,
+    label: 'Together',
+  });
+
+  console.log('\n[LLM] LLM setup (MiniMax M3 + Together e5 embeddings) …');
   const generationRoutes = buildGenerationRoutes();
   await db.collection(LLM_SETUPS_COLLECTION).doc(SETUP_ID).set({
-    name: 'E2E MiniMax M3',
-    description: 'Local emulator setup — all generation routes via minimax-primary / MiniMax-M3',
+    name: 'E2E MiniMax M3 + Together E5',
+    description:
+      'Local emulator setup — generation via MiniMax-M3; agentKnowledgeEmbedding via Together intfloat/multilingual-e5-large-instruct (1024-d)',
     generationRoutes,
     updatedAt: now,
     updatedBy: 'seed-llm-setup',
   });
   console.log(`   ✅ LLM setup ${SETUP_ID}`);
+  console.log(`   ✅ agentKnowledgeEmbedding → ${EMBEDDING_MODEL} on ${PRIMARY_TOGETHER_CONNECTION_ID}`);
 
   console.log('\n[LLM] User group …');
   await db.collection(USER_GROUPS_COLLECTION).doc(GROUP_ID).set({
@@ -289,7 +384,9 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
   );
   console.log(`   ✅ users/${userId}.userGroupId = ${GROUP_ID}`);
 
-  console.log('\n✅ LLM setup seed complete (MiniMax-M3 on minimax-primary).');
+  console.log(
+    '\n✅ LLM setup seed complete (MiniMax-M3 + Together multilingual-e5-large-instruct).'
+  );
 }
 
 async function main(): Promise<void> {

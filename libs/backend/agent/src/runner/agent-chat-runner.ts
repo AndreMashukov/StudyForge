@@ -1,5 +1,9 @@
 import * as functions from 'firebase-functions';
 import { LlmGenerationRouteResolver } from '@study-forge/backend-llm/llm';
+import {
+  createStreamingThinkingFilter,
+  stripRedactedThinking,
+} from '@study-forge/backend-llm/llm/llm-response-text-utils';
 import { LlmProviderClientFactory } from '@study-forge/backend-llm/llm/llm-provider-client-factory';
 import type { AgentMessageStreamEvent } from '@shared-types';
 import type { AgentToolDefinition } from '../tools/create-agent-tools';
@@ -78,8 +82,11 @@ async function callChatCompletions(input: {
   messages: ChatMessage[];
   tools: ReturnType<typeof toolDefinitionsToOpenAiTools>;
   stream: boolean;
+  providerType?: string;
   onDelta?: (text: string) => void;
 }): Promise<ChatMessage> {
+  const thinkingFilter = createStreamingThinkingFilter();
+
   const response = await fetch(input.url, {
     method: 'POST',
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -95,6 +102,12 @@ async function callChatCompletions(input: {
       stream: input.stream,
       temperature: 0.4,
       max_tokens: 8192,
+      ...(input.providerType === 'minimax'
+        ? {
+            reasoning_split: true,
+            thinking: { type: 'disabled' },
+          }
+        : {}),
     }),
   });
 
@@ -166,7 +179,10 @@ async function callChatCompletions(input: {
         const delta = choice.delta;
         if (typeof delta.content === 'string' && delta.content.length > 0) {
           content += delta.content;
-          input.onDelta?.(delta.content);
+          const cleanedDelta = thinkingFilter.append(delta.content);
+          if (cleanedDelta.length > 0) {
+            input.onDelta?.(cleanedDelta);
+          }
         }
 
         if (Array.isArray(delta.tool_calls)) {
@@ -195,6 +211,13 @@ async function callChatCompletions(input: {
   } finally {
     reader.releaseLock();
   }
+
+  const trailingDelta = thinkingFilter.finalize();
+  if (trailingDelta.length > 0) {
+    input.onDelta?.(trailingDelta);
+  }
+
+  content = stripRedactedThinking(content);
 
   const toolCalls = [...toolCallAccumulator.entries()]
     .sort(([leftIndex], [rightIndex]) => leftIndex - rightIndex)
@@ -266,6 +289,7 @@ export class AgentChatRunner {
         messages,
         tools: openAiTools,
         stream: true,
+        providerType: resolution.route.providerType,
         onDelta: (text) => input.onEvent?.({ type: 'delta', text }),
       });
 
@@ -332,8 +356,11 @@ export class AgentChatRunner {
         .join('');
 
       if (textParts) {
-        reply += textParts;
-        input.onEvent?.({ type: 'delta', text: textParts });
+        const cleaned = stripRedactedThinking(textParts);
+        if (cleaned.length > 0) {
+          reply += cleaned;
+          input.onEvent?.({ type: 'delta', text: cleaned });
+        }
       }
     }
 

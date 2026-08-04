@@ -12,6 +12,7 @@ export interface IAgentPanel {
   defaultExpanded?: boolean;
   onClose?: () => void;
   variant?: 'embedded' | 'overlay';
+  className?: string;
 }
 
 export interface IAgentChatMessage {
