@@ -77,8 +77,10 @@ export class DocumentCrudService {
       const docRef = FirestorePaths.documents(userId).doc();
       const documentId = docRef.id;
 
-      // Count words in content
-      const wordCount = this.countWords(request.content);
+      const contentFormat =
+        request.contentFormat ??
+        (request.sourceType === DocumentSourceType.GENERATED ? 'html' : 'markdown');
+      const wordCount = countWordsFromContent(request.content, contentFormat);
 
       // Prepare metadata
       const metadata: DocumentMetadata = {
@@ -94,7 +96,8 @@ export class DocumentCrudService {
         userId,
         documentId,
         request.content,
-        metadata
+        metadata,
+        { contentFormat }
       );
 
       // Create document record in Firestore
@@ -111,6 +114,7 @@ export class DocumentCrudService {
         storagePath: storageFile.path,
         tags: request.tags || [],
         directoryId: request.directoryId,
+        contentFormat,
         createdAt: Timestamp.fromDate(metadata.createdAt),
         updatedAt: Timestamp.fromDate(metadata.updatedAt),
         color: DocumentCrudService.pickRandomColor(),

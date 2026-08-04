@@ -301,12 +301,19 @@ export class AgentChatRunner {
 
       for (const toolCall of assistantMessage.tool_calls) {
         const args = parseToolArguments(toolCall.function.arguments);
-        const result = await executeAgentTool(input.tools, toolCall.function.name, args);
+        let toolContent: string;
+        try {
+          const result = await executeAgentTool(input.tools, toolCall.function.name, args);
+          toolContent = JSON.stringify(result);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Tool execution failed';
+          toolContent = JSON.stringify({ error: message });
+        }
         messages.push({
           role: 'tool',
           tool_call_id: toolCall.id,
           name: toolCall.function.name,
-          content: JSON.stringify(result),
+          content: toolContent,
         });
       }
     }

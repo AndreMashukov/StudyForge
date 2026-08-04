@@ -8,6 +8,11 @@ import { DocumentSourceType, RuleApplicability, RuleColor } from '@shared-types'
 import { directoryService } from '@study-forge/backend-directories/directory';
 import { createRule, getRules, attachRuleToDirectory } from '@study-forge/backend-directories/rule-crud';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
+import {
+  normalizeGeneratedHtml,
+  wrapHtmlDocument,
+} from '@study-forge/backend-documents/document-html/html-utils';
+import { prepareHtmlDocumentForStorage } from '@study-forge/backend-documents/document-html';
 import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
 import { createPendingQuiz } from '@study-forge/backend-artifacts/artifact-generation-records';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
@@ -48,6 +53,29 @@ async function resolveDefaultDirectoryId(context: AgentToolRuntimeContext): Prom
     return context.directoryId;
   }
   return context.directoryIds[0];
+}
+
+function sanitizeDirectoryName(name: string): string {
+  return name
+    .replace(/[/\\:*?"<>|]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+async function prepareAgentDocumentContent(
+  title: string,
+  text: string
+): Promise<{ content: string; contentFormat: 'html' }> {
+  try {
+    const prepared = await prepareHtmlDocumentForStorage(text, title);
+    return { content: prepared.fullHtml, contentFormat: 'html' };
+  } catch {
+    const bodyHtml = normalizeGeneratedHtml(text);
+    const fullHtml = wrapHtmlDocument(bodyHtml, title);
+    return { content: fullHtml, contentFormat: 'html' };
+  }
 }
 
 export function createAgentToolDefinitions(
@@ -139,7 +167,8 @@ export function createAgentToolDefinitions(
     },
     {
       name: 'create_directory',
-      description: 'Create a directory in the workspace.',
+      description:
+        'Create a directory in the workspace. Directory names cannot contain / \\ : * ? " < > |; slashes in topics like AI/ML are converted to hyphens automatically.',
       parameters: {
         type: 'object',
         properties: {
@@ -150,7 +179,8 @@ export function createAgentToolDefinitions(
         required: ['name'],
       },
       execute: async (args) => {
-        const name = typeof args.name === 'string' ? args.name.trim() : '';
+        const rawName = typeof args.name === 'string' ? args.name.trim() : '';
+        const name = sanitizeDirectoryName(rawName);
         if (!name) {
           throw new Error('name is required');
         }
@@ -175,7 +205,8 @@ export function createAgentToolDefinitions(
     },
     {
       name: 'create_document',
-      description: 'Create a document from provided text content.',
+      description:
+        'Create an HTML document from provided content. Use HTML body tags (h1, h2, p, ul, li, etc.), not markdown.',
       parameters: {
         type: 'object',
         properties: {
@@ -196,9 +227,11 @@ export function createAgentToolDefinitions(
           throw new Error('title, text, and directoryId are required');
         }
         assertDirectoryInScope(context, directoryId);
+        const { content, contentFormat } = await prepareAgentDocumentContent(title, text);
         const document = await DocumentCrudService.createDocument(context.userId, {
           title,
-          content: text,
+          content,
+          contentFormat,
           directoryId,
           sourceType: DocumentSourceType.GENERATED,
         });

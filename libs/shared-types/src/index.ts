@@ -987,6 +987,7 @@ export interface CreateDocumentRequest {
   directoryId: string;
   ruleIds?: string[]; // Optional rule IDs for document generation
   ruleResolutionMode?: RuleResolutionMode;
+  contentFormat?: DocumentContentFormat;
 }
 
 export interface UpdateDocumentRequest {

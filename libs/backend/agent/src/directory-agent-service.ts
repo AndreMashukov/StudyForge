@@ -100,6 +100,9 @@ function buildSystemPrompt(input: {
     `Active scope: ${scopeLabel}${input.directoryId ? ` (hint directory: ${input.directoryId})` : ''}.`,
     'Use tools to inspect knowledge, list content, create/update resources, and enqueue generation jobs.',
     'Never perform destructive deletes directly. Use propose_delete_* tools and wait for user confirmation.',
+    'Directory names cannot contain / \\ : * ? " < > |. Use hyphens instead of slashes (for example, "AI-ML" not "AI/ML").',
+    'When creating documents, write HTML body content (h1, p, ul, li). New documents are stored as HTML, not markdown.',
+    'For study plans and proposals, answer in chat first unless the user asks you to create directories or documents.',
     memoryBlock,
   ]
     .filter(Boolean)
