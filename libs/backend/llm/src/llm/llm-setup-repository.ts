@@ -62,7 +62,7 @@ function parseGenerationRoute(value: unknown): IGenerationRoute | null {
   if (
     !connectionId ||
     !model ||
-    (modality !== 'text' && modality !== 'vision' && modality !== 'image') ||
+    (modality !== 'text' && modality !== 'vision' && modality !== 'image' && modality !== 'embedding') ||
     typeof workflow !== 'string' ||
     !isGenerationWorkflow(workflow)
   ) {

@@ -149,4 +149,21 @@ export const FirestorePaths = {
   },
   knowledgeStat: (userId: string, statId: string) =>
     FirestorePaths.knowledgeStats(userId).doc(statId),
+
+  agentThreads: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('agentThreads');
+  },
+  agentThread: (userId: string, threadId: string) =>
+    FirestorePaths.agentThreads(userId).doc(threadId),
+  agentThreadMessages: (userId: string, threadId: string) =>
+    FirestorePaths.agentThread(userId, threadId).collection('messages'),
+  agentKnowledgeChunks: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('agentKnowledgeChunks');
+  },
+  agentConversationMemories: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('agentConversationMemories');
+  },
 };

@@ -20,7 +20,9 @@ export type LlmCapability =
   | 'slideDeckText'
   | 'slideDeckImage'
   | 'sourceDocumentEnhancement'
-  | 'ruleGeneration';
+  | 'ruleGeneration'
+  | 'directoryAgent'
+  | 'agentKnowledgeEmbedding';
 
 export interface LlmTextConfig {
   model: string;

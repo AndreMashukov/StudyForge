@@ -42,6 +42,7 @@ export {
 } from './language-code';
 
 export * from './document-contract';
+export * from './agent';
 
 export type DocumentContentFormat = 'html' | 'markdown';
 
@@ -1897,9 +1898,9 @@ export const PRIMARY_OPENROUTER_CONNECTION_ID = 'openrouter-primary';
 export const PRIMARY_MINIMAX_CONNECTION_ID = 'minimax-primary';
 export const PRIMARY_TOGETHER_CONNECTION_ID = 'together-primary';
 
-export const ALL_LLM_MODALITIES = ['text', 'vision', 'image'] as const;
+export const ALL_LLM_MODALITIES = ['text', 'vision', 'image', 'embedding'] as const;
 
-export type LlmModality = 'text' | 'vision' | 'image';
+export type LlmModality = 'text' | 'vision' | 'image' | 'embedding';
 
 export type LlmCredentialMode = 'encrypted-firestore';
 
@@ -2099,7 +2100,9 @@ export type LlmCapabilityKey =
   | 'slideDeckText'
   | 'slideDeckImage'
   | 'sourceDocumentEnhancement'
-  | 'ruleGeneration';
+  | 'ruleGeneration'
+  | 'directoryAgent'
+  | 'agentKnowledgeEmbedding';
 
 // --- LLM setup & user group routing ---
 

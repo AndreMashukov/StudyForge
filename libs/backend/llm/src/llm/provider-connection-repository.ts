@@ -31,7 +31,7 @@ function parseSupportedModalities(value: unknown): LlmModality[] {
   if (Array.isArray(value)) {
     const modalities = value.filter(
       (entry): entry is LlmModality =>
-        entry === 'text' || entry === 'vision' || entry === 'image'
+        entry === 'text' || entry === 'vision' || entry === 'image' || entry === 'embedding'
     );
     if (modalities.length > 0) {
       return modalities;

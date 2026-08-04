@@ -32,6 +32,7 @@ const app = initializeApp(firebaseConfig);
 export const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' ||
                      import.meta.env.NX_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
 
+let appCheckInstance: AppCheck | undefined;
 let appCheckReadyPromise: Promise<void> | undefined;
 
 function resolveAppCheckSiteKey(): string | undefined {
@@ -102,7 +103,7 @@ function initializeWebAppCheck(options: { enableDebugToken: boolean }): void {
   }
 
   try {
-    const appCheck = initializeAppCheck(app, {
+    appCheckInstance = initializeAppCheck(app, {
       provider: new ReCaptchaV3Provider(siteKey),
       isTokenAutoRefreshEnabled: true,
     });
@@ -111,7 +112,7 @@ function initializeWebAppCheck(options: { enableDebugToken: boolean }): void {
         ? '✅ App Check initialized (emulator debug token enabled)'
         : '✅ App Check initialized',
     );
-    startAppCheckTokenFetch(appCheck);
+    startAppCheckTokenFetch(appCheckInstance);
   } catch (error) {
     console.error('🔥 Failed to initialize App Check:', error);
   }
@@ -127,6 +128,7 @@ if (typeof window !== 'undefined') {
   }
 }
 
+export { appCheckInstance };
 export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
