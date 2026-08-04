@@ -402,7 +402,10 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
                 )}
               >
                 {item.role === 'assistant' ? (
-                  <MarkdownRenderer content={item.content} />
+                  <MarkdownRenderer
+                    content={item.content}
+                    className="[&_p:last-child]:!mb-0 [&_ul:last-child]:!mb-0 [&_ol:last-child]:!mb-0 [&_blockquote:last-child]:!mb-0 [&_>div:last-child]:!mb-0"
+                  />
                 ) : (
                   <p className="whitespace-pre-wrap">{item.content}</p>
                 )}

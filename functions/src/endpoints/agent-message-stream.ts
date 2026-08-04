@@ -23,6 +23,11 @@ function writeSseEvent(
 ): void {
   res.write(`event: ${event.type}\n`);
   res.write(`data: ${JSON.stringify(event)}\n\n`);
+  // Cloud Run / proxies can buffer SSE without an explicit flush.
+  const flushable = res as import('express').Response & { flush?: () => void };
+  if (typeof flushable.flush === 'function') {
+    flushable.flush();
+  }
 }
 
 export const agentMessageStream = onRequest(
@@ -74,6 +79,7 @@ export const agentMessageStream = onRequest(
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders?.();
 
     let clientDisconnected = false;

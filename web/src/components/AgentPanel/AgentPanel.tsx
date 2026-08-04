@@ -188,20 +188,36 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, loading]);
 
-  const isStreamingMessages = messages.some((message) => message.isStreaming);
+  const sessionRef = useRef<StoredAgentSession>({ threadId, messages });
+  sessionRef.current = { threadId, messages };
 
+  // Persist continuously, including mid-stream, so close/reopen keeps history.
   useEffect(() => {
-    if (isStreamingMessages) {
-      return;
-    }
-    writeStoredSession(scope, { threadId, messages });
-  }, [scope, threadId, messages, isStreamingMessages]);
+    writeStoredSession(scope, {
+      threadId,
+      messages: messages.map((message) => ({
+        ...message,
+        isStreaming: false,
+      })),
+    });
+  }, [scope, threadId, messages]);
 
   useEffect(() => {
     return () => {
+      const latest = sessionRef.current;
+      writeStoredSession(scope, {
+        threadId: latest.threadId,
+        messages: latest.messages.map((message) => ({
+          ...message,
+          isStreaming: false,
+          statusMessage: message.isStreaming
+            ? (message.statusMessage ?? 'Interrupted')
+            : message.statusMessage,
+        })),
+      });
       abortRef.current?.abort();
     };
-  }, []);
+  }, [scope]);
 
   const sendMessage = useCallback(
     async (rawMessage: string) => {
@@ -333,12 +349,38 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
 
               if (event.type === 'error') {
                 setError(event.message);
+                setMessages((current) =>
+                  current.map((message) =>
+                    message.id === assistantId
+                      ? {
+                          ...message,
+                          isStreaming: false,
+                          statusMessage: undefined,
+                        }
+                      : message,
+                  ),
+                );
               }
             },
           },
         );
       } catch (sendError) {
         if (controller.signal.aborted) {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? {
+                    ...message,
+                    isStreaming: false,
+                    statusMessage: undefined,
+                    content:
+                      message.content.trim().length > 0
+                        ? message.content
+                        : 'Request cancelled.',
+                  }
+                : message,
+            ),
+          );
           return;
         }
         const message =
@@ -347,6 +389,13 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
         setMessages((current) => current.filter((entry) => entry.id !== assistantId));
       } finally {
         setLoading(false);
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === assistantId && message.isStreaming
+              ? { ...message, isStreaming: false }
+              : message,
+          ),
+        );
         if (didMutate) {
           onMutated?.();
         }
@@ -454,10 +503,24 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
                         : 'border-border bg-background text-foreground',
                     )}
                   >
+                    {message.role === 'assistant' &&
+                    message.isStreaming &&
+                    message.statusMessage ? (
+                      <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                        <Spinner size="xs" />
+                        <span>{message.statusMessage}</span>
+                      </div>
+                    ) : null}
+
                     {message.role === 'assistant' ? (
-                      <MarkdownRenderer
-                        content={stripAgentThinkingContent(message.content)}
-                      />
+                      message.content.trim().length > 0 ? (
+                        <MarkdownRenderer
+                          content={stripAgentThinkingContent(message.content)}
+                          className="[&_p:last-child]:!mb-0 [&_ul:last-child]:!mb-0 [&_ol:last-child]:!mb-0 [&_blockquote:last-child]:!mb-0 [&_>div:last-child]:!mb-0"
+                        />
+                      ) : message.isStreaming ? null : (
+                        <p className="text-muted-foreground">No response text.</p>
+                      )
                     ) : (
                       <p className="whitespace-pre-wrap">{message.content}</p>
                     )}

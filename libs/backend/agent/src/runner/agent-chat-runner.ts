@@ -8,6 +8,8 @@ import type { AgentToolDefinition } from '../tools/create-agent-tools';
 import { executeAgentTool, toolDefinitionsToOpenAiTools } from '../tools/create-agent-tools';
 
 const MAX_TOOL_ROUNDS = 15;
+const FALLBACK_DELTA_CHUNK_SIZE = 28;
+const FALLBACK_DELTA_DELAY_MS = 12;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -23,6 +25,46 @@ function parseToolArguments(raw: string): Record<string, unknown> {
     return {};
   }
   return {};
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function chunkText(text: string, chunkSize: number): string[] {
+  if (text.length === 0) {
+    return [];
+  }
+  const chunks: string[] = [];
+  for (let index = 0; index < text.length; index += chunkSize) {
+    chunks.push(text.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
+async function emitTextAsDeltas(
+  text: string,
+  onEvent?: (event: AgentMessageStreamEvent) => void
+): Promise<void> {
+  for (const chunk of chunkText(text, FALLBACK_DELTA_CHUNK_SIZE)) {
+    onEvent?.({ type: 'delta', text: chunk });
+    await sleep(FALLBACK_DELTA_DELAY_MS);
+  }
+}
+
+function buildEmptyModelFallback(toolNames: string[]): string {
+  if (toolNames.length === 0) {
+    return 'I finished, but the model returned no text for this turn.';
+  }
+  const uniqueNames = [...new Set(toolNames)];
+  return (
+    `I finished the tool steps (${uniqueNames.join(', ')}), ` +
+    'but the model returned no summary text. ' +
+    'If you asked to update a rule, note that update_rule is not available yet - ' +
+    'only list_rules, create_rule, and attach_rule_to_directory.'
+  );
 }
 
 export interface AgentChatRunnerInput {
@@ -50,26 +92,68 @@ export class AgentChatRunner {
       ...input.history.map((entry) => ({ role: entry.role, content: entry.content })),
       { role: 'user', content: input.userMessage },
     ];
+    const toolsUsed: string[] = [];
+    let streamedTextLength = 0;
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-      input.onEvent?.({ type: 'status', message: round === 0 ? 'Thinking...' : 'Running tools...' });
-
-      const assistantMessage = await callToolChatCompletions({
-        route: resolution.route,
-        apiKey: resolution.providerApiKey,
-        messages,
-        tools: openAiTools,
-        stream: true,
-        onDelta: (text) => input.onEvent?.({ type: 'delta', text }),
+      input.onEvent?.({
+        type: 'status',
+        message: round === 0 ? 'Thinking...' : 'Running tools...',
       });
+
+      let heartbeatTicks = 0;
+      const heartbeat = setInterval(() => {
+        heartbeatTicks += 1;
+        input.onEvent?.({
+          type: 'status',
+          message:
+            round === 0
+              ? `Thinking... (${heartbeatTicks * 5}s)`
+              : `Running tools... (${heartbeatTicks * 5}s)`,
+        });
+      }, 5000);
+
+      let assistantMessage: ILlmToolChatMessage;
+      try {
+        assistantMessage = await callToolChatCompletions({
+          route: resolution.route,
+          apiKey: resolution.providerApiKey,
+          messages,
+          tools: openAiTools,
+          stream: true,
+          onDelta: (text) => {
+            streamedTextLength += text.length;
+            input.onEvent?.({ type: 'delta', text });
+          },
+        });
+      } finally {
+        clearInterval(heartbeat);
+      }
 
       messages.push(assistantMessage);
 
       if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-        return assistantMessage.content?.trim() || 'Done.';
+        const text = assistantMessage.content?.trim() ?? '';
+        if (text.length > 0) {
+          // Non-stream Gemini retries can return full text without prior deltas.
+          if (streamedTextLength === 0) {
+            await emitTextAsDeltas(text, input.onEvent);
+          }
+          return text;
+        }
+
+        const fallback = buildEmptyModelFallback(toolsUsed);
+        await emitTextAsDeltas(fallback, input.onEvent);
+        return fallback;
       }
 
       for (const toolCall of assistantMessage.tool_calls) {
+        toolsUsed.push(toolCall.function.name);
+        input.onEvent?.({
+          type: 'status',
+          message: `Running ${toolCall.function.name}...`,
+        });
+
         const args = parseToolArguments(toolCall.function.arguments);
         let toolContent: string;
         try {
@@ -88,6 +172,8 @@ export class AgentChatRunner {
       }
     }
 
-    return 'I hit the tool step limit while working on your request.';
+    const limitMessage = 'I hit the tool step limit while working on your request.';
+    await emitTextAsDeltas(limitMessage, input.onEvent);
+    return limitMessage;
   }
 }

@@ -41,8 +41,17 @@ export { decryptLlmSecret, isLlmEncryptionAvailable } from './llm-secret-resolve
 export {
   callToolChatCompletions,
   resolveToolChatCompletionsUrl,
+  normalizeMessagesForWire,
+  buildToolChatProviderBodyExtras,
+  shouldStreamToolChat,
+  toolCallNeedsGeminiSignatureRetry,
+  extractAssistantMessage,
+  parseWireToolCall,
+  toWireToolCall,
   type ILlmOpenAiToolDefinition,
   type ILlmToolChatMessage,
+  type ILlmToolChatToolCall,
+  type ILlmToolChatProviderMetadata,
 } from './llm-tool-chat';
 export type { LlmCapability, LlmTextConfig, LlmTextRequest, LlmTextResult, ResolvedRoute, IGenerateTextOptions } from './types';
 export type { LlmProviderClient } from './llm-provider-client';
