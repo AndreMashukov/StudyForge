@@ -1,4 +1,10 @@
-import { auth, appCheckInstance, useEmulator, waitForAppCheckReady } from '../config/firebase';
+import {
+  auth,
+  appCheckInstance,
+  firebaseProjectId,
+  useEmulator,
+  waitForAppCheckReady,
+} from '../config/firebase';
 import { getToken } from 'firebase/app-check';
 import {
   AgentMessageInput,
@@ -6,20 +12,11 @@ import {
   agentMessageStreamEventSchema,
 } from '@shared-types';
 
-function resolveProjectId(): string {
-  return (
-    import.meta.env.VITE_FIREBASE_PROJECT_ID ||
-    import.meta.env.NX_PUBLIC_FIREBASE_PROJECT_ID ||
-    'study-forge-202604'
-  );
-}
-
 export function resolveAgentMessageStreamUrl(): string {
-  const projectId = resolveProjectId();
   if (useEmulator) {
-    return `http://127.0.0.1:5001/${projectId}/asia-east1/agentMessageStream`;
+    return `http://127.0.0.1:5001/${firebaseProjectId}/asia-east1/agentMessageStream`;
   }
-  return `https://asia-east1-${projectId}.cloudfunctions.net/agentMessageStream`;
+  return `https://asia-east1-${firebaseProjectId}.cloudfunctions.net/agentMessageStream`;
 }
 
 function parseSseBlock(block: string): AgentMessageStreamEvent | null {
@@ -66,29 +63,38 @@ export async function* parseAgentMessageSseStream(
   const decoder = new TextDecoder();
   let buffer = '';
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const blocks = buffer.split('\n\n');
+      buffer = blocks.pop() ?? '';
+
+      for (const block of blocks) {
+        const event = parseSseBlock(block.trim());
+        if (event) {
+          yield event;
+        }
+      }
     }
 
-    buffer += decoder.decode(value, { stream: true });
-    const blocks = buffer.split('\n\n');
-    buffer = blocks.pop() ?? '';
-
-    for (const block of blocks) {
-      const event = parseSseBlock(block.trim());
+    if (buffer.trim()) {
+      const event = parseSseBlock(buffer.trim());
       if (event) {
         yield event;
       }
     }
-  }
-
-  if (buffer.trim()) {
-    const event = parseSseBlock(buffer.trim());
-    if (event) {
-      yield event;
+  } finally {
+    try {
+      await reader.cancel();
+    } catch {
+      // Stream may already be closed.
     }
+    reader.releaseLock();
   }
 }
 

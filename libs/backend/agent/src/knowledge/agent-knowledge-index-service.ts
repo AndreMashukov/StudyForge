@@ -17,6 +17,20 @@ export interface KnowledgeChunkIndexInput {
 
 const MAX_MATCH_COUNT = 8;
 const MIN_SIMILARITY = 0.2;
+const MAX_BATCH_OPERATIONS = 400;
+
+type BatchOperation = (batch: FirebaseFirestore.WriteBatch) => void;
+
+async function commitInBatches(
+  firestore: FirebaseFirestore.Firestore,
+  operations: BatchOperation[]
+): Promise<void> {
+  for (let index = 0; index < operations.length; index += MAX_BATCH_OPERATIONS) {
+    const batch = firestore.batch();
+    operations.slice(index, index + MAX_BATCH_OPERATIONS).forEach((apply) => apply(batch));
+    await batch.commit();
+  }
+}
 
 export class AgentKnowledgeIndexService {
   static async replaceSourceChunks(input: KnowledgeChunkIndexInput): Promise<void> {
@@ -27,11 +41,11 @@ export class AgentKnowledgeIndexService {
       .where('sourceId', '==', input.sourceId)
       .get();
 
-    const batch = collection.firestore.batch();
-    existing.docs.forEach((doc) => batch.delete(doc.ref));
+    const operations: BatchOperation[] = [];
+    existing.docs.forEach((doc) => operations.push((batch) => batch.delete(doc.ref)));
 
     if (chunks.length === 0) {
-      await batch.commit();
+      await commitInBatches(collection.firestore, operations);
       return;
     }
 
@@ -40,23 +54,25 @@ export class AgentKnowledgeIndexService {
 
     chunks.forEach((chunk, chunkIndex) => {
       const docRef = collection.doc();
-      batch.set(docRef, {
-        id: docRef.id,
-        userId: input.userId,
-        sourceType: input.sourceType,
-        sourceId: input.sourceId,
-        sourceTitle: input.sourceTitle,
-        directoryId: input.directoryId ?? null,
-        documentId: input.documentId ?? null,
-        text: chunk,
-        contentHash: hashContent(chunk),
-        chunkIndex,
-        embedding: embeddings[chunkIndex] ?? [],
-        updatedAt: now,
-      });
+      operations.push((batch) =>
+        batch.set(docRef, {
+          id: docRef.id,
+          userId: input.userId,
+          sourceType: input.sourceType,
+          sourceId: input.sourceId,
+          sourceTitle: input.sourceTitle,
+          directoryId: input.directoryId ?? null,
+          documentId: input.documentId ?? null,
+          text: chunk,
+          contentHash: hashContent(chunk),
+          chunkIndex,
+          embedding: embeddings[chunkIndex] ?? [],
+          updatedAt: now,
+        })
+      );
     });
 
-    await batch.commit();
+    await commitInBatches(collection.firestore, operations);
   }
 
   static async deleteSourceIndex(
@@ -74,9 +90,9 @@ export class AgentKnowledgeIndexService {
       return;
     }
 
-    const batch = collection.firestore.batch();
-    existing.docs.forEach((doc) => batch.delete(doc.ref));
-    await batch.commit();
+    const operations: BatchOperation[] = [];
+    existing.docs.forEach((doc) => operations.push((batch) => batch.delete(doc.ref)));
+    await commitInBatches(collection.firestore, operations);
   }
 
   static async searchKnowledge(input: {

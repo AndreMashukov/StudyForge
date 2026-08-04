@@ -3,8 +3,8 @@ import type {
   AgentActionResult,
   AgentProposedDelete,
   AgentScope,
-  DocumentSourceType,
 } from '@shared-types';
+import { DocumentSourceType, RuleApplicability, RuleColor } from '@shared-types';
 import { directoryService } from '@study-forge/backend-directories/directory';
 import { createRule, getRules, attachRuleToDirectory } from '@study-forge/backend-directories/rule-crud';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
@@ -118,11 +118,16 @@ export function createAgentToolDefinitions(
       execute: async () => {
         const snapshot = await FirestorePaths.quizzes(context.userId).get();
         return snapshot.docs
-          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              directoryId:
+                typeof data.directoryId === 'string' ? data.directoryId : undefined,
+            };
+          })
           .filter((quiz) =>
-            typeof quiz.directoryId === 'string'
-              ? context.directoryIds.includes(quiz.directoryId)
-              : true
+            quiz.directoryId ? context.directoryIds.includes(quiz.directoryId) : true
           );
       },
     },
@@ -276,7 +281,9 @@ export function createAgentToolDefinitions(
           name: typeof args.name === 'string' ? args.name : '',
           content: typeof args.content === 'string' ? args.content : '',
           description: typeof args.description === 'string' ? args.description : '',
-          applicableTo: ['chat'],
+          color: RuleColor.PURPLE,
+          tags: [],
+          applicableTo: [RuleApplicability.CHAT],
         });
         await AgentKnowledgeLifecycle.indexRule(context.userId, rule.id);
         pushAction(context, {

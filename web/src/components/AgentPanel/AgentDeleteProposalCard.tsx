@@ -29,8 +29,11 @@ export const AgentDeleteProposalCard: React.FC<IAgentDeleteProposalCard> = ({
         await deleteDocument({ documentId: proposal.targetId }).unwrap();
       } else if (proposal.targetType === 'quiz') {
         await deleteQuiz({ quizId: proposal.targetId }).unwrap();
-      } else {
+      } else if (proposal.targetType === 'rule') {
         await deleteRule({ ruleId: proposal.targetId }).unwrap();
+      } else {
+        const unsupported: never = proposal.targetType;
+        throw new Error(`Unsupported delete target: ${String(unsupported)}`);
       }
       onConfirmed();
     } catch (confirmError) {

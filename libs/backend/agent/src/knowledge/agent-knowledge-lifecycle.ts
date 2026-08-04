@@ -31,15 +31,15 @@ export class AgentKnowledgeLifecycle {
     await AgentKnowledgeIndexService.replaceSourceChunks({
       userId,
       sourceType: 'document',
-      sourceId: loaded.document.id,
-      sourceTitle: loaded.document.title,
+      sourceId: loaded.id,
+      sourceTitle: loaded.title,
       text: AgentKnowledgeIndexService.formatDocumentText(
-        loaded.document.title,
-        loaded.document.description,
+        loaded.title,
+        loaded.description,
         loaded.content
       ),
-      directoryId: loaded.document.directoryId,
-      documentId: loaded.document.id,
+      directoryId: loaded.directoryId,
+      documentId: loaded.id,
     });
   }
 

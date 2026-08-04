@@ -6,6 +6,7 @@ import type { AgentToolDefinition } from '../tools/create-agent-tools';
 import { executeAgentTool, toolDefinitionsToOpenAiTools } from '../tools/create-agent-tools';
 
 const MAX_TOOL_ROUNDS = 15;
+const REQUEST_TIMEOUT_MS = 120_000;
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
@@ -81,6 +82,7 @@ async function callChatCompletions(input: {
 }): Promise<ChatMessage> {
   const response = await fetch(input.url, {
     method: 'POST',
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     headers: {
       Authorization: `Bearer ${input.apiKey}`,
       'Content-Type': 'application/json',
@@ -117,72 +119,96 @@ async function callChatCompletions(input: {
   const decoder = new TextDecoder();
   let buffer = '';
   let content = '';
-  let toolCalls: ChatMessage['tool_calls'];
+  const toolCallAccumulator = new Map<
+    number,
+    { id: string; name: string; arguments: string }
+  >();
 
-  for await (const chunk of response.body) {
-    buffer += decoder.decode(chunk, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
+  const reader = response.body.getReader();
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith('data:')) {
-        continue;
-      }
-      const data = trimmed.slice(5).trim();
-      if (!data || data === '[DONE]') {
-        continue;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
       }
 
-      let payload: unknown;
-      try {
-        payload = JSON.parse(data);
-      } catch {
-        continue;
-      }
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
 
-      if (!isRecord(payload) || !Array.isArray(payload.choices) || payload.choices.length === 0) {
-        continue;
-      }
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) {
+          continue;
+        }
+        const data = trimmed.slice(5).trim();
+        if (!data || data === '[DONE]') {
+          continue;
+        }
 
-      const choice = payload.choices[0];
-      if (!isRecord(choice) || !isRecord(choice.delta)) {
-        continue;
-      }
+        let payload: unknown;
+        try {
+          payload = JSON.parse(data);
+        } catch {
+          continue;
+        }
 
-      const delta = choice.delta;
-      if (typeof delta.content === 'string' && delta.content.length > 0) {
-        content += delta.content;
-        input.onDelta?.(delta.content);
-      }
+        if (!isRecord(payload) || !Array.isArray(payload.choices) || payload.choices.length === 0) {
+          continue;
+        }
 
-      if (Array.isArray(delta.tool_calls)) {
-        toolCalls = delta.tool_calls
-          .map((call) => {
-            if (!isRecord(call) || !isRecord(call.function)) {
-              return null;
+        const choice = payload.choices[0];
+        if (!isRecord(choice) || !isRecord(choice.delta)) {
+          continue;
+        }
+
+        const delta = choice.delta;
+        if (typeof delta.content === 'string' && delta.content.length > 0) {
+          content += delta.content;
+          input.onDelta?.(delta.content);
+        }
+
+        if (Array.isArray(delta.tool_calls)) {
+          for (const call of delta.tool_calls) {
+            if (!isRecord(call)) {
+              continue;
             }
-            const name = typeof call.function.name === 'string' ? call.function.name : '';
-            const args = typeof call.function.arguments === 'string' ? call.function.arguments : '{}';
-            const id = typeof call.id === 'string' ? call.id : `${name}-${Date.now()}`;
-            if (!name) {
-              return null;
+            const index = typeof call.index === 'number' ? call.index : 0;
+            const entry = toolCallAccumulator.get(index) ?? { id: '', name: '', arguments: '' };
+            if (typeof call.id === 'string' && call.id.length > 0) {
+              entry.id = call.id;
             }
-            return {
-              id,
-              type: 'function' as const,
-              function: { name, arguments: args },
-            };
-          })
-          .filter((call): call is NonNullable<typeof call> => call !== null);
+            if (isRecord(call.function)) {
+              if (typeof call.function.name === 'string' && call.function.name.length > 0) {
+                entry.name = call.function.name;
+              }
+              if (typeof call.function.arguments === 'string') {
+                entry.arguments += call.function.arguments;
+              }
+            }
+            toolCallAccumulator.set(index, entry);
+          }
+        }
       }
     }
+  } finally {
+    reader.releaseLock();
   }
+
+  const toolCalls = [...toolCallAccumulator.entries()]
+    .sort(([leftIndex], [rightIndex]) => leftIndex - rightIndex)
+    .filter(([, entry]) => entry.name.length > 0)
+    .map(([, entry]) => ({
+      id: entry.id || `${entry.name}-${Date.now()}`,
+      type: 'function' as const,
+      function: { name: entry.name, arguments: entry.arguments || '{}' },
+    }));
 
   return {
     role: 'assistant',
     content,
-    tool_calls: toolCalls,
+    tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
   };
 }
 

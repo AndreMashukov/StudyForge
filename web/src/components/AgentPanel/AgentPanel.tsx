@@ -8,6 +8,11 @@ import React, {
 import { useLocation } from 'react-router-dom';
 import { Bot, Loader2, Send, X } from 'lucide-react';
 import type { AgentScope } from '@shared-types';
+import {
+  agentActionResultSchema,
+  agentProposedDeleteSchema,
+} from '@shared-types';
+import { z } from 'zod';
 import { Button } from '../ui/Button';
 import { Textarea } from '../ui/Textarea';
 import { MarkdownRenderer } from '../MarkdownRenderer';
@@ -39,6 +44,21 @@ type StoredAgentSession = {
   messages: IAgentChatMessage[];
 };
 
+const storedAgentMessageSchema = z.object({
+  id: z.string(),
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+  executedActions: z.array(agentActionResultSchema).optional(),
+  proposedDeletes: z.array(agentProposedDeleteSchema).optional(),
+  statusMessage: z.string().optional(),
+  isStreaming: z.boolean().optional(),
+});
+
+const storedAgentSessionSchema = z.object({
+  threadId: z.string().optional(),
+  messages: z.array(storedAgentMessageSchema),
+});
+
 function createMessageId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -51,18 +71,14 @@ function readStoredSession(scope: AgentScope): StoredAgentSession {
   try {
     const storedSession = window.sessionStorage.getItem(GLOBAL_AGENT_SESSION_STORAGE_KEY);
     if (storedSession) {
-      const parsed = JSON.parse(storedSession) as StoredAgentSession;
-      if (Array.isArray(parsed.messages)) {
+      const parsed = storedAgentSessionSchema.safeParse(JSON.parse(storedSession));
+      if (parsed.success) {
         return {
-          threadId: parsed.threadId,
-          messages: parsed.messages.filter(
-            (message) =>
-              typeof message === 'object' &&
-              message !== null &&
-              typeof message.id === 'string' &&
-              (message.role === 'user' || message.role === 'assistant') &&
-              typeof message.content === 'string',
-          ),
+          threadId: parsed.data.threadId,
+          messages: parsed.data.messages.map((message) => ({
+            ...message,
+            isStreaming: false,
+          })),
         };
       }
     }
@@ -127,9 +143,14 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, loading]);
 
+  const isStreamingMessages = messages.some((message) => message.isStreaming);
+
   useEffect(() => {
+    if (isStreamingMessages) {
+      return;
+    }
     writeStoredSession(scope, { threadId, messages });
-  }, [scope, threadId, messages]);
+  }, [scope, threadId, messages, isStreamingMessages]);
 
   useEffect(() => {
     return () => {

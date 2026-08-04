@@ -129,6 +129,7 @@ if (typeof window !== 'undefined') {
 }
 
 export { appCheckInstance };
+export const firebaseProjectId = firebaseConfig.projectId;
 export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
