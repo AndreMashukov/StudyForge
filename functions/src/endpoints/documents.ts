@@ -639,6 +639,7 @@ export const deleteDocument = onCall(
   { 
     region: 'asia-east1',
     cors: true,
+    memory: '512MiB',
   },
   async (request) => {
     try {

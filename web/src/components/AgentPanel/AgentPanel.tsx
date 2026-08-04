@@ -8,7 +8,7 @@ import React, {
 import { useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 import { Bot, ChevronDown, Send } from 'lucide-react';
-import type { AgentScope } from '@shared-types';
+import type { AgentScope, AgentProposedDelete } from '@shared-types';
 import {
   agentActionResultSchema,
   agentProposedDeleteSchema,
@@ -218,6 +218,38 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
       abortRef.current?.abort();
     };
   }, [scope]);
+
+  const handleDeleteProposalConfirmed = useCallback(
+    (proposal: AgentProposedDelete) => {
+      setMessages((current) =>
+        current.map((message) => {
+          if (!message.proposedDeletes?.length) {
+            return message;
+          }
+
+          const nextProposals = message.proposedDeletes.filter(
+            (entry) =>
+              !(
+                entry.targetType === proposal.targetType &&
+                entry.targetId === proposal.targetId
+              )
+          );
+
+          if (nextProposals.length === message.proposedDeletes.length) {
+            return message;
+          }
+
+          return {
+            ...message,
+            proposedDeletes:
+              nextProposals.length > 0 ? nextProposals : undefined,
+          };
+        })
+      );
+      onMutated?.();
+    },
+    [onMutated]
+  );
 
   const sendMessage = useCallback(
     async (rawMessage: string) => {
@@ -544,7 +576,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
                           <AgentDeleteProposalCard
                             key={`${proposal.targetType}-${proposal.targetId}`}
                             proposal={proposal}
-                            onConfirmed={() => onMutated?.()}
+                            onConfirmed={() => handleDeleteProposalConfirmed(proposal)}
                           />
                         ))}
                       </div>

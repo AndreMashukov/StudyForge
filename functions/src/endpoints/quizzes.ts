@@ -314,6 +314,7 @@ export const getDocumentQuizzes = onCall(
 export const deleteQuiz = onCall(
   {
     cors: true,
+    memory: '512MiB',
   },
   async (request): Promise<ApiResponse<{ success: boolean }>> => {
     try {

@@ -222,6 +222,7 @@ export const updateRuleEndpoint = onCall(
 export const deleteRuleEndpoint = onCall(
   {
     cors: true,
+    memory: '512MiB',
   },
   async (request) => {
     try {
