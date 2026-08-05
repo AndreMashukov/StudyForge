@@ -10,6 +10,7 @@ import {
   DocumentEnhanced, 
   CreateDocumentRequest,
   CreateDocumentFromUrlsRequest,
+  UpdateDocumentRequest,
   DeleteDocumentRequest,
   GenerateFromPromptRequest,
   GenerateFromPromptResponse,
@@ -217,6 +218,20 @@ export const documentsApi = baseApi.injectEndpoints({
       ],
     }),
     
+    updateDocument: builder.mutation<DocumentEnhanced, UpdateDocumentRequest & { documentId: string }>({
+      query: ({ documentId, ...updates }) => ({
+        functionName: 'updateDocument',
+        data: { documentId, updates },
+      }),
+      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) =>
+        response.document,
+      invalidatesTags: (result, error, arg) => [
+        { type: 'Document', id: arg.documentId },
+        'Document',
+        { type: 'Directory', id: 'LIST' },
+      ],
+    }),
+
     deleteDocument: builder.mutation<{ success: boolean }, DeleteDocumentRequest>({
       query: (data) => ({
         functionName: 'deleteDocument',
@@ -322,6 +337,7 @@ export const {
   useUploadAndCreateDocumentMutation,
   useCreateDocumentFromUrlMutation,
   useGenerateFromPromptMutation,
+  useUpdateDocumentMutation,
   useDeleteDocumentMutation,
   useBulkDeleteDocumentsMutation,
   useSearchDocumentsQuery,
