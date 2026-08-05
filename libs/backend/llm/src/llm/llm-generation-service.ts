@@ -1287,6 +1287,8 @@ Include ONLY the listed indexes. Each diagram must be valid Mermaid source.`;
       workflow: routeResolution.workflow,
     });
 
+    // Keep this review lightweight: do not ask the model to rewrite the full
+    // draft. Full rewrites commonly exceed provider timeouts after vision.
     const prompt = `Review this screenshot-derived document draft against the user's prompt and PROMPT rules.
 
 User prompt:
@@ -1295,17 +1297,17 @@ ${userPrompt?.trim() || '(none)'}
 Rules:
 ${rulesText?.trim() || '(none)'}
 
-Draft markdown:
+Draft:
 ${draft}
 
-Respond with JSON only:
-{"passed": true|false, "summary": "short note", "revisedContent": "optional full corrected markdown when fixes are needed"}`;
+Respond with JSON only (no full document rewrite):
+{"passed": true|false, "summary": "short note about rule adherence"}`;
 
     const generationConfig = {
       temperature: 0.2,
       topK: 40,
       topP: 0.95,
-      maxOutputTokens: 16384,
+      maxOutputTokens: 1024,
     };
 
     const text = ctx.usesExternalProvider

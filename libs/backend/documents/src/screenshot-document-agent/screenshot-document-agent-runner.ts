@@ -88,37 +88,61 @@ export async function runScreenshotDocumentAgentPipeline(
 
   if (rulesText?.trim()) {
     const complianceStartMs = Date.now();
-    const compliance = await LlmGenerationService.evaluateScreenshotRuleCompliance(
-      routeResolution,
-      draft,
-      data.prompt,
-      rulesText
-    );
-    recordModelUsage(diagnostics, {
-      role: 'critic',
-      capability: 'documentFromScreenshot',
-      model: routeResolution.route.model,
-      durationMs: Date.now() - complianceStartMs,
-    });
-    diagnostics.criticCycles += 1;
+    try {
+      const compliance = await LlmGenerationService.evaluateScreenshotRuleCompliance(
+        routeResolution,
+        draft,
+        data.prompt,
+        rulesText
+      );
+      recordModelUsage(diagnostics, {
+        role: 'critic',
+        capability: 'documentFromScreenshot',
+        model: routeResolution.route.model,
+        durationMs: Date.now() - complianceStartMs,
+      });
+      diagnostics.criticCycles += 1;
 
-    if (!compliance.passed) {
+      if (!compliance.passed) {
+        diagnostics.residuals.push({
+          gateId: 'ruleCompliance',
+          severity: 'warning',
+          message: compliance.summary || 'Rule compliance review reported issues',
+        });
+
+        if (compliance.revisedContent?.trim()) {
+          draft = compliance.revisedContent;
+          recordModelUsage(diagnostics, {
+            role: 'refiner',
+            capability: 'documentFromScreenshot',
+            model: routeResolution.route.model,
+            durationMs: 0,
+          });
+        }
+      }
+    } catch (error) {
+      // Vision draft already succeeded. Compliance is best-effort and must not
+      // leave the document stuck pending when the critic provider times out.
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn('Screenshot rule compliance review failed; keeping vision draft', {
+        userId: job.userId,
+        jobId: job.id,
+        documentId: job.recordId,
+        error: message,
+        durationMs: Date.now() - complianceStartMs,
+      });
+      diagnostics.criticCycles += 1;
       diagnostics.residuals.push({
         gateId: 'ruleCompliance',
         severity: 'warning',
-        message: compliance.summary || 'Rule compliance review reported issues',
+        message: `Compliance review skipped: ${message}`,
       });
-
-      if (compliance.revisedContent?.trim()) {
-        const refineStartMs = Date.now();
-        draft = compliance.revisedContent;
-        recordModelUsage(diagnostics, {
-          role: 'refiner',
-          capability: 'documentFromScreenshot',
-          model: routeResolution.route.model,
-          durationMs: Date.now() - refineStartMs,
-        });
-      }
+      recordModelUsage(diagnostics, {
+        role: 'critic',
+        capability: 'documentFromScreenshot',
+        model: routeResolution.route.model,
+        durationMs: Date.now() - complianceStartMs,
+      });
     }
   }
 
