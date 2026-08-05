@@ -1,9 +1,11 @@
 import type { GenerationKind } from '@shared-types';
 import { format } from 'date-fns';
 import { Gauge } from 'lucide-react';
+import { cn } from '../../lib/utils';
 import { useGetUsageSummaryQuery } from '../../store/api/Usage/usageApi';
 import { Badge } from '../ui/Badge';
 import { Spinner } from '../ui/Spinner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/Tooltip';
 
 export interface IUsageCreditsMeterProps {
   className?: string;
@@ -26,10 +28,22 @@ export function UsageCreditsMeter({ className }: IUsageCreditsMeterProps) {
   const resetLabel = format(new Date(data.resetAt), 'MMM d');
 
   return (
-    <Badge variant="secondary" className={className} title={`Credits reset on ${resetLabel}`}>
-      <Gauge className="mr-1 h-3.5 w-3.5" aria-hidden />
-      {data.remainingCredits.toLocaleString()} / {data.allowance.toLocaleString()} credits
-    </Badge>
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="secondary"
+            className={cn('cursor-default', className)}
+            tabIndex={0}
+            aria-label={`${data.remainingCredits.toLocaleString()} of ${data.allowance.toLocaleString()} credits remaining. Credits reset on ${resetLabel}.`}
+          >
+            <Gauge className="mr-1 h-3.5 w-3.5" aria-hidden />
+            {data.remainingCredits.toLocaleString()} / {data.allowance.toLocaleString()} credits
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Credits reset on {resetLabel}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -60,14 +74,16 @@ export function UsageActionHint({ kind, quantity = 1 }: IUsageActionHintProps) {
   if (!feature.affordable || (data !== undefined && data.remainingCredits < totalCost)) {
     return (
       <p className="text-sm text-destructive" role="alert">
-        Not enough credits ({totalCost} required, {data?.remainingCredits ?? 0} remaining). Credits reset on {resetLabel}.
+        Not enough credits ({totalCost} required, {data?.remainingCredits ?? 0} remaining). Credits
+        reset on {resetLabel}.
       </p>
     );
   }
 
   return (
     <p className="text-sm text-muted-foreground">
-      Costs {totalCost} credit{totalCost === 1 ? '' : 's'}. {(data?.remainingCredits ?? 0).toLocaleString()} remaining until {resetLabel}.
+      Costs {totalCost} credit{totalCost === 1 ? '' : 's'}.{' '}
+      {(data?.remainingCredits ?? 0).toLocaleString()} remaining until {resetLabel}.
     </p>
   );
 }

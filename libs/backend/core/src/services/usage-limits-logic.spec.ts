@@ -4,7 +4,7 @@ import {
   calculateRemainingCredits,
   createDefaultFeaturePolicies,
   type GenerationKind,
-} from '../../../../shared-types/src/usage-limits';
+} from '@shared-types';
 import {
   evaluateUsageLimitDecision,
   resolveUsageGenerationKind,

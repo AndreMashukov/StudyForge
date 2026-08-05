@@ -324,15 +324,17 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
             ) : null}
           </div>
 
-          <div className="flex flex-col items-end gap-2 border-t border-border p-3 sm:flex-row sm:items-center sm:justify-end">
-            {usageKind ? <UsageActionHint kind={usageKind} /> : null}
+          <div className="flex flex-col items-end gap-2 border-t border-border p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mr-auto min-w-0 sm:mr-0">
+              {usageKind ? <UsageActionHint kind={usageKind} /> : null}
+            </div>
             <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={docCount === 0 || isUsageBlocked}>
-              {generateLabel}
-            </Button>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={docCount === 0 || isUsageBlocked}>
+                {generateLabel}
+              </Button>
             </div>
           </div>
         </form>
