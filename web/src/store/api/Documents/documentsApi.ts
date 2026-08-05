@@ -10,13 +10,10 @@ import {
   DocumentEnhanced, 
   CreateDocumentRequest,
   CreateDocumentFromUrlsRequest,
-  UpdateDocumentRequest,
   DeleteDocumentRequest,
   GenerateFromPromptRequest,
   GenerateFromPromptResponse,
   UploadDocumentRequest,
-  ReviseDocumentWithAIRequest,
-  ReviseDocumentWithAIResponse,
   IBulkDeleteDocumentsRequest,
   IBulkOperationResponse,
 } from "@shared-types";
@@ -220,49 +217,6 @@ export const documentsApi = baseApi.injectEndpoints({
       ],
     }),
     
-    updateDocument: builder.mutation<DocumentEnhanced, UpdateDocumentRequest & { documentId: string }>({
-      query: ({ documentId, ...updates }) => ({
-        functionName: 'updateDocument',
-        data: { documentId, updates },
-      }),
-      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) =>
-        response.document,
-      invalidatesTags: (result, error, arg) => [
-        { type: 'Document', id: arg.documentId },
-      ],
-      async onQueryStarted({ documentId, content }, { dispatch, queryFulfilled }) {
-        const contentPatch =
-          content !== undefined
-            ? dispatch(
-                documentsApi.util.updateQueryData('getDocumentContent', documentId, (draft) => {
-                  draft.content = content;
-                })
-              )
-            : undefined;
-
-        try {
-          await queryFulfilled;
-        } catch {
-          contentPatch?.undo();
-        }
-      },
-    }),
-
-    reviseDocumentWithAI: builder.mutation<
-      ReviseDocumentWithAIResponse,
-      ReviseDocumentWithAIRequest
-    >({
-      query: (data) => ({
-        functionName: 'reviseDocumentWithAI',
-        data,
-        timeout: 300000,
-      }),
-      transformResponse: (response: {
-        success: boolean;
-        data: ReviseDocumentWithAIResponse;
-      }) => response.data,
-    }),
-    
     deleteDocument: builder.mutation<{ success: boolean }, DeleteDocumentRequest>({
       query: (data) => ({
         functionName: 'deleteDocument',
@@ -368,8 +322,6 @@ export const {
   useUploadAndCreateDocumentMutation,
   useCreateDocumentFromUrlMutation,
   useGenerateFromPromptMutation,
-  useUpdateDocumentMutation,
-  useReviseDocumentWithAIMutation,
   useDeleteDocumentMutation,
   useBulkDeleteDocumentsMutation,
   useSearchDocumentsQuery,

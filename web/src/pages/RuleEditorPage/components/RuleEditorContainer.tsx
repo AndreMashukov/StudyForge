@@ -1,24 +1,10 @@
 import React from 'react';
-import { RuleEditorProvider, useRuleEditorContext } from '../context/RuleEditorContext';
+import { RuleEditorProvider } from '../context/RuleEditorContext';
 import { RuleEditorHeader } from './RuleEditorHeader';
 import { RuleFormSection } from './RuleFormSection';
 import { AIAssistantPanel } from './AIAssistantPanel';
-import { Spinner } from '../../../components/ui/Spinner';
 
 const RuleEditorContent: React.FC = () => {
-  const { isLoading } = useRuleEditorContext();
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="text-center">
-          <Spinner size="lg" variant="muted" className="mx-auto" />
-          <p className="mt-4 font-medium text-muted-foreground">Loading rule...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 pb-10">
       <RuleEditorHeader />

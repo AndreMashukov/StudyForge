@@ -5,7 +5,6 @@ interface RulesState {
   // Rule management
   selectedRuleId: string | null;
   isCreatingRule: boolean;
-  isEditingRule: boolean;
   isDeletingRule: boolean;
   
   // Directory settings modal
@@ -29,7 +28,6 @@ interface RulesState {
 const initialState: RulesState = {
   selectedRuleId: null,
   isCreatingRule: false,
-  isEditingRule: false,
   isDeletingRule: false,
   isDirectorySettingsOpen: false,
   selectedDirectoryId: null,
@@ -54,9 +52,6 @@ const rulesSlice = createSlice({
     // Rule CRUD states
     setIsCreatingRule: (state, action: PayloadAction<boolean>) => {
       state.isCreatingRule = action.payload;
-    },
-    setIsEditingRule: (state, action: PayloadAction<boolean>) => {
-      state.isEditingRule = action.payload;
     },
     setIsDeletingRule: (state, action: PayloadAction<boolean>) => {
       state.isDeletingRule = action.payload;
@@ -142,7 +137,6 @@ const rulesSlice = createSlice({
 export const {
   setSelectedRuleId,
   setIsCreatingRule,
-  setIsEditingRule,
   setIsDeletingRule,
   openDirectorySettings,
   closeDirectorySettings,
@@ -169,9 +163,6 @@ export const selectSelectedRuleId = (state: { rules: RulesState }) =>
 
 export const selectIsCreatingRule = (state: { rules: RulesState }) => 
   state.rules.isCreatingRule;
-
-export const selectIsEditingRule = (state: { rules: RulesState }) => 
-  state.rules.isEditingRule;
 
 export const selectIsDeletingRule = (state: { rules: RulesState }) => 
   state.rules.isDeletingRule;

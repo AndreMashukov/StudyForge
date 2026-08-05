@@ -2,10 +2,8 @@ import React from 'react';
 import { AI_REVISION_INSTRUCTION_MAX } from '@shared-types';
 import { MarkdownAIAssistantPanel } from '../../../components/MarkdownAIAssistantPanel';
 import { useAIAssistant } from '../context/hooks/useAIAssistant';
-import { useRuleEditorContext } from '../context/RuleEditorContext';
 
 export const AIAssistantPanel: React.FC = () => {
-  const { mode } = useRuleEditorContext();
   const { aiState, aiResult, aiError, generateWithAI, applyAIResult, discardAIResult } =
     useAIAssistant();
 
@@ -14,7 +12,7 @@ export const AIAssistantPanel: React.FC = () => {
       title="AI Assistant"
       idleDescription="Describe a topic and let AI generate a rule for you."
       instructionPlaceholder="e.g., Code review best practices for Python"
-      generateLabel={mode === 'edit' ? 'Improve with AI' : 'Generate with AI'}
+      generateLabel="Generate with AI"
       generatingLabel="Generating rule with AI..."
       applyLabel="Apply to Form"
       instructionMaxLength={AI_REVISION_INSTRUCTION_MAX}

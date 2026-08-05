@@ -3,7 +3,6 @@ import {
   CreateDocumentRequest,
   CreateDocumentFromUrlsRequest,
   UploadDocumentRequest,
-  UpdateDocumentRequest,
   DeleteDocumentRequest
 } from '@shared-types';
 import { IGetUserDocumentsArgs } from './documentsApi';
@@ -22,7 +21,6 @@ export interface IDocumentsApi {
   createDocument: (data: CreateDocumentRequest) => DocumentEnhanced;
   createDocumentFromUrl: (data: CreateDocumentFromUrlsRequest) => DocumentEnhanced;
   uploadAndCreateDocument: (data: UploadDocumentRequest) => DocumentEnhanced;
-  updateDocument: (data: UpdateDocumentRequest) => DocumentEnhanced;
   deleteDocument: (data: DeleteDocumentRequest) => { success: boolean };
   
   // Search and filter operations

@@ -14,12 +14,10 @@ import {
   FolderInput,
   Loader2,
   AlertCircle,
-  Pencil,
 } from 'lucide-react';
 import { DocumentEnhanced } from '@shared-types';
 import { formatDate } from '../../utils/dateUtils';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +30,6 @@ import { BulkSelectCheckbox } from '../../components/BulkSelectCheckbox';
 import { GenerationInfoTooltip } from '../../components/GenerationInfoTooltip';
 import { getColorRailStyle } from '../../utils/sourceColorRail';
 import { cn } from '../../lib/utils';
-import { useSourceRowTitleEditor } from './hooks/useSourceRowTitleEditor';
 
 interface SourceRowProps {
   document: DocumentEnhanced;
@@ -57,20 +54,6 @@ export const SourceRow: React.FC<SourceRowProps> = ({
   onSelectChange,
   onCreateArtifact,
 }) => {
-  const {
-    isEditingTitle,
-    draftTitle,
-    titleError,
-    isSavingTitle,
-    titleInputRef,
-    startEditingTitle,
-    handleTitleBlur,
-    handleTitleKeyDown,
-    handleDraftTitleChange,
-  } = useSourceRowTitleEditor({
-    documentId: document.id,
-    documentTitle: document.title,
-  });
   const isPending = document.generationStatus === 'pending';
   const isFailed = document.generationStatus === 'failed';
   const colorRailStyle = getColorRailStyle(document.color, document.id);
@@ -157,44 +140,12 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         <FileText size={18} className="shrink-0 text-muted-foreground" />
 
         <div className="flex-1 min-w-0">
-          {isEditingTitle ? (
-            <div className="space-y-1">
-              <Input
-                ref={titleInputRef}
-                value={draftTitle}
-                onChange={(event) => handleDraftTitleChange(event.target.value)}
-                onBlur={handleTitleBlur}
-                onKeyDown={handleTitleKeyDown}
-                disabled={isSavingTitle}
-                aria-label={`Edit name for ${document.title}`}
-                className={cn('h-8 font-medium', titleError && 'border-destructive')}
-              />
-              {titleError && <p className="text-xs text-destructive">{titleError}</p>}
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 min-w-0">
-              <Link
-                to={`/document/${document.id}`}
-                className="font-medium truncate hover:text-primary transition-colors"
-              >
-                {document.title}
-              </Link>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  startEditingTitle();
-                }}
-                aria-label={`Edit name for ${document.title}`}
-              >
-                <Pencil size={13} />
-              </Button>
-            </div>
-          )}
+          <Link
+            to={`/document/${document.id}`}
+            className="font-medium truncate hover:text-primary transition-colors block"
+          >
+            {document.title}
+          </Link>
           <div className="text-xs text-muted-foreground">
             {document.wordCount} words · {formatDate(document.createdAt)}
           </div>

@@ -396,7 +396,6 @@ export const RulesPageContainer = () => {
                   <RuleCard
                     key={rule.id}
                     rule={rule}
-                    onEdit={handlers.handleEditRule}
                     onDelete={handlers.handleDeleteRule}
                     viewMode={viewMode}
                     selected={selection.isSelected(rule.id)}
@@ -418,7 +417,6 @@ export const RulesPageContainer = () => {
                   <RuleCard
                     key={rule.id}
                     rule={rule}
-                    onEdit={handlers.handleEditRule}
                     onDelete={handlers.handleDeleteRule}
                     viewMode={viewMode}
                     selected={selection.isSelected(rule.id)}

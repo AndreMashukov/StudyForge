@@ -36,7 +36,6 @@ export const DirectorySettingsModal = ({
 }: IDirectorySettingsModal) => {
   const { showToast } = useToast();
   const [attachModalOpen, setAttachModalOpen] = useState(false);
-  const [editRuleId, setEditRuleId] = useState<string | null>(null);
   const [createRuleModalOpen, setCreateRuleModalOpen] = useState(false);
 
   // Fetch rules directly attached to this directory (not cascading)
@@ -77,10 +76,6 @@ export const DirectorySettingsModal = ({
     } catch {
       // Error is shown via the global errorToastMiddleware toast
     }
-  };
-
-  const handleEditRule = (ruleId: string) => {
-    setEditRuleId(ruleId);
   };
 
   const getApplicabilityBadges = (applicableTo: RuleApplicability[]) => {
@@ -211,11 +206,6 @@ export const DirectorySettingsModal = ({
                             View Details
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleEditRule(rule.id)}
-                          >
-                            Edit Rule
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
                             onClick={() => handleToggleDefault(rule)}
                             disabled={isUpdating}
                           >
@@ -287,19 +277,6 @@ export const DirectorySettingsModal = ({
           setCreateRuleModalOpen(true);
         }}
       />
-
-      {/* Edit Rule Modal */}
-      {editRuleId && (
-        <RuleFormModal
-          ruleId={editRuleId}
-          open={!!editRuleId}
-          onClose={() => setEditRuleId(null)}
-          onSuccess={() => {
-            setEditRuleId(null);
-            // Rules will auto-refresh via RTK Query cache invalidation
-          }}
-        />
-      )}
 
       {/* Create New Rule Modal */}
       <RuleFormModal

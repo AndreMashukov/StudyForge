@@ -2,10 +2,7 @@ import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { TocItem, exportToPDF } from '../../../../components/MarkdownRenderer';
 import { downloadMarkdownFile } from '../../../../utils/downloadUtils';
-import {
-  AI_REVISION_EXISTING_CONTENT_MAX,
-  DocumentEnhanced,
-} from '@shared-types';
+import { DocumentEnhanced } from '@shared-types';
 import {
   setTocItems,
   toggleToc,
@@ -14,20 +11,8 @@ import {
   setQuestionAsking,
   setQuestionAnswer,
   setQuestionError,
-  setEditAiState,
-  setEditPreviewContent,
-  setEditError,
-  setIsApplyingRevision,
-  resetEditPanelState,
-  resetEditPreview,
-  selectEditPreviewContent,
 } from '../../../../store/slices/documentViewerPageSlice';
 import { useAskDocumentQuestionMutation } from '../../../../store/api/DocumentQuestion/DocumentQuestionApi';
-import {
-  useReviseDocumentWithAIMutation,
-  useUpdateDocumentMutation,
-} from '../../../../store/api/Documents/documentsApi';
-import { useToast } from '../../../../components/Toast';
 
 interface UseDocumentViewerPageHandlersProps {
   document: DocumentEnhanced | undefined;
@@ -41,12 +26,8 @@ export const useDocumentViewerPageHandlers = ({
   content,
 }: UseDocumentViewerPageHandlersProps) => {
   const dispatch = useDispatch();
-  const { showToast } = useToast();
   const isExporting = useSelector(selectIsExporting);
-  const editPreviewContent = useSelector(selectEditPreviewContent);
   const [askDocumentQuestion] = useAskDocumentQuestionMutation();
-  const [reviseDocumentWithAI] = useReviseDocumentWithAIMutation();
-  const [updateDocument] = useUpdateDocumentMutation();
 
   const handleTocGenerated = useCallback(
     (toc: TocItem[]) => {
@@ -129,69 +110,6 @@ export const useDocumentViewerPageHandlers = ({
     [dispatch, askDocumentQuestion, document]
   );
 
-  const handleReviseWithAI = useCallback(
-    async (instruction: string) => {
-      if (!document || !content) return;
-
-      if (content.length > AI_REVISION_EXISTING_CONTENT_MAX) {
-        dispatch(
-          setEditError(
-            `Document content must be ${AI_REVISION_EXISTING_CONTENT_MAX.toLocaleString()} characters or less.`
-          )
-        );
-        dispatch(setEditAiState('error'));
-        return;
-      }
-
-      dispatch(setEditAiState('generating'));
-      dispatch(setEditError(null));
-
-      try {
-        const result = await reviseDocumentWithAI({
-          documentId: document.id,
-          instruction,
-        }).unwrap();
-
-        dispatch(setEditPreviewContent(result.content));
-        dispatch(setEditAiState('done'));
-      } catch (error) {
-        const errorMessage =
-          (error as { data?: { message?: string } })?.data?.message ||
-          'Failed to revise document with AI.';
-        dispatch(setEditError(errorMessage));
-        dispatch(setEditAiState('error'));
-      }
-    },
-    [content, dispatch, document, reviseDocumentWithAI]
-  );
-
-  const handleApplyRevision = useCallback(async () => {
-    if (!document || !editPreviewContent) return;
-
-    dispatch(setIsApplyingRevision(true));
-
-    try {
-      await updateDocument({
-        documentId: document.id,
-        content: editPreviewContent,
-      }).unwrap();
-
-      dispatch(resetEditPanelState());
-      showToast('Document updated successfully', 'success');
-    } catch (error) {
-      const errorMessage =
-        (error as { data?: { message?: string } })?.data?.message ||
-        'Failed to save revised document.';
-      showToast(errorMessage, 'error');
-    } finally {
-      dispatch(setIsApplyingRevision(false));
-    }
-  }, [dispatch, document, editPreviewContent, showToast, updateDocument]);
-
-  const handleDiscardRevision = useCallback(() => {
-    dispatch(resetEditPreview());
-  }, [dispatch]);
-
   return {
     handleTocGenerated,
     handleExportPDF,
@@ -199,9 +117,6 @@ export const useDocumentViewerPageHandlers = ({
     handleToggleToc,
     handleTocItemClick,
     handleAskDocumentQuestion,
-    handleReviseWithAI,
-    handleApplyRevision,
-    handleDiscardRevision,
     isExporting,
   };
 };

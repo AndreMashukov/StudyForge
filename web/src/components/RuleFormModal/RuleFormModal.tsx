@@ -14,19 +14,13 @@ import { Textarea } from "../ui/Textarea";
 import { Checkbox } from "../ui/Checkbox";
 import { Badge } from "../ui/Badge";
 import { X } from "lucide-react";
-import {
-  useGetRuleQuery,
-  useCreateRuleMutation,
-  useUpdateRuleMutation,
-} from "../../store/api/Rules/rulesApi";
-import { RuleFormSkeleton } from "../LoadingSkeletons";
+import { useCreateRuleMutation } from "../../store/api/Rules/rulesApi";
 import { useToast } from "../Toast";
 import { IRuleFormModal } from "./IRuleFormModal";
 import { RuleApplicability, RuleColor, CreateRuleRequest } from "@shared-types";
 import { cn } from "../../lib/utils";
 import { z } from "zod";
 
-// Zod validation schema
 const ruleFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
@@ -44,23 +38,13 @@ const ruleFormSchema = z.object({
 type RuleFormData = z.infer<typeof ruleFormSchema>;
 
 export const RuleFormModal = ({
-  ruleId,
   open,
   onClose,
   onSuccess,
 }: IRuleFormModal) => {
-  const isEditMode = !!ruleId;
   const { showToast } = useToast();
-
-  // Fetch existing rule for edit mode
-  const { data: existingRule } = useGetRuleQuery(ruleId ?? '', {
-    skip: !isEditMode || !open,
-  });
-
   const [createRule, { isLoading: isCreating }] = useCreateRuleMutation();
-  const [updateRule, { isLoading: isUpdating }] = useUpdateRuleMutation();
 
-  // Form state
   const [formData, setFormData] = useState<RuleFormData>({
     name: "",
     description: "",
@@ -75,22 +59,6 @@ export const RuleFormModal = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPreview, setShowPreview] = useState(false);
 
-  // Load existing rule data in edit mode
-  useEffect(() => {
-    if (existingRule && isEditMode) {
-      setFormData({
-        name: existingRule.name,
-        description: existingRule.description || "",
-        content: existingRule.content,
-        color: existingRule.color,
-        tags: existingRule.tags,
-        applicableTo: existingRule.applicableTo,
-        isDefault: existingRule.isDefault,
-      });
-    }
-  }, [existingRule, isEditMode]);
-
-  // Reset form when modal closes
   useEffect(() => {
     if (!open) {
       setFormData({
@@ -111,7 +79,6 @@ export const RuleFormModal = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate with Zod
     try {
       ruleFormSchema.parse(formData);
       setErrors({});
@@ -130,18 +97,9 @@ export const RuleFormModal = ({
     }
 
     try {
-      if (isEditMode && ruleId) {
-        const updatedRule = await updateRule({
-          ruleId,
-          ...formData,
-        }).unwrap();
-        showToast(`Rule "${formData.name}" updated successfully`, "success");
-        onSuccess?.(updatedRule);
-      } else {
-        const newRule = await createRule(formData as CreateRuleRequest).unwrap();
-        showToast(`Rule "${formData.name}" created successfully`, "success");
-        onSuccess?.(newRule);
-      }
+      const newRule = await createRule(formData as CreateRuleRequest).unwrap();
+      showToast(`Rule "${formData.name}" created successfully`, "success");
+      onSuccess?.(newRule);
       onClose();
     } catch {
       // Error is shown via the global errorToastMiddleware toast
@@ -189,26 +147,15 @@ export const RuleFormModal = ({
     { value: RuleColor.GRAY, label: "Gray", class: "bg-gray-500" },
   ];
 
-  // Loading state for edit mode
-  const isLoadingRule = isEditMode && !existingRule && open;
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {isEditMode ? "Edit Rule" : "Create New Rule"}
-          </DialogTitle>
+          <DialogTitle>Create New Rule</DialogTitle>
         </DialogHeader>
 
-        {isLoadingRule ? (
-          <DialogBody>
-            <RuleFormSkeleton />
-          </DialogBody>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <DialogBody className="space-y-6">
-            {/* Rule Name */}
+        <form onSubmit={handleSubmit}>
+          <DialogBody className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="name">
                 Rule Name <span className="text-destructive">*</span>
@@ -227,7 +174,6 @@ export const RuleFormModal = ({
               )}
             </div>
 
-            {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">Description (Optional)</Label>
               <Input
@@ -243,7 +189,6 @@ export const RuleFormModal = ({
               />
             </div>
 
-            {/* Applies To */}
             <div className="space-y-2">
               <Label>
                 Applies To <span className="text-destructive">*</span>
@@ -274,7 +219,6 @@ export const RuleFormModal = ({
               )}
             </div>
 
-            {/* Color Picker */}
             <div className="space-y-2">
               <Label>
                 Color <span className="text-destructive">*</span>
@@ -301,7 +245,6 @@ export const RuleFormModal = ({
               </div>
             </div>
 
-            {/* Tags */}
             <div className="space-y-2">
               <Label htmlFor="tags">Tags (Press Enter to add)</Label>
               <div className="space-y-2">
@@ -335,7 +278,6 @@ export const RuleFormModal = ({
               </div>
             </div>
 
-            {/* Rule Content */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="content">
@@ -382,7 +324,6 @@ export const RuleFormModal = ({
               </div>
             </div>
 
-            {/* Always apply checkbox */}
             <Checkbox
               id="isDefault"
               checked={formData.isDefault}
@@ -391,26 +332,17 @@ export const RuleFormModal = ({
               }
               label="Always apply"
             />
-
           </DialogBody>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={isCreating || isUpdating}
-            >
-              {isCreating || isUpdating
-                ? "Saving..."
-                : isEditMode
-                ? "Update Rule"
-                : "Create Rule"}
+            <Button type="submit" disabled={isCreating}>
+              {isCreating ? "Saving..." : "Create Rule"}
             </Button>
           </DialogFooter>
         </form>
-        )}
       </DialogContent>
     </Dialog>
   );
