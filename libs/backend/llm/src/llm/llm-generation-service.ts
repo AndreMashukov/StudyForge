@@ -1274,7 +1274,7 @@ Include ONLY the listed indexes. Each diagram must be valid Mermaid source.`;
     draft: string,
     userPrompt?: string,
     rulesText?: string,
-  ): Promise<{ passed: boolean; summary?: string; revisedContent?: string }> {
+  ): Promise<{ passed: boolean; summary?: string }> {
     const ctx: TextRouteContext = {
       resolution: routeResolution,
       usesExternalProvider: routeResolution.route.providerType !== 'gemini',
@@ -1287,8 +1287,7 @@ Include ONLY the listed indexes. Each diagram must be valid Mermaid source.`;
       workflow: routeResolution.workflow,
     });
 
-    // Keep this review lightweight: do not ask the model to rewrite the full
-    // draft. Full rewrites commonly exceed provider timeouts after vision.
+    // Keep this review lightweight. Full rewrites happen in a separate refine pass.
     const prompt = `Review this screenshot-derived document draft against the user's prompt and PROMPT rules.
 
 User prompt:
@@ -1331,17 +1330,11 @@ Respond with JSON only (no full document rewrite):
       const parsed = JSON.parse(jsonMatch[0]) as {
         passed?: boolean;
         summary?: string;
-        revisedContent?: string;
       };
       return {
         passed: parsed.passed !== false,
         summary:
           typeof parsed.summary === 'string' ? parsed.summary : undefined,
-        revisedContent:
-          typeof parsed.revisedContent === 'string' &&
-          parsed.revisedContent.trim()
-            ? parsed.revisedContent
-            : undefined,
       };
     } catch {
       return {
@@ -1349,5 +1342,57 @@ Respond with JSON only (no full document rewrite):
         summary: 'Compliance review JSON parse failed; keeping draft',
       };
     }
+  }
+
+  static async refineScreenshotDocumentForRules(
+    routeResolution: GenerationRouteResolution,
+    draft: string,
+    rulesText: string,
+    complianceSummary?: string,
+    userPrompt?: string,
+  ): Promise<string> {
+    const ctx: TextRouteContext = {
+      resolution: routeResolution,
+      usesExternalProvider: routeResolution.route.providerType !== 'gemini',
+    };
+
+    const prompt = `Rewrite the screenshot-derived draft so it FULLY satisfies the Domain Rules.
+
+User prompt:
+${userPrompt?.trim() || '(none)'}
+
+Domain Rules:
+${rulesText.trim()}
+
+Compliance findings to fix:
+${complianceSummary?.trim() || '(rules were not satisfied)'}
+
+Current draft:
+${draft}
+
+Requirements:
+- Output ONLY the corrected HTML fragment (no JSON, no preamble).
+- Apply Domain Rules to all Chinese/prose content that requires transformation.
+- Preserve code blocks and non-Chinese technical tokens as-is.
+- Do NOT invent a comprehensive learning guide, glossary, or tutorial unless Domain Rules ask for it.
+- Do NOT include Mermaid, Plotly, or LaTeX unless Domain Rules ask for them.`;
+
+    const generationConfig = {
+      temperature: 0.3,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 16384,
+    };
+
+    const text = ctx.usesExternalProvider
+      ? await generateExternalProviderText(
+          ctx,
+          prompt,
+          { model: ctx.resolution.route.model, ...generationConfig },
+          'Screenshot rule refine',
+        )
+      : await GeminiService.generateContent(prompt, generationConfig);
+
+    return GeminiService.sanitizeDocumentResponse(stripCodeFences(text));
   }
 }

@@ -110,13 +110,38 @@ export async function runScreenshotDocumentAgentPipeline(
           message: compliance.summary || 'Rule compliance review reported issues',
         });
 
-        if (compliance.revisedContent?.trim()) {
-          draft = compliance.revisedContent;
+        const refineStartMs = Date.now();
+        try {
+          const refined = await LlmGenerationService.refineScreenshotDocumentForRules(
+            routeResolution,
+            draft,
+            rulesText,
+            compliance.summary,
+            data.prompt
+          );
+          if (refined.trim()) {
+            draft = refined;
+          }
           recordModelUsage(diagnostics, {
             role: 'refiner',
             capability: 'documentFromScreenshot',
             model: routeResolution.route.model,
-            durationMs: 0,
+            durationMs: Date.now() - refineStartMs,
+          });
+        } catch (refineError) {
+          const refineMessage =
+            refineError instanceof Error ? refineError.message : String(refineError);
+          logger.warn('Screenshot rule refine failed; keeping vision draft', {
+            userId: job.userId,
+            jobId: job.id,
+            documentId: job.recordId,
+            error: refineMessage,
+            durationMs: Date.now() - refineStartMs,
+          });
+          diagnostics.residuals.push({
+            gateId: 'ruleRefine',
+            severity: 'warning',
+            message: `Rule refine skipped: ${refineMessage}`,
           });
         }
       }
