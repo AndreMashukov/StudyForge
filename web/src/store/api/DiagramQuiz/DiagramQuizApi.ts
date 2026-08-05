@@ -30,6 +30,7 @@ export const diagramQuizApi = baseApi.injectEndpoints({
         successMessage: 'Diagram quiz generation started — it will appear when ready',
       }),
       invalidatesTags: (result, error, arg) => [
+        'UsageSummary',
         'UserDiagramQuizzes',
         ...(arg.directoryId
           ? ([{ type: 'Directory' as const, id: arg.directoryId }] as const)

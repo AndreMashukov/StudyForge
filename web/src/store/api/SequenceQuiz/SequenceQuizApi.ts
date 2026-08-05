@@ -30,6 +30,7 @@ export const sequenceQuizApi = baseApi.injectEndpoints({
         successMessage: 'Sequence quiz is preparing',
       }),
       invalidatesTags: (result, error, arg) => [
+        'UsageSummary',
         'UserSequenceQuizzes',
         ...(arg.directoryId
           ? ([{ type: 'Directory' as const, id: arg.directoryId }] as const)

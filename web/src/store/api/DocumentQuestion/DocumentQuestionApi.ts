@@ -12,7 +12,7 @@ export const documentQuestionApi = baseApi.injectEndpoints({
         data,
         timeout: 300000,
       }),
-      invalidatesTags: [],
+      invalidatesTags: ['UsageSummary'],
     }),
   }),
 });

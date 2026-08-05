@@ -30,6 +30,7 @@ export const quizApi = baseApi.injectEndpoints({
         successMessage: 'Quiz is preparing',
       }),
       invalidatesTags: (result, error, arg) => [
+        'UsageSummary',
         'UserQuizzes',
         ...(arg.directoryId
           ? ([{ type: 'Directory' as const, id: arg.directoryId }] as const)

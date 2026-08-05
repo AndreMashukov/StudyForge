@@ -27,6 +27,7 @@ export const slideDecksApi = baseApi.injectEndpoints({
         successMessage: 'Slide deck is preparing',
       }),
       invalidatesTags: (result, error, arg) => [
+        'UsageSummary',
         'UserSlideDecks',
         ...(arg.directoryId
           ? [{ type: 'Directory' as const, id: arg.directoryId }]
