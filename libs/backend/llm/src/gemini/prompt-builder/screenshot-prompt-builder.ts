@@ -13,10 +13,9 @@ export class ScreenshotPromptBuilder {
 
     const defaultBehaviorSection = hasRules
       ? `**DEFAULT BEHAVIOR** (used only when Domain Rules and User Instructions do not specify otherwise):
-- Extract visible text/code from the screenshot.
-- Immediately apply Domain Rules to that content. Extraction alone is not enough.
-- If Domain Rules require annotated text / Jyutping / translations, every applicable Chinese sentence MUST use that format in the output.
-- Preserve code blocks and non-Chinese tokens; transform the prose according to Domain Rules.
+- Extract visible content from the screenshot.
+- Apply Domain Rules to that content. Plain extraction is not enough when Domain Rules define a different output format.
+- Preserve code blocks and other content Domain Rules say to leave unchanged.
 - Do NOT invent a comprehensive learning guide, glossary, or tutorial unless Domain Rules ask for it.
 - Do NOT wrap the entire response in a code block.`
       : `**DEFAULT BEHAVIOR**:
@@ -32,7 +31,7 @@ export class ScreenshotPromptBuilder {
 ---
 ${rules.trim()}
 ---
-If these rules describe a text transformation (for example Cantonese annotation), the output MUST be the transformed annotated content, not a plain OCR extract.`
+Follow these rules exactly. If they define a transformation or output format, produce that result — not a plain OCR extract.`
       : '';
 
     const userSection = hasUserPrompt
