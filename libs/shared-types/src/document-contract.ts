@@ -97,7 +97,9 @@ export function buildHtmlScreenshotDocumentPrompt({
 
   const defaultBehaviorSection = hasRules
     ? `**DEFAULT BEHAVIOR** (used only when Domain Rules and User Instructions do not specify otherwise):
-- Extract visible text, preserving headings, lists, tables, and code blocks as HTML.
+- Extract visible text from the screenshot.
+- Transform that extracted content according to the Domain Rules.
+- Do NOT invent a comprehensive learning guide, glossary, or tutorial unless Domain Rules ask for it.
 - Do NOT wrap the entire response in a code block.`
     : `**DEFAULT BEHAVIOR**:
 - Extract ALL visible text, preserving headings, paragraphs, lists, tables, and code blocks as HTML.
@@ -106,7 +108,7 @@ export function buildHtmlScreenshotDocumentPrompt({
 - Start with a descriptive H1 heading summarizing the screenshot content.`;
 
   const rulesSection = hasRules
-    ? `**DOMAIN RULES** (override Default Behavior for format, structure, tone, and scope when they conflict):
+    ? `**DOMAIN RULES** (primary task — override Default Behavior for format, structure, tone, and scope):
 ---
 ${rules?.trim()}
 ---`
@@ -129,15 +131,17 @@ ${userPrompt?.trim()}`
 }
 
 export function buildHtmlDocumentPrompt(userPrompt: string, rules?: string): string {
-  const rulesSection = rules?.trim()
-    ? `**DOMAIN RULES** (customise style, tone, or domain focus — do not change the output format requirements below):
+  const hasRules = !!rules?.trim();
+  const rulesSection = hasRules
+    ? `**DOMAIN RULES** (primary task and output structure — follow these over generic learning-document defaults):
 ---
 ${rules}
 ---`
     : '';
 
-  const personaSection =
-    'You are an expert content generator. Generate comprehensive, well-structured content based on the user\'s request.';
+  const personaSection = hasRules
+    ? 'You are an expert content generator. Apply the Domain Rules to the user\'s request. Do not invent a comprehensive learning guide, glossary, or tutorial unless the Domain Rules ask for it.'
+    : 'You are an expert content generator. Generate comprehensive, well-structured content based on the user\'s request.';
 
   const userSection = `**User's Request:**
 ${userPrompt}`;

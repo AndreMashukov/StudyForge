@@ -60,8 +60,8 @@ Extracted source material:
 ${payload.sourceText || ''}`;
     case 'screenshot':
       return payload.prompt?.trim()
-        ? `Create a comprehensive learning document from the screenshot image. Additional instructions: ${payload.prompt.trim()}`
-        : 'Create a comprehensive learning document from the screenshot image.';
+        ? `Process the screenshot content. Additional instructions: ${payload.prompt.trim()}`
+        : 'Process the screenshot content according to the Domain Rules when present; otherwise extract the visible content as an HTML fragment.';
     case 'content':
       return `Transform the following source content into a comprehensive StudyForge learning document:
 
