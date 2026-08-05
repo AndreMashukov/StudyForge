@@ -41,7 +41,15 @@ export function UsageCreditsMeter({ className }: IUsageCreditsMeterProps) {
             {data.remainingCredits.toLocaleString()} / {data.allowance.toLocaleString()} credits
           </Badge>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Credits reset on {resetLabel}</TooltipContent>
+        <TooltipContent
+          side="bottom"
+          align="end"
+          sideOffset={8}
+          collisionPadding={8}
+          className="z-[1200]"
+        >
+          Credits reset on {resetLabel}
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
