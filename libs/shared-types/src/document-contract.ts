@@ -73,29 +73,7 @@ export const SEALED_HTML_OUTPUT_CONTRACT_LINES = [
   `- Do NOT include external stylesheets or inline ${DISALLOWED_HTML_ATTRIBUTES.join(', ')} attributes.`,
   '- Use semantic headings and paragraphs for readable structure.',
   '- Prefer <pre><code class="language-…"> for code samples and <ul>/<ol> for lists.',
-  '- When a diagram helps explain the topic, include Mermaid diagrams as:',
-  '  <pre><code class="language-mermaid">flowchart TD',
-  '    A["🖥️ Client"] --> B["⚙️ API"]',
-  '    style A fill:#1e3a5f,color:#ffffff',
-  '    style B fill:#dbeafe,color:#0f172a',
-  '  </code></pre>',
-  `- Use only supported Mermaid types: ${MERMAID_DIAGRAM_PREFIXES.slice(0, 5).join(', ')}, or stateDiagram.`,
-  '- Keep diagrams compact; avoid bare /, \\, or @ inside square-bracket node labels.',
-  '- NEVER use 4-space indentation for Mermaid — always use the language-mermaid pre/code form above.',
-  '- Color diagram nodes/subgraphs differently with style or classDef so roles and stages are visually distinct.',
-  '- When setting fill:, ALWAYS also set color: so label text contrasts with the background (dark fill → light text; light fill → dark text).',
-  '- Add relevant emojis to diagram element labels for clarity and engagement.',
-  '- For mathematical formulas, write LaTeX in normal HTML text (not fenced code blocks).',
-  '- Inline math: wrap in $...$ or \\(...\\). Display math: wrap in $$...$$ or \\[...\\].',
-  '- Use single backslashes in TeX commands (e.g. \\frac{a}{b}, \\alpha, \\sum).',
-  '- Do NOT include KaTeX/MathJax CDN scripts, stylesheets, or <script> tags — the viewer renders math.',
-  '- When a 2D/3D graph helps explain the topic, include Plotly figures as:',
-  '  <pre><code class="language-plotly">{"data":[{"type":"scatter","mode":"lines","x":[0,1],"y":[0,1]}],"layout":{"title":"Example"}}</code></pre>',
-  `- Allowed Plotly trace types: ${PLOTLY_ALLOWED_TRACE_TYPES.join(', ')}.`,
-  '- Plotly JSON must be a single object with a non-empty data array; layout/config are optional.',
-  '- Omit paper_bgcolor, plot_bgcolor, and font/axis theme colors in Plotly layout - the viewer always applies the app dark theme.',
-  '- Prefer compact numeric arrays (do not dump thousands of points). For circles/curves sample ~32–64 points.',
-  '- Do NOT include Plotly CDN scripts or stylesheets — the viewer renders graphs.',
+  '- Do NOT include Mermaid diagrams, Plotly graphs, or mathematical LaTeX unless a selected domain rule explicitly asks for them.',
 ] as const;
 
 export function buildSealedHtmlOutputContract(): string {
@@ -120,11 +98,9 @@ export function buildHtmlScreenshotDocumentPrompt({
   const defaultBehaviorSection = hasRules
     ? `**DEFAULT BEHAVIOR** (used only when Domain Rules and User Instructions do not specify otherwise):
 - Extract visible text, preserving headings, lists, tables, and code blocks as HTML.
-- Briefly describe diagrams, charts, or UI elements when relevant.
 - Do NOT wrap the entire response in a code block.`
     : `**DEFAULT BEHAVIOR**:
 - Extract ALL visible text, preserving headings, paragraphs, lists, tables, and code blocks as HTML.
-- Describe diagrams, charts, or visual elements when relevant using HTML and language-mermaid blocks where appropriate.
 - Preserve the hierarchical structure of the content.
 - If the screenshot shows a UI, describe the interface, its purpose, and its components.
 - Start with a descriptive H1 heading summarizing the screenshot content.`;

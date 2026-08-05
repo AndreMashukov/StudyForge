@@ -191,8 +191,9 @@ export async function critiqueRulesAdherence(
 
 PLATFORM CONTRACT (overrides conflicting rule text):
 - The output is an HTML fragment only. Do NOT require <html>, <head>, or <body>.
-- Do NOT require KaTeX, MathJax, or Plotly CDN <script>/<link>/<style> tags. The StudyForge viewer renders LaTeX ($...$, $$...$$, \\(...\\), \\[...\\]) and language-plotly / language-mermaid blocks client-side.
-- Script/style/link tags are forbidden. Prefer language-plotly JSON blocks for graphs and LaTeX delimiters for formulas.
+- Do NOT require CDN <script>/<link>/<style> tags.
+- Script/style/link tags are forbidden.
+- Do NOT require Mermaid, Plotly, or LaTeX unless a selected rule explicitly asks for them.
 - When selected rules prescribe incompatible document structures or length targets, prefer the most specific domain/format rule that matches the user request (for example Linear Algebra Learning Document Format over generic Doc HTML Format section names/length, and over Brief How-To Format for explanatory learning docs). Still enforce compatible HTML purity constraints from Doc HTML Format (fragment-only, no conversational filler).
 
 User request:
@@ -206,7 +207,7 @@ ${htmlFragment}
 
 Instructions:
 - Judge semantic adherence, not just keyword presence.
-- Examples of failures: missing required Mermaid/Plotly blocks when clearly required, wrong tone, missing required sections/topics for the winning structure rule, using forbidden phrasing/style, ignoring formatting instructions in the rules.
+- Examples of failures: missing Mermaid/Plotly/LaTeX when a selected rule clearly requires them, adding Mermaid/Plotly/LaTeX when no selected rule asks for them, wrong tone, missing required sections/topics for the winning structure rule, using forbidden phrasing/style, ignoring formatting instructions in the rules.
 - Do NOT fail Web Math Formula Rendering merely because KaTeX/MathJax CDN tags are absent when LaTeX delimiters are present.
 - Do NOT fail Web Graph Rendering merely because Plotly CDN tags are absent when a language-plotly block is present.
 - Short pedagogical framing in learning docs is allowed (for example a one-sentence purpose statement). Only fail Doc HTML Format for clear non-document chatter such as "Sure, here is your document" or assistant meta-commentary about the generation process.
