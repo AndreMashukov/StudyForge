@@ -60,6 +60,8 @@ export interface GenerationJob {
   attempts: number;
   /** Present when kind is artifactAgent — selects the pending record collection. */
   artifactKind?: ArtifactKind;
+  /** Credit reservation created before the job was enqueued. */
+  usageReservationId?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
   startedAt?: Timestamp;
@@ -164,6 +166,8 @@ export function parseGenerationJob(id: string, data: unknown): GenerationJob | n
     typeof data.artifactKind === 'string' && isArtifactKind(data.artifactKind)
       ? data.artifactKind
       : undefined;
+  const usageReservationId =
+    typeof data.usageReservationId === 'string' ? data.usageReservationId : undefined;
 
   return {
     id,
@@ -175,6 +179,7 @@ export function parseGenerationJob(id: string, data: unknown): GenerationJob | n
     payloadStoragePath: data.payloadStoragePath,
     attempts: data.attempts,
     ...(artifactKind ? { artifactKind } : {}),
+    ...(usageReservationId ? { usageReservationId } : {}),
     ...(createdAt.value ? { createdAt: createdAt.value } : {}),
     ...(updatedAt.value ? { updatedAt: updatedAt.value } : {}),
     ...(startedAt.value ? { startedAt: startedAt.value } : {}),
@@ -194,6 +199,7 @@ export interface CreateGenerationJobParams {
   recordId: string;
   payloadStoragePath: string;
   artifactKind?: ArtifactKind;
+  usageReservationId?: string;
 }
 
 export type ClaimJobForProcessingResult =
@@ -263,6 +269,7 @@ export class GenerationJobsService {
       payloadStoragePath: params.payloadStoragePath,
       attempts: 0,
       ...(params.artifactKind ? { artifactKind: params.artifactKind } : {}),
+      ...(params.usageReservationId ? { usageReservationId: params.usageReservationId } : {}),
     };
 
     const jobRef = FirestorePaths.generationJob(params.userId, params.jobId);

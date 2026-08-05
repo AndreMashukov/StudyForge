@@ -10,6 +10,7 @@ const MAX_SCREENSHOT_BASE64_LENGTH = 14_000_000;
 export interface ScreenshotEnqueueInput extends GenerateFromScreenshotRequest {
   userId: string;
   pendingDocumentId: string;
+  usageReservationId?: string;
 }
 
 export interface ScreenshotEnqueueResult {
@@ -48,6 +49,7 @@ export class ScreenshotDocumentGenerationService {
       directoryId,
       recordId: input.pendingDocumentId,
       payloadStoragePath,
+      usageReservationId: input.usageReservationId,
     });
 
     await enqueueGenerationJobTask({ userId, jobId });

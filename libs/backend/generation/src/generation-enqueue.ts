@@ -9,6 +9,8 @@ export interface EnqueueGenerationJobParams {
   recordId: string;
   kind: GenerationJobKind;
   payload: unknown;
+  artifactKind?: import('@shared-types').ArtifactKind;
+  usageReservationId?: string;
 }
 
 export async function enqueueGenerationJob(params: EnqueueGenerationJobParams): Promise<string> {
@@ -26,6 +28,8 @@ export async function enqueueGenerationJob(params: EnqueueGenerationJobParams): 
     directoryId: params.directoryId,
     recordId: params.recordId,
     payloadStoragePath,
+    artifactKind: params.artifactKind,
+    usageReservationId: params.usageReservationId,
   });
 
   await enqueueGenerationJobTask({ userId: params.userId, jobId });

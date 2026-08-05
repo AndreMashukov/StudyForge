@@ -4,7 +4,10 @@ import { defineSecret } from "firebase-functions/params";
 import { validateContentForArtifactGeneration } from '@study-forge/backend-llm/llm';
 import { getGenerationFailureEnvelope } from '@study-forge/backend-llm/llm/llm-endpoint-error';
 import { mapErrorToArtifactEnvelope } from '@study-forge/backend-core/lib/callable-error';
-import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import {
+  enforceCallableGenerationLimits,
+  refundUsageReservationSafe,
+} from '@study-forge/backend-generation/generation-limits';
 import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { directoryService } from '@study-forge/backend-directories/directory';
@@ -13,6 +16,7 @@ import {
 } from '@study-forge/backend-directories/rule-resolution';
 import {
   createPendingDiagramQuiz,
+  failPendingDiagramQuiz,
 } from '@study-forge/backend-artifacts/artifact-generation-records';
 import { GenerationJobPayloadStorage } from "@study-forge/backend-generation/generation-job-payload-storage";
 import { GenerationJobsService } from '@study-forge/backend-generation/generation-jobs';
@@ -57,7 +61,8 @@ export const generateDiagramQuiz = onCall(
         throw new Error("Maximum 5 documents allowed per diagram quiz");
       }
 
-      await enforceCallableGenerationRateLimit(userId, 'diagramQuiz');
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'diagramQuiz');
+      const usageReservationId = usageReservation.id;
 
       const { diagramQuizName, additionalPrompt, quizRuleIds, followupRuleIds } =
         requestData;
@@ -132,53 +137,61 @@ export const generateDiagramQuiz = onCall(
         ? (followupRuleIds || [])
         : requestData.additionalRuleIds;
 
-      const jobId = GenerationJobsService.newJobId(userId);
-      const payload: ArtifactAgentJobPayload = {
-        artifactKind: 'diagramQuiz',
-        documentIds,
-        directoryId: resolvedDirectoryId,
-        recordId: pendingDiagramQuizId,
-        title: pendingTitle,
-        additionalPrompt,
-        ruleIds: selectedQuizRuleIds,
-        followupRuleIds: selectedFollowupRuleIds,
-        ruleResolutionMode: mode,
-        artifactPayload: {
-          diagramQuizName,
-        },
-      };
+      try {
+        const jobId = GenerationJobsService.newJobId(userId);
+        const payload: ArtifactAgentJobPayload = {
+          artifactKind: 'diagramQuiz',
+          documentIds,
+          directoryId: resolvedDirectoryId,
+          recordId: pendingDiagramQuizId,
+          title: pendingTitle,
+          additionalPrompt,
+          ruleIds: selectedQuizRuleIds,
+          followupRuleIds: selectedFollowupRuleIds,
+          ruleResolutionMode: mode,
+          artifactPayload: {
+            diagramQuizName,
+          },
+        };
 
-      const payloadStoragePath = await GenerationJobPayloadStorage.saveJson(userId, jobId, payload);
-      await GenerationJobsService.createJob({
-        jobId,
-        kind: 'artifactAgent',
-        userId,
-        directoryId: resolvedDirectoryId,
-        recordId: pendingDiagramQuizId,
-        payloadStoragePath,
-        artifactKind: 'diagramQuiz',
-      });
-      await enqueueGenerationJobTask({ userId, jobId });
+        const payloadStoragePath = await GenerationJobPayloadStorage.saveJson(userId, jobId, payload);
+        await GenerationJobsService.createJob({
+          jobId,
+          kind: 'artifactAgent',
+          userId,
+          directoryId: resolvedDirectoryId,
+          recordId: pendingDiagramQuizId,
+          payloadStoragePath,
+          artifactKind: 'diagramQuiz',
+          usageReservationId,
+        });
+        await enqueueGenerationJobTask({ userId, jobId });
 
-      logger.info('Diagram quiz generation queued', {
-        userId,
-        jobId,
-        diagramQuizId: pendingDiagramQuizId,
-        directoryId: resolvedDirectoryId,
-      });
+        logger.info('Diagram quiz generation queued', {
+          userId,
+          jobId,
+          diagramQuizId: pendingDiagramQuizId,
+          directoryId: resolvedDirectoryId,
+        });
 
-      return {
-        success: true,
-        data: {
-          ...buildStartGenerationPayload('diagramQuiz', pendingDiagramQuizId, resolvedDirectoryId, {
-            diagramQuizId: pendingDiagramQuizId,
-          }),
-          diagramQuiz: {
-            id: pendingDiagramQuizId,
-            generationStatus: 'pending',
-          } as DiagramQuiz,
-        },
-      };
+        return {
+          success: true,
+          data: {
+            ...buildStartGenerationPayload('diagramQuiz', pendingDiagramQuizId, resolvedDirectoryId, {
+              diagramQuizId: pendingDiagramQuizId,
+            }),
+            diagramQuiz: {
+              id: pendingDiagramQuizId,
+              generationStatus: 'pending',
+            } as DiagramQuiz,
+          },
+        };
+      } catch (innerError) {
+        const msg = innerError instanceof Error ? innerError.message : String(innerError);
+        await failPendingDiagramQuiz(userId, pendingDiagramQuizId, msg).catch(() => {/* best-effort */});
+        await refundUsageReservationSafe(userId, usageReservationId);
+        throw innerError;
+      }
     } catch (error) {
       console.error("Error in generateDiagramQuiz:", error);
       return {

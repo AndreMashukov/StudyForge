@@ -166,4 +166,23 @@ export const FirestorePaths = {
     validateUserId(userId);
     return db().collection('users').doc(userId).collection('agentConversationMemories');
   },
+
+  usagePeriods: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('usagePeriods');
+  },
+  usagePeriod: (userId: string, periodKey: string) =>
+    FirestorePaths.usagePeriods(userId).doc(periodKey),
+
+  usageReservations: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('usageReservations');
+  },
+  usageReservation: (userId: string, reservationId: string) =>
+    FirestorePaths.usageReservations(userId).doc(reservationId),
+
+  usageEvents: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('usageEvents');
+  },
 };

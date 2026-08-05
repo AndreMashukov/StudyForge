@@ -15,7 +15,10 @@ import {
 import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
 import { buildStartGenerationPayload } from '@study-forge/backend-core/lib/start-generation-response';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
-import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import {
+  enforceCallableGenerationLimits,
+  refundUsageReservationSafe,
+} from '@study-forge/backend-generation/generation-limits';
 import { deleteSlideDeckForUser } from '@study-forge/backend-artifacts/artifact-delete';
 
 const redactId = (id: string): string =>
@@ -62,7 +65,8 @@ export const generateSlideDeck = onCall(
       }
       const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, additionalRuleIds, ruleResolutionMode } = parseResult.data;
 
-      await enforceCallableGenerationRateLimit(userId, 'slideDeck');
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'slideDeck');
+      const usageReservationId = usageReservation.id;
 
       const u = redactId(userId);
 
@@ -135,6 +139,7 @@ export const generateSlideDeck = onCall(
             recordId: pendingSlideDeckId,
             kind: 'slideDeck',
             payload: parseResult.data,
+            usageReservationId,
           });
 
           logger.info(`[generateSlideDeck] Queued slide deck generation`, { userIdHash: u });
@@ -147,6 +152,7 @@ export const generateSlideDeck = onCall(
         } catch (innerError) {
           const msg = innerError instanceof Error ? innerError.message : String(innerError);
           await failPendingSlideDeck(userId, pendingSlideDeckId, msg).catch(() => {/* best-effort */});
+          await refundUsageReservationSafe(userId, usageReservationId);
           throw innerError;
         }
     } catch (error) {

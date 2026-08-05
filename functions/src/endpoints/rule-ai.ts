@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { RuleApplicability } from '@shared-types';
 import { LlmGenerationService } from '@study-forge/backend-llm/llm';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
-import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { withUsageReservation } from '@study-forge/backend-generation/generation-limits';
 import {
   aiRevisionExistingContentSchema,
   aiRevisionInstructionSchema,
@@ -49,14 +49,18 @@ export const generateRuleWithAI = onCall(
         mode: existingContent ? 'improve' : 'generate',
       });
 
-      await enforceCallableGenerationRateLimit(userId, 'ruleGeneration');
-
-      const rule = await LlmGenerationService.generateRule(userId, {
-        topic,
-        description,
-        applicableTo,
-        existingContent,
-      });
+      const rule = await withUsageReservation(
+        userId,
+        'ruleGeneration',
+        undefined,
+        () =>
+          LlmGenerationService.generateRule(userId, {
+            topic,
+            description,
+            applicableTo,
+            existingContent,
+          })
+      );
 
       logger.info('[generateRuleWithAI] Rule parsed successfully.', {
         name: rule.name,

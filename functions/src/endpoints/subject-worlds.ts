@@ -3,7 +3,10 @@ import { defineSecret } from "firebase-functions/params";
 import { validateContentForArtifactGeneration } from '@study-forge/backend-llm/llm';
 import { getGenerationFailureEnvelope } from '@study-forge/backend-llm/llm/llm-endpoint-error';
 import { mapErrorToArtifactEnvelope } from '@study-forge/backend-core/lib/callable-error';
-import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import {
+  enforceCallableGenerationLimits,
+  refundUsageReservationSafe,
+} from '@study-forge/backend-generation/generation-limits';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
 import { directoryService } from '@study-forge/backend-directories/directory';
@@ -71,7 +74,8 @@ export const generateSubjectWorld = onCall(
         throw new Error("Maximum 5 documents allowed per subject world");
       }
 
-      await enforceCallableGenerationRateLimit(userId, 'subjectWorld');
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'subjectWorld');
+      const usageReservationId = usageReservation.id;
 
       const subjectWorldName = optionalTrimmedString(
         requestData.subjectWorldName,
@@ -152,6 +156,7 @@ export const generateSubjectWorld = onCall(
             additionalRuleIds: Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds : undefined,
             ruleResolutionMode: requestData.ruleResolutionMode,
           },
+          usageReservationId,
         });
 
         return {
@@ -166,6 +171,7 @@ export const generateSubjectWorld = onCall(
       } catch (innerError) {
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
         await failPendingSubjectWorld(userId, pendingSubjectWorldId, msg).catch(() => {/* best-effort */});
+        await refundUsageReservationSafe(userId, usageReservationId);
         throw innerError;
       }
     } catch (error) {

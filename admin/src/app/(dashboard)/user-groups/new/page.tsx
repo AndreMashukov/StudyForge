@@ -3,9 +3,13 @@ import { ArrowLeft } from 'lucide-react';
 import { AdminPageHeader } from '../../../../components/admin/AdminPageHeader';
 import { UserGroupForm } from '../../../../components/admin/UserGroupForm';
 import { listLlmSetupOptions } from '../../../../lib/data/llm-setups';
+import { listUsageLimitsSetupOptions } from '../../../../lib/data/usage-limits-setups';
 
 export default async function NewUserGroupPage() {
-  const setupOptions = await listLlmSetupOptions();
+  const [setupOptions, usageLimitsSetupOptions] = await Promise.all([
+    listLlmSetupOptions(),
+    listUsageLimitsSetupOptions(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -19,12 +23,17 @@ export default async function NewUserGroupPage() {
 
       <AdminPageHeader
         title="Create user group"
-        description="Every group must reference one LLM setup."
+        description="Every group must reference one LLM setup and one usage limits setup."
       />
 
       <UserGroupForm
-        defaultValues={{ name: '', llmSetupId: setupOptions[0]?.id ?? '' }}
+        defaultValues={{
+          name: '',
+          llmSetupId: setupOptions[0]?.id ?? '',
+          usageLimitsSetupId: usageLimitsSetupOptions[0]?.id ?? '',
+        }}
         setupOptions={setupOptions}
+        usageLimitsSetupOptions={usageLimitsSetupOptions}
       />
     </div>
   );

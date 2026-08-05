@@ -23,6 +23,8 @@ import { CreateArtifactSourcePicker } from './CreateArtifactSourcePicker';
 import { CreateArtifactRulesSection } from './CreateArtifactRulesSection';
 import { useCreateArtifactModalDocuments } from './useCreateArtifactModalDocuments';
 import { useCreateArtifactModalSubmit } from './useCreateArtifactModalSubmit';
+import { ARTIFACT_MODAL_USAGE_KINDS } from './artifactUsageKinds';
+import { UsageActionHint, useFeatureUsageGate } from '../UsageCreditsMeter';
 
 /** Matches TopAppBar `h-12` and Sidebar `top-12`. */
 const APP_BAR_HEIGHT_PX = 48;
@@ -78,6 +80,9 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
   const preselectedDocumentIds = state?.preselectedDocumentIds;
 
   const config = artifactType ? getCreateArtifactModalConfig(artifactType) : null;
+  const usageKind = artifactType ? ARTIFACT_MODAL_USAGE_KINDS[artifactType] : undefined;
+  const usageGate = useFeatureUsageGate(usageKind ?? 'quiz', 1);
+  const isUsageBlocked = usageKind ? usageGate.isBlocked : false;
 
   const documentsApi = useCreateArtifactModalDocuments(open ? directoryId : null);
   const { documents, isLoading: isLoadingDocuments } = documentsApi;
@@ -319,13 +324,16 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
             ) : null}
           </div>
 
-          <div className="flex items-center justify-end gap-2 border-t border-border p-3">
+          <div className="flex flex-col items-end gap-2 border-t border-border p-3 sm:flex-row sm:items-center sm:justify-end">
+            {usageKind ? <UsageActionHint kind={usageKind} /> : null}
+            <div className="flex items-center gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={docCount === 0}>
+            <Button type="submit" disabled={docCount === 0 || isUsageBlocked}>
               {generateLabel}
             </Button>
+            </div>
           </div>
         </form>
       </section>

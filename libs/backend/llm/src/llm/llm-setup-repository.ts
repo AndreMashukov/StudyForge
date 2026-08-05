@@ -147,8 +147,10 @@ function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSe
 function parseUserGroup(id: string, data: FirebaseFirestore.DocumentData): IUserGroup | null {
   const name = typeof data.name === 'string' ? data.name.trim() : '';
   const llmSetupId = typeof data.llmSetupId === 'string' ? data.llmSetupId.trim() : '';
+  const usageLimitsSetupId =
+    typeof data.usageLimitsSetupId === 'string' ? data.usageLimitsSetupId.trim() : '';
 
-  if (!name || !llmSetupId) {
+  if (!name || !llmSetupId || !usageLimitsSetupId) {
     return null;
   }
 
@@ -156,6 +158,7 @@ function parseUserGroup(id: string, data: FirebaseFirestore.DocumentData): IUser
     id,
     name,
     llmSetupId,
+    usageLimitsSetupId,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
   };

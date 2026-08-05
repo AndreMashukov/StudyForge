@@ -23,7 +23,10 @@ import { enqueueGenerationJobTask } from '@study-forge/backend-generation/genera
 import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/artifact-agent';
 import { buildStartGenerationPayload } from '@study-forge/backend-core/lib/start-generation-response';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
-import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import {
+  enforceCallableGenerationLimits,
+  refundUsageReservationSafe,
+} from '@study-forge/backend-generation/generation-limits';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { deleteFlashcardSetForUser } from '@study-forge/backend-artifacts/artifact-delete';
 import {
@@ -106,7 +109,8 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
       ruleResolutionMode,
     } = parseResult.data;
 
-    await enforceCallableGenerationRateLimit(userId, 'flashcards');
+    const usageReservation = await enforceCallableGenerationLimits(userId, 'flashcards');
+    const usageReservationId = usageReservation.id;
 
     const u = redactId(userId);
 
@@ -197,6 +201,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
         recordId: pendingFlashcardSetId,
         payloadStoragePath,
         artifactKind: 'flashcards',
+        usageReservationId,
       });
       await enqueueGenerationJobTask({ userId, jobId });
 
@@ -210,6 +215,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
     } catch (innerError) {
       const msg = innerError instanceof Error ? innerError.message : String(innerError);
       await failPendingFlashcardSet(userId, pendingFlashcardSetId, msg).catch(() => {/* best-effort */});
+      await refundUsageReservationSafe(userId, usageReservationId);
       throw innerError;
     }
 

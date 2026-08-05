@@ -5,6 +5,7 @@ import { AdminPageHeader } from '../../../../components/admin/AdminPageHeader';
 import { UserGroupForm } from '../../../../components/admin/UserGroupForm';
 import { listLlmSetupOptions } from '../../../../lib/data/llm-setups';
 import { getUserGroupById, listGroupMembers } from '../../../../lib/data/user-groups';
+import { listUsageLimitsSetupOptions } from '../../../../lib/data/usage-limits-setups';
 
 export default async function UserGroupDetailPage({
   params,
@@ -12,9 +13,10 @@ export default async function UserGroupDetailPage({
   params: Promise<{ groupId: string }>;
 }) {
   const { groupId } = await params;
-  const [group, setupOptions, members] = await Promise.all([
+  const [group, setupOptions, usageLimitsSetupOptions, members] = await Promise.all([
     getUserGroupById(groupId),
     listLlmSetupOptions(),
+    listUsageLimitsSetupOptions(),
     listGroupMembers(groupId),
   ]);
 
@@ -34,13 +36,18 @@ export default async function UserGroupDetailPage({
 
       <AdminPageHeader
         title={group.name}
-        description={`Linked setup: ${group.llmSetupName ?? group.llmSetupId}`}
+        description={`LLM setup: ${group.llmSetupName ?? group.llmSetupId}. Usage limits: ${group.usageLimitsSetupName ?? group.usageLimitsSetupId}.`}
       />
 
       <UserGroupForm
         groupId={group.id}
-        defaultValues={{ name: group.name, llmSetupId: group.llmSetupId }}
+        defaultValues={{
+          name: group.name,
+          llmSetupId: group.llmSetupId,
+          usageLimitsSetupId: group.usageLimitsSetupId,
+        }}
         setupOptions={setupOptions}
+        usageLimitsSetupOptions={usageLimitsSetupOptions}
       />
 
       <div className="rounded-lg border border-border p-4">

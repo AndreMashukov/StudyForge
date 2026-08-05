@@ -3,7 +3,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
 import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
-import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { withUsageReservation } from '@study-forge/backend-generation/generation-limits';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { LlmGenerationService } from '@study-forge/backend-llm/llm';
 import { resolveEffectiveRules } from '@study-forge/backend-directories/rule-resolution';
@@ -49,8 +49,6 @@ export const generateQuizFollowup = onCall(
         );
       }
 
-      await enforceCallableGenerationRateLimit(userId, 'quizFollowup');
-
       // Get original document with content
       const originalDocument = await DocumentCrudService.getDocumentWithContent(userId, data.documentId);
 
@@ -92,8 +90,12 @@ export const generateQuizFollowup = onCall(
           : baseFollowupPrompt;
       }
 
-      // Generate followup content with Gemini
-      const followupContent = await LlmGenerationService.generateQuizFollowup(userId, followupContext);
+      const followupContent = await withUsageReservation(
+        userId,
+        'quizFollowup',
+        undefined,
+        async () => LlmGenerationService.generateQuizFollowup(userId, followupContext)
+      );
 
       logger.info('Quiz followup explanation generated successfully', {
         originalDocId: data.documentId,

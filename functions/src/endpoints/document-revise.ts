@@ -3,7 +3,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { resolveDocumentContentFormat } from '@shared-types';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
-import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { withUsageReservation } from '@study-forge/backend-generation/generation-limits';
 import {
   AI_REVISION_EXISTING_CONTENT_MAX,
   reviseDocumentWithAIRequestSchema,
@@ -44,8 +44,6 @@ export const reviseDocumentWithAI = onCall(
         instructionLength: instruction.length,
       });
 
-      await enforceCallableGenerationRateLimit(userId, 'documentRevise');
-
       const originalDocument = await DocumentCrudService.getDocumentWithContent(
         userId,
         documentId
@@ -82,14 +80,20 @@ export const reviseDocumentWithAI = onCall(
       }
 
       const bodyHtml = extractBodyHtml(content);
-      const revisedFragment = await LlmGenerationService.reviseDocument(userId, {
-        document: {
-          title: originalDocument.title,
-          content: bodyHtml,
-        },
-        instruction,
-        contentFormat: 'html',
-      });
+      const revisedFragment = await withUsageReservation(
+        userId,
+        'documentRevise',
+        undefined,
+        async () =>
+          LlmGenerationService.reviseDocument(userId, {
+            document: {
+              title: originalDocument.title,
+              content: bodyHtml,
+            },
+            instruction,
+            contentFormat: 'html',
+          })
+      );
 
       const prepared = await prepareHtmlDocumentForStorage(
         revisedFragment,

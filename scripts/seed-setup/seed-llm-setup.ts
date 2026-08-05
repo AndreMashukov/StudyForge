@@ -36,6 +36,8 @@ import {
 import {
   PRIMARY_MINIMAX_CONNECTION_ID,
   PRIMARY_TOGETHER_CONNECTION_ID,
+  USAGE_LIMITS_PROFILE_PRESETS,
+  createDefaultFeaturePolicies,
   type IGenerationRoutes,
   type IProviderAvailableModel,
 } from '../../libs/shared-types/src/index';
@@ -63,6 +65,8 @@ const CONNECTIONS_COLLECTION = 'llmProviderConnections';
 const SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
 const LLM_SETUPS_COLLECTION = 'llmSetups';
 const USER_GROUPS_COLLECTION = 'userGroups';
+const USAGE_LIMITS_SETUPS_COLLECTION = 'usageLimitsSetups';
+const STANDARD_USAGE_SETUP_ID = 'e2e-standard-usage';
 
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
@@ -368,14 +372,29 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
   console.log(`   ✅ LLM setup ${SETUP_ID}`);
   console.log(`   ✅ agentKnowledgeEmbedding → ${EMBEDDING_MODEL} on ${PRIMARY_TOGETHER_CONNECTION_ID}`);
 
+  console.log('\n[LLM] Usage limits setup …');
+  const standardPreset =
+    USAGE_LIMITS_PROFILE_PRESETS.find((preset) => preset.id === 'standard') ??
+    USAGE_LIMITS_PROFILE_PRESETS[1];
+  await db.collection(USAGE_LIMITS_SETUPS_COLLECTION).doc(STANDARD_USAGE_SETUP_ID).set({
+    name: standardPreset.name,
+    description: standardPreset.description,
+    monthlyCreditAllowance: standardPreset.monthlyCreditAllowance,
+    featurePolicies: createDefaultFeaturePolicies({ disabledKinds: standardPreset.disabledKinds }),
+    updatedAt: now,
+    updatedBy: 'seed-llm-setup',
+  });
+  console.log(`   ✅ Usage limits setup ${STANDARD_USAGE_SETUP_ID}`);
+
   console.log('\n[LLM] User group …');
   await db.collection(USER_GROUPS_COLLECTION).doc(GROUP_ID).set({
     name: 'E2E Default Group',
     llmSetupId: SETUP_ID,
+    usageLimitsSetupId: STANDARD_USAGE_SETUP_ID,
     updatedAt: now,
     updatedBy: 'seed-llm-setup',
   });
-  console.log(`   ✅ User group ${GROUP_ID} → ${SETUP_ID}`);
+  console.log(`   ✅ User group ${GROUP_ID} → ${SETUP_ID} / ${STANDARD_USAGE_SETUP_ID}`);
 
   console.log('\n[LLM] Assign test user to group …');
   await db.collection('users').doc(userId).set(

@@ -23,6 +23,7 @@ import {
 const userGroupFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   llmSetupId: z.string().trim().min(1, 'LLM setup is required'),
+  usageLimitsSetupId: z.string().trim().min(1, 'Usage limits setup is required'),
 });
 
 export type IUserGroupFormValues = z.infer<typeof userGroupFormSchema>;
@@ -31,9 +32,15 @@ export interface IUserGroupFormProps {
   groupId?: string;
   defaultValues: IUserGroupFormValues;
   setupOptions: Array<{ id: string; name: string }>;
+  usageLimitsSetupOptions: Array<{ id: string; name: string }>;
 }
 
-export function UserGroupForm({ groupId, defaultValues, setupOptions }: IUserGroupFormProps) {
+export function UserGroupForm({
+  groupId,
+  defaultValues,
+  setupOptions,
+  usageLimitsSetupOptions,
+}: IUserGroupFormProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [notice, setNotice] = useState<string | null>(null);
@@ -53,6 +60,7 @@ export function UserGroupForm({ groupId, defaultValues, setupOptions }: IUserGro
       const payload = {
         name: values.name.trim(),
         llmSetupId: values.llmSetupId.trim(),
+        usageLimitsSetupId: values.usageLimitsSetupId.trim(),
       };
 
       const response = await fetch(
@@ -144,6 +152,22 @@ export function UserGroupForm({ groupId, defaultValues, setupOptions }: IUserGro
               </SelectTrigger>
               <SelectContent>
                 {setupOptions.map((setup) => (
+                  <SelectItem key={setup.id} value={setup.id}>
+                    {setup.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="usageLimitsSetupId">Usage limits setup</Label>
+            <Select control={form.control} name="usageLimitsSetupId">
+              <SelectTrigger id="usageLimitsSetupId" aria-label="Usage limits setup">
+                <SelectValue placeholder="Select a setup" />
+              </SelectTrigger>
+              <SelectContent>
+                {usageLimitsSetupOptions.map((setup) => (
                   <SelectItem key={setup.id} value={setup.id}>
                     {setup.name}
                   </SelectItem>

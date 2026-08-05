@@ -4,6 +4,7 @@ import type { ICreateUserGroupRequest, IUpdateUserGroupRequest, IUserGroup } fro
 import { requireAdminSession } from '../auth/session';
 import { getAdminFirestore } from '../firebase/admin';
 import { ensureSetupExists } from './llm-setups';
+import { ensureUsageLimitsSetupExists } from './usage-limits-setups';
 
 const USER_GROUPS_COLLECTION = 'userGroups';
 const USERS_COLLECTION = 'users';
@@ -11,13 +12,16 @@ const USERS_COLLECTION = 'users';
 export interface IAdminUserGroupSummary extends IUserGroup {
   memberCount: number;
   llmSetupName?: string;
+  usageLimitsSetupName?: string;
 }
 
 function parseUserGroup(id: string, data: FirebaseFirestore.DocumentData): IUserGroup | null {
   const name = typeof data.name === 'string' ? data.name.trim() : '';
   const llmSetupId = typeof data.llmSetupId === 'string' ? data.llmSetupId.trim() : '';
+  const usageLimitsSetupId =
+    typeof data.usageLimitsSetupId === 'string' ? data.usageLimitsSetupId.trim() : '';
 
-  if (!name || !llmSetupId) {
+  if (!name || !llmSetupId || !usageLimitsSetupId) {
     return null;
   }
 
@@ -25,6 +29,7 @@ function parseUserGroup(id: string, data: FirebaseFirestore.DocumentData): IUser
     id,
     name,
     llmSetupId,
+    usageLimitsSetupId,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
   };
@@ -41,6 +46,12 @@ async function countMembersForGroup(groupId: string): Promise<number> {
 
 async function getSetupName(setupId: string): Promise<string | undefined> {
   const doc = await getAdminFirestore().collection('llmSetups').doc(setupId).get();
+  const name = doc.data()?.name;
+  return typeof name === 'string' ? name : undefined;
+}
+
+async function getUsageLimitsSetupName(setupId: string): Promise<string | undefined> {
+  const doc = await getAdminFirestore().collection('usageLimitsSetups').doc(setupId).get();
   const name = doc.data()?.name;
   return typeof name === 'string' ? name : undefined;
 }
@@ -62,6 +73,7 @@ export async function listUserGroups(): Promise<IAdminUserGroupSummary[]> {
       ...group,
       memberCount: await countMembersForGroup(doc.id),
       llmSetupName: await getSetupName(group.llmSetupId),
+      usageLimitsSetupName: await getUsageLimitsSetupName(group.usageLimitsSetupId),
     });
   }
 
@@ -85,6 +97,7 @@ export async function getUserGroupById(groupId: string): Promise<IAdminUserGroup
     ...group,
     memberCount: await countMembersForGroup(doc.id),
     llmSetupName: await getSetupName(group.llmSetupId),
+    usageLimitsSetupName: await getUsageLimitsSetupName(group.usageLimitsSetupId),
   };
 }
 
@@ -96,6 +109,7 @@ export async function createUserGroup(
 
   const name = input.name.trim();
   const llmSetupId = input.llmSetupId.trim();
+  const usageLimitsSetupId = input.usageLimitsSetupId.trim();
 
   if (!name) {
     throw new Error('Group name is required.');
@@ -105,7 +119,12 @@ export async function createUserGroup(
     throw new Error('LLM setup is required.');
   }
 
+  if (!usageLimitsSetupId) {
+    throw new Error('Usage limits setup is required.');
+  }
+
   await ensureSetupExists(llmSetupId);
+  await ensureUsageLimitsSetupExists(usageLimitsSetupId);
 
   const now = new Date().toISOString();
   const docRef = getAdminFirestore().collection(USER_GROUPS_COLLECTION).doc();
@@ -114,6 +133,7 @@ export async function createUserGroup(
     id: docRef.id,
     name,
     llmSetupId,
+    usageLimitsSetupId,
     updatedAt: now,
     updatedBy: adminUid,
   };
@@ -142,12 +162,15 @@ export async function updateUserGroup(
   }
 
   const llmSetupId = input.llmSetupId?.trim() || current.llmSetupId;
+  const usageLimitsSetupId = input.usageLimitsSetupId?.trim() || current.usageLimitsSetupId;
   await ensureSetupExists(llmSetupId);
+  await ensureUsageLimitsSetupExists(usageLimitsSetupId);
 
   const next: IUserGroup = {
     ...current,
     name: input.name?.trim() || current.name,
     llmSetupId,
+    usageLimitsSetupId,
     updatedAt: new Date().toISOString(),
     updatedBy: adminUid,
   };

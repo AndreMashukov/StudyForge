@@ -17,6 +17,7 @@ export function UserGroupsTable({ groups }: IUserGroupsTableProps) {
           <tr>
             <th className="px-4 py-3 font-medium" scope="col">Name</th>
             <th className="px-4 py-3 font-medium" scope="col">LLM setup</th>
+            <th className="px-4 py-3 font-medium" scope="col">Usage limits</th>
             <th className="px-4 py-3 font-medium" scope="col">Members</th>
           </tr>
         </thead>
@@ -30,6 +31,9 @@ export function UserGroupsTable({ groups }: IUserGroupsTableProps) {
               </td>
               <td className="px-4 py-3 text-muted-foreground">
                 {group.llmSetupName ?? group.llmSetupId}
+              </td>
+              <td className="px-4 py-3 text-muted-foreground">
+                {group.usageLimitsSetupName ?? group.usageLimitsSetupId}
               </td>
               <td className="px-4 py-3">{group.memberCount}</td>
             </tr>

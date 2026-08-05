@@ -3,7 +3,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
 import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
-import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { withUsageReservation } from '@study-forge/backend-generation/generation-limits';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { LlmGenerationService } from '@study-forge/backend-llm/llm';
 import { resolveEffectiveRules } from '@study-forge/backend-directories/rule-resolution';
@@ -50,8 +50,6 @@ export const askDocumentQuestion = onCall(
         throw new HttpsError('invalid-argument', 'Question must be 2000 characters or less');
       }
 
-      await enforceCallableGenerationRateLimit(userId, 'documentQuestion');
-
       // Get original document with content
       const originalDocument = await DocumentCrudService.getDocumentWithContent(userId, data.documentId);
 
@@ -81,8 +79,12 @@ export const askDocumentQuestion = onCall(
           : basePrompt;
       }
 
-      // Generate answer with Gemini
-      const answerContent = await LlmGenerationService.generateDocumentQuestionAnswer(userId, questionContext);
+      const answerContent = await withUsageReservation(
+        userId,
+        'documentQuestion',
+        undefined,
+        async () => LlmGenerationService.generateDocumentQuestionAnswer(userId, questionContext)
+      );
 
       logger.info('Document question answered successfully', {
         userId,

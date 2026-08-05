@@ -10,7 +10,7 @@ import {
   UpdateDirectoryChatSourcesResponse,
 } from '@shared-types';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
-import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { withUsageReservation } from '@study-forge/backend-generation/generation-limits';
 import { DirectoryChatService } from '@study-forge/backend-directories/directory-chat';
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -71,14 +71,18 @@ export const sendDirectoryChatMessage = onCall(
         artifactType: data.artifactContext?.type,
       });
 
-      await enforceCallableGenerationRateLimit(userId, 'directoryChat');
-
-      return DirectoryChatService.sendMessage(
+      return withUsageReservation(
         userId,
-        data.directoryId,
-        data.message,
-        data.seedKey,
-        data.artifactContext
+        'directoryChat',
+        undefined,
+        () =>
+          DirectoryChatService.sendMessage(
+            userId,
+            data.directoryId,
+            data.message,
+            data.seedKey,
+            data.artifactContext
+          )
       );
     } catch (error) {
       logger.error('Failed to send directory chat message', {

@@ -8,11 +8,14 @@ import { Badge } from '../../../../components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
 import { listUserGroupOptions } from '../../../../lib/data/user-groups';
 import { getUserById } from '../../../../lib/data/users';
+import { getAdminUserUsageReport } from '../../../../lib/data/user-usage';
+import { UserUsageReportCard } from '../../../../components/admin/UserUsageReportCard';
 
 async function UserDetailSection({ userId }: { userId: string }) {
-  const [user, groupOptions] = await Promise.all([
+  const [user, groupOptions, usageReport] = await Promise.all([
     getUserById(userId),
     listUserGroupOptions(),
+    getAdminUserUsageReport(userId),
   ]);
 
   if (!user) {
@@ -54,6 +57,8 @@ async function UserDetailSection({ userId }: { userId: string }) {
           </p>
         </CardContent>
       </Card>
+
+      <UserUsageReportCard report={usageReport} />
 
       <UserGroupAssignmentForm
         userId={user.uid}

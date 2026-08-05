@@ -2176,6 +2176,7 @@ export interface IUserGroup {
   id: string;
   name: string;
   llmSetupId: string;
+  usageLimitsSetupId: string;
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -2204,16 +2205,43 @@ export interface IUpdateLlmSetupRequest {
 export interface ICreateUserGroupRequest {
   name: string;
   llmSetupId: string;
+  usageLimitsSetupId: string;
 }
 
 export interface IUpdateUserGroupRequest {
   name?: string;
   llmSetupId?: string;
+  usageLimitsSetupId?: string;
 }
 
 export interface IAssignUserGroupRequest {
   userGroupId: string;
 }
+
+export type {
+  ICreateUsageLimitsSetupRequest,
+  IUpdateUsageLimitsSetupRequest,
+  IUsageFeatureAvailability,
+  IUsageFeaturePolicies,
+  IUsageFeaturePolicy,
+  IUsageLimitEvent,
+  IUsageLimitsProfilePreset,
+  IUsageLimitsSetup,
+  IUsagePeriodSummary,
+  IUserUsageSummary,
+  UsageLimitErrorCode,
+  UsageLimitEventType,
+} from './usage-limits';
+export {
+  buildUsagePeriodKey,
+  buildUsagePeriodResetAt,
+  calculateRemainingCredits,
+  calculateUsageCreditCharge,
+  createDefaultFeaturePolicies,
+  DEFAULT_USAGE_CREDIT_COSTS,
+  FREE_TIER_DISABLED_KINDS,
+  USAGE_LIMITS_PROFILE_PRESETS,
+} from './usage-limits';
 
 /** Stable error codes surfaced to clients when LLM routing cannot proceed. */
 export type LlmRoutingErrorCode =

@@ -2,18 +2,16 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
-import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import {
+  enforceCallableGenerationLimits,
+  refundUsageReservationSafe,
+} from '@study-forge/backend-generation/generation-limits';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { DocumentService } from '@study-forge/backend-documents/document-storage';
 import { CursorPaginationError } from '@study-forge/backend-core/lib/cursor-pagination';
 import { directoryService } from '@study-forge/backend-directories/directory';
 import { UrlProcessingOrchestrator } from '@study-forge/backend-documents/url-processing/url-processing-orchestrator';
 import { FileExtractionError, FileExtractionService } from '@study-forge/backend-documents/file-extraction';
-import {
-  LlmGenerationService,
-  resolveTextGenerationAudit,
-} from '@study-forge/backend-llm/llm';
-import { SourceDocumentGenerationService } from '@study-forge/backend-documents/source-document-generation';
 import { ScreenshotDocumentGenerationService } from '@study-forge/backend-documents/screenshot-document-generation';
 import { executeBulkOperation } from '@study-forge/backend-artifacts/bulk-operation';
 import { GenerationJobPayloadStorage } from '@study-forge/backend-generation/generation-job-payload-storage';
@@ -21,7 +19,6 @@ import { GenerationJobsService } from '@study-forge/backend-generation/generatio
 import { enqueueGenerationJobTask } from '@study-forge/backend-generation/generation-task-queue';
 import {
   isRuleResolutionMode,
-  resolveEffectiveRules,
 } from '@study-forge/backend-directories/rule-resolution';
 import { 
   CreateDocumentRequest, 
@@ -33,7 +30,6 @@ import {
   IFileContent,
   IDocumentAgentJobPayload,
   MoveDocumentRequest,
-  RuleApplicability,
   UploadDocumentRequest,
 } from "@shared-types";
 
@@ -51,6 +47,7 @@ async function enqueueDocumentAgentJob(params: {
   documentId: string;
   kind: DocumentAgentJobKind;
   payload: IDocumentAgentJobPayload;
+  usageReservationId?: string;
 }): Promise<string> {
   const jobId = GenerationJobsService.newJobId(params.userId);
   const payloadStoragePath = await GenerationJobPayloadStorage.saveJson(
@@ -65,6 +62,7 @@ async function enqueueDocumentAgentJob(params: {
     directoryId: params.directoryId,
     recordId: params.documentId,
     payloadStoragePath,
+    usageReservationId: params.usageReservationId,
   });
   await enqueueGenerationJobTask({ userId: params.userId, jobId });
   return jobId;
@@ -142,7 +140,8 @@ export const createDocument = onCall(
         throw new HttpsError('invalid-argument', 'directoryId is required');
       }
       await directoryService.validateDirectoryId(userId, data.directoryId);
-      await enforceCallableGenerationRateLimit(userId, 'documentFromPrompt');
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'documentFromPrompt');
+      const usageReservationId = usageReservation.id;
 
       const pendingDocId = await DocumentCrudService.createPendingDocument(userId, {
         directoryId: data.directoryId,
@@ -168,6 +167,7 @@ export const createDocument = onCall(
             ruleIds: data.ruleIds,
             ruleResolutionMode: data.ruleResolutionMode,
           },
+          usageReservationId,
         });
 
         return {
@@ -181,12 +181,13 @@ export const createDocument = onCall(
       } catch (innerError) {
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
         await DocumentCrudService.failPendingDocument(userId, pendingDocId, msg).catch(() => {/* best-effort */});
+        await refundUsageReservationSafe(userId, usageReservationId);
         throw innerError;
       }
 
     } catch (error) {
       if (error instanceof HttpsError) throw error;
-      logger.error('Failed to create document', { 
+      logger.error('Failed to create document', {
         error: error instanceof Error ? error.message : String(error),
         data: request.data,
       });
@@ -241,7 +242,8 @@ export const uploadAndCreateDocument = onCall(
       }
       await directoryService.validateDirectoryId(userId, data.directoryId);
 
-      await enforceCallableGenerationRateLimit(userId, 'sourceDocumentEnhancement');
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'sourceDocumentEnhancement');
+      const usageReservationId = usageReservation.id;
 
       const buffer = FileExtractionService.decodeBase64File(data.content, data.size);
       const extraction = await FileExtractionService.extractFromFile(
@@ -277,6 +279,7 @@ export const uploadAndCreateDocument = onCall(
             additionalRuleIds: data.additionalRuleIds,
             ruleResolutionMode: data.ruleResolutionMode,
           },
+          usageReservationId,
         });
 
         logger.info('Upload document generation queued', {
@@ -308,6 +311,7 @@ export const uploadAndCreateDocument = onCall(
       } catch (innerError) {
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
         await DocumentCrudService.failPendingDocument(userId, uploadPendingDocId, msg).catch(() => {/* best-effort */});
+        await refundUsageReservationSafe(userId, usageReservationId);
         throw innerError;
       }
     } catch (error) {
@@ -401,7 +405,8 @@ export const createDocumentFromUrl = onCall(
       }
       await directoryService.validateDirectoryId(userId, directoryId);
 
-      await enforceCallableGenerationRateLimit(userId, 'sourceDocumentEnhancement');
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'sourceDocumentEnhancement');
+      const usageReservationId = usageReservation.id;
 
       // Create pending document visible in the directory UI immediately
       const pendingTitle = customTitle || (rawUrls.length === 1 ? rawUrls[0] : `Importing from ${rawUrls.length} URLs…`);
@@ -469,6 +474,7 @@ export const createDocumentFromUrl = onCall(
             additionalRuleIds,
             ruleResolutionMode: mode,
           },
+          usageReservationId,
         });
 
         logger.info('URL document generation queued', {
@@ -497,6 +503,7 @@ export const createDocumentFromUrl = onCall(
       } catch (innerError) {
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
         await DocumentCrudService.failPendingDocument(userId, urlPendingDocId, msg).catch(() => {/* best-effort */});
+        await refundUsageReservationSafe(userId, usageReservationId);
         throw innerError;
       }
 
@@ -1010,7 +1017,8 @@ export const generateFromPrompt = onCall(
       }
       await directoryService.validateDirectoryId(userId, data.directoryId);
 
-      await enforceCallableGenerationRateLimit(userId, 'documentFromPrompt');
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'documentFromPrompt');
+      const usageReservationId = usageReservation.id;
 
       // Create pending document record visible in the directory UI immediately
       const pendingTitle = trimmedPrompt.length > 50
@@ -1042,6 +1050,7 @@ export const generateFromPrompt = onCall(
           directoryId: data.directoryId,
           recordId: pendingDocId,
           payloadStoragePath,
+          usageReservationId,
         });
         await enqueueGenerationJobTask({ userId, jobId });
 
@@ -1072,11 +1081,12 @@ export const generateFromPrompt = onCall(
           await GenerationJobPayloadStorage.delete(payloadStoragePath).catch(() => {/* best-effort */});
         }
         await DocumentCrudService.failPendingDocument(userId, pendingDocId, msg).catch(() => {/* best-effort */});
+        await refundUsageReservationSafe(userId, usageReservationId);
         throw innerError;
       }
 
     } catch (error) {
-      logger.error('Failed to generate document from prompt', { 
+      logger.error('Failed to generate document from prompt', {
         error: error instanceof Error ? error.message : String(error),
         prompt: request.data?.prompt?.substring(0, 50),
       });
@@ -1119,7 +1129,8 @@ export const generateFromScreenshot = onCall(
 
       await directoryService.validateDirectoryId(userId, data.directoryId);
 
-      await enforceCallableGenerationRateLimit(userId, 'documentFromScreenshot');
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'documentFromScreenshot');
+      const usageReservationId = usageReservation.id;
 
       const screenshotPendingTitle = data.title || (data.prompt
         ? (data.prompt.length > 50 ? `${data.prompt.substring(0, 50)}…` : data.prompt)
@@ -1137,12 +1148,14 @@ export const generateFromScreenshot = onCall(
           ...data,
           userId,
           pendingDocumentId: screenshotPendingDocId,
+          usageReservationId,
         });
 
         return result;
       } catch (innerError) {
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
         await DocumentCrudService.failPendingDocument(userId, screenshotPendingDocId, msg).catch(() => {/* best-effort */});
+        await refundUsageReservationSafe(userId, usageReservationId);
         throw innerError;
       }
     } catch (error) {

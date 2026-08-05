@@ -15,7 +15,11 @@ import { SlideDeckPromptBuilder } from '@study-forge/backend-llm/llm/prompt-buil
 import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
 import { ScreenshotDocumentGenerationService } from '@study-forge/backend-documents/screenshot-document-generation';
 import { RateLimitError } from '@study-forge/backend-core/services/api-rate-limit';
-import { enforceExternalDualGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import {
+  enforceExternalDualGenerationLimits,
+  refundUsageReservationSafe,
+  withExternalUsageReservation,
+} from '@study-forge/backend-generation/generation-limits';
 import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
 import {
   completePendingDiagramQuiz,
@@ -147,7 +151,12 @@ export const api = onRequest(
         }
         const data = b as unknown as CreateDocumentRequest;
 
-        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'documentFromPrompt');
+        const usageReservation = await enforceExternalDualGenerationLimits(
+          userId,
+          authResult.limiterKey,
+          'documentFromPrompt'
+        );
+        const usageReservationId = usageReservation.id;
 
         const pendingDocumentId = await DocumentCrudService.createPendingDocument(userId, {
           directoryId: data.directoryId,
@@ -170,6 +179,7 @@ export const api = onRequest(
               tags: data.tags,
               sourceText: data.content,
             },
+            usageReservationId,
           });
 
           const doc = await DocumentCrudService.getDocument(userId, pendingDocumentId);
@@ -184,6 +194,7 @@ export const api = onRequest(
         } catch (innerError) {
           const msg = innerError instanceof Error ? innerError.message : String(innerError);
           await DocumentCrudService.failPendingDocument(userId, pendingDocumentId, msg).catch(() => { /* best-effort */ });
+          await refundUsageReservationSafe(userId, usageReservationId);
           throw innerError;
         }
         return;
@@ -291,8 +302,6 @@ export const api = onRequest(
 
         validateContentForArtifactGeneration(documentContent);
 
-        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'quiz');
-
         const pendingTitle = quizName?.trim()
           || (documentIds.length === 1
             ? `Quiz from ${documentDataList[0].doc.title}`
@@ -311,6 +320,12 @@ export const api = onRequest(
         });
 
         try {
+          await withExternalUsageReservation(
+            userId,
+            authResult.limiterKey,
+            'quiz',
+            undefined,
+            async () => {
           let enhancedPrompt = additionalPrompt || "";
           let followupIdsForSave: string[] = [];
           let appliedRuleIdsForSave: string[] = [];
@@ -399,6 +414,8 @@ export const api = onRequest(
             success: true,
             data: { quizId: pendingQuizId, quiz: { id: pendingQuizId, ...savedQuiz.data() } },
           });
+            }
+          );
         } catch (innerError) {
           const msg = innerError instanceof Error ? innerError.message : String(innerError);
           await failPendingQuiz(userId, pendingQuizId, msg).catch(() => { /* best-effort */ });
@@ -469,8 +486,6 @@ export const api = onRequest(
 
         validateContentForArtifactGeneration(documentContent);
 
-        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'diagramQuiz');
-
         const pendingTitle = diagramQuizName
           || (documentIds.length === 1
             ? `Diagram Quiz from ${documentDataList[0].doc.title}`
@@ -489,6 +504,12 @@ export const api = onRequest(
         });
 
         try {
+          await withExternalUsageReservation(
+            userId,
+            authResult.limiterKey,
+            'diagramQuiz',
+            undefined,
+            async () => {
           let enhancedPrompt = additionalPrompt || "";
           let followupIdsForSave: string[] = [];
           let appliedRuleIdsForSave: string[] = [];
@@ -562,6 +583,8 @@ export const api = onRequest(
           const saved = await FirestorePaths.diagramQuiz(userId, pendingDiagramQuizId).get();
 
           res.status(201).json({ success: true, data: { diagramQuizId: pendingDiagramQuizId, diagramQuiz: { id: pendingDiagramQuizId, ...saved.data() } } });
+            }
+          );
         } catch (innerError) {
           const msg = innerError instanceof Error ? innerError.message : String(innerError);
           await failPendingDiagramQuiz(userId, pendingDiagramQuizId, msg).catch(() => { /* best-effort */ });
@@ -631,8 +654,6 @@ export const api = onRequest(
 
         validateContentForArtifactGeneration(documentContent);
 
-        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'sequenceQuiz');
-
         const pendingTitle = sequenceQuizName
           || (documentIds.length === 1
             ? `Sequence Quiz from ${documentDataList[0].doc.title}`
@@ -651,6 +672,12 @@ export const api = onRequest(
         });
 
         try {
+          await withExternalUsageReservation(
+            userId,
+            authResult.limiterKey,
+            'sequenceQuiz',
+            undefined,
+            async () => {
           let enhancedPrompt = additionalPrompt || "";
           let followupIdsForSave: string[] = [];
           const hasExplicitRules = Boolean(ruleIds?.length || followupRuleIds?.length);
@@ -712,6 +739,8 @@ export const api = onRequest(
           const saved = await FirestorePaths.sequenceQuiz(userId, pendingSequenceQuizId).get();
 
           res.status(201).json({ success: true, data: { sequenceQuizId: pendingSequenceQuizId, sequenceQuiz: { id: pendingSequenceQuizId, ...saved.data() } } });
+            }
+          );
         } catch (innerError) {
           const msg = innerError instanceof Error ? innerError.message : String(innerError);
           await failPendingSequenceQuiz(userId, pendingSequenceQuizId, msg).catch(() => { /* best-effort */ });
@@ -771,8 +800,6 @@ export const api = onRequest(
           }
         }
 
-        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'flashcards');
-
         const pendingTitle = customTitle
           || (documentIds.length === 1
             ? `Flashcards for "${documentDataList[0].doc.title}"`
@@ -791,6 +818,12 @@ export const api = onRequest(
         });
 
         try {
+          await withExternalUsageReservation(
+            userId,
+            authResult.limiterKey,
+            'flashcards',
+            undefined,
+            async () => {
           let injectedRules: string | undefined;
           let appliedRuleIdsForSave: string[] = [];
           const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
@@ -838,6 +871,8 @@ export const api = onRequest(
           });
 
           res.status(201).json({ success: true, data: { flashcardSetId: pendingFlashcardSetId } });
+            }
+          );
         } catch (innerError) {
           const msg = innerError instanceof Error ? innerError.message : String(innerError);
           await failPendingFlashcardSet(userId, pendingFlashcardSetId, msg).catch(() => { /* best-effort */ });
@@ -897,8 +932,6 @@ export const api = onRequest(
           }
         }
 
-        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'slideDeckText');
-
         const pendingTitle = customTitle
           || (documentIds.length === 1
             ? `Slides for "${documentDataList[0].doc.title}"`
@@ -941,8 +974,15 @@ export const api = onRequest(
             injectedRules = base;
           }
 
-          const slideOutline = await LlmGenerationService.generateSlideDeckOutline(
-            userId, combinedContent, additionalPrompt || undefined, injectedRules
+          const slideOutline = await withExternalUsageReservation(
+            userId,
+            authResult.limiterKey,
+            'slideDeckText',
+            undefined,
+            () =>
+              LlmGenerationService.generateSlideDeckOutline(
+                userId, combinedContent, additionalPrompt || undefined, injectedRules
+              )
           );
 
           const CONCURRENCY = 3;
@@ -957,7 +997,12 @@ export const api = onRequest(
             const chunk = slides.slice(batch, batch + CONCURRENCY);
             await Promise.all(chunk.map(async (slide, ci) => {
               const i = batch + ci;
-              await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'slideDeckImage');
+              await withExternalUsageReservation(
+                userId,
+                authResult.limiterKey,
+                'slideDeckImage',
+                undefined,
+                async () => {
               const brief = await LlmGenerationService.generateSlideImageBrief(userId, slide.title, slide.content, injectedRules);
               let imageBase64: string | null = null;
               if (brief) {
@@ -982,6 +1027,8 @@ export const api = onRequest(
                 slide.imageDownloadToken = downloadToken;
                 uploadedPaths.push(storagePath);
               }
+                }
+              );
             }));
           }
 
@@ -1038,8 +1085,6 @@ export const api = onRequest(
           res.status(400).json({ success: false, error: "Maximum 5 documents allowed." });
           return;
         }
-
-        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'slideDeckText');
 
         const rawImages = requestData.images;
         if (!Array.isArray(rawImages) || rawImages.length === 0) {
@@ -1170,8 +1215,15 @@ export const api = onRequest(
             injectedRules = base;
           }
 
-          const slideOutline = await LlmGenerationService.generateSlideDeckOutline(
-            userId, combinedContent, additionalPrompt || undefined, injectedRules
+          const slideOutline = await withExternalUsageReservation(
+            userId,
+            authResult.limiterKey,
+            'slideDeckText',
+            undefined,
+            () =>
+              LlmGenerationService.generateSlideDeckOutline(
+                userId, combinedContent, additionalPrompt || undefined, injectedRules
+              )
           );
 
           if (slideOutline.length !== parsedImages.length) {
@@ -1301,7 +1353,12 @@ export const api = onRequest(
 
         // Create a pending document immediately so the UI reflects the in-progress state.
         // createPendingDocument validates the directoryId internally.
-        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'documentFromPrompt');
+        const usageReservation = await enforceExternalDualGenerationLimits(
+          userId,
+          authResult.limiterKey,
+          'documentFromPrompt'
+        );
+        const usageReservationId = usageReservation.id;
 
         const tentativeTitle = trimmedPrompt.length > 50
           ? `${trimmedPrompt.substring(0, 50)}...`
@@ -1346,6 +1403,7 @@ export const api = onRequest(
               description: `Generated from prompt: ${trimmedPrompt.substring(0, 100)}${trimmedPrompt.length > 100 ? "..." : ""}`,
               tags: ["ai-generated", "prompt-based"],
             },
+            usageReservationId,
           });
 
           const document = await DocumentCrudService.getDocument(userId, pendingDocumentId);
@@ -1369,6 +1427,7 @@ export const api = onRequest(
         } catch (innerError) {
           const msg = innerError instanceof Error ? innerError.message : String(innerError);
           await DocumentCrudService.failPendingDocument(userId, pendingDocumentId, msg).catch(() => { /* best-effort */ });
+          await refundUsageReservationSafe(userId, usageReservationId);
           res.status(500).json({ success: false, error: "Document generation failed." });
         }
         return;
@@ -1408,7 +1467,12 @@ export const api = onRequest(
           return;
         }
 
-        await enforceExternalDualGenerationRateLimit(userId, authResult.limiterKey, 'documentFromScreenshot');
+        const usageReservation = await enforceExternalDualGenerationLimits(
+          userId,
+          authResult.limiterKey,
+          'documentFromScreenshot'
+        );
+        const usageReservationId = usageReservation.id;
 
         const promptTitle = data.prompt?.trim();
         const pendingTitle = data.title?.trim()
@@ -1428,6 +1492,7 @@ export const api = onRequest(
             ...data,
             userId,
             pendingDocumentId,
+            usageReservationId,
           });
 
           res.status(201).json({
@@ -1437,6 +1502,7 @@ export const api = onRequest(
         } catch (innerError) {
           const msg = innerError instanceof Error ? innerError.message : String(innerError);
           await DocumentCrudService.failPendingDocument(userId, pendingDocumentId, msg).catch(() => { /* best-effort */ });
+          await refundUsageReservationSafe(userId, usageReservationId);
           throw innerError;
         }
         return;

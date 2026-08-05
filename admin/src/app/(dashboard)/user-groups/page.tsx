@@ -17,7 +17,7 @@ export default function UserGroupsPage() {
       <div className="flex items-start justify-between gap-4">
         <AdminPageHeader
           title="User groups"
-          description="Create cohorts, link them to LLM setups, and assign users manually."
+          description="Create cohorts, link them to LLM and usage limits setups, and assign users manually."
         />
         <Button asChild>
           <Link href="/user-groups/new">Create group</Link>

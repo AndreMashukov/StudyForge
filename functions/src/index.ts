@@ -202,3 +202,8 @@ export {
 
 // Bulk artifact delete (directory detail panels)
 export { bulkDeleteArtifacts } from "./endpoints/bulk-artifacts";
+
+export {
+  getUsageSummary,
+  getRecentUsageEvents,
+} from "./endpoints/usage-summary";

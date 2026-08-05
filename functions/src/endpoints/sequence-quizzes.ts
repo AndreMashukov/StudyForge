@@ -3,7 +3,10 @@ import { defineSecret } from "firebase-functions/params";
 import { validateContentForArtifactGeneration } from '@study-forge/backend-llm/llm';
 import { getGenerationFailureEnvelope } from '@study-forge/backend-llm/llm/llm-endpoint-error';
 import { mapErrorToArtifactEnvelope } from '@study-forge/backend-core/lib/callable-error';
-import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import {
+  enforceCallableGenerationLimits,
+  refundUsageReservationSafe,
+} from '@study-forge/backend-generation/generation-limits';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
 import { directoryService } from '@study-forge/backend-directories/directory';
@@ -67,7 +70,8 @@ export const generateSequenceQuiz = onCall(
         throw new Error("Maximum 5 documents allowed per sequence quiz");
       }
 
-      await enforceCallableGenerationRateLimit(userId, 'sequenceQuiz');
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'sequenceQuiz');
+      const usageReservationId = usageReservation.id;
 
       if (requestData.additionalRuleIds != null && !Array.isArray(requestData.additionalRuleIds)) {
         throw new Error("additionalRuleIds must be an array when provided");
@@ -167,6 +171,7 @@ export const generateSequenceQuiz = onCall(
             additionalRuleIds: Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds : undefined,
             ruleResolutionMode: requestData.ruleResolutionMode,
           },
+          usageReservationId,
         });
 
         return {
@@ -181,6 +186,7 @@ export const generateSequenceQuiz = onCall(
       } catch (innerError) {
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
         await failPendingSequenceQuiz(userId, pendingSequenceQuizId, msg).catch(() => {/* best-effort */});
+        await refundUsageReservationSafe(userId, usageReservationId);
         throw innerError;
       }
     } catch (error) {

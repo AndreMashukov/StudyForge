@@ -3,7 +3,7 @@ import { defineSecret } from "firebase-functions/params";
 import { validateContentForArtifactGeneration } from '@study-forge/backend-llm/llm';
 import { getGenerationFailureEnvelope } from '@study-forge/backend-llm/llm/llm-endpoint-error';
 import { mapErrorToArtifactEnvelope } from '@study-forge/backend-core/lib/callable-error';
-import { enforceCallableGenerationRateLimit } from '@study-forge/backend-generation/generation-rate-limit';
+import { enforceCallableGenerationLimits, refundUsageReservationSafe } from '@study-forge/backend-generation/generation-limits';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
 import { directoryService } from '@study-forge/backend-directories/directory';
@@ -56,7 +56,8 @@ export const generateQuiz = onCall(
         throw new Error("Maximum 5 documents allowed per quiz");
       }
 
-      await enforceCallableGenerationRateLimit(userId, 'quiz');
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'quiz');
+      const usageReservationId = usageReservation.id;
 
       console.log(`Generating quiz from ${documentIds.length} document(s): ${documentIds.join(', ')}`, {
         customQuizName: !!requestData.quizName,
@@ -126,6 +127,7 @@ export const generateQuiz = onCall(
           recordId: pendingQuizId,
           kind: 'quiz',
           payload: requestData,
+          usageReservationId,
         });
 
         return {
@@ -140,6 +142,7 @@ export const generateQuiz = onCall(
       } catch (innerError) {
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
         await failPendingQuiz(userId, pendingQuizId, msg).catch(() => {/* best-effort */});
+        await refundUsageReservationSafe(userId, usageReservationId);
         throw innerError;
       }
 

@@ -11,6 +11,8 @@ export * from './lib/ai-revision-validation';
 export * from './services/api-rate-limit';
 export * from './services/generation-rate-limit-logic';
 export * from './services/generation-rate-limit-profiles';
+export * from './services/usage-limits-logic';
+export * from './services/usage-limits-service';
 export * from './services/interaction-tracking';
 export * from './services/learning-telemetry';
 export * from './services/statistics';

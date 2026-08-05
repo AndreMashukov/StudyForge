@@ -15,6 +15,7 @@ import { Spinner } from '../ui/Spinner';
 import { MascotImage } from '../MascotImage';
 import { DirectoryRealtimeBridge } from '../DirectoryRealtimeBridge';
 import { GlobalAgentLauncher } from '../GlobalAgentLauncher';
+import { UsageCreditsMeter } from '../UsageCreditsMeter';
 import { prefetchDirectoryTree } from '../../pages/DocumentsPage/utils/prefetchDirectoryContents';
 import { useAppDispatch } from '../../hooks/redux';
 import { toggleSidebar } from '../../store/slices/uiSlice';
@@ -77,7 +78,12 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
             </Link>
           </TopAppBarBrand>
         }
-        end={<ThemeToggle />}
+        end={
+          <div className="flex items-center gap-2">
+            <UsageCreditsMeter />
+            <ThemeToggle />
+          </div>
+        }
       />
 
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
