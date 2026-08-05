@@ -253,7 +253,7 @@ export async function reserveUsageCredits(params: {
       quantity: params.quantity,
     });
 
-    if (!decision.allowed) {
+    if (decision.allowed === false) {
       throw new UsageLimitError(decision.message, decision.code, {
         generationKind,
         remainingCredits: decision.remainingCredits,
