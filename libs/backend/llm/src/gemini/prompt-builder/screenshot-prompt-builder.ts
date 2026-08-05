@@ -14,7 +14,7 @@ export class ScreenshotPromptBuilder {
     const defaultBehaviorSection = hasRules
       ? `**DEFAULT BEHAVIOR** (used only when Domain Rules and User Instructions do not specify otherwise):
 - Extract visible content from the screenshot.
-- Apply Domain Rules to that content. Plain extraction is not enough when Domain Rules define a different output format.
+- Apply Domain Rules to that content. If Domain Rules define an output format, produce that format.
 - Preserve code blocks and other content Domain Rules say to leave unchanged.
 - Do NOT invent a comprehensive learning guide, glossary, or tutorial unless Domain Rules ask for it.
 - Do NOT wrap the entire response in a code block.`
@@ -31,7 +31,7 @@ export class ScreenshotPromptBuilder {
 ---
 ${rules.trim()}
 ---
-Follow these rules exactly. If they define a transformation or output format, produce that result — not a plain OCR extract.`
+Follow these rules exactly. If they define an output format, produce that result — not a plain OCR extract.`
       : '';
 
     const userSection = hasUserPrompt
@@ -43,7 +43,7 @@ ${userPrompt.trim()}`
 - Output ONLY an HTML fragment. No preamble, no chain-of-thought, and no commentary outside the required format.
 - Do NOT wrap the entire response in a code block.
 - Apply instructions in this priority order: User Instructions → Domain Rules → Default Behavior.
-- When Domain Rules or User Instructions define an output format (for example annotated text only), suppress all default structural requirements such as H1 headings, glossaries, tutorials, or summary sections.
+- When Domain Rules or User Instructions define an output format, suppress all default structural requirements such as H1 headings, glossaries, tutorials, or summary sections.
 - Do NOT include Mermaid diagrams, Plotly graphs, or mathematical LaTeX unless Domain Rules explicitly ask for them.`;
 
     return [

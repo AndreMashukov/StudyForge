@@ -1372,7 +1372,7 @@ ${draft}
 
 Requirements:
 - Output ONLY the corrected HTML fragment (no JSON, no preamble).
-- Apply Domain Rules exactly as written. Do not invent language-specific behavior beyond what the rules require.
+- Apply Domain Rules exactly as written. Do not add assumptions beyond what the rules require.
 - Preserve code blocks and any content the Domain Rules say to leave unchanged.
 - Do NOT invent a comprehensive learning guide, glossary, or tutorial unless Domain Rules ask for it.
 - Do NOT include Mermaid, Plotly, or LaTeX unless Domain Rules ask for them.`;

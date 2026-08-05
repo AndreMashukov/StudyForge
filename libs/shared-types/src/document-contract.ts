@@ -98,7 +98,7 @@ export function buildHtmlScreenshotDocumentPrompt({
   const defaultBehaviorSection = hasRules
     ? `**DEFAULT BEHAVIOR** (used only when Domain Rules and User Instructions do not specify otherwise):
 - Extract visible content from the screenshot.
-- Apply Domain Rules to that content. Plain extraction is not enough when Domain Rules define a different output format.
+- Apply Domain Rules to that content. If Domain Rules define an output format, produce that format.
 - Preserve code blocks and other content Domain Rules say to leave unchanged.
 - Do NOT invent a comprehensive learning guide, glossary, or tutorial unless Domain Rules ask for it.
 - Do NOT wrap the entire response in a code block.`
@@ -113,7 +113,7 @@ export function buildHtmlScreenshotDocumentPrompt({
 ---
 ${rules?.trim()}
 ---
-Follow these rules exactly. If they define a transformation or output format, produce that result — not a plain OCR extract.`
+Follow these rules exactly. If they define an output format, produce that result — not a plain OCR extract.`
     : '';
 
   const userSection = hasUserPrompt
