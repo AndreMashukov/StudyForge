@@ -19,8 +19,12 @@ export const RuleSelectorSheet = ({
   onSelectionChange,
 }: IRuleSelectorSheet) => {
   const [tempSelection, setTempSelection] = useState(selectedRuleIds);
+  const [isBusy, setIsBusy] = useState(false);
 
   const handleApply = () => {
+    if (isBusy) {
+      return;
+    }
     onSelectionChange(tempSelection);
     onClose();
   };
@@ -63,6 +67,7 @@ export const RuleSelectorSheet = ({
             selectedRuleIds={tempSelection}
             onSelectionChange={setTempSelection}
             compact={true}
+            onBusyChange={setIsBusy}
           />
         </div>
 
@@ -71,7 +76,7 @@ export const RuleSelectorSheet = ({
           <Button variant="outline" onClick={onClose} className="flex-1">
             Cancel
           </Button>
-          <Button onClick={handleApply} className="flex-1">
+          <Button onClick={handleApply} className="flex-1" disabled={isBusy}>
             Apply ({tempSelection.length})
           </Button>
         </div>

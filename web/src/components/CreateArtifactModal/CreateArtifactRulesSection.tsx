@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { RuleApplicability } from '@shared-types';
 import { CompactRuleSelector } from '../CompactRuleSelector';
 
@@ -27,6 +27,22 @@ export const CreateArtifactRulesSection: React.FC<ICreateArtifactRulesSection> =
   onFollowupRuleIdsChange,
   onDescriptionRuleIdsChange,
 }) => {
+  const [busyByKey, setBusyByKey] = useState<Record<string, boolean>>({});
+
+  const handleBusyChange = useCallback((key: string, busy: boolean) => {
+    setBusyByKey((previous) => {
+      if (previous[key] === busy) {
+        return previous;
+      }
+      return { ...previous, [key]: busy };
+    });
+  }, []);
+
+  const controlsDisabled = useMemo(
+    () => Object.values(busyByKey).some(Boolean),
+    [busyByKey],
+  );
+
   return (
     <div className="space-y-4">
       <CompactRuleSelector
@@ -35,6 +51,8 @@ export const CreateArtifactRulesSection: React.FC<ICreateArtifactRulesSection> =
         selectedRuleIds={ruleIds}
         onSelectionChange={onRuleIdsChange}
         label="Generation rules"
+        controlsDisabled={controlsDisabled}
+        onBusyChange={(busy) => handleBusyChange('generation', busy)}
       />
 
       {followupRuleApplicability ? (
@@ -44,6 +62,8 @@ export const CreateArtifactRulesSection: React.FC<ICreateArtifactRulesSection> =
           selectedRuleIds={followupRuleIds}
           onSelectionChange={onFollowupRuleIdsChange}
           label="Detailed explanation rules"
+          controlsDisabled={controlsDisabled}
+          onBusyChange={(busy) => handleBusyChange('followup', busy)}
         />
       ) : null}
 
@@ -54,6 +74,8 @@ export const CreateArtifactRulesSection: React.FC<ICreateArtifactRulesSection> =
           selectedRuleIds={descriptionRuleIds}
           onSelectionChange={onDescriptionRuleIdsChange}
           label="Description rules"
+          controlsDisabled={controlsDisabled}
+          onBusyChange={(busy) => handleBusyChange('description', busy)}
         />
       ) : null}
     </div>
