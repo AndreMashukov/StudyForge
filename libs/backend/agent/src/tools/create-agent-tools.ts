@@ -1,6 +1,7 @@
 import type {
   AgentActionKind,
   AgentActionResult,
+  AgentPromptContext,
   AgentProposedDelete,
   AgentScope,
   UpdateRuleRequest,
@@ -26,6 +27,7 @@ import { createPendingQuiz } from '@study-forge/backend-artifacts/artifact-gener
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { AgentKnowledgeIndexService } from '../knowledge/agent-knowledge-index-service';
 import { AgentKnowledgeLifecycle } from '../knowledge/agent-knowledge-lifecycle';
+import { stripHtmlToText } from '../knowledge/knowledge-chunk-utils';
 import {
   parseOptionalBoolean,
   parseOptionalRuleApplicabilityArray,
@@ -36,11 +38,15 @@ import {
   RULE_COLOR_ENUM,
 } from './rule-tool-args';
 
+/** Soft cap so tool results stay within model context. */
+export const AGENT_DOCUMENT_CONTENT_MAX_CHARS = 60_000;
+
 export interface AgentToolRuntimeContext {
   userId: string;
   scope: AgentScope;
   directoryId?: string;
   directoryIds: string[];
+  promptContext?: AgentPromptContext;
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
 }
@@ -69,7 +75,42 @@ async function resolveDefaultDirectoryId(context: AgentToolRuntimeContext): Prom
   if (context.directoryId && context.directoryIds.includes(context.directoryId)) {
     return context.directoryId;
   }
+  if (context.promptContext?.type === 'directory') {
+    return context.promptContext.directoryId;
+  }
+  if (context.promptContext?.type === 'document' && context.promptContext.directoryId) {
+    return context.promptContext.directoryId;
+  }
   return context.directoryIds[0];
+}
+
+function resolveDefaultDocumentId(context: AgentToolRuntimeContext): string | undefined {
+  if (context.promptContext?.type === 'document') {
+    return context.promptContext.documentId;
+  }
+  return undefined;
+}
+
+function truncateAgentText(text: string, maxChars = AGENT_DOCUMENT_CONTENT_MAX_CHARS): {
+  text: string;
+  truncated: boolean;
+  contentLength: number;
+} {
+  if (text.length <= maxChars) {
+    return { text, truncated: false, contentLength: text.length };
+  }
+  return {
+    text: `${text.slice(0, maxChars)}\n\n[truncated: showing first ${maxChars} of ${text.length} characters]`,
+    truncated: true,
+    contentLength: text.length,
+  };
+}
+
+export function toAgentReadableDocumentContent(content: string, contentFormat: string): string {
+  if (contentFormat === 'html' || content.includes('<')) {
+    return stripHtmlToText(content);
+  }
+  return content.trim();
 }
 
 /**
@@ -165,19 +206,93 @@ export function createAgentToolDefinitions(
     },
     {
       name: 'list_documents',
-      description: 'List documents in scope.',
-      parameters: { type: 'object', properties: {} },
-      execute: async () => {
+      description:
+        'List document metadata in scope. Pass directoryId to focus on one folder (recommended when UI context is a directory). Does not include document body content; use get_document_content next.',
+      parameters: {
+        type: 'object',
+        properties: {
+          directoryId: { type: 'string' },
+        },
+      },
+      execute: async (args) => {
+        const requestedDirectoryId =
+          typeof args.directoryId === 'string' && args.directoryId.trim().length > 0
+            ? args.directoryId.trim()
+            : undefined;
+        const targetDirectoryIds = requestedDirectoryId
+          ? [requestedDirectoryId]
+          : context.directoryIds;
+
+        if (requestedDirectoryId) {
+          assertDirectoryInScope(context, requestedDirectoryId);
+        }
+
         const snapshots = await Promise.all(
-          context.directoryIds.map((directoryId) =>
+          targetDirectoryIds.map((directoryId) =>
             FirestorePaths.documents(context.userId)
               .where('directoryId', '==', directoryId)
               .get()
           )
         );
         return snapshots.flatMap((snapshot) =>
-          snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+          snapshot.docs.map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              title: typeof data.title === 'string' ? data.title : '',
+              directoryId:
+                typeof data.directoryId === 'string' ? data.directoryId : undefined,
+              description: typeof data.description === 'string' ? data.description : undefined,
+              sourceType: typeof data.sourceType === 'string' ? data.sourceType : undefined,
+              updatedAt: data.updatedAt ?? undefined,
+            };
+          })
         );
+      },
+    },
+    {
+      name: 'get_document_content',
+      description:
+        'Read the full body of a document. Required before explaining, summarizing, extracting, or rewriting material from an existing document. If documentId is omitted and UI context is a document, uses that document.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentId: { type: 'string' },
+        },
+      },
+      execute: async (args) => {
+        const documentId =
+          typeof args.documentId === 'string' && args.documentId.trim().length > 0
+            ? args.documentId.trim()
+            : resolveDefaultDocumentId(context);
+        if (!documentId) {
+          throw new Error('documentId is required when no document UI context is active');
+        }
+
+        const document = await DocumentCrudService.getDocumentWithContent(
+          context.userId,
+          documentId
+        );
+        if (!document.directoryId) {
+          throw new Error('Document is missing a directoryId');
+        }
+        assertDirectoryInScope(context, document.directoryId);
+
+        const readable = toAgentReadableDocumentContent(
+          document.content,
+          document.contentFormat
+        );
+        const truncated = truncateAgentText(readable);
+
+        return {
+          id: document.id,
+          title: document.title,
+          directoryId: document.directoryId,
+          contentFormat: document.contentFormat,
+          content: truncated.text,
+          truncated: truncated.truncated,
+          contentLength: truncated.contentLength,
+        };
       },
     },
     {

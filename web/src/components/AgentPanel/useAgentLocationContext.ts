@@ -9,9 +9,10 @@ import { useGetSlideDeckQuery } from '../../store/api/SlideDecks/SlideDecksApi';
 import { useGetDiagramQuizQuery } from '../../store/api/DiagramQuiz/DiagramQuizApi';
 import { useGetSequenceQuizQuery } from '../../store/api/SequenceQuiz/SequenceQuizApi';
 import { useGetSubjectWorldQuery } from '../../store/api/SubjectWorld/SubjectWorldApi';
+import { useGetRuleQuery } from '../../store/api/Rules';
 import { extractDirectoryIdFromRouteParam } from '../../utils/directoryUrl';
 
-export type AgentLocationContextKind = 'workspace' | 'directory' | 'document';
+export type AgentLocationContextKind = 'workspace' | 'directory' | 'document' | 'rule';
 
 export interface IAgentLocationContext {
   kind: Exclude<AgentLocationContextKind, 'workspace'>;
@@ -23,6 +24,7 @@ export interface IAgentLocationContext {
 type ResolvedRoute =
   | { type: 'directory'; directoryId: string }
   | { type: 'document'; documentId: string }
+  | { type: 'rule'; ruleId: string }
   | {
       type: 'artifact';
       artifact:
@@ -59,6 +61,11 @@ function resolveRoute(pathname: string, search: string, params: Record<string, s
   const documentId = params.documentId?.trim() || pathname.match(/^\/document\/([^/?#]+)/)?.[1];
   if (documentId) {
     return { type: 'document', documentId };
+  }
+
+  const ruleId = params.ruleId?.trim() || pathname.match(/^\/rules\/editor\/([^/?#]+)/)?.[1];
+  if (ruleId) {
+    return { type: 'rule', ruleId };
   }
 
   const queryDirectoryId = readQueryDirectoryId(search);
@@ -131,6 +138,7 @@ export function useAgentLocationContext(): IAgentLocationContext | null {
 
   const directoryRouteId = route?.type === 'directory' ? route.directoryId : undefined;
   const documentRouteId = route?.type === 'document' ? route.documentId : undefined;
+  const ruleRouteId = route?.type === 'rule' ? route.ruleId : undefined;
   const artifact = route?.type === 'artifact' ? route : null;
 
   const quizQuery = useGetQuizQuery(
@@ -199,6 +207,9 @@ export function useAgentLocationContext(): IAgentLocationContext | null {
   const documentQuery = useGetDocumentQuery(documentRouteId || '', {
     skip: !documentRouteId,
   });
+  const ruleQuery = useGetRuleQuery(ruleRouteId || '', {
+    skip: !ruleRouteId,
+  });
 
   const resolvedDirectoryId =
     directoryRouteId ||
@@ -211,6 +222,29 @@ export function useAgentLocationContext(): IAgentLocationContext | null {
   });
 
   return useMemo(() => {
+    if (route?.type === 'rule') {
+      const rule = ruleQuery.data;
+      const ruleId = rule?.id || route.ruleId;
+      if (!ruleId) {
+        return null;
+      }
+
+      const label = rule?.name?.trim() || 'Rule';
+      const tooltipPath = `Rule / ${label}`;
+
+      return {
+        kind: 'rule' as const,
+        label,
+        tooltipPath,
+        promptContext: {
+          type: 'rule' as const,
+          ruleId,
+          label,
+          path: tooltipPath,
+        },
+      };
+    }
+
     if (route?.type === 'document') {
       const document = documentQuery.data;
       const documentId = document?.id || route.documentId;
@@ -262,6 +296,7 @@ export function useAgentLocationContext(): IAgentLocationContext | null {
     directoryQuery.data,
     documentQuery.data,
     resolvedDirectoryId,
+    ruleQuery.data,
     route,
   ]);
 }

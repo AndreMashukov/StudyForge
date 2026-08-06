@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Folder, X } from 'lucide-react';
+import { FileText, Folder, ScrollText, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/Tooltip';
 import { cn } from '../../lib/utils';
 import type { IAgentLocationContext } from './useAgentLocationContext';
@@ -20,7 +20,12 @@ export const AgentContextPill: React.FC<IAgentContextPill> = ({
   onRemove,
   disabled = false,
 }) => {
-  const Icon = locationContext.kind === 'document' ? FileText : Folder;
+  const Icon =
+    locationContext.kind === 'document'
+      ? FileText
+      : locationContext.kind === 'rule'
+        ? ScrollText
+        : Folder;
 
   return (
     <TooltipProvider>

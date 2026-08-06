@@ -19,6 +19,7 @@ vi.mock('@study-forge/backend-directories/rule-crud', () => ({
 vi.mock('@study-forge/backend-documents/document-crud', () => ({
   DocumentCrudService: {
     getDocument: vi.fn(),
+    getDocumentWithContent: vi.fn(),
     createDocument: vi.fn(),
   },
 }));
@@ -69,10 +70,12 @@ import {
   getRule,
   updateRule,
 } from '@study-forge/backend-directories/rule-crud';
+import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { AgentKnowledgeLifecycle } from '../knowledge/agent-knowledge-lifecycle';
 import {
   createAgentToolDefinitions,
   executeAgentTool,
+  toAgentReadableDocumentContent,
   type AgentToolRuntimeContext,
 } from './create-agent-tools';
 
@@ -340,5 +343,104 @@ describe('createAgentToolDefinitions create_directory', () => {
       parentId: 'python-1',
       description: undefined,
     });
+  });
+});
+
+describe('createAgentToolDefinitions get_document_content', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('reads document body and strips HTML', async () => {
+    vi.mocked(DocumentCrudService.getDocumentWithContent).mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      title: 'Using Tools with LangChain',
+      description: '',
+      sourceType: 'generated',
+      wordCount: 10,
+      status: 'ready',
+      storageUrl: '',
+      storagePath: 'users/user-1/documents/doc-1/content.html',
+      tags: [],
+      directoryId: 'dir-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      content: '<h1>Tools</h1><p>Use <code>tool.bind()</code> carefully.</p>',
+      contentFormat: 'html',
+    } as never);
+
+    const tools = createAgentToolDefinitions(createContext());
+    const result = await executeAgentTool(tools, 'get_document_content', {
+      documentId: 'doc-1',
+    });
+
+    expect(DocumentCrudService.getDocumentWithContent).toHaveBeenCalledWith(
+      'user-1',
+      'doc-1'
+    );
+    expect(result).toMatchObject({
+      id: 'doc-1',
+      title: 'Using Tools with LangChain',
+      directoryId: 'dir-1',
+      truncated: false,
+      content: 'Tools Use tool.bind() carefully.',
+    });
+  });
+
+  it('defaults to UI document context when documentId is omitted', async () => {
+    vi.mocked(DocumentCrudService.getDocumentWithContent).mockResolvedValue({
+      id: 'doc-ui',
+      userId: 'user-1',
+      title: 'Current Doc',
+      description: '',
+      sourceType: 'generated',
+      wordCount: 3,
+      status: 'ready',
+      storageUrl: '',
+      storagePath: 'users/user-1/documents/doc-ui/content.html',
+      tags: [],
+      directoryId: 'dir-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      content: 'plain source text',
+      contentFormat: 'markdown',
+    } as never);
+
+    const tools = createAgentToolDefinitions(
+      createContext({
+        promptContext: {
+          type: 'document',
+          documentId: 'doc-ui',
+          directoryId: 'dir-1',
+          label: 'Current Doc',
+        },
+      })
+    );
+    const result = await executeAgentTool(tools, 'get_document_content', {});
+
+    expect(DocumentCrudService.getDocumentWithContent).toHaveBeenCalledWith(
+      'user-1',
+      'doc-ui'
+    );
+    expect(result).toMatchObject({
+      id: 'doc-ui',
+      content: 'plain source text',
+    });
+  });
+
+  it('rejects missing documentId without document UI context', async () => {
+    const tools = createAgentToolDefinitions(createContext());
+    await expect(executeAgentTool(tools, 'get_document_content', {})).rejects.toThrow(
+      /documentId is required/
+    );
+  });
+});
+
+describe('toAgentReadableDocumentContent', () => {
+  it('strips html tags', () => {
+    expect(toAgentReadableDocumentContent('<p>Hello <b>world</b></p>', 'html')).toBe(
+      'Hello world'
+    );
   });
 });

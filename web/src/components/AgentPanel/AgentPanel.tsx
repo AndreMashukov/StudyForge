@@ -57,6 +57,11 @@ const EMPTY_STATE_PROMPTS: Record<AgentLocationContextKind, string[]> = {
     'Create a quiz from this document',
     'Explain the key concepts in this document',
   ],
+  rule: [
+    'Summarize this rule',
+    'Improve this rule for clarity',
+    'Where is this rule applied?',
+  ],
 };
 
 type StoredAgentSession = {
@@ -137,7 +142,10 @@ function promptContextDirectoryId(promptContext: AgentPromptContext | undefined)
   if (promptContext.type === 'directory') {
     return promptContext.directoryId;
   }
-  return promptContext.directoryId;
+  if (promptContext.type === 'document') {
+    return promptContext.directoryId;
+  }
+  return undefined;
 }
 
 export const AgentPanel: React.FC<IAgentPanel> = ({

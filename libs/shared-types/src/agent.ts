@@ -16,6 +16,12 @@ export const agentPromptContextSchema = z.discriminatedUnion('type', [
     label: z.string().trim().min(1).optional(),
     path: z.string().trim().min(1).optional(),
   }),
+  z.object({
+    type: z.literal('rule'),
+    ruleId: z.string().trim().min(1),
+    label: z.string().trim().min(1).optional(),
+    path: z.string().trim().min(1).optional(),
+  }),
 ]);
 
 export const agentMessageSchema = z.object({

@@ -8,6 +8,8 @@ import type {
   IAgentThreadMessage,
 } from '@shared-types';
 import { directoryService } from '@study-forge/backend-directories/directory';
+import { getRule } from '@study-forge/backend-directories/rule-crud';
+import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import {
   AgentMemoryService,
   AgentThreadStore,
@@ -15,8 +17,10 @@ import {
 } from './memory/agent-memory-service';
 import { AgentChatRunner } from './runner/agent-chat-runner';
 import {
+  AGENT_DOCUMENT_CONTENT_MAX_CHARS,
   AgentToolRuntimeContext,
   createAgentToolDefinitions,
+  toAgentReadableDocumentContent,
 } from './tools/create-agent-tools';
 
 const MAX_DIRECTORY_IDS = 200;
@@ -36,11 +40,16 @@ function describePromptContext(promptContext?: AgentPromptContext): string | und
       : `directory id ${promptContext.directoryId}`;
   }
 
-  const documentLabel = display || promptContext.documentId;
-  const directoryHint = promptContext.directoryId
-    ? `, directory id ${promptContext.directoryId}`
-    : '';
-  return `document "${documentLabel}" (id: ${promptContext.documentId}${directoryHint})`;
+  if (promptContext.type === 'document') {
+    const documentLabel = display || promptContext.documentId;
+    const directoryHint = promptContext.directoryId
+      ? `, directory id ${promptContext.directoryId}`
+      : '';
+    return `document "${documentLabel}" (id: ${promptContext.documentId}${directoryHint})`;
+  }
+
+  const ruleLabel = display || promptContext.ruleId;
+  return `rule "${ruleLabel}" (id: ${promptContext.ruleId})`;
 }
 
 function formatUserMessageForModel(
@@ -130,11 +139,79 @@ async function resolveDirectoryIds(input: {
   return collectDirectoryIds(treeResponse.tree).slice(0, MAX_DIRECTORY_IDS);
 }
 
+async function loadCurrentDocumentBodyBlock(
+  userId: string,
+  promptContext?: AgentPromptContext
+): Promise<string | undefined> {
+  if (!promptContext || promptContext.type !== 'document') {
+    return undefined;
+  }
+
+  try {
+    const document = await DocumentCrudService.getDocumentWithContent(
+      userId,
+      promptContext.documentId
+    );
+    const readable = toAgentReadableDocumentContent(
+      document.content,
+      document.contentFormat
+    );
+    const body =
+      readable.length > AGENT_DOCUMENT_CONTENT_MAX_CHARS
+        ? `${readable.slice(0, AGENT_DOCUMENT_CONTENT_MAX_CHARS)}\n\n[truncated: use get_document_content for more]`
+        : readable;
+
+    return [
+      `Current document body is preloaded below (id: ${document.id}, title: "${document.title}").`,
+      'Ground any extraction, explanation, or rewrite in this body. Do not invent alternate examples.',
+      '--- BEGIN CURRENT DOCUMENT ---',
+      body,
+      '--- END CURRENT DOCUMENT ---',
+    ].join('\n');
+  } catch {
+    return [
+      `Current UI document id ${promptContext.documentId} could not be preloaded.`,
+      'Call get_document_content with that documentId before answering about its contents.',
+    ].join(' ');
+  }
+}
+
+async function loadCurrentRuleBodyBlock(
+  userId: string,
+  promptContext?: AgentPromptContext
+): Promise<string | undefined> {
+  if (!promptContext || promptContext.type !== 'rule') {
+    return undefined;
+  }
+
+  try {
+    const rule = await getRule(userId, promptContext.ruleId);
+    if (!rule) {
+      return `Current UI rule id ${promptContext.ruleId} could not be found.`;
+    }
+
+    return [
+      `Current rule is preloaded below (id: ${rule.id}, name: "${rule.name}").`,
+      'Ground rule summaries, edits, or application questions in this body.',
+      '--- BEGIN CURRENT RULE ---',
+      rule.content,
+      '--- END CURRENT RULE ---',
+    ].join('\n');
+  } catch {
+    return [
+      `Current UI rule id ${promptContext.ruleId} could not be preloaded.`,
+      'Use list_rules to inspect available rules before answering about this rule.',
+    ].join(' ');
+  }
+}
+
 function buildSystemPrompt(input: {
   scope: AgentScope;
   directoryId?: string;
   promptContext?: AgentPromptContext;
   memorySnippets: Array<{ content: string; memoryType: string }>;
+  currentDocumentBodyBlock?: string;
+  currentRuleBodyBlock?: string;
 }): string {
   const scopeLabel = input.scope === 'workspace' ? 'workspace' : 'directory';
   const promptContextDescription = describePromptContext(input.promptContext);
@@ -149,9 +226,14 @@ function buildSystemPrompt(input: {
     'You are StudyForge Directory Agent, a helpful assistant that can inspect and manage StudyForge content.',
     `Active scope: ${scopeLabel}${input.directoryId ? ` (hint directory: ${input.directoryId})` : ''}.`,
     promptContextDescription
-      ? `Current UI context (prompt hint only; tools remain available across the workspace): ${promptContextDescription}.`
+      ? `Current UI context (prompt hint; tools remain available across the workspace): ${promptContextDescription}.`
       : 'Current UI context: global (no directory or document pinned).',
     'Treat UI context as a hint for pronouns like "this" / "here". Do not refuse broader workspace requests.',
+    'When the user asks about content from a document or folder (summarize, explain expressions, extract examples, rewrite), you MUST read the source with tools first:',
+    '- Document UI context: use the preloaded current document body when present, otherwise call get_document_content.',
+    '- Directory UI context: call list_documents with that directoryId, then get_document_content on the relevant document(s).',
+    '- Rule UI context: use the preloaded current rule body when present.',
+    '- Never invent code samples, expressions, or quotes that are not present in the retrieved source content.',
     'Use tools to inspect knowledge, list content, create/update resources, and enqueue generation jobs.',
     'After using tools, always reply with a clear final answer for the user. Never end a turn with only tool calls and no text.',
     'When you create directories or rules, state the full path from tool results (for example /Python/Screenshots).',
@@ -161,6 +243,8 @@ function buildSystemPrompt(input: {
     'Directory names cannot contain / \\ : * ? " < > |. Use hyphens instead of slashes (for example, "AI-ML" not "AI/ML").',
     'When creating documents, write HTML body content (h1, p, ul, li). New documents are stored as HTML, not markdown.',
     'For study plans and proposals, answer in chat first unless the user asks you to create directories or documents.',
+    input.currentDocumentBodyBlock,
+    input.currentRuleBodyBlock,
     memoryBlock,
   ]
     .filter(Boolean)
@@ -189,6 +273,7 @@ export class DirectoryAgentService {
       scope: request.scope,
       directoryId: request.directoryId,
       directoryIds,
+      promptContext: request.promptContext,
       executedActions: [],
       proposedDeletes: [],
     };
@@ -202,9 +287,11 @@ export class DirectoryAgentService {
 
     yield { type: 'thread', threadId: thread.id };
 
-    const [memorySnippets, history] = await Promise.all([
+    const [memorySnippets, history, currentDocumentBodyBlock, currentRuleBodyBlock] = await Promise.all([
       AgentMemoryService.retrieveRelevantMemories(userId, request.message),
       AgentThreadStore.listRecentMessages(userId, thread.id, 12),
+      loadCurrentDocumentBodyBlock(userId, request.promptContext),
+      loadCurrentRuleBodyBlock(userId, request.promptContext),
     ]);
 
     await AgentThreadStore.appendMessage({
@@ -221,6 +308,8 @@ export class DirectoryAgentService {
       directoryId: request.directoryId,
       promptContext: request.promptContext,
       memorySnippets,
+      currentDocumentBodyBlock,
+      currentRuleBodyBlock,
     });
 
     const pendingEvents: AgentMessageStreamEvent[] = [];
