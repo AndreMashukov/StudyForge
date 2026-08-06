@@ -16,6 +16,7 @@ export interface IDirectoryRulesPageContext {
   handlers: {
     handleAssignRule: () => void;
     handleRemoveRule: (ruleId: string) => void;
+    handleEditRule: (ruleId: string) => void;
     handleToggleCascadeView: () => void;
     handleCloseAssignModal: () => void;
   };

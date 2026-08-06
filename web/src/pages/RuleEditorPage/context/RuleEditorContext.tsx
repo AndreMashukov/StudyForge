@@ -1,8 +1,11 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { RuleColor, CreateRuleRequest } from '@shared-types';
 import {
+  useGetRuleQuery,
   useCreateRuleMutation,
+  useUpdateRuleMutation,
+  useDeleteRuleMutation,
   useGenerateRuleWithAIMutation,
 } from '../../../store/api/Rules/rulesApi';
 import { useToast } from '../../../components/Toast';
@@ -30,10 +33,19 @@ const DEFAULT_FORM_DATA: IRuleEditorFormData = {
 };
 
 export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children }) => {
+  const { ruleId } = useParams<{ ruleId?: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
 
+  const mode: 'create' | 'edit' = ruleId ? 'edit' : 'create';
+
+  const { data: existingRule, isLoading: isLoadingRule } = useGetRuleQuery(ruleId ?? '', {
+    skip: !ruleId,
+  });
+
   const [createRule, { isLoading: isCreating }] = useCreateRuleMutation();
+  const [updateRule, { isLoading: isUpdating }] = useUpdateRuleMutation();
+  const [deleteRuleMutation] = useDeleteRuleMutation();
   const [generateRuleWithAI] = useGenerateRuleWithAIMutation();
 
   const [formData, setFormData] = useState<IRuleEditorFormData>(DEFAULT_FORM_DATA);
@@ -42,6 +54,20 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
   const [aiState, setAiState] = useState<AIState>('idle');
   const [aiResult, setAiResult] = useState<IAIResult | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (existingRule && mode === 'edit') {
+      setFormData({
+        name: existingRule.name,
+        description: existingRule.description || '',
+        content: existingRule.content,
+        color: existingRule.color,
+        tags: [...existingRule.tags],
+        applicableTo: [...existingRule.applicableTo],
+        isDefault: existingRule.isDefault,
+      });
+    }
+  }, [existingRule, mode]);
 
   const updateField = useCallback(
     (field: keyof IRuleEditorFormData, value: IRuleEditorFormData[keyof IRuleEditorFormData]) => {
@@ -81,16 +107,39 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
       return;
     }
     try {
-      await createRule(formData as CreateRuleRequest).unwrap();
-      showToast(`Rule "${formData.name}" created successfully`, 'success');
-      navigate('/rules');
+      if (mode === 'edit' && ruleId) {
+        await updateRule({ ruleId, ...formData }).unwrap();
+        showToast(`Rule "${formData.name}" updated successfully`, 'success');
+        navigate('/rules');
+      } else {
+        await createRule(formData as CreateRuleRequest).unwrap();
+        showToast(`Rule "${formData.name}" created successfully`, 'success');
+        navigate('/rules');
+      }
     } catch {
       // Error is shown via the global errorToastMiddleware toast
     }
-  }, [formData, validate, showToast, navigate, createRule]);
+  }, [formData, mode, ruleId, validate, showToast, navigate, updateRule, createRule]);
+
+  const deleteRule = useCallback(async () => {
+    if (!ruleId) return;
+    try {
+      const result = await deleteRuleMutation({ ruleId }).unwrap();
+      if (result.success) {
+        showToast('Rule deleted successfully', 'success');
+        navigate('/rules');
+      } else {
+        showToast(result.error || 'Failed to delete rule', 'error');
+      }
+    } catch {
+      // Error is shown via the global errorToastMiddleware toast
+    }
+  }, [ruleId, deleteRuleMutation, showToast, navigate]);
 
   const generateWithAI = useCallback(
     async (topic: string, description?: string) => {
+      if (mode === 'edit') return;
+
       setAiState('generating');
       setAiError(null);
       try {
@@ -109,11 +158,11 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
         setAiState('error');
       }
     },
-    [generateRuleWithAI, formData.applicableTo, formData.content]
+    [generateRuleWithAI, formData.applicableTo, formData.content, mode]
   );
 
   const applyAIResult = useCallback(() => {
-    if (!aiResult) return;
+    if (!aiResult || mode === 'edit') return;
     setFormData((prev) => ({
       ...prev,
       name: aiResult.name || prev.name,
@@ -122,7 +171,7 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
     }));
     setAiState('idle');
     setAiResult(null);
-  }, [aiResult]);
+  }, [aiResult, mode]);
 
   const discardAIResult = useCallback(() => {
     setAiState('idle');
@@ -131,11 +180,15 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
   }, []);
 
   const contextValue: IRuleEditorContext = {
-    isSaving: isCreating,
+    mode,
+    ruleId: ruleId ?? null,
+    isLoading: isLoadingRule,
+    isSaving: isCreating || isUpdating,
     formData,
     formErrors,
     updateField,
     save,
+    deleteRule,
     aiState,
     aiResult,
     aiError,

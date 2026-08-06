@@ -55,7 +55,7 @@ export const DirectoryRulesPageContainer = () => {
   }
 
   const { directory, directRules, inheritedRules, isCascadeViewOpen, isAssignModalOpen } = state;
-  const { handleAssignRule, handleToggleCascadeView, handleCloseAssignModal, handleRemoveRule } = handlers;
+  const { handleAssignRule, handleToggleCascadeView, handleCloseAssignModal, handleRemoveRule, handleEditRule } = handlers;
 
   // Get inherited rules (exclude current directory)
   const parentRules = Object.entries(inheritedRules)
@@ -160,6 +160,7 @@ export const DirectoryRulesPageContainer = () => {
                   <RuleCard
                     key={rule.id}
                     rule={rule}
+                    onEdit={() => handleEditRule(rule.id)}
                     onRemove={() => handleRemoveRule(rule.id)}
                     showRemoveButton
                     selected={bulkDetach.isSelected(rule.id)}
@@ -225,6 +226,7 @@ export const DirectoryRulesPageContainer = () => {
                           <RuleCard
                             key={rule.id}
                             rule={rule}
+                            onEdit={() => handleEditRule(rule.id)}
                             isInherited
                           />
                         )}

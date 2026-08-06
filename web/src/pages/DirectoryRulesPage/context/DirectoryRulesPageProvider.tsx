@@ -1,5 +1,5 @@
 import { ReactNode, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { DirectoryRulesPageContext } from './DirectoryRulesPageContext';
 import { IDirectoryRulesPageContext } from '../types/IDirectoryRulesPageContext';
 import { 
@@ -18,6 +18,7 @@ export const DirectoryRulesPageProvider = ({
   children,
 }: DirectoryRulesPageProviderProps) => {
   const { directoryId } = useParams<{ directoryId: string }>();
+  const navigate = useNavigate();
   
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isCascadeViewOpen, setIsCascadeViewOpen] = useState(false);
@@ -78,6 +79,13 @@ export const DirectoryRulesPageProvider = ({
     [directoryId, detachRuleFromDirectory]
   );
 
+  const handleEditRule = useCallback(
+    (ruleId: string) => {
+      navigate(`/rules/editor/${ruleId}`);
+    },
+    [navigate]
+  );
+
   const handleToggleCascadeView = useCallback(() => {
     setIsCascadeViewOpen((prev) => !prev);
   }, []);
@@ -106,6 +114,7 @@ export const DirectoryRulesPageProvider = ({
     handlers: {
       handleAssignRule,
       handleRemoveRule,
+      handleEditRule,
       handleToggleCascadeView,
       handleCloseAssignModal,
     },

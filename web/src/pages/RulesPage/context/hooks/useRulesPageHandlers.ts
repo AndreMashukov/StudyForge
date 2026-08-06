@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Rule } from '@shared-types';
 import { useDeleteRuleMutation } from '../../../../store/api/Rules';
 import { useToast } from '../../../../components/Toast';
 
@@ -10,6 +11,10 @@ export const useRulesPageHandlers = () => {
 
   const handleCreateRule = useCallback(() => {
     navigate('/rules/editor');
+  }, [navigate]);
+
+  const handleEditRule = useCallback((rule: Rule) => {
+    navigate(`/rules/editor/${rule.id}`);
   }, [navigate]);
 
   const handleDeleteRule = useCallback(async (ruleId: string) => {
@@ -27,6 +32,7 @@ export const useRulesPageHandlers = () => {
 
   return {
     handleCreateRule,
+    handleEditRule,
     handleDeleteRule,
     isDeleting,
   };

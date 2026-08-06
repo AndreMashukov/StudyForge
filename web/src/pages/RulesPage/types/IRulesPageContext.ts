@@ -9,6 +9,7 @@ export interface IRulesPageContext {
   };
   handlers: {
     handleCreateRule: () => void;
+    handleEditRule: (rule: Rule) => void;
     handleDeleteRule: (ruleId: string) => void;
     handleFilterChange: (filters: RulesPageFilters) => void;
     handleViewModeChange: (mode: 'grid' | 'list') => void;

@@ -324,9 +324,19 @@ const AppContent = () => {
         }
       />
 
-      {/* Rule Editor Route (create only) */}
+      {/* Rule Editor Routes */}
       <Route
         path="/rules/editor"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <RuleEditorPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/rules/editor/:ruleId"
         element={
           <MainLayout>
             <ProtectedRoute>

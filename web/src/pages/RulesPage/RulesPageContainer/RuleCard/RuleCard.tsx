@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../../components/ui/DropdownMenu';
 import { BulkSelectCheckbox } from '../../../../components/BulkSelectCheckbox';
-import { MoreVertical, Trash2, Star, FolderOpen } from 'lucide-react';
+import { MoreVertical, Edit, Trash2, Star, FolderOpen } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { getRuleApplicabilityLabel } from '../../../../utils/ruleApplicabilityUtils';
 
@@ -27,11 +27,16 @@ const ruleColorClasses: Record<string, string> = {
 
 export const RuleCard = ({
   rule,
+  onEdit,
   onDelete,
   viewMode,
   selected = false,
   onSelectChange,
 }: IRuleCard) => {
+  const handleEdit = () => {
+    onEdit(rule);
+  };
+
   const handleDelete = () => {
     // eslint-disable-next-line no-restricted-globals
     if (confirm(`Are you sure you want to delete "${rule.name}"?`)) {
@@ -122,6 +127,10 @@ export const RuleCard = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleEdit}>
+                  <Edit size={14} className="mr-2" />
+                  Edit
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleDelete}
                   className="text-destructive"
@@ -177,6 +186,10 @@ export const RuleCard = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleEdit}>
+                <Edit size={14} className="mr-2" />
+                Edit
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleDelete}
                 className="text-destructive"

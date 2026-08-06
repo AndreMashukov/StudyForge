@@ -20,11 +20,15 @@ export interface IAIResult {
 export type AIState = 'idle' | 'generating' | 'done' | 'error';
 
 export interface IRuleEditorContext {
+  mode: 'create' | 'edit';
+  ruleId: string | null;
+  isLoading: boolean;
   isSaving: boolean;
   formData: IRuleEditorFormData;
   formErrors: Record<string, string>;
   updateField: (field: keyof IRuleEditorFormData, value: IRuleEditorFormData[keyof IRuleEditorFormData]) => void;
   save: () => Promise<void>;
+  deleteRule: () => Promise<void>;
   aiState: AIState;
   aiResult: IAIResult | null;
   aiError: string | null;

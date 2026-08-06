@@ -6,6 +6,7 @@ import { cn } from '../../../../lib/utils';
 
 export interface IDirectoryRuleCard {
   rule: Rule;
+  onEdit: () => void;
   onRemove?: () => void;
   isInherited?: boolean;
   showRemoveButton?: boolean;
@@ -47,6 +48,7 @@ const getApplicabilityLabel = (applicability: RuleApplicability): string => {
 
 export const RuleCard = ({
   rule,
+  onEdit,
   onRemove,
   isInherited = false,
   showRemoveButton = false,
@@ -150,6 +152,14 @@ export const RuleCard = ({
 
         {/* Actions */}
         <div className="flex gap-2 ml-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onEdit}
+            style={{ color: colors.mutedForeground }}
+          >
+            Edit
+          </Button>
           {showRemoveButton && onRemove && (
             <Button
               variant="ghost"
