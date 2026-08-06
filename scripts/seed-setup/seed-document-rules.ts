@@ -48,12 +48,23 @@ export const DOC_HTML_FORMAT_CONTENT = `## 1. Pure HTML Format
 * Wrap every Mermaid diagram as: \`<pre><code class="language-mermaid">...</code></pre>\`
 * Use only supported types: flowchart/graph, sequenceDiagram, classDiagram, erDiagram, or stateDiagram.
 * Keep diagrams compact and readable.
-* Avoid bare /, \\, or @ characters inside square-bracket node labels.
 * Do not use markdown fences (\`\`\`mermaid); always use the HTML pre/code form above.
 * Prefer diagrams in Core Concepts or Examples sections.
 * Color diagram nodes and subgraphs differently with style or classDef so roles and stages are visually distinct.
 * When setting a fill color, ALWAYS also set color: so label text contrasts with the background (dark fill → light text; light fill → dark text). Example: \`style A fill:#1e3a5f,color:#ffffff\` or \`style B fill:#dbeafe,color:#0f172a\`.
 * Add relevant emojis to diagram element labels for clarity and engagement (for example \`A["🖥️ Client"]\`, \`B["⚙️ API"]\`, \`C["🗄️ Database"]\`).
+
+## Mermaid Invalid Characters (required)
+
+StudyForge rejects Mermaid diagrams that put bare \`/\`, \`\\\`, or \`@\` inside square-bracket node labels (e.g. \`A[foo/bar]\`, \`B[user@host]\`). Generation fails if this happens.
+
+Rules:
+- NEVER put bare \`/\`, \`\\\`, or \`@\` inside \`[...]\` node labels.
+- Prefer quoted labels and reword paths/emails: \`A["S3 bucket path"]\`, \`B["user at example.com"]\`, \`C["API Gateway then Lambda"]\`.
+- Spell out symbols when needed: use "slash", "at", "backslash", or replace with words/dashes (\`prod-api\`, \`us-east-1\`).
+- Do not put ARNs, URLs, file paths, or email addresses inside \`[...]\` labels. Summarize them in plain words instead.
+- Parenthesis / stadium / circle shapes still must avoid those characters in the label text when wrapped in square brackets.
+- Allowed diagram types only: flowchart/graph, sequenceDiagram, classDiagram, erDiagram, stateDiagram (not mindmap, timeline, C4, stateDiagram-v2 unless a separate rule explicitly allows it).
 `;
 
 export const WEB_GRAPH_RENDERING_CONTENT = `# Rendering 2D/3D Graphs on the Web
