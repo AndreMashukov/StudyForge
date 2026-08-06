@@ -1,7 +1,7 @@
 import { createStore } from 'zustand/vanilla';
-import { createShellSlice, type ShellSlice } from './slices/shell-slice';
+import { createShellSlice, type IShellSlice } from './slices/shell-slice';
 
-export type UiStore = ShellSlice;
+export type UiStore = IShellSlice;
 
 export type UiStoreInit = Partial<Pick<UiStore, 'sidebarOpen'>>;
 

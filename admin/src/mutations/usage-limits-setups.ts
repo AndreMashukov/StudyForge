@@ -10,7 +10,7 @@ export async function saveUsageLimitsSetup(
   setupId: string | undefined,
   payload: ICreateUsageLimitsSetupRequest | IUpdateUsageLimitsSetupRequest
 ) {
-  return requestMutation<{ success?: boolean; message?: string }>(
+  return requestMutation(
     setupId ? `/api/usage-limits-setups/${setupId}` : '/api/usage-limits-setups',
     {
       method: setupId ? 'PUT' : 'POST',
@@ -21,7 +21,7 @@ export async function saveUsageLimitsSetup(
 }
 
 export async function deleteUsageLimitsSetup(setupId: string) {
-  return requestMutation<{ success?: boolean; message?: string }>(
+  return requestMutation(
     `/api/usage-limits-setups/${setupId}`,
     { method: 'DELETE' }
   );

@@ -47,10 +47,9 @@ export function LoginForm() {
       );
       const idToken = await credential.user.getIdToken();
 
-      const response = await createAdminSession(idToken);
+      const { response, payload } = await createAdminSession(idToken);
 
       if (!response.ok) {
-        const payload = (await response.json()) as { message?: string };
         if (response.status === 403) {
           setSubmitStatus('redirecting');
           router.push('/unauthorized');

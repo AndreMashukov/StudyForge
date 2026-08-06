@@ -9,13 +9,8 @@ import {
 } from '@admin/auth/client-login-redirect';
 import { assignUserGroup } from '@admin/mutations/users';
 import { Card, CardContent, CardHeader, CardTitle } from '@admin/components/ui/Card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@admin/components/ui/Select';
+import { SelectContent, SelectItem, SelectTrigger, SelectValue } from '@study-forge/ui';
+import { Select } from '@admin/components/ui/Select';
 
 export interface IUserGroupAssignmentFormProps {
   userId: string;

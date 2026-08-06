@@ -13,13 +13,8 @@ import {
 import { deleteUserGroup, saveUserGroup } from '@admin/mutations/user-groups';
 import { Card, CardContent, CardHeader, CardTitle } from '@admin/components/ui/Card';
 import { Input } from '@admin/components/ui/Input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@admin/components/ui/Select';
+import { SelectContent, SelectItem, SelectTrigger, SelectValue } from '@study-forge/ui';
+import { Select } from '@admin/components/ui/Select';
 
 const userGroupFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),

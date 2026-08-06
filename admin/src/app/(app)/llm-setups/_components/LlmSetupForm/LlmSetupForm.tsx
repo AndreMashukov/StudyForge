@@ -21,13 +21,8 @@ import {
 } from '@admin/domain/provider-model-catalog/ui';
 import { Card, CardContent, CardHeader, CardTitle } from '@admin/components/ui/Card';
 import { Input } from '@admin/components/ui/Input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@admin/components/ui/Select';
+import { SelectContent, SelectItem, SelectTrigger, SelectValue } from '@study-forge/ui';
+import { Select } from '@admin/components/ui/Select';
 import { ConnectionModelSelect } from '@admin/components/connections/ConnectionModelSelect';
 import {
   type ILlmSetupFormValues,

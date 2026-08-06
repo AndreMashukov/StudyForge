@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useRef, type ReactNode } from 'react';
 import { useStore } from 'zustand';
 import { createUiStore, type UiStore, type UiStoreInit } from '@admin/stores/ui-store';
 
@@ -8,16 +8,20 @@ export type UiStoreApi = ReturnType<typeof createUiStore>;
 
 const UiStoreContext = createContext<UiStoreApi | undefined>(undefined);
 
-export function UiStoreProvider({
-  children,
-  initialState,
-}: {
+export interface IUiStoreProviderProps {
   children: ReactNode;
   initialState?: UiStoreInit;
-}) {
-  const [store] = useState(() => createUiStore(initialState));
+}
 
-  return <UiStoreContext.Provider value={store}>{children}</UiStoreContext.Provider>;
+export function UiStoreProvider({ children, initialState }: IUiStoreProviderProps) {
+  const storeRef = useRef<UiStoreApi | null>(null);
+  if (storeRef.current === null) {
+    storeRef.current = createUiStore(initialState);
+  }
+
+  return (
+    <UiStoreContext.Provider value={storeRef.current}>{children}</UiStoreContext.Provider>
+  );
 }
 
 export function useUiStore<T>(selector: (state: UiStore) => T): T {

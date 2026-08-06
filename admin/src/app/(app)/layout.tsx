@@ -2,11 +2,11 @@ import { redirect } from 'next/navigation';
 import { AdminShell } from '@admin/components/layout';
 import { requireAdminSession } from '@admin/auth/session';
 
-export default async function AppLayout({
-  children,
-}: {
+export interface IAppLayoutProps {
   children: React.ReactNode;
-}) {
+}
+
+export default async function AppLayout({ children }: IAppLayoutProps) {
   let session;
   try {
     session = await requireAdminSession();

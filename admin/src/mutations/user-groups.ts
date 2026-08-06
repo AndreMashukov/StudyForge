@@ -12,7 +12,7 @@ export async function saveUserGroup(
   groupId: string | undefined,
   payload: IUserGroupMutationPayload
 ) {
-  return requestMutation<{ success?: boolean; message?: string }>(
+  return requestMutation(
     groupId ? `/api/user-groups/${groupId}` : '/api/user-groups',
     {
       method: groupId ? 'PUT' : 'POST',
@@ -23,7 +23,7 @@ export async function saveUserGroup(
 }
 
 export async function deleteUserGroup(groupId: string) {
-  return requestMutation<{ success?: boolean; message?: string }>(
+  return requestMutation(
     `/api/user-groups/${groupId}`,
     { method: 'DELETE' }
   );

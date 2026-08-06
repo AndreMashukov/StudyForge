@@ -7,7 +7,7 @@ export async function saveLlmSetup(
   setupId: string | undefined,
   payload: ICreateLlmSetupRequest | IUpdateLlmSetupRequest
 ) {
-  return requestMutation<{ success?: boolean; message?: string }>(
+  return requestMutation(
     setupId ? `/api/llm-setups/${setupId}` : '/api/llm-setups',
     {
       method: setupId ? 'PUT' : 'POST',
@@ -18,7 +18,7 @@ export async function saveLlmSetup(
 }
 
 export async function deleteLlmSetup(setupId: string) {
-  return requestMutation<{ success?: boolean; message?: string }>(
+  return requestMutation(
     `/api/llm-setups/${setupId}`,
     { method: 'DELETE' }
   );

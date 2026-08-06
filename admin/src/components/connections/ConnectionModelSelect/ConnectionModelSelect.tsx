@@ -6,13 +6,8 @@ import {
   filterModelsForModality,
   isModelInCatalogForModality,
 } from '@admin/domain/provider-model-catalog/ui';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@admin/components/ui/Select';
+import { SelectContent, SelectItem, SelectTrigger, SelectValue } from '@study-forge/ui';
+import { Select } from '@admin/components/ui/Select';
 
 const EMPTY_MODEL_VALUE = '__none__';
 
