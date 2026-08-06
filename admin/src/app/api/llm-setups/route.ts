@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getAdminApiStatusCode } from '../../../lib/api/route-utils';
-import { requireAdminSession } from '../../../lib/auth/session';
-import { createLlmSetupFromRequest, listLlmSetups } from '../../../lib/data/llm-setups';
+import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
+import { requireAdminSession } from '@admin/auth/session';
+import { createLlmSetupFromRequest, listLlmSetups } from '@admin/data/llm-setups';
 
 export async function GET() {
   try {

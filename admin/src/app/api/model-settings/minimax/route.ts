@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { IUpdateMiniMaxSettingsRequest } from '@shared-types';
-import { requireAdminSession } from '../../../../lib/auth/session';
+import { requireAdminSession } from '@admin/auth/session';
 import {
   getModelSettingsPageData,
   updateMiniMaxSettings,
-} from '../../../../lib/data/model-settings';
+} from '@admin/data/model-settings';
 
 function getStatusCode(error: unknown): number {
   const message = error instanceof Error ? error.message : '';

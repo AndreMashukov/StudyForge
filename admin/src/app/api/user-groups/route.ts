@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { ICreateUserGroupRequest } from '@shared-types';
-import { getAdminApiStatusCode } from '../../../lib/api/route-utils';
-import { requireAdminSession } from '../../../lib/auth/session';
-import { createUserGroup, listUserGroups } from '../../../lib/data/user-groups';
+import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
+import { requireAdminSession } from '@admin/auth/session';
+import { createUserGroup, listUserGroups } from '@admin/data/user-groups';
 
 export async function GET() {
   try {

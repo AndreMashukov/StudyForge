@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { IAssignUserGroupRequest } from '@shared-types';
 import { revalidatePath } from 'next/cache';
-import { getAdminApiStatusCode } from '../../../../../lib/api/route-utils';
-import { requireAdminSession } from '../../../../../lib/auth/session';
-import { assignUserGroup } from '../../../../../lib/data/users';
+import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
+import { requireAdminSession } from '@admin/auth/session';
+import { assignUserGroup } from '@admin/data/users';
 
 interface IRouteContext {
   params: Promise<{ userId: string }>;

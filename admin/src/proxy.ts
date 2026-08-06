@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSessionCookieName } from './lib/auth/verify-admin';
-import { verifyAdminSessionCookie } from './lib/auth/session';
+import { getSessionCookieName } from '@admin/auth/verify-admin';
+import { verifyAdminSessionCookie } from '@admin/auth/session';
 
 const PUBLIC_ROUTES = new Set(['/login', '/unauthorized']);
 

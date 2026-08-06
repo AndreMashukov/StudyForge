@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getAdminApiStatusCode } from '../../../lib/api/route-utils';
-import { requireAdminSession } from '../../../lib/auth/session';
+import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
+import { requireAdminSession } from '@admin/auth/session';
 import {
   createUsageLimitsSetupFromRequest,
   listUsageLimitsSetups,
   seedDefaultUsageLimitsSetups,
-} from '../../../lib/data/usage-limits-setups';
+} from '@admin/data/usage-limits-setups';
 
 export async function GET() {
   try {

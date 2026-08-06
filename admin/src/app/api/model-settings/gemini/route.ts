@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { IUpdateGeminiSettingsRequest } from '@shared-types';
-import { getAdminApiStatusCode } from '../../../../lib/api/route-utils';
-import { requireAdminSession } from '../../../../lib/auth/session';
-import { updateGeminiSettings } from '../../../../lib/data/model-settings';
+import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
+import { requireAdminSession } from '@admin/auth/session';
+import { updateGeminiSettings } from '@admin/data/model-settings';
 
 export async function PUT(request: Request) {
   try {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getAdminApiStatusCode } from '../../../../../lib/api/route-utils';
-import { requireAdminSession } from '../../../../../lib/auth/session';
-import { testStoredGeminiConnection } from '../../../../../lib/data/model-settings';
+import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
+import { requireAdminSession } from '@admin/auth/session';
+import { testStoredGeminiConnection } from '@admin/data/model-settings';
 
 export async function POST() {
   try {
