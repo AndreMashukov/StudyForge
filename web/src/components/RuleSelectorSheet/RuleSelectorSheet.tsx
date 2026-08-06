@@ -21,6 +21,13 @@ export const RuleSelectorSheet = ({
   const [tempSelection, setTempSelection] = useState(selectedRuleIds);
   const [isBusy, setIsBusy] = useState(false);
 
+  const handleClose = () => {
+    if (isBusy) {
+      return;
+    }
+    onClose();
+  };
+
   const handleApply = () => {
     if (isBusy) {
       return;
@@ -36,7 +43,7 @@ export const RuleSelectorSheet = ({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/50 z-40 md:hidden"
-        onClick={onClose}
+        onClick={handleClose}
       />
 
       {/* Bottom Sheet */}
@@ -52,8 +59,9 @@ export const RuleSelectorSheet = ({
         <div className="sticky top-0 bg-background border-b px-4 py-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Select Rules</h2>
           <button
-            onClick={onClose}
-            className="p-1 rounded-md hover:bg-accent"
+            onClick={handleClose}
+            disabled={isBusy}
+            className="p-1 rounded-md hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
           >
             <X size={20} />
           </button>
@@ -73,7 +81,12 @@ export const RuleSelectorSheet = ({
 
         {/* Footer */}
         <div className="sticky bottom-0 bg-background border-t p-4 flex gap-2">
-          <Button variant="outline" onClick={onClose} className="flex-1">
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            className="flex-1"
+            disabled={isBusy}
+          >
             Cancel
           </Button>
           <Button onClick={handleApply} className="flex-1" disabled={isBusy}>
