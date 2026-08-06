@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { IUpdateUserGroupRequest } from '@shared-types';
 import { revalidatePath } from 'next/cache';
-import { getAdminApiStatusCode } from '../../../../lib/api/route-utils';
-import { requireAdminSession } from '../../../../lib/auth/session';
+import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
+import { requireAdminSession } from '@admin/auth/session';
 import {
   deleteUserGroup,
   getUserGroupById,
   listGroupMembers,
   updateUserGroup,
-} from '../../../../lib/data/user-groups';
+} from '@admin/data/user-groups';
 
 interface IRouteContext {
   params: Promise<{ groupId: string }>;

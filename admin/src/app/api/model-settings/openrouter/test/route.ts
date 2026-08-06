@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { requireAdminSession } from '../../../../../lib/auth/session';
-import { testStoredOpenRouterConnection } from '../../../../../lib/data/model-settings';
+import { requireAdminSession } from '@admin/auth/session';
+import { testStoredOpenRouterConnection } from '@admin/data/model-settings';
 
 function getStatusCode(error: unknown): number {
   const message = error instanceof Error ? error.message : '';

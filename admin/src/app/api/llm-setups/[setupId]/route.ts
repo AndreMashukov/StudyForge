@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { getAdminApiStatusCode } from '../../../../lib/api/route-utils';
-import { requireAdminSession } from '../../../../lib/auth/session';
+import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
+import { requireAdminSession } from '@admin/auth/session';
 import {
   deleteLlmSetup,
   getLlmSetupById,
   updateLlmSetupFromRequest,
-} from '../../../../lib/data/llm-setups';
+} from '@admin/data/llm-setups';
 
 interface IRouteContext {
   params: Promise<{ setupId: string }>;

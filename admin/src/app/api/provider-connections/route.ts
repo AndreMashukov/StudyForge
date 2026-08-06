@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getAdminApiStatusCode } from '../../../lib/api/route-utils';
-import { listProviderConnectionCatalog } from '../../../lib/data/provider-connections';
+import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
+import { listProviderConnectionCatalog } from '@admin/data/provider-connections';
 
 export async function GET() {
   try {
