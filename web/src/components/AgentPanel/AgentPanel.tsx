@@ -5,9 +5,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useLocation } from 'react-router-dom';
 import { Bot, ChevronDown, Send } from 'lucide-react';
-import type { AgentScope, AgentProposedDelete } from '@shared-types';
+import type { AgentProposedDelete, AgentPromptContext } from '@shared-types';
 import {
   agentActionResultSchema,
   agentProposedDeleteSchema,
@@ -24,9 +23,13 @@ import { baseApi } from '../../store/api/baseApi';
 import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
 import { streamAgentMessage } from '../../services/agentStreamClient';
-import { extractDirectoryIdFromRouteParam } from '../../utils/directoryUrl';
 import { AgentDeleteProposalCard } from './AgentDeleteProposalCard';
+import { AgentContextPill, AgentRestoreContextPill } from './AgentContextPill';
 import { IAgentChatMessage, IAgentPanel } from './IAgentPanel';
+import {
+  useAgentLocationContext,
+  type AgentLocationContextKind,
+} from './useAgentLocationContext';
 
 const MAX_MESSAGE_LENGTH = 10_000;
 const GLOBAL_AGENT_THREAD_STORAGE_KEY = 'sf-global-agent-thread-id';
@@ -38,7 +41,7 @@ const SIDEBAR_EXPANDED_PX = 220;
 const SIDEBAR_COLLAPSED_PX = 64;
 const PAGE_WIDE_GAP_PX = 16;
 
-const EMPTY_STATE_PROMPTS: Record<AgentScope, string[]> = {
+const EMPTY_STATE_PROMPTS: Record<AgentLocationContextKind, string[]> = {
   workspace: [
     'List all my directories and documents',
     'Search my knowledge for machine learning notes',
@@ -48,6 +51,11 @@ const EMPTY_STATE_PROMPTS: Record<AgentScope, string[]> = {
     'Summarize the sources in this folder',
     'Create a subfolder called Research',
     'Generate a quiz from the latest document',
+  ],
+  document: [
+    'Summarize this document',
+    'Create a quiz from this document',
+    'Explain the key concepts in this document',
   ],
 };
 
@@ -75,8 +83,8 @@ function createMessageId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function readStoredSession(scope: AgentScope): StoredAgentSession {
-  if (scope !== 'workspace' || typeof window === 'undefined') {
+function readStoredSession(): StoredAgentSession {
+  if (typeof window === 'undefined') {
     return { messages: [] };
   }
 
@@ -105,8 +113,8 @@ function readStoredSession(scope: AgentScope): StoredAgentSession {
   }
 }
 
-function writeStoredSession(scope: AgentScope, session: StoredAgentSession): void {
-  if (scope !== 'workspace' || typeof window === 'undefined') {
+function writeStoredSession(session: StoredAgentSession): void {
+  if (typeof window === 'undefined') {
     return;
   }
 
@@ -122,12 +130,14 @@ function writeStoredSession(scope: AgentScope, session: StoredAgentSession): voi
   }
 }
 
-function directoryIdFromPathname(pathname: string): string | undefined {
-  const match = pathname.match(/^\/directory\/([^/?#]+)/);
-  if (!match?.[1]) {
+function promptContextDirectoryId(promptContext: AgentPromptContext | undefined): string | undefined {
+  if (!promptContext) {
     return undefined;
   }
-  return extractDirectoryIdFromRouteParam(match[1]) ?? undefined;
+  if (promptContext.type === 'directory') {
+    return promptContext.directoryId;
+  }
+  return promptContext.directoryId;
 }
 
 export const AgentPanel: React.FC<IAgentPanel> = ({
@@ -138,19 +148,24 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
   variant = 'embedded',
   className,
 }) => {
-  const storedSession = useMemo(() => readStoredSession(scope), [scope]);
+  const storedSession = useMemo(() => readStoredSession(), []);
   const [messages, setMessages] = useState<IAgentChatMessage[]>(() => storedSession.messages);
   const [input, setInput] = useState('');
   const [threadId, setThreadId] = useState<string | undefined>(() => storedSession.threadId);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [contextDismissed, setContextDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const dispatch = useAppDispatch();
   const sidebarIsOpen = useAppSelector(selectSidebarIsOpen);
   const { isAppFullscreen } = useAppFullscreen();
   const isOverlay = variant === 'overlay';
+  const locationContext = useAgentLocationContext();
+
+  const activePromptContext = contextDismissed ? undefined : locationContext?.promptContext;
+  const suggestionKind: AgentLocationContextKind = activePromptContext?.type ?? 'workspace';
 
   useEffect(() => {
     if (!isOverlay) {
@@ -179,13 +194,6 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     };
   }, [isAppFullscreen, isMobile, isOverlay, sidebarIsOpen]);
 
-  const scopeLabel =
-    scope === 'workspace'
-      ? directoryId
-        ? 'Workspace · folder context'
-        : 'Workspace'
-      : 'This folder';
-
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, loading]);
@@ -195,19 +203,19 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
 
   // Persist continuously, including mid-stream, so close/reopen keeps history.
   useEffect(() => {
-    writeStoredSession(scope, {
+    writeStoredSession({
       threadId,
       messages: messages.map((message) => ({
         ...message,
         isStreaming: false,
       })),
     });
-  }, [scope, threadId, messages]);
+  }, [threadId, messages]);
 
   useEffect(() => {
     return () => {
       const latest = sessionRef.current;
-      writeStoredSession(scope, {
+      writeStoredSession({
         threadId: latest.threadId,
         messages: latest.messages.map((message) => ({
           ...message,
@@ -219,7 +227,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
       });
       abortRef.current?.abort();
     };
-  }, [scope]);
+  }, []);
 
   const handleDeleteProposalConfirmed = useCallback(
     (proposal: AgentProposedDelete) => {
@@ -287,14 +295,17 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
       abortRef.current = controller;
 
       let didMutate = false;
+      const hintDirectoryId =
+        promptContextDirectoryId(activePromptContext) ?? directoryId;
 
       try {
         await streamAgentMessage(
           {
             scope,
-            directoryId,
+            directoryId: hintDirectoryId,
             message: trimmed,
             threadId,
+            promptContext: activePromptContext,
           },
           {
             signal: controller.signal,
@@ -436,7 +447,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
         }
       }
     },
-    [directoryId, dispatch, loading, onMutated, scope, threadId],
+    [activePromptContext, directoryId, dispatch, loading, onMutated, scope, threadId],
   );
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -459,12 +470,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <Bot size={18} className="shrink-0 text-primary" aria-hidden="true" />
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold">Agent</h2>
-            <span className="mt-0.5 inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
-              {scopeLabel}
-            </span>
-          </div>
+          <h2 className="truncate text-base font-semibold">Agent</h2>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {loading ? <Spinner size="xs" /> : null}
@@ -491,7 +497,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
               Ask about your workspace, create content, or run StudyForge actions with tools.
             </div>
             <div className="flex flex-wrap gap-2">
-              {EMPTY_STATE_PROMPTS[scope].map((prompt) => (
+              {EMPTY_STATE_PROMPTS[suggestionKind].map((prompt) => (
                 <button
                   key={prompt}
                   type="button"
@@ -607,7 +613,22 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
           showCharCount
           disabled={loading}
         />
-        <div className="mt-2 flex justify-end">
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            {locationContext && !contextDismissed ? (
+              <AgentContextPill
+                locationContext={locationContext}
+                onRemove={() => setContextDismissed(true)}
+                disabled={loading}
+              />
+            ) : null}
+            {locationContext && contextDismissed ? (
+              <AgentRestoreContextPill
+                onRestore={() => setContextDismissed(false)}
+                disabled={loading}
+              />
+            ) : null}
+          </div>
           <Button
             type="submit"
             size="sm"
@@ -626,8 +647,3 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     </section>
   );
 };
-
-export function useAgentDirectoryContext(): string | undefined {
-  const { pathname } = useLocation();
-  return directoryIdFromPathname(pathname);
-}

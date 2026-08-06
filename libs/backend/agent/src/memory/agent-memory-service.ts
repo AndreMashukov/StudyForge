@@ -4,17 +4,24 @@ import type {
   AgentMessageInput,
   AgentMessageResponse,
   AgentMessageStreamEvent,
+  AgentPromptContext,
   AgentProposedDelete,
   AgentScope,
   IAgentThread,
   IAgentThreadMessage,
 } from '@shared-types';
+import { agentPromptContextSchema } from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { AgentEmbeddingService } from '../knowledge/agent-embedding-service';
 import { cosineSimilarity } from '../knowledge/knowledge-chunk-utils';
 
 const MEMORY_MATCH_COUNT = 6;
 const MEMORY_MIN_SIMILARITY = 0.25;
+
+function parseStoredPromptContext(value: unknown): AgentPromptContext | undefined {
+  const parsed = agentPromptContextSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
 
 export interface AgentMemorySnippet {
   content: string;
@@ -168,6 +175,7 @@ export class AgentThreadStore {
     threadId: string;
     role: 'user' | 'assistant';
     content: string;
+    promptContext?: AgentPromptContext;
     executedActions?: AgentActionResult[];
     proposedDeletes?: AgentProposedDelete[];
   }): Promise<IAgentThreadMessage> {
@@ -179,6 +187,7 @@ export class AgentThreadStore {
       role: input.role,
       content: input.content,
       createdAt: now.toISOString(),
+      promptContext: input.promptContext,
       executedActions: input.executedActions,
       proposedDeletes: input.proposedDeletes,
     };
@@ -187,6 +196,7 @@ export class AgentThreadStore {
       role: input.role,
       content: input.content,
       createdAt: Timestamp.fromDate(now),
+      ...(input.promptContext ? { promptContext: input.promptContext } : {}),
       executedActions: input.executedActions ?? [],
       proposedDeletes: input.proposedDeletes ?? [],
     });
@@ -212,6 +222,7 @@ export class AgentThreadStore {
     return snapshot.docs
       .map((doc) => {
         const data = doc.data();
+        const promptContext = parseStoredPromptContext(data.promptContext);
         return {
           id: doc.id,
           threadId,
@@ -221,6 +232,7 @@ export class AgentThreadStore {
             data.createdAt instanceof Timestamp
               ? data.createdAt.toDate().toISOString()
               : new Date().toISOString(),
+          ...(promptContext ? { promptContext } : {}),
           executedActions: Array.isArray(data.executedActions) ? data.executedActions : undefined,
           proposedDeletes: Array.isArray(data.proposedDeletes) ? data.proposedDeletes : undefined,
         } satisfies IAgentThreadMessage;

@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto';
 import type {
   AgentMessageInput,
   AgentMessageStreamEvent,
+  AgentPromptContext,
   AgentScope,
   DirectoryTreeNode,
+  IAgentThreadMessage,
 } from '@shared-types';
 import { directoryService } from '@study-forge/backend-directories/directory';
 import {
@@ -18,6 +20,52 @@ import {
 } from './tools/create-agent-tools';
 
 const MAX_DIRECTORY_IDS = 200;
+
+function describePromptContext(promptContext?: AgentPromptContext): string | undefined {
+  if (!promptContext) {
+    return undefined;
+  }
+
+  const label = promptContext.label?.trim();
+  const path = promptContext.path?.trim();
+  const display = path || label;
+
+  if (promptContext.type === 'directory') {
+    return display
+      ? `directory "${display}" (id: ${promptContext.directoryId})`
+      : `directory id ${promptContext.directoryId}`;
+  }
+
+  const documentLabel = display || promptContext.documentId;
+  const directoryHint = promptContext.directoryId
+    ? `, directory id ${promptContext.directoryId}`
+    : '';
+  return `document "${documentLabel}" (id: ${promptContext.documentId}${directoryHint})`;
+}
+
+function formatUserMessageForModel(
+  content: string,
+  promptContext?: AgentPromptContext
+): string {
+  const description = describePromptContext(promptContext);
+  if (!description) {
+    return content;
+  }
+  return `[UI context: user was viewing ${description}]\n${content}`;
+}
+
+function historyMessageForModel(message: IAgentThreadMessage): {
+  role: 'user' | 'assistant';
+  content: string;
+} {
+  if (message.role === 'assistant') {
+    return { role: 'assistant', content: message.content };
+  }
+  return {
+    role: 'user',
+    content: formatUserMessageForModel(message.content, message.promptContext),
+  };
+}
 
 function collectDirectoryIds(nodes: DirectoryTreeNode[]): string[] {
   const ids: string[] = [];
@@ -85,9 +133,11 @@ async function resolveDirectoryIds(input: {
 function buildSystemPrompt(input: {
   scope: AgentScope;
   directoryId?: string;
+  promptContext?: AgentPromptContext;
   memorySnippets: Array<{ content: string; memoryType: string }>;
 }): string {
   const scopeLabel = input.scope === 'workspace' ? 'workspace' : 'directory';
+  const promptContextDescription = describePromptContext(input.promptContext);
   const memoryBlock =
     input.memorySnippets.length > 0
       ? `\nRelevant memories:\n${input.memorySnippets
@@ -98,7 +148,15 @@ function buildSystemPrompt(input: {
   return [
     'You are StudyForge Directory Agent, a helpful assistant that can inspect and manage StudyForge content.',
     `Active scope: ${scopeLabel}${input.directoryId ? ` (hint directory: ${input.directoryId})` : ''}.`,
+    promptContextDescription
+      ? `Current UI context (prompt hint only; tools remain available across the workspace): ${promptContextDescription}.`
+      : 'Current UI context: global (no directory or document pinned).',
+    'Treat UI context as a hint for pronouns like "this" / "here". Do not refuse broader workspace requests.',
     'Use tools to inspect knowledge, list content, create/update resources, and enqueue generation jobs.',
+    'After using tools, always reply with a clear final answer for the user. Never end a turn with only tool calls and no text.',
+    'When you create directories or rules, state the full path from tool results (for example /Python/Screenshots).',
+    'In workspace scope, omit parentId on create_directory to create at the workspace root; pass parentId to nest under an existing directory.',
+    'When the user asks where something is or whether work completed, verify with list_directories / list_rules / list_documents and answer from those results.',
     'Never perform destructive deletes directly. Use propose_delete_* tools and wait for user confirmation.',
     'Directory names cannot contain / \\ : * ? " < > |. Use hyphens instead of slashes (for example, "AI-ML" not "AI/ML").',
     'When creating documents, write HTML body content (h1, p, ul, li). New documents are stored as HTML, not markdown.',
@@ -154,12 +212,14 @@ export class DirectoryAgentService {
       threadId: thread.id,
       role: 'user',
       content: request.message,
+      promptContext: request.promptContext,
     });
 
     const tools = createAgentToolDefinitions(runtimeContext);
     const systemPrompt = buildSystemPrompt({
       scope: request.scope,
       directoryId: request.directoryId,
+      promptContext: request.promptContext,
       memorySnippets,
     });
 
@@ -171,13 +231,10 @@ export class DirectoryAgentService {
     const runPromise = AgentChatRunner.run({
       userId,
       systemPrompt,
-      userMessage: request.message,
+      userMessage: formatUserMessageForModel(request.message, request.promptContext),
       history: history
         .filter((message) => message.role === 'user' || message.role === 'assistant')
-        .map((message) => ({
-          role: message.role,
-          content: message.content,
-        })),
+        .map((message) => historyMessageForModel(message)),
       tools,
       onEvent: (event) => {
         if (event.type === 'delta' || event.type === 'status') {

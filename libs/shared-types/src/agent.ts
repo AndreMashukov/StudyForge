@@ -2,11 +2,28 @@ import { z } from 'zod';
 
 export const agentScopeSchema = z.enum(['workspace', 'directory']);
 
+export const agentPromptContextSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('directory'),
+    directoryId: z.string().trim().min(1),
+    label: z.string().trim().min(1).optional(),
+    path: z.string().trim().min(1).optional(),
+  }),
+  z.object({
+    type: z.literal('document'),
+    documentId: z.string().trim().min(1),
+    directoryId: z.string().trim().min(1).optional(),
+    label: z.string().trim().min(1).optional(),
+    path: z.string().trim().min(1).optional(),
+  }),
+]);
+
 export const agentMessageSchema = z.object({
   scope: agentScopeSchema.default('workspace'),
   directoryId: z.string().trim().min(1).optional(),
   message: z.string().trim().min(1, 'Message is required').max(10_000),
   threadId: z.string().trim().min(1).optional(),
+  promptContext: agentPromptContextSchema.optional(),
 });
 
 export const agentActionKindSchema = z.enum([
@@ -50,6 +67,7 @@ export const agentMessageResponseSchema = z.object({
 });
 
 export type AgentScope = z.output<typeof agentScopeSchema>;
+export type AgentPromptContext = z.output<typeof agentPromptContextSchema>;
 export type AgentMessageRequest = z.input<typeof agentMessageSchema>;
 export type AgentMessageInput = z.output<typeof agentMessageSchema>;
 export type AgentActionKind = z.output<typeof agentActionKindSchema>;
@@ -133,6 +151,7 @@ export interface IAgentThreadMessage {
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
+  promptContext?: AgentPromptContext;
   executedActions?: AgentActionResult[];
   proposedDeletes?: AgentProposedDelete[];
 }

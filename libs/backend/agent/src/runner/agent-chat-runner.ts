@@ -6,6 +6,10 @@ import {
 import type { AgentMessageStreamEvent } from '@shared-types';
 import type { AgentToolDefinition } from '../tools/create-agent-tools';
 import { executeAgentTool, toolDefinitionsToOpenAiTools } from '../tools/create-agent-tools';
+import {
+  buildEmptyModelFallback,
+  type AgentToolOutcome,
+} from './agent-chat-fallback';
 
 const MAX_TOOL_ROUNDS = 15;
 const FALLBACK_DELTA_CHUNK_SIZE = 28;
@@ -54,17 +58,6 @@ async function emitTextAsDeltas(
   }
 }
 
-function buildEmptyModelFallback(toolNames: string[]): string {
-  if (toolNames.length === 0) {
-    return 'I finished, but the model returned no text for this turn.';
-  }
-  const uniqueNames = [...new Set(toolNames)];
-  return (
-    `I finished the tool steps (${uniqueNames.join(', ')}), ` +
-    'but the model returned no summary text.'
-  );
-}
-
 export interface AgentChatRunnerInput {
   userId: string;
   systemPrompt: string;
@@ -90,7 +83,7 @@ export class AgentChatRunner {
       ...input.history.map((entry) => ({ role: entry.role, content: entry.content })),
       { role: 'user', content: input.userMessage },
     ];
-    const toolsUsed: string[] = [];
+    const toolOutcomes: AgentToolOutcome[] = [];
     let streamedTextLength = 0;
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
@@ -140,13 +133,12 @@ export class AgentChatRunner {
           return text;
         }
 
-        const fallback = buildEmptyModelFallback(toolsUsed);
+        const fallback = buildEmptyModelFallback(toolOutcomes);
         await emitTextAsDeltas(fallback, input.onEvent);
         return fallback;
       }
 
       for (const toolCall of assistantMessage.tool_calls) {
-        toolsUsed.push(toolCall.function.name);
         input.onEvent?.({
           type: 'status',
           message: `Running ${toolCall.function.name}...`,
@@ -156,9 +148,19 @@ export class AgentChatRunner {
         let toolContent: string;
         try {
           const result = await executeAgentTool(input.tools, toolCall.function.name, args);
+          toolOutcomes.push({
+            name: toolCall.function.name,
+            ok: true,
+            result,
+          });
           toolContent = JSON.stringify(result);
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Tool execution failed';
+          toolOutcomes.push({
+            name: toolCall.function.name,
+            ok: false,
+            error: message,
+          });
           toolContent = JSON.stringify({ error: message });
         }
         messages.push({

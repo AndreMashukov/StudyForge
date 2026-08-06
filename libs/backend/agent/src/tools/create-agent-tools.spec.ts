@@ -61,6 +61,7 @@ vi.mock('../knowledge/agent-knowledge-lifecycle', () => ({
   },
 }));
 
+import { directoryService } from '@study-forge/backend-directories/directory';
 import {
   attachRuleToDirectory,
   createRule,
@@ -75,13 +76,16 @@ import {
   type AgentToolRuntimeContext,
 } from './create-agent-tools';
 
-function createContext(): AgentToolRuntimeContext {
+function createContext(
+  overrides: Partial<AgentToolRuntimeContext> = {}
+): AgentToolRuntimeContext {
   return {
     userId: 'user-1',
     scope: 'workspace',
     directoryIds: ['dir-1'],
     executedActions: [],
     proposedDeletes: [],
+    ...overrides,
   };
 }
 
@@ -92,14 +96,32 @@ describe('createAgentToolDefinitions rule tools', () => {
 
   it('calls attachRuleToDirectory with ruleId before directoryId', async () => {
     vi.mocked(attachRuleToDirectory).mockResolvedValue(undefined);
+    vi.mocked(directoryService.getDirectory).mockResolvedValue({
+      id: 'dir-1',
+      userId: 'user-1',
+      name: 'Python',
+      parentId: null,
+      path: '/Python',
+      level: 0,
+      documentCount: 0,
+      childCount: 0,
+      quizCount: 0,
+      flashcardSetCount: 0,
+      slideDeckCount: 0,
+      ruleIds: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
-    const tools = createAgentToolDefinitions(createContext());
+    const context = createContext();
+    const tools = createAgentToolDefinitions(context);
     await executeAgentTool(tools, 'attach_rule_to_directory', {
       directoryId: 'dir-1',
       ruleId: 'rule-1',
     });
 
     expect(attachRuleToDirectory).toHaveBeenCalledWith('user-1', 'rule-1', 'dir-1');
+    expect(context.executedActions[0]?.summary).toBe('Attached rule to /Python');
   });
 
   it('calls detachRuleFromDirectory with ruleId before directoryId', async () => {
@@ -208,6 +230,115 @@ describe('createAgentToolDefinitions rule tools', () => {
       tags: [],
       applicableTo: ['slide_deck'],
       isDefault: false,
+    });
+  });
+});
+
+describe('createAgentToolDefinitions create_directory', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('creates at workspace root when parentId is omitted', async () => {
+    vi.mocked(directoryService.createDirectory).mockResolvedValue({
+      id: 'python-1',
+      userId: 'user-1',
+      name: 'Python',
+      parentId: null,
+      path: '/Python',
+      level: 0,
+      documentCount: 0,
+      childCount: 0,
+      quizCount: 0,
+      flashcardSetCount: 0,
+      slideDeckCount: 0,
+      ruleIds: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const context = createContext({
+      scope: 'workspace',
+      directoryIds: ['aws-root', 'other-root'],
+    });
+    const tools = createAgentToolDefinitions(context);
+    await executeAgentTool(tools, 'create_directory', { name: 'Python' });
+
+    expect(directoryService.createDirectory).toHaveBeenCalledWith('user-1', {
+      name: 'Python',
+      parentId: undefined,
+      description: undefined,
+    });
+    expect(context.executedActions[0]?.summary).toBe(
+      'Created directory "Python" at /Python'
+    );
+  });
+
+  it('nests under active directory in directory scope when parentId is omitted', async () => {
+    vi.mocked(directoryService.createDirectory).mockResolvedValue({
+      id: 'screenshots-1',
+      userId: 'user-1',
+      name: 'Screenshots',
+      parentId: 'python-1',
+      path: '/Python/Screenshots',
+      level: 1,
+      documentCount: 0,
+      childCount: 0,
+      quizCount: 0,
+      flashcardSetCount: 0,
+      slideDeckCount: 0,
+      ruleIds: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const context = createContext({
+      scope: 'directory',
+      directoryId: 'python-1',
+      directoryIds: ['python-1'],
+    });
+    const tools = createAgentToolDefinitions(context);
+    await executeAgentTool(tools, 'create_directory', { name: 'Screenshots' });
+
+    expect(directoryService.createDirectory).toHaveBeenCalledWith('user-1', {
+      name: 'Screenshots',
+      parentId: 'python-1',
+      description: undefined,
+    });
+  });
+
+  it('uses explicit parentId when provided in workspace scope', async () => {
+    vi.mocked(directoryService.createDirectory).mockResolvedValue({
+      id: 'screenshots-1',
+      userId: 'user-1',
+      name: 'Screenshots',
+      parentId: 'python-1',
+      path: '/Python/Screenshots',
+      level: 1,
+      documentCount: 0,
+      childCount: 0,
+      quizCount: 0,
+      flashcardSetCount: 0,
+      slideDeckCount: 0,
+      ruleIds: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const context = createContext({
+      scope: 'workspace',
+      directoryIds: ['python-1', 'aws-root'],
+    });
+    const tools = createAgentToolDefinitions(context);
+    await executeAgentTool(tools, 'create_directory', {
+      name: 'Screenshots',
+      parentId: 'python-1',
+    });
+
+    expect(directoryService.createDirectory).toHaveBeenCalledWith('user-1', {
+      name: 'Screenshots',
+      parentId: 'python-1',
+      description: undefined,
     });
   });
 });

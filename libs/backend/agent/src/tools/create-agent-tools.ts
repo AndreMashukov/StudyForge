@@ -72,6 +72,30 @@ async function resolveDefaultDirectoryId(context: AgentToolRuntimeContext): Prom
   return context.directoryIds[0];
 }
 
+/**
+ * Workspace creates default to root. Directory-scoped chats nest under the
+ * active directory. Never silently pick the first alphabetized root folder.
+ */
+function resolveCreateDirectoryParentId(
+  context: AgentToolRuntimeContext,
+  args: Record<string, unknown>
+): string | undefined {
+  if (typeof args.parentId === 'string' && args.parentId.trim().length > 0) {
+    const parentId = args.parentId.trim();
+    assertDirectoryInScope(context, parentId);
+    return parentId;
+  }
+
+  if (context.scope === 'directory') {
+    if (context.directoryId && context.directoryIds.includes(context.directoryId)) {
+      return context.directoryId;
+    }
+    return context.directoryIds[0];
+  }
+
+  return undefined;
+}
+
 function sanitizeDirectoryName(name: string): string {
   return name
     .replace(/[/\\:*?"<>|]/g, '-')
@@ -185,7 +209,7 @@ export function createAgentToolDefinitions(
     {
       name: 'create_directory',
       description:
-        'Create a directory in the workspace. Directory names cannot contain / \\ : * ? " < > |; slashes in topics like AI/ML are converted to hyphens automatically.',
+        'Create a directory. In workspace scope, omit parentId to create at the workspace root; pass parentId to nest under an existing directory. In directory scope, omit parentId to create under the active directory. Directory names cannot contain / \\ : * ? " < > |; slashes in topics like AI/ML are converted to hyphens automatically.',
       parameters: {
         type: 'object',
         properties: {
@@ -201,10 +225,7 @@ export function createAgentToolDefinitions(
         if (!name) {
           throw new Error('name is required');
         }
-        const parentId =
-          typeof args.parentId === 'string'
-            ? args.parentId
-            : await resolveDefaultDirectoryId(context);
+        const parentId = resolveCreateDirectoryParentId(context, args);
         const directory = await directoryService.createDirectory(context.userId, {
           name,
           parentId: parentId ?? undefined,
@@ -213,7 +234,7 @@ export function createAgentToolDefinitions(
         await AgentKnowledgeLifecycle.indexDirectory(context.userId, directory.id);
         pushAction(context, {
           kind: 'create_directory',
-          summary: `Created directory "${directory.name}"`,
+          summary: `Created directory "${directory.name}" at ${directory.path}`,
           entityType: 'directory',
           entityId: directory.id,
         });
@@ -469,13 +490,15 @@ export function createAgentToolDefinitions(
         }
         assertDirectoryInScope(context, directoryId);
         await attachRuleToDirectory(context.userId, ruleId, directoryId);
+        const directory = await directoryService.getDirectory(context.userId, directoryId);
+        const directoryLabel = directory?.path ?? directoryId;
         pushAction(context, {
           kind: 'attach_rule',
-          summary: 'Attached rule to directory',
+          summary: `Attached rule to ${directoryLabel}`,
           entityType: 'rule',
           entityId: ruleId,
         });
-        return { directoryId, ruleId };
+        return { directoryId, ruleId, directoryPath: directory?.path };
       },
     },
     {
