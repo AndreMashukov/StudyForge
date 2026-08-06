@@ -5,7 +5,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 import { Bot, ChevronDown, Send } from 'lucide-react';
 import type { AgentScope, AgentProposedDelete } from '@shared-types';
@@ -20,6 +19,8 @@ import { Spinner } from '../ui/Spinner';
 import { MarkdownRenderer } from '../MarkdownRenderer';
 import { stripAgentThinkingContent } from '../../utils/stripAgentThinkingContent';
 import { cn } from '../../lib/utils';
+import { useAppDispatch, useAppSelector } from '../../hooks/redux';
+import { baseApi } from '../../store/api/baseApi';
 import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
 import { streamAgentMessage } from '../../services/agentStreamClient';
@@ -146,7 +147,8 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
   const [isMobile, setIsMobile] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const sidebarIsOpen = useSelector(selectSidebarIsOpen);
+  const dispatch = useAppDispatch();
+  const sidebarIsOpen = useAppSelector(selectSidebarIsOpen);
   const { isAppFullscreen } = useAppFullscreen();
   const isOverlay = variant === 'overlay';
 
@@ -428,12 +430,13 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
               : message,
           ),
         );
+        dispatch(baseApi.util.invalidateTags(['UsageSummary']));
         if (didMutate) {
           onMutated?.();
         }
       }
     },
-    [directoryId, loading, onMutated, scope, threadId],
+    [directoryId, dispatch, loading, onMutated, scope, threadId],
   );
 
   const handleSubmit = (event: React.FormEvent) => {

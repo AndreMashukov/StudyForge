@@ -1,9 +1,14 @@
-import { onRequest } from 'firebase-functions/v2/https';
+import { HttpsError, onRequest } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { agentMessageSchema } from '@shared-types';
 import { validateExternalAuthFromRequest } from '@study-forge/backend-core/lib/api-key-auth';
 import { verifyAppCheckHeader } from '@study-forge/backend-core/lib/app-check-verification';
 import { DirectoryAgentService } from '@study-forge/backend-agent';
+import { commitUsageReservation } from '@study-forge/backend-core/services/usage-limits-service';
+import {
+  enforceCallableGenerationLimits,
+  refundUsageReservationSafe,
+} from '@study-forge/backend-generation/generation-limits';
 
 const runningInFunctionsEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
@@ -76,6 +81,36 @@ export const agentMessageStream = onRequest(
       return;
     }
 
+    let usageReservationId: string;
+    try {
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'directoryChat');
+      usageReservationId = usageReservation.id;
+    } catch (error) {
+      if (error instanceof HttpsError) {
+        const status =
+          error.code === 'resource-exhausted'
+            ? 429
+            : error.code === 'unauthenticated'
+              ? 401
+              : error.code === 'permission-denied'
+                ? 403
+                : error.code === 'invalid-argument'
+                  ? 400
+                  : 500;
+        res.status(status).json({
+          success: false,
+          error: error.message,
+          details: error.details,
+        });
+        return;
+      }
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to reserve usage credits',
+      });
+      return;
+    }
+
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
@@ -87,13 +122,21 @@ export const agentMessageStream = onRequest(
       clientDisconnected = true;
     });
 
+    let usageSettled = false;
     try {
       for await (const event of DirectoryAgentService.streamMessage(userId, parsed.data)) {
         if (clientDisconnected || res.writableEnded) {
           break;
         }
         writeSseEvent(res, event);
-        if (event.type === 'error' || event.type === 'done') {
+        if (event.type === 'done') {
+          await commitUsageReservation(userId, usageReservationId);
+          usageSettled = true;
+          break;
+        }
+        if (event.type === 'error') {
+          await refundUsageReservationSafe(userId, usageReservationId);
+          usageSettled = true;
           break;
         }
       }
@@ -105,6 +148,9 @@ export const agentMessageStream = onRequest(
         });
       }
     } finally {
+      if (!usageSettled) {
+        await refundUsageReservationSafe(userId, usageReservationId);
+      }
       if (!res.writableEnded) {
         res.end();
       }
