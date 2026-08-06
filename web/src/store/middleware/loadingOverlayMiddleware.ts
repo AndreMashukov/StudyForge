@@ -14,7 +14,6 @@ import { setLoading } from '../slices/uiSlice';
 export const LOADING_OVERLAY_MUTATIONS = new Set<string>([
   'createDirectory',
   'deleteDirectory',
-  'updateRule',
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
