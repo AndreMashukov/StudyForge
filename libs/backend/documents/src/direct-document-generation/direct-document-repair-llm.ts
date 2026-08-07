@@ -12,7 +12,7 @@ function stripCodeFences(text: string): string {
 
 export async function repairDirectDocumentHtml(params: {
   userId: string;
-  repairKind: Extract<GenerationKind, 'documentFromPromptRepair' | 'documentFromScreenshotRepair'>;
+  generationKind: Extract<GenerationKind, 'documentFromPrompt' | 'documentFromScreenshot'>;
   userPrompt: string;
   rulesText: string;
   htmlFragment: string;
@@ -36,10 +36,10 @@ ${buildSealedHtmlOutputContract()}`;
 
   const raw = await LlmGenerationService.generateText(
     params.userId,
-    params.repairKind,
+    params.generationKind,
     prompt,
     {
-      logLabel: `direct-document-${params.repairKind}`,
+      logLabel: `direct-document-${params.generationKind}-repair`,
       successLogMessage: 'Direct-with-repair HTML fragment repaired',
       temperature: 0.4,
       topK: 40,

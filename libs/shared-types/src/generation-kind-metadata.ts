@@ -4,9 +4,7 @@ export type GenerationKind =
   | 'quiz'
   | 'flashcards'
   | 'documentFromPrompt'
-  | 'documentFromPromptRepair'
   | 'documentFromScreenshot'
-  | 'documentFromScreenshotRepair'
   | 'quizFollowup'
   | 'documentQuestion'
   | 'documentRevise'
@@ -37,9 +35,7 @@ export const ALL_GENERATION_KINDS: GenerationKind[] = [
   'quiz',
   'flashcards',
   'documentFromPrompt',
-  'documentFromPromptRepair',
   'documentFromScreenshot',
-  'documentFromScreenshotRepair',
   'quizFollowup',
   'documentQuestion',
   'documentRevise',
@@ -71,16 +67,6 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
     defaultWorkflow: 'agentic',
     group: 'production',
   },
-  documentFromPromptRepair: {
-    kind: 'documentFromPromptRepair',
-    label: 'Document from prompt (repair)',
-    description:
-      'Text repair pass for prompt-generated HTML when direct-with-repair validation fails. Configured separately from the primary generator route.',
-    requiredModality: 'text',
-    supportedWorkflows: ['direct'],
-    defaultWorkflow: 'direct',
-    group: 'production',
-  },
   documentFromScreenshot: {
     kind: 'documentFromScreenshot',
     label: 'Document from screenshot',
@@ -88,16 +74,6 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
       'Transcribe screenshot images into HTML documents. Direct: one vision call. Direct with repair: vision call plus validation-gated text repair. Agentic: ADK HTML pipeline.',
     requiredModality: 'vision',
     supportedWorkflows: ['direct', 'directWithRepair', 'agentic'],
-    defaultWorkflow: 'direct',
-    group: 'production',
-  },
-  documentFromScreenshotRepair: {
-    kind: 'documentFromScreenshotRepair',
-    label: 'Document from screenshot (repair)',
-    description:
-      'Text repair pass for screenshot-generated HTML when direct-with-repair validation fails. Does not re-send the image.',
-    requiredModality: 'text',
-    supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',
     group: 'production',
   },
@@ -265,45 +241,4 @@ export function isGenerationKind(value: string): value is GenerationKind {
 
 export function isGenerationWorkflow(value: string): value is GenerationWorkflow {
   return value === 'direct' || value === 'directWithRepair' || value === 'agentic';
-}
-
-const REPAIR_ROUTE_FALLBACK_KINDS: GenerationKind[] = [
-  'documentFromPromptRepair',
-  'documentFromScreenshotRepair',
-];
-
-export function isRepairRouteFallbackKind(kind: GenerationKind): boolean {
-  return REPAIR_ROUTE_FALLBACK_KINDS.includes(kind);
-}
-
-type GenerationRouteShape = {
-  connectionId: string;
-  model: string;
-  modality: LlmModality;
-  workflow: GenerationWorkflow;
-};
-
-/** Backfill repair routes for setups saved before repair capabilities existed. */
-export function applyRepairRouteFallbacks(
-  routes: Record<GenerationKind, GenerationRouteShape>
-): Record<GenerationKind, GenerationRouteShape> {
-  const textSource = routes.documentFromPrompt;
-
-  return {
-    ...routes,
-    documentFromPromptRepair:
-      routes.documentFromPromptRepair ?? {
-        connectionId: textSource.connectionId,
-        model: textSource.model,
-        modality: 'text',
-        workflow: 'direct',
-      },
-    documentFromScreenshotRepair:
-      routes.documentFromScreenshotRepair ?? {
-        connectionId: textSource.connectionId,
-        model: textSource.model,
-        modality: 'text',
-        workflow: 'direct',
-      },
-  };
 }

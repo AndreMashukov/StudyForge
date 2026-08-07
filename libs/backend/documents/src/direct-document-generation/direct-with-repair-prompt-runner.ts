@@ -56,7 +56,6 @@ export async function runDirectWithRepairDocumentFromPrompt(
     rawFragment,
     generationDurationMs: Date.now() - startMs,
     generationKind: 'documentFromPrompt',
-    repairKind: 'documentFromPromptRepair',
     description: agentContext.description ?? 'Generated from prompt',
     tags: agentContext.tags ?? ['ai-generated', 'prompt-based', 'direct-with-repair'],
   });

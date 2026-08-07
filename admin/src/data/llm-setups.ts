@@ -13,10 +13,8 @@ import type {
 import {
   ALL_GENERATION_KINDS,
   GENERATION_KIND_METADATA,
-  applyRepairRouteFallbacks,
   isGenerationKind,
   isGenerationWorkflow,
-  isRepairRouteFallbackKind,
   PRIMARY_TOGETHER_CONNECTION_ID,
 } from '@shared-types';
 import * as admin from 'firebase-admin';
@@ -78,14 +76,11 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
     return null;
   }
 
-  const routes = {} as Partial<IGenerationRoutes>;
+  const routes = {} as IGenerationRoutes;
 
   for (const kind of ALL_GENERATION_KINDS) {
     let route = parseGenerationRoute(value[kind]);
     if (!route) {
-      if (isRepairRouteFallbackKind(kind)) {
-        continue;
-      }
       return null;
     }
     // Flashcards are agentic-only; normalize legacy direct values on read.
@@ -99,17 +94,7 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
     routes[kind] = route;
   }
 
-  if (!routes.documentFromPrompt) {
-    return null;
-  }
-
-  for (const kind of ALL_GENERATION_KINDS) {
-    if (!routes[kind] && !isRepairRouteFallbackKind(kind)) {
-      return null;
-    }
-  }
-
-  return applyRepairRouteFallbacks(routes as IGenerationRoutes);
+  return routes;
 }
 
 function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSetup | null {

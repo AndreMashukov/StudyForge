@@ -55,7 +55,6 @@ export async function runDirectWithRepairDocumentFromScreenshot(
     rawFragment,
     generationDurationMs: Date.now() - startMs,
     generationKind: 'documentFromScreenshot',
-    repairKind: 'documentFromScreenshotRepair',
     description: 'Captured from screenshot',
     tags: ['screenshot', 'captured', 'direct-with-repair'],
     screenshotContext: screenshotContext || undefined,

@@ -5,7 +5,6 @@ import type {
   IGenerationModelUsage,
 } from '@shared-types';
 import type { GenerationRouteResolution } from '@study-forge/backend-llm/llm/llm-generation-route-resolver';
-import { LlmGenerationRouteResolver } from '@study-forge/backend-llm/llm/llm-generation-route-resolver';
 import {
   formatGenerationModelLabel,
   toGenerationModelUsage,
@@ -57,7 +56,6 @@ export async function persistDirectWithRepairHtmlDocument(params: {
   rawFragment: string;
   generationDurationMs: number;
   generationKind: Extract<GenerationKind, 'documentFromPrompt' | 'documentFromScreenshot'>;
-  repairKind: Extract<GenerationKind, 'documentFromPromptRepair' | 'documentFromScreenshotRepair'>;
   description?: string;
   tags?: string[];
   screenshotContext?: string;
@@ -69,18 +67,14 @@ export async function persistDirectWithRepairHtmlDocument(params: {
   let repairRan = false;
   let repairDurationMs = 0;
   let postRepairValidation: ValidationReport | null = null;
-  let repairResolution: GenerationRouteResolution | null = null;
 
   if (!firstValidation.passed) {
     const validationErrors = formatValidationFindings(firstValidation.findings);
-    repairResolution = await LlmGenerationRouteResolver.resolve(params.repairKind, {
-      userId: params.job.userId,
-    });
 
     const repairStartMs = Date.now();
     const repairedRaw = await repairDirectDocumentHtml({
       userId: params.job.userId,
-      repairKind: params.repairKind,
+      generationKind: params.generationKind,
       userPrompt: params.agentContext.userPrompt,
       rulesText: params.agentContext.rulesText,
       htmlFragment,
@@ -144,9 +138,9 @@ export async function persistDirectWithRepairHtmlDocument(params: {
     },
   ];
 
-  if (repairRan && repairResolution) {
+  if (repairRan) {
     generationModelUsage.push({
-      ...toGenerationModelUsage(repairResolution, repairDurationMs),
+      ...toGenerationModelUsage(params.resolution, repairDurationMs),
       role: 'agent',
     });
   }
