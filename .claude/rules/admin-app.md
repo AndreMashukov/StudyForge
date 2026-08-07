@@ -1,7 +1,8 @@
 ---
 description: Admin app — Next.js App Router, Firebase Admin, session auth
-globs: "admin/src/**/*.{ts,tsx}"
-alwaysApply: false
+paths:
+  - "admin/src/**/*.ts"
+  - "admin/src/**/*.tsx"
 ---
 
 # Admin App
@@ -38,6 +39,5 @@ admin/src/
 
 ## Reference
 
-- [admin/CLAUDE.md](../../admin/CLAUDE.md) — package memory
-- [.claude/rules/admin-app.md](../../.claude/rules/admin-app.md) — Claude path rule
-- [AGENTS.md](../../AGENTS.md) — Admin app section
+- `admin/CLAUDE.md` — package memory
+- `AGENTS.md` — Admin app section (read on demand)

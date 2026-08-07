@@ -3,6 +3,8 @@ description: React Hook Form + Zod validation patterns
 paths:
   - "web/src/pages/**/*.tsx"
   - "web/src/components/**/Form*.tsx"
+  - "admin/src/**/*.tsx"
+  - "admin/src/components/**/Form*.tsx"
 ---
 
 # Form Handling

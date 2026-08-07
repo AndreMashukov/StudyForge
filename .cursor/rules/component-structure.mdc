@@ -1,14 +1,14 @@
 ---
-description: Page context pattern, containers, and component organization (web)
-globs: "{web/src/components/**/*.tsx,web/src/pages/**/*.tsx}"
+description: Page context pattern, containers, and component organization (web + admin UI)
+globs: "{web/src/components/**/*.tsx,web/src/pages/**/*.tsx,admin/src/components/**/*.tsx,admin/src/app/**/*.tsx}"
 alwaysApply: false
 ---
 
-# Component Structure (Web)
+# Component Structure
 
 ## Page Pattern
 
-Every feature page: **Page → Provider → Container**
+Web feature pages: **Page → Provider → Container**. Admin uses Next.js App Router under `admin/src/app/` (RSC-first); still prefer named exports, `handle*` handlers, and `I*` interfaces for shared components.
 
 ```
 web/src/pages/FeatureNamePage/

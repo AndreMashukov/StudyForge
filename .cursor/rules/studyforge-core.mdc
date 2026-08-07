@@ -1,5 +1,5 @@
 ---
-description: StudyForge core stack, commands, and gotchas — Cursor summary (CLAUDE.md imports AGENTS.md for Claude Code)
+description: StudyForge core stack, commands, and gotchas — Cursor always-on summary (mirrors thin root CLAUDE.md)
 alwaysApply: true
 ---
 
@@ -43,4 +43,4 @@ Read [CONTEXT.md](../../CONTEXT.md) for StudyForge terminology (directory, artif
 3. Admin privileged reads via Firebase Admin SDK server-side only
 4. Pre-existing lint warning in `RuleSelector.tsx` (accessible-emoji) — do not flag as new
 
-Full conventions: [AGENTS.md](../../AGENTS.md)
+Full conventions: [AGENTS.md](../../AGENTS.md) (read on demand). Claude setup: [`.claude/SETUP.md`](../../.claude/SETUP.md).

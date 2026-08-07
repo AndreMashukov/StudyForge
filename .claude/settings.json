@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
       "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run web:typecheck)",
@@ -12,16 +13,31 @@
       "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run functions:lint)",
       "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run functions:build)",
       "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run functions:serve)",
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run shared-types:build)",
+      "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run shared-types:lint)",
       "Bash(npx tsx scripts/seed-setup/setup-seed-data.ts)",
       "Bash(gh secret list)",
       "Bash(gh pr *)",
-      "Bash(git worktree *)"
+      "Bash(git worktree *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(yarn prettier *)"
+    ],
+    "deny": [
+      "Bash(firebase deploy --only hosting*)",
+      "Bash(firebase deploy --only hosting)",
+      "Bash(yarn nx run web:deploy*)",
+      "Bash(yarn nx run web:deploy-fresh*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(rm -rf / *)",
+      "Bash(rm -rf ~ *)",
+      "Bash(rm -rf $HOME *)"
     ]
   },
-  "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "playwright"
-  ],
+  "enableAllProjectMcpServers": false,
+  "enabledMcpjsonServers": ["playwright"],
   "hooks": {
     "PreToolUse": [
       {
@@ -29,7 +45,37 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/pre-commit-format.sh"
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/block-dangerous-bash.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/block-secrets.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/format-on-write.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/remind-check-on-stop.sh"
           }
         ]
       }

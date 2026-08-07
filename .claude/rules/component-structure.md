@@ -3,13 +3,15 @@ description: Page context pattern, containers, and component organization
 paths:
   - "web/src/components/**/*.tsx"
   - "web/src/pages/**/*.tsx"
+  - "admin/src/components/**/*.tsx"
+  - "admin/src/app/**/*.tsx"
 ---
 
 # Component Structure
 
 ## Page Pattern (context-based)
 
-Every feature page follows: **Page → Provider → Container**
+Web feature pages follow: **Page → Provider → Container**. Admin uses Next.js App Router under `admin/src/app/` (RSC-first); still prefer named exports, `handle*` handlers, and `I*` interfaces for shared components.
 
 ```
 web/src/pages/FeatureNamePage/
