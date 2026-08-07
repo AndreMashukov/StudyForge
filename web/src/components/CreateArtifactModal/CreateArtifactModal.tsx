@@ -24,7 +24,8 @@ import { CreateArtifactRulesSection } from './CreateArtifactRulesSection';
 import { useCreateArtifactModalDocuments } from './useCreateArtifactModalDocuments';
 import { useCreateArtifactModalSubmit } from './useCreateArtifactModalSubmit';
 import { ARTIFACT_MODAL_USAGE_KINDS } from './artifactUsageKinds';
-import { UsageActionHint, useFeatureUsageGate } from '../UsageCreditsMeter';
+import { useFeatureUsageGate } from './useFeatureUsageGate';
+import { UsageActionHint } from './UsageActionHint';
 
 /** Matches TopAppBar `h-12` and Sidebar `top-12`. */
 const APP_BAR_HEIGHT_PX = 48;

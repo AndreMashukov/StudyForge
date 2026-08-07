@@ -27,6 +27,7 @@ import { SequenceQuizPage } from '../pages/SequenceQuizPage';
 import { SubjectWorldPage } from '../pages/SubjectWorldPage';
 import { StatisticsPage } from '../pages/StatisticsPage';
 import { SettingsPage } from '../pages/SettingsPage';
+import { UsagePage } from '../pages/UsagePage';
 import { Page } from '../components/Page';
 import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
 import { QuizIndexRedirect } from '../utils/QuizIndexRedirect';
@@ -376,6 +377,17 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <SettingsPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+
+      <Route
+        path="/usage"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <UsagePage />
             </ProtectedRoute>
           </MainLayout>
         }

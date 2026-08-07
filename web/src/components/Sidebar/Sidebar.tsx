@@ -9,6 +9,7 @@ import {
   Sparkles,
   LogOut,
   BarChart3,
+  Gauge,
 } from 'lucide-react';
 import { useSecureSignOut } from '../../hooks/useSecureSignOut';
 import {
@@ -41,6 +42,7 @@ const navItems: NavItem[] = [
   { id: 'statistics', title: 'Statistics', path: '/statistics', icon: BarChart3, section: 'navigation' },
   { id: 'rules-manager', title: 'Rules Manager', path: '/rules', icon: Sparkles, section: 'navigation' },
   { id: 'profile', title: 'Profile', path: '/profile', icon: User, section: 'account' },
+  { id: 'usage', title: 'Usage', path: '/usage', icon: Gauge, section: 'account' },
   { id: 'settings', title: 'Settings', path: '/settings', icon: Settings, section: 'account' },
 ];
 
