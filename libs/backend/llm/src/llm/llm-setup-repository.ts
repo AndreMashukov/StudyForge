@@ -77,37 +77,6 @@ function parseGenerationRoute(value: unknown): IGenerationRoute | null {
   };
 }
 
-function fallbackGenerationRoute(
-  kind: GenerationKind,
-  value: Record<string, unknown>
-): IGenerationRoute | null {
-  if (kind === 'documentRevise') {
-    return parseGenerationRoute(value.documentFromPrompt);
-  }
-
-  if (kind === 'directoryAgent') {
-    return parseGenerationRoute(value.directoryChat);
-  }
-
-  if (kind === 'agentKnowledgeEmbedding') {
-    const source =
-      parseGenerationRoute(value.directoryChat) ??
-      parseGenerationRoute(value.documentFromPrompt) ??
-      parseGenerationRoute(value.quiz);
-    if (!source) {
-      return null;
-    }
-    return {
-      connectionId: source.connectionId,
-      model: source.model,
-      modality: 'embedding',
-      workflow: GENERATION_KIND_METADATA.agentKnowledgeEmbedding.defaultWorkflow,
-    };
-  }
-
-  return null;
-}
-
 function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
   if (!isRecord(value)) {
     return null;
@@ -116,7 +85,7 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
   const routes = {} as IGenerationRoutes;
 
   for (const kind of ALL_GENERATION_KINDS) {
-    const route = parseGenerationRoute(value[kind]) ?? fallbackGenerationRoute(kind, value);
+    const route = parseGenerationRoute(value[kind]);
     if (!route) {
       return null;
     }
@@ -219,9 +188,6 @@ export class LlmSetupRepository {
   ): Promise<SetupGenerationRouteResolution> {
     const context = await this.resolveUserRoutingContext(userId);
     let generationRoute = context.setup.generationRoutes[kind];
-    if (!generationRoute && kind === 'documentRevise') {
-      generationRoute = context.setup.generationRoutes.documentFromPrompt;
-    }
     const metadata = GENERATION_KIND_METADATA[kind];
 
     if (!generationRoute) {
