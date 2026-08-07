@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isGenerationWorkflow } from '@shared-types';
-import { GENERATION_KIND_METADATA } from '@shared-types';
+import { isGenerationWorkflow, GENERATION_KIND_METADATA } from './generation-kind-metadata';
 
 describe('generation workflow metadata', () => {
   it('accepts directWithRepair as a workflow', () => {
