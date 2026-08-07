@@ -27,7 +27,6 @@ import {
   enforceCallableGenerationLimits,
   refundUsageReservationSafe,
 } from '@study-forge/backend-generation/generation-limits';
-import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { deleteFlashcardSetForUser } from '@study-forge/backend-artifacts/artifact-delete';
 import {
   syncArtifactDirectoryIndex,
