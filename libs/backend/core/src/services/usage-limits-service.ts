@@ -1,7 +1,9 @@
 import {
+  ALL_GENERATION_KINDS,
   buildUsagePeriodKey,
   buildUsagePeriodResetAt,
   calculateRemainingCredits,
+  DEFAULT_USAGE_CREDIT_COSTS,
   type GenerationKind,
   type IUsageFeaturePolicies,
   type IUsageLimitsSetup,
@@ -85,6 +87,15 @@ function parseFeaturePolicies(value: unknown): IUsageFeaturePolicies | null {
     }
 
     policies[kind as GenerationKind] = { enabled, creditCost };
+  }
+
+  for (const kind of ALL_GENERATION_KINDS) {
+    if (!policies[kind]) {
+      policies[kind] = {
+        enabled: true,
+        creditCost: DEFAULT_USAGE_CREDIT_COSTS[kind],
+      };
+    }
   }
 
   return policies;

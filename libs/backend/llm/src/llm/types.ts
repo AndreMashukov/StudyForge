@@ -8,7 +8,9 @@ export type LlmCapability =
   | 'quiz'
   | 'flashcards'
   | 'documentFromPrompt'
+  | 'documentFromPromptRepair'
   | 'documentFromScreenshot'
+  | 'documentFromScreenshotRepair'
   | 'quizFollowup'
   | 'documentQuestion'
   | 'documentRevise'
@@ -60,6 +62,11 @@ export interface IGenerateTextOptions {
   topK?: number;
   topP?: number;
   maxOutputTokens?: number;
+  /**
+   * Prefer non-reasoning mode for structured / latency-sensitive text
+   * (Together `reasoning.enabled=false`, MiniMax thinking disabled, etc.).
+   */
+  disableReasoning?: boolean;
 }
 
 export type LlmVisionDetail = 'auto' | 'low' | 'high';

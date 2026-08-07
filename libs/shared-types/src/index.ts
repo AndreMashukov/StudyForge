@@ -2122,8 +2122,10 @@ export {
   ALL_GENERATION_KINDS,
   GENERATION_KIND_ALIASES,
   GENERATION_KIND_METADATA,
+  applyRepairRouteFallbacks,
   isGenerationKind,
   isGenerationWorkflow,
+  isRepairRouteFallbackKind,
   resolveGenerationKind,
 } from './generation-kind-metadata';
 

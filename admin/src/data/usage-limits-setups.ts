@@ -40,7 +40,11 @@ function parseFeaturePolicies(value: unknown): IUsageFeaturePolicies | null {
   for (const kind of ALL_GENERATION_KINDS) {
     const policyValue = value[kind];
     if (!isRecord(policyValue)) {
-      return null;
+      policies[kind] = {
+        enabled: true,
+        creditCost: DEFAULT_USAGE_CREDIT_COSTS[kind],
+      };
+      continue;
     }
 
     const enabled = policyValue.enabled;

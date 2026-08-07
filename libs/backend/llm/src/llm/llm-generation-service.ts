@@ -276,6 +276,7 @@ export class LlmGenerationService {
       {
         model: ctx.resolution.route.model,
         ...generationConfig,
+        ...(options?.disableReasoning ? { disableReasoning: true } : {}),
       },
       options?.successLogMessage ?? `Text generated via external provider (${logLabel})`,
     );
@@ -530,6 +531,7 @@ export class LlmGenerationService {
         temperature: 0.7,
         topP: 0.95,
         maxOutputTokens: 16384,
+        disableReasoning: true,
       },
       'Document generated via OpenRouter',
     );

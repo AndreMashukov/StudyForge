@@ -7,9 +7,9 @@ import { validateContextFiles } from '@study-forge/backend-llm/gemini/prompt-bui
 import type { GenerationJob } from '@study-forge/backend-generation/generation-jobs';
 import { prepareDocumentAgentContext } from '../document-agent/document-agent-runner';
 import { buildDirectHtmlPrompt } from './direct-document-prompt-builder';
-import { persistDirectHtmlDocument } from './direct-document-persistence';
+import { persistDirectWithRepairHtmlDocument } from './direct-with-repair-persistence';
 
-export async function runDirectDocumentFromPrompt(
+export async function runDirectWithRepairDocumentFromPrompt(
   job: GenerationJob,
   payload: IDocumentAgentJobPayload
 ): Promise<void> {
@@ -25,7 +25,7 @@ export async function runDirectDocumentFromPrompt(
 
   const prompt = buildDirectHtmlPrompt(agentContext);
 
-  logger.info('Starting direct prompt document generation (single-pass HTML)', {
+  logger.info('Starting direct-with-repair prompt document generation', {
     userId: job.userId,
     jobId: job.id,
     documentId: job.recordId,
@@ -39,8 +39,8 @@ export async function runDirectDocumentFromPrompt(
     'documentFromPrompt',
     prompt,
     {
-      logLabel: 'direct-document-from-prompt',
-      successLogMessage: 'Direct HTML document fragment generated',
+      logLabel: 'direct-with-repair-document-from-prompt',
+      successLogMessage: 'Direct-with-repair HTML document fragment generated',
       temperature: 0.4,
       topK: 40,
       topP: 0.95,
@@ -49,14 +49,15 @@ export async function runDirectDocumentFromPrompt(
     }
   );
 
-  await persistDirectHtmlDocument({
+  await persistDirectWithRepairHtmlDocument({
     job,
     agentContext,
     resolution,
     rawFragment,
-    durationMs: Date.now() - startMs,
+    generationDurationMs: Date.now() - startMs,
     generationKind: 'documentFromPrompt',
+    repairKind: 'documentFromPromptRepair',
     description: agentContext.description ?? 'Generated from prompt',
-    tags: agentContext.tags ?? ['ai-generated', 'prompt-based', 'direct'],
+    tags: agentContext.tags ?? ['ai-generated', 'prompt-based', 'direct-with-repair'],
   });
 }

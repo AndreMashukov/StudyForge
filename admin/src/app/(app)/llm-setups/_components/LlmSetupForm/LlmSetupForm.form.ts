@@ -15,7 +15,7 @@ import { z } from 'zod';
 const generationRouteFormEntrySchema = z.object({
   connectionId: z.string().trim().min(1, 'Provider connection is required'),
   model: z.string().trim().min(1, 'Model is required'),
-  workflow: z.enum(['direct', 'agentic']),
+  workflow: z.enum(['direct', 'directWithRepair', 'agentic']),
 });
 
 const generationRoutesShape = Object.fromEntries(
@@ -176,16 +176,20 @@ export function formatWorkflowOptionLabel(
     return 'direct — single-pass HTML (faster)';
   }
 
+  if (workflow === 'directWithRepair') {
+    return 'directWithRepair — generate, validate, repair on fail';
+  }
+
   return 'agentic — ADK repair/critic pipeline';
 }
 
 export function getWorkflowHelpText(kind: GenerationKind): string | null {
   if (kind === 'documentFromPrompt') {
-    return 'Direct runs one text generation call, validates HTML, then stores. Agentic runs plan, draft, repair, and critic/refiner loops (~4+ minutes).';
+    return 'Direct runs one text generation call, validates HTML, then stores. Direct with repair adds one repair pass when validation fails (diagnostics only after repair). Agentic runs plan, draft, repair, and critic/refiner loops (~4+ minutes).';
   }
 
   if (kind === 'documentFromScreenshot') {
-    return 'Direct runs one vision call, validates HTML, then stores. Agentic runs the full ADK HTML pipeline.';
+    return 'Direct runs one vision call, validates HTML, then stores. Direct with repair adds one text repair pass when validation fails. Agentic runs the full ADK HTML pipeline.';
   }
 
   return null;

@@ -80,6 +80,7 @@ async function generateText(
     topK: 40,
     topP: 0.95,
     maxOutputTokens: 16384,
+    disableReasoning: true,
   });
 
   recordModelUsage(diagnostics, {

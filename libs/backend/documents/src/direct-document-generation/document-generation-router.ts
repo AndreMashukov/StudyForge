@@ -5,6 +5,8 @@ import { runDocumentAgentPipeline } from '../document-agent/document-agent-runne
 import { runScreenshotDocumentAgentPipeline } from '../screenshot-document-agent/screenshot-document-agent-runner';
 import { runDirectDocumentFromPrompt } from './direct-document-prompt-runner';
 import { runDirectDocumentFromScreenshot } from './direct-document-screenshot-runner';
+import { runDirectWithRepairDocumentFromPrompt } from './direct-with-repair-prompt-runner';
+import { runDirectWithRepairDocumentFromScreenshot } from './direct-with-repair-screenshot-runner';
 
 export async function runPromptDocumentGeneration(
   job: GenerationJob,
@@ -16,6 +18,11 @@ export async function runPromptDocumentGeneration(
 
   if (resolution.workflow === 'direct') {
     await runDirectDocumentFromPrompt(job, payload);
+    return;
+  }
+
+  if (resolution.workflow === 'directWithRepair') {
+    await runDirectWithRepairDocumentFromPrompt(job, payload);
     return;
   }
 
@@ -51,6 +58,11 @@ export async function runScreenshotDocumentGeneration(
 
   if (resolution.workflow === 'direct') {
     await runDirectDocumentFromScreenshot(job, payload);
+    return;
+  }
+
+  if (resolution.workflow === 'directWithRepair') {
+    await runDirectWithRepairDocumentFromScreenshot(job, payload);
     return;
   }
 

@@ -103,7 +103,9 @@ export const DEFAULT_USAGE_CREDIT_COSTS: Record<GenerationKind, number> = {
   diagramQuiz: 10,
   slideDeckImage: 10,
   documentFromPrompt: 20,
+  documentFromPromptRepair: 0,
   documentFromScreenshot: 25,
+  documentFromScreenshotRepair: 0,
   slideDeckText: 30,
   directoryAgent: 1,
 };
