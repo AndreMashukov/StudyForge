@@ -61,7 +61,6 @@ const directorySchema = z.object({
   slideDeckCount: z.number(),
   diagramQuizCount: z.number().optional(),
   sequenceQuizCount: z.number().optional(),
-  subjectWorldCount: z.number().optional(),
   ruleIds: z.array(z.string()),
   createdAt: firestoreDateSchema,
   updatedAt: firestoreDateSchema,

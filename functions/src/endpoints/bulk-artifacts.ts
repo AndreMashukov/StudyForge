@@ -14,7 +14,6 @@ const BULK_DELETABLE_ARTIFACT_TYPES = new Set<BulkDeletableArtifactType>([
   'slideDeck',
   'diagramQuiz',
   'sequenceQuiz',
-  'subjectWorld',
 ]);
 
 function isBulkDeleteArtifactItem(value: unknown): value is IBulkDeleteArtifactItem {

@@ -11,7 +11,6 @@ export type GenerationKind =
   | 'directoryChat'
   | 'diagramQuiz'
   | 'sequenceQuiz'
-  | 'subjectWorld'
   | 'slideDeckText'
   | 'slideDeckImage'
   | 'sourceDocumentEnhancement'
@@ -42,7 +41,6 @@ export const ALL_GENERATION_KINDS: GenerationKind[] = [
   'directoryChat',
   'diagramQuiz',
   'sequenceQuiz',
-  'subjectWorld',
   'slideDeckText',
   'slideDeckImage',
   'sourceDocumentEnhancement',
@@ -130,15 +128,6 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',
     group: 'slideDeck',
-  },
-  subjectWorld: {
-    kind: 'subjectWorld',
-    label: 'Subject world',
-    description: '3D voxel world spec generation.',
-    requiredModality: 'text',
-    supportedWorkflows: ['direct'],
-    defaultWorkflow: 'direct',
-    group: 'production',
   },
   sourceDocumentEnhancement: {
     kind: 'sourceDocumentEnhancement',

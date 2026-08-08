@@ -8,7 +8,6 @@ import { useGetFlashcardSetQuery } from '../../store/api/Flashcards/FlashcardsAp
 import { useGetSlideDeckQuery } from '../../store/api/SlideDecks/SlideDecksApi';
 import { useGetDiagramQuizQuery } from '../../store/api/DiagramQuiz/DiagramQuizApi';
 import { useGetSequenceQuizQuery } from '../../store/api/SequenceQuiz/SequenceQuizApi';
-import { useGetSubjectWorldQuery } from '../../store/api/SubjectWorld/SubjectWorldApi';
 import { useGetRuleQuery } from '../../store/api/Rules';
 import { extractDirectoryIdFromRouteParam } from '../../utils/directoryUrl';
 
@@ -32,8 +31,7 @@ type ResolvedRoute =
         | 'flashcardSet'
         | 'slideDeck'
         | 'diagramQuiz'
-        | 'sequenceQuiz'
-        | 'subjectWorld';
+        | 'sequenceQuiz';
       artifactId: string;
       queryDirectoryId?: string;
     }
@@ -113,17 +111,6 @@ function resolveRoute(pathname: string, search: string, params: Record<string, s
     };
   }
 
-  const subjectWorldId =
-    params.subjectWorldId?.trim() || pathname.match(/^\/subject-world\/([^/?#]+)/)?.[1];
-  if (subjectWorldId && subjectWorldId !== 'create') {
-    return {
-      type: 'artifact',
-      artifact: 'subjectWorld',
-      artifactId: subjectWorldId,
-      queryDirectoryId,
-    };
-  }
-
   return null;
 }
 
@@ -161,10 +148,6 @@ export function useAgentLocationContext(): IAgentLocationContext | null {
     { sequenceQuizId: artifact?.artifact === 'sequenceQuiz' ? artifact.artifactId : '' },
     { skip: artifact?.artifact !== 'sequenceQuiz' },
   );
-  const subjectWorldQuery = useGetSubjectWorldQuery(
-    { subjectWorldId: artifact?.artifact === 'subjectWorld' ? artifact.artifactId : '' },
-    { skip: artifact?.artifact !== 'subjectWorld' },
-  );
 
   const artifactDirectoryId = useMemo(() => {
     if (!artifact) {
@@ -191,9 +174,7 @@ export function useAgentLocationContext(): IAgentLocationContext | null {
         artifact.queryDirectoryId
       );
     }
-    return (
-      subjectWorldQuery.data?.data?.subjectWorld?.directoryId?.trim() || artifact.queryDirectoryId
-    );
+    return undefined;
   }, [
     artifact,
     diagramQuizQuery.data?.data?.diagramQuiz?.directoryId,
@@ -201,7 +182,6 @@ export function useAgentLocationContext(): IAgentLocationContext | null {
     quizQuery.data?.data?.quiz?.directoryId,
     sequenceQuizQuery.data?.data?.sequenceQuiz?.directoryId,
     slideDeckQuery.data?.data?.directoryId,
-    subjectWorldQuery.data?.data?.subjectWorld?.directoryId,
   ]);
 
   const documentQuery = useGetDocumentQuery(documentRouteId || '', {

@@ -47,11 +47,6 @@ const ARTIFACT_COLLECTIONS: Array<{
     query: (userId) => FirestorePaths.sequenceQuizzes(userId),
     doc: (userId, artifactId) => FirestorePaths.sequenceQuiz(userId, artifactId),
   },
-  {
-    itemType: 'subjectWorld',
-    query: (userId) => FirestorePaths.subjectWorlds(userId),
-    doc: (userId, artifactId) => FirestorePaths.subjectWorld(userId, artifactId),
-  },
 ];
 
 function stripUndefined<T extends Record<string, unknown>>(value: T): T {
@@ -433,7 +428,6 @@ const ARTIFACT_DIRECTORY_ITEM_TYPES: DirectoryItemType[] = [
   'slideDeck',
   'diagramQuiz',
   'sequenceQuiz',
-  'subjectWorld',
 ];
 
 function directoryItemRecordToSummary(item: DirectoryItemSummary): ArtifactSummary | null {

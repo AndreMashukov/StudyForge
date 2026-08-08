@@ -49,7 +49,6 @@ import { SlidesPanel } from './SlidesPanel';
 import { DiagramQuizzesPanel } from './DiagramQuizzesPanel';
 import { Spinner } from '../../components/ui/Spinner';
 import { SequenceQuizzesPanel } from './SequenceQuizzesPanel';
-import { SubjectWorldsPanel } from './SubjectWorldsPanel';
 import { RulesPanel } from './RulesPanel';
 import { TooltipProvider } from '../../components/ui/Tooltip';
 import { DirectoryChatPanel } from '../../components/DirectoryChatPanel';
@@ -67,7 +66,7 @@ import {
 } from '../../utils/directoryUrl';
 
 /** Valid tab values that can be passed via URL search param. */
-const VALID_TABS = new Set<string>(['sources', 'quizzes', 'cards', 'slides', 'diagramQuizzes', 'sequenceQuizzes', 'subjectWorlds', 'chat', 'rules']);
+const VALID_TABS = new Set<string>(['sources', 'quizzes', 'cards', 'slides', 'diagramQuizzes', 'sequenceQuizzes', 'chat', 'rules']);
 
 /** Max artifacts loaded per type (server caps at 100). */
 const ARTIFACT_PAGE_LIMIT = 100;
@@ -267,7 +266,6 @@ export const DirectoryDetailPageContainer = () => {
   const slideDecks = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'slideDeck' } => a.type === 'slideDeck');
   const diagramQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'diagramQuiz' } => a.type === 'diagramQuiz');
   const sequenceQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'sequenceQuiz' } => a.type === 'sequenceQuiz');
-  const subjectWorlds = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'subjectWorld' } => a.type === 'subjectWorld');
   const directoryRules = directoryRulesData?.rules ?? [];
   const ruleNamesMap = new Map<string, string>(
     directoryRules.map((rule) => [rule.id, rule.name]),
@@ -280,7 +278,6 @@ export const DirectoryDetailPageContainer = () => {
   const slidesTruncated = slideDecks.length >= ARTIFACT_PAGE_LIMIT;
   const diagramQuizzesTruncated = diagramQuizzes.length >= ARTIFACT_PAGE_LIMIT;
   const sequenceQuizzesTruncated = sequenceQuizzes.length >= ARTIFACT_PAGE_LIMIT;
-  const subjectWorldsTruncated = subjectWorlds.length >= ARTIFACT_PAGE_LIMIT;
 
   return (
     <TooltipProvider>
@@ -474,16 +471,6 @@ export const DirectoryDetailPageContainer = () => {
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
                 ruleNamesMap={ruleNamesMap}
                 onCreate={() => handleOpenCreateArtifact('sequenceQuizzes')}
-              />
-            )}
-            {activePanel === 'subjectWorlds' && (
-              <SubjectWorldsPanel
-                subjectWorlds={subjectWorlds}
-                directoryId={directoryId}
-                mayBeTruncated={subjectWorldsTruncated}
-                onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
-                ruleNamesMap={ruleNamesMap}
-                onCreate={() => handleOpenCreateArtifact('subjectWorlds')}
               />
             )}
             {activePanel === 'chat' && (

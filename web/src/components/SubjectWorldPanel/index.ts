@@ -1,1 +1,0 @@
-export { SubjectWorldInteractionPanel } from './SubjectWorldInteractionPanel';

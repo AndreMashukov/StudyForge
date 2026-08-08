@@ -21,7 +21,7 @@ _Avoid_: source doc, file (when meaning study content), content item
 ## Generated content
 
 **Artifact**:
-Any AI-generated study output stored in a directory: quiz, flashcard set, slide deck, diagram quiz, sequence quiz, or subject world.
+Any AI-generated study output stored in a directory: quiz, flashcard set, slide deck, diagram quiz, or sequence quiz.
 _Avoid_: content, output, generated doc
 
 **Quiz**:
@@ -59,10 +59,6 @@ _Avoid_: learned word, mastered card, vocabulary entry
 **Slide deck**:
 Presentation slides with speaker notes, optionally with generated images.
 _Avoid_: presentation, deck (when meaning slides)
-
-**Subject world**:
-An explorable 3D voxel environment defined by a JSON **world spec** (`SubjectWorldSpec`), not hand-authored 3D code. Includes quiz gates the learner unlocks while exploring.
-_Avoid_: 3D world, game level, map (alone)
 
 ## Generation lifecycle
 
@@ -131,7 +127,7 @@ User-authored markdown instruction that steers AI behavior for a specific operat
 _Avoid_: prompt template, instruction (alone), policy
 
 **Rule applicability**:
-Which operation types a rule may apply to (e.g. `quiz`, `diagram_quiz`, `followup`, `subject_world`). A rule can apply to multiple operations.
+Which operation types a rule may apply to (e.g. `quiz`, `diagram_quiz`, `followup`). A rule can apply to multiple operations.
 _Avoid_: rule type, rule category
 
 **Rule resolution mode**:

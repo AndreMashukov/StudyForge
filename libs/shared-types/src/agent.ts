@@ -123,8 +123,7 @@ export type AgentKnowledgeSourceType =
   | 'flashcardSet'
   | 'slideDeck'
   | 'diagramQuiz'
-  | 'sequenceQuiz'
-  | 'subjectWorld';
+  | 'sequenceQuiz';
 
 export interface IAgentKnowledgeChunk {
   id: string;

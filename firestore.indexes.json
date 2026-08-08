@@ -185,14 +185,6 @@
         { "fieldPath": "generationStatus", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "subjectWorlds",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "generationStatus", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
-      ]
     }
   ],
   "fieldOverrides": [

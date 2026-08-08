@@ -4,7 +4,6 @@ import {
   failPendingQuiz,
   failPendingSequenceQuiz,
   failPendingSlideDeck,
-  failPendingSubjectWorld,
   failPendingDiagramQuiz,
 } from '@study-forge/backend-artifacts/artifact-generation-records';
 import type { GenerationJob } from './generation-jobs';
@@ -63,9 +62,6 @@ export async function failVisibleGenerationRecord(job: GenerationJob, message: s
       return;
     case 'slideDeck':
       await failPendingSlideDeck(job.userId, job.recordId, message);
-      return;
-    case 'subjectWorld':
-      await failPendingSubjectWorld(job.userId, job.recordId, message);
       return;
     default:
       throw new Error(`Unsupported generation job kind: ${job.kind}`);

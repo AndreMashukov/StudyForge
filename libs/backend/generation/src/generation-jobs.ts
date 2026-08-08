@@ -24,8 +24,7 @@ export type GenerationJobKind =
   | 'quiz'
   | 'flashcards'
   | 'sequenceQuiz'
-  | 'slideDeck'
-  | 'subjectWorld';
+  | 'slideDeck';
 export type GenerationJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
 
 const GENERATION_JOB_KINDS: ReadonlySet<string> = new Set([
@@ -39,7 +38,6 @@ const GENERATION_JOB_KINDS: ReadonlySet<string> = new Set([
   'flashcards',
   'sequenceQuiz',
   'slideDeck',
-  'subjectWorld',
 ]);
 
 const GENERATION_JOB_STATUSES: ReadonlySet<string> = new Set([
@@ -239,8 +237,6 @@ export function recordRefForGenerationJob(
       return FirestorePaths.slideDeck(userId, recordId);
     case 'artifactAgent':
       return recordRefForArtifactKind(userId, artifactKind ?? 'diagramQuiz', recordId);
-    case 'subjectWorld':
-      return FirestorePaths.subjectWorld(userId, recordId);
     default: {
       const _exhaustive: never = kind;
       throw new Error(`Unsupported generation job kind: ${_exhaustive}`);

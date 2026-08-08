@@ -7,5 +7,4 @@ export const ARTIFACT_MODAL_USAGE_KINDS: Record<CreateArtifactModalType, Generat
   slides: 'slideDeckText',
   diagramQuizzes: 'diagramQuiz',
   sequenceQuizzes: 'sequenceQuiz',
-  subjectWorlds: 'subjectWorld',
 };

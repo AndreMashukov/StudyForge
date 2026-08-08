@@ -1,4 +1,4 @@
-import type { QuestionKnowledgeMetadata, SubjectWorldSpec } from '@shared-types';
+import type { QuestionKnowledgeMetadata } from '@shared-types';
 
 export interface IQuizGenerationQuestion {
   question: string;
@@ -42,12 +42,9 @@ export interface ISequenceQuizGenerationResponse {
   questions: ISequenceQuizGenerationQuestion[];
 }
 
-export type ISubjectWorldGenerationResponse = SubjectWorldSpec;
-
 export type QuizGenerationResponse = IQuizGenerationResponse;
 export type DiagramQuizGenerationResponse = IDiagramQuizGenerationResponse;
 export type SequenceQuizGenerationResponse = ISequenceQuizGenerationResponse;
-export type SubjectWorldGenerationResponse = ISubjectWorldGenerationResponse;
 
 /** @deprecated Use IQuizGenerationResponse */
 export type GeminiQuizResponse = IQuizGenerationResponse;
@@ -57,6 +54,3 @@ export type GeminiDiagramQuizResponse = IDiagramQuizGenerationResponse;
 
 /** @deprecated Use ISequenceQuizGenerationResponse */
 export type GeminiSequenceQuizResponse = ISequenceQuizGenerationResponse;
-
-/** @deprecated Use ISubjectWorldGenerationResponse */
-export type GeminiSubjectWorldResponse = ISubjectWorldGenerationResponse;

@@ -138,24 +138,6 @@ service cloud.firestore {
         }
       }
 
-      // Subject worlds — server-maintained via Cloud Functions; client read-only.
-      match /subjectWorlds/{subjectWorldId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId) && isBoundedList(50);
-        allow create, update, delete: if false;
-
-        // Progress snapshots — owner get only; writes via Cloud Functions.
-        match /progress/{progressId} {
-          allow get: if isOwner(userId) && progressId == userId;
-          allow list: if false;
-          allow create, update, delete: if false;
-        }
-
-        match /{otherNested=**} {
-          allow read, write: if false;
-        }
-      }
-
       // Generation jobs — server-maintained via Cloud Functions.
       match /generationJobs/{jobId} {
         allow read, write: if false;

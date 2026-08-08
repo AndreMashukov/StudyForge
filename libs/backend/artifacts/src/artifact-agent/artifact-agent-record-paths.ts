@@ -16,8 +16,6 @@ export function recordRefForArtifactKind(
       return FirestorePaths.slideDeck(userId, recordId);
     case 'sequenceQuiz':
       return FirestorePaths.sequenceQuiz(userId, recordId);
-    case 'subjectWorld':
-      return FirestorePaths.subjectWorld(userId, recordId);
     case 'documentFromScreenshot':
     case 'documentFromPrompt':
       return FirestorePaths.document(userId, recordId);
@@ -34,7 +32,6 @@ export function isArtifactKind(value: unknown): value is ArtifactKind {
     || value === 'flashcards'
     || value === 'slideDeck'
     || value === 'sequenceQuiz'
-    || value === 'subjectWorld'
     || value === 'documentFromScreenshot'
     || value === 'documentFromPrompt'
   );

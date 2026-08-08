@@ -7,7 +7,6 @@ import uiReducer from './slices/uiSlice';
 import quizPageReducer from './slices/quizPageSlice';
 import diagramQuizPageReducer from './slices/diagramQuizPageSlice';
 import sequenceQuizPageReducer from './slices/sequenceQuizPageSlice';
-import subjectWorldPageReducer from './slices/subjectWorldPageSlice';
 import documentViewerPageReducer from './slices/documentViewerPageSlice';
 import createDocumentPageReducer from './slices/createDocumentPageSlice';
 import flashcardSetPageReducer from './slices/flashcardSetPageSlice';
@@ -22,7 +21,6 @@ export const store = configureStore({
     quizPage: quizPageReducer,
     diagramQuizPage: diagramQuizPageReducer,
     sequenceQuizPage: sequenceQuizPageReducer,
-    subjectWorldPage: subjectWorldPageReducer,
     documentViewerPage: documentViewerPageReducer,
     createDocumentPage: createDocumentPageReducer,
     flashcardSetPage: flashcardSetPageReducer,

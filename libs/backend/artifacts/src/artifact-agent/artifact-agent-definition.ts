@@ -118,8 +118,7 @@ export interface ArtifactAgentDefinition<TDraft, TPayload = unknown> {
     | 'diagramQuizzes'
     | 'slideDecks'
     | 'sequenceQuizzes'
-    | 'flashcards'
-    | 'subjectWorlds';
+    | 'flashcards';
   primaryCapability: LlmCapability;
   helperCapability?: LlmCapability;
   agentDefinitionVersion: string;

@@ -24,7 +24,6 @@ import { FlashcardSetPage } from '../pages/FlashcardSetPage';
 import { SlideDeckPage } from '../pages/SlideDeckPage';
 import { DiagramQuizPage } from '../pages/DiagramQuizPage';
 import { SequenceQuizPage } from '../pages/SequenceQuizPage';
-import { SubjectWorldPage } from '../pages/SubjectWorldPage';
 import { StatisticsPage } from '../pages/StatisticsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { UsagePage } from '../pages/UsagePage';
@@ -278,30 +277,6 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <SequenceQuizPage />
-            </ProtectedRoute>
-          </MainLayout>
-        }
-      />
-
-      <Route
-        path="/subject-world/create"
-        element={
-          <MainLayout>
-            <ProtectedRoute>
-              <CreateArtifactRouteRedirect
-                directoryTab="subjectWorlds"
-                artifactType="subjectWorlds"
-              />
-            </ProtectedRoute>
-          </MainLayout>
-        }
-      />
-      <Route
-        path="/subject-world/:subjectWorldId"
-        element={
-          <MainLayout>
-            <ProtectedRoute>
-              <SubjectWorldPage />
             </ProtectedRoute>
           </MainLayout>
         }

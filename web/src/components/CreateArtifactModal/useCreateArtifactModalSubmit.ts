@@ -5,7 +5,6 @@ import { useGenerateFlashcardsMutation } from '../../store/api/Flashcards/Flashc
 import { useGenerateSlideDeckMutation } from '../../store/api/SlideDecks/SlideDecksApi';
 import { useGenerateDiagramQuizMutation } from '../../store/api/DiagramQuiz/DiagramQuizApi';
 import { useGenerateSequenceQuizMutation } from '../../store/api/SequenceQuiz/SequenceQuizApi';
-import { useGenerateSubjectWorldMutation } from '../../store/api/SubjectWorld/SubjectWorldApi';
 import { CreateArtifactFormSchema } from './createArtifactModalSchemas';
 import { CreateArtifactModalType } from './ICreateArtifactModal';
 
@@ -24,7 +23,6 @@ export function useCreateArtifactModalSubmit({
   const [generateSlideDeck] = useGenerateSlideDeckMutation();
   const [generateDiagramQuiz] = useGenerateDiagramQuizMutation();
   const [generateSequenceQuiz] = useGenerateSequenceQuizMutation();
-  const [generateSubjectWorld] = useGenerateSubjectWorldMutation();
 
   const submit = useCallback(
     (formData: CreateArtifactFormSchema) => {
@@ -94,17 +92,6 @@ export function useCreateArtifactModalSubmit({
             ruleResolutionMode: 'explicit-only',
           });
           break;
-        case 'subjectWorlds':
-          generateSubjectWorld({
-            documentIds: formData.documentIds,
-            directoryId,
-            subjectWorldName: trimmedName || undefined,
-            additionalPrompt: trimmedPrompt || undefined,
-            ruleIds,
-            followupRuleIds,
-            ruleResolutionMode: 'explicit-only',
-          });
-          break;
         default:
           return false;
       }
@@ -119,7 +106,6 @@ export function useCreateArtifactModalSubmit({
       generateQuiz,
       generateSequenceQuiz,
       generateSlideDeck,
-      generateSubjectWorld,
     ],
   );
 

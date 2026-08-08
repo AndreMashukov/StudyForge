@@ -19,7 +19,6 @@ import { FlashcardsGenerationProcessor } from '@study-forge/backend-generation/g
 import { QuizGenerationProcessor } from '@study-forge/backend-generation/generation-processors/quiz';
 import { SequenceQuizGenerationProcessor } from '@study-forge/backend-generation/generation-processors/sequence-quiz';
 import { SlideDeckGenerationProcessor } from '@study-forge/backend-generation/generation-processors/slide-deck';
-import { SubjectWorldGenerationProcessor } from '@study-forge/backend-generation/generation-processors/subject-world';
 import { ProcessGenerationJobTaskPayload } from '@study-forge/backend-generation/generation-task-queue';
 import { settleJobUsageReservation } from '@study-forge/backend-core/services/usage-limits-service';
 
@@ -53,9 +52,6 @@ async function processJob(job: GenerationJob): Promise<void> {
       return;
     case 'slideDeck':
       await SlideDeckGenerationProcessor.process(job);
-      return;
-    case 'subjectWorld':
-      await SubjectWorldGenerationProcessor.process(job);
       return;
     default:
       throw new Error(`Unsupported generation job kind: ${job.kind}`);

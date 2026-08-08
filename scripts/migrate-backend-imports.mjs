@@ -182,7 +182,6 @@ function rewrite(content, filePath) {
           'diagram-quiz': 'backend-artifacts',
           flashcards: 'backend-artifacts',
           mermaid: 'backend-artifacts',
-          'subject-world-normalizer': 'backend-artifacts',
           'generation-enqueue': 'backend-generation',
           'generation-jobs': 'backend-generation',
           'generation-job-failures': 'backend-generation',

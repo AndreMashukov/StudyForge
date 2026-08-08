@@ -96,12 +96,6 @@ export const useRealtimeDirectorySync = (
         listLimit: 50,
         tags: [...directoryTags, 'UserSequenceQuizzes' as const],
       },
-      {
-        collectionName: 'subjectWorlds',
-        filters: [{ field: 'directoryId', value: dirValue }],
-        listLimit: 50,
-        tags: [...directoryTags, 'UserSubjectWorlds' as const],
-      },
     ];
   }, [directoryId, subdirectoriesOnly]);
 

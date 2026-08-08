@@ -12,7 +12,6 @@ import {
   failPendingQuiz,
   failPendingSequenceQuiz,
   failPendingSlideDeck,
-  failPendingSubjectWorld,
 } from '@study-forge/backend-artifacts/artifact-generation-records';
 import { failVisibleGenerationRecord } from './generation-job-failures';
 import { GenerationJob, GenerationJobsService } from './generation-jobs';
@@ -37,7 +36,6 @@ export interface StaleGenerationSweepStats {
   orphanSlideDecksFailed: number;
   orphanDiagramQuizzesFailed: number;
   orphanSequenceQuizzesFailed: number;
-  orphanSubjectWorldsFailed: number;
 }
 
 function parseUserIdFromPath(path: string): string | null {
@@ -285,7 +283,6 @@ export async function sweepStaleGenerations(): Promise<StaleGenerationSweepStats
     orphanSlideDecksFailed: 0,
     orphanDiagramQuizzesFailed: 0,
     orphanSequenceQuizzesFailed: 0,
-    orphanSubjectWorldsFailed: 0,
   };
 
   stats.staleJobsFailed = await sweepStaleGenerationJobs(nowMs);
@@ -307,11 +304,6 @@ export async function sweepStaleGenerations(): Promise<StaleGenerationSweepStats
     failPendingSequenceQuiz,
     nowMs
   );
-  stats.orphanSubjectWorldsFailed = await sweepOrphanPendingArtifacts(
-    'subjectWorlds',
-    failPendingSubjectWorld,
-    nowMs
-  );
 
   const total =
     stats.staleJobsFailed
@@ -320,8 +312,7 @@ export async function sweepStaleGenerations(): Promise<StaleGenerationSweepStats
     + stats.orphanFlashcardSetsFailed
     + stats.orphanSlideDecksFailed
     + stats.orphanDiagramQuizzesFailed
-    + stats.orphanSequenceQuizzesFailed
-    + stats.orphanSubjectWorldsFailed;
+    + stats.orphanSequenceQuizzesFailed;
 
   if (total > 0) {
     logger.warn('Stale generation sweep completed', stats);

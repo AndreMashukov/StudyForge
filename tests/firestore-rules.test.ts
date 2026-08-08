@@ -37,22 +37,6 @@ async function seedDocument(
   });
 }
 
-async function seedProgress(
-  userId: string,
-  subjectWorldId: string,
-  progress: Record<string, unknown> = { completedGates: [] },
-): Promise<void> {
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(
-      doc(
-        context.firestore(),
-        `users/${userId}/subjectWorlds/${subjectWorldId}/progress/${userId}`,
-      ),
-      { userId, subjectWorldId, progress },
-    );
-  });
-}
-
 describe('firestore.rules client write hardening', () => {
   beforeAll(async () => {
     testEnv = await initializeTestEnvironment({
@@ -237,75 +221,6 @@ describe('firestore.rules client write hardening', () => {
         setDoc(doc(owner.firestore(), `users/${OWNER_UID}/quizzes/new-quiz`), {
           title: 'blocked',
         }),
-      );
-    });
-  });
-
-  describe('subject world progress', () => {
-    const subjectWorldId = 'world-1';
-
-    beforeEach(async () => {
-      await testEnv.withSecurityRulesDisabled(async (context) => {
-        await setDoc(
-          doc(context.firestore(), `users/${OWNER_UID}/subjectWorlds/${subjectWorldId}`),
-          { title: 'Seed world' },
-        );
-      });
-      await seedProgress(OWNER_UID, subjectWorldId);
-    });
-
-    it('allows owner get when progressId matches userId', async () => {
-      const owner = testEnv.authenticatedContext(OWNER_UID);
-      await assertSucceeds(
-        getDoc(
-          doc(
-            owner.firestore(),
-            `users/${OWNER_UID}/subjectWorlds/${subjectWorldId}/progress/${OWNER_UID}`,
-          ),
-        ),
-      );
-    });
-
-    it('denies owner get when progressId does not match userId', async () => {
-      const owner = testEnv.authenticatedContext(OWNER_UID);
-      await assertFails(
-        getDoc(
-          doc(
-            owner.firestore(),
-            `users/${OWNER_UID}/subjectWorlds/${subjectWorldId}/progress/other-progress`,
-          ),
-        ),
-      );
-    });
-
-    it('denies progress list and client writes', async () => {
-      const owner = testEnv.authenticatedContext(OWNER_UID);
-      const progressCollection = collection(
-        owner.firestore(),
-        `users/${OWNER_UID}/subjectWorlds/${subjectWorldId}/progress`,
-      );
-
-      await assertFails(getDocs(query(progressCollection, limit(1))));
-      await assertFails(
-        setDoc(
-          doc(
-            owner.firestore(),
-            `users/${OWNER_UID}/subjectWorlds/${subjectWorldId}/progress/${OWNER_UID}`,
-          ),
-          { progress: { completedGates: ['gate-1'] } },
-        ),
-      );
-    });
-
-    it('denies other-user progress get', async () => {
-      const other = testEnv.authenticatedContext(OTHER_UID);
-      await assertFails(
-        getDoc(
-          doc(
-            other.firestore(),
-            `users/${OWNER_UID}/subjectWorlds/${subjectWorldId}/progress/${OWNER_UID}`,
-          ),
-        ),
       );
     });
   });

@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Box,
   Brain,
   Layers,
   ListOrdered,
@@ -93,21 +92,6 @@ export const CREATE_ARTIFACT_MODAL_CONFIG: Record<
       plural: (count) => `Generate sequence quiz from ${count} documents`,
     },
     directoryTab: 'sequenceQuizzes',
-  },
-  subjectWorlds: {
-    title: 'Create subject world',
-    icon: <Box size={18} className="shrink-0 text-primary" />,
-    nameFieldLabel: 'World name',
-    additionalPromptPlaceholder:
-      'e.g. Focus on hands-on exploration, more quiz gates, outdoor theme…',
-    additionalPromptHelperText: 'Customize how the explorable world is generated',
-    ruleApplicability: RuleApplicability.SUBJECT_WORLD,
-    followupRuleApplicability: RuleApplicability.FOLLOWUP,
-    generateLabels: {
-      single: 'Generate subject world',
-      plural: (count) => `Generate subject world from ${count} documents`,
-    },
-    directoryTab: 'subjectWorlds',
   },
 };
 

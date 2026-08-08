@@ -21,7 +21,6 @@ import {
   Presentation,
   Network,
   ListOrdered,
-  Box,
 } from 'lucide-react';
 import { useDocumentViewerPageContext } from '../context';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -317,12 +316,6 @@ export const DocumentViewerPageContainer = () => {
                       label: 'Create Sequence Quiz',
                       icon: <ListOrdered size={16} />,
                       onClick: () => handleOpenCreateArtifact('sequenceQuizzes'),
-                    },
-                    {
-                      id: 'create-subject-world',
-                      label: 'Explore as Game',
-                      icon: <Box size={16} />,
-                      onClick: () => handleOpenCreateArtifact('subjectWorlds'),
                     },
                   ]}
                 />

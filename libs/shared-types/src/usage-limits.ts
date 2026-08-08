@@ -97,7 +97,6 @@ export const DEFAULT_USAGE_CREDIT_COSTS: Record<GenerationKind, number> = {
   agentKnowledgeEmbedding: 3,
   quiz: 5,
   sequenceQuiz: 5,
-  subjectWorld: 5,
   sourceDocumentEnhancement: 5,
   flashcards: 10,
   diagramQuiz: 10,
@@ -113,7 +112,6 @@ export const FREE_TIER_DISABLED_KINDS: GenerationKind[] = [
   'documentFromScreenshot',
   'slideDeckText',
   'slideDeckImage',
-  'subjectWorld',
   'flashcards',
   'diagramQuiz',
 ];

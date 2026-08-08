@@ -63,7 +63,6 @@ export const GENERATION_RATE_LIMIT_PROFILES: Record<GenerationKind, IGenerationR
   agentKnowledgeEmbedding: PRODUCTION_PROFILE,
   diagramQuiz: PRODUCTION_PROFILE,
   sequenceQuiz: PRODUCTION_PROFILE,
-  subjectWorld: PRODUCTION_PROFILE,
   slideDeckText: SLIDE_DECK_TEXT_PROFILE,
   slideDeckImage: SLIDE_DECK_IMAGE_PROFILE,
   sourceDocumentEnhancement: PRODUCTION_PROFILE,

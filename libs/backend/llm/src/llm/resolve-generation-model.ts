@@ -13,7 +13,6 @@ export async function resolveTextGenerationModelLabel(
     | 'diagramQuiz'
     | 'diagramQuizAgent'
     | 'sequenceQuiz'
-    | 'subjectWorld'
     | 'slideDeckText'
     | 'sourceDocumentEnhancement'
     | 'quizFollowup'

@@ -127,9 +127,6 @@ export async function deleteArtifactByType(
     case 'sequenceQuiz':
       await FirestoreService.deleteSequenceQuiz(artifactId, userId);
       return;
-    case 'subjectWorld':
-      await FirestoreService.deleteSubjectWorld(artifactId, userId);
-      return;
     default: {
       const _exhaustive: never = type;
       throw new HttpsError('invalid-argument', `Unsupported artifact type: ${String(_exhaustive)}`);

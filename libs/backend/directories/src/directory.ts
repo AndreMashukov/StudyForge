@@ -23,7 +23,6 @@ import {
   SlideDeck,
   DiagramQuiz,
   SequenceQuiz,
-  SubjectWorld,
   Rule,
 } from '@shared-types';
 import { resolveRulesForDirectory } from './rule-resolution';
@@ -546,14 +545,13 @@ export class DirectoryService {
     let slideDecks: SlideDeck[] = [];
     let diagramQuizzes: DiagramQuiz[] = [];
     let sequenceQuizzes: SequenceQuiz[] = [];
-    let subjectWorlds: SubjectWorld[] = [];
     let resolvedRules: { rules: Rule[]; inheritanceMap: { [key: string]: Rule[] } } = {
       rules: [],
       inheritanceMap: {},
     };
 
     if (directoryId && includeArtifacts) {
-      const [qSnap, fSnap, sSnap, dqSnap, sqSnap, swSnap] = await Promise.all([
+      const [qSnap, fSnap, sSnap, dqSnap, sqSnap] = await Promise.all([
         FirestorePaths.quizzes(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
@@ -579,11 +577,6 @@ export class DirectoryService {
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
           .get(),
-        FirestorePaths.subjectWorlds(userId)
-          .where('directoryId', '==', directoryId)
-          .orderBy('createdAt', 'desc')
-          .limit(artifactLimit)
-          .get(),
       ]);
 
       quizzes = qSnap.docs.map(d => ({ ...d.data(), id: d.id } as Quiz));
@@ -591,7 +584,6 @@ export class DirectoryService {
       slideDecks = sSnap.docs.map(d => ({ ...d.data(), id: d.id } as SlideDeck));
       diagramQuizzes = dqSnap.docs.map(d => ({ ...d.data(), id: d.id } as DiagramQuiz));
       sequenceQuizzes = sqSnap.docs.map(d => ({ ...d.data(), id: d.id } as SequenceQuiz));
-      subjectWorlds = swSnap.docs.map(d => ({ ...d.data(), id: d.id } as SubjectWorld));
     }
 
     if (directoryId && includeRules) {
@@ -604,8 +596,7 @@ export class DirectoryService {
       flashcardSets.length +
       slideDecks.length +
       diagramQuizzes.length +
-      sequenceQuizzes.length +
-      subjectWorlds.length;
+      sequenceQuizzes.length;
 
     return {
       ...base,
@@ -614,7 +605,6 @@ export class DirectoryService {
       slideDecks,
       diagramQuizzes,
       sequenceQuizzes,
-      subjectWorlds,
       resolvedRules,
       totalCount,
     };

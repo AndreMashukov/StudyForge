@@ -1,1 +1,0 @@
-export { SubjectWorldPage } from './SubjectWorldPage';

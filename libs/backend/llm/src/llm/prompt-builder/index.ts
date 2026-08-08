@@ -13,7 +13,6 @@ export {
   SlideDeckPromptBuilder,
   DiagramQuizPromptBuilder,
   SequenceQuizPromptBuilder,
-  SubjectWorldPromptBuilder,
   ScreenshotPromptBuilder,
   PromptBuilder,
   type FlashcardPromptOptions,

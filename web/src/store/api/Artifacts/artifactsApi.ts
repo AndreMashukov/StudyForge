@@ -23,7 +23,6 @@ export const artifactsApi = baseApi.injectEndpoints({
               'UserSlideDecks',
               'UserDiagramQuizzes',
               'UserSequenceQuizzes',
-              'UserSubjectWorlds',
             ]
           : [],
     }),

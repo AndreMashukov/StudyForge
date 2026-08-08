@@ -37,7 +37,6 @@ const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
   slideDeck: 'Slide decks',
   diagramQuiz: 'Diagram quizzes',
   sequenceQuiz: 'Sequence quizzes',
-  subjectWorld: 'Subject worlds',
 };
 
 function toLocalDateString(date: Date): string {
