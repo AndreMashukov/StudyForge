@@ -200,6 +200,26 @@ service cloud.firestore {
       match /apiKeys/{keyId} {
         allow read, write: if false;
       }
+
+      // Usage summary — server-maintained denormalized meter doc; client read-only.
+      match /usageSummary/{summaryId} {
+        allow get: if isOwner(userId);
+        allow list: if false;
+        allow create, update, delete: if false;
+      }
+
+      // Usage periods, reservations, and events — server-maintained only.
+      match /usagePeriods/{periodKey} {
+        allow read, write: if false;
+      }
+
+      match /usageReservations/{reservationId} {
+        allow read, write: if false;
+      }
+
+      match /usageEvents/{eventId} {
+        allow read, write: if false;
+      }
     }
   }
 }

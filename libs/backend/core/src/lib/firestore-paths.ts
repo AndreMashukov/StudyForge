@@ -185,4 +185,10 @@ export const FirestorePaths = {
     validateUserId(userId);
     return db().collection('users').doc(userId).collection('usageEvents');
   },
+
+  usageSummary: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('usageSummary');
+  },
+  usageSummaryCurrent: (userId: string) => FirestorePaths.usageSummary(userId).doc('current'),
 };

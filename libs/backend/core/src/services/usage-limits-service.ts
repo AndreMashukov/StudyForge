@@ -142,6 +142,76 @@ function usageEventsCollection(userId: string) {
   return getFirestore().collection(USERS_COLLECTION).doc(userId).collection('usageEvents');
 }
 
+const USAGE_SUMMARY_DOC_ID = 'current';
+
+function usageSummaryRef(userId: string) {
+  return getFirestore()
+    .collection(USERS_COLLECTION)
+    .doc(userId)
+    .collection('usageSummary')
+    .doc(USAGE_SUMMARY_DOC_ID);
+}
+
+function buildUserUsageSummary(
+  context: IUserUsageContext,
+  periodKey: string,
+  periodData: FirebaseFirestore.DocumentData
+): IUserUsageSummary {
+  const allowance =
+    typeof periodData.allowance === 'number'
+      ? periodData.allowance
+      : context.setup.monthlyCreditAllowance;
+  const reservedCredits =
+    typeof periodData.reservedCredits === 'number' ? periodData.reservedCredits : 0;
+  const spentCredits = typeof periodData.spentCredits === 'number' ? periodData.spentCredits : 0;
+  const refundedCredits =
+    typeof periodData.refundedCredits === 'number' ? periodData.refundedCredits : 0;
+  const remainingCredits = calculateRemainingCredits({
+    allowance,
+    reservedCredits,
+    spentCredits,
+  });
+
+  const featureAvailability = Object.entries(context.setup.featurePolicies).map(([kind, policy]) => ({
+    kind: kind as GenerationKind,
+    enabled: policy.enabled,
+    creditCost: policy.creditCost,
+    affordable: policy.enabled && remainingCredits >= policy.creditCost,
+  }));
+
+  return {
+    periodKey,
+    allowance,
+    reservedCredits,
+    spentCredits,
+    refundedCredits,
+    remainingCredits,
+    resetAt: buildUsagePeriodResetAt(periodKey),
+    usageLimitsSetupId: context.setup.id,
+    usageLimitsSetupName: context.setup.name,
+    featureAvailability,
+  };
+}
+
+async function writeUsageSummaryDocument(
+  userId: string,
+  summary: IUserUsageSummary
+): Promise<void> {
+  await usageSummaryRef(userId).set({
+    ...summary,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+async function syncUsageSummaryDocument(userId: string): Promise<IUserUsageSummary> {
+  const context = await resolveUserUsageContext(userId);
+  const periodKey = buildUsagePeriodKey();
+  const periodSnapshot = await usagePeriodRef(userId, periodKey).get();
+  const summary = buildUserUsageSummary(context, periodKey, periodSnapshot.data() ?? {});
+  await writeUsageSummaryDocument(userId, summary);
+  return summary;
+}
+
 async function resolveUserUsageContext(userId: string): Promise<IUserUsageContext> {
   const userSnapshot = await getFirestore().collection(USERS_COLLECTION).doc(userId).get();
   const userGroupId =
@@ -328,6 +398,8 @@ export async function reserveUsageCredits(params: {
     reservationId: reservation.id,
   });
 
+  await syncUsageSummaryDocument(params.userId);
+
   return reservation;
 }
 
@@ -409,6 +481,8 @@ export async function commitUsageReservation(userId: string, reservationId: stri
     periodKey: settled.periodKey,
     reservationId,
   });
+
+  await syncUsageSummaryDocument(userId);
 }
 
 export async function refundUsageReservation(userId: string, reservationId: string): Promise<void> {
@@ -490,48 +564,12 @@ export async function refundUsageReservation(userId: string, reservationId: stri
     periodKey: settled.periodKey,
     reservationId,
   });
+
+  await syncUsageSummaryDocument(userId);
 }
 
 export async function getUserUsageSummary(userId: string): Promise<IUserUsageSummary> {
-  const context = await resolveUserUsageContext(userId);
-  const periodKey = buildUsagePeriodKey();
-  const periodSnapshot = await usagePeriodRef(userId, periodKey).get();
-  const periodData = periodSnapshot.data() ?? {};
-
-  const allowance =
-    typeof periodData.allowance === 'number'
-      ? periodData.allowance
-      : context.setup.monthlyCreditAllowance;
-  const reservedCredits =
-    typeof periodData.reservedCredits === 'number' ? periodData.reservedCredits : 0;
-  const spentCredits = typeof periodData.spentCredits === 'number' ? periodData.spentCredits : 0;
-  const refundedCredits =
-    typeof periodData.refundedCredits === 'number' ? periodData.refundedCredits : 0;
-  const remainingCredits = calculateRemainingCredits({
-    allowance,
-    reservedCredits,
-    spentCredits,
-  });
-
-  const featureAvailability = Object.entries(context.setup.featurePolicies).map(([kind, policy]) => ({
-    kind: kind as GenerationKind,
-    enabled: policy.enabled,
-    creditCost: policy.creditCost,
-    affordable: policy.enabled && remainingCredits >= policy.creditCost,
-  }));
-
-  return {
-    periodKey,
-    allowance,
-    reservedCredits,
-    spentCredits,
-    refundedCredits,
-    remainingCredits,
-    resetAt: buildUsagePeriodResetAt(periodKey),
-    usageLimitsSetupId: context.setup.id,
-    usageLimitsSetupName: context.setup.name,
-    featureAvailability,
-  };
+  return syncUsageSummaryDocument(userId);
 }
 
 export async function listRecentUsageEvents(
