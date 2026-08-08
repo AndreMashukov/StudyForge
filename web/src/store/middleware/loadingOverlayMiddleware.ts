@@ -13,6 +13,7 @@ import { setLoading } from '../slices/uiSlice';
  */
 export const LOADING_OVERLAY_MUTATIONS = new Set<string>([
   'createDirectory',
+  'updateDirectory',
   'deleteDirectory',
 ]);
 
