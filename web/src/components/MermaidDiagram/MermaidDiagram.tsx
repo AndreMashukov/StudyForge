@@ -31,8 +31,68 @@ function ensureMermaidInit(): void {
  * This module-level promise queue serialises all render() calls so only one
  * runs at a time.  Stale renders (where the component re-rendered before the
  * queued call ran) are skipped via the per-effect `cancelled` flag.
+ *
+ * Even with the queue, the first cold render (or opening a dialog that mounts
+ * two diagrams) can still throw a transient internal Mermaid error. Retry those
+ * without surfacing "error in diagram" until retries are exhausted.
  */
 let renderQueue: Promise<void> = Promise.resolve();
+
+const TRANSIENT_MERMAID_RENDER_ERROR_RE =
+  /Cannot read propert(?:y|ies) of null|reading 'firstChild'|getAttribute|#mermaid/i;
+
+const MERMAID_RENDER_MAX_ATTEMPTS = 3;
+
+function cleanupMermaidRenderArtifacts(renderId: string): void {
+  document.getElementById(`d${renderId}`)?.remove();
+  document.querySelectorAll<HTMLElement>('body > div[id^="d"]').forEach((element) => {
+    if (element.id === `d${renderId}` || element.id.startsWith(`d${renderId}-`)) {
+      element.remove();
+      return;
+    }
+    // Mermaid appends a floating "Syntax error" helper on some failures.
+    if (element.textContent?.includes('Syntax error')) {
+      element.remove();
+    }
+  });
+}
+
+async function renderMermaidSvg(
+  renderId: string,
+  source: string,
+  isCancelled: () => boolean
+): Promise<string | null> {
+  ensureMermaidInit();
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < MERMAID_RENDER_MAX_ATTEMPTS; attempt += 1) {
+    if (isCancelled()) {
+      return null;
+    }
+    const attemptId = attempt === 0 ? renderId : `${renderId}-a${attempt}`;
+    try {
+      const { svg } = await mermaid.render(attemptId, source);
+      cleanupMermaidRenderArtifacts(attemptId);
+      return svg;
+    } catch (error) {
+      cleanupMermaidRenderArtifacts(attemptId);
+      if (isCancelled()) {
+        return null;
+      }
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      const isTransient = TRANSIENT_MERMAID_RENDER_ERROR_RE.test(message);
+      if (!isTransient || attempt === MERMAID_RENDER_MAX_ATTEMPTS - 1) {
+        throw error;
+      }
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 40 * (attempt + 1));
+      });
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Failed to render diagram');
+}
 
 /**
  * Mermaid reserves certain characters inside square-bracket node labels:
@@ -680,18 +740,14 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       .then(async () => {
         if (cancelled) return;
 
-        ensureMermaidInit();
         const id = `mermaid-${reactId}-${Math.random().toString(36).slice(2, 9)}`;
         try {
-          const { svg: out } = await mermaid.render(id, trimmed);
-          if (!cancelled) {
+          const out = await renderMermaidSvg(id, trimmed, () => cancelled);
+          if (!cancelled && out) {
             setSvg(out);
             setIsRendering(false);
           }
         } catch (renderError) {
-          // Mermaid appends an error SVG to <body> on failure (div#d${id}).
-          // Remove it so it doesn't linger as a floating "Syntax error" tooltip.
-          document.getElementById(`d${id}`)?.remove();
           if (!cancelled) {
             setSvg(null);
             setIsRendering(false);
