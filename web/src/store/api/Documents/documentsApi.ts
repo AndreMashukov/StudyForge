@@ -137,7 +137,6 @@ export const documentsApi = baseApi.injectEndpoints({
         return response.document;
       },
       invalidatesTags: [
-        'UsageSummary',
         'Document',
         { type: 'Directory', id: 'LIST' },
       ],
@@ -153,7 +152,6 @@ export const documentsApi = baseApi.injectEndpoints({
         return response.document;
       },
       invalidatesTags: [
-        'UsageSummary',
         'Document',
         { type: 'Directory', id: 'LIST' },
       ],
@@ -170,7 +168,6 @@ export const documentsApi = baseApi.injectEndpoints({
         return response.document;
       },
       invalidatesTags: [
-        'UsageSummary',
         'Document',
         { type: 'Directory', id: 'LIST' },
       ],
@@ -216,7 +213,6 @@ export const documentsApi = baseApi.injectEndpoints({
         };
       },
       invalidatesTags: [
-        'UsageSummary',
         'Document',
         { type: 'Directory', id: 'LIST' }, // Invalidate directory list
       ],

@@ -30,7 +30,6 @@ export const directoryChatApi = baseApi.injectEndpoints({
         timeout: 300000,
       }),
       invalidatesTags: (result, error, arg) => [
-        'UsageSummary',
         { type: 'DirectoryChat', id: arg.directoryId },
       ],
     }),

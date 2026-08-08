@@ -65,7 +65,6 @@ export const usageApi = baseApi.injectEndpoints({
           );
         }
       },
-      providesTags: ['UsageSummary'],
     }),
   }),
 });

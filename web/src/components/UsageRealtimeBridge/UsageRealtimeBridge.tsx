@@ -2,11 +2,12 @@ import { useAppDispatch } from '../../hooks/redux';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFirestoreEffect } from '../../hooks/useFirestoreEffect';
 import { subscribeToUserDoc } from '../../services/firestoreReadUtils';
-import { baseApi } from '../../store/api/baseApi';
 import {
+  parseUsageSummaryFromFirestore,
   USAGE_SUMMARY_COLLECTION,
   USAGE_SUMMARY_DOC_ID,
 } from '../../services/usageFirestore';
+import { usageApi } from '../../store/api/Usage/usageApi';
 
 /**
  * Keeps the usage credits meter in sync when the server updates
@@ -22,15 +23,19 @@ export function UsageRealtimeBridge() {
       return;
     }
 
-    let isInitial = true;
-
-    return subscribeToUserDoc(uid, USAGE_SUMMARY_COLLECTION, USAGE_SUMMARY_DOC_ID, () => {
-      if (isInitial) {
-        isInitial = false;
+    return subscribeToUserDoc(uid, USAGE_SUMMARY_COLLECTION, USAGE_SUMMARY_DOC_ID, (raw) => {
+      if (!raw) {
         return;
       }
 
-      dispatch(baseApi.util.invalidateTags(['UsageSummary']));
+      const summary = parseUsageSummaryFromFirestore(raw);
+      if (!summary) {
+        return;
+      }
+
+      dispatch(
+        usageApi.util.upsertQueryData('getUsageSummary', undefined, summary),
+      );
     });
   }, [uid, dispatch]);
 

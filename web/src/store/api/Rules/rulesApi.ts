@@ -334,7 +334,6 @@ export const rulesApi = baseApi.injectEndpoints({
       }) => {
         return response.result;
       },
-      invalidatesTags: ['UsageSummary'],
     }),
   }),
 });

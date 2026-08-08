@@ -18,8 +18,7 @@ import { Spinner } from '../ui/Spinner';
 import { MarkdownRenderer } from '../MarkdownRenderer';
 import { stripAgentThinkingContent } from '../../utils/stripAgentThinkingContent';
 import { cn } from '../../lib/utils';
-import { useAppDispatch, useAppSelector } from '../../hooks/redux';
-import { baseApi } from '../../store/api/baseApi';
+import { useAppSelector } from '../../hooks/redux';
 import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
 import { streamAgentMessage } from '../../services/agentStreamClient';
@@ -166,7 +165,6 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
   const [contextDismissed, setContextDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const dispatch = useAppDispatch();
   const sidebarIsOpen = useAppSelector(selectSidebarIsOpen);
   const { isAppFullscreen } = useAppFullscreen();
   const isOverlay = variant === 'overlay';
@@ -449,13 +447,12 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
               : message,
           ),
         );
-        dispatch(baseApi.util.invalidateTags(['UsageSummary']));
         if (didMutate) {
           onMutated?.();
         }
       }
     },
-    [activePromptContext, directoryId, dispatch, loading, onMutated, scope, threadId],
+    [activePromptContext, directoryId, loading, onMutated, scope, threadId],
   );
 
   const handleSubmit = (event: React.FormEvent) => {

@@ -28,7 +28,6 @@ export const flashcardsApi = baseApi.injectEndpoints({
         successMessage: 'Flashcards are preparing',
       }),
       invalidatesTags: (result, error, arg) => [
-        'UsageSummary',
         'UserFlashcardSets',
         ...(arg.directoryId
           ? [{ type: 'Directory' as const, id: arg.directoryId }]
