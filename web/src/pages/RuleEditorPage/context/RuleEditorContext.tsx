@@ -9,6 +9,8 @@ import {
   useGenerateRuleWithAIMutation,
 } from '../../../store/api/Rules/rulesApi';
 import { useToast } from '../../../components/Toast';
+import { useAppDispatch } from '../../../hooks/redux';
+import { setLoading } from '../../../store/slices/uiSlice';
 import {
   IRuleEditorContext,
   IRuleEditorFormData,
@@ -35,6 +37,7 @@ const DEFAULT_FORM_DATA: IRuleEditorFormData = {
 export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children }) => {
   const { ruleId } = useParams<{ ruleId?: string }>();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { showToast } = useToast();
 
   const mode: 'create' | 'edit' = ruleId ? 'edit' : 'create';
@@ -106,6 +109,10 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
       showToast('Please fix validation errors before saving', 'error');
       return;
     }
+
+    // Call-site overlay: keep updateRule/createRule off the RTK allowlist so
+    // always-apply toggles in create flows stay non-blocking.
+    dispatch(setLoading({ isLoading: true, message: 'Saving rule…' }));
     try {
       if (mode === 'edit' && ruleId) {
         await updateRule({ ruleId, ...formData }).unwrap();
@@ -118,8 +125,20 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
       }
     } catch {
       // Error is shown via the global errorToastMiddleware toast
+    } finally {
+      dispatch(setLoading({ isLoading: false }));
     }
-  }, [formData, mode, ruleId, validate, showToast, navigate, updateRule, createRule]);
+  }, [
+    formData,
+    mode,
+    ruleId,
+    validate,
+    showToast,
+    navigate,
+    updateRule,
+    createRule,
+    dispatch,
+  ]);
 
   const deleteRule = useCallback(async () => {
     if (!ruleId) return;
