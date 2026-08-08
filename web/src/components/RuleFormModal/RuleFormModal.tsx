@@ -25,6 +25,8 @@ import { IRuleFormModal } from "./IRuleFormModal";
 import { RuleApplicability, RuleColor, CreateRuleRequest } from "@shared-types";
 import { cn } from "../../lib/utils";
 import { z } from "zod";
+import { useAppDispatch } from "../../hooks/redux";
+import { setLoading } from "../../store/slices/uiSlice";
 
 // Zod validation schema
 const ruleFormSchema = z.object({
@@ -50,6 +52,7 @@ export const RuleFormModal = ({
   onSuccess,
 }: IRuleFormModal) => {
   const isEditMode = !!ruleId;
+  const dispatch = useAppDispatch();
   const { showToast } = useToast();
 
   // Fetch existing rule for edit mode
@@ -129,6 +132,9 @@ export const RuleFormModal = ({
       }
     }
 
+    // Call-site overlay: keep updateRule/createRule off the RTK allowlist so
+    // always-apply toggles in create flows stay non-blocking.
+    dispatch(setLoading({ isLoading: true, message: "Saving rule…" }));
     try {
       if (isEditMode && ruleId) {
         const updatedRule = await updateRule({
@@ -145,6 +151,8 @@ export const RuleFormModal = ({
       onClose();
     } catch {
       // Error is shown via the global errorToastMiddleware toast
+    } finally {
+      dispatch(setLoading({ isLoading: false }));
     }
   };
 
