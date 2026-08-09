@@ -23,6 +23,7 @@ import { cn } from '../../lib/utils';
 import {
   useGetDirectoryChatQuery,
   useSendDirectoryChatMessageMutation,
+  useUpdateDirectoryChatSourcesMutation,
 } from '../../store/api/DirectoryChat';
 import {
   IDirectoryChatMessage,
@@ -41,16 +42,23 @@ const SIDEBAR_EXPANDED_PX = 220;
 const SIDEBAR_COLLAPSED_PX = 64;
 const PAGE_WIDE_GAP_PX = 16;
 
+const arraysEqual = (left: string[], right: string[]): boolean =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
+
 export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   directoryId,
   sourceCount = 0,
   className,
   compact = false,
   collapsible = false,
+  collapsedVariant = 'chip',
   defaultExpanded,
   expanded,
   onExpandedChange,
   expandable = true,
+  title = 'Chat',
+  placeholder,
+  focusedDocumentIds,
   seedMessage,
   seedKey,
   artifactContext,
@@ -141,6 +149,8 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   );
   const [sendDirectoryChatMessage, { isLoading: isSending }] =
     useSendDirectoryChatMessageMutation();
+  const [updateDirectoryChatSources] = useUpdateDirectoryChatSourcesMutation();
+  const appliedFocusRef = useRef<string | null>(null);
 
   const hasLoadError = Boolean(error);
   const totalSourceCount = data?.documentCount ?? sourceCount;
@@ -155,6 +165,40 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
       setVisibleMessages(data.messages);
     }
   }, [data?.messages]);
+
+  useEffect(() => {
+    if (!focusedDocumentIds?.length || !directoryId || isLoading || !data) {
+      return;
+    }
+
+    const focusKey = focusedDocumentIds.join(',');
+    if (appliedFocusRef.current === focusKey) {
+      return;
+    }
+
+    const availableIds = new Set(data.sources.map((source) => source.id));
+    const validFocusedIds = focusedDocumentIds.filter((id) => availableIds.has(id));
+    if (validFocusedIds.length === 0) {
+      return;
+    }
+
+    if (arraysEqual(data.selectedDocumentIds, validFocusedIds)) {
+      appliedFocusRef.current = focusKey;
+      return;
+    }
+
+    appliedFocusRef.current = focusKey;
+    void updateDirectoryChatSources({
+      directoryId,
+      selectedDocumentIds: validFocusedIds,
+    });
+  }, [
+    data,
+    directoryId,
+    focusedDocumentIds,
+    isLoading,
+    updateDirectoryChatSources,
+  ]);
 
   const displayMessages = useMemo<IOptimisticDirectoryChatMessage[]>(
     () => [...visibleMessages, ...optimisticMessages],
@@ -250,7 +294,36 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
     void handleSend(message);
   };
 
+  const messagePlaceholder =
+    placeholder ??
+    (canChat
+      ? 'Ask about this directory...'
+      : hasDirectorySources
+        ? 'Select at least one source before chatting'
+        : 'Add a source before chatting');
+
   if (collapsible && !isExpanded) {
+    if (collapsedVariant === 'bar') {
+      return (
+        <button
+          type="button"
+          onClick={() => handleExpandedChange(true)}
+          className={cn(
+            'flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/50',
+            className,
+          )}
+          aria-expanded={false}
+          aria-label={`Open ${title}`}
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <MessageSquare size={18} className="shrink-0 text-primary" />
+            <span className="truncate text-sm font-semibold">{title}</span>
+          </div>
+          <ChevronDown size={16} className="shrink-0 text-muted-foreground" />
+        </button>
+      );
+    }
+
     return (
       <button
         type="button"
@@ -260,10 +333,10 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
           className,
         )}
         aria-expanded={false}
-        aria-label="Open directory chat"
+        aria-label={`Open ${title}`}
       >
         <MessageSquare size={18} className="shrink-0 text-primary" />
-        <span className="text-sm font-semibold">Chat</span>
+        <span className="text-sm font-semibold">{title}</span>
         <span className="text-xs text-muted-foreground">
           {hasDirectorySources
             ? `${selectedSourceCount}/${totalSourceCount} ${
@@ -282,6 +355,9 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
       // (below TopAppBar, to the right of Sidebar) instead of covering chrome.
       return 'fixed z-50 h-auto w-auto max-w-none bg-background/95 shadow-2xl backdrop-blur transition-[top,left] duration-300';
     }
+    if (collapsible && collapsedVariant === 'bar') {
+      return 'h-[28rem] w-full';
+    }
     if (collapsible) {
       return 'h-80 w-96';
     }
@@ -299,13 +375,13 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
         className,
       )}
       style={pageWideStyle}
-      aria-label="Directory chat"
+      aria-label={title}
     >
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <MessageSquare size={18} className="shrink-0 text-primary" />
           <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold">Chat</h2>
+            <h2 className="truncate text-base font-semibold">{title}</h2>
             <DirectoryChatSourceSelector
               directoryId={directoryId}
               sources={availableSources}
@@ -442,13 +518,7 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
         <Textarea
           value={message}
           onChange={(event) => setMessage(event.target.value)}
-          placeholder={
-            canChat
-              ? 'Ask about this directory...'
-              : hasDirectorySources
-                ? 'Select at least one source before chatting'
-                : 'Add a source before chatting'
-          }
+          placeholder={messagePlaceholder}
           rows={compact ? 2 : 3}
           maxLength={MAX_MESSAGE_LENGTH}
           showCharCount

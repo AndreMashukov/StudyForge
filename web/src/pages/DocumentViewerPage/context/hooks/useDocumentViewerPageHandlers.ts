@@ -8,11 +8,7 @@ import {
   toggleToc,
   setIsExporting,
   selectIsExporting,
-  setQuestionAsking,
-  setQuestionAnswer,
-  setQuestionError,
 } from '../../../../store/slices/documentViewerPageSlice';
-import { useAskDocumentQuestionMutation } from '../../../../store/api/DocumentQuestion/DocumentQuestionApi';
 
 interface UseDocumentViewerPageHandlersProps {
   document: DocumentEnhanced | undefined;
@@ -27,7 +23,6 @@ export const useDocumentViewerPageHandlers = ({
 }: UseDocumentViewerPageHandlersProps) => {
   const dispatch = useDispatch();
   const isExporting = useSelector(selectIsExporting);
-  const [askDocumentQuestion] = useAskDocumentQuestionMutation();
 
   const handleTocGenerated = useCallback(
     (toc: TocItem[]) => {
@@ -83,40 +78,12 @@ export const useDocumentViewerPageHandlers = ({
     downloadMarkdownFile(content, document.title);
   }, [content, document]);
 
-  const handleAskDocumentQuestion = useCallback(
-    async (question: string) => {
-      if (!document) return;
-
-      dispatch(setQuestionAsking(true));
-
-      try {
-        const result = await askDocumentQuestion({
-          documentId: document.id,
-          question,
-        }).unwrap();
-
-        if (result.success && result.data?.content) {
-          dispatch(setQuestionAnswer(result.data.content));
-        } else {
-          dispatch(setQuestionError('Failed to generate answer'));
-        }
-      } catch (error) {
-        const errorMessage =
-          (error as { data?: { message?: string } })?.data?.message ||
-          'Failed to generate answer';
-        dispatch(setQuestionError(errorMessage));
-      }
-    },
-    [dispatch, askDocumentQuestion, document]
-  );
-
   return {
     handleTocGenerated,
     handleExportPDF,
     handleDownloadMd,
     handleToggleToc,
     handleTocItemClick,
-    handleAskDocumentQuestion,
     isExporting,
   };
 };

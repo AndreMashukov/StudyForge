@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Page } from '../../../components/Page';
@@ -28,15 +28,11 @@ import {
   selectTocItems,
   selectShowToc,
   selectIsExporting,
-  selectQuestionAnswer,
-  selectIsAskingQuestion,
-  selectQuestionError,
-  clearQuestionAnswer,
 } from '../../../store/slices/documentViewerPageSlice';
 import { setSelectedDirectory } from '../../../store/slices/directorySlice';
 import { buildDirectoryPath } from '../../../utils/directoryUrl';
 import { formatDateWithOptions } from '../../../utils/dateUtils';
-import { DocumentQuestionForm } from './DocumentQuestionForm';
+import { DirectoryChatPanel } from '../../../components/DirectoryChatPanel';
 import {
   CreateArtifactModal,
   CreateArtifactModalType,
@@ -105,15 +101,8 @@ export const DocumentViewerPageContainer = () => {
   const tocItems = useSelector(selectTocItems);
   const showToc = useSelector(selectShowToc);
   const isExporting = useSelector(selectIsExporting);
-  const questionAnswer = useSelector(selectQuestionAnswer);
-  const isAskingQuestion = useSelector(selectIsAskingQuestion);
-  const questionError = useSelector(selectQuestionError);
   const [createArtifactModal, setCreateArtifactModal] = useState<ICreateArtifactModalOpenState | null>(null);
   const { showToast } = useToast();
-
-  useEffect(() => {
-    dispatch(clearQuestionAnswer());
-  }, [documentId, dispatch]);
 
   const contentFormat = resolveDocumentContentFormat(
     contentApi.data?.contentFormat ?? documentApi.data?.contentFormat
@@ -462,19 +451,20 @@ export const DocumentViewerPageContainer = () => {
           </div>
         </div>
 
-        <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold">Ask about this document</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DocumentQuestionForm
-                onSubmit={handlers.handleAskDocumentQuestion}
-                isLoading={isAskingQuestion}
-                answer={questionAnswer}
-                error={questionError}
-              />
-            </CardContent>
-          </Card>
+        {documentApi.data.directoryId && documentId ? (
+          <DirectoryChatPanel
+            directoryId={documentApi.data.directoryId}
+            sourceCount={1}
+            collapsible
+            collapsedVariant="bar"
+            defaultExpanded={false}
+            expandable={false}
+            compact
+            title="Ask about this document"
+            placeholder="Ask a question about this document..."
+            focusedDocumentIds={[documentId]}
+          />
+        ) : null}
       </div>
 
       <CreateArtifactModal
