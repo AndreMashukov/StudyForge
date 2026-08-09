@@ -43,7 +43,7 @@ function getSettingsRef(): admin.firestore.DocumentReference {
 function getNumericValue(
   data: FirebaseFirestore.DocumentData,
   key: NumericSettingKey,
-  fallback: number | undefined
+  fallback: number | undefined,
 ): number | undefined {
   const value = data[key];
   if (!isFiniteNumber(value)) {
@@ -54,7 +54,7 @@ function getNumericValue(
 }
 
 function parseStoredSettings(
-  data: FirebaseFirestore.DocumentData
+  data: FirebaseFirestore.DocumentData,
 ): ILlmGenerationSettings {
   const runtimeSettings: ILlmGenerationRuntimeSettings = {
     ...DEFAULT_LLM_GENERATION_SETTINGS,
@@ -62,19 +62,19 @@ function parseStoredSettings(
       getNumericValue(
         data,
         'requestTimeoutMs',
-        DEFAULT_LLM_GENERATION_SETTINGS.requestTimeoutMs
+        DEFAULT_LLM_GENERATION_SETTINGS.requestTimeoutMs,
       ) ?? DEFAULT_LLM_GENERATION_SETTINGS.requestTimeoutMs,
     maxOutputTokens:
       getNumericValue(
         data,
         'maxOutputTokens',
-        DEFAULT_LLM_GENERATION_SETTINGS.maxOutputTokens
+        DEFAULT_LLM_GENERATION_SETTINGS.maxOutputTokens,
       ) ?? DEFAULT_LLM_GENERATION_SETTINGS.maxOutputTokens,
     temperature:
       getNumericValue(
         data,
         'temperature',
-        DEFAULT_LLM_GENERATION_SETTINGS.temperature
+        DEFAULT_LLM_GENERATION_SETTINGS.temperature,
       ) ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
     topK:
       getNumericValue(data, 'topK', DEFAULT_LLM_GENERATION_SETTINGS.topK) ??
@@ -104,7 +104,7 @@ function assertInRange(
   key: NumericSettingKey,
   value: number,
   limits: INumericSettingLimits,
-  options?: { integer?: boolean }
+  options?: { integer?: boolean },
 ): void {
   if (options?.integer && !Number.isInteger(value)) {
     throw new Error(`${key} must be an integer.`);
@@ -120,7 +120,7 @@ function normalizeNumericSetting(
   key: NumericSettingKey,
   fallback: number | undefined,
   limits: INumericSettingLimits,
-  options?: { integer?: boolean }
+  options?: { integer?: boolean },
 ): number | undefined {
   const rawValue = input[key];
   const value = rawValue === undefined ? fallback : rawValue;
@@ -139,7 +139,7 @@ function normalizeNumericSetting(
 
 function normalizeRuntimeSettings(
   input: Record<string, unknown>,
-  current: ILlmGenerationSettings
+  current: ILlmGenerationSettings,
 ): ILlmGenerationRuntimeSettings {
   const disableReasoning =
     input.disableReasoning === undefined
@@ -157,7 +157,7 @@ function normalizeRuntimeSettings(
         'requestTimeoutMs',
         current.requestTimeoutMs,
         LLM_GENERATION_SETTINGS_LIMITS.requestTimeoutMs,
-        { integer: true }
+        { integer: true },
       ) ?? DEFAULT_LLM_GENERATION_SETTINGS.requestTimeoutMs,
     maxOutputTokens:
       normalizeNumericSetting(
@@ -165,14 +165,14 @@ function normalizeRuntimeSettings(
         'maxOutputTokens',
         current.maxOutputTokens,
         LLM_GENERATION_SETTINGS_LIMITS.maxOutputTokens,
-        { integer: true }
+        { integer: true },
       ) ?? DEFAULT_LLM_GENERATION_SETTINGS.maxOutputTokens,
     temperature:
       normalizeNumericSetting(
         input,
         'temperature',
         current.temperature,
-        LLM_GENERATION_SETTINGS_LIMITS.temperature
+        LLM_GENERATION_SETTINGS_LIMITS.temperature,
       ) ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
     topK:
       normalizeNumericSetting(
@@ -180,14 +180,14 @@ function normalizeRuntimeSettings(
         'topK',
         current.topK,
         LLM_GENERATION_SETTINGS_LIMITS.topK,
-        { integer: true }
+        { integer: true },
       ) ?? DEFAULT_LLM_GENERATION_SETTINGS.topK,
     topP:
       normalizeNumericSetting(
         input,
         'topP',
         current.topP,
-        LLM_GENERATION_SETTINGS_LIMITS.topP
+        LLM_GENERATION_SETTINGS_LIMITS.topP,
       ) ?? DEFAULT_LLM_GENERATION_SETTINGS.topP,
     disableReasoning,
   };
@@ -197,7 +197,7 @@ function normalizeRuntimeSettings(
     'thinkingBudget',
     current.thinkingBudget,
     LLM_GENERATION_SETTINGS_LIMITS.thinkingBudget,
-    { integer: true }
+    { integer: true },
   );
   if (thinkingBudget !== undefined) {
     settings.thinkingBudget = thinkingBudget;
@@ -218,7 +218,7 @@ export async function readLlmGenerationSettings(): Promise<ILlmGenerationSetting
 
 export async function updateLlmGenerationSettings(
   input: IUpdateLlmGenerationSettingsRequest,
-  actorUid: string
+  actorUid: string,
 ): Promise<ILlmGenerationSettings> {
   if (!isRecord(input)) {
     throw new Error('Settings payload must be an object.');

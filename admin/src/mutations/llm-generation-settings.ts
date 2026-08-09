@@ -4,7 +4,7 @@ import type { IUpdateLlmGenerationSettingsRequest } from '@shared-types';
 import { requestJson } from './client';
 
 export async function saveLlmGenerationSettings(
-  payload: IUpdateLlmGenerationSettingsRequest
+  payload: IUpdateLlmGenerationSettingsRequest,
 ) {
   return requestJson('/api/llm-generation-settings', {
     method: 'PUT',

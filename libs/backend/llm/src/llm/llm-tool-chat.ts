@@ -52,7 +52,7 @@ function cloneRecord(value: Record<string, unknown>): Record<string, unknown> {
  * Capture wire-format extras (e.g. Gemini `extra_content`) into opaque metadata.
  */
 export function extractProviderMetadataFromWireToolCall(
-  call: Record<string, unknown>
+  call: Record<string, unknown>,
 ): ILlmToolChatProviderMetadata | undefined {
   const metadata: ILlmToolChatProviderMetadata = {};
 
@@ -71,7 +71,9 @@ export function extractProviderMetadataFromWireToolCall(
  * Convert an internal tool call back to OpenAI-compat wire format, restoring
  * any provider extras that must be echoed on subsequent turns.
  */
-export function toWireToolCall(toolCall: ILlmToolChatToolCall): Record<string, unknown> {
+export function toWireToolCall(
+  toolCall: ILlmToolChatToolCall,
+): Record<string, unknown> {
   const wire: Record<string, unknown> = {
     id: toolCall.id,
     type: 'function',
@@ -116,7 +118,10 @@ export function parseWireToolCall(call: unknown): ILlmToolChatToolCall | null {
   }
 
   const name = typeof call.function.name === 'string' ? call.function.name : '';
-  const args = typeof call.function.arguments === 'string' ? call.function.arguments : '{}';
+  const args =
+    typeof call.function.arguments === 'string'
+      ? call.function.arguments
+      : '{}';
   const id = typeof call.id === 'string' ? call.id : '';
   if (!name) {
     return null;
@@ -137,7 +142,7 @@ export function parseWireToolCall(call: unknown): ILlmToolChatToolCall | null {
  * tool_calls are present (required by Gemini OpenAI-compat).
  */
 export function normalizeMessagesForWire(
-  messages: ILlmToolChatMessage[]
+  messages: ILlmToolChatMessage[],
 ): Array<Record<string, unknown>> {
   return messages.map((message) => {
     if (message.role === 'tool') {
@@ -183,11 +188,11 @@ export function resolveToolChatCompletionsUrl(route: ResolvedRoute): string {
     route.providerType === 'gemini'
       ? GEMINI_OPENAI_COMPAT_BASE_URL
       : route.providerType === 'together'
-        ? route.togetherBaseUrl ?? TOGETHER_DEFAULT_BASE_URL
+        ? (route.togetherBaseUrl ?? TOGETHER_DEFAULT_BASE_URL)
         : route.providerType === 'openrouter'
-          ? route.openRouterBaseUrl ?? 'https://openrouter.ai/api/v1'
+          ? (route.openRouterBaseUrl ?? 'https://openrouter.ai/api/v1')
           : route.providerType === 'minimax'
-            ? route.miniMaxBaseUrl ?? 'https://api.minimax.io/v1'
+            ? (route.miniMaxBaseUrl ?? 'https://api.minimax.io/v1')
             : TOGETHER_DEFAULT_BASE_URL;
 
   return `${baseUrl.replace(/\/$/, '')}/chat/completions`;
@@ -198,7 +203,7 @@ export function resolveToolChatCompletionsUrl(route: ResolvedRoute): string {
  * Agent business logic stays provider-agnostic; quirks live here.
  */
 export function buildToolChatProviderBodyExtras(
-  route: ResolvedRoute
+  route: ResolvedRoute,
 ): Record<string, unknown> {
   if (route.providerType === 'together') {
     return { reasoning: { enabled: false } };
@@ -223,8 +228,14 @@ export function shouldStreamToolChat(requestedStream: boolean): boolean {
   return requestedStream;
 }
 
-export function extractAssistantMessage(payload: unknown): ILlmToolChatMessage | null {
-  if (!isRecord(payload) || !Array.isArray(payload.choices) || payload.choices.length === 0) {
+export function extractAssistantMessage(
+  payload: unknown,
+): ILlmToolChatMessage | null {
+  if (
+    !isRecord(payload) ||
+    !Array.isArray(payload.choices) ||
+    payload.choices.length === 0
+  ) {
     return null;
   }
   const choice = payload.choices[0];
@@ -232,7 +243,8 @@ export function extractAssistantMessage(payload: unknown): ILlmToolChatMessage |
     return null;
   }
   const message = choice.message;
-  const content = typeof message.content === 'string' ? message.content : undefined;
+  const content =
+    typeof message.content === 'string' ? message.content : undefined;
   const toolCalls = Array.isArray(message.tool_calls)
     ? message.tool_calls
         .map((call) => parseWireToolCall(call))
@@ -248,7 +260,7 @@ export function extractAssistantMessage(payload: unknown): ILlmToolChatMessage |
 
 function buildRequestHeaders(
   apiKey: string,
-  providerType: ResolvedRoute['providerType']
+  providerType: ResolvedRoute['providerType'],
 ): Record<string, string> {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${apiKey}`,
@@ -265,7 +277,7 @@ function buildRequestHeaders(
 
 function mergeProviderMetadata(
   existing: ILlmToolChatProviderMetadata | undefined,
-  incoming: ILlmToolChatProviderMetadata | undefined
+  incoming: ILlmToolChatProviderMetadata | undefined,
 ): ILlmToolChatProviderMetadata | undefined {
   if (!existing && !incoming) {
     return undefined;
@@ -297,7 +309,10 @@ function hasGeminiThoughtSignature(toolCall: ILlmToolChatToolCall): boolean {
   if (!isRecord(google)) {
     return false;
   }
-  return typeof google.thought_signature === 'string' && google.thought_signature.length > 0;
+  return (
+    typeof google.thought_signature === 'string' &&
+    google.thought_signature.length > 0
+  );
 }
 
 /**
@@ -306,7 +321,7 @@ function hasGeminiThoughtSignature(toolCall: ILlmToolChatToolCall): boolean {
  */
 export function toolCallNeedsGeminiSignatureRetry(
   route: ResolvedRoute,
-  message: ILlmToolChatMessage
+  message: ILlmToolChatMessage,
 ): boolean {
   if (route.providerType !== 'gemini') {
     return false;
@@ -316,7 +331,7 @@ export function toolCallNeedsGeminiSignatureRetry(
     return false;
   }
   return calls.some(
-    (call) => call.id.trim().length === 0 || !hasGeminiThoughtSignature(call)
+    (call) => call.id.trim().length === 0 || !hasGeminiThoughtSignature(call),
   );
 }
 
@@ -361,7 +376,7 @@ async function executeNonStreamToolChat(input: {
         tools: input.tools,
         stream: false,
         settings: input.settings,
-      })
+      }),
     ),
   });
 
@@ -411,7 +426,7 @@ async function executeStreamToolChat(input: {
         tools: input.tools,
         stream: true,
         settings: input.settings,
-      })
+      }),
     ),
   });
 
@@ -493,7 +508,11 @@ async function executeStreamToolChat(input: {
           continue;
         }
 
-        if (!isRecord(payload) || !Array.isArray(payload.choices) || payload.choices.length === 0) {
+        if (
+          !isRecord(payload) ||
+          !Array.isArray(payload.choices) ||
+          payload.choices.length === 0
+        ) {
           continue;
         }
 
@@ -526,17 +545,21 @@ async function executeStreamToolChat(input: {
               entry.id = call.id;
             }
             if (isRecord(call.function)) {
-              if (typeof call.function.name === 'string' && call.function.name.length > 0) {
+              if (
+                typeof call.function.name === 'string' &&
+                call.function.name.length > 0
+              ) {
                 entry.name = call.function.name;
               }
               if (typeof call.function.arguments === 'string') {
                 entry.arguments += call.function.arguments;
               }
             }
-            const incomingMetadata = extractProviderMetadataFromWireToolCall(call);
+            const incomingMetadata =
+              extractProviderMetadataFromWireToolCall(call);
             entry.providerMetadata = mergeProviderMetadata(
               entry.providerMetadata,
-              incomingMetadata
+              incomingMetadata,
             );
             toolCallAccumulator.set(index, entry);
           }
@@ -562,7 +585,9 @@ async function executeStreamToolChat(input: {
       id: entry.id,
       type: 'function' as const,
       function: { name: entry.name, arguments: entry.arguments || '{}' },
-      ...(entry.providerMetadata ? { providerMetadata: entry.providerMetadata } : {}),
+      ...(entry.providerMetadata
+        ? { providerMetadata: entry.providerMetadata }
+        : {}),
     }));
 
   return {

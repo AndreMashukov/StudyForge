@@ -19,7 +19,7 @@ export async function GET() {
         : 'Failed to load LLM generation settings.';
     return NextResponse.json(
       { success: false, message },
-      { status: getAdminApiStatusCode(error) }
+      { status: getAdminApiStatusCode(error) },
     );
   }
 }
@@ -37,7 +37,7 @@ export async function PUT(request: Request) {
         : 'Failed to save LLM generation settings.';
     return NextResponse.json(
       { success: false, message },
-      { status: getAdminApiStatusCode(error) }
+      { status: getAdminApiStatusCode(error) },
     );
   }
 }

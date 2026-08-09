@@ -31,12 +31,10 @@ import {
   type ILlmGenerationSettingsFormValues,
 } from './LlmGenerationSettingsForm.form';
 
-type NoticeState =
-  | {
-      type: 'success' | 'error';
-      message: string;
-    }
-  | null;
+type NoticeState = {
+  type: 'success' | 'error';
+  message: string;
+} | null;
 
 type NumericFieldName =
   | 'requestTimeoutMs'
@@ -63,7 +61,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isLlmGenerationSettings(value: unknown): value is ILlmGenerationSettings {
+function isLlmGenerationSettings(
+  value: unknown,
+): value is ILlmGenerationSettings {
   if (!isRecord(value)) {
     return false;
   }
@@ -81,7 +81,7 @@ function isLlmGenerationSettings(value: unknown): value is ILlmGenerationSetting
 }
 
 function isSaveResponse(
-  value: unknown
+  value: unknown,
 ): value is { success: true; settings: ILlmGenerationSettings } {
   return (
     isRecord(value) &&
@@ -172,7 +172,8 @@ const samplingFields: INumericFieldConfig[] = [
   {
     name: 'temperature',
     label: 'Temperature',
-    description: 'Lower values are more deterministic; higher values are more varied.',
+    description:
+      'Lower values are more deterministic; higher values are more varied.',
     min: 0,
     max: 2,
     step: 0.05,
@@ -226,9 +227,8 @@ export function LlmGenerationSettingsForm({
 
     try {
       const payload = normalizeLlmGenerationSettingsSubmitPayload(values);
-      const { response, payload: result } = await saveLlmGenerationSettings(
-        payload
-      );
+      const { response, payload: result } =
+        await saveLlmGenerationSettings(payload);
 
       if (isAdminUnauthorizedResponse(response)) {
         redirectToAdminLogin(router, pathname);

@@ -21,7 +21,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isValidNumber(
   value: unknown,
   limits: { min: number; max: number },
-  options?: { integer?: boolean }
+  options?: { integer?: boolean },
 ): value is number {
   return (
     typeof value === 'number' &&
@@ -36,7 +36,7 @@ function readNumericSetting(
   data: Record<string, unknown>,
   key: NumericSettingKey,
   fallback: number | undefined,
-  options?: { integer?: boolean }
+  options?: { integer?: boolean },
 ): number | undefined {
   const limits = LLM_GENERATION_SETTINGS_LIMITS[key];
   const value = data[key];
@@ -48,9 +48,7 @@ function readNumericSetting(
   return value;
 }
 
-function parseStoredSettings(
-  data: unknown
-): ILlmGenerationRuntimeSettings {
+function parseStoredSettings(data: unknown): ILlmGenerationRuntimeSettings {
   if (!isRecord(data)) {
     return { ...DEFAULT_LLM_GENERATION_SETTINGS };
   }
@@ -61,28 +59,25 @@ function parseStoredSettings(
         data,
         'requestTimeoutMs',
         DEFAULT_LLM_GENERATION_SETTINGS.requestTimeoutMs,
-        { integer: true }
+        { integer: true },
       ) ?? DEFAULT_LLM_GENERATION_SETTINGS.requestTimeoutMs,
     maxOutputTokens:
       readNumericSetting(
         data,
         'maxOutputTokens',
         DEFAULT_LLM_GENERATION_SETTINGS.maxOutputTokens,
-        { integer: true }
+        { integer: true },
       ) ?? DEFAULT_LLM_GENERATION_SETTINGS.maxOutputTokens,
     temperature:
       readNumericSetting(
         data,
         'temperature',
-        DEFAULT_LLM_GENERATION_SETTINGS.temperature
+        DEFAULT_LLM_GENERATION_SETTINGS.temperature,
       ) ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
     topK:
-      readNumericSetting(
-        data,
-        'topK',
-        DEFAULT_LLM_GENERATION_SETTINGS.topK,
-        { integer: true }
-      ) ?? DEFAULT_LLM_GENERATION_SETTINGS.topK,
+      readNumericSetting(data, 'topK', DEFAULT_LLM_GENERATION_SETTINGS.topK, {
+        integer: true,
+      }) ?? DEFAULT_LLM_GENERATION_SETTINGS.topK,
     topP:
       readNumericSetting(data, 'topP', DEFAULT_LLM_GENERATION_SETTINGS.topP) ??
       DEFAULT_LLM_GENERATION_SETTINGS.topP,
@@ -92,12 +87,9 @@ function parseStoredSettings(
         : DEFAULT_LLM_GENERATION_SETTINGS.disableReasoning,
   };
 
-  const thinkingBudget = readNumericSetting(
-    data,
-    'thinkingBudget',
-    undefined,
-    { integer: true }
-  );
+  const thinkingBudget = readNumericSetting(data, 'thinkingBudget', undefined, {
+    integer: true,
+  });
   if (thinkingBudget !== undefined) {
     settings.thinkingBudget = thinkingBudget;
   }
@@ -120,7 +112,7 @@ export async function readLlmGenerationRuntimeSettings(): Promise<ILlmGeneration
 }
 
 export async function applyLlmGenerationDefaults(
-  config: LlmTextConfig
+  config: LlmTextConfig,
 ): Promise<LlmTextConfig> {
   const settings = await readLlmGenerationRuntimeSettings();
   const withThinkingBudget =

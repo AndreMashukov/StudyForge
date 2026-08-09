@@ -64,7 +64,11 @@ import { applyLlmGenerationDefaults } from './llm-generation-settings-repository
 import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
 import type { IParsedFlashcardItem } from './flashcard-response-parser';
-import type { LlmCapability, IGenerateTextOptions, LlmTextConfig } from './types';
+import type {
+  LlmCapability,
+  IGenerateTextOptions,
+  LlmTextConfig,
+} from './types';
 import { generateFlashcardsChunked } from '@study-forge/backend-artifacts/flashcards/flashcard-chunked-generator';
 import { generateDiagramQuizChunked } from '@study-forge/backend-artifacts/diagram-quiz/diagram-quiz-chunked-generator';
 import { parseQuizJson } from './quiz-response-parser';
@@ -286,7 +290,7 @@ export class LlmGenerationService {
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateContent(
         prompt,
-        toGeminiContentOptions(generationConfig)
+        toGeminiContentOptions(generationConfig),
       );
     }
 
@@ -294,7 +298,8 @@ export class LlmGenerationService {
       ctx,
       prompt,
       generationConfig,
-      options?.successLogMessage ?? `Text generated via external provider (${logLabel})`,
+      options?.successLogMessage ??
+        `Text generated via external provider (${logLabel})`,
     );
   }
 
@@ -585,17 +590,26 @@ export class LlmGenerationService {
     imageBase64: string,
     prompt: string,
   ): Promise<string> {
-    const visionResolution = await LlmGenerationRouteResolver.resolve(capability, {
-      userId,
-    });
+    const visionResolution = await LlmGenerationRouteResolver.resolve(
+      capability,
+      {
+        userId,
+      },
+    );
     const { route, providerApiKey } = visionResolution;
 
     if (route.providerType === 'gemini') {
-      return GeminiService.generateVisionHtmlFragment(imageBase64, prompt, route.model);
+      return GeminiService.generateVisionHtmlFragment(
+        imageBase64,
+        prompt,
+        route.model,
+      );
     }
 
     if (!providerApiKey) {
-      throw new Error('Vision provider API key is required for external providers');
+      throw new Error(
+        'Vision provider API key is required for external providers',
+      );
     }
 
     const normalized = normalizeScreenshotImage(imageBase64);
@@ -614,10 +628,13 @@ export class LlmGenerationService {
       detail: 'auto',
     });
 
-    functions.logger.info('Vision HTML fragment generated via external provider', {
-      model: result.model,
-      responseLength: result.text.length,
-    });
+    functions.logger.info(
+      'Vision HTML fragment generated via external provider',
+      {
+        model: result.model,
+        responseLength: result.text.length,
+      },
+    );
 
     return stripCodeFences(result.text);
   }

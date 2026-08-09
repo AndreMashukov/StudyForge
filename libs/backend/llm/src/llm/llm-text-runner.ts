@@ -1,5 +1,8 @@
 import * as functions from 'firebase-functions';
-import { LlmGenerationRouteResolver, type GenerationRouteResolution } from './llm-generation-route-resolver';
+import {
+  LlmGenerationRouteResolver,
+  type GenerationRouteResolution,
+} from './llm-generation-route-resolver';
 import type { LlmCapability, LlmTextConfig } from './types';
 import { LlmProviderClientFactory } from './llm-provider-client-factory';
 import { applyLlmGenerationDefaults } from './llm-generation-settings-repository';
@@ -12,9 +15,11 @@ export interface TextRouteContext {
 export async function resolveTextRoute(
   userId: string,
   capability: LlmCapability,
-  logLabel: string
+  logLabel: string,
 ): Promise<TextRouteContext> {
-  const resolution = await LlmGenerationRouteResolver.resolve(capability, { userId });
+  const resolution = await LlmGenerationRouteResolver.resolve(capability, {
+    userId,
+  });
 
   functions.logger.info(`LLM route resolved for ${logLabel}`, {
     userId,
@@ -37,14 +42,17 @@ export async function generateExternalProviderText(
   ctx: TextRouteContext,
   prompt: string,
   config: LlmTextConfig,
-  successLogMessage: string
+  successLogMessage: string,
 ): Promise<string> {
   const configWithDefaults = await applyLlmGenerationDefaults(config);
   const client = LlmProviderClientFactory.create(
     ctx.resolution.route,
-    ctx.resolution.providerApiKey
+    ctx.resolution.providerApiKey,
   );
-  const result = await client.generateText({ prompt, config: configWithDefaults });
+  const result = await client.generateText({
+    prompt,
+    config: configWithDefaults,
+  });
 
   functions.logger.info(successLogMessage, {
     model: result.model,

@@ -16,19 +16,22 @@ export const llmGenerationSettingsFormSchema = z.object({
     .int('Request timeout must be a whole number of milliseconds')
     .min(
       numericBounds.requestTimeoutMs.min,
-      `Request timeout must be at least ${numericBounds.requestTimeoutMs.min}ms`
+      `Request timeout must be at least ${numericBounds.requestTimeoutMs.min}ms`,
     )
     .max(
       numericBounds.requestTimeoutMs.max,
-      `Request timeout must be at most ${numericBounds.requestTimeoutMs.max}ms`
+      `Request timeout must be at most ${numericBounds.requestTimeoutMs.max}ms`,
     ),
   maxOutputTokens: z
     .number()
     .int('Max output tokens must be a whole number')
-    .min(numericBounds.maxOutputTokens.min, 'Max output tokens must be at least 1')
+    .min(
+      numericBounds.maxOutputTokens.min,
+      'Max output tokens must be at least 1',
+    )
     .max(
       numericBounds.maxOutputTokens.max,
-      `Max output tokens must be at most ${numericBounds.maxOutputTokens.max}`
+      `Max output tokens must be at most ${numericBounds.maxOutputTokens.max}`,
     ),
   temperature: z
     .number()
@@ -38,7 +41,10 @@ export const llmGenerationSettingsFormSchema = z.object({
     .number()
     .int('Top K must be a whole number')
     .min(numericBounds.topK.min, 'Top K must be at least 1')
-    .max(numericBounds.topK.max, `Top K must be at most ${numericBounds.topK.max}`),
+    .max(
+      numericBounds.topK.max,
+      `Top K must be at most ${numericBounds.topK.max}`,
+    ),
   topP: z
     .number()
     .min(numericBounds.topP.min, 'Top P must be 0 or greater')
@@ -47,10 +53,13 @@ export const llmGenerationSettingsFormSchema = z.object({
   thinkingBudget: z
     .number()
     .int('Thinking budget must be a whole number')
-    .min(numericBounds.thinkingBudget.min, 'Thinking budget must be 0 or greater')
+    .min(
+      numericBounds.thinkingBudget.min,
+      'Thinking budget must be 0 or greater',
+    )
     .max(
       numericBounds.thinkingBudget.max,
-      `Thinking budget must be at most ${numericBounds.thinkingBudget.max}`
+      `Thinking budget must be at most ${numericBounds.thinkingBudget.max}`,
     )
     .optional(),
 });
@@ -60,14 +69,17 @@ export type ILlmGenerationSettingsFormValues = z.infer<
 >;
 
 export function getLlmGenerationSettingsDefaultValues(
-  settings: ILlmGenerationSettings
+  settings: ILlmGenerationSettings,
 ): ILlmGenerationSettingsFormValues {
   return {
     requestTimeoutMs:
-      settings.requestTimeoutMs ?? DEFAULT_LLM_GENERATION_SETTINGS.requestTimeoutMs,
+      settings.requestTimeoutMs ??
+      DEFAULT_LLM_GENERATION_SETTINGS.requestTimeoutMs,
     maxOutputTokens:
-      settings.maxOutputTokens ?? DEFAULT_LLM_GENERATION_SETTINGS.maxOutputTokens,
-    temperature: settings.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
+      settings.maxOutputTokens ??
+      DEFAULT_LLM_GENERATION_SETTINGS.maxOutputTokens,
+    temperature:
+      settings.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
     topK: settings.topK ?? DEFAULT_LLM_GENERATION_SETTINGS.topK,
     topP: settings.topP ?? DEFAULT_LLM_GENERATION_SETTINGS.topP,
     disableReasoning:
@@ -78,7 +90,7 @@ export function getLlmGenerationSettingsDefaultValues(
 }
 
 export function normalizeLlmGenerationSettingsSubmitPayload(
-  values: ILlmGenerationSettingsFormValues
+  values: ILlmGenerationSettingsFormValues,
 ): IUpdateLlmGenerationSettingsRequest {
   return {
     requestTimeoutMs: values.requestTimeoutMs,

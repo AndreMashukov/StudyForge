@@ -47,16 +47,16 @@ export * from './agent';
 export type DocumentContentFormat = 'html' | 'markdown';
 
 export function resolveDocumentContentFormat(
-  contentFormat: DocumentContentFormat | undefined
+  contentFormat: DocumentContentFormat | undefined,
 ): DocumentContentFormat {
   return contentFormat ?? 'markdown';
 }
 
 // Flashcard Types
 export interface Flashcard {
-  id: string;    // Unique ID for each card
+  id: string; // Unique ID for each card
   front: string; // Presentation text (may include emoji / romanization)
-  back: string;  // The definition or answer (plain text fallback)
+  back: string; // The definition or answer (plain text fallback)
   /**
    * Target-language word or phrase for language-learning sets.
    * Presentation-free (no emoji / romanization). Used for learned vocabulary.
@@ -411,13 +411,13 @@ export interface Document {
 export enum DocumentSourceType {
   URL = 'url',
   UPLOAD = 'upload',
-  GENERATED = 'generated'
+  GENERATED = 'generated',
 }
 
 export enum DocumentStatus {
   ACTIVE = 'active',
-  ARCHIVED = 'archived', 
-  DELETED = 'deleted'
+  ARCHIVED = 'archived',
+  DELETED = 'deleted',
 }
 
 // Generation lifecycle status (orthogonal to DocumentStatus)
@@ -616,7 +616,8 @@ export interface ArtifactCursorPaginationResult {
   artifactNextCursor?: string;
 }
 
-export interface GetDirectoryContentsWithArtifactsResponse extends GetDirectoryContentsResponse {
+export interface GetDirectoryContentsWithArtifactsResponse
+  extends GetDirectoryContentsResponse {
   quizzes: Quiz[];
   flashcardSets: FlashcardSet[];
   slideDecks: SlideDeck[];
@@ -628,7 +629,12 @@ export interface GetDirectoryContentsWithArtifactsResponse extends GetDirectoryC
   };
 }
 
-export type ArtifactSummaryType = 'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz';
+export type ArtifactSummaryType =
+  | 'quiz'
+  | 'flashcard'
+  | 'slideDeck'
+  | 'diagramQuiz'
+  | 'sequenceQuiz';
 
 /** Materialized directory listing row stored under directories/{id}/items/{itemId}. */
 export type DirectoryItemType =
@@ -640,7 +646,10 @@ export type DirectoryItemType =
   | 'diagramQuiz'
   | 'sequenceQuiz';
 
-export function buildDirectoryItemId(itemType: DirectoryItemType, sourceId: string): string {
+export function buildDirectoryItemId(
+  itemType: DirectoryItemType,
+  sourceId: string,
+): string {
   return `${itemType}_${sourceId}`;
 }
 
@@ -702,7 +711,8 @@ export interface ArtifactSummary {
   documentColors?: string[];
 }
 
-export interface GetDirectoryContentsWithArtifactSummariesResponse extends GetDirectoryContentsResponse {
+export interface GetDirectoryContentsWithArtifactSummariesResponse
+  extends GetDirectoryContentsResponse {
   artifactSummaries: ArtifactSummary[];
   artifactHasMore?: boolean;
   artifactNextCursor?: string;
@@ -936,7 +946,8 @@ export interface GenerateFromScreenshotRequest {
   ruleResolutionMode?: RuleResolutionMode;
 }
 
-export interface GenerateFromScreenshotResponse extends StartGenerationResponse {
+export interface GenerateFromScreenshotResponse
+  extends StartGenerationResponse {
   documentId: string;
   title?: string;
   content?: string;
@@ -1017,7 +1028,10 @@ export interface StorageFile {
 // Content Processing Types
 export interface ContentProcessor {
   processUrl(url: string): Promise<ProcessedContent>;
-  processMarkdownFile(content: string, fileName: string): Promise<ProcessedContent>;
+  processMarkdownFile(
+    content: string,
+    fileName: string,
+  ): Promise<ProcessedContent>;
   validateContent(content: string): ContentValidationResult;
 }
 
@@ -1155,7 +1169,13 @@ export interface DirectoryChatMessage {
 }
 
 export interface DirectoryChatArtifactContext {
-  type: 'quiz' | 'diagramQuiz' | 'sequenceQuiz' | 'slideDeck' | 'flashcardSet' | 'document';
+  type:
+    | 'quiz'
+    | 'diagramQuiz'
+    | 'sequenceQuiz'
+    | 'slideDeck'
+    | 'flashcardSet'
+    | 'document';
   title?: string;
   question?: string;
   options?: string[];
@@ -1696,7 +1716,8 @@ export interface StatisticsQuizDetailAttempt {
   incorrectAnswerCount: number;
 }
 
-export interface GetStatisticsQuizDetailRequest extends StatisticsDateRangeRequest {
+export interface GetStatisticsQuizDetailRequest
+  extends StatisticsDateRangeRequest {
   quizId: string;
   quizType: QuizTelemetryType;
 }
@@ -1718,16 +1739,18 @@ export const PRIMARY_OPENROUTER_CONNECTION_ID = 'openrouter-primary';
 export const PRIMARY_MINIMAX_CONNECTION_ID = 'minimax-primary';
 export const PRIMARY_TOGETHER_CONNECTION_ID = 'together-primary';
 
-export const ALL_LLM_MODALITIES = ['text', 'vision', 'image', 'embedding'] as const;
+export const ALL_LLM_MODALITIES = [
+  'text',
+  'vision',
+  'image',
+  'embedding',
+] as const;
 
 export type LlmModality = 'text' | 'vision' | 'image' | 'embedding';
 
 export type LlmCredentialMode = 'encrypted-firestore';
 
-export type LlmConnectionValidationStatus =
-  | 'unknown'
-  | 'healthy'
-  | 'unhealthy';
+export type LlmConnectionValidationStatus = 'unknown' | 'healthy' | 'unhealthy';
 
 export interface ILlmConnectionAuditFields {
   updatedAt?: string;
@@ -1928,7 +1951,10 @@ export type LlmCapabilityKey =
 
 // --- LLM setup & user group routing ---
 
-import type { GenerationKind, GenerationWorkflow } from './generation-kind-metadata';
+import type {
+  GenerationKind,
+  GenerationWorkflow,
+} from './generation-kind-metadata';
 
 export type {
   GenerationKind,
