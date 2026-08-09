@@ -26,7 +26,10 @@ import {
   ScreenshotPromptBuilder,
 } from './prompt-builder';
 import { RulePromptBuilder } from './prompt-builder/rule-prompt-builder';
-import { parseRuleResponse, type RuleGenerationResponse } from './rule-response-parser';
+import {
+  parseRuleResponse,
+  type RuleGenerationResponse,
+} from './rule-response-parser';
 import { normalizeScreenshotImage } from '../llm/screenshot-image-utils';
 import {
   buildPromptWithContextFiles,
@@ -36,6 +39,48 @@ import {
 import { validateContentForArtifactGeneration } from '../llm/content-validation';
 
 const GEMINI_PRO_MODEL = 'gemini-pro-latest';
+
+interface IGeminiRuntimeGenerationConfig {
+  model?: string;
+  maxOutputTokens?: number;
+  temperature?: number;
+  topK?: number;
+  topP?: number;
+  disableReasoning?: boolean;
+  thinkingBudget?: number;
+}
+
+function resolveGeminiThinkingBudget(
+  options?: IGeminiRuntimeGenerationConfig,
+): number | undefined {
+  if (options?.thinkingBudget !== undefined) {
+    return options.thinkingBudget;
+  }
+
+  return options?.disableReasoning ? 0 : undefined;
+}
+
+function buildGeminiGenerationConfig(
+  options: IGeminiRuntimeGenerationConfig | undefined,
+  defaults: Required<
+    Pick<
+      IGeminiRuntimeGenerationConfig,
+      'maxOutputTokens' | 'temperature' | 'topK' | 'topP'
+    >
+  >,
+) {
+  const thinkingBudget = resolveGeminiThinkingBudget(options);
+
+  return {
+    temperature: options?.temperature ?? defaults.temperature,
+    topK: options?.topK ?? defaults.topK,
+    topP: options?.topP ?? defaults.topP,
+    maxOutputTokens: options?.maxOutputTokens ?? defaults.maxOutputTokens,
+    ...(thinkingBudget !== undefined
+      ? { thinkingConfig: { thinkingBudget } }
+      : {}),
+  };
+}
 
 export interface GeminiQuizResponse {
   title: string;
@@ -88,7 +133,7 @@ export class GeminiService {
 
     if (!apiKey) {
       throw new Error(
-        'Gemini API key not found. Please configure GEMINI_API_KEY in environment variables or Firebase runtime config (gemini.api_key).'
+        'Gemini API key not found. Please configure GEMINI_API_KEY in environment variables or Firebase runtime config (gemini.api_key).',
       );
     }
 
@@ -100,7 +145,7 @@ export class GeminiService {
    */
   public static async generateQuiz(
     content: ScrapedContent,
-    additionalPrompt?: string
+    additionalPrompt?: string,
   ): Promise<GeminiQuizResponse> {
     try {
       functions.logger.info('Generating quiz with Gemini AI for document...');
@@ -123,7 +168,7 @@ export class GeminiService {
       const prompt = QuizPromptBuilder.buildQuizPrompt(
         content,
         additionalPrompt,
-        randomCorrectAnswers
+        randomCorrectAnswers,
       );
       functions.logger.debug('Sending request to Gemini AI', {
         contentLength: content.content.length,
@@ -158,7 +203,7 @@ export class GeminiService {
         error.message.includes('User location is not supported')
       ) {
         functions.logger.warn(
-          'Geographic restriction detected in local emulator, falling back to mock quiz'
+          'Geographic restriction detected in local emulator, falling back to mock quiz',
         );
         return this.generateMockQuiz(content);
       }
@@ -172,7 +217,7 @@ export class GeminiService {
    */
   public static async generateDiagramQuiz(
     content: ScrapedContent,
-    additionalPrompt?: string
+    additionalPrompt?: string,
   ): Promise<GeminiDiagramQuizResponse> {
     try {
       functions.logger.info('Generating diagram quiz with Gemini AI...');
@@ -184,7 +229,7 @@ export class GeminiService {
       const prompt = DiagramQuizPromptBuilder.buildDiagramQuizPrompt(
         content,
         additionalPrompt,
-        randomCorrectAnswers
+        randomCorrectAnswers,
       );
 
       const response = await client.models.generateContent({
@@ -213,14 +258,14 @@ export class GeminiService {
         error.message.includes('User location is not supported')
       ) {
         functions.logger.warn(
-          'Geographic restriction in emulator, falling back to mock diagram quiz'
+          'Geographic restriction in emulator, falling back to mock diagram quiz',
         );
         return this.generateMockDiagramQuiz(content);
       }
       throw new Error(
         `Failed to generate diagram quiz: ${
           error instanceof Error ? error.message : error
-        }`
+        }`,
       );
     }
   }
@@ -231,7 +276,7 @@ export class GeminiService {
    */
   public static async generateSequenceQuiz(
     content: ScrapedContent,
-    additionalPrompt?: string
+    additionalPrompt?: string,
   ): Promise<GeminiSequenceQuizResponse> {
     try {
       functions.logger.info('Generating sequence quiz with Gemini AI...');
@@ -240,7 +285,7 @@ export class GeminiService {
       const client = this.getClient();
       const prompt = SequenceQuizPromptBuilder.buildSequenceQuizPrompt(
         content,
-        additionalPrompt
+        additionalPrompt,
       );
 
       const response = await client.models.generateContent({
@@ -269,14 +314,14 @@ export class GeminiService {
         error.message.includes('User location is not supported')
       ) {
         functions.logger.warn(
-          'Geographic restriction in emulator, falling back to mock sequence quiz'
+          'Geographic restriction in emulator, falling back to mock sequence quiz',
         );
         return this.generateMockSequenceQuiz(content);
       }
       throw new Error(
         `Failed to generate sequence quiz: ${
           error instanceof Error ? error.message : error
-        }`
+        }`,
       );
     }
   }
@@ -287,13 +332,7 @@ export class GeminiService {
    */
   public static async generateContent(
     prompt: string,
-    options?: {
-      model?: string;
-      maxOutputTokens?: number;
-      temperature?: number;
-      topK?: number;
-      topP?: number;
-    }
+    options?: IGeminiRuntimeGenerationConfig,
   ): Promise<string> {
     try {
       functions.logger.info('Generating content with Gemini AI');
@@ -304,12 +343,12 @@ export class GeminiService {
       const response = await client.models.generateContent({
         model: options?.model ?? GEMINI_PRO_MODEL,
         contents: fullPrompt,
-        config: {
-          temperature: options?.temperature ?? 0.3,
-          topK: options?.topK ?? 40,
-          topP: options?.topP ?? 0.95,
-          maxOutputTokens: options?.maxOutputTokens ?? 8192,
-        },
+        config: buildGeminiGenerationConfig(options, {
+          temperature: 0.3,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+        }),
       });
 
       const text = response.text;
@@ -335,7 +374,7 @@ export class GeminiService {
   public static async enhanceExtractedDocument(
     markdownContent: string,
     sourceFilename: string,
-    rules?: string
+    rules?: string,
   ): Promise<string> {
     try {
       functions.logger.info('Enhancing extracted document with Gemini AI', {
@@ -378,11 +417,16 @@ ${markdownContent}
         },
       });
 
-      this.assertGeminiResponseCompleted(response, 'extracted document cleanup');
+      this.assertGeminiResponseCompleted(
+        response,
+        'extracted document cleanup',
+      );
 
       const text = response.text;
       if (!text) {
-        throw new Error('Empty response from Gemini API for extracted document cleanup');
+        throw new Error(
+          'Empty response from Gemini API for extracted document cleanup',
+        );
       }
 
       return this.stripMarkdownWrapper(text).trim();
@@ -391,14 +435,14 @@ ${markdownContent}
       throw new Error(
         `Failed to enhance extracted document: ${
           error instanceof Error ? error.message : error
-        }`
+        }`,
       );
     }
   }
 
   /**
    * Generate a comprehensive document from a user text prompt
-    * Creates structured markdown with tables, Mermaid diagrams, and detailed content
+   * Creates structured markdown with tables, Mermaid diagrams, and detailed content
    * @param userPrompt - The user's text prompt describing what document to generate
    * @param files - Optional array of reference documents to use as context
    * @returns Generated markdown document content
@@ -406,7 +450,7 @@ ${markdownContent}
   public static async generateDocumentFromPrompt(
     userPrompt: string,
     files?: IFileContent[],
-    rules?: string
+    rules?: string,
   ): Promise<string> {
     try {
       functions.logger.info('Generating document from prompt with Gemini AI', {
@@ -438,7 +482,7 @@ ${markdownContent}
         {
           promptLength: prompt.length,
           hasContextFiles: !!(files && files.length > 0),
-        }
+        },
       );
 
       const response = await client.models.generateContent({
@@ -456,7 +500,7 @@ ${markdownContent}
 
       if (!text) {
         throw new Error(
-          'Empty response from Gemini API for document generation'
+          'Empty response from Gemini API for document generation',
         );
       }
 
@@ -473,12 +517,12 @@ ${markdownContent}
     } catch (error) {
       functions.logger.error(
         'Error generating document from prompt with Gemini AI:',
-        error
+        error,
       );
       throw new Error(
         `Failed to generate document: ${
           error instanceof Error ? error.message : 'Unknown error'
-        }`
+        }`,
       );
     }
   }
@@ -486,10 +530,12 @@ ${markdownContent}
   public static async generateDocumentFromScreenshot(
     imageBase64: string,
     userPrompt?: string,
-    rules?: string
+    rules?: string,
+    options?: IGeminiRuntimeGenerationConfig,
   ): Promise<string> {
     try {
-      const { mimeType, normalizedBase64 } = normalizeScreenshotImage(imageBase64);
+      const { mimeType, normalizedBase64 } =
+        normalizeScreenshotImage(imageBase64);
 
       functions.logger.info('Screenshot document generated via Gemini vision', {
         imageSize: imageBase64.length,
@@ -505,19 +551,23 @@ ${markdownContent}
 
       return this.generateVisionTextFragment({
         client,
-        model: GEMINI_PRO_MODEL,
+        model: options?.model ?? GEMINI_PRO_MODEL,
         mimeType,
         normalizedBase64,
         prompt,
         logLabel: 'screenshot document',
+        options,
         sanitize: (text) => this.validateAndFixDocumentContent(text),
       });
     } catch (error) {
-      functions.logger.error('Error generating document from screenshot:', error);
+      functions.logger.error(
+        'Error generating document from screenshot:',
+        error,
+      );
       throw new Error(
         `Failed to generate document from screenshot: ${
           error instanceof Error ? error.message : 'Unknown error'
-        }`
+        }`,
       );
     }
   }
@@ -525,9 +575,11 @@ ${markdownContent}
   public static async generateVisionHtmlFragment(
     imageBase64: string,
     prompt: string,
-    model: string = GEMINI_PRO_MODEL
+    model: string = GEMINI_PRO_MODEL,
+    options?: IGeminiRuntimeGenerationConfig,
   ): Promise<string> {
-    const { mimeType, normalizedBase64 } = normalizeScreenshotImage(imageBase64);
+    const { mimeType, normalizedBase64 } =
+      normalizeScreenshotImage(imageBase64);
 
     functions.logger.info('Vision HTML fragment generated via Gemini', {
       imageSize: imageBase64.length,
@@ -543,6 +595,7 @@ ${markdownContent}
       normalizedBase64,
       prompt,
       logLabel: 'vision HTML fragment',
+      options,
     });
   }
 
@@ -553,6 +606,7 @@ ${markdownContent}
     normalizedBase64: string;
     prompt: string;
     logLabel: string;
+    options?: IGeminiRuntimeGenerationConfig;
     sanitize?: (text: string) => string;
   }): Promise<string> {
     const response = await params.client.models.generateContent({
@@ -571,12 +625,12 @@ ${markdownContent}
           ],
         },
       ],
-      config: {
+      config: buildGeminiGenerationConfig(params.options, {
         temperature: 0.7,
         topK: 40,
         topP: 0.95,
         maxOutputTokens: 16384,
-      },
+      }),
     });
 
     const text = response.text;
@@ -600,11 +654,11 @@ ${markdownContent}
    * @returns Generated markdown content with Mermaid diagrams
    */
   public static async generateQuizFollowup(
-    context: QuizFollowupContext
+    context: QuizFollowupContext,
   ): Promise<string> {
     try {
       functions.logger.info(
-        'Generating quiz followup explanation with Gemini AI'
+        'Generating quiz followup explanation with Gemini AI',
       );
 
       const client = this.getClient();
@@ -630,7 +684,7 @@ ${markdownContent}
 
       if (!text) {
         throw new Error(
-          'Empty response from Gemini API for followup generation'
+          'Empty response from Gemini API for followup generation',
         );
       }
 
@@ -645,7 +699,7 @@ ${markdownContent}
     } catch (error) {
       functions.logger.error(
         'Error generating quiz followup with Gemini AI:',
-        error
+        error,
       );
 
       const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
@@ -655,7 +709,7 @@ ${markdownContent}
         error.message.includes('User location is not supported')
       ) {
         functions.logger.warn(
-          'Geographic restriction detected in local emulator, falling back to mock followup'
+          'Geographic restriction detected in local emulator, falling back to mock followup',
         );
         return this.generateMockFollowup(context);
       }
@@ -663,13 +717,15 @@ ${markdownContent}
       throw new Error(
         `Failed to generate followup: ${
           error instanceof Error ? error.message : 'Unknown error'
-        }`
+        }`,
       );
     }
   }
 
   private static generateMockFollowup(context: QuizFollowupContext): string {
-    functions.logger.info('Generating mock followup explanation for development');
+    functions.logger.info(
+      'Generating mock followup explanation for development',
+    );
     return `# Question Analysis
 
 > **Note**: This is mock followup content generated in the local emulator (Gemini API geographic restriction).
@@ -726,11 +782,11 @@ This question is derived from: **${context.originalDocument.title}**
    * @returns Generated markdown answer
    */
   public static async generateDocumentQuestionAnswer(
-    context: DocumentQuestionContext
+    context: DocumentQuestionContext,
   ): Promise<string> {
     try {
       functions.logger.info(
-        'Generating document question answer with Gemini AI'
+        'Generating document question answer with Gemini AI',
       );
 
       const client = this.getClient();
@@ -755,9 +811,7 @@ This question is derived from: **${context.originalDocument.title}**
       const text = response.text;
 
       if (!text) {
-        throw new Error(
-          'Empty response from Gemini API for document question'
-        );
+        throw new Error('Empty response from Gemini API for document question');
       }
 
       const validatedContent = this.validateAndFixFollowupContent(text);
@@ -769,12 +823,12 @@ This question is derived from: **${context.originalDocument.title}**
     } catch (error) {
       functions.logger.error(
         'Error generating document question answer with Gemini AI:',
-        error
+        error,
       );
       throw new Error(
         `Failed to generate answer: ${
           error instanceof Error ? error.message : 'Unknown error'
-        }`
+        }`,
       );
     }
   }
@@ -782,7 +836,9 @@ This question is derived from: **${context.originalDocument.title}**
   /**
    * Revise an existing document and return full revised markdown.
    */
-  public static async reviseDocument(context: DocumentReviseContext): Promise<string> {
+  public static async reviseDocument(
+    context: DocumentReviseContext,
+  ): Promise<string> {
     try {
       functions.logger.info('Revising document with Gemini AI', {
         instructionLength: context.instruction.length,
@@ -824,7 +880,7 @@ This question is derived from: **${context.originalDocument.title}**
       throw new Error(
         `Failed to revise document: ${
           error instanceof Error ? error.message : 'Unknown error'
-        }`
+        }`,
       );
     }
   }
@@ -833,7 +889,7 @@ This question is derived from: **${context.originalDocument.title}**
    * Generate an assistant reply for directory-scoped chat.
    */
   public static async generateDirectoryChatAnswer(
-    context: DirectoryChatPromptContext
+    context: DirectoryChatPromptContext,
   ): Promise<string> {
     try {
       functions.logger.info('Generating directory chat answer with Gemini AI');
@@ -866,11 +922,14 @@ This question is derived from: **${context.originalDocument.title}**
 
       return this.validateAndFixFollowupContent(text);
     } catch (error) {
-      functions.logger.error('Error generating directory chat answer with Gemini AI:', error);
+      functions.logger.error(
+        'Error generating directory chat answer with Gemini AI:',
+        error,
+      );
       throw new Error(
         `Failed to generate directory chat answer: ${
           error instanceof Error ? error.message : 'Unknown error'
-        }`
+        }`,
       );
     }
   }
@@ -895,12 +954,12 @@ This question is derived from: **${context.originalDocument.title}**
         ? RulePromptBuilder.buildImprovePrompt(
             params.existingContent,
             params.topic,
-            params.description
+            params.description,
           )
         : RulePromptBuilder.buildGeneratePrompt(
             params.topic,
             params.description,
-            params.applicableTo
+            params.applicableTo,
           );
 
       const response = await client.models.generateContent({
@@ -919,7 +978,7 @@ This question is derived from: **${context.originalDocument.title}**
       throw new Error(
         `Failed to generate rule: ${
           error instanceof Error ? error.message : 'Unknown error'
-        }`
+        }`,
       );
     }
   }
@@ -931,27 +990,31 @@ This question is derived from: **${context.originalDocument.title}**
     _content: string,
     _rules?: string,
     _descriptionRules?: string,
-    _options?: import('./prompt-builder/flashcard-prompt-builder').FlashcardPromptOptions
-  ): Promise<{
-    term?: string;
-    front: string;
-    back: string;
-    description?: string;
-    frontHtml?: string;
-    backHtml?: string;
-    descriptionHtml?: string;
-  }[]> {
+    _options?: import('./prompt-builder/flashcard-prompt-builder').FlashcardPromptOptions,
+  ): Promise<
+    {
+      term?: string;
+      front: string;
+      back: string;
+      description?: string;
+      frontHtml?: string;
+      backHtml?: string;
+      descriptionHtml?: string;
+    }[]
+  > {
     throw new Error(
-      'GeminiService.generateFlashcards is deprecated; use LlmGenerationService.generateFlashcards'
+      'GeminiService.generateFlashcards is deprecated; use LlmGenerationService.generateFlashcards',
     );
   }
 
-  public static parseQuizResponseFromText(responseText: string): GeminiQuizResponse {
+  public static parseQuizResponseFromText(
+    responseText: string,
+  ): GeminiQuizResponse {
     return this.parseQuizResponse(responseText);
   }
 
   public static parseDiagramQuizResponseFromText(
-    responseText: string
+    responseText: string,
   ): GeminiDiagramQuizResponse {
     return this.parseDiagramQuizResponse(responseText);
   }
@@ -959,7 +1022,7 @@ This question is derived from: **${context.originalDocument.title}**
   public static mergeDiagramQuizRefinement(
     draft: GeminiDiagramQuizResponse,
     responseText: string,
-    expectedIndexes: number[]
+    expectedIndexes: number[],
   ): GeminiDiagramQuizResponse {
     const refined = this.parseDiagramQuizRefineResponse(responseText);
     const merged: GeminiDiagramQuizResponse = {
@@ -969,7 +1032,9 @@ This question is derived from: **${context.originalDocument.title}**
 
     for (const item of refined.questions) {
       if (!expectedIndexes.includes(item.index)) {
-        throw new Error(`Unexpected question index ${item.index} in refine response`);
+        throw new Error(
+          `Unexpected question index ${item.index} in refine response`,
+        );
       }
       const { index, ...question } = item;
       this.validateDiagramQuizQuestion(question, index);
@@ -980,7 +1045,7 @@ This question is derived from: **${context.originalDocument.title}**
   }
 
   public static parseSequenceQuizResponseFromText(
-    responseText: string
+    responseText: string,
   ): GeminiSequenceQuizResponse {
     return this.parseSequenceQuizResponse(responseText);
   }
@@ -1026,7 +1091,7 @@ This question is derived from: **${context.originalDocument.title}**
       this.validateQuizStructure(parsed);
 
       functions.logger.info(
-        `Parsed quiz with ${parsed.questions.length} questions`
+        `Parsed quiz with ${parsed.questions.length} questions`,
       );
 
       return parsed as GeminiQuizResponse;
@@ -1056,7 +1121,7 @@ This question is derived from: **${context.originalDocument.title}**
   }): void {
     if (!parsed.title || !Array.isArray(parsed.questions)) {
       throw new Error(
-        'Invalid quiz structure: missing title or questions array'
+        'Invalid quiz structure: missing title or questions array',
       );
     }
 
@@ -1077,7 +1142,7 @@ This question is derived from: **${context.originalDocument.title}**
 
       if (question.correctAnswer < 0 || question.correctAnswer > 3) {
         throw new Error(
-          `Question ${index + 1} has invalid correctAnswer index`
+          `Question ${index + 1} has invalid correctAnswer index`,
         );
       }
 
@@ -1088,7 +1153,7 @@ This question is derived from: **${context.originalDocument.title}**
         question.explanation.trim().length === 0
       ) {
         throw new Error(
-          `Question ${index + 1} is missing required explanation`
+          `Question ${index + 1} is missing required explanation`,
         );
       }
 
@@ -1097,7 +1162,7 @@ This question is derived from: **${context.originalDocument.title}**
 
     // Validate answer distribution
     this.validateAnswerDistribution(
-      parsed.questions as Array<{ correctAnswer: number }>
+      parsed.questions as Array<{ correctAnswer: number }>,
     );
   }
 
@@ -1105,7 +1170,7 @@ This question is derived from: **${context.originalDocument.title}**
    * Validate answer distribution follows the balanced distribution rules
    */
   private static validateAnswerDistribution(
-    questions: Array<{ correctAnswer: number }>
+    questions: Array<{ correctAnswer: number }>,
   ): void {
     const totalQuestions = questions.length;
     if (totalQuestions === 0) return;
@@ -1123,7 +1188,7 @@ This question is derived from: **${context.originalDocument.title}**
           `Answer distribution warning: Option ${option} is correct only ${count} times (${(
             (count / totalQuestions) *
             100
-          ).toFixed(1)}%). Consider rebalancing.`
+          ).toFixed(1)}%). Consider rebalancing.`,
         );
       }
       if (count > maxExpected) {
@@ -1131,7 +1196,7 @@ This question is derived from: **${context.originalDocument.title}**
           `Answer distribution warning: Option ${option} is correct ${count} times (${(
             (count / totalQuestions) *
             100
-          ).toFixed(1)}%). Consider rebalancing.`
+          ).toFixed(1)}%). Consider rebalancing.`,
         );
       }
     });
@@ -1150,7 +1215,7 @@ This question is derived from: **${context.originalDocument.title}**
 
     if (maxConsecutive > 2) {
       functions.logger.warn(
-        `Answer clustering detected: ${maxConsecutive} consecutive questions have the same correct answer. Consider rebalancing.`
+        `Answer clustering detected: ${maxConsecutive} consecutive questions have the same correct answer. Consider rebalancing.`,
       );
     }
 
@@ -1238,7 +1303,10 @@ This question is derived from: **${context.originalDocument.title}**
         const fallbackResult = JsonSanitizer.tryFallbackParsing(cleanText) as {
           questions?: unknown;
         };
-        if (!Array.isArray(fallbackResult.questions) || fallbackResult.questions.length === 0) {
+        if (
+          !Array.isArray(fallbackResult.questions) ||
+          fallbackResult.questions.length === 0
+        ) {
           throw new Error('Invalid refine response: missing questions array');
         }
         return {
@@ -1249,14 +1317,17 @@ This question is derived from: **${context.originalDocument.title}**
           >,
         };
       } catch (fallbackError) {
-        functions.logger.error('Diagram quiz refine parse failed:', fallbackError);
+        functions.logger.error(
+          'Diagram quiz refine parse failed:',
+          fallbackError,
+        );
       }
       throw new Error(`Failed to parse diagram quiz refine response: ${error}`);
     }
   }
 
   private static parseDiagramQuizResponse(
-    responseText: string
+    responseText: string,
   ): GeminiDiagramQuizResponse {
     let cleanText = '';
     try {
@@ -1294,20 +1365,20 @@ This question is derived from: **${context.originalDocument.title}**
 
   private static validateDiagramQuizQuestion(
     row: Record<string, unknown>,
-    index: number
+    index: number,
   ): void {
     if (!row.question || typeof row.question !== 'string') {
       throw new Error(`Diagram quiz question ${index + 1}: invalid question`);
     }
     if (!Array.isArray(row.diagrams) || row.diagrams.length !== 4) {
       throw new Error(
-        `Diagram quiz question ${index + 1}: diagrams must be length 4`
+        `Diagram quiz question ${index + 1}: diagrams must be length 4`,
       );
     }
     for (const d of row.diagrams) {
       if (typeof d !== 'string' || d.trim().length === 0) {
         throw new Error(
-          `Diagram quiz question ${index + 1}: each diagram must be non-empty string`
+          `Diagram quiz question ${index + 1}: each diagram must be non-empty string`,
         );
       }
     }
@@ -1317,7 +1388,7 @@ This question is derived from: **${context.originalDocument.title}**
       row.correctAnswer > 3
     ) {
       throw new Error(
-        `Diagram quiz question ${index + 1}: invalid correctAnswer`
+        `Diagram quiz question ${index + 1}: invalid correctAnswer`,
       );
     }
     if (
@@ -1326,17 +1397,16 @@ This question is derived from: **${context.originalDocument.title}**
       row.explanation.trim().length === 0
     ) {
       throw new Error(
-        `Diagram quiz question ${index + 1}: missing explanation`
+        `Diagram quiz question ${index + 1}: missing explanation`,
       );
     }
     this.validateQuestionHint(row, 'Diagram quiz', index);
   }
 
   private static generateMockDiagramQuiz(
-    content: ScrapedContent
+    content: ScrapedContent,
   ): GeminiDiagramQuizResponse {
-    const d = (body: string) =>
-      `flowchart TD\n${body}`.replace(/"/g, "'");
+    const d = (body: string) => `flowchart TD\n${body}`.replace(/"/g, "'");
     return {
       title: `Mock Diagram Quiz: ${content.title}`,
       questions: [
@@ -1365,7 +1435,7 @@ This question is derived from: **${context.originalDocument.title}**
   }
 
   private static parseSequenceQuizResponse(
-    responseText: string
+    responseText: string,
   ): GeminiSequenceQuizResponse {
     let cleanText = '';
     try {
@@ -1394,7 +1464,9 @@ This question is derived from: **${context.originalDocument.title}**
     questions?: unknown;
   }): void {
     if (typeof parsed.title !== 'string' || parsed.title.trim().length === 0) {
-      throw new Error('Invalid sequence quiz: title must be a non-empty string');
+      throw new Error(
+        'Invalid sequence quiz: title must be a non-empty string',
+      );
     }
     if (!Array.isArray(parsed.questions)) {
       throw new Error('Invalid sequence quiz: questions must be an array');
@@ -1402,13 +1474,15 @@ This question is derived from: **${context.originalDocument.title}**
     const qCount = parsed.questions.length;
     if (qCount < 8 || qCount > 12) {
       throw new Error(
-        `Invalid sequence quiz: expected between 8 and 12 questions, got ${qCount}`
+        `Invalid sequence quiz: expected between 8 and 12 questions, got ${qCount}`,
       );
     }
     (parsed.questions as unknown[]).forEach((q, index) => {
       const row = q as Record<string, unknown>;
       if (!row.question || typeof row.question !== 'string') {
-        throw new Error(`Sequence quiz question ${index + 1}: invalid question`);
+        throw new Error(
+          `Sequence quiz question ${index + 1}: invalid question`,
+        );
       }
       if (
         !Array.isArray(row.items) ||
@@ -1416,13 +1490,13 @@ This question is derived from: **${context.originalDocument.title}**
         row.items.length > 10
       ) {
         throw new Error(
-          `Sequence quiz question ${index + 1}: items must be an array with between 4 and 10 elements`
+          `Sequence quiz question ${index + 1}: items must be an array with between 4 and 10 elements`,
         );
       }
       for (const item of row.items) {
         if (typeof item !== 'string' || item.trim().length === 0) {
           throw new Error(
-            `Sequence quiz question ${index + 1}: each item must be a non-empty string`
+            `Sequence quiz question ${index + 1}: each item must be a non-empty string`,
           );
         }
       }
@@ -1432,7 +1506,7 @@ This question is derived from: **${context.originalDocument.title}**
         row.explanation.trim().length === 0
       ) {
         throw new Error(
-          `Sequence quiz question ${index + 1}: missing explanation`
+          `Sequence quiz question ${index + 1}: missing explanation`,
         );
       }
       this.validateQuestionHint(row, 'Sequence quiz', index);
@@ -1442,7 +1516,7 @@ This question is derived from: **${context.originalDocument.title}**
   private static validateQuestionHint(
     row: Record<string, unknown>,
     quizType: string,
-    index: number
+    index: number,
   ): void {
     if (
       !row.hint ||
@@ -1454,7 +1528,7 @@ This question is derived from: **${context.originalDocument.title}**
   }
 
   private static generateMockSequenceQuiz(
-    content: ScrapedContent
+    content: ScrapedContent,
   ): GeminiSequenceQuizResponse {
     return {
       title: `Mock Sequence Quiz: ${content.title}`,
@@ -1521,7 +1595,7 @@ This question is derived from: **${context.originalDocument.title}**
         }
 
         return `\`\`\`mermaid\n${block}\n\`\`\``;
-      }
+      },
     );
   }
 
@@ -1547,7 +1621,7 @@ This question is derived from: **${context.originalDocument.title}**
       if (markdownMatch) {
         processedContent = markdownMatch[1];
         functions.logger.info(
-          'Removed markdown code block wrapper from followup content'
+          'Removed markdown code block wrapper from followup content',
         );
       }
 
@@ -1558,14 +1632,17 @@ This question is derived from: **${context.originalDocument.title}**
         // Only remove if it wasn't already processed as markdown
         processedContent = genericMatch[1];
         functions.logger.info(
-          'Removed generic code block wrapper from followup content'
+          'Removed generic code block wrapper from followup content',
         );
       }
 
-      const normalizedContent = this.normalizeMermaidCodeFences(processedContent);
+      const normalizedContent =
+        this.normalizeMermaidCodeFences(processedContent);
       if (normalizedContent !== processedContent) {
         processedContent = normalizedContent;
-        functions.logger.info('Normalized Mermaid code fences in followup content');
+        functions.logger.info(
+          'Normalized Mermaid code fences in followup content',
+        );
       }
 
       // Check for required sections
@@ -1580,24 +1657,24 @@ This question is derived from: **${context.originalDocument.title}**
       ];
 
       const missingSections = requiredSections.filter(
-        (section) => !processedContent.includes(section)
+        (section) => !processedContent.includes(section),
       );
 
       if (missingSections.length > 0) {
         functions.logger.warn(
           'Missing sections in followup content:',
-          missingSections
+          missingSections,
         );
       }
 
       const mermaidBlockCount = this.countMermaidCodeBlocks(processedContent);
       if (mermaidBlockCount < 2) {
         functions.logger.warn(
-          'Less than 2 Mermaid code blocks found in followup content. Diagrams may not be properly formatted.'
+          'Less than 2 Mermaid code blocks found in followup content. Diagrams may not be properly formatted.',
         );
       } else {
         functions.logger.info(
-          `Found ${mermaidBlockCount} Mermaid diagram(s) in followup content`
+          `Found ${mermaidBlockCount} Mermaid diagram(s) in followup content`,
         );
       }
 
@@ -1624,7 +1701,7 @@ This question is derived from: **${context.originalDocument.title}**
       if (markdownMatch) {
         processedContent = markdownMatch[1];
         functions.logger.info(
-          'Removed markdown code block wrapper from document content'
+          'Removed markdown code block wrapper from document content',
         );
       }
 
@@ -1634,14 +1711,17 @@ This question is derived from: **${context.originalDocument.title}**
       if (genericMatch && !markdownMatch) {
         processedContent = genericMatch[1];
         functions.logger.info(
-          'Removed generic code block wrapper from document content'
+          'Removed generic code block wrapper from document content',
         );
       }
 
-      const normalizedContent = this.normalizeMermaidCodeFences(processedContent);
+      const normalizedContent =
+        this.normalizeMermaidCodeFences(processedContent);
       if (normalizedContent !== processedContent) {
         processedContent = normalizedContent;
-        functions.logger.info('Normalized Mermaid code fences in document content');
+        functions.logger.info(
+          'Normalized Mermaid code fences in document content',
+        );
       }
 
       // Check for required sections
@@ -1653,13 +1733,13 @@ This question is derived from: **${context.originalDocument.title}**
       ];
 
       const missingSections = requiredSections.filter(
-        (section) => !processedContent.includes(section)
+        (section) => !processedContent.includes(section),
       );
 
       if (missingSections.length > 0) {
         functions.logger.warn(
           'Missing sections in document content:',
-          missingSections
+          missingSections,
         );
       }
 
@@ -1675,10 +1755,12 @@ This question is derived from: **${context.originalDocument.title}**
 
       const mermaidBlockCount = this.countMermaidCodeBlocks(processedContent);
       if (mermaidBlockCount === 0) {
-        functions.logger.info('No Mermaid diagrams detected in document content');
+        functions.logger.info(
+          'No Mermaid diagrams detected in document content',
+        );
       } else {
         functions.logger.info(
-          `Found ${mermaidBlockCount} Mermaid diagram(s) in document`
+          `Found ${mermaidBlockCount} Mermaid diagram(s) in document`,
         );
       }
 
@@ -1688,7 +1770,7 @@ This question is derived from: **${context.originalDocument.title}**
 
       if (wordCount < 1000) {
         functions.logger.warn(
-          `Document word count (${wordCount}) is below minimum requirement (1000)`
+          `Document word count (${wordCount}) is below minimum requirement (1000)`,
         );
       }
 
@@ -1713,14 +1795,21 @@ This question is derived from: **${context.originalDocument.title}**
   }
 
   private static assertGeminiResponseCompleted(
-    response: { candidates?: Array<{ finishReason?: FinishReason; finishMessage?: string }> },
-    operation: string
+    response: {
+      candidates?: Array<{
+        finishReason?: FinishReason;
+        finishMessage?: string;
+      }>;
+    },
+    operation: string,
   ): void {
     const candidate = response.candidates?.[0];
     const finishReason = candidate?.finishReason;
 
     if (!finishReason) {
-      functions.logger.warn('Gemini response did not include a finish reason', { operation });
+      functions.logger.warn('Gemini response did not include a finish reason', {
+        operation,
+      });
       return;
     }
 
@@ -1728,9 +1817,11 @@ This question is derived from: **${context.originalDocument.title}**
       return;
     }
 
-    const finishMessage = candidate?.finishMessage ? `: ${candidate.finishMessage}` : '';
+    const finishMessage = candidate?.finishMessage
+      ? `: ${candidate.finishMessage}`
+      : '';
     throw new Error(
-      `Gemini ${operation} stopped before completion (${finishReason}${finishMessage})`
+      `Gemini ${operation} stopped before completion (${finishReason}${finishMessage})`,
     );
   }
 
@@ -1745,7 +1836,7 @@ This question is derived from: **${context.originalDocument.title}**
   public static async generateSlideDeckOutline(
     content: string,
     additionalPrompt?: string,
-    rules?: string
+    rules?: string,
   ): Promise<Array<{ title: string; content: string; speakerNotes?: string }>> {
     try {
       functions.logger.info('Generating slide deck outline with Gemini AI...');
@@ -1755,7 +1846,7 @@ This question is derived from: **${context.originalDocument.title}**
       const prompt = SlideDeckPromptBuilder.buildSlideOutlinePrompt(
         content,
         additionalPrompt,
-        rules
+        rules,
       );
       const response = await client.models.generateContent({
         model: GEMINI_PRO_MODEL,
@@ -1767,7 +1858,7 @@ This question is derived from: **${context.originalDocument.title}**
 
       if (!text) {
         throw new Error(
-          'Empty response from Gemini API for slide deck generation'
+          'Empty response from Gemini API for slide deck generation',
         );
       }
 
@@ -1782,7 +1873,7 @@ This question is derived from: **${context.originalDocument.title}**
 
       if (!Array.isArray(parsed) || parsed.length === 0) {
         throw new Error(
-          'Invalid slide deck response: expected non-empty array'
+          'Invalid slide deck response: expected non-empty array',
         );
       }
 
@@ -1821,10 +1912,10 @@ This question is derived from: **${context.originalDocument.title}**
         if (!resolvedContent) {
           functions.logger.warn(
             `Slide ${i} has no recognisable content field.`,
-            { slideIndex: i, keys: Object.keys(item) }
+            { slideIndex: i, keys: Object.keys(item) },
           );
           throw new Error(
-            `Slide ${i}: missing or empty content (checked: content, bullets, body, points)`
+            `Slide ${i}: missing or empty content (checked: content, bullets, body, points)`,
           );
         }
 
@@ -1853,14 +1944,14 @@ This question is derived from: **${context.originalDocument.title}**
   public static async generateSlideImageBrief(
     slideTitle: string,
     slideContent: string,
-    rules?: string
+    rules?: string,
   ): Promise<string | null> {
     try {
       const client = this.getClient();
       const prompt = SlideDeckPromptBuilder.buildSlideImageBriefPrompt(
         slideTitle,
         slideContent,
-        rules
+        rules,
       );
 
       const response = await client.models.generateContent({
@@ -1881,7 +1972,10 @@ This question is derived from: **${context.originalDocument.title}**
       });
       return text;
     } catch (error) {
-      functions.logger.warn('Slide image brief generation failed (non-fatal):', error);
+      functions.logger.warn(
+        'Slide image brief generation failed (non-fatal):',
+        error,
+      );
       return null;
     }
   }
@@ -1895,14 +1989,14 @@ This question is derived from: **${context.originalDocument.title}**
     slideTitle: string,
     slideContent: string,
     rules?: string,
-    imageModel = 'gemini-3.1-flash-image-preview'
+    imageModel = 'gemini-3.1-flash-image-preview',
   ): Promise<string | null> {
     try {
       const client = this.getClient();
       const prompt = SlideDeckPromptBuilder.buildSlideImagePrompt(
         slideTitle,
         slideContent,
-        rules
+        rules,
       );
 
       const response = await client.models.generateContent({
@@ -1927,7 +2021,7 @@ This question is derived from: **${context.originalDocument.title}**
     } catch (error) {
       functions.logger.warn(
         'Slide image generation failed (non-fatal):',
-        error
+        error,
       );
       return null;
     }
@@ -1939,7 +2033,8 @@ This question is derived from: **${context.originalDocument.title}**
    */
   public static async generateSlideImageFromPrompt(
     prompt: string,
-    imageModel = 'gemini-3.1-flash-image-preview'
+    imageModel = 'gemini-3.1-flash-image-preview',
+    options?: IGeminiRuntimeGenerationConfig,
   ): Promise<string | null> {
     try {
       const client = this.getClient();
@@ -1949,6 +2044,9 @@ This question is derived from: **${context.originalDocument.title}**
         contents: prompt,
         config: {
           responseModalities: ['IMAGE'],
+          temperature: options?.temperature,
+          topK: options?.topK,
+          topP: options?.topP,
         },
       });
 
@@ -1961,12 +2059,14 @@ This question is derived from: **${context.originalDocument.title}**
         }
       }
 
-      functions.logger.warn('Slide image from brief: no inline image data in response.');
+      functions.logger.warn(
+        'Slide image from brief: no inline image data in response.',
+      );
       return null;
     } catch (error) {
       functions.logger.warn(
         'Slide image from brief failed (non-fatal):',
-        error
+        error,
       );
       return null;
     }

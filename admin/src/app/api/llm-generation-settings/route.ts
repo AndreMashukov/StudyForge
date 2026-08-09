@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import type { IUpdateLlmGenerationSettingsRequest } from '@shared-types';
 import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
 import { requireAdminSession } from '@admin/auth/session';
 import {
@@ -27,7 +26,7 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const session = await requireAdminSession();
-    const body = (await request.json()) as IUpdateLlmGenerationSettingsRequest;
+    const body: unknown = await request.json();
     const settings = await updateLlmGenerationSettings(body, session.uid);
     return NextResponse.json({ success: true, settings });
   } catch (error) {

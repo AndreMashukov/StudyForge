@@ -2,20 +2,15 @@
 
 import type { ILlmGenerationSettings } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import {
-  Controller,
-  useForm,
-  type Control,
-  type FieldErrors,
-} from 'react-hook-form';
+import { useForm, type Control } from 'react-hook-form';
 import {
   isAdminUnauthorizedResponse,
   redirectToAdminLogin,
 } from '@admin/auth/client-login-redirect';
 import { saveLlmGenerationSettings } from '@admin/mutations/llm-generation-settings';
+import { Button } from '@admin/components/ui/Button';
 import {
   Card,
   CardContent,
@@ -23,6 +18,16 @@ import {
   CardHeader,
   CardTitle,
 } from '@admin/components/ui/Card';
+import { Checkbox } from '@admin/components/ui/Checkbox';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@admin/components/ui/Form';
 import { Input } from '@admin/components/ui/Input';
 import {
   getLlmGenerationSettingsDefaultValues,
@@ -31,10 +36,15 @@ import {
   type ILlmGenerationSettingsFormValues,
 } from './LlmGenerationSettingsForm.form';
 
-type NoticeState = {
+interface INoticeState {
   type: 'success' | 'error';
   message: string;
-} | null;
+}
+
+interface ISaveLlmGenerationSettingsResponse {
+  success: true;
+  settings: ILlmGenerationSettings;
+}
 
 type NumericFieldName =
   | 'requestTimeoutMs'
@@ -51,6 +61,11 @@ interface INumericFieldConfig {
   min: number;
   max: number;
   step: number;
+}
+
+interface INumericSettingFieldProps {
+  control: Control<ILlmGenerationSettingsFormValues>;
+  field: INumericFieldConfig;
 }
 
 export interface ILlmGenerationSettingsFormProps {
@@ -82,7 +97,7 @@ function isLlmGenerationSettings(
 
 function isSaveResponse(
   value: unknown,
-): value is { success: true; settings: ILlmGenerationSettings } {
+): value is ISaveLlmGenerationSettingsResponse {
   return (
     isRecord(value) &&
     value.success === true &&
@@ -98,52 +113,41 @@ function getRouteErrorMessage(payload: unknown): string {
   return 'Failed to save LLM generation settings.';
 }
 
-function NumericSettingField({
-  control,
-  errors,
-  field,
-}: {
-  control: Control<ILlmGenerationSettingsFormValues>;
-  errors: FieldErrors<ILlmGenerationSettingsFormValues>;
-  field: INumericFieldConfig;
-}) {
-  const errorMessage = errors[field.name]?.message;
-
+function NumericSettingField({ control, field }: INumericSettingFieldProps) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={field.name}>{field.label}</Label>
-      <Controller
-        control={control}
-        name={field.name}
-        render={({ field: controllerField }) => (
-          <Input
-            id={field.name}
-            type="number"
-            min={field.min}
-            max={field.max}
-            step={field.step}
-            value={
-              typeof controllerField.value === 'number'
-                ? controllerField.value
-                : ''
-            }
-            onBlur={controllerField.onBlur}
-            onChange={(event) => {
-              if (event.currentTarget.value === '') {
-                controllerField.onChange(undefined);
-                return;
+    <FormField
+      control={control}
+      name={field.name}
+      render={({ field: controllerField }) => (
+        <FormItem>
+          <FormLabel>{field.label}</FormLabel>
+          <FormControl>
+            <Input
+              type="number"
+              min={field.min}
+              max={field.max}
+              step={field.step}
+              value={
+                typeof controllerField.value === 'number'
+                  ? controllerField.value
+                  : ''
               }
+              onBlur={controllerField.onBlur}
+              onChange={(event) => {
+                if (event.currentTarget.value === '') {
+                  controllerField.onChange(undefined);
+                  return;
+                }
 
-              controllerField.onChange(event.currentTarget.valueAsNumber);
-            }}
-          />
-        )}
-      />
-      <p className="text-xs text-muted-foreground">{field.description}</p>
-      {errorMessage ? (
-        <p className="text-xs text-destructive">{String(errorMessage)}</p>
-      ) : null}
-    </div>
+                controllerField.onChange(event.currentTarget.valueAsNumber);
+              }}
+            />
+          </FormControl>
+          <FormDescription>{field.description}</FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
   );
 }
 
@@ -213,7 +217,7 @@ export function LlmGenerationSettingsForm({
 }: ILlmGenerationSettingsFormProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [notice, setNotice] = useState<NoticeState>(null);
+  const [notice, setNotice] = useState<INoticeState | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const form = useForm<ILlmGenerationSettingsFormValues>({
@@ -268,101 +272,109 @@ export function LlmGenerationSettingsForm({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="space-y-8" onSubmit={handleSubmit}>
-          <section className="space-y-4">
-            <div>
-              <h3 className="text-sm font-medium">Request limits</h3>
-              <p className="text-sm text-muted-foreground">
-                These values affect runtime provider requests, not deployed
-                Firebase function deadlines.
-              </p>
-            </div>
-            <div className="grid gap-6 md:grid-cols-2">
-              {requestFields.map((field) => (
-                <NumericSettingField
-                  key={field.name}
-                  control={form.control}
-                  errors={form.formState.errors}
-                  field={field}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <div>
-              <h3 className="text-sm font-medium">Sampling defaults</h3>
-              <p className="text-sm text-muted-foreground">
-                Used when a generation path does not provide a more specific
-                sampling configuration.
-              </p>
-            </div>
-            <div className="grid gap-6 md:grid-cols-3">
-              {samplingFields.map((field) => (
-                <NumericSettingField
-                  key={field.name}
-                  control={form.control}
-                  errors={form.formState.errors}
-                  field={field}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <div>
-              <h3 className="text-sm font-medium">Reasoning defaults</h3>
-              <p className="text-sm text-muted-foreground">
-                Reasoning controls map to provider-specific thinking options
-                when supported.
-              </p>
-            </div>
-            <Controller
-              control={form.control}
-              name="disableReasoning"
-              render={({ field }) => (
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={field.value}
-                    onBlur={field.onBlur}
-                    onChange={(event) => field.onChange(event.target.checked)}
-                    className="h-4 w-4 rounded border-border"
+        <Form {...form}>
+          <form className="space-y-8" onSubmit={handleSubmit}>
+            <section className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium">Request limits</h3>
+                <p className="text-sm text-muted-foreground">
+                  These values affect runtime provider requests, not deployed
+                  Firebase function deadlines.
+                </p>
+              </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                {requestFields.map((field) => (
+                  <NumericSettingField
+                    key={field.name}
+                    control={form.control}
+                    field={field}
                   />
-                  Disable reasoning by default
-                </label>
-              )}
-            />
-            <div className="grid gap-6 md:grid-cols-2">
-              {reasoningFields.map((field) => (
-                <NumericSettingField
-                  key={field.name}
-                  control={form.control}
-                  errors={form.formState.errors}
-                  field={field}
-                />
-              ))}
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium">Sampling defaults</h3>
+                <p className="text-sm text-muted-foreground">
+                  Used when a generation path does not provide a more specific
+                  sampling configuration.
+                </p>
+              </div>
+              <div className="grid gap-6 md:grid-cols-3">
+                {samplingFields.map((field) => (
+                  <NumericSettingField
+                    key={field.name}
+                    control={form.control}
+                    field={field}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium">Reasoning defaults</h3>
+                <p className="text-sm text-muted-foreground">
+                  Reasoning controls map to provider-specific thinking options
+                  when supported.
+                </p>
+              </div>
+              <FormField
+                control={form.control}
+                name="disableReasoning"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onBlur={field.onBlur}
+                          onChange={(event) =>
+                            field.onChange(event.target.checked)
+                          }
+                        />
+                      </FormControl>
+                      <FormLabel className="text-sm font-normal">
+                        Disable reasoning by default
+                      </FormLabel>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid gap-6 md:grid-cols-2">
+                {reasoningFields.map((field) => (
+                  <NumericSettingField
+                    key={field.name}
+                    control={form.control}
+                    field={field}
+                  />
+                ))}
+              </div>
+            </section>
+
+            {notice ? (
+              <p
+                className={
+                  notice.type === 'success'
+                    ? 'text-sm text-accent'
+                    : 'text-sm text-destructive'
+                }
+                role={notice.type === 'success' ? 'status' : 'alert'}
+                aria-live={notice.type === 'success' ? 'polite' : 'assertive'}
+              >
+                {notice.message}
+              </p>
+            ) : null}
+
+            <div className="flex justify-end">
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save generation settings'}
+              </Button>
             </div>
-          </section>
-
-          {notice ? (
-            <p
-              className={
-                notice.type === 'success'
-                  ? 'text-sm text-accent'
-                  : 'text-sm text-destructive'
-              }
-            >
-              {notice.message}
-            </p>
-          ) : null}
-
-          <div className="flex justify-end">
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save generation settings'}
-            </Button>
-          </div>
-        </form>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );

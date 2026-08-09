@@ -25,7 +25,6 @@ import {
   DocumentRevisePromptBuilder,
   DirectoryChatPromptBuilder,
   SlideDeckPromptBuilder,
-  DiagramQuizPromptBuilder,
   SequenceQuizPromptBuilder,
   ScreenshotPromptBuilder,
 } from '../gemini/prompt-builder';
@@ -81,6 +80,8 @@ function toGeminiContentOptions(config: LlmTextConfig): {
   temperature?: number;
   topK?: number;
   topP?: number;
+  disableReasoning?: boolean;
+  thinkingBudget?: number;
 } {
   return {
     model: config.model,
@@ -88,6 +89,8 @@ function toGeminiContentOptions(config: LlmTextConfig): {
     temperature: config.temperature,
     topK: config.topK,
     topP: config.topP,
+    disableReasoning: config.disableReasoning,
+    thinkingBudget: config.thinkingBudget,
   };
 }
 
@@ -538,12 +541,20 @@ export class LlmGenerationService {
       },
     );
     const { route, providerApiKey } = visionResolution;
+    const config = await applyLlmGenerationDefaults({
+      model: route.model,
+      temperature: 0.7,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 32768,
+    });
 
     if (route.providerType === 'gemini') {
       return GeminiService.generateDocumentFromScreenshot(
         imageBase64,
         userPrompt,
         rules,
+        toGeminiContentOptions(config),
       );
     }
 
@@ -559,13 +570,6 @@ export class LlmGenerationService {
       rules,
     });
     const client = LlmProviderClientFactory.create(route, providerApiKey);
-    const config = await applyLlmGenerationDefaults({
-      model: route.model,
-      temperature: 0.7,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 32768,
-    });
     const result = await client.generateVisionText({
       prompt,
       imageDataUrl: normalized.dataUrl,
@@ -597,12 +601,20 @@ export class LlmGenerationService {
       },
     );
     const { route, providerApiKey } = visionResolution;
+    const config = await applyLlmGenerationDefaults({
+      model: route.model,
+      temperature: 0.7,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 32768,
+    });
 
     if (route.providerType === 'gemini') {
       return GeminiService.generateVisionHtmlFragment(
         imageBase64,
         prompt,
         route.model,
+        toGeminiContentOptions(config),
       );
     }
 
@@ -614,13 +626,6 @@ export class LlmGenerationService {
 
     const normalized = normalizeScreenshotImage(imageBase64);
     const client = LlmProviderClientFactory.create(route, providerApiKey);
-    const config = await applyLlmGenerationDefaults({
-      model: route.model,
-      temperature: 0.7,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 32768,
-    });
     const result = await client.generateVisionText({
       prompt,
       imageDataUrl: normalized.dataUrl,
@@ -915,6 +920,7 @@ export class LlmGenerationService {
     imageResolution: Awaited<ReturnType<typeof LlmImageRouteResolver.resolve>>,
   ): Promise<string | null> {
     const { route, providerApiKey, geminiImageModel } = imageResolution;
+    const config = await applyLlmGenerationDefaults({ model: route.model });
 
     if (route.providerType !== 'gemini' && providerApiKey) {
       const imagePrompt =
@@ -933,7 +939,6 @@ export class LlmGenerationService {
       }
 
       const client = LlmProviderClientFactory.create(route, providerApiKey);
-      const config = await applyLlmGenerationDefaults({ model: route.model });
       const result = await client.generateImage({
         prompt: imagePrompt,
         config,
@@ -952,7 +957,11 @@ export class LlmGenerationService {
       model: geminiImageModel,
     });
 
-    return GeminiService.generateSlideImageFromPrompt(prompt, geminiImageModel);
+    return GeminiService.generateSlideImageFromPrompt(
+      prompt,
+      geminiImageModel,
+      toGeminiContentOptions(config),
+    );
   }
 
   static async enhanceExtractedDocument(

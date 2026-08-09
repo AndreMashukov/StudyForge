@@ -2011,8 +2011,10 @@ export interface ILlmGenerationSettings extends ILlmGenerationRuntimeSettings {
   updatedBy?: string;
 }
 
-export type IUpdateLlmGenerationSettingsRequest =
-  Partial<ILlmGenerationRuntimeSettings>;
+export interface IUpdateLlmGenerationSettingsRequest
+  extends Partial<Omit<ILlmGenerationRuntimeSettings, 'thinkingBudget'>> {
+  thinkingBudget?: number | null;
+}
 
 export const DEFAULT_LLM_GENERATION_SETTINGS: ILlmGenerationRuntimeSettings = {
   requestTimeoutMs: 120_000,

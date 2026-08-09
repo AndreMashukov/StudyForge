@@ -4,6 +4,8 @@ import { ModelSettingsPanelSkeleton } from '@admin/components/loading';
 import { readLlmGenerationSettings } from '@admin/data/llm-generation-settings';
 import { LlmGenerationSettingsForm } from './_components/LlmGenerationSettingsForm';
 
+export const dynamic = 'force-dynamic';
+
 async function GenerationSettingsSection() {
   const settings = await readLlmGenerationSettings();
 

@@ -99,8 +99,6 @@ export function normalizeLlmGenerationSettingsSubmitPayload(
     topK: values.topK,
     topP: values.topP,
     disableReasoning: values.disableReasoning,
-    ...(values.thinkingBudget !== undefined
-      ? { thinkingBudget: values.thinkingBudget }
-      : {}),
+    thinkingBudget: values.thinkingBudget ?? null,
   };
 }

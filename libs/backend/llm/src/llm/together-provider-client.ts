@@ -66,16 +66,18 @@ function throwEmptyTogetherChatResponse(
 async function fetchWithTimeout(
   url: string,
   init: RequestInit,
+  consumeResponse: (response: Response) => Promise<unknown>,
   timeoutMs: number = TOGETHER_REQUEST_TIMEOUT_MS,
-): Promise<Response> {
+): Promise<unknown> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    return await fetch(url, {
+    const response = await fetch(url, {
       ...init,
       signal: controller.signal,
     });
+    return await consumeResponse(response);
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(`Together request timed out after ${timeoutMs}ms`);
@@ -84,6 +86,27 @@ async function fetchWithTimeout(
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+async function fetchJsonWithTimeout(
+  url: string,
+  init: RequestInit,
+  errorLabel: string,
+  timeoutMs?: number,
+): Promise<unknown> {
+  return fetchWithTimeout(
+    url,
+    init,
+    async (response) => {
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '(unreadable)');
+        throw new Error(`${errorLabel} ${response.status}: ${errorText}`);
+      }
+
+      return response.json();
+    },
+    timeoutMs,
+  );
 }
 
 function resolveTogetherImageDimensions(aspectRatio?: string): {
@@ -132,7 +155,7 @@ export class TogetherProviderClient implements LlmProviderClient {
         : {}),
     });
 
-    const response = await fetchWithTimeout(
+    const payload = await fetchJsonWithTimeout(
       this.chatCompletionsUrl,
       {
         method: 'POST',
@@ -142,15 +165,10 @@ export class TogetherProviderClient implements LlmProviderClient {
         },
         body,
       },
+      'Together API error',
       request.config.requestTimeoutMs,
     );
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '(unreadable)');
-      throw new Error(`Together API error ${response.status}: ${errorText}`);
-    }
-
-    const payload: unknown = await response.json();
     const text = parseTogetherChatContent(payload);
     if (!text) {
       throwEmptyTogetherChatResponse(payload, 'API');
@@ -191,7 +209,7 @@ export class TogetherProviderClient implements LlmProviderClient {
       max_tokens: request.config.maxOutputTokens ?? 16384,
     });
 
-    const response = await fetchWithTimeout(
+    const payload = await fetchJsonWithTimeout(
       this.chatCompletionsUrl,
       {
         method: 'POST',
@@ -201,17 +219,10 @@ export class TogetherProviderClient implements LlmProviderClient {
         },
         body,
       },
+      'Together vision API error',
       request.config.requestTimeoutMs,
     );
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '(unreadable)');
-      throw new Error(
-        `Together vision API error ${response.status}: ${errorText}`,
-      );
-    }
-
-    const payload: unknown = await response.json();
     const text = parseTogetherChatContent(payload);
     if (!text) {
       throwEmptyTogetherChatResponse(payload, 'vision API');
@@ -240,7 +251,7 @@ export class TogetherProviderClient implements LlmProviderClient {
       response_format: 'base64',
     });
 
-    const response = await fetchWithTimeout(
+    const payload = await fetchJsonWithTimeout(
       this.imageGenerationsUrl,
       {
         method: 'POST',
@@ -250,17 +261,10 @@ export class TogetherProviderClient implements LlmProviderClient {
         },
         body,
       },
+      'Together image API error',
       request.config.requestTimeoutMs,
     );
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '(unreadable)');
-      throw new Error(
-        `Together image API error ${response.status}: ${errorText}`,
-      );
-    }
-
-    const payload: unknown = await response.json();
     const imageBase64 = parseTogetherImageBase64(payload);
     if (!imageBase64) {
       throw new Error('Malformed or empty image response from Together API');

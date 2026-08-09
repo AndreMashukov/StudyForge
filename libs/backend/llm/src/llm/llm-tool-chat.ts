@@ -204,15 +204,16 @@ export function resolveToolChatCompletionsUrl(route: ResolvedRoute): string {
  */
 export function buildToolChatProviderBodyExtras(
   route: ResolvedRoute,
+  settings: ILlmGenerationRuntimeSettings,
 ): Record<string, unknown> {
   if (route.providerType === 'together') {
-    return { reasoning: { enabled: false } };
+    return settings.disableReasoning ? { reasoning: { enabled: false } } : {};
   }
 
   if (route.providerType === 'minimax') {
     return {
       reasoning_split: true,
-      thinking: { type: 'disabled' },
+      ...(settings.disableReasoning ? { thinking: { type: 'disabled' } } : {}),
     };
   }
 
@@ -351,7 +352,7 @@ function buildToolChatRequestBody(input: {
     temperature: input.settings.temperature,
     top_p: input.settings.topP,
     max_tokens: input.settings.maxOutputTokens,
-    ...buildToolChatProviderBodyExtras(input.route),
+    ...buildToolChatProviderBodyExtras(input.route, input.settings),
   };
 }
 

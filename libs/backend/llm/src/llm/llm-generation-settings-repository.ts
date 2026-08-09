@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions';
 import type { ILlmGenerationRuntimeSettings } from '@shared-types';
 import {
   DEFAULT_LLM_GENERATION_SETTINGS,
@@ -14,6 +15,10 @@ type NumericSettingKey = Exclude<
   'disableReasoning'
 >;
 
+interface INumericValidationOptions {
+  integer?: boolean;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -21,7 +26,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isValidNumber(
   value: unknown,
   limits: { min: number; max: number },
-  options?: { integer?: boolean },
+  options?: INumericValidationOptions,
 ): value is number {
   return (
     typeof value === 'number' &&
@@ -36,7 +41,7 @@ function readNumericSetting(
   data: Record<string, unknown>,
   key: NumericSettingKey,
   fallback: number | undefined,
-  options?: { integer?: boolean },
+  options?: INumericValidationOptions,
 ): number | undefined {
   const limits = LLM_GENERATION_SETTINGS_LIMITS[key];
   const value = data[key];
@@ -98,11 +103,23 @@ function parseStoredSettings(data: unknown): ILlmGenerationRuntimeSettings {
 }
 
 export async function readLlmGenerationRuntimeSettings(): Promise<ILlmGenerationRuntimeSettings> {
-  const snapshot = await admin
-    .firestore()
-    .collection(ADMIN_SETTINGS_COLLECTION)
-    .doc(LLM_GENERATION_SETTINGS_DOCUMENT)
-    .get();
+  let snapshot: admin.firestore.DocumentSnapshot;
+
+  try {
+    snapshot = await admin
+      .firestore()
+      .collection(ADMIN_SETTINGS_COLLECTION)
+      .doc(LLM_GENERATION_SETTINGS_DOCUMENT)
+      .get();
+  } catch (error) {
+    functions.logger.warn(
+      'Failed to read LLM generation settings; using defaults',
+      {
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
+    return { ...DEFAULT_LLM_GENERATION_SETTINGS };
+  }
 
   if (!snapshot.exists) {
     return { ...DEFAULT_LLM_GENERATION_SETTINGS };
