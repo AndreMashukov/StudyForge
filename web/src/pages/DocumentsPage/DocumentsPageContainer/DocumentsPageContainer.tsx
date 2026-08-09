@@ -44,11 +44,9 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
   const isMobile = useIsMobile();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Auto-close mobile sidebar when switching to desktop
+  // Keep the directory tree drawer closed across breakpoint changes
   React.useEffect(() => {
-    if (!isMobile) {
-      setIsMobileSidebarOpen(false);
-    }
+    setIsMobileSidebarOpen(false);
   }, [isMobile]);
 
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);

@@ -1,26 +1,15 @@
-import React from 'react';
 import { useSelector } from 'react-redux';
 import { cn } from '../../lib/utils';
 import { IPage } from './IPage';
 import { Sidebar } from '../Sidebar';
 import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 export const Page = ({ children, className, showSidebar = true }: IPage) => {
   const sidebarIsOpen = useSelector(selectSidebarIsOpen);
   const { isAppFullscreen } = useAppFullscreen();
-  const [isMobile, setIsMobile] = React.useState(false);
-
-  React.useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const isMobile = useIsMobile();
 
   // Sidebar width: expanded 220px, collapsed 64px
   const sidebarWidth = sidebarIsOpen ? 220 : 64;

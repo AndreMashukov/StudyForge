@@ -24,9 +24,11 @@ import { cn } from '../../lib/utils';
 import { ISidebar } from './ISidebar';
 import {
   selectSidebarIsOpen,
+  setSidebarOpen,
   toggleSidebar,
 } from '../../store/slices/uiSlice';
 import { useAuth } from '../../contexts/AuthContext';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface NavItem {
   id: string;
@@ -61,19 +63,14 @@ export const Sidebar = ({ className }: ISidebar) => {
   const { signOut } = useSecureSignOut();
 
   const isOpen = useSelector(selectSidebarIsOpen);
+  const isMobile = useIsMobile();
 
-  const [isMobile, setIsMobile] = React.useState(false);
-
+  // Desktop default is open; on narrow viewports hide the drawer until toggled.
   React.useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    if (isMobile) {
+      dispatch(setSidebarOpen(false));
+    }
+  }, [isMobile, dispatch]);
 
   const handleToggleSidebar = () => {
     dispatch(toggleSidebar());
@@ -82,7 +79,7 @@ export const Sidebar = ({ className }: ISidebar) => {
   const handleNavigateToItem = (path: string) => {
     navigate(path);
     if (isMobile) {
-      dispatch(toggleSidebar());
+      dispatch(setSidebarOpen(false));
     }
   };
 
