@@ -9,6 +9,7 @@ import {
   Gauge,
   LayoutDashboard,
   LogOut,
+  SlidersHorizontal,
   Users,
   UsersRound,
 } from 'lucide-react';
@@ -34,6 +35,11 @@ const platformNavItems = [
 
 const aiNavItems = [
   { href: '/llm-setups', label: 'LLM setups', icon: Brain },
+  {
+    href: '/generation-settings',
+    label: 'Generation settings',
+    icon: SlidersHorizontal,
+  },
   { href: '/usage-limits-setups', label: 'Usage limits', icon: Gauge },
   { href: '/provider-connections', label: 'Provider connections', icon: Cable },
 ];
@@ -69,11 +75,15 @@ export function AdminSidebar({ email }: IAdminSidebarProps) {
           asChild
           className={cn(
             !sidebarIsOpen && 'justify-center relative group',
-            isActive && sidebarClassNames.navItemActive
+            isActive && sidebarClassNames.navItemActive,
           )}
         >
           <Link href={href} aria-current={isActive ? 'page' : undefined}>
-            <AdminNavLinkContent label={label} icon={Icon} isOpen={sidebarIsOpen} />
+            <AdminNavLinkContent
+              label={label}
+              icon={Icon}
+              isOpen={sidebarIsOpen}
+            />
           </Link>
         </SidebarNavItem>
       );
@@ -83,7 +93,9 @@ export function AdminSidebar({ email }: IAdminSidebarProps) {
     <Sidebar
       className={cn(
         sidebarClassNames.container,
-        sidebarIsOpen ? sidebarClassNames.expanded : sidebarClassNames.collapsed
+        sidebarIsOpen
+          ? sidebarClassNames.expanded
+          : sidebarClassNames.collapsed,
       )}
       footer={
         <SidebarProfileFooter
@@ -95,7 +107,7 @@ export function AdminSidebar({ email }: IAdminSidebarProps) {
             <button
               className={cn(
                 sidebarClassNames.footerAction,
-                !sidebarIsOpen && 'relative group justify-center p-0'
+                !sidebarIsOpen && 'relative group justify-center p-0',
               )}
               onClick={handleLogout}
               aria-label="Sign out"
@@ -105,7 +117,9 @@ export function AdminSidebar({ email }: IAdminSidebarProps) {
                 className={sidebarClassNames.navItemIcon}
               />
               {!sidebarIsOpen ? (
-                <div className={sidebarClassNames.collapsedTooltip}>Sign out</div>
+                <div className={sidebarClassNames.collapsedTooltip}>
+                  Sign out
+                </div>
               ) : null}
             </button>
           }
@@ -115,13 +129,19 @@ export function AdminSidebar({ email }: IAdminSidebarProps) {
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-hidden">
         <SidebarSection label="Platform" isOpen={sidebarIsOpen}>
-          <SidebarNav className={sidebarClassNames.navList} aria-label="Platform navigation">
+          <SidebarNav
+            className={sidebarClassNames.navList}
+            aria-label="Platform navigation"
+          >
             {renderNavItems(platformNavItems)}
           </SidebarNav>
         </SidebarSection>
 
         <SidebarSection label="AI" isOpen={sidebarIsOpen}>
-          <SidebarNav className={sidebarClassNames.navList} aria-label="AI navigation">
+          <SidebarNav
+            className={sidebarClassNames.navList}
+            aria-label="AI navigation"
+          >
             {renderNavItems(aiNavItems)}
           </SidebarNav>
         </SidebarSection>

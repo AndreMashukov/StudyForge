@@ -26,11 +26,13 @@ interface OpenRouterChatResponse {
   choices?: OpenRouterChatChoice[];
 }
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 120_000;
+
 export class OpenRouterProviderClient implements LlmProviderClient {
   constructor(
     private readonly apiKey: string,
     private readonly baseUrl: string,
-    private readonly connectionId: string
+    private readonly connectionId: string,
   ) {}
 
   async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
@@ -49,6 +51,9 @@ export class OpenRouterProviderClient implements LlmProviderClient {
 
     const response = await fetch(url, {
       method: 'POST',
+      signal: AbortSignal.timeout(
+        request.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+      ),
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
@@ -75,7 +80,9 @@ export class OpenRouterProviderClient implements LlmProviderClient {
     };
   }
 
-  async generateVisionText(request: LlmVisionRequest): Promise<LlmVisionResult> {
+  async generateVisionText(
+    request: LlmVisionRequest,
+  ): Promise<LlmVisionResult> {
     const url = `${this.baseUrl.replace(/\/$/, '')}/chat/completions`;
     const detail = request.detail ?? 'auto';
 
@@ -103,6 +110,9 @@ export class OpenRouterProviderClient implements LlmProviderClient {
 
     const response = await fetch(url, {
       method: 'POST',
+      signal: AbortSignal.timeout(
+        request.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+      ),
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
@@ -114,7 +124,9 @@ export class OpenRouterProviderClient implements LlmProviderClient {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '(unreadable)');
-      throw new Error(`OpenRouter vision API error ${response.status}: ${errorText}`);
+      throw new Error(
+        `OpenRouter vision API error ${response.status}: ${errorText}`,
+      );
     }
 
     const data = (await response.json()) as OpenRouterChatResponse;
@@ -153,6 +165,9 @@ export class OpenRouterProviderClient implements LlmProviderClient {
 
     const response = await fetch(url, {
       method: 'POST',
+      signal: AbortSignal.timeout(
+        request.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+      ),
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
@@ -164,7 +179,9 @@ export class OpenRouterProviderClient implements LlmProviderClient {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '(unreadable)');
-      throw new Error(`OpenRouter image API error ${response.status}: ${errorText}`);
+      throw new Error(
+        `OpenRouter image API error ${response.status}: ${errorText}`,
+      );
     }
 
     const data = (await response.json()) as OpenRouterChatResponse;
@@ -176,7 +193,9 @@ export class OpenRouterProviderClient implements LlmProviderClient {
 
     const imageBase64 = extractBase64FromImageDataUrl(imageUrl);
     if (!imageBase64) {
-      throw new Error('OpenRouter image response did not contain valid base64 data');
+      throw new Error(
+        'OpenRouter image response did not contain valid base64 data',
+      );
     }
 
     return {

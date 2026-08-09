@@ -24,7 +24,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function parseTogetherImageBase64(payload: unknown): string | null {
-  if (!isRecord(payload) || !Array.isArray(payload.data) || payload.data.length === 0) {
+  if (
+    !isRecord(payload) ||
+    !Array.isArray(payload.data) ||
+    payload.data.length === 0
+  ) {
     return null;
   }
 
@@ -41,7 +45,10 @@ function parseTogetherImageBase64(payload: unknown): string | null {
   return imageBase64;
 }
 
-function throwEmptyTogetherChatResponse(payload: unknown, label: string): never {
+function throwEmptyTogetherChatResponse(
+  payload: unknown,
+  label: string,
+): never {
   const diagnostics = summarizeTogetherChatPayload(payload);
   functions.logger.warn(`Empty Together ${label} response`, diagnostics);
 
@@ -49,7 +56,7 @@ function throwEmptyTogetherChatResponse(payload: unknown, label: string): never 
     throw new Error(
       `Malformed or empty response from Together ${label}: output truncated after reasoning ` +
         `(finish_reason=length, reasoningLength=${diagnostics.reasoningLength}). ` +
-        'Increase maxOutputTokens for thinking models.'
+        'Increase maxOutputTokens for thinking models.',
     );
   }
 
@@ -59,16 +66,18 @@ function throwEmptyTogetherChatResponse(payload: unknown, label: string): never 
 async function fetchWithTimeout(
   url: string,
   init: RequestInit,
-  timeoutMs: number = TOGETHER_REQUEST_TIMEOUT_MS
-): Promise<Response> {
+  consumeResponse: (response: Response) => Promise<unknown>,
+  timeoutMs: number = TOGETHER_REQUEST_TIMEOUT_MS,
+): Promise<unknown> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    return await fetch(url, {
+    const response = await fetch(url, {
       ...init,
       signal: controller.signal,
     });
+    return await consumeResponse(response);
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(`Together request timed out after ${timeoutMs}ms`);
@@ -79,9 +88,31 @@ async function fetchWithTimeout(
   }
 }
 
-function resolveTogetherImageDimensions(
-  aspectRatio?: string
-): { width: number; height: number } {
+async function fetchJsonWithTimeout(
+  url: string,
+  init: RequestInit,
+  errorLabel: string,
+  timeoutMs?: number,
+): Promise<unknown> {
+  return fetchWithTimeout(
+    url,
+    init,
+    async (response) => {
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '(unreadable)');
+        throw new Error(`${errorLabel} ${response.status}: ${errorText}`);
+      }
+
+      return response.json();
+    },
+    timeoutMs,
+  );
+}
+
+function resolveTogetherImageDimensions(aspectRatio?: string): {
+  width: number;
+  height: number;
+} {
   switch (aspectRatio) {
     case '16:9':
       return { width: 1024, height: 576 };
@@ -101,7 +132,7 @@ export class TogetherProviderClient implements LlmProviderClient {
   constructor(
     private readonly apiKey: string,
     private readonly baseUrl: string,
-    private readonly connectionId: string
+    private readonly connectionId: string,
   ) {}
 
   private get chatCompletionsUrl(): string {
@@ -124,21 +155,20 @@ export class TogetherProviderClient implements LlmProviderClient {
         : {}),
     });
 
-    const response = await fetchWithTimeout(this.chatCompletionsUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
+    const payload = await fetchJsonWithTimeout(
+      this.chatCompletionsUrl,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body,
       },
-      body,
-    });
+      'Together API error',
+      request.config.requestTimeoutMs,
+    );
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '(unreadable)');
-      throw new Error(`Together API error ${response.status}: ${errorText}`);
-    }
-
-    const payload: unknown = await response.json();
     const text = parseTogetherChatContent(payload);
     if (!text) {
       throwEmptyTogetherChatResponse(payload, 'API');
@@ -152,7 +182,9 @@ export class TogetherProviderClient implements LlmProviderClient {
     };
   }
 
-  async generateVisionText(request: LlmVisionRequest): Promise<LlmVisionResult> {
+  async generateVisionText(
+    request: LlmVisionRequest,
+  ): Promise<LlmVisionResult> {
     const detail = request.detail ?? 'auto';
 
     const body = JSON.stringify({
@@ -177,21 +209,20 @@ export class TogetherProviderClient implements LlmProviderClient {
       max_tokens: request.config.maxOutputTokens ?? 16384,
     });
 
-    const response = await fetchWithTimeout(this.chatCompletionsUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
+    const payload = await fetchJsonWithTimeout(
+      this.chatCompletionsUrl,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body,
       },
-      body,
-    });
+      'Together vision API error',
+      request.config.requestTimeoutMs,
+    );
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '(unreadable)');
-      throw new Error(`Together vision API error ${response.status}: ${errorText}`);
-    }
-
-    const payload: unknown = await response.json();
     const text = parseTogetherChatContent(payload);
     if (!text) {
       throwEmptyTogetherChatResponse(payload, 'vision API');
@@ -207,7 +238,7 @@ export class TogetherProviderClient implements LlmProviderClient {
 
   async generateImage(request: LlmImageRequest): Promise<LlmImageResult> {
     const { width, height } = resolveTogetherImageDimensions(
-      request.imageConfig?.aspectRatio
+      request.imageConfig?.aspectRatio,
     );
 
     const body = JSON.stringify({
@@ -220,21 +251,20 @@ export class TogetherProviderClient implements LlmProviderClient {
       response_format: 'base64',
     });
 
-    const response = await fetchWithTimeout(this.imageGenerationsUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
+    const payload = await fetchJsonWithTimeout(
+      this.imageGenerationsUrl,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body,
       },
-      body,
-    });
+      'Together image API error',
+      request.config.requestTimeoutMs,
+    );
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '(unreadable)');
-      throw new Error(`Together image API error ${response.status}: ${errorText}`);
-    }
-
-    const payload: unknown = await response.json();
     const imageBase64 = parseTogetherImageBase64(payload);
     if (!imageBase64) {
       throw new Error('Malformed or empty image response from Together API');

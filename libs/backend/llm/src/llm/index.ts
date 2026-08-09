@@ -28,13 +28,24 @@ export {
   resolveSlideDeckGenerationAudit,
 } from './resolve-generation-model';
 export { LlmGenerationRouteResolver } from './llm-generation-route-resolver';
-export { formatGenerationModelLabel, resolveTextGenerationAudit, toGenerationModelUsage } from './generation-model-usage';
+export {
+  formatGenerationModelLabel,
+  resolveTextGenerationAudit,
+  toGenerationModelUsage,
+} from './generation-model-usage';
 export { LlmRouteResolver } from './llm-route-resolver';
 export { LlmImageRouteResolver } from './llm-image-route-resolver';
 export { LlmVisionRouteResolver } from './llm-vision-route-resolver';
 export { LlmSetupRepository } from './llm-setup-repository';
+export {
+  applyLlmGenerationDefaults,
+  readLlmGenerationRuntimeSettings,
+} from './llm-generation-settings-repository';
 export { LlmRoutingError, isLlmRoutingError } from './llm-routing-error';
-export { decryptLlmSecret, isLlmEncryptionAvailable } from './llm-secret-resolver';
+export {
+  decryptLlmSecret,
+  isLlmEncryptionAvailable,
+} from './llm-secret-resolver';
 export {
   callToolChatCompletions,
   resolveToolChatCompletionsUrl,
@@ -50,5 +61,12 @@ export {
   type ILlmToolChatToolCall,
   type ILlmToolChatProviderMetadata,
 } from './llm-tool-chat';
-export type { LlmCapability, LlmTextConfig, LlmTextRequest, LlmTextResult, ResolvedRoute, IGenerateTextOptions } from './types';
+export type {
+  LlmCapability,
+  LlmTextConfig,
+  LlmTextRequest,
+  LlmTextResult,
+  ResolvedRoute,
+  IGenerateTextOptions,
+} from './types';
 export type { LlmProviderClient } from './llm-provider-client';

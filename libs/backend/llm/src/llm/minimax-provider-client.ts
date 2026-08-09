@@ -35,12 +35,14 @@ interface MiniMaxImageResponse {
   };
 }
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 120_000;
+
 export class MiniMaxProviderClient implements LlmProviderClient {
   constructor(
     private readonly apiKey: string,
     private readonly baseUrl: string,
     private readonly imageGenerationUrl: string,
-    private readonly connectionId: string
+    private readonly connectionId: string,
   ) {}
 
   async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
@@ -60,6 +62,9 @@ export class MiniMaxProviderClient implements LlmProviderClient {
 
     const response = await fetch(url, {
       method: 'POST',
+      signal: AbortSignal.timeout(
+        request.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+      ),
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
@@ -76,7 +81,10 @@ export class MiniMaxProviderClient implements LlmProviderClient {
     const rawText = data.choices?.[0]?.message?.content;
     if (!rawText) throw new Error('Empty response from MiniMax API');
     const text = stripRedactedThinking(rawText);
-    if (!text) throw new Error('Empty response from MiniMax API after stripping thinking content');
+    if (!text)
+      throw new Error(
+        'Empty response from MiniMax API after stripping thinking content',
+      );
 
     return {
       text,
@@ -86,7 +94,9 @@ export class MiniMaxProviderClient implements LlmProviderClient {
     };
   }
 
-  async generateVisionText(request: LlmVisionRequest): Promise<LlmVisionResult> {
+  async generateVisionText(
+    request: LlmVisionRequest,
+  ): Promise<LlmVisionResult> {
     const url = `${this.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
     const body = JSON.stringify({
@@ -113,6 +123,9 @@ export class MiniMaxProviderClient implements LlmProviderClient {
 
     const response = await fetch(url, {
       method: 'POST',
+      signal: AbortSignal.timeout(
+        request.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+      ),
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
@@ -122,16 +135,23 @@ export class MiniMaxProviderClient implements LlmProviderClient {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '(unreadable)');
-      throw new Error(`MiniMax vision API error ${response.status}: ${errorText}`);
+      throw new Error(
+        `MiniMax vision API error ${response.status}: ${errorText}`,
+      );
     }
 
     const data = (await response.json()) as MiniMaxChatResponse;
     const rawText = data.choices?.[0]?.message?.content;
     if (!rawText) {
-      throw new Error(`Empty response from MiniMax vision API. Raw data: ${JSON.stringify(data)}`);
+      throw new Error(
+        `Empty response from MiniMax vision API. Raw data: ${JSON.stringify(data)}`,
+      );
     }
     const text = stripRedactedThinking(rawText);
-    if (!text) throw new Error('Empty response from MiniMax vision API after stripping thinking content');
+    if (!text)
+      throw new Error(
+        'Empty response from MiniMax vision API after stripping thinking content',
+      );
 
     return {
       text,
@@ -154,6 +174,9 @@ export class MiniMaxProviderClient implements LlmProviderClient {
 
     const response = await fetch(this.imageGenerationUrl, {
       method: 'POST',
+      signal: AbortSignal.timeout(
+        request.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+      ),
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
@@ -163,13 +186,16 @@ export class MiniMaxProviderClient implements LlmProviderClient {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '(unreadable)');
-      throw new Error(`MiniMax image API error ${response.status}: ${errorText}`);
+      throw new Error(
+        `MiniMax image API error ${response.status}: ${errorText}`,
+      );
     }
 
     const data = (await response.json()) as MiniMaxImageResponse;
     const statusCode = data.base_resp?.status_code;
     if (statusCode !== undefined && statusCode !== 0) {
-      const statusMessage = data.base_resp?.status_msg ?? 'Unknown MiniMax image error';
+      const statusMessage =
+        data.base_resp?.status_msg ?? 'Unknown MiniMax image error';
       throw new Error(`MiniMax image API error: ${statusMessage}`);
     }
 
@@ -187,7 +213,9 @@ export class MiniMaxProviderClient implements LlmProviderClient {
   }
 }
 
-export function parseMiniMaxConnection(connection: IMiniMaxProviderConnection | null): {
+export function parseMiniMaxConnection(
+  connection: IMiniMaxProviderConnection | null,
+): {
   baseUrl: string;
   imageGenerationUrl: string;
   defaultModel: string;

@@ -25,7 +25,6 @@ import {
   DocumentRevisePromptBuilder,
   DirectoryChatPromptBuilder,
   SlideDeckPromptBuilder,
-  DiagramQuizPromptBuilder,
   SequenceQuizPromptBuilder,
   ScreenshotPromptBuilder,
 } from '../gemini/prompt-builder';
@@ -60,15 +59,40 @@ import {
   resolveTextRoute,
   type TextRouteContext,
 } from './llm-text-runner';
+import { applyLlmGenerationDefaults } from './llm-generation-settings-repository';
 import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
 import type { IParsedFlashcardItem } from './flashcard-response-parser';
-import type { LlmCapability, IGenerateTextOptions } from './types';
+import type {
+  LlmCapability,
+  IGenerateTextOptions,
+  LlmTextConfig,
+} from './types';
 import { generateFlashcardsChunked } from '@study-forge/backend-artifacts/flashcards/flashcard-chunked-generator';
 import { generateDiagramQuizChunked } from '@study-forge/backend-artifacts/diagram-quiz/diagram-quiz-chunked-generator';
 import { parseQuizJson } from './quiz-response-parser';
 
 type FlashcardItem = IParsedFlashcardItem;
+
+function toGeminiContentOptions(config: LlmTextConfig): {
+  model?: string;
+  maxOutputTokens?: number;
+  temperature?: number;
+  topK?: number;
+  topP?: number;
+  disableReasoning?: boolean;
+  thinkingBudget?: number;
+} {
+  return {
+    model: config.model,
+    maxOutputTokens: config.maxOutputTokens,
+    temperature: config.temperature,
+    topK: config.topK,
+    topP: config.topP,
+    disableReasoning: config.disableReasoning,
+    thinkingBudget: config.thinkingBudget,
+  };
+}
 
 export interface GenerateFlashcardsResult {
   flashcards: FlashcardItem[];
@@ -255,29 +279,30 @@ export class LlmGenerationService {
     const logLabel = options?.logLabel ?? capability;
     const ctx = await resolveTextRoute(userId, capability, logLabel);
 
-    const generationConfig = {
-      temperature: options?.temperature ?? 0.4,
-      topK: options?.topK ?? 40,
-      topP: options?.topP ?? 0.95,
-      maxOutputTokens: options?.maxOutputTokens ?? 16384,
-    };
+    const generationConfig = await applyLlmGenerationDefaults({
+      model: ctx.resolution.route.model,
+      requestTimeoutMs: options?.requestTimeoutMs,
+      temperature: options?.temperature,
+      topK: options?.topK,
+      topP: options?.topP,
+      maxOutputTokens: options?.maxOutputTokens,
+      disableReasoning: options?.disableReasoning,
+      thinkingBudget: options?.thinkingBudget,
+    });
 
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateContent(prompt, {
-        ...generationConfig,
-        model: ctx.resolution.route.model,
-      });
+      return GeminiService.generateContent(
+        prompt,
+        toGeminiContentOptions(generationConfig),
+      );
     }
 
     return generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        ...generationConfig,
-        ...(options?.disableReasoning ? { disableReasoning: true } : {}),
-      },
-      options?.successLogMessage ?? `Text generated via external provider (${logLabel})`,
+      generationConfig,
+      options?.successLogMessage ??
+        `Text generated via external provider (${logLabel})`,
     );
   }
 
@@ -516,12 +541,20 @@ export class LlmGenerationService {
       },
     );
     const { route, providerApiKey } = visionResolution;
+    const config = await applyLlmGenerationDefaults({
+      model: route.model,
+      temperature: 0.7,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 32768,
+    });
 
     if (route.providerType === 'gemini') {
       return GeminiService.generateDocumentFromScreenshot(
         imageBase64,
         userPrompt,
         rules,
+        toGeminiContentOptions(config),
       );
     }
 
@@ -540,13 +573,7 @@ export class LlmGenerationService {
     const result = await client.generateVisionText({
       prompt,
       imageDataUrl: normalized.dataUrl,
-      config: {
-        model: route.model,
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 32768,
-      },
+      config,
       detail: 'auto',
     });
 
@@ -567,17 +594,34 @@ export class LlmGenerationService {
     imageBase64: string,
     prompt: string,
   ): Promise<string> {
-    const visionResolution = await LlmGenerationRouteResolver.resolve(capability, {
-      userId,
-    });
+    const visionResolution = await LlmGenerationRouteResolver.resolve(
+      capability,
+      {
+        userId,
+      },
+    );
     const { route, providerApiKey } = visionResolution;
+    const config = await applyLlmGenerationDefaults({
+      model: route.model,
+      temperature: 0.7,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 32768,
+    });
 
     if (route.providerType === 'gemini') {
-      return GeminiService.generateVisionHtmlFragment(imageBase64, prompt, route.model);
+      return GeminiService.generateVisionHtmlFragment(
+        imageBase64,
+        prompt,
+        route.model,
+        toGeminiContentOptions(config),
+      );
     }
 
     if (!providerApiKey) {
-      throw new Error('Vision provider API key is required for external providers');
+      throw new Error(
+        'Vision provider API key is required for external providers',
+      );
     }
 
     const normalized = normalizeScreenshotImage(imageBase64);
@@ -585,20 +629,17 @@ export class LlmGenerationService {
     const result = await client.generateVisionText({
       prompt,
       imageDataUrl: normalized.dataUrl,
-      config: {
-        model: route.model,
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 32768,
-      },
+      config,
       detail: 'auto',
     });
 
-    functions.logger.info('Vision HTML fragment generated via external provider', {
-      model: result.model,
-      responseLength: result.text.length,
-    });
+    functions.logger.info(
+      'Vision HTML fragment generated via external provider',
+      {
+        model: result.model,
+        responseLength: result.text.length,
+      },
+    );
 
     return stripCodeFences(result.text);
   }
@@ -879,6 +920,7 @@ export class LlmGenerationService {
     imageResolution: Awaited<ReturnType<typeof LlmImageRouteResolver.resolve>>,
   ): Promise<string | null> {
     const { route, providerApiKey, geminiImageModel } = imageResolution;
+    const config = await applyLlmGenerationDefaults({ model: route.model });
 
     if (route.providerType !== 'gemini' && providerApiKey) {
       const imagePrompt =
@@ -899,7 +941,7 @@ export class LlmGenerationService {
       const client = LlmProviderClientFactory.create(route, providerApiKey);
       const result = await client.generateImage({
         prompt: imagePrompt,
-        config: { model: route.model },
+        config,
         imageConfig: { aspectRatio: '16:9' },
       });
 
@@ -915,7 +957,11 @@ export class LlmGenerationService {
       model: geminiImageModel,
     });
 
-    return GeminiService.generateSlideImageFromPrompt(prompt, geminiImageModel);
+    return GeminiService.generateSlideImageFromPrompt(
+      prompt,
+      geminiImageModel,
+      toGeminiContentOptions(config),
+    );
   }
 
   static async enhanceExtractedDocument(
