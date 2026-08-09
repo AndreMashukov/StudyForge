@@ -2,9 +2,10 @@ import {
   createStreamingThinkingFilter,
   stripRedactedThinking,
 } from './llm-response-text-utils';
+import type { ILlmGenerationRuntimeSettings } from '@shared-types';
 import type { ResolvedRoute } from './types';
+import { readLlmGenerationRuntimeSettings } from './llm-generation-settings-repository';
 
-const REQUEST_TIMEOUT_MS = 120_000;
 const GEMINI_OPENAI_COMPAT_BASE_URL =
   'https://generativelanguage.googleapis.com/v1beta/openai';
 const TOGETHER_DEFAULT_BASE_URL = 'https://api.together.ai/v1';
@@ -324,6 +325,7 @@ function buildToolChatRequestBody(input: {
   messages: ILlmToolChatMessage[];
   tools: ILlmOpenAiToolDefinition[];
   stream: boolean;
+  settings: ILlmGenerationRuntimeSettings;
 }): Record<string, unknown> {
   return {
     model: input.route.model,
@@ -331,8 +333,9 @@ function buildToolChatRequestBody(input: {
     tools: input.tools,
     tool_choice: 'auto',
     stream: input.stream,
-    temperature: 0.4,
-    max_tokens: 8192,
+    temperature: input.settings.temperature,
+    top_p: input.settings.topP,
+    max_tokens: input.settings.maxOutputTokens,
     ...buildToolChatProviderBodyExtras(input.route),
   };
 }
@@ -342,13 +345,14 @@ async function executeNonStreamToolChat(input: {
   apiKey: string;
   messages: ILlmToolChatMessage[];
   tools: ILlmOpenAiToolDefinition[];
+  settings: ILlmGenerationRuntimeSettings;
   onDelta?: (text: string) => void;
   emitDeltas: boolean;
 }): Promise<ILlmToolChatMessage> {
   const url = resolveToolChatCompletionsUrl(input.route);
   const response = await fetch(url, {
     method: 'POST',
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: AbortSignal.timeout(input.settings.requestTimeoutMs),
     headers: buildRequestHeaders(input.apiKey, input.route.providerType),
     body: JSON.stringify(
       buildToolChatRequestBody({
@@ -356,6 +360,7 @@ async function executeNonStreamToolChat(input: {
         messages: input.messages,
         tools: input.tools,
         stream: false,
+        settings: input.settings,
       })
     ),
   });
@@ -390,13 +395,14 @@ async function executeStreamToolChat(input: {
   apiKey: string;
   messages: ILlmToolChatMessage[];
   tools: ILlmOpenAiToolDefinition[];
+  settings: ILlmGenerationRuntimeSettings;
   onDelta?: (text: string) => void;
 }): Promise<ILlmToolChatMessage> {
   const url = resolveToolChatCompletionsUrl(input.route);
   const thinkingFilter = createStreamingThinkingFilter();
   const response = await fetch(url, {
     method: 'POST',
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: AbortSignal.timeout(input.settings.requestTimeoutMs),
     headers: buildRequestHeaders(input.apiKey, input.route.providerType),
     body: JSON.stringify(
       buildToolChatRequestBody({
@@ -404,6 +410,7 @@ async function executeStreamToolChat(input: {
         messages: input.messages,
         tools: input.tools,
         stream: true,
+        settings: input.settings,
       })
     ),
   });
@@ -574,6 +581,7 @@ export async function callToolChatCompletions(input: {
   onDelta?: (text: string) => void;
 }): Promise<ILlmToolChatMessage> {
   const preferStream = shouldStreamToolChat(input.stream ?? true);
+  const settings = await readLlmGenerationRuntimeSettings();
 
   if (!preferStream) {
     return executeNonStreamToolChat({
@@ -581,6 +589,7 @@ export async function callToolChatCompletions(input: {
       apiKey: input.apiKey,
       messages: input.messages,
       tools: input.tools,
+      settings,
       onDelta: input.onDelta,
       emitDeltas: true,
     });
@@ -591,6 +600,7 @@ export async function callToolChatCompletions(input: {
     apiKey: input.apiKey,
     messages: input.messages,
     tools: input.tools,
+    settings,
     onDelta: input.onDelta,
   });
 
@@ -616,6 +626,7 @@ export async function callToolChatCompletions(input: {
     apiKey: input.apiKey,
     messages: input.messages,
     tools: input.tools,
+    settings,
     onDelta: input.onDelta,
     emitDeltas: !(streamed.content && streamed.content.length > 0),
   });

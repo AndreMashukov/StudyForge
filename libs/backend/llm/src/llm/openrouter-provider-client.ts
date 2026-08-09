@@ -26,6 +26,8 @@ interface OpenRouterChatResponse {
   choices?: OpenRouterChatChoice[];
 }
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 120_000;
+
 export class OpenRouterProviderClient implements LlmProviderClient {
   constructor(
     private readonly apiKey: string,
@@ -49,6 +51,9 @@ export class OpenRouterProviderClient implements LlmProviderClient {
 
     const response = await fetch(url, {
       method: 'POST',
+      signal: AbortSignal.timeout(
+        request.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+      ),
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
@@ -103,6 +108,9 @@ export class OpenRouterProviderClient implements LlmProviderClient {
 
     const response = await fetch(url, {
       method: 'POST',
+      signal: AbortSignal.timeout(
+        request.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+      ),
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
@@ -153,6 +161,9 @@ export class OpenRouterProviderClient implements LlmProviderClient {
 
     const response = await fetch(url, {
       method: 'POST',
+      signal: AbortSignal.timeout(
+        request.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+      ),
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',

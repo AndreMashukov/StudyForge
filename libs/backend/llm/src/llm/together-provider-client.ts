@@ -131,7 +131,7 @@ export class TogetherProviderClient implements LlmProviderClient {
         'Content-Type': 'application/json',
       },
       body,
-    });
+    }, request.config.requestTimeoutMs);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '(unreadable)');
@@ -184,7 +184,7 @@ export class TogetherProviderClient implements LlmProviderClient {
         'Content-Type': 'application/json',
       },
       body,
-    });
+    }, request.config.requestTimeoutMs);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '(unreadable)');
@@ -227,7 +227,7 @@ export class TogetherProviderClient implements LlmProviderClient {
         'Content-Type': 'application/json',
       },
       body,
-    });
+    }, request.config.requestTimeoutMs);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '(unreadable)');

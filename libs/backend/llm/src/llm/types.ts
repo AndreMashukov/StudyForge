@@ -25,6 +25,7 @@ export type LlmCapability =
 
 export interface LlmTextConfig {
   model: string;
+  requestTimeoutMs?: number;
   temperature?: number;
   topP?: number;
   topK?: number;
@@ -55,6 +56,7 @@ export interface LlmTextRequest {
 export interface IGenerateTextOptions {
   logLabel?: string;
   successLogMessage?: string;
+  requestTimeoutMs?: number;
   temperature?: number;
   topK?: number;
   topP?: number;
@@ -64,6 +66,7 @@ export interface IGenerateTextOptions {
    * (Together `reasoning.enabled=false`, MiniMax thinking disabled, etc.).
    */
   disableReasoning?: boolean;
+  thinkingBudget?: number;
 }
 
 export type LlmVisionDetail = 'auto' | 'low' | 'high';

@@ -9,6 +9,7 @@ import {
   Gauge,
   LayoutDashboard,
   LogOut,
+  SlidersHorizontal,
   Users,
   UsersRound,
 } from 'lucide-react';
@@ -34,6 +35,7 @@ const platformNavItems = [
 
 const aiNavItems = [
   { href: '/llm-setups', label: 'LLM setups', icon: Brain },
+  { href: '/generation-settings', label: 'Generation settings', icon: SlidersHorizontal },
   { href: '/usage-limits-setups', label: 'Usage limits', icon: Gauge },
   { href: '/provider-connections', label: 'Provider connections', icon: Cable },
 ];

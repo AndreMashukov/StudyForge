@@ -1970,6 +1970,42 @@ export interface IGenerationModelUsage {
   durationMs?: number;
 }
 
+export interface ILlmGenerationRuntimeSettings {
+  requestTimeoutMs: number;
+  maxOutputTokens: number;
+  temperature: number;
+  topK: number;
+  topP: number;
+  disableReasoning: boolean;
+  thinkingBudget?: number;
+}
+
+export interface ILlmGenerationSettings extends ILlmGenerationRuntimeSettings {
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export type IUpdateLlmGenerationSettingsRequest =
+  Partial<ILlmGenerationRuntimeSettings>;
+
+export const DEFAULT_LLM_GENERATION_SETTINGS: ILlmGenerationRuntimeSettings = {
+  requestTimeoutMs: 120_000,
+  maxOutputTokens: 16_384,
+  temperature: 0.4,
+  topK: 40,
+  topP: 0.95,
+  disableReasoning: false,
+};
+
+export const LLM_GENERATION_SETTINGS_LIMITS = {
+  requestTimeoutMs: { min: 5_000, max: 540_000 },
+  maxOutputTokens: { min: 1, max: 65_536 },
+  temperature: { min: 0, max: 2 },
+  topK: { min: 1, max: 100 },
+  topP: { min: 0, max: 1 },
+  thinkingBudget: { min: 0, max: 65_536 },
+} as const;
+
 /** Admin picker entry for LLM setup route configuration. */
 export interface IProviderConnectionCatalogEntry {
   id: string;

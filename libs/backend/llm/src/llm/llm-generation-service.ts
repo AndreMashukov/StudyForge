@@ -60,15 +60,32 @@ import {
   resolveTextRoute,
   type TextRouteContext,
 } from './llm-text-runner';
+import { applyLlmGenerationDefaults } from './llm-generation-settings-repository';
 import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
 import type { IParsedFlashcardItem } from './flashcard-response-parser';
-import type { LlmCapability, IGenerateTextOptions } from './types';
+import type { LlmCapability, IGenerateTextOptions, LlmTextConfig } from './types';
 import { generateFlashcardsChunked } from '@study-forge/backend-artifacts/flashcards/flashcard-chunked-generator';
 import { generateDiagramQuizChunked } from '@study-forge/backend-artifacts/diagram-quiz/diagram-quiz-chunked-generator';
 import { parseQuizJson } from './quiz-response-parser';
 
 type FlashcardItem = IParsedFlashcardItem;
+
+function toGeminiContentOptions(config: LlmTextConfig): {
+  model?: string;
+  maxOutputTokens?: number;
+  temperature?: number;
+  topK?: number;
+  topP?: number;
+} {
+  return {
+    model: config.model,
+    maxOutputTokens: config.maxOutputTokens,
+    temperature: config.temperature,
+    topK: config.topK,
+    topP: config.topP,
+  };
+}
 
 export interface GenerateFlashcardsResult {
   flashcards: FlashcardItem[];
@@ -255,28 +272,28 @@ export class LlmGenerationService {
     const logLabel = options?.logLabel ?? capability;
     const ctx = await resolveTextRoute(userId, capability, logLabel);
 
-    const generationConfig = {
-      temperature: options?.temperature ?? 0.4,
-      topK: options?.topK ?? 40,
-      topP: options?.topP ?? 0.95,
-      maxOutputTokens: options?.maxOutputTokens ?? 16384,
-    };
+    const generationConfig = await applyLlmGenerationDefaults({
+      model: ctx.resolution.route.model,
+      requestTimeoutMs: options?.requestTimeoutMs,
+      temperature: options?.temperature,
+      topK: options?.topK,
+      topP: options?.topP,
+      maxOutputTokens: options?.maxOutputTokens,
+      disableReasoning: options?.disableReasoning,
+      thinkingBudget: options?.thinkingBudget,
+    });
 
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateContent(prompt, {
-        ...generationConfig,
-        model: ctx.resolution.route.model,
-      });
+      return GeminiService.generateContent(
+        prompt,
+        toGeminiContentOptions(generationConfig)
+      );
     }
 
     return generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        ...generationConfig,
-        ...(options?.disableReasoning ? { disableReasoning: true } : {}),
-      },
+      generationConfig,
       options?.successLogMessage ?? `Text generated via external provider (${logLabel})`,
     );
   }
@@ -537,16 +554,17 @@ export class LlmGenerationService {
       rules,
     });
     const client = LlmProviderClientFactory.create(route, providerApiKey);
+    const config = await applyLlmGenerationDefaults({
+      model: route.model,
+      temperature: 0.7,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 32768,
+    });
     const result = await client.generateVisionText({
       prompt,
       imageDataUrl: normalized.dataUrl,
-      config: {
-        model: route.model,
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 32768,
-      },
+      config,
       detail: 'auto',
     });
 
@@ -582,16 +600,17 @@ export class LlmGenerationService {
 
     const normalized = normalizeScreenshotImage(imageBase64);
     const client = LlmProviderClientFactory.create(route, providerApiKey);
+    const config = await applyLlmGenerationDefaults({
+      model: route.model,
+      temperature: 0.7,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 32768,
+    });
     const result = await client.generateVisionText({
       prompt,
       imageDataUrl: normalized.dataUrl,
-      config: {
-        model: route.model,
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 32768,
-      },
+      config,
       detail: 'auto',
     });
 
@@ -897,9 +916,10 @@ export class LlmGenerationService {
       }
 
       const client = LlmProviderClientFactory.create(route, providerApiKey);
+      const config = await applyLlmGenerationDefaults({ model: route.model });
       const result = await client.generateImage({
         prompt: imagePrompt,
-        config: { model: route.model },
+        config,
         imageConfig: { aspectRatio: '16:9' },
       });
 

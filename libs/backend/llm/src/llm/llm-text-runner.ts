@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions';
 import { LlmGenerationRouteResolver, type GenerationRouteResolution } from './llm-generation-route-resolver';
 import type { LlmCapability, LlmTextConfig } from './types';
 import { LlmProviderClientFactory } from './llm-provider-client-factory';
+import { applyLlmGenerationDefaults } from './llm-generation-settings-repository';
 
 export interface TextRouteContext {
   resolution: GenerationRouteResolution;
@@ -38,11 +39,12 @@ export async function generateExternalProviderText(
   config: LlmTextConfig,
   successLogMessage: string
 ): Promise<string> {
+  const configWithDefaults = await applyLlmGenerationDefaults(config);
   const client = LlmProviderClientFactory.create(
     ctx.resolution.route,
     ctx.resolution.providerApiKey
   );
-  const result = await client.generateText({ prompt, config });
+  const result = await client.generateText({ prompt, config: configWithDefaults });
 
   functions.logger.info(successLogMessage, {
     model: result.model,

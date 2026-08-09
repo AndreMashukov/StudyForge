@@ -33,6 +33,10 @@ export { LlmRouteResolver } from './llm-route-resolver';
 export { LlmImageRouteResolver } from './llm-image-route-resolver';
 export { LlmVisionRouteResolver } from './llm-vision-route-resolver';
 export { LlmSetupRepository } from './llm-setup-repository';
+export {
+  applyLlmGenerationDefaults,
+  readLlmGenerationRuntimeSettings,
+} from './llm-generation-settings-repository';
 export { LlmRoutingError, isLlmRoutingError } from './llm-routing-error';
 export { decryptLlmSecret, isLlmEncryptionAvailable } from './llm-secret-resolver';
 export {
