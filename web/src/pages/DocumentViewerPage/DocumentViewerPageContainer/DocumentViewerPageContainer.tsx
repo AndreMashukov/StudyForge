@@ -458,7 +458,6 @@ export const DocumentViewerPageContainer = () => {
             collapsible
             collapsedVariant="bar"
             defaultExpanded={false}
-            expandable={false}
             compact
             title="Ask about this document"
             placeholder="Ask a question about this document..."
