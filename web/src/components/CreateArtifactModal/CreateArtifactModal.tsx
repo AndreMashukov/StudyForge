@@ -16,6 +16,7 @@ import { Textarea } from '../ui/Textarea';
 import { cn } from '../../lib/utils';
 import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
+import { useTrackOpenModal } from '../ModalVisibility';
 import { ICreateArtifactModalProps } from './ICreateArtifactModal';
 import { getCreateArtifactModalConfig } from './createArtifactModalConfig';
 import { createArtifactFormSchema, CreateArtifactFormSchema } from './createArtifactModalSchemas';
@@ -71,6 +72,8 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
   const sidebarIsOpen = useSelector(selectSidebarIsOpen);
   const { isAppFullscreen } = useAppFullscreen();
   const [isMobile, setIsMobile] = useState(false);
+
+  useTrackOpenModal(open);
   // Mount rules after the form reset so CompactRuleSelector can apply always-apply defaults
   // without getting cleared by a later reset.
   const [isRulesReady, setIsRulesReady] = useState(false);

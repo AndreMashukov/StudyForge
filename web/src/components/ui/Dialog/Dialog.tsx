@@ -2,8 +2,35 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { useTrackOpenModal } from "../../ModalVisibility";
 
-const Dialog = DialogPrimitive.Root;
+function Dialog({
+  modal = true,
+  open,
+  defaultOpen,
+  onOpenChange,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen ?? false);
+  const isOpen = open ?? uncontrolledOpen;
+
+  useTrackOpenModal(modal !== false && isOpen);
+
+  return (
+    <DialogPrimitive.Root
+      modal={modal}
+      open={open}
+      defaultOpen={defaultOpen}
+      onOpenChange={(nextOpen) => {
+        if (open === undefined) {
+          setUncontrolledOpen(nextOpen);
+        }
+        onOpenChange?.(nextOpen);
+      }}
+      {...props}
+    />
+  );
+}
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;

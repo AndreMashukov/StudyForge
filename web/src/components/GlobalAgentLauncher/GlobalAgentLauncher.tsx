@@ -5,11 +5,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
 import { Button } from '../ui/Button';
 import { AgentPanel } from '../AgentPanel/AgentPanel';
+import { useHasOpenModal } from '../ModalVisibility';
 import { cn } from '../../lib/utils';
 
 export const GlobalAgentLauncher: React.FC = () => {
   const { user } = useAuth();
   const { isAppFullscreen } = useAppFullscreen();
+  const hasOpenModal = useHasOpenModal();
   const location = useLocation();
   const [open, setOpen] = useState(false);
 
@@ -32,7 +34,7 @@ export const GlobalAgentLauncher: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open]);
 
-  if (!user || isAppFullscreen) {
+  if (!user || isAppFullscreen || hasOpenModal) {
     return null;
   }
 

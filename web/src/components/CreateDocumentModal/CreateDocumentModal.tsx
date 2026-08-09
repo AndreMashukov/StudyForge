@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { cn } from '../../lib/utils';
 import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
+import { useTrackOpenModal } from '../ModalVisibility';
 import { ICreateDocumentModalProps } from './ICreateDocumentModal';
 import { CreateDocumentModalProvider } from './CreateDocumentModalProvider';
 import { CreateDocumentModalContent } from './CreateDocumentModalContent';
@@ -25,6 +26,8 @@ export const CreateDocumentModal: React.FC<ICreateDocumentModalProps> = ({
   const sidebarIsOpen = useSelector(selectSidebarIsOpen);
   const { isAppFullscreen } = useAppFullscreen();
   const [isMobile, setIsMobile] = useState(false);
+
+  useTrackOpenModal(open);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
