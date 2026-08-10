@@ -31,6 +31,7 @@ import {
 } from '../../store/api/DirectoryChat';
 import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
+import { useTrackOpenModal } from '../ModalVisibility';
 import { IDirectoryChatPanel } from './IDirectoryChatPanel';
 import { DirectoryChatSourceSelector } from './DirectoryChatSourceSelector';
 
@@ -87,6 +88,8 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   const sidebarIsOpen = useSelector(selectSidebarIsOpen);
   const { isAppFullscreen } = useAppFullscreen();
   const [isMobile, setIsMobile] = useState(false);
+
+  useTrackOpenModal(isPageWide);
 
   useEffect(() => {
     const checkMobile = () => {
