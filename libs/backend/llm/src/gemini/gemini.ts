@@ -11,6 +11,9 @@ import {
   IFileContent,
   QuestionKnowledgeMetadata,
   resolveDocumentContentFormat,
+  DEFAULT_LLM_GENERATION_SETTINGS,
+  resolveLlmGenerationProfileSettings,
+  type LlmGenerationProfileId,
 } from '@shared-types';
 import { JsonSanitizer } from './json-sanitizer';
 import {
@@ -60,15 +63,34 @@ function resolveGeminiThinkingBudget(
   return options?.disableReasoning ? 0 : undefined;
 }
 
+/**
+ * Local fallback when callers do not pass a resolved runtime config.
+ * Prefer Admin-resolved values from LlmGenerationService; these seeds only
+ * apply for direct GeminiService calls that skip the profile merge layer.
+ */
+function profileSeedDefaults(profileId: LlmGenerationProfileId): Required<
+  Pick<
+    IGeminiRuntimeGenerationConfig,
+    'maxOutputTokens' | 'temperature' | 'topK' | 'topP'
+  >
+> {
+  const seed = resolveLlmGenerationProfileSettings(
+    DEFAULT_LLM_GENERATION_SETTINGS,
+    profileId,
+  );
+  return {
+    temperature: seed.temperature,
+    topK: seed.topK,
+    topP: seed.topP,
+    maxOutputTokens: seed.maxOutputTokens,
+  };
+}
+
 function buildGeminiGenerationConfig(
   options: IGeminiRuntimeGenerationConfig | undefined,
-  defaults: Required<
-    Pick<
-      IGeminiRuntimeGenerationConfig,
-      'maxOutputTokens' | 'temperature' | 'topK' | 'topP'
-    >
-  >,
+  profileId: LlmGenerationProfileId,
 ) {
+  const defaults = profileSeedDefaults(profileId);
   const thinkingBudget = resolveGeminiThinkingBudget(options);
 
   return {
@@ -178,12 +200,10 @@ export class GeminiService {
       const response = await client.models.generateContent({
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
-        config: buildGeminiGenerationConfig(runtimeConfig, {
-          temperature: 0.4,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 16384,
-        }),
+        config: buildGeminiGenerationConfig(
+          runtimeConfig,
+          'structuredArtifact',
+        ),
       });
 
       const text = response.text;
@@ -225,6 +245,7 @@ export class GeminiService {
   public static async generateDiagramQuiz(
     content: ScrapedContent,
     additionalPrompt?: string,
+    runtimeConfig?: IGeminiRuntimeGenerationConfig,
   ): Promise<GeminiDiagramQuizResponse> {
     try {
       functions.logger.info('Generating diagram quiz with Gemini AI...');
@@ -240,14 +261,12 @@ export class GeminiService {
       );
 
       const response = await client.models.generateContent({
-        model: GEMINI_PRO_MODEL,
+        model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
-        config: {
-          temperature: 0.4,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 16384,
-        },
+        config: buildGeminiGenerationConfig(
+          runtimeConfig,
+          'structuredArtifact',
+        ),
       });
 
       const text = response.text;
@@ -299,12 +318,10 @@ export class GeminiService {
       const response = await client.models.generateContent({
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
-        config: buildGeminiGenerationConfig(runtimeConfig, {
-          temperature: 0.4,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 16384,
-        }),
+        config: buildGeminiGenerationConfig(
+          runtimeConfig,
+          'structuredArtifact',
+        ),
       });
 
       const text = response.text;
@@ -351,12 +368,7 @@ export class GeminiService {
       const response = await client.models.generateContent({
         model: options?.model ?? GEMINI_PRO_MODEL,
         contents: fullPrompt,
-        config: buildGeminiGenerationConfig(options, {
-          temperature: 0.3,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
-        }),
+        config: buildGeminiGenerationConfig(options, 'deterministicUtility'),
       });
 
       const text = response.text;
@@ -418,12 +430,10 @@ ${markdownContent}
       const response = await client.models.generateContent({
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
-        config: buildGeminiGenerationConfig(runtimeConfig, {
-          temperature: 0.2,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 16384,
-        }),
+        config: buildGeminiGenerationConfig(
+          runtimeConfig,
+          'deterministicUtility',
+        ),
       });
 
       this.assertGeminiResponseCompleted(
@@ -498,12 +508,7 @@ ${markdownContent}
       const response = await client.models.generateContent({
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
-        config: buildGeminiGenerationConfig(runtimeConfig, {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 16384,
-        }),
+        config: buildGeminiGenerationConfig(runtimeConfig, 'longformContent'),
       });
 
       const text = response.text;
@@ -635,12 +640,7 @@ ${markdownContent}
           ],
         },
       ],
-      config: buildGeminiGenerationConfig(params.options, {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 16384,
-      }),
+      config: buildGeminiGenerationConfig(params.options, 'longformContent'),
     });
 
     const text = response.text;
@@ -683,12 +683,7 @@ ${markdownContent}
       const response = await client.models.generateContent({
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
-        config: buildGeminiGenerationConfig(runtimeConfig, {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
-        }),
+        config: buildGeminiGenerationConfig(runtimeConfig, 'explanatoryChat'),
       });
 
       const text = response.text;
@@ -812,12 +807,7 @@ This question is derived from: **${context.originalDocument.title}**
       const response = await client.models.generateContent({
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
-        config: buildGeminiGenerationConfig(runtimeConfig, {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
-        }),
+        config: buildGeminiGenerationConfig(runtimeConfig, 'explanatoryChat'),
       });
 
       const text = response.text;
@@ -864,12 +854,7 @@ This question is derived from: **${context.originalDocument.title}**
       const response = await client.models.generateContent({
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
-        config: buildGeminiGenerationConfig(runtimeConfig, {
-          temperature: 0.5,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 16384,
-        }),
+        config: buildGeminiGenerationConfig(runtimeConfig, 'faithfulEdit'),
       });
 
       this.assertGeminiResponseCompleted(response, 'document revision');
@@ -920,12 +905,7 @@ This question is derived from: **${context.originalDocument.title}**
       const response = await client.models.generateContent({
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
-        config: buildGeminiGenerationConfig(runtimeConfig, {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
-        }),
+        config: buildGeminiGenerationConfig(runtimeConfig, 'explanatoryChat'),
       });
 
       const text = response.text;
@@ -982,12 +962,7 @@ This question is derived from: **${context.originalDocument.title}**
       const response = await client.models.generateContent({
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
-        config: buildGeminiGenerationConfig(runtimeConfig, {
-          temperature: 0.5,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
-        }),
+        config: buildGeminiGenerationConfig(runtimeConfig, 'faithfulEdit'),
       });
 
       const text = response.text;
@@ -1875,12 +1850,7 @@ This question is derived from: **${context.originalDocument.title}**
       const response = await client.models.generateContent({
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
-        config: buildGeminiGenerationConfig(runtimeConfig, {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 16384,
-        }),
+        config: buildGeminiGenerationConfig(runtimeConfig, 'longformContent'),
       });
 
       const text = response.text;
@@ -1974,6 +1944,7 @@ This question is derived from: **${context.originalDocument.title}**
     slideTitle: string,
     slideContent: string,
     rules?: string,
+    runtimeConfig?: IGeminiRuntimeGenerationConfig,
   ): Promise<string | null> {
     try {
       const client = this.getClient();
@@ -1984,9 +1955,9 @@ This question is derived from: **${context.originalDocument.title}**
       );
 
       const response = await client.models.generateContent({
-        model: GEMINI_PRO_MODEL,
+        model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
-        config: { temperature: 0.7, topK: 40, topP: 0.95 },
+        config: buildGeminiGenerationConfig(runtimeConfig, 'longformContent'),
       });
 
       const text = response.text?.trim();

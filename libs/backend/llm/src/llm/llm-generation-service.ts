@@ -869,11 +869,20 @@ export class LlmGenerationService {
       imageResolution.route.providerType === 'minimax' &&
       !!imageResolution.providerApiKey;
 
+    const profile =
+      resolveLlmGenerationProfile('slideDeckText') ?? 'longformContent';
+    const briefConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+      { maxOutputTokens: 4096 },
+    );
+
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateSlideImageBrief(
         slideTitle,
         slideContent,
         rules,
+        toGeminiContentOptions(briefConfig),
       );
     }
 
@@ -885,8 +894,6 @@ export class LlmGenerationService {
         ? { maxOutputChars: MINIMAX_SLIDE_BRIEF_MAX_CHARS }
         : undefined,
     );
-    const profile =
-      resolveLlmGenerationProfile('slideDeckText') ?? 'longformContent';
     try {
       const text = await generateExternalProviderText(
         ctx,

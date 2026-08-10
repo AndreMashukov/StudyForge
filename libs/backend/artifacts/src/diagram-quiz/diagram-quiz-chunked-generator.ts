@@ -46,7 +46,11 @@ export async function generateDiagramQuizChunked(
 ): Promise<DiagramQuizGenerationResponse> {
   const ctx = await resolveTextRoute(userId, 'diagramQuiz', 'diagramQuiz');
   if (!ctx.usesExternalProvider) {
-    return generateDiagramQuizDirect(content, additionalPrompt);
+    return generateDiagramQuizDirect(
+      content,
+      additionalPrompt,
+      ctx.resolution.route.model,
+    );
   }
 
   const questionCount = DEFAULT_DIAGRAM_QUIZ_QUESTION_COUNT;
