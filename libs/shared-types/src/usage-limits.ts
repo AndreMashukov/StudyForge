@@ -1,14 +1,27 @@
 import type { GenerationKind } from './generation-kind-metadata';
 import { ALL_GENERATION_KINDS } from './generation-kind-metadata';
+import type { IUsagePayAsYouGoSummary } from './billing';
 
-export type UsageLimitEventType = 'reserve' | 'commit' | 'refund' | 'block';
+export type UsageLimitEventType =
+  | 'reserve'
+  | 'commit'
+  | 'refund'
+  | 'block'
+  | 'overage_reserve'
+  | 'overage_commit'
+  | 'overage_refund'
+  | 'billing_enabled'
+  | 'billing_disabled';
 
 export type UsageLimitErrorCode =
   | 'USER_GROUP_NOT_ASSIGNED'
   | 'USER_GROUP_NOT_FOUND'
   | 'USAGE_LIMITS_SETUP_NOT_FOUND'
   | 'FEATURE_DISABLED'
-  | 'INSUFFICIENT_CREDITS';
+  | 'INSUFFICIENT_CREDITS'
+  | 'PAY_AS_YOU_GO_DISABLED'
+  | 'PAYMENT_METHOD_REQUIRED'
+  | 'OVERAGE_CAP_EXCEEDED';
 
 export interface IUsageFeaturePolicy {
   enabled: boolean;
@@ -48,6 +61,10 @@ export interface IUsagePeriodSummary {
   spentCredits: number;
   refundedCredits: number;
   remainingCredits: number;
+  reservedOverageCredits?: number;
+  spentOverageCredits?: number;
+  overageAmountCents?: number;
+  invoicedOverageAmountCents?: number;
   resetAt: string;
   usageLimitsSetupId: string;
   usageLimitsSetupName?: string;
@@ -58,6 +75,8 @@ export interface IUsageFeatureAvailability {
   enabled: boolean;
   creditCost: number;
   affordable: boolean;
+  /** True when the action would draw from pay-as-you-go overage. */
+  usesOverage?: boolean;
 }
 
 export interface IUserUsageSummary {
@@ -67,10 +86,14 @@ export interface IUserUsageSummary {
   spentCredits: number;
   refundedCredits: number;
   remainingCredits: number;
+  reservedOverageCredits?: number;
+  spentOverageCredits?: number;
+  overageAmountCents?: number;
   resetAt: string;
   usageLimitsSetupId: string;
   usageLimitsSetupName?: string;
   featureAvailability: IUsageFeatureAvailability[];
+  payAsYouGo?: IUsagePayAsYouGoSummary;
 }
 
 export interface IUsageLimitEvent {
@@ -82,6 +105,9 @@ export interface IUsageLimitEvent {
   llmSetupId?: string;
   generationKind: GenerationKind;
   credits: number;
+  includedCredits?: number;
+  overageCredits?: number;
+  overageAmountCents?: number;
   periodKey: string;
   reservationId?: string;
   createdAt: string;

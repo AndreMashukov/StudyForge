@@ -190,6 +190,13 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      // Billing state — server-maintained; client read-only.
+      match /billing/{billingDocId} {
+        allow get: if isOwner(userId);
+        allow list: if false;
+        allow create, update, delete: if false;
+      }
+
       // Usage periods, reservations, and events — server-maintained only.
       match /usagePeriods/{periodKey} {
         allow read, write: if false;

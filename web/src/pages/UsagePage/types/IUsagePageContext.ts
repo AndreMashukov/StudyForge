@@ -1,4 +1,5 @@
 import type { IUserUsageSummary } from '@shared-types';
+import type { IUsagePageHandlers } from './IUsagePageHandlers';
 
 export interface IUsagePageData {
   data: IUserUsageSummary | undefined;
@@ -10,4 +11,5 @@ export interface IUsagePageData {
 
 export interface IUsagePageContext {
   usage: IUsagePageData;
+  handlers: IUsagePageHandlers;
 }
