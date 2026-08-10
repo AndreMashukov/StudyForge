@@ -40,7 +40,18 @@ export { LlmSetupRepository } from './llm-setup-repository';
 export {
   applyLlmGenerationDefaults,
   readLlmGenerationRuntimeSettings,
+  readLlmGenerationSettings,
+  resolveProfileRuntimeSettings,
+  type IApplyLlmGenerationDefaultsOptions,
 } from './llm-generation-settings-repository';
+export { resolveLlmGenerationProfile } from './llm-generation-profile-map';
+export {
+  buildRoutedTextConfig,
+  generateExternalProviderText,
+  resolveTextRoute,
+  type IExternalProviderTextOptions,
+  type TextRouteContext,
+} from './llm-text-runner';
 export { LlmRoutingError, isLlmRoutingError } from './llm-routing-error';
 export {
   decryptLlmSecret,

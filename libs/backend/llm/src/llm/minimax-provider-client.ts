@@ -1,4 +1,5 @@
 import type { IMiniMaxProviderConnection } from '@shared-types';
+import { DEFAULT_LLM_GENERATION_SETTINGS } from '@shared-types';
 import type { LlmProviderClient } from './llm-provider-client';
 import { fitMiniMaxImagePrompt } from './llm-image-prompt-utils';
 import { stripRedactedThinking } from './llm-response-text-utils';
@@ -51,7 +52,8 @@ export class MiniMaxProviderClient implements LlmProviderClient {
     const body = JSON.stringify({
       model: request.config.model,
       messages: [{ role: 'user', content: request.prompt }],
-      temperature: request.config.temperature ?? 0.7,
+      temperature:
+        request.config.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
       top_p: request.config.topP,
       max_tokens: request.config.maxOutputTokens ?? 16384,
       reasoning_split: true,
@@ -115,7 +117,8 @@ export class MiniMaxProviderClient implements LlmProviderClient {
           ],
         },
       ],
-      temperature: request.config.temperature ?? 0.7,
+      temperature:
+        request.config.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
       top_p: request.config.topP,
       max_tokens: request.config.maxOutputTokens ?? 16384,
       reasoning_split: true,

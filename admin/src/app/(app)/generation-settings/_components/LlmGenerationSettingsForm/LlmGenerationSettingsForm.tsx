@@ -1,10 +1,10 @@
 'use client';
 
-import type { ILlmGenerationSettings } from '@shared-types';
+import type { ILlmGenerationSettings, LlmGenerationProfileId } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useForm, type Control } from 'react-hook-form';
+import { useForm, type Control, type FieldPath } from 'react-hook-form';
 import {
   isAdminUnauthorizedResponse,
   redirectToAdminLogin,
@@ -31,6 +31,7 @@ import {
 import { Input } from '@admin/components/ui/Input';
 import {
   getLlmGenerationSettingsDefaultValues,
+  LLM_GENERATION_PROFILE_METADATA,
   llmGenerationSettingsFormSchema,
   normalizeLlmGenerationSettingsSubmitPayload,
   type ILlmGenerationSettingsFormValues,
@@ -46,7 +47,7 @@ interface ISaveLlmGenerationSettingsResponse {
   settings: ILlmGenerationSettings;
 }
 
-type NumericFieldName =
+type GlobalNumericFieldName =
   | 'requestTimeoutMs'
   | 'maxOutputTokens'
   | 'temperature'
@@ -54,8 +55,15 @@ type NumericFieldName =
   | 'topP'
   | 'thinkingBudget';
 
-interface INumericFieldConfig {
-  name: NumericFieldName;
+type ProfileNumericFieldName =
+  | 'maxOutputTokens'
+  | 'temperature'
+  | 'topK'
+  | 'topP'
+  | 'thinkingBudget';
+
+interface INumericFieldConfig<TName extends string> {
+  name: TName;
   label: string;
   description: string;
   min: number;
@@ -65,7 +73,8 @@ interface INumericFieldConfig {
 
 interface INumericSettingFieldProps {
   control: Control<ILlmGenerationSettingsFormValues>;
-  field: INumericFieldConfig;
+  field: INumericFieldConfig<string>;
+  name: FieldPath<ILlmGenerationSettingsFormValues>;
 }
 
 export interface ILlmGenerationSettingsFormProps {
@@ -113,11 +122,15 @@ function getRouteErrorMessage(payload: unknown): string {
   return 'Failed to save LLM generation settings.';
 }
 
-function NumericSettingField({ control, field }: INumericSettingFieldProps) {
+function NumericSettingField({
+  control,
+  field,
+  name,
+}: INumericSettingFieldProps) {
   return (
     <FormField
       control={control}
-      name={field.name}
+      name={name}
       render={({ field: controllerField }) => (
         <FormItem>
           <FormLabel>{field.label}</FormLabel>
@@ -151,7 +164,7 @@ function NumericSettingField({ control, field }: INumericSettingFieldProps) {
   );
 }
 
-const requestFields: INumericFieldConfig[] = [
+const requestFields: INumericFieldConfig<GlobalNumericFieldName>[] = [
   {
     name: 'requestTimeoutMs',
     label: 'Provider request timeout (ms)',
@@ -172,7 +185,7 @@ const requestFields: INumericFieldConfig[] = [
   },
 ];
 
-const samplingFields: INumericFieldConfig[] = [
+const profileSamplingFields: INumericFieldConfig<ProfileNumericFieldName>[] = [
   {
     name: 'temperature',
     label: 'Temperature',
@@ -200,7 +213,44 @@ const samplingFields: INumericFieldConfig[] = [
   },
 ];
 
-const reasoningFields: INumericFieldConfig[] = [
+const globalSamplingFields: INumericFieldConfig<GlobalNumericFieldName>[] = [
+  {
+    name: 'temperature',
+    label: 'Temperature',
+    description:
+      'Lower values are more deterministic; higher values are more varied.',
+    min: 0,
+    max: 2,
+    step: 0.05,
+  },
+  {
+    name: 'topK',
+    label: 'Top K',
+    description: 'Limits sampling to the most likely tokens when supported.',
+    min: 1,
+    max: 100,
+    step: 1,
+  },
+  {
+    name: 'topP',
+    label: 'Top P',
+    description: 'Nucleus sampling probability mass when supported.',
+    min: 0,
+    max: 1,
+    step: 0.01,
+  },
+];
+
+const profileOutputField: INumericFieldConfig<ProfileNumericFieldName> = {
+  name: 'maxOutputTokens',
+  label: 'Max output tokens',
+  description: 'Completion budget for flows that use this profile.',
+  min: 1,
+  max: 65_536,
+  step: 1,
+};
+
+const profileReasoningFields: INumericFieldConfig<ProfileNumericFieldName>[] = [
   {
     name: 'thinkingBudget',
     label: 'Thinking budget',
@@ -211,6 +261,98 @@ const reasoningFields: INumericFieldConfig[] = [
     step: 1,
   },
 ];
+
+const globalReasoningFields: INumericFieldConfig<GlobalNumericFieldName>[] = [
+  {
+    name: 'thinkingBudget',
+    label: 'Thinking budget',
+    description:
+      'Optional Gemini thinking token budget. Leave blank to use provider/model defaults unless reasoning is disabled.',
+    min: 0,
+    max: 65_536,
+    step: 1,
+  },
+];
+
+function ProfileSettingsSection({
+  control,
+  profileId,
+}: {
+  control: Control<ILlmGenerationSettingsFormValues>;
+  profileId: LlmGenerationProfileId;
+}) {
+  const metadata = LLM_GENERATION_PROFILE_METADATA.find(
+    (entry) => entry.id === profileId,
+  );
+
+  if (!metadata) {
+    return null;
+  }
+
+  return (
+    <section className="space-y-4 rounded-lg border border-border p-4">
+      <div>
+        <h3 className="text-sm font-medium">{metadata.label}</h3>
+        <p className="text-sm text-muted-foreground">{metadata.description}</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Used by: {metadata.flows.join(', ')}
+        </p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <NumericSettingField
+          control={control}
+          field={profileOutputField}
+          name={`profiles.${profileId}.maxOutputTokens`}
+        />
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-3">
+        {profileSamplingFields.map((field) => (
+          <NumericSettingField
+            key={field.name}
+            control={control}
+            field={field}
+            name={`profiles.${profileId}.${field.name}`}
+          />
+        ))}
+      </div>
+
+      <FormField
+        control={control}
+        name={`profiles.${profileId}.disableReasoning`}
+        render={({ field }) => (
+          <FormItem>
+            <div className="flex items-center gap-2">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onBlur={field.onBlur}
+                  onChange={(event) => field.onChange(event.target.checked)}
+                />
+              </FormControl>
+              <FormLabel className="text-sm font-normal">
+                Disable reasoning for this profile
+              </FormLabel>
+            </div>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {profileReasoningFields.map((field) => (
+          <NumericSettingField
+            key={field.name}
+            control={control}
+            field={field}
+            name={`profiles.${profileId}.${field.name}`}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export function LlmGenerationSettingsForm({
   settings,
@@ -267,8 +409,9 @@ export function LlmGenerationSettingsForm({
       <CardHeader>
         <CardTitle className="text-xl">Global LLM runtime settings</CardTitle>
         <CardDescription>
-          Configure platform-wide defaults for provider calls. Generation flows
-          with explicit safety-tuned values can still override these defaults.
+          Configure platform-wide defaults and named sampling profiles. Flows
+          select a profile in code; only safety-tuned micro-budgets stay
+          hardcoded.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -276,10 +419,10 @@ export function LlmGenerationSettingsForm({
           <form className="space-y-8" onSubmit={handleSubmit}>
             <section className="space-y-4">
               <div>
-                <h3 className="text-sm font-medium">Request limits</h3>
+                <h3 className="text-sm font-medium">Global defaults</h3>
                 <p className="text-sm text-muted-foreground">
-                  These values affect runtime provider requests, not deployed
-                  Firebase function deadlines.
+                  Base values inherited by every profile unless a profile
+                  overrides them.
                 </p>
               </div>
               <div className="grid gap-6 md:grid-cols-2">
@@ -288,37 +431,19 @@ export function LlmGenerationSettingsForm({
                     key={field.name}
                     control={form.control}
                     field={field}
+                    name={field.name}
                   />
                 ))}
               </div>
-            </section>
-
-            <section className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium">Sampling defaults</h3>
-                <p className="text-sm text-muted-foreground">
-                  Used when a generation path does not provide a more specific
-                  sampling configuration.
-                </p>
-              </div>
               <div className="grid gap-6 md:grid-cols-3">
-                {samplingFields.map((field) => (
+                {globalSamplingFields.map((field) => (
                   <NumericSettingField
                     key={field.name}
                     control={form.control}
                     field={field}
+                    name={field.name}
                   />
                 ))}
-              </div>
-            </section>
-
-            <section className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium">Reasoning defaults</h3>
-                <p className="text-sm text-muted-foreground">
-                  Reasoning controls map to provider-specific thinking options
-                  when supported.
-                </p>
               </div>
               <FormField
                 control={form.control}
@@ -344,11 +469,30 @@ export function LlmGenerationSettingsForm({
                 )}
               />
               <div className="grid gap-6 md:grid-cols-2">
-                {reasoningFields.map((field) => (
+                {globalReasoningFields.map((field) => (
                   <NumericSettingField
                     key={field.name}
                     control={form.control}
                     field={field}
+                    name={field.name}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium">Named profiles</h3>
+                <p className="text-sm text-muted-foreground">
+                  Generation flows pick one of these profiles at runtime.
+                </p>
+              </div>
+              <div className="space-y-6">
+                {LLM_GENERATION_PROFILE_METADATA.map((profile) => (
+                  <ProfileSettingsSection
+                    key={profile.id}
+                    control={form.control}
+                    profileId={profile.id}
                   />
                 ))}
               </div>

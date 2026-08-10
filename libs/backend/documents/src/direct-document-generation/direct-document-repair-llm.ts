@@ -41,11 +41,7 @@ ${buildSealedHtmlOutputContract()}`;
     {
       logLabel: `direct-document-${params.generationKind}-repair`,
       successLogMessage: 'Direct-with-repair HTML fragment repaired',
-      temperature: 0.4,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 16384,
-      disableReasoning: true,
+      profile: 'structuredArtifact',
     }
   );
 

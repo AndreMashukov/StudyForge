@@ -67,6 +67,7 @@ export interface IGenerateTextOptions {
    */
   disableReasoning?: boolean;
   thinkingBudget?: number;
+  profile?: import('@shared-types').LlmGenerationProfileId;
 }
 
 export type LlmVisionDetail = 'auto' | 'low' | 'high';

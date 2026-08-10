@@ -2,12 +2,17 @@ import 'server-only';
 
 import * as admin from 'firebase-admin';
 import type {
+  ILlmGenerationProfileOverrides,
+  ILlmGenerationProfiles,
   ILlmGenerationRuntimeSettings,
   ILlmGenerationSettings,
+  LlmGenerationProfileId,
 } from '@shared-types';
 import {
   DEFAULT_LLM_GENERATION_SETTINGS,
+  LLM_GENERATION_PROFILE_IDS,
   LLM_GENERATION_SETTINGS_LIMITS,
+  resolveLlmGenerationProfileSettings,
 } from '@shared-types';
 import { getAdminFirestore } from '../firebase/admin';
 import { toIsoString } from './firestore-iso';
@@ -64,6 +69,91 @@ function getNumericValue(
   }
 
   return value;
+}
+
+function parseProfileOverrides(
+  data: unknown,
+): ILlmGenerationProfileOverrides | undefined {
+  if (!isRecord(data)) {
+    return undefined;
+  }
+
+  const overrides: ILlmGenerationProfileOverrides = {};
+
+  const maxOutputTokens = getNumericValue(
+    data,
+    'maxOutputTokens',
+    undefined,
+    LLM_GENERATION_SETTINGS_LIMITS.maxOutputTokens,
+    { integer: true },
+  );
+  if (maxOutputTokens !== undefined) {
+    overrides.maxOutputTokens = maxOutputTokens;
+  }
+
+  const temperature = getNumericValue(
+    data,
+    'temperature',
+    undefined,
+    LLM_GENERATION_SETTINGS_LIMITS.temperature,
+  );
+  if (temperature !== undefined) {
+    overrides.temperature = temperature;
+  }
+
+  const topK = getNumericValue(
+    data,
+    'topK',
+    undefined,
+    LLM_GENERATION_SETTINGS_LIMITS.topK,
+    { integer: true },
+  );
+  if (topK !== undefined) {
+    overrides.topK = topK;
+  }
+
+  const topP = getNumericValue(
+    data,
+    'topP',
+    undefined,
+    LLM_GENERATION_SETTINGS_LIMITS.topP,
+  );
+  if (topP !== undefined) {
+    overrides.topP = topP;
+  }
+
+  if (typeof data.disableReasoning === 'boolean') {
+    overrides.disableReasoning = data.disableReasoning;
+  }
+
+  const thinkingBudget = getNumericValue(
+    data,
+    'thinkingBudget',
+    undefined,
+    LLM_GENERATION_SETTINGS_LIMITS.thinkingBudget,
+    { integer: true },
+  );
+  if (thinkingBudget !== undefined) {
+    overrides.thinkingBudget = thinkingBudget;
+  }
+
+  return Object.keys(overrides).length > 0 ? overrides : undefined;
+}
+
+function parseStoredProfiles(data: unknown): ILlmGenerationProfiles | undefined {
+  if (!isRecord(data) || !isRecord(data.profiles)) {
+    return undefined;
+  }
+
+  const profiles: ILlmGenerationProfiles = {};
+  for (const profileId of LLM_GENERATION_PROFILE_IDS) {
+    const parsed = parseProfileOverrides(data.profiles[profileId]);
+    if (parsed) {
+      profiles[profileId] = parsed;
+    }
+  }
+
+  return Object.keys(profiles).length > 0 ? profiles : undefined;
 }
 
 function parseStoredSettings(
@@ -126,8 +216,11 @@ function parseStoredSettings(
     runtimeSettings.thinkingBudget = thinkingBudget;
   }
 
+  const profiles = parseStoredProfiles(data);
+
   return {
     ...runtimeSettings,
+    ...(profiles ? { profiles } : {}),
     updatedAt: toIsoString(data.updatedAt),
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
   };
@@ -242,6 +335,119 @@ function normalizeRuntimeSettings(
   return settings;
 }
 
+function normalizeProfileOverrides(
+  input: unknown,
+  profileId: LlmGenerationProfileId,
+  current: ILlmGenerationSettings,
+): ILlmGenerationProfileOverrides {
+  if (!isRecord(input)) {
+    throw new Error(`Profile "${profileId}" must be an object.`);
+  }
+
+  const currentEffective = resolveLlmGenerationProfileSettings(
+    current,
+    profileId,
+    current.profiles,
+  );
+
+  const disableReasoning =
+    input.disableReasoning === undefined
+      ? currentEffective.disableReasoning
+      : input.disableReasoning;
+  if (typeof disableReasoning !== 'boolean') {
+    throw new Error(`Profile "${profileId}" disableReasoning must be a boolean.`);
+  }
+
+  const overrides: ILlmGenerationProfileOverrides = {
+    maxOutputTokens:
+      normalizeNumericSetting(
+        input,
+        'maxOutputTokens',
+        currentEffective.maxOutputTokens,
+        LLM_GENERATION_SETTINGS_LIMITS.maxOutputTokens,
+        { integer: true },
+      ) ?? currentEffective.maxOutputTokens,
+    temperature:
+      normalizeNumericSetting(
+        input,
+        'temperature',
+        currentEffective.temperature,
+        LLM_GENERATION_SETTINGS_LIMITS.temperature,
+      ) ?? currentEffective.temperature,
+    topK:
+      normalizeNumericSetting(
+        input,
+        'topK',
+        currentEffective.topK,
+        LLM_GENERATION_SETTINGS_LIMITS.topK,
+        { integer: true },
+      ) ?? currentEffective.topK,
+    topP:
+      normalizeNumericSetting(
+        input,
+        'topP',
+        currentEffective.topP,
+        LLM_GENERATION_SETTINGS_LIMITS.topP,
+      ) ?? currentEffective.topP,
+    disableReasoning,
+  };
+
+  const thinkingBudget =
+    input.thinkingBudget === null
+      ? undefined
+      : normalizeNumericSetting(
+          input,
+          'thinkingBudget',
+          currentEffective.thinkingBudget,
+          LLM_GENERATION_SETTINGS_LIMITS.thinkingBudget,
+          { integer: true },
+        );
+  if (thinkingBudget !== undefined) {
+    overrides.thinkingBudget = thinkingBudget;
+  }
+
+  return overrides;
+}
+
+function normalizeProfilesInput(
+  input: unknown,
+  current: ILlmGenerationSettings,
+): ILlmGenerationProfiles | undefined {
+  if (input === undefined) {
+    return current.profiles;
+  }
+
+  if (!isRecord(input)) {
+    throw new Error('profiles must be an object.');
+  }
+
+  const profiles: ILlmGenerationProfiles = {};
+  for (const profileId of LLM_GENERATION_PROFILE_IDS) {
+    if (input[profileId] !== undefined) {
+      profiles[profileId] = normalizeProfileOverrides(
+        input[profileId],
+        profileId,
+        current,
+      );
+    } else if (current.profiles?.[profileId]) {
+      profiles[profileId] = current.profiles[profileId];
+    }
+  }
+
+  return Object.keys(profiles).length > 0 ? profiles : undefined;
+}
+
+export function getEffectiveLlmGenerationProfileSettings(
+  settings: ILlmGenerationSettings,
+  profileId: LlmGenerationProfileId,
+): ILlmGenerationRuntimeSettings {
+  return resolveLlmGenerationProfileSettings(
+    settings,
+    profileId,
+    settings.profiles,
+  );
+}
+
 export async function readLlmGenerationSettings(): Promise<ILlmGenerationSettings> {
   const snapshot = await getSettingsRef().get();
 
@@ -268,6 +474,7 @@ export async function updateLlmGenerationSettings(
         ? parseStoredSettings(snapshot.data() ?? {})
         : { ...DEFAULT_LLM_GENERATION_SETTINGS };
       const nextSettings = normalizeRuntimeSettings(input, current);
+      const nextProfiles = normalizeProfilesInput(input.profiles, current);
       const document: FirebaseFirestore.DocumentData = {
         ...nextSettings,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -278,8 +485,17 @@ export async function updateLlmGenerationSettings(
         document.thinkingBudget = admin.firestore.FieldValue.delete();
       }
 
+      if (nextProfiles) {
+        document.profiles = nextProfiles;
+      } else {
+        document.profiles = admin.firestore.FieldValue.delete();
+      }
+
       transaction.set(settingsRef, document, { merge: true });
-      return nextSettings;
+      return {
+        ...nextSettings,
+        ...(nextProfiles ? { profiles: nextProfiles } : {}),
+      };
     },
   );
 

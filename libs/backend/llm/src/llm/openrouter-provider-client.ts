@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_GENERATION_SETTINGS } from '@shared-types';
 import type { LlmProviderClient } from './llm-provider-client';
 import type {
   LlmImageRequest,
@@ -41,7 +42,8 @@ export class OpenRouterProviderClient implements LlmProviderClient {
     const body = JSON.stringify({
       model: request.config.model,
       messages: [{ role: 'user', content: request.prompt }],
-      temperature: request.config.temperature ?? 0.7,
+      temperature:
+        request.config.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
       top_p: request.config.topP,
       max_tokens: request.config.maxOutputTokens ?? 16384,
       ...(request.config.disableReasoning
@@ -103,7 +105,8 @@ export class OpenRouterProviderClient implements LlmProviderClient {
           ],
         },
       ],
-      temperature: request.config.temperature ?? 0.7,
+      temperature:
+        request.config.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
       top_p: request.config.topP,
       max_tokens: request.config.maxOutputTokens ?? 16384,
     });

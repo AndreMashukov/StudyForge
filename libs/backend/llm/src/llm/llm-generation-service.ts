@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import type {
+  LlmGenerationProfileId,
   ScrapedContent,
   IFileContent,
   IGenerationModelUsage,
@@ -60,6 +61,7 @@ import {
   type TextRouteContext,
 } from './llm-text-runner';
 import { applyLlmGenerationDefaults } from './llm-generation-settings-repository';
+import { resolveLlmGenerationProfile } from './llm-generation-profile-map';
 import { normalizeScreenshotImage } from './screenshot-image-utils';
 import { parseSlideDeckOutlineJson } from './llm-slide-outline-parser';
 import type { IParsedFlashcardItem } from './flashcard-response-parser';
@@ -92,6 +94,14 @@ function toGeminiContentOptions(config: LlmTextConfig): {
     disableReasoning: config.disableReasoning,
     thinkingBudget: config.thinkingBudget,
   };
+}
+
+async function buildGenerationConfig(
+  model: string,
+  profile: LlmGenerationProfileId | undefined,
+  overrides?: Partial<LlmTextConfig>,
+): Promise<LlmTextConfig> {
+  return applyLlmGenerationDefaults({ model, ...overrides }, { profile });
 }
 
 export interface GenerateFlashcardsResult {
@@ -279,16 +289,22 @@ export class LlmGenerationService {
     const logLabel = options?.logLabel ?? capability;
     const ctx = await resolveTextRoute(userId, capability, logLabel);
 
-    const generationConfig = await applyLlmGenerationDefaults({
-      model: ctx.resolution.route.model,
-      requestTimeoutMs: options?.requestTimeoutMs,
-      temperature: options?.temperature,
-      topK: options?.topK,
-      topP: options?.topP,
-      maxOutputTokens: options?.maxOutputTokens,
-      disableReasoning: options?.disableReasoning,
-      thinkingBudget: options?.thinkingBudget,
-    });
+    const profile =
+      options?.profile ?? resolveLlmGenerationProfile(capability);
+
+    const generationConfig = await applyLlmGenerationDefaults(
+      {
+        model: ctx.resolution.route.model,
+        requestTimeoutMs: options?.requestTimeoutMs,
+        temperature: options?.temperature,
+        topK: options?.topK,
+        topP: options?.topP,
+        maxOutputTokens: options?.maxOutputTokens,
+        disableReasoning: options?.disableReasoning,
+        thinkingBudget: options?.thinkingBudget,
+      },
+      { profile },
+    );
 
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateContent(
@@ -313,8 +329,18 @@ export class LlmGenerationService {
     capability: LlmCapability = 'quiz',
   ): Promise<GeminiQuizResponse> {
     const ctx = await resolveTextRoute(userId, capability, 'quiz');
+    const profile = resolveLlmGenerationProfile(capability) ?? 'structuredArtifact';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+    );
+
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateQuiz(content, additionalPrompt);
+      return GeminiService.generateQuiz(
+        content,
+        additionalPrompt,
+        toGeminiContentOptions(runtimeConfig),
+      );
     }
 
     const randomAnswers = QuizPromptBuilder.generateRandomCorrectAnswers(30);
@@ -326,14 +352,9 @@ export class LlmGenerationService {
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        temperature: 0.4,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 16384,
-      },
+      { model: ctx.resolution.route.model },
       'Quiz generated via OpenRouter',
+      { profile },
     );
     return parseQuizJson(text);
   }
@@ -361,8 +382,18 @@ export class LlmGenerationService {
     additionalPrompt?: string,
   ): Promise<GeminiSequenceQuizResponse> {
     const ctx = await resolveTextRoute(userId, 'sequenceQuiz', 'sequenceQuiz');
+    const profile = resolveLlmGenerationProfile('sequenceQuiz') ?? 'structuredArtifact';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+    );
+
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateSequenceQuiz(content, additionalPrompt);
+      return GeminiService.generateSequenceQuiz(
+        content,
+        additionalPrompt,
+        toGeminiContentOptions(runtimeConfig),
+      );
     }
 
     const prompt = SequenceQuizPromptBuilder.buildSequenceQuizPrompt(
@@ -372,14 +403,9 @@ export class LlmGenerationService {
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        temperature: 0.4,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 16384,
-      },
+      { model: ctx.resolution.route.model },
       'Sequence quiz generated via OpenRouter',
+      { profile },
     );
     return GeminiService.parseSequenceQuizResponseFromText(text);
   }
@@ -495,8 +521,19 @@ export class LlmGenerationService {
       capability,
       'documentFromPrompt',
     );
+    const profile = resolveLlmGenerationProfile(capability) ?? 'longformContent';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+    );
+
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateDocumentFromPrompt(userPrompt, files, rules);
+      return GeminiService.generateDocumentFromPrompt(
+        userPrompt,
+        files,
+        rules,
+        toGeminiContentOptions(runtimeConfig),
+      );
     }
 
     if (files && files.length > 0) {
@@ -515,14 +552,9 @@ export class LlmGenerationService {
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        temperature: 0.7,
-        topP: 0.95,
-        maxOutputTokens: 16384,
-        disableReasoning: true,
-      },
+      { model: ctx.resolution.route.model },
       'Document generated via OpenRouter',
+      { profile },
     );
 
     return GeminiService.sanitizeDocumentResponse(stripCodeFences(text));
@@ -541,11 +573,10 @@ export class LlmGenerationService {
       },
     );
     const { route, providerApiKey } = visionResolution;
-    const config = await applyLlmGenerationDefaults({
-      model: route.model,
-      temperature: 0.7,
-      topK: 40,
-      topP: 0.95,
+    const profile =
+      resolveLlmGenerationProfile('documentFromScreenshot') ??
+      'longformContent';
+    const config = await buildGenerationConfig(route.model, profile, {
       maxOutputTokens: 32768,
     });
 
@@ -601,11 +632,10 @@ export class LlmGenerationService {
       },
     );
     const { route, providerApiKey } = visionResolution;
-    const config = await applyLlmGenerationDefaults({
-      model: route.model,
-      temperature: 0.7,
-      topK: 40,
-      topP: 0.95,
+    const profile =
+      resolveLlmGenerationProfile('documentFromScreenshot') ??
+      'longformContent';
+    const config = await buildGenerationConfig(route.model, profile, {
       maxOutputTokens: 32768,
     });
 
@@ -649,22 +679,27 @@ export class LlmGenerationService {
     context: QuizFollowupContext,
   ): Promise<string> {
     const ctx = await resolveTextRoute(userId, 'quizFollowup', 'quizFollowup');
+    const profile =
+      resolveLlmGenerationProfile('quizFollowup') ?? 'explanatoryChat';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+    );
+
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateQuizFollowup(context);
+      return GeminiService.generateQuizFollowup(
+        context,
+        toGeminiContentOptions(runtimeConfig),
+      );
     }
 
     const prompt = FollowupPromptBuilder.buildFollowupPrompt(context);
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-      },
+      { model: ctx.resolution.route.model },
       'Quiz followup generated via OpenRouter',
+      { profile },
     );
     return GeminiService.sanitizeMarkdownResponse(text);
   }
@@ -678,22 +713,27 @@ export class LlmGenerationService {
       'documentQuestion',
       'documentQuestion',
     );
+    const profile =
+      resolveLlmGenerationProfile('documentQuestion') ?? 'explanatoryChat';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+    );
+
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateDocumentQuestionAnswer(context);
+      return GeminiService.generateDocumentQuestionAnswer(
+        context,
+        toGeminiContentOptions(runtimeConfig),
+      );
     }
 
     const prompt = DocumentQuestionPromptBuilder.buildPrompt(context);
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-      },
+      { model: ctx.resolution.route.model },
       'Document question answer generated via OpenRouter',
+      { profile },
     );
     return GeminiService.sanitizeMarkdownResponse(text);
   }
@@ -707,22 +747,27 @@ export class LlmGenerationService {
       'documentRevise',
       'documentRevise',
     );
+    const profile =
+      resolveLlmGenerationProfile('documentRevise') ?? 'faithfulEdit';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+    );
+
     if (!ctx.usesExternalProvider) {
-      return GeminiService.reviseDocument(context);
+      return GeminiService.reviseDocument(
+        context,
+        toGeminiContentOptions(runtimeConfig),
+      );
     }
 
     const prompt = DocumentRevisePromptBuilder.buildPrompt(context);
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        temperature: 0.5,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 16384,
-      },
+      { model: ctx.resolution.route.model },
       'Document revision generated via OpenRouter',
+      { profile },
     );
     return resolveDocumentContentFormat(context.contentFormat) === 'html'
       ? GeminiService.sanitizeHtmlRevisionResponse(text)
@@ -738,22 +783,27 @@ export class LlmGenerationService {
       'directoryChat',
       'directoryChat',
     );
+    const profile =
+      resolveLlmGenerationProfile('directoryChat') ?? 'explanatoryChat';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+    );
+
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateDirectoryChatAnswer(context);
+      return GeminiService.generateDirectoryChatAnswer(
+        context,
+        toGeminiContentOptions(runtimeConfig),
+      );
     }
 
     const prompt = DirectoryChatPromptBuilder.buildPrompt(context);
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-      },
+      { model: ctx.resolution.route.model },
       'Directory chat answer generated via OpenRouter',
+      { profile },
     );
     return GeminiService.sanitizeMarkdownResponse(text);
   }
@@ -769,11 +819,19 @@ export class LlmGenerationService {
       'slideDeckText',
       'slideDeckText',
     );
+    const profile =
+      resolveLlmGenerationProfile('slideDeckText') ?? 'longformContent';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+    );
+
     if (!ctx.usesExternalProvider) {
       return GeminiService.generateSlideDeckOutline(
         content,
         additionalPrompt,
         rules,
+        toGeminiContentOptions(runtimeConfig),
       );
     }
 
@@ -785,14 +843,9 @@ export class LlmGenerationService {
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 16384,
-      },
+      { model: ctx.resolution.route.model },
       'Slide deck outline generated via external provider',
+      { profile },
     );
     return parseSlideDeckOutlineJson(text);
   }
@@ -832,18 +885,15 @@ export class LlmGenerationService {
         ? { maxOutputChars: MINIMAX_SLIDE_BRIEF_MAX_CHARS }
         : undefined,
     );
+    const profile =
+      resolveLlmGenerationProfile('slideDeckText') ?? 'longformContent';
     try {
       const text = await generateExternalProviderText(
         ctx,
         prompt,
-        {
-          model: ctx.resolution.route.model,
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 4096,
-        },
+        { model: ctx.resolution.route.model, maxOutputTokens: 4096 },
         'Slide image brief generated via external provider',
+        { profile },
       );
       const brief = text.trim();
       if (!brief) {
@@ -975,11 +1025,21 @@ export class LlmGenerationService {
       'sourceDocumentEnhancement',
       'sourceDocumentEnhancement',
     );
+    const profile =
+      resolveLlmGenerationProfile('sourceDocumentEnhancement') ??
+      'deterministicUtility';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+      { maxOutputTokens: 16384 },
+    );
+
     if (!ctx.usesExternalProvider) {
       return GeminiService.enhanceExtractedDocument(
         markdownContent,
         sourceFilename,
         rules,
+        toGeminiContentOptions(runtimeConfig),
       );
     }
 
@@ -1008,14 +1068,9 @@ ${markdownContent}
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        temperature: 0.2,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 16384,
-      },
+      { model: ctx.resolution.route.model, maxOutputTokens: 16384 },
       'Extracted document enhanced via OpenRouter',
+      { profile },
     );
 
     return GeminiService.sanitizeDocumentResponse(stripCodeFences(text));
@@ -1035,8 +1090,19 @@ ${markdownContent}
       'ruleGeneration',
       'ruleGeneration',
     );
+    const profile =
+      resolveLlmGenerationProfile('ruleGeneration') ?? 'faithfulEdit';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+      { maxOutputTokens: 8192 },
+    );
+
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateRule(params);
+      return GeminiService.generateRule(
+        params,
+        toGeminiContentOptions(runtimeConfig),
+      );
     }
 
     const prompt = params.existingContent
@@ -1054,14 +1120,9 @@ ${markdownContent}
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        temperature: 0.5,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-      },
+      { model: ctx.resolution.route.model, maxOutputTokens: 8192 },
       'Rule generated via OpenRouter',
+      { profile },
     );
 
     return parseRuleResponse(text);
@@ -1076,22 +1137,29 @@ ${markdownContent}
       'sourceDocumentEnhancement',
       'scrapedContentMarkdown',
     );
+    const profile =
+      resolveLlmGenerationProfile('sourceDocumentEnhancement') ??
+      'deterministicUtility';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+      { temperature: 0.3 },
+    );
+
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateContent(prompt);
+      return GeminiService.generateContent(
+        prompt,
+        toGeminiContentOptions(runtimeConfig),
+      );
     }
 
     const fullPrompt = QuizPromptBuilder.buildContentPrompt(prompt);
     const text = await generateExternalProviderText(
       ctx,
       fullPrompt,
-      {
-        model: ctx.resolution.route.model,
-        temperature: 0.3,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-      },
+      { model: ctx.resolution.route.model, temperature: 0.3 },
       'Scraped content markdown generated via OpenRouter',
+      { profile },
     );
     return text.trim();
   }
@@ -1127,8 +1195,19 @@ Use the same neutral palette across all four options (never green/red answer hin
 
 Return ONLY the corrected Mermaid source with no markdown fences or commentary.`;
 
+    const profile =
+      resolveLlmGenerationProfile('diagramQuizAgent') ?? 'deterministicUtility';
+    const repairConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+      { maxOutputTokens: 2048, topK: 20, topP: 0.9 },
+    );
+
     if (!ctx.usesExternalProvider) {
-      const text = await GeminiService.generateContent(prompt);
+      const text = await GeminiService.generateContent(
+        prompt,
+        toGeminiContentOptions(repairConfig),
+      );
       return stripCodeFences(text);
     }
 
@@ -1137,12 +1216,12 @@ Return ONLY the corrected Mermaid source with no markdown fences or commentary.`
       prompt,
       {
         model: ctx.resolution.route.model,
-        temperature: 0.2,
+        maxOutputTokens: 2048,
         topK: 20,
         topP: 0.9,
-        maxOutputTokens: 2048,
       },
       'Diagram quiz repair via OpenRouter',
+      { profile },
     );
     return stripCodeFences(text);
   }
@@ -1185,8 +1264,19 @@ Pass when marked correct diagrams are supported by the source and distractors ar
 Flag as "revise" or "blocker" when diagrams use semantic green/red/blue answer hints or uneven styling that makes the correct option guessable (not when they share a neutral palette with emojis).
 Use "revise" for fixable pedagogical issues and "fail" only for severe factual errors.`;
 
+    const profile =
+      resolveLlmGenerationProfile('diagramQuizAgent') ?? 'deterministicUtility';
+    const criticConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+      { maxOutputTokens: 4096, topK: 20, topP: 0.9 },
+    );
+
     if (!ctx.usesExternalProvider) {
-      return GeminiService.generateContent(prompt);
+      return GeminiService.generateContent(
+        prompt,
+        toGeminiContentOptions(criticConfig),
+      );
     }
 
     return generateExternalProviderText(
@@ -1194,12 +1284,12 @@ Use "revise" for fixable pedagogical issues and "fail" only for severe factual e
       prompt,
       {
         model: ctx.resolution.route.model,
-        temperature: 0.2,
+        maxOutputTokens: 4096,
         topK: 20,
         topP: 0.9,
-        maxOutputTokens: 4096,
       },
       'Diagram quiz critic via OpenRouter',
+      { profile },
     );
   }
 
@@ -1249,17 +1339,17 @@ Return ONLY valid JSON with this shape:
 
 Include ONLY the listed indexes. Each diagram must be valid Mermaid source.`;
 
-    const generationConfig = {
-      temperature: 0.35,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 8192,
-    };
+    const profile = 'deterministicUtility';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+      { temperature: 0.35 },
+    );
 
     if (!ctx.usesExternalProvider) {
       const text = await GeminiService.generateContent(
         prompt,
-        generationConfig,
+        toGeminiContentOptions(runtimeConfig),
       );
       return GeminiService.mergeDiagramQuizRefinement(
         params.draft,
@@ -1271,8 +1361,9 @@ Include ONLY the listed indexes. Each diagram must be valid Mermaid source.`;
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      { model: ctx.resolution.route.model, ...generationConfig },
+      { model: ctx.resolution.route.model, temperature: 0.35 },
       'Diagram quiz refine via OpenRouter',
+      { profile },
     );
     return GeminiService.mergeDiagramQuizRefinement(
       params.draft,
@@ -1314,21 +1405,25 @@ ${draft}
 Respond with JSON only (no full document rewrite):
 {"passed": true|false, "summary": "short note about rule adherence"}`;
 
-    const generationConfig = {
-      temperature: 0.2,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 1024,
-    };
+    const profile = 'deterministicUtility';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+      { maxOutputTokens: 1024 },
+    );
 
     const text = ctx.usesExternalProvider
       ? await generateExternalProviderText(
           ctx,
           prompt,
-          { model: ctx.resolution.route.model, ...generationConfig },
+          { model: ctx.resolution.route.model, maxOutputTokens: 1024 },
           'Screenshot rule compliance review',
+          { profile },
         )
-      : await GeminiService.generateContent(prompt, generationConfig);
+      : await GeminiService.generateContent(
+          prompt,
+          toGeminiContentOptions(runtimeConfig),
+        );
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -1389,21 +1484,29 @@ Requirements:
 - Do NOT invent a comprehensive learning guide, glossary, or tutorial unless Domain Rules ask for it.
 - Do NOT include Mermaid, Plotly, or LaTeX unless Domain Rules ask for them.`;
 
-    const generationConfig = {
-      temperature: 0.3,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 16384,
-    };
+    const profile = 'deterministicUtility';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+      { temperature: 0.3, maxOutputTokens: 16384 },
+    );
 
     const text = ctx.usesExternalProvider
       ? await generateExternalProviderText(
           ctx,
           prompt,
-          { model: ctx.resolution.route.model, ...generationConfig },
+          {
+            model: ctx.resolution.route.model,
+            temperature: 0.3,
+            maxOutputTokens: 16384,
+          },
           'Screenshot rule refine',
+          { profile },
         )
-      : await GeminiService.generateContent(prompt, generationConfig);
+      : await GeminiService.generateContent(
+          prompt,
+          toGeminiContentOptions(runtimeConfig),
+        );
 
     return GeminiService.sanitizeDocumentResponse(stripCodeFences(text));
   }

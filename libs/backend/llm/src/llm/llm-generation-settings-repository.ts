@@ -1,9 +1,17 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
-import type { ILlmGenerationRuntimeSettings } from '@shared-types';
+import type {
+  ILlmGenerationProfileOverrides,
+  ILlmGenerationProfiles,
+  ILlmGenerationRuntimeSettings,
+  ILlmGenerationSettings,
+  LlmGenerationProfileId,
+} from '@shared-types';
 import {
   DEFAULT_LLM_GENERATION_SETTINGS,
+  LLM_GENERATION_PROFILE_IDS,
   LLM_GENERATION_SETTINGS_LIMITS,
+  resolveLlmGenerationProfileSettings,
 } from '@shared-types';
 import type { LlmTextConfig } from './types';
 
@@ -17,6 +25,10 @@ type NumericSettingKey = Exclude<
 
 interface INumericValidationOptions {
   integer?: boolean;
+}
+
+export interface IApplyLlmGenerationDefaultsOptions {
+  profile?: LlmGenerationProfileId;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -53,7 +65,7 @@ function readNumericSetting(
   return value;
 }
 
-function parseStoredSettings(data: unknown): ILlmGenerationRuntimeSettings {
+function parseRuntimeSettings(data: unknown): ILlmGenerationRuntimeSettings {
   if (!isRecord(data)) {
     return { ...DEFAULT_LLM_GENERATION_SETTINGS };
   }
@@ -102,7 +114,78 @@ function parseStoredSettings(data: unknown): ILlmGenerationRuntimeSettings {
   return settings;
 }
 
-export async function readLlmGenerationRuntimeSettings(): Promise<ILlmGenerationRuntimeSettings> {
+function parseProfileOverrides(
+  data: unknown,
+): ILlmGenerationProfileOverrides | undefined {
+  if (!isRecord(data)) {
+    return undefined;
+  }
+
+  const overrides: ILlmGenerationProfileOverrides = {};
+
+  const maxOutputTokens = readNumericSetting(
+    data,
+    'maxOutputTokens',
+    undefined,
+    { integer: true },
+  );
+  if (maxOutputTokens !== undefined) {
+    overrides.maxOutputTokens = maxOutputTokens;
+  }
+
+  const temperature = readNumericSetting(data, 'temperature', undefined);
+  if (temperature !== undefined) {
+    overrides.temperature = temperature;
+  }
+
+  const topK = readNumericSetting(data, 'topK', undefined, { integer: true });
+  if (topK !== undefined) {
+    overrides.topK = topK;
+  }
+
+  const topP = readNumericSetting(data, 'topP', undefined);
+  if (topP !== undefined) {
+    overrides.topP = topP;
+  }
+
+  if (typeof data.disableReasoning === 'boolean') {
+    overrides.disableReasoning = data.disableReasoning;
+  }
+
+  const thinkingBudget = readNumericSetting(data, 'thinkingBudget', undefined, {
+    integer: true,
+  });
+  if (thinkingBudget !== undefined) {
+    overrides.thinkingBudget = thinkingBudget;
+  }
+
+  return Object.keys(overrides).length > 0 ? overrides : undefined;
+}
+
+function parseStoredProfiles(data: unknown): ILlmGenerationProfiles | undefined {
+  if (!isRecord(data) || !isRecord(data.profiles)) {
+    return undefined;
+  }
+
+  const profiles: ILlmGenerationProfiles = {};
+  for (const profileId of LLM_GENERATION_PROFILE_IDS) {
+    const parsed = parseProfileOverrides(data.profiles[profileId]);
+    if (parsed) {
+      profiles[profileId] = parsed;
+    }
+  }
+
+  return Object.keys(profiles).length > 0 ? profiles : undefined;
+}
+
+function parseStoredSettings(data: unknown): ILlmGenerationSettings {
+  const runtimeSettings = parseRuntimeSettings(data);
+  const profiles = parseStoredProfiles(data);
+
+  return profiles ? { ...runtimeSettings, profiles } : runtimeSettings;
+}
+
+async function readStoredSettingsDocument(): Promise<ILlmGenerationSettings> {
   let snapshot: admin.firestore.DocumentSnapshot;
 
   try {
@@ -128,25 +211,86 @@ export async function readLlmGenerationRuntimeSettings(): Promise<ILlmGeneration
   return parseStoredSettings(snapshot.data());
 }
 
+export async function readLlmGenerationSettings(): Promise<ILlmGenerationSettings> {
+  return readStoredSettingsDocument();
+}
+
+export async function readLlmGenerationRuntimeSettings(): Promise<ILlmGenerationRuntimeSettings> {
+  const settings = await readStoredSettingsDocument();
+  const { profiles: _profiles, updatedAt: _updatedAt, updatedBy: _updatedBy, ...runtime } =
+    settings;
+  return runtime;
+}
+
+function mergeRuntimeWithOverrides(
+  base: ILlmGenerationRuntimeSettings,
+  overrides?: Partial<ILlmGenerationRuntimeSettings>,
+): ILlmGenerationRuntimeSettings {
+  if (!overrides) {
+    return { ...base };
+  }
+
+  const merged: ILlmGenerationRuntimeSettings = {
+    requestTimeoutMs: base.requestTimeoutMs,
+    maxOutputTokens: overrides.maxOutputTokens ?? base.maxOutputTokens,
+    temperature: overrides.temperature ?? base.temperature,
+    topK: overrides.topK ?? base.topK,
+    topP: overrides.topP ?? base.topP,
+    disableReasoning: overrides.disableReasoning ?? base.disableReasoning,
+  };
+
+  const thinkingBudget =
+    overrides.thinkingBudget !== undefined
+      ? overrides.thinkingBudget
+      : base.thinkingBudget;
+  if (thinkingBudget !== undefined) {
+    merged.thinkingBudget = thinkingBudget;
+  }
+
+  return merged;
+}
+
+export function resolveProfileRuntimeSettings(
+  settings: ILlmGenerationSettings,
+  profileId: LlmGenerationProfileId,
+): ILlmGenerationRuntimeSettings {
+  const { profiles, updatedAt: _updatedAt, updatedBy: _updatedBy, ...global } =
+    settings;
+  return resolveLlmGenerationProfileSettings(global, profileId, profiles);
+}
+
 export async function applyLlmGenerationDefaults(
   config: LlmTextConfig,
+  options?: IApplyLlmGenerationDefaultsOptions,
 ): Promise<LlmTextConfig> {
-  const settings = await readLlmGenerationRuntimeSettings();
-  const withThinkingBudget =
-    config.thinkingBudget !== undefined
-      ? { thinkingBudget: config.thinkingBudget }
-      : settings.thinkingBudget !== undefined
-        ? { thinkingBudget: settings.thinkingBudget }
-        : {};
+  const settings = await readStoredSettingsDocument();
+  const { profiles, updatedAt: _updatedAt, updatedBy: _updatedBy, ...global } =
+    settings;
+
+  const profileSettings = options?.profile
+    ? resolveLlmGenerationProfileSettings(global, options.profile, profiles)
+    : global;
+
+  const resolved = mergeRuntimeWithOverrides(profileSettings, {
+    requestTimeoutMs: config.requestTimeoutMs,
+    maxOutputTokens: config.maxOutputTokens,
+    temperature: config.temperature,
+    topK: config.topK,
+    topP: config.topP,
+    disableReasoning: config.disableReasoning,
+    thinkingBudget: config.thinkingBudget,
+  });
 
   return {
     ...config,
-    requestTimeoutMs: config.requestTimeoutMs ?? settings.requestTimeoutMs,
-    maxOutputTokens: config.maxOutputTokens ?? settings.maxOutputTokens,
-    temperature: config.temperature ?? settings.temperature,
-    topK: config.topK ?? settings.topK,
-    topP: config.topP ?? settings.topP,
-    disableReasoning: config.disableReasoning ?? settings.disableReasoning,
-    ...withThinkingBudget,
+    requestTimeoutMs: resolved.requestTimeoutMs,
+    maxOutputTokens: resolved.maxOutputTokens,
+    temperature: resolved.temperature,
+    topK: resolved.topK,
+    topP: resolved.topP,
+    disableReasoning: resolved.disableReasoning,
+    ...(resolved.thinkingBudget !== undefined
+      ? { thinkingBudget: resolved.thinkingBudget }
+      : {}),
   };
 }

@@ -5,7 +5,10 @@ import {
 } from './llm-generation-route-resolver';
 import type { LlmCapability, LlmTextConfig } from './types';
 import { LlmProviderClientFactory } from './llm-provider-client-factory';
-import { applyLlmGenerationDefaults } from './llm-generation-settings-repository';
+import {
+  applyLlmGenerationDefaults,
+  type IApplyLlmGenerationDefaultsOptions,
+} from './llm-generation-settings-repository';
 
 export interface TextRouteContext {
   resolution: GenerationRouteResolution;
@@ -38,13 +41,24 @@ export async function resolveTextRoute(
   };
 }
 
+export type IExternalProviderTextOptions = IApplyLlmGenerationDefaultsOptions;
+
+export async function buildRoutedTextConfig(
+  model: string,
+  options?: IApplyLlmGenerationDefaultsOptions & Partial<LlmTextConfig>,
+): Promise<LlmTextConfig> {
+  const { profile, ...overrides } = options ?? {};
+  return applyLlmGenerationDefaults({ model, ...overrides }, { profile });
+}
+
 export async function generateExternalProviderText(
   ctx: TextRouteContext,
   prompt: string,
   config: LlmTextConfig,
   successLogMessage: string,
+  options?: IExternalProviderTextOptions,
 ): Promise<string> {
-  const configWithDefaults = await applyLlmGenerationDefaults(config);
+  const configWithDefaults = await applyLlmGenerationDefaults(config, options);
   const client = LlmProviderClientFactory.create(
     ctx.resolution.route,
     ctx.resolution.providerApiKey,

@@ -24,9 +24,6 @@ import {
 const PLAN_MAX_OUTPUT_TOKENS = 8192;
 const BATCH_MAX_OUTPUT_TOKENS = 12288;
 
-/** Structured flashcard calls do not benefit from chain-of-thought; keep latency low. */
-const FLASHCARD_NO_REASONING = { disableReasoning: true } as const;
-
 export interface FlashcardChunkedGenerationParams {
   content: string;
   rules?: string;
@@ -155,11 +152,10 @@ export async function replanFlashcardReplacementTerms(
     prompt,
     {
       model: ctx.resolution.route.model,
-      temperature: 0.35,
       maxOutputTokens: PLAN_MAX_OUTPUT_TOKENS,
-      ...FLASHCARD_NO_REASONING,
     },
-    'Flashcard replacement term plan via provider'
+    'Flashcard replacement term plan via provider',
+    { profile: 'structuredArtifact' },
   );
 
   const planResponse = parseFlashcardPlanResponse(planText);
@@ -209,11 +205,10 @@ async function planFlashcardTerms(params: {
     planPrompt,
     {
       model: ctx.resolution.route.model,
-      temperature: 0.4,
       maxOutputTokens: PLAN_MAX_OUTPUT_TOKENS,
-      ...FLASHCARD_NO_REASONING,
     },
-    'Flashcard term plan generated via provider'
+    'Flashcard term plan generated via provider',
+    { profile: 'structuredArtifact' },
   );
 
   const planResponse = parseFlashcardPlanResponse(planText);
@@ -277,11 +272,10 @@ async function replanFlashcardReplacementTermsInternal(params: {
     prompt,
     {
       model: ctx.resolution.route.model,
-      temperature: 0.35,
       maxOutputTokens: PLAN_MAX_OUTPUT_TOKENS,
-      ...FLASHCARD_NO_REASONING,
     },
-    'Flashcard replacement term plan via provider'
+    'Flashcard replacement term plan via provider',
+    { profile: 'structuredArtifact' },
   );
 
   const planResponse = parseFlashcardPlanResponse(planText);
@@ -397,13 +391,13 @@ async function generateFlashcardBatch(params: {
     prompt,
     {
       model: ctx.resolution.route.model,
-      temperature: strict ? 0.2 : 0.35,
+      ...(strict ? { temperature: 0.2 } : {}),
       maxOutputTokens: BATCH_MAX_OUTPUT_TOKENS,
-      ...FLASHCARD_NO_REASONING,
     },
     strict
       ? 'Flashcard expand batch retry via provider'
-      : 'Flashcard expand batch via provider'
+      : 'Flashcard expand batch via provider',
+    { profile: 'structuredArtifact' },
   );
 
   const parsed = parseFlashcardBatchExpandResponse(text);

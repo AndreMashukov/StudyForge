@@ -69,12 +69,10 @@ export async function generateDiagramQuizChunked(
     planPrompt,
     {
       model: ctx.resolution.route.model,
-      temperature: 0.4,
-      topK: 40,
-      topP: 0.95,
       maxOutputTokens: QUESTION_PLAN_MAX_OUTPUT_TOKENS,
     },
-    'Diagram quiz question plans generated via external provider'
+    'Diagram quiz question plans generated via external provider',
+    { profile: 'structuredArtifact' },
   );
 
   const planResponse = parseDiagramQuizQuestionPlanResponse(planText);
@@ -154,14 +152,13 @@ async function generateDiagramBatch(params: {
     prompt,
     {
       model: ctx.resolution.route.model,
-      temperature: strict ? 0.2 : 0.35,
-      topK: 40,
-      topP: 0.95,
+      ...(strict ? { temperature: 0.2 } : {}),
       maxOutputTokens: DIAGRAM_BATCH_MAX_OUTPUT_TOKENS,
     },
     strict
       ? 'Diagram quiz diagram batch retry via external provider'
-      : 'Diagram quiz diagram batch via external provider'
+      : 'Diagram quiz diagram batch via external provider',
+    { profile: 'structuredArtifact' },
   );
 
   const parsed = parseDiagramQuizDiagramBatchResponse(text);

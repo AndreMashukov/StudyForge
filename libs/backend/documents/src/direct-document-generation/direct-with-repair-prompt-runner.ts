@@ -41,11 +41,7 @@ export async function runDirectWithRepairDocumentFromPrompt(
     {
       logLabel: 'direct-with-repair-document-from-prompt',
       successLogMessage: 'Direct-with-repair HTML document fragment generated',
-      temperature: 0.4,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 16384,
-      disableReasoning: true,
+      profile: 'structuredArtifact',
     }
   );
 

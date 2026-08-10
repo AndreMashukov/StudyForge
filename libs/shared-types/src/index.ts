@@ -2006,7 +2006,117 @@ export interface ILlmGenerationRuntimeSettings {
   thinkingBudget?: number;
 }
 
+export type LlmGenerationProfileId =
+  | 'structuredArtifact'
+  | 'explanatoryChat'
+  | 'longformContent'
+  | 'faithfulEdit'
+  | 'deterministicUtility';
+
+export const LLM_GENERATION_PROFILE_IDS: LlmGenerationProfileId[] = [
+  'structuredArtifact',
+  'explanatoryChat',
+  'longformContent',
+  'faithfulEdit',
+  'deterministicUtility',
+];
+
+export type ILlmGenerationProfileOverrides = Partial<
+  Omit<ILlmGenerationRuntimeSettings, 'requestTimeoutMs'>
+>;
+
+export type ILlmGenerationProfiles = Partial<
+  Record<LlmGenerationProfileId, ILlmGenerationProfileOverrides>
+>;
+
+export interface ILlmGenerationProfileMetadata {
+  id: LlmGenerationProfileId;
+  label: string;
+  description: string;
+  flows: string[];
+}
+
+export const LLM_GENERATION_PROFILE_METADATA: ILlmGenerationProfileMetadata[] = [
+  {
+    id: 'structuredArtifact',
+    label: 'Structured artifact',
+    description:
+      'JSON and structured outputs for quizzes, flashcards, and document generation.',
+    flows: [
+      'quiz',
+      'sequenceQuiz',
+      'diagramQuiz plan',
+      'flashcards',
+      'document agent/direct/repair',
+    ],
+  },
+  {
+    id: 'explanatoryChat',
+    label: 'Explanatory chat',
+    description: 'Follow-ups, document Q&A, and directory chat answers.',
+    flows: ['quizFollowup', 'documentQuestion', 'directoryChat'],
+  },
+  {
+    id: 'longformContent',
+    label: 'Longform content',
+    description:
+      'One-shot documents, slide outlines, and vision screenshot generation.',
+    flows: [
+      'documentFromPrompt',
+      'documentFromScreenshot',
+      'slideDeckText',
+    ],
+  },
+  {
+    id: 'faithfulEdit',
+    label: 'Faithful edit',
+    description: 'Document revisions and rule generation.',
+    flows: ['documentRevise', 'ruleGeneration'],
+  },
+  {
+    id: 'deterministicUtility',
+    label: 'Deterministic utility',
+    description:
+      'Extraction cleanup, critics, refinements, and diagram repair.',
+    flows: [
+      'sourceDocumentEnhancement',
+      'diagramQuizAgent',
+      'screenshot compliance/refine',
+    ],
+  },
+];
+
+export const DEFAULT_LLM_GENERATION_PROFILES: Record<
+  LlmGenerationProfileId,
+  ILlmGenerationProfileOverrides
+> = {
+  structuredArtifact: {
+    temperature: 0.4,
+    maxOutputTokens: 16_384,
+    disableReasoning: true,
+  },
+  explanatoryChat: {
+    temperature: 0.7,
+    maxOutputTokens: 8192,
+    disableReasoning: false,
+  },
+  longformContent: {
+    temperature: 0.7,
+    maxOutputTokens: 16_384,
+    disableReasoning: true,
+  },
+  faithfulEdit: {
+    temperature: 0.5,
+    maxOutputTokens: 16_384,
+  },
+  deterministicUtility: {
+    temperature: 0.2,
+    maxOutputTokens: 8192,
+  },
+};
+
 export interface ILlmGenerationSettings extends ILlmGenerationRuntimeSettings {
+  profiles?: ILlmGenerationProfiles;
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -2014,6 +2124,7 @@ export interface ILlmGenerationSettings extends ILlmGenerationRuntimeSettings {
 export interface IUpdateLlmGenerationSettingsRequest
   extends Partial<Omit<ILlmGenerationRuntimeSettings, 'thinkingBudget'>> {
   thinkingBudget?: number | null;
+  profiles?: ILlmGenerationProfiles;
 }
 
 export const DEFAULT_LLM_GENERATION_SETTINGS: ILlmGenerationRuntimeSettings = {
@@ -2024,6 +2135,43 @@ export const DEFAULT_LLM_GENERATION_SETTINGS: ILlmGenerationRuntimeSettings = {
   topP: 0.95,
   disableReasoning: false,
 };
+
+export function resolveLlmGenerationProfileSettings(
+  globalSettings: ILlmGenerationRuntimeSettings,
+  profileId: LlmGenerationProfileId,
+  storedProfiles?: ILlmGenerationProfiles,
+): ILlmGenerationRuntimeSettings {
+  const seedProfile = DEFAULT_LLM_GENERATION_PROFILES[profileId];
+  const storedProfile = storedProfiles?.[profileId];
+
+  const merged: ILlmGenerationRuntimeSettings = {
+    requestTimeoutMs: globalSettings.requestTimeoutMs,
+    maxOutputTokens:
+      storedProfile?.maxOutputTokens ??
+      seedProfile.maxOutputTokens ??
+      globalSettings.maxOutputTokens,
+    temperature:
+      storedProfile?.temperature ??
+      seedProfile.temperature ??
+      globalSettings.temperature,
+    topK: storedProfile?.topK ?? seedProfile.topK ?? globalSettings.topK,
+    topP: storedProfile?.topP ?? seedProfile.topP ?? globalSettings.topP,
+    disableReasoning:
+      storedProfile?.disableReasoning ??
+      seedProfile.disableReasoning ??
+      globalSettings.disableReasoning,
+  };
+
+  const thinkingBudget =
+    storedProfile?.thinkingBudget ??
+    seedProfile.thinkingBudget ??
+    globalSettings.thinkingBudget;
+  if (thinkingBudget !== undefined) {
+    merged.thinkingBudget = thinkingBudget;
+  }
+
+  return merged;
+}
 
 export const LLM_GENERATION_SETTINGS_LIMITS = {
   requestTimeoutMs: { min: 5_000, max: 540_000 },

@@ -72,15 +72,15 @@ async function generateText(
 ): Promise<string> {
   const route = await resolveTextRoute(userId, capability, `document-agent-${role}`);
   const startMs = Date.now();
+  const profile =
+    role === 'critic' || role === 'refiner'
+      ? 'deterministicUtility'
+      : 'structuredArtifact';
 
   const text = await LlmGenerationService.generateText(userId, capability, prompt, {
     logLabel: `document-agent-${role}`,
     successLogMessage: 'Document agent text generated',
-    temperature: 0.4,
-    topK: 40,
-    topP: 0.95,
-    maxOutputTokens: 16384,
-    disableReasoning: true,
+    profile,
   });
 
   recordModelUsage(diagnostics, {
