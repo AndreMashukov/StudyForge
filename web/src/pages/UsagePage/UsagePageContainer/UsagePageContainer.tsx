@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { DEFAULT_PAYG_MONTHLY_CAP_CENTS } from '@shared-types';
 import { Gauge } from 'lucide-react';
 import { Page } from '../../../components/Page';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -6,9 +7,23 @@ import { Card, CardContent } from '../../../components/ui/Card';
 import { useUsagePageContext } from '../context/hooks/useUsagePageContext';
 import { UsageCard } from '../UsageCard';
 import { PlanCard } from '../PlanCard';
+import { PayAsYouGoCard } from '../PayAsYouGoCard';
+
+function defaultCapDollars(summaryCapCents?: number): string {
+  const cents = summaryCapCents ?? DEFAULT_PAYG_MONTHLY_CAP_CENTS;
+  return String(cents / 100);
+}
 
 export const UsagePageContainer: React.FC = () => {
-  const { usage } = useUsagePageContext();
+  const { usage, handlers } = useUsagePageContext();
+  const [monthlyCapDollars, setMonthlyCapDollars] = useState('20');
+
+  const resolvedCapDollars = useMemo(() => {
+    if (usage.data?.payAsYouGo?.monthlyCapCents) {
+      return defaultCapDollars(usage.data.payAsYouGo.monthlyCapCents);
+    }
+    return monthlyCapDollars;
+  }, [monthlyCapDollars, usage.data?.payAsYouGo?.monthlyCapCents]);
 
   if (usage.isLoading) {
     return (
@@ -78,11 +93,25 @@ export const UsagePageContainer: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Usage</h1>
             <p className="text-sm text-muted-foreground">
-              Track your monthly credit consumption and plan details.
+              Track your monthly credit consumption, billing, and plan details.
             </p>
           </div>
         </header>
         <UsageCard summary={usage.data} />
+        <PayAsYouGoCard
+          summary={usage.data}
+          monthlyCapDollars={resolvedCapDollars}
+          isSaving={handlers.isSaving}
+          onMonthlyCapChange={setMonthlyCapDollars}
+          onEnablePayAsYouGo={() => handlers.handleEnablePayAsYouGo(resolvedCapDollars)}
+          onDisablePayAsYouGo={() => handlers.handleDisablePayAsYouGo(resolvedCapDollars)}
+          onSetupBilling={() => {
+            void handlers.handleSetupBilling();
+          }}
+          onManageBilling={() => {
+            void handlers.handleManageBilling();
+          }}
+        />
         <PlanCard summary={usage.data} />
       </div>
     </Page>

@@ -2273,6 +2273,24 @@ export {
   USAGE_LIMITS_PROFILE_PRESETS,
 } from './usage-limits';
 
+export type {
+  BillingStatus,
+  IBillingConfig,
+  ICreateBillingCheckoutSessionResponse,
+  ICreateBillingPortalSessionResponse,
+  IUpdatePayAsYouGoSettingsRequest,
+  IUsageCreditSplit,
+  IUsagePayAsYouGoSummary,
+  IUserBillingState,
+} from './billing';
+export {
+  calculateOverageAmountCents,
+  calculateRemainingOverageCapCents,
+  DEFAULT_PAYG_MONTHLY_CAP_CENTS,
+  DEFAULT_PRICE_PER_CREDIT_CENTS,
+  formatCurrencyFromCents,
+} from './billing';
+
 /** Stable error codes surfaced to clients when LLM routing cannot proceed. */
 export type LlmRoutingErrorCode =
   | 'USER_GROUP_NOT_ASSIGNED'
