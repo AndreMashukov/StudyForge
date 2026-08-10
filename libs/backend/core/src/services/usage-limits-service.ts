@@ -399,12 +399,8 @@ export async function reserveUsageCredits(params: {
         ? periodData.allowance
         : context.setup.monthlyCreditAllowance;
     const numbers = readPeriodNumbers({ ...periodData, allowance });
-    const billingState = parseUserBillingState({
-      ...billingSnapshot.data(),
-      pricePerCreditCents:
-        typeof billingSnapshot.data()?.pricePerCreditCents === 'number'
-          ? billingSnapshot.data()?.pricePerCreditCents
-          : billingConfig.pricePerCreditCents,
+    const billingState = parseUserBillingState(billingSnapshot.data(), {
+      defaultPricePerCreditCents: billingConfig.pricePerCreditCents,
     });
     const billing = buildUsageBillingContext(billingState, periodData);
 

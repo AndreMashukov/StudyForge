@@ -4,6 +4,13 @@ export const DEFAULT_PAYG_MONTHLY_CAP_CENTS = 2_000;
 /** Default global price per StudyForge credit (5 cents). */
 export const DEFAULT_PRICE_PER_CREDIT_CENTS = 5;
 
+/** Default web origins allowed for Stripe billing redirect URLs. */
+export const DEFAULT_BILLING_REDIRECT_ORIGINS = [
+  'http://localhost:4200',
+  'https://study-forge-202604.web.app',
+  'https://study-forge-202604.firebaseapp.com',
+] as const;
+
 export type BillingStatus =
   | 'none'
   | 'payment_method_required'
@@ -43,6 +50,14 @@ export interface IUsagePayAsYouGoSummary {
 export interface IUpdatePayAsYouGoSettingsRequest {
   enabled: boolean;
   monthlyCapCents: number;
+}
+
+export interface ICreateBillingCheckoutSessionRequest {
+  origin: string;
+}
+
+export interface ICreateBillingPortalSessionRequest {
+  origin: string;
 }
 
 export interface ICreateBillingCheckoutSessionResponse {

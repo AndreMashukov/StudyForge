@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DEFAULT_PAYG_MONTHLY_CAP_CENTS } from '@shared-types';
 import { Gauge } from 'lucide-react';
 import { Page } from '../../../components/Page';
@@ -17,13 +17,13 @@ function defaultCapDollars(summaryCapCents?: number): string {
 export const UsagePageContainer: React.FC = () => {
   const { usage, handlers } = useUsagePageContext();
   const [monthlyCapDollars, setMonthlyCapDollars] = useState('20');
+  const [hasEditedCap, setHasEditedCap] = useState(false);
 
-  const resolvedCapDollars = useMemo(() => {
-    if (usage.data?.payAsYouGo?.monthlyCapCents) {
-      return defaultCapDollars(usage.data.payAsYouGo.monthlyCapCents);
+  useEffect(() => {
+    if (!hasEditedCap && usage.data?.payAsYouGo?.monthlyCapCents) {
+      setMonthlyCapDollars(defaultCapDollars(usage.data.payAsYouGo.monthlyCapCents));
     }
-    return monthlyCapDollars;
-  }, [monthlyCapDollars, usage.data?.payAsYouGo?.monthlyCapCents]);
+  }, [hasEditedCap, usage.data?.payAsYouGo?.monthlyCapCents]);
 
   if (usage.isLoading) {
     return (
@@ -100,11 +100,16 @@ export const UsagePageContainer: React.FC = () => {
         <UsageCard summary={usage.data} />
         <PayAsYouGoCard
           summary={usage.data}
-          monthlyCapDollars={resolvedCapDollars}
+          monthlyCapDollars={monthlyCapDollars}
           isSaving={handlers.isSaving}
-          onMonthlyCapChange={setMonthlyCapDollars}
-          onEnablePayAsYouGo={() => handlers.handleEnablePayAsYouGo(resolvedCapDollars)}
-          onDisablePayAsYouGo={() => handlers.handleDisablePayAsYouGo(resolvedCapDollars)}
+          billingError={handlers.billingError}
+          onMonthlyCapChange={(value) => {
+            setHasEditedCap(true);
+            handlers.clearBillingError();
+            setMonthlyCapDollars(value);
+          }}
+          onEnablePayAsYouGo={() => handlers.handleEnablePayAsYouGo(monthlyCapDollars)}
+          onDisablePayAsYouGo={() => handlers.handleDisablePayAsYouGo(monthlyCapDollars)}
           onSetupBilling={() => {
             void handlers.handleSetupBilling();
           }}

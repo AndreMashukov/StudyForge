@@ -11,6 +11,9 @@ export const processMonthlyOverageInvoicesSchedule = onSchedule(
     schedule: '0 2 1 * *',
     timeZone: 'UTC',
     secrets: [stripeSecretKey],
+    timeoutSeconds: 540,
+    memory: '512MiB',
+    retryCount: 0,
   },
   async () => {
     try {

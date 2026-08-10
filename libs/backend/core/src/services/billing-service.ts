@@ -5,9 +5,10 @@ import {
   type BillingStatus,
   type IBillingConfig,
   type IUpdatePayAsYouGoSettingsRequest,
+  type IUsagePayAsYouGoSummary,
   type IUserBillingState,
 } from '@shared-types';
-import { getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import Stripe from 'stripe';
 import type { IUsageBillingContext } from './usage-limits-logic';
 
@@ -28,6 +29,14 @@ function billingConfigRef() {
   return getFirestore().collection(BILLING_CONFIG_COLLECTION).doc(BILLING_CONFIG_DOC_ID);
 }
 
+function usagePeriodRef(userId: string, periodKey: string) {
+  return getFirestore()
+    .collection(USERS_COLLECTION)
+    .doc(userId)
+    .collection('usagePeriods')
+    .doc(periodKey);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -45,12 +54,21 @@ function parseBillingStatus(value: unknown): BillingStatus {
   return 'none';
 }
 
-export function parseUserBillingState(data: FirebaseFirestore.DocumentData | undefined): IUserBillingState {
+function parseStoredPricePerCreditCents(
+  data: FirebaseFirestore.DocumentData | undefined,
+): number | undefined {
   const record = data ?? {};
-  const pricePerCreditCents =
-    typeof record.pricePerCreditCents === 'number' && record.pricePerCreditCents > 0
-      ? record.pricePerCreditCents
-      : DEFAULT_PRICE_PER_CREDIT_CENTS;
+  return typeof record.pricePerCreditCents === 'number' && record.pricePerCreditCents > 0
+    ? record.pricePerCreditCents
+    : undefined;
+}
+
+export function parseUserBillingState(
+  data: FirebaseFirestore.DocumentData | undefined,
+  options?: { defaultPricePerCreditCents?: number },
+): IUserBillingState {
+  const record = data ?? {};
+  const storedPrice = parseStoredPricePerCreditCents(record);
 
   return {
     stripeCustomerId:
@@ -64,10 +82,53 @@ export function parseUserBillingState(data: FirebaseFirestore.DocumentData | und
       typeof record.monthlyCapCents === 'number' && record.monthlyCapCents > 0
         ? record.monthlyCapCents
         : DEFAULT_PAYG_MONTHLY_CAP_CENTS,
-    pricePerCreditCents,
+    pricePerCreditCents:
+      storedPrice ?? options?.defaultPricePerCreditCents ?? DEFAULT_PRICE_PER_CREDIT_CENTS,
     billingStatus: parseBillingStatus(record.billingStatus),
     updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : undefined,
   };
+}
+
+interface IBillingStateWrite {
+  stripeCustomerId?: string;
+  defaultPaymentMethodId?: string;
+  payAsYouGoEnabled?: boolean;
+  monthlyCapCents?: number;
+  pricePerCreditCents?: number;
+  billingStatus?: BillingStatus;
+}
+
+function isActiveStripeCustomer(
+  customer: Stripe.Customer | Stripe.DeletedCustomer,
+): customer is Stripe.Customer {
+  return !customer.deleted;
+}
+
+function buildBillingStateWrite(fields: IBillingStateWrite): FirebaseFirestore.DocumentData {
+  const write: FirebaseFirestore.DocumentData = {
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (fields.stripeCustomerId !== undefined) {
+    write.stripeCustomerId = fields.stripeCustomerId;
+  }
+  if (fields.defaultPaymentMethodId !== undefined) {
+    write.defaultPaymentMethodId = fields.defaultPaymentMethodId;
+  }
+  if (fields.payAsYouGoEnabled !== undefined) {
+    write.payAsYouGoEnabled = fields.payAsYouGoEnabled;
+  }
+  if (fields.monthlyCapCents !== undefined) {
+    write.monthlyCapCents = fields.monthlyCapCents;
+  }
+  if (fields.pricePerCreditCents !== undefined) {
+    write.pricePerCreditCents = fields.pricePerCreditCents;
+  }
+  if (fields.billingStatus !== undefined) {
+    write.billingStatus = fields.billingStatus;
+  }
+
+  return write;
 }
 
 export async function getBillingConfig(): Promise<IBillingConfig> {
@@ -87,12 +148,9 @@ export async function getBillingConfig(): Promise<IBillingConfig> {
 export async function getUserBillingState(userId: string): Promise<IUserBillingState> {
   const config = await getBillingConfig();
   const snapshot = await billingStateRef(userId).get();
-  const state = parseUserBillingState(snapshot.data());
-
-  return {
-    ...state,
-    pricePerCreditCents: state.pricePerCreditCents || config.pricePerCreditCents,
-  };
+  return parseUserBillingState(snapshot.data(), {
+    defaultPricePerCreditCents: config.pricePerCreditCents,
+  });
 }
 
 export function buildUsageBillingContext(
@@ -119,7 +177,7 @@ export function buildUsageBillingContext(
 export function buildPayAsYouGoSummary(
   billing: IUserBillingState,
   periodData: FirebaseFirestore.DocumentData,
-) {
+): IUsagePayAsYouGoSummary {
   const overageAmountCents =
     typeof periodData.overageAmountCents === 'number' ? periodData.overageAmountCents : 0;
   const reservedOverageAmountCents =
@@ -165,9 +223,7 @@ export class BillingError extends Error {
 }
 
 function getStripeClient(secretKey: string): Stripe {
-  return new Stripe(secretKey, {
-    apiVersion: '2025-02-24.acacia',
-  });
+  return new Stripe(secretKey);
 }
 
 export async function createBillingCheckoutSession(params: {
@@ -182,20 +238,22 @@ export async function createBillingCheckoutSession(params: {
 
   let customerId = billing.stripeCustomerId;
   if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: params.email,
-      metadata: { userId: params.userId },
-    });
+    const customer = await stripe.customers.create(
+      {
+        email: params.email,
+        metadata: { userId: params.userId },
+      },
+      { idempotencyKey: `billing-customer:${params.userId}` },
+    );
     customerId = customer.id;
     await billingStateRef(params.userId).set(
-      {
+      buildBillingStateWrite({
         stripeCustomerId: customerId,
         billingStatus: 'payment_method_required',
         payAsYouGoEnabled: false,
         monthlyCapCents: billing.monthlyCapCents,
         pricePerCreditCents: billing.pricePerCreditCents,
-        updatedAt: new Date().toISOString(),
-      },
+      }),
       { merge: true },
     );
   }
@@ -255,16 +313,25 @@ export async function updatePayAsYouGoSettings(
     }
   }
 
-  const now = new Date().toISOString();
-  const nextState: IUserBillingState = {
+  const write = buildBillingStateWrite({
+    payAsYouGoEnabled: request.enabled,
+    monthlyCapCents: Math.floor(request.monthlyCapCents),
+    pricePerCreditCents: billing.pricePerCreditCents,
+    billingStatus: billing.billingStatus,
+    ...(billing.stripeCustomerId ? { stripeCustomerId: billing.stripeCustomerId } : {}),
+    ...(billing.defaultPaymentMethodId
+      ? { defaultPaymentMethodId: billing.defaultPaymentMethodId }
+      : {}),
+  });
+
+  await billingStateRef(userId).set(write, { merge: true });
+
+  return {
     ...billing,
     payAsYouGoEnabled: request.enabled,
     monthlyCapCents: Math.floor(request.monthlyCapCents),
-    updatedAt: now,
+    updatedAt: typeof write.updatedAt === 'string' ? write.updatedAt : new Date().toISOString(),
   };
-
-  await billingStateRef(userId).set(nextState, { merge: true });
-  return nextState;
 }
 
 async function resolveDefaultPaymentMethodId(
@@ -272,7 +339,7 @@ async function resolveDefaultPaymentMethodId(
   customerId: string,
 ): Promise<string | undefined> {
   const customer = await stripe.customers.retrieve(customerId);
-  if (!isRecord(customer) || customer.deleted) {
+  if (!isActiveStripeCustomer(customer)) {
     return undefined;
   }
 
@@ -329,15 +396,14 @@ export async function handleStripeBillingWebhook(params: {
 
       const billing = await getUserBillingState(userId);
       await billingStateRef(userId).set(
-        {
+        buildBillingStateWrite({
           stripeCustomerId: customerId,
-          defaultPaymentMethodId,
+          ...(defaultPaymentMethodId ? { defaultPaymentMethodId } : {}),
           billingStatus: defaultPaymentMethodId ? 'active' : 'payment_method_required',
           payAsYouGoEnabled: billing.payAsYouGoEnabled,
           monthlyCapCents: billing.monthlyCapCents,
           pricePerCreditCents: billing.pricePerCreditCents,
-          updatedAt: new Date().toISOString(),
-        },
+        }),
         { merge: true },
       );
       break;
@@ -351,15 +417,16 @@ export async function handleStripeBillingWebhook(params: {
 
       const defaultPaymentMethodId = await resolveDefaultPaymentMethodId(stripe, customer.id);
       const billing = await getUserBillingState(userId);
-      await billingStateRef(userId).set(
-        {
-          defaultPaymentMethodId,
-          billingStatus: defaultPaymentMethodId ? 'active' : 'payment_method_required',
-          payAsYouGoEnabled: defaultPaymentMethodId ? billing.payAsYouGoEnabled : false,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      );
+      const write = buildBillingStateWrite({
+        billingStatus: defaultPaymentMethodId ? 'active' : 'payment_method_required',
+        payAsYouGoEnabled: defaultPaymentMethodId ? billing.payAsYouGoEnabled : false,
+      });
+      if (defaultPaymentMethodId) {
+        write.defaultPaymentMethodId = defaultPaymentMethodId;
+      } else {
+        write.defaultPaymentMethodId = FieldValue.delete();
+      }
+      await billingStateRef(userId).set(write, { merge: true });
       break;
     }
     case 'invoice.payment_failed': {
@@ -371,7 +438,7 @@ export async function handleStripeBillingWebhook(params: {
       }
 
       const customer = await stripe.customers.retrieve(customerId);
-      if (!isRecord(customer) || customer.deleted) {
+      if (!isActiveStripeCustomer(customer)) {
         return;
       }
 
@@ -381,41 +448,16 @@ export async function handleStripeBillingWebhook(params: {
       }
 
       await billingStateRef(userId).set(
-        {
+        buildBillingStateWrite({
           billingStatus: 'past_due',
           payAsYouGoEnabled: false,
-          updatedAt: new Date().toISOString(),
-        },
+        }),
         { merge: true },
       );
       break;
     }
     case 'invoice.paid': {
-      const invoice = event.data.object;
-      const periodKey = invoice.metadata?.usagePeriodKey;
-      const userId = invoice.metadata?.userId;
-      if (!periodKey || !userId) {
-        return;
-      }
-
-      const periodRef = getFirestore()
-        .collection(USERS_COLLECTION)
-        .doc(userId)
-        .collection('usagePeriods')
-        .doc(periodKey);
-
-      const periodSnapshot = await periodRef.get();
-      const periodData = periodSnapshot.data() ?? {};
-      const overageAmountCents =
-        typeof periodData.overageAmountCents === 'number' ? periodData.overageAmountCents : 0;
-
-      await periodRef.set(
-        {
-          invoicedOverageAmountCents: overageAmountCents,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      );
+      // Period invoiced amounts are recorded when the invoice is finalized.
       break;
     }
     default:
@@ -425,50 +467,89 @@ export async function handleStripeBillingWebhook(params: {
 
 export async function processMonthlyOverageInvoices(stripeSecretKey: string): Promise<number> {
   const stripe = getStripeClient(stripeSecretKey);
-  const usersSnapshot = await getFirestore().collection(USERS_COLLECTION).select().get();
+  const PAGE_SIZE = 100;
   let invoicedCount = 0;
+  let lastUserDoc: FirebaseFirestore.QueryDocumentSnapshot | undefined;
 
-  for (const userDoc of usersSnapshot.docs) {
-    const billingSnapshot = await billingStateRef(userDoc.id).get();
-    const billing = parseUserBillingState(billingSnapshot.data());
-    if (!billing.stripeCustomerId || billing.billingStatus !== 'active') {
-      continue;
+  while (true) {
+    let usersQuery = getFirestore().collection(USERS_COLLECTION).select().limit(PAGE_SIZE);
+    if (lastUserDoc) {
+      usersQuery = usersQuery.startAfter(lastUserDoc);
     }
 
-    const periodsSnapshot = await userDoc.ref.collection('usagePeriods').get();
-    for (const periodDoc of periodsSnapshot.docs) {
-      const periodData = periodDoc.data();
-      const overageAmountCents =
-        typeof periodData.overageAmountCents === 'number' ? periodData.overageAmountCents : 0;
-      const invoicedOverageAmountCents =
-        typeof periodData.invoicedOverageAmountCents === 'number'
-          ? periodData.invoicedOverageAmountCents
-          : 0;
-      const uninvoicedAmount = overageAmountCents - invoicedOverageAmountCents;
+    const usersSnapshot = await usersQuery.get();
+    if (usersSnapshot.empty) {
+      break;
+    }
 
-      if (uninvoicedAmount <= 0) {
+    for (const userDoc of usersSnapshot.docs) {
+      const billingSnapshot = await billingStateRef(userDoc.id).get();
+      const billingConfig = await getBillingConfig();
+      const billing = parseUserBillingState(billingSnapshot.data(), {
+        defaultPricePerCreditCents: billingConfig.pricePerCreditCents,
+      });
+      if (!billing.stripeCustomerId || billing.billingStatus !== 'active') {
         continue;
       }
 
-      await stripe.invoiceItems.create({
-        customer: billing.stripeCustomerId,
-        amount: uninvoicedAmount,
-        currency: 'usd',
-        description: `StudyForge pay-as-you-go overage for ${periodDoc.id}`,
-      });
+      const periodsSnapshot = await userDoc.ref.collection('usagePeriods').get();
+      for (const periodDoc of periodsSnapshot.docs) {
+        const periodData = periodDoc.data();
+        const overageAmountCents =
+          typeof periodData.overageAmountCents === 'number' ? periodData.overageAmountCents : 0;
+        const invoicedOverageAmountCents =
+          typeof periodData.invoicedOverageAmountCents === 'number'
+            ? periodData.invoicedOverageAmountCents
+            : 0;
+        const uninvoicedAmount = overageAmountCents - invoicedOverageAmountCents;
 
-      const invoice = await stripe.invoices.create({
-        customer: billing.stripeCustomerId,
-        auto_advance: true,
-        metadata: {
-          userId: userDoc.id,
-          usagePeriodKey: periodDoc.id,
-        },
-      });
+        if (uninvoicedAmount <= 0) {
+          continue;
+        }
 
-      await stripe.invoices.finalizeInvoice(invoice.id);
-      invoicedCount += 1;
+        const idempotencyBase = `overage:${userDoc.id}:${periodDoc.id}:${invoicedOverageAmountCents}`;
+
+        await stripe.invoiceItems.create(
+          {
+            customer: billing.stripeCustomerId,
+            amount: uninvoicedAmount,
+            currency: 'usd',
+            description: `StudyForge pay-as-you-go overage for ${periodDoc.id}`,
+          },
+          { idempotencyKey: `${idempotencyBase}:item` },
+        );
+
+        const invoice = await stripe.invoices.create(
+          {
+            customer: billing.stripeCustomerId,
+            auto_advance: true,
+            metadata: {
+              userId: userDoc.id,
+              usagePeriodKey: periodDoc.id,
+              invoicedAmountCents: String(uninvoicedAmount),
+            },
+          },
+          { idempotencyKey: `${idempotencyBase}:invoice` },
+        );
+
+        await stripe.invoices.finalizeInvoice(invoice.id);
+
+        await usagePeriodRef(userDoc.id, periodDoc.id).set(
+          {
+            invoicedOverageAmountCents: invoicedOverageAmountCents + uninvoicedAmount,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
+        );
+
+        invoicedCount += 1;
+      }
     }
+
+    if (usersSnapshot.docs.length < PAGE_SIZE) {
+      break;
+    }
+    lastUserDoc = usersSnapshot.docs[usersSnapshot.docs.length - 1];
   }
 
   return invoicedCount;

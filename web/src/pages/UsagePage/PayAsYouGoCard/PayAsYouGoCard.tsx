@@ -22,6 +22,7 @@ export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
   summary,
   monthlyCapDollars,
   isSaving,
+  billingError,
   onMonthlyCapChange,
   onEnablePayAsYouGo,
   onDisablePayAsYouGo,
@@ -59,6 +60,11 @@ export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
         </div>
       </CardHeader>
       <CardContent className="space-y-5 px-5 pb-5 pt-0">
+        {billingError ? (
+          <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+            {billingError}
+          </p>
+        ) : null}
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

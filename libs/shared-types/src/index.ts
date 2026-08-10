@@ -2276,7 +2276,9 @@ export {
 export type {
   BillingStatus,
   IBillingConfig,
+  ICreateBillingCheckoutSessionRequest,
   ICreateBillingCheckoutSessionResponse,
+  ICreateBillingPortalSessionRequest,
   ICreateBillingPortalSessionResponse,
   IUpdatePayAsYouGoSettingsRequest,
   IUsageCreditSplit,
@@ -2286,6 +2288,7 @@ export type {
 export {
   calculateOverageAmountCents,
   calculateRemainingOverageCapCents,
+  DEFAULT_BILLING_REDIRECT_ORIGINS,
   DEFAULT_PAYG_MONTHLY_CAP_CENTS,
   DEFAULT_PRICE_PER_CREDIT_CENTS,
   formatCurrencyFromCents,

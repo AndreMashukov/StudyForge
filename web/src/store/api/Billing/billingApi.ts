@@ -1,6 +1,8 @@
 import type {
   ApiResponse,
+  ICreateBillingCheckoutSessionRequest,
   ICreateBillingCheckoutSessionResponse,
+  ICreateBillingPortalSessionRequest,
   ICreateBillingPortalSessionResponse,
   IUpdatePayAsYouGoSettingsRequest,
   IUserBillingState,
@@ -22,7 +24,7 @@ export const billingApi = baseApi.injectEndpoints({
     }),
     createBillingCheckoutSession: builder.mutation<
       ICreateBillingCheckoutSessionResponse,
-      { origin: string }
+      ICreateBillingCheckoutSessionRequest
     >({
       query: (body) => ({
         functionName: 'createBillingCheckoutSession',
@@ -37,7 +39,7 @@ export const billingApi = baseApi.injectEndpoints({
     }),
     createBillingPortalSession: builder.mutation<
       ICreateBillingPortalSessionResponse,
-      { origin: string }
+      ICreateBillingPortalSessionRequest
     >({
       query: (body) => ({
         functionName: 'createBillingPortalSession',

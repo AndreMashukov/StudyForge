@@ -1,5 +1,6 @@
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
+import { z } from 'zod';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
 import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
 import {
@@ -11,17 +12,49 @@ import {
   updatePayAsYouGoSettings,
 } from '@study-forge/backend-core/services/billing-service';
 import { getUserUsageSummary } from '@study-forge/backend-core/services/usage-limits-service';
-import type {
-  ApiResponse,
-  ICreateBillingCheckoutSessionResponse,
-  ICreateBillingPortalSessionResponse,
-  IUpdatePayAsYouGoSettingsRequest,
-  IUserBillingState,
-  IUserUsageSummary,
+import {
+  DEFAULT_BILLING_REDIRECT_ORIGINS,
+  type ApiResponse,
+  type ICreateBillingCheckoutSessionResponse,
+  type ICreateBillingPortalSessionResponse,
+  type IUserBillingState,
+  type IUserUsageSummary,
 } from '@shared-types';
 
 const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
+
+const billingOriginRequestSchema = z.object({
+  origin: z.string().url(),
+});
+
+const updatePayAsYouGoSettingsRequestSchema = z.object({
+  enabled: z.boolean(),
+  monthlyCapCents: z.number().int().positive(),
+});
+
+function getAllowedBillingOrigins(): Set<string> {
+  const extraOrigins =
+    process.env.BILLING_ALLOWED_ORIGINS?.split(',')
+      .map((origin) => origin.trim().replace(/\/$/, ''))
+      .filter(Boolean) ?? [];
+
+  return new Set([...DEFAULT_BILLING_REDIRECT_ORIGINS, ...extraOrigins]);
+}
+
+function resolveAppOrigin(requestData: unknown): string {
+  const parsed = billingOriginRequestSchema.safeParse(requestData);
+  if (!parsed.success) {
+    throw new HttpsError('invalid-argument', 'A valid billing redirect origin is required.');
+  }
+
+  const origin = parsed.data.origin.replace(/\/$/, '');
+  if (!getAllowedBillingOrigins().has(origin)) {
+    throw new HttpsError('invalid-argument', 'Origin is not allowed for billing redirects.');
+  }
+
+  return origin;
+}
 
 function throwBillingError(error: BillingError): never {
   const code =
@@ -32,16 +65,6 @@ function throwBillingError(error: BillingError): never {
         : 'internal';
 
   throw new HttpsError(code, error.message, { code: error.code });
-}
-
-function resolveAppOrigin(requestData: unknown): string {
-  if (typeof requestData === 'object' && requestData !== null) {
-    const origin = (requestData as { origin?: unknown }).origin;
-    if (typeof origin === 'string' && origin.startsWith('http')) {
-      return origin.replace(/\/$/, '');
-    }
-  }
-  return 'http://localhost:4200';
 }
 
 export const createBillingCheckoutSessionEndpoint = onCall(
@@ -109,11 +132,12 @@ export const updatePayAsYouGoSettingsEndpoint = onCall(
   async (request): Promise<ApiResponse<IUserBillingState>> => {
     try {
       const userId = await validateAuth(request);
-      const payload = request.data as IUpdatePayAsYouGoSettingsRequest;
-      const billing = await updatePayAsYouGoSettings(userId, {
-        enabled: payload.enabled === true,
-        monthlyCapCents: Number(payload.monthlyCapCents),
-      });
+      const parsed = updatePayAsYouGoSettingsRequestSchema.safeParse(request.data);
+      if (!parsed.success) {
+        throw new HttpsError('invalid-argument', 'Invalid pay-as-you-go settings payload.');
+      }
+
+      const billing = await updatePayAsYouGoSettings(userId, parsed.data);
       await getUserUsageSummary(userId);
 
       return {
