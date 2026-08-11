@@ -119,6 +119,17 @@ export const UsagePageContainer: React.FC = () => {
         />
         <PlanCard summary={usage.data} />
       </div>
+      {handlers.isSaving ? (
+        <div
+          className="fixed inset-0 z-[1300] flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <Spinner size="lg" variant="muted" />
+          <p className="text-sm font-medium text-muted-foreground">Working</p>
+        </div>
+      ) : null}
     </Page>
   );
 };

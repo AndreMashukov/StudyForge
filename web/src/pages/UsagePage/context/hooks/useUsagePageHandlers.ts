@@ -37,12 +37,16 @@ function getBillingErrorMessage(error: unknown): string {
 
 export function useUsagePageHandlers(): IUsagePageHandlers {
   const [billingError, setBillingError] = useState<string | null>(null);
+  const [isRedirectingToBilling, setIsRedirectingToBilling] = useState(false);
   const [createCheckout, checkoutState] = useCreateBillingCheckoutSessionMutation();
   const [createPortal, portalState] = useCreateBillingPortalSessionMutation();
   const [updatePayAsYouGo, updateState] = useUpdatePayAsYouGoSettingsMutation();
 
   const isSaving =
-    checkoutState.isLoading || portalState.isLoading || updateState.isLoading;
+    checkoutState.isLoading ||
+    portalState.isLoading ||
+    updateState.isLoading ||
+    isRedirectingToBilling;
 
   const clearBillingError = () => {
     setBillingError(null);
@@ -52,8 +56,10 @@ export function useUsagePageHandlers(): IUsagePageHandlers {
     clearBillingError();
     try {
       const result = await createCheckout({ origin: window.location.origin }).unwrap();
+      setIsRedirectingToBilling(true);
       window.location.assign(result.checkoutUrl);
     } catch (error) {
+      setIsRedirectingToBilling(false);
       setBillingError(getBillingErrorMessage(error));
     }
   };
@@ -62,8 +68,10 @@ export function useUsagePageHandlers(): IUsagePageHandlers {
     clearBillingError();
     try {
       const result = await createPortal({ origin: window.location.origin }).unwrap();
+      setIsRedirectingToBilling(true);
       window.location.assign(result.portalUrl);
     } catch (error) {
+      setIsRedirectingToBilling(false);
       setBillingError(getBillingErrorMessage(error));
     }
   };
