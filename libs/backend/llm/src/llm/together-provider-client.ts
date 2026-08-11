@@ -210,6 +210,9 @@ export class TogetherProviderClient implements LlmProviderClient {
         request.config.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
       top_p: request.config.topP,
       max_tokens: request.config.maxOutputTokens ?? 16384,
+      ...(request.config.disableReasoning
+        ? { reasoning: { enabled: false } }
+        : {}),
     });
 
     const payload = await fetchJsonWithTimeout(
