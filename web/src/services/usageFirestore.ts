@@ -1,6 +1,8 @@
 import type {
+  BillingStatus,
   GenerationKind,
   IUsageFeatureAvailability,
+  IUsagePayAsYouGoSummary,
   IUserUsageSummary,
 } from '@shared-types';
 import type { DocumentData } from 'firebase/firestore';
@@ -11,6 +13,23 @@ export const USAGE_SUMMARY_DOC_ID = 'current';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function parseOptionalNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function parseBillingStatus(value: unknown): BillingStatus | undefined {
+  if (
+    value === 'none' ||
+    value === 'payment_method_required' ||
+    value === 'active' ||
+    value === 'past_due' ||
+    value === 'disabled'
+  ) {
+    return value;
+  }
+  return undefined;
 }
 
 function parseFeatureAvailability(value: unknown): IUsageFeatureAvailability[] | null {
@@ -43,10 +62,54 @@ function parseFeatureAvailability(value: unknown): IUsageFeatureAvailability[] |
       enabled,
       creditCost,
       affordable,
+      ...(typeof item.usesOverage === 'boolean' ? { usesOverage: item.usesOverage } : {}),
     });
   }
 
   return entries;
+}
+
+function parsePayAsYouGoSummary(value: unknown): IUsagePayAsYouGoSummary | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const billingStatus = parseBillingStatus(value.billingStatus);
+  const monthlyCapCents = parseOptionalNumber(value.monthlyCapCents);
+  const remainingCapCents = parseOptionalNumber(value.remainingCapCents);
+  const spentOverageAmountCents = parseOptionalNumber(value.spentOverageAmountCents);
+  const reservedOverageAmountCents = parseOptionalNumber(value.reservedOverageAmountCents);
+  const spentOverageCredits = parseOptionalNumber(value.spentOverageCredits);
+  const reservedOverageCredits = parseOptionalNumber(value.reservedOverageCredits);
+  const pricePerCreditCents = parseOptionalNumber(value.pricePerCreditCents);
+
+  if (
+    typeof value.enabled !== 'boolean' ||
+    typeof value.hasPaymentMethod !== 'boolean' ||
+    billingStatus === undefined ||
+    monthlyCapCents === undefined ||
+    remainingCapCents === undefined ||
+    spentOverageAmountCents === undefined ||
+    reservedOverageAmountCents === undefined ||
+    spentOverageCredits === undefined ||
+    reservedOverageCredits === undefined ||
+    pricePerCreditCents === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    enabled: value.enabled,
+    monthlyCapCents,
+    remainingCapCents,
+    spentOverageAmountCents,
+    reservedOverageAmountCents,
+    spentOverageCredits,
+    reservedOverageCredits,
+    pricePerCreditCents,
+    billingStatus,
+    hasPaymentMethod: value.hasPaymentMethod,
+  };
 }
 
 export function parseUsageSummaryFromFirestore(raw: DocumentData): IUserUsageSummary | null {
@@ -75,6 +138,8 @@ export function parseUsageSummaryFromFirestore(raw: DocumentData): IUserUsageSum
     return null;
   }
 
+  const payAsYouGo = parsePayAsYouGoSummary(raw.payAsYouGo);
+
   return {
     periodKey,
     allowance,
@@ -82,11 +147,15 @@ export function parseUsageSummaryFromFirestore(raw: DocumentData): IUserUsageSum
     spentCredits,
     refundedCredits,
     remainingCredits,
+    reservedOverageCredits: parseOptionalNumber(raw.reservedOverageCredits),
+    spentOverageCredits: parseOptionalNumber(raw.spentOverageCredits),
+    overageAmountCents: parseOptionalNumber(raw.overageAmountCents),
     resetAt,
     usageLimitsSetupId,
     usageLimitsSetupName:
       typeof raw.usageLimitsSetupName === 'string' ? raw.usageLimitsSetupName : undefined,
     featureAvailability,
+    ...(payAsYouGo ? { payAsYouGo } : {}),
   };
 }
 
