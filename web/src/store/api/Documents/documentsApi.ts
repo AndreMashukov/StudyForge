@@ -227,6 +227,7 @@ export const documentsApi = baseApi.injectEndpoints({
         response.document,
       invalidatesTags: (result, error, arg) => [
         { type: 'Document', id: arg.documentId },
+        { type: 'DocumentContent', id: arg.documentId },
         'Document',
         { type: 'Directory', id: 'LIST' },
       ],
@@ -237,6 +238,8 @@ export const documentsApi = baseApi.injectEndpoints({
         functionName: 'deleteDocument',
         data
       }),
+      // Do not invalidate DocumentContent: an active viewer subscription would
+      // refetch deleted content and surface a false "delete failed" 404.
       invalidatesTags: (result, error, arg) => [
         { type: 'Document', id: arg.documentId },
         'Document', // Invalidate the general tag to refetch the documents list
@@ -318,8 +321,8 @@ export const documentsApi = baseApi.injectEndpoints({
           };
         }
       },
-      providesTags: (result, error, documentId) => [
-        { type: 'Document', id: `${documentId}-content` }
+      providesTags: (_result, _error, documentId) => [
+        { type: 'DocumentContent', id: documentId },
       ],
     }),
   }),

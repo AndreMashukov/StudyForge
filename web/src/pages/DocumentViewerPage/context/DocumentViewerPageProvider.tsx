@@ -20,7 +20,11 @@ export const DocumentViewerPageProvider: React.FC<DocumentViewerPageProviderProp
 
   // API hooks - self-contained, access Redux internally
   const documentApi = useFetchDocumentData(documentId);
-  const contentApi = useFetchDocumentContentData(documentId);
+  // Skip content once the document is gone so delete tag invalidation cannot
+  // trigger a getDocumentContent 404 while this page is still mounted.
+  const contentApi = useFetchDocumentContentData(documentId, {
+    skip: documentApi.isError || (!documentApi.isLoading && !documentApi.data),
+  });
 
   // Handler hooks - self-contained business logic
   const handlers = useDocumentViewerPageHandlers({ 

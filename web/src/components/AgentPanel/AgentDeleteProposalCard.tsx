@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useDeleteDirectoryMutation } from '../../store/api/Directory/DirectoryApi';
@@ -7,10 +8,33 @@ import { useDeleteQuizMutation } from '../../store/api/Quiz/QuizApi';
 import { useDeleteRuleMutation } from '../../store/api/Rules/rulesApi';
 import { IAgentDeleteProposalCard } from './IAgentPanel';
 
+function isViewingDeletedTarget(
+  pathname: string,
+  targetType: IAgentDeleteProposalCard['proposal']['targetType'],
+  targetId: string,
+): boolean {
+  if (targetType === 'document') {
+    return pathname === `/document/${targetId}` || pathname.startsWith(`/document/${targetId}/`);
+  }
+  if (targetType === 'directory') {
+    return (
+      pathname === `/directory/${targetId}` ||
+      pathname.startsWith(`/directory/${targetId}/`) ||
+      (pathname.startsWith('/directory/') && pathname.endsWith(`-${targetId}`))
+    );
+  }
+  if (targetType === 'quiz') {
+    return pathname === `/quiz/${targetId}` || pathname.startsWith(`/quiz/${targetId}/`);
+  }
+  return false;
+}
+
 export const AgentDeleteProposalCard: React.FC<IAgentDeleteProposalCard> = ({
   proposal,
   onConfirmed,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [deleteDirectory] = useDeleteDirectoryMutation();
   const [deleteDocument] = useDeleteDocumentMutation();
   const [deleteQuiz] = useDeleteQuizMutation();
@@ -35,6 +59,11 @@ export const AgentDeleteProposalCard: React.FC<IAgentDeleteProposalCard> = ({
         const unsupported: never = proposal.targetType;
         throw new Error(`Unsupported delete target: ${String(unsupported)}`);
       }
+
+      if (isViewingDeletedTarget(location.pathname, proposal.targetType, proposal.targetId)) {
+        navigate('/documents', { replace: true });
+      }
+
       onConfirmed();
     } catch (confirmError) {
       setError(

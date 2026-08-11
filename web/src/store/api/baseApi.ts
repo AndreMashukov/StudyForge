@@ -74,6 +74,6 @@ const firebaseCallableBaseQuery: BaseQueryFn<
 export const baseApi = createApi({
   reducerPath: 'baseApi',
   baseQuery: firebaseCallableBaseQuery,
-  tagTypes: ['Quiz', 'UserQuizzes', 'DocumentQuizzes', 'Document', 'Directory', 'DirectoryChat', 'Documents', 'Rules', 'DirectoryRules', 'FlashcardSet', 'UserFlashcardSets', 'SlideDeck', 'UserSlideDecks', 'DiagramQuiz', 'UserDiagramQuizzes', 'SequenceQuiz', 'UserSequenceQuizzes', 'InteractionStats', 'LearningStats', 'Statistics', 'ApiKeys'],
+  tagTypes: ['Quiz', 'UserQuizzes', 'DocumentQuizzes', 'Document', 'DocumentContent', 'Directory', 'DirectoryChat', 'Documents', 'Rules', 'DirectoryRules', 'FlashcardSet', 'UserFlashcardSets', 'SlideDeck', 'UserSlideDecks', 'DiagramQuiz', 'UserDiagramQuizzes', 'SequenceQuiz', 'UserSequenceQuizzes', 'InteractionStats', 'LearningStats', 'Statistics', 'ApiKeys'],
   endpoints: () => ({}),
 });
