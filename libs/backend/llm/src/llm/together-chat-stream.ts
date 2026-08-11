@@ -32,6 +32,18 @@ export async function consumeTogetherChatCompletionStream(
   let finishReason: string | null = null;
 
   const reader = response.body.getReader();
+  const handlers = {
+    thinkingFilter,
+    onContentDelta: (delta: string) => {
+      cleanedContent += delta;
+    },
+    onReasoningDelta: (delta: string) => {
+      reasoningLength += delta.length;
+    },
+    onFinishReason: (reason: string) => {
+      finishReason = reason;
+    },
+  };
 
   try {
     while (true) {
@@ -45,34 +57,12 @@ export async function consumeTogetherChatCompletionStream(
       lineBuffer = lines.pop() ?? '';
 
       for (const line of lines) {
-        applySseDataLine(line, {
-          thinkingFilter,
-          onContentDelta: (delta) => {
-            cleanedContent += delta;
-          },
-          onReasoningDelta: (delta) => {
-            reasoningLength += delta.length;
-          },
-          onFinishReason: (reason) => {
-            finishReason = reason;
-          },
-        });
+        applySseDataLine(line, handlers);
       }
     }
 
     if (lineBuffer.trim().length > 0) {
-      applySseDataLine(lineBuffer, {
-        thinkingFilter,
-        onContentDelta: (delta) => {
-          cleanedContent += delta;
-        },
-        onReasoningDelta: (delta) => {
-          reasoningLength += delta.length;
-        },
-        onFinishReason: (reason) => {
-          finishReason = reason;
-        },
-      });
+      applySseDataLine(lineBuffer, handlers);
     }
   } finally {
     reader.releaseLock();

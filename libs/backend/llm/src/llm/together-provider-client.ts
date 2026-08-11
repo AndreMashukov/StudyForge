@@ -66,12 +66,12 @@ function throwEmptyTogetherChatResponse(
   throw new Error(`Malformed or empty response from Together ${label}`);
 }
 
-async function fetchWithTimeout(
+async function fetchWithTimeout<T>(
   url: string,
   init: RequestInit,
-  consumeResponse: (response: Response) => Promise<unknown>,
+  consumeResponse: (response: Response) => Promise<T>,
   timeoutMs: number = TOGETHER_REQUEST_TIMEOUT_MS,
-): Promise<unknown> {
+): Promise<T> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -97,7 +97,7 @@ async function fetchJsonWithTimeout(
   errorLabel: string,
   timeoutMs?: number,
 ): Promise<unknown> {
-  return fetchWithTimeout(
+  return fetchWithTimeout<unknown>(
     url,
     init,
     async (response) => {
@@ -118,7 +118,7 @@ async function fetchTogetherChatCompletionStream(
   errorLabel: string,
   timeoutMs?: number,
 ): Promise<ITogetherStreamedChatResult> {
-  const result = await fetchWithTimeout(
+  return fetchWithTimeout(
     url,
     init,
     async (response) => {
@@ -131,8 +131,6 @@ async function fetchTogetherChatCompletionStream(
     },
     timeoutMs,
   );
-
-  return result as ITogetherStreamedChatResult;
 }
 
 function resolveTogetherImageDimensions(aspectRatio?: string): {
