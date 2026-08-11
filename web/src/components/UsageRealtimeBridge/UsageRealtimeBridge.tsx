@@ -10,8 +10,9 @@ import {
 import { usageApi } from '../../store/api/Usage/usageApi';
 
 /**
- * Keeps the usage credits meter in sync when the server updates
- * users/{uid}/usageSummary/current after reserve/commit/refund.
+ * Keeps usage summary RTK cache in sync when the server updates
+ * users/{uid}/usageSummary/current (credits, billing, pay-as-you-go).
+ * Mirrors the directory realtime pattern: Firestore onSnapshot + upsertQueryData.
  */
 export function UsageRealtimeBridge() {
   const { user } = useAuth();

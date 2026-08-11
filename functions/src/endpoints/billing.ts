@@ -1,4 +1,5 @@
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
+import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import { z } from 'zod';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
@@ -138,7 +139,6 @@ export const updatePayAsYouGoSettingsEndpoint = onCall(
       }
 
       const billing = await updatePayAsYouGoSettings(userId, parsed.data);
-      await getUserUsageSummary(userId);
 
       return {
         success: true,
@@ -207,15 +207,33 @@ export const stripeBillingWebhook = onRequest(
 
     try {
       const rawBody = req.rawBody;
+      if (!rawBody || rawBody.length === 0) {
+        logger.error('Stripe webhook missing rawBody');
+        res.status(400).send('Invalid webhook payload');
+        return;
+      }
+
+      const webhookSecret = stripeWebhookSecret.value();
+      if (!webhookSecret.startsWith('whsec_')) {
+        logger.error('STRIPE_WEBHOOK_SECRET is not a Stripe signing secret', {
+          prefix: webhookSecret.slice(0, 6),
+        });
+        res.status(400).send('Webhook misconfigured');
+        return;
+      }
+
       await handleStripeBillingWebhook({
         rawBody,
         signature,
         stripeSecretKey: stripeSecretKey.value(),
-        stripeWebhookSecret: stripeWebhookSecret.value(),
+        stripeWebhookSecret: webhookSecret,
       });
       res.status(200).json({ received: true });
     } catch (error) {
-      res.status(400).send(error instanceof Error ? error.message : 'Webhook error');
+      logger.error('Stripe webhook handling failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(400).send('Webhook error');
     }
   },
 );

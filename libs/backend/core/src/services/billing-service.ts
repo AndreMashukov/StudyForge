@@ -325,6 +325,7 @@ export async function updatePayAsYouGoSettings(
   });
 
   await billingStateRef(userId).set(write, { merge: true });
+  await syncUsageSummaryAfterBillingChange(userId);
 
   return {
     ...billing,
@@ -332,6 +333,16 @@ export async function updatePayAsYouGoSettings(
     monthlyCapCents: Math.floor(request.monthlyCapCents),
     updatedAt: typeof write.updatedAt === 'string' ? write.updatedAt : new Date().toISOString(),
   };
+}
+
+function paymentMethodIdFromUnknown(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.length > 0) {
+    return value;
+  }
+  if (isRecord(value) && typeof value.id === 'string' && value.id.length > 0) {
+    return value.id;
+  }
+  return undefined;
 }
 
 async function resolveDefaultPaymentMethodId(
@@ -343,15 +354,36 @@ async function resolveDefaultPaymentMethodId(
     return undefined;
   }
 
-  const defaultPaymentMethod = customer.invoice_settings?.default_payment_method;
-  if (typeof defaultPaymentMethod === 'string') {
-    return defaultPaymentMethod;
-  }
-  if (isRecord(defaultPaymentMethod) && typeof defaultPaymentMethod.id === 'string') {
-    return defaultPaymentMethod.id;
+  const fromInvoiceSettings = paymentMethodIdFromUnknown(
+    customer.invoice_settings?.default_payment_method,
+  );
+  if (fromInvoiceSettings) {
+    return fromInvoiceSettings;
   }
 
-  return undefined;
+  const paymentMethods = await stripe.paymentMethods.list({
+    customer: customerId,
+    type: 'card',
+    limit: 1,
+  });
+  return paymentMethods.data[0]?.id;
+}
+
+async function ensureCustomerDefaultPaymentMethod(
+  stripe: Stripe,
+  customerId: string,
+  paymentMethodId: string,
+): Promise<void> {
+  await stripe.customers.update(customerId, {
+    invoice_settings: {
+      default_payment_method: paymentMethodId,
+    },
+  });
+}
+
+async function syncUsageSummaryAfterBillingChange(userId: string): Promise<void> {
+  const { getUserUsageSummary } = await import('./usage-limits-service');
+  await getUserUsageSummary(userId);
 }
 
 export async function handleStripeBillingWebhook(params: {
@@ -385,13 +417,15 @@ export async function handleStripeBillingWebhook(params: {
       let defaultPaymentMethodId: string | undefined;
       if (setupIntentId) {
         const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
-        if (typeof setupIntent.payment_method === 'string') {
-          defaultPaymentMethodId = setupIntent.payment_method;
-        }
+        defaultPaymentMethodId = paymentMethodIdFromUnknown(setupIntent.payment_method);
       }
 
       if (!defaultPaymentMethodId) {
         defaultPaymentMethodId = await resolveDefaultPaymentMethodId(stripe, customerId);
+      }
+
+      if (defaultPaymentMethodId) {
+        await ensureCustomerDefaultPaymentMethod(stripe, customerId, defaultPaymentMethodId);
       }
 
       const billing = await getUserBillingState(userId);
@@ -406,6 +440,7 @@ export async function handleStripeBillingWebhook(params: {
         }),
         { merge: true },
       );
+      await syncUsageSummaryAfterBillingChange(userId);
       break;
     }
     case 'customer.updated': {
@@ -423,10 +458,12 @@ export async function handleStripeBillingWebhook(params: {
       });
       if (defaultPaymentMethodId) {
         write.defaultPaymentMethodId = defaultPaymentMethodId;
+        await ensureCustomerDefaultPaymentMethod(stripe, customer.id, defaultPaymentMethodId);
       } else {
         write.defaultPaymentMethodId = FieldValue.delete();
       }
       await billingStateRef(userId).set(write, { merge: true });
+      await syncUsageSummaryAfterBillingChange(userId);
       break;
     }
     case 'invoice.payment_failed': {
@@ -454,6 +491,7 @@ export async function handleStripeBillingWebhook(params: {
         }),
         { merge: true },
       );
+      await syncUsageSummaryAfterBillingChange(userId);
       break;
     }
     case 'invoice.paid': {

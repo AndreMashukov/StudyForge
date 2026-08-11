@@ -1,13 +1,10 @@
 import { useState } from 'react';
-import { useDispatch } from 'react-redux';
 import { DEFAULT_PAYG_MONTHLY_CAP_CENTS } from '@shared-types';
 import {
   useCreateBillingCheckoutSessionMutation,
   useCreateBillingPortalSessionMutation,
   useUpdatePayAsYouGoSettingsMutation,
 } from '../../../../store/api/Billing/billingApi';
-import { usageApi } from '../../../../store/api/Usage/usageApi';
-import type { AppDispatch } from '../../../../store';
 import type { IUsagePageHandlers } from '../../types/IUsagePageHandlers';
 
 function parseMonthlyCapCents(value: string): number {
@@ -39,7 +36,6 @@ function getBillingErrorMessage(error: unknown): string {
 }
 
 export function useUsagePageHandlers(): IUsagePageHandlers {
-  const dispatch = useDispatch<AppDispatch>();
   const [billingError, setBillingError] = useState<string | null>(null);
   const [createCheckout, checkoutState] = useCreateBillingCheckoutSessionMutation();
   const [createPortal, portalState] = useCreateBillingPortalSessionMutation();
@@ -47,10 +43,6 @@ export function useUsagePageHandlers(): IUsagePageHandlers {
 
   const isSaving =
     checkoutState.isLoading || portalState.isLoading || updateState.isLoading;
-
-  const refreshUsageSummary = () => {
-    void dispatch(usageApi.endpoints.getUsageSummary.initiate(undefined, { forceRefetch: true }));
-  };
 
   const clearBillingError = () => {
     setBillingError(null);
@@ -70,7 +62,10 @@ export function useUsagePageHandlers(): IUsagePageHandlers {
     clearBillingError();
     try {
       const result = await createPortal({ origin: window.location.origin }).unwrap();
-      window.location.assign(result.portalUrl);
+      const portalWindow = window.open(result.portalUrl, '_blank', 'noopener,noreferrer');
+      if (!portalWindow) {
+        setBillingError('Pop-up blocked. Allow pop-ups to manage billing in a new tab.');
+      }
     } catch (error) {
       setBillingError(getBillingErrorMessage(error));
     }
@@ -83,7 +78,6 @@ export function useUsagePageHandlers(): IUsagePageHandlers {
         enabled: true,
         monthlyCapCents: parseMonthlyCapCents(monthlyCapDollars),
       }).unwrap();
-      refreshUsageSummary();
     } catch (error) {
       setBillingError(getBillingErrorMessage(error));
     }
@@ -96,7 +90,6 @@ export function useUsagePageHandlers(): IUsagePageHandlers {
         enabled: false,
         monthlyCapCents: parseMonthlyCapCents(monthlyCapDollars),
       }).unwrap();
-      refreshUsageSummary();
     } catch (error) {
       setBillingError(getBillingErrorMessage(error));
     }
