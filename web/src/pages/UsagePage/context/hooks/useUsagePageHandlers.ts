@@ -62,10 +62,7 @@ export function useUsagePageHandlers(): IUsagePageHandlers {
     clearBillingError();
     try {
       const result = await createPortal({ origin: window.location.origin }).unwrap();
-      const portalWindow = window.open(result.portalUrl, '_blank', 'noopener,noreferrer');
-      if (!portalWindow) {
-        setBillingError('Pop-up blocked. Allow pop-ups to manage billing in a new tab.');
-      }
+      window.location.assign(result.portalUrl);
     } catch (error) {
       setBillingError(getBillingErrorMessage(error));
     }
