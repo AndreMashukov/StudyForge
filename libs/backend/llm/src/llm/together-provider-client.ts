@@ -2,9 +2,9 @@ import * as functions from 'firebase-functions';
 import { DEFAULT_LLM_GENERATION_SETTINGS } from '@shared-types';
 import type { LlmProviderClient } from './llm-provider-client';
 import {
-  parseTogetherChatContent,
-  summarizeTogetherChatPayload,
-} from './together-chat-content';
+  consumeTogetherChatCompletionStream,
+  type ITogetherStreamedChatResult,
+} from './together-chat-stream';
 import type {
   LlmImageRequest,
   LlmImageResult,
@@ -47,10 +47,12 @@ function parseTogetherImageBase64(payload: unknown): string | null {
 }
 
 function throwEmptyTogetherChatResponse(
-  payload: unknown,
+  diagnostics: Pick<
+    ITogetherStreamedChatResult,
+    'finishReason' | 'hasReasoning' | 'reasoningLength'
+  >,
   label: string,
 ): never {
-  const diagnostics = summarizeTogetherChatPayload(payload);
   functions.logger.warn(`Empty Together ${label} response`, diagnostics);
 
   if (diagnostics.finishReason === 'length' && diagnostics.hasReasoning) {
@@ -110,6 +112,29 @@ async function fetchJsonWithTimeout(
   );
 }
 
+async function fetchTogetherChatCompletionStream(
+  url: string,
+  init: RequestInit,
+  errorLabel: string,
+  timeoutMs?: number,
+): Promise<ITogetherStreamedChatResult> {
+  const result = await fetchWithTimeout(
+    url,
+    init,
+    async (response) => {
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '(unreadable)');
+        throw new Error(`${errorLabel} ${response.status}: ${errorText}`);
+      }
+
+      return consumeTogetherChatCompletionStream(response);
+    },
+    timeoutMs,
+  );
+
+  return result as ITogetherStreamedChatResult;
+}
+
 function resolveTogetherImageDimensions(aspectRatio?: string): {
   width: number;
   height: number;
@@ -129,6 +154,28 @@ function resolveTogetherImageDimensions(aspectRatio?: string): {
   }
 }
 
+function buildTogetherChatBody(input: {
+  model: string;
+  messages: unknown[];
+  temperature?: number;
+  topP?: number;
+  maxOutputTokens?: number;
+  disableReasoning?: boolean;
+}): string {
+  return JSON.stringify({
+    model: input.model,
+    messages: input.messages,
+    // Some Together models (e.g. Qwen3.7-Plus) reject non-streaming requests.
+    // Artifact generation still buffers the full text before parse/persist.
+    stream: true,
+    temperature:
+      input.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
+    top_p: input.topP,
+    max_tokens: input.maxOutputTokens ?? 16384,
+    ...(input.disableReasoning ? { reasoning: { enabled: false } } : {}),
+  });
+}
+
 export class TogetherProviderClient implements LlmProviderClient {
   constructor(
     private readonly apiKey: string,
@@ -145,25 +192,23 @@ export class TogetherProviderClient implements LlmProviderClient {
   }
 
   async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
-    const body = JSON.stringify({
+    const body = buildTogetherChatBody({
       model: request.config.model,
       messages: [{ role: 'user', content: request.prompt }],
-      temperature:
-        request.config.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
-      top_p: request.config.topP,
-      max_tokens: request.config.maxOutputTokens ?? 16384,
-      ...(request.config.disableReasoning
-        ? { reasoning: { enabled: false } }
-        : {}),
+      temperature: request.config.temperature,
+      topP: request.config.topP,
+      maxOutputTokens: request.config.maxOutputTokens,
+      disableReasoning: request.config.disableReasoning,
     });
 
-    const payload = await fetchJsonWithTimeout(
+    const streamed = await fetchTogetherChatCompletionStream(
       this.chatCompletionsUrl,
       {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
         },
         body,
       },
@@ -171,13 +216,12 @@ export class TogetherProviderClient implements LlmProviderClient {
       request.config.requestTimeoutMs,
     );
 
-    const text = parseTogetherChatContent(payload);
-    if (!text) {
-      throwEmptyTogetherChatResponse(payload, 'API');
+    if (!streamed.text) {
+      throwEmptyTogetherChatResponse(streamed, 'API');
     }
 
     return {
-      text,
+      text: streamed.text,
       model: request.config.model,
       providerType: 'together',
       connectionId: this.connectionId,
@@ -189,7 +233,7 @@ export class TogetherProviderClient implements LlmProviderClient {
   ): Promise<LlmVisionResult> {
     const detail = request.detail ?? 'auto';
 
-    const body = JSON.stringify({
+    const body = buildTogetherChatBody({
       model: request.config.model,
       messages: [
         {
@@ -206,22 +250,20 @@ export class TogetherProviderClient implements LlmProviderClient {
           ],
         },
       ],
-      temperature:
-        request.config.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
-      top_p: request.config.topP,
-      max_tokens: request.config.maxOutputTokens ?? 16384,
-      ...(request.config.disableReasoning
-        ? { reasoning: { enabled: false } }
-        : {}),
+      temperature: request.config.temperature,
+      topP: request.config.topP,
+      maxOutputTokens: request.config.maxOutputTokens,
+      disableReasoning: request.config.disableReasoning,
     });
 
-    const payload = await fetchJsonWithTimeout(
+    const streamed = await fetchTogetherChatCompletionStream(
       this.chatCompletionsUrl,
       {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
         },
         body,
       },
@@ -229,13 +271,12 @@ export class TogetherProviderClient implements LlmProviderClient {
       request.config.requestTimeoutMs,
     );
 
-    const text = parseTogetherChatContent(payload);
-    if (!text) {
-      throwEmptyTogetherChatResponse(payload, 'vision API');
+    if (!streamed.text) {
+      throwEmptyTogetherChatResponse(streamed, 'vision API');
     }
 
     return {
-      text,
+      text: streamed.text,
       model: request.config.model,
       providerType: 'together',
       connectionId: this.connectionId,
