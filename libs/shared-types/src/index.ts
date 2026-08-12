@@ -2199,29 +2199,31 @@ export function resolveLlmGenerationProfileSettings(
 export function resolveLlmGenerationFlowRuntimeSettings(
   globalSettings: ILlmGenerationRuntimeSettings,
   options: {
+    /** @deprecated Profiles are code-only; ignored when flowId is set. */
     profileId?: LlmGenerationProfileId;
     flowId?: LlmGenerationFlowId;
+    /** @deprecated Profiles are no longer edited in admin. */
     storedProfiles?: ILlmGenerationProfiles;
     storedFlows?: ILlmGenerationFlows;
   },
 ): ILlmGenerationRuntimeSettings {
-  const profileBase = options.profileId
-    ? resolveLlmGenerationProfileSettings(
-        globalSettings,
-        options.profileId,
-        options.storedProfiles,
-      )
-    : { ...globalSettings };
-
-  if (!options.flowId) {
-    return profileBase;
+  if (options.flowId) {
+    return applyLlmGenerationFlowOverrides(
+      globalSettings,
+      options.flowId,
+      options.storedFlows,
+    );
   }
 
-  return applyLlmGenerationFlowOverrides(
-    profileBase,
-    options.flowId,
-    options.storedFlows,
-  );
+  if (options.profileId) {
+    return resolveLlmGenerationProfileSettings(
+      globalSettings,
+      options.profileId,
+      options.storedProfiles,
+    );
+  }
+
+  return { ...globalSettings };
 }
 
 export const LLM_GENERATION_SETTINGS_LIMITS = {

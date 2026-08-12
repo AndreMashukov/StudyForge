@@ -3,7 +3,6 @@
 import type {
   ILlmGenerationSettings,
   LlmGenerationFlowId,
-  LlmGenerationProfileId,
 } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { usePathname, useRouter } from 'next/navigation';
@@ -36,7 +35,6 @@ import { Input } from '@admin/components/ui/Input';
 import {
   getLlmGenerationSettingsDefaultValues,
   LLM_GENERATION_FLOW_METADATA,
-  LLM_GENERATION_PROFILE_METADATA,
   llmGenerationSettingsFormSchema,
   normalizeLlmGenerationSettingsSubmitPayload,
   type ILlmGenerationSettingsFormValues,
@@ -60,11 +58,9 @@ type GlobalNumericFieldName =
   | 'topP'
   | 'thinkingBudget';
 
-type ProfileNumericFieldName =
+type StepNumericFieldName =
   | 'maxOutputTokens'
   | 'temperature'
-  | 'topK'
-  | 'topP'
   | 'thinkingBudget';
 
 interface INumericFieldConfig<TName extends string> {
@@ -184,38 +180,10 @@ const requestFields: INumericFieldConfig<GlobalNumericFieldName>[] = [
     name: 'maxOutputTokens',
     label: 'Max output tokens',
     description:
-      'Default completion budget when a generation flow does not specify its own token limit.',
+      'Default completion budget when a generation step does not specify its own token limit.',
     min: 1,
     max: 65_536,
     step: 1,
-  },
-];
-
-const profileSamplingFields: INumericFieldConfig<ProfileNumericFieldName>[] = [
-  {
-    name: 'temperature',
-    label: 'Temperature',
-    description:
-      'Lower values are more deterministic; higher values are more varied.',
-    min: 0,
-    max: 2,
-    step: 0.05,
-  },
-  {
-    name: 'topK',
-    label: 'Top K',
-    description: 'Limits sampling to the most likely tokens when supported.',
-    min: 1,
-    max: 100,
-    step: 1,
-  },
-  {
-    name: 'topP',
-    label: 'Top P',
-    description: 'Nucleus sampling probability mass when supported.',
-    min: 0,
-    max: 1,
-    step: 0.01,
   },
 ];
 
@@ -247,27 +215,6 @@ const globalSamplingFields: INumericFieldConfig<GlobalNumericFieldName>[] = [
   },
 ];
 
-const profileOutputField: INumericFieldConfig<ProfileNumericFieldName> = {
-  name: 'maxOutputTokens',
-  label: 'Max output tokens',
-  description: 'Completion budget for flows that use this profile.',
-  min: 1,
-  max: 65_536,
-  step: 1,
-};
-
-const profileReasoningFields: INumericFieldConfig<ProfileNumericFieldName>[] = [
-  {
-    name: 'thinkingBudget',
-    label: 'Thinking budget',
-    description:
-      'Optional Gemini thinking token budget. Leave blank to use provider/model defaults unless reasoning is disabled.',
-    min: 0,
-    max: 65_536,
-    step: 1,
-  },
-];
-
 const globalReasoningFields: INumericFieldConfig<GlobalNumericFieldName>[] = [
   {
     name: 'thinkingBudget',
@@ -280,87 +227,36 @@ const globalReasoningFields: INumericFieldConfig<GlobalNumericFieldName>[] = [
   },
 ];
 
-function ProfileSettingsSection({
-  control,
-  profileId,
-}: {
-  control: Control<ILlmGenerationSettingsFormValues>;
-  profileId: LlmGenerationProfileId;
-}) {
-  const metadata = LLM_GENERATION_PROFILE_METADATA.find(
-    (entry) => entry.id === profileId,
-  );
+const stepOutputField: INumericFieldConfig<StepNumericFieldName> = {
+  name: 'maxOutputTokens',
+  label: 'Max output tokens',
+  description: 'Completion budget for this generation step.',
+  min: 1,
+  max: 65_536,
+  step: 1,
+};
 
-  if (!metadata) {
-    return null;
-  }
+const stepTemperatureField: INumericFieldConfig<StepNumericFieldName> = {
+  name: 'temperature',
+  label: 'Temperature',
+  description:
+    'Sampling temperature for this step. Lower is more deterministic.',
+  min: 0,
+  max: 2,
+  step: 0.05,
+};
 
-  return (
-    <section className="space-y-4 rounded-lg border border-border p-4">
-      <div>
-        <h3 className="text-sm font-medium">{metadata.label}</h3>
-        <p className="text-sm text-muted-foreground">{metadata.description}</p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Used by: {metadata.flows.join(', ')}
-        </p>
-      </div>
+const stepThinkingField: INumericFieldConfig<StepNumericFieldName> = {
+  name: 'thinkingBudget',
+  label: 'Thinking budget',
+  description:
+    'Optional Gemini thinking token budget for this step. Leave blank for provider defaults.',
+  min: 0,
+  max: 65_536,
+  step: 1,
+};
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <NumericSettingField
-          control={control}
-          field={profileOutputField}
-          name={`profiles.${profileId}.maxOutputTokens`}
-        />
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-3">
-        {profileSamplingFields.map((field) => (
-          <NumericSettingField
-            key={field.name}
-            control={control}
-            field={field}
-            name={`profiles.${profileId}.${field.name}`}
-          />
-        ))}
-      </div>
-
-      <FormField
-        control={control}
-        name={`profiles.${profileId}.disableReasoning`}
-        render={({ field }) => (
-          <FormItem>
-            <div className="flex items-center gap-2">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onBlur={field.onBlur}
-                  onChange={(event) => field.onChange(event.target.checked)}
-                />
-              </FormControl>
-              <FormLabel className="text-sm font-normal">
-                Disable reasoning for this profile
-              </FormLabel>
-            </div>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <div className="grid gap-6 md:grid-cols-2">
-        {profileReasoningFields.map((field) => (
-          <NumericSettingField
-            key={field.name}
-            control={control}
-            field={field}
-            name={`profiles.${profileId}.${field.name}`}
-          />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function FlowSettingsSection({
+function GenerationStepSection({
   control,
   flowId,
 }: {
@@ -380,20 +276,23 @@ function FlowSettingsSection({
       <div>
         <h3 className="text-sm font-medium">{metadata.label}</h3>
         <p className="text-sm text-muted-foreground">{metadata.description}</p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Inherits profile: {metadata.profileId} · id: {metadata.id}
-        </p>
+        <p className="mt-2 text-xs text-muted-foreground">id: {metadata.id}</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-3">
         <NumericSettingField
           control={control}
-          field={profileOutputField}
+          field={stepOutputField}
           name={`flows.${flowId}.maxOutputTokens`}
         />
         <NumericSettingField
           control={control}
-          field={profileReasoningFields[0]}
+          field={stepTemperatureField}
+          name={`flows.${flowId}.temperature`}
+        />
+        <NumericSettingField
+          control={control}
+          field={stepThinkingField}
           name={`flows.${flowId}.thinkingBudget`}
         />
       </div>
@@ -412,7 +311,7 @@ function FlowSettingsSection({
                 />
               </FormControl>
               <FormLabel className="text-sm font-normal">
-                Disable reasoning for this flow
+                Disable reasoning for this step
               </FormLabel>
             </div>
             <FormMessage />
@@ -476,11 +375,11 @@ export function LlmGenerationSettingsForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl">Global LLM runtime settings</CardTitle>
+        <CardTitle className="text-xl">LLM generation settings</CardTitle>
         <CardDescription>
-          Configure platform-wide defaults, named sampling profiles, and
-          per-flow token budgets. Call sites select a flow id; values resolve
-          as flow, then profile, then global.
+          Configure global defaults and per-step budgets. Call sites select a
+          generation step; values resolve as step override, then code seed, then
+          global.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -490,8 +389,8 @@ export function LlmGenerationSettingsForm({
               <div>
                 <h3 className="text-sm font-medium">Global defaults</h3>
                 <p className="text-sm text-muted-foreground">
-                  Base values inherited by every profile unless a profile
-                  overrides them.
+                  Base values used when a generation step does not override
+                  them, and for call sites that only use a code profile.
                 </p>
               </div>
               <div className="grid gap-6 md:grid-cols-2">
@@ -551,25 +450,7 @@ export function LlmGenerationSettingsForm({
 
             <section className="space-y-4">
               <div>
-                <h3 className="text-sm font-medium">Named profiles</h3>
-                <p className="text-sm text-muted-foreground">
-                  Generation flows pick one of these profiles at runtime.
-                </p>
-              </div>
-              <div className="space-y-6">
-                {LLM_GENERATION_PROFILE_METADATA.map((profile) => (
-                  <ProfileSettingsSection
-                    key={profile.id}
-                    control={form.control}
-                    profileId={profile.id}
-                  />
-                ))}
-              </div>
-            </section>
-
-            <section className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium">Flow presets</h3>
+                <h3 className="text-sm font-medium">Generation steps</h3>
                 <p className="text-sm text-muted-foreground">
                   Step-level budgets for sequence quiz, diagram quiz phases,
                   flashcards, screenshots, and related helpers. Override without
@@ -578,7 +459,7 @@ export function LlmGenerationSettingsForm({
               </div>
               <div className="space-y-6">
                 {LLM_GENERATION_FLOW_METADATA.map((flow) => (
-                  <FlowSettingsSection
+                  <GenerationStepSection
                     key={flow.id}
                     control={form.control}
                     flowId={flow.id}

@@ -14,7 +14,6 @@ import type {
 import {
   DEFAULT_LLM_GENERATION_SETTINGS,
   LLM_GENERATION_FLOW_IDS,
-  LLM_GENERATION_FLOW_METADATA,
   LLM_GENERATION_PROFILE_IDS,
   LLM_GENERATION_SETTINGS_LIMITS,
   resolveLlmGenerationFlowRuntimeSettings,
@@ -52,13 +51,6 @@ function getSettingsRef(): admin.firestore.DocumentReference {
   return getAdminFirestore()
     .collection(ADMIN_SETTINGS_COLLECTION)
     .doc(LLM_GENERATION_SETTINGS_DOCUMENT);
-}
-
-function flowProfileId(flowId: LlmGenerationFlowId): LlmGenerationProfileId {
-  const metadata = LLM_GENERATION_FLOW_METADATA.find(
-    (entry) => entry.id === flowId,
-  );
-  return metadata?.profileId ?? 'structuredArtifact';
 }
 
 function getNumericValue(
@@ -477,16 +469,14 @@ function normalizeFlowOverrides(
     throw new Error(`Flow "${flowId}" must be an object.`);
   }
 
-  const withProfile = resolveLlmGenerationFlowRuntimeSettings(current, {
-    profileId: flowProfileId(flowId),
+  const currentEffective = resolveLlmGenerationFlowRuntimeSettings(current, {
     flowId,
-    storedProfiles: current.profiles,
     storedFlows: current.flows,
   });
 
   const disableReasoning =
     input.disableReasoning === undefined
-      ? withProfile.disableReasoning
+      ? currentEffective.disableReasoning
       : input.disableReasoning;
   if (typeof disableReasoning !== 'boolean') {
     throw new Error(`Flow "${flowId}" disableReasoning must be a boolean.`);
@@ -497,22 +487,19 @@ function normalizeFlowOverrides(
       normalizeNumericSetting(
         input,
         'maxOutputTokens',
-        withProfile.maxOutputTokens,
+        currentEffective.maxOutputTokens,
         LLM_GENERATION_SETTINGS_LIMITS.maxOutputTokens,
         { integer: true },
-      ) ?? withProfile.maxOutputTokens,
-    disableReasoning,
-  };
-
-  if (input.temperature !== undefined && input.temperature !== null) {
-    overrides.temperature =
+      ) ?? currentEffective.maxOutputTokens,
+    temperature:
       normalizeNumericSetting(
         input,
         'temperature',
-        withProfile.temperature,
+        currentEffective.temperature,
         LLM_GENERATION_SETTINGS_LIMITS.temperature,
-      ) ?? withProfile.temperature;
-  }
+      ) ?? currentEffective.temperature,
+    disableReasoning,
+  };
 
   const thinkingBudget =
     input.thinkingBudget === null
@@ -520,7 +507,7 @@ function normalizeFlowOverrides(
       : normalizeNumericSetting(
           input,
           'thinkingBudget',
-          withProfile.thinkingBudget,
+          currentEffective.thinkingBudget,
           LLM_GENERATION_SETTINGS_LIMITS.thinkingBudget,
           { integer: true },
         );
@@ -571,9 +558,7 @@ export function getEffectiveLlmGenerationFlowSettings(
   flowId: LlmGenerationFlowId,
 ): ILlmGenerationRuntimeSettings {
   return resolveLlmGenerationFlowRuntimeSettings(settings, {
-    profileId: flowProfileId(flowId),
     flowId,
-    storedProfiles: settings.profiles,
     storedFlows: settings.flows,
   });
 }
@@ -604,7 +589,12 @@ export async function updateLlmGenerationSettings(
         ? parseStoredSettings(snapshot.data() ?? {})
         : { ...DEFAULT_LLM_GENERATION_SETTINGS };
       const nextSettings = normalizeRuntimeSettings(input, current);
-      const nextProfiles = normalizeProfilesInput(input.profiles, current);
+      // Profiles are code-only in admin UI. Preserve any legacy Firestore
+      // profiles when the client omits them; never clear on a flows-only save.
+      const nextProfiles =
+        input.profiles === undefined
+          ? current.profiles
+          : normalizeProfilesInput(input.profiles, current);
       const nextFlows = normalizeFlowsInput(input.flows, current);
       const document: FirebaseFirestore.DocumentData = {
         ...nextSettings,

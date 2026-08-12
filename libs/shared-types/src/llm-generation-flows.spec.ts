@@ -9,14 +9,18 @@ import {
 } from './llm-generation-flows';
 
 describe('applyLlmGenerationFlowOverrides', () => {
-  it('applies seed maxOutputTokens over profile base', () => {
+  it('applies seed values over global', () => {
     const base = {
       ...DEFAULT_LLM_GENERATION_SETTINGS,
-      maxOutputTokens: 16_384,
+      maxOutputTokens: 1000,
+      temperature: 0.9,
     };
     const resolved = applyLlmGenerationFlowOverrides(base, 'sequenceQuiz');
     expect(resolved.maxOutputTokens).toBe(
       DEFAULT_LLM_GENERATION_FLOWS.sequenceQuiz.maxOutputTokens,
+    );
+    expect(resolved.temperature).toBe(
+      DEFAULT_LLM_GENERATION_FLOWS.sequenceQuiz.temperature,
     );
   });
 
@@ -30,11 +34,12 @@ describe('applyLlmGenerationFlowOverrides', () => {
 });
 
 describe('resolveLlmGenerationFlowRuntimeSettings', () => {
-  it('merges flow over profile over global', () => {
+  it('resolves flow → global without using profiles', () => {
     const resolved = resolveLlmGenerationFlowRuntimeSettings(
       {
         ...DEFAULT_LLM_GENERATION_SETTINGS,
         maxOutputTokens: 1000,
+        temperature: 0.9,
       },
       {
         profileId: 'structuredArtifact',
