@@ -76,6 +76,12 @@ import { parseQuizJson } from './quiz-response-parser';
 
 type FlashcardItem = IParsedFlashcardItem;
 
+/**
+ * Thinking models (Together MiniMax-M3) spend most of max_tokens on reasoning.
+ * Diagram-quiz agent helpers previously used 2k–6k and truncated with empty content.
+ */
+const DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS = 32768;
+
 function toGeminiContentOptions(config: LlmTextConfig): {
   model?: string;
   maxOutputTokens?: number;
@@ -1207,7 +1213,11 @@ Return ONLY the corrected Mermaid source with no markdown fences or commentary.`
     const repairConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
-      { maxOutputTokens: 2048, topK: 20, topP: 0.9 },
+      {
+        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
+        topK: 20,
+        topP: 0.9,
+      },
     );
 
     if (!ctx.usesExternalProvider) {
@@ -1223,7 +1233,7 @@ Return ONLY the corrected Mermaid source with no markdown fences or commentary.`
       prompt,
       {
         model: ctx.resolution.route.model,
-        maxOutputTokens: 2048,
+        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
         topK: 20,
         topP: 0.9,
       },
@@ -1299,7 +1309,12 @@ Return ONLY valid JSON:
     const repairConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
-      { maxOutputTokens: 6144, topK: 20, topP: 0.9, temperature: 0.25 },
+      {
+        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
+        topK: 20,
+        topP: 0.9,
+        temperature: 0.25,
+      },
     );
 
     const raw = !ctx.usesExternalProvider
@@ -1312,7 +1327,7 @@ Return ONLY valid JSON:
           prompt,
           {
             model: ctx.resolution.route.model,
-            maxOutputTokens: 6144,
+            maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
             topK: 20,
             topP: 0.9,
             temperature: 0.25,
@@ -1400,7 +1415,11 @@ Use "revise" for fixable pedagogical issues and "fail" only for severe factual e
     const criticConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
-      { maxOutputTokens: 4096, topK: 20, topP: 0.9 },
+      {
+        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
+        topK: 20,
+        topP: 0.9,
+      },
     );
 
     if (!ctx.usesExternalProvider) {
@@ -1415,7 +1434,7 @@ Use "revise" for fixable pedagogical issues and "fail" only for severe factual e
       prompt,
       {
         model: ctx.resolution.route.model,
-        maxOutputTokens: 4096,
+        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
         topK: 20,
         topP: 0.9,
       },
@@ -1474,7 +1493,10 @@ Include ONLY the listed indexes. Each diagram must be valid Mermaid source.`;
     const runtimeConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
-      { temperature: 0.35 },
+      {
+        temperature: 0.35,
+        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
+      },
     );
 
     if (!ctx.usesExternalProvider) {
@@ -1492,7 +1514,11 @@ Include ONLY the listed indexes. Each diagram must be valid Mermaid source.`;
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      { model: ctx.resolution.route.model, temperature: 0.35 },
+      {
+        model: ctx.resolution.route.model,
+        temperature: 0.35,
+        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
+      },
       'Diagram quiz refine via OpenRouter',
       { profile },
     );

@@ -16,7 +16,8 @@ import type {
 
 /**
  * Together TS SDK default is 60s; production guidance for larger models / long
- * completions is 120–180s. StudyForge allows up to 16384 max_tokens for text/vision.
+ * completions is 120–180s. Thinking models often need 32k max_tokens so reasoning
+ * does not consume the entire completion budget.
  */
 const TOGETHER_REQUEST_TIMEOUT_MS = 120_000;
 
@@ -52,13 +53,18 @@ function throwEmptyTogetherChatResponse(
     'finishReason' | 'hasReasoning' | 'reasoningLength'
   >,
   label: string,
+  maxOutputTokens?: number,
 ): never {
-  functions.logger.warn(`Empty Together ${label} response`, diagnostics);
+  functions.logger.warn(`Empty Together ${label} response`, {
+    ...diagnostics,
+    maxOutputTokens,
+  });
 
   if (diagnostics.finishReason === 'length' && diagnostics.hasReasoning) {
     throw new Error(
       `Malformed or empty response from Together ${label}: output truncated after reasoning ` +
-        `(finish_reason=length, reasoningLength=${diagnostics.reasoningLength}). ` +
+        `(finish_reason=length, reasoningLength=${diagnostics.reasoningLength}` +
+        `${maxOutputTokens !== undefined ? `, maxOutputTokens=${maxOutputTokens}` : ''}). ` +
         'Increase maxOutputTokens for thinking models.',
     );
   }
@@ -215,7 +221,11 @@ export class TogetherProviderClient implements LlmProviderClient {
     );
 
     if (!streamed.text) {
-      throwEmptyTogetherChatResponse(streamed, 'API');
+      throwEmptyTogetherChatResponse(
+        streamed,
+        'API',
+        request.config.maxOutputTokens,
+      );
     }
 
     return {
@@ -270,7 +280,11 @@ export class TogetherProviderClient implements LlmProviderClient {
     );
 
     if (!streamed.text) {
-      throwEmptyTogetherChatResponse(streamed, 'vision API');
+      throwEmptyTogetherChatResponse(
+        streamed,
+        'vision API',
+        request.config.maxOutputTokens,
+      );
     }
 
     return {
