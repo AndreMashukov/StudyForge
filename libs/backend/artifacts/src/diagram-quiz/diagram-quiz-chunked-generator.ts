@@ -31,8 +31,11 @@ function toBatchQuestion(plan: IDiagramQuizQuestionPlan, index: number) {
   };
 }
 
-const QUESTION_PLAN_MAX_OUTPUT_TOKENS = 8192;
-const DIAGRAM_BATCH_MAX_OUTPUT_TOKENS = 8192;
+// Thinking models (e.g. Together MiniMax-M3) spend a large share of max_tokens on
+// reasoning before emitting JSON. 8k was enough for content-only models but truncates
+// after reasoning with finish_reason=length and an empty payload.
+const QUESTION_PLAN_MAX_OUTPUT_TOKENS = 32768;
+const DIAGRAM_BATCH_MAX_OUTPUT_TOKENS = 32768;
 
 /**
  * Two-phase diagram quiz generation for external LLM providers:
