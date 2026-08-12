@@ -3,6 +3,7 @@ export {
   findSingleQuotedBracketLabels,
   normalizeSingleQuotedLabelContent,
   sanitizeMermaidCode,
+  sanitizeSequenceDiagramUnsupportedStyles,
   sanitizeSingleQuotedBracketLabels,
 } from './sanitize-mermaid-code';
 export {

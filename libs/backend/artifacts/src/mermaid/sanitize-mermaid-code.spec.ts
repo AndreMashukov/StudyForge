@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   findSingleQuotedBracketLabels,
   sanitizeMermaidCode,
+  sanitizeSequenceDiagramUnsupportedStyles,
   sanitizeSingleQuotedBracketLabels,
 } from './sanitize-mermaid-code';
 
@@ -36,6 +37,33 @@ describe('sanitizeSingleQuotedBracketLabels', () => {
     const sanitized = sanitizeMermaidCode(`flowchart TD\n  X['include_contents='none'']`);
     expect(sanitized).toContain('X["include_contents=none"]');
     expect(findSingleQuotedBracketLabels(sanitized)).toEqual([]);
+  });
+});
+
+describe('sanitizeSequenceDiagramUnsupportedStyles', () => {
+  it('strips style lines from sequence diagrams', () => {
+    const source = `sequenceDiagram
+  participant Helper
+  Helper->>User: hi
+  style Helper fill:#2b6cb0,color:#fff`;
+    const sanitized = sanitizeSequenceDiagramUnsupportedStyles(source);
+    expect(sanitized).toContain('Helper->>User: hi');
+    expect(sanitized).not.toMatch(/^\s*style\b/m);
+  });
+
+  it('leaves flowchart style lines alone', () => {
+    const source = `flowchart TD
+  A --> B
+  style A fill:#2b6cb0,color:#fff`;
+    expect(sanitizeSequenceDiagramUnsupportedStyles(source)).toBe(source);
+  });
+
+  it('is applied by sanitizeMermaidCode', () => {
+    const sanitized = sanitizeMermaidCode(`sequenceDiagram
+  participant Helper
+  Helper->>User: hi
+  style Helper fill:#2b6cb0,color:#fff`);
+    expect(sanitized).not.toMatch(/^\s*style\b/m);
   });
 });
 

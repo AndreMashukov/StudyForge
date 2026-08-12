@@ -112,6 +112,7 @@ ${this.getDiagramSyntaxRules()}`;
 - When setting \`fill:\`, always set \`color:\` explicitly for readable contrast.
 - Each of the four diagrams for a question should be **visually comparable** (same diagram type when possible) so the question tests understanding, not diagram style.
 - Do not make the correct answer the only diagram with more nodes, subgraphs, labels, or arrows. All four options should use the same scaffold and be within about 1-2 structural lines of each other.
+- For \`sequenceDiagram\`, do **not** emit \`style\` / \`classDef\` / \`class\` lines — Mermaid rejects them there. Keep sequence options balanced with participants and messages only.
 - For **flowchart/graph** and **classDiagram** nodes with long text, keep the visible label short (about 3-5 words / 28 characters) and put the full text in a hover tooltip using \`click nodeId "#" "Full tooltip text"\`. Do **not** use \`_blank\` for tooltips. Example: \`rootNode["Artifact Agent"]\` plus \`click rootNode "#" "ArtifactAgentDefinition contract with artifactKind, displayName, collection"\`. For \`sequenceDiagram\` and \`erDiagram\`, keep labels concise instead.`;
   }
 
@@ -157,9 +158,9 @@ ${buildQuizHintJsonRule()}`;
     {
       "question": "Which diagram best shows X?",
       "diagrams": [
-        "flowchart TD\\n  A-->B",
-        "flowchart TD\\n  A-->C",
-        "flowchart TD\\n  B-->A",
+        "flowchart TD\\n  A-->B\\n  B-->C",
+        "flowchart TD\\n  A-->C\\n  C-->B",
+        "flowchart TD\\n  B-->A\\n  A-->C",
         "flowchart TD\\n  A-->B\\n  B-->D"
       ],
       "correctAnswer": 0,
@@ -176,8 +177,8 @@ ${buildQuizHintJsonRule()}`;
       "diagrams": [
         "flowchart BT\\n  subgraph topFrame[\\"Top Frame\\"]\\n    A(op: +)\\n  end\\n  subgraph bottomFrame[\\"Bottom Frame\\"]\\n    B(op: -)\\n  end\\n  bottomFrame --> topFrame",
         "flowchart BT\\n  subgraph topFrame[\\"Top Frame\\"]\\n    A(op: -)\\n  end\\n  subgraph bottomFrame[\\"Bottom Frame\\"]\\n    B(op: +)\\n  end\\n  bottomFrame --> topFrame",
-        "flowchart BT\\n  A(op: +)-->B(op: -)",
-        "flowchart BT\\n  A(op: -)-->B(op: +)"
+        "flowchart BT\\n  subgraph topFrame[\\"Top Frame\\"]\\n    A(op: +)\\n  end\\n  subgraph bottomFrame[\\"Bottom Frame\\"]\\n    B(op: +)\\n  end\\n  bottomFrame --> topFrame",
+        "flowchart BT\\n  subgraph topFrame[\\"Top Frame\\"]\\n    A(op: -)\\n  end\\n  subgraph bottomFrame[\\"Bottom Frame\\"]\\n    B(op: -)\\n  end\\n  topFrame --> bottomFrame"
       ],
       "correctAnswer": 1,
       "explanation": "Note: subgraph IDs use camelCase (topFrame) with display labels in quotes.",
@@ -264,7 +265,7 @@ ${optionLines}
 **TASK:** For each question below, output exactly 4 Mermaid diagram strings in array \`diagrams\` (indices 0–3).
 The diagram at \`correctAnswer\` must be factually correct per the source; the other three must be plausible but wrong.
 Use the option plans as guidance. Do NOT repeat the question text inside the diagram unless needed as a short label.
-All four diagrams for a question must be balanced: same diagram type, same visual scaffold, similar node/edge count, and similar label density. Do not make the correct answer longer or more detailed than the distractors; wrong options should be created by changing direction, labels, missing links, or relationships inside the same-sized scaffold.
+All four diagrams for a question must be balanced: same diagram type, same visual scaffold, similar node/edge count, and similar label density. Do not make the correct answer longer or more detailed than the distractors; wrong options should be created by changing direction, labels, targets, or relationships inside the same-sized scaffold. Keep every option within about 1-2 structural lines of the others.
 
 ${questionBlocks}
 
@@ -285,7 +286,12 @@ For each question provide:
 - \`optionPlans\`: array of exactly 4 short strings describing what each diagram option should depict
 - \`explanation\`: why the correct option is right and others mislead
 - \`hint\`: short non-spoiler clue
-- \`knowledge\`: subjectName, knowledgeDomainName, topicTags (1–5 strings)`;
+- \`knowledge\`: subjectName, knowledgeDomainName, topicTags (1–5 strings)
+
+**OPTION PLAN BALANCE (MANDATORY):**
+- All four \`optionPlans\` must describe the **same scaffold size** (same nodes/participants/subgraphs).
+- Wrong options must differ by label, arrow direction, routing target, or relationship — not by omitting major branches or adding unique extra detail.
+- Never plan a distractor as "missing node/branch" or "extra branch" unless every option keeps the same node count and only the connection/label is wrong.`;
   }
 
   private static formatContentSectionForPlans(
@@ -322,10 +328,10 @@ ${buildQuizHintJsonRule()}`;
       "question": "Which diagram best shows X?",
       "correctAnswer": 0,
       "optionPlans": [
-        "Correct flow from A to B with labeled steps",
-        "Reversed arrow direction between A and B",
-        "Missing intermediate node between A and B",
-        "Extra invalid branch from A to D"
+        "Same A-B-C scaffold with correct A to B to C routing",
+        "Same A-B-C scaffold with reversed A/B arrow direction",
+        "Same A-B-C scaffold with B incorrectly routing to D label",
+        "Same A-B-C scaffold with swapped B and C labels"
       ],
       "explanation": "Why option A is correct and others are wrong.",
       "knowledge": {
@@ -357,10 +363,10 @@ Return exactly ${questionCount} items in \`questions\`.`;
     {
       "index": 0,
       "diagrams": [
-        "flowchart TD\\n  A[Start] --> B[Result One]\\n  click B \\"#\\" \\"Full tooltip text for Result One\\"",
-        "flowchart TD\\n  A[Start] --> B[Result Two]",
-        "flowchart TD\\n  A-->C",
-        "flowchart TD\\n  A-->B\\n  B-->D"
+        "flowchart TD\\n  A[Start] --> B[Result One]\\n  B --> C[End]\\n  click B \\"#\\" \\"Full tooltip text for Result One\\"",
+        "flowchart TD\\n  A[Start] --> B[Result Two]\\n  B --> C[End]\\n  click B \\"#\\" \\"Full tooltip text for Result Two\\"",
+        "flowchart TD\\n  A[Start] --> B[Result One]\\n  C[End] --> B\\n  click B \\"#\\" \\"Full tooltip text for Result One\\"",
+        "flowchart TD\\n  A[Start] --> B[Result One]\\n  B --> C[Alt End]\\n  click B \\"#\\" \\"Full tooltip text for Result One\\""
       ]
     }
   ]

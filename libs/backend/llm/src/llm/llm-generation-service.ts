@@ -1233,6 +1233,129 @@ Return ONLY the corrected Mermaid source with no markdown fences or commentary.`
     return stripCodeFences(text);
   }
 
+  /**
+   * Rewrite all four option diagrams for one question so they share the same
+   * visual scaffold. Used when the visualComplexity gate detects an answer leak.
+   */
+  static async rebalanceDiagramQuizQuestion(
+    userId: string,
+    params: {
+      sourceContent: ScrapedContent;
+      questionText: string;
+      correctAnswer: number;
+      explanation: string;
+      diagrams: [string, string, string, string];
+      validationError: string;
+      syntaxRules: string;
+    },
+  ): Promise<[string, string, string, string]> {
+    const ctx = await resolveTextRoute(
+      userId,
+      'diagramQuizAgent',
+      'diagramQuizAgent',
+    );
+    const optionLabels = ['A', 'B', 'C', 'D'] as const;
+    const currentOptions = params.diagrams
+      .map((diagram, index) => {
+        const marker =
+          index === params.correctAnswer ? ' (CORRECT ANSWER)' : ' (distractor)';
+        return `Option ${optionLabels[index]} index ${index}${marker}:\n${diagram}`;
+      })
+      .join('\n\n');
+
+    const prompt = `Rebalance all four Mermaid answer diagrams for one diagram-quiz question.
+
+Validation error:
+${params.validationError}
+
+Question: ${params.questionText}
+Correct answer index: ${params.correctAnswer}
+Explanation summary: ${params.explanation}
+
+Source title: ${params.sourceContent.title}
+Source excerpt (truncated):
+${params.sourceContent.content.slice(0, 8000)}
+
+Current diagrams:
+${currentOptions}
+
+${params.syntaxRules}
+
+Requirements:
+- Return exactly 4 Mermaid diagrams that keep the same factual correct answer at index ${params.correctAnswer}.
+- All four must use the same diagram type and the same visual scaffold (same node/participant count, same subgraph count, similar edge count).
+- Structural line counts must stay within about 1-2 lines of each other. Do not make the correct option uniquely longer or denser.
+- Create wrong options by changing direction, labels, routing targets, or relationships inside that shared scaffold — not by deleting major nodes or omitting whole branches.
+- Keep a shared neutral palette. Never use semantic green/red/blue to mark the answer.
+- For sequenceDiagram, do not emit style/classDef lines.
+
+Return ONLY valid JSON:
+{
+  "diagrams": ["...", "...", "...", "..."]
+}`;
+
+    const profile =
+      resolveLlmGenerationProfile('diagramQuizAgent') ?? 'deterministicUtility';
+    const repairConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+      { maxOutputTokens: 6144, topK: 20, topP: 0.9, temperature: 0.25 },
+    );
+
+    const raw = !ctx.usesExternalProvider
+      ? await GeminiService.generateContent(
+          prompt,
+          toGeminiContentOptions(repairConfig),
+        )
+      : await generateExternalProviderText(
+          ctx,
+          prompt,
+          {
+            model: ctx.resolution.route.model,
+            maxOutputTokens: 6144,
+            topK: 20,
+            topP: 0.9,
+            temperature: 0.25,
+          },
+          'Diagram quiz visual-complexity rebalance via OpenRouter',
+          { profile },
+        );
+
+    let cleaned = JsonSanitizer.initialCleanup(raw);
+    cleaned = JsonSanitizer.sanitizeJsonText(cleaned);
+    cleaned = JsonSanitizer.applyComprehensiveCleanup(cleaned);
+    cleaned = JsonSanitizer.applyStateBased(cleaned);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (error) {
+      JsonSanitizer.logParsingError(error, raw, cleaned);
+      parsed = JsonSanitizer.tryFallbackParsing(cleaned);
+    }
+
+    const diagramsValue =
+      parsed &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed) &&
+      'diagrams' in parsed
+        ? (parsed as { diagrams: unknown }).diagrams
+        : null;
+
+    if (!Array.isArray(diagramsValue) || diagramsValue.length !== 4) {
+      throw new Error('Diagram quiz rebalance did not return exactly 4 diagrams');
+    }
+
+    const diagrams = diagramsValue.map((diagram, index) => {
+      if (typeof diagram !== 'string' || !diagram.trim()) {
+        throw new Error(`Diagram quiz rebalance returned empty diagram at index ${index}`);
+      }
+      return diagram.trim();
+    });
+
+    return [diagrams[0], diagrams[1], diagrams[2], diagrams[3]];
+  }
+
   static async runDiagramQuizCritic(
     userId: string,
     params: {
@@ -1269,6 +1392,7 @@ Return ONLY valid JSON with shape:
 
 Pass when marked correct diagrams are supported by the source and distractors are plausible but wrong.
 Flag as "revise" or "blocker" when diagrams use semantic green/red/blue answer hints or uneven styling that makes the correct option guessable (not when they share a neutral palette with emojis).
+Flag as "revise" when one option is uniquely more detailed/complex than the others, or when any option has invalid Mermaid syntax — broken distractors are not acceptable.
 Use "revise" for fixable pedagogical issues and "fail" only for severe factual errors.`;
 
     const profile =
