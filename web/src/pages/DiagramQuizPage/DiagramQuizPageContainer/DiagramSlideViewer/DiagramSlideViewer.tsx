@@ -28,22 +28,19 @@ export const DiagramSlideViewer: React.FC<IDiagramSlideViewer> = ({
         </div>
         <Card className="overflow-hidden border-2">
           <div className="relative aspect-video w-full min-h-[200px]">
-            {visibleDiagrams.map((diagram, index) => (
-              <div
-                key={index}
-                className={cn(
-                  'absolute inset-0',
-                  index !== safeIndex && 'pointer-events-none invisible'
-                )}
-                aria-hidden={index !== safeIndex}
-              >
-                <MermaidDiagram
-                  code={neutralizeMermaidQuizStyles(diagram ?? '')}
-                  className="h-full max-h-none min-h-0 border-0 bg-transparent"
-                  enableWheelZoom={false}
-                />
-              </div>
-            ))}
+            {/*
+              Mount only the visible option. Pre-mounting A–D with `invisible`
+              races Mermaid's non-concurrent renderer and can leave a stuck
+              error/blank until a hard reload remounts the page.
+            */}
+            <div className="absolute inset-0">
+              <MermaidDiagram
+                key={`${safeIndex}:${visibleDiagrams[safeIndex] ?? ''}`}
+                code={neutralizeMermaidQuizStyles(visibleDiagrams[safeIndex] ?? '')}
+                className="h-full max-h-none min-h-0 border-0 bg-transparent"
+                enableWheelZoom={false}
+              />
+            </div>
           </div>
         </Card>
       </div>

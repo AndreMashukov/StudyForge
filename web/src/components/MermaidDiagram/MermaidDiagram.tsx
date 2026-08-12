@@ -609,6 +609,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
   const nodeTooltipsRef = useRef<Record<string, string>>({});
   const userHasInteractedRef = useRef(false);
   const lastFitHostSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const autoRetriedForCodeRef = useRef<string | null>(null);
   const reactId = useId().replace(/:/g, '');
   const [error, setError] = useState<string | null>(null);
   const [svg, setSvg] = useState<string | null>(null);
@@ -706,6 +707,31 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
   }, []);
 
   useEffect(() => {
+    autoRetriedForCodeRef.current = null;
+  }, [code]);
+
+  // One automatic retry after a transient Mermaid failure so soft navigations
+  // recover without requiring a hard reload.
+  useEffect(() => {
+    if (!error) {
+      return undefined;
+    }
+    const codeKey = code?.trim() ?? '';
+    if (autoRetriedForCodeRef.current === codeKey) {
+      return undefined;
+    }
+    autoRetriedForCodeRef.current = codeKey;
+    const timeoutId = window.setTimeout(() => {
+      setError(null);
+      setSvg(null);
+      setRenderAttempt((attempt) => attempt + 1);
+    }, 150);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [error, code]);
+
+  useEffect(() => {
     let cancelled = false;
 
     setError(null);
@@ -743,15 +769,22 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
         const id = `mermaid-${reactId}-${Math.random().toString(36).slice(2, 9)}`;
         try {
           const out = await renderMermaidSvg(id, trimmed, () => cancelled);
-          if (!cancelled && out) {
+          if (cancelled) {
+            return;
+          }
+          if (out) {
             setSvg(out);
-            setIsRendering(false);
           }
         } catch (renderError) {
           if (!cancelled) {
             setSvg(null);
+            setError(
+              renderError instanceof Error ? renderError.message : 'Failed to render diagram'
+            );
+          }
+        } finally {
+          if (!cancelled) {
             setIsRendering(false);
-            setError(renderError instanceof Error ? renderError.message : 'Failed to render diagram');
           }
         }
       })
@@ -1031,6 +1064,24 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
     };
     window.addEventListener('pageshow', handlePageShow);
 
+    // Soft navigations / carousel slides can leave the SVG fitted against a
+    // zero-size host. Refit when this diagram actually becomes visible.
+    const intersectionObserver =
+      typeof IntersectionObserver !== 'undefined'
+        ? new IntersectionObserver(
+            (entries) => {
+              if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio > 0)) {
+                scheduleVisibilityRefit();
+              }
+            },
+            { threshold: [0, 0.01, 0.1] }
+          )
+        : null;
+    const observedRoot = diagramRef.current;
+    if (intersectionObserver && observedRoot) {
+      intersectionObserver.observe(observedRoot);
+    }
+
     return () => {
       cancelled = true;
       if (scheduleFrame !== 0) {
@@ -1047,6 +1098,7 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
       }
       pendingForceFit = false;
       resizeObserver.disconnect();
+      intersectionObserver?.disconnect();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pageshow', handlePageShow);
       if (wheelHandler) {
@@ -1067,7 +1119,13 @@ export const MermaidDiagram: React.FC<IMermaidDiagram> = ({
         role="alert"
       >
         <p className="font-medium text-destructive">error in diagram</p>
-        <Button type="button" variant="outline" size="sm" onClick={handleRetry}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleRetry}
+          disabled={isRendering}
+        >
           <RotateCcw className="mr-2 h-4 w-4" />
           Retry
         </Button>
