@@ -46,10 +46,20 @@ function shouldSkipLine(trimmedLine: string): boolean {
   );
 }
 
+/**
+ * Remove LLM-emitted hash click tooltips. StudyForge applies hover text via SVG
+ * post-processing instead. Match both double- and single-quoted forms:
+ * `click Node "#" "tip"` and `click Node '#' 'tip'` (Mermaid rejects the latter).
+ */
+function isHashClickDirective(trimmedLine: string): boolean {
+  // `click Node "#" ...` or `click Node '#' ...` (optional tooltip args after).
+  return /^click\s+[A-Za-z_][\w]*\s+(?:(["'])#\1|#)(?:\s|$)/i.test(trimmedLine);
+}
+
 function stripHashClickDirectives(source: string): string {
   return source
     .split('\n')
-    .filter((line) => !/^click\s+[A-Za-z_][\w]*\s+"#"/i.test(line.trim()))
+    .filter((line) => !isHashClickDirective(line.trim()))
     .join('\n');
 }
 

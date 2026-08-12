@@ -113,7 +113,7 @@ ${this.getDiagramSyntaxRules()}`;
 - Each of the four diagrams for a question should be **visually comparable** (same diagram type when possible) so the question tests understanding, not diagram style.
 - Do not make the correct answer the only diagram with more nodes, subgraphs, labels, or arrows. All four options should use the same scaffold and be within about 1-2 structural lines of each other.
 - For \`sequenceDiagram\`, do **not** emit \`style\` / \`classDef\` / \`class\` lines — Mermaid rejects them there. Keep sequence options balanced with participants and messages only.
-- For **flowchart/graph** and **classDiagram** nodes with long text, keep the visible label short (about 3-5 words / 28 characters) and put the full text in a hover tooltip using \`click nodeId "#" "Full tooltip text"\`. Do **not** use \`_blank\` for tooltips. Example: \`rootNode["Artifact Agent"]\` plus \`click rootNode "#" "ArtifactAgentDefinition contract with artifactKind, displayName, collection"\`. For \`sequenceDiagram\` and \`erDiagram\`, keep labels concise instead.`;
+- For **flowchart/graph** and **classDiagram** nodes with long text, keep the visible label short (about 3-5 words / 28 characters) and put the full text in a hover tooltip using \`click nodeId "#" "Full tooltip text"\`. Use **double quotes only** for click targets/tooltips — never \`click Node '#' 'tip'\` (Mermaid parse error). Do **not** use \`_blank\` for tooltips. Example: \`rootNode["Artifact Agent"]\` plus \`click rootNode "#" "ArtifactAgentDefinition contract with artifactKind, displayName, collection"\`. For \`sequenceDiagram\` and \`erDiagram\`, keep labels concise instead.`;
   }
 
   private static formatContentSection(content: ScrapedContent): string {
