@@ -102,20 +102,96 @@ export async function assertStorageQuotaAvailable(params: {
   context: IUserUsageLimitsContext;
   requestedBytes: number;
 }): Promise<void> {
-  const usedBytes = await getUserStorageUsedBytes(params.context.userId);
-  const decision = evaluateStorageQuotaDecision({
-    limitBytes: params.context.setup.storageLimitBytes,
-    usedBytes,
-    requestedBytes: params.requestedBytes,
-  });
+  await reserveStorageBytesForContext(params.context, params.requestedBytes);
+}
 
-  if (decision.allowed === false) {
-    throw new UsageLimitError(decision.message, decision.code, {
-      remainingBytes: decision.remainingBytes,
-      storageUsedBytes: decision.usedBytes,
-      storageLimitBytes: decision.limitBytes,
-    });
+/**
+ * Atomically reserves storage capacity by increasing usedBytes under the setup limit.
+ * Call settleUserStorageReservation after a successful write, or
+ * releaseUserStorageReservation if the write fails.
+ */
+export async function reserveUserStorageBytes(
+  userId: string,
+  requestedBytes: number,
+): Promise<void> {
+  if (!Number.isFinite(requestedBytes) || requestedBytes <= 0) {
+    return;
   }
+
+  const { resolveUserUsageLimitsContext } = await import('./usage-limits-service');
+  const context = await resolveUserUsageLimitsContext(userId);
+  await reserveStorageBytesForContext(context, requestedBytes);
+}
+
+async function reserveStorageBytesForContext(
+  context: IUserUsageLimitsContext,
+  requestedBytes: number,
+): Promise<void> {
+  if (!Number.isFinite(requestedBytes) || requestedBytes <= 0) {
+    return;
+  }
+
+  await getFirestore().runTransaction(async (transaction) => {
+    const ref = storageUsageRef(context.userId);
+    const snapshot = await transaction.get(ref);
+    const usedBytes =
+      typeof snapshot.data()?.usedBytes === 'number' ? snapshot.data()?.usedBytes : 0;
+    const decision = evaluateStorageQuotaDecision({
+      limitBytes: context.setup.storageLimitBytes,
+      usedBytes,
+      requestedBytes,
+    });
+
+    if (decision.allowed === false) {
+      throw new UsageLimitError(decision.message, decision.code, {
+        remainingBytes: decision.remainingBytes,
+        storageUsedBytes: decision.usedBytes,
+        storageLimitBytes: decision.limitBytes,
+      });
+    }
+
+    transaction.set(
+      ref,
+      {
+        usedBytes: usedBytes + requestedBytes,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+  });
+}
+
+export async function settleUserStorageReservation(params: {
+  userId: string;
+  reservedBytes: number;
+  actualBytes: number;
+}): Promise<void> {
+  const reserved =
+    Number.isFinite(params.reservedBytes) && params.reservedBytes > 0
+      ? params.reservedBytes
+      : 0;
+  const actual =
+    Number.isFinite(params.actualBytes) && params.actualBytes > 0 ? params.actualBytes : 0;
+  const deltaBytes = actual - reserved;
+  if (deltaBytes === 0) {
+    return;
+  }
+
+  await adjustUserStorageUsage({ userId: params.userId, deltaBytes });
+}
+
+export async function releaseUserStorageReservation(params: {
+  userId: string;
+  reservedBytes: number;
+}): Promise<void> {
+  if (!Number.isFinite(params.reservedBytes) || params.reservedBytes <= 0) {
+    return;
+  }
+
+  await adjustUserStorageUsage({
+    userId: params.userId,
+    deltaBytes: -params.reservedBytes,
+  });
 }
 
 export async function adjustUserStorageUsage(params: {
@@ -295,7 +371,26 @@ export async function refundDailySlideDeckReservation(
     userId,
     reservationId,
     nextStatus: 'refunded',
-  }).catch(() => undefined);
+  });
+}
+
+export async function refundDailySlideDeckReservationSafe(
+  userId: string,
+  reservationId?: string,
+): Promise<void> {
+  if (!reservationId) {
+    return;
+  }
+
+  try {
+    await refundDailySlideDeckReservation(userId, reservationId);
+  } catch (error) {
+    console.error('Failed to refund daily slide deck reservation', {
+      userId,
+      reservationId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 export async function setUserStorageUsedBytes(userId: string, usedBytes: number): Promise<void> {

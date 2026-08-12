@@ -28,14 +28,19 @@ import {
 } from './usage-limits-logic';
 import { UsageLimitError } from './usage-limit-error';
 import {
-  assertStorageQuotaAvailable,
-  adjustUserStorageUsage,
   buildDailySlideDeckUsageSummary,
   buildStorageUsageSummary,
+  reserveUserStorageBytes,
   type IUserUsageLimitsContext,
 } from './usage-quota-service';
 
 export { UsageLimitError } from './usage-limit-error';
+export {
+  adjustUserStorageUsage,
+  releaseUserStorageReservation,
+  reserveUserStorageBytes,
+  settleUserStorageReservation,
+} from './usage-quota-service';
 
 const USAGE_LIMITS_SETUPS_COLLECTION = 'usageLimitsSetups';
 const USER_GROUPS_COLLECTION = 'userGroups';
@@ -56,8 +61,6 @@ export interface IUsageReservation {
   status: 'pending' | 'committed' | 'refunded';
   createdAt: string;
 }
-
-interface IUserUsageContext extends IUserUsageLimitsContext {}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -115,11 +118,17 @@ function parseUsageLimitsSetup(
 
   const legacyDefaults = resolveLegacySetupQuotaDefaults(name);
   const storageLimitBytes =
-    typeof data.storageLimitBytes === 'number' && data.storageLimitBytes >= 0
+    typeof data.storageLimitBytes === 'number' &&
+    Number.isFinite(data.storageLimitBytes) &&
+    Number.isSafeInteger(data.storageLimitBytes) &&
+    data.storageLimitBytes >= 0
       ? data.storageLimitBytes
       : legacyDefaults.storageLimitBytes;
   const dailySlideDeckLimit =
-    typeof data.dailySlideDeckLimit === 'number' && data.dailySlideDeckLimit >= 0
+    typeof data.dailySlideDeckLimit === 'number' &&
+    Number.isFinite(data.dailySlideDeckLimit) &&
+    Number.isSafeInteger(data.dailySlideDeckLimit) &&
+    data.dailySlideDeckLimit >= 0
       ? data.dailySlideDeckLimit
       : legacyDefaults.dailySlideDeckLimit;
 
@@ -194,7 +203,7 @@ function readPeriodNumbers(periodData: FirebaseFirestore.DocumentData) {
 }
 
 async function buildUserUsageSummary(
-  context: IUserUsageContext,
+  context: IUserUsageLimitsContext,
   periodKey: string,
   periodData: FirebaseFirestore.DocumentData,
 ): Promise<IUserUsageSummary> {
@@ -271,7 +280,7 @@ async function syncUsageSummaryDocument(userId: string): Promise<IUserUsageSumma
   return summary;
 }
 
-async function resolveUserUsageContext(userId: string): Promise<IUserUsageContext> {
+async function resolveUserUsageContext(userId: string): Promise<IUserUsageLimitsContext> {
   const userSnapshot = await getFirestore().collection(USERS_COLLECTION).doc(userId).get();
   const userGroupId =
     typeof userSnapshot.data()?.userGroupId === 'string'
@@ -749,11 +758,8 @@ export async function assertUserStorageQuotaAvailable(
   userId: string,
   requestedBytes: number,
 ): Promise<void> {
-  const context = await resolveUserUsageContext(userId);
-  await assertStorageQuotaAvailable({ context, requestedBytes });
+  await reserveUserStorageBytes(userId, requestedBytes);
 }
-
-export { adjustUserStorageUsage } from './usage-quota-service';
 
 export async function settleJobUsageReservation(params: {
   userId: string;

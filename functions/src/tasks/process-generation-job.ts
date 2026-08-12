@@ -37,6 +37,59 @@ async function settleGenerationJobReservations(
   });
 }
 
+async function markFailedThenSettle(
+  job: GenerationJob,
+  message: string,
+  logContext: string,
+): Promise<void> {
+  try {
+    await GenerationJobsService.markFailed(job.userId, job.id, message);
+  } catch (failError) {
+    logger.error(`Failed to mark ${logContext} generation job as failed`, {
+      userId: job.userId,
+      jobId: job.id,
+      recordId: job.recordId,
+      error: failError instanceof Error ? failError.message : String(failError),
+    });
+    return;
+  }
+
+  await settleGenerationJobReservations(job, false).catch((settleError) => {
+    logger.error(`Failed to refund usage reservation for ${logContext} generation job`, {
+      userId: job.userId,
+      jobId: job.id,
+      reservationId: job.usageReservationId,
+      dailySlideDeckReservationId: job.dailySlideDeckReservationId,
+      error: settleError instanceof Error ? settleError.message : String(settleError),
+    });
+  });
+}
+
+async function markCompletedThenSettle(job: GenerationJob): Promise<void> {
+  try {
+    await GenerationJobsService.markCompleted(job.userId, job.id);
+  } catch (error) {
+    logger.error('Failed to mark generation job as completed', {
+      userId: job.userId,
+      jobId: job.id,
+      kind: job.kind,
+      recordId: job.recordId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return;
+  }
+
+  await settleGenerationJobReservations(job, true).catch((settleError) => {
+    logger.error('Failed to commit usage reservation for completed generation job', {
+      userId: job.userId,
+      jobId: job.id,
+      reservationId: job.usageReservationId,
+      dailySlideDeckReservationId: job.dailySlideDeckReservationId,
+      error: settleError instanceof Error ? settleError.message : String(settleError),
+    });
+  });
+}
+
 async function processJob(job: GenerationJob): Promise<void> {
   switch (job.kind) {
     case 'documentFromPrompt':
@@ -117,22 +170,7 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
           error: failError instanceof Error ? failError.message : String(failError),
         });
       });
-      await GenerationJobsService.markFailed(userId, jobId, STALE_PENDING_SWEEP_MESSAGE).catch((failError) => {
-        logger.error('Failed to mark stale generation job as failed', {
-          userId,
-          jobId,
-          recordId: staleJob.recordId,
-          error: failError instanceof Error ? failError.message : String(failError),
-        });
-      });
-      await settleGenerationJobReservations(staleJob, false).catch((settleError) => {
-        logger.error('Failed to refund usage reservation for stale generation job', {
-          userId,
-          jobId,
-          reservationId: staleJob.usageReservationId,
-          error: settleError instanceof Error ? settleError.message : String(settleError),
-        });
-      });
+      await markFailedThenSettle(staleJob, STALE_PENDING_SWEEP_MESSAGE, 'stale');
       return;
     }
 
@@ -174,23 +212,7 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
             error: failError instanceof Error ? failError.message : String(failError),
           });
         });
-        await GenerationJobsService.markFailed(userId, jobId, message).catch((failError) => {
-          logger.error('Failed to mark generation job as failed', {
-            userId,
-            jobId,
-            recordId: job.recordId,
-            error: failError instanceof Error ? failError.message : String(failError),
-          });
-        });
-        await settleGenerationJobReservations(job, false).catch((settleError) => {
-          logger.error('Failed to refund usage reservation for failed generation job', {
-            userId,
-            jobId,
-            reservationId: job.usageReservationId,
-            dailySlideDeckReservationId: job.dailySlideDeckReservationId,
-            error: settleError instanceof Error ? settleError.message : String(settleError),
-          });
-        });
+        await markFailedThenSettle(job, message, 'failed');
         return;
       }
 
@@ -212,23 +234,7 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
               error: failError instanceof Error ? failError.message : String(failError),
             });
           });
-          await GenerationJobsService.markFailed(userId, jobId, message).catch((failError) => {
-            logger.error('Failed to mark generation job as failed', {
-              userId,
-              jobId,
-              recordId: job.recordId,
-              error: failError instanceof Error ? failError.message : String(failError),
-            });
-          });
-          await settleGenerationJobReservations(job, false).catch((settleError) => {
-            logger.error('Failed to refund usage reservation for failed generation job', {
-              userId,
-              jobId,
-              reservationId: job.usageReservationId,
-              dailySlideDeckReservationId: job.dailySlideDeckReservationId,
-              error: settleError instanceof Error ? settleError.message : String(settleError),
-            });
-          });
+          await markFailedThenSettle(job, message, 'failed');
           throw error instanceof Error ? error : new Error(message);
         }
         throw error instanceof Error ? error : new Error(message);
@@ -242,44 +248,11 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
           error: failError instanceof Error ? failError.message : String(failError),
         });
       });
-      await GenerationJobsService.markFailed(userId, jobId, message).catch((failError) => {
-        logger.error('Failed to mark generation job as failed', {
-          userId,
-          jobId,
-          recordId: job.recordId,
-          error: failError instanceof Error ? failError.message : String(failError),
-        });
-      });
-      await settleGenerationJobReservations(job, false).catch((settleError) => {
-        logger.error('Failed to refund usage reservation for failed generation job', {
-          userId,
-          jobId,
-          reservationId: job.usageReservationId,
-          dailySlideDeckReservationId: job.dailySlideDeckReservationId,
-          error: settleError instanceof Error ? settleError.message : String(settleError),
-        });
-      });
+      await markFailedThenSettle(job, message, 'failed');
       return;
     }
 
-    await GenerationJobsService.markCompleted(userId, jobId).catch((error) => {
-      logger.error('Failed to mark generation job as completed', {
-        userId,
-        jobId,
-        kind: job.kind,
-        recordId: job.recordId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
-    await settleGenerationJobReservations(job, true).catch((settleError) => {
-      logger.error('Failed to commit usage reservation for completed generation job', {
-        userId,
-        jobId,
-        reservationId: job.usageReservationId,
-        dailySlideDeckReservationId: job.dailySlideDeckReservationId,
-        error: settleError instanceof Error ? settleError.message : String(settleError),
-      });
-    });
+    await markCompletedThenSettle(job);
     logger.info('Generation job completed', { userId, jobId, kind: job.kind, recordId: job.recordId });
   }
 );

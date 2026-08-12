@@ -49,6 +49,9 @@ const slideDeckIdRequestSchema = z.object({
 export const generateSlideDeck = onCall(
   { region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 60, memory: '512MiB' },
   async (request) => {
+    let usageReservationId: string | undefined;
+    let dailySlideDeckReservationId: string | undefined;
+
     try {
       const userId = validateAuth(request);
       const parseResult = generateSlideDeckRequestSchema.safeParse(request.data);
@@ -63,13 +66,52 @@ export const generateSlideDeck = onCall(
         });
         throw new HttpsError('invalid-argument', msg);
       }
-      const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, additionalRuleIds, ruleResolutionMode } = parseResult.data;
-
-      const slideDeckReservations = await enforceCallableSlideDeckGenerationLimits(userId);
-      const usageReservationId = slideDeckReservations.usageReservation.id;
-      const dailySlideDeckReservationId = slideDeckReservations.dailySlideDeckReservation.id;
+      const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds } = parseResult.data;
 
       const u = redactId(userId);
+
+      // Validate documents and directory before reserving quota.
+      const documentDataList = await Promise.all(
+        documentIds.map(async (docId, index) => {
+          try {
+            const doc = await DocumentCrudService.getDocumentWithContent(userId, docId);
+            if (!doc || !doc.content) {
+              throw new HttpsError(
+                'not-found',
+                `Document at index ${index} (id: ${docId}) does not exist or has no content.`,
+              );
+            }
+            return doc;
+          } catch (err) {
+            if (err instanceof HttpsError) throw err;
+            throw new HttpsError(
+              'not-found',
+              `Failed to fetch document at index ${index} (id: ${docId}).`,
+            );
+          }
+        }),
+      );
+
+      const resolvedDirectoryId = requestDirectoryId ?? documentDataList[0]?.directoryId;
+      if (!resolvedDirectoryId) {
+        throw new HttpsError(
+          'invalid-argument',
+          'directoryId is required, or documents must belong to a directory',
+        );
+      }
+      await directoryService.validateDirectoryId(userId, resolvedDirectoryId);
+      for (const d of documentDataList) {
+        if (!d.directoryId || d.directoryId !== resolvedDirectoryId) {
+          throw new HttpsError(
+            'invalid-argument',
+            'All documents must belong to the same directory',
+          );
+        }
+      }
+
+      const slideDeckReservations = await enforceCallableSlideDeckGenerationLimits(userId);
+      usageReservationId = slideDeckReservations.usageReservation.id;
+      dailySlideDeckReservationId = slideDeckReservations.dailySlideDeckReservation.id;
 
       logger.info('[generateSlideDeck] STEP 1: Function started.', {
         userIdHash: u,
@@ -79,89 +121,72 @@ export const generateSlideDeck = onCall(
         ruleCount: ruleIds?.length || 0,
       });
 
-      // Fetch all documents and their content in parallel
-      // Each fetch is wrapped in try-catch to preserve error context before Promise.all short-circuits
-      const documentDataList = await Promise.all(
-        documentIds.map(async (docId, index) => {
-          try {
-            const doc = await DocumentCrudService.getDocumentWithContent(userId, docId);
-              if (!doc || !doc.content) {
-                throw new HttpsError('not-found', `Document at index ${index} (id: ${docId}) does not exist or has no content.`);
-              }
-              return doc;
-            } catch (err) {
-              if (err instanceof HttpsError) throw err;
-              throw new HttpsError('not-found', `Failed to fetch document at index ${index} (id: ${docId}).`);
-            }
-          })
-        );
+      logger.info('[generateSlideDeck] STEP 2: Documents retrieved.', { userIdHash: u });
 
-        // Build combined content
-        const combinedContent = documentDataList
-          .map((d) => d.content)
-          .join('\n\n---\n\n');
+      const pendingTitle =
+        customTitle?.trim() ||
+        (documentIds.length === 1
+          ? `Slides for "${documentDataList[0].title}"`
+          : `Slides for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
 
-        logger.info('[generateSlideDeck] STEP 2: Documents retrieved.', { userIdHash: u });
-
-        const resolvedDirectoryId = requestDirectoryId ?? documentDataList[0]?.directoryId;
-        if (!resolvedDirectoryId) {
-          throw new HttpsError('invalid-argument', 'directoryId is required, or documents must belong to a directory');
-        }
-        await directoryService.validateDirectoryId(userId, resolvedDirectoryId);
-        for (const d of documentDataList) {
-          if (!d.directoryId || d.directoryId !== resolvedDirectoryId) {
-            throw new HttpsError('invalid-argument', 'All documents must belong to the same directory');
-          }
-        }
-
-        // Determine pending title before expensive Gemini work
-        const pendingTitle = customTitle?.trim()
-          || (documentIds.length === 1
-            ? `Slides for "${documentDataList[0].title}"`
-            : `Slides for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
-
-        const pendingSlideDeckId = await createPendingSlideDeck({
-          directoryId: resolvedDirectoryId,
-          userId,
-          documentId: documentIds[0],
-          documentIds: documentIds.length > 1 ? documentIds : undefined,
-          documentTitle: documentDataList[0].title,
-          title: pendingTitle,
-          documentColor: documentDataList[0].color ?? getDocumentFallbackColor(documentDataList[0].id),
-          documentColors: documentDataList.length > 1
-            ? documentDataList.map(d => d.color ?? getDocumentFallbackColor(d.id))
+      const pendingSlideDeckId = await createPendingSlideDeck({
+        directoryId: resolvedDirectoryId,
+        userId,
+        documentId: documentIds[0],
+        documentIds: documentIds.length > 1 ? documentIds : undefined,
+        documentTitle: documentDataList[0].title,
+        title: pendingTitle,
+        documentColor:
+          documentDataList[0].color ?? getDocumentFallbackColor(documentDataList[0].id),
+        documentColors:
+          documentDataList.length > 1
+            ? documentDataList.map((d) => d.color ?? getDocumentFallbackColor(d.id))
             : undefined,
+      });
+
+      try {
+        await enqueueGenerationJob({
+          userId,
+          directoryId: resolvedDirectoryId,
+          recordId: pendingSlideDeckId,
+          kind: 'slideDeck',
+          payload: parseResult.data,
+          usageReservationId,
+          dailySlideDeckReservationId,
         });
 
-        try {
-          await enqueueGenerationJob({
-            userId,
-            directoryId: resolvedDirectoryId,
-            recordId: pendingSlideDeckId,
-            kind: 'slideDeck',
-            payload: parseResult.data,
-            usageReservationId,
-            dailySlideDeckReservationId,
-          });
-
-          logger.info(`[generateSlideDeck] Queued slide deck generation`, { userIdHash: u });
-          return {
-            success: true,
-            data: buildStartGenerationPayload('slideDeck', pendingSlideDeckId, resolvedDirectoryId, {
-              slideDeckId: pendingSlideDeckId,
-            }),
-          };
-        } catch (innerError) {
-          const msg = innerError instanceof Error ? innerError.message : String(innerError);
-          await failPendingSlideDeck(userId, pendingSlideDeckId, msg).catch(() => {/* best-effort */});
+        logger.info(`[generateSlideDeck] Queued slide deck generation`, { userIdHash: u });
+        return {
+          success: true,
+          data: buildStartGenerationPayload('slideDeck', pendingSlideDeckId, resolvedDirectoryId, {
+            slideDeckId: pendingSlideDeckId,
+          }),
+        };
+      } catch (innerError) {
+        const msg = innerError instanceof Error ? innerError.message : String(innerError);
+        await failPendingSlideDeck(userId, pendingSlideDeckId, msg).catch(() => {
+          /* best-effort */
+        });
+        await refundSlideDeckGenerationReservationsSafe({
+          userId,
+          usageReservationId,
+          dailySlideDeckReservationId,
+        });
+        usageReservationId = undefined;
+        dailySlideDeckReservationId = undefined;
+        throw innerError;
+      }
+    } catch (error) {
+      if (usageReservationId || dailySlideDeckReservationId) {
+        const userId = request.auth?.uid;
+        if (userId) {
           await refundSlideDeckGenerationReservationsSafe({
             userId,
             usageReservationId,
             dailySlideDeckReservationId,
           });
-          throw innerError;
         }
-    } catch (error) {
+      }
       logger.error('Error in generateSlideDeck:', error);
       if (error instanceof HttpsError) throw error;
       throw new HttpsError('internal', 'An unexpected error occurred while generating the slide deck.');
@@ -194,25 +219,23 @@ export const getSlideDeck = onCall({ region: 'asia-east1', cors: true }, async (
     // Resolve storage paths to signed download URLs
     if (slideDeck.slides) {
       const bucket = admin.storage().bucket();
-      const emulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST;
+      const isEmulator = !!process.env.FUNCTIONS_EMULATOR || !!process.env.FIREBASE_STORAGE_EMULATOR_HOST;
       for (const slide of slideDeck.slides) {
         if (slide.imageStoragePath) {
           try {
             const encodedPath = encodeURIComponent(slide.imageStoragePath);
-            if (emulatorHost) {
+            if (isEmulator) {
               // Storage emulator does not support signed URLs — use direct download URL
-              const token = slide.imageDownloadToken ? `&token=${slide.imageDownloadToken}` : '';
-              slide.imageUrl = `http://${emulatorHost}/v0/b/${bucket.name}/o/${encodedPath}?alt=media${token}`;
+              slide.imageUrl = `http://127.0.0.1:9199/v0/b/${bucket.name}/o/${encodedPath}?alt=media`;
             } else if (slide.imageDownloadToken) {
               // Use the Firebase Storage download token stored at upload time.
-              // This avoids the iam.serviceAccounts.signBlob permission requirement
-              // and produces a stable, permanent URL.
+              // This avoids the IAM Service Account Credentials API permission required by getSignedUrl.
               slide.imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media&token=${slide.imageDownloadToken}`;
             } else {
-              // Fallback: signed URL (requires signBlob IAM permission on the service account)
+              // Legacy decks without a stored token — fall back to signed URL.
               const [url] = await bucket.file(slide.imageStoragePath).getSignedUrl({
                 action: 'read',
-                expires: Date.now() + 60 * 60 * 1000, // 1 hour
+                expires: Date.now() + 60 * 60 * 1000,
               });
               slide.imageUrl = url;
             }
@@ -225,14 +248,14 @@ export const getSlideDeck = onCall({ region: 'asia-east1', cors: true }, async (
 
     return { success: true, data: slideDeck };
   } catch (error) {
-    logger.error(`Error fetching slide deck:`, error);
+    logger.error('Error in getSlideDeck:', error);
     if (error instanceof HttpsError) throw error;
-    throw new HttpsError('internal', 'Could not fetch slide deck.');
+    throw new HttpsError('internal', 'An unexpected error occurred while fetching the slide deck.');
   }
 });
 
 /**
- * Lists all slide decks for the authenticated user.
+ * Gets all slide decks for the authenticated user.
  */
 export const getUserSlideDecks = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
@@ -241,19 +264,14 @@ export const getUserSlideDecks = onCall({ region: 'asia-east1', cors: true }, as
     const snapshot = await admin.firestore()
       .collection('users').doc(userId).collection('slideDecks')
       .orderBy('createdAt', 'desc')
-      .limit(50)
       .get();
 
-    const slideDecks: Partial<SlideDeck>[] = [];
-    snapshot.forEach(doc => {
-      slideDecks.push({ ...doc.data(), id: doc.id });
-    });
-
+    const slideDecks = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
     return { success: true, data: slideDecks };
   } catch (error) {
-    logger.error('Error listing user slide decks:', error);
+    logger.error('Error in getUserSlideDecks:', error);
     if (error instanceof HttpsError) throw error;
-    throw new HttpsError('internal', 'Could not list slide decks.');
+    throw new HttpsError('internal', 'An unexpected error occurred while fetching slide decks.');
   }
 });
 
@@ -268,11 +286,13 @@ export const deleteSlideDeck = onCall({ region: 'asia-east1', cors: true }, asyn
       throw new HttpsError('invalid-argument', parseResult.error.issues[0]?.message ?? 'Invalid request.');
     }
     const { slideDeckId } = parseResult.data;
+
     await deleteSlideDeckForUser(userId, slideDeckId);
+
     return { success: true };
   } catch (error) {
-    logger.error('Error deleting slide deck:', error);
+    logger.error('Error in deleteSlideDeck:', error);
     if (error instanceof HttpsError) throw error;
-    throw new HttpsError('internal', 'Could not delete slide deck.');
+    throw new HttpsError('internal', 'An unexpected error occurred while deleting the slide deck.');
   }
 });

@@ -75,11 +75,13 @@ export async function deleteSlideDeckForUser(
         try {
           const file = admin.storage().bucket().file(slide.imageStoragePath);
           const [exists] = await file.exists();
-          if (exists) {
-            const [metadata] = await file.getMetadata();
-            deletedBytes += parseInt(String(metadata.size || '0'), 10);
+          if (!exists) {
+            continue;
           }
+          const [metadata] = await file.getMetadata();
+          const sizeBytes = parseInt(String(metadata.size || '0'), 10);
           await file.delete();
+          deletedBytes += sizeBytes;
         } catch {
           logger.warn(`Failed to delete slide image: ${slide.imageStoragePath}`);
         }

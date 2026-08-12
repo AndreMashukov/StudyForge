@@ -72,11 +72,17 @@ function parseUsageLimitsSetup(id: string, data: FirebaseFirestore.DocumentData)
 
   const legacyDefaults = resolveLegacySetupQuotaDefaults(name);
   const storageLimitBytes =
-    typeof data.storageLimitBytes === 'number' && data.storageLimitBytes >= 0
+    typeof data.storageLimitBytes === 'number' &&
+    Number.isFinite(data.storageLimitBytes) &&
+    Number.isSafeInteger(data.storageLimitBytes) &&
+    data.storageLimitBytes >= 0
       ? data.storageLimitBytes
       : legacyDefaults.storageLimitBytes;
   const dailySlideDeckLimit =
-    typeof data.dailySlideDeckLimit === 'number' && data.dailySlideDeckLimit >= 0
+    typeof data.dailySlideDeckLimit === 'number' &&
+    Number.isFinite(data.dailySlideDeckLimit) &&
+    Number.isSafeInteger(data.dailySlideDeckLimit) &&
+    data.dailySlideDeckLimit >= 0
       ? data.dailySlideDeckLimit
       : legacyDefaults.dailySlideDeckLimit;
 
@@ -226,12 +232,20 @@ export async function createUsageLimitsSetup(
     throw new Error('Monthly credit allowance must be zero or greater.');
   }
 
-  if (input.storageLimitBytes < 0) {
-    throw new Error('Storage limit must be zero or greater.');
+  if (
+    !Number.isFinite(input.storageLimitBytes) ||
+    !Number.isSafeInteger(input.storageLimitBytes) ||
+    input.storageLimitBytes < 0
+  ) {
+    throw new Error('Storage limit must be a safe integer of zero or greater.');
   }
 
-  if (input.dailySlideDeckLimit < 0) {
-    throw new Error('Daily slide deck limit must be zero or greater.');
+  if (
+    !Number.isFinite(input.dailySlideDeckLimit) ||
+    !Number.isSafeInteger(input.dailySlideDeckLimit) ||
+    input.dailySlideDeckLimit < 0
+  ) {
+    throw new Error('Daily slide deck limit must be a safe integer of zero or greater.');
   }
 
   const now = new Date().toISOString();
@@ -270,12 +284,20 @@ export async function createUsageLimitsSetupFromRequest(
     throw new Error('featurePolicies must include every generation kind.');
   }
 
-  if (!Number.isFinite(storageLimitBytes) || storageLimitBytes < 0) {
-    throw new Error('storageLimitBytes must be zero or greater.');
+  if (
+    !Number.isFinite(storageLimitBytes) ||
+    !Number.isSafeInteger(storageLimitBytes) ||
+    storageLimitBytes < 0
+  ) {
+    throw new Error('storageLimitBytes must be a safe integer of zero or greater.');
   }
 
-  if (!Number.isFinite(dailySlideDeckLimit) || dailySlideDeckLimit < 0) {
-    throw new Error('dailySlideDeckLimit must be zero or greater.');
+  if (
+    !Number.isFinite(dailySlideDeckLimit) ||
+    !Number.isSafeInteger(dailySlideDeckLimit) ||
+    dailySlideDeckLimit < 0
+  ) {
+    throw new Error('dailySlideDeckLimit must be a safe integer of zero or greater.');
   }
 
   return createUsageLimitsSetup(
@@ -345,12 +367,20 @@ export async function updateUsageLimitsSetup(
     throw new Error('Monthly credit allowance must be zero or greater.');
   }
 
-  if (next.storageLimitBytes < 0) {
-    throw new Error('Storage limit must be zero or greater.');
+  if (
+    !Number.isFinite(next.storageLimitBytes) ||
+    !Number.isSafeInteger(next.storageLimitBytes) ||
+    next.storageLimitBytes < 0
+  ) {
+    throw new Error('Storage limit must be a safe integer of zero or greater.');
   }
 
-  if (next.dailySlideDeckLimit < 0) {
-    throw new Error('Daily slide deck limit must be zero or greater.');
+  if (
+    !Number.isFinite(next.dailySlideDeckLimit) ||
+    !Number.isSafeInteger(next.dailySlideDeckLimit) ||
+    next.dailySlideDeckLimit < 0
+  ) {
+    throw new Error('Daily slide deck limit must be a safe integer of zero or greater.');
   }
 
   await docRef.set(

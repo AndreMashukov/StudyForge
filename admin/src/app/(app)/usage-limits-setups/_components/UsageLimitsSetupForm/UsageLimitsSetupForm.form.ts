@@ -4,7 +4,6 @@ import {
   ALL_GENERATION_KINDS,
   createDefaultFeaturePolicies,
   GENERATION_KIND_METADATA,
-  STANDARD_TIER_STORAGE_LIMIT_BYTES,
 } from '@shared-types';
 import { z } from 'zod';
 
@@ -38,7 +37,10 @@ export const usageLimitsSetupFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   description: z.string().optional(),
   monthlyCreditAllowance: z.number().int().min(0, 'Allowance must be zero or greater'),
-  storageLimitMegabytes: z.number().int().min(1, 'Storage limit must be at least 1 MB'),
+  storageLimitMegabytes: z
+    .number()
+    .int()
+    .min(0, 'Storage limit must be zero or greater'),
   dailySlideDeckLimit: z.number().int().min(0, 'Daily slide deck limit must be zero or greater'),
   featurePolicies: z.object(featurePoliciesShape),
 });
@@ -84,7 +86,7 @@ export function featurePoliciesToFormValues(
     description: description ?? '',
     monthlyCreditAllowance,
     storageLimitMegabytes: bytesToStorageLimitMegabytes(
-      storageLimitBytes > 0 ? storageLimitBytes : STANDARD_TIER_STORAGE_LIMIT_BYTES,
+      Number.isFinite(storageLimitBytes) && storageLimitBytes >= 0 ? storageLimitBytes : 0,
     ),
     dailySlideDeckLimit,
     featurePolicies: policies,

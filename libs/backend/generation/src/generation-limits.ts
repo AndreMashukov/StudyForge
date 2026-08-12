@@ -10,6 +10,7 @@ import {
 } from '@study-forge/backend-core/services/usage-limits-service';
 import {
   refundDailySlideDeckReservation,
+  refundDailySlideDeckReservationSafe,
   reserveDailySlideDeckSlot,
   type IDailySlideDeckReservation,
 } from '@study-forge/backend-core/services/usage-quota-service';
@@ -47,8 +48,13 @@ export async function enforceCallableSlideDeckGenerationLimits(
   try {
     const context = await resolveUserUsageLimitsContext(userId);
     const dailySlideDeckReservation = await reserveDailySlideDeckSlot(context);
-    const usageReservation = await reserveUsageCredits({ userId, generationKind: 'slideDeck' });
-    return { usageReservation, dailySlideDeckReservation };
+    try {
+      const usageReservation = await reserveUsageCredits({ userId, generationKind: 'slideDeck' });
+      return { usageReservation, dailySlideDeckReservation };
+    } catch (error) {
+      await refundDailySlideDeckReservation(userId, dailySlideDeckReservation.id);
+      throw error;
+    }
   } catch (error) {
     if (error instanceof UsageLimitError) {
       throw toCallableUsageLimitError(error);
@@ -66,11 +72,16 @@ export async function enforceExternalSlideDeckGenerationLimits(params: {
   try {
     const context = await resolveUserUsageLimitsContext(params.userId);
     const dailySlideDeckReservation = await reserveDailySlideDeckSlot(context);
-    const usageReservation = await reserveUsageCredits({
-      userId: params.userId,
-      generationKind: 'slideDeck',
-    });
-    return { usageReservation, dailySlideDeckReservation };
+    try {
+      const usageReservation = await reserveUsageCredits({
+        userId: params.userId,
+        generationKind: 'slideDeck',
+      });
+      return { usageReservation, dailySlideDeckReservation };
+    } catch (error) {
+      await refundDailySlideDeckReservation(params.userId, dailySlideDeckReservation.id);
+      throw error;
+    }
   } catch (error) {
     if (error instanceof UsageLimitError) {
       throw toCallableUsageLimitError(error);
@@ -85,7 +96,7 @@ export async function refundSlideDeckGenerationReservationsSafe(params: {
   dailySlideDeckReservationId?: string;
 }): Promise<void> {
   await refundUsageReservationSafe(params.userId, params.usageReservationId);
-  await refundDailySlideDeckReservation(params.userId, params.dailySlideDeckReservationId);
+  await refundDailySlideDeckReservationSafe(params.userId, params.dailySlideDeckReservationId);
 }
 
 export async function reserveExternalDailySlideDeckSlot(
