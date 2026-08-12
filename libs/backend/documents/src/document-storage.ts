@@ -11,6 +11,10 @@ import {
 import { logger } from 'firebase-functions/v2';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import {
+  adjustUserStorageUsage,
+  assertUserStorageQuotaAvailable,
+} from '@study-forge/backend-core/services/usage-limits-service';
+import {
   buildDocumentHtmlStoragePath,
   buildDocumentMarkdownStoragePath,
   countWordsFromContent,
@@ -118,6 +122,19 @@ export class DocumentService {
       });
 
       const contentBuffer = Buffer.from(content, 'utf8');
+      const nextSize = contentBuffer.length;
+
+      let previousSize = 0;
+      const [fileExists] = await file.exists();
+      if (fileExists) {
+        const [existingMetadata] = await file.getMetadata();
+        previousSize = parseInt(String(existingMetadata.size || '0'), 10);
+      }
+
+      const deltaBytes = nextSize - previousSize;
+      if (deltaBytes > 0) {
+        await assertUserStorageQuotaAvailable(userId, deltaBytes);
+      }
 
       await file.save(contentBuffer, {
         metadata: {
@@ -185,6 +202,10 @@ export class DocumentService {
         documentId,
         fileSize: storageFile.metadata.size,
       });
+
+      if (deltaBytes !== 0) {
+        await adjustUserStorageUsage({ userId, deltaBytes });
+      }
 
       return storageFile;
     } catch (error) {
@@ -305,13 +326,20 @@ export class DocumentService {
         buildDocumentMarkdownStoragePath(userId, documentId),
       ];
 
+      let deletedBytes = 0;
       for (const filePath of paths) {
         const file = bucket.file(filePath);
         const [exists] = await file.exists();
         if (exists) {
+          const [metadata] = await file.getMetadata();
+          deletedBytes += parseInt(String(metadata.size || '0'), 10);
           await file.delete();
           logger.info('Document body deleted from Storage', { userId, documentId, filePath });
         }
+      }
+
+      if (deletedBytes > 0) {
+        await adjustUserStorageUsage({ userId, deltaBytes: -deletedBytes });
       }
     } catch (error) {
       logger.error('Failed to delete document from storage', {

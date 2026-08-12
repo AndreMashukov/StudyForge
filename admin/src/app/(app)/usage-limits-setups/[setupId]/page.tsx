@@ -39,6 +39,8 @@ export default async function UsageLimitsSetupDetailPage({
           setup.name,
           setup.description,
           setup.monthlyCreditAllowance,
+          setup.storageLimitBytes,
+          setup.dailySlideDeckLimit,
           setup.featurePolicies
         )}
       />

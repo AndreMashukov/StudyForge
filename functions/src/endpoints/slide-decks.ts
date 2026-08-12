@@ -16,8 +16,8 @@ import { enqueueGenerationJob } from '@study-forge/backend-generation/generation
 import { buildStartGenerationPayload } from '@study-forge/backend-core/lib/start-generation-response';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
 import {
-  enforceCallableGenerationLimits,
-  refundUsageReservationSafe,
+  enforceCallableSlideDeckGenerationLimits,
+  refundSlideDeckGenerationReservationsSafe,
 } from '@study-forge/backend-generation/generation-limits';
 import { deleteSlideDeckForUser } from '@study-forge/backend-artifacts/artifact-delete';
 
@@ -65,8 +65,9 @@ export const generateSlideDeck = onCall(
       }
       const { documentIds, directoryId: requestDirectoryId, title: customTitle, additionalPrompt, ruleIds, additionalRuleIds, ruleResolutionMode } = parseResult.data;
 
-      const usageReservation = await enforceCallableGenerationLimits(userId, 'slideDeck');
-      const usageReservationId = usageReservation.id;
+      const slideDeckReservations = await enforceCallableSlideDeckGenerationLimits(userId);
+      const usageReservationId = slideDeckReservations.usageReservation.id;
+      const dailySlideDeckReservationId = slideDeckReservations.dailySlideDeckReservation.id;
 
       const u = redactId(userId);
 
@@ -140,6 +141,7 @@ export const generateSlideDeck = onCall(
             kind: 'slideDeck',
             payload: parseResult.data,
             usageReservationId,
+            dailySlideDeckReservationId,
           });
 
           logger.info(`[generateSlideDeck] Queued slide deck generation`, { userIdHash: u });
@@ -152,7 +154,11 @@ export const generateSlideDeck = onCall(
         } catch (innerError) {
           const msg = innerError instanceof Error ? innerError.message : String(innerError);
           await failPendingSlideDeck(userId, pendingSlideDeckId, msg).catch(() => {/* best-effort */});
-          await refundUsageReservationSafe(userId, usageReservationId);
+          await refundSlideDeckGenerationReservationsSafe({
+            userId,
+            usageReservationId,
+            dailySlideDeckReservationId,
+          });
           throw innerError;
         }
     } catch (error) {

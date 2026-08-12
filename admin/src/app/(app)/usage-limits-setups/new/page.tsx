@@ -17,6 +17,8 @@ export default function NewUsageLimitsSetupPage() {
         name: 'New setup',
         description: '',
         monthlyCreditAllowance: 1000,
+        storageLimitBytes: USAGE_LIMITS_PROFILE_PRESETS[1]?.storageLimitBytes ?? 1024 * 1024 * 1024,
+        dailySlideDeckLimit: USAGE_LIMITS_PROFILE_PRESETS[1]?.dailySlideDeckLimit ?? 5,
         featurePolicies: buildPresetFeaturePolicies(USAGE_LIMITS_PROFILE_PRESETS[0]),
       };
 
@@ -40,6 +42,8 @@ export default function NewUsageLimitsSetupPage() {
           presetValues.name,
           presetValues.description,
           presetValues.monthlyCreditAllowance,
+          presetValues.storageLimitBytes,
+          presetValues.dailySlideDeckLimit,
           presetValues.featurePolicies
         )}
       />

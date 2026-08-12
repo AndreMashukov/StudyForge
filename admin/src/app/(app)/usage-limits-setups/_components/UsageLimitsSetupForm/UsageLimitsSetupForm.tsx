@@ -22,6 +22,7 @@ import { Input } from '@admin/components/ui/Input';
 import {
   type IUsageLimitsSetupFormValues,
   getUsageFeatureGroups,
+  storageLimitMegabytesToBytes,
   toFeaturePolicies,
   usageLimitsSetupFormSchema,
 } from './UsageLimitsSetupForm.form';
@@ -106,6 +107,8 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
         name: values.name.trim(),
         description: values.description?.trim() || undefined,
         monthlyCreditAllowance: values.monthlyCreditAllowance,
+        storageLimitBytes: storageLimitMegabytesToBytes(values.storageLimitMegabytes),
+        dailySlideDeckLimit: values.dailySlideDeckLimit,
         featurePolicies: toFeaturePolicies(values),
       };
 
@@ -187,6 +190,28 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
                 id="monthlyCreditAllowance"
                 control={form.control}
                 name="monthlyCreditAllowance"
+                type="number"
+                min={0}
+                step={1}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="storageLimitMegabytes">Storage limit (MB)</Label>
+              <Input
+                id="storageLimitMegabytes"
+                control={form.control}
+                name="storageLimitMegabytes"
+                type="number"
+                min={1}
+                step={1}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dailySlideDeckLimit">Daily slide deck limit</Label>
+              <Input
+                id="dailySlideDeckLimit"
+                control={form.control}
+                name="dailySlideDeckLimit"
                 type="number"
                 min={0}
                 step={1}

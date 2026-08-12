@@ -12,6 +12,7 @@ import {
   ALL_GENERATION_KINDS,
   createDefaultFeaturePolicies,
   DEFAULT_USAGE_CREDIT_COSTS,
+  resolveLegacySetupQuotaDefaults,
   USAGE_LIMITS_PROFILE_PRESETS,
 } from '@shared-types';
 import * as admin from 'firebase-admin';
@@ -69,11 +70,23 @@ function parseUsageLimitsSetup(id: string, data: FirebaseFirestore.DocumentData)
     return null;
   }
 
+  const legacyDefaults = resolveLegacySetupQuotaDefaults(name);
+  const storageLimitBytes =
+    typeof data.storageLimitBytes === 'number' && data.storageLimitBytes >= 0
+      ? data.storageLimitBytes
+      : legacyDefaults.storageLimitBytes;
+  const dailySlideDeckLimit =
+    typeof data.dailySlideDeckLimit === 'number' && data.dailySlideDeckLimit >= 0
+      ? data.dailySlideDeckLimit
+      : legacyDefaults.dailySlideDeckLimit;
+
   return {
     id,
     name,
     description: typeof data.description === 'string' ? data.description : undefined,
     monthlyCreditAllowance,
+    storageLimitBytes,
+    dailySlideDeckLimit,
     featurePolicies,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
@@ -88,6 +101,8 @@ function toFirestoreUsageLimitsSetupDocument(
     id: setup.id,
     name: setup.name,
     monthlyCreditAllowance: setup.monthlyCreditAllowance,
+    storageLimitBytes: setup.storageLimitBytes,
+    dailySlideDeckLimit: setup.dailySlideDeckLimit,
     featurePolicies: setup.featurePolicies,
     updatedAt: setup.updatedAt,
     updatedBy: setup.updatedBy,
@@ -146,6 +161,8 @@ export function buildPresetFormValues(preset: IUsageLimitsProfilePreset) {
     name: preset.name,
     description: preset.description,
     monthlyCreditAllowance: preset.monthlyCreditAllowance,
+    storageLimitBytes: preset.storageLimitBytes,
+    dailySlideDeckLimit: preset.dailySlideDeckLimit,
     featurePolicies: buildPresetFeaturePolicies(preset),
   };
 }
@@ -209,6 +226,14 @@ export async function createUsageLimitsSetup(
     throw new Error('Monthly credit allowance must be zero or greater.');
   }
 
+  if (input.storageLimitBytes < 0) {
+    throw new Error('Storage limit must be zero or greater.');
+  }
+
+  if (input.dailySlideDeckLimit < 0) {
+    throw new Error('Daily slide deck limit must be zero or greater.');
+  }
+
   const now = new Date().toISOString();
   const docRef = getAdminFirestore().collection(USAGE_LIMITS_SETUPS_COLLECTION).doc();
   const setup: IUsageLimitsSetup = {
@@ -216,6 +241,8 @@ export async function createUsageLimitsSetup(
     name,
     description: input.description?.trim() || undefined,
     monthlyCreditAllowance: input.monthlyCreditAllowance,
+    storageLimitBytes: input.storageLimitBytes,
+    dailySlideDeckLimit: input.dailySlideDeckLimit,
     featurePolicies: normalizeFeaturePolicies(input.featurePolicies),
     updatedAt: now,
     updatedBy: adminUid,
@@ -233,10 +260,22 @@ export async function createUsageLimitsSetupFromRequest(
   const description = typeof body.description === 'string' ? body.description : undefined;
   const monthlyCreditAllowance =
     typeof body.monthlyCreditAllowance === 'number' ? body.monthlyCreditAllowance : NaN;
+  const storageLimitBytes =
+    typeof body.storageLimitBytes === 'number' ? body.storageLimitBytes : NaN;
+  const dailySlideDeckLimit =
+    typeof body.dailySlideDeckLimit === 'number' ? body.dailySlideDeckLimit : NaN;
   const featurePolicies = parseFeaturePolicies(body.featurePolicies);
 
   if (!featurePolicies) {
     throw new Error('featurePolicies must include every generation kind.');
+  }
+
+  if (!Number.isFinite(storageLimitBytes) || storageLimitBytes < 0) {
+    throw new Error('storageLimitBytes must be zero or greater.');
+  }
+
+  if (!Number.isFinite(dailySlideDeckLimit) || dailySlideDeckLimit < 0) {
+    throw new Error('dailySlideDeckLimit must be zero or greater.');
   }
 
   return createUsageLimitsSetup(
@@ -244,6 +283,8 @@ export async function createUsageLimitsSetupFromRequest(
       name,
       description,
       monthlyCreditAllowance,
+      storageLimitBytes,
+      dailySlideDeckLimit,
       featurePolicies,
     },
     adminUid
@@ -283,6 +324,12 @@ export async function updateUsageLimitsSetup(
       input.monthlyCreditAllowance !== undefined
         ? input.monthlyCreditAllowance
         : current.monthlyCreditAllowance,
+    storageLimitBytes:
+      input.storageLimitBytes !== undefined ? input.storageLimitBytes : current.storageLimitBytes,
+    dailySlideDeckLimit:
+      input.dailySlideDeckLimit !== undefined
+        ? input.dailySlideDeckLimit
+        : current.dailySlideDeckLimit,
     featurePolicies: input.featurePolicies
       ? normalizeFeaturePolicies(input.featurePolicies)
       : current.featurePolicies,
@@ -296,6 +343,14 @@ export async function updateUsageLimitsSetup(
 
   if (next.monthlyCreditAllowance < 0) {
     throw new Error('Monthly credit allowance must be zero or greater.');
+  }
+
+  if (next.storageLimitBytes < 0) {
+    throw new Error('Storage limit must be zero or greater.');
+  }
+
+  if (next.dailySlideDeckLimit < 0) {
+    throw new Error('Daily slide deck limit must be zero or greater.');
   }
 
   await docRef.set(
@@ -325,6 +380,14 @@ export async function updateUsageLimitsSetupFromRequest(
 
   if (typeof body.monthlyCreditAllowance === 'number') {
     input.monthlyCreditAllowance = body.monthlyCreditAllowance;
+  }
+
+  if (typeof body.storageLimitBytes === 'number') {
+    input.storageLimitBytes = body.storageLimitBytes;
+  }
+
+  if (typeof body.dailySlideDeckLimit === 'number') {
+    input.dailySlideDeckLimit = body.dailySlideDeckLimit;
   }
 
   if (body.featurePolicies !== undefined) {
@@ -392,6 +455,8 @@ export async function seedDefaultUsageLimitsSetups(adminUid: string): Promise<IU
         name: preset.name,
         description: preset.description,
         monthlyCreditAllowance: preset.monthlyCreditAllowance,
+        storageLimitBytes: preset.storageLimitBytes,
+        dailySlideDeckLimit: preset.dailySlideDeckLimit,
         featurePolicies: buildPresetFeaturePolicies(preset),
       },
       adminUid

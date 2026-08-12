@@ -13,6 +13,7 @@ import {
   syncIndexSafely,
 } from '@study-forge/backend-directories/directory-item-index';
 import { FirestoreService } from './firestore';
+import { adjustUserStorageUsage } from '@study-forge/backend-core/services/usage-limits-service';
 
 /**
  * Deletes a flashcard set and updates directory counts / index rows.
@@ -67,16 +68,27 @@ export async function deleteSlideDeckForUser(
 
   const data = docSnap.data() as SlideDeck;
   const directoryId = data.directoryId;
+  let deletedBytes = 0;
   if (data?.slides) {
     for (const slide of data.slides) {
       if (slide.imageStoragePath) {
         try {
-          await admin.storage().bucket().file(slide.imageStoragePath).delete();
+          const file = admin.storage().bucket().file(slide.imageStoragePath);
+          const [exists] = await file.exists();
+          if (exists) {
+            const [metadata] = await file.getMetadata();
+            deletedBytes += parseInt(String(metadata.size || '0'), 10);
+          }
+          await file.delete();
         } catch {
           logger.warn(`Failed to delete slide image: ${slide.imageStoragePath}`);
         }
       }
     }
+  }
+
+  if (deletedBytes > 0) {
+    await adjustUserStorageUsage({ userId, deltaBytes: -deletedBytes }).catch(() => undefined);
   }
 
   const db = admin.firestore();

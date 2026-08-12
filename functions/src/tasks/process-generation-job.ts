@@ -25,6 +25,18 @@ import { settleJobUsageReservation } from '@study-forge/backend-core/services/us
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
+async function settleGenerationJobReservations(
+  job: GenerationJob,
+  succeeded: boolean,
+): Promise<void> {
+  await settleJobUsageReservation({
+    userId: job.userId,
+    reservationId: job.usageReservationId,
+    dailySlideDeckReservationId: job.dailySlideDeckReservationId,
+    succeeded,
+  });
+}
+
 async function processJob(job: GenerationJob): Promise<void> {
   switch (job.kind) {
     case 'documentFromPrompt':
@@ -113,11 +125,7 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
           error: failError instanceof Error ? failError.message : String(failError),
         });
       });
-      await settleJobUsageReservation({
-        userId,
-        reservationId: staleJob.usageReservationId,
-        succeeded: false,
-      }).catch((settleError) => {
+      await settleGenerationJobReservations(staleJob, false).catch((settleError) => {
         logger.error('Failed to refund usage reservation for stale generation job', {
           userId,
           jobId,
@@ -174,15 +182,12 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
             error: failError instanceof Error ? failError.message : String(failError),
           });
         });
-        await settleJobUsageReservation({
-          userId,
-          reservationId: job.usageReservationId,
-          succeeded: false,
-        }).catch((settleError) => {
+        await settleGenerationJobReservations(job, false).catch((settleError) => {
           logger.error('Failed to refund usage reservation for failed generation job', {
             userId,
             jobId,
             reservationId: job.usageReservationId,
+            dailySlideDeckReservationId: job.dailySlideDeckReservationId,
             error: settleError instanceof Error ? settleError.message : String(settleError),
           });
         });
@@ -215,15 +220,12 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
               error: failError instanceof Error ? failError.message : String(failError),
             });
           });
-          await settleJobUsageReservation({
-            userId,
-            reservationId: job.usageReservationId,
-            succeeded: false,
-          }).catch((settleError) => {
+          await settleGenerationJobReservations(job, false).catch((settleError) => {
             logger.error('Failed to refund usage reservation for failed generation job', {
               userId,
               jobId,
               reservationId: job.usageReservationId,
+              dailySlideDeckReservationId: job.dailySlideDeckReservationId,
               error: settleError instanceof Error ? settleError.message : String(settleError),
             });
           });
@@ -248,15 +250,12 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
           error: failError instanceof Error ? failError.message : String(failError),
         });
       });
-      await settleJobUsageReservation({
-        userId,
-        reservationId: job.usageReservationId,
-        succeeded: false,
-      }).catch((settleError) => {
+      await settleGenerationJobReservations(job, false).catch((settleError) => {
         logger.error('Failed to refund usage reservation for failed generation job', {
           userId,
           jobId,
           reservationId: job.usageReservationId,
+          dailySlideDeckReservationId: job.dailySlideDeckReservationId,
           error: settleError instanceof Error ? settleError.message : String(settleError),
         });
       });
@@ -272,15 +271,12 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
         error: error instanceof Error ? error.message : String(error),
       });
     });
-    await settleJobUsageReservation({
-      userId,
-      reservationId: job.usageReservationId,
-      succeeded: true,
-    }).catch((settleError) => {
+    await settleGenerationJobReservations(job, true).catch((settleError) => {
       logger.error('Failed to commit usage reservation for completed generation job', {
         userId,
         jobId,
         reservationId: job.usageReservationId,
+        dailySlideDeckReservationId: job.dailySlideDeckReservationId,
         error: settleError instanceof Error ? settleError.message : String(settleError),
       });
     });

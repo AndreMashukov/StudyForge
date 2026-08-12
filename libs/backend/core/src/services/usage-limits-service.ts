@@ -4,6 +4,7 @@ import {
   buildUsagePeriodResetAt,
   calculateRemainingCredits,
   DEFAULT_USAGE_CREDIT_COSTS,
+  resolveLegacySetupQuotaDefaults,
   type GenerationKind,
   type IUsageFeaturePolicies,
   type IUsageLimitsSetup,
@@ -25,36 +26,20 @@ import {
   mapJobKindToUsageGenerationKind,
   resolveUsageGenerationKind,
 } from './usage-limits-logic';
+import { UsageLimitError } from './usage-limit-error';
+import {
+  assertStorageQuotaAvailable,
+  adjustUserStorageUsage,
+  buildDailySlideDeckUsageSummary,
+  buildStorageUsageSummary,
+  type IUserUsageLimitsContext,
+} from './usage-quota-service';
+
+export { UsageLimitError } from './usage-limit-error';
 
 const USAGE_LIMITS_SETUPS_COLLECTION = 'usageLimitsSetups';
 const USER_GROUPS_COLLECTION = 'userGroups';
 const USERS_COLLECTION = 'users';
-
-export class UsageLimitError extends Error {
-  constructor(
-    message: string,
-    public readonly code:
-      | 'USER_GROUP_NOT_ASSIGNED'
-      | 'USER_GROUP_NOT_FOUND'
-      | 'USAGE_LIMITS_SETUP_NOT_FOUND'
-      | 'FEATURE_DISABLED'
-      | 'INSUFFICIENT_CREDITS'
-      | 'PAY_AS_YOU_GO_DISABLED'
-      | 'PAYMENT_METHOD_REQUIRED'
-      | 'OVERAGE_CAP_EXCEEDED'
-      | 'RESERVATION_NOT_FOUND'
-      | 'RESERVATION_ALREADY_SETTLED',
-    public readonly details?: {
-      generationKind?: GenerationKind;
-      remainingCredits?: number;
-      resetAt?: string;
-      creditCost?: number;
-    },
-  ) {
-    super(message);
-    this.name = 'UsageLimitError';
-  }
-}
 
 export interface IUsageReservation {
   id: string;
@@ -72,12 +57,7 @@ export interface IUsageReservation {
   createdAt: string;
 }
 
-interface IUserUsageContext {
-  userId: string;
-  userGroupId: string;
-  llmSetupId: string;
-  setup: IUsageLimitsSetup;
-}
+interface IUserUsageContext extends IUserUsageLimitsContext {}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -133,11 +113,23 @@ function parseUsageLimitsSetup(
     return null;
   }
 
+  const legacyDefaults = resolveLegacySetupQuotaDefaults(name);
+  const storageLimitBytes =
+    typeof data.storageLimitBytes === 'number' && data.storageLimitBytes >= 0
+      ? data.storageLimitBytes
+      : legacyDefaults.storageLimitBytes;
+  const dailySlideDeckLimit =
+    typeof data.dailySlideDeckLimit === 'number' && data.dailySlideDeckLimit >= 0
+      ? data.dailySlideDeckLimit
+      : legacyDefaults.dailySlideDeckLimit;
+
   return {
     id,
     name,
     description: typeof data.description === 'string' ? data.description : undefined,
     monthlyCreditAllowance,
+    storageLimitBytes,
+    dailySlideDeckLimit,
     featurePolicies,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
@@ -219,6 +211,8 @@ async function buildUserUsageSummary(
   const billing = await getUserBillingState(context.userId);
   const billingContext = buildUsageBillingContext(billing, periodData);
   const payAsYouGo = buildPayAsYouGoSummary(billing, periodData);
+  const storage = await buildStorageUsageSummary(context);
+  const dailySlideDecks = await buildDailySlideDeckUsageSummary(context);
 
   const featureAvailability = Object.entries(context.setup.featurePolicies).map(
     ([kind, policy]) => {
@@ -253,6 +247,8 @@ async function buildUserUsageSummary(
     usageLimitsSetupName: context.setup.name,
     featureAvailability,
     payAsYouGo,
+    storage,
+    dailySlideDecks,
   };
 }
 
@@ -745,21 +741,49 @@ export async function getUsagePeriodSummary(userId: string): Promise<IUsagePerio
   };
 }
 
+export async function resolveUserUsageLimitsContext(userId: string): Promise<IUserUsageLimitsContext> {
+  return resolveUserUsageContext(userId);
+}
+
+export async function assertUserStorageQuotaAvailable(
+  userId: string,
+  requestedBytes: number,
+): Promise<void> {
+  const context = await resolveUserUsageContext(userId);
+  await assertStorageQuotaAvailable({ context, requestedBytes });
+}
+
+export { adjustUserStorageUsage } from './usage-quota-service';
+
 export async function settleJobUsageReservation(params: {
   userId: string;
   reservationId?: string;
   succeeded: boolean;
+  dailySlideDeckReservationId?: string;
 }): Promise<void> {
-  if (!params.reservationId) {
+  if (params.dailySlideDeckReservationId) {
+    const { commitDailySlideDeckReservation, refundDailySlideDeckReservation } = await import(
+      './usage-quota-service'
+    );
+    if (params.succeeded) {
+      await commitDailySlideDeckReservation(params.userId, params.dailySlideDeckReservationId);
+    } else {
+      await refundDailySlideDeckReservation(params.userId, params.dailySlideDeckReservationId);
+    }
+  }
+
+  if (params.reservationId) {
+    if (params.succeeded) {
+      await commitUsageReservation(params.userId, params.reservationId);
+    } else {
+      await refundUsageReservation(params.userId, params.reservationId);
+    }
     return;
   }
 
-  if (params.succeeded) {
-    await commitUsageReservation(params.userId, params.reservationId);
-    return;
+  if (params.dailySlideDeckReservationId) {
+    await syncUsageSummaryDocument(params.userId);
   }
-
-  await refundUsageReservation(params.userId, params.reservationId);
 }
 
 export { mapJobKindToUsageGenerationKind, resolveUsageGenerationKind };

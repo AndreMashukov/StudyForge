@@ -60,6 +60,8 @@ export interface GenerationJob {
   artifactKind?: ArtifactKind;
   /** Credit reservation created before the job was enqueued. */
   usageReservationId?: string;
+  /** Daily slide-deck slot reservation created before the job was enqueued. */
+  dailySlideDeckReservationId?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
   startedAt?: Timestamp;
@@ -166,6 +168,10 @@ export function parseGenerationJob(id: string, data: unknown): GenerationJob | n
       : undefined;
   const usageReservationId =
     typeof data.usageReservationId === 'string' ? data.usageReservationId : undefined;
+  const dailySlideDeckReservationId =
+    typeof data.dailySlideDeckReservationId === 'string'
+      ? data.dailySlideDeckReservationId
+      : undefined;
 
   return {
     id,
@@ -178,6 +184,7 @@ export function parseGenerationJob(id: string, data: unknown): GenerationJob | n
     attempts: data.attempts,
     ...(artifactKind ? { artifactKind } : {}),
     ...(usageReservationId ? { usageReservationId } : {}),
+    ...(dailySlideDeckReservationId ? { dailySlideDeckReservationId } : {}),
     ...(createdAt.value ? { createdAt: createdAt.value } : {}),
     ...(updatedAt.value ? { updatedAt: updatedAt.value } : {}),
     ...(startedAt.value ? { startedAt: startedAt.value } : {}),
@@ -198,6 +205,7 @@ export interface CreateGenerationJobParams {
   payloadStoragePath: string;
   artifactKind?: ArtifactKind;
   usageReservationId?: string;
+  dailySlideDeckReservationId?: string;
 }
 
 export type ClaimJobForProcessingResult =
@@ -266,6 +274,9 @@ export class GenerationJobsService {
       attempts: 0,
       ...(params.artifactKind ? { artifactKind: params.artifactKind } : {}),
       ...(params.usageReservationId ? { usageReservationId: params.usageReservationId } : {}),
+      ...(params.dailySlideDeckReservationId
+        ? { dailySlideDeckReservationId: params.dailySlideDeckReservationId }
+        : {}),
     };
 
     const jobRef = FirestorePaths.generationJob(params.userId, params.jobId);

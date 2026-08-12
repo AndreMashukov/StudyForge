@@ -10,6 +10,11 @@ import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 import { LlmGenerationService, resolveSlideDeckGenerationAudit } from '@study-forge/backend-llm/llm';
 import { SlideDeckPromptBuilder } from '@study-forge/backend-llm/llm/prompt-builder';
 import { isRuleResolutionMode, resolveEffectiveRules } from '@study-forge/backend-directories/rule-resolution';
+import {
+  adjustUserStorageUsage,
+  assertUserStorageQuotaAvailable,
+} from '@study-forge/backend-core/services/usage-limits-service';
+import { UsageLimitError } from '@study-forge/backend-core/services/usage-limit-error';
 
 const redactId = (id: string): string =>
   createHash('sha256').update(id).digest('hex').slice(0, 8);
@@ -48,6 +53,7 @@ export class SlideDeckGenerationProcessor {
 
     const documentIds = requestData.documentIds;
     const uploadedPaths: string[] = [];
+    const uploadedBytesByPath = new Map<string, number>();
     const u = redactId(job.userId);
 
     try {
@@ -133,19 +139,26 @@ export class SlideDeckGenerationProcessor {
           }
 
           if (imageBase64) {
+            const imageBuffer = Buffer.from(imageBase64, 'base64');
+            await assertUserStorageQuotaAvailable(job.userId, imageBuffer.length);
+
             const storagePath = `users/${job.userId}/slideDecks/${slide.id}/slide-${i}.png`;
             const downloadToken = randomUUID();
             const file = admin.storage().bucket().file(storagePath);
-            await file.save(Buffer.from(imageBase64, 'base64'), {
+            await file.save(imageBuffer, {
               metadata: {
                 contentType: 'image/png',
                 metadata: { firebaseStorageDownloadTokens: downloadToken },
               },
               resumable: false,
             });
+            const [fileMetadata] = await file.getMetadata();
+            const storedBytes = parseInt(String(fileMetadata.size || imageBuffer.length), 10);
+            await adjustUserStorageUsage({ userId: job.userId, deltaBytes: storedBytes });
             slide.imageStoragePath = storagePath;
             slide.imageDownloadToken = downloadToken;
             uploadedPaths.push(storagePath);
+            uploadedBytesByPath.set(storagePath, storedBytes);
           }
         }));
       }
@@ -176,8 +189,20 @@ export class SlideDeckGenerationProcessor {
       if (uploadedPaths.length > 0) {
         const bucket = admin.storage().bucket();
         await Promise.allSettled(
-          uploadedPaths.map((p) => bucket.file(p).delete().catch(() => {/* ignore */}))
+          uploadedPaths.map(async (path) => {
+            await bucket.file(path).delete().catch(() => {/* ignore */});
+            const storedBytes = uploadedBytesByPath.get(path);
+            if (storedBytes && storedBytes > 0) {
+              await adjustUserStorageUsage({
+                userId: job.userId,
+                deltaBytes: -storedBytes,
+              }).catch(() => undefined);
+            }
+          }),
         );
+      }
+      if (error instanceof UsageLimitError) {
+        throw error;
       }
       throw error;
     }

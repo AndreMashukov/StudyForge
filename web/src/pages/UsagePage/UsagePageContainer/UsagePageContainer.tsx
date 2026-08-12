@@ -6,6 +6,8 @@ import { Spinner } from '../../../components/ui/Spinner';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { useUsagePageContext } from '../context/hooks/useUsagePageContext';
 import { UsageCard } from '../UsageCard';
+import { StorageUsageCard } from '../StorageUsageCard';
+import { DailySlideDeckUsageCard } from '../DailySlideDeckUsageCard';
 import { PlanCard } from '../PlanCard';
 import { PayAsYouGoCard } from '../PayAsYouGoCard';
 
@@ -98,6 +100,10 @@ export const UsagePageContainer: React.FC = () => {
           </div>
         </header>
         <UsageCard summary={usage.data} />
+        {usage.data.storage ? <StorageUsageCard storage={usage.data.storage} /> : null}
+        {usage.data.dailySlideDecks ? (
+          <DailySlideDeckUsageCard dailySlideDecks={usage.data.dailySlideDecks} />
+        ) : null}
         <PayAsYouGoCard
           summary={usage.data}
           monthlyCapDollars={monthlyCapDollars}

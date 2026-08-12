@@ -1,8 +1,10 @@
 import type {
   BillingStatus,
   GenerationKind,
+  IUsageDailySlideDeckSummary,
   IUsageFeatureAvailability,
   IUsagePayAsYouGoSummary,
+  IUsageStorageSummary,
   IUserUsageSummary,
 } from '@shared-types';
 import type { DocumentData } from 'firebase/firestore';
@@ -112,6 +114,44 @@ function parsePayAsYouGoSummary(value: unknown): IUsagePayAsYouGoSummary | undef
   };
 }
 
+function parseStorageSummary(value: unknown): IUsageStorageSummary | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const usedBytes = parseOptionalNumber(value.usedBytes);
+  const limitBytes = parseOptionalNumber(value.limitBytes);
+  const remainingBytes = parseOptionalNumber(value.remainingBytes);
+
+  if (
+    usedBytes === undefined ||
+    limitBytes === undefined ||
+    remainingBytes === undefined
+  ) {
+    return undefined;
+  }
+
+  return { usedBytes, limitBytes, remainingBytes };
+}
+
+function parseDailySlideDeckSummary(value: unknown): IUsageDailySlideDeckSummary | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const dayKey = typeof value.dayKey === 'string' ? value.dayKey : '';
+  const used = parseOptionalNumber(value.used);
+  const limit = parseOptionalNumber(value.limit);
+  const remaining = parseOptionalNumber(value.remaining);
+  const resetAt = typeof value.resetAt === 'string' ? value.resetAt : '';
+
+  if (!dayKey || used === undefined || limit === undefined || remaining === undefined || !resetAt) {
+    return undefined;
+  }
+
+  return { dayKey, used, limit, remaining, resetAt };
+}
+
 export function parseUsageSummaryFromFirestore(raw: DocumentData): IUserUsageSummary | null {
   const periodKey = typeof raw.periodKey === 'string' ? raw.periodKey : '';
   const allowance = typeof raw.allowance === 'number' ? raw.allowance : NaN;
@@ -139,6 +179,8 @@ export function parseUsageSummaryFromFirestore(raw: DocumentData): IUserUsageSum
   }
 
   const payAsYouGo = parsePayAsYouGoSummary(raw.payAsYouGo);
+  const storage = parseStorageSummary(raw.storage);
+  const dailySlideDecks = parseDailySlideDeckSummary(raw.dailySlideDecks);
 
   return {
     periodKey,
@@ -156,6 +198,8 @@ export function parseUsageSummaryFromFirestore(raw: DocumentData): IUserUsageSum
       typeof raw.usageLimitsSetupName === 'string' ? raw.usageLimitsSetupName : undefined,
     featureAvailability,
     ...(payAsYouGo ? { payAsYouGo } : {}),
+    ...(storage ? { storage } : {}),
+    ...(dailySlideDecks ? { dailySlideDecks } : {}),
   };
 }
 
