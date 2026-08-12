@@ -47,8 +47,8 @@ export async function buildRoutedTextConfig(
   model: string,
   options?: IApplyLlmGenerationDefaultsOptions & Partial<LlmTextConfig>,
 ): Promise<LlmTextConfig> {
-  const { profile, ...overrides } = options ?? {};
-  return applyLlmGenerationDefaults({ model, ...overrides }, { profile });
+  const { profile, flow, ...overrides } = options ?? {};
+  return applyLlmGenerationDefaults({ model, ...overrides }, { profile, flow });
 }
 
 export async function generateExternalProviderText(

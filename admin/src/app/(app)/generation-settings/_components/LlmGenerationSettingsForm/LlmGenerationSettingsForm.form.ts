@@ -1,14 +1,19 @@
 import type {
+  ILlmGenerationFlowOverrides,
   ILlmGenerationProfileOverrides,
   ILlmGenerationSettings,
   IUpdateLlmGenerationSettingsRequest,
+  LlmGenerationFlowId,
   LlmGenerationProfileId,
 } from '@shared-types';
 import {
   DEFAULT_LLM_GENERATION_SETTINGS,
+  LLM_GENERATION_FLOW_IDS,
+  LLM_GENERATION_FLOW_METADATA,
   LLM_GENERATION_PROFILE_IDS,
   LLM_GENERATION_PROFILE_METADATA,
   LLM_GENERATION_SETTINGS_LIMITS,
+  resolveLlmGenerationFlowRuntimeSettings,
   resolveLlmGenerationProfileSettings,
 } from '@shared-types';
 import { z } from 'zod';
@@ -37,6 +42,27 @@ const profileRuntimeSchema = z.object({
     .number()
     .min(numericBounds.topP.min, 'Top P must be 0 or greater')
     .max(numericBounds.topP.max, 'Top P must be 1 or lower'),
+  disableReasoning: z.boolean(),
+  thinkingBudget: z
+    .number()
+    .int('Thinking budget must be a whole number')
+    .min(numericBounds.thinkingBudget.min, 'Thinking budget must be 0 or greater')
+    .max(
+      numericBounds.thinkingBudget.max,
+      `Thinking budget must be at most ${numericBounds.thinkingBudget.max}`,
+    )
+    .optional(),
+});
+
+const flowRuntimeSchema = z.object({
+  maxOutputTokens: z
+    .number()
+    .int('Max output tokens must be a whole number')
+    .min(numericBounds.maxOutputTokens.min, 'Max output tokens must be at least 1')
+    .max(
+      numericBounds.maxOutputTokens.max,
+      `Max output tokens must be at most ${numericBounds.maxOutputTokens.max}`,
+    ),
   disableReasoning: z.boolean(),
   thinkingBudget: z
     .number()
@@ -109,6 +135,11 @@ export const llmGenerationSettingsFormSchema = z.object({
       ]),
     ) as Record<LlmGenerationProfileId, typeof profileRuntimeSchema>,
   ),
+  flows: z.object(
+    Object.fromEntries(
+      LLM_GENERATION_FLOW_IDS.map((flowId) => [flowId, flowRuntimeSchema]),
+    ) as Record<LlmGenerationFlowId, typeof flowRuntimeSchema>,
+  ),
 });
 
 export type ILlmGenerationSettingsFormValues = z.infer<
@@ -117,6 +148,9 @@ export type ILlmGenerationSettingsFormValues = z.infer<
 
 export type IProfileRuntimeFormValues =
   ILlmGenerationSettingsFormValues['profiles'][LlmGenerationProfileId];
+
+export type IFlowRuntimeFormValues =
+  ILlmGenerationSettingsFormValues['flows'][LlmGenerationFlowId];
 
 function getProfileDefaultValues(
   settings: ILlmGenerationSettings,
@@ -135,6 +169,34 @@ function getProfileDefaultValues(
       effective.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
     topK: effective.topK ?? DEFAULT_LLM_GENERATION_SETTINGS.topK,
     topP: effective.topP ?? DEFAULT_LLM_GENERATION_SETTINGS.topP,
+    disableReasoning:
+      effective.disableReasoning ??
+      DEFAULT_LLM_GENERATION_SETTINGS.disableReasoning,
+    thinkingBudget: effective.thinkingBudget,
+  };
+}
+
+function flowProfileId(flowId: LlmGenerationFlowId): LlmGenerationProfileId {
+  return (
+    LLM_GENERATION_FLOW_METADATA.find((entry) => entry.id === flowId)
+      ?.profileId ?? 'structuredArtifact'
+  );
+}
+
+function getFlowDefaultValues(
+  settings: ILlmGenerationSettings,
+  flowId: LlmGenerationFlowId,
+): IFlowRuntimeFormValues {
+  const effective = resolveLlmGenerationFlowRuntimeSettings(settings, {
+    profileId: flowProfileId(flowId),
+    flowId,
+    storedProfiles: settings.profiles,
+    storedFlows: settings.flows,
+  });
+  return {
+    maxOutputTokens:
+      effective.maxOutputTokens ??
+      DEFAULT_LLM_GENERATION_SETTINGS.maxOutputTokens,
     disableReasoning:
       effective.disableReasoning ??
       DEFAULT_LLM_GENERATION_SETTINGS.disableReasoning,
@@ -166,6 +228,12 @@ export function getLlmGenerationSettingsDefaultValues(
         getProfileDefaultValues(settings, profileId),
       ]),
     ) as ILlmGenerationSettingsFormValues['profiles'],
+    flows: Object.fromEntries(
+      LLM_GENERATION_FLOW_IDS.map((flowId) => [
+        flowId,
+        getFlowDefaultValues(settings, flowId),
+      ]),
+    ) as ILlmGenerationSettingsFormValues['flows'],
   };
 }
 
@@ -191,6 +259,22 @@ export function normalizeLlmGenerationSettingsSubmitPayload(
     }),
   ) as ILlmGenerationSettings['profiles'];
 
+  const flows = Object.fromEntries(
+    LLM_GENERATION_FLOW_IDS.map((flowId) => {
+      const flowValues = values.flows[flowId];
+      const flowPayload: ILlmGenerationFlowOverrides = {
+        maxOutputTokens: flowValues.maxOutputTokens,
+        disableReasoning: flowValues.disableReasoning,
+      };
+
+      if (flowValues.thinkingBudget !== undefined) {
+        flowPayload.thinkingBudget = flowValues.thinkingBudget;
+      }
+
+      return [flowId, flowPayload];
+    }),
+  ) as ILlmGenerationSettings['flows'];
+
   return {
     requestTimeoutMs: values.requestTimeoutMs,
     maxOutputTokens: values.maxOutputTokens,
@@ -200,7 +284,11 @@ export function normalizeLlmGenerationSettingsSubmitPayload(
     disableReasoning: values.disableReasoning,
     thinkingBudget: values.thinkingBudget ?? null,
     profiles,
+    flows,
   };
 }
 
-export { LLM_GENERATION_PROFILE_METADATA };
+export {
+  LLM_GENERATION_FLOW_METADATA,
+  LLM_GENERATION_PROFILE_METADATA,
+};

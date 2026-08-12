@@ -1,6 +1,10 @@
 'use client';
 
-import type { ILlmGenerationSettings, LlmGenerationProfileId } from '@shared-types';
+import type {
+  ILlmGenerationSettings,
+  LlmGenerationFlowId,
+  LlmGenerationProfileId,
+} from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -31,6 +35,7 @@ import {
 import { Input } from '@admin/components/ui/Input';
 import {
   getLlmGenerationSettingsDefaultValues,
+  LLM_GENERATION_FLOW_METADATA,
   LLM_GENERATION_PROFILE_METADATA,
   llmGenerationSettingsFormSchema,
   normalizeLlmGenerationSettingsSubmitPayload,
@@ -100,7 +105,8 @@ function isLlmGenerationSettings(
     typeof value.topP === 'number' &&
     typeof value.disableReasoning === 'boolean' &&
     (value.thinkingBudget === undefined ||
-      typeof value.thinkingBudget === 'number')
+      typeof value.thinkingBudget === 'number') &&
+    (value.flows === undefined || typeof value.flows === 'object')
   );
 }
 
@@ -354,6 +360,69 @@ function ProfileSettingsSection({
   );
 }
 
+function FlowSettingsSection({
+  control,
+  flowId,
+}: {
+  control: Control<ILlmGenerationSettingsFormValues>;
+  flowId: LlmGenerationFlowId;
+}) {
+  const metadata = LLM_GENERATION_FLOW_METADATA.find(
+    (entry) => entry.id === flowId,
+  );
+
+  if (!metadata) {
+    return null;
+  }
+
+  return (
+    <section className="space-y-4 rounded-lg border border-border p-4">
+      <div>
+        <h3 className="text-sm font-medium">{metadata.label}</h3>
+        <p className="text-sm text-muted-foreground">{metadata.description}</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Inherits profile: {metadata.profileId} · id: {metadata.id}
+        </p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <NumericSettingField
+          control={control}
+          field={profileOutputField}
+          name={`flows.${flowId}.maxOutputTokens`}
+        />
+        <NumericSettingField
+          control={control}
+          field={profileReasoningFields[0]}
+          name={`flows.${flowId}.thinkingBudget`}
+        />
+      </div>
+
+      <FormField
+        control={control}
+        name={`flows.${flowId}.disableReasoning`}
+        render={({ field }) => (
+          <FormItem>
+            <div className="flex items-center gap-2">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onBlur={field.onBlur}
+                  onChange={(event) => field.onChange(event.target.checked)}
+                />
+              </FormControl>
+              <FormLabel className="text-sm font-normal">
+                Disable reasoning for this flow
+              </FormLabel>
+            </div>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </section>
+  );
+}
+
 export function LlmGenerationSettingsForm({
   settings,
 }: ILlmGenerationSettingsFormProps) {
@@ -409,9 +478,9 @@ export function LlmGenerationSettingsForm({
       <CardHeader>
         <CardTitle className="text-xl">Global LLM runtime settings</CardTitle>
         <CardDescription>
-          Configure platform-wide defaults and named sampling profiles. Flows
-          select a profile in code; only safety-tuned micro-budgets stay
-          hardcoded.
+          Configure platform-wide defaults, named sampling profiles, and
+          per-flow token budgets. Call sites select a flow id; values resolve
+          as flow, then profile, then global.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -493,6 +562,26 @@ export function LlmGenerationSettingsForm({
                     key={profile.id}
                     control={form.control}
                     profileId={profile.id}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium">Flow presets</h3>
+                <p className="text-sm text-muted-foreground">
+                  Step-level budgets for sequence quiz, diagram quiz phases,
+                  flashcards, screenshots, and related helpers. Override without
+                  redeploying functions.
+                </p>
+              </div>
+              <div className="space-y-6">
+                {LLM_GENERATION_FLOW_METADATA.map((flow) => (
+                  <FlowSettingsSection
+                    key={flow.id}
+                    control={form.control}
+                    flowId={flow.id}
                   />
                 ))}
               </div>

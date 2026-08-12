@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import type {
+  LlmGenerationFlowId,
   LlmGenerationProfileId,
   ScrapedContent,
   IFileContent,
@@ -76,12 +77,6 @@ import { parseQuizJson } from './quiz-response-parser';
 
 type FlashcardItem = IParsedFlashcardItem;
 
-/**
- * Thinking models (Together MiniMax-M3) spend most of max_tokens on reasoning.
- * Diagram-quiz agent helpers previously used 2k–6k and truncated with empty content.
- */
-const DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS = 32768;
-
 function toGeminiContentOptions(config: LlmTextConfig): {
   model?: string;
   maxOutputTokens?: number;
@@ -105,9 +100,12 @@ function toGeminiContentOptions(config: LlmTextConfig): {
 async function buildGenerationConfig(
   model: string,
   profile: LlmGenerationProfileId | undefined,
-  overrides?: Partial<LlmTextConfig>,
+  overrides?: Partial<LlmTextConfig> & {
+    flow?: LlmGenerationFlowId;
+  },
 ): Promise<LlmTextConfig> {
-  return applyLlmGenerationDefaults({ model, ...overrides }, { profile });
+  const { flow, ...rest } = overrides ?? {};
+  return applyLlmGenerationDefaults({ model, ...rest }, { profile, flow });
 }
 
 export interface GenerateFlashcardsResult {
@@ -309,7 +307,7 @@ export class LlmGenerationService {
         disableReasoning: options?.disableReasoning,
         thinkingBudget: options?.thinkingBudget,
       },
-      { profile },
+      { profile, flow: options?.flow },
     );
 
     if (!ctx.usesExternalProvider) {
@@ -325,6 +323,7 @@ export class LlmGenerationService {
       generationConfig,
       options?.successLogMessage ??
         `Text generated via external provider (${logLabel})`,
+      { profile, flow: options?.flow },
     );
   }
 
@@ -392,6 +391,7 @@ export class LlmGenerationService {
     const runtimeConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
+      { flow: 'sequenceQuiz' },
     );
 
     if (!ctx.usesExternalProvider) {
@@ -409,14 +409,9 @@ export class LlmGenerationService {
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      {
-        model: ctx.resolution.route.model,
-        // Thinking models (Together MiniMax) spend a large share of max_tokens on
-        // reasoning before emitting the 8–12 question JSON payload.
-        maxOutputTokens: 32768,
-      },
+      { model: ctx.resolution.route.model },
       'Sequence quiz generated via OpenRouter',
-      { profile },
+      { profile, flow: 'sequenceQuiz' },
     );
     return GeminiService.parseSequenceQuizResponseFromText(text);
   }
@@ -488,14 +483,15 @@ export class LlmGenerationService {
       ctx.resolution.route,
       ctx.resolution.providerApiKey,
     );
+    const classifyConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      'structuredArtifact',
+      { flow: 'flashcards.languageClassify' },
+    );
     const result = await client.generateText({
       prompt,
       config: {
-        model: ctx.resolution.route.model,
-        temperature: 0.1,
-        // Classification is a tiny JSON object — disable reasoning/thinking.
-        maxOutputTokens: 1024,
-        disableReasoning: true,
+        ...classifyConfig,
         responseMimeType: 'application/json',
         responseSchema: {
           type: 'object',
@@ -588,7 +584,7 @@ export class LlmGenerationService {
       resolveLlmGenerationProfile('documentFromScreenshot') ??
       'longformContent';
     const config = await buildGenerationConfig(route.model, profile, {
-      maxOutputTokens: 32768,
+      flow: 'documentFromScreenshot',
     });
 
     if (route.providerType === 'gemini') {
@@ -647,7 +643,7 @@ export class LlmGenerationService {
       resolveLlmGenerationProfile('documentFromScreenshot') ??
       'longformContent';
     const config = await buildGenerationConfig(route.model, profile, {
-      maxOutputTokens: 32768,
+      flow: 'documentFromScreenshot',
     });
 
     if (route.providerType === 'gemini') {
@@ -885,7 +881,7 @@ export class LlmGenerationService {
     const briefConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
-      { maxOutputTokens: 4096 },
+      { flow: 'slideDeck.imageBrief' },
     );
 
     if (!ctx.usesExternalProvider) {
@@ -909,9 +905,9 @@ export class LlmGenerationService {
       const text = await generateExternalProviderText(
         ctx,
         prompt,
-        { model: ctx.resolution.route.model, maxOutputTokens: 4096 },
+        { model: ctx.resolution.route.model },
         'Slide image brief generated via external provider',
-        { profile },
+        { profile, flow: 'slideDeck.imageBrief' },
       );
       const brief = text.trim();
       if (!brief) {
@@ -1049,7 +1045,7 @@ export class LlmGenerationService {
     const runtimeConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
-      { maxOutputTokens: 16384 },
+      { flow: 'sourceDocumentEnhancement' },
     );
 
     if (!ctx.usesExternalProvider) {
@@ -1086,9 +1082,9 @@ ${markdownContent}
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      { model: ctx.resolution.route.model, maxOutputTokens: 16384 },
+      { model: ctx.resolution.route.model },
       'Extracted document enhanced via OpenRouter',
-      { profile },
+      { profile, flow: 'sourceDocumentEnhancement' },
     );
 
     return GeminiService.sanitizeDocumentResponse(stripCodeFences(text));
@@ -1113,7 +1109,7 @@ ${markdownContent}
     const runtimeConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
-      { maxOutputTokens: 8192 },
+      { flow: 'ruleGeneration' },
     );
 
     if (!ctx.usesExternalProvider) {
@@ -1138,9 +1134,9 @@ ${markdownContent}
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      { model: ctx.resolution.route.model, maxOutputTokens: 8192 },
+      { model: ctx.resolution.route.model },
       'Rule generated via OpenRouter',
-      { profile },
+      { profile, flow: 'ruleGeneration' },
     );
 
     return parseRuleResponse(text);
@@ -1219,7 +1215,7 @@ Return ONLY the corrected Mermaid source with no markdown fences or commentary.`
       ctx.resolution.route.model,
       profile,
       {
-        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
+        flow: 'diagramQuiz.agent',
         topK: 20,
         topP: 0.9,
       },
@@ -1238,12 +1234,11 @@ Return ONLY the corrected Mermaid source with no markdown fences or commentary.`
       prompt,
       {
         model: ctx.resolution.route.model,
-        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
         topK: 20,
         topP: 0.9,
       },
       'Diagram quiz repair via OpenRouter',
-      { profile },
+      { profile, flow: 'diagramQuiz.agent' },
     );
     return stripCodeFences(text);
   }
@@ -1315,7 +1310,7 @@ Return ONLY valid JSON:
       ctx.resolution.route.model,
       profile,
       {
-        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
+        flow: 'diagramQuiz.agent',
         topK: 20,
         topP: 0.9,
         temperature: 0.25,
@@ -1332,13 +1327,12 @@ Return ONLY valid JSON:
           prompt,
           {
             model: ctx.resolution.route.model,
-            maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
             topK: 20,
             topP: 0.9,
             temperature: 0.25,
           },
           'Diagram quiz visual-complexity rebalance via OpenRouter',
-          { profile },
+          { profile, flow: 'diagramQuiz.agent' },
         );
 
     let cleaned = JsonSanitizer.initialCleanup(raw);
@@ -1421,7 +1415,7 @@ Use "revise" for fixable pedagogical issues and "fail" only for severe factual e
       ctx.resolution.route.model,
       profile,
       {
-        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
+        flow: 'diagramQuiz.agent',
         topK: 20,
         topP: 0.9,
       },
@@ -1439,12 +1433,11 @@ Use "revise" for fixable pedagogical issues and "fail" only for severe factual e
       prompt,
       {
         model: ctx.resolution.route.model,
-        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
         topK: 20,
         topP: 0.9,
       },
       'Diagram quiz critic via OpenRouter',
-      { profile },
+      { profile, flow: 'diagramQuiz.agent' },
     );
   }
 
@@ -1500,7 +1493,7 @@ Include ONLY the listed indexes. Each diagram must be valid Mermaid source.`;
       profile,
       {
         temperature: 0.35,
-        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
+        flow: 'diagramQuiz.agent',
       },
     );
 
@@ -1522,10 +1515,9 @@ Include ONLY the listed indexes. Each diagram must be valid Mermaid source.`;
       {
         model: ctx.resolution.route.model,
         temperature: 0.35,
-        maxOutputTokens: DIAGRAM_QUIZ_AGENT_MAX_OUTPUT_TOKENS,
       },
       'Diagram quiz refine via OpenRouter',
-      { profile },
+      { profile, flow: 'diagramQuiz.agent' },
     );
     return GeminiService.mergeDiagramQuizRefinement(
       params.draft,
@@ -1571,16 +1563,16 @@ Respond with JSON only (no full document rewrite):
     const runtimeConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
-      { maxOutputTokens: 1024 },
+      { flow: 'screenshot.compliance' },
     );
 
     const text = ctx.usesExternalProvider
       ? await generateExternalProviderText(
           ctx,
           prompt,
-          { model: ctx.resolution.route.model, maxOutputTokens: 1024 },
+          { model: ctx.resolution.route.model },
           'Screenshot rule compliance review',
-          { profile },
+          { profile, flow: 'screenshot.compliance' },
         )
       : await GeminiService.generateContent(
           prompt,
@@ -1650,7 +1642,7 @@ Requirements:
     const runtimeConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
-      { temperature: 0.3, maxOutputTokens: 16384 },
+      { flow: 'screenshot.refine' },
     );
 
     const text = ctx.usesExternalProvider
@@ -1659,11 +1651,9 @@ Requirements:
           prompt,
           {
             model: ctx.resolution.route.model,
-            temperature: 0.3,
-            maxOutputTokens: 16384,
           },
           'Screenshot rule refine',
-          { profile },
+          { profile, flow: 'screenshot.refine' },
         )
       : await GeminiService.generateContent(
           prompt,

@@ -2,16 +2,22 @@ import 'server-only';
 
 import * as admin from 'firebase-admin';
 import type {
+  ILlmGenerationFlowOverrides,
+  ILlmGenerationFlows,
   ILlmGenerationProfileOverrides,
   ILlmGenerationProfiles,
   ILlmGenerationRuntimeSettings,
   ILlmGenerationSettings,
+  LlmGenerationFlowId,
   LlmGenerationProfileId,
 } from '@shared-types';
 import {
   DEFAULT_LLM_GENERATION_SETTINGS,
+  LLM_GENERATION_FLOW_IDS,
+  LLM_GENERATION_FLOW_METADATA,
   LLM_GENERATION_PROFILE_IDS,
   LLM_GENERATION_SETTINGS_LIMITS,
+  resolveLlmGenerationFlowRuntimeSettings,
   resolveLlmGenerationProfileSettings,
 } from '@shared-types';
 import { getAdminFirestore } from '../firebase/admin';
@@ -46,6 +52,13 @@ function getSettingsRef(): admin.firestore.DocumentReference {
   return getAdminFirestore()
     .collection(ADMIN_SETTINGS_COLLECTION)
     .doc(LLM_GENERATION_SETTINGS_DOCUMENT);
+}
+
+function flowProfileId(flowId: LlmGenerationFlowId): LlmGenerationProfileId {
+  const metadata = LLM_GENERATION_FLOW_METADATA.find(
+    (entry) => entry.id === flowId,
+  );
+  return metadata?.profileId ?? 'structuredArtifact';
 }
 
 function getNumericValue(
@@ -156,6 +169,22 @@ function parseStoredProfiles(data: unknown): ILlmGenerationProfiles | undefined 
   return Object.keys(profiles).length > 0 ? profiles : undefined;
 }
 
+function parseStoredFlows(data: unknown): ILlmGenerationFlows | undefined {
+  if (!isRecord(data) || !isRecord(data.flows)) {
+    return undefined;
+  }
+
+  const flows: ILlmGenerationFlows = {};
+  for (const flowId of LLM_GENERATION_FLOW_IDS) {
+    const parsed = parseProfileOverrides(data.flows[flowId]);
+    if (parsed) {
+      flows[flowId] = parsed;
+    }
+  }
+
+  return Object.keys(flows).length > 0 ? flows : undefined;
+}
+
 function parseStoredSettings(
   data: FirebaseFirestore.DocumentData,
 ): ILlmGenerationSettings {
@@ -217,10 +246,12 @@ function parseStoredSettings(
   }
 
   const profiles = parseStoredProfiles(data);
+  const flows = parseStoredFlows(data);
 
   return {
     ...runtimeSettings,
     ...(profiles ? { profiles } : {}),
+    ...(flows ? { flows } : {}),
     updatedAt: toIsoString(data.updatedAt),
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
   };
@@ -437,6 +468,93 @@ function normalizeProfilesInput(
   return Object.keys(profiles).length > 0 ? profiles : undefined;
 }
 
+function normalizeFlowOverrides(
+  input: unknown,
+  flowId: LlmGenerationFlowId,
+  current: ILlmGenerationSettings,
+): ILlmGenerationFlowOverrides {
+  if (!isRecord(input)) {
+    throw new Error(`Flow "${flowId}" must be an object.`);
+  }
+
+  const withProfile = resolveLlmGenerationFlowRuntimeSettings(current, {
+    profileId: flowProfileId(flowId),
+    flowId,
+    storedProfiles: current.profiles,
+    storedFlows: current.flows,
+  });
+
+  const disableReasoning =
+    input.disableReasoning === undefined
+      ? withProfile.disableReasoning
+      : input.disableReasoning;
+  if (typeof disableReasoning !== 'boolean') {
+    throw new Error(`Flow "${flowId}" disableReasoning must be a boolean.`);
+  }
+
+  const overrides: ILlmGenerationFlowOverrides = {
+    maxOutputTokens:
+      normalizeNumericSetting(
+        input,
+        'maxOutputTokens',
+        withProfile.maxOutputTokens,
+        LLM_GENERATION_SETTINGS_LIMITS.maxOutputTokens,
+        { integer: true },
+      ) ?? withProfile.maxOutputTokens,
+    disableReasoning,
+  };
+
+  if (input.temperature !== undefined && input.temperature !== null) {
+    overrides.temperature =
+      normalizeNumericSetting(
+        input,
+        'temperature',
+        withProfile.temperature,
+        LLM_GENERATION_SETTINGS_LIMITS.temperature,
+      ) ?? withProfile.temperature;
+  }
+
+  const thinkingBudget =
+    input.thinkingBudget === null
+      ? undefined
+      : normalizeNumericSetting(
+          input,
+          'thinkingBudget',
+          withProfile.thinkingBudget,
+          LLM_GENERATION_SETTINGS_LIMITS.thinkingBudget,
+          { integer: true },
+        );
+  if (thinkingBudget !== undefined) {
+    overrides.thinkingBudget = thinkingBudget;
+  }
+
+  return overrides;
+}
+
+function normalizeFlowsInput(
+  input: unknown,
+  current: ILlmGenerationSettings,
+): ILlmGenerationFlows | undefined {
+  if (input === undefined) {
+    return current.flows;
+  }
+
+  if (!isRecord(input)) {
+    throw new Error('flows must be an object.');
+  }
+
+  const flows: ILlmGenerationFlows = {};
+  for (const flowId of LLM_GENERATION_FLOW_IDS) {
+    if (input[flowId] !== undefined) {
+      flows[flowId] = normalizeFlowOverrides(input[flowId], flowId, current);
+    } else if (current.flows?.[flowId]) {
+      flows[flowId] = current.flows[flowId];
+    }
+  }
+
+  return Object.keys(flows).length > 0 ? flows : undefined;
+}
+
 export function getEffectiveLlmGenerationProfileSettings(
   settings: ILlmGenerationSettings,
   profileId: LlmGenerationProfileId,
@@ -446,6 +564,18 @@ export function getEffectiveLlmGenerationProfileSettings(
     profileId,
     settings.profiles,
   );
+}
+
+export function getEffectiveLlmGenerationFlowSettings(
+  settings: ILlmGenerationSettings,
+  flowId: LlmGenerationFlowId,
+): ILlmGenerationRuntimeSettings {
+  return resolveLlmGenerationFlowRuntimeSettings(settings, {
+    profileId: flowProfileId(flowId),
+    flowId,
+    storedProfiles: settings.profiles,
+    storedFlows: settings.flows,
+  });
 }
 
 export async function readLlmGenerationSettings(): Promise<ILlmGenerationSettings> {
@@ -475,6 +605,7 @@ export async function updateLlmGenerationSettings(
         : { ...DEFAULT_LLM_GENERATION_SETTINGS };
       const nextSettings = normalizeRuntimeSettings(input, current);
       const nextProfiles = normalizeProfilesInput(input.profiles, current);
+      const nextFlows = normalizeFlowsInput(input.flows, current);
       const document: FirebaseFirestore.DocumentData = {
         ...nextSettings,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -491,10 +622,17 @@ export async function updateLlmGenerationSettings(
         document.profiles = admin.firestore.FieldValue.delete();
       }
 
+      if (nextFlows) {
+        document.flows = nextFlows;
+      } else {
+        document.flows = admin.firestore.FieldValue.delete();
+      }
+
       transaction.set(settingsRef, document, { merge: true });
       return {
         ...nextSettings,
         ...(nextProfiles ? { profiles: nextProfiles } : {}),
+        ...(nextFlows ? { flows: nextFlows } : {}),
       };
     },
   );

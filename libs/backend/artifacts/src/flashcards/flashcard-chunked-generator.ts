@@ -21,9 +21,6 @@ import {
   type IFlashcardTermPlan,
 } from './flashcard-chunked-types';
 
-const PLAN_MAX_OUTPUT_TOKENS = 8192;
-const BATCH_MAX_OUTPUT_TOKENS = 12288;
-
 export interface FlashcardChunkedGenerationParams {
   content: string;
   rules?: string;
@@ -152,10 +149,9 @@ export async function replanFlashcardReplacementTerms(
     prompt,
     {
       model: ctx.resolution.route.model,
-      maxOutputTokens: PLAN_MAX_OUTPUT_TOKENS,
     },
     'Flashcard replacement term plan via provider',
-    { profile: 'structuredArtifact' },
+    { profile: 'structuredArtifact', flow: 'flashcards.plan' },
   );
 
   const planResponse = parseFlashcardPlanResponse(planText);
@@ -205,10 +201,9 @@ async function planFlashcardTerms(params: {
     planPrompt,
     {
       model: ctx.resolution.route.model,
-      maxOutputTokens: PLAN_MAX_OUTPUT_TOKENS,
     },
     'Flashcard term plan generated via provider',
-    { profile: 'structuredArtifact' },
+    { profile: 'structuredArtifact', flow: 'flashcards.plan' },
   );
 
   const planResponse = parseFlashcardPlanResponse(planText);
@@ -272,10 +267,9 @@ async function replanFlashcardReplacementTermsInternal(params: {
     prompt,
     {
       model: ctx.resolution.route.model,
-      maxOutputTokens: PLAN_MAX_OUTPUT_TOKENS,
     },
     'Flashcard replacement term plan via provider',
-    { profile: 'structuredArtifact' },
+    { profile: 'structuredArtifact', flow: 'flashcards.plan' },
   );
 
   const planResponse = parseFlashcardPlanResponse(planText);
@@ -392,12 +386,11 @@ async function generateFlashcardBatch(params: {
     {
       model: ctx.resolution.route.model,
       ...(strict ? { temperature: 0.2 } : {}),
-      maxOutputTokens: BATCH_MAX_OUTPUT_TOKENS,
     },
     strict
       ? 'Flashcard expand batch retry via provider'
       : 'Flashcard expand batch via provider',
-    { profile: 'structuredArtifact' },
+    { profile: 'structuredArtifact', flow: 'flashcards.batch' },
   );
 
   const parsed = parseFlashcardBatchExpandResponse(text);

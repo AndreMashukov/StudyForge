@@ -1971,6 +1971,27 @@ export {
   resolveGenerationKind,
 } from './generation-kind-metadata';
 
+import {
+  applyLlmGenerationFlowOverrides,
+  type ILlmGenerationFlows,
+  type LlmGenerationFlowId,
+} from './llm-generation-flows';
+
+export type {
+  ILlmGenerationFlowBaseSettings,
+  ILlmGenerationFlowMetadata,
+  ILlmGenerationFlowOverrides,
+  ILlmGenerationFlows,
+  LlmGenerationFlowId,
+} from './llm-generation-flows';
+export {
+  applyLlmGenerationFlowOverrides,
+  DEFAULT_LLM_GENERATION_FLOWS,
+  isLlmGenerationFlowId,
+  LLM_GENERATION_FLOW_IDS,
+  LLM_GENERATION_FLOW_METADATA,
+} from './llm-generation-flows';
+
 export interface ILlmModalityRoute {
   connectionId: string;
   model: string;
@@ -2117,6 +2138,7 @@ export const DEFAULT_LLM_GENERATION_PROFILES: Record<
 
 export interface ILlmGenerationSettings extends ILlmGenerationRuntimeSettings {
   profiles?: ILlmGenerationProfiles;
+  flows?: ILlmGenerationFlows;
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -2125,6 +2147,7 @@ export interface IUpdateLlmGenerationSettingsRequest
   extends Partial<Omit<ILlmGenerationRuntimeSettings, 'thinkingBudget'>> {
   thinkingBudget?: number | null;
   profiles?: ILlmGenerationProfiles;
+  flows?: ILlmGenerationFlows;
 }
 
 export const DEFAULT_LLM_GENERATION_SETTINGS: ILlmGenerationRuntimeSettings = {
@@ -2171,6 +2194,34 @@ export function resolveLlmGenerationProfileSettings(
   }
 
   return merged;
+}
+
+export function resolveLlmGenerationFlowRuntimeSettings(
+  globalSettings: ILlmGenerationRuntimeSettings,
+  options: {
+    profileId?: LlmGenerationProfileId;
+    flowId?: LlmGenerationFlowId;
+    storedProfiles?: ILlmGenerationProfiles;
+    storedFlows?: ILlmGenerationFlows;
+  },
+): ILlmGenerationRuntimeSettings {
+  const profileBase = options.profileId
+    ? resolveLlmGenerationProfileSettings(
+        globalSettings,
+        options.profileId,
+        options.storedProfiles,
+      )
+    : { ...globalSettings };
+
+  if (!options.flowId) {
+    return profileBase;
+  }
+
+  return applyLlmGenerationFlowOverrides(
+    profileBase,
+    options.flowId,
+    options.storedFlows,
+  );
 }
 
 export const LLM_GENERATION_SETTINGS_LIMITS = {

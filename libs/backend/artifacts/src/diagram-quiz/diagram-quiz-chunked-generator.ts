@@ -32,10 +32,8 @@ function toBatchQuestion(plan: IDiagramQuizQuestionPlan, index: number) {
 }
 
 // Thinking models (e.g. Together MiniMax-M3) spend a large share of max_tokens on
-// reasoning before emitting JSON. 8k was enough for content-only models but truncates
-// after reasoning with finish_reason=length and an empty payload.
-const QUESTION_PLAN_MAX_OUTPUT_TOKENS = 32768;
-const DIAGRAM_BATCH_MAX_OUTPUT_TOKENS = 32768;
+// reasoning before emitting JSON. Flow presets (diagramQuiz.plan / .batch) own the
+// raised budgets; admin can override them without a redeploy.
 
 /**
  * Two-phase diagram quiz generation for external LLM providers:
@@ -76,10 +74,9 @@ export async function generateDiagramQuizChunked(
     planPrompt,
     {
       model: ctx.resolution.route.model,
-      maxOutputTokens: QUESTION_PLAN_MAX_OUTPUT_TOKENS,
     },
     'Diagram quiz question plans generated via external provider',
-    { profile: 'structuredArtifact' },
+    { profile: 'structuredArtifact', flow: 'diagramQuiz.plan' },
   );
 
   const planResponse = parseDiagramQuizQuestionPlanResponse(planText);
@@ -160,12 +157,11 @@ async function generateDiagramBatch(params: {
     {
       model: ctx.resolution.route.model,
       ...(strict ? { temperature: 0.2 } : {}),
-      maxOutputTokens: DIAGRAM_BATCH_MAX_OUTPUT_TOKENS,
     },
     strict
       ? 'Diagram quiz diagram batch retry via external provider'
       : 'Diagram quiz diagram batch via external provider',
-    { profile: 'structuredArtifact' },
+    { profile: 'structuredArtifact', flow: 'diagramQuiz.batch' },
   );
 
   const parsed = parseDiagramQuizDiagramBatchResponse(text);

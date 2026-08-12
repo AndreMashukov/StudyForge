@@ -1,16 +1,21 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import type {
+  ILlmGenerationFlowOverrides,
+  ILlmGenerationFlows,
   ILlmGenerationProfileOverrides,
   ILlmGenerationProfiles,
   ILlmGenerationRuntimeSettings,
   ILlmGenerationSettings,
+  LlmGenerationFlowId,
   LlmGenerationProfileId,
 } from '@shared-types';
 import {
   DEFAULT_LLM_GENERATION_SETTINGS,
+  LLM_GENERATION_FLOW_IDS,
   LLM_GENERATION_PROFILE_IDS,
   LLM_GENERATION_SETTINGS_LIMITS,
+  resolveLlmGenerationFlowRuntimeSettings,
   resolveLlmGenerationProfileSettings,
 } from '@shared-types';
 import type { LlmTextConfig } from './types';
@@ -29,6 +34,7 @@ interface INumericValidationOptions {
 
 export interface IApplyLlmGenerationDefaultsOptions {
   profile?: LlmGenerationProfileId;
+  flow?: LlmGenerationFlowId;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -178,11 +184,38 @@ function parseStoredProfiles(data: unknown): ILlmGenerationProfiles | undefined 
   return Object.keys(profiles).length > 0 ? profiles : undefined;
 }
 
+function parseFlowOverrides(
+  data: unknown,
+): ILlmGenerationFlowOverrides | undefined {
+  return parseProfileOverrides(data);
+}
+
+function parseStoredFlows(data: unknown): ILlmGenerationFlows | undefined {
+  if (!isRecord(data) || !isRecord(data.flows)) {
+    return undefined;
+  }
+
+  const flows: ILlmGenerationFlows = {};
+  for (const flowId of LLM_GENERATION_FLOW_IDS) {
+    const parsed = parseFlowOverrides(data.flows[flowId]);
+    if (parsed) {
+      flows[flowId] = parsed;
+    }
+  }
+
+  return Object.keys(flows).length > 0 ? flows : undefined;
+}
+
 function parseStoredSettings(data: unknown): ILlmGenerationSettings {
   const runtimeSettings = parseRuntimeSettings(data);
   const profiles = parseStoredProfiles(data);
+  const flows = parseStoredFlows(data);
 
-  return profiles ? { ...runtimeSettings, profiles } : runtimeSettings;
+  return {
+    ...runtimeSettings,
+    ...(profiles ? { profiles } : {}),
+    ...(flows ? { flows } : {}),
+  };
 }
 
 async function readStoredSettingsDocument(): Promise<ILlmGenerationSettings> {
@@ -217,8 +250,13 @@ export async function readLlmGenerationSettings(): Promise<ILlmGenerationSetting
 
 export async function readLlmGenerationRuntimeSettings(): Promise<ILlmGenerationRuntimeSettings> {
   const settings = await readStoredSettingsDocument();
-  const { profiles: _profiles, updatedAt: _updatedAt, updatedBy: _updatedBy, ...runtime } =
-    settings;
+  const {
+    profiles: _profiles,
+    flows: _flows,
+    updatedAt: _updatedAt,
+    updatedBy: _updatedBy,
+    ...runtime
+  } = settings;
   return runtime;
 }
 
@@ -254,8 +292,13 @@ export function resolveProfileRuntimeSettings(
   settings: ILlmGenerationSettings,
   profileId: LlmGenerationProfileId,
 ): ILlmGenerationRuntimeSettings {
-  const { profiles, updatedAt: _updatedAt, updatedBy: _updatedBy, ...global } =
-    settings;
+  const {
+    profiles,
+    flows: _flows,
+    updatedAt: _updatedAt,
+    updatedBy: _updatedBy,
+    ...global
+  } = settings;
   return resolveLlmGenerationProfileSettings(global, profileId, profiles);
 }
 
@@ -264,14 +307,22 @@ export async function applyLlmGenerationDefaults(
   options?: IApplyLlmGenerationDefaultsOptions,
 ): Promise<LlmTextConfig> {
   const settings = await readStoredSettingsDocument();
-  const { profiles, updatedAt: _updatedAt, updatedBy: _updatedBy, ...global } =
-    settings;
+  const {
+    profiles,
+    flows,
+    updatedAt: _updatedAt,
+    updatedBy: _updatedBy,
+    ...global
+  } = settings;
 
-  const profileSettings = options?.profile
-    ? resolveLlmGenerationProfileSettings(global, options.profile, profiles)
-    : global;
+  const layered = resolveLlmGenerationFlowRuntimeSettings(global, {
+    profileId: options?.profile,
+    flowId: options?.flow,
+    storedProfiles: profiles,
+    storedFlows: flows,
+  });
 
-  const resolved = mergeRuntimeWithOverrides(profileSettings, {
+  const resolved = mergeRuntimeWithOverrides(layered, {
     requestTimeoutMs: config.requestTimeoutMs,
     maxOutputTokens: config.maxOutputTokens,
     temperature: config.temperature,
