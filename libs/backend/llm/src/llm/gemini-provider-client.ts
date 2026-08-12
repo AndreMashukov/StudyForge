@@ -9,6 +9,7 @@ import type {
   LlmVisionRequest,
   LlmVisionResult,
 } from './types';
+import { resolveGeminiThinkingBudget } from './gemini-thinking-budget';
 
 export class GeminiProviderClient implements LlmProviderClient {
   constructor(
@@ -18,12 +19,11 @@ export class GeminiProviderClient implements LlmProviderClient {
 
   async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
     const client = new GoogleGenAI({ apiKey: this.apiKey });
-    const thinkingBudget =
-      request.config.thinkingBudget !== undefined
-        ? request.config.thinkingBudget
-        : request.config.disableReasoning
-          ? 0
-          : undefined;
+    const thinkingBudget = resolveGeminiThinkingBudget({
+      model: request.config.model,
+      thinkingBudget: request.config.thinkingBudget,
+      disableReasoning: request.config.disableReasoning,
+    });
     const response = await client.models.generateContent({
       model: request.config.model,
       contents: request.prompt,

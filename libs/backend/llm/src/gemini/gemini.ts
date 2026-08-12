@@ -40,6 +40,7 @@ import {
   estimateContextTokens,
 } from './prompt-builder/withContextFiles';
 import { validateContentForArtifactGeneration } from '../llm/content-validation';
+import { resolveGeminiThinkingBudget } from '../llm/gemini-thinking-budget';
 
 const GEMINI_PRO_MODEL = 'gemini-pro-latest';
 
@@ -51,16 +52,6 @@ export interface IGeminiRuntimeGenerationConfig {
   topP?: number;
   disableReasoning?: boolean;
   thinkingBudget?: number;
-}
-
-function resolveGeminiThinkingBudget(
-  options?: IGeminiRuntimeGenerationConfig,
-): number | undefined {
-  if (options?.thinkingBudget !== undefined) {
-    return options.thinkingBudget;
-  }
-
-  return options?.disableReasoning ? 0 : undefined;
 }
 
 /**
@@ -91,7 +82,12 @@ function buildGeminiGenerationConfig(
   profileId: LlmGenerationProfileId,
 ) {
   const defaults = profileSeedDefaults(profileId);
-  const thinkingBudget = resolveGeminiThinkingBudget(options);
+  const model = options?.model ?? GEMINI_PRO_MODEL;
+  const thinkingBudget = resolveGeminiThinkingBudget({
+    model,
+    thinkingBudget: options?.thinkingBudget,
+    disableReasoning: options?.disableReasoning,
+  });
 
   return {
     temperature: options?.temperature ?? defaults.temperature,
