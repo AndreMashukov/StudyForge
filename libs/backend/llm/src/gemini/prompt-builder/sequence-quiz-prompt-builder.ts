@@ -147,6 +147,6 @@ ${buildQuizHintJsonRule()}`;
   }
 
   private static getFinalInstructions(): string {
-    return `**FINAL CHECK:** Every question has at least 4 items, a non-empty explanation, a non-empty hint, and items are in the correct order. Generate the JSON now:`;
+    return `**FINAL CHECK:** Every question has \`items\` as a JSON string array of length 4–10 (never a single string, never fewer than 4), plus a non-empty explanation, a non-empty hint, and items in the correct order. Generate the JSON now:`;
   }
 }

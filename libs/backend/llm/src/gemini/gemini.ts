@@ -1436,25 +1436,174 @@ This question is derived from: **${context.originalDocument.title}**
     responseText: string,
   ): GeminiSequenceQuizResponse {
     let cleanText = '';
+    let parsed: unknown;
+
     try {
       cleanText = JsonSanitizer.initialCleanup(responseText);
       cleanText = JsonSanitizer.sanitizeJsonText(cleanText);
       cleanText = JsonSanitizer.applyComprehensiveCleanup(cleanText);
       cleanText = JsonSanitizer.applyStateBased(cleanText);
-      const parsed = JSON.parse(cleanText);
-      this.validateSequenceQuizStructure(parsed);
-      return parsed as GeminiSequenceQuizResponse;
+      parsed = JSON.parse(cleanText);
     } catch (error) {
       JsonSanitizer.logParsingError(error, responseText, cleanText);
       try {
-        const fallbackResult = JsonSanitizer.tryFallbackParsing(cleanText);
-        this.validateSequenceQuizStructure(fallbackResult);
-        return fallbackResult as GeminiSequenceQuizResponse;
+        parsed = JsonSanitizer.tryFallbackParsing(cleanText);
       } catch (fallbackError) {
-        functions.logger.error('Sequence quiz parse failed:', fallbackError);
+        functions.logger.error('Sequence quiz JSON parse failed:', fallbackError);
+        throw new Error(`Failed to parse sequence quiz response: ${error}`);
       }
+    }
+
+    try {
+      const normalized = this.normalizeSequenceQuizStructure(parsed);
+      this.validateSequenceQuizStructure(normalized);
+      return normalized;
+    } catch (error) {
+      functions.logger.error('Sequence quiz structure validation failed:', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw new Error(`Failed to parse sequence quiz response: ${error}`);
     }
+  }
+
+  /**
+   * Coerce common LLM shape drift into the sealed sequence-quiz contract, and
+   * drop questions that still cannot be repaired so one bad item array does not
+   * fail the whole generation.
+   */
+  private static coerceSequenceItems(raw: unknown): string[] | null {
+    if (Array.isArray(raw)) {
+      const items = raw
+        .map((item) => {
+          if (typeof item === 'string') {
+            return item.trim();
+          }
+          if (item && typeof item === 'object') {
+            const row = item as Record<string, unknown>;
+            for (const key of ['text', 'content', 'label', 'item', 'step']) {
+              const value = row[key];
+              if (typeof value === 'string' && value.trim()) {
+                return value.trim();
+              }
+            }
+          }
+          return '';
+        })
+        .filter((item) => item.length > 0);
+      return items.length > 0 ? items : null;
+    }
+
+    if (typeof raw === 'string' && raw.trim()) {
+      const numbered = raw
+        .split(/\n+/)
+        .map((line) => line.replace(/^\s*\d+[\.)]\s*/, '').trim())
+        .filter((line) => line.length > 0);
+      if (numbered.length >= 4) {
+        return numbered;
+      }
+      const delimited = raw
+        .split(/[;|]/)
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0);
+      if (delimited.length >= 4) {
+        return delimited;
+      }
+    }
+
+    return null;
+  }
+
+  private static normalizeSequenceQuizStructure(
+    parsed: unknown,
+  ): GeminiSequenceQuizResponse {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Invalid sequence quiz: expected a JSON object');
+    }
+
+    const root = parsed as Record<string, unknown>;
+    const title = typeof root.title === 'string' ? root.title.trim() : '';
+    if (!title) {
+      throw new Error('Invalid sequence quiz: title must be a non-empty string');
+    }
+    if (!Array.isArray(root.questions)) {
+      throw new Error('Invalid sequence quiz: questions must be an array');
+    }
+
+    const normalizedQuestions: GeminiSequenceQuizResponse['questions'] = [];
+    const dropped: string[] = [];
+
+    root.questions.forEach((question, index) => {
+      if (!question || typeof question !== 'object' || Array.isArray(question)) {
+        dropped.push(`question ${index + 1}: not an object`);
+        return;
+      }
+
+      const row = question as Record<string, unknown>;
+      const questionText =
+        typeof row.question === 'string'
+          ? row.question.trim()
+          : typeof row.prompt === 'string'
+            ? row.prompt.trim()
+            : '';
+      if (!questionText) {
+        dropped.push(`question ${index + 1}: missing question text`);
+        return;
+      }
+
+      const rawItems =
+        row.items ?? row.steps ?? row.sequence ?? row.options ?? row.blocks;
+      const items = this.coerceSequenceItems(rawItems);
+      if (!items || items.length < 4 || items.length > 10) {
+        dropped.push(
+          `question ${index + 1}: items length ${
+            items ? items.length : 'n/a'
+          } (need 4-10)`,
+        );
+        return;
+      }
+
+      const explanation =
+        typeof row.explanation === 'string' ? row.explanation.trim() : '';
+      if (!explanation) {
+        dropped.push(`question ${index + 1}: missing explanation`);
+        return;
+      }
+
+      const hint = typeof row.hint === 'string' ? row.hint.trim() : '';
+      if (!hint) {
+        dropped.push(`question ${index + 1}: missing hint`);
+        return;
+      }
+
+      const knowledge =
+        row.knowledge && typeof row.knowledge === 'object' && !Array.isArray(row.knowledge)
+          ? (row.knowledge as GeminiSequenceQuizResponse['questions'][number]['knowledge'])
+          : undefined;
+
+      normalizedQuestions.push({
+        question: questionText,
+        items,
+        explanation,
+        hint,
+        ...(knowledge ? { knowledge } : {}),
+      });
+    });
+
+    if (dropped.length > 0) {
+      functions.logger.warn('Dropped invalid sequence quiz questions', {
+        dropped,
+        kept: normalizedQuestions.length,
+      });
+    }
+
+    if (normalizedQuestions.length > 12) {
+      normalizedQuestions.length = 12;
+    }
+
+    return {
+      title,
+      questions: normalizedQuestions,
+    };
   }
 
   private static validateSequenceQuizStructure(parsed: {
@@ -1470,9 +1619,10 @@ This question is derived from: **${context.originalDocument.title}**
       throw new Error('Invalid sequence quiz: questions must be an array');
     }
     const qCount = parsed.questions.length;
-    if (qCount < 8 || qCount > 12) {
+    // Prompt asks for 8–12; after dropping malformed LLM questions accept 5–12.
+    if (qCount < 5 || qCount > 12) {
       throw new Error(
-        `Invalid sequence quiz: expected between 8 and 12 questions, got ${qCount}`,
+        `Invalid sequence quiz: expected between 5 and 12 valid questions, got ${qCount}`,
       );
     }
     (parsed.questions as unknown[]).forEach((q, index) => {

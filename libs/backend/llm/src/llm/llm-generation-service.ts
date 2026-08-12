@@ -409,7 +409,12 @@ export class LlmGenerationService {
     const text = await generateExternalProviderText(
       ctx,
       prompt,
-      { model: ctx.resolution.route.model },
+      {
+        model: ctx.resolution.route.model,
+        // Thinking models (Together MiniMax) spend a large share of max_tokens on
+        // reasoning before emitting the 8–12 question JSON payload.
+        maxOutputTokens: 32768,
+      },
       'Sequence quiz generated via OpenRouter',
       { profile },
     );
