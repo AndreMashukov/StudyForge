@@ -4,6 +4,7 @@ import {
   buildUsagePeriodResetAt,
   calculateRemainingCredits,
   DEFAULT_USAGE_CREDIT_COSTS,
+  resolveLegacySetupQuotaDefaults,
   type GenerationKind,
   type IUsageFeaturePolicies,
   type IUsageLimitsSetup,
@@ -25,36 +26,25 @@ import {
   mapJobKindToUsageGenerationKind,
   resolveUsageGenerationKind,
 } from './usage-limits-logic';
+import { UsageLimitError } from './usage-limit-error';
+import {
+  buildDailySlideDeckUsageSummary,
+  buildStorageUsageSummary,
+  reserveUserStorageBytes,
+  type IUserUsageLimitsContext,
+} from './usage-quota-service';
+
+export { UsageLimitError } from './usage-limit-error';
+export {
+  adjustUserStorageUsage,
+  releaseUserStorageReservation,
+  reserveUserStorageBytes,
+  settleUserStorageReservation,
+} from './usage-quota-service';
 
 const USAGE_LIMITS_SETUPS_COLLECTION = 'usageLimitsSetups';
 const USER_GROUPS_COLLECTION = 'userGroups';
 const USERS_COLLECTION = 'users';
-
-export class UsageLimitError extends Error {
-  constructor(
-    message: string,
-    public readonly code:
-      | 'USER_GROUP_NOT_ASSIGNED'
-      | 'USER_GROUP_NOT_FOUND'
-      | 'USAGE_LIMITS_SETUP_NOT_FOUND'
-      | 'FEATURE_DISABLED'
-      | 'INSUFFICIENT_CREDITS'
-      | 'PAY_AS_YOU_GO_DISABLED'
-      | 'PAYMENT_METHOD_REQUIRED'
-      | 'OVERAGE_CAP_EXCEEDED'
-      | 'RESERVATION_NOT_FOUND'
-      | 'RESERVATION_ALREADY_SETTLED',
-    public readonly details?: {
-      generationKind?: GenerationKind;
-      remainingCredits?: number;
-      resetAt?: string;
-      creditCost?: number;
-    },
-  ) {
-    super(message);
-    this.name = 'UsageLimitError';
-  }
-}
 
 export interface IUsageReservation {
   id: string;
@@ -70,13 +60,6 @@ export interface IUsageReservation {
   periodKey: string;
   status: 'pending' | 'committed' | 'refunded';
   createdAt: string;
-}
-
-interface IUserUsageContext {
-  userId: string;
-  userGroupId: string;
-  llmSetupId: string;
-  setup: IUsageLimitsSetup;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -133,11 +116,29 @@ function parseUsageLimitsSetup(
     return null;
   }
 
+  const legacyDefaults = resolveLegacySetupQuotaDefaults(name);
+  const storageLimitBytes =
+    typeof data.storageLimitBytes === 'number' &&
+    Number.isFinite(data.storageLimitBytes) &&
+    Number.isSafeInteger(data.storageLimitBytes) &&
+    data.storageLimitBytes >= 0
+      ? data.storageLimitBytes
+      : legacyDefaults.storageLimitBytes;
+  const dailySlideDeckLimit =
+    typeof data.dailySlideDeckLimit === 'number' &&
+    Number.isFinite(data.dailySlideDeckLimit) &&
+    Number.isSafeInteger(data.dailySlideDeckLimit) &&
+    data.dailySlideDeckLimit >= 0
+      ? data.dailySlideDeckLimit
+      : legacyDefaults.dailySlideDeckLimit;
+
   return {
     id,
     name,
     description: typeof data.description === 'string' ? data.description : undefined,
     monthlyCreditAllowance,
+    storageLimitBytes,
+    dailySlideDeckLimit,
     featurePolicies,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
@@ -202,7 +203,7 @@ function readPeriodNumbers(periodData: FirebaseFirestore.DocumentData) {
 }
 
 async function buildUserUsageSummary(
-  context: IUserUsageContext,
+  context: IUserUsageLimitsContext,
   periodKey: string,
   periodData: FirebaseFirestore.DocumentData,
 ): Promise<IUserUsageSummary> {
@@ -219,6 +220,8 @@ async function buildUserUsageSummary(
   const billing = await getUserBillingState(context.userId);
   const billingContext = buildUsageBillingContext(billing, periodData);
   const payAsYouGo = buildPayAsYouGoSummary(billing, periodData);
+  const storage = await buildStorageUsageSummary(context);
+  const dailySlideDecks = await buildDailySlideDeckUsageSummary(context);
 
   const featureAvailability = Object.entries(context.setup.featurePolicies).map(
     ([kind, policy]) => {
@@ -253,6 +256,8 @@ async function buildUserUsageSummary(
     usageLimitsSetupName: context.setup.name,
     featureAvailability,
     payAsYouGo,
+    storage,
+    dailySlideDecks,
   };
 }
 
@@ -275,7 +280,7 @@ async function syncUsageSummaryDocument(userId: string): Promise<IUserUsageSumma
   return summary;
 }
 
-async function resolveUserUsageContext(userId: string): Promise<IUserUsageContext> {
+async function resolveUserUsageContext(userId: string): Promise<IUserUsageLimitsContext> {
   const userSnapshot = await getFirestore().collection(USERS_COLLECTION).doc(userId).get();
   const userGroupId =
     typeof userSnapshot.data()?.userGroupId === 'string'
@@ -745,21 +750,46 @@ export async function getUsagePeriodSummary(userId: string): Promise<IUsagePerio
   };
 }
 
+export async function resolveUserUsageLimitsContext(userId: string): Promise<IUserUsageLimitsContext> {
+  return resolveUserUsageContext(userId);
+}
+
+export async function assertUserStorageQuotaAvailable(
+  userId: string,
+  requestedBytes: number,
+): Promise<void> {
+  await reserveUserStorageBytes(userId, requestedBytes);
+}
+
 export async function settleJobUsageReservation(params: {
   userId: string;
   reservationId?: string;
   succeeded: boolean;
+  dailySlideDeckReservationId?: string;
 }): Promise<void> {
-  if (!params.reservationId) {
+  if (params.dailySlideDeckReservationId) {
+    const { commitDailySlideDeckReservation, refundDailySlideDeckReservation } = await import(
+      './usage-quota-service'
+    );
+    if (params.succeeded) {
+      await commitDailySlideDeckReservation(params.userId, params.dailySlideDeckReservationId);
+    } else {
+      await refundDailySlideDeckReservation(params.userId, params.dailySlideDeckReservationId);
+    }
+  }
+
+  if (params.reservationId) {
+    if (params.succeeded) {
+      await commitUsageReservation(params.userId, params.reservationId);
+    } else {
+      await refundUsageReservation(params.userId, params.reservationId);
+    }
     return;
   }
 
-  if (params.succeeded) {
-    await commitUsageReservation(params.userId, params.reservationId);
-    return;
+  if (params.dailySlideDeckReservationId) {
+    await syncUsageSummaryDocument(params.userId);
   }
-
-  await refundUsageReservation(params.userId, params.reservationId);
 }
 
 export { mapJobKindToUsageGenerationKind, resolveUsageGenerationKind };

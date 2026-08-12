@@ -4,13 +4,25 @@ import {
   commitUsageReservation,
   refundUsageReservation,
   reserveUsageCredits,
+  resolveUserUsageLimitsContext,
   UsageLimitError,
   type IUsageReservation,
 } from '@study-forge/backend-core/services/usage-limits-service';
 import {
+  refundDailySlideDeckReservation,
+  refundDailySlideDeckReservationSafe,
+  reserveDailySlideDeckSlot,
+  type IDailySlideDeckReservation,
+} from '@study-forge/backend-core/services/usage-quota-service';
+import {
   enforceCallableGenerationRateLimit,
   enforceExternalDualGenerationRateLimit,
 } from './generation-rate-limit';
+
+export interface ISlideDeckGenerationReservations {
+  usageReservation: IUsageReservation;
+  dailySlideDeckReservation: IDailySlideDeckReservation;
+}
 
 function toCallableUsageLimitError(error: UsageLimitError): HttpsError {
   return new HttpsError('resource-exhausted', error.message, {
@@ -19,7 +31,79 @@ function toCallableUsageLimitError(error: UsageLimitError): HttpsError {
     remainingCredits: error.details?.remainingCredits,
     resetAt: error.details?.resetAt,
     creditCost: error.details?.creditCost,
+    storageUsedBytes: error.details?.storageUsedBytes,
+    storageLimitBytes: error.details?.storageLimitBytes,
+    remainingBytes: error.details?.remainingBytes,
+    dailySlideDecksUsed: error.details?.dailySlideDecksUsed,
+    dailySlideDeckLimit: error.details?.dailySlideDeckLimit,
+    dailySlideDecksRemaining: error.details?.dailySlideDecksRemaining,
   });
+}
+
+export async function enforceCallableSlideDeckGenerationLimits(
+  userId: string,
+): Promise<ISlideDeckGenerationReservations> {
+  await enforceCallableGenerationRateLimit(userId, 'slideDeck');
+
+  try {
+    const context = await resolveUserUsageLimitsContext(userId);
+    const dailySlideDeckReservation = await reserveDailySlideDeckSlot(context);
+    try {
+      const usageReservation = await reserveUsageCredits({ userId, generationKind: 'slideDeck' });
+      return { usageReservation, dailySlideDeckReservation };
+    } catch (error) {
+      await refundDailySlideDeckReservation(userId, dailySlideDeckReservation.id);
+      throw error;
+    }
+  } catch (error) {
+    if (error instanceof UsageLimitError) {
+      throw toCallableUsageLimitError(error);
+    }
+    throw error;
+  }
+}
+
+export async function enforceExternalSlideDeckGenerationLimits(params: {
+  userId: string;
+  apiKeyLimiterKey: string;
+}): Promise<ISlideDeckGenerationReservations> {
+  await enforceExternalDualGenerationRateLimit(params.userId, params.apiKeyLimiterKey, 'slideDeck');
+
+  try {
+    const context = await resolveUserUsageLimitsContext(params.userId);
+    const dailySlideDeckReservation = await reserveDailySlideDeckSlot(context);
+    try {
+      const usageReservation = await reserveUsageCredits({
+        userId: params.userId,
+        generationKind: 'slideDeck',
+      });
+      return { usageReservation, dailySlideDeckReservation };
+    } catch (error) {
+      await refundDailySlideDeckReservation(params.userId, dailySlideDeckReservation.id);
+      throw error;
+    }
+  } catch (error) {
+    if (error instanceof UsageLimitError) {
+      throw toCallableUsageLimitError(error);
+    }
+    throw error;
+  }
+}
+
+export async function refundSlideDeckGenerationReservationsSafe(params: {
+  userId: string;
+  usageReservationId?: string;
+  dailySlideDeckReservationId?: string;
+}): Promise<void> {
+  await refundUsageReservationSafe(params.userId, params.usageReservationId);
+  await refundDailySlideDeckReservationSafe(params.userId, params.dailySlideDeckReservationId);
+}
+
+export async function reserveExternalDailySlideDeckSlot(
+  userId: string,
+): Promise<IDailySlideDeckReservation> {
+  const context = await resolveUserUsageLimitsContext(userId);
+  return reserveDailySlideDeckSlot(context);
 }
 
 export async function enforceCallableGenerationLimits(

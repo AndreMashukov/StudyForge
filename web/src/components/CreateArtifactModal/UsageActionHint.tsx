@@ -26,6 +26,34 @@ export const UsageActionHint: React.FC<IUsageActionHintProps> = ({ kind, quantit
   const overageAmountCents =
     overageCredits * (data?.payAsYouGo?.pricePerCreditCents ?? 0);
 
+  if (
+    (kind === 'slideDeckText' || kind === 'slideDeckImage') &&
+    data?.dailySlideDecks &&
+    data.dailySlideDecks.remaining <= 0
+  ) {
+    return (
+      <p className="text-sm text-destructive" role="alert">
+        Daily slide deck generation limit reached. Try again after the daily reset on the{' '}
+        <Link to="/usage" className="underline underline-offset-2">
+          Usage page
+        </Link>
+        .
+      </p>
+    );
+  }
+
+  if (data?.storage && data.storage.remainingBytes <= 0) {
+    return (
+      <p className="text-sm text-destructive" role="alert">
+        Storage limit reached. Delete content before generating new files. See the{' '}
+        <Link to="/usage" className="underline underline-offset-2">
+          Usage page
+        </Link>
+        .
+      </p>
+    );
+  }
+
   if (!feature.enabled) {
     return (
       <p className="text-sm text-destructive" role="alert">

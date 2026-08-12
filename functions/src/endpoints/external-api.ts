@@ -15,9 +15,21 @@ import { SlideDeckPromptBuilder } from '@study-forge/backend-llm/llm/prompt-buil
 import { FirestoreService } from '@study-forge/backend-artifacts/firestore';
 import { ScreenshotDocumentGenerationService } from '@study-forge/backend-documents/screenshot-document-generation';
 import { RateLimitError } from '@study-forge/backend-core/services/api-rate-limit';
+import { UsageLimitError } from '@study-forge/backend-core/services/usage-limit-error';
+import {
+  adjustUserStorageUsage,
+  releaseUserStorageReservation,
+  reserveUserStorageBytes,
+  settleUserStorageReservation,
+} from '@study-forge/backend-core/services/usage-limits-service';
+import {
+  commitDailySlideDeckReservation,
+  refundDailySlideDeckReservationSafe,
+} from '@study-forge/backend-core/services/usage-quota-service';
 import {
   enforceExternalDualGenerationLimits,
   refundUsageReservationSafe,
+  reserveExternalDailySlideDeckSlot,
   withExternalUsageReservation,
 } from '@study-forge/backend-generation/generation-limits';
 import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
@@ -73,13 +85,67 @@ import {
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
 const llmSettingsEncryptionKey = defineSecret("LLM_SETTINGS_ENCRYPTION_KEY");
 
-async function cleanupUploadedFiles(paths: string[]): Promise<void> {
+interface IExternalSlideImageParams {
+  userId: string;
+  storagePath: string;
+  buffer: Buffer;
+  contentType: string;
+  downloadToken: string;
+  uploadedPaths: string[];
+  uploadedBytesByPath: Map<string, number>;
+}
+
+async function cleanupUploadedFiles(
+  userId: string,
+  paths: string[],
+  uploadedBytesByPath: Map<string, number> = new Map(),
+): Promise<void> {
   if (paths.length === 0) return;
 
   const bucket = admin.storage().bucket();
   await Promise.allSettled(
-    paths.map((path) => bucket.file(path).delete().catch(() => { /* ignore cleanup errors */ }))
+    paths.map(async (path) => {
+      try {
+        await bucket.file(path).delete();
+      } catch {
+        return;
+      }
+      const storedBytes = uploadedBytesByPath.get(path);
+      if (storedBytes && storedBytes > 0) {
+        await adjustUserStorageUsage({ userId, deltaBytes: -storedBytes }).catch(() => undefined);
+      }
+    }),
   );
+}
+
+async function saveExternalSlideImage(params: IExternalSlideImageParams): Promise<void> {
+  const reservedBytes = params.buffer.length;
+  await reserveUserStorageBytes(params.userId, reservedBytes);
+  const file = admin.storage().bucket().file(params.storagePath);
+  try {
+    await file.save(params.buffer, {
+      metadata: {
+        contentType: params.contentType,
+        metadata: { firebaseStorageDownloadTokens: params.downloadToken },
+      },
+      resumable: false,
+    });
+    params.uploadedPaths.push(params.storagePath);
+    const [fileMetadata] = await file.getMetadata();
+    const storedBytes = parseInt(String(fileMetadata.size || params.buffer.length), 10);
+    await settleUserStorageReservation({
+      userId: params.userId,
+      reservedBytes,
+      actualBytes: storedBytes,
+    });
+    params.uploadedBytesByPath.set(params.storagePath, storedBytes);
+  } catch (error) {
+    await releaseUserStorageReservation({
+      userId: params.userId,
+      reservedBytes,
+    }).catch(() => undefined);
+    throw error;
+  }
 }
 
 /**
@@ -949,8 +1015,14 @@ export const api = onRequest(
             : undefined,
         });
         const uploadedPaths: string[] = [];
+        const uploadedBytesByPath = new Map<string, number>();
+        let dailySlideDeckReservationId: string | undefined;
+        let deckPersisted = false;
 
         try {
+          const dailySlideDeckReservation = await reserveExternalDailySlideDeckSlot(userId);
+          dailySlideDeckReservationId = dailySlideDeckReservation.id;
+
           let injectedRules: string | undefined;
           let appliedRuleIdsForSave: string[] = [];
           const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
@@ -1015,17 +1087,17 @@ export const api = onRequest(
               if (imageBase64) {
                 const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.png`;
                 const downloadToken = randomUUID();
-                const file = admin.storage().bucket().file(storagePath);
-                await file.save(Buffer.from(imageBase64, "base64"), {
-                  metadata: {
-                    contentType: "image/png",
-                    metadata: { firebaseStorageDownloadTokens: downloadToken },
-                  },
-                  resumable: false,
+                await saveExternalSlideImage({
+                  userId,
+                  storagePath,
+                  buffer: Buffer.from(imageBase64, "base64"),
+                  contentType: "image/png",
+                  downloadToken,
+                  uploadedPaths,
+                  uploadedBytesByPath,
                 });
                 slide.imageStoragePath = storagePath;
                 slide.imageDownloadToken = downloadToken;
-                uploadedPaths.push(storagePath);
               }
                 }
               );
@@ -1047,12 +1119,27 @@ export const api = onRequest(
             generationModel: slideDeckGenerationModel,
             generationModelUsage: slideDeckGenerationModelUsage,
           });
+          deckPersisted = true;
+
+          try {
+            await commitDailySlideDeckReservation(userId, dailySlideDeckReservationId);
+          } catch (commitError) {
+            console.error('Failed to commit daily slide deck reservation after deck persistence', {
+              userId,
+              slideDeckId: pendingSlideDeckId,
+              dailySlideDeckReservationId,
+              error: commitError instanceof Error ? commitError.message : String(commitError),
+            });
+          }
 
           res.status(201).json({ success: true, data: { slideDeckId: pendingSlideDeckId } });
         } catch (innerError) {
-          await cleanupUploadedFiles(uploadedPaths);
-          const msg = innerError instanceof Error ? innerError.message : String(innerError);
-          await failPendingSlideDeck(userId, pendingSlideDeckId, msg).catch(() => { /* best-effort */ });
+          if (!deckPersisted) {
+            await cleanupUploadedFiles(userId, uploadedPaths, uploadedBytesByPath);
+            await refundDailySlideDeckReservationSafe(userId, dailySlideDeckReservationId);
+            const msg = innerError instanceof Error ? innerError.message : String(innerError);
+            await failPendingSlideDeck(userId, pendingSlideDeckId, msg).catch(() => { /* best-effort */ });
+          }
           throw innerError;
         }
         return;
@@ -1190,8 +1277,14 @@ export const api = onRequest(
             : undefined,
         });
         const uploadedPaths: string[] = [];
+        const uploadedBytesByPath = new Map<string, number>();
+        let dailySlideDeckReservationId: string | undefined;
+        let deckPersisted = false;
 
         try {
+          const dailySlideDeckReservation = await reserveExternalDailySlideDeckSlot(userId);
+          dailySlideDeckReservationId = dailySlideDeckReservation.id;
+
           let injectedRules: string | undefined;
           let appliedRuleIdsForSave: string[] = [];
           const explicitRuleIds = ruleIds?.length ? ruleIds : additionalRuleIds;
@@ -1229,6 +1322,7 @@ export const api = onRequest(
           if (slideOutline.length !== parsedImages.length) {
             const message = "Image count does not match generated slide count. Resubmit with the correct number of images.";
             await failPendingSlideDeck(userId, pendingSlideDeckId, message).catch(() => { /* best-effort */ });
+            await refundDailySlideDeckReservationSafe(userId, dailySlideDeckReservationId);
             res.status(400).json({
               success: false,
               error: message,
@@ -1251,17 +1345,17 @@ export const api = onRequest(
             const img = parsedImages[i];
             const storagePath = `users/${userId}/slideDecks/${slide.id}/slide-${i}.${img.extension}`;
             const downloadToken = randomUUID();
-            const file = admin.storage().bucket().file(storagePath);
-            await file.save(img.buffer, {
-              metadata: {
-                contentType: img.contentType,
-                metadata: { firebaseStorageDownloadTokens: downloadToken },
-              },
-              resumable: false,
+            await saveExternalSlideImage({
+              userId,
+              storagePath,
+              buffer: img.buffer,
+              contentType: img.contentType,
+              downloadToken,
+              uploadedPaths,
+              uploadedBytesByPath,
             });
             slide.imageStoragePath = storagePath;
             slide.imageDownloadToken = downloadToken;
-            uploadedPaths.push(storagePath);
           }));
 
           const deckTitle = customTitle
@@ -1279,12 +1373,27 @@ export const api = onRequest(
             generationModel: slideDeckGenerationModel,
             generationModelUsage: slideDeckGenerationModelUsage,
           });
+          deckPersisted = true;
+
+          try {
+            await commitDailySlideDeckReservation(userId, dailySlideDeckReservationId);
+          } catch (commitError) {
+            console.error('Failed to commit daily slide deck reservation after deck persistence', {
+              userId,
+              slideDeckId: pendingSlideDeckId,
+              dailySlideDeckReservationId,
+              error: commitError instanceof Error ? commitError.message : String(commitError),
+            });
+          }
 
           res.status(201).json({ success: true, data: { slideDeckId: pendingSlideDeckId } });
         } catch (innerError) {
-          await cleanupUploadedFiles(uploadedPaths);
-          const msg = innerError instanceof Error ? innerError.message : String(innerError);
-          await failPendingSlideDeck(userId, pendingSlideDeckId, msg).catch(() => { /* best-effort */ });
+          if (!deckPersisted) {
+            await cleanupUploadedFiles(userId, uploadedPaths, uploadedBytesByPath);
+            await refundDailySlideDeckReservationSafe(userId, dailySlideDeckReservationId);
+            const msg = innerError instanceof Error ? innerError.message : String(innerError);
+            await failPendingSlideDeck(userId, pendingSlideDeckId, msg).catch(() => { /* best-effort */ });
+          }
           throw innerError;
         }
         return;
@@ -1983,6 +2092,16 @@ export const api = onRequest(
           error: err.message,
           retryAfterSeconds: err.retryAfterSeconds,
           ...(err.generationKind ? { generationKind: err.generationKind } : {}),
+        });
+        return;
+      }
+
+      if (err instanceof UsageLimitError) {
+        res.status(429).json({
+          success: false,
+          error: err.message,
+          code: err.code,
+          ...(err.details ?? {}),
         });
         return;
       }

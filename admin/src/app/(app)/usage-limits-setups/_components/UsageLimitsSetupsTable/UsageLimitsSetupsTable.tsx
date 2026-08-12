@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { IAdminUsageLimitsSetupSummary } from '@admin/data/usage-limits-setups';
+import { formatStorageLimitLabel } from '@admin/app/(app)/usage-limits-setups/_components/UsageLimitsSetupForm/UsageLimitsSetupForm.form';
 import { Badge } from '@admin/components/ui/Badge';
 
 export interface IUsageLimitsSetupsTableProps {
@@ -21,6 +22,12 @@ export function UsageLimitsSetupsTable({ setups }: IUsageLimitsSetupsTableProps)
             </th>
             <th className="px-4 py-3 font-medium" scope="col">
               Monthly allowance
+            </th>
+            <th className="px-4 py-3 font-medium" scope="col">
+              Storage
+            </th>
+            <th className="px-4 py-3 font-medium" scope="col">
+              Daily slide decks
             </th>
             <th className="px-4 py-3 font-medium" scope="col">
               Enabled features
@@ -45,6 +52,8 @@ export function UsageLimitsSetupsTable({ setups }: IUsageLimitsSetupsTableProps)
                 ) : null}
               </td>
               <td className="px-4 py-3">{setup.monthlyCreditAllowance.toLocaleString()}</td>
+              <td className="px-4 py-3">{formatStorageLimitLabel(setup.storageLimitBytes)}</td>
+              <td className="px-4 py-3">{setup.dailySlideDeckLimit.toLocaleString()}</td>
               <td className="px-4 py-3">
                 <Badge variant="secondary">{setup.enabledFeatureCount} enabled</Badge>
               </td>

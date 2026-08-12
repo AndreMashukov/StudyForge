@@ -36,8 +36,32 @@ async function ensureDefaultSetups(adminUid: string): Promise<Map<string, string
       .get();
 
     if (!existing.empty) {
-      nameToId.set(preset.name, existing.docs[0].id);
-      console.log(`  skip preset ${preset.name} (exists: ${existing.docs[0].id})`);
+      const doc = existing.docs[0];
+      const data = doc.data();
+      const patch: Record<string, number | string> = {};
+
+      if (typeof data.storageLimitBytes !== 'number') {
+        patch.storageLimitBytes = preset.storageLimitBytes;
+      }
+      if (typeof data.dailySlideDeckLimit !== 'number') {
+        patch.dailySlideDeckLimit = preset.dailySlideDeckLimit;
+      }
+
+      if (Object.keys(patch).length > 0) {
+        patch.updatedAt = new Date().toISOString();
+        patch.updatedBy = 'backfill-usage-limits-setups';
+
+        if (dryRun) {
+          console.log(`  would patch preset ${preset.name} (${doc.id})`, patch);
+        } else {
+          await doc.ref.set(patch, { merge: true });
+          console.log(`  patched preset ${preset.name} (${doc.id})`);
+        }
+      } else {
+        console.log(`  skip preset ${preset.name} (exists: ${doc.id})`);
+      }
+
+      nameToId.set(preset.name, doc.id);
       continue;
     }
 
@@ -48,6 +72,8 @@ async function ensureDefaultSetups(adminUid: string): Promise<Map<string, string
       name: preset.name,
       description: preset.description,
       monthlyCreditAllowance: preset.monthlyCreditAllowance,
+      storageLimitBytes: preset.storageLimitBytes,
+      dailySlideDeckLimit: preset.dailySlideDeckLimit,
       featurePolicies: createDefaultFeaturePolicies({ disabledKinds: preset.disabledKinds }),
       updatedAt: now,
       updatedBy: adminUid,

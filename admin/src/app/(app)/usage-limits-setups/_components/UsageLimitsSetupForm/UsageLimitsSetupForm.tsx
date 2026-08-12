@@ -18,10 +18,19 @@ import {
   saveUsageLimitsSetup,
 } from '@admin/mutations/usage-limits-setups';
 import { Card, CardContent, CardHeader, CardTitle } from '@admin/components/ui/Card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@admin/components/ui/Form';
 import { Input } from '@admin/components/ui/Input';
 import {
   type IUsageLimitsSetupFormValues,
   getUsageFeatureGroups,
+  storageLimitMegabytesToBytes,
   toFeaturePolicies,
   usageLimitsSetupFormSchema,
 } from './UsageLimitsSetupForm.form';
@@ -106,6 +115,8 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
         name: values.name.trim(),
         description: values.description?.trim() || undefined,
         monthlyCreditAllowance: values.monthlyCreditAllowance,
+        storageLimitBytes: storageLimitMegabytesToBytes(values.storageLimitMegabytes),
+        dailySlideDeckLimit: values.dailySlideDeckLimit,
         featurePolicies: toFeaturePolicies(values),
       };
 
@@ -175,6 +186,7 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
         <CardTitle>{setupId ? 'Edit usage limits setup' : 'Create usage limits setup'}</CardTitle>
       </CardHeader>
       <CardContent>
+        <Form {...form}>
         <form className="space-y-8" onSubmit={handleSubmit}>
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
@@ -192,6 +204,58 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
                 step={1}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="storageLimitMegabytes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Storage limit (MB)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={typeof field.value === 'number' ? field.value : ''}
+                      onBlur={field.onBlur}
+                      onChange={(event) => {
+                        if (event.currentTarget.value === '') {
+                          field.onChange(undefined);
+                          return;
+                        }
+                        field.onChange(event.currentTarget.valueAsNumber);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="dailySlideDeckLimit"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Daily slide deck limit</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={typeof field.value === 'number' ? field.value : ''}
+                      onBlur={field.onBlur}
+                      onChange={(event) => {
+                        if (event.currentTarget.value === '') {
+                          field.onChange(undefined);
+                          return;
+                        }
+                        field.onChange(event.currentTarget.valueAsNumber);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
           <div className="space-y-2">
@@ -248,6 +312,7 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
             ) : null}
           </div>
         </form>
+        </Form>
       </CardContent>
     </Card>
   );

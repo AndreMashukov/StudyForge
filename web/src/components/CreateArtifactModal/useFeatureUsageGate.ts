@@ -1,6 +1,8 @@
 import type {
   GenerationKind,
+  IUsageDailySlideDeckSummary,
   IUsageFeatureAvailability,
+  IUsageStorageSummary,
   IUserUsageSummary,
 } from '@shared-types';
 import { useGetUsageSummaryQuery } from '../../store/api/Usage/usageApi';
@@ -21,17 +23,25 @@ export function useFeatureUsageGate(kind: GenerationKind, quantity = 1): IUseFea
   const totalCost = (feature?.creditCost ?? 0) * quantity;
   const usesOverage = feature?.usesOverage === true;
 
-  const blockedReason = !feature
-    ? 'Usage limits are unavailable.'
-    : !feature.enabled
-      ? 'This feature is not available on your current plan.'
-      : !feature.affordable
-        ? data?.payAsYouGo?.enabled
-          ? `Pay-as-you-go spending cap reached (${totalCost} credits required).`
-          : data?.payAsYouGo?.hasPaymentMethod
-            ? `Not enough included credits (${totalCost} required). Enable pay-as-you-go on the Usage page to continue.`
-            : `Not enough credits (${totalCost} required).`
-        : undefined;
+  const dailySlideDeckBlockedReason = getDailySlideDeckBlockedReason(
+    kind,
+    data?.dailySlideDecks,
+  );
+  const storageBlockedReason = getStorageBlockedReason(data?.storage);
+
+  const blockedReason = dailySlideDeckBlockedReason
+    ?? storageBlockedReason
+    ?? (!feature
+      ? 'Usage limits are unavailable.'
+      : !feature.enabled
+        ? 'This feature is not available on your current plan.'
+        : !feature.affordable
+          ? data?.payAsYouGo?.enabled
+            ? `Pay-as-you-go spending cap reached (${totalCost} credits required).`
+            : data?.payAsYouGo?.hasPaymentMethod
+              ? `Not enough included credits (${totalCost} required). Enable pay-as-you-go on the Usage page to continue.`
+              : `Not enough credits (${totalCost} required).`
+          : undefined);
 
   return {
     isLoading,
@@ -42,4 +52,33 @@ export function useFeatureUsageGate(kind: GenerationKind, quantity = 1): IUseFea
     blockedReason,
     usesOverage,
   };
+}
+
+function getDailySlideDeckBlockedReason(
+  kind: GenerationKind,
+  dailySlideDecks: IUsageDailySlideDeckSummary | undefined,
+): string | undefined {
+  if (kind !== 'slideDeckText' && kind !== 'slideDeckImage') {
+    return undefined;
+  }
+
+  if (!dailySlideDecks) {
+    return undefined;
+  }
+
+  if (dailySlideDecks.remaining <= 0) {
+    return 'Daily slide deck generation limit reached. Try again after the daily reset.';
+  }
+
+  return undefined;
+}
+
+function getStorageBlockedReason(
+  storage: IUsageStorageSummary | undefined,
+): string | undefined {
+  if (!storage || storage.remainingBytes > 0) {
+    return undefined;
+  }
+
+  return 'Storage limit reached. Delete content on the Usage page before generating new files.';
 }

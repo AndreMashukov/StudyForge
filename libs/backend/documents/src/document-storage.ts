@@ -10,6 +10,13 @@ import {
 } from '@shared-types';
 import { logger } from 'firebase-functions/v2';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
+import { UsageLimitError } from '@study-forge/backend-core/services/usage-limit-error';
+import {
+  adjustUserStorageUsage,
+  releaseUserStorageReservation,
+  reserveUserStorageBytes,
+  settleUserStorageReservation,
+} from '@study-forge/backend-core/services/usage-limits-service';
 import {
   buildDocumentHtmlStoragePath,
   buildDocumentMarkdownStoragePath,
@@ -118,76 +125,111 @@ export class DocumentService {
       });
 
       const contentBuffer = Buffer.from(content, 'utf8');
+      const nextSize = contentBuffer.length;
 
-      await file.save(contentBuffer, {
-        metadata: {
-          contentType,
-          cacheControl: 'private, max-age=0, must-revalidate',
-          customMetadata: {
-            documentId,
-            title: metadata.title || 'Untitled Document',
-            sourceType: metadata.sourceType || 'upload',
-            wordCount: (metadata.wordCount || 0).toString(),
-            contentFormat,
-            createdAt: (metadata.createdAt || new Date()).toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        },
-        resumable: false,
-        validation: 'crc32c',
-      });
-
-      // Get file metadata for response
-      const [fileMetadata] = await file.getMetadata();
-
-      // Generate download URL - use different approach for emulator vs production
-      let downloadUrl: string;
-      
-      // Check if running in emulator environment
-      const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true' || 
-                        process.env.NODE_ENV === 'development';
-      
-      if (isEmulator) {
-        // For emulator, use public URL or direct access URL
-        // Note: This is for development only, production should use signed URLs
-        downloadUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
-        logger.info('Using emulator-compatible URL for development', { filePath });
-      } else {
-        // Production: Generate signed URL for download (24 hours expiry)
-        try {
-          const [signedUrl] = await file.getSignedUrl({
-            action: 'read',
-            expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-          });
-          downloadUrl = signedUrl;
-        } catch (signedUrlError) {
-          logger.warn('Failed to generate signed URL, falling back to public URL', {
-            error: signedUrlError instanceof Error ? signedUrlError.message : String(signedUrlError)
-          });
-          downloadUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
-        }
+      let previousSize = 0;
+      const [fileExists] = await file.exists();
+      if (fileExists) {
+        const [existingMetadata] = await file.getMetadata();
+        previousSize = parseInt(String(existingMetadata.size || '0'), 10);
       }
 
-      const storageFile: StorageFile = {
-        path: filePath,
-        downloadUrl,
-        metadata: {
-          contentType: fileMetadata.contentType || contentType,
-          size: parseInt(String(fileMetadata.size || '0'), 10),
-          timeCreated: fileMetadata.timeCreated || new Date().toISOString(),
-          updated: fileMetadata.updated || new Date().toISOString(),
-          customMetadata: this.sanitizeMetadata(fileMetadata.metadata || {}),
-        },
-      };
+      const reservedBytes = Math.max(0, nextSize - previousSize);
+      if (reservedBytes > 0) {
+        await reserveUserStorageBytes(userId, reservedBytes);
+      }
 
-      logger.info('Document uploaded successfully', {
-        userId,
-        documentId,
-        fileSize: storageFile.metadata.size,
-      });
+      try {
+        await file.save(contentBuffer, {
+          metadata: {
+            contentType,
+            cacheControl: 'private, max-age=0, must-revalidate',
+            customMetadata: {
+              documentId,
+              title: metadata.title || 'Untitled Document',
+              sourceType: metadata.sourceType || 'upload',
+              wordCount: (metadata.wordCount || 0).toString(),
+              contentFormat,
+              createdAt: (metadata.createdAt || new Date()).toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          },
+          resumable: false,
+          validation: 'crc32c',
+        });
 
-      return storageFile;
+        // Get file metadata for response
+        const [fileMetadata] = await file.getMetadata();
+
+        // Generate download URL - use different approach for emulator vs production
+        let downloadUrl: string;
+
+        // Check if running in emulator environment
+        const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true' ||
+                          process.env.NODE_ENV === 'development';
+
+        if (isEmulator) {
+          // For emulator, use public URL or direct access URL
+          // Note: This is for development only, production should use signed URLs
+          downloadUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+          logger.info('Using emulator-compatible URL for development', { filePath });
+        } else {
+          // Production: Generate signed URL for download (24 hours expiry)
+          try {
+            const [signedUrl] = await file.getSignedUrl({
+              action: 'read',
+              expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+            });
+            downloadUrl = signedUrl;
+          } catch (signedUrlError) {
+            logger.warn('Failed to generate signed URL, falling back to public URL', {
+              error: signedUrlError instanceof Error ? signedUrlError.message : String(signedUrlError)
+            });
+            downloadUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+          }
+        }
+
+        const actualSize = parseInt(String(fileMetadata.size || nextSize), 10);
+        const storageFile: StorageFile = {
+          path: filePath,
+          downloadUrl,
+          metadata: {
+            contentType: fileMetadata.contentType || contentType,
+            size: actualSize,
+            timeCreated: fileMetadata.timeCreated || new Date().toISOString(),
+            updated: fileMetadata.updated || new Date().toISOString(),
+            customMetadata: this.sanitizeMetadata(fileMetadata.metadata || {}),
+          },
+        };
+
+        logger.info('Document uploaded successfully', {
+          userId,
+          documentId,
+          fileSize: storageFile.metadata.size,
+        });
+
+        const actualDelta = actualSize - previousSize;
+        if (reservedBytes > 0) {
+          await settleUserStorageReservation({
+            userId,
+            reservedBytes,
+            actualBytes: Math.max(0, actualDelta),
+          });
+        } else if (actualDelta < 0) {
+          await adjustUserStorageUsage({ userId, deltaBytes: actualDelta });
+        }
+
+        return storageFile;
+      } catch (error) {
+        if (reservedBytes > 0) {
+          await releaseUserStorageReservation({ userId, reservedBytes }).catch(() => undefined);
+        }
+        throw error;
+      }
     } catch (error) {
+      if (error instanceof UsageLimitError) {
+        throw error;
+      }
       logger.error('Failed to upload document', {
         userId,
         documentId,
@@ -305,13 +347,21 @@ export class DocumentService {
         buildDocumentMarkdownStoragePath(userId, documentId),
       ];
 
+      let deletedBytes = 0;
       for (const filePath of paths) {
         const file = bucket.file(filePath);
         const [exists] = await file.exists();
         if (exists) {
+          const [metadata] = await file.getMetadata();
+          const sizeBytes = parseInt(String(metadata.size || '0'), 10);
           await file.delete();
+          deletedBytes += sizeBytes;
           logger.info('Document body deleted from Storage', { userId, documentId, filePath });
         }
+      }
+
+      if (deletedBytes > 0) {
+        await adjustUserStorageUsage({ userId, deltaBytes: -deletedBytes });
       }
     } catch (error) {
       logger.error('Failed to delete document from storage', {

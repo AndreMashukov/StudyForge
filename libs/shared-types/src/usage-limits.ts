@@ -21,7 +21,9 @@ export type UsageLimitErrorCode =
   | 'INSUFFICIENT_CREDITS'
   | 'PAY_AS_YOU_GO_DISABLED'
   | 'PAYMENT_METHOD_REQUIRED'
-  | 'OVERAGE_CAP_EXCEEDED';
+  | 'OVERAGE_CAP_EXCEEDED'
+  | 'STORAGE_LIMIT_EXCEEDED'
+  | 'DAILY_SLIDE_DECK_LIMIT_EXCEEDED';
 
 export interface IUsageFeaturePolicy {
   enabled: boolean;
@@ -35,6 +37,10 @@ export interface IUsageLimitsSetup {
   name: string;
   description?: string;
   monthlyCreditAllowance: number;
+  /** Maximum durable Storage bytes per user on this setup. */
+  storageLimitBytes: number;
+  /** Maximum slide-deck generation jobs started per UTC day. */
+  dailySlideDeckLimit: number;
   featurePolicies: IUsageFeaturePolicies;
   updatedAt?: string;
   updatedBy?: string;
@@ -44,6 +50,8 @@ export interface ICreateUsageLimitsSetupRequest {
   name: string;
   description?: string;
   monthlyCreditAllowance: number;
+  storageLimitBytes: number;
+  dailySlideDeckLimit: number;
   featurePolicies: IUsageFeaturePolicies;
 }
 
@@ -51,6 +59,8 @@ export interface IUpdateUsageLimitsSetupRequest {
   name?: string;
   description?: string;
   monthlyCreditAllowance?: number;
+  storageLimitBytes?: number;
+  dailySlideDeckLimit?: number;
   featurePolicies?: IUsageFeaturePolicies;
 }
 
@@ -79,6 +89,20 @@ export interface IUsageFeatureAvailability {
   usesOverage?: boolean;
 }
 
+export interface IUsageStorageSummary {
+  usedBytes: number;
+  limitBytes: number;
+  remainingBytes: number;
+}
+
+export interface IUsageDailySlideDeckSummary {
+  dayKey: string;
+  used: number;
+  limit: number;
+  remaining: number;
+  resetAt: string;
+}
+
 export interface IUserUsageSummary {
   periodKey: string;
   allowance: number;
@@ -94,6 +118,8 @@ export interface IUserUsageSummary {
   usageLimitsSetupName?: string;
   featureAvailability: IUsageFeatureAvailability[];
   payAsYouGo?: IUsagePayAsYouGoSummary;
+  storage?: IUsageStorageSummary;
+  dailySlideDecks?: IUsageDailySlideDeckSummary;
 }
 
 export interface IUsageLimitEvent {
@@ -142,11 +168,22 @@ export const FREE_TIER_DISABLED_KINDS: GenerationKind[] = [
   'diagramQuiz',
 ];
 
+/** 100 MB */
+export const FREE_TIER_STORAGE_LIMIT_BYTES = 100 * 1024 * 1024;
+/** 1 GB */
+export const STANDARD_TIER_STORAGE_LIMIT_BYTES = 1024 * 1024 * 1024;
+/** 5 GB */
+export const PRO_TIER_STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024;
+/** 20 GB */
+export const POWER_TIER_STORAGE_LIMIT_BYTES = 20 * 1024 * 1024 * 1024;
+
 export interface IUsageLimitsProfilePreset {
   id: string;
   name: string;
   description: string;
   monthlyCreditAllowance: number;
+  storageLimitBytes: number;
+  dailySlideDeckLimit: number;
   disabledKinds?: GenerationKind[];
 }
 
@@ -156,6 +193,8 @@ export const USAGE_LIMITS_PROFILE_PRESETS: IUsageLimitsProfilePreset[] = [
     name: 'Free',
     description: 'Limited monthly credits with premium features disabled.',
     monthlyCreditAllowance: 100,
+    storageLimitBytes: FREE_TIER_STORAGE_LIMIT_BYTES,
+    dailySlideDeckLimit: 1,
     disabledKinds: FREE_TIER_DISABLED_KINDS,
   },
   {
@@ -163,18 +202,24 @@ export const USAGE_LIMITS_PROFILE_PRESETS: IUsageLimitsProfilePreset[] = [
     name: 'Standard',
     description: 'Normal learner allowance with all features enabled.',
     monthlyCreditAllowance: 1_000,
+    storageLimitBytes: STANDARD_TIER_STORAGE_LIMIT_BYTES,
+    dailySlideDeckLimit: 5,
   },
   {
     id: 'pro',
     name: 'Pro',
     description: 'Higher allowance for active learners.',
     monthlyCreditAllowance: 5_000,
+    storageLimitBytes: PRO_TIER_STORAGE_LIMIT_BYTES,
+    dailySlideDeckLimit: 20,
   },
   {
     id: 'power',
     name: 'Power',
     description: 'Internal or heavy-user allowance.',
     monthlyCreditAllowance: 20_000,
+    storageLimitBytes: POWER_TIER_STORAGE_LIMIT_BYTES,
+    dailySlideDeckLimit: 100,
   },
 ];
 
@@ -211,6 +256,91 @@ export function buildUsagePeriodResetAt(periodKey: string): string {
   const nextMonth = month === 12 ? 1 : month + 1;
   const nextYear = month === 12 ? year + 1 : year;
   return new Date(Date.UTC(nextYear, nextMonth - 1, 1, 0, 0, 0, 0)).toISOString();
+}
+
+export function buildUsageDayKey(date: Date = new Date()): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function buildUsageDayResetAt(dayKey: string): string {
+  const [yearPart, monthPart, dayPart] = dayKey.split('-');
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+  const day = Number(dayPart);
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    throw new Error(`Invalid usage day key: ${dayKey}`);
+  }
+
+  const nextDay = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0, 0));
+  return nextDay.toISOString();
+}
+
+export function calculateRemainingStorageBytes(params: {
+  limitBytes: number;
+  usedBytes: number;
+}): number {
+  return Math.max(0, params.limitBytes - params.usedBytes);
+}
+
+export function calculateDailySlideDecksUsed(params: {
+  reservedSlideDecks: number;
+  completedSlideDecks: number;
+}): number {
+  return params.reservedSlideDecks + params.completedSlideDecks;
+}
+
+export function calculateRemainingDailySlideDecks(params: {
+  limit: number;
+  reservedSlideDecks: number;
+  completedSlideDecks: number;
+}): number {
+  const used = calculateDailySlideDecksUsed(params);
+  return Math.max(0, params.limit - used);
+}
+
+export function resolveLegacySetupQuotaDefaults(setupName: string): {
+  storageLimitBytes: number;
+  dailySlideDeckLimit: number;
+} {
+  const preset = USAGE_LIMITS_PROFILE_PRESETS.find(
+    (entry) => entry.name.toLowerCase() === setupName.trim().toLowerCase(),
+  );
+  if (preset) {
+    return {
+      storageLimitBytes: preset.storageLimitBytes,
+      dailySlideDeckLimit: preset.dailySlideDeckLimit,
+    };
+  }
+
+  return resolvePresetQuotaDefaults('standard');
+}
+
+export function resolvePresetQuotaDefaults(
+  presetId: string,
+): { storageLimitBytes: number; dailySlideDeckLimit: number } {
+  const preset = USAGE_LIMITS_PROFILE_PRESETS.find((entry) => entry.id === presetId);
+  if (preset) {
+    return {
+      storageLimitBytes: preset.storageLimitBytes,
+      dailySlideDeckLimit: preset.dailySlideDeckLimit,
+    };
+  }
+
+  return {
+    storageLimitBytes: STANDARD_TIER_STORAGE_LIMIT_BYTES,
+    dailySlideDeckLimit: 5,
+  };
 }
 
 export function calculateRemainingCredits(params: {

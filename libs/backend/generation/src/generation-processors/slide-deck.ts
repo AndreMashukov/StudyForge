@@ -10,6 +10,13 @@ import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 import { LlmGenerationService, resolveSlideDeckGenerationAudit } from '@study-forge/backend-llm/llm';
 import { SlideDeckPromptBuilder } from '@study-forge/backend-llm/llm/prompt-builder';
 import { isRuleResolutionMode, resolveEffectiveRules } from '@study-forge/backend-directories/rule-resolution';
+import {
+  adjustUserStorageUsage,
+  releaseUserStorageReservation,
+  reserveUserStorageBytes,
+  settleUserStorageReservation,
+} from '@study-forge/backend-core/services/usage-limits-service';
+import { UsageLimitError } from '@study-forge/backend-core/services/usage-limit-error';
 
 const redactId = (id: string): string =>
   createHash('sha256').update(id).digest('hex').slice(0, 8);
@@ -48,6 +55,7 @@ export class SlideDeckGenerationProcessor {
 
     const documentIds = requestData.documentIds;
     const uploadedPaths: string[] = [];
+    const uploadedBytesByPath = new Map<string, number>();
     const u = redactId(job.userId);
 
     try {
@@ -133,19 +141,39 @@ export class SlideDeckGenerationProcessor {
           }
 
           if (imageBase64) {
+            const imageBuffer = Buffer.from(imageBase64, 'base64');
+            const reservedBytes = imageBuffer.length;
+            await reserveUserStorageBytes(job.userId, reservedBytes);
+
             const storagePath = `users/${job.userId}/slideDecks/${slide.id}/slide-${i}.png`;
             const downloadToken = randomUUID();
             const file = admin.storage().bucket().file(storagePath);
-            await file.save(Buffer.from(imageBase64, 'base64'), {
-              metadata: {
-                contentType: 'image/png',
-                metadata: { firebaseStorageDownloadTokens: downloadToken },
-              },
-              resumable: false,
-            });
-            slide.imageStoragePath = storagePath;
-            slide.imageDownloadToken = downloadToken;
-            uploadedPaths.push(storagePath);
+            try {
+              await file.save(imageBuffer, {
+                metadata: {
+                  contentType: 'image/png',
+                  metadata: { firebaseStorageDownloadTokens: downloadToken },
+                },
+                resumable: false,
+              });
+              uploadedPaths.push(storagePath);
+              const [fileMetadata] = await file.getMetadata();
+              const storedBytes = parseInt(String(fileMetadata.size || imageBuffer.length), 10);
+              await settleUserStorageReservation({
+                userId: job.userId,
+                reservedBytes,
+                actualBytes: storedBytes,
+              });
+              slide.imageStoragePath = storagePath;
+              slide.imageDownloadToken = downloadToken;
+              uploadedBytesByPath.set(storagePath, storedBytes);
+            } catch (error) {
+              await releaseUserStorageReservation({
+                userId: job.userId,
+                reservedBytes,
+              }).catch(() => undefined);
+              throw error;
+            }
           }
         }));
       }
@@ -176,8 +204,24 @@ export class SlideDeckGenerationProcessor {
       if (uploadedPaths.length > 0) {
         const bucket = admin.storage().bucket();
         await Promise.allSettled(
-          uploadedPaths.map((p) => bucket.file(p).delete().catch(() => {/* ignore */}))
+          uploadedPaths.map(async (path) => {
+            try {
+              await bucket.file(path).delete();
+            } catch {
+              return;
+            }
+            const storedBytes = uploadedBytesByPath.get(path);
+            if (storedBytes && storedBytes > 0) {
+              await adjustUserStorageUsage({
+                userId: job.userId,
+                deltaBytes: -storedBytes,
+              }).catch(() => undefined);
+            }
+          }),
         );
+      }
+      if (error instanceof UsageLimitError) {
+        throw error;
       }
       throw error;
     }
