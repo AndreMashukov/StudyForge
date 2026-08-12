@@ -1496,7 +1496,7 @@ This question is derived from: **${context.originalDocument.title}**
     if (typeof raw === 'string' && raw.trim()) {
       const numbered = raw
         .split(/\n+/)
-        .map((line) => line.replace(/^\s*\d+[\.)]\s*/, '').trim())
+        .map((line) => line.replace(/^\s*\d+[.)]\s*/, '').trim())
         .filter((line) => line.length > 0);
       if (numbered.length >= 4) {
         return numbered;
