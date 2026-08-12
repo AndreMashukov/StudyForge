@@ -6,6 +6,7 @@ import { DiagramQuizPromptBuilder } from '@study-forge/backend-llm/llm/prompt-bu
 import { LlmGenerationService } from '@study-forge/backend-llm/llm';
 import type {
   ArtifactAgentContext,
+  ArtifactGateFailure,
   ArtifactRepairStrategy,
 } from '../artifact-agent/artifact-agent-definition';
 import { recordModelUsage } from '../artifact-agent/artifact-agent-definition';
@@ -14,8 +15,85 @@ import { getFirstRepairTarget, trackDiagramQuizArtifactDetails } from './diagram
 
 const MAX_DIAGRAM_FIXES = 12;
 
+function assertFourDiagrams(
+  diagrams: string[]
+): [string, string, string, string] {
+  if (diagrams.length !== 4 || diagrams.some((diagram) => !diagram?.trim())) {
+    throw new Error('Question must contain exactly 4 non-empty diagrams');
+  }
+  return [diagrams[0], diagrams[1], diagrams[2], diagrams[3]];
+}
+
+function findVisualComplexityFailure(
+  failures: ArtifactGateFailure[]
+): ArtifactGateFailure | undefined {
+  return failures.find(
+    (failure) => failure.severity === 'blocker' && failure.gateId === 'visualComplexity'
+  );
+}
+
 export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft> = {
   async repair(draft, failures, context, diagnostics) {
+    const details = (diagnostics.artifactDetails || {}) as {
+      diagramsFixed?: number;
+      autoRepairFailures?: Array<{
+        questionIndex: number;
+        diagramIndex: number;
+        lastError: string;
+      }>;
+    };
+    const diagramsFixed = details.diagramsFixed ?? 0;
+    if (diagramsFixed >= MAX_DIAGRAM_FIXES) {
+      return draft;
+    }
+
+    const complexityFailure = findVisualComplexityFailure(failures);
+    if (complexityFailure && typeof complexityFailure.repairTarget?.questionIndex === 'number') {
+      const questionIndex = complexityFailure.repairTarget.questionIndex;
+      const question = draft.questions[questionIndex];
+      if (!question) {
+        return draft;
+      }
+
+      try {
+        const startedAt = Date.now();
+        const rebalanced = await LlmGenerationService.rebalanceDiagramQuizQuestion(
+          context.userId,
+          {
+            sourceContent: context.sourceContent,
+            questionText: question.question,
+            correctAnswer: question.correctAnswer,
+            explanation: question.explanation,
+            diagrams: assertFourDiagrams(question.diagrams),
+            validationError: complexityFailure.message,
+            syntaxRules: DiagramQuizPromptBuilder.getDiagramSyntaxRulesExcerpt(),
+          }
+        );
+        question.diagrams = [...rebalanced];
+        trackDiagramQuizArtifactDetails(diagnostics, {
+          diagramsFixed: diagramsFixed + 4,
+        });
+        recordModelUsage(diagnostics, {
+          role: 'repair',
+          capability: 'diagramQuizAgent',
+          durationMs: Date.now() - startedAt,
+        });
+      } catch (error) {
+        const autoRepairFailures = [...(details.autoRepairFailures || [])];
+        autoRepairFailures.push({
+          questionIndex,
+          diagramIndex: complexityFailure.repairTarget.diagramIndex ?? 0,
+          lastError: error instanceof Error ? error.message : String(error),
+        });
+        trackDiagramQuizArtifactDetails(diagnostics, {
+          diagramsFixed,
+          autoRepairFailures,
+        });
+      }
+
+      return draft;
+    }
+
     const target = getFirstRepairTarget(failures);
     if (!target) {
       return draft;
@@ -34,19 +112,6 @@ export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft
           failure.repairTarget?.questionIndex === questionIndex &&
           (failure.repairTarget.diagramIndex ?? diagramIndex) === diagramIndex
       )?.message || 'Diagram failed validation';
-
-    const details = (diagnostics.artifactDetails || {}) as {
-      diagramsFixed?: number;
-      autoRepairFailures?: Array<{
-        questionIndex: number;
-        diagramIndex: number;
-        lastError: string;
-      }>;
-    };
-    const diagramsFixed = details.diagramsFixed ?? 0;
-    if (diagramsFixed >= MAX_DIAGRAM_FIXES) {
-      return draft;
-    }
 
     try {
       const startedAt = Date.now();

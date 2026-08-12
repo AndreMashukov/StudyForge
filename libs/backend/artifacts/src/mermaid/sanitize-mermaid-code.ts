@@ -302,14 +302,34 @@ function sanitizeNestedBracketsInBracketLabels(source: string): string {
     .join('\n');
 }
 
+/**
+ * sequenceDiagram rejects flowchart-style style/classDef/class/linkStyle lines.
+ * Strip them so quiz options remain parseable when the model copies a shared palette.
+ */
+export function sanitizeSequenceDiagramUnsupportedStyles(source: string): string {
+  const isSequenceDiagram = source
+    .split('\n')
+    .some((line) => /^\s*sequenceDiagram\b/i.test(line));
+  if (!isSequenceDiagram) {
+    return source;
+  }
+
+  return source
+    .split('\n')
+    .filter((line) => !/^\s*(style|classDef|class|linkStyle)\b/i.test(line))
+    .join('\n');
+}
+
 export function sanitizeMermaidCode(source: string): string {
-  return sanitizeSubgraphIds(
-    sanitizeParenLabels(
-      sanitizeSquareBracketsInParenLabels(
-        sanitizeSquareBracketsInDiamondLabels(
-          sanitizeBracketLabels(
-            sanitizeNestedBracketsInBracketLabels(
-              sanitizeSingleQuotedBracketLabels(sanitizeErDiagramRelationshipLabels(source))
+  return sanitizeSequenceDiagramUnsupportedStyles(
+    sanitizeSubgraphIds(
+      sanitizeParenLabels(
+        sanitizeSquareBracketsInParenLabels(
+          sanitizeSquareBracketsInDiamondLabels(
+            sanitizeBracketLabels(
+              sanitizeNestedBracketsInBracketLabels(
+                sanitizeSingleQuotedBracketLabels(sanitizeErDiagramRelationshipLabels(source))
+              )
             )
           )
         )
