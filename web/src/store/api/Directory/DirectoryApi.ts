@@ -37,7 +37,10 @@ import type { RootState } from '../../index';
 export const directoryApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Create a new directory
-    createDirectory: builder.mutation<CreateDirectoryResponse, CreateDirectoryRequest>({
+    createDirectory: builder.mutation<
+      CreateDirectoryResponse,
+      CreateDirectoryRequest
+    >({
       query: (data) => ({
         functionName: 'createDirectory',
         data,
@@ -55,12 +58,9 @@ export const directoryApi = baseApi.injectEndpoints({
           // Error toast handled by middleware; cache stays unchanged.
         }
       },
-      invalidatesTags: (_result, _error, arg) => [
-        { type: 'Directory', id: 'TREE' },
-        { type: 'Directory', id: 'LIST' },
-        // Refetch uses getDocsFromServer; onQueryStarted also patches for instant UI.
-        { type: 'Directory', id: arg.parentId || 'ROOT' },
-      ],
+      // Do not invalidate TREE or parent contents. A stale Firestore refetch
+      // races the optimistic patch and items onSnapshot, which hides the new
+      // folder until a hard reload.
     }),
 
     // Get a single directory
@@ -77,7 +77,10 @@ export const directoryApi = baseApi.injectEndpoints({
         }
 
         try {
-          const directory = await fetchDirectoryFromFirestore(userId, directoryId);
+          const directory = await fetchDirectoryFromFirestore(
+            userId,
+            directoryId,
+          );
           if (!directory) {
             return {
               error: {
@@ -89,7 +92,10 @@ export const directoryApi = baseApi.injectEndpoints({
 
           return { data: directory };
         } catch (firestoreError) {
-          console.warn('Firestore directory read failed, falling back to callable:', firestoreError);
+          console.warn(
+            'Firestore directory read failed, falling back to callable:',
+            firestoreError,
+          );
           const fallback = await baseQuery({
             functionName: 'getDirectory',
             data: { directoryId },
@@ -106,7 +112,10 @@ export const directoryApi = baseApi.injectEndpoints({
     }),
 
     // Update a directory
-    updateDirectory: builder.mutation<Directory, { id: string; data: UpdateDirectoryRequest }>({
+    updateDirectory: builder.mutation<
+      Directory,
+      { id: string; data: UpdateDirectoryRequest }
+    >({
       query: ({ id, data }) => ({
         functionName: 'updateDirectory',
         data: { directoryId: id, ...data },
@@ -132,7 +141,10 @@ export const directoryApi = baseApi.injectEndpoints({
       ],
     }),
 
-    bulkDeleteDirectories: builder.mutation<IBulkOperationResponse, IBulkDeleteDirectoriesRequest>({
+    bulkDeleteDirectories: builder.mutation<
+      IBulkOperationResponse,
+      IBulkDeleteDirectoriesRequest
+    >({
       query: (data) => ({
         functionName: 'bulkDeleteDirectories',
         data,
@@ -162,15 +174,23 @@ export const directoryApi = baseApi.injectEndpoints({
           const data = await fetchDirectoryTreeFromFirestore(userId);
           return { data };
         } catch (firestoreError) {
-          console.warn('Firestore directory tree read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({ functionName: 'getDirectoryTree' });
+          console.warn(
+            'Firestore directory tree read failed, falling back to callable:',
+            firestoreError,
+          );
+          const fallback = await baseQuery({
+            functionName: 'getDirectoryTree',
+          });
           if (fallback.error) {
             return { error: fallback.error };
           }
           return { data: fallback.data as GetDirectoryTreeResponse };
         }
       },
-      async onCacheEntryAdded(_arg, { updateCachedData, cacheDataLoaded, cacheEntryRemoved }) {
+      async onCacheEntryAdded(
+        _arg,
+        { updateCachedData, cacheDataLoaded, cacheEntryRemoved },
+      ) {
         try {
           await cacheDataLoaded;
         } catch {
@@ -183,9 +203,12 @@ export const directoryApi = baseApi.injectEndpoints({
           return;
         }
 
-        const unsubscribe = subscribeToDirectoryTreeIndex(userId, (tree: GetDirectoryTreeResponse) => {
-          updateCachedData(() => tree);
-        });
+        const unsubscribe = subscribeToDirectoryTreeIndex(
+          userId,
+          (tree: GetDirectoryTreeResponse) => {
+            updateCachedData(() => tree);
+          },
+        );
 
         try {
           await cacheEntryRemoved;
@@ -198,7 +221,10 @@ export const directoryApi = baseApi.injectEndpoints({
     }),
 
     // Get directory contents
-    getDirectoryContents: builder.query<GetDirectoryContentsResponse, string | null>({
+    getDirectoryContents: builder.query<
+      GetDirectoryContentsResponse,
+      string | null
+    >({
       query: (directoryId) => ({
         functionName: 'getDirectoryContents',
         data: { directoryId },
@@ -237,9 +263,18 @@ export const directoryApi = baseApi.injectEndpoints({
 
     getDirectoryContentsWithArtifactSummaries: builder.query<
       GetDirectoryContentsWithArtifactSummariesResponse,
-      { directoryId: string | null; artifactLimit?: number; artifactCursor?: string }
+      {
+        directoryId: string | null;
+        artifactLimit?: number;
+        artifactCursor?: string;
+      }
     >({
-      async queryFn({ directoryId, artifactLimit, artifactCursor }, _api, _extraOptions, baseQuery) {
+      async queryFn(
+        { directoryId, artifactLimit, artifactCursor },
+        _api,
+        _extraOptions,
+        baseQuery,
+      ) {
         const userId = auth.currentUser?.uid;
         if (!userId) {
           return {
@@ -296,7 +331,9 @@ export const directoryApi = baseApi.injectEndpoints({
           if (fallback.error) {
             return { error: fallback.error };
           }
-          return { data: fallback.data as GetDirectoryContentsWithArtifactSummariesResponse };
+          return {
+            data: fallback.data as GetDirectoryContentsWithArtifactSummariesResponse,
+          };
         }
       },
       async onCacheEntryAdded(
@@ -321,15 +358,23 @@ export const directoryApi = baseApi.injectEndpoints({
         }
 
         const limit = artifactLimit ?? 20;
-        const unsubscribe = subscribeToDirectoryItems(userId, directoryId, (items) => {
-          updateCachedData((draft) => {
-            const mapped = mapDirectoryItemsToContentsResponse(draft.directory, items, limit);
-            draft.subdirectories = mapped.subdirectories;
-            draft.documents = mapped.documents;
-            draft.artifactSummaries = mapped.artifactSummaries;
-            draft.totalCount = mapped.totalCount;
-          });
-        });
+        const unsubscribe = subscribeToDirectoryItems(
+          userId,
+          directoryId,
+          (items) => {
+            updateCachedData((draft) => {
+              const mapped = mapDirectoryItemsToContentsResponse(
+                draft.directory,
+                items,
+                limit,
+              );
+              draft.subdirectories = mapped.subdirectories;
+              draft.documents = mapped.documents;
+              draft.artifactSummaries = mapped.artifactSummaries;
+              draft.totalCount = mapped.totalCount;
+            });
+          },
+        );
 
         try {
           await cacheEntryRemoved;
@@ -350,54 +395,63 @@ export const directoryApi = baseApi.injectEndpoints({
     }),
 
     // Get directory ancestors (breadcrumb)
-    getDirectoryAncestors: builder.query<GetDirectoryAncestorsResponse, string>({
-      async queryFn(directoryId, api, _extraOptions, baseQuery) {
-        const userId = auth.currentUser?.uid;
-        if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
-        }
-
-        const state = api.getState() as RootState;
-        const cachedTree = directoryApi.endpoints.getDirectoryTree.select()(state).data;
-        if (cachedTree) {
-          const derived = deriveAncestorsFromTree(cachedTree, directoryId);
-          if (derived) {
-            return { data: derived };
+    getDirectoryAncestors: builder.query<GetDirectoryAncestorsResponse, string>(
+      {
+        async queryFn(directoryId, api, _extraOptions, baseQuery) {
+          const userId = auth.currentUser?.uid;
+          if (!userId) {
+            return {
+              error: {
+                status: 'CUSTOM_ERROR',
+                data: { message: 'Authentication required' },
+              },
+            };
           }
-        }
 
-        try {
-          const fallback = await baseQuery({
-            functionName: 'getDirectoryAncestors',
-            data: { directoryId },
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
+          const state = api.getState() as RootState;
+          const cachedTree =
+            directoryApi.endpoints.getDirectoryTree.select()(state).data;
+          if (cachedTree) {
+            const derived = deriveAncestorsFromTree(cachedTree, directoryId);
+            if (derived) {
+              return { data: derived };
+            }
           }
-          return { data: fallback.data as GetDirectoryAncestorsResponse };
-        } catch (error) {
-          console.warn('Directory ancestors callable fallback failed:', error);
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Failed to fetch directory ancestors' },
-            },
-          };
-        }
+
+          try {
+            const fallback = await baseQuery({
+              functionName: 'getDirectoryAncestors',
+              data: { directoryId },
+            });
+            if (fallback.error) {
+              return { error: fallback.error };
+            }
+            return { data: fallback.data as GetDirectoryAncestorsResponse };
+          } catch (error) {
+            console.warn(
+              'Directory ancestors callable fallback failed:',
+              error,
+            );
+            return {
+              error: {
+                status: 'CUSTOM_ERROR',
+                data: { message: 'Failed to fetch directory ancestors' },
+              },
+            };
+          }
+        },
+        providesTags: (result, error, directoryId) => [
+          { type: 'Directory', id: `ANCESTORS_${directoryId}` },
+        ],
+        keepUnusedDataFor: 300,
       },
-      providesTags: (result, error, directoryId) => [
-        { type: 'Directory', id: `ANCESTORS_${directoryId}` },
-      ],
-      keepUnusedDataFor: 300,
-    }),
+    ),
 
     // Move a directory
-    moveDirectory: builder.mutation<MoveDirectoryResponse, { id: string; data: MoveDirectoryRequest }>({
+    moveDirectory: builder.mutation<
+      MoveDirectoryResponse,
+      { id: string; data: MoveDirectoryRequest }
+    >({
       query: ({ id, data }) => ({
         functionName: 'moveDirectory',
         data: { directoryId: id, ...data },
@@ -416,20 +470,22 @@ export const directoryApi = baseApi.injectEndpoints({
         data: { path },
       }),
       transformResponse: (response: GetDirectoryResponse) => response.directory,
-      providesTags: (result) => 
+      providesTags: (result) =>
         result ? [{ type: 'Directory', id: result.id }] : [],
     }),
 
     // Move a document to a directory
-    moveDocument: builder.mutation<void, { documentId: string; targetDirectoryId: string }>({
+    moveDocument: builder.mutation<
+      void,
+      { documentId: string; targetDirectoryId: string }
+    >({
       query: ({ documentId, targetDirectoryId }) => ({
         functionName: 'moveDocument',
-        data: { documentId, targetDirectoryId } as { documentId: string } & MoveDocumentRequest,
+        data: { documentId, targetDirectoryId } as {
+          documentId: string;
+        } & MoveDocumentRequest,
       }),
-      invalidatesTags: [
-        'Documents',
-        { type: 'Directory', id: 'LIST' },
-      ],
+      invalidatesTags: ['Documents', { type: 'Directory', id: 'LIST' }],
     }),
   }),
 });

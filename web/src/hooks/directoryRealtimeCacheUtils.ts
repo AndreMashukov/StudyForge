@@ -1,4 +1,8 @@
-import { Timestamp, type DocumentChange, type DocumentData } from 'firebase/firestore';
+import {
+  Timestamp,
+  type DocumentChange,
+  type DocumentData,
+} from 'firebase/firestore';
 import type { AppDispatch, RootState } from '../store';
 import { directoryApi } from '../store/api/Directory/DirectoryApi';
 import { baseApi } from '../store/api/baseApi';
@@ -19,7 +23,9 @@ export function serializeTimestamp(value: unknown): string | unknown {
   return value;
 }
 
-export function serializeCommonTimestamps<T extends Record<string, unknown>>(data: T): T {
+export function serializeCommonTimestamps<T extends Record<string, unknown>>(
+  data: T,
+): T {
   return {
     ...data,
     createdAt: serializeTimestamp(data.createdAt),
@@ -28,7 +34,10 @@ export function serializeCommonTimestamps<T extends Record<string, unknown>>(dat
   };
 }
 
-export function toDocumentEnhanced(id: string, raw: DocumentData): DocumentEnhanced {
+export function toDocumentEnhanced(
+  id: string,
+  raw: DocumentData,
+): DocumentEnhanced {
   return {
     id,
     ...serializeCommonTimestamps(raw),
@@ -54,24 +63,42 @@ export function toArtifactSummary(
     createdAt: data.createdAt as ArtifactSummary['createdAt'],
     type,
     appliedRuleIds: Array.isArray(data.appliedRuleIds)
-      ? data.appliedRuleIds.filter((ruleId): ruleId is string => typeof ruleId === 'string')
+      ? data.appliedRuleIds.filter(
+          (ruleId): ruleId is string => typeof ruleId === 'string',
+        )
       : [],
-    generationStatus: data.generationStatus as ArtifactSummary['generationStatus'] | undefined,
-    generationError: typeof data.generationError === 'string' ? data.generationError : undefined,
+    generationStatus: data.generationStatus as
+      | ArtifactSummary['generationStatus']
+      | undefined,
+    generationError:
+      typeof data.generationError === 'string'
+        ? data.generationError
+        : undefined,
     completedAt: data.completedAt as ArtifactSummary['completedAt'] | undefined,
-    generationModel: typeof data.generationModel === 'string' ? data.generationModel : undefined,
+    generationModel:
+      typeof data.generationModel === 'string'
+        ? data.generationModel
+        : undefined,
     generationModelUsage: Array.isArray(data.generationModelUsage)
       ? (data.generationModelUsage as ArtifactSummary['generationModelUsage'])
       : undefined,
-    documentColor: typeof data.documentColor === 'string' ? data.documentColor : undefined,
+    documentColor:
+      typeof data.documentColor === 'string' ? data.documentColor : undefined,
     documentColors: Array.isArray(data.documentColors)
-      ? data.documentColors.filter((color): color is string => typeof color === 'string')
+      ? data.documentColors.filter(
+          (color): color is string => typeof color === 'string',
+        )
       : undefined,
   };
 }
 
-function removeNodeFromTree(nodes: DirectoryTreeNode[], directoryId: string): boolean {
-  const rootIndex = nodes.findIndex((node) => node.directory.id === directoryId);
+function removeNodeFromTree(
+  nodes: DirectoryTreeNode[],
+  directoryId: string,
+): boolean {
+  const rootIndex = nodes.findIndex(
+    (node) => node.directory.id === directoryId,
+  );
   if (rootIndex >= 0) {
     nodes.splice(rootIndex, 1);
     return true;
@@ -90,7 +117,9 @@ function extractNodeFromTree(
   nodes: DirectoryTreeNode[],
   directoryId: string,
 ): DirectoryTreeNode | undefined {
-  const rootIndex = nodes.findIndex((node) => node.directory.id === directoryId);
+  const rootIndex = nodes.findIndex(
+    (node) => node.directory.id === directoryId,
+  );
   if (rootIndex >= 0) {
     return nodes.splice(rootIndex, 1)[0];
   }
@@ -105,7 +134,10 @@ function extractNodeFromTree(
   return undefined;
 }
 
-function attachNodeToTree(tree: DirectoryTreeNode[], node: DirectoryTreeNode): void {
+function attachNodeToTree(
+  tree: DirectoryTreeNode[],
+  node: DirectoryTreeNode,
+): void {
   if (!node.directory.parentId) {
     tree.push(node);
     return;
@@ -120,7 +152,10 @@ function attachNodeToTree(tree: DirectoryTreeNode[], node: DirectoryTreeNode): v
   tree.push(node);
 }
 
-function reparentNodeInTree(tree: DirectoryTreeNode[], directory: Directory): void {
+function reparentNodeInTree(
+  tree: DirectoryTreeNode[],
+  directory: Directory,
+): void {
   const extracted = extractNodeFromTree(tree, directory.id);
   if (!extracted) {
     insertDirectoryIntoTree(tree, directory);
@@ -131,11 +166,16 @@ function reparentNodeInTree(tree: DirectoryTreeNode[], directory: Directory): vo
   attachNodeToTree(tree, extracted);
 }
 
-function insertDirectoryIntoTree(tree: DirectoryTreeNode[], directory: Directory): void {
+function insertDirectoryIntoTree(
+  tree: DirectoryTreeNode[],
+  directory: Directory,
+): void {
   const newNode: DirectoryTreeNode = { directory, children: [] };
 
   if (!directory.parentId) {
-    const existingIndex = tree.findIndex((node) => node.directory.id === directory.id);
+    const existingIndex = tree.findIndex(
+      (node) => node.directory.id === directory.id,
+    );
     if (existingIndex >= 0) {
       tree[existingIndex] = newNode;
     } else {
@@ -149,7 +189,9 @@ function insertDirectoryIntoTree(tree: DirectoryTreeNode[], directory: Directory
     return;
   }
 
-  const childIndex = parentNode.children.findIndex((node) => node.directory.id === directory.id);
+  const childIndex = parentNode.children.findIndex(
+    (node) => node.directory.id === directory.id,
+  );
   if (childIndex >= 0) {
     newNode.children = parentNode.children[childIndex].children;
     parentNode.children[childIndex] = newNode;
@@ -159,7 +201,9 @@ function insertDirectoryIntoTree(tree: DirectoryTreeNode[], directory: Directory
 }
 
 function compareDirectoryName(left: Directory, right: Directory): number {
-  return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+  return left.name.localeCompare(right.name, undefined, {
+    sensitivity: 'base',
+  });
 }
 
 /** Callable responses often serialize Timestamps as `{}`; keep Redux serializable ISO strings. */
@@ -174,6 +218,24 @@ function normalizeDirectoryTimestamp(value: unknown): Directory['createdAt'] {
   return new Date().toISOString() as unknown as Directory['createdAt'];
 }
 
+function upsertDirectoryNodeInTree(
+  tree: DirectoryTreeNode[],
+  directory: Directory,
+): 'inserted' | 'updated' | 'skipped' {
+  const existing = findTreeNode(tree, directory.id);
+  if (existing) {
+    if (existing.directory.parentId !== directory.parentId) {
+      reparentNodeInTree(tree, directory);
+    } else {
+      Object.assign(existing.directory, directory);
+    }
+    return 'updated';
+  }
+
+  insertDirectoryIntoTree(tree, directory);
+  return findTreeNode(tree, directory.id) ? 'inserted' : 'skipped';
+}
+
 /** Insert/update a subdirectory in live directory detail + library caches after create. */
 export function upsertSubdirectoryInDirectoryCaches(
   dispatch: AppDispatch,
@@ -181,52 +243,84 @@ export function upsertSubdirectoryInDirectoryCaches(
   parentId: string | null,
   directory: Directory,
 ): void {
-  if (!parentId) {
-    return;
-  }
-
   const normalized: Directory = {
     ...directory,
     createdAt: normalizeDirectoryTimestamp(directory.createdAt),
-    updatedAt: normalizeDirectoryTimestamp(directory.updatedAt ?? directory.createdAt),
+    updatedAt: normalizeDirectoryTimestamp(
+      directory.updatedAt ?? directory.createdAt,
+    ),
   };
+
+  dispatch(
+    directoryApi.util.updateQueryData(
+      'getDirectoryTree',
+      undefined,
+      (draft) => {
+        const result = upsertDirectoryNodeInTree(draft.tree, normalized);
+        if (result === 'inserted') {
+          draft.totalDirectories += 1;
+        }
+      },
+    ),
+  );
 
   const queries = getState()[baseApi.reducerPath].queries;
   for (const entry of Object.values(queries)) {
-    if (!entry || entry.endpointName !== 'getDirectoryContentsWithArtifactSummaries') {
+    if (
+      !entry ||
+      entry.endpointName !== 'getDirectoryContentsWithArtifactSummaries'
+    ) {
       continue;
     }
     const args = entry.originalArgs as
       | { directoryId: string | null; artifactLimit?: number }
       | undefined;
-    if (!args || args.directoryId !== parentId) {
+    if (!args || !args.directoryId || args.directoryId !== parentId) {
       continue;
     }
     dispatch(
-      directoryApi.util.updateQueryData('getDirectoryContentsWithArtifactSummaries', args, (draft) => {
-        const idx = draft.subdirectories.findIndex((sub) => sub.id === normalized.id);
+      directoryApi.util.updateQueryData(
+        'getDirectoryContentsWithArtifactSummaries',
+        args,
+        (draft) => {
+          const idx = draft.subdirectories.findIndex(
+            (sub) => sub.id === normalized.id,
+          );
+          if (idx >= 0) {
+            draft.subdirectories[idx] = {
+              ...draft.subdirectories[idx],
+              ...normalized,
+            };
+          } else {
+            draft.subdirectories.push(normalized);
+            draft.subdirectories.sort(compareDirectoryName);
+            draft.totalCount += 1;
+          }
+        },
+      ),
+    );
+  }
+
+  dispatch(
+    directoryApi.util.updateQueryData(
+      'getDirectoryContents',
+      parentId,
+      (draft) => {
+        const idx = draft.subdirectories.findIndex(
+          (sub) => sub.id === normalized.id,
+        );
         if (idx >= 0) {
-          draft.subdirectories[idx] = { ...draft.subdirectories[idx], ...normalized };
+          draft.subdirectories[idx] = {
+            ...draft.subdirectories[idx],
+            ...normalized,
+          };
         } else {
           draft.subdirectories.push(normalized);
           draft.subdirectories.sort(compareDirectoryName);
           draft.totalCount += 1;
         }
-      }),
-    );
-  }
-
-  dispatch(
-    directoryApi.util.updateQueryData('getDirectoryContents', parentId, (draft) => {
-      const idx = draft.subdirectories.findIndex((sub) => sub.id === normalized.id);
-      if (idx >= 0) {
-        draft.subdirectories[idx] = { ...draft.subdirectories[idx], ...normalized };
-      } else {
-        draft.subdirectories.push(normalized);
-        draft.subdirectories.sort(compareDirectoryName);
-        draft.totalCount += 1;
-      }
-    }),
+      },
+    ),
   );
 }
 
@@ -237,30 +331,34 @@ export function patchDirectoryTreeCache(
   const directory = toDirectory(change.doc.id, change.doc.data());
 
   dispatch(
-    directoryApi.util.updateQueryData('getDirectoryTree', undefined, (draft) => {
-      if (change.type === 'removed') {
-        removeNodeFromTree(draft.tree, directory.id);
-        draft.totalDirectories = Math.max(0, draft.totalDirectories - 1);
-        return;
-      }
-
-      if (change.type === 'added') {
-        insertDirectoryIntoTree(draft.tree, directory);
-        draft.totalDirectories += 1;
-        return;
-      }
-
-      const existingNode = findTreeNode(draft.tree, directory.id);
-      if (existingNode) {
-        if (existingNode.directory.parentId !== directory.parentId) {
-          reparentNodeInTree(draft.tree, directory);
-        } else {
-          Object.assign(existingNode.directory, directory);
+    directoryApi.util.updateQueryData(
+      'getDirectoryTree',
+      undefined,
+      (draft) => {
+        if (change.type === 'removed') {
+          removeNodeFromTree(draft.tree, directory.id);
+          draft.totalDirectories = Math.max(0, draft.totalDirectories - 1);
+          return;
         }
-      } else {
-        insertDirectoryIntoTree(draft.tree, directory);
-      }
-    }),
+
+        if (change.type === 'added') {
+          insertDirectoryIntoTree(draft.tree, directory);
+          draft.totalDirectories += 1;
+          return;
+        }
+
+        const existingNode = findTreeNode(draft.tree, directory.id);
+        if (existingNode) {
+          if (existingNode.directory.parentId !== directory.parentId) {
+            reparentNodeInTree(draft.tree, directory);
+          } else {
+            Object.assign(existingNode.directory, directory);
+          }
+        } else {
+          insertDirectoryIntoTree(draft.tree, directory);
+        }
+      },
+    ),
   );
 }
 
@@ -272,21 +370,27 @@ export function patchDocumentInDirectoryContentsCache(
   const docData = toDocumentEnhanced(change.doc.id, change.doc.data());
 
   dispatch(
-    directoryApi.util.updateQueryData('getDirectoryContents', directoryId, (draft) => {
-      const index = draft.documents.findIndex((document) => document.id === docData.id);
-      if (change.type === 'removed') {
-        if (index >= 0) {
-          draft.documents.splice(index, 1);
+    directoryApi.util.updateQueryData(
+      'getDirectoryContents',
+      directoryId,
+      (draft) => {
+        const index = draft.documents.findIndex(
+          (document) => document.id === docData.id,
+        );
+        if (change.type === 'removed') {
+          if (index >= 0) {
+            draft.documents.splice(index, 1);
+          }
+          return;
         }
-        return;
-      }
 
-      if (index >= 0) {
-        Object.assign(draft.documents[index], docData);
-      } else {
-        draft.documents.unshift(docData);
-      }
-    }),
+        if (index >= 0) {
+          Object.assign(draft.documents[index], docData);
+        } else {
+          draft.documents.unshift(docData);
+        }
+      },
+    ),
   );
 }
 
@@ -304,7 +408,9 @@ export function patchDocumentInArtifactSummariesCache(
       'getDirectoryContentsWithArtifactSummaries',
       queryArgs,
       (draft) => {
-        const index = draft.documents.findIndex((document) => document.id === docData.id);
+        const index = draft.documents.findIndex(
+          (document) => document.id === docData.id,
+        );
         if (change.type === 'removed') {
           if (index >= 0) {
             draft.documents.splice(index, 1);
@@ -329,7 +435,11 @@ export function patchArtifactInSummariesCache(
   change: DocumentChange<DocumentData>,
   artifactType: ArtifactSummaryType,
 ): void {
-  const artifact = toArtifactSummary(change.doc.id, change.doc.data(), artifactType);
+  const artifact = toArtifactSummary(
+    change.doc.id,
+    change.doc.data(),
+    artifactType,
+  );
   const queryArgs = { directoryId, artifactLimit };
 
   dispatch(
@@ -338,7 +448,8 @@ export function patchArtifactInSummariesCache(
       queryArgs,
       (draft) => {
         const index = draft.artifactSummaries.findIndex(
-          (summary) => summary.id === artifact.id && summary.type === artifact.type,
+          (summary) =>
+            summary.id === artifact.id && summary.type === artifact.type,
         );
         if (change.type === 'removed') {
           if (index >= 0) {

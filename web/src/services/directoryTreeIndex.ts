@@ -1,6 +1,6 @@
 import {
   collection,
-  getDocs,
+  getDocsFromServer,
   onSnapshot,
   orderBy,
   query,
@@ -13,17 +13,23 @@ import { db } from '../config/firebase';
 import { toDirectory } from '../hooks/directoryRealtimeCacheUtils';
 import { buildDirectoryTreeResponse } from '../utils/directoryTreeUtils';
 
-function directoriesFromSnapshot(snapshot: QuerySnapshot<DocumentData>): GetDirectoryTreeResponse {
-  const directories = snapshot.docs.map((doc) => toDirectory(doc.id, doc.data()));
+function directoriesFromSnapshot(
+  snapshot: QuerySnapshot<DocumentData>,
+): GetDirectoryTreeResponse {
+  const directories = snapshot.docs.map((doc) =>
+    toDirectory(doc.id, doc.data()),
+  );
   return buildDirectoryTreeResponse(directories);
 }
 
-export async function fetchDirectoryTreeFromFirestore(userId: string): Promise<GetDirectoryTreeResponse> {
+export async function fetchDirectoryTreeFromFirestore(
+  userId: string,
+): Promise<GetDirectoryTreeResponse> {
   const directoriesQuery = query(
     collection(db, 'users', userId, 'directories'),
     orderBy('path', 'asc'),
   );
-  const snapshot = await getDocs(directoriesQuery);
+  const snapshot = await getDocsFromServer(directoriesQuery);
   return directoriesFromSnapshot(snapshot);
 }
 
@@ -39,6 +45,9 @@ export function subscribeToDirectoryTreeIndex(
   return onSnapshot(
     directoriesQuery,
     (snapshot) => {
+      if (snapshot.metadata.fromCache) {
+        return;
+      }
       onUpdate(directoriesFromSnapshot(snapshot));
     },
     () => {
