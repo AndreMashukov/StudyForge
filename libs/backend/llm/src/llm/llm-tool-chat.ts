@@ -336,24 +336,29 @@ export function toolCallNeedsGeminiSignatureRetry(
   );
 }
 
-function buildToolChatRequestBody(input: {
+export function buildToolChatRequestBody(input: {
   route: ResolvedRoute;
   messages: ILlmToolChatMessage[];
   tools: ILlmOpenAiToolDefinition[];
   stream: boolean;
   settings: ILlmGenerationRuntimeSettings;
 }): Record<string, unknown> {
-  return {
+  const body: Record<string, unknown> = {
     model: input.route.model,
     messages: normalizeMessagesForWire(input.messages),
-    tools: input.tools,
-    tool_choice: 'auto',
     stream: input.stream,
     temperature: input.settings.temperature,
     top_p: input.settings.topP,
     max_tokens: input.settings.maxOutputTokens,
     ...buildToolChatProviderBodyExtras(input.route, input.settings),
   };
+
+  if (input.tools.length > 0) {
+    body.tools = input.tools;
+    body.tool_choice = 'auto';
+  }
+
+  return body;
 }
 
 async function executeNonStreamToolChat(input: {

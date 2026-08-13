@@ -61,6 +61,7 @@ export {
   callToolChatCompletions,
   resolveToolChatCompletionsUrl,
   normalizeMessagesForWire,
+  buildToolChatRequestBody,
   buildToolChatProviderBodyExtras,
   shouldStreamToolChat,
   toolCallNeedsGeminiSignatureRetry,

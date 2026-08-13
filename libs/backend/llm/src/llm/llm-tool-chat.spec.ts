@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildToolChatProviderBodyExtras,
+  buildToolChatRequestBody,
   extractAssistantMessage,
   normalizeMessagesForWire,
   parseWireToolCall,
@@ -38,20 +39,67 @@ const minimaxRoute: ResolvedRoute = {
 describe('resolveToolChatCompletionsUrl', () => {
   it('uses Gemini OpenAI-compat base URL', () => {
     expect(resolveToolChatCompletionsUrl(geminiRoute)).toBe(
-      'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+      'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
     );
   });
 
   it('uses Together ai domain (not together.xyz)', () => {
     expect(resolveToolChatCompletionsUrl(togetherRoute)).toBe(
-      'https://api.together.ai/v1/chat/completions'
+      'https://api.together.ai/v1/chat/completions',
     );
     expect(
       resolveToolChatCompletionsUrl({
         ...togetherRoute,
         togetherBaseUrl: undefined,
-      })
+      }),
     ).toBe('https://api.together.ai/v1/chat/completions');
+  });
+});
+
+describe('buildToolChatRequestBody', () => {
+  const settings = {
+    temperature: 0.2,
+    topP: 0.9,
+    topK: 40,
+    maxOutputTokens: 1024,
+    requestTimeoutMs: 30_000,
+    disableReasoning: true,
+  };
+
+  it('omits tools and tool_choice when no tools are provided', () => {
+    const body = buildToolChatRequestBody({
+      route: togetherRoute,
+      messages: [{ role: 'user', content: 'hello' }],
+      tools: [],
+      stream: false,
+      settings,
+    });
+
+    expect(body.tools).toBeUndefined();
+    expect(body.tool_choice).toBeUndefined();
+    expect(body.model).toBe(togetherRoute.model);
+  });
+
+  it('includes tools and tool_choice auto when tools are provided', () => {
+    const body = buildToolChatRequestBody({
+      route: togetherRoute,
+      messages: [{ role: 'user', content: 'list folders' }],
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'list_directories',
+            description: 'List directories',
+            parameters: { type: 'object', properties: {} },
+          },
+        },
+      ],
+      stream: true,
+      settings,
+    });
+
+    expect(body.tool_choice).toBe('auto');
+    expect(body.tools).toHaveLength(1);
   });
 });
 
@@ -93,7 +141,7 @@ describe('toolCallNeedsGeminiSignatureRetry', () => {
             function: { name: 'list_rules', arguments: '{}' },
           },
         ],
-      })
+      }),
     ).toBe(true);
   });
 
@@ -111,7 +159,7 @@ describe('toolCallNeedsGeminiSignatureRetry', () => {
             },
           },
         ],
-      })
+      }),
     ).toBe(false);
   });
 
@@ -126,7 +174,7 @@ describe('toolCallNeedsGeminiSignatureRetry', () => {
             function: { name: 'list_rules', arguments: '{}' },
           },
         ],
-      })
+      }),
     ).toBe(false);
   });
 });
