@@ -21,26 +21,38 @@ const firebaseCallableBaseQuery: BaseQueryFn<
     await waitForAppCheckReady();
     console.log(`Firebase Callable - Starting: ${functionName}`);
 
-    const callable = httpsCallable(functions, functionName, timeout ? { timeout } : undefined);
-    
+    const callable = httpsCallable(
+      functions,
+      functionName,
+      timeout ? { timeout } : undefined,
+    );
+
     const startTime = Date.now();
     const result = await callable(data || {});
     const duration = Date.now() - startTime;
-    
+
     console.log(`Firebase Callable - Success: ${functionName} (${duration}ms)`);
 
     return { data: result.data };
   } catch (error: unknown) {
     console.error(`Firebase Callable - Error: ${functionName}`, error);
-    console.error(`Firebase Callable - Error JSON:`, JSON.stringify(error, null, 2));
+    console.error(
+      `Firebase Callable - Error JSON:`,
+      JSON.stringify(error, null, 2),
+    );
 
-    const firebaseError = error as { code?: string; message?: string; details?: unknown };
+    const firebaseError = error as {
+      code?: string;
+      message?: string;
+      details?: unknown;
+    };
     console.error(`Firebase Callable - code: ${firebaseError.code}`);
     console.error(`Firebase Callable - message: ${firebaseError.message}`);
     console.error(`Firebase Callable - details:`, firebaseError.details);
 
     const detailsRecord =
-      typeof firebaseError.details === 'object' && firebaseError.details !== null
+      typeof firebaseError.details === 'object' &&
+      firebaseError.details !== null
         ? (firebaseError.details as { code?: string; message?: string })
         : undefined;
 
@@ -53,7 +65,9 @@ const firebaseCallableBaseQuery: BaseQueryFn<
       (isAppCheckRejection
         ? 'App Check verification failed. Ensure the reCAPTCHA v3 secret is registered in Firebase Console → App Check and production domains are allowed in reCAPTCHA Admin.'
         : undefined) ??
-      (typeof firebaseError.details === 'string' ? firebaseError.details : undefined) ??
+      (typeof firebaseError.details === 'string'
+        ? firebaseError.details
+        : undefined) ??
       firebaseError.message ??
       'An unknown error occurred';
 
@@ -74,6 +88,29 @@ const firebaseCallableBaseQuery: BaseQueryFn<
 export const baseApi = createApi({
   reducerPath: 'baseApi',
   baseQuery: firebaseCallableBaseQuery,
-  tagTypes: ['Quiz', 'UserQuizzes', 'DocumentQuizzes', 'Document', 'Directory', 'DirectoryChat', 'Documents', 'Rules', 'DirectoryRules', 'FlashcardSet', 'UserFlashcardSets', 'SlideDeck', 'UserSlideDecks', 'DiagramQuiz', 'UserDiagramQuizzes', 'SequenceQuiz', 'UserSequenceQuizzes', 'InteractionStats', 'LearningStats', 'Statistics', 'ApiKeys'],
+  tagTypes: [
+    'Quiz',
+    'UserQuizzes',
+    'DocumentQuizzes',
+    'Document',
+    'Directory',
+    'DirectoryChat',
+    'Documents',
+    'Rules',
+    'DirectoryRules',
+    'FlashcardSet',
+    'UserFlashcardSets',
+    'SlideDeck',
+    'UserSlideDecks',
+    'DiagramQuiz',
+    'UserDiagramQuizzes',
+    'SequenceQuiz',
+    'UserSequenceQuizzes',
+    'InteractionStats',
+    'LearningStats',
+    'Statistics',
+    'ApiKeys',
+    'AgentThread',
+  ],
   endpoints: () => ({}),
 });

@@ -14,6 +14,8 @@ import {
   AgentMemoryService,
   AgentThreadStore,
   buildAgentResponse,
+  deriveAgentThreadPreview,
+  deriveAgentThreadTitle,
 } from './memory/agent-memory-service';
 import { AgentChatRunner } from './runner/agent-chat-runner';
 import {
@@ -314,6 +316,9 @@ export class DirectoryAgentService {
       role: 'user',
       content: request.message,
       promptContext: request.promptContext,
+      ...(history.length === 0
+        ? { title: deriveAgentThreadTitle(request.message) }
+        : {}),
     });
 
     const tools = createAgentToolDefinitions(runtimeContext);
@@ -389,6 +394,7 @@ export class DirectoryAgentService {
       yield { type: 'delete_proposal', proposal };
     }
 
+    const preview = deriveAgentThreadPreview(reply);
     await AgentThreadStore.appendMessage({
       userId,
       threadId: thread.id,
@@ -396,6 +402,7 @@ export class DirectoryAgentService {
       content: reply,
       executedActions: runtimeContext.executedActions,
       proposedDeletes: runtimeContext.proposedDeletes,
+      ...(preview ? { preview } : {}),
     });
 
     await AgentMemoryService.captureTurnMemories({

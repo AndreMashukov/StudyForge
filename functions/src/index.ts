@@ -1,6 +1,6 @@
 /**
  * Firebase Functions for Code Insights AI Quiz Generator
- * 
+ *
  * Phase 3: Core Backend Functionality
  * - Web scraping for article content
  * - Gemini 2.5 Pro integration for quiz generation
@@ -9,7 +9,7 @@
  */
 
 import './global-options';
-import { onRequest } from "firebase-functions/v2/https";
+import { onRequest } from 'firebase-functions/v2/https';
 
 /**
  * Health check endpoint (HTTP for monitoring).
@@ -22,10 +22,10 @@ export const healthCheck = onRequest(
   },
   async (_req, res) => {
     res.json({
-      status: "healthy",
+      status: 'healthy',
       timestamp: new Date().toISOString(),
     });
-  }
+  },
 );
 
 // Export quiz management functions
@@ -35,50 +35,40 @@ export {
   getUserQuizzes,
   getDocumentQuizzes,
   deleteQuiz,
-} from "./endpoints/quizzes";
+} from './endpoints/quizzes';
 
-export {
-  processGenerationJob,
-} from "./tasks/process-generation-job";
+export { processGenerationJob } from './tasks/process-generation-job';
 
-export {
-  sweepStaleGenerationsSchedule,
-} from "./tasks/sweep-stale-generations";
+export { sweepStaleGenerationsSchedule } from './tasks/sweep-stale-generations';
 
 export {
   generateDiagramQuiz,
   getDiagramQuiz,
   getUserDiagramQuizzes,
   deleteDiagramQuiz,
-} from "./endpoints/diagram-quizzes";
+} from './endpoints/diagram-quizzes';
 
 export {
   generateSequenceQuiz,
   getSequenceQuiz,
   getUserSequenceQuizzes,
   deleteSequenceQuiz,
-} from "./endpoints/sequence-quizzes";
+} from './endpoints/sequence-quizzes';
 
 // Export quiz followup functions
-export {
-  generateQuizFollowup,
-} from "./endpoints/quiz-followup";
+export { generateQuizFollowup } from './endpoints/quiz-followup';
 
 // Export document question functions
-export {
-  askDocumentQuestion,
-} from "./endpoints/document-question";
+export { askDocumentQuestion } from './endpoints/document-question';
 
-export {
-  reviseDocumentWithAI,
-} from "./endpoints/document-revise";
+export { reviseDocumentWithAI } from './endpoints/document-revise';
 
 // Export directory chat functions
 export {
   getDirectoryChat,
   sendDirectoryChatMessage,
   updateDirectoryChatSources,
-} from "./endpoints/directory-chat";
+} from './endpoints/directory-chat';
 
 // Export document management functions
 export {
@@ -98,7 +88,7 @@ export {
   getDocumentContent,
   moveDocument,
   bulkDeleteDocuments,
-} from "./endpoints/documents";
+} from './endpoints/documents';
 
 // Export rules management functions
 export {
@@ -115,7 +105,7 @@ export {
   getApplicableRulesEndpoint as getApplicableRules,
   formatRulesForPromptEndpoint as formatRulesForPrompt,
   getRuleTagsEndpoint as getRuleTags,
-} from "./endpoints/rules";
+} from './endpoints/rules';
 
 // Export directory management functions
 export {
@@ -131,14 +121,12 @@ export {
   moveDirectory,
   getDirectoryByPath,
   bulkDeleteDirectories,
-} from "./endpoints/directories";
+} from './endpoints/directories';
 
 // Export flashcard management functions
 
 // Export rule AI generation function
-export {
-  generateRuleWithAI,
-} from "./endpoints/rule-ai";
+export { generateRuleWithAI } from './endpoints/rule-ai';
 export {
   generateFlashcards,
   getFlashcardSet,
@@ -146,7 +134,7 @@ export {
   updateFlashcardSet,
   deleteFlashcardSet,
   recordLearnedVocabulary,
-} from "./endpoints/flashcards";
+} from './endpoints/flashcards';
 
 // Export slide deck management functions
 export {
@@ -154,20 +142,20 @@ export {
   getSlideDeck,
   getUserSlideDecks,
   deleteSlideDeck,
-} from "./endpoints/slide-decks";
+} from './endpoints/slide-decks';
 
 // Export interaction tracking functions
 export {
   flushInteractionSessionEndpoint as flushInteractionSession,
   getInteractionStatsEndpoint as getInteractionStats,
-} from "./endpoints/interaction-tracking";
+} from './endpoints/interaction-tracking';
 
 // Export learning telemetry functions
 export {
   recordQuizAttemptEndpoint as recordQuizAttempt,
   recordQuizExplanationRequestEndpoint as recordQuizExplanationRequest,
   getQuizStatsEndpoint as getQuizStats,
-} from "./endpoints/learning-telemetry";
+} from './endpoints/learning-telemetry';
 
 // Export statistics page functions
 export {
@@ -175,13 +163,14 @@ export {
   getStatisticsQuizPerformanceEndpoint as getStatisticsQuizPerformance,
   getStatisticsLearningTimeEndpoint as getStatisticsLearningTime,
   getStatisticsQuizDetailEndpoint as getStatisticsQuizDetail,
-} from "./endpoints/statistics";
+} from './endpoints/statistics';
 
 // External HTTP API (API key authenticated)
-export { api } from "./endpoints/external-api";
+export { api } from './endpoints/external-api';
 
 // Global directory agent (Firebase ID token + App Check SSE)
-export { agentMessageStream } from "./endpoints/agent-message-stream";
+export { agentMessageStream } from './endpoints/agent-message-stream';
+export { getAgentThread, listAgentThreads } from './endpoints/agent-threads';
 
 // API key management (callable — used by the web app)
 export {
@@ -189,15 +178,15 @@ export {
   listApiKeys,
   revokeApiKey,
   bulkRevokeApiKeys,
-} from "./endpoints/api-keys";
+} from './endpoints/api-keys';
 
 // Bulk artifact delete (directory detail panels)
-export { bulkDeleteArtifacts } from "./endpoints/bulk-artifacts";
+export { bulkDeleteArtifacts } from './endpoints/bulk-artifacts';
 
 export {
   getUsageSummary,
   getRecentUsageEvents,
-} from "./endpoints/usage-summary";
+} from './endpoints/usage-summary';
 
 export {
   createBillingCheckoutSessionEndpoint as createBillingCheckoutSession,
@@ -206,8 +195,6 @@ export {
   getBillingState,
   refreshUsageSummary,
   stripeBillingWebhook,
-} from "./endpoints/billing";
+} from './endpoints/billing';
 
-export {
-  processMonthlyOverageInvoicesSchedule,
-} from "./tasks/process-monthly-overage-invoices";
+export { processMonthlyOverageInvoicesSchedule } from './tasks/process-monthly-overage-invoices';
