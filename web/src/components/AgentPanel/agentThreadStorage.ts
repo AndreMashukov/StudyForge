@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { AgentScope, IAgentThread } from '@shared-types';
 import {
   agentActionResultSchema,
   agentProposedDeleteSchema,
@@ -9,6 +10,7 @@ const ACTIVE_THREAD_STORAGE_KEY = 'sf-global-agent-active-thread-id';
 const LEGACY_SESSION_THREAD_KEY = 'sf-global-agent-thread-id';
 const LEGACY_SESSION_MESSAGES_KEY = 'sf-global-agent-session';
 const STREAM_BACKUP_KEY = 'sf-global-agent-stream-backup';
+const WORKSPACE_CONTEXT_KEY = 'workspace';
 
 const storedAgentMessageSchema = z.object({
   id: z.string(),
@@ -25,19 +27,60 @@ const streamBackupSchema = z.object({
   messages: z.array(storedAgentMessageSchema),
 });
 
+const activeThreadMapSchema = z.record(z.string().min(1), z.string().min(1));
+
 function canUseStorage(): boolean {
   return typeof window !== 'undefined';
 }
 
-export function readActiveThreadId(): string | undefined {
+export function agentPanelContextKey(
+  scope: AgentScope,
+  directoryId?: string,
+): string {
+  if (scope === 'directory' && directoryId) {
+    return `directory:${directoryId}`;
+  }
+  return WORKSPACE_CONTEXT_KEY;
+}
+
+export function threadMatchesPanelContext(
+  thread: Pick<IAgentThread, 'scope' | 'directoryId'>,
+  scope: AgentScope,
+  directoryId?: string,
+): boolean {
+  if (scope === 'directory') {
+    return thread.scope === 'directory' && thread.directoryId === directoryId;
+  }
+  return thread.scope === 'workspace';
+}
+
+function parseActiveThreadMap(raw: string): Record<string, string> {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return {};
+  }
+
+  if (!trimmed.startsWith('{')) {
+    return { [WORKSPACE_CONTEXT_KEY]: trimmed };
+  }
+
+  try {
+    const parsed = activeThreadMapSchema.safeParse(JSON.parse(trimmed));
+    return parsed.success ? parsed.data : {};
+  } catch {
+    return {};
+  }
+}
+
+function readActiveThreadMap(): Record<string, string> {
   if (!canUseStorage()) {
-    return undefined;
+    return {};
   }
 
   try {
     const fromLocal = window.localStorage.getItem(ACTIVE_THREAD_STORAGE_KEY);
     if (fromLocal && fromLocal.trim().length > 0) {
-      return fromLocal.trim();
+      return parseActiveThreadMap(fromLocal);
     }
 
     const fromSession = window.sessionStorage.getItem(
@@ -45,34 +88,67 @@ export function readActiveThreadId(): string | undefined {
     );
     if (fromSession && fromSession.trim().length > 0) {
       const threadId = fromSession.trim();
-      window.localStorage.setItem(ACTIVE_THREAD_STORAGE_KEY, threadId);
+      const nextMap = { [WORKSPACE_CONTEXT_KEY]: threadId };
+      window.localStorage.setItem(
+        ACTIVE_THREAD_STORAGE_KEY,
+        JSON.stringify(nextMap),
+      );
       window.sessionStorage.removeItem(LEGACY_SESSION_THREAD_KEY);
       window.sessionStorage.removeItem(LEGACY_SESSION_MESSAGES_KEY);
-      return threadId;
+      return nextMap;
     }
   } catch {
-    return undefined;
+    return {};
   }
 
-  return undefined;
+  return {};
 }
 
-export function writeActiveThreadId(threadId: string | undefined): void {
+function persistActiveThreadMap(nextMap: Record<string, string>): void {
   if (!canUseStorage()) {
     return;
   }
 
   try {
-    if (threadId && threadId.trim().length > 0) {
-      window.localStorage.setItem(ACTIVE_THREAD_STORAGE_KEY, threadId.trim());
-    } else {
+    if (Object.keys(nextMap).length === 0) {
       window.localStorage.removeItem(ACTIVE_THREAD_STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(
+        ACTIVE_THREAD_STORAGE_KEY,
+        JSON.stringify(nextMap),
+      );
     }
     window.sessionStorage.removeItem(LEGACY_SESSION_THREAD_KEY);
     window.sessionStorage.removeItem(LEGACY_SESSION_MESSAGES_KEY);
   } catch {
     // Ignore restricted storage contexts.
   }
+}
+
+export function readActiveThreadId(
+  scope: AgentScope,
+  directoryId?: string,
+): string | undefined {
+  const contextKey = agentPanelContextKey(scope, directoryId);
+  const threadId = readActiveThreadMap()[contextKey];
+  return threadId && threadId.trim().length > 0 ? threadId.trim() : undefined;
+}
+
+export function writeActiveThreadId(
+  threadId: string | undefined,
+  scope: AgentScope,
+  directoryId?: string,
+): void {
+  const contextKey = agentPanelContextKey(scope, directoryId);
+  const nextMap = { ...readActiveThreadMap() };
+
+  if (threadId && threadId.trim().length > 0) {
+    nextMap[contextKey] = threadId.trim();
+  } else {
+    delete nextMap[contextKey];
+  }
+
+  persistActiveThreadMap(nextMap);
 }
 
 export function writeStreamBackup(

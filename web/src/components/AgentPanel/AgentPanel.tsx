@@ -34,7 +34,8 @@ import {
   clearStreamBackup,
   consumeStreamBackup,
   readActiveThreadId,
-  writeActiveThreadId,
+  threadMatchesPanelContext,
+  writeActiveThreadId as writeStoredActiveThreadId,
   writeStreamBackup,
 } from './agentThreadStorage';
 import {
@@ -134,7 +135,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
   const [messages, setMessages] = useState<IAgentChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [threadId, setThreadId] = useState<string | undefined>(() =>
-    readActiveThreadId(),
+    readActiveThreadId(scope, directoryId),
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -156,6 +157,24 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
   } = useGetAgentThreadQuery({ threadId: threadId ?? '' }, { skip: !threadId });
   const { data: threadListData, isLoading: isThreadListLoading } =
     useListAgentThreadsQuery({});
+
+  const persistActiveThreadId = useCallback(
+    (nextThreadId: string | undefined) => {
+      writeStoredActiveThreadId(nextThreadId, scope, directoryId);
+    },
+    [directoryId, scope],
+  );
+
+  const visibleThreads = useMemo(() => {
+    const threads = threadListData?.threads ?? [];
+    if (scope === 'directory') {
+      return threads.filter(
+        (thread) =>
+          thread.scope === 'directory' && thread.directoryId === directoryId,
+      );
+    }
+    return threads.filter((thread) => thread.scope === 'workspace');
+  }, [directoryId, scope, threadListData?.threads]);
 
   const activePromptContext = contextDismissed
     ? undefined
@@ -207,6 +226,13 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
       return;
     }
 
+    if (!threadMatchesPanelContext(threadData.thread, scope, directoryId)) {
+      persistActiveThreadId(undefined);
+      setThreadId(undefined);
+      setMessages([]);
+      return;
+    }
+
     if (appliedBackupThreadRef.current !== threadId) {
       const backup = consumeStreamBackup(threadId);
       if (backup) {
@@ -221,16 +247,23 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     }
 
     setMessages(threadData.messages.map(toPanelMessage));
-  }, [loading, threadData, threadId]);
+  }, [
+    directoryId,
+    loading,
+    persistActiveThreadId,
+    scope,
+    threadData,
+    threadId,
+  ]);
 
   useEffect(() => {
     if (!threadId || !threadError || !isAgentThreadMissingError(threadError)) {
       return;
     }
-    writeActiveThreadId(undefined);
+    persistActiveThreadId(undefined);
     setThreadId(undefined);
     setMessages([]);
-  }, [threadError, threadId]);
+  }, [persistActiveThreadId, threadError, threadId]);
 
   useEffect(() => {
     writeStreamBackup(threadId, messages);
@@ -329,7 +362,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
               if (event.type === 'thread') {
                 activeThreadId = event.threadId;
                 setThreadId(event.threadId);
-                writeActiveThreadId(event.threadId);
+                persistActiveThreadId(event.threadId);
               }
 
               if (event.type === 'status') {
@@ -395,7 +428,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
               if (event.type === 'done') {
                 activeThreadId = event.response.threadId;
                 setThreadId(event.response.threadId);
-                writeActiveThreadId(event.response.threadId);
+                persistActiveThreadId(event.response.threadId);
                 setMessages((current) =>
                   current.map((message) =>
                     message.id === assistantId
@@ -431,7 +464,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
         );
 
         if (activeThreadId) {
-          writeActiveThreadId(activeThreadId);
+          persistActiveThreadId(activeThreadId);
           dispatch(
             agentThreadApi.util.invalidateTags([
               { type: 'AgentThread', id: activeThreadId },
@@ -487,6 +520,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
       dispatch,
       loading,
       onMutated,
+      persistActiveThreadId,
       scope,
       threadId,
     ],
@@ -500,11 +534,11 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     suppressQueryHydrateRef.current = false;
     appliedBackupThreadRef.current = null;
     setThreadId(undefined);
-    writeActiveThreadId(undefined);
+    persistActiveThreadId(undefined);
     clearStreamBackup();
     setMessages([]);
     setError(null);
-  }, [loading]);
+  }, [loading, persistActiveThreadId]);
 
   const handleSelectThread = useCallback(
     (nextThreadId: string) => {
@@ -515,12 +549,12 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
       suppressQueryHydrateRef.current = false;
       appliedBackupThreadRef.current = null;
       setThreadId(nextThreadId);
-      writeActiveThreadId(nextThreadId);
+      persistActiveThreadId(nextThreadId);
       clearStreamBackup();
       setMessages([]);
       setError(null);
     },
-    [loading, threadId],
+    [loading, persistActiveThreadId, threadId],
   );
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -547,7 +581,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <AgentThreadHistoryMenu
-            threads={threadListData?.threads ?? []}
+            threads={visibleThreads}
             activeThreadId={threadId}
             isLoading={isThreadListLoading}
             disabled={loading}

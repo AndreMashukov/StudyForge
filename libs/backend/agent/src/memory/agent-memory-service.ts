@@ -78,7 +78,13 @@ function mapThread(
     preview: optionalString(data?.preview),
     createdAt: timestampToIso(data?.createdAt, fallbackIso),
     updatedAt: timestampToIso(data?.updatedAt, fallbackIso),
-    lastMessageAt: timestampToIso(data?.lastMessageAt, fallbackIso),
+    lastMessageAt: timestampToIso(
+      data?.lastMessageAt,
+      timestampToIso(
+        data?.updatedAt,
+        timestampToIso(data?.createdAt, fallbackIso),
+      ),
+    ),
   };
 }
 
@@ -93,6 +99,31 @@ function toThreadSummary(thread: IAgentThread): AgentThreadSummary {
     updatedAt: thread.updatedAt,
     lastMessageAt: thread.lastMessageAt,
   };
+}
+
+function recencyMillis(data: DocumentData | undefined): number {
+  const value = data?.lastMessageAt ?? data?.updatedAt ?? data?.createdAt;
+  if (value instanceof Timestamp) {
+    return value.toMillis();
+  }
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+}
+
+function timestampFromUnknown(value: unknown, fallback: Date): Timestamp {
+  if (value instanceof Timestamp) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) {
+      return Timestamp.fromMillis(parsed);
+    }
+  }
+  return Timestamp.fromDate(fallback);
 }
 
 function parseStoredPromptContext(
@@ -297,16 +328,41 @@ export class AgentThreadStore {
     userId: string,
     limit = THREAD_LIST_DEFAULT_LIMIT,
   ): Promise<AgentThreadSummary[]> {
-    const snapshot = await FirestorePaths.agentThreads(userId)
-      .orderBy('lastMessageAt', 'desc')
-      .limit(limit)
-      .get();
+    const collection = FirestorePaths.agentThreads(userId);
+    const snapshot = await collection.get();
+    const now = new Date();
+    const nowIso = now.toISOString();
 
-    const nowIso = new Date().toISOString();
-    return snapshot.docs
-      .map((doc) => mapThread(doc.id, doc.data(), userId, nowIso))
-      .filter((thread) => thread.userId === userId)
-      .map(toThreadSummary);
+    const ranked = snapshot.docs
+      .map((doc) => {
+        const data = doc.data();
+        return {
+          doc,
+          data,
+          thread: mapThread(doc.id, data, userId, nowIso),
+          recency: recencyMillis(data),
+        };
+      })
+      .filter((entry) => entry.thread.userId === userId)
+      .sort((left, right) => right.recency - left.recency);
+
+    const missingLastMessageAt = ranked
+      .filter((entry) => entry.data.lastMessageAt === undefined)
+      .slice(0, 500);
+    if (missingLastMessageAt.length > 0) {
+      const batch = collection.firestore.batch();
+      for (const entry of missingLastMessageAt) {
+        batch.update(entry.doc.ref, {
+          lastMessageAt: timestampFromUnknown(
+            entry.data.updatedAt ?? entry.data.createdAt,
+            now,
+          ),
+        });
+      }
+      await batch.commit();
+    }
+
+    return ranked.slice(0, limit).map((entry) => toThreadSummary(entry.thread));
   }
 
   static async appendMessage(input: {

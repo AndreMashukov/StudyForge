@@ -1,20 +1,26 @@
 import { baseApi } from '../baseApi';
-import {
-  IGetAgentThreadRequest,
-  IGetAgentThreadResponse,
-  IListAgentThreadsRequest,
-  IListAgentThreadsResponse,
-} from './IAgentThreadApi';
+import type {
+  GetAgentThreadRequest,
+  GetAgentThreadResponse,
+  ListAgentThreadsRequest,
+  ListAgentThreadsResponse,
+} from '@shared-types';
 
 export const agentThreadApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getAgentThread: builder.query<
-      IGetAgentThreadResponse,
-      IGetAgentThreadRequest
+      GetAgentThreadResponse,
+      GetAgentThreadRequest
     >({
       query: (data) => ({
         functionName: 'getAgentThread',
         data,
+      }),
+      transformResponse: (
+        response: GetAgentThreadResponse & { success?: boolean },
+      ): GetAgentThreadResponse => ({
+        thread: response.thread,
+        messages: response.messages,
       }),
       providesTags: (_result, _error, arg) => [
         { type: 'AgentThread', id: arg.threadId },
@@ -22,12 +28,17 @@ export const agentThreadApi = baseApi.injectEndpoints({
     }),
 
     listAgentThreads: builder.query<
-      IListAgentThreadsResponse,
-      IListAgentThreadsRequest
+      ListAgentThreadsResponse,
+      ListAgentThreadsRequest
     >({
       query: (data) => ({
         functionName: 'listAgentThreads',
         data,
+      }),
+      transformResponse: (
+        response: ListAgentThreadsResponse & { success?: boolean },
+      ): ListAgentThreadsResponse => ({
+        threads: response.threads,
       }),
       providesTags: (result) =>
         result

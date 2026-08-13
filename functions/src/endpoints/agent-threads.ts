@@ -14,7 +14,7 @@ export const getAgentThread = onCall(
     region: 'asia-east1',
     cors: true,
   },
-  async (request): Promise<GetAgentThreadResponse> => {
+  async (request): Promise<GetAgentThreadResponse & { success: boolean }> => {
     try {
       const userId = validateAuth(request);
       const parsed = getAgentThreadRequestSchema.safeParse(request.data);
@@ -30,17 +30,14 @@ export const getAgentThread = onCall(
         throw new HttpsError('not-found', 'Agent thread not found');
       }
 
-      return result;
+      return { success: true, ...result };
     } catch (error) {
       logger.error('Failed to get agent thread', {
         error: error instanceof Error ? error.message : String(error),
       });
 
       if (error instanceof HttpsError) throw error;
-      throw new HttpsError(
-        'internal',
-        error instanceof Error ? error.message : 'Unknown error',
-      );
+      throw new HttpsError('internal', 'Failed to get agent thread');
     }
   },
 );
@@ -50,7 +47,7 @@ export const listAgentThreads = onCall(
     region: 'asia-east1',
     cors: true,
   },
-  async (request): Promise<ListAgentThreadsResponse> => {
+  async (request): Promise<ListAgentThreadsResponse & { success: boolean }> => {
     try {
       const userId = validateAuth(request);
       const parsed = listAgentThreadsRequestSchema.safeParse(
@@ -64,17 +61,14 @@ export const listAgentThreads = onCall(
         userId,
         parsed.data.limit,
       );
-      return { threads };
+      return { success: true, threads };
     } catch (error) {
       logger.error('Failed to list agent threads', {
         error: error instanceof Error ? error.message : String(error),
       });
 
       if (error instanceof HttpsError) throw error;
-      throw new HttpsError(
-        'internal',
-        error instanceof Error ? error.message : 'Unknown error',
-      );
+      throw new HttpsError('internal', 'Failed to list agent threads');
     }
   },
 );
