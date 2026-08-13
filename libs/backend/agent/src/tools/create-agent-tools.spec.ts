@@ -48,6 +48,12 @@ vi.mock('@study-forge/backend-core/lib/firestore-paths', () => ({
   },
 }));
 
+vi.mock('@study-forge/backend-core/services/statistics', () => ({
+  getStatisticsOverview: vi.fn(),
+  getStatisticsQuizPerformance: vi.fn(),
+  getStatisticsQuizDetail: vi.fn(),
+}));
+
 vi.mock('../knowledge/agent-knowledge-index-service', () => ({
   AgentKnowledgeIndexService: {
     searchKnowledge: vi.fn(),
@@ -80,7 +86,7 @@ import {
 } from './create-agent-tools';
 
 function createContext(
-  overrides: Partial<AgentToolRuntimeContext> = {}
+  overrides: Partial<AgentToolRuntimeContext> = {},
 ): AgentToolRuntimeContext {
   return {
     userId: 'user-1',
@@ -123,8 +129,14 @@ describe('createAgentToolDefinitions rule tools', () => {
       ruleId: 'rule-1',
     });
 
-    expect(attachRuleToDirectory).toHaveBeenCalledWith('user-1', 'rule-1', 'dir-1');
-    expect(context.executedActions[0]?.summary).toBe('Attached rule to /Python');
+    expect(attachRuleToDirectory).toHaveBeenCalledWith(
+      'user-1',
+      'rule-1',
+      'dir-1',
+    );
+    expect(context.executedActions[0]?.summary).toBe(
+      'Attached rule to /Python',
+    );
   });
 
   it('calls detachRuleFromDirectory with ruleId before directoryId', async () => {
@@ -136,7 +148,11 @@ describe('createAgentToolDefinitions rule tools', () => {
       ruleId: 'rule-1',
     });
 
-    expect(detachRuleFromDirectory).toHaveBeenCalledWith('user-1', 'rule-1', 'dir-1');
+    expect(detachRuleFromDirectory).toHaveBeenCalledWith(
+      'user-1',
+      'rule-1',
+      'dir-1',
+    );
   });
 
   it('updates rule applicableTo to slide_deck', async () => {
@@ -166,7 +182,7 @@ describe('createAgentToolDefinitions rule tools', () => {
     });
     expect(AgentKnowledgeLifecycle.indexRule).toHaveBeenCalledWith(
       'user-1',
-      'brvpfEU3yMK3nBvGOq1Z'
+      'brvpfEU3yMK3nBvGOq1Z',
     );
     expect(result).toMatchObject({ applicableTo: ['slide_deck'] });
   });
@@ -273,7 +289,7 @@ describe('createAgentToolDefinitions create_directory', () => {
       description: undefined,
     });
     expect(context.executedActions[0]?.summary).toBe(
-      'Created directory "Python" at /Python'
+      'Created directory "Python" at /Python',
     );
   });
 
@@ -377,7 +393,7 @@ describe('createAgentToolDefinitions get_document_content', () => {
 
     expect(DocumentCrudService.getDocumentWithContent).toHaveBeenCalledWith(
       'user-1',
-      'doc-1'
+      'doc-1',
     );
     expect(result).toMatchObject({
       id: 'doc-1',
@@ -415,13 +431,13 @@ describe('createAgentToolDefinitions get_document_content', () => {
           directoryId: 'dir-1',
           label: 'Current Doc',
         },
-      })
+      }),
     );
     const result = await executeAgentTool(tools, 'get_document_content', {});
 
     expect(DocumentCrudService.getDocumentWithContent).toHaveBeenCalledWith(
       'user-1',
-      'doc-ui'
+      'doc-ui',
     );
     expect(result).toMatchObject({
       id: 'doc-ui',
@@ -431,16 +447,16 @@ describe('createAgentToolDefinitions get_document_content', () => {
 
   it('rejects missing documentId without document UI context', async () => {
     const tools = createAgentToolDefinitions(createContext());
-    await expect(executeAgentTool(tools, 'get_document_content', {})).rejects.toThrow(
-      /documentId is required/
-    );
+    await expect(
+      executeAgentTool(tools, 'get_document_content', {}),
+    ).rejects.toThrow(/documentId is required/);
   });
 });
 
 describe('toAgentReadableDocumentContent', () => {
   it('strips html tags', () => {
-    expect(toAgentReadableDocumentContent('<p>Hello <b>world</b></p>', 'html')).toBe(
-      'Hello world'
-    );
+    expect(
+      toAgentReadableDocumentContent('<p>Hello <b>world</b></p>', 'html'),
+    ).toBe('Hello world');
   });
 });

@@ -25,7 +25,9 @@ import {
 
 const MAX_DIRECTORY_IDS = 200;
 
-function describePromptContext(promptContext?: AgentPromptContext): string | undefined {
+function describePromptContext(
+  promptContext?: AgentPromptContext,
+): string | undefined {
   if (!promptContext) {
     return undefined;
   }
@@ -54,7 +56,7 @@ function describePromptContext(promptContext?: AgentPromptContext): string | und
 
 function formatUserMessageForModel(
   content: string,
-  promptContext?: AgentPromptContext
+  promptContext?: AgentPromptContext,
 ): string {
   const description = describePromptContext(promptContext);
   if (!description) {
@@ -90,7 +92,10 @@ function collectDirectoryIds(nodes: DirectoryTreeNode[]): string[] {
   return ids;
 }
 
-function collectDescendantIds(nodes: DirectoryTreeNode[], rootId: string): string[] {
+function collectDescendantIds(
+  nodes: DirectoryTreeNode[],
+  rootId: string,
+): string[] {
   const ids: string[] = [];
 
   const walk = (node: DirectoryTreeNode): void => {
@@ -133,7 +138,10 @@ async function resolveDirectoryIds(input: {
     if (!input.directoryId) {
       throw new Error('directoryId is required for directory scope');
     }
-    return collectDescendantIds(treeResponse.tree, input.directoryId).slice(0, MAX_DIRECTORY_IDS);
+    return collectDescendantIds(treeResponse.tree, input.directoryId).slice(
+      0,
+      MAX_DIRECTORY_IDS,
+    );
   }
 
   return collectDirectoryIds(treeResponse.tree).slice(0, MAX_DIRECTORY_IDS);
@@ -141,7 +149,7 @@ async function resolveDirectoryIds(input: {
 
 async function loadCurrentDocumentBodyBlock(
   userId: string,
-  promptContext?: AgentPromptContext
+  promptContext?: AgentPromptContext,
 ): Promise<string | undefined> {
   if (!promptContext || promptContext.type !== 'document') {
     return undefined;
@@ -150,11 +158,11 @@ async function loadCurrentDocumentBodyBlock(
   try {
     const document = await DocumentCrudService.getDocumentWithContent(
       userId,
-      promptContext.documentId
+      promptContext.documentId,
     );
     const readable = toAgentReadableDocumentContent(
       document.content,
-      document.contentFormat
+      document.contentFormat,
     );
     const body =
       readable.length > AGENT_DOCUMENT_CONTENT_MAX_CHARS
@@ -178,7 +186,7 @@ async function loadCurrentDocumentBodyBlock(
 
 async function loadCurrentRuleBodyBlock(
   userId: string,
-  promptContext?: AgentPromptContext
+  promptContext?: AgentPromptContext,
 ): Promise<string | undefined> {
   if (!promptContext || promptContext.type !== 'rule') {
     return undefined;
@@ -239,6 +247,7 @@ function buildSystemPrompt(input: {
     'When you create directories or rules, state the full path from tool results (for example /Python/Screenshots).',
     'In workspace scope, omit parentId on create_directory to create at the workspace root; pass parentId to nest under an existing directory.',
     'When the user asks where something is or whether work completed, verify with list_directories / list_rules / list_documents and answer from those results.',
+    'When the user asks about quiz performance, scores, accuracy, or right vs wrong answers, use get_quiz_statistics and get_quiz_answer_details. Those tools cover quizzes, diagram quizzes, and sequence quizzes.',
     'Never perform destructive deletes directly. Use propose_delete_* tools and wait for user confirmation.',
     'Directory names cannot contain / \\ : * ? " < > |. Use hyphens instead of slashes (for example, "AI-ML" not "AI/ML").',
     'When creating documents, write HTML body content (h1, p, ul, li). New documents are stored as HTML, not markdown.',
@@ -260,7 +269,7 @@ function sleep(ms: number): Promise<void> {
 export class DirectoryAgentService {
   static async *streamMessage(
     userId: string,
-    request: AgentMessageInput
+    request: AgentMessageInput,
   ): AsyncGenerator<AgentMessageStreamEvent> {
     const directoryIds = await resolveDirectoryIds({
       userId,
@@ -287,7 +296,12 @@ export class DirectoryAgentService {
 
     yield { type: 'thread', threadId: thread.id };
 
-    const [memorySnippets, history, currentDocumentBodyBlock, currentRuleBodyBlock] = await Promise.all([
+    const [
+      memorySnippets,
+      history,
+      currentDocumentBodyBlock,
+      currentRuleBodyBlock,
+    ] = await Promise.all([
       AgentMemoryService.retrieveRelevantMemories(userId, request.message),
       AgentThreadStore.listRecentMessages(userId, thread.id, 12),
       loadCurrentDocumentBodyBlock(userId, request.promptContext),
@@ -320,9 +334,14 @@ export class DirectoryAgentService {
     const runPromise = AgentChatRunner.run({
       userId,
       systemPrompt,
-      userMessage: formatUserMessageForModel(request.message, request.promptContext),
+      userMessage: formatUserMessageForModel(
+        request.message,
+        request.promptContext,
+      ),
       history: history
-        .filter((message) => message.role === 'user' || message.role === 'assistant')
+        .filter(
+          (message) => message.role === 'user' || message.role === 'assistant',
+        )
         .map((message) => historyMessageForModel(message)),
       tools,
       onEvent: (event) => {
@@ -335,7 +354,8 @@ export class DirectoryAgentService {
         reply = result;
       })
       .catch((error: unknown) => {
-        runError = error instanceof Error ? error.message : 'Agent execution failed';
+        runError =
+          error instanceof Error ? error.message : 'Agent execution failed';
       })
       .finally(() => {
         runComplete = true;

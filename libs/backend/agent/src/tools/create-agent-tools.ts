@@ -6,7 +6,11 @@ import type {
   AgentScope,
   UpdateRuleRequest,
 } from '@shared-types';
-import { DocumentSourceType, RuleApplicability, RuleColor } from '@shared-types';
+import {
+  DocumentSourceType,
+  RuleApplicability,
+  RuleColor,
+} from '@shared-types';
 import { directoryService } from '@study-forge/backend-directories/directory';
 import {
   attachRuleToDirectory,
@@ -37,6 +41,7 @@ import {
   RULE_APPLICABILITY_ENUM,
   RULE_COLOR_ENUM,
 } from './rule-tool-args';
+import { createQuizStatisticsToolDefinitions } from './quiz-statistics-tools';
 
 /** Soft cap so tool results stay within model context. */
 export const AGENT_DOCUMENT_CONTENT_MAX_CHARS = 60_000;
@@ -58,11 +63,17 @@ export interface AgentToolDefinition {
   execute: (args: Record<string, unknown>) => Promise<unknown>;
 }
 
-function pushAction(context: AgentToolRuntimeContext, action: AgentActionResult): void {
+function pushAction(
+  context: AgentToolRuntimeContext,
+  action: AgentActionResult,
+): void {
   context.executedActions.push(action);
 }
 
-function assertDirectoryInScope(context: AgentToolRuntimeContext, directoryId: string): void {
+function assertDirectoryInScope(
+  context: AgentToolRuntimeContext,
+  directoryId: string,
+): void {
   if (context.scope === 'workspace') {
     return;
   }
@@ -71,27 +82,40 @@ function assertDirectoryInScope(context: AgentToolRuntimeContext, directoryId: s
   }
 }
 
-async function resolveDefaultDirectoryId(context: AgentToolRuntimeContext): Promise<string | undefined> {
-  if (context.directoryId && context.directoryIds.includes(context.directoryId)) {
+async function resolveDefaultDirectoryId(
+  context: AgentToolRuntimeContext,
+): Promise<string | undefined> {
+  if (
+    context.directoryId &&
+    context.directoryIds.includes(context.directoryId)
+  ) {
     return context.directoryId;
   }
   if (context.promptContext?.type === 'directory') {
     return context.promptContext.directoryId;
   }
-  if (context.promptContext?.type === 'document' && context.promptContext.directoryId) {
+  if (
+    context.promptContext?.type === 'document' &&
+    context.promptContext.directoryId
+  ) {
     return context.promptContext.directoryId;
   }
   return context.directoryIds[0];
 }
 
-function resolveDefaultDocumentId(context: AgentToolRuntimeContext): string | undefined {
+function resolveDefaultDocumentId(
+  context: AgentToolRuntimeContext,
+): string | undefined {
   if (context.promptContext?.type === 'document') {
     return context.promptContext.documentId;
   }
   return undefined;
 }
 
-function truncateAgentText(text: string, maxChars = AGENT_DOCUMENT_CONTENT_MAX_CHARS): {
+function truncateAgentText(
+  text: string,
+  maxChars = AGENT_DOCUMENT_CONTENT_MAX_CHARS,
+): {
   text: string;
   truncated: boolean;
   contentLength: number;
@@ -106,7 +130,10 @@ function truncateAgentText(text: string, maxChars = AGENT_DOCUMENT_CONTENT_MAX_C
   };
 }
 
-export function toAgentReadableDocumentContent(content: string, contentFormat: string): string {
+export function toAgentReadableDocumentContent(
+  content: string,
+  contentFormat: string,
+): string {
   if (contentFormat === 'html' || content.includes('<')) {
     return stripHtmlToText(content);
   }
@@ -119,7 +146,7 @@ export function toAgentReadableDocumentContent(content: string, contentFormat: s
  */
 function resolveCreateDirectoryParentId(
   context: AgentToolRuntimeContext,
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
 ): string | undefined {
   if (typeof args.parentId === 'string' && args.parentId.trim().length > 0) {
     const parentId = args.parentId.trim();
@@ -128,7 +155,10 @@ function resolveCreateDirectoryParentId(
   }
 
   if (context.scope === 'directory') {
-    if (context.directoryId && context.directoryIds.includes(context.directoryId)) {
+    if (
+      context.directoryId &&
+      context.directoryIds.includes(context.directoryId)
+    ) {
       return context.directoryId;
     }
     return context.directoryIds[0];
@@ -148,7 +178,7 @@ function sanitizeDirectoryName(name: string): string {
 
 async function prepareAgentDocumentContent(
   title: string,
-  text: string
+  text: string,
 ): Promise<{ content: string; contentFormat: 'html' }> {
   try {
     const prepared = await prepareHtmlDocumentForStorage(text, title);
@@ -161,12 +191,13 @@ async function prepareAgentDocumentContent(
 }
 
 export function createAgentToolDefinitions(
-  context: AgentToolRuntimeContext
+  context: AgentToolRuntimeContext,
 ): AgentToolDefinition[] {
   return [
     {
       name: 'search_knowledge',
-      description: 'Search indexed StudyForge knowledge using semantic retrieval.',
+      description:
+        'Search indexed StudyForge knowledge using semantic retrieval.',
       parameters: {
         type: 'object',
         properties: {
@@ -198,8 +229,8 @@ export function createAgentToolDefinitions(
       execute: async () => {
         const directories = await Promise.all(
           context.directoryIds.map((directoryId) =>
-            directoryService.getDirectory(context.userId, directoryId)
-          )
+            directoryService.getDirectory(context.userId, directoryId),
+          ),
         );
         return directories.filter(Boolean);
       },
@@ -216,7 +247,8 @@ export function createAgentToolDefinitions(
       },
       execute: async (args) => {
         const requestedDirectoryId =
-          typeof args.directoryId === 'string' && args.directoryId.trim().length > 0
+          typeof args.directoryId === 'string' &&
+          args.directoryId.trim().length > 0
             ? args.directoryId.trim()
             : undefined;
         const targetDirectoryIds = requestedDirectoryId
@@ -231,8 +263,8 @@ export function createAgentToolDefinitions(
           targetDirectoryIds.map((directoryId) =>
             FirestorePaths.documents(context.userId)
               .where('directoryId', '==', directoryId)
-              .get()
-          )
+              .get(),
+          ),
         );
         return snapshots.flatMap((snapshot) =>
           snapshot.docs.map((doc) => {
@@ -241,12 +273,20 @@ export function createAgentToolDefinitions(
               id: doc.id,
               title: typeof data.title === 'string' ? data.title : '',
               directoryId:
-                typeof data.directoryId === 'string' ? data.directoryId : undefined,
-              description: typeof data.description === 'string' ? data.description : undefined,
-              sourceType: typeof data.sourceType === 'string' ? data.sourceType : undefined,
+                typeof data.directoryId === 'string'
+                  ? data.directoryId
+                  : undefined,
+              description:
+                typeof data.description === 'string'
+                  ? data.description
+                  : undefined,
+              sourceType:
+                typeof data.sourceType === 'string'
+                  ? data.sourceType
+                  : undefined,
               updatedAt: data.updatedAt ?? undefined,
             };
-          })
+          }),
         );
       },
     },
@@ -262,16 +302,19 @@ export function createAgentToolDefinitions(
       },
       execute: async (args) => {
         const documentId =
-          typeof args.documentId === 'string' && args.documentId.trim().length > 0
+          typeof args.documentId === 'string' &&
+          args.documentId.trim().length > 0
             ? args.documentId.trim()
             : resolveDefaultDocumentId(context);
         if (!documentId) {
-          throw new Error('documentId is required when no document UI context is active');
+          throw new Error(
+            'documentId is required when no document UI context is active',
+          );
         }
 
         const document = await DocumentCrudService.getDocumentWithContent(
           context.userId,
-          documentId
+          documentId,
         );
         if (!document.directoryId) {
           throw new Error('Document is missing a directoryId');
@@ -280,7 +323,7 @@ export function createAgentToolDefinitions(
 
         const readable = toAgentReadableDocumentContent(
           document.content,
-          document.contentFormat
+          document.contentFormat,
         );
         const truncated = truncateAgentText(readable);
 
@@ -307,14 +350,19 @@ export function createAgentToolDefinitions(
             return {
               id: doc.id,
               directoryId:
-                typeof data.directoryId === 'string' ? data.directoryId : undefined,
+                typeof data.directoryId === 'string'
+                  ? data.directoryId
+                  : undefined,
             };
           })
           .filter((quiz) =>
-            quiz.directoryId ? context.directoryIds.includes(quiz.directoryId) : true
+            quiz.directoryId
+              ? context.directoryIds.includes(quiz.directoryId)
+              : true,
           );
       },
     },
+    ...createQuizStatisticsToolDefinitions(context),
     {
       name: 'list_rules',
       description: 'List user rules.',
@@ -341,12 +389,21 @@ export function createAgentToolDefinitions(
           throw new Error('name is required');
         }
         const parentId = resolveCreateDirectoryParentId(context, args);
-        const directory = await directoryService.createDirectory(context.userId, {
-          name,
-          parentId: parentId ?? undefined,
-          description: typeof args.description === 'string' ? args.description : undefined,
-        });
-        await AgentKnowledgeLifecycle.indexDirectory(context.userId, directory.id);
+        const directory = await directoryService.createDirectory(
+          context.userId,
+          {
+            name,
+            parentId: parentId ?? undefined,
+            description:
+              typeof args.description === 'string'
+                ? args.description
+                : undefined,
+          },
+        );
+        await AgentKnowledgeLifecycle.indexDirectory(
+          context.userId,
+          directory.id,
+        );
         pushAction(context, {
           kind: 'create_directory',
           summary: `Created directory "${directory.name}" at ${directory.path}`,
@@ -380,15 +437,24 @@ export function createAgentToolDefinitions(
           throw new Error('title, text, and directoryId are required');
         }
         assertDirectoryInScope(context, directoryId);
-        const { content, contentFormat } = await prepareAgentDocumentContent(title, text);
-        const document = await DocumentCrudService.createDocument(context.userId, {
+        const { content, contentFormat } = await prepareAgentDocumentContent(
           title,
-          content,
-          contentFormat,
-          directoryId,
-          sourceType: DocumentSourceType.GENERATED,
-        });
-        await AgentKnowledgeLifecycle.indexDocument(context.userId, document.id);
+          text,
+        );
+        const document = await DocumentCrudService.createDocument(
+          context.userId,
+          {
+            title,
+            content,
+            contentFormat,
+            directoryId,
+            sourceType: DocumentSourceType.GENERATED,
+          },
+        );
+        await AgentKnowledgeLifecycle.indexDocument(
+          context.userId,
+          document.id,
+        );
         pushAction(context, {
           kind: 'create_document',
           summary: `Created document "${document.title}"`,
@@ -411,11 +477,15 @@ export function createAgentToolDefinitions(
         required: ['documentId'],
       },
       execute: async (args) => {
-        const documentId = typeof args.documentId === 'string' ? args.documentId : '';
+        const documentId =
+          typeof args.documentId === 'string' ? args.documentId : '';
         if (!documentId) {
           throw new Error('documentId is required');
         }
-        const document = await DocumentCrudService.getDocument(context.userId, documentId);
+        const document = await DocumentCrudService.getDocument(
+          context.userId,
+          documentId,
+        );
         if (!document?.directoryId) {
           throw new Error('Document not found');
         }
@@ -426,7 +496,10 @@ export function createAgentToolDefinitions(
           documentId,
           documentIds: [documentId],
           documentTitle: document.title,
-          title: typeof args.title === 'string' ? args.title : `${document.title} Quiz`,
+          title:
+            typeof args.title === 'string'
+              ? args.title
+              : `${document.title} Quiz`,
         });
         const jobId = await enqueueGenerationJob({
           userId: context.userId,
@@ -435,9 +508,14 @@ export function createAgentToolDefinitions(
           kind: 'quiz',
           payload: {
             documentIds: [documentId],
-            title: typeof args.title === 'string' ? args.title : `${document.title} Quiz`,
+            title:
+              typeof args.title === 'string'
+                ? args.title
+                : `${document.title} Quiz`,
             questionCount:
-              typeof args.questionCount === 'number' ? Math.min(args.questionCount, 20) : 10,
+              typeof args.questionCount === 'number'
+                ? Math.min(args.questionCount, 20)
+                : 10,
           },
         });
         pushAction(context, {
@@ -472,7 +550,8 @@ export function createAgentToolDefinitions(
       },
       execute: async (args) => {
         const name = typeof args.name === 'string' ? args.name.trim() : '';
-        const content = typeof args.content === 'string' ? args.content.trim() : '';
+        const content =
+          typeof args.content === 'string' ? args.content.trim() : '';
         if (!name || !content) {
           throw new Error('name and content are required');
         }
@@ -485,9 +564,12 @@ export function createAgentToolDefinitions(
         const rule = await createRule(context.userId, {
           name,
           content,
-          description: typeof args.description === 'string' ? args.description : '',
+          description:
+            typeof args.description === 'string' ? args.description : '',
           color:
-            args.color === undefined ? RuleColor.PURPLE : parseOptionalRuleColor(args.color) ?? RuleColor.PURPLE,
+            args.color === undefined
+              ? RuleColor.PURPLE
+              : (parseOptionalRuleColor(args.color) ?? RuleColor.PURPLE),
           tags: args.tags === undefined ? [] : parseStringArray(args.tags),
           applicableTo,
           isDefault: parseOptionalBoolean(args.isDefault) ?? false,
@@ -524,7 +606,8 @@ export function createAgentToolDefinitions(
         required: ['ruleId'],
       },
       execute: async (args) => {
-        const ruleId = typeof args.ruleId === 'string' ? args.ruleId.trim() : '';
+        const ruleId =
+          typeof args.ruleId === 'string' ? args.ruleId.trim() : '';
         if (!ruleId) {
           throw new Error('ruleId is required');
         }
@@ -544,7 +627,10 @@ export function createAgentToolDefinitions(
           updateRequest.description = args.description;
         }
         if (args.content !== undefined) {
-          if (typeof args.content !== 'string' || args.content.trim().length === 0) {
+          if (
+            typeof args.content !== 'string' ||
+            args.content.trim().length === 0
+          ) {
             throw new Error('content must be a non-empty string');
           }
           updateRequest.content = args.content;
@@ -556,7 +642,9 @@ export function createAgentToolDefinitions(
           updateRequest.tags = parseStringArray(args.tags);
         }
         if (args.applicableTo !== undefined) {
-          updateRequest.applicableTo = parseOptionalRuleApplicabilityArray(args.applicableTo);
+          updateRequest.applicableTo = parseOptionalRuleApplicabilityArray(
+            args.applicableTo,
+          );
         }
         if (args.isDefault !== undefined) {
           updateRequest.isDefault = parseOptionalBoolean(args.isDefault);
@@ -598,14 +686,18 @@ export function createAgentToolDefinitions(
         required: ['directoryId', 'ruleId'],
       },
       execute: async (args) => {
-        const directoryId = typeof args.directoryId === 'string' ? args.directoryId : '';
+        const directoryId =
+          typeof args.directoryId === 'string' ? args.directoryId : '';
         const ruleId = typeof args.ruleId === 'string' ? args.ruleId : '';
         if (!directoryId || !ruleId) {
           throw new Error('directoryId and ruleId are required');
         }
         assertDirectoryInScope(context, directoryId);
         await attachRuleToDirectory(context.userId, ruleId, directoryId);
-        const directory = await directoryService.getDirectory(context.userId, directoryId);
+        const directory = await directoryService.getDirectory(
+          context.userId,
+          directoryId,
+        );
         const directoryLabel = directory?.path ?? directoryId;
         pushAction(context, {
           kind: 'attach_rule',
@@ -628,7 +720,8 @@ export function createAgentToolDefinitions(
         required: ['directoryId', 'ruleId'],
       },
       execute: async (args) => {
-        const directoryId = typeof args.directoryId === 'string' ? args.directoryId : '';
+        const directoryId =
+          typeof args.directoryId === 'string' ? args.directoryId : '';
         const ruleId = typeof args.ruleId === 'string' ? args.ruleId : '';
         if (!directoryId || !ruleId) {
           throw new Error('directoryId and ruleId are required');
@@ -656,7 +749,8 @@ export function createAgentToolDefinitions(
         required: ['ruleId'],
       },
       execute: async (args) => {
-        const ruleId = typeof args.ruleId === 'string' ? args.ruleId.trim() : '';
+        const ruleId =
+          typeof args.ruleId === 'string' ? args.ruleId.trim() : '';
         if (!ruleId) {
           throw new Error('ruleId is required');
         }
@@ -687,8 +781,12 @@ export function createAgentToolDefinitions(
         required: ['directoryId'],
       },
       execute: async (args) => {
-        const directoryId = typeof args.directoryId === 'string' ? args.directoryId : '';
-        const directory = await directoryService.getDirectory(context.userId, directoryId);
+        const directoryId =
+          typeof args.directoryId === 'string' ? args.directoryId : '';
+        const directory = await directoryService.getDirectory(
+          context.userId,
+          directoryId,
+        );
         if (!directory) {
           throw new Error('Directory not found');
         }
@@ -703,7 +801,8 @@ export function createAgentToolDefinitions(
     },
     {
       name: 'propose_delete_documents',
-      description: 'Propose deleting one or more documents for user confirmation.',
+      description:
+        'Propose deleting one or more documents for user confirmation.',
       parameters: {
         type: 'object',
         properties: {
@@ -714,10 +813,15 @@ export function createAgentToolDefinitions(
       },
       execute: async (args) => {
         const documentIds = Array.isArray(args.documentIds)
-          ? args.documentIds.filter((value): value is string => typeof value === 'string')
+          ? args.documentIds.filter(
+              (value): value is string => typeof value === 'string',
+            )
           : [];
         for (const documentId of documentIds) {
-          const document = await DocumentCrudService.getDocument(context.userId, documentId);
+          const document = await DocumentCrudService.getDocument(
+            context.userId,
+            documentId,
+          );
           if (!document) {
             continue;
           }
@@ -735,8 +839,15 @@ export function createAgentToolDefinitions(
 }
 
 export function toolDefinitionsToOpenAiTools(
-  tools: AgentToolDefinition[]
-): Array<{ type: 'function'; function: { name: string; description: string; parameters: Record<string, unknown> } }> {
+  tools: AgentToolDefinition[],
+): Array<{
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}> {
   return tools.map((tool) => ({
     type: 'function' as const,
     function: {
@@ -750,7 +861,7 @@ export function toolDefinitionsToOpenAiTools(
 export async function executeAgentTool(
   tools: AgentToolDefinition[],
   toolName: string,
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
 ): Promise<unknown> {
   const tool = tools.find((entry) => entry.name === toolName);
   if (!tool) {
@@ -759,7 +870,9 @@ export async function executeAgentTool(
   return tool.execute(args);
 }
 
-export function actionKindFromToolName(toolName: string): AgentActionKind | undefined {
+export function actionKindFromToolName(
+  toolName: string,
+): AgentActionKind | undefined {
   const mapping: Record<string, AgentActionKind> = {
     search_knowledge: 'search_knowledge',
     create_directory: 'create_directory',

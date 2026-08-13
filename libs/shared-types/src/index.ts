@@ -1722,9 +1722,19 @@ export interface GetStatisticsQuizDetailRequest
   quizType: QuizTelemetryType;
 }
 
+export interface StatisticsQuestionBreakdownItem {
+  questionIndex: number;
+  questionText: string;
+  answerCount: number;
+  correctCount: number;
+  incorrectCount: number;
+  accuracyPercentage: number;
+}
+
 export interface GetStatisticsQuizDetailResponse {
   quiz: StatisticsQuizPerformanceItem | null;
   attempts: StatisticsQuizDetailAttempt[];
+  questionBreakdown: StatisticsQuestionBreakdownItem[];
   failedQuestions: StatisticsRecentFailure[];
 }
 
@@ -2057,55 +2067,52 @@ export interface ILlmGenerationProfileMetadata {
   flows: string[];
 }
 
-export const LLM_GENERATION_PROFILE_METADATA: ILlmGenerationProfileMetadata[] = [
-  {
-    id: 'structuredArtifact',
-    label: 'Structured artifact',
-    description:
-      'JSON and structured outputs for quizzes, flashcards, and document generation.',
-    flows: [
-      'quiz',
-      'sequenceQuiz',
-      'diagramQuiz plan',
-      'flashcards',
-      'document agent/direct/repair',
-    ],
-  },
-  {
-    id: 'explanatoryChat',
-    label: 'Explanatory chat',
-    description: 'Follow-ups, document Q&A, and directory chat answers.',
-    flows: ['quizFollowup', 'documentQuestion', 'directoryChat'],
-  },
-  {
-    id: 'longformContent',
-    label: 'Longform content',
-    description:
-      'One-shot documents, slide outlines, and vision screenshot generation.',
-    flows: [
-      'documentFromPrompt',
-      'documentFromScreenshot',
-      'slideDeckText',
-    ],
-  },
-  {
-    id: 'faithfulEdit',
-    label: 'Faithful edit',
-    description: 'Document revisions and rule generation.',
-    flows: ['documentRevise', 'ruleGeneration'],
-  },
-  {
-    id: 'deterministicUtility',
-    label: 'Deterministic utility',
-    description:
-      'Extraction cleanup, critics, refinements, and diagram repair.',
-    flows: [
-      'sourceDocumentEnhancement',
-      'diagramQuizAgent',
-      'screenshot compliance/refine',
-    ],
-  },
-];
+export const LLM_GENERATION_PROFILE_METADATA: ILlmGenerationProfileMetadata[] =
+  [
+    {
+      id: 'structuredArtifact',
+      label: 'Structured artifact',
+      description:
+        'JSON and structured outputs for quizzes, flashcards, and document generation.',
+      flows: [
+        'quiz',
+        'sequenceQuiz',
+        'diagramQuiz plan',
+        'flashcards',
+        'document agent/direct/repair',
+      ],
+    },
+    {
+      id: 'explanatoryChat',
+      label: 'Explanatory chat',
+      description: 'Follow-ups, document Q&A, and directory chat answers.',
+      flows: ['quizFollowup', 'documentQuestion', 'directoryChat'],
+    },
+    {
+      id: 'longformContent',
+      label: 'Longform content',
+      description:
+        'One-shot documents, slide outlines, and vision screenshot generation.',
+      flows: ['documentFromPrompt', 'documentFromScreenshot', 'slideDeckText'],
+    },
+    {
+      id: 'faithfulEdit',
+      label: 'Faithful edit',
+      description: 'Document revisions and rule generation.',
+      flows: ['documentRevise', 'ruleGeneration'],
+    },
+    {
+      id: 'deterministicUtility',
+      label: 'Deterministic utility',
+      description:
+        'Extraction cleanup, critics, refinements, and diagram repair.',
+      flows: [
+        'sourceDocumentEnhancement',
+        'diagramQuizAgent',
+        'screenshot compliance/refine',
+      ],
+    },
+  ];
 
 export const DEFAULT_LLM_GENERATION_PROFILES: Record<
   LlmGenerationProfileId,
