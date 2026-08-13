@@ -209,6 +209,23 @@ service cloud.firestore {
       match /usageEvents/{eventId} {
         allow read, write: if false;
       }
+
+      // Workspace agent threads and memory: server-maintained via Cloud Functions.
+      match /agentThreads/{threadId} {
+        allow read, write: if false;
+
+        match /messages/{messageId} {
+          allow read, write: if false;
+        }
+      }
+
+      match /agentConversationMemories/{memoryId} {
+        allow read, write: if false;
+      }
+
+      match /agentKnowledgeChunks/{chunkId} {
+        allow read, write: if false;
+      }
     }
   }
 }

@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, type DocumentData } from 'firebase-admin/firestore';
 import type {
   AgentActionResult,
   AgentMessageInput,
@@ -7,6 +7,8 @@ import type {
   AgentPromptContext,
   AgentProposedDelete,
   AgentScope,
+  AgentThreadSummary,
+  GetAgentThreadResponse,
   IAgentThread,
   IAgentThreadMessage,
 } from '@shared-types';
@@ -17,8 +19,116 @@ import { cosineSimilarity } from '../knowledge/knowledge-chunk-utils';
 
 const MEMORY_MATCH_COUNT = 6;
 const MEMORY_MIN_SIMILARITY = 0.25;
+const THREAD_TITLE_MAX_CHARS = 80;
+const THREAD_PREVIEW_MAX_CHARS = 140;
+const THREAD_LIST_DEFAULT_LIMIT = 50;
+const THREAD_MESSAGES_MAX_RETURNED = 200;
+const FALLBACK_THREAD_TITLE = 'Conversation';
 
-function parseStoredPromptContext(value: unknown): AgentPromptContext | undefined {
+function collapseWhitespace(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+function truncateText(value: string, maxLength: number): string {
+  const collapsed = collapseWhitespace(value);
+  if (collapsed.length <= maxLength) {
+    return collapsed;
+  }
+  return `${collapsed.slice(0, Math.max(0, maxLength - 3))}...`;
+}
+
+export function deriveAgentThreadTitle(content: string): string {
+  const title = truncateText(content, THREAD_TITLE_MAX_CHARS);
+  return title.length > 0 ? title : FALLBACK_THREAD_TITLE;
+}
+
+export function deriveAgentThreadPreview(content: string): string | undefined {
+  const preview = truncateText(content, THREAD_PREVIEW_MAX_CHARS);
+  return preview.length > 0 ? preview : undefined;
+}
+
+function timestampToIso(value: unknown, fallback: string): string {
+  if (value instanceof Timestamp) {
+    return value.toDate().toISOString();
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value;
+  }
+  return fallback;
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0
+    ? value.trim()
+    : undefined;
+}
+
+function mapThread(
+  id: string,
+  data: DocumentData | undefined,
+  userId: string,
+  fallbackIso: string,
+): IAgentThread {
+  return {
+    id,
+    userId: optionalString(data?.userId) ?? userId,
+    scope: data?.scope === 'directory' ? 'directory' : 'workspace',
+    directoryId: optionalString(data?.directoryId),
+    title: optionalString(data?.title),
+    preview: optionalString(data?.preview),
+    createdAt: timestampToIso(data?.createdAt, fallbackIso),
+    updatedAt: timestampToIso(data?.updatedAt, fallbackIso),
+    lastMessageAt: timestampToIso(
+      data?.lastMessageAt,
+      timestampToIso(
+        data?.updatedAt,
+        timestampToIso(data?.createdAt, fallbackIso),
+      ),
+    ),
+  };
+}
+
+function toThreadSummary(thread: IAgentThread): AgentThreadSummary {
+  return {
+    id: thread.id,
+    title: thread.title ?? FALLBACK_THREAD_TITLE,
+    preview: thread.preview,
+    scope: thread.scope,
+    directoryId: thread.directoryId,
+    createdAt: thread.createdAt,
+    updatedAt: thread.updatedAt,
+    lastMessageAt: thread.lastMessageAt,
+  };
+}
+
+function recencyMillis(data: DocumentData | undefined): number {
+  const value = data?.lastMessageAt ?? data?.updatedAt ?? data?.createdAt;
+  if (value instanceof Timestamp) {
+    return value.toMillis();
+  }
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+}
+
+function timestampFromUnknown(value: unknown, fallback: Date): Timestamp {
+  if (value instanceof Timestamp) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) {
+      return Timestamp.fromMillis(parsed);
+    }
+  }
+  return Timestamp.fromDate(fallback);
+}
+
+function parseStoredPromptContext(
+  value: unknown,
+): AgentPromptContext | undefined {
   const parsed = agentPromptContextSchema.safeParse(value);
   return parsed.success ? parsed.data : undefined;
 }
@@ -29,7 +139,10 @@ export interface AgentMemorySnippet {
   score: number;
 }
 
-function extractMemoryCandidates(message: string, assistantReply: string): string[] {
+function extractMemoryCandidates(
+  message: string,
+  assistantReply: string,
+): string[] {
   const combined = `${message}\n${assistantReply}`;
   const patterns = [
     /remember(?:\s+that|\s+to|\s+my)?\s+(.{8,240})/gi,
@@ -56,19 +169,23 @@ function extractMemoryCandidates(message: string, assistantReply: string): strin
 export class AgentMemoryService {
   static async retrieveRelevantMemories(
     userId: string,
-    query: string
+    query: string,
   ): Promise<AgentMemorySnippet[]> {
     const queryEmbedding = await AgentEmbeddingService.embedText(userId, query);
-    const snapshot = await FirestorePaths.agentConversationMemories(userId).get();
+    const snapshot =
+      await FirestorePaths.agentConversationMemories(userId).get();
 
     return snapshot.docs
       .map((doc) => {
         const data = doc.data();
         const embedding = Array.isArray(data.embedding)
-          ? data.embedding.filter((value): value is number => typeof value === 'number')
+          ? data.embedding.filter(
+              (value): value is number => typeof value === 'number',
+            )
           : [];
         const content = typeof data.content === 'string' ? data.content : '';
-        const memoryType = typeof data.memoryType === 'string' ? data.memoryType : 'fact';
+        const memoryType =
+          typeof data.memoryType === 'string' ? data.memoryType : 'fact';
 
         return {
           content,
@@ -76,7 +193,10 @@ export class AgentMemoryService {
           score: cosineSimilarity(queryEmbedding, embedding),
         };
       })
-      .filter((entry) => entry.content.length > 0 && entry.score >= MEMORY_MIN_SIMILARITY)
+      .filter(
+        (entry) =>
+          entry.content.length > 0 && entry.score >= MEMORY_MIN_SIMILARITY,
+      )
       .sort((left, right) => right.score - left.score)
       .slice(0, MEMORY_MATCH_COUNT);
   }
@@ -87,12 +207,18 @@ export class AgentMemoryService {
     userMessage: string;
     assistantReply: string;
   }): Promise<void> {
-    const candidates = extractMemoryCandidates(input.userMessage, input.assistantReply);
+    const candidates = extractMemoryCandidates(
+      input.userMessage,
+      input.assistantReply,
+    );
     if (candidates.length === 0) {
       return;
     }
 
-    const embeddings = await AgentEmbeddingService.embedTexts(input.userId, candidates);
+    const embeddings = await AgentEmbeddingService.embedTexts(
+      input.userId,
+      candidates,
+    );
     const collection = FirestorePaths.agentConversationMemories(input.userId);
     const batch = collection.firestore.batch();
     const now = new Date().toISOString();
@@ -122,25 +248,26 @@ export class AgentThreadStore {
     scope: AgentScope;
     directoryId?: string;
   }): Promise<IAgentThread> {
-    const now = new Date().toISOString();
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const nowTimestamp = Timestamp.fromDate(now);
 
     if (input.threadId) {
-      const existing = await FirestorePaths.agentThread(input.userId, input.threadId).get();
+      const existing = await FirestorePaths.agentThread(
+        input.userId,
+        input.threadId,
+      ).get();
       if (existing.exists) {
         const data = existing.data();
         if (data && data.userId === input.userId) {
-          await existing.ref.update({ updatedAt: now, lastMessageAt: now });
+          await existing.ref.update({
+            updatedAt: nowTimestamp,
+            lastMessageAt: nowTimestamp,
+          });
           return {
-            id: existing.id,
-            userId: input.userId,
-            scope: data.scope === 'directory' ? 'directory' : 'workspace',
-            directoryId: typeof data.directoryId === 'string' ? data.directoryId : undefined,
-            createdAt:
-              data.createdAt instanceof Timestamp
-                ? data.createdAt.toDate().toISOString()
-                : now,
-            updatedAt: now,
-            lastMessageAt: now,
+            ...mapThread(existing.id, data, input.userId, nowIso),
+            updatedAt: nowIso,
+            lastMessageAt: nowIso,
           };
         }
       }
@@ -152,9 +279,9 @@ export class AgentThreadStore {
       userId: input.userId,
       scope: input.scope,
       directoryId: input.directoryId,
-      createdAt: now,
-      updatedAt: now,
-      lastMessageAt: now,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      lastMessageAt: nowIso,
     };
 
     await docRef.set({
@@ -162,12 +289,80 @@ export class AgentThreadStore {
       userId: thread.userId,
       scope: thread.scope,
       ...(thread.directoryId ? { directoryId: thread.directoryId } : {}),
-      createdAt: Timestamp.fromDate(new Date(now)),
-      updatedAt: Timestamp.fromDate(new Date(now)),
-      lastMessageAt: Timestamp.fromDate(new Date(now)),
+      createdAt: nowTimestamp,
+      updatedAt: nowTimestamp,
+      lastMessageAt: nowTimestamp,
     });
 
     return thread;
+  }
+
+  static async getThread(
+    userId: string,
+    threadId: string,
+  ): Promise<GetAgentThreadResponse | null> {
+    const snapshot = await FirestorePaths.agentThread(userId, threadId).get();
+    if (!snapshot.exists) {
+      return null;
+    }
+
+    const data = snapshot.data();
+    if (!data || data.userId !== userId) {
+      return null;
+    }
+
+    const nowIso = new Date().toISOString();
+    const messages = await this.listRecentMessages(
+      userId,
+      threadId,
+      THREAD_MESSAGES_MAX_RETURNED,
+    );
+
+    return {
+      thread: mapThread(snapshot.id, data, userId, nowIso),
+      messages,
+    };
+  }
+
+  static async listThreads(
+    userId: string,
+    limit = THREAD_LIST_DEFAULT_LIMIT,
+  ): Promise<AgentThreadSummary[]> {
+    const collection = FirestorePaths.agentThreads(userId);
+    const snapshot = await collection.get();
+    const now = new Date();
+    const nowIso = now.toISOString();
+
+    const ranked = snapshot.docs
+      .map((doc) => {
+        const data = doc.data();
+        return {
+          doc,
+          data,
+          thread: mapThread(doc.id, data, userId, nowIso),
+          recency: recencyMillis(data),
+        };
+      })
+      .filter((entry) => entry.thread.userId === userId)
+      .sort((left, right) => right.recency - left.recency);
+
+    const missingLastMessageAt = ranked
+      .filter((entry) => entry.data.lastMessageAt === undefined)
+      .slice(0, 500);
+    if (missingLastMessageAt.length > 0) {
+      const batch = collection.firestore.batch();
+      for (const entry of missingLastMessageAt) {
+        batch.update(entry.doc.ref, {
+          lastMessageAt: timestampFromUnknown(
+            entry.data.updatedAt ?? entry.data.createdAt,
+            now,
+          ),
+        });
+      }
+      await batch.commit();
+    }
+
+    return ranked.slice(0, limit).map((entry) => toThreadSummary(entry.thread));
   }
 
   static async appendMessage(input: {
@@ -178,9 +373,14 @@ export class AgentThreadStore {
     promptContext?: AgentPromptContext;
     executedActions?: AgentActionResult[];
     proposedDeletes?: AgentProposedDelete[];
+    title?: string;
+    preview?: string;
   }): Promise<IAgentThreadMessage> {
     const now = new Date();
-    const docRef = FirestorePaths.agentThreadMessages(input.userId, input.threadId).doc();
+    const docRef = FirestorePaths.agentThreadMessages(
+      input.userId,
+      input.threadId,
+    ).doc();
     const message: IAgentThreadMessage = {
       id: docRef.id,
       threadId: input.threadId,
@@ -204,6 +404,8 @@ export class AgentThreadStore {
     await FirestorePaths.agentThread(input.userId, input.threadId).update({
       updatedAt: Timestamp.fromDate(now),
       lastMessageAt: Timestamp.fromDate(now),
+      ...(input.title ? { title: input.title } : {}),
+      ...(input.preview ? { preview: input.preview } : {}),
     });
 
     return message;
@@ -212,13 +414,14 @@ export class AgentThreadStore {
   static async listRecentMessages(
     userId: string,
     threadId: string,
-    limit = 20
+    limit = 20,
   ): Promise<IAgentThreadMessage[]> {
     const snapshot = await FirestorePaths.agentThreadMessages(userId, threadId)
       .orderBy('createdAt', 'desc')
       .limit(limit)
       .get();
 
+    const fallbackIso = new Date().toISOString();
     return snapshot.docs
       .map((doc) => {
         const data = doc.data();
@@ -228,13 +431,14 @@ export class AgentThreadStore {
           threadId,
           role: data.role === 'assistant' ? 'assistant' : 'user',
           content: typeof data.content === 'string' ? data.content : '',
-          createdAt:
-            data.createdAt instanceof Timestamp
-              ? data.createdAt.toDate().toISOString()
-              : new Date().toISOString(),
+          createdAt: timestampToIso(data.createdAt, fallbackIso),
           ...(promptContext ? { promptContext } : {}),
-          executedActions: Array.isArray(data.executedActions) ? data.executedActions : undefined,
-          proposedDeletes: Array.isArray(data.proposedDeletes) ? data.proposedDeletes : undefined,
+          executedActions: Array.isArray(data.executedActions)
+            ? data.executedActions
+            : undefined,
+          proposedDeletes: Array.isArray(data.proposedDeletes)
+            ? data.proposedDeletes
+            : undefined,
         } satisfies IAgentThreadMessage;
       })
       .reverse();

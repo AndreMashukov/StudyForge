@@ -48,7 +48,12 @@ export const agentActionKindSchema = z.enum([
   'search_knowledge',
 ]);
 
-export const agentDeleteTargetSchema = z.enum(['directory', 'document', 'quiz', 'rule']);
+export const agentDeleteTargetSchema = z.enum([
+  'directory',
+  'document',
+  'quiz',
+  'rule',
+]);
 
 export const agentActionResultSchema = z.object({
   kind: agentActionKindSchema,
@@ -113,7 +118,9 @@ export const agentMessageStreamEventSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
-export type AgentMessageStreamEvent = z.output<typeof agentMessageStreamEventSchema>;
+export type AgentMessageStreamEvent = z.output<
+  typeof agentMessageStreamEventSchema
+>;
 
 export type AgentKnowledgeSourceType =
   | 'directory'
@@ -145,9 +152,46 @@ export interface IAgentThread {
   userId: string;
   scope: AgentScope;
   directoryId?: string;
+  title?: string;
+  preview?: string;
   createdAt: string;
   updatedAt: string;
   lastMessageAt?: string;
+}
+
+export interface AgentThreadSummary {
+  id: string;
+  title: string;
+  preview?: string;
+  scope: AgentScope;
+  directoryId?: string;
+  createdAt: string;
+  updatedAt: string;
+  lastMessageAt?: string;
+}
+
+export const getAgentThreadRequestSchema = z.object({
+  threadId: z.string().trim().min(1),
+});
+
+export const listAgentThreadsRequestSchema = z.object({
+  limit: z.number().int().min(1).max(100).optional(),
+});
+
+export type GetAgentThreadRequest = z.output<
+  typeof getAgentThreadRequestSchema
+>;
+export type ListAgentThreadsRequest = z.output<
+  typeof listAgentThreadsRequestSchema
+>;
+
+export interface GetAgentThreadResponse {
+  thread: IAgentThread;
+  messages: IAgentThreadMessage[];
+}
+
+export interface ListAgentThreadsResponse {
+  threads: AgentThreadSummary[];
 }
 
 export interface IAgentThreadMessage {
