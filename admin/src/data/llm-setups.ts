@@ -56,7 +56,10 @@ function parseGenerationRoute(value: unknown): IGenerationRoute | null {
   if (
     !connectionId ||
     !model ||
-    (modality !== 'text' && modality !== 'vision' && modality !== 'image' && modality !== 'embedding') ||
+    (modality !== 'text' &&
+      modality !== 'vision' &&
+      modality !== 'image' &&
+      modality !== 'embedding') ||
     typeof workflow !== 'string' ||
     !isGenerationWorkflow(workflow)
   ) {
@@ -85,9 +88,9 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
     }
     // Flashcards are agentic-only; normalize legacy direct values on read.
     if (
-      kind === 'flashcards'
-      && route.workflow === 'direct'
-      && GENERATION_KIND_METADATA.flashcards.supportedWorkflows.includes('agentic')
+      kind === 'flashcards' &&
+      route.workflow === 'direct' &&
+      GENERATION_KIND_METADATA.flashcards.supportedWorkflows.includes('agentic')
     ) {
       route = { ...route, workflow: 'agentic' };
     }
@@ -97,7 +100,10 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
   return routes;
 }
 
-function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSetup | null {
+function parseLlmSetup(
+  id: string,
+  data: FirebaseFirestore.DocumentData,
+): ILlmSetup | null {
   const name = typeof data.name === 'string' ? data.name.trim() : '';
   const generationRoutes = parseGenerationRoutes(data.generationRoutes);
 
@@ -108,7 +114,8 @@ function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSe
   return {
     id,
     name,
-    description: typeof data.description === 'string' ? data.description : undefined,
+    description:
+      typeof data.description === 'string' ? data.description : undefined,
     generationRoutes,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
@@ -117,7 +124,7 @@ function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSe
 
 async function validateGenerationRoute(
   kind: GenerationKind,
-  route: IGenerationRoute
+  route: IGenerationRoute,
 ): Promise<IGenerationRoute> {
   const metadata = GENERATION_KIND_METADATA[kind];
   const label = metadata.label;
@@ -134,7 +141,7 @@ async function validateGenerationRoute(
 
   if (route.modality !== metadata.requiredModality) {
     throw new Error(
-      `${label}: modality must be ${metadata.requiredModality}, got ${route.modality}.`
+      `${label}: modality must be ${metadata.requiredModality}, got ${route.modality}.`,
     );
   }
 
@@ -142,7 +149,11 @@ async function validateGenerationRoute(
     throw new Error(`${label}: workflow ${route.workflow} is not supported.`);
   }
 
-  await validateModalityRoute({ connectionId, model }, metadata.requiredModality, label);
+  await validateModalityRoute(
+    { connectionId, model },
+    metadata.requiredModality,
+    label,
+  );
 
   return {
     connectionId,
@@ -152,7 +163,9 @@ async function validateGenerationRoute(
   };
 }
 
-async function normalizeGenerationRoutes(routes: IGenerationRoutes): Promise<IGenerationRoutes> {
+async function normalizeGenerationRoutes(
+  routes: IGenerationRoutes,
+): Promise<IGenerationRoutes> {
   const normalized = {} as IGenerationRoutes;
 
   for (const kind of ALL_GENERATION_KINDS) {
@@ -160,29 +173,35 @@ async function normalizeGenerationRoutes(routes: IGenerationRoutes): Promise<IGe
       throw new Error(`Unknown generation kind: ${kind}`);
     }
 
-    normalized[kind] = await validateGenerationRoute(kind, routes[kind]);
-  }
+    let route = routes[kind];
+    if (
+      !route &&
+      (kind === 'directoryAgent' || kind === 'agentExecutor') &&
+      routes.directoryChat
+    ) {
+      route = {
+        ...routes.directoryChat,
+        modality: 'text',
+      };
+    }
 
-  const agentChatRoute = normalized.directoryChat;
-  normalized.directoryAgent = {
-    connectionId: agentChatRoute.connectionId,
-    model: agentChatRoute.model,
-    modality: 'text',
-    workflow: agentChatRoute.workflow,
-  };
+    normalized[kind] = await validateGenerationRoute(kind, route);
+  }
 
   return normalized;
 }
 
 function rejectLegacyRoutesPayload(body: Record<string, unknown>): void {
   if ('routes' in body) {
-    throw new Error('Legacy routes are no longer accepted. Use generationRoutes.');
+    throw new Error(
+      'Legacy routes are no longer accepted. Use generationRoutes.',
+    );
   }
 }
 
 function toFirestoreLlmSetupDocument(
   setup: ILlmSetup,
-  options?: { clearDescription?: boolean }
+  options?: { clearDescription?: boolean },
 ): FirebaseFirestore.DocumentData {
   const document: FirebaseFirestore.DocumentData = {
     id: setup.id,
@@ -205,7 +224,10 @@ export async function createDefaultGenerationRoutes(): Promise<IGenerationRoutes
   const together = await readTogetherConnection();
 
   const routesByModality: Record<LlmModality, ILlmModalityRoute> = {
-    text: { connectionId: PRIMARY_TOGETHER_CONNECTION_ID, model: together.defaultModel },
+    text: {
+      connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
+      model: together.defaultModel,
+    },
     vision: {
       connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
       model: together.defaultVisionModel ?? together.defaultModel,
@@ -216,8 +238,7 @@ export async function createDefaultGenerationRoutes(): Promise<IGenerationRoutes
     },
     embedding: {
       connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
-      model:
-        together.defaultEmbeddingModel ?? DEFAULT_TOGETHER_EMBEDDING_MODEL,
+      model: together.defaultEmbeddingModel ?? DEFAULT_TOGETHER_EMBEDDING_MODEL,
     },
   };
 
@@ -237,7 +258,9 @@ export async function createDefaultGenerationRoutes(): Promise<IGenerationRoutes
   return generationRoutes;
 }
 
-async function buildProviderWarnings(generationRoutes: IGenerationRoutes): Promise<string[]> {
+async function buildProviderWarnings(
+  generationRoutes: IGenerationRoutes,
+): Promise<string[]> {
   const catalog = await listProviderConnectionCatalog();
   const warnings: string[] = [];
   const connectionIds = new Set<string>();
@@ -259,7 +282,7 @@ async function buildProviderWarnings(generationRoutes: IGenerationRoutes): Promi
 
     if (connection.availableModels.length === 0) {
       warnings.push(
-        `${connection.label} has no uploaded model catalog. Test or save the provider connection to sync models.`
+        `${connection.label} has no uploaded model catalog. Test or save the provider connection to sync models.`,
       );
     }
   }
@@ -275,11 +298,11 @@ async function buildProviderWarnings(generationRoutes: IGenerationRoutes): Promi
     const modelExists = connection.availableModels.some(
       (model) =>
         model.id === route.model &&
-        model.supportedModalities.includes(metadata.requiredModality)
+        model.supportedModalities.includes(metadata.requiredModality),
     );
     if (!modelExists) {
       warnings.push(
-        `${metadata.label}: model "${route.model}" is not in the ${connection.label} catalog for ${metadata.requiredModality}.`
+        `${metadata.label}: model "${route.model}" is not in the ${connection.label} catalog for ${metadata.requiredModality}.`,
       );
     }
   }
@@ -289,7 +312,7 @@ async function buildProviderWarnings(generationRoutes: IGenerationRoutes): Promi
 
 function buildConnectionLabels(
   generationRoutes: IGenerationRoutes,
-  catalog: Awaited<ReturnType<typeof listProviderConnectionCatalog>>
+  catalog: Awaited<ReturnType<typeof listProviderConnectionCatalog>>,
 ): Record<string, string> {
   const labels: Record<string, string> = {};
   const connectionIds = new Set<string>();
@@ -344,7 +367,9 @@ export async function listLlmSetups(): Promise<IAdminLlmSetupSummary[]> {
   return summaries.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function getLlmSetupById(setupId: string): Promise<IAdminLlmSetupSummary | null> {
+export async function getLlmSetupById(
+  setupId: string,
+): Promise<IAdminLlmSetupSummary | null> {
   await requireAdminSession();
 
   const [doc, catalog] = await Promise.all([
@@ -371,7 +396,7 @@ export async function getLlmSetupById(setupId: string): Promise<IAdminLlmSetupSu
 
 export async function createLlmSetup(
   input: ICreateLlmSetupRequest,
-  adminUid: string
+  adminUid: string,
 ): Promise<ILlmSetup> {
   await requireAdminSession();
 
@@ -380,7 +405,9 @@ export async function createLlmSetup(
     throw new Error('Setup name is required.');
   }
 
-  const generationRoutes = await normalizeGenerationRoutes(input.generationRoutes);
+  const generationRoutes = await normalizeGenerationRoutes(
+    input.generationRoutes,
+  );
   const now = new Date().toISOString();
   const docRef = getAdminFirestore().collection(LLM_SETUPS_COLLECTION).doc();
 
@@ -399,12 +426,13 @@ export async function createLlmSetup(
 
 export async function createLlmSetupFromRequest(
   body: Record<string, unknown>,
-  adminUid: string
+  adminUid: string,
 ): Promise<ILlmSetup> {
   rejectLegacyRoutesPayload(body);
 
   const name = typeof body.name === 'string' ? body.name : '';
-  const description = typeof body.description === 'string' ? body.description : undefined;
+  const description =
+    typeof body.description === 'string' ? body.description : undefined;
   const generationRoutes = parseGenerationRoutes(body.generationRoutes);
 
   if (!generationRoutes) {
@@ -417,11 +445,13 @@ export async function createLlmSetupFromRequest(
 export async function updateLlmSetup(
   setupId: string,
   input: IUpdateLlmSetupRequest,
-  adminUid: string
+  adminUid: string,
 ): Promise<ILlmSetup> {
   await requireAdminSession();
 
-  const docRef = getAdminFirestore().collection(LLM_SETUPS_COLLECTION).doc(setupId);
+  const docRef = getAdminFirestore()
+    .collection(LLM_SETUPS_COLLECTION)
+    .doc(setupId);
   const existing = await docRef.get();
 
   if (!existing.exists) {
@@ -458,7 +488,7 @@ export async function updateLlmSetup(
     toFirestoreLlmSetupDocument(next, {
       clearDescription: descriptionChanged && nextDescription === undefined,
     }),
-    { merge: true }
+    { merge: true },
   );
   return next;
 }
@@ -466,7 +496,7 @@ export async function updateLlmSetup(
 export async function updateLlmSetupFromRequest(
   setupId: string,
   body: Record<string, unknown>,
-  adminUid: string
+  adminUid: string,
 ): Promise<ILlmSetup> {
   rejectLegacyRoutesPayload(body);
 
@@ -501,24 +531,34 @@ export async function deleteLlmSetup(setupId: string): Promise<void> {
 
   if (!groupsSnapshot.empty) {
     const groupNames = groupsSnapshot.docs
-      .map((doc) => (typeof doc.data().name === 'string' ? doc.data().name : doc.id))
+      .map((doc) =>
+        typeof doc.data().name === 'string' ? doc.data().name : doc.id,
+      )
       .join(', ');
 
     throw new Error(
-      `Cannot delete setup because it is assigned to user groups: ${groupNames}. Reassign those groups first.`
+      `Cannot delete setup because it is assigned to user groups: ${groupNames}. Reassign those groups first.`,
     );
   }
 
-  await getAdminFirestore().collection(LLM_SETUPS_COLLECTION).doc(setupId).delete();
+  await getAdminFirestore()
+    .collection(LLM_SETUPS_COLLECTION)
+    .doc(setupId)
+    .delete();
 }
 
-export async function listLlmSetupOptions(): Promise<Array<{ id: string; name: string }>> {
+export async function listLlmSetupOptions(): Promise<
+  Array<{ id: string; name: string }>
+> {
   const setups = await listLlmSetups();
   return setups.map(({ id, name }) => ({ id, name }));
 }
 
 export async function ensureSetupExists(setupId: string): Promise<void> {
-  const doc = await getAdminFirestore().collection(LLM_SETUPS_COLLECTION).doc(setupId).get();
+  const doc = await getAdminFirestore()
+    .collection(LLM_SETUPS_COLLECTION)
+    .doc(setupId)
+    .get();
   if (!doc.exists) {
     throw new Error('Selected LLM setup does not exist.');
   }

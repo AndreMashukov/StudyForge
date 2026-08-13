@@ -30,28 +30,38 @@ const featurePolicySchema = z.object({
 });
 
 const featurePoliciesShape = Object.fromEntries(
-  ALL_GENERATION_KINDS.map((kind) => [kind, featurePolicySchema])
+  ALL_GENERATION_KINDS.map((kind) => [kind, featurePolicySchema]),
 ) as Record<GenerationKind, typeof featurePolicySchema>;
 
 export const usageLimitsSetupFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   description: z.string().optional(),
-  monthlyCreditAllowance: z.number().int().min(0, 'Allowance must be zero or greater'),
+  monthlyCreditAllowance: z
+    .number()
+    .int()
+    .min(0, 'Allowance must be zero or greater'),
   storageLimitMegabytes: z
     .number()
     .int()
     .min(0, 'Storage limit must be zero or greater'),
-  dailySlideDeckLimit: z.number().int().min(0, 'Daily slide deck limit must be zero or greater'),
+  dailySlideDeckLimit: z
+    .number()
+    .int()
+    .min(0, 'Daily slide deck limit must be zero or greater'),
   featurePolicies: z.object(featurePoliciesShape),
 });
 
-export type IUsageLimitsSetupFormValues = z.infer<typeof usageLimitsSetupFormSchema>;
+export type IUsageLimitsSetupFormValues = z.infer<
+  typeof usageLimitsSetupFormSchema
+>;
 
 export function createEmptyFeaturePolicyFormValues(): IUsageFeaturePolicies {
   return createDefaultFeaturePolicies();
 }
 
-export function toFeaturePolicies(values: IUsageLimitsSetupFormValues): IUsageFeaturePolicies {
+export function toFeaturePolicies(
+  values: IUsageLimitsSetupFormValues,
+): IUsageFeaturePolicies {
   const policies = createDefaultFeaturePolicies();
 
   for (const kind of ALL_GENERATION_KINDS) {
@@ -70,7 +80,7 @@ export function featurePoliciesToFormValues(
   monthlyCreditAllowance: number,
   storageLimitBytes: number,
   dailySlideDeckLimit: number,
-  featurePolicies: IUsageFeaturePolicies
+  featurePolicies: IUsageFeaturePolicies,
 ): IUsageLimitsSetupFormValues {
   const policies = createEmptyFeaturePolicyFormValues();
 
@@ -86,7 +96,9 @@ export function featurePoliciesToFormValues(
     description: description ?? '',
     monthlyCreditAllowance,
     storageLimitMegabytes: bytesToStorageLimitMegabytes(
-      Number.isFinite(storageLimitBytes) && storageLimitBytes >= 0 ? storageLimitBytes : 0,
+      Number.isFinite(storageLimitBytes) && storageLimitBytes >= 0
+        ? storageLimitBytes
+        : 0,
     ),
     dailySlideDeckLimit,
     featurePolicies: policies,
@@ -103,25 +115,21 @@ export function getUsageFeatureGroups(): Array<{
       id: 'production',
       label: 'Production generation',
       kinds: ADMIN_CONFIGURABLE_GENERATION_KINDS.filter(
-        (kind) => GENERATION_KIND_METADATA[kind].group === 'production'
+        (kind) => GENERATION_KIND_METADATA[kind].group === 'production',
       ),
     },
     {
       id: 'interactive',
       label: 'Interactive',
-      kinds: [
-        ...ADMIN_CONFIGURABLE_GENERATION_KINDS.filter(
-          (kind) => GENERATION_KIND_METADATA[kind].group === 'interactive'
-        ),
-        'directoryAgent',
-        'agentKnowledgeEmbedding',
-      ],
+      kinds: ADMIN_CONFIGURABLE_GENERATION_KINDS.filter(
+        (kind) => GENERATION_KIND_METADATA[kind].group === 'interactive',
+      ),
     },
     {
       id: 'slideDeck',
       label: 'Slide deck',
       kinds: ADMIN_CONFIGURABLE_GENERATION_KINDS.filter(
-        (kind) => GENERATION_KIND_METADATA[kind].group === 'slideDeck'
+        (kind) => GENERATION_KIND_METADATA[kind].group === 'slideDeck',
       ),
     },
   ];

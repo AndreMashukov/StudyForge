@@ -157,6 +157,7 @@ export const DEFAULT_USAGE_CREDIT_COSTS: Record<GenerationKind, number> = {
   documentFromScreenshot: 25,
   slideDeckText: 30,
   directoryAgent: 1,
+  agentExecutor: 1,
 };
 
 /** Premium generation kinds disabled on the Free profile. */
@@ -223,9 +224,9 @@ export const USAGE_LIMITS_PROFILE_PRESETS: IUsageLimitsProfilePreset[] = [
   },
 ];
 
-export function createDefaultFeaturePolicies(
-  options?: { disabledKinds?: GenerationKind[] }
-): IUsageFeaturePolicies {
+export function createDefaultFeaturePolicies(options?: {
+  disabledKinds?: GenerationKind[];
+}): IUsageFeaturePolicies {
   const disabled = new Set(options?.disabledKinds ?? []);
   const policies = {} as IUsageFeaturePolicies;
 
@@ -249,13 +250,20 @@ export function buildUsagePeriodResetAt(periodKey: string): string {
   const [yearPart, monthPart] = periodKey.split('-');
   const year = Number(yearPart);
   const month = Number(monthPart);
-  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    month < 1 ||
+    month > 12
+  ) {
     throw new Error(`Invalid usage period key: ${periodKey}`);
   }
 
   const nextMonth = month === 12 ? 1 : month + 1;
   const nextYear = month === 12 ? year + 1 : year;
-  return new Date(Date.UTC(nextYear, nextMonth - 1, 1, 0, 0, 0, 0)).toISOString();
+  return new Date(
+    Date.UTC(nextYear, nextMonth - 1, 1, 0, 0, 0, 0),
+  ).toISOString();
 }
 
 export function buildUsageDayKey(date: Date = new Date()): string {
@@ -326,10 +334,13 @@ export function resolveLegacySetupQuotaDefaults(setupName: string): {
   return resolvePresetQuotaDefaults('standard');
 }
 
-export function resolvePresetQuotaDefaults(
-  presetId: string,
-): { storageLimitBytes: number; dailySlideDeckLimit: number } {
-  const preset = USAGE_LIMITS_PROFILE_PRESETS.find((entry) => entry.id === presetId);
+export function resolvePresetQuotaDefaults(presetId: string): {
+  storageLimitBytes: number;
+  dailySlideDeckLimit: number;
+} {
+  const preset = USAGE_LIMITS_PROFILE_PRESETS.find(
+    (entry) => entry.id === presetId,
+  );
   if (preset) {
     return {
       storageLimitBytes: preset.storageLimitBytes,
@@ -354,8 +365,9 @@ export function calculateRemainingCredits(params: {
 
 export function calculateUsageCreditCharge(
   policy: IUsageFeaturePolicy,
-  quantity = 1
+  quantity = 1,
 ): number {
-  const normalizedQuantity = Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1;
+  const normalizedQuantity =
+    Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1;
   return policy.creditCost * normalizedQuantity;
 }

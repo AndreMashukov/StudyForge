@@ -28,7 +28,12 @@ describe('usage-limits-logic', () => {
   it('blocks disabled features', () => {
     const decision = evaluateUsageLimitDecision({
       policy: { enabled: false, creditCost: 10 },
-      period: { allowance: 100, reservedCredits: 0, spentCredits: 0, refundedCredits: 0 },
+      period: {
+        allowance: 100,
+        reservedCredits: 0,
+        spentCredits: 0,
+        refundedCredits: 0,
+      },
     });
 
     expect(decision.allowed).toBe(false);
@@ -40,7 +45,12 @@ describe('usage-limits-logic', () => {
   it('blocks when credits are insufficient and pay-as-you-go is disabled', () => {
     const decision = evaluateUsageLimitDecision({
       policy: { enabled: true, creditCost: 20 },
-      period: { allowance: 100, reservedCredits: 10, spentCredits: 80, refundedCredits: 0 },
+      period: {
+        allowance: 100,
+        reservedCredits: 10,
+        spentCredits: 80,
+        refundedCredits: 0,
+      },
     });
 
     expect(decision.allowed).toBe(false);
@@ -53,7 +63,12 @@ describe('usage-limits-logic', () => {
   it('allows affordable actions and multiplies quantity from included credits', () => {
     const decision = evaluateUsageLimitDecision({
       policy: { enabled: true, creditCost: 10 },
-      period: { allowance: 100, reservedCredits: 0, spentCredits: 20, refundedCredits: 0 },
+      period: {
+        allowance: 100,
+        reservedCredits: 0,
+        spentCredits: 20,
+        refundedCredits: 0,
+      },
       quantity: 3,
     });
 
@@ -69,7 +84,12 @@ describe('usage-limits-logic', () => {
   it('allows overage when included credits are exhausted and cap allows it', () => {
     const decision = evaluateUsageLimitDecision({
       policy: { enabled: true, creditCost: 20 },
-      period: { allowance: 100, reservedCredits: 0, spentCredits: 100, refundedCredits: 0 },
+      period: {
+        allowance: 100,
+        reservedCredits: 0,
+        spentCredits: 100,
+        refundedCredits: 0,
+      },
       billing: activeBilling,
     });
 
@@ -85,7 +105,12 @@ describe('usage-limits-logic', () => {
   it('uses a split when some included credits remain', () => {
     const decision = evaluateUsageLimitDecision({
       policy: { enabled: true, creditCost: 20 },
-      period: { allowance: 100, reservedCredits: 0, spentCredits: 90, refundedCredits: 0 },
+      period: {
+        allowance: 100,
+        reservedCredits: 0,
+        spentCredits: 90,
+        refundedCredits: 0,
+      },
       billing: activeBilling,
     });
 
@@ -101,7 +126,12 @@ describe('usage-limits-logic', () => {
   it('blocks overage when the spending cap would be exceeded', () => {
     const decision = evaluateUsageLimitDecision({
       policy: { enabled: true, creditCost: 20 },
-      period: { allowance: 100, reservedCredits: 0, spentCredits: 100, refundedCredits: 0 },
+      period: {
+        allowance: 100,
+        reservedCredits: 0,
+        spentCredits: 100,
+        refundedCredits: 0,
+      },
       billing: {
         ...activeBilling,
         overageAmountCents: 1_990,
@@ -118,7 +148,12 @@ describe('usage-limits-logic', () => {
   it('requires a payment method before overage can be used', () => {
     const decision = evaluateUsageLimitDecision({
       policy: { enabled: true, creditCost: 20 },
-      period: { allowance: 100, reservedCredits: 0, spentCredits: 100, refundedCredits: 0 },
+      period: {
+        allowance: 100,
+        reservedCredits: 0,
+        spentCredits: 100,
+        refundedCredits: 0,
+      },
       billing: {
         ...activeBilling,
         hasPaymentMethod: false,
@@ -143,7 +178,8 @@ describe('usage-limits-logic', () => {
 
   it('resolves job and alias kinds to usage generation kinds', () => {
     expect(resolveUsageGenerationKind('slideDeck')).toBe('slideDeckText');
-    expect(resolveUsageGenerationKind('directoryAgent')).toBe('directoryChat');
+    expect(resolveUsageGenerationKind('directoryAgent')).toBe('directoryAgent');
+    expect(resolveUsageGenerationKind('agentExecutor')).toBe('agentExecutor');
   });
 
   it('computes remaining credits from reserved and spent totals', () => {

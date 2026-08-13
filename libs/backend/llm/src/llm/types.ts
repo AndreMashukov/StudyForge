@@ -21,6 +21,7 @@ export type LlmCapability =
   | 'sourceDocumentEnhancement'
   | 'ruleGeneration'
   | 'directoryAgent'
+  | 'agentExecutor'
   | 'agentKnowledgeEmbedding';
 
 export interface LlmTextConfig {

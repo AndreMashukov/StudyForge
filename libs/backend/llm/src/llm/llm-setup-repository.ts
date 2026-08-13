@@ -62,7 +62,10 @@ function parseGenerationRoute(value: unknown): IGenerationRoute | null {
   if (
     !connectionId ||
     !model ||
-    (modality !== 'text' && modality !== 'vision' && modality !== 'image' && modality !== 'embedding') ||
+    (modality !== 'text' &&
+      modality !== 'vision' &&
+      modality !== 'image' &&
+      modality !== 'embedding') ||
     typeof workflow !== 'string' ||
     !isGenerationWorkflow(workflow)
   ) {
@@ -90,9 +93,9 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
       return null;
     }
     if (
-      kind === 'flashcards'
-      && route.workflow === 'direct'
-      && GENERATION_KIND_METADATA.flashcards.supportedWorkflows.includes('agentic')
+      kind === 'flashcards' &&
+      route.workflow === 'direct' &&
+      GENERATION_KIND_METADATA.flashcards.supportedWorkflows.includes('agentic')
     ) {
       route = { ...route, workflow: 'agentic' };
     }
@@ -102,7 +105,10 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
   return routes;
 }
 
-function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSetup | null {
+function parseLlmSetup(
+  id: string,
+  data: FirebaseFirestore.DocumentData,
+): ILlmSetup | null {
   const name = typeof data.name === 'string' ? data.name.trim() : '';
   const generationRoutes = parseGenerationRoutes(data.generationRoutes);
 
@@ -113,18 +119,25 @@ function parseLlmSetup(id: string, data: FirebaseFirestore.DocumentData): ILlmSe
   return {
     id,
     name,
-    description: typeof data.description === 'string' ? data.description : undefined,
+    description:
+      typeof data.description === 'string' ? data.description : undefined,
     generationRoutes,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
   };
 }
 
-function parseUserGroup(id: string, data: FirebaseFirestore.DocumentData): IUserGroup | null {
+function parseUserGroup(
+  id: string,
+  data: FirebaseFirestore.DocumentData,
+): IUserGroup | null {
   const name = typeof data.name === 'string' ? data.name.trim() : '';
-  const llmSetupId = typeof data.llmSetupId === 'string' ? data.llmSetupId.trim() : '';
+  const llmSetupId =
+    typeof data.llmSetupId === 'string' ? data.llmSetupId.trim() : '';
   const usageLimitsSetupId =
-    typeof data.usageLimitsSetupId === 'string' ? data.usageLimitsSetupId.trim() : '';
+    typeof data.usageLimitsSetupId === 'string'
+      ? data.usageLimitsSetupId.trim()
+      : '';
 
   if (!name || !llmSetupId || !usageLimitsSetupId) {
     return null;
@@ -141,11 +154,19 @@ function parseUserGroup(id: string, data: FirebaseFirestore.DocumentData): IUser
 }
 
 export class LlmSetupRepository {
-  static async resolveUserRoutingContext(userId: string): Promise<IUserRoutingContext> {
-    const userSnapshot = await admin.firestore().collection(USERS_COLLECTION).doc(userId).get();
+  static async resolveUserRoutingContext(
+    userId: string,
+  ): Promise<IUserRoutingContext> {
+    const userSnapshot = await admin
+      .firestore()
+      .collection(USERS_COLLECTION)
+      .doc(userId)
+      .get();
     const userData = userSnapshot.data();
     const userGroupId =
-      typeof userData?.userGroupId === 'string' ? userData.userGroupId.trim() : '';
+      typeof userData?.userGroupId === 'string'
+        ? userData.userGroupId.trim()
+        : '';
 
     if (!userGroupId) {
       throw createUserGroupNotAssignedError(userId);
@@ -191,26 +212,33 @@ export class LlmSetupRepository {
 
   static async resolveGenerationRoute(
     userId: string,
-    kind: GenerationKind
+    kind: GenerationKind,
   ): Promise<SetupGenerationRouteResolution> {
     const context = await this.resolveUserRoutingContext(userId);
     let generationRoute = context.setup.generationRoutes[kind];
     const metadata = GENERATION_KIND_METADATA[kind];
+
+    if (
+      !generationRoute &&
+      (kind === 'directoryAgent' || kind === 'agentExecutor')
+    ) {
+      generationRoute = context.setup.generationRoutes.directoryChat;
+    }
 
     if (!generationRoute) {
       throw createGenerationRouteNotConfiguredError(
         userId,
         context.userGroupId,
         context.setup.id,
-        kind
+        kind,
       );
     }
 
     // Flashcards are agentic-only; coerce legacy direct routes at resolve time.
     if (
-      kind === 'flashcards'
-      && generationRoute.workflow === 'direct'
-      && metadata.supportedWorkflows.includes('agentic')
+      kind === 'flashcards' &&
+      generationRoute.workflow === 'direct' &&
+      metadata.supportedWorkflows.includes('agentic')
     ) {
       generationRoute = {
         ...generationRoute,
@@ -224,7 +252,7 @@ export class LlmSetupRepository {
         context.userGroupId,
         context.setup.id,
         kind,
-        `Generation route ${kind} has invalid modality ${generationRoute.modality}.`
+        `Generation route ${kind} has invalid modality ${generationRoute.modality}.`,
       );
     }
 
@@ -234,7 +262,7 @@ export class LlmSetupRepository {
         context.userGroupId,
         context.setup.id,
         kind,
-        `Generation route ${kind} workflow ${generationRoute.workflow} is not supported.`
+        `Generation route ${kind} workflow ${generationRoute.workflow} is not supported.`,
       );
     }
 

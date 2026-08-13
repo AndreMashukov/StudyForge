@@ -23,14 +23,16 @@ const INTERACTIVE_PROFILE: IGenerationRateLimitProfile = {
   hourlyLimit: 120,
   windowMs: ONE_HOUR_MS,
   cooldownMessage: 'Please wait a moment before sending another request.',
-  hourlyMessage: 'Hourly interactive generation limit reached. Try again later.',
+  hourlyMessage:
+    'Hourly interactive generation limit reached. Try again later.',
 };
 
 const VISION_PROFILE: IGenerationRateLimitProfile = {
   cooldownMs: 15_000,
   hourlyLimit: 30,
   windowMs: ONE_HOUR_MS,
-  cooldownMessage: 'Screenshot capture is cooling down. Try again in a few seconds.',
+  cooldownMessage:
+    'Screenshot capture is cooling down. Try again in a few seconds.',
   hourlyMessage: 'Screenshot capture hourly limit reached. Try again later.',
 };
 
@@ -38,7 +40,8 @@ const SLIDE_DECK_TEXT_PROFILE: IGenerationRateLimitProfile = {
   cooldownMs: 15_000,
   hourlyLimit: 40,
   windowMs: ONE_HOUR_MS,
-  cooldownMessage: 'Slide deck generation is cooling down. Try again in a few seconds.',
+  cooldownMessage:
+    'Slide deck generation is cooling down. Try again in a few seconds.',
   hourlyMessage: 'Slide deck hourly generation limit reached. Try again later.',
 };
 
@@ -46,11 +49,16 @@ const SLIDE_DECK_IMAGE_PROFILE: IGenerationRateLimitProfile = {
   cooldownMs: 30_000,
   hourlyLimit: 20,
   windowMs: ONE_HOUR_MS,
-  cooldownMessage: 'Slide image generation is cooling down. Try again in a few seconds.',
-  hourlyMessage: 'Slide image hourly generation limit reached. Try again later.',
+  cooldownMessage:
+    'Slide image generation is cooling down. Try again in a few seconds.',
+  hourlyMessage:
+    'Slide image hourly generation limit reached. Try again later.',
 };
 
-export const GENERATION_RATE_LIMIT_PROFILES: Record<GenerationKind, IGenerationRateLimitProfile> = {
+export const GENERATION_RATE_LIMIT_PROFILES: Record<
+  GenerationKind,
+  IGenerationRateLimitProfile
+> = {
   quiz: PRODUCTION_PROFILE,
   flashcards: PRODUCTION_PROFILE,
   documentFromPrompt: PRODUCTION_PROFILE,
@@ -60,6 +68,7 @@ export const GENERATION_RATE_LIMIT_PROFILES: Record<GenerationKind, IGenerationR
   documentRevise: INTERACTIVE_PROFILE,
   directoryChat: INTERACTIVE_PROFILE,
   directoryAgent: INTERACTIVE_PROFILE,
+  agentExecutor: INTERACTIVE_PROFILE,
   agentKnowledgeEmbedding: PRODUCTION_PROFILE,
   diagramQuiz: PRODUCTION_PROFILE,
   sequenceQuiz: PRODUCTION_PROFILE,
@@ -70,7 +79,7 @@ export const GENERATION_RATE_LIMIT_PROFILES: Record<GenerationKind, IGenerationR
 };
 
 export function getGenerationRateLimitProfile(
-  generationKind: GenerationKind
+  generationKind: GenerationKind,
 ): IGenerationRateLimitProfile {
   return GENERATION_RATE_LIMIT_PROFILES[generationKind];
 }

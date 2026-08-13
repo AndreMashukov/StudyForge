@@ -18,6 +18,7 @@ import {
   deriveAgentThreadTitle,
 } from './memory/agent-memory-service';
 import { AgentChatRunner } from './runner/agent-chat-runner';
+import { AgentPlanExecuteRunner } from './runner/agent-plan-execute-runner';
 import {
   AGENT_DOCUMENT_CONTENT_MAX_CHARS,
   AgentToolRuntimeContext,
@@ -336,25 +337,41 @@ export class DirectoryAgentService {
     let reply = '';
     let runComplete = false;
 
-    const runPromise = AgentChatRunner.run({
+    const formattedUserMessage = formatUserMessageForModel(
+      request.message,
+      request.promptContext,
+    );
+    const historyForModel = history
+      .filter(
+        (message) => message.role === 'user' || message.role === 'assistant',
+      )
+      .map((message) => historyMessageForModel(message));
+
+    const runnerInput = {
       userId,
       systemPrompt,
-      userMessage: formatUserMessageForModel(
-        request.message,
-        request.promptContext,
-      ),
-      history: history
-        .filter(
-          (message) => message.role === 'user' || message.role === 'assistant',
-        )
-        .map((message) => historyMessageForModel(message)),
       tools,
-      onEvent: (event) => {
+      onEvent: (event: AgentMessageStreamEvent) => {
         if (event.type === 'delta' || event.type === 'status') {
           pendingEvents.push(event);
         }
       },
-    })
+    };
+
+    const runPromise =
+      request.scope === 'workspace'
+        ? AgentPlanExecuteRunner.run({
+            ...runnerInput,
+            objective: formattedUserMessage,
+            history: historyForModel,
+          })
+        : AgentChatRunner.run({
+            ...runnerInput,
+            userMessage: formattedUserMessage,
+            history: historyForModel,
+            generationKind: 'directoryChat',
+          });
+    runPromise
       .then((result) => {
         reply = result;
       })

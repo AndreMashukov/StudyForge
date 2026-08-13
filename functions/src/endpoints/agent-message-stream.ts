@@ -24,7 +24,7 @@ const ALLOWED_AGENT_ORIGINS = [
 
 function writeSseEvent(
   res: import('express').Response,
-  event: { type: string } & Record<string, unknown>
+  event: { type: string } & Record<string, unknown>,
 ): void {
   res.write(`event: ${event.type}\n`);
   res.write(`data: ${JSON.stringify(event)}\n\n`);
@@ -60,7 +60,9 @@ export const agentMessageStream = onRequest(
     try {
       const auth = await validateExternalAuthFromRequest(req);
       if (auth.authMethod !== 'firebase-id-token') {
-        res.status(401).json({ success: false, error: 'Firebase ID token required' });
+        res
+          .status(401)
+          .json({ success: false, error: 'Firebase ID token required' });
         return;
       }
       userId = auth.userId;
@@ -83,7 +85,12 @@ export const agentMessageStream = onRequest(
 
     let usageReservationId: string;
     try {
-      const usageReservation = await enforceCallableGenerationLimits(userId, 'directoryChat');
+      const usageKind =
+        parsed.data.scope === 'workspace' ? 'directoryAgent' : 'directoryChat';
+      const usageReservation = await enforceCallableGenerationLimits(
+        userId,
+        usageKind,
+      );
       usageReservationId = usageReservation.id;
     } catch (error) {
       if (error instanceof HttpsError) {
@@ -106,7 +113,10 @@ export const agentMessageStream = onRequest(
       }
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to reserve usage credits',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to reserve usage credits',
       });
       return;
     }
@@ -124,7 +134,10 @@ export const agentMessageStream = onRequest(
 
     let usageSettled = false;
     try {
-      for await (const event of DirectoryAgentService.streamMessage(userId, parsed.data)) {
+      for await (const event of DirectoryAgentService.streamMessage(
+        userId,
+        parsed.data,
+      )) {
         if (clientDisconnected || res.writableEnded) {
           break;
         }
@@ -144,7 +157,8 @@ export const agentMessageStream = onRequest(
       if (!clientDisconnected && !res.writableEnded) {
         writeSseEvent(res, {
           type: 'error',
-          message: error instanceof Error ? error.message : 'Agent stream failed',
+          message:
+            error instanceof Error ? error.message : 'Agent stream failed',
         });
       }
     } finally {
@@ -155,5 +169,5 @@ export const agentMessageStream = onRequest(
         res.end();
       }
     }
-  }
+  },
 );

@@ -3,15 +3,18 @@ import {
   LlmGenerationRouteResolver,
   type ILlmToolChatMessage,
 } from '@study-forge/backend-llm/llm';
-import type { AgentMessageStreamEvent } from '@shared-types';
+import type { AgentMessageStreamEvent, GenerationKind } from '@shared-types';
 import type { AgentToolDefinition } from '../tools/create-agent-tools';
-import { executeAgentTool, toolDefinitionsToOpenAiTools } from '../tools/create-agent-tools';
+import {
+  executeAgentTool,
+  toolDefinitionsToOpenAiTools,
+} from '../tools/create-agent-tools';
 import {
   buildEmptyModelFallback,
   type AgentToolOutcome,
 } from './agent-chat-fallback';
 
-const MAX_TOOL_ROUNDS = 15;
+const DEFAULT_MAX_TOOL_ROUNDS = 15;
 const FALLBACK_DELTA_CHUNK_SIZE = 28;
 const FALLBACK_DELTA_DELAY_MS = 12;
 
@@ -48,9 +51,9 @@ function chunkText(text: string, chunkSize: number): string[] {
   return chunks;
 }
 
-async function emitTextAsDeltas(
+export async function emitAgentTextAsDeltas(
   text: string,
-  onEvent?: (event: AgentMessageStreamEvent) => void
+  onEvent?: (event: AgentMessageStreamEvent) => void,
 ): Promise<void> {
   for (const chunk of chunkText(text, FALLBACK_DELTA_CHUNK_SIZE)) {
     onEvent?.({ type: 'delta', text: chunk });
@@ -64,14 +67,24 @@ export interface AgentChatRunnerInput {
   userMessage: string;
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   tools: AgentToolDefinition[];
+  generationKind?: Extract<GenerationKind, 'directoryChat' | 'agentExecutor'>;
+  maxToolRounds?: number;
+  emitDeltas?: boolean;
   onEvent?: (event: AgentMessageStreamEvent) => void;
 }
 
 export class AgentChatRunner {
   static async run(input: AgentChatRunnerInput): Promise<string> {
-    const resolution = await LlmGenerationRouteResolver.resolve('directoryChat', {
-      userId: input.userId,
-    });
+    const generationKind = input.generationKind ?? 'directoryChat';
+    const maxToolRounds = input.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS;
+    const emitDeltas = input.emitDeltas ?? true;
+
+    const resolution = await LlmGenerationRouteResolver.resolve(
+      generationKind,
+      {
+        userId: input.userId,
+      },
+    );
 
     if (!resolution.providerApiKey) {
       throw new Error('Agent chat provider credentials are missing');
@@ -80,13 +93,16 @@ export class AgentChatRunner {
     const openAiTools = toolDefinitionsToOpenAiTools(input.tools);
     const messages: ILlmToolChatMessage[] = [
       { role: 'system', content: input.systemPrompt },
-      ...input.history.map((entry) => ({ role: entry.role, content: entry.content })),
+      ...input.history.map((entry) => ({
+        role: entry.role,
+        content: entry.content,
+      })),
       { role: 'user', content: input.userMessage },
     ];
     const toolOutcomes: AgentToolOutcome[] = [];
     let streamedTextLength = 0;
 
-    for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+    for (let round = 0; round < maxToolRounds; round += 1) {
       input.onEvent?.({
         type: 'status',
         message: round === 0 ? 'Thinking...' : 'Running tools...',
@@ -113,6 +129,9 @@ export class AgentChatRunner {
           tools: openAiTools,
           stream: true,
           onDelta: (text) => {
+            if (!emitDeltas) {
+              return;
+            }
             streamedTextLength += text.length;
             input.onEvent?.({ type: 'delta', text });
           },
@@ -123,18 +142,22 @@ export class AgentChatRunner {
 
       messages.push(assistantMessage);
 
-      if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+      if (
+        !assistantMessage.tool_calls ||
+        assistantMessage.tool_calls.length === 0
+      ) {
         const text = assistantMessage.content?.trim() ?? '';
         if (text.length > 0) {
-          // Non-stream Gemini retries can return full text without prior deltas.
-          if (streamedTextLength === 0) {
-            await emitTextAsDeltas(text, input.onEvent);
+          if (emitDeltas && streamedTextLength === 0) {
+            await emitAgentTextAsDeltas(text, input.onEvent);
           }
           return text;
         }
 
         const fallback = buildEmptyModelFallback(toolOutcomes);
-        await emitTextAsDeltas(fallback, input.onEvent);
+        if (emitDeltas) {
+          await emitAgentTextAsDeltas(fallback, input.onEvent);
+        }
         return fallback;
       }
 
@@ -147,7 +170,11 @@ export class AgentChatRunner {
         const args = parseToolArguments(toolCall.function.arguments);
         let toolContent: string;
         try {
-          const result = await executeAgentTool(input.tools, toolCall.function.name, args);
+          const result = await executeAgentTool(
+            input.tools,
+            toolCall.function.name,
+            args,
+          );
           toolOutcomes.push({
             name: toolCall.function.name,
             ok: true,
@@ -155,7 +182,8 @@ export class AgentChatRunner {
           });
           toolContent = JSON.stringify(result);
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Tool execution failed';
+          const message =
+            error instanceof Error ? error.message : 'Tool execution failed';
           toolOutcomes.push({
             name: toolCall.function.name,
             ok: false,
@@ -172,8 +200,11 @@ export class AgentChatRunner {
       }
     }
 
-    const limitMessage = 'I hit the tool step limit while working on your request.';
-    await emitTextAsDeltas(limitMessage, input.onEvent);
+    const limitMessage =
+      'I hit the tool step limit while working on your request.';
+    if (emitDeltas) {
+      await emitAgentTextAsDeltas(limitMessage, input.onEvent);
+    }
     return limitMessage;
   }
 }

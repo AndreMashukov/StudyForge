@@ -19,11 +19,11 @@ const generationRouteFormEntrySchema = z.object({
 });
 
 const generationRoutesShape = Object.fromEntries(
-  ADMIN_CONFIGURABLE_GENERATION_KINDS.map((kind) => [kind, generationRouteFormEntrySchema])
-) as Record<
-  Exclude<GenerationKind, 'directoryAgent'>,
-  typeof generationRouteFormEntrySchema
->;
+  ADMIN_CONFIGURABLE_GENERATION_KINDS.map((kind) => [
+    kind,
+    generationRouteFormEntrySchema,
+  ]),
+) as Record<GenerationKind, typeof generationRouteFormEntrySchema>;
 
 export const llmSetupFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
@@ -33,7 +33,7 @@ export const llmSetupFormSchema = z.object({
 
 export type ILlmSetupFormValues = z.infer<typeof llmSetupFormSchema>;
 
-export type IAdminConfigurableGenerationKind = Exclude<GenerationKind, 'directoryAgent'>;
+export type IAdminConfigurableGenerationKind = GenerationKind;
 
 export function createEmptyGenerationRouteFormValues(): Record<
   IAdminConfigurableGenerationKind,
@@ -55,7 +55,9 @@ export function createEmptyGenerationRouteFormValues(): Record<
   return routes;
 }
 
-export function toGenerationRoutes(values: ILlmSetupFormValues): IGenerationRoutes {
+export function toGenerationRoutes(
+  values: ILlmSetupFormValues,
+): IGenerationRoutes {
   const routes = {} as IGenerationRoutes;
 
   for (const kind of ADMIN_CONFIGURABLE_GENERATION_KINDS) {
@@ -69,26 +71,25 @@ export function toGenerationRoutes(values: ILlmSetupFormValues): IGenerationRout
     };
   }
 
-  const agentChatRoute = routes.directoryChat;
-  routes.directoryAgent = {
-    connectionId: agentChatRoute.connectionId,
-    model: agentChatRoute.model,
-    modality: 'text',
-    workflow: agentChatRoute.workflow,
-  };
-
   return routes;
 }
 
 export function generationRoutesToFormValues(
   name: string,
   description: string | undefined,
-  generationRoutes: IGenerationRoutes
+  generationRoutes: IGenerationRoutes,
 ): ILlmSetupFormValues {
   const routes = createEmptyGenerationRouteFormValues();
 
   for (const kind of ADMIN_CONFIGURABLE_GENERATION_KINDS) {
-    const route = generationRoutes[kind];
+    const route =
+      generationRoutes[kind] ??
+      (kind === 'directoryAgent' || kind === 'agentExecutor'
+        ? generationRoutes.directoryChat
+        : undefined);
+    if (!route) {
+      continue;
+    }
     routes[kind] = {
       connectionId: route.connectionId,
       model: route.model,
@@ -105,9 +106,11 @@ export function generationRoutesToFormValues(
 
 export function filterConnectionsForModality(
   connections: IProviderConnectionCatalogEntry[],
-  modality: LlmModality
+  modality: LlmModality,
 ): IProviderConnectionCatalogEntry[] {
-  return connections.filter((connection) => connection.supportedModalities.includes(modality));
+  return connections.filter((connection) =>
+    connection.supportedModalities.includes(modality),
+  );
 }
 
 export function getGenerationKindGroups(): Array<{
@@ -120,33 +123,35 @@ export function getGenerationKindGroups(): Array<{
       id: 'production',
       label: 'Production generation',
       kinds: ADMIN_CONFIGURABLE_GENERATION_KINDS.filter(
-        (kind) => GENERATION_KIND_METADATA[kind].group === 'production'
+        (kind) => GENERATION_KIND_METADATA[kind].group === 'production',
       ),
     },
     {
       id: 'interactive',
       label: 'Interactive',
       kinds: ADMIN_CONFIGURABLE_GENERATION_KINDS.filter(
-        (kind) => GENERATION_KIND_METADATA[kind].group === 'interactive'
+        (kind) => GENERATION_KIND_METADATA[kind].group === 'interactive',
       ),
     },
     {
       id: 'slideDeck',
       label: 'Slide deck',
       kinds: ADMIN_CONFIGURABLE_GENERATION_KINDS.filter(
-        (kind) => GENERATION_KIND_METADATA[kind].group === 'slideDeck'
+        (kind) => GENERATION_KIND_METADATA[kind].group === 'slideDeck',
       ),
     },
   ];
 }
 
-export function getSupportedWorkflowOptions(kind: GenerationKind): GenerationWorkflow[] {
+export function getSupportedWorkflowOptions(
+  kind: GenerationKind,
+): GenerationWorkflow[] {
   return GENERATION_KIND_METADATA[kind].supportedWorkflows;
 }
 
 export function isWorkflowOptionDisabled(
   kind: GenerationKind,
-  workflow: GenerationWorkflow
+  workflow: GenerationWorkflow,
 ): boolean {
   return !GENERATION_KIND_METADATA[kind].supportedWorkflows.includes(workflow);
 }
@@ -166,7 +171,7 @@ const DOCUMENT_WORKFLOW_KINDS: ReadonlySet<GenerationKind> = new Set([
 
 export function formatWorkflowOptionLabel(
   kind: GenerationKind,
-  workflow: GenerationWorkflow
+  workflow: GenerationWorkflow,
 ): string {
   if (!DOCUMENT_WORKFLOW_KINDS.has(kind)) {
     return workflow;

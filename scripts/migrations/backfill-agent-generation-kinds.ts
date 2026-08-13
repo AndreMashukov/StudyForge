@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Backfill llmSetups.generationRoutes for directoryAgent and agentKnowledgeEmbedding.
+ * Backfill llmSetups.generationRoutes for directoryAgent, agentExecutor, and agentKnowledgeEmbedding.
  *
  * Usage:
  *   GCLOUD_PROJECT=study-forge-202604 npx tsx scripts/migrations/backfill-agent-generation-kinds.ts --dry-run
  *   GCLOUD_PROJECT=study-forge-202604 npx tsx scripts/migrations/backfill-agent-generation-kinds.ts
+ *   GCLOUD_PROJECT=study-forge-202604 npx tsx scripts/migrations/backfill-agent-generation-kinds.ts --emulator
  */
 import * as admin from 'firebase-admin';
 import * as path from 'path';
@@ -13,6 +14,12 @@ import { config } from 'dotenv';
 config({ path: path.join(process.cwd(), '.env.local') });
 config({ path: path.join(process.cwd(), 'functions/.env.local') });
 config({ path: path.join(process.cwd(), 'functions/.env') });
+
+if (!process.argv.includes('--emulator')) {
+  delete process.env.FIRESTORE_EMULATOR_HOST;
+  delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
+  delete process.env.FIREBASE_STORAGE_EMULATOR_HOST;
+}
 
 const LLM_SETUPS_COLLECTION = 'llmSetups';
 const CONNECTIONS_COLLECTION = 'llmProviderConnections';
@@ -25,10 +32,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function getProjectId(): string {
   const projectId =
-    process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? process.env.FIREBASE_PROJECT_ID;
+    process.env.GCLOUD_PROJECT ??
+    process.env.GCP_PROJECT ??
+    process.env.FIREBASE_PROJECT_ID;
 
   if (!projectId) {
-    throw new Error('Set GCLOUD_PROJECT (or GCP_PROJECT) before running migration.');
+    throw new Error(
+      'Set GCLOUD_PROJECT (or GCP_PROJECT) before running migration.',
+    );
   }
 
   return projectId;
@@ -59,30 +70,40 @@ function parseRoute(value: unknown): {
 
 async function ensureGeminiEmbeddingSupport(
   db: FirebaseFirestore.Firestore,
-  dryRun: boolean
+  dryRun: boolean,
 ): Promise<void> {
-  const geminiRef = db.collection(CONNECTIONS_COLLECTION).doc(DEFAULT_EMBEDDING_CONNECTION_ID);
+  const geminiRef = db
+    .collection(CONNECTIONS_COLLECTION)
+    .doc(DEFAULT_EMBEDDING_CONNECTION_ID);
   const geminiSnap = await geminiRef.get();
   if (!geminiSnap.exists) {
-    console.warn(`Skipping connection update: ${DEFAULT_EMBEDDING_CONNECTION_ID} not found`);
+    console.warn(
+      `Skipping connection update: ${DEFAULT_EMBEDDING_CONNECTION_ID} not found`,
+    );
     return;
   }
 
   const data = geminiSnap.data() ?? {};
   const modalities = Array.isArray(data.supportedModalities)
-    ? data.supportedModalities.filter((entry): entry is string => typeof entry === 'string')
+    ? data.supportedModalities.filter(
+        (entry): entry is string => typeof entry === 'string',
+      )
     : [];
-  const models = Array.isArray(data.availableModels) ? [...data.availableModels] : [];
+  const models = Array.isArray(data.availableModels)
+    ? [...data.availableModels]
+    : [];
   const hasEmbeddingModality = modalities.includes('embedding');
   const hasEmbeddingModel = models.some(
-    (entry) => isRecord(entry) && entry.id === DEFAULT_EMBEDDING_MODEL
+    (entry) => isRecord(entry) && entry.id === DEFAULT_EMBEDDING_MODEL,
   );
 
   if (hasEmbeddingModality && hasEmbeddingModel) {
     return;
   }
 
-  const nextModalities = hasEmbeddingModality ? modalities : [...modalities, 'embedding'];
+  const nextModalities = hasEmbeddingModality
+    ? modalities
+    : [...modalities, 'embedding'];
   const nextModels = hasEmbeddingModel
     ? models
     : [
@@ -95,7 +116,7 @@ async function ensureGeminiEmbeddingSupport(
       ];
 
   console.log(
-    `${dryRun ? '[dry-run] ' : ''}Updating ${DEFAULT_EMBEDDING_CONNECTION_ID} embedding support`
+    `${dryRun ? '[dry-run] ' : ''}Updating ${DEFAULT_EMBEDDING_CONNECTION_ID} embedding support`,
   );
 
   if (!dryRun) {
@@ -137,11 +158,29 @@ async function main(): Promise<void> {
 
     if (!parseRoute(routes.directoryAgent)) {
       if (!directoryChat) {
-        console.warn(`Skip ${doc.id}: missing directoryChat for directoryAgent fallback`);
+        console.warn(
+          `Skip ${doc.id}: missing directoryChat for directoryAgent fallback`,
+        );
         skipped += 1;
         continue;
       }
       patch['generationRoutes.directoryAgent'] = {
+        connectionId: directoryChat.connectionId,
+        model: directoryChat.model,
+        modality: 'text',
+        workflow: 'direct',
+      };
+    }
+
+    if (!parseRoute(routes.agentExecutor)) {
+      if (!directoryChat) {
+        console.warn(
+          `Skip ${doc.id}: missing directoryChat for agentExecutor fallback`,
+        );
+        skipped += 1;
+        continue;
+      }
+      patch['generationRoutes.agentExecutor'] = {
         connectionId: directoryChat.connectionId,
         model: directoryChat.model,
         modality: 'text',
@@ -164,7 +203,7 @@ async function main(): Promise<void> {
     }
 
     console.log(
-      `${dryRun ? '[dry-run] ' : ''}Updating ${doc.id}: ${Object.keys(patch).join(', ')}`
+      `${dryRun ? '[dry-run] ' : ''}Updating ${doc.id}: ${Object.keys(patch).join(', ')}`,
     );
 
     if (!dryRun) {

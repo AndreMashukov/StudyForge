@@ -1957,6 +1957,7 @@ export type LlmCapabilityKey =
   | 'sourceDocumentEnhancement'
   | 'ruleGeneration'
   | 'directoryAgent'
+  | 'agentExecutor'
   | 'agentKnowledgeEmbedding';
 
 // --- LLM setup & user group routing ---

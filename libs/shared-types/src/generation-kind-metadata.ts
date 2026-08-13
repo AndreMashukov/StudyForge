@@ -16,6 +16,7 @@ export type GenerationKind =
   | 'sourceDocumentEnhancement'
   | 'ruleGeneration'
   | 'directoryAgent'
+  | 'agentExecutor'
   | 'agentKnowledgeEmbedding';
 
 export type GenerationWorkflow = 'direct' | 'directWithRepair' | 'agentic';
@@ -46,15 +47,17 @@ export const ALL_GENERATION_KINDS: GenerationKind[] = [
   'sourceDocumentEnhancement',
   'ruleGeneration',
   'directoryAgent',
+  'agentExecutor',
   'agentKnowledgeEmbedding',
 ];
 
 /** Generation kinds shown and edited in the admin LLM setup form. */
-export const ADMIN_CONFIGURABLE_GENERATION_KINDS = ALL_GENERATION_KINDS.filter(
-  (kind): kind is Exclude<GenerationKind, 'directoryAgent'> => kind !== 'directoryAgent'
-);
+export const ADMIN_CONFIGURABLE_GENERATION_KINDS = ALL_GENERATION_KINDS;
 
-export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMetadata> = {
+export const GENERATION_KIND_METADATA: Record<
+  GenerationKind,
+  IGenerationKindMetadata
+> = {
   documentFromPrompt: {
     kind: 'documentFromPrompt',
     label: 'Document from prompt',
@@ -87,7 +90,8 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
   flashcards: {
     kind: 'flashcards',
     label: 'Flashcards',
-    description: 'Front/back flashcard set generation via the artifact agent platform.',
+    description:
+      'Front/back flashcard set generation via the artifact agent platform.',
     requiredModality: 'text',
     supportedWorkflows: ['agentic'],
     defaultWorkflow: 'agentic',
@@ -149,9 +153,9 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
   },
   directoryChat: {
     kind: 'directoryChat',
-    label: 'Agent Chat',
+    label: 'Directory-scoped agent',
     description:
-      'Tool-capable chat for the global workspace agent and directory-scoped chat assistant.',
+      'ReAct tool loop for directory-scoped AgentPanel chat (one directory tree).',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',
@@ -186,8 +190,19 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
   },
   directoryAgent: {
     kind: 'directoryAgent',
-    label: 'Directory agent',
-    description: 'Global workspace agent with tool calling and streaming responses.',
+    label: 'Workspace agent planner',
+    description:
+      'Plan-and-execute planner and replanner for the floating workspace agent (initial plan, replan after each step, final reply).',
+    requiredModality: 'text',
+    supportedWorkflows: ['direct'],
+    defaultWorkflow: 'direct',
+    group: 'interactive',
+  },
+  agentExecutor: {
+    kind: 'agentExecutor',
+    label: 'Workspace agent executor',
+    description:
+      'Per-step tool loop for the floating workspace agent. Runs one plan step with tools; typically a smaller or cheaper model than the planner.',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',
@@ -196,7 +211,8 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
   agentKnowledgeEmbedding: {
     kind: 'agentKnowledgeEmbedding',
     label: 'Agent knowledge embedding',
-    description: 'Embedding model for agent RAG indexing and semantic memory retrieval.',
+    description:
+      'Embedding model for agent RAG indexing and semantic memory retrieval.',
     requiredModality: 'embedding',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',
@@ -208,7 +224,6 @@ export const GENERATION_KIND_METADATA: Record<GenerationKind, IGenerationKindMet
 export const GENERATION_KIND_ALIASES: Record<string, GenerationKind> = {
   diagramQuizAgent: 'diagramQuiz',
   slideDeckImageBrief: 'slideDeckText',
-  directoryAgent: 'directoryChat',
 };
 
 export function resolveGenerationKind(kind: string): GenerationKind {
@@ -228,6 +243,10 @@ export function isGenerationKind(value: string): value is GenerationKind {
   return value in GENERATION_KIND_METADATA;
 }
 
-export function isGenerationWorkflow(value: string): value is GenerationWorkflow {
-  return value === 'direct' || value === 'directWithRepair' || value === 'agentic';
+export function isGenerationWorkflow(
+  value: string,
+): value is GenerationWorkflow {
+  return (
+    value === 'direct' || value === 'directWithRepair' || value === 'agentic'
+  );
 }

@@ -115,7 +115,8 @@ export function evaluateUsageLimitDecision(params: {
     return {
       allowed: false,
       code: 'OVERAGE_CAP_EXCEEDED',
-      message: 'This action would exceed your monthly pay-as-you-go spending cap.',
+      message:
+        'This action would exceed your monthly pay-as-you-go spending cap.',
       credits,
       remainingCredits: remainingIncluded,
     };
@@ -173,10 +174,6 @@ export function resolveUsageGenerationKind(kind: string): GenerationKind {
 
   if (kind === 'artifactAgent') {
     return 'diagramQuiz';
-  }
-
-  if (kind === 'directoryAgent') {
-    return 'directoryChat';
   }
 
   return kind as GenerationKind;

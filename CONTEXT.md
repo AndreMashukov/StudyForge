@@ -15,7 +15,7 @@ The user's full set of directories and documents — not a separate datastore, b
 _Avoid_: corpus, datastore
 
 **Document**:
-User-owned source material (upload, URL import, or prompt-generated HTML) used as input for artifact generation. Legacy documents may still use markdown storage (`content.md`). Distinct from artifacts: a document is *read*; an artifact is *studied*.
+User-owned source material (upload, URL import, or prompt-generated HTML) used as input for artifact generation. Legacy documents may still use markdown storage (`content.md`). Distinct from artifacts: a document is _read_; an artifact is _studied_.
 _Avoid_: source doc, file (when meaning study content), content item
 
 ## Generated content
@@ -92,7 +92,7 @@ _Avoid_: capability (when meaning admin routing), artifact type (when meaning ro
 Required input/output lane for a generation route: `text`, `vision`, or `image`. Validates that the chosen provider connection supports the kind — not a routing key.
 _Avoid_: capability (when meaning the routing lane), model type, routing lane
 
-**LLM setup route** *(legacy)*:
+**LLM setup route** _(legacy)_:
 Deprecated modality-keyed route (`routes.text`, `routes.vision`, `routes.image`). Migration backfill source only — removed from admin UI in Task 14; resolver never reads after backfill.
 _Avoid_: provider type mapping, global provider selection
 
@@ -144,8 +144,28 @@ _Avoid_: default rule, auto-select rule (prefer **always apply** in product copy
 
 ## Learning & chat
 
+**Workspace agent**:
+Floating assistant over the user's full library (`scope: workspace`). Uses plan-and-execute: a planner writes remaining steps, an executor runs one step with tools, then a replanner continues or writes the final reply.
+_Avoid_: global agent (alone), workspace chat
+
+**Directory-scoped agent**:
+Tool-capable `AgentPanel` chat limited to one directory tree and its descendants (`scope: directory`). Uses a ReAct tool loop (one model call per tool round).
+_Avoid_: folder agent, scoped workspace agent
+
+**Agent plan**:
+Ordered list of natural-language steps the workspace agent intends to run for one user turn. Replanned after each completed step.
+_Avoid_: todo list (alone), tool chain
+
+**Agent plan step**:
+One natural-language step from an agent plan. The executor completes it with tools before the next replan.
+_Avoid_: tool call, sub-task (alone)
+
+**Agent replan**:
+Planner call after a plan step finishes. Returns either the remaining plan or the final user-facing reply.
+_Avoid_: rethink, mid-turn planning
+
 **Directory chat**:
-Conversational assistant scoped to a directory and its documents/artifacts. Uses follow-up rules and artifact context.
+Conversational assistant scoped to a directory and its documents/artifacts. Uses follow-up rules and artifact context. Distinct from the workspace agent and directory-scoped agent panels.
 _Avoid_: folder chat, library chat
 
 ## Relationships
