@@ -145,7 +145,7 @@ _Avoid_: default rule, auto-select rule (prefer **always apply** in product copy
 ## Learning & chat
 
 **Workspace agent**:
-Floating assistant over the user's full library (`scope: workspace`). Uses plan-and-execute: a planner writes remaining steps, an executor runs one step with tools, then a replanner continues or writes the final reply.
+Floating assistant over the user's full library (`scope: workspace`). Uses plan-and-execute: a planner writes remaining steps, an executor runs one step with tools, then a replanner continues or writes the final reply. Creating a document enqueues **documentFromPrompt** and applies **always apply** rules for the target directory.
 _Avoid_: global agent (alone), workspace chat
 
 **Directory-scoped agent**:

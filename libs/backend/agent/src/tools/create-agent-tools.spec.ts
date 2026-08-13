@@ -16,25 +16,27 @@ vi.mock('@study-forge/backend-directories/rule-crud', () => ({
   updateRule: vi.fn(),
 }));
 
+vi.mock('@study-forge/backend-directories/rule-resolution', () => ({
+  getApplicableRules: vi.fn(),
+}));
+
 vi.mock('@study-forge/backend-documents/document-crud', () => ({
   DocumentCrudService: {
     getDocument: vi.fn(),
     getDocumentWithContent: vi.fn(),
     createDocument: vi.fn(),
+    createPendingDocument: vi.fn(),
+    failPendingDocument: vi.fn(),
   },
-}));
-
-vi.mock('@study-forge/backend-documents/document-html/html-utils', () => ({
-  normalizeGeneratedHtml: vi.fn(),
-  wrapHtmlDocument: vi.fn(),
-}));
-
-vi.mock('@study-forge/backend-documents/document-html', () => ({
-  prepareHtmlDocumentForStorage: vi.fn(),
 }));
 
 vi.mock('@study-forge/backend-generation/generation-enqueue', () => ({
   enqueueGenerationJob: vi.fn(),
+}));
+
+vi.mock('@study-forge/backend-generation/generation-limits', () => ({
+  enforceCallableGenerationLimits: vi.fn(),
+  refundUsageReservationSafe: vi.fn(),
 }));
 
 vi.mock('@study-forge/backend-artifacts/artifact-generation-records', () => ({
@@ -76,7 +78,10 @@ import {
   getRule,
   updateRule,
 } from '@study-forge/backend-directories/rule-crud';
+import { getApplicableRules } from '@study-forge/backend-directories/rule-resolution';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
+import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
+import { enforceCallableGenerationLimits } from '@study-forge/backend-generation/generation-limits';
 import { AgentKnowledgeLifecycle } from '../knowledge/agent-knowledge-lifecycle';
 import {
   createAgentToolDefinitions,
@@ -458,5 +463,102 @@ describe('toAgentReadableDocumentContent', () => {
     expect(
       toAgentReadableDocumentContent('<p>Hello <b>world</b></p>', 'html'),
     ).toBe('Hello world');
+  });
+});
+
+describe('createAgentToolDefinitions create_document', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('enqueues documentFromPrompt with always-apply prompt rules', async () => {
+    vi.mocked(getApplicableRules).mockResolvedValue({
+      rules: [],
+      defaultRuleIds: ['mermaid-rule', 'html-rule'],
+    });
+    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue({
+      id: 'reservation-1',
+    } as never);
+    vi.mocked(DocumentCrudService.createPendingDocument).mockResolvedValue(
+      'doc-pending',
+    );
+    vi.mocked(enqueueGenerationJob).mockResolvedValue('job-1');
+
+    const context = createContext({ directoryIds: ['dir-1'] });
+    const tools = createAgentToolDefinitions(context);
+    const result = await executeAgentTool(tools, 'create_document', {
+      title: 'LangGraph Recap',
+      prompt: 'Write a recap of quiz gaps with mermaid diagrams.',
+      directoryId: 'dir-1',
+    });
+
+    expect(getApplicableRules).toHaveBeenCalledWith(
+      'user-1',
+      'dir-1',
+      'prompt',
+    );
+    expect(DocumentCrudService.createDocument).not.toHaveBeenCalled();
+    expect(DocumentCrudService.createPendingDocument).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        directoryId: 'dir-1',
+        title: 'LangGraph Recap',
+        sourceType: 'generated',
+      }),
+    );
+    expect(enqueueGenerationJob).toHaveBeenCalledWith({
+      userId: 'user-1',
+      directoryId: 'dir-1',
+      recordId: 'doc-pending',
+      kind: 'documentFromPrompt',
+      usageReservationId: 'reservation-1',
+      payload: {
+        sourceKind: 'prompt',
+        prompt: 'Write a recap of quiz gaps with mermaid diagrams.',
+        title: 'LangGraph Recap',
+        directoryId: 'dir-1',
+        ruleIds: ['mermaid-rule', 'html-rule'],
+        ruleResolutionMode: 'explicit-only',
+      },
+    });
+    expect(AgentKnowledgeLifecycle.indexDocument).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      id: 'doc-pending',
+      documentId: 'doc-pending',
+      title: 'LangGraph Recap',
+      jobId: 'job-1',
+      generationStatus: 'pending',
+      appliedAlwaysApplyRuleIds: ['mermaid-rule', 'html-rule'],
+    });
+    expect(context.executedActions[0]?.summary).toBe(
+      'Started document generation for "LangGraph Recap"',
+    );
+  });
+
+  it('accepts text as an alias for prompt', async () => {
+    vi.mocked(getApplicableRules).mockResolvedValue({
+      rules: [],
+      defaultRuleIds: [],
+    });
+    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue({
+      id: 'reservation-1',
+    } as never);
+    vi.mocked(DocumentCrudService.createPendingDocument).mockResolvedValue(
+      'doc-pending',
+    );
+    vi.mocked(enqueueGenerationJob).mockResolvedValue('job-1');
+
+    const tools = createAgentToolDefinitions(createContext());
+    await executeAgentTool(tools, 'create_document', {
+      text: 'Create a recap covering yesterday quiz gaps.',
+    });
+
+    expect(enqueueGenerationJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          prompt: 'Create a recap covering yesterday quiz gaps.',
+        }),
+      }),
+    );
   });
 });

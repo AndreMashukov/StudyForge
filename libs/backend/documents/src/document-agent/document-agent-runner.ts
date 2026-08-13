@@ -1,10 +1,14 @@
 import { logger } from 'firebase-functions/v2';
 import { InMemoryRunner } from '@google/adk';
-import type { IDocumentAgentJobPayload, IArtifactAgentDiagnostics } from '@shared-types';
+import type {
+  IDocumentAgentJobPayload,
+  IArtifactAgentDiagnostics,
+} from '@shared-types';
 import type { GenerationJob } from '@study-forge/backend-generation/generation-jobs';
 import { createEmptyDiagnostics } from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-definition';
-import { isRuleResolutionMode, resolveEffectiveRules } from '@study-forge/backend-directories/rule-resolution';
-import { RuleApplicability, RuleResolutionMode } from '@shared-types';
+import { resolveEffectiveRules } from '@study-forge/backend-directories/rule-resolution';
+import { RuleApplicability } from '@shared-types';
+import { resolveDocumentAgentRuleMode } from './document-agent-rule-mode';
 import {
   createDocumentPipeline,
   readPipelineFailureMessage,
@@ -33,7 +37,9 @@ export interface DocumentAgentContext {
   tags?: string[];
 }
 
-function resolveRuleApplicability(sourceKind: IDocumentAgentJobPayload['sourceKind']): RuleApplicability {
+function resolveRuleApplicability(
+  sourceKind: IDocumentAgentJobPayload['sourceKind'],
+): RuleApplicability {
   if (sourceKind === 'upload') {
     return RuleApplicability.UPLOAD;
   }
@@ -43,7 +49,9 @@ function resolveRuleApplicability(sourceKind: IDocumentAgentJobPayload['sourceKi
 function buildUserPrompt(payload: IDocumentAgentJobPayload): string {
   switch (payload.sourceKind) {
     case 'prompt':
-      return payload.prompt?.trim() || 'Generate a comprehensive learning document.';
+      return (
+        payload.prompt?.trim() || 'Generate a comprehensive learning document.'
+      );
     case 'upload':
       return `Transform the uploaded source material into a comprehensive StudyForge learning document.
 
@@ -67,7 +75,9 @@ ${payload.sourceText || ''}`;
 
 ${payload.sourceText || payload.prompt || ''}`;
     default:
-      return payload.prompt?.trim() || 'Generate a comprehensive learning document.';
+      return (
+        payload.prompt?.trim() || 'Generate a comprehensive learning document.'
+      );
   }
 }
 
@@ -82,7 +92,7 @@ export function buildDocumentAgentContext(
   job: GenerationJob,
   payload: IDocumentAgentJobPayload,
   rulesText: string,
-  appliedRuleIds: string[]
+  appliedRuleIds: string[],
 ): DocumentAgentContext {
   return {
     userId: job.userId,
@@ -103,30 +113,27 @@ export function buildDocumentAgentContext(
 
 export async function prepareDocumentAgentContext(
   job: GenerationJob,
-  payload: IDocumentAgentJobPayload
+  payload: IDocumentAgentJobPayload,
 ): Promise<DocumentAgentContext> {
-  const mode: RuleResolutionMode = payload.ruleIds?.length
-    ? isRuleResolutionMode(payload.ruleResolutionMode)
-      ? payload.ruleResolutionMode
-      : 'explicit-only'
-    : payload.sourceKind === 'upload'
-      ? 'inherit-plus-explicit'
-      : 'inherit';
+  const mode = resolveDocumentAgentRuleMode(payload);
 
-  const { text: rulesText, ruleIds: effectiveRuleIds } = await resolveEffectiveRules({
-    userId: job.userId,
-    directoryId: job.directoryId,
-    operation: resolveRuleApplicability(payload.sourceKind),
-    additionalRuleIds: payload.ruleIds?.length ? payload.ruleIds : payload.additionalRuleIds,
-    mode,
-  });
+  const { text: rulesText, ruleIds: effectiveRuleIds } =
+    await resolveEffectiveRules({
+      userId: job.userId,
+      directoryId: job.directoryId,
+      operation: resolveRuleApplicability(payload.sourceKind),
+      additionalRuleIds: payload.ruleIds?.length
+        ? payload.ruleIds
+        : payload.additionalRuleIds,
+      mode,
+    });
 
   return buildDocumentAgentContext(job, payload, rulesText, effectiveRuleIds);
 }
 
 export async function runDocumentAgentPipeline(
   job: GenerationJob,
-  payload: IDocumentAgentJobPayload
+  payload: IDocumentAgentJobPayload,
 ): Promise<void> {
   const agentContext = await prepareDocumentAgentContext(job, payload);
   const diagnostics: IArtifactAgentDiagnostics = {
@@ -184,15 +191,21 @@ export async function runDocumentAgentPipeline(
   });
 
   if (!finalSession) {
-    throw new Error(`Document agent session ${job.id} not found after pipeline run`);
+    throw new Error(
+      `Document agent session ${job.id} not found after pipeline run`,
+    );
   }
 
   const outcome = readPipelineOutcome(finalSession.state);
   if (outcome === 'failed') {
-    throw new DocumentAgentPipelineFailedError(readPipelineFailureMessage(finalSession.state));
+    throw new DocumentAgentPipelineFailedError(
+      readPipelineFailureMessage(finalSession.state),
+    );
   }
 
   if (outcome !== 'completed') {
-    throw new Error(`Document agent pipeline finished without a terminal outcome (jobId=${job.id})`);
+    throw new Error(
+      `Document agent pipeline finished without a terminal outcome (jobId=${job.id})`,
+    );
   }
 }

@@ -23,6 +23,7 @@ export default defineConfig({
         'libs/backend/artifacts/src'
       ),
       '@study-forge/backend-agent': path.resolve(__dirname, 'libs/backend/agent/src'),
+      '@study-forge/backend-llm': path.resolve(__dirname, 'libs/backend/llm/src'),
     },
   },
   test: {

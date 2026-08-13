@@ -247,13 +247,16 @@ function buildSystemPrompt(input: {
     '- Never invent code samples, expressions, or quotes that are not present in the retrieved source content.',
     'Use tools to inspect knowledge, list content, create/update resources, and enqueue generation jobs.',
     'After using tools, always reply with a clear final answer for the user. Never end a turn with only tool calls and no text.',
+    'Never invent document, directory, or rule IDs. Only cite IDs returned by tools.',
+    'A written description does not create a document. You must call create_document; if that tool did not run, the document does not exist.',
+    'When listing a folder, only include items returned by list_documents. Do not add items from earlier chat claims.',
     'When you create directories or rules, state the full path from tool results (for example /Python/Screenshots).',
     'In workspace scope, omit parentId on create_directory to create at the workspace root; pass parentId to nest under an existing directory.',
     'When the user asks where something is or whether work completed, verify with list_directories / list_rules / list_documents and answer from those results.',
     'When the user asks about quiz performance, scores, accuracy, or right vs wrong answers, use get_quiz_statistics and get_quiz_answer_details. Those tools cover quizzes, diagram quizzes, and sequence quizzes.',
     'Never perform destructive deletes directly. Use propose_delete_* tools and wait for user confirmation.',
     'Directory names cannot contain / \\ : * ? " < > |. Use hyphens instead of slashes (for example, "AI-ML" not "AI/ML").',
-    'When creating documents, write HTML body content (h1, p, ul, li). New documents are stored as HTML, not markdown.',
+    'When creating documents, call create_document with a generation prompt. The documentFromPrompt pipeline writes the HTML and applies always-apply rules for that directory. Do not write HTML or markdown yourself.',
     'For study plans and proposals, answer in chat first unless the user asks you to create directories or documents.',
     input.currentDocumentBodyBlock,
     input.currentRuleBodyBlock,
@@ -370,7 +373,7 @@ export class DirectoryAgentService {
             userMessage: formattedUserMessage,
             history: historyForModel,
             generationKind: 'directoryChat',
-          });
+          }).then((result) => result.text);
     runPromise
       .then((result) => {
         reply = result;

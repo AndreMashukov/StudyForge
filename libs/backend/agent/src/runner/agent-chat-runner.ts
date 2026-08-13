@@ -73,8 +73,15 @@ export interface AgentChatRunnerInput {
   onEvent?: (event: AgentMessageStreamEvent) => void;
 }
 
+export interface AgentChatRunnerResult {
+  text: string;
+  toolOutcomes: AgentToolOutcome[];
+}
+
 export class AgentChatRunner {
-  static async run(input: AgentChatRunnerInput): Promise<string> {
+  static async run(
+    input: AgentChatRunnerInput,
+  ): Promise<AgentChatRunnerResult> {
     const generationKind = input.generationKind ?? 'directoryChat';
     const maxToolRounds = input.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS;
     const emitDeltas = input.emitDeltas ?? true;
@@ -151,14 +158,14 @@ export class AgentChatRunner {
           if (emitDeltas && streamedTextLength === 0) {
             await emitAgentTextAsDeltas(text, input.onEvent);
           }
-          return text;
+          return { text, toolOutcomes };
         }
 
         const fallback = buildEmptyModelFallback(toolOutcomes);
         if (emitDeltas) {
           await emitAgentTextAsDeltas(fallback, input.onEvent);
         }
-        return fallback;
+        return { text: fallback, toolOutcomes };
       }
 
       for (const toolCall of assistantMessage.tool_calls) {
@@ -205,6 +212,6 @@ export class AgentChatRunner {
     if (emitDeltas) {
       await emitAgentTextAsDeltas(limitMessage, input.onEvent);
     }
-    return limitMessage;
+    return { text: limitMessage, toolOutcomes };
   }
 }

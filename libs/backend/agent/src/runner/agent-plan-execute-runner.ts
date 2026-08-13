@@ -8,11 +8,21 @@ import {
 import type { AgentMessageStreamEvent } from '@shared-types';
 import type { AgentToolDefinition } from '../tools/create-agent-tools';
 import { AgentChatRunner, emitAgentTextAsDeltas } from './agent-chat-runner';
+import type { AgentToolOutcome } from './agent-chat-fallback';
 
 const MAX_PLAN_STEPS = 8;
 const MAX_REPLAN_CYCLES = 8;
 const MAX_EXECUTOR_TOOL_ROUNDS = 4;
 const PLANNER_PARSE_RETRIES = 1;
+
+const CREATE_DOCUMENT_OBJECTIVE =
+  /\b(?:create|make|write|add|draft)\b[\s\S]{0,120}\b(?:docs?|document)\b|\bnew docs?\b/i;
+
+export const UNGROUNDED_CREATE_FALLBACK =
+  'I did not create the document. The create_document tool never ran, so nothing was saved. Please try again.';
+
+const FORCED_CREATE_DOCUMENT_STEP =
+  'Call create_document with a generation prompt now. A written summary does not create the document. Do not invent an id.';
 
 export const agentPlanOutputSchema = z.discriminatedUnion('type', [
   z.object({
@@ -39,6 +49,128 @@ export interface AgentPlanExecuteRunnerInput {
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   tools: AgentToolDefinition[];
   onEvent?: (event: AgentMessageStreamEvent) => void;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0
+    ? value.trim()
+    : undefined;
+}
+
+function formatEntityRef(value: unknown): string {
+  if (!isRecord(value)) {
+    return '';
+  }
+  const parts = [
+    asString(value.id) ? `id=${asString(value.id)}` : undefined,
+    (asString(value.title) ?? asString(value.name))
+      ? `title=${asString(value.title) ?? asString(value.name)}`
+      : undefined,
+    asString(value.path) ? `path=${asString(value.path)}` : undefined,
+  ].filter((part): part is string => Boolean(part));
+  return parts.join(' ');
+}
+
+export function formatVerifiedToolResults(
+  outcomes: AgentToolOutcome[],
+): string {
+  if (outcomes.length === 0) {
+    return 'None. No tools ran in this step.';
+  }
+
+  return outcomes
+    .map((outcome) => {
+      if (!outcome.ok) {
+        return `- ${outcome.name}: FAILED (${outcome.error ?? 'unknown error'})`;
+      }
+
+      if (Array.isArray(outcome.result)) {
+        const items = outcome.result.slice(0, 40).map((item) => {
+          const ref = formatEntityRef(item);
+          return ref.length > 0 ? ref : String(item);
+        });
+        const more =
+          outcome.result.length > items.length
+            ? ` (+${outcome.result.length - items.length} more)`
+            : '';
+        return `- ${outcome.name}: OK, ${outcome.result.length} items: ${items.join('; ')}${more}`;
+      }
+
+      const ref = formatEntityRef(outcome.result);
+      return `- ${outcome.name}: OK${ref ? ` ${ref}` : ''}`;
+    })
+    .join('\n');
+}
+
+export function composeExecutorStepResult(
+  modelText: string,
+  outcomes: AgentToolOutcome[],
+): string {
+  return [
+    'TOOL RESULTS (source of truth; the only valid entity IDs from this step are listed here):',
+    formatVerifiedToolResults(outcomes),
+    'Executor notes (unverified; ignore create/update claims unless confirmed above):',
+    modelText.trim() || '(none)',
+  ].join('\n');
+}
+
+export function hasSuccessfulCreateDocument(
+  outcomes: AgentToolOutcome[],
+): boolean {
+  return outcomes.some((outcome) => {
+    if (!outcome.ok || outcome.name !== 'create_document') {
+      return false;
+    }
+    return (
+      isRecord(outcome.result) &&
+      Boolean(
+        asString(outcome.result.id) ?? asString(outcome.result.documentId),
+      )
+    );
+  });
+}
+
+export function shouldBlockUngroundedCreateResponse(input: {
+  objective: string;
+  outcomes: AgentToolOutcome[];
+}): boolean {
+  return (
+    CREATE_DOCUMENT_OBJECTIVE.test(input.objective) &&
+    !hasSuccessfulCreateDocument(input.outcomes)
+  );
+}
+
+export function buildGroundedCreateReply(
+  outcomes: AgentToolOutcome[],
+): string | null {
+  const created = outcomes.filter((outcome) => {
+    if (
+      !outcome.ok ||
+      outcome.name !== 'create_document' ||
+      !isRecord(outcome.result)
+    ) {
+      return false;
+    }
+    const result = outcome.result as Record<string, unknown>;
+    return Boolean(asString(result.id) ?? asString(result.documentId));
+  });
+
+  if (created.length === 0) {
+    return null;
+  }
+
+  return created
+    .map((outcome) => {
+      const result = outcome.result as Record<string, unknown>;
+      const title = asString(result.title) ?? 'Untitled';
+      const id = asString(result.id) ?? asString(result.documentId);
+      return `Started generating document "${title}".\nID: ${id}`;
+    })
+    .join('\n\n');
 }
 
 function formatToolCatalog(tools: AgentToolDefinition[]): string {
@@ -75,6 +207,11 @@ function buildPlannerPrompt(input: {
     '- Each step should be achievable with the available tools in one focused pass.',
     '- Do not include steps that were already completed.',
     '- Prefer a direct response when no tools are needed.',
+    '- Never invent document, directory, or rule IDs.',
+    '- Never claim a document was created unless TOOL RESULTS include create_document: OK with an id= value.',
+    '- create_document queues documentFromPrompt. Tell the user generation is in progress; do not claim the HTML is already written.',
+    '- If the user asked to create a document and create_document did not succeed, return a plan step that calls create_document. Do not return type=response claiming it exists.',
+    '- When listing a folder, only name items that appear in list_documents TOOL RESULTS. Do not add items from executor notes or earlier chat.',
     `- At most ${MAX_PLAN_STEPS} steps.`,
     'Available tools:',
     formatToolCatalog(input.tools),
@@ -127,7 +264,9 @@ function buildStepExecutionMessage(input: {
     `Overall objective:\n${input.objective}`,
     prior,
     `\nCurrent plan step (complete only this step):\n${input.step}`,
-    'Use tools as needed for this step only, then summarize what you accomplished.',
+    'Use tools as needed for this step only.',
+    'Calling a tool is the only way to create or update resources. A written summary does not create a document.',
+    'If this step is to create a document, you MUST call create_document with a generation prompt. Never invent an id. Do not write the HTML yourself.',
   ].join('');
 }
 
@@ -137,8 +276,11 @@ export function parseAgentPlanOutput(raw: string): AgentPlanOutput | null {
     try {
       return JSON.parse(cleaned);
     } catch {
-      const fallback = JsonSanitizer.tryFallbackParsing(cleaned);
-      return fallback;
+      try {
+        return JsonSanitizer.tryFallbackParsing(cleaned);
+      } catch {
+        return null;
+      }
     }
   })();
 
@@ -156,6 +298,7 @@ async function callPlannerModel(input: {
   userMessage: string;
   tools: AgentToolDefinition[];
   isReplan: boolean;
+  recoverOutcomes?: AgentToolOutcome[];
 }): Promise<AgentPlanOutput> {
   const resolution = await LlmGenerationRouteResolver.resolve(
     'directoryAgent',
@@ -205,6 +348,13 @@ async function callPlannerModel(input: {
     });
   }
 
+  const grounded = input.recoverOutcomes
+    ? buildGroundedCreateReply(input.recoverOutcomes)
+    : null;
+  if (grounded) {
+    return { type: 'response', response: grounded };
+  }
+
   throw new Error(lastError ?? 'Planner returned invalid JSON');
 }
 
@@ -231,12 +381,24 @@ export class AgentPlanExecuteRunner {
       isReplan: false,
     });
 
+    let planSteps: string[] = [];
     if (initialPlan.type === 'response') {
-      return streamFinalResponse(initialPlan.response, input.onEvent);
+      if (
+        shouldBlockUngroundedCreateResponse({
+          objective: input.objective,
+          outcomes: [],
+        })
+      ) {
+        planSteps = [FORCED_CREATE_DOCUMENT_STEP];
+      } else {
+        return streamFinalResponse(initialPlan.response, input.onEvent);
+      }
+    } else {
+      planSteps = [...initialPlan.steps];
     }
 
-    let planSteps = [...initialPlan.steps];
     const pastSteps: AgentPlanExecutePastStep[] = [];
+    const allToolOutcomes: AgentToolOutcome[] = [];
     let executedStepCount = 0;
 
     for (
@@ -269,7 +431,14 @@ export class AgentPlanExecuteRunner {
           onEvent: input.onEvent,
         });
 
-        pastSteps.push({ step: currentStep, result: stepResult });
+        allToolOutcomes.push(...stepResult.toolOutcomes);
+        pastSteps.push({
+          step: currentStep,
+          result: composeExecutorStepResult(
+            stepResult.text,
+            stepResult.toolOutcomes,
+          ),
+        });
         executedStepCount += 1;
         planSteps = planSteps.slice(1);
 
@@ -285,9 +454,19 @@ export class AgentPlanExecuteRunner {
           }),
           tools: input.tools,
           isReplan: true,
+          recoverOutcomes: allToolOutcomes,
         });
 
         if (replanOutput.type === 'response') {
+          if (
+            shouldBlockUngroundedCreateResponse({
+              objective: input.objective,
+              outcomes: allToolOutcomes,
+            })
+          ) {
+            planSteps = [FORCED_CREATE_DOCUMENT_STEP];
+            break;
+          }
           return streamFinalResponse(replanOutput.response, input.onEvent);
         }
 
@@ -311,14 +490,27 @@ export class AgentPlanExecuteRunner {
       }),
       tools: input.tools,
       isReplan: true,
+      recoverOutcomes: allToolOutcomes,
     });
 
     if (finalOutput.type === 'response') {
+      if (
+        shouldBlockUngroundedCreateResponse({
+          objective: input.objective,
+          outcomes: allToolOutcomes,
+        })
+      ) {
+        return streamFinalResponse(UNGROUNDED_CREATE_FALLBACK, input.onEvent);
+      }
       return streamFinalResponse(finalOutput.response, input.onEvent);
     }
 
-    const fallback =
-      pastSteps.length > 0
+    const fallback = shouldBlockUngroundedCreateResponse({
+      objective: input.objective,
+      outcomes: allToolOutcomes,
+    })
+      ? UNGROUNDED_CREATE_FALLBACK
+      : pastSteps.length > 0
         ? 'I completed the planned steps but could not compose a final reply.'
         : 'I could not complete your request within the planning limits.';
     return streamFinalResponse(fallback, input.onEvent);

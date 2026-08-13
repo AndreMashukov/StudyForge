@@ -113,10 +113,10 @@ function summarizeCreateRule(result: unknown): string {
 
 function summarizeCreateDocument(result: unknown): string {
   if (!isRecord(result)) {
-    return 'Created a document.';
+    return 'Started document generation.';
   }
   const title = asString(result.title) ?? 'document';
-  return `Created document "${title}"`;
+  return `Started generating document "${title}"`;
 }
 
 function summarizeAttachRule(result: unknown): string {

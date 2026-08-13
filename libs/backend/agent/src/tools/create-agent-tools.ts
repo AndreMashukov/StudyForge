@@ -20,13 +20,13 @@ import {
   getRules,
   updateRule,
 } from '@study-forge/backend-directories/rule-crud';
+import { getApplicableRules } from '@study-forge/backend-directories/rule-resolution';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
-import {
-  normalizeGeneratedHtml,
-  wrapHtmlDocument,
-} from '@study-forge/backend-documents/document-html/html-utils';
-import { prepareHtmlDocumentForStorage } from '@study-forge/backend-documents/document-html';
 import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
+import {
+  enforceCallableGenerationLimits,
+  refundUsageReservationSafe,
+} from '@study-forge/backend-generation/generation-limits';
 import { createPendingQuiz } from '@study-forge/backend-artifacts/artifact-generation-records';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { AgentKnowledgeIndexService } from '../knowledge/agent-knowledge-index-service';
@@ -176,18 +176,21 @@ function sanitizeDirectoryName(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-async function prepareAgentDocumentContent(
-  title: string,
-  text: string,
-): Promise<{ content: string; contentFormat: 'html' }> {
-  try {
-    const prepared = await prepareHtmlDocumentForStorage(text, title);
-    return { content: prepared.fullHtml, contentFormat: 'html' };
-  } catch {
-    const bodyHtml = normalizeGeneratedHtml(text);
-    const fullHtml = wrapHtmlDocument(bodyHtml, title);
-    return { content: fullHtml, contentFormat: 'html' };
+const MIN_CREATE_DOCUMENT_PROMPT_CHARS = 10;
+
+function resolveCreateDocumentPrompt(args: Record<string, unknown>): string {
+  const prompt = typeof args.prompt === 'string' ? args.prompt.trim() : '';
+  if (prompt) {
+    return prompt;
   }
+  return typeof args.text === 'string' ? args.text.trim() : '';
+}
+
+function pendingTitleFromPrompt(prompt: string, title?: string): string {
+  if (title) {
+    return title;
+  }
+  return prompt.length > 50 ? `${prompt.substring(0, 50)}…` : prompt;
 }
 
 export function createAgentToolDefinitions(
@@ -416,52 +419,100 @@ export function createAgentToolDefinitions(
     {
       name: 'create_document',
       description:
-        'Create an HTML document from provided content. Use HTML body tags (h1, h2, p, ul, li, etc.), not markdown.',
+        'Enqueue documentFromPrompt to generate a study document. Pass a generation prompt describing the document; do not write HTML or markdown yourself. Always-apply rules for the target directory are attached automatically.',
       parameters: {
         type: 'object',
         properties: {
           title: { type: 'string' },
-          text: { type: 'string' },
+          prompt: { type: 'string' },
           directoryId: { type: 'string' },
         },
-        required: ['title', 'text'],
+        required: ['prompt'],
       },
       execute: async (args) => {
-        const title = typeof args.title === 'string' ? args.title.trim() : '';
-        const text = typeof args.text === 'string' ? args.text.trim() : '';
+        const prompt = resolveCreateDocumentPrompt(args);
+        const titleArg =
+          typeof args.title === 'string' ? args.title.trim() : '';
         const directoryId =
           typeof args.directoryId === 'string'
             ? args.directoryId
             : await resolveDefaultDirectoryId(context);
-        if (!title || !text || !directoryId) {
-          throw new Error('title, text, and directoryId are required');
+        if (!prompt || !directoryId) {
+          throw new Error('prompt and directoryId are required');
+        }
+        if (prompt.length < MIN_CREATE_DOCUMENT_PROMPT_CHARS) {
+          throw new Error(
+            `prompt must be at least ${MIN_CREATE_DOCUMENT_PROMPT_CHARS} characters`,
+          );
         }
         assertDirectoryInScope(context, directoryId);
-        const { content, contentFormat } = await prepareAgentDocumentContent(
-          title,
-          text,
-        );
-        const document = await DocumentCrudService.createDocument(
+        const title = pendingTitleFromPrompt(prompt, titleArg || undefined);
+        const { defaultRuleIds } = await getApplicableRules(
           context.userId,
-          {
-            title,
-            content,
-            contentFormat,
+          directoryId,
+          RuleApplicability.PROMPT,
+        );
+        const usageReservation = await enforceCallableGenerationLimits(
+          context.userId,
+          'documentFromPrompt',
+        );
+        let pendingDocId: string | undefined;
+        try {
+          pendingDocId = await DocumentCrudService.createPendingDocument(
+            context.userId,
+            {
+              directoryId,
+              title,
+              description: `Generated from prompt: ${prompt.substring(0, 100)}${
+                prompt.length > 100 ? '...' : ''
+              }`,
+              sourceType: DocumentSourceType.GENERATED,
+              tags: ['ai-generated', 'prompt-based'],
+            },
+          );
+          const jobId = await enqueueGenerationJob({
+            userId: context.userId,
             directoryId,
-            sourceType: DocumentSourceType.GENERATED,
-          },
-        );
-        await AgentKnowledgeLifecycle.indexDocument(
-          context.userId,
-          document.id,
-        );
-        pushAction(context, {
-          kind: 'create_document',
-          summary: `Created document "${document.title}"`,
-          entityType: 'document',
-          entityId: document.id,
-        });
-        return document;
+            recordId: pendingDocId,
+            kind: 'documentFromPrompt',
+            usageReservationId: usageReservation.id,
+            payload: {
+              sourceKind: 'prompt',
+              prompt,
+              title,
+              directoryId,
+              ruleIds: defaultRuleIds,
+              ruleResolutionMode: 'explicit-only',
+            },
+          });
+          pushAction(context, {
+            kind: 'create_document',
+            summary: `Started document generation for "${title}"`,
+            entityType: 'document',
+            entityId: pendingDocId,
+            jobId,
+          });
+          return {
+            id: pendingDocId,
+            documentId: pendingDocId,
+            title,
+            jobId,
+            generationStatus: 'pending',
+            appliedAlwaysApplyRuleIds: defaultRuleIds,
+          };
+        } catch (error) {
+          if (pendingDocId) {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            await DocumentCrudService.failPendingDocument(
+              context.userId,
+              pendingDocId,
+              message,
+            ).catch(() => undefined);
+          }
+          await refundUsageReservationSafe(context.userId, usageReservation.id);
+          throw error;
+        }
       },
     },
     {
