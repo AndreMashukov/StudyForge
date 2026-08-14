@@ -42,7 +42,7 @@ interface IQuizMetadata {
   }>;
 }
 
-const DEFAULT_RECENT_FAILURE_LIMIT = 10;
+const DEFAULT_RECENT_FAILURE_LIMIT = 40;
 const MAX_ATTEMPTS_TO_SCAN = 500;
 const MAX_EVENTS_TO_SCAN = 500;
 const MAX_INTERACTION_SESSIONS_TO_SCAN = 1000;
@@ -280,7 +280,7 @@ async function getAttempts(
   const quizType = normalizeQuizType(range.quizType);
   const snapshot = await query.get();
 
-  return snapshot.docs
+  const attempts = snapshot.docs
     .map((doc) => {
       const data = { id: doc.id, ...doc.data() } as QuizAttempt;
       return {
@@ -294,6 +294,22 @@ async function getAttempts(
       (left, right) =>
         right.completedAtDate.getTime() - left.completedAtDate.getTime(),
     );
+
+  return dedupeAttempts(attempts);
+}
+
+function dedupeAttempts(attempts: IStoredAttempt[]): IStoredAttempt[] {
+  const seen = new Set<string>();
+  const unique: IStoredAttempt[] = [];
+  for (const attempt of attempts) {
+    const key = `${attempt.quizType}:${attempt.quizId}:${attempt.completedAtDate.getTime()}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    unique.push(attempt);
+  }
+  return unique;
 }
 
 function buildQuestionBreakdown(

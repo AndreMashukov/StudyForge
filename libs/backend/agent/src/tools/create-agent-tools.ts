@@ -52,6 +52,7 @@ export interface AgentToolRuntimeContext {
   directoryId?: string;
   directoryIds: string[];
   promptContext?: AgentPromptContext;
+  clientLocalDate?: string;
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
 }

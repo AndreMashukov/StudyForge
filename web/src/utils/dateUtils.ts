@@ -9,7 +9,16 @@ import { format, isValid, parseISO } from 'date-fns';
  * @param date - Date value that can be Date, Firebase Timestamp, raw Firebase Timestamp, string, number, or null/undefined
  * @returns Valid Date object or null
  */
-const parseDate = (date: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined): Date | null => {
+const parseDate = (
+  date:
+    | Date
+    | { toDate(): Date }
+    | { _seconds: number; _nanoseconds: number }
+    | string
+    | number
+    | null
+    | undefined,
+): Date | null => {
   try {
     // Handle null/undefined
     if (date === null || date === undefined) {
@@ -22,7 +31,12 @@ const parseDate = (date: Date | { toDate(): Date } | { _seconds: number; _nanose
     }
 
     // Handle Firebase Timestamp objects (objects with toDate method)
-    if (typeof date === 'object' && date !== null && 'toDate' in date && typeof date.toDate === 'function') {
+    if (
+      typeof date === 'object' &&
+      date !== null &&
+      'toDate' in date &&
+      typeof date.toDate === 'function'
+    ) {
       try {
         const convertedDate = date.toDate();
         return isValid(convertedDate) ? convertedDate : null;
@@ -32,12 +46,19 @@ const parseDate = (date: Date | { toDate(): Date } | { _seconds: number; _nanose
     }
 
     // Handle raw Firebase Timestamp objects (with _seconds and _nanoseconds)
-    if (typeof date === 'object' && date !== null && '_seconds' in date && '_nanoseconds' in date) {
+    if (
+      typeof date === 'object' &&
+      date !== null &&
+      '_seconds' in date &&
+      '_nanoseconds' in date
+    ) {
       try {
         // Convert Firebase Timestamp to JavaScript Date
         // _seconds is Unix timestamp in seconds, _nanoseconds is additional precision
         const timestamp = date as { _seconds: number; _nanoseconds: number };
-        const milliseconds = timestamp._seconds * 1000 + Math.floor(timestamp._nanoseconds / 1000000);
+        const milliseconds =
+          timestamp._seconds * 1000 +
+          Math.floor(timestamp._nanoseconds / 1000000);
         const convertedDate = new Date(milliseconds);
         return isValid(convertedDate) ? convertedDate : null;
       } catch {
@@ -57,7 +78,7 @@ const parseDate = (date: Date | { toDate(): Date } | { _seconds: number; _nanose
       if (date.trim() === '') {
         return null;
       }
-      
+
       // Try parsing as ISO string first
       try {
         const isoDate = parseISO(date);
@@ -67,7 +88,7 @@ const parseDate = (date: Date | { toDate(): Date } | { _seconds: number; _nanose
       } catch {
         // Fall through to regular Date parsing
       }
-      
+
       // Try regular Date parsing
       const parsedDate = new Date(date);
       if (isValid(parsedDate)) {
@@ -86,9 +107,18 @@ const parseDate = (date: Date | { toDate(): Date } | { _seconds: number; _nanose
  * @param date - Date value that can be Date, Firebase Timestamp, raw Firebase Timestamp, string, number, or null/undefined
  * @returns Formatted date string or fallback value
  */
-export const formatDate = (date: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined): string => {
+export const formatDate = (
+  date:
+    | Date
+    | { toDate(): Date }
+    | { _seconds: number; _nanoseconds: number }
+    | string
+    | number
+    | null
+    | undefined,
+): string => {
   const parsedDate = parseDate(date);
-  
+
   if (!parsedDate) {
     return 'Unknown';
   }
@@ -119,8 +149,22 @@ function formatDurationSeconds(totalSeconds: number): string {
  * Computes generation duration in milliseconds from created/completed timestamps.
  */
 export const computeGenerationDurationMs = (
-  createdAt: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined,
-  completedAt: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined,
+  createdAt:
+    | Date
+    | { toDate(): Date }
+    | { _seconds: number; _nanoseconds: number }
+    | string
+    | number
+    | null
+    | undefined,
+  completedAt:
+    | Date
+    | { toDate(): Date }
+    | { _seconds: number; _nanoseconds: number }
+    | string
+    | number
+    | null
+    | undefined,
 ): number | null => {
   const start = parseDate(createdAt);
   const end = parseDate(completedAt);
@@ -133,20 +177,45 @@ export const computeGenerationDurationMs = (
  * Formats generation duration for tooltip display.
  */
 export const formatGenerationDuration = (
-  createdAt: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined,
-  completedAt: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined,
+  createdAt:
+    | Date
+    | { toDate(): Date }
+    | { _seconds: number; _nanoseconds: number }
+    | string
+    | number
+    | null
+    | undefined,
+  completedAt:
+    | Date
+    | { toDate(): Date }
+    | { _seconds: number; _nanoseconds: number }
+    | string
+    | number
+    | null
+    | undefined,
 ): string => {
   const durationMs = computeGenerationDurationMs(createdAt, completedAt);
   if (durationMs === null) return 'Unavailable';
   return formatDurationSeconds(Math.round(durationMs / 1000));
 };
 
+export const formatLocalIsoDate = (date: Date = new Date()): string => {
+  return format(date, 'yyyy-MM-dd');
+};
+
 export const formatDateWithOptions = (
-  date: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined,
-  formatString = 'MMM d, yyyy'
+  date:
+    | Date
+    | { toDate(): Date }
+    | { _seconds: number; _nanoseconds: number }
+    | string
+    | number
+    | null
+    | undefined,
+  formatString = 'MMM d, yyyy',
 ): string => {
   const parsedDate = parseDate(date);
-  
+
   if (!parsedDate) {
     return 'Invalid date';
   }

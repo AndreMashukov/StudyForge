@@ -145,24 +145,16 @@ _Avoid_: default rule, auto-select rule (prefer **always apply** in product copy
 ## Learning & chat
 
 **Workspace agent**:
-Floating assistant over the user's full library (`scope: workspace`). Uses plan-and-execute: a planner writes remaining steps, an executor runs one step with tools, then a replanner continues or writes the final reply. Creating a document enqueues **documentFromPrompt** and applies **always apply** rules for the target directory.
+Floating assistant over the user's full library (`scope: workspace`). Runs as a Google ADK `LlmAgent` with StudyForge tools. Conversation history is stored on the ADK session for the turn, and on the StudyForge thread for later turns. Creating a document enqueues **documentFromPrompt** and applies **always apply** rules for the target directory.
 _Avoid_: global agent (alone), workspace chat
 
 **Directory-scoped agent**:
-Tool-capable `AgentPanel` chat limited to one directory tree and its descendants (`scope: directory`). Uses a ReAct tool loop (one model call per tool round).
+Tool-capable `AgentPanel` chat limited to one directory tree and its descendants (`scope: directory`). Same Google ADK `LlmAgent` tool loop as the workspace agent, with tools limited to that directory tree.
 _Avoid_: folder agent, scoped workspace agent
 
-**Agent plan**:
-Ordered list of natural-language steps the workspace agent intends to run for one user turn. Replanned after each completed step.
-_Avoid_: todo list (alone), tool chain
-
-**Agent plan step**:
-One natural-language step from an agent plan. The executor completes it with tools before the next replan.
-_Avoid_: tool call, sub-task (alone)
-
-**Agent replan**:
-Planner call after a plan step finishes. Returns either the remaining plan or the final user-facing reply.
-_Avoid_: rethink, mid-turn planning
+**Agent session**:
+In-memory Google ADK conversation for one agent turn. Hydrated from the StudyForge thread history so follow-ups resolve, then discarded. The durable transcript stays on the StudyForge agent thread.
+_Avoid_: ADK memory (when meaning the StudyForge thread), planner history
 
 **Directory chat**:
 Conversational assistant scoped to a directory and its documents/artifacts. Uses follow-up rules and artifact context. Distinct from the workspace agent and directory-scoped agent panels.

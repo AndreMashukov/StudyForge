@@ -19,6 +19,7 @@ interface IQuizStatisticsToolContext {
   userId: string;
   scope: AgentScope;
   directoryIds: string[];
+  clientLocalDate?: string;
 }
 
 interface IQuizStatisticsToolDefinition {
@@ -39,7 +40,14 @@ const QUIZ_TELEMETRY_TYPE_ENUM = [
   'diagramQuiz',
   'sequenceQuiz',
 ] as const;
-const TIME_RANGE_ENUM = ['7d', '30d', '90d', 'all'] as const;
+const TIME_RANGE_ENUM = [
+  'yesterday',
+  'today',
+  '7d',
+  '30d',
+  '90d',
+  'all',
+] as const;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_QUIZZES_IN_TOOL_RESULT = 40;
 const MAX_WRONG_ANSWERS_IN_TOOL_RESULT = 20;
@@ -93,19 +101,47 @@ function utcDateString(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+function shiftIsoDate(isoDate: string, days: number): string {
+  const year = Number(isoDate.slice(0, 4));
+  const month = Number(isoDate.slice(5, 7));
+  const day = Number(isoDate.slice(8, 10));
+  const utc = new Date(Date.UTC(year, month - 1, day));
+  utc.setUTCDate(utc.getUTCDate() + days);
+  return utcDateString(utc);
+}
+
+export function resolveAgentCalendarDates(clientLocalDate?: string): {
+  today: string;
+  yesterday: string;
+} {
+  const today =
+    typeof clientLocalDate === 'string' && DATE_PATTERN.test(clientLocalDate)
+      ? clientLocalDate
+      : utcDateString(new Date());
+  return {
+    today,
+    yesterday: shiftIsoDate(today, -1),
+  };
+}
+
 function rangeFromTimeRange(
   timeRange: TimeRangeKey,
+  today: string,
 ): Pick<StatisticsDateRangeRequest, 'startDate' | 'endDate'> {
   if (timeRange === 'all') {
     return {};
   }
+  if (timeRange === 'yesterday') {
+    const yesterday = shiftIsoDate(today, -1);
+    return { startDate: yesterday, endDate: yesterday };
+  }
+  if (timeRange === 'today') {
+    return { startDate: today, endDate: today };
+  }
   const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
-  const end = new Date();
-  const start = new Date();
-  start.setUTCDate(start.getUTCDate() - (days - 1));
   return {
-    startDate: utcDateString(start),
-    endDate: utcDateString(end),
+    startDate: shiftIsoDate(today, -(days - 1)),
+    endDate: today,
   };
 }
 
@@ -114,7 +150,7 @@ function parseTimeRange(value: unknown): TimeRangeKey | undefined {
     return undefined;
   }
   if (typeof value !== 'string' || !isTimeRangeKey(value)) {
-    throw new Error('timeRange must be 7d, 30d, 90d, or all');
+    throw new Error('timeRange must be yesterday, today, 7d, 30d, 90d, or all');
   }
   return value;
 }
@@ -122,11 +158,12 @@ function parseTimeRange(value: unknown): TimeRangeKey | undefined {
 function buildDateRange(
   args: Record<string, unknown>,
   quizType: StatisticsQuizTypeFilter,
+  today: string,
 ): StatisticsDateRangeRequest {
   const startDate = parseOptionalDate(args.startDate, 'startDate');
   const endDate = parseOptionalDate(args.endDate, 'endDate');
   const timeRange = parseTimeRange(args.timeRange);
-  const fromTimeRange = timeRange ? rangeFromTimeRange(timeRange) : {};
+  const fromTimeRange = timeRange ? rangeFromTimeRange(timeRange, today) : {};
   const resolvedStart = startDate ?? fromTimeRange.startDate;
   const resolvedEnd = endDate ?? fromTimeRange.endDate;
   return {
@@ -204,11 +241,12 @@ function compactQuestion(question: StatisticsQuestionBreakdownItem) {
 export function createQuizStatisticsToolDefinitions(
   context: IQuizStatisticsToolContext,
 ): IQuizStatisticsToolDefinition[] {
+  const { today } = resolveAgentCalendarDates(context.clientLocalDate);
   return [
     {
       name: 'get_quiz_statistics',
       description:
-        'Read quiz attempt statistics for quizzes, diagram quizzes, and sequence quizzes. Returns overall accuracy plus per-quiz correct vs incorrect counts. Use when the user asks how they performed, scores, or attempt history.',
+        'Read quiz attempt statistics for quizzes, diagram quizzes, and sequence quizzes. Returns overall accuracy plus per-quiz correct vs incorrect counts. For "yesterday" or "today", pass timeRange yesterday or today. Re-query every turn; do not reuse dates from earlier messages.',
       parameters: {
         type: 'object',
         properties: {
@@ -221,7 +259,7 @@ export function createQuizStatisticsToolDefinitions(
             type: 'string',
             enum: [...TIME_RANGE_ENUM],
             description:
-              'Relative window. Ignored when startDate or endDate is set.',
+              'Relative window using the user local calendar. yesterday and today are single days. Ignored when startDate or endDate is set.',
           },
           startDate: {
             type: 'string',
@@ -235,7 +273,7 @@ export function createQuizStatisticsToolDefinitions(
       },
       execute: async (args) => {
         const quizType = parseQuizTypeFilter(args.quizType);
-        const range = buildDateRange(args, quizType);
+        const range = buildDateRange(args, quizType, today);
         const scope = statisticsScope(context);
         const [overview, performance] = await Promise.all([
           getStatisticsOverview(context.userId, range, scope),
@@ -255,7 +293,7 @@ export function createQuizStatisticsToolDefinitions(
     {
       name: 'get_quiz_answer_details',
       description:
-        'Read right vs wrong answer details for quizzes, diagram quizzes, and sequence quizzes. Omit quizId for recent wrong answers across quizzes. Pass quizId and quizType for per-question correct/incorrect counts, attempt scores, and selected vs correct answers.',
+        'Read right vs wrong answer details for quizzes, diagram quizzes, and sequence quizzes. Omit quizId for recent wrong answers across quizzes. Pass quizId and quizType for per-question correct/incorrect counts, attempt scores, and selected vs correct answers. For "yesterday" or "today", pass timeRange yesterday or today.',
       parameters: {
         type: 'object',
         properties: {
@@ -273,7 +311,7 @@ export function createQuizStatisticsToolDefinitions(
             type: 'string',
             enum: [...TIME_RANGE_ENUM],
             description:
-              'Relative window. Ignored when startDate or endDate is set.',
+              'Relative window using the user local calendar. yesterday and today are single days. Ignored when startDate or endDate is set.',
           },
           startDate: {
             type: 'string',
@@ -294,7 +332,7 @@ export function createQuizStatisticsToolDefinitions(
 
         if (quizId) {
           const quizType = parseQuizTelemetryType(args.quizType);
-          const range = buildDateRange(args, quizType);
+          const range = buildDateRange(args, quizType, today);
           const detail = await getStatisticsQuizDetail(
             context.userId,
             { ...range, quizId, quizType },
@@ -320,7 +358,7 @@ export function createQuizStatisticsToolDefinitions(
         }
 
         const quizType = parseQuizTypeFilter(args.quizType);
-        const range = buildDateRange(args, quizType);
+        const range = buildDateRange(args, quizType, today);
         const overview = await getStatisticsOverview(
           context.userId,
           range,

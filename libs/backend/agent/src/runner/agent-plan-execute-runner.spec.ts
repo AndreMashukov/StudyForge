@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   agentPlanOutputSchema,
   buildGroundedCreateReply,
+  buildPlannerUserMessage,
   composeExecutorStepResult,
+  formatConversationHistory,
   hasSuccessfulCreateDocument,
   parseAgentPlanOutput,
   shouldBlockUngroundedCreateResponse,
@@ -145,5 +147,48 @@ describe('create_document grounding', () => {
     expect(text).toContain('id=Pa5oXQQGD76JnHi8w7cA');
     expect(text).toContain('Executor notes (unverified');
     expect(text).toContain('Created K7p3X9mNqR2vY8wZ4jL5');
+  });
+});
+
+describe('planner conversation history', () => {
+  it('omits the recent conversation section when history is empty', () => {
+    const message = buildPlannerUserMessage({
+      objective: 'try to regenerate',
+      history: [],
+      pastSteps: [],
+    });
+
+    expect(message).not.toContain('Recent conversation:');
+    expect(message).toContain('Objective:\ntry to regenerate');
+  });
+
+  it('includes prior turns so follow-ups can resolve the last document', () => {
+    const history = [
+      {
+        role: 'user' as const,
+        content:
+          'create a new doc using Mermaid Diagrams rules add poetic summary too',
+      },
+      {
+        role: 'assistant' as const,
+        content:
+          'Started generating document "Knowledge Gaps Recap".\n\n[Executed actions]\n- create_document id=HBETddUOzkX4G2ILTCGD Started document generation for "Knowledge Gaps Recap"',
+      },
+    ];
+
+    expect(formatConversationHistory(history)).toContain(
+      'id=HBETddUOzkX4G2ILTCGD',
+    );
+
+    const message = buildPlannerUserMessage({
+      objective: 'try to regenerate',
+      history,
+      pastSteps: [],
+    });
+
+    expect(message).toContain('Recent conversation:');
+    expect(message).toContain('Knowledge Gaps Recap');
+    expect(message).toContain('id=HBETddUOzkX4G2ILTCGD');
+    expect(message).toContain('Objective:\ntry to regenerate');
   });
 });

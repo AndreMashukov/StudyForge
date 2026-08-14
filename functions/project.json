@@ -71,6 +71,7 @@
     "generation",
     "documents",
     "directories",
-    "artifacts"
+    "artifacts",
+    "agent"
   ]
 }

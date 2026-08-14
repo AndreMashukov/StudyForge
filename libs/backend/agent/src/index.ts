@@ -1,4 +1,5 @@
 export { DirectoryAgentService } from './directory-agent-service';
+export { AgentAdkRunner } from './adk/agent-adk-runner';
 export { AgentPlanExecuteRunner } from './runner/agent-plan-execute-runner';
 export { parseAgentPlanOutput } from './runner/agent-plan-execute-runner';
 export { AgentThreadStore } from './memory/agent-memory-service';

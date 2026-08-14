@@ -4,7 +4,10 @@ import {
   getStatisticsQuizDetail,
   getStatisticsQuizPerformance,
 } from '@study-forge/backend-core/services/statistics';
-import { createQuizStatisticsToolDefinitions } from './quiz-statistics-tools';
+import {
+  createQuizStatisticsToolDefinitions,
+  resolveAgentCalendarDates,
+} from './quiz-statistics-tools';
 
 vi.mock('@study-forge/backend-core/services/statistics', () => ({
   getStatisticsOverview: vi.fn(),
@@ -24,6 +27,7 @@ function createContext(
     userId: 'user-1',
     scope: 'workspace' as const,
     directoryIds: ['dir-1'],
+    clientLocalDate: '2026-08-14',
     ...overrides,
   };
 }
@@ -319,5 +323,43 @@ describe('quiz statistics agent tools', () => {
     await expect(
       executeTool('get_quiz_answer_details', { quizId: 'quiz-1' }),
     ).rejects.toThrow(/quizType must be quiz, diagramQuiz, or sequenceQuiz/);
+  });
+
+  it('resolves yesterday from the user local calendar date', () => {
+    expect(resolveAgentCalendarDates('2026-08-14')).toEqual({
+      today: '2026-08-14',
+      yesterday: '2026-08-13',
+    });
+  });
+
+  it('queries a single calendar day when timeRange is yesterday', async () => {
+    vi.mocked(getStatisticsOverview).mockResolvedValue({
+      metrics: {
+        attemptCount: 0,
+        quizCount: 0,
+        answeredQuestionCount: 0,
+        correctAnswerCount: 0,
+        incorrectAnswerCount: 0,
+        explanationRequestCount: 0,
+        accuracyPercentage: 0,
+      },
+      recentFailures: [],
+    });
+    vi.mocked(getStatisticsQuizPerformance).mockResolvedValue({
+      quizzes: [],
+      recentFailures: [],
+    });
+
+    await executeTool('get_quiz_statistics', { timeRange: 'yesterday' });
+
+    expect(getStatisticsOverview).toHaveBeenCalledWith(
+      'user-1',
+      {
+        quizType: 'all',
+        startDate: '2026-08-13',
+        endDate: '2026-08-13',
+      },
+      undefined,
+    );
   });
 });

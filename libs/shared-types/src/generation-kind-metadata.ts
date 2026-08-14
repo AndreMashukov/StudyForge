@@ -155,7 +155,7 @@ export const GENERATION_KIND_METADATA: Record<
     kind: 'directoryChat',
     label: 'Directory-scoped agent',
     description:
-      'ReAct tool loop for directory-scoped AgentPanel chat (one directory tree).',
+      'ADK LlmAgent for directory-scoped AgentPanel chat (one directory tree).',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',
@@ -190,9 +190,9 @@ export const GENERATION_KIND_METADATA: Record<
   },
   directoryAgent: {
     kind: 'directoryAgent',
-    label: 'Workspace agent planner',
+    label: 'Workspace agent',
     description:
-      'Plan-and-execute planner and replanner for the floating workspace agent (initial plan, replan after each step, final reply).',
+      'ADK LlmAgent for the floating workspace agent. One tool-capable model loop over the user library.',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',
@@ -202,7 +202,7 @@ export const GENERATION_KIND_METADATA: Record<
     kind: 'agentExecutor',
     label: 'Workspace agent executor',
     description:
-      'Per-step tool loop for the floating workspace agent. Runs one plan step with tools; typically a smaller or cheaper model than the planner.',
+      'Unused by the ADK workspace agent. Kept so existing LLM setups remain valid.',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',

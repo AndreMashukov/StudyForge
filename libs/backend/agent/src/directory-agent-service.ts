@@ -17,14 +17,21 @@ import {
   deriveAgentThreadPreview,
   deriveAgentThreadTitle,
 } from './memory/agent-memory-service';
-import { AgentChatRunner } from './runner/agent-chat-runner';
-import { AgentPlanExecuteRunner } from './runner/agent-plan-execute-runner';
+import { AgentAdkRunner } from './adk/agent-adk-runner';
+import { emitAgentTextAsDeltas } from './runner/agent-chat-runner';
+import { withExecutedActionContext } from './runner/agent-history';
+import type { AgentToolOutcome } from './runner/agent-chat-fallback';
+import {
+  shouldBlockUngroundedCreateResponse,
+  UNGROUNDED_CREATE_FALLBACK,
+} from './runner/agent-plan-execute-runner';
 import {
   AGENT_DOCUMENT_CONTENT_MAX_CHARS,
   AgentToolRuntimeContext,
   createAgentToolDefinitions,
   toAgentReadableDocumentContent,
 } from './tools/create-agent-tools';
+import { resolveAgentCalendarDates } from './tools/quiz-statistics-tools';
 
 const MAX_DIRECTORY_IDS = 200;
 
@@ -73,7 +80,13 @@ function historyMessageForModel(message: IAgentThreadMessage): {
   content: string;
 } {
   if (message.role === 'assistant') {
-    return { role: 'assistant', content: message.content };
+    return {
+      role: 'assistant',
+      content: withExecutedActionContext(
+        message.content,
+        message.executedActions,
+      ),
+    };
   }
   return {
     role: 'user',
@@ -223,6 +236,8 @@ function buildSystemPrompt(input: {
   memorySnippets: Array<{ content: string; memoryType: string }>;
   currentDocumentBodyBlock?: string;
   currentRuleBodyBlock?: string;
+  today: string;
+  yesterday: string;
 }): string {
   const scopeLabel = input.scope === 'workspace' ? 'workspace' : 'directory';
   const promptContextDescription = describePromptContext(input.promptContext);
@@ -253,10 +268,13 @@ function buildSystemPrompt(input: {
     'When you create directories or rules, state the full path from tool results (for example /Python/Screenshots).',
     'In workspace scope, omit parentId on create_directory to create at the workspace root; pass parentId to nest under an existing directory.',
     'When the user asks where something is or whether work completed, verify with list_directories / list_rules / list_documents and answer from those results.',
-    'When the user asks about quiz performance, scores, accuracy, or right vs wrong answers, use get_quiz_statistics and get_quiz_answer_details. Those tools cover quizzes, diagram quizzes, and sequence quizzes.',
+    'When the user asks about quiz performance, scores, accuracy, right vs wrong answers, or knowledge gaps from quizzes, use get_quiz_statistics and get_quiz_answer_details. Those tools cover quizzes, diagram quizzes, and sequence quizzes.',
+    `Today is ${input.today}. Yesterday is ${input.yesterday}. These are the user local calendar dates.`,
+    'When the user says yesterday or today, pass timeRange yesterday or today on those tools. Re-query every turn. Do not reuse quiz dates or gap lists from earlier messages in this thread.',
     'Never perform destructive deletes directly. Use propose_delete_* tools and wait for user confirmation.',
     'Directory names cannot contain / \\ : * ? " < > |. Use hyphens instead of slashes (for example, "AI-ML" not "AI/ML").',
     'When creating documents, call create_document with a generation prompt. The documentFromPrompt pipeline writes the HTML and applies always-apply rules for that directory. Do not write HTML or markdown yourself.',
+    'Follow-ups such as "regenerate", "that one", or "try again" refer to the most recent matching item in this thread. Do not ask the user to restate it.',
     'For study plans and proposals, answer in chat first unless the user asks you to create directories or documents.',
     input.currentDocumentBodyBlock,
     input.currentRuleBodyBlock,
@@ -282,6 +300,7 @@ export class DirectoryAgentService {
       scope: request.scope,
       directoryId: request.directoryId,
     });
+    const calendar = resolveAgentCalendarDates(request.clientLocalDate);
 
     const runtimeContext: AgentToolRuntimeContext = {
       userId,
@@ -289,6 +308,7 @@ export class DirectoryAgentService {
       directoryId: request.directoryId,
       directoryIds,
       promptContext: request.promptContext,
+      clientLocalDate: calendar.today,
       executedActions: [],
       proposedDeletes: [],
     };
@@ -333,6 +353,8 @@ export class DirectoryAgentService {
       memorySnippets,
       currentDocumentBodyBlock,
       currentRuleBodyBlock,
+      today: calendar.today,
+      yesterday: calendar.yesterday,
     });
 
     const pendingEvents: AgentMessageStreamEvent[] = [];
@@ -352,8 +374,15 @@ export class DirectoryAgentService {
 
     const runnerInput = {
       userId,
+      threadId: thread.id,
       systemPrompt,
+      userMessage: formattedUserMessage,
+      history: historyForModel,
       tools,
+      generationKind:
+        request.scope === 'workspace'
+          ? ('directoryAgent' as const)
+          : ('directoryChat' as const),
       onEvent: (event: AgentMessageStreamEvent) => {
         if (event.type === 'delta' || event.type === 'status') {
           pendingEvents.push(event);
@@ -361,19 +390,7 @@ export class DirectoryAgentService {
       },
     };
 
-    const runPromise =
-      request.scope === 'workspace'
-        ? AgentPlanExecuteRunner.run({
-            ...runnerInput,
-            objective: formattedUserMessage,
-            history: historyForModel,
-          })
-        : AgentChatRunner.run({
-            ...runnerInput,
-            userMessage: formattedUserMessage,
-            history: historyForModel,
-            generationKind: 'directoryChat',
-          }).then((result) => result.text);
+    const runPromise = AgentAdkRunner.run(runnerInput);
     runPromise
       .then((result) => {
         reply = result;
@@ -404,6 +421,35 @@ export class DirectoryAgentService {
     if (runError) {
       yield { type: 'error', message: runError };
       return;
+    }
+
+    const createOutcomes: AgentToolOutcome[] = runtimeContext.executedActions
+      .filter((action) => action.kind === 'create_document')
+      .map((action) => ({
+        name: 'create_document',
+        ok: true,
+        result: {
+          id: action.entityId,
+          documentId: action.entityId,
+        },
+      }));
+    if (
+      shouldBlockUngroundedCreateResponse({
+        objective: formattedUserMessage,
+        outcomes: createOutcomes,
+      })
+    ) {
+      reply = UNGROUNDED_CREATE_FALLBACK;
+    }
+
+    await emitAgentTextAsDeltas(reply, (event) => {
+      pendingEvents.push(event);
+    });
+    while (pendingEvents.length > 0) {
+      const event = pendingEvents.shift();
+      if (event) {
+        yield event;
+      }
     }
 
     for (const action of runtimeContext.executedActions) {

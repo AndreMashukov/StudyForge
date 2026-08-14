@@ -207,6 +207,7 @@ function buildPlannerPrompt(input: {
     '- Each step should be achievable with the available tools in one focused pass.',
     '- Do not include steps that were already completed.',
     '- Prefer a direct response when no tools are needed.',
+    '- Resolve follow-ups such as "that document", "regenerate", or "try again" from Recent conversation. Do not ask the user to restate an item the prior turn already named.',
     '- Never invent document, directory, or rule IDs.',
     '- Never claim a document was created unless TOOL RESULTS include create_document: OK with an id= value.',
     '- create_document queues documentFromPrompt. Tell the user generation is in progress; do not claim the HTML is already written.',
@@ -218,12 +219,29 @@ function buildPlannerPrompt(input: {
   ].join('\n');
 }
 
-function buildPlannerUserMessage(input: {
+export function formatConversationHistory(
+  history: Array<{ role: 'user' | 'assistant'; content: string }>,
+): string | undefined {
+  if (history.length === 0) {
+    return undefined;
+  }
+
+  return history.map((entry) => `${entry.role}: ${entry.content}`).join('\n\n');
+}
+
+export function buildPlannerUserMessage(input: {
   objective: string;
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   pastSteps: AgentPlanExecutePastStep[];
   remainingPlan?: string[];
 }): string {
-  const sections = [`Objective:\n${input.objective}`];
+  const sections: string[] = [];
+  const conversation = formatConversationHistory(input.history ?? []);
+  if (conversation) {
+    sections.push(`Recent conversation:\n${conversation}`);
+  }
+
+  sections.push(`Objective:\n${input.objective}`);
 
   if (input.pastSteps.length > 0) {
     sections.push(`Completed steps:\n${formatPastSteps(input.pastSteps)}`);
@@ -370,13 +388,21 @@ export class AgentPlanExecuteRunner {
   static async run(input: AgentPlanExecuteRunnerInput): Promise<string> {
     input.onEvent?.({ type: 'status', message: 'Planning...' });
 
+    const plannerMessage = (
+      pastSteps: AgentPlanExecutePastStep[],
+      remainingPlan?: string[],
+    ): string =>
+      buildPlannerUserMessage({
+        objective: input.objective,
+        history: input.history,
+        pastSteps,
+        remainingPlan,
+      });
+
     const initialPlan = await callPlannerModel({
       userId: input.userId,
       systemPrompt: input.systemPrompt,
-      userMessage: buildPlannerUserMessage({
-        objective: input.objective,
-        pastSteps: [],
-      }),
+      userMessage: plannerMessage([]),
       tools: input.tools,
       isReplan: false,
     });
@@ -447,11 +473,7 @@ export class AgentPlanExecuteRunner {
         const replanOutput = await callPlannerModel({
           userId: input.userId,
           systemPrompt: input.systemPrompt,
-          userMessage: buildPlannerUserMessage({
-            objective: input.objective,
-            pastSteps,
-            remainingPlan: planSteps,
-          }),
+          userMessage: plannerMessage(pastSteps, planSteps),
           tools: input.tools,
           isReplan: true,
           recoverOutcomes: allToolOutcomes,
@@ -484,10 +506,7 @@ export class AgentPlanExecuteRunner {
     const finalOutput = await callPlannerModel({
       userId: input.userId,
       systemPrompt: input.systemPrompt,
-      userMessage: buildPlannerUserMessage({
-        objective: input.objective,
-        pastSteps,
-      }),
+      userMessage: plannerMessage(pastSteps),
       tools: input.tools,
       isReplan: true,
       recoverOutcomes: allToolOutcomes,

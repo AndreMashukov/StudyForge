@@ -16,6 +16,7 @@ import { Textarea } from '../ui/Textarea';
 import { Spinner } from '../ui/Spinner';
 import { MarkdownRenderer } from '../MarkdownRenderer';
 import { stripAgentThinkingContent } from '../../utils/stripAgentThinkingContent';
+import { formatLocalIsoDate } from '../../utils/dateUtils';
 import { cn } from '../../lib/utils';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
@@ -355,6 +356,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
             message: trimmed,
             threadId,
             promptContext: activePromptContext,
+            clientLocalDate: formatLocalIsoDate(),
           },
           {
             signal: controller.signal,

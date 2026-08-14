@@ -30,6 +30,10 @@ export const agentMessageSchema = z.object({
   message: z.string().trim().min(1, 'Message is required').max(10_000),
   threadId: z.string().trim().min(1).optional(),
   promptContext: agentPromptContextSchema.optional(),
+  clientLocalDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'clientLocalDate must be YYYY-MM-DD')
+    .optional(),
 });
 
 export const agentActionKindSchema = z.enum([
