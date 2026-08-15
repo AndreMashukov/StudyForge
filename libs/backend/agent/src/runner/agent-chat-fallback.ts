@@ -1,3 +1,7 @@
+import type { AgentActionResult } from '@shared-types';
+
+export const EMPTY_AGENT_REPLY = 'I could not complete your request.';
+
 export interface AgentToolOutcome {
   name: string;
   ok: boolean;
@@ -245,4 +249,25 @@ export function buildEmptyModelFallback(outcomes: AgentToolOutcome[]): string {
 
   const lines = outcomes.map((outcome) => `- ${summarizeToolOutcome(outcome)}`);
   return ['Here is what I found from the tool steps:', ...lines].join('\n');
+}
+
+export function isGenericEmptyAgentReply(reply: string): boolean {
+  const trimmed = reply.trim();
+  return trimmed.length === 0 || trimmed === EMPTY_AGENT_REPLY;
+}
+
+export function buildReplyFromExecutedActions(
+  actions: AgentActionResult[],
+): string {
+  const lines = actions
+    .map((action) => action.summary.trim())
+    .filter((summary) => summary.length > 0);
+
+  if (lines.length === 0) {
+    return 'I finished the requested steps.';
+  }
+
+  return ['Here is what I did:', ...lines.map((line) => `- ${line}`)].join(
+    '\n',
+  );
 }

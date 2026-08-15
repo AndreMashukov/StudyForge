@@ -20,7 +20,11 @@ import {
 import { AgentAdkRunner } from './adk/agent-adk-runner';
 import { emitAgentTextAsDeltas } from './runner/agent-chat-runner';
 import { withExecutedActionContext } from './runner/agent-history';
-import type { AgentToolOutcome } from './runner/agent-chat-fallback';
+import {
+  buildReplyFromExecutedActions,
+  isGenericEmptyAgentReply,
+  type AgentToolOutcome,
+} from './runner/agent-chat-fallback';
 import {
   shouldBlockUngroundedCreateResponse,
   UNGROUNDED_CREATE_FALLBACK,
@@ -422,6 +426,13 @@ export class DirectoryAgentService {
     if (runError) {
       yield { type: 'error', message: runError };
       return;
+    }
+
+    if (
+      isGenericEmptyAgentReply(reply) &&
+      runtimeContext.executedActions.length > 0
+    ) {
+      reply = buildReplyFromExecutedActions(runtimeContext.executedActions);
     }
 
     const createOutcomes: AgentToolOutcome[] = runtimeContext.executedActions

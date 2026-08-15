@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildEmptyModelFallback } from './agent-chat-fallback';
+import {
+  buildEmptyModelFallback,
+  buildReplyFromExecutedActions,
+  EMPTY_AGENT_REPLY,
+  isGenericEmptyAgentReply,
+} from './agent-chat-fallback';
 
 describe('buildEmptyModelFallback', () => {
   it('returns a generic message when no tools ran', () => {
@@ -81,5 +86,41 @@ describe('buildEmptyModelFallback', () => {
 
     expect(text).toContain('2 questions');
     expect(text).toContain('3 wrong answers');
+  });
+});
+
+describe('buildReplyFromExecutedActions', () => {
+  it('treats the ADK empty reply as generic', () => {
+    expect(isGenericEmptyAgentReply('')).toBe(true);
+    expect(isGenericEmptyAgentReply(EMPTY_AGENT_REPLY)).toBe(true);
+    expect(isGenericEmptyAgentReply('Created the folder.')).toBe(false);
+  });
+
+  it('summarizes successful executed actions instead of a failure line', () => {
+    const text = buildReplyFromExecutedActions([
+      {
+        kind: 'create_directory',
+        summary:
+          'Created directory "Intermediate Python Study Plan" at /Python/Intermediate Python Study Plan',
+        entityId: 'dir-1',
+      },
+      {
+        kind: 'create_rule',
+        summary: 'Created rule "Python Intermediate Study Doc Format"',
+        entityId: 'rule-1',
+      },
+      {
+        kind: 'create_document',
+        summary:
+          'Started document generation for "Decorators, Closures & Higher-Order Functions"',
+        entityId: 'doc-1',
+      },
+    ]);
+
+    expect(text).toContain('Here is what I did:');
+    expect(text).toContain('Intermediate Python Study Plan');
+    expect(text).toContain('Python Intermediate Study Doc Format');
+    expect(text).toContain('Decorators, Closures');
+    expect(text).not.toContain(EMPTY_AGENT_REPLY);
   });
 });

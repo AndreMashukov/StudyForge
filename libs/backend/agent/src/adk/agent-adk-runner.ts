@@ -9,6 +9,7 @@ import {
   type Event,
 } from '@google/adk';
 import type { AgentMessageStreamEvent, GenerationKind } from '@shared-types';
+import { EMPTY_AGENT_REPLY } from '../runner/agent-chat-fallback';
 import type { AgentToolDefinition } from '../tools/create-agent-tools';
 import { agentToolsToFunctionTools } from './agent-adk-tools';
 import { StudyForgeAdkLlm } from './studyforge-adk-llm';
@@ -129,7 +130,7 @@ export class AgentAdkRunner {
     }
 
     if (reply.length === 0) {
-      reply = 'I could not complete your request.';
+      reply = EMPTY_AGENT_REPLY;
     }
 
     return reply;
