@@ -6,6 +6,7 @@ import {
   composeExecutorStepResult,
   formatConversationHistory,
   hasSuccessfulCreateDocument,
+  isCreateDocumentObjective,
   parseAgentPlanOutput,
   shouldBlockUngroundedCreateResponse,
 } from './agent-plan-execute-runner';
@@ -65,6 +66,10 @@ describe('create_document grounding', () => {
   const createObjective =
     'can you create a new doc using Mermaid Diagrams rules add poetic summary too';
 
+  it('still treats an explicit create-doc request as a create objective', () => {
+    expect(isCreateDocumentObjective(createObjective)).toBe(true);
+  });
+
   it('blocks a create reply when create_document never returned an id', () => {
     expect(
       shouldBlockUngroundedCreateResponse({
@@ -84,6 +89,32 @@ describe('create_document grounding', () => {
         ],
       }),
     ).toBe(true);
+  });
+
+  it('does not treat a propose-first study plan as a create-document request', () => {
+    const studyPlanObjective =
+      'In this dir I want you to create a study plan for learning Python - intermediate level (I already know the basics), each doc should contain explanation of several not trivial subjects with, code snippets, mermaid diagrams and table with comparison between javascript and python (modern python), you can attach existing rules to the dir (or create new rules if needed), so first before start suggest a study plan so that I can validate it';
+
+    expect(isCreateDocumentObjective(studyPlanObjective)).toBe(false);
+    expect(
+      shouldBlockUngroundedCreateResponse({
+        objective: studyPlanObjective,
+        outcomes: [],
+      }),
+    ).toBe(false);
+  });
+
+  it('does not force create when the user asks to validate a plan first', () => {
+    const proposeThenCreate =
+      'create documents for an intermediate Python course, but first suggest a study plan so I can validate it';
+
+    expect(isCreateDocumentObjective(proposeThenCreate)).toBe(false);
+    expect(
+      shouldBlockUngroundedCreateResponse({
+        objective: proposeThenCreate,
+        outcomes: [],
+      }),
+    ).toBe(false);
   });
 
   it('allows a create reply only when create_document returned an id', () => {

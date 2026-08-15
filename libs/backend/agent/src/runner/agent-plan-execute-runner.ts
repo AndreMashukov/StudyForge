@@ -16,7 +16,10 @@ const MAX_EXECUTOR_TOOL_ROUNDS = 4;
 const PLANNER_PARSE_RETRIES = 1;
 
 const CREATE_DOCUMENT_OBJECTIVE =
-  /\b(?:create|make|write|add|draft)\b[\s\S]{0,120}\b(?:docs?|document)\b|\bnew docs?\b/i;
+  /\b(?:create|make|write|add|draft)\s+(?:(?:a|an|the|new|some|\d+)\s+)*(?:docs?|documents?)\b|\bnew docs?\b/i;
+
+const PROPOSE_FIRST_OBJECTIVE =
+  /\b(?:suggest|propose)\b[\s\S]{0,80}\b(?:plan|validat)|\bbefore (?:you )?(?:start|creating|create)|\bfirst\b[\s\S]{0,80}\b(?:suggest|propose|validate)|(?:do not|don't)\s+(?:yet\s+)?create/i;
 
 export const UNGROUNDED_CREATE_FALLBACK =
   'I did not create the document. The create_document tool never ran, so nothing was saved. Please try again.';
@@ -134,12 +137,23 @@ export function hasSuccessfulCreateDocument(
   });
 }
 
+export function isProposeFirstObjective(objective: string): boolean {
+  return PROPOSE_FIRST_OBJECTIVE.test(objective);
+}
+
+export function isCreateDocumentObjective(objective: string): boolean {
+  return (
+    CREATE_DOCUMENT_OBJECTIVE.test(objective) &&
+    !isProposeFirstObjective(objective)
+  );
+}
+
 export function shouldBlockUngroundedCreateResponse(input: {
   objective: string;
   outcomes: AgentToolOutcome[];
 }): boolean {
   return (
-    CREATE_DOCUMENT_OBJECTIVE.test(input.objective) &&
+    isCreateDocumentObjective(input.objective) &&
     !hasSuccessfulCreateDocument(input.outcomes)
   );
 }
@@ -211,7 +225,8 @@ function buildPlannerPrompt(input: {
     '- Never invent document, directory, or rule IDs.',
     '- Never claim a document was created unless TOOL RESULTS include create_document: OK with an id= value.',
     '- create_document queues documentFromPrompt. Tell the user generation is in progress; do not claim the HTML is already written.',
-    '- If the user asked to create a document and create_document did not succeed, return a plan step that calls create_document. Do not return type=response claiming it exists.',
+    '- If the user asked to create a document now and create_document did not succeed, return a plan step that calls create_document. Do not return type=response claiming it exists.',
+    '- If the user asked to suggest, propose, or validate a study plan first, return type=response with the plan. Do not call create_document until they approve.',
     '- When listing a folder, only name items that appear in list_documents TOOL RESULTS. Do not add items from executor notes or earlier chat.',
     `- At most ${MAX_PLAN_STEPS} steps.`,
     'Available tools:',
