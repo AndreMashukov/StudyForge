@@ -6,6 +6,7 @@ export interface IPayAsYouGoCardProps {
   isSaving: boolean;
   billingError?: string | null;
   onMonthlyCapChange: (value: string) => void;
+  onSaveMonthlyCap: () => void;
   onEnablePayAsYouGo: () => void;
   onDisablePayAsYouGo: () => void;
   onSetupBilling: () => void;

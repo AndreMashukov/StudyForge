@@ -57,6 +57,43 @@ export function formatCreditCount(value: number): string {
   return CREDIT_FORMATTER.format(value);
 }
 
+export const MONTHLY_CAP_ERROR_MESSAGE = 'Enter a whole dollar amount of at least $1.';
+
+export function parseMonthlyCapDollars(value: string): number | null {
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return null;
+  }
+
+  const dollars = Number(trimmed);
+  if (!Number.isSafeInteger(dollars) || dollars < 1) {
+    return null;
+  }
+
+  const cents = dollars * 100;
+  if (!Number.isSafeInteger(cents)) {
+    return null;
+  }
+
+  return dollars;
+}
+
+export function monthlyCapDollarsToCents(dollars: number): number {
+  return dollars * 100;
+}
+
+export function isMonthlyCapInputDirty(
+  monthlyCapDollars: string,
+  savedCapCents: number,
+): boolean {
+  const parsed = parseMonthlyCapDollars(monthlyCapDollars);
+  if (parsed !== null) {
+    return monthlyCapDollarsToCents(parsed) !== savedCapCents;
+  }
+
+  return monthlyCapDollars.trim() !== String(savedCapCents / 100);
+}
+
 export function roundPercent(value: number): number {
   return Math.round(value);
 }

@@ -114,6 +114,12 @@ export const UsagePageContainer: React.FC = () => {
             handlers.clearBillingError();
             setMonthlyCapDollars(value);
           }}
+          onSaveMonthlyCap={() => {
+            void handlers.handleUpdateMonthlyCap(
+              monthlyCapDollars,
+              usage.data?.payAsYouGo?.enabled ?? false,
+            );
+          }}
           onEnablePayAsYouGo={() => handlers.handleEnablePayAsYouGo(monthlyCapDollars)}
           onDisablePayAsYouGo={() => handlers.handleDisablePayAsYouGo(monthlyCapDollars)}
           onSetupBilling={() => {

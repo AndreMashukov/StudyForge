@@ -1,19 +1,15 @@
 import { useState } from 'react';
-import { DEFAULT_PAYG_MONTHLY_CAP_CENTS } from '@shared-types';
 import {
   useCreateBillingCheckoutSessionMutation,
   useCreateBillingPortalSessionMutation,
   useUpdatePayAsYouGoSettingsMutation,
 } from '../../../../store/api/Billing/billingApi';
 import type { IUsagePageHandlers } from '../../types/IUsagePageHandlers';
-
-function parseMonthlyCapCents(value: string): number {
-  const dollars = Number(value);
-  if (!Number.isFinite(dollars) || dollars <= 0) {
-    return DEFAULT_PAYG_MONTHLY_CAP_CENTS;
-  }
-  return Math.round(dollars * 100);
-}
+import {
+  MONTHLY_CAP_ERROR_MESSAGE,
+  monthlyCapDollarsToCents,
+  parseMonthlyCapDollars,
+} from '../../utils/usagePageUtils';
 
 function getBillingErrorMessage(error: unknown): string {
   if (
@@ -76,28 +72,37 @@ export function useUsagePageHandlers(): IUsagePageHandlers {
     }
   };
 
-  const handleEnablePayAsYouGo = async (monthlyCapDollars: string) => {
+  const persistPayAsYouGoSettings = async (
+    monthlyCapDollars: string,
+    enabled: boolean,
+  ) => {
+    const parsed = parseMonthlyCapDollars(monthlyCapDollars);
+    if (parsed === null) {
+      setBillingError(MONTHLY_CAP_ERROR_MESSAGE);
+      return;
+    }
+
     clearBillingError();
     try {
       await updatePayAsYouGo({
-        enabled: true,
-        monthlyCapCents: parseMonthlyCapCents(monthlyCapDollars),
+        enabled,
+        monthlyCapCents: monthlyCapDollarsToCents(parsed),
       }).unwrap();
     } catch (error) {
       setBillingError(getBillingErrorMessage(error));
     }
   };
 
+  const handleEnablePayAsYouGo = async (monthlyCapDollars: string) => {
+    await persistPayAsYouGoSettings(monthlyCapDollars, true);
+  };
+
   const handleDisablePayAsYouGo = async (monthlyCapDollars: string) => {
-    clearBillingError();
-    try {
-      await updatePayAsYouGo({
-        enabled: false,
-        monthlyCapCents: parseMonthlyCapCents(monthlyCapDollars),
-      }).unwrap();
-    } catch (error) {
-      setBillingError(getBillingErrorMessage(error));
-    }
+    await persistPayAsYouGoSettings(monthlyCapDollars, false);
+  };
+
+  const handleUpdateMonthlyCap = async (monthlyCapDollars: string, enabled: boolean) => {
+    await persistPayAsYouGoSettings(monthlyCapDollars, enabled);
   };
 
   return {
@@ -108,5 +113,6 @@ export function useUsagePageHandlers(): IUsagePageHandlers {
     handleManageBilling,
     handleEnablePayAsYouGo,
     handleDisablePayAsYouGo,
+    handleUpdateMonthlyCap,
   };
 }

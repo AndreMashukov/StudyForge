@@ -15,7 +15,13 @@ import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { Checkbox } from '../../../components/ui/Checkbox';
-import { formatCreditCount } from '../utils/usagePageUtils';
+import { cn } from '../../../lib/utils';
+import {
+  formatCreditCount,
+  isMonthlyCapInputDirty,
+  MONTHLY_CAP_ERROR_MESSAGE,
+  parseMonthlyCapDollars,
+} from '../utils/usagePageUtils';
 import type { IPayAsYouGoCardProps } from './IPayAsYouGoCard';
 
 export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
@@ -24,6 +30,7 @@ export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
   isSaving,
   billingError,
   onMonthlyCapChange,
+  onSaveMonthlyCap,
   onEnablePayAsYouGo,
   onDisablePayAsYouGo,
   onSetupBilling,
@@ -36,6 +43,9 @@ export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
   const spentOverage = payAsYouGo?.spentOverageAmountCents ?? 0;
   const remainingCap = payAsYouGo?.remainingCapCents ?? 0;
   const monthlyCap = payAsYouGo?.monthlyCapCents ?? DEFAULT_PAYG_MONTHLY_CAP_CENTS;
+  const isCapValid = parseMonthlyCapDollars(monthlyCapDollars) !== null;
+  const isCapDirty = isMonthlyCapInputDirty(monthlyCapDollars, monthlyCap);
+  const canSaveCap = isCapDirty && isCapValid && !isSaving;
 
   const billingStatusLabel =
     payAsYouGo?.billingStatus === 'active'
@@ -117,21 +127,48 @@ export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
           </div>
         ) : (
           <div className="space-y-4 rounded-lg border border-border/60 bg-muted/20 p-4">
-            <div className="space-y-2">
+            <form
+              className="space-y-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!canSaveCap) {
+                  return;
+                }
+                onSaveMonthlyCap();
+              }}
+            >
               <Label htmlFor="monthly-cap">Monthly spending cap (USD)</Label>
-              <Input
-                id="monthly-cap"
-                type="number"
-                min={1}
-                step={1}
-                value={monthlyCapDollars}
-                onChange={(event) => onMonthlyCapChange(event.target.value)}
-                disabled={isSaving}
-              />
-              <p className="text-xs text-muted-foreground">
-                Suggested default is $20/month. Overage is invoiced monthly.
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <Input
+                    id="monthly-cap"
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={monthlyCapDollars}
+                    onChange={(event) => onMonthlyCapChange(event.target.value)}
+                    disabled={isSaving}
+                    aria-invalid={!isCapValid}
+                    aria-describedby="monthly-cap-hint"
+                    className={cn(!isCapValid && 'border-destructive hover:border-destructive')}
+                  />
+                </div>
+                {isCapDirty ? (
+                  <Button type="submit" disabled={!isCapValid || isSaving} className="shrink-0">
+                    Save
+                  </Button>
+                ) : null}
+              </div>
+              <p
+                id="monthly-cap-hint"
+                className={cn('text-xs', isCapValid ? 'text-muted-foreground' : 'text-destructive')}
+                role={isCapValid ? undefined : 'alert'}
+              >
+                {isCapValid
+                  ? 'Suggested default is $20/month. Overage is invoiced monthly.'
+                  : MONTHLY_CAP_ERROR_MESSAGE}
               </p>
-            </div>
+            </form>
 
             <label className="flex items-start gap-3">
               <Checkbox
@@ -143,7 +180,7 @@ export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
                   }
                   onDisablePayAsYouGo();
                 }}
-                disabled={isSaving}
+                disabled={isSaving || !isCapValid}
                 aria-label="Enable pay-as-you-go overage"
               />
               <span className="text-sm text-foreground">
