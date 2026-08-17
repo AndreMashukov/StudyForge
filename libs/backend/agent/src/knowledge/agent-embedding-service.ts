@@ -3,6 +3,13 @@ import { LlmGenerationRouteResolver } from '@study-forge/backend-llm/llm';
 import { LlmProviderClientFactory } from '@study-forge/backend-llm/llm/llm-provider-client-factory';
 import { decryptLlmSecret, isLlmEncryptionAvailable } from '@study-forge/backend-llm/llm/llm-secret-resolver';
 import { ProviderConnectionRepository } from '@study-forge/backend-llm/llm/provider-connection-repository';
+import {
+  buildEmbeddingBatchUsage,
+  normalizeOpenAiCompatibleUsage,
+  recordLlmProviderResult,
+} from '@study-forge/backend-core/services/provider-cost';
+import type { IProviderUsageUnits } from '@shared-types';
+import type { ResolvedRoute } from '@study-forge/backend-llm/llm/types';
 
 const TOGETHER_EMBEDDINGS_PATH = '/embeddings';
 const OPENROUTER_EMBEDDINGS_PATH = '/embeddings';
@@ -11,57 +18,121 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+async function recordEmbeddingProviderCall(params: {
+  route: ResolvedRoute;
+  usage?: IProviderUsageUnits;
+  startedAt: number;
+  status?: 'ok' | 'error';
+}): Promise<void> {
+  await recordLlmProviderResult({
+    providerKind: params.route.providerType,
+    connectionId: params.route.connectionId,
+    model: params.route.model,
+    modality: 'embedding',
+    usage: params.usage,
+    status: params.status ?? 'ok',
+    durationMs: Date.now() - params.startedAt,
+    callRole: 'embed',
+  });
+}
+
 async function fetchEmbeddings(
   url: string,
   apiKey: string,
   model: string,
   inputs: string[],
-  headers: Record<string, string> = {}
+  route: ResolvedRoute,
+  headers: Record<string, string> = {},
 ): Promise<number[][]> {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-    body: JSON.stringify({ model, input: inputs }),
-  });
+  const startedAt = Date.now();
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      body: JSON.stringify({ model, input: inputs }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '(unreadable)');
-    throw new Error(`Embedding API error ${response.status}: ${errorText}`);
-  }
-
-  const payload: unknown = await response.json();
-  if (!isRecord(payload) || !Array.isArray(payload.data)) {
-    throw new Error('Malformed embedding batch response');
-  }
-
-  return payload.data.map((entry) => {
-    if (!isRecord(entry) || !Array.isArray(entry.embedding)) {
-      throw new Error('Malformed embedding vector in batch response');
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '(unreadable)');
+      throw new Error(`Embedding API error ${response.status}: ${errorText}`);
     }
-    return entry.embedding.filter((value): value is number => typeof value === 'number');
-  });
+
+    const payload: unknown = await response.json();
+    if (!isRecord(payload) || !Array.isArray(payload.data)) {
+      throw new Error('Malformed embedding batch response');
+    }
+
+    const usageFromPayload = normalizeOpenAiCompatibleUsage(payload.usage);
+    const fallbackUsage = buildEmbeddingBatchUsage(
+      inputs.reduce((sum, text) => sum + Math.ceil(text.length / 4), 0),
+    );
+
+    await recordEmbeddingProviderCall({
+      route,
+      usage: usageFromPayload ?? fallbackUsage,
+      startedAt,
+    });
+
+    return payload.data.map((entry) => {
+      if (!isRecord(entry) || !Array.isArray(entry.embedding)) {
+        throw new Error('Malformed embedding vector in batch response');
+      }
+      return entry.embedding.filter((value): value is number => typeof value === 'number');
+    });
+  } catch (error) {
+    await recordEmbeddingProviderCall({
+      route,
+      usage: undefined,
+      startedAt,
+      status: 'error',
+    });
+    throw error;
+  }
 }
 
-async function embedWithGemini(apiKey: string, model: string, inputs: string[]): Promise<number[][]> {
+async function embedWithGemini(
+  apiKey: string,
+  model: string,
+  inputs: string[],
+  route: ResolvedRoute,
+): Promise<number[][]> {
   const { GoogleGenAI } = await import('@google/genai');
   const client = new GoogleGenAI({ apiKey });
 
   const vectors: number[][] = [];
   for (const input of inputs) {
-    const response = await client.models.embedContent({
-      model,
-      contents: input,
-    });
+    const startedAt = Date.now();
+    try {
+      const response = await client.models.embedContent({
+        model,
+        contents: input,
+      });
 
-    const values = response.embeddings?.[0]?.values;
-    if (!values || values.length === 0) {
-      throw new Error('Empty Gemini embedding response');
+      const values = response.embeddings?.[0]?.values;
+      if (!values || values.length === 0) {
+        throw new Error('Empty Gemini embedding response');
+      }
+
+      await recordEmbeddingProviderCall({
+        route,
+        usage: buildEmbeddingBatchUsage(Math.ceil(input.length / 4)),
+        startedAt,
+      });
+
+      vectors.push(values);
+    } catch (error) {
+      await recordEmbeddingProviderCall({
+        route,
+        usage: undefined,
+        startedAt,
+        status: 'error',
+      });
+      throw error;
     }
-    vectors.push(values);
   }
 
   return vectors;
@@ -95,7 +166,7 @@ export class AgentEmbeddingService {
         throw new Error('Gemini embedding credentials are missing');
       }
       const apiKey = decryptLlmSecret(secret);
-      return embedWithGemini(apiKey, resolution.route.model, inputs);
+      return embedWithGemini(apiKey, resolution.route.model, inputs, resolution.route);
     }
 
     const client = LlmProviderClientFactory.create(
@@ -109,7 +180,13 @@ export class AgentEmbeddingService {
       if (!resolution.providerApiKey) {
         throw new Error('Together embedding credentials are missing');
       }
-      return fetchEmbeddings(url, resolution.providerApiKey, resolution.route.model, inputs);
+      return fetchEmbeddings(
+        url,
+        resolution.providerApiKey,
+        resolution.route.model,
+        inputs,
+        resolution.route,
+      );
     }
 
     if (resolution.route.providerType === 'openrouter') {
@@ -118,10 +195,17 @@ export class AgentEmbeddingService {
       if (!resolution.providerApiKey) {
         throw new Error('OpenRouter embedding credentials are missing');
       }
-      return fetchEmbeddings(url, resolution.providerApiKey, resolution.route.model, inputs, {
-        'HTTP-Referer': 'https://study-forge.app',
-        'X-Title': 'StudyForge',
-      });
+      return fetchEmbeddings(
+        url,
+        resolution.providerApiKey,
+        resolution.route.model,
+        inputs,
+        resolution.route,
+        {
+          'HTTP-Referer': 'https://study-forge.app',
+          'X-Title': 'StudyForge',
+        },
+      );
     }
 
     void client;

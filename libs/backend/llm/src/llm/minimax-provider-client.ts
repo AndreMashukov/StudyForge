@@ -1,5 +1,6 @@
 import type { IMiniMaxProviderConnection } from '@shared-types';
 import { DEFAULT_LLM_GENERATION_SETTINGS } from '@shared-types';
+import { normalizeOpenAiCompatibleUsage } from '@study-forge/backend-core/services/provider-cost';
 import type { LlmProviderClient } from './llm-provider-client';
 import { fitMiniMaxImagePrompt } from './llm-image-prompt-utils';
 import { stripRedactedThinking } from './llm-response-text-utils';
@@ -22,6 +23,7 @@ interface MiniMaxChatChoice {
 
 interface MiniMaxChatResponse {
   choices?: MiniMaxChatChoice[];
+  usage?: unknown;
 }
 
 interface MiniMaxImageData {
@@ -47,6 +49,7 @@ export class MiniMaxProviderClient implements LlmProviderClient {
   ) {}
 
   async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
+    const startedAt = Date.now();
     const url = `${this.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
     const body = JSON.stringify({
@@ -93,12 +96,15 @@ export class MiniMaxProviderClient implements LlmProviderClient {
       model: request.config.model,
       providerType: 'minimax',
       connectionId: this.connectionId,
+      usage: normalizeOpenAiCompatibleUsage(data.usage) ?? undefined,
+      durationMs: Date.now() - startedAt,
     };
   }
 
   async generateVisionText(
     request: LlmVisionRequest,
   ): Promise<LlmVisionResult> {
+    const startedAt = Date.now();
     const url = `${this.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
     const body = JSON.stringify({
@@ -164,10 +170,13 @@ export class MiniMaxProviderClient implements LlmProviderClient {
       model: request.config.model,
       providerType: 'minimax',
       connectionId: this.connectionId,
+      usage: normalizeOpenAiCompatibleUsage(data.usage) ?? undefined,
+      durationMs: Date.now() - startedAt,
     };
   }
 
   async generateImage(request: LlmImageRequest): Promise<LlmImageResult> {
+    const startedAt = Date.now();
     const prompt = fitMiniMaxImagePrompt(request.prompt);
 
     const body = JSON.stringify({
@@ -215,6 +224,7 @@ export class MiniMaxProviderClient implements LlmProviderClient {
       model: request.config.model,
       providerType: 'minimax',
       connectionId: this.connectionId,
+      durationMs: Date.now() - startedAt,
     };
   }
 }

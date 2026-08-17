@@ -1,4 +1,5 @@
 import { DEFAULT_LLM_GENERATION_SETTINGS } from '@shared-types';
+import { normalizeOpenAiCompatibleUsage } from '@study-forge/backend-core/services/provider-cost';
 import type { LlmProviderClient } from './llm-provider-client';
 import type {
   LlmImageRequest,
@@ -25,6 +26,7 @@ interface OpenRouterChatChoice {
 
 interface OpenRouterChatResponse {
   choices?: OpenRouterChatChoice[];
+  usage?: unknown;
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 120_000;
@@ -37,6 +39,7 @@ export class OpenRouterProviderClient implements LlmProviderClient {
   ) {}
 
   async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
+    const startedAt = Date.now();
     const url = `${this.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
     const body = JSON.stringify({
@@ -79,12 +82,15 @@ export class OpenRouterProviderClient implements LlmProviderClient {
       model: request.config.model,
       providerType: 'openrouter',
       connectionId: this.connectionId,
+      usage: normalizeOpenAiCompatibleUsage(data.usage) ?? undefined,
+      durationMs: Date.now() - startedAt,
     };
   }
 
   async generateVisionText(
     request: LlmVisionRequest,
   ): Promise<LlmVisionResult> {
+    const startedAt = Date.now();
     const url = `${this.baseUrl.replace(/\/$/, '')}/chat/completions`;
     const detail = request.detail ?? 'auto';
 
@@ -144,10 +150,13 @@ export class OpenRouterProviderClient implements LlmProviderClient {
       model: request.config.model,
       providerType: 'openrouter',
       connectionId: this.connectionId,
+      usage: normalizeOpenAiCompatibleUsage(data.usage) ?? undefined,
+      durationMs: Date.now() - startedAt,
     };
   }
 
   async generateImage(request: LlmImageRequest): Promise<LlmImageResult> {
+    const startedAt = Date.now();
     const url = `${this.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
     const imageConfig =
@@ -209,6 +218,8 @@ export class OpenRouterProviderClient implements LlmProviderClient {
       model: request.config.model,
       providerType: 'openrouter',
       connectionId: this.connectionId,
+      usage: normalizeOpenAiCompatibleUsage(data.usage) ?? undefined,
+      durationMs: Date.now() - startedAt,
     };
   }
 }

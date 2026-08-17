@@ -20,7 +20,14 @@ import { QuizGenerationProcessor } from '@study-forge/backend-generation/generat
 import { SequenceQuizGenerationProcessor } from '@study-forge/backend-generation/generation-processors/sequence-quiz';
 import { SlideDeckGenerationProcessor } from '@study-forge/backend-generation/generation-processors/slide-deck';
 import { ProcessGenerationJobTaskPayload } from '@study-forge/backend-generation/generation-task-queue';
-import { settleJobUsageReservation } from '@study-forge/backend-core/services/usage-limits-service';
+import {
+  buildProviderCostContext,
+  runWithProviderCostContext,
+} from '@study-forge/backend-core/services/provider-cost';
+import {
+  mapJobKindToUsageGenerationKind,
+  settleJobUsageReservation,
+} from '@study-forge/backend-core/services/usage-limits-service';
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
@@ -88,6 +95,22 @@ async function markCompletedThenSettle(job: GenerationJob): Promise<void> {
       error: settleError instanceof Error ? settleError.message : String(settleError),
     });
   });
+}
+
+async function processJobWithProviderCostContext(job: GenerationJob): Promise<void> {
+  const context = buildProviderCostContext({
+    userId: job.userId,
+    generationKind: mapJobKindToUsageGenerationKind(
+      job.kind,
+      job.artifactKind,
+    ),
+    reservationId: job.usageReservationId,
+    jobId: job.id,
+    recordId: job.recordId,
+    callRole: 'generation',
+  });
+
+  await runWithProviderCostContext(context, () => processJob(job));
 }
 
 async function processJob(job: GenerationJob): Promise<void> {
@@ -186,7 +209,7 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
     const job = claimResult.job;
 
     try {
-      await processJob(job);
+      await processJobWithProviderCostContext(job);
     } catch (error) {
       const message = formatGenerationError(error);
       const retryCount = request.retryCount ?? 0;

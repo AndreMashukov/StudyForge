@@ -6,6 +6,10 @@ import { verifyAppCheckHeader } from '@study-forge/backend-core/lib/app-check-ve
 import { DirectoryAgentService } from '@study-forge/backend-agent';
 import { commitUsageReservation } from '@study-forge/backend-core/services/usage-limits-service';
 import {
+  buildProviderCostContext,
+  runWithProviderCostContext,
+} from '@study-forge/backend-core/services/provider-cost';
+import {
   enforceCallableGenerationLimits,
   refundUsageReservationSafe,
 } from '@study-forge/backend-generation/generation-limits';
@@ -133,26 +137,37 @@ export const agentMessageStream = onRequest(
     });
 
     let usageSettled = false;
+    const providerCostContext = buildProviderCostContext({
+      userId,
+      generationKind:
+        parsed.data.scope === 'workspace' ? 'directoryAgent' : 'directoryChat',
+      reservationId: usageReservationId,
+      threadId: parsed.data.threadId,
+      callRole: 'agent_step',
+    });
+
     try {
-      for await (const event of DirectoryAgentService.streamMessage(
-        userId,
-        parsed.data,
-      )) {
-        if (clientDisconnected || res.writableEnded) {
-          break;
+      await runWithProviderCostContext(providerCostContext, async () => {
+        for await (const event of DirectoryAgentService.streamMessage(
+          userId,
+          parsed.data,
+        )) {
+          if (clientDisconnected || res.writableEnded) {
+            break;
+          }
+          writeSseEvent(res, event);
+          if (event.type === 'done') {
+            await commitUsageReservation(userId, usageReservationId);
+            usageSettled = true;
+            break;
+          }
+          if (event.type === 'error') {
+            await refundUsageReservationSafe(userId, usageReservationId);
+            usageSettled = true;
+            break;
+          }
         }
-        writeSseEvent(res, event);
-        if (event.type === 'done') {
-          await commitUsageReservation(userId, usageReservationId);
-          usageSettled = true;
-          break;
-        }
-        if (event.type === 'error') {
-          await refundUsageReservationSafe(userId, usageReservationId);
-          usageSettled = true;
-          break;
-        }
-      }
+      });
     } catch (error) {
       if (!clientDisconnected && !res.writableEnded) {
         writeSseEvent(res, {

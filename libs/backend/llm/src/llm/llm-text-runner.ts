@@ -9,6 +9,10 @@ import {
   applyLlmGenerationDefaults,
   type IApplyLlmGenerationDefaultsOptions,
 } from './llm-generation-settings-repository';
+import {
+  trackLlmProviderError,
+  trackLlmProviderTextResult,
+} from './llm-provider-call-tracking';
 
 export interface TextRouteContext {
   resolution: GenerationRouteResolution;
@@ -63,17 +67,33 @@ export async function generateExternalProviderText(
     ctx.resolution.route,
     ctx.resolution.providerApiKey,
   );
-  const result = await client.generateText({
-    prompt,
-    config: configWithDefaults,
-  });
+  const startedAt = Date.now();
+  try {
+    const result = await client.generateText({
+      prompt,
+      config: configWithDefaults,
+    });
 
-  functions.logger.info(successLogMessage, {
-    model: result.model,
-    responseLength: result.text.length,
-  });
+    if (result.providerType !== 'gemini') {
+      await trackLlmProviderTextResult(result, { startedAt });
+    }
 
-  return result.text;
+    functions.logger.info(successLogMessage, {
+      model: result.model,
+      responseLength: result.text.length,
+    });
+
+    return result.text;
+  } catch (error) {
+    await trackLlmProviderError({
+      providerKind: ctx.resolution.route.providerType,
+      connectionId: ctx.resolution.route.connectionId,
+      model: ctx.resolution.route.model,
+      modality: 'text',
+      startedAt,
+    });
+    throw error;
+  }
 }
 
 /** @deprecated Use generateExternalProviderText */

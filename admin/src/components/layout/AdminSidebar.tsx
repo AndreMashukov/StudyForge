@@ -9,6 +9,7 @@ import {
   Gauge,
   LayoutDashboard,
   LogOut,
+  Receipt,
   SlidersHorizontal,
   Users,
   UsersRound,
@@ -41,6 +42,7 @@ const aiNavItems = [
     icon: SlidersHorizontal,
   },
   { href: '/usage-limits-setups', label: 'Usage limits', icon: Gauge },
+  { href: '/provider-costs', label: 'Provider costs', icon: Receipt },
   { href: '/provider-connections', label: 'Provider connections', icon: Cable },
 ];
 

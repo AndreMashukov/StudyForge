@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import { DEFAULT_LLM_GENERATION_SETTINGS } from '@shared-types';
+import { buildImageMegapixelUsage } from '@study-forge/backend-core/services/provider-cost';
 import type { LlmProviderClient } from './llm-provider-client';
 import {
   consumeTogetherChatCompletionStream,
@@ -196,6 +197,7 @@ export class TogetherProviderClient implements LlmProviderClient {
   }
 
   async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
+    const startedAt = Date.now();
     const body = buildTogetherChatBody({
       model: request.config.model,
       messages: [{ role: 'user', content: request.prompt }],
@@ -233,12 +235,16 @@ export class TogetherProviderClient implements LlmProviderClient {
       model: request.config.model,
       providerType: 'together',
       connectionId: this.connectionId,
+      usage: streamed.usage,
+      finishReason: streamed.finishReason ?? undefined,
+      durationMs: Date.now() - startedAt,
     };
   }
 
   async generateVisionText(
     request: LlmVisionRequest,
   ): Promise<LlmVisionResult> {
+    const startedAt = Date.now();
     const detail = request.detail ?? 'auto';
 
     const body = buildTogetherChatBody({
@@ -292,10 +298,14 @@ export class TogetherProviderClient implements LlmProviderClient {
       model: request.config.model,
       providerType: 'together',
       connectionId: this.connectionId,
+      usage: streamed.usage,
+      finishReason: streamed.finishReason ?? undefined,
+      durationMs: Date.now() - startedAt,
     };
   }
 
   async generateImage(request: LlmImageRequest): Promise<LlmImageResult> {
+    const startedAt = Date.now();
     const { width, height } = resolveTogetherImageDimensions(
       request.imageConfig?.aspectRatio,
     );
@@ -334,6 +344,8 @@ export class TogetherProviderClient implements LlmProviderClient {
       model: request.config.model,
       providerType: 'together',
       connectionId: this.connectionId,
+      usage: buildImageMegapixelUsage({ width, height, steps: 4 }),
+      durationMs: Date.now() - startedAt,
     };
   }
 }
