@@ -185,13 +185,6 @@
         { "fieldPath": "generationStatus", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "providerCostPeriods",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "periodKey", "order": "ASCENDING" }
-      ]
     }
   ],
   "fieldOverrides": [
@@ -238,6 +231,14 @@
       "fieldPath": "expiresAt",
       "ttl": true,
       "indexes": []
+    },
+    {
+      "collectionGroup": "providerCostPeriods",
+      "fieldPath": "periodKey",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
     }
   ]
 }
