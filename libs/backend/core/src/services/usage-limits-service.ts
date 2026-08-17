@@ -33,6 +33,7 @@ import {
   reserveUserStorageBytes,
   type IUserUsageLimitsContext,
 } from './usage-quota-service';
+import { syncCommittedCreditsToProviderCostRollups } from './provider-cost/provider-cost-ledger-service';
 
 export { UsageLimitError } from './usage-limit-error';
 export {
@@ -610,6 +611,16 @@ export async function commitUsageReservation(userId: string, reservationId: stri
   });
 
   await syncUsageSummaryDocument(userId);
+
+  const periodSnapshot = await usagePeriodRef(userId, settled.periodKey).get();
+  const periodData = periodSnapshot.data() ?? {};
+  const periodNumbers = readPeriodNumbers(periodData);
+  const committedCredits = periodNumbers.spentCredits + periodNumbers.spentOverageCredits;
+  await syncCommittedCreditsToProviderCostRollups({
+    userId,
+    periodKey: settled.periodKey,
+    committedCredits,
+  }).catch(() => undefined);
 }
 
 export async function refundUsageReservation(userId: string, reservationId: string): Promise<void> {

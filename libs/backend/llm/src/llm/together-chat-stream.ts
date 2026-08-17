@@ -1,4 +1,6 @@
 import { createStreamingThinkingFilter } from './llm-response-text-utils';
+import type { IProviderUsageUnits } from '@shared-types';
+import { normalizeOpenAiCompatibleUsage } from '@study-forge/backend-core/services/provider-cost';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -10,6 +12,7 @@ export interface ITogetherStreamedChatResult {
   contentLength: number;
   hasReasoning: boolean;
   reasoningLength: number;
+  usage?: IProviderUsageUnits;
 }
 
 /**
@@ -30,6 +33,7 @@ export async function consumeTogetherChatCompletionStream(
   let cleanedContent = '';
   let reasoningLength = 0;
   let finishReason: string | null = null;
+  let usage: IProviderUsageUnits | undefined;
 
   const reader = response.body.getReader();
   const handlers = {
@@ -42,6 +46,9 @@ export async function consumeTogetherChatCompletionStream(
     },
     onFinishReason: (reason: string) => {
       finishReason = reason;
+    },
+    onUsage: (units: IProviderUsageUnits) => {
+      usage = units;
     },
   };
 
@@ -77,6 +84,7 @@ export async function consumeTogetherChatCompletionStream(
     contentLength: cleanedContent.length,
     hasReasoning: reasoningLength > 0,
     reasoningLength,
+    usage,
   };
 }
 
@@ -87,6 +95,7 @@ function applySseDataLine(
     onContentDelta: (delta: string) => void;
     onReasoningDelta: (delta: string) => void;
     onFinishReason: (reason: string) => void;
+    onUsage: (units: IProviderUsageUnits) => void;
   },
 ): void {
   const trimmed = line.trim();
@@ -106,11 +115,16 @@ function applySseDataLine(
     return;
   }
 
-  if (
-    !isRecord(payload) ||
-    !Array.isArray(payload.choices) ||
-    payload.choices.length === 0
-  ) {
+  if (!isRecord(payload)) {
+    return;
+  }
+
+  const normalizedUsage = normalizeOpenAiCompatibleUsage(payload.usage);
+  if (normalizedUsage) {
+    handlers.onUsage(normalizedUsage);
+  }
+
+  if (!Array.isArray(payload.choices) || payload.choices.length === 0) {
     return;
   }
 

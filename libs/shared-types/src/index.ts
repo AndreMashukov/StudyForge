@@ -2367,6 +2367,27 @@ export {
   DEFAULT_PRICE_PER_CREDIT_CENTS,
   formatCurrencyFromCents,
 } from './billing';
+export type {
+  IAdminProviderCostPeriod,
+  ILlmUsageEvent,
+  IProviderCostBucket,
+  IProviderCostContext,
+  IProviderRateCatalogEntry,
+  IProviderRateSnapshot,
+  IProviderUsageUnits,
+  IRecordProviderCallParams,
+  IUserProviderCostPeriod,
+  ProviderCostCallRole,
+  ProviderCostCallStatus,
+  ProviderCostMeter,
+  ProviderCostSource,
+} from './provider-cost';
+export { calculateProviderCostUsd, inferProviderCostMeter } from './provider-cost-logic';
+export {
+  buildRateCatalogDocId,
+  FALLBACK_PROVIDER_RATE_CATALOG,
+  lookupFallbackRate,
+} from './provider-rate-fallbacks';
 
 /** Stable error codes surfaced to clients when LLM routing cannot proceed. */
 export type LlmRoutingErrorCode =

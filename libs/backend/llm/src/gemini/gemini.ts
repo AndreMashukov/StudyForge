@@ -41,6 +41,7 @@ import {
 } from './prompt-builder/withContextFiles';
 import { validateContentForArtifactGeneration } from '../llm/content-validation';
 import { resolveGeminiThinkingBudget } from '../llm/gemini-thinking-budget';
+import { trackedGeminiGenerateContent } from '../llm/tracked-gemini-generate';
 
 const GEMINI_PRO_MODEL = 'gemini-pro-latest';
 
@@ -193,7 +194,7 @@ export class GeminiService {
         contentLength: content.content.length,
       });
 
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
         config: buildGeminiGenerationConfig(
@@ -256,7 +257,7 @@ export class GeminiService {
         randomCorrectAnswers,
       );
 
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
         config: buildGeminiGenerationConfig(
@@ -311,7 +312,7 @@ export class GeminiService {
         additionalPrompt,
       );
 
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
         config: buildGeminiGenerationConfig(
@@ -361,7 +362,7 @@ export class GeminiService {
       const client = this.getClient();
 
       const fullPrompt = QuizPromptBuilder.buildContentPrompt(prompt);
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: options?.model ?? GEMINI_PRO_MODEL,
         contents: fullPrompt,
         config: buildGeminiGenerationConfig(options, 'deterministicUtility'),
@@ -423,7 +424,7 @@ ${markdownContent}
 ---`;
 
       const client = this.getClient();
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
         config: buildGeminiGenerationConfig(
@@ -501,7 +502,7 @@ ${markdownContent}
         },
       );
 
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
         config: buildGeminiGenerationConfig(runtimeConfig, 'longformContent'),
@@ -620,7 +621,7 @@ ${markdownContent}
     options?: IGeminiRuntimeGenerationConfig;
     sanitize?: (text: string) => string;
   }): Promise<string> {
-    const response = await params.client.models.generateContent({
+    const response = await trackedGeminiGenerateContent(params.client, {
       model: params.model,
       contents: [
         {
@@ -676,7 +677,7 @@ ${markdownContent}
         documentLength: context.originalDocument.content.length,
       });
 
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
         config: buildGeminiGenerationConfig(runtimeConfig, 'explanatoryChat'),
@@ -800,7 +801,7 @@ This question is derived from: **${context.originalDocument.title}**
         documentLength: context.document.content.length,
       });
 
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
         config: buildGeminiGenerationConfig(runtimeConfig, 'explanatoryChat'),
@@ -847,7 +848,7 @@ This question is derived from: **${context.originalDocument.title}**
       const client = this.getClient();
       const prompt = DocumentRevisePromptBuilder.buildPrompt(context);
 
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
         config: buildGeminiGenerationConfig(runtimeConfig, 'faithfulEdit'),
@@ -898,7 +899,7 @@ This question is derived from: **${context.originalDocument.title}**
         recentMessageCount: context.recentMessages.length,
       });
 
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
         config: buildGeminiGenerationConfig(runtimeConfig, 'explanatoryChat'),
@@ -955,7 +956,7 @@ This question is derived from: **${context.originalDocument.title}**
             params.applicableTo,
           );
 
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
         config: buildGeminiGenerationConfig(runtimeConfig, 'faithfulEdit'),
@@ -1993,7 +1994,7 @@ This question is derived from: **${context.originalDocument.title}**
         additionalPrompt,
         rules,
       );
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
         config: buildGeminiGenerationConfig(runtimeConfig, 'longformContent'),
@@ -2100,7 +2101,7 @@ This question is derived from: **${context.originalDocument.title}**
         rules,
       );
 
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
         contents: prompt,
         config: buildGeminiGenerationConfig(runtimeConfig, 'longformContent'),
@@ -2145,7 +2146,7 @@ This question is derived from: **${context.originalDocument.title}**
         rules,
       );
 
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: imageModel,
         contents: prompt,
         config: {
@@ -2185,7 +2186,7 @@ This question is derived from: **${context.originalDocument.title}**
     try {
       const client = this.getClient();
 
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: imageModel,
         contents: prompt,
         config: {
@@ -2235,7 +2236,7 @@ This question is derived from: **${context.originalDocument.title}**
 
       // Test connectivity with a simple request
       const client = this.getClient();
-      const response = await client.models.generateContent({
+      const response = await trackedGeminiGenerateContent(client, {
         model: GEMINI_PRO_MODEL,
         contents: 'Test',
       });

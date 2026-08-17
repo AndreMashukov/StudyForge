@@ -210,6 +210,14 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      match /llmUsageEvents/{eventId} {
+        allow read, write: if false;
+      }
+
+      match /providerCostPeriods/{periodKey} {
+        allow read, write: if false;
+      }
+
       // Workspace agent threads and memory: server-maintained via Cloud Functions.
       match /agentThreads/{threadId} {
         allow read, write: if false;
@@ -226,6 +234,14 @@ service cloud.firestore {
       match /agentKnowledgeChunks/{chunkId} {
         allow read, write: if false;
       }
+    }
+
+    match /providerCostPeriods/{periodKey} {
+      allow read, write: if false;
+    }
+
+    match /providerRateCatalog/{docId} {
+      allow read, write: if false;
     }
   }
 }

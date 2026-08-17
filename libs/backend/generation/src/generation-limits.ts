@@ -1,6 +1,10 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { GenerationKind } from '@shared-types';
 import {
+  buildProviderCostContext,
+  runWithProviderCostContext,
+} from '@study-forge/backend-core/services/provider-cost';
+import {
   commitUsageReservation,
   refundUsageReservation,
   reserveUsageCredits,
@@ -148,9 +152,17 @@ export async function withUsageReservation<T>(
   fn: () => Promise<T>
 ): Promise<T> {
   const reservation = await enforceCallableGenerationLimits(userId, generationKind, quantity);
+  const context = buildProviderCostContext({
+    userId,
+    generationKind: generationKind as GenerationKind,
+    reservationId: reservation.id,
+    llmSetupId: reservation.llmSetupId,
+    userGroupId: reservation.userGroupId,
+    periodKey: reservation.periodKey,
+  });
 
   try {
-    const result = await fn();
+    const result = await runWithProviderCostContext(context, fn);
     await commitUsageReservation(userId, reservation.id);
     return result;
   } catch (error) {
@@ -191,9 +203,17 @@ export async function withExternalUsageReservation<T>(
     generationKind,
     quantity
   );
+  const context = buildProviderCostContext({
+    userId,
+    generationKind: generationKind as GenerationKind,
+    reservationId: reservation.id,
+    llmSetupId: reservation.llmSetupId,
+    userGroupId: reservation.userGroupId,
+    periodKey: reservation.periodKey,
+  });
 
   try {
-    const result = await fn();
+    const result = await runWithProviderCostContext(context, fn);
     await commitUsageReservation(userId, reservation.id);
     return result;
   } catch (error) {

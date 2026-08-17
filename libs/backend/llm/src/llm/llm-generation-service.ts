@@ -61,6 +61,11 @@ import {
   resolveTextRoute,
   type TextRouteContext,
 } from './llm-text-runner';
+import {
+  trackLlmProviderImageResult,
+  trackLlmProviderTextResult,
+  trackLlmProviderVisionResult,
+} from './llm-provider-call-tracking';
 import { applyLlmGenerationDefaults } from './llm-generation-settings-repository';
 import { resolveLlmGenerationProfile } from './llm-generation-profile-map';
 import { normalizeScreenshotImage } from './screenshot-image-utils';
@@ -488,6 +493,7 @@ export class LlmGenerationService {
       'structuredArtifact',
       { flow: 'flashcards.languageClassify' },
     );
+    const startedAt = Date.now();
     const result = await client.generateText({
       prompt,
       config: {
@@ -505,6 +511,9 @@ export class LlmGenerationService {
         },
       },
     });
+    if (result.providerType !== 'gemini') {
+      await trackLlmProviderTextResult(result, { startedAt, callRole: 'generation' });
+    }
 
     functions.logger.info('Flashcard language classification completed', {
       userId,
@@ -607,6 +616,7 @@ export class LlmGenerationService {
       userPrompt,
       rules,
     });
+    const startedAt = Date.now();
     const client = LlmProviderClientFactory.create(route, providerApiKey);
     const result = await client.generateVisionText({
       prompt,
@@ -614,6 +624,7 @@ export class LlmGenerationService {
       config,
       detail: 'auto',
     });
+    await trackLlmProviderVisionResult(result, { startedAt, callRole: 'generation' });
 
     functions.logger.info(
       'Screenshot document generated via external provider vision',
@@ -662,6 +673,7 @@ export class LlmGenerationService {
     }
 
     const normalized = normalizeScreenshotImage(imageBase64);
+    const startedAt = Date.now();
     const client = LlmProviderClientFactory.create(route, providerApiKey);
     const result = await client.generateVisionText({
       prompt,
@@ -669,6 +681,7 @@ export class LlmGenerationService {
       config,
       detail: 'auto',
     });
+    await trackLlmProviderVisionResult(result, { startedAt, callRole: 'generation' });
 
     functions.logger.info(
       'Vision HTML fragment generated via external provider',
@@ -1002,12 +1015,14 @@ export class LlmGenerationService {
         });
       }
 
+      const startedAt = Date.now();
       const client = LlmProviderClientFactory.create(route, providerApiKey);
       const result = await client.generateImage({
         prompt: imagePrompt,
         config,
         imageConfig: { aspectRatio: '16:9' },
       });
+      await trackLlmProviderImageResult(result, { startedAt, callRole: 'image' });
 
       functions.logger.info('Slide image generated via external provider', {
         model: result.model,

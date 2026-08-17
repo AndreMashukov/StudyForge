@@ -4,6 +4,8 @@
  * live in @shared-types.
  */
 
+import type { IProviderUsageUnits } from '@shared-types';
+
 export type LlmCapability =
   | 'quiz'
   | 'flashcards'
@@ -82,7 +84,13 @@ export interface LlmVisionRequest {
   detail?: LlmVisionDetail;
 }
 
-export interface LlmVisionResult {
+export interface ILlmProviderCallMeta {
+  usage?: IProviderUsageUnits;
+  finishReason?: string;
+  durationMs?: number;
+}
+
+export interface LlmVisionResult extends ILlmProviderCallMeta {
   text: string;
   model: string;
   providerType: 'gemini' | 'openrouter' | 'minimax' | 'together';
@@ -100,14 +108,14 @@ export interface LlmImageRequest {
   imageConfig?: LlmImageConfig;
 }
 
-export interface LlmImageResult {
+export interface LlmImageResult extends ILlmProviderCallMeta {
   imageBase64: string;
   model: string;
   providerType: 'gemini' | 'openrouter' | 'minimax' | 'together';
   connectionId: string;
 }
 
-export interface LlmTextResult {
+export interface LlmTextResult extends ILlmProviderCallMeta {
   text: string;
   model: string;
   providerType: 'gemini' | 'openrouter' | 'minimax' | 'together';

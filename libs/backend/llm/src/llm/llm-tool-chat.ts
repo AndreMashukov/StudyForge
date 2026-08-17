@@ -3,6 +3,11 @@ import {
   stripRedactedThinking,
 } from './llm-response-text-utils';
 import type { ILlmGenerationRuntimeSettings } from '@shared-types';
+import {
+  normalizeGeminiUsageMetadata,
+  normalizeOpenAiCompatibleUsage,
+  recordLlmProviderResult,
+} from '@study-forge/backend-core/services/provider-cost';
 import type { ResolvedRoute } from './types';
 import { readLlmGenerationRuntimeSettings } from './llm-generation-settings-repository';
 
@@ -361,6 +366,37 @@ export function buildToolChatRequestBody(input: {
   return body;
 }
 
+function mapToolChatFinishReason(finishReason?: string): 'ok' | 'truncated' {
+  if (finishReason === 'length') {
+    return 'truncated';
+  }
+  return 'ok';
+}
+
+async function recordToolChatProviderUsage(params: {
+  route: ResolvedRoute;
+  usage: unknown;
+  finishReason?: string;
+  startedAt: number;
+}): Promise<void> {
+  const normalizedUsage =
+    params.route.providerType === 'gemini'
+      ? normalizeGeminiUsageMetadata(params.usage)
+      : normalizeOpenAiCompatibleUsage(params.usage);
+
+  await recordLlmProviderResult({
+    providerKind: params.route.providerType,
+    connectionId: params.route.connectionId,
+    model: params.route.model,
+    modality: 'text',
+    usage: normalizedUsage ?? undefined,
+    status: mapToolChatFinishReason(params.finishReason),
+    finishReason: params.finishReason,
+    durationMs: Date.now() - params.startedAt,
+    callRole: 'agent_step',
+  });
+}
+
 async function executeNonStreamToolChat(input: {
   route: ResolvedRoute;
   apiKey: string;
@@ -370,6 +406,7 @@ async function executeNonStreamToolChat(input: {
   onDelta?: (text: string) => void;
   emitDeltas: boolean;
 }): Promise<ILlmToolChatMessage> {
+  const startedAt = Date.now();
   const url = resolveToolChatCompletionsUrl(input.route);
   const response = await fetch(url, {
     method: 'POST',
@@ -396,6 +433,23 @@ async function executeNonStreamToolChat(input: {
   if (!message) {
     throw new Error('Malformed tool chat response');
   }
+
+  if (isRecord(payload)) {
+    const finishReason =
+      Array.isArray(payload.choices) &&
+      payload.choices.length > 0 &&
+      isRecord(payload.choices[0]) &&
+      typeof payload.choices[0].finish_reason === 'string'
+        ? payload.choices[0].finish_reason
+        : undefined;
+    await recordToolChatProviderUsage({
+      route: input.route,
+      usage: payload.usage,
+      finishReason,
+      startedAt,
+    });
+  }
+
   const cleaned = stripRedactedThinking(message.content ?? '');
   if (input.emitDeltas && cleaned.length > 0) {
     // Emit in small chunks so the UI can animate even on non-stream provider turns
@@ -419,6 +473,7 @@ async function executeStreamToolChat(input: {
   settings: ILlmGenerationRuntimeSettings;
   onDelta?: (text: string) => void;
 }): Promise<ILlmToolChatMessage> {
+  const startedAt = Date.now();
   const url = resolveToolChatCompletionsUrl(input.route);
   const thinkingFilter = createStreamingThinkingFilter();
   const response = await fetch(url, {
@@ -448,6 +503,8 @@ async function executeStreamToolChat(input: {
   const decoder = new TextDecoder();
   let buffer = '';
   let content = '';
+  let streamUsage: unknown;
+  let streamFinishReason: string | undefined;
   const toolCallAccumulator = new Map<
     number,
     {
@@ -519,11 +576,26 @@ async function executeStreamToolChat(input: {
           !Array.isArray(payload.choices) ||
           payload.choices.length === 0
         ) {
+          if (isRecord(payload) && payload.usage !== undefined) {
+            streamUsage = payload.usage;
+          }
           continue;
         }
 
+        if (isRecord(payload) && payload.usage !== undefined) {
+          streamUsage = payload.usage;
+        }
+
         const choice = payload.choices[0];
-        if (!isRecord(choice) || !isRecord(choice.delta)) {
+        if (!isRecord(choice)) {
+          continue;
+        }
+
+        if (typeof choice.finish_reason === 'string') {
+          streamFinishReason = choice.finish_reason;
+        }
+
+        if (!isRecord(choice.delta)) {
           continue;
         }
 
@@ -582,6 +654,13 @@ async function executeStreamToolChat(input: {
   }
 
   content = stripRedactedThinking(content);
+
+  await recordToolChatProviderUsage({
+    route: input.route,
+    usage: streamUsage,
+    finishReason: streamFinishReason,
+    startedAt,
+  });
 
   const toolCalls = [...toolCallAccumulator.entries()]
     .sort(([leftIndex], [rightIndex]) => leftIndex - rightIndex)

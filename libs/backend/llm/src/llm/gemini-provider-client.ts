@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { logger } from 'firebase-functions/v2';
 import type { LlmProviderClient } from './llm-provider-client';
+import { trackedGeminiGenerateContent } from './tracked-gemini-generate';
 import type {
   LlmImageRequest,
   LlmImageResult,
@@ -18,33 +19,38 @@ export class GeminiProviderClient implements LlmProviderClient {
   ) {}
 
   async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
+    const startedAt = Date.now();
     const client = new GoogleGenAI({ apiKey: this.apiKey });
     const thinkingBudget = resolveGeminiThinkingBudget({
       model: request.config.model,
       thinkingBudget: request.config.thinkingBudget,
       disableReasoning: request.config.disableReasoning,
     });
-    const response = await client.models.generateContent({
-      model: request.config.model,
-      contents: request.prompt,
-      config: {
-        temperature: request.config.temperature,
-        topK: request.config.topK,
-        topP: request.config.topP,
-        maxOutputTokens: request.config.maxOutputTokens,
-        ...(request.config.responseMimeType
-          ? { responseMimeType: request.config.responseMimeType }
-          : {}),
-        ...(request.config.responseSchema
-          ? { responseSchema: request.config.responseSchema }
-          : {}),
-        ...(thinkingBudget !== undefined
-          ? {
-              thinkingConfig: { thinkingBudget },
-            }
-          : {}),
+    const response = await trackedGeminiGenerateContent(
+      client,
+      {
+        model: request.config.model,
+        contents: request.prompt,
+        config: {
+          temperature: request.config.temperature,
+          topK: request.config.topK,
+          topP: request.config.topP,
+          maxOutputTokens: request.config.maxOutputTokens,
+          ...(request.config.responseMimeType
+            ? { responseMimeType: request.config.responseMimeType }
+            : {}),
+          ...(request.config.responseSchema
+            ? { responseSchema: request.config.responseSchema }
+            : {}),
+          ...(thinkingBudget !== undefined
+            ? {
+                thinkingConfig: { thinkingBudget },
+              }
+            : {}),
+        },
       },
-    });
+      { connectionId: this.connectionId },
+    );
 
     const text = response.text;
     if (!text) {
@@ -66,6 +72,7 @@ export class GeminiProviderClient implements LlmProviderClient {
       model: request.config.model,
       providerType: 'gemini',
       connectionId: this.connectionId,
+      durationMs: Date.now() - startedAt,
     };
   }
 
