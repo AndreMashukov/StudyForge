@@ -2382,7 +2382,11 @@ export type {
   ProviderCostMeter,
   ProviderCostSource,
 } from './provider-cost';
-export { calculateProviderCostUsd, inferProviderCostMeter } from './provider-cost-logic';
+export {
+  calculateProviderCostUsd,
+  inferProviderCostMeter,
+} from './provider-cost-logic';
+export type { ICalculateProviderCostUsdParams } from './provider-cost-logic';
 export {
   buildRateCatalogDocId,
   FALLBACK_PROVIDER_RATE_CATALOG,

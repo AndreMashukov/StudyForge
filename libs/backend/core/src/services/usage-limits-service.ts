@@ -13,6 +13,7 @@ import {
   type UsageLimitEventType,
 } from '@shared-types';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import * as functions from 'firebase-functions';
 import {
   buildPayAsYouGoSummary,
   buildUsageBillingContext,
@@ -620,7 +621,13 @@ export async function commitUsageReservation(userId: string, reservationId: stri
     userId,
     periodKey: settled.periodKey,
     committedCredits,
-  }).catch(() => undefined);
+  }).catch((error) => {
+    functions.logger.warn('Failed to sync committed credits to provider cost rollup', {
+      userId,
+      periodKey: settled.periodKey,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
 }
 
 export async function refundUsageReservation(userId: string, reservationId: string): Promise<void> {

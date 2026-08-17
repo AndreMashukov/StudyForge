@@ -16,7 +16,32 @@ import {
 import { resolveProviderRateSnapshot } from './provider-rate-catalog';
 
 const USERS_COLLECTION = 'users';
-const ADMIN_COST_PERIODS = 'providerCostPeriods';
+
+interface IIncrementCostRollupsParams {
+  userId: string;
+  periodKey: string;
+  costUsd: number;
+  providerKind: string;
+  model: string;
+  generationKind?: GenerationKind;
+  now: string;
+}
+
+interface IIncrementUnknownRollupsParams {
+  userId: string;
+  periodKey: string;
+  now: string;
+}
+
+interface ISyncCommittedCreditsParams {
+  userId: string;
+  periodKey: string;
+  committedCredits: number;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
 
 function llmUsageEventsCollection(userId: string) {
   return getFirestore().collection(USERS_COLLECTION).doc(userId).collection('llmUsageEvents');
@@ -30,16 +55,49 @@ function userProviderCostPeriodRef(userId: string, periodKey: string) {
     .doc(periodKey);
 }
 
-function adminProviderCostPeriodRef(periodKey: string) {
-  return getFirestore().collection(ADMIN_COST_PERIODS).doc(periodKey);
-}
-
 function emptyBucket(): IProviderCostBucket {
   return {
     knownCostUsd: 0,
     eventCount: 0,
     committedCredits: 0,
   };
+}
+
+function parseBucket(value: unknown): IProviderCostBucket {
+  if (!isRecord(value)) {
+    return emptyBucket();
+  }
+
+  return {
+    knownCostUsd:
+      typeof value.knownCostUsd === 'number' && Number.isFinite(value.knownCostUsd)
+        ? value.knownCostUsd
+        : 0,
+    eventCount:
+      typeof value.eventCount === 'number' && Number.isFinite(value.eventCount)
+        ? value.eventCount
+        : 0,
+    committedCredits:
+      typeof value.committedCredits === 'number' && Number.isFinite(value.committedCredits)
+        ? value.committedCredits
+        : 0,
+    costUsdPerCredit:
+      typeof value.costUsdPerCredit === 'number' && Number.isFinite(value.costUsdPerCredit)
+        ? value.costUsdPerCredit
+        : undefined,
+  };
+}
+
+function readBucketMap(value: unknown): Record<string, IProviderCostBucket> {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const buckets: Record<string, IProviderCostBucket> = {};
+  for (const [key, bucketValue] of Object.entries(value)) {
+    buckets[key] = parseBucket(bucketValue);
+  }
+  return buckets;
 }
 
 function incrementBucket(
@@ -56,6 +114,18 @@ function incrementBucket(
       eventCount: current.eventCount + 1,
     },
   };
+}
+
+function omitUndefined(
+  value: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (entry !== undefined) {
+      result[key] = entry;
+    }
+  }
+  return result;
 }
 
 function mapFinishReasonToStatus(finishReason?: string): ProviderCostCallStatus {
@@ -98,7 +168,9 @@ export async function recordProviderCall(
       ? mapFinishReasonToStatus(params.finishReason)
       : params.status;
 
-  const eventDoc = {
+  const eventRef = llmUsageEventsCollection(context.userId).doc();
+  const eventDoc = omitUndefined({
+    id: eventRef.id,
     userId: context.userId,
     periodKey: context.periodKey,
     generationKind: context.generationKind,
@@ -125,10 +197,10 @@ export async function recordProviderCall(
     attempt: params.attempt ?? 1,
     durationMs: params.durationMs,
     createdAt: now,
-  };
+  });
 
   try {
-    const eventRef = await llmUsageEventsCollection(context.userId).add(eventDoc);
+    await eventRef.set(eventDoc);
 
     if (costKnown && costUsd !== null) {
       await incrementCostRollups({
@@ -144,9 +216,6 @@ export async function recordProviderCall(
       await incrementUnknownRollups({
         userId: context.userId,
         periodKey: context.periodKey,
-        providerKind: params.providerKind,
-        model: params.model,
-        generationKind: context.generationKind,
         now,
       });
     }
@@ -167,62 +236,30 @@ export async function recordProviderCall(
   }
 }
 
-async function incrementCostRollups(params: {
-  userId: string;
-  periodKey: string;
-  costUsd: number;
-  providerKind: string;
-  model: string;
-  generationKind?: GenerationKind;
-  now: string;
-}): Promise<void> {
+async function incrementCostRollups(params: IIncrementCostRollupsParams): Promise<void> {
   const userRef = userProviderCostPeriodRef(params.userId, params.periodKey);
-  const adminRef = adminProviderCostPeriodRef(params.periodKey);
 
   await getFirestore().runTransaction(async (transaction) => {
-    const [userSnap, adminSnap] = await Promise.all([
-      transaction.get(userRef),
-      transaction.get(adminRef),
-    ]);
-
+    const userSnap = await transaction.get(userRef);
     const userData = userSnap.data() ?? {};
-    const adminData = adminSnap.data() ?? {};
 
     const userByProvider = incrementBucket(
-      (userData.byProvider as Record<string, IProviderCostBucket>) ?? {},
+      readBucketMap(userData.byProvider),
       params.providerKind,
       params.costUsd,
     );
     const userByModel = incrementBucket(
-      (userData.byModel as Record<string, IProviderCostBucket>) ?? {},
+      readBucketMap(userData.byModel),
       params.model,
       params.costUsd,
     );
     const userByKind = params.generationKind
       ? incrementBucket(
-          (userData.byGenerationKind as Record<string, IProviderCostBucket>) ?? {},
+          readBucketMap(userData.byGenerationKind),
           params.generationKind,
           params.costUsd,
         )
-      : ((userData.byGenerationKind as Record<string, IProviderCostBucket>) ?? {});
-
-    const adminByProvider = incrementBucket(
-      (adminData.byProvider as Record<string, IProviderCostBucket>) ?? {},
-      params.providerKind,
-      params.costUsd,
-    );
-    const adminByModel = incrementBucket(
-      (adminData.byModel as Record<string, IProviderCostBucket>) ?? {},
-      params.model,
-      params.costUsd,
-    );
-    const adminByKind = params.generationKind
-      ? incrementBucket(
-          (adminData.byGenerationKind as Record<string, IProviderCostBucket>) ?? {},
-          params.generationKind,
-          params.costUsd,
-        )
-      : ((adminData.byGenerationKind as Record<string, IProviderCostBucket>) ?? {});
+      : readBucketMap(userData.byGenerationKind);
 
     transaction.set(
       userRef,
@@ -238,63 +275,30 @@ async function incrementCostRollups(params: {
       },
       { merge: true },
     );
-
-    transaction.set(
-      adminRef,
-      {
-        periodKey: params.periodKey,
-        knownCostUsd: FieldValue.increment(params.costUsd),
-        totalEventCount: FieldValue.increment(1),
-        byProvider: adminByProvider,
-        byModel: adminByModel,
-        byGenerationKind: adminByKind,
-        updatedAt: params.now,
-      },
-      { merge: true },
-    );
   });
 }
 
-async function incrementUnknownRollups(params: {
-  userId: string;
-  periodKey: string;
-  providerKind: string;
-  model: string;
-  generationKind?: GenerationKind;
-  now: string;
-}): Promise<void> {
+async function incrementUnknownRollups(
+  params: IIncrementUnknownRollupsParams,
+): Promise<void> {
   const userRef = userProviderCostPeriodRef(params.userId, params.periodKey);
-  const adminRef = adminProviderCostPeriodRef(params.periodKey);
 
-  await Promise.all([
-    userRef.set(
-      {
-        periodKey: params.periodKey,
-        userId: params.userId,
-        unknownCostEventCount: FieldValue.increment(1),
-        totalEventCount: FieldValue.increment(1),
-        updatedAt: params.now,
-      },
-      { merge: true },
-    ),
-    adminRef.set(
-      {
-        periodKey: params.periodKey,
-        unknownCostEventCount: FieldValue.increment(1),
-        totalEventCount: FieldValue.increment(1),
-        updatedAt: params.now,
-      },
-      { merge: true },
-    ),
-  ]);
+  await userRef.set(
+    {
+      periodKey: params.periodKey,
+      userId: params.userId,
+      unknownCostEventCount: FieldValue.increment(1),
+      totalEventCount: FieldValue.increment(1),
+      updatedAt: params.now,
+    },
+    { merge: true },
+  );
 }
 
-/** Sync committed credits from usagePeriods into cost rollups for cost-per-credit. */
-export async function syncCommittedCreditsToProviderCostRollups(params: {
-  userId: string;
-  periodKey: string;
-  committedCredits: number;
-}): Promise<void> {
+/** Sync committed credits from usagePeriods into the user cost rollup. */
+export async function syncCommittedCreditsToProviderCostRollups(
+  params: ISyncCommittedCreditsParams,
+): Promise<void> {
   const userRef = userProviderCostPeriodRef(params.userId, params.periodKey);
   const snap = await userRef.get();
   const knownCostUsd =
@@ -303,52 +307,11 @@ export async function syncCommittedCreditsToProviderCostRollups(params: {
     params.committedCredits > 0 ? knownCostUsd / params.committedCredits : undefined;
 
   await userRef.set(
-    {
+    omitUndefined({
       committedCredits: params.committedCredits,
       costUsdPerCommittedCredit,
       updatedAt: new Date().toISOString(),
-    },
-    { merge: true },
-  );
-
-  await recomputeAdminCommittedCredits(params.periodKey);
-}
-
-async function recomputeAdminCommittedCredits(periodKey: string): Promise<void> {
-  const userPeriods = await getFirestore()
-    .collectionGroup('providerCostPeriods')
-    .where('periodKey', '==', periodKey)
-    .get();
-
-  let committedCredits = 0;
-  let knownCostUsd = 0;
-  let unknownCostEventCount = 0;
-  let totalEventCount = 0;
-
-  for (const doc of userPeriods.docs) {
-    const data = doc.data();
-    committedCredits +=
-      typeof data.committedCredits === 'number' ? data.committedCredits : 0;
-    knownCostUsd += typeof data.knownCostUsd === 'number' ? data.knownCostUsd : 0;
-    unknownCostEventCount +=
-      typeof data.unknownCostEventCount === 'number'
-        ? data.unknownCostEventCount
-        : 0;
-    totalEventCount +=
-      typeof data.totalEventCount === 'number' ? data.totalEventCount : 0;
-  }
-
-  await adminProviderCostPeriodRef(periodKey).set(
-    {
-      periodKey,
-      committedCredits,
-      knownCostUsd,
-      unknownCostEventCount,
-      totalEventCount,
-      costUsdPerCommittedCredit:
-        committedCredits > 0 ? knownCostUsd / committedCredits : undefined,
-      updatedAt: new Date().toISOString(),
-    },
+    }),
     { merge: true },
   );
 }
@@ -358,8 +321,12 @@ export async function recordProviderCallSafe(
 ): Promise<void> {
   try {
     await recordProviderCall(params);
-  } catch {
-    // Swallow — cost tracking must not break generation.
+  } catch (error) {
+    functions.logger.warn('Provider cost tracking failed', {
+      model: params.model,
+      providerKind: params.providerKind,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 

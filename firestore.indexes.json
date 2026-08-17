@@ -185,6 +185,13 @@
         { "fieldPath": "generationStatus", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "providerCostPeriods",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "periodKey", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

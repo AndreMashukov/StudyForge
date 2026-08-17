@@ -8,15 +8,17 @@ import { buildUsagePeriodKey } from '@shared-types';
 import { requireAdminSession } from '../auth/session';
 import { getAdminFirestore } from '../firebase/admin';
 
-const ADMIN_COST_PERIODS = 'providerCostPeriods';
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+function emptyBucket(): IProviderCostBucket {
+  return { knownCostUsd: 0, eventCount: 0, committedCredits: 0 };
+}
+
 function parseBucket(value: unknown): IProviderCostBucket {
   if (!isRecord(value)) {
-    return { knownCostUsd: 0, eventCount: 0, committedCredits: 0 };
+    return emptyBucket();
   }
 
   const knownCostUsd =
@@ -47,39 +49,24 @@ function parseBucketMap(value: unknown): Record<string, IProviderCostBucket> {
   return buckets;
 }
 
-function parseAdminProviderCostPeriod(
-  periodKey: string,
-  data: FirebaseFirestore.DocumentData,
-): IAdminProviderCostPeriod {
-  const knownCostUsd =
-    typeof data.knownCostUsd === 'number' ? data.knownCostUsd : 0;
-  const unknownCostEventCount =
-    typeof data.unknownCostEventCount === 'number'
-      ? data.unknownCostEventCount
-      : 0;
-  const totalEventCount =
-    typeof data.totalEventCount === 'number' ? data.totalEventCount : 0;
-  const committedCredits =
-    typeof data.committedCredits === 'number' ? data.committedCredits : 0;
-  const costUsdPerCommittedCredit =
-    typeof data.costUsdPerCommittedCredit === 'number'
-      ? data.costUsdPerCommittedCredit
-      : committedCredits > 0
-        ? knownCostUsd / committedCredits
-        : undefined;
+function mergeBuckets(
+  target: Record<string, IProviderCostBucket>,
+  source: Record<string, IProviderCostBucket>,
+): Record<string, IProviderCostBucket> {
+  const merged = { ...target };
+  for (const [key, bucket] of Object.entries(source)) {
+    const current = merged[key] ?? emptyBucket();
+    merged[key] = {
+      knownCostUsd: current.knownCostUsd + bucket.knownCostUsd,
+      eventCount: current.eventCount + bucket.eventCount,
+      committedCredits: current.committedCredits + bucket.committedCredits,
+    };
+  }
+  return merged;
+}
 
-  return {
-    periodKey,
-    knownCostUsd,
-    unknownCostEventCount,
-    totalEventCount,
-    committedCredits,
-    costUsdPerCommittedCredit,
-    byProvider: parseBucketMap(data.byProvider),
-    byModel: parseBucketMap(data.byModel),
-    byGenerationKind: parseBucketMap(data.byGenerationKind),
-    updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : '',
-  };
+function isUserPeriodDoc(doc: FirebaseFirestore.QueryDocumentSnapshot): boolean {
+  return typeof doc.data().userId === 'string' && doc.data().userId.length > 0;
 }
 
 export async function readAdminProviderCostPeriod(
@@ -88,33 +75,70 @@ export async function readAdminProviderCostPeriod(
   await requireAdminSession();
 
   const snapshot = await getAdminFirestore()
-    .collection(ADMIN_COST_PERIODS)
-    .doc(periodKey)
+    .collectionGroup('providerCostPeriods')
+    .where('periodKey', '==', periodKey)
     .get();
 
-  if (!snapshot.exists) {
+  const userDocs = snapshot.docs.filter(isUserPeriodDoc);
+  if (userDocs.length === 0) {
     return null;
   }
 
-  return parseAdminProviderCostPeriod(periodKey, snapshot.data() ?? {});
-}
+  let knownCostUsd = 0;
+  let unknownCostEventCount = 0;
+  let totalEventCount = 0;
+  let committedCredits = 0;
+  let updatedAt = '';
+  let byProvider: Record<string, IProviderCostBucket> = {};
+  let byModel: Record<string, IProviderCostBucket> = {};
+  let byGenerationKind: Record<string, IProviderCostBucket> = {};
 
-export async function listRecentAdminProviderCostPeriodKeys(
-  limit = 12,
-): Promise<string[]> {
-  await requireAdminSession();
-
-  const snapshot = await getAdminFirestore()
-    .collection(ADMIN_COST_PERIODS)
-    .orderBy('periodKey', 'desc')
-    .limit(limit)
-    .get();
-
-  if (snapshot.empty) {
-    return [buildUsagePeriodKey()];
+  for (const doc of userDocs) {
+    const data = doc.data();
+    knownCostUsd += typeof data.knownCostUsd === 'number' ? data.knownCostUsd : 0;
+    unknownCostEventCount +=
+      typeof data.unknownCostEventCount === 'number' ? data.unknownCostEventCount : 0;
+    totalEventCount +=
+      typeof data.totalEventCount === 'number' ? data.totalEventCount : 0;
+    committedCredits +=
+      typeof data.committedCredits === 'number' ? data.committedCredits : 0;
+    if (typeof data.updatedAt === 'string' && data.updatedAt > updatedAt) {
+      updatedAt = data.updatedAt;
+    }
+    byProvider = mergeBuckets(byProvider, parseBucketMap(data.byProvider));
+    byModel = mergeBuckets(byModel, parseBucketMap(data.byModel));
+    byGenerationKind = mergeBuckets(
+      byGenerationKind,
+      parseBucketMap(data.byGenerationKind),
+    );
   }
 
-  return snapshot.docs.map((doc) => doc.id);
+  return {
+    periodKey,
+    knownCostUsd,
+    unknownCostEventCount,
+    totalEventCount,
+    committedCredits,
+    costUsdPerCommittedCredit:
+      committedCredits > 0 ? knownCostUsd / committedCredits : undefined,
+    byProvider,
+    byModel,
+    byGenerationKind,
+    updatedAt,
+  };
+}
+
+export function listRecentAdminProviderCostPeriodKeys(limit = 12): string[] {
+  const keys: string[] = [];
+  const now = new Date();
+  for (let index = 0; index < limit; index += 1) {
+    keys.push(
+      buildUsagePeriodKey(
+        new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - index, 1)),
+      ),
+    );
+  }
+  return keys;
 }
 
 export interface IProviderCostRouteSummary {

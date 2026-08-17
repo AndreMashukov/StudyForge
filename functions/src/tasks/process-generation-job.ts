@@ -100,7 +100,10 @@ async function markCompletedThenSettle(job: GenerationJob): Promise<void> {
 async function processJobWithProviderCostContext(job: GenerationJob): Promise<void> {
   const context = buildProviderCostContext({
     userId: job.userId,
-    generationKind: mapJobKindToUsageGenerationKind(job.kind),
+    generationKind: mapJobKindToUsageGenerationKind(
+      job.kind,
+      job.artifactKind,
+    ),
     reservationId: job.usageReservationId,
     jobId: job.id,
     recordId: job.recordId,

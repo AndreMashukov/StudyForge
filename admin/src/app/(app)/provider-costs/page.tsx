@@ -15,7 +15,15 @@ interface IProviderCostsPageProps {
   searchParams?: Promise<{ period?: string }>;
 }
 
-async function ProviderCostsSection({ periodKey }: { periodKey: string }) {
+interface IProviderCostsSectionProps {
+  periodKey: string;
+}
+
+function isUsagePeriodKey(value: string): boolean {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
+}
+
+async function ProviderCostsSection({ periodKey }: IProviderCostsSectionProps) {
   const period = await readAdminProviderCostPeriod(periodKey);
   const routeSummaries = period ? buildRouteSummaries(period) : [];
 
@@ -30,8 +38,11 @@ async function ProviderCostsSection({ periodKey }: { periodKey: string }) {
 
 export default async function ProviderCostsPage({ searchParams }: IProviderCostsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  const periodKey = resolvedSearchParams.period?.trim() || buildUsagePeriodKey();
-  const recentPeriodKeys = await listRecentAdminProviderCostPeriodKeys();
+  const requestedPeriod = resolvedSearchParams.period?.trim() ?? '';
+  const periodKey = isUsagePeriodKey(requestedPeriod)
+    ? requestedPeriod
+    : buildUsagePeriodKey();
+  const recentPeriodKeys = listRecentAdminProviderCostPeriodKeys();
 
   return (
     <div className="space-y-6">

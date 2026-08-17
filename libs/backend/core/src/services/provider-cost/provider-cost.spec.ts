@@ -31,6 +31,26 @@ describe('provider-cost-logic', () => {
     expect(cost).toBeCloseTo(0.3 * 0.8 + 0.06 * 0.2 + 1.2 * 0.5, 5);
   });
 
+  it('bills reasoning tokens at the output rate', () => {
+    const rate: IProviderRateSnapshot = {
+      meter: 'token',
+      inputUsdPer1M: 1,
+      outputUsdPer1M: 2,
+      source: 'fallback_catalog',
+    };
+
+    const cost = calculateProviderCostUsd({
+      units: {
+        inputTokens: 0,
+        outputTokens: 0,
+        reasoningTokens: 1_000_000,
+      },
+      rate,
+    });
+
+    expect(cost).toBeCloseTo(2, 5);
+  });
+
   it('computes image megapixel cost with step multiplier', () => {
     const rate: IProviderRateSnapshot = {
       meter: 'image_megapixel',
@@ -77,6 +97,27 @@ describe('provider-usage-normalizer', () => {
     expect(units?.inputTokens).toBe(200);
     expect(units?.outputTokens).toBe(80);
     expect(units?.cachedInputTokens).toBe(10);
+  });
+
+  it('normalizes Gemini thinking tokens as reasoning', () => {
+    const units = normalizeGeminiUsageMetadata({
+      promptTokenCount: 100,
+      candidatesTokenCount: 20,
+      thoughtsTokenCount: 40,
+      totalTokenCount: 160,
+    });
+
+    expect(units?.outputTokens).toBe(20);
+    expect(units?.reasoningTokens).toBe(40);
+  });
+
+  it('falls back to Gemini responseTokenCount', () => {
+    const units = normalizeGeminiUsageMetadata({
+      promptTokenCount: 50,
+      responseTokenCount: 10,
+    });
+
+    expect(units?.outputTokens).toBe(10);
   });
 
   it('infers image meter from megapixels', () => {

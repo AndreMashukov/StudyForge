@@ -17,6 +17,16 @@ export function getProviderCostContext(): IProviderCostContext | undefined {
   return storage.getStore();
 }
 
+export function patchProviderCostContext(
+  patch: Partial<IProviderCostContext>,
+): void {
+  const current = storage.getStore();
+  if (!current) {
+    return;
+  }
+  Object.assign(current, patch);
+}
+
 export function nextProviderCallSequence(): number {
   callSequence += 1;
   return callSequence;
@@ -34,6 +44,7 @@ export function buildProviderCostContext(params: {
   workflow?: IProviderCostContext['workflow'];
   modality?: IProviderCostContext['modality'];
   callRole?: IProviderCostContext['callRole'];
+  connectionId?: string;
   periodKey?: string;
 }): IProviderCostContext {
   return {
@@ -49,5 +60,6 @@ export function buildProviderCostContext(params: {
     workflow: params.workflow,
     modality: params.modality,
     callRole: params.callRole,
+    connectionId: params.connectionId,
   };
 }

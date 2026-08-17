@@ -67,13 +67,17 @@ export function normalizeGeminiUsageMetadata(
   }
 
   const promptTokens = asNonNegativeInt(usageMetadata.promptTokenCount);
-  const outputTokens = asNonNegativeInt(usageMetadata.candidatesTokenCount);
+  const outputTokens =
+    asNonNegativeInt(usageMetadata.candidatesTokenCount) ??
+    asNonNegativeInt(usageMetadata.responseTokenCount);
+  const reasoningTokens = asNonNegativeInt(usageMetadata.thoughtsTokenCount);
   const cachedInputTokens = asNonNegativeInt(usageMetadata.cachedContentTokenCount);
   const totalTokens = asNonNegativeInt(usageMetadata.totalTokenCount);
 
   if (
     promptTokens === undefined &&
     outputTokens === undefined &&
+    reasoningTokens === undefined &&
     totalTokens === undefined
   ) {
     return null;
@@ -83,15 +87,20 @@ export function normalizeGeminiUsageMetadata(
     inputTokens: promptTokens,
     outputTokens: outputTokens,
     cachedInputTokens,
+    reasoningTokens,
     totalTokens,
   };
 }
 
-export function buildImageMegapixelUsage(params: {
+export interface IImageMegapixelUsageParams {
   width: number;
   height: number;
   steps?: number;
-}): IProviderUsageUnits {
+}
+
+export function buildImageMegapixelUsage(
+  params: IImageMegapixelUsageParams,
+): IProviderUsageUnits {
   const megapixels = (params.width * params.height) / 1_000_000;
   return {
     megapixels,

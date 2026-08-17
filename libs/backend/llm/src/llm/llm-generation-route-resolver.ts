@@ -3,6 +3,7 @@ import type { GenerationKind } from '@shared-types';
 import { resolveGenerationKind } from '@shared-types';
 import { LlmSetupRepository, type SetupGenerationRouteResolution } from './llm-setup-repository';
 import type { LlmCapability, ResolvedRoute } from './types';
+import { patchProviderCostContext } from '@study-forge/backend-core/services/provider-cost';
 
 export interface GenerationRouteResolution {
   route: ResolvedRoute;
@@ -41,6 +42,14 @@ export class LlmGenerationRouteResolver {
         modality: setupResolution.modality,
         providerType: setupResolution.route.providerType,
         model: setupResolution.route.model,
+      });
+
+      patchProviderCostContext({
+        connectionId: setupResolution.route.connectionId,
+        llmSetupId: setupResolution.llmSetupId,
+        userGroupId: setupResolution.userGroupId,
+        workflow: setupResolution.workflow,
+        modality: setupResolution.modality,
       });
 
       return setupResolution;

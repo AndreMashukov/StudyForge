@@ -5,10 +5,10 @@ import { decryptLlmSecret, isLlmEncryptionAvailable } from '@study-forge/backend
 import { ProviderConnectionRepository } from '@study-forge/backend-llm/llm/provider-connection-repository';
 import {
   buildEmbeddingBatchUsage,
-  normalizeGeminiUsageMetadata,
   normalizeOpenAiCompatibleUsage,
   recordLlmProviderResult,
 } from '@study-forge/backend-core/services/provider-cost';
+import type { IProviderUsageUnits } from '@shared-types';
 import type { ResolvedRoute } from '@study-forge/backend-llm/llm/types';
 
 const TOGETHER_EMBEDDINGS_PATH = '/embeddings';
@@ -20,21 +20,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 async function recordEmbeddingProviderCall(params: {
   route: ResolvedRoute;
-  usage: unknown;
+  usage?: IProviderUsageUnits;
   startedAt: number;
   status?: 'ok' | 'error';
 }): Promise<void> {
-  const normalizedUsage =
-    params.route.providerType === 'gemini'
-      ? normalizeGeminiUsageMetadata(params.usage)
-      : normalizeOpenAiCompatibleUsage(params.usage);
-
   await recordLlmProviderResult({
     providerKind: params.route.providerType,
     connectionId: params.route.connectionId,
     model: params.route.model,
-    modality: 'text',
-    usage: normalizedUsage ?? undefined,
+    modality: 'embedding',
+    usage: params.usage,
     status: params.status ?? 'ok',
     durationMs: Date.now() - params.startedAt,
     callRole: 'embed',
@@ -124,9 +119,7 @@ async function embedWithGemini(
 
       await recordEmbeddingProviderCall({
         route,
-        usage:
-          normalizeGeminiUsageMetadata(response.usageMetadata) ??
-          buildEmbeddingBatchUsage(Math.ceil(input.length / 4)),
+        usage: buildEmbeddingBatchUsage(Math.ceil(input.length / 4)),
         startedAt,
       });
 

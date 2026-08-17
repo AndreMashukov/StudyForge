@@ -16,17 +16,22 @@ export function inferProviderCostMeter(units: IProviderUsageUnits): ProviderCost
   }
   if (
     asFinite(units.inputTokens) !== undefined ||
-    asFinite(units.outputTokens) !== undefined
+    asFinite(units.outputTokens) !== undefined ||
+    asFinite(units.reasoningTokens) !== undefined
   ) {
     return 'token';
   }
   return 'embedding_token';
 }
 
-export function calculateProviderCostUsd(params: {
+export interface ICalculateProviderCostUsdParams {
   units: IProviderUsageUnits;
   rate: IProviderRateSnapshot;
-}): number | null {
+}
+
+export function calculateProviderCostUsd(
+  params: ICalculateProviderCostUsdParams,
+): number | null {
   const { units, rate } = params;
 
   if (rate.meter === 'image_megapixel') {
@@ -46,8 +51,10 @@ export function calculateProviderCostUsd(params: {
 
   const inputTokens = asFinite(units.inputTokens) ?? 0;
   const outputTokens = asFinite(units.outputTokens) ?? 0;
+  const reasoningTokens = asFinite(units.reasoningTokens) ?? 0;
   const cachedInputTokens = asFinite(units.cachedInputTokens) ?? 0;
   const uncachedInputTokens = Math.max(0, inputTokens - cachedInputTokens);
+  const billableOutputTokens = outputTokens + reasoningTokens;
 
   const inputRate = rate.inputUsdPer1M;
   const outputRate = rate.outputUsdPer1M;
@@ -57,7 +64,7 @@ export function calculateProviderCostUsd(params: {
     return null;
   }
 
-  if (inputTokens === 0 && outputTokens === 0) {
+  if (inputTokens === 0 && billableOutputTokens === 0) {
     return null;
   }
 
@@ -66,7 +73,7 @@ export function calculateProviderCostUsd(params: {
     cachedInputTokens > 0 && cachedRate !== undefined
       ? (cachedInputTokens / 1_000_000) * cachedRate
       : 0;
-  const outputCost = (outputTokens / 1_000_000) * outputRate;
+  const outputCost = (billableOutputTokens / 1_000_000) * outputRate;
 
   return inputCost + cachedCost + outputCost;
 }

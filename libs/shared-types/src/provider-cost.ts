@@ -138,6 +138,7 @@ export interface IProviderCostContext {
   workflow?: GenerationWorkflow;
   modality?: LlmModality;
   callRole?: ProviderCostCallRole;
+  connectionId?: string;
 }
 
 export interface IRecordProviderCallParams {

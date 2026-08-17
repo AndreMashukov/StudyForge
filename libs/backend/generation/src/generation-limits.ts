@@ -154,7 +154,7 @@ export async function withUsageReservation<T>(
   const reservation = await enforceCallableGenerationLimits(userId, generationKind, quantity);
   const context = buildProviderCostContext({
     userId,
-    generationKind: generationKind as GenerationKind,
+    generationKind: reservation.generationKind,
     reservationId: reservation.id,
     llmSetupId: reservation.llmSetupId,
     userGroupId: reservation.userGroupId,
@@ -205,7 +205,7 @@ export async function withExternalUsageReservation<T>(
   );
   const context = buildProviderCostContext({
     userId,
-    generationKind: generationKind as GenerationKind,
+    generationKind: reservation.generationKind,
     reservationId: reservation.id,
     llmSetupId: reservation.llmSetupId,
     userGroupId: reservation.userGroupId,
