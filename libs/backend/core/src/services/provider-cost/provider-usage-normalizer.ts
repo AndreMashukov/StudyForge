@@ -11,6 +11,20 @@ function asNonNegativeInt(value: unknown): number | undefined {
   return Math.floor(value);
 }
 
+function compactUsage(units: IProviderUsageUnits): IProviderUsageUnits {
+  const compact: IProviderUsageUnits = {};
+  if (units.inputTokens !== undefined) compact.inputTokens = units.inputTokens;
+  if (units.outputTokens !== undefined) compact.outputTokens = units.outputTokens;
+  if (units.cachedInputTokens !== undefined) {
+    compact.cachedInputTokens = units.cachedInputTokens;
+  }
+  if (units.reasoningTokens !== undefined) compact.reasoningTokens = units.reasoningTokens;
+  if (units.totalTokens !== undefined) compact.totalTokens = units.totalTokens;
+  if (units.megapixels !== undefined) compact.megapixels = units.megapixels;
+  if (units.steps !== undefined) compact.steps = units.steps;
+  return compact;
+}
+
 /** OpenAI-compatible usage object (Together, OpenRouter, MiniMax). */
 export function normalizeOpenAiCompatibleUsage(
   usage: unknown,
@@ -49,13 +63,13 @@ export function normalizeOpenAiCompatibleUsage(
     return null;
   }
 
-  return {
+  return compactUsage({
     inputTokens: promptTokens,
     outputTokens: completionTokens,
     cachedInputTokens,
     reasoningTokens,
     totalTokens,
-  };
+  });
 }
 
 /** Gemini usageMetadata from @google/genai responses. */
@@ -83,13 +97,13 @@ export function normalizeGeminiUsageMetadata(
     return null;
   }
 
-  return {
+  return compactUsage({
     inputTokens: promptTokens,
     outputTokens: outputTokens,
     cachedInputTokens,
     reasoningTokens,
     totalTokens,
-  };
+  });
 }
 
 export interface IImageMegapixelUsageParams {

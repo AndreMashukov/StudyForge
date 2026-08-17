@@ -68,7 +68,7 @@ function parseBucket(value: unknown): IProviderCostBucket {
     return emptyBucket();
   }
 
-  return {
+  const bucket: IProviderCostBucket = {
     knownCostUsd:
       typeof value.knownCostUsd === 'number' && Number.isFinite(value.knownCostUsd)
         ? value.knownCostUsd
@@ -81,11 +81,11 @@ function parseBucket(value: unknown): IProviderCostBucket {
       typeof value.committedCredits === 'number' && Number.isFinite(value.committedCredits)
         ? value.committedCredits
         : 0,
-    costUsdPerCredit:
-      typeof value.costUsdPerCredit === 'number' && Number.isFinite(value.costUsdPerCredit)
-        ? value.costUsdPerCredit
-        : undefined,
   };
+  if (typeof value.costUsdPerCredit === 'number' && Number.isFinite(value.costUsdPerCredit)) {
+    bucket.costUsdPerCredit = value.costUsdPerCredit;
+  }
+  return bucket;
 }
 
 function readBucketMap(value: unknown): Record<string, IProviderCostBucket> {
@@ -121,9 +121,18 @@ function omitUndefined(
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
-    if (entry !== undefined) {
-      result[key] = entry;
+    if (entry === undefined) {
+      continue;
     }
+    if (entry instanceof FieldValue) {
+      result[key] = entry;
+      continue;
+    }
+    if (isRecord(entry) && !Array.isArray(entry)) {
+      result[key] = omitUndefined(entry);
+      continue;
+    }
+    result[key] = entry;
   }
   return result;
 }
@@ -263,7 +272,7 @@ async function incrementCostRollups(params: IIncrementCostRollupsParams): Promis
 
     transaction.set(
       userRef,
-      {
+      omitUndefined({
         periodKey: params.periodKey,
         userId: params.userId,
         knownCostUsd: FieldValue.increment(params.costUsd),
@@ -272,7 +281,7 @@ async function incrementCostRollups(params: IIncrementCostRollupsParams): Promis
         byModel: userByModel,
         byGenerationKind: userByKind,
         updatedAt: params.now,
-      },
+      }),
       { merge: true },
     );
   });

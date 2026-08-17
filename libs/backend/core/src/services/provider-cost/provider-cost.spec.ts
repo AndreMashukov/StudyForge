@@ -81,7 +81,6 @@ describe('provider-usage-normalizer', () => {
       inputTokens: 100,
       outputTokens: 50,
       cachedInputTokens: 20,
-      reasoningTokens: undefined,
       totalTokens: 150,
     });
   });
