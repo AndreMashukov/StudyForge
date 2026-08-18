@@ -173,6 +173,9 @@ function buildTogetherChatBody(input: {
     // Some Together models (e.g. Qwen3.7-Plus) reject non-streaming requests.
     // Artifact generation still buffers the full text before parse/persist.
     stream: true,
+    // Together omits token usage on SSE chunks unless this is set. The extra
+    // trailing usage event is required for provider-cost estimates.
+    stream_options: { include_usage: true },
     temperature:
       input.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
     top_p: input.topP,

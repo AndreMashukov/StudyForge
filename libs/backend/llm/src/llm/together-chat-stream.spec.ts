@@ -102,4 +102,28 @@ describe('consumeTogetherChatCompletionStream', () => {
     expect(result.hasReasoning).toBe(true);
     expect(result.reasoningLength).toBe('still thinking'.length);
   });
+
+  it('captures usage from a trailing chunk with empty choices', async () => {
+    const result = await consumeTogetherChatCompletionStream(
+      sseResponse([
+        contentChunk('Hello', 'stop'),
+        `data: ${JSON.stringify({
+          choices: [],
+          usage: {
+            prompt_tokens: 120,
+            completion_tokens: 40,
+            total_tokens: 160,
+          },
+        })}\n\n`,
+        'data: [DONE]\n\n',
+      ]),
+    );
+
+    expect(result.text).toBe('Hello');
+    expect(result.usage).toEqual({
+      inputTokens: 120,
+      outputTokens: 40,
+      totalTokens: 160,
+    });
+  });
 });
