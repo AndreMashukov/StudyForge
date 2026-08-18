@@ -15,7 +15,7 @@ const activeBilling = {
   payAsYouGoEnabled: true,
   hasPaymentMethod: true,
   monthlyCapCents: 2_000,
-  pricePerCreditCents: 5,
+  pricePerCreditCents: 2.5,
   overageAmountCents: 0,
   reservedOverageAmountCents: 0,
 };
@@ -98,7 +98,7 @@ describe('usage-limits-logic', () => {
       credits: 20,
       includedCredits: 0,
       overageCredits: 20,
-      overageAmountCents: 100,
+      overageAmountCents: 50,
     });
   });
 
@@ -119,7 +119,7 @@ describe('usage-limits-logic', () => {
       credits: 20,
       includedCredits: 10,
       overageCredits: 10,
-      overageAmountCents: 50,
+      overageAmountCents: 25,
     });
   });
 

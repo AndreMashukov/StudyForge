@@ -2365,7 +2365,9 @@ export {
   DEFAULT_BILLING_REDIRECT_ORIGINS,
   DEFAULT_PAYG_MONTHLY_CAP_CENTS,
   DEFAULT_PRICE_PER_CREDIT_CENTS,
+  formatCreditUnitPriceFromCents,
   formatCurrencyFromCents,
+  roundInvoiceAmountCents,
 } from './billing';
 export type {
   IAdminProviderCostPeriod,

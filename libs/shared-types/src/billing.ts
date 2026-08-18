@@ -1,8 +1,8 @@
 /** Default suggested monthly overage cap ($20). */
 export const DEFAULT_PAYG_MONTHLY_CAP_CENTS = 2_000;
 
-/** Default global price per StudyForge credit (5 cents). */
-export const DEFAULT_PRICE_PER_CREDIT_CENTS = 5;
+/** Default global price per StudyForge credit (2.5 cents / $0.025). */
+export const DEFAULT_PRICE_PER_CREDIT_CENTS = 2.5;
 
 /** Default web origins allowed for Stripe billing redirect URLs. */
 export const DEFAULT_BILLING_REDIRECT_ORIGINS = [
@@ -101,4 +101,22 @@ export function formatCurrencyFromCents(cents: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(cents / 100);
+}
+
+/** Format per-credit unit price (supports fractional cents such as 2.5). */
+export function formatCreditUnitPriceFromCents(cents: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  }).format(cents / 100);
+}
+
+/** Round accumulated fractional overage to integer cents for Stripe invoice items. */
+export function roundInvoiceAmountCents(exactCents: number): number {
+  if (exactCents <= 0 || !Number.isFinite(exactCents)) {
+    return 0;
+  }
+  return Math.round(exactCents);
 }

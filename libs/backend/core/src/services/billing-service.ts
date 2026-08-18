@@ -2,6 +2,7 @@ import {
   calculateRemainingOverageCapCents,
   DEFAULT_PAYG_MONTHLY_CAP_CENTS,
   DEFAULT_PRICE_PER_CREDIT_CENTS,
+  roundInvoiceAmountCents,
   type BillingStatus,
   type IBillingConfig,
   type IUpdatePayAsYouGoSettingsRequest,
@@ -545,12 +546,17 @@ export async function processMonthlyOverageInvoices(stripeSecretKey: string): Pr
           continue;
         }
 
+        const invoiceAmountCents = roundInvoiceAmountCents(uninvoicedAmount);
+        if (invoiceAmountCents <= 0) {
+          continue;
+        }
+
         const idempotencyBase = `overage:${userDoc.id}:${periodDoc.id}:${invoicedOverageAmountCents}`;
 
         await stripe.invoiceItems.create(
           {
             customer: billing.stripeCustomerId,
-            amount: uninvoicedAmount,
+            amount: invoiceAmountCents,
             currency: 'usd',
             description: `StudyForge pay-as-you-go overage for ${periodDoc.id}`,
           },
@@ -564,7 +570,7 @@ export async function processMonthlyOverageInvoices(stripeSecretKey: string): Pr
             metadata: {
               userId: userDoc.id,
               usagePeriodKey: periodDoc.id,
-              invoicedAmountCents: String(uninvoicedAmount),
+              invoicedAmountCents: String(invoiceAmountCents),
             },
           },
           { idempotencyKey: `${idempotencyBase}:invoice` },
@@ -574,7 +580,7 @@ export async function processMonthlyOverageInvoices(stripeSecretKey: string): Pr
 
         await usagePeriodRef(userDoc.id, periodDoc.id).set(
           {
-            invoicedOverageAmountCents: invoicedOverageAmountCents + uninvoicedAmount,
+            invoicedOverageAmountCents: invoicedOverageAmountCents + invoiceAmountCents,
             updatedAt: new Date().toISOString(),
           },
           { merge: true },

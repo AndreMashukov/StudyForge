@@ -2,6 +2,7 @@ import React from 'react';
 import { CreditCard } from 'lucide-react';
 import {
   DEFAULT_PAYG_MONTHLY_CAP_CENTS,
+  formatCreditUnitPriceFromCents,
   formatCurrencyFromCents,
 } from '@shared-types';
 import {
@@ -87,7 +88,7 @@ export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
               Price per credit
             </dt>
             <dd className="text-sm font-medium text-foreground tabular-nums">
-              {formatCurrencyFromCents(pricePerCredit)}
+              {formatCreditUnitPriceFromCents(pricePerCredit)}
             </dd>
           </div>
           <div className="space-y-1">
