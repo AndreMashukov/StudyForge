@@ -18,6 +18,8 @@ import {
   deriveAgentThreadTitle,
 } from './memory/agent-memory-service';
 import { AgentAdkRunner } from './adk/agent-adk-runner';
+import { AgentAdkPlanExecuteRunner } from './adk/agent-adk-plan-execute-runner';
+import { LlmGenerationRouteResolver } from '@study-forge/backend-llm/llm';
 import { emitAgentTextAsDeltas } from './runner/agent-chat-runner';
 import { withExecutedActionContext } from './runner/agent-history';
 import {
@@ -28,7 +30,7 @@ import {
 import {
   shouldBlockUngroundedCreateResponse,
   UNGROUNDED_CREATE_FALLBACK,
-} from './runner/agent-plan-execute-runner';
+} from './runner/agent-plan-execute-helpers';
 import {
   AGENT_DOCUMENT_CONTENT_MAX_CHARS,
   AgentToolRuntimeContext,
@@ -395,7 +397,28 @@ export class DirectoryAgentService {
       },
     };
 
-    const runPromise = AgentAdkRunner.run(runnerInput);
+    let runPromise: Promise<string>;
+    if (request.scope === 'workspace') {
+      const routeResolution = await LlmGenerationRouteResolver.resolve(
+        'directoryAgent',
+        { userId },
+      );
+      if (routeResolution.workflow === 'agentic') {
+        runPromise = AgentAdkPlanExecuteRunner.run({
+          userId,
+          threadId: thread.id,
+          systemPrompt,
+          objective: formattedUserMessage,
+          history: historyForModel,
+          tools,
+          onEvent: runnerInput.onEvent,
+        });
+      } else {
+        runPromise = AgentAdkRunner.run(runnerInput);
+      }
+    } else {
+      runPromise = AgentAdkRunner.run(runnerInput);
+    }
     runPromise
       .then((result) => {
         reply = result;

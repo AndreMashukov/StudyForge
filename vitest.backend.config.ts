@@ -48,6 +48,10 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['libs/backend/**/*.spec.ts', 'libs/shared-types/**/*.spec.ts'],
+    include: [
+      'libs/backend/**/*.spec.ts',
+      'libs/shared-types/**/*.spec.ts',
+      'admin/src/**/*.spec.ts',
+    ],
   },
 });

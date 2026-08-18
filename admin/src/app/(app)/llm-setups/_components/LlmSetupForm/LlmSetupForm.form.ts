@@ -169,10 +169,23 @@ const DOCUMENT_WORKFLOW_KINDS: ReadonlySet<GenerationKind> = new Set([
   'documentFromScreenshot',
 ]);
 
+const WORKSPACE_AGENT_WORKFLOW_KINDS: ReadonlySet<GenerationKind> = new Set([
+  'directoryAgent',
+]);
+
 export function formatWorkflowOptionLabel(
   kind: GenerationKind,
   workflow: GenerationWorkflow,
 ): string {
+  if (WORKSPACE_AGENT_WORKFLOW_KINDS.has(kind)) {
+    if (workflow === 'direct') {
+      return 'ADK';
+    }
+    if (workflow === 'agentic') {
+      return 'Plan-Execute';
+    }
+  }
+
   if (!DOCUMENT_WORKFLOW_KINDS.has(kind)) {
     return workflow;
   }
@@ -189,6 +202,10 @@ export function formatWorkflowOptionLabel(
 }
 
 export function getWorkflowHelpText(kind: GenerationKind): string | null {
+  if (kind === 'directoryAgent') {
+    return 'ADK runs one tool-capable model loop. Plan-Execute uses the planner model (directoryAgent route) for planning and the executor model (agentExecutor route) for tool steps.';
+  }
+
   if (kind === 'documentFromPrompt') {
     return 'Direct runs one text generation call, validates HTML, then stores. Direct with repair adds one repair pass when validation fails (diagnostics only after repair). Agentic runs plan, draft, repair, and critic/refiner loops (~4+ minutes).';
   }

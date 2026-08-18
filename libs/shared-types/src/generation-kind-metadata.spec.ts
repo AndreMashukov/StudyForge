@@ -23,4 +23,13 @@ describe('generation workflow metadata', () => {
     expect('documentFromPromptRepair' in GENERATION_KIND_METADATA).toBe(false);
     expect('documentFromScreenshotRepair' in GENERATION_KIND_METADATA).toBe(false);
   });
+
+  it('allows agentic workflow for the workspace agent planner route', () => {
+    expect(GENERATION_KIND_METADATA.directoryAgent.supportedWorkflows).toContain(
+      'agentic',
+    );
+    expect(GENERATION_KIND_METADATA.directoryAgent.defaultWorkflow).toBe(
+      'direct',
+    );
+  });
 });

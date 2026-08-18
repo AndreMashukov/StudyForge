@@ -192,9 +192,9 @@ export const GENERATION_KIND_METADATA: Record<
     kind: 'directoryAgent',
     label: 'Workspace agent',
     description:
-      'ADK LlmAgent for the floating workspace agent. One tool-capable model loop over the user library.',
+      'Floating workspace agent. ADK runs one tool-capable model loop. Plan-Execute uses a planner model plus an executor model with tools.',
     requiredModality: 'text',
-    supportedWorkflows: ['direct'],
+    supportedWorkflows: ['direct', 'agentic'],
     defaultWorkflow: 'direct',
     group: 'interactive',
   },
@@ -202,7 +202,7 @@ export const GENERATION_KIND_METADATA: Record<
     kind: 'agentExecutor',
     label: 'Workspace agent executor',
     description:
-      'Unused by the ADK workspace agent. Kept so existing LLM setups remain valid.',
+      'Executor model for workspace Plan-Execute steps. Used when directoryAgent workflow is agentic.',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',

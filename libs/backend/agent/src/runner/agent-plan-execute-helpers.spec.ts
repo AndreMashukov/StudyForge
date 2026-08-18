@@ -9,7 +9,7 @@ import {
   isCreateDocumentObjective,
   parseAgentPlanOutput,
   shouldBlockUngroundedCreateResponse,
-} from './agent-plan-execute-runner';
+} from './agent-plan-execute-helpers';
 
 describe('parseAgentPlanOutput', () => {
   it('parses a plan response', () => {

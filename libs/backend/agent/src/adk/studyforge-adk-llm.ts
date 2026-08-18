@@ -9,6 +9,7 @@ import {
   callToolChatCompletions,
   LlmGenerationRouteResolver,
 } from '@study-forge/backend-llm/llm';
+import { patchProviderCostContext } from '@study-forge/backend-core/services/provider-cost';
 import {
   geminiContentsToToolChatMessages,
   llmRequestToOpenAiTools,
@@ -16,14 +17,19 @@ import {
   toolChatAssistantToContent,
 } from './adk-content-converter';
 
+export type StudyForgeAdkGenerationKind = Extract<
+  GenerationKind,
+  'directoryAgent' | 'directoryChat' | 'agentExecutor'
+>;
+
 export interface StudyForgeAdkLlmInput {
   userId: string;
-  generationKind: Extract<GenerationKind, 'directoryAgent' | 'directoryChat'>;
+  generationKind: StudyForgeAdkGenerationKind;
 }
 
 export class StudyForgeAdkLlm extends BaseLlm {
   private readonly userId: string;
-  private readonly generationKind: StudyForgeAdkLlmInput['generationKind'];
+  private readonly generationKind: StudyForgeAdkGenerationKind;
 
   constructor(input: StudyForgeAdkLlmInput) {
     super({ model: `studyforge-${input.generationKind}` });
@@ -42,6 +48,8 @@ export class StudyForgeAdkLlm extends BaseLlm {
     }
 
     this.maybeAppendUserContent(llmRequest);
+
+    patchProviderCostContext({ generationKind: this.generationKind });
 
     const resolution = await LlmGenerationRouteResolver.resolve(
       this.generationKind,

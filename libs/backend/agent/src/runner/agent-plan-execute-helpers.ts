@@ -1,19 +1,9 @@
 import { z } from 'zod';
-import {
-  callToolChatCompletions,
-  JsonSanitizer,
-  LlmGenerationRouteResolver,
-  type ILlmToolChatMessage,
-} from '@study-forge/backend-llm/llm';
-import type { AgentMessageStreamEvent } from '@shared-types';
+import { JsonSanitizer } from '@study-forge/backend-llm/llm';
 import type { AgentToolDefinition } from '../tools/create-agent-tools';
-import { AgentChatRunner, emitAgentTextAsDeltas } from './agent-chat-runner';
 import type { AgentToolOutcome } from './agent-chat-fallback';
 
-const MAX_PLAN_STEPS = 8;
-const MAX_REPLAN_CYCLES = 8;
-const MAX_EXECUTOR_TOOL_ROUNDS = 4;
-const PLANNER_PARSE_RETRIES = 1;
+export const MAX_PLAN_STEPS = 8;
 
 const CREATE_DOCUMENT_OBJECTIVE =
   /\b(?:create|make|write|add|draft)\s+(?:(?:a|an|the|new|some|\d+)\s+)*(?:docs?|documents?)\b|\bnew docs?\b/i;
@@ -23,9 +13,6 @@ const PROPOSE_FIRST_OBJECTIVE =
 
 export const UNGROUNDED_CREATE_FALLBACK =
   'I did not create the document. The create_document tool never ran, so nothing was saved. Please try again.';
-
-const FORCED_CREATE_DOCUMENT_STEP =
-  'Call create_document with a generation prompt now. A written summary does not create the document. Do not invent an id.';
 
 export const agentPlanOutputSchema = z.discriminatedUnion('type', [
   z.object({
@@ -43,15 +30,6 @@ export type AgentPlanOutput = z.output<typeof agentPlanOutputSchema>;
 export interface AgentPlanExecutePastStep {
   step: string;
   result: string;
-}
-
-export interface AgentPlanExecuteRunnerInput {
-  userId: string;
-  systemPrompt: string;
-  objective: string;
-  history: Array<{ role: 'user' | 'assistant'; content: string }>;
-  tools: AgentToolDefinition[];
-  onEvent?: (event: AgentMessageStreamEvent) => void;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -187,7 +165,7 @@ export function buildGroundedCreateReply(
     .join('\n\n');
 }
 
-function formatToolCatalog(tools: AgentToolDefinition[]): string {
+export function formatToolCatalog(tools: AgentToolDefinition[]): string {
   return tools.map((tool) => `- ${tool.name}: ${tool.description}`).join('\n');
 }
 
@@ -204,7 +182,7 @@ function formatPastSteps(pastSteps: AgentPlanExecutePastStep[]): string {
     .join('\n');
 }
 
-function buildPlannerPrompt(input: {
+export function buildPlannerPrompt(input: {
   tools: AgentToolDefinition[];
   isReplan: boolean;
 }): string {
@@ -283,7 +261,7 @@ export function buildPlannerUserMessage(input: {
   return sections.join('\n\n');
 }
 
-function buildStepExecutionMessage(input: {
+export function buildStepExecutionMessage(input: {
   objective: string;
   step: string;
   pastSteps: AgentPlanExecutePastStep[];
@@ -323,230 +301,4 @@ export function parseAgentPlanOutput(raw: string): AgentPlanOutput | null {
   }
 
   return parsed.data;
-}
-
-async function callPlannerModel(input: {
-  userId: string;
-  systemPrompt: string;
-  userMessage: string;
-  tools: AgentToolDefinition[];
-  isReplan: boolean;
-  recoverOutcomes?: AgentToolOutcome[];
-}): Promise<AgentPlanOutput> {
-  const resolution = await LlmGenerationRouteResolver.resolve(
-    'directoryAgent',
-    {
-      userId: input.userId,
-    },
-  );
-
-  if (!resolution.providerApiKey) {
-    throw new Error('Workspace agent planner credentials are missing');
-  }
-
-  const messages: ILlmToolChatMessage[] = [
-    {
-      role: 'system',
-      content: `${input.systemPrompt}\n\n${buildPlannerPrompt({
-        tools: input.tools,
-        isReplan: input.isReplan,
-      })}`,
-    },
-    { role: 'user', content: input.userMessage },
-  ];
-
-  let lastError: string | null = null;
-
-  for (let attempt = 0; attempt <= PLANNER_PARSE_RETRIES; attempt += 1) {
-    const assistantMessage = await callToolChatCompletions({
-      route: resolution.route,
-      apiKey: resolution.providerApiKey,
-      messages,
-      tools: [],
-      stream: false,
-    });
-
-    const content = assistantMessage.content?.trim() ?? '';
-    const parsed = parseAgentPlanOutput(content);
-    if (parsed) {
-      return parsed;
-    }
-
-    lastError = 'Planner returned invalid JSON';
-    messages.push(assistantMessage);
-    messages.push({
-      role: 'user',
-      content:
-        'Your previous output was invalid. Return ONLY valid JSON matching the required schema.',
-    });
-  }
-
-  const grounded = input.recoverOutcomes
-    ? buildGroundedCreateReply(input.recoverOutcomes)
-    : null;
-  if (grounded) {
-    return { type: 'response', response: grounded };
-  }
-
-  throw new Error(lastError ?? 'Planner returned invalid JSON');
-}
-
-async function streamFinalResponse(
-  response: string,
-  onEvent?: (event: AgentMessageStreamEvent) => void,
-): Promise<string> {
-  await emitAgentTextAsDeltas(response, onEvent);
-  return response;
-}
-
-export class AgentPlanExecuteRunner {
-  static async run(input: AgentPlanExecuteRunnerInput): Promise<string> {
-    input.onEvent?.({ type: 'status', message: 'Planning...' });
-
-    const plannerMessage = (
-      pastSteps: AgentPlanExecutePastStep[],
-      remainingPlan?: string[],
-    ): string =>
-      buildPlannerUserMessage({
-        objective: input.objective,
-        history: input.history,
-        pastSteps,
-        remainingPlan,
-      });
-
-    const initialPlan = await callPlannerModel({
-      userId: input.userId,
-      systemPrompt: input.systemPrompt,
-      userMessage: plannerMessage([]),
-      tools: input.tools,
-      isReplan: false,
-    });
-
-    let planSteps: string[] = [];
-    if (initialPlan.type === 'response') {
-      if (
-        shouldBlockUngroundedCreateResponse({
-          objective: input.objective,
-          outcomes: [],
-        })
-      ) {
-        planSteps = [FORCED_CREATE_DOCUMENT_STEP];
-      } else {
-        return streamFinalResponse(initialPlan.response, input.onEvent);
-      }
-    } else {
-      planSteps = [...initialPlan.steps];
-    }
-
-    const pastSteps: AgentPlanExecutePastStep[] = [];
-    const allToolOutcomes: AgentToolOutcome[] = [];
-    let executedStepCount = 0;
-
-    for (
-      let replanCycle = 0;
-      replanCycle < MAX_REPLAN_CYCLES;
-      replanCycle += 1
-    ) {
-      while (planSteps.length > 0 && executedStepCount < MAX_PLAN_STEPS) {
-        const currentStep = planSteps[0];
-        const totalSteps = executedStepCount + planSteps.length;
-
-        input.onEvent?.({
-          type: 'status',
-          message: `Step ${executedStepCount + 1} of ${totalSteps}: ${currentStep}`,
-        });
-
-        const stepResult = await AgentChatRunner.run({
-          userId: input.userId,
-          systemPrompt: input.systemPrompt,
-          userMessage: buildStepExecutionMessage({
-            objective: input.objective,
-            step: currentStep,
-            pastSteps,
-          }),
-          history: input.history,
-          tools: input.tools,
-          generationKind: 'agentExecutor',
-          maxToolRounds: MAX_EXECUTOR_TOOL_ROUNDS,
-          emitDeltas: false,
-          onEvent: input.onEvent,
-        });
-
-        allToolOutcomes.push(...stepResult.toolOutcomes);
-        pastSteps.push({
-          step: currentStep,
-          result: composeExecutorStepResult(
-            stepResult.text,
-            stepResult.toolOutcomes,
-          ),
-        });
-        executedStepCount += 1;
-        planSteps = planSteps.slice(1);
-
-        input.onEvent?.({ type: 'status', message: 'Planning next steps...' });
-
-        const replanOutput = await callPlannerModel({
-          userId: input.userId,
-          systemPrompt: input.systemPrompt,
-          userMessage: plannerMessage(pastSteps, planSteps),
-          tools: input.tools,
-          isReplan: true,
-          recoverOutcomes: allToolOutcomes,
-        });
-
-        if (replanOutput.type === 'response') {
-          if (
-            shouldBlockUngroundedCreateResponse({
-              objective: input.objective,
-              outcomes: allToolOutcomes,
-            })
-          ) {
-            planSteps = [FORCED_CREATE_DOCUMENT_STEP];
-            break;
-          }
-          return streamFinalResponse(replanOutput.response, input.onEvent);
-        }
-
-        planSteps = [...replanOutput.steps];
-        break;
-      }
-
-      if (planSteps.length === 0) {
-        break;
-      }
-    }
-
-    input.onEvent?.({ type: 'status', message: 'Planning final reply...' });
-
-    const finalOutput = await callPlannerModel({
-      userId: input.userId,
-      systemPrompt: input.systemPrompt,
-      userMessage: plannerMessage(pastSteps),
-      tools: input.tools,
-      isReplan: true,
-      recoverOutcomes: allToolOutcomes,
-    });
-
-    if (finalOutput.type === 'response') {
-      if (
-        shouldBlockUngroundedCreateResponse({
-          objective: input.objective,
-          outcomes: allToolOutcomes,
-        })
-      ) {
-        return streamFinalResponse(UNGROUNDED_CREATE_FALLBACK, input.onEvent);
-      }
-      return streamFinalResponse(finalOutput.response, input.onEvent);
-    }
-
-    const fallback = shouldBlockUngroundedCreateResponse({
-      objective: input.objective,
-      outcomes: allToolOutcomes,
-    })
-      ? UNGROUNDED_CREATE_FALLBACK
-      : pastSteps.length > 0
-        ? 'I completed the planned steps but could not compose a final reply.'
-        : 'I could not complete your request within the planning limits.';
-    return streamFinalResponse(fallback, input.onEvent);
-  }
 }
