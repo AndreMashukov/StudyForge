@@ -11,6 +11,7 @@ import {
   CreateDocumentRequest,
   CreateDocumentFromUrlsRequest,
   CreateDocumentFromPastedTextRequest,
+  StartGenerationResponse,
   UpdateDocumentRequest,
   DeleteDocumentRequest,
   GenerateFromPromptRequest,
@@ -176,24 +177,20 @@ export const documentsApi = baseApi.injectEndpoints({
     }),
 
     createDocumentFromPastedText: builder.mutation<
-      DocumentEnhanced,
+      StartGenerationResponse,
       CreateDocumentFromPastedTextRequest
     >({
       query: (data) => ({
         functionName: 'createDocumentFromPastedText',
         data,
       }),
-      transformResponse: (response: {
-        success: boolean;
-        documentId: string;
-        id: string;
-        directoryId: string;
-        generationStatus: 'pending';
-      }) => ({
+      transformResponse: (response: StartGenerationResponse & { documentId?: string }) => ({
+        success: response.success,
         id: response.documentId || response.id,
+        recordType: response.recordType,
         directoryId: response.directoryId,
         generationStatus: response.generationStatus,
-      } as DocumentEnhanced),
+      }),
       invalidatesTags: [
         'Document',
         { type: 'Directory', id: 'LIST' },

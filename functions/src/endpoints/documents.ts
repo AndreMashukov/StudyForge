@@ -42,6 +42,21 @@ const MAX_URL_DOCUMENT_SOURCES = 3;
 const MIN_PASTE_TEXT_LENGTH = 10;
 const MAX_PASTE_TEXT_LENGTH = 100_000;
 
+function isCreateDocumentFromPastedTextRequest(
+  value: unknown,
+): value is CreateDocumentFromPastedTextRequest {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  return (
+    'content' in value &&
+    'directoryId' in value &&
+    typeof value.content === 'string' &&
+    typeof value.directoryId === 'string'
+  );
+}
+
 type DocumentAgentJobKind = 'documentFromContent' | 'documentFromUpload' | 'documentFromUrl';
 
 async function enqueueDocumentAgentJob(params: {
@@ -211,12 +226,14 @@ export const createDocumentFromPastedText = onCall(
   async (request) => {
     try {
       const userId = await validateAuth(request);
-      const data = request.data as CreateDocumentFromPastedTextRequest;
-
-      if (!data.content || typeof data.content !== 'string') {
-        throw new HttpsError('invalid-argument', 'content is required');
+      if (!isCreateDocumentFromPastedTextRequest(request.data)) {
+        throw new HttpsError(
+          'invalid-argument',
+          'content and directoryId are required strings',
+        );
       }
 
+      const data = request.data;
       const trimmedContent = data.content.trim();
       if (trimmedContent.length < MIN_PASTE_TEXT_LENGTH) {
         throw new HttpsError(
@@ -232,10 +249,6 @@ export const createDocumentFromPastedText = onCall(
         );
       }
 
-      if (!data.directoryId) {
-        throw new HttpsError('invalid-argument', 'directoryId is required');
-      }
-
       await directoryService.validateDirectoryId(userId, data.directoryId);
 
       const usageReservation = await enforceCallableGenerationLimits(
@@ -245,15 +258,17 @@ export const createDocumentFromPastedText = onCall(
       const usageReservationId = usageReservation.id;
 
       const pendingTitle = 'Pasted text';
-      const pendingDocId = await DocumentCrudService.createPendingDocument(userId, {
-        directoryId: data.directoryId,
-        title: pendingTitle,
-        description: 'Pasted text import',
-        sourceType: DocumentSourceType.UPLOAD,
-        tags: ['pasted'],
-      });
+      let pendingDocId: string | undefined;
 
       try {
+        pendingDocId = await DocumentCrudService.createPendingDocument(userId, {
+          directoryId: data.directoryId,
+          title: pendingTitle,
+          description: 'Pasted text import',
+          sourceType: DocumentSourceType.UPLOAD,
+          tags: ['pasted'],
+        });
+
         await enqueueDocumentAgentJob({
           userId,
           directoryId: data.directoryId,
@@ -280,7 +295,9 @@ export const createDocumentFromPastedText = onCall(
         };
       } catch (innerError) {
         const msg = innerError instanceof Error ? innerError.message : String(innerError);
-        await DocumentCrudService.failPendingDocument(userId, pendingDocId, msg).catch(() => {/* best-effort */});
+        if (pendingDocId) {
+          await DocumentCrudService.failPendingDocument(userId, pendingDocId, msg).catch(() => {/* best-effort */});
+        }
         await refundUsageReservationSafe(userId, usageReservationId);
         throw innerError;
       }
@@ -288,7 +305,13 @@ export const createDocumentFromPastedText = onCall(
       if (error instanceof HttpsError) throw error;
       logger.error('Failed to create document from pasted text', {
         error: error instanceof Error ? error.message : String(error),
-        directoryId: request.data?.directoryId,
+        directoryId:
+          typeof request.data === 'object' &&
+          request.data !== null &&
+          'directoryId' in request.data &&
+          typeof request.data.directoryId === 'string'
+            ? request.data.directoryId
+            : undefined,
       });
       throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }

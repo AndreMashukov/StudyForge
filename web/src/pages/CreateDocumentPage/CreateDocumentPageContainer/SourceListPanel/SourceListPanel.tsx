@@ -2,39 +2,39 @@ import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { cn } from '../../../../lib/utils';
 import { setSelectedSource, selectSelectedSource } from '../../../../store/slices/createDocumentPageSlice';
-import { SourceType } from '../../types/ISourceTypes';
+import { ISourceListItem, SourceType } from '../../types/ISourceTypes';
 import { YouTubeBrandMark } from '../../../../components/icons';
 import { sourceListPanelStyles } from './SourceListPanel.styles';
 import type { RootState } from '../../../../store';
 
-const sources = [
+const sources: ISourceListItem[] = [
   {
-    id: 'file' as SourceType,
+    id: 'file',
     icon: '📄',
     title: 'File Upload',
     description: 'Upload files',
-    status: 'active' as const,
+    status: 'active',
   },
   {
-    id: 'pasteText' as SourceType,
+    id: 'pasteText',
     icon: '📋',
     title: 'Paste Text',
     description: 'Paste existing text',
-    status: 'active' as const,
+    status: 'active',
   },
   {
-    id: 'website' as SourceType,
+    id: 'website',
     icon: '🌐',
     title: 'Website URL',
     description: 'Scrape web pages, YouTube, or other URLs',
-    status: 'active' as const,
+    status: 'active',
   },
   {
-    id: 'textPrompt' as SourceType,
+    id: 'textPrompt',
     icon: '✨',
     title: 'AI Prompt',
     description: 'Generate from description',
-    status: 'active' as const,
+    status: 'active',
   },
 ];
 

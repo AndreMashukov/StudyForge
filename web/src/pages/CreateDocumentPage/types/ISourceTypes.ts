@@ -10,3 +10,11 @@ export interface ISourceCard {
   status: SourceStatus;
   order: number;
 }
+
+export interface ISourceListItem {
+  id: SourceType;
+  icon: string;
+  title: string;
+  description: string;
+  status: SourceStatus;
+}

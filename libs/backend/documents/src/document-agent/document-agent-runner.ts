@@ -167,7 +167,7 @@ export async function runDocumentAgentPipeline(
   const isIngest = agentContext.isIngest;
   const diagnostics: IArtifactAgentDiagnostics = {
     ...createEmptyDiagnostics({
-      artifactKind: isIngest ? 'sourceDocumentEnhancement' : 'documentFromPrompt',
+      artifactKind: 'documentFromPrompt',
       agentDefinitionVersion: AGENT_DEFINITION_VERSION,
     }),
     orchestrationMode: 'adk-runner',

@@ -27,6 +27,10 @@ export interface DocumentPlan {
   ruleChecklist: string[];
 }
 
+export interface IDocumentHtmlGenerationOptions {
+  isIngest?: boolean;
+}
+
 function stripCodeFences(text: string): string {
   return text
     .trim()
@@ -138,7 +142,7 @@ export async function draftDocumentHtml(
   files: IFileContent[] | undefined,
   plan: DocumentPlan | undefined,
   diagnostics: IArtifactAgentDiagnostics,
-  options?: { isIngest?: boolean }
+  options?: IDocumentHtmlGenerationOptions
 ): Promise<string> {
   const isIngest = options?.isIngest === true;
   const capability = isIngest ? 'sourceDocumentEnhancement' : 'documentFromPrompt';
@@ -170,7 +174,7 @@ export async function repairDocumentHtml(
   validationErrors: string,
   plan: DocumentPlan | undefined,
   diagnostics: IArtifactAgentDiagnostics,
-  options?: { isIngest?: boolean }
+  options?: IDocumentHtmlGenerationOptions
 ): Promise<string> {
   diagnostics.repairCount += 1;
   const isIngest = options?.isIngest === true;

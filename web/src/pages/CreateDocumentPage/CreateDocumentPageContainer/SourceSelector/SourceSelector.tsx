@@ -3,41 +3,41 @@ import './animations.css';
 import { useDispatch, useSelector } from 'react-redux';
 import { SourceCard } from './SourceCard';
 import { setSelectedSource, selectSelectedSource } from '../../../../store/slices/createDocumentPageSlice';
-import { SourceType } from '../../types/ISourceTypes';
+import { ISourceCard, SourceType } from '../../types/ISourceTypes';
 import { sourceSelectorStyles } from './SourceSelector.styles';
 import type { RootState } from '../../../../store';
 
-const sourceCards = [
+const sourceCards: ISourceCard[] = [
   {
-    id: 'file' as SourceType,
+    id: 'file',
     icon: '📄',
     title: 'File Upload',
     description: 'Upload MD or text file',
-    status: 'active' as const,
+    status: 'active',
     order: 1,
   },
   {
-    id: 'pasteText' as SourceType,
+    id: 'pasteText',
     icon: '📋',
     title: 'Paste Text',
     description: 'Paste existing text or notes',
-    status: 'active' as const,
+    status: 'active',
     order: 2,
   },
   {
-    id: 'website' as SourceType,
+    id: 'website',
     icon: '🌐',
     title: 'Website URL',
     description: 'From any URL or link',
-    status: 'active' as const,
+    status: 'active',
     order: 3,
   },
   {
-    id: 'textPrompt' as SourceType,
+    id: 'textPrompt',
     icon: '📝',
     title: 'Text Prompt',
     description: 'Create from description',
-    status: 'active' as const,
+    status: 'active',
     order: 4,
   },
 ];
