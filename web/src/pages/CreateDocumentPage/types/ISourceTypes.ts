@@ -1,4 +1,4 @@
-export type SourceType = 'website' | 'file' | 'textPrompt';
+export type SourceType = 'website' | 'file' | 'pasteText' | 'textPrompt';
 
 export type SourceStatus = 'active' | 'coming-soon' | 'disabled';
 

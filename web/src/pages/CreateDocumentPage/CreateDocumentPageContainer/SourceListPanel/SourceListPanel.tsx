@@ -9,10 +9,17 @@ import type { RootState } from '../../../../store';
 
 const sources = [
   {
-    id: 'textPrompt' as SourceType,
-    icon: '✨',
-    title: 'AI Prompt',
-    description: 'Generate from description',
+    id: 'file' as SourceType,
+    icon: '📄',
+    title: 'File Upload',
+    description: 'Upload files',
+    status: 'active' as const,
+  },
+  {
+    id: 'pasteText' as SourceType,
+    icon: '📋',
+    title: 'Paste Text',
+    description: 'Paste existing text',
     status: 'active' as const,
   },
   {
@@ -23,10 +30,10 @@ const sources = [
     status: 'active' as const,
   },
   {
-    id: 'file' as SourceType,
-    icon: '📄',
-    title: 'File Upload',
-    description: 'Upload files',
+    id: 'textPrompt' as SourceType,
+    icon: '✨',
+    title: 'AI Prompt',
+    description: 'Generate from description',
     status: 'active' as const,
   },
 ];
@@ -94,9 +101,9 @@ export const SourceListPanel = () => {
       <div className={sourceListPanelStyles.tipsSection}>
         <h3 className={sourceListPanelStyles.tipsTitle}>Quick Tips</h3>
         <div className={sourceListPanelStyles.tipsContent}>
-          <p>💡 Be specific in your prompt for better results.</p>
-          <p>📎 Attach reference files for context-aware generation.</p>
-          <p>🎯 Use rules to customize output format.</p>
+          <p>Upload, paste, or import URLs to convert existing content.</p>
+          <p>Use AI Prompt when you want a new learning document from a description.</p>
+          <p>Rules apply to AI Prompt generation only.</p>
         </div>
       </div>
     </div>

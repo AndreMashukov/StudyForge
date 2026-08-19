@@ -28,4 +28,19 @@ describe('resolveDocumentAgentRuleMode', () => {
       }),
     ).toBe('explicit-only');
   });
+
+  it('forces explicit-only for ingest source kinds', () => {
+    expect(
+      resolveDocumentAgentRuleMode({
+        sourceKind: 'upload',
+        ruleResolutionMode: 'inherit-plus-explicit',
+      }),
+    ).toBe('explicit-only');
+    expect(
+      resolveDocumentAgentRuleMode({
+        sourceKind: 'paste',
+        ruleIds: ['rule-1'],
+      }),
+    ).toBe('explicit-only');
+  });
 });

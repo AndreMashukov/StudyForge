@@ -1,8 +1,15 @@
 import type {
   IDocumentAgentJobPayload,
   RuleResolutionMode,
+  DocumentAgentSourceKind,
 } from '@shared-types';
 import { isRuleResolutionMode } from '@study-forge/backend-directories/rule-resolution';
+
+export function isIngestSourceKind(
+  sourceKind: DocumentAgentSourceKind,
+): boolean {
+  return sourceKind === 'upload' || sourceKind === 'url' || sourceKind === 'paste';
+}
 
 export function resolveDocumentAgentRuleMode(
   payload: Pick<
@@ -10,6 +17,9 @@ export function resolveDocumentAgentRuleMode(
     'ruleIds' | 'ruleResolutionMode' | 'sourceKind'
   >,
 ): RuleResolutionMode {
+  if (isIngestSourceKind(payload.sourceKind)) {
+    return 'explicit-only';
+  }
   if (isRuleResolutionMode(payload.ruleResolutionMode)) {
     return payload.ruleResolutionMode;
   }

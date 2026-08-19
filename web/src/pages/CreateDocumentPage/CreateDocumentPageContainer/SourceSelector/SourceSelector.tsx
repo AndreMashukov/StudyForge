@@ -9,20 +9,28 @@ import type { RootState } from '../../../../store';
 
 const sourceCards = [
   {
-    id: 'website' as SourceType,
-    icon: '🌐',
-    title: 'Website URL',
-    description: 'From any URL or link',
-    status: 'active' as const,
-    order: 1,
-  },
-  {
     id: 'file' as SourceType,
     icon: '📄',
     title: 'File Upload',
     description: 'Upload MD or text file',
     status: 'active' as const,
+    order: 1,
+  },
+  {
+    id: 'pasteText' as SourceType,
+    icon: '📋',
+    title: 'Paste Text',
+    description: 'Paste existing text or notes',
+    status: 'active' as const,
     order: 2,
+  },
+  {
+    id: 'website' as SourceType,
+    icon: '🌐',
+    title: 'Website URL',
+    description: 'From any URL or link',
+    status: 'active' as const,
+    order: 3,
   },
   {
     id: 'textPrompt' as SourceType,
@@ -30,7 +38,7 @@ const sourceCards = [
     title: 'Text Prompt',
     description: 'Create from description',
     status: 'active' as const,
-    order: 3,
+    order: 4,
   },
 ];
 
@@ -40,10 +48,8 @@ export const SourceSelector = () => {
 
   const handleSourceSelect = (sourceType: SourceType) => {
     if (sourceType === selectedSource) {
-      // If clicking the same source, deselect it
       dispatch(setSelectedSource(null));
     } else {
-      // Select the new source
       dispatch(setSelectedSource(sourceType));
     }
   };

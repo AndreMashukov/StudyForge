@@ -1,16 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
 import { Label } from '../../../../components/ui/Label';
 import { Upload, FileText, AlertCircle } from 'lucide-react';
-import { RuleSelector } from '../../../../components/RuleSelector';
-import { RuleApplicability } from '@shared-types';
-import {
-  selectDirectoryId,
-  selectUploadRules,
-  setUploadRules
-} from '../../../../store/slices/createDocumentPageSlice';
 import { IFileUploadFormProps } from './IFileUploadForm';
 import { fileUploadFormStyles } from './FileUploadForm.styles';
 import { cn } from '../../../../lib/utils';
@@ -21,23 +13,13 @@ import {
   stripDocumentUploadExtension,
   validateDocumentUploadFile,
 } from '../../../../utils/documentUploadUtils';
-import type { RootState } from '../../../../store';
 
 export const FileUploadForm = ({ onSubmit }: IFileUploadFormProps) => {
-  const dispatch = useDispatch();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Redux selectors
-  const directoryId = useSelector((state: RootState) => selectDirectoryId(state));
-  const selectedRuleIds = useSelector((state: RootState) => selectUploadRules(state));
-
-  const handleRuleSelectionChange = (ruleIds: string[]) => {
-    dispatch(setUploadRules(ruleIds));
-  };
 
   const validateFile = (file: File): string | null => {
     const result = validateDocumentUploadFile(file);
@@ -90,7 +72,6 @@ export const FileUploadForm = ({ onSubmit }: IFileUploadFormProps) => {
     onSubmit({
       file: selectedFile,
       title: title.trim() || undefined,
-      ruleIds: selectedRuleIds.length > 0 ? selectedRuleIds : undefined,
     });
   };
 
@@ -98,7 +79,6 @@ export const FileUploadForm = ({ onSubmit }: IFileUploadFormProps) => {
 
   return (
     <form onSubmit={handleSubmit} className={fileUploadFormStyles.container}>
-      {/* File Upload Area */}
       <div className={fileUploadFormStyles.formGroup}>
         <Label className={fileUploadFormStyles.label}>Document File *</Label>
         <div
@@ -148,11 +128,10 @@ export const FileUploadForm = ({ onSubmit }: IFileUploadFormProps) => {
         )}
 
         <p className={fileUploadFormStyles.helpText}>
-          Upload a document to create a study guide.
+          Convert an uploaded document to a StudyForge document while keeping the source structure.
         </p>
       </div>
 
-      {/* Title */}
       <div className={fileUploadFormStyles.formGroup}>
         <Label htmlFor="title" className={fileUploadFormStyles.label}>
           Document Title (optional)
@@ -169,27 +148,6 @@ export const FileUploadForm = ({ onSubmit }: IFileUploadFormProps) => {
           Custom title for your document.
         </p>
       </div>
-
-      {/* Rules — stacked */}
-      {directoryId && (
-        <div className="mb-4">
-          <RuleSelector
-            directoryId={directoryId}
-            operation={RuleApplicability.UPLOAD}
-            selectedRuleIds={selectedRuleIds}
-            onSelectionChange={handleRuleSelectionChange}
-            compact={true}
-          />
-        </div>
-      )}
-      
-      {!directoryId && (
-        <div className="border rounded-lg p-3 bg-muted/30 mb-4">
-          <p className="text-xs text-muted-foreground text-center">
-            <span role="img" aria-label="Folder">📁</span> Select a directory to load applicable rules
-          </p>
-        </div>
-      )}
 
       <Button
         type="submit"

@@ -10,6 +10,7 @@ import {
   DocumentEnhanced, 
   CreateDocumentRequest,
   CreateDocumentFromUrlsRequest,
+  CreateDocumentFromPastedTextRequest,
   UpdateDocumentRequest,
   DeleteDocumentRequest,
   GenerateFromPromptRequest,
@@ -173,6 +174,32 @@ export const documentsApi = baseApi.injectEndpoints({
       ],
       onQueryStarted: createDocumentOnQueryStarted('Document', 'upload document'),
     }),
+
+    createDocumentFromPastedText: builder.mutation<
+      DocumentEnhanced,
+      CreateDocumentFromPastedTextRequest
+    >({
+      query: (data) => ({
+        functionName: 'createDocumentFromPastedText',
+        data,
+      }),
+      transformResponse: (response: {
+        success: boolean;
+        documentId: string;
+        id: string;
+        directoryId: string;
+        generationStatus: 'pending';
+      }) => ({
+        id: response.documentId || response.id,
+        directoryId: response.directoryId,
+        generationStatus: response.generationStatus,
+      } as DocumentEnhanced),
+      invalidatesTags: [
+        'Document',
+        { type: 'Directory', id: 'LIST' },
+      ],
+      onQueryStarted: createDocumentOnQueryStarted('Document', 'create document from pasted text'),
+    }),
     
     generateFromPrompt: builder.mutation<GenerateFromPromptResponse, GenerateFromPromptRequest>({
       query: (data) => ({
@@ -335,6 +362,7 @@ export const {
   useLazyGetDocumentContentQuery,
   useCreateDocumentMutation,
   useUploadAndCreateDocumentMutation,
+  useCreateDocumentFromPastedTextMutation,
   useCreateDocumentFromUrlMutation,
   useGenerateFromPromptMutation,
   useUpdateDocumentMutation,

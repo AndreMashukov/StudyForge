@@ -137,17 +137,29 @@ export async function draftDocumentHtml(
   rulesText: string,
   files: IFileContent[] | undefined,
   plan: DocumentPlan | undefined,
-  diagnostics: IArtifactAgentDiagnostics
+  diagnostics: IArtifactAgentDiagnostics,
+  options?: { isIngest?: boolean }
 ): Promise<string> {
-  const planSection = plan
-    ? `\n\nDocument plan:\nOutline: ${plan.outline.join(' > ')}\nRule checklist: ${plan.ruleChecklist.join('; ')}`
-    : '';
+  const isIngest = options?.isIngest === true;
+  const capability = isIngest ? 'sourceDocumentEnhancement' : 'documentFromPrompt';
 
-  const prompt = `${buildContextPrompt(userPrompt, files, rulesText)}${planSection}
+  let prompt: string;
+  if (isIngest) {
+    prompt = `${userPrompt}
 
 Generate the complete HTML fragment now.`;
+  } else {
+    const planSection = plan
+      ? `\n\nDocument plan:\nOutline: ${plan.outline.join(' > ')}\nRule checklist: ${plan.ruleChecklist.join('; ')}`
+      : '';
+
+    prompt = `${buildContextPrompt(userPrompt, files, rulesText)}${planSection}
+
+Generate the complete HTML fragment now.`;
+  }
+
   diagnostics.generatorAttempts += 1;
-  return generateText(userId, 'documentFromPrompt', prompt, diagnostics, 'generator');
+  return generateText(userId, capability, prompt, diagnostics, 'generator');
 }
 
 export async function repairDocumentHtml(
@@ -157,11 +169,19 @@ export async function repairDocumentHtml(
   htmlFragment: string,
   validationErrors: string,
   plan: DocumentPlan | undefined,
-  diagnostics: IArtifactAgentDiagnostics
+  diagnostics: IArtifactAgentDiagnostics,
+  options?: { isIngest?: boolean }
 ): Promise<string> {
   diagnostics.repairCount += 1;
+  const isIngest = options?.isIngest === true;
+  const capability = isIngest ? 'sourceDocumentEnhancement' : 'documentFromPrompt';
   const planSection = plan ? `\nPlan outline: ${plan.outline.join(' > ')}` : '';
-  const prompt = `${buildHtmlDocumentPrompt(userPrompt, rulesText || undefined)}
+
+  const basePrompt = isIngest
+    ? userPrompt
+    : buildHtmlDocumentPrompt(userPrompt, rulesText || undefined);
+
+  const prompt = `${basePrompt}
 
 The previous HTML fragment failed validation:
 ${validationErrors}
@@ -173,7 +193,7 @@ ${planSection}
 Repair the fragment so it satisfies every validation rule and the sealed output contract:
 ${buildSealedHtmlOutputContract()}`;
 
-  return generateText(userId, 'documentFromPrompt', prompt, diagnostics, 'repair');
+  return generateText(userId, capability, prompt, diagnostics, 'repair');
 }
 
 export async function critiqueRulesAdherence(

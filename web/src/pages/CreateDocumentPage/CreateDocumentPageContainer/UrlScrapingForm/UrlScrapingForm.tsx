@@ -1,20 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '../../../../components/ui/Button';
 import { Textarea } from '../../../../components/ui/Textarea';
 import { Input } from '../../../../components/ui/Input';
 import { Label } from '../../../../components/ui/Label';
 import { Globe } from 'lucide-react';
-import { CompactRuleSelector } from '../../../../components/CompactRuleSelector';
-import { RuleApplicability } from '@shared-types';
-import {
-  selectDirectoryId,
-  selectPromptRules,
-  setPromptRules
-} from '../../../../store/slices/createDocumentPageSlice';
 import { IUrlScrapingFormProps } from './IUrlScrapingForm';
 import { urlScrapingFormStyles } from './UrlScrapingForm.styles';
-import type { RootState } from '../../../../store';
 
 const MAX_URLS = 3;
 
@@ -35,16 +26,8 @@ function isValidUrl(urlString: string): boolean {
 }
 
 export const UrlScrapingForm = ({ onSubmit }: IUrlScrapingFormProps) => {
-  const dispatch = useDispatch();
   const [rawUrls, setRawUrls] = useState('');
   const [title, setTitle] = useState('');
-
-  const directoryId = useSelector((state: RootState) => selectDirectoryId(state));
-  const selectedRuleIds = useSelector((state: RootState) => selectPromptRules(state));
-
-  const handleRuleSelectionChange = (ruleIds: string[]) => {
-    dispatch(setPromptRules(ruleIds));
-  };
 
   const parsedUrls = useMemo(() => parseUrls(rawUrls), [rawUrls]);
   const invalidUrls = useMemo(() => parsedUrls.filter((u) => !isValidUrl(u)), [parsedUrls]);
@@ -58,7 +41,6 @@ export const UrlScrapingForm = ({ onSubmit }: IUrlScrapingFormProps) => {
     onSubmit({
       urls: validUrls,
       title: title.trim() || undefined,
-      ruleIds: selectedRuleIds.length > 0 ? selectedRuleIds : undefined,
     });
   };
 
@@ -118,26 +100,6 @@ export const UrlScrapingForm = ({ onSubmit }: IUrlScrapingFormProps) => {
           Custom title for your document. If empty, the source title will be used.
         </p>
       </div>
-
-      {directoryId && (
-        <div className={urlScrapingFormStyles.formGroup}>
-          <CompactRuleSelector
-            directoryId={directoryId}
-            operation={RuleApplicability.PROMPT}
-            selectedRuleIds={selectedRuleIds}
-            onSelectionChange={handleRuleSelectionChange}
-            label="Content Generation Rules"
-          />
-        </div>
-      )}
-
-      {!directoryId && (
-        <div className="border rounded-lg p-3 bg-muted/30 mb-4">
-          <p className="text-xs text-muted-foreground text-center">
-            📁 Select a directory to load applicable rules
-          </p>
-        </div>
-      )}
 
       <Button
         type="submit"
