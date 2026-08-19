@@ -6,8 +6,9 @@ import {
 import { useCreateDocumentPageContext } from '../../context/hooks/useCreateDocumentPageContext';
 import { UrlScrapingForm } from '../UrlScrapingForm';
 import { FileUploadForm } from '../FileUploadForm';
+import { PasteTextForm } from '../PasteTextForm';
 import { TextPromptForm } from '../TextPromptForm';
-import { Globe, Upload, Sparkles } from 'lucide-react';
+import { Globe, Upload, Sparkles, ClipboardPaste } from 'lucide-react';
 import { ITextPromptFormData } from '../TextPromptForm/ITextPromptForm';
 import type { RootState } from '../../../../store';
 
@@ -18,6 +19,8 @@ const getFormIcon = (sourceType: string) => {
       return <Globe size={18} />;
     case 'file':
       return <Upload size={18} />;
+    case 'pasteText':
+      return <ClipboardPaste size={18} />;
     case 'textPrompt':
       return <Sparkles size={18} />;
     default:
@@ -28,9 +31,11 @@ const getFormIcon = (sourceType: string) => {
 const getFormTitle = (sourceType: string) => {
   switch (sourceType) {
     case 'website':
-      return 'URL Document Generator';
+      return 'URL Document Import';
     case 'file':
       return 'File Upload';
+    case 'pasteText':
+      return 'Paste Text';
     case 'textPrompt':
       return 'AI Document Generator';
     default:
@@ -41,9 +46,11 @@ const getFormTitle = (sourceType: string) => {
 const getFormDescription = (sourceType: string) => {
   switch (sourceType) {
     case 'website':
-      return 'Turn web pages or YouTube videos into a document';
+      return 'Convert scraped web content to a StudyForge document while keeping the source structure';
     case 'file':
-      return 'Upload a document to create a study guide';
+      return 'Convert an uploaded document to a StudyForge document while keeping the source structure';
+    case 'pasteText':
+      return 'Convert pasted text to a StudyForge document while keeping the source structure';
     case 'textPrompt':
       return 'Describe what you want to learn — AI will generate the document';
     default:
@@ -54,10 +61,8 @@ const getFormDescription = (sourceType: string) => {
 export const FormRenderer = () => {
   const { handlers } = useCreateDocumentPageContext();
   
-  // Redux selectors for state
   const selectedSource = useSelector((state: RootState) => selectSelectedSource(state));
 
-  // Handle text prompt submission
   const handleTextPromptSubmit = async (data: ITextPromptFormData) => {
     await handlers.handleCreateFromTextPrompt(data);
   };
@@ -68,7 +73,6 @@ export const FormRenderer = () => {
 
   return (
     <div className="space-y-0">
-      {/* Form header */}
       <div className="flex items-center gap-2 pb-4 mb-4 border-b border-border">
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary">
           {getFormIcon(selectedSource)}
@@ -83,7 +87,6 @@ export const FormRenderer = () => {
         </div>
       </div>
       
-      {/* Form content */}
       {selectedSource === 'website' && (
         <UrlScrapingForm
           onSubmit={handlers.handleCreateFromUrl}
@@ -93,6 +96,12 @@ export const FormRenderer = () => {
       {selectedSource === 'file' && (
         <FileUploadForm
           onSubmit={handlers.handleCreateFromFile}
+        />
+      )}
+
+      {selectedSource === 'pasteText' && (
+        <PasteTextForm
+          onSubmit={handlers.handleCreateFromPastedText}
         />
       )}
       

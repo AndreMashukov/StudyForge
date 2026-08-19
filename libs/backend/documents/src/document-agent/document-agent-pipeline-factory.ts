@@ -120,7 +120,8 @@ class GenerateAgent extends BaseAgent {
         agentContext.rulesText,
         agentContext.files,
         plan,
-        diagnostics
+        diagnostics,
+        { isIngest: agentContext.isIngest }
       )
     );
 
@@ -193,7 +194,8 @@ class RepairAgent extends BaseAgent {
         readHtmlFragment(context),
         formatValidationErrorsForRepair(validationReport.findings),
         plan,
-        diagnostics
+        diagnostics,
+        { isIngest: agentContext.isIngest }
       )
     );
 
@@ -317,10 +319,13 @@ class FinalizeAgent extends BaseAgent {
       return;
     }
 
-    const title =
-      agentContext.titleHint?.trim() ||
-      extractDocumentTitle(htmlFragment, 'html') ||
-      'Generated Document';
+    const title = agentContext.preferHtmlTitle
+      ? extractDocumentTitle(htmlFragment, 'html') ||
+        agentContext.titleHint?.trim() ||
+        'Generated Document'
+      : agentContext.titleHint?.trim() ||
+        extractDocumentTitle(htmlFragment, 'html') ||
+        'Generated Document';
     const wrappedHtml = wrapHtmlDocument(htmlFragment, title);
     const generationModelLabel =
       (context.session.state[STATE_KEYS.generationModel] as string | undefined) ||
@@ -367,6 +372,21 @@ class FinalizeAgent extends BaseAgent {
   async *runLiveImpl() {
     throw new Error('Live mode is not supported for document agents');
   }
+}
+
+export function createDocumentIngestPipeline(): SequentialAgent {
+  const repairLoop = new LoopAgent({
+    name: 'ingestRepairLoop',
+    description: 'Repair loop for ingest HTML validation failures',
+    maxIterations: MAX_REPAIR_ITERATIONS,
+    subAgents: [new ValidateAgent(), new RepairAgent()],
+  });
+
+  return new SequentialAgent({
+    name: 'documentIngestPipeline',
+    description: 'Faithful source-to-HTML conversion pipeline',
+    subAgents: [new GenerateAgent(), repairLoop, new FinalizeAgent()],
+  });
 }
 
 export function createDocumentPipeline(): SequentialAgent {

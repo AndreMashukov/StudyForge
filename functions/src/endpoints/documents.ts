@@ -31,6 +31,7 @@ import {
   IDocumentAgentJobPayload,
   MoveDocumentRequest,
   UploadDocumentRequest,
+  CreateDocumentFromPastedTextRequest,
 } from "@shared-types";
 
 // Define the Gemini API key secret for markdown conversion
@@ -38,6 +39,23 @@ const geminiApiKey = defineSecret("GEMINI_API_KEY");
 const llmSettingsEncryptionKey = defineSecret("LLM_SETTINGS_ENCRYPTION_KEY");
 const apifyApiToken = defineSecret("APIFY_API_TOKEN");
 const MAX_URL_DOCUMENT_SOURCES = 3;
+const MIN_PASTE_TEXT_LENGTH = 10;
+const MAX_PASTE_TEXT_LENGTH = 100_000;
+
+function isCreateDocumentFromPastedTextRequest(
+  value: unknown,
+): value is CreateDocumentFromPastedTextRequest {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  return (
+    'content' in value &&
+    'directoryId' in value &&
+    typeof value.content === 'string' &&
+    typeof value.directoryId === 'string'
+  );
+}
 
 type DocumentAgentJobKind = 'documentFromContent' | 'documentFromUpload' | 'documentFromUrl';
 
@@ -197,6 +215,110 @@ export const createDocument = onCall(
 );
 
 /**
+ * Create a document from pasted text with faithful HTML conversion (no rules).
+ */
+export const createDocumentFromPastedText = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+  },
+  async (request) => {
+    try {
+      const userId = await validateAuth(request);
+      if (!isCreateDocumentFromPastedTextRequest(request.data)) {
+        throw new HttpsError(
+          'invalid-argument',
+          'content and directoryId are required strings',
+        );
+      }
+
+      const data = request.data;
+      const trimmedContent = data.content.trim();
+      if (trimmedContent.length < MIN_PASTE_TEXT_LENGTH) {
+        throw new HttpsError(
+          'invalid-argument',
+          `content must be at least ${MIN_PASTE_TEXT_LENGTH} characters`,
+        );
+      }
+
+      if (trimmedContent.length > MAX_PASTE_TEXT_LENGTH) {
+        throw new HttpsError(
+          'invalid-argument',
+          `content must be at most ${MAX_PASTE_TEXT_LENGTH} characters`,
+        );
+      }
+
+      await directoryService.validateDirectoryId(userId, data.directoryId);
+
+      const usageReservation = await enforceCallableGenerationLimits(
+        userId,
+        'sourceDocumentEnhancement',
+      );
+      const usageReservationId = usageReservation.id;
+
+      const pendingTitle = 'Pasted text';
+      let pendingDocId: string | undefined;
+
+      try {
+        pendingDocId = await DocumentCrudService.createPendingDocument(userId, {
+          directoryId: data.directoryId,
+          title: pendingTitle,
+          description: 'Pasted text import',
+          sourceType: DocumentSourceType.UPLOAD,
+          tags: ['pasted'],
+        });
+
+        await enqueueDocumentAgentJob({
+          userId,
+          directoryId: data.directoryId,
+          documentId: pendingDocId,
+          kind: 'documentFromContent',
+          payload: {
+            sourceKind: 'paste',
+            title: pendingTitle,
+            description: 'Pasted text import',
+            tags: ['pasted'],
+            sourceText: trimmedContent,
+            ruleResolutionMode: 'explicit-only',
+          },
+          usageReservationId,
+        });
+
+        return {
+          success: true,
+          id: pendingDocId,
+          documentId: pendingDocId,
+          recordType: 'document',
+          directoryId: data.directoryId,
+          generationStatus: 'pending',
+        };
+      } catch (innerError) {
+        const msg = innerError instanceof Error ? innerError.message : String(innerError);
+        if (pendingDocId) {
+          await DocumentCrudService.failPendingDocument(userId, pendingDocId, msg).catch(() => {/* best-effort */});
+        }
+        await refundUsageReservationSafe(userId, usageReservationId);
+        throw innerError;
+      }
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      logger.error('Failed to create document from pasted text', {
+        error: error instanceof Error ? error.message : String(error),
+        directoryId:
+          typeof request.data === 'object' &&
+          request.data !== null &&
+          'directoryId' in request.data &&
+          typeof request.data.directoryId === 'string'
+            ? request.data.directoryId
+            : undefined,
+      });
+      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
+    }
+  },
+);
+
+/**
  * Upload a binary file, extract it to Markdown, optionally clean up extraction
  * artifacts, and create a document from the resulting content.
  */
@@ -275,9 +397,7 @@ export const uploadAndCreateDocument = onCall(
             tags: ['uploaded', 'ai-generated'],
             sourceText: extraction.markdownContent,
             sourceFilename: data.fileName,
-            ruleIds: data.ruleIds,
-            additionalRuleIds: data.additionalRuleIds,
-            ruleResolutionMode: data.ruleResolutionMode,
+            ruleResolutionMode: 'explicit-only',
           },
           usageReservationId,
         });
@@ -363,18 +483,12 @@ export const createDocumentFromUrl = onCall(
         ? [data.url]
         : [];
 
-      const { title: customTitle, directoryId, ruleIds, additionalRuleIds, ruleResolutionMode } = data;
-      const mode = isRuleResolutionMode(ruleResolutionMode)
-        ? ruleResolutionMode
-        : ruleIds?.length
-          ? 'explicit-only'
-          : 'inherit-plus-explicit';
+      const { title: customTitle, directoryId } = data;
 
       logger.info('Creating document from URL(s)', {
         userId,
         urlCount: rawUrls.length,
         directoryId,
-        ruleCount: ruleIds?.length || 0,
       });
 
       // Validate URLs
@@ -470,9 +584,7 @@ export const createDocumentFromUrl = onCall(
             sourceText: summary.mergedMarkdown,
             sourceUrls: summary.sourceUrls,
             sourceUrl: rawUrls[0],
-            ruleIds,
-            additionalRuleIds,
-            ruleResolutionMode: mode,
+            ruleResolutionMode: 'explicit-only',
           },
           usageReservationId,
         });

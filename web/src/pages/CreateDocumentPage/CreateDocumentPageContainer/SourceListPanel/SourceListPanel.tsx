@@ -2,32 +2,39 @@ import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { cn } from '../../../../lib/utils';
 import { setSelectedSource, selectSelectedSource } from '../../../../store/slices/createDocumentPageSlice';
-import { SourceType } from '../../types/ISourceTypes';
+import { ISourceListItem, SourceType } from '../../types/ISourceTypes';
 import { YouTubeBrandMark } from '../../../../components/icons';
 import { sourceListPanelStyles } from './SourceListPanel.styles';
 import type { RootState } from '../../../../store';
 
-const sources = [
+const sources: ISourceListItem[] = [
   {
-    id: 'textPrompt' as SourceType,
-    icon: '✨',
-    title: 'AI Prompt',
-    description: 'Generate from description',
-    status: 'active' as const,
-  },
-  {
-    id: 'website' as SourceType,
-    icon: '🌐',
-    title: 'Website URL',
-    description: 'Scrape web pages, YouTube, or other URLs',
-    status: 'active' as const,
-  },
-  {
-    id: 'file' as SourceType,
+    id: 'file',
     icon: '📄',
     title: 'File Upload',
     description: 'Upload files',
-    status: 'active' as const,
+    status: 'active',
+  },
+  {
+    id: 'pasteText',
+    icon: '📋',
+    title: 'Paste Text',
+    description: 'Paste existing text',
+    status: 'active',
+  },
+  {
+    id: 'website',
+    icon: '🌐',
+    title: 'Website URL',
+    description: 'Scrape web pages, YouTube, or other URLs',
+    status: 'active',
+  },
+  {
+    id: 'textPrompt',
+    icon: '✨',
+    title: 'AI Prompt',
+    description: 'Generate from description',
+    status: 'active',
   },
 ];
 
@@ -94,9 +101,9 @@ export const SourceListPanel = () => {
       <div className={sourceListPanelStyles.tipsSection}>
         <h3 className={sourceListPanelStyles.tipsTitle}>Quick Tips</h3>
         <div className={sourceListPanelStyles.tipsContent}>
-          <p>💡 Be specific in your prompt for better results.</p>
-          <p>📎 Attach reference files for context-aware generation.</p>
-          <p>🎯 Use rules to customize output format.</p>
+          <p>Upload, paste, or import URLs to convert existing content.</p>
+          <p>Use AI Prompt when you want a new learning document from a description.</p>
+          <p>Rules apply to AI Prompt generation only.</p>
         </div>
       </div>
     </div>

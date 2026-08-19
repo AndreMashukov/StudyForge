@@ -73,6 +73,7 @@ export {
 // Export document management functions
 export {
   createDocument,
+  createDocumentFromPastedText,
   uploadAndCreateDocument,
   createDocumentFromUrl,
   generateFromPrompt,

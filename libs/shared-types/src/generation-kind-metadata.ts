@@ -136,7 +136,7 @@ export const GENERATION_KIND_METADATA: Record<
   sourceDocumentEnhancement: {
     kind: 'sourceDocumentEnhancement',
     label: 'Source document enhancement',
-    description: 'Enhance scraped or uploaded source documents.',
+    description: 'Faithful conversion of uploaded, pasted, or scraped source material to HTML.',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',

@@ -870,6 +870,11 @@ export interface CreateDocumentFromUrlsRequest {
   ruleResolutionMode?: RuleResolutionMode;
 }
 
+export interface CreateDocumentFromPastedTextRequest {
+  content: string;
+  directoryId: string;
+}
+
 export type SupportedFileExtension =
   | 'pdf'
   | 'docx'
@@ -2427,7 +2432,8 @@ export type DocumentAgentSourceKind =
   | 'upload'
   | 'url'
   | 'screenshot'
-  | 'content';
+  | 'content'
+  | 'paste';
 
 export interface IDocumentAgentJobPayload {
   sourceKind: DocumentAgentSourceKind;

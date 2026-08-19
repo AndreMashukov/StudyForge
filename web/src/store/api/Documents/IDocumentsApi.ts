@@ -2,6 +2,8 @@ import {
   DocumentEnhanced, 
   CreateDocumentRequest,
   CreateDocumentFromUrlsRequest,
+  CreateDocumentFromPastedTextRequest,
+  StartGenerationResponse,
   UploadDocumentRequest,
   UpdateDocumentRequest,
   DeleteDocumentRequest
@@ -21,6 +23,7 @@ export interface IDocumentsApi {
   getDocument: (documentId: string) => DocumentEnhanced;
   createDocument: (data: CreateDocumentRequest) => DocumentEnhanced;
   createDocumentFromUrl: (data: CreateDocumentFromUrlsRequest) => DocumentEnhanced;
+  createDocumentFromPastedText: (data: CreateDocumentFromPastedTextRequest) => StartGenerationResponse;
   uploadAndCreateDocument: (data: UploadDocumentRequest) => DocumentEnhanced;
   updateDocument: (data: UpdateDocumentRequest) => DocumentEnhanced;
   deleteDocument: (data: DeleteDocumentRequest) => { success: boolean };

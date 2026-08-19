@@ -132,6 +132,31 @@ ${userPrompt?.trim()}`
     .join('\n\n');
 }
 
+export function buildFaithfulHtmlConversionPrompt(
+  sourceMaterial: string,
+  contextLabel?: string,
+): string {
+  const contextSection = contextLabel?.trim()
+    ? `Context:\n${contextLabel.trim()}\n\n`
+    : '';
+
+  return [
+    'You are an expert document converter. Convert the source material below into a StudyForge HTML fragment.',
+    '',
+    'Requirements:',
+    '- Preserve the original meaning, headings, lists, tables, and code blocks from the source.',
+    '- Use semantic HTML matching the source structure.',
+    '- Do NOT invent a course outline, modules, glossary, summary sections, or diagrams unless they already exist in the source.',
+    '- Do NOT expand or rewrite the content into a comprehensive learning guide.',
+    '- Output ONLY an HTML fragment.',
+    '',
+    `${contextSection}Source material:`,
+    sourceMaterial,
+    '',
+    buildSealedHtmlOutputContract(),
+  ].join('\n');
+}
+
 export function buildHtmlDocumentPrompt(userPrompt: string, rules?: string): string {
   const hasRules = !!rules?.trim();
   const rulesSection = hasRules

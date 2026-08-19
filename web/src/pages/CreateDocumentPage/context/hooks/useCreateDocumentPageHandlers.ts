@@ -4,10 +4,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { 
   useCreateDocumentFromUrlMutation, 
   useUploadAndCreateDocumentMutation,
+  useCreateDocumentFromPastedTextMutation,
   useGenerateFromPromptMutation 
 } from '../../../../store/api/Documents';
 import { IUrlScrapingFormData } from '../../CreateDocumentPageContainer/UrlScrapingForm/IUrlScrapingForm';
 import { IFileUploadFormData } from '../../CreateDocumentPageContainer/FileUploadForm/IFileUploadForm';
+import { IPasteTextFormData } from '../../CreateDocumentPageContainer/PasteTextForm/IPasteTextForm';
 import { ITextPromptFormData } from '../../CreateDocumentPageContainer/TextPromptForm/ITextPromptForm';
 import { IFileContent } from '@shared-types';
 import {
@@ -35,12 +37,12 @@ export const useCreateDocumentPageHandlers = (
   const dispatch = useDispatch();
   const onRequestStarted = options?.onRequestStarted;
   
-  // Redux selectors
   const error = useSelector((state: RootState) => selectCreateDocumentPageError(state));
-  const directoryId = useSelector((state: RootState) => selectSelectedDirectoryId(state)); // 🆕 Get directoryId from global directory selection
+  const directoryId = useSelector((state: RootState) => selectSelectedDirectoryId(state));
   
   const [createDocumentFromUrl] = useCreateDocumentFromUrlMutation();
   const [uploadAndCreateDocument] = useUploadAndCreateDocumentMutation();
+  const [createDocumentFromPastedText] = useCreateDocumentFromPastedTextMutation();
   const [generateFromPrompt] = useGenerateFromPromptMutation();
 
   const navigateToSources = useCallback((targetDirectoryId: string) => {
@@ -62,8 +64,6 @@ export const useCreateDocumentPageHandlers = (
       urls: data.urls,
       title: data.title,
       directoryId,
-      ruleIds: data.ruleIds || [],
-      ruleResolutionMode: 'explicit-only',
     });
     navigateToSources(directoryId);
   }, [createDocumentFromUrl, navigateToSources, dispatch, directoryId]);
@@ -84,8 +84,6 @@ export const useCreateDocumentPageHandlers = (
         size: data.file.size,
         title: data.title || stripDocumentUploadExtension(data.file.name),
         directoryId,
-        ruleIds: data.ruleIds,
-        ruleResolutionMode: 'explicit-only',
       }).unwrap();
 
       navigateToSources(directoryId);
@@ -97,6 +95,20 @@ export const useCreateDocumentPageHandlers = (
       dispatch(setError(getSubmissionErrorMessage(error)));
     }
   }, [uploadAndCreateDocument, navigateToSources, dispatch, directoryId]);
+
+  const handleCreateFromPastedText = useCallback((data: IPasteTextFormData) => {
+    dispatch(clearError());
+    if (!directoryId) {
+      dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
+      return;
+    }
+
+    createDocumentFromPastedText({
+      content: data.content,
+      directoryId,
+    });
+    navigateToSources(directoryId);
+  }, [createDocumentFromPastedText, navigateToSources, dispatch, directoryId]);
 
   const handleCreateFromTextPrompt = useCallback((
     data: ITextPromptFormData,
@@ -136,6 +148,7 @@ export const useCreateDocumentPageHandlers = (
   return {
     handleCreateFromUrl,
     handleCreateFromFile,
+    handleCreateFromPastedText,
     handleCreateFromTextPrompt,
     error,
   };

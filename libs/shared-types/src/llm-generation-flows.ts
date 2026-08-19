@@ -104,7 +104,7 @@ export const LLM_GENERATION_FLOW_METADATA: ILlmGenerationFlowMetadata[] = [
   {
     id: 'sourceDocumentEnhancement',
     label: 'Source document enhancement',
-    description: 'Cleanup of extracted Markdown documents.',
+    description: 'Faithful conversion of uploaded, pasted, or scraped source material to HTML.',
   },
   {
     id: 'ruleGeneration',
@@ -184,7 +184,7 @@ export const DEFAULT_LLM_GENERATION_FLOWS: Record<
     disableReasoning: true,
   },
   sourceDocumentEnhancement: {
-    maxOutputTokens: 16_384,
+    maxOutputTokens: 32_768,
     temperature: 0.2,
     disableReasoning: false,
   },
