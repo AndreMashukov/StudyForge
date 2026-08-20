@@ -7,10 +7,12 @@ import React, {
 } from 'react';
 import { Bot, ChevronDown, Send } from 'lucide-react';
 import type {
+  AgentActionKind,
   AgentProposedDelete,
   AgentPromptContext,
   IAgentThreadMessage,
 } from '@shared-types';
+import { baseApi } from '../../store/api/baseApi';
 import { Button } from '../ui/Button';
 import { Textarea } from '../ui/Textarea';
 import { Spinner } from '../ui/Spinner';
@@ -45,6 +47,12 @@ import {
 } from './useAgentLocationContext';
 
 const MAX_MESSAGE_LENGTH = 10_000;
+const RULE_CACHE_ACTION_KINDS = new Set<AgentActionKind>([
+  'create_rule',
+  'update_rule',
+  'attach_rule',
+  'detach_rule',
+]);
 /** Matches TopAppBar `h-12` and Sidebar `top-12`. */
 const APP_BAR_HEIGHT_PX = 48;
 /** Matches Page / Sidebar expanded & collapsed widths. */
@@ -395,6 +403,11 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
 
               if (event.type === 'action') {
                 didMutate = true;
+                if (RULE_CACHE_ACTION_KINDS.has(event.action.kind)) {
+                  dispatch(
+                    baseApi.util.invalidateTags(['Rules', 'DirectoryRules']),
+                  );
+                }
                 setMessages((current) =>
                   current.map((message) =>
                     message.id === assistantId
