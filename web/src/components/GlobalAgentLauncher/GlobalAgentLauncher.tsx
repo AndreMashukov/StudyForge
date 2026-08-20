@@ -60,8 +60,7 @@ export const GlobalAgentLauncher: React.FC = () => {
       variant="overlay"
       onClose={() => setOpen(false)}
       onMutated={() => {
-        // Directory tree and contents refresh through existing RTK invalidations
-        // triggered by delete/create mutations in proposal cards and tool actions.
+        // Rule caches are invalidated from AgentPanel action events.
       }}
     />
   );

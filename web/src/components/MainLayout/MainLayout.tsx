@@ -14,6 +14,7 @@ import { useAppFullscreen } from '../../contexts/FullscreenContext';
 import { Spinner } from '../ui/Spinner';
 import { MascotImage } from '../MascotImage';
 import { DirectoryRealtimeBridge } from '../DirectoryRealtimeBridge';
+import { RulesRealtimeBridge } from '../RulesRealtimeBridge';
 import { UsageRealtimeBridge } from '../UsageRealtimeBridge';
 import { GlobalAgentLauncher } from '../GlobalAgentLauncher';
 import { prefetchDirectoryTree } from '../../pages/DocumentsPage/utils/prefetchDirectoryContents';
@@ -87,6 +88,7 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
 
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <DirectoryRealtimeBridge />
+        <RulesRealtimeBridge />
         <UsageRealtimeBridge />
         <GlobalAgentLauncher />
         {children}

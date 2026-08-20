@@ -1,6 +1,7 @@
 import {
   collection,
   getDocs,
+  getDocsFromServer,
   limit,
   orderBy,
   query,
@@ -11,9 +12,9 @@ import {
 import type { Rule } from '@shared-types';
 import { db } from '../config/firebase';
 import {
-  fetchUserCollection,
   fetchUserDoc,
   orderByCreatedAtDesc,
+  toFirestoreDoc,
 } from './firestoreReadUtils';
 
 const USER_RULES_LIMIT = 100;
@@ -25,11 +26,16 @@ export function fetchRuleFromFirestore(
   return fetchUserDoc<Rule>(userId, 'rules', ruleId);
 }
 
-export function fetchRulesFromFirestore(userId: string): Promise<Rule[]> {
-  return fetchUserCollection<Rule>(
-    userId,
-    'rules',
-    orderByCreatedAtDesc(USER_RULES_LIMIT),
+export async function fetchRulesFromFirestore(userId: string): Promise<Rule[]> {
+  const rulesQuery = query(
+    collection(db, 'users', userId, 'rules'),
+    ...orderByCreatedAtDesc(USER_RULES_LIMIT),
+  );
+  // Bypass persistentLocalCache. Agent rule writes are not RTK mutations, so a
+  // stale getDocs snapshot can drop a just-created rule from directory resolution.
+  const snapshot = await getDocsFromServer(rulesQuery);
+  return snapshot.docs.map((document) =>
+    toFirestoreDoc<Rule>(document.id, document.data()),
   );
 }
 
