@@ -52,41 +52,69 @@ interface IHashClickParseResult {
   tip: string | null;
 }
 
+function normalizeClickQuotes(value: string): string {
+  return value
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"');
+}
+
+function expandClickStatements(source: string): string[] {
+  const expanded: string[] = [];
+  for (const line of source.split('\n')) {
+    const segments = line.split(/(?<=\S)(?=\s+click\s+)/i);
+    if (segments.length === 1) {
+      expanded.push(line);
+      continue;
+    }
+    for (const segment of segments) {
+      expanded.push(segment.trimEnd());
+    }
+  }
+  return expanded;
+}
+
 /**
  * Match hash-click tooltip lines in double- or single-quoted form.
  * Truncated tips still match as hash-clicks so they can be dropped safely.
+ * Any other `click` statement is also consumed so Mermaid never sees single quotes.
  */
-function parseHashClickDirective(trimmedLine: string): IHashClickParseResult | null {
-  const match = trimmedLine.match(
+function parseClickDirective(trimmedLine: string): IHashClickParseResult | null {
+  const normalized = normalizeClickQuotes(trimmedLine.trim());
+  const hashMatch = normalized.match(
     /^click\s+([A-Za-z_][\w]*)\s+(?:(["'])#\2|#)(.*)$/i
   );
-  if (!match) {
+  if (hashMatch) {
+    const nodeId = hashMatch[1];
+    const rest = hashMatch[3].trim();
+    if (!rest) {
+      return { nodeId, tip: null };
+    }
+
+    const tipMatch = rest.match(
+      /^(["'])(.*?)\1(?:\s+(_blank|_self|_parent|_top))?\s*$/i
+    );
+    if (!tipMatch) {
+      return { nodeId, tip: null };
+    }
+
+    const tip = tipMatch[2].trim();
+    if (!tip) {
+      return { nodeId, tip: null };
+    }
+
+    return { nodeId, tip };
+  }
+
+  const clickMatch = normalized.match(/^click\s+([A-Za-z_][\w]*)\b/i);
+  if (!clickMatch) {
     return null;
   }
 
-  const nodeId = match[1];
-  const rest = match[3].trim();
-  if (!rest) {
-    return { nodeId, tip: null };
-  }
-
-  const tipMatch = rest.match(
-    /^(["'])(.*?)\1(?:\s+(_blank|_self|_parent|_top))?\s*$/i
-  );
-  if (!tipMatch) {
-    return { nodeId, tip: null };
-  }
-
-  const tip = tipMatch[2].trim();
-  if (!tip) {
-    return { nodeId, tip: null };
-  }
-
-  return { nodeId, tip };
+  return { nodeId: clickMatch[1], tip: null };
 }
 
-function isHashClickDirective(trimmedLine: string): boolean {
-  return parseHashClickDirective(trimmedLine) !== null;
+function isClickDirective(trimmedLine: string): boolean {
+  return parseClickDirective(trimmedLine) !== null;
 }
 
 /**
@@ -100,8 +128,8 @@ function extractHashClickTooltips(source: string): {
   const clickTooltips: Record<string, string> = {};
   const keptLines: string[] = [];
 
-  for (const line of source.split('\n')) {
-    const parsed = parseHashClickDirective(line.trim());
+  for (const line of expandClickStatements(source)) {
+    const parsed = parseClickDirective(line.trim());
     if (!parsed) {
       keptLines.push(line);
       continue;
@@ -119,7 +147,10 @@ function extractHashClickTooltips(source: string): {
 }
 
 function formatHashClickDirective(nodeId: string, tip: string): string {
-  const escaped = tip.replace(/\r?\n/g, ' ').replace(/"/g, '#quot;');
+  const escaped = tip
+    .replace(/\r?\n/g, ' ')
+    .replace(/"/g, '#quot;')
+    .replace(/'/g, '');
   return `click ${nodeId} "#" "${escaped}"`;
 }
 
@@ -138,7 +169,7 @@ function appendHashClickDirectives(
 
   const withoutExistingClicks = source
     .split('\n')
-    .filter((line) => !isHashClickDirective(line.trim()))
+    .filter((line) => !isClickDirective(line.trim()))
     .join('\n')
     .replace(/\s+$/, '');
 

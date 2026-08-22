@@ -78,6 +78,7 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
   // without getting cleared by a later reset.
   const [isRulesReady, setIsRulesReady] = useState(false);
   const formInitKeyRef = useRef<string | null>(null);
+  const overlayPointerDownRef = useRef(false);
 
   const artifactType = state?.artifactType;
   const directoryId = state?.directoryId ?? null;
@@ -218,7 +219,16 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
     <>
       <div
         className="fixed inset-0 z-40 bg-black/40"
-        onClick={onClose}
+        onPointerDown={(event) => {
+          overlayPointerDownRef.current = event.target === event.currentTarget;
+        }}
+        onClick={() => {
+          const shouldClose = overlayPointerDownRef.current;
+          overlayPointerDownRef.current = false;
+          if (shouldClose) {
+            onClose();
+          }
+        }}
         aria-hidden
       />
 

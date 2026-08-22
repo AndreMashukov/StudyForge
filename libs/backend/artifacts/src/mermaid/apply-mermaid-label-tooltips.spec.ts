@@ -70,4 +70,34 @@ describe('applyMermaidLabelTooltips', () => {
     expect(twice.nodeTooltips).toEqual(once.nodeTooltips);
     expect(twice.source).toBe(once.source);
   });
+
+  it('rewrites the QA Ocean single-quoted hash click into parse-safe quotes', () => {
+    const source = `flowchart TD
+  Ocean[Ocean]
+  click Ocean '#' 'Ocean Water source of evaporation'`;
+    const result = applyMermaidLabelTooltips(source);
+    expect(result.nodeTooltips.Ocean).toBe('Ocean Water source of evaporation');
+    expect(result.source).toContain('click Ocean "#" "Ocean Water source of evaporation"');
+    expect(result.source).not.toMatch(/click Ocean '#'/i);
+  });
+
+  it('rewrites unicode-quoted hash clicks and mid-line click statements', () => {
+    const source = `flowchart TD
+  Ocean[Ocean] click Ocean ‘#’ ‘Ocean Water source of evaporation’`;
+    const result = applyMermaidLabelTooltips(source);
+    expect(result.source).toContain('Ocean[Ocean]');
+    expect(result.nodeTooltips.Ocean).toBe('Ocean Water source of evaporation');
+    expect(result.source).toContain('click Ocean "#" "Ocean Water source of evaporation"');
+    expect(result.source).not.toMatch(/click Ocean ['‘]/i);
+  });
+
+  it('drops non-hash click lines that contain single quotes', () => {
+    const source = `flowchart TD
+  Ocean[Ocean]
+  click Ocean href 'https://example.com' 'Ocean Water'`;
+    const result = applyMermaidLabelTooltips(source);
+    expect(result.source).toContain('Ocean[Ocean]');
+    expect(result.source).not.toMatch(/click Ocean href/i);
+    expect(result.source).not.toMatch(/'/);
+  });
 });

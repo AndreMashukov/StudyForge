@@ -44,6 +44,7 @@ export const generateDiagramQuiz = onCall(
     memory: "512MiB",
   },
   async (request): Promise<ApiResponse<GenerateDiagramQuizResponse>> => {
+    let usageReservationId: string | undefined;
     try {
       const requestData = request.data as GenerateDiagramQuizRequest;
       const userId = request.auth?.uid;
@@ -62,7 +63,7 @@ export const generateDiagramQuiz = onCall(
       }
 
       const usageReservation = await enforceCallableGenerationLimits(userId, 'diagramQuiz');
-      const usageReservationId = usageReservation.id;
+      usageReservationId = usageReservation.id;
 
       const { diagramQuizName, additionalPrompt, quizRuleIds, followupRuleIds } =
         requestData;
@@ -194,6 +195,9 @@ export const generateDiagramQuiz = onCall(
       }
     } catch (error) {
       console.error("Error in generateDiagramQuiz:", error);
+      if (usageReservationId && request.auth?.uid) {
+        await refundUsageReservationSafe(request.auth.uid, usageReservationId);
+      }
       return {
         success: false,
         error: getGenerationFailureEnvelope(error),
