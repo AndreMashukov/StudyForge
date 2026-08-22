@@ -63,10 +63,8 @@ import {
   buildDirectoryPathWithOptionalName,
   extractDirectoryIdFromDirectoryPath,
   extractDirectoryIdFromRouteParam,
+  parseDirectoryTab,
 } from '../../utils/directoryUrl';
-
-/** Valid tab values that can be passed via URL search param. */
-const VALID_TABS = new Set<string>(['sources', 'quizzes', 'cards', 'slides', 'diagramQuizzes', 'sequenceQuizzes', 'chat', 'rules']);
 
 /** Max artifacts loaded per type (server caps at 100). */
 const ARTIFACT_PAGE_LIMIT = 100;
@@ -82,10 +80,7 @@ export const DirectoryDetailPageContainer = () => {
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
 
-  const getTabFromParams = (): PanelType => {
-    const tab = searchParams.get('tab');
-    return tab && VALID_TABS.has(tab) ? (tab as PanelType) : 'sources';
-  };
+  const getTabFromParams = (): PanelType => parseDirectoryTab(searchParams.get('tab'));
 
   const [activePanel, setActivePanel] = useState<PanelType>(getTabFromParams);
 
@@ -223,6 +218,22 @@ export const DirectoryDetailPageContainer = () => {
 
     navigate(backTarget, { replace: true, state: parentBackState });
   }, [dispatch, location.state, navigate, parentDirectory]);
+
+  const handlePanelChange = useCallback(
+    (panel: PanelType) => {
+      setActivePanel(panel);
+      if (!directoryId) {
+        return;
+      }
+      const directoryName =
+        titleDirectory && titleDirectory.id === directoryId ? titleDirectory.name : undefined;
+      navigate(buildDirectoryPathWithOptionalName(directoryId, directoryName, panel), {
+        replace: true,
+        state: location.state,
+      });
+    },
+    [directoryId, location.state, navigate, titleDirectory],
+  );
 
   if (!directoryId) {
     return (
@@ -411,7 +422,7 @@ export const DirectoryDetailPageContainer = () => {
 
         {/* Main layout: Icon Sidebar + Content Panel */}
         <div className="flex gap-4">
-          <DirectoryIconSidebar activePanel={activePanel} onPanelChange={setActivePanel} />
+          <DirectoryIconSidebar activePanel={activePanel} onPanelChange={handlePanelChange} />
           <div className="flex-1 min-w-0">
             {activePanel === 'sources' && (
               <SourcesPanel

@@ -12,6 +12,23 @@ import { MascotImage } from '../MascotImage';
 
 const workspaceArtifacts = ['Quizzes', 'Flashcards', 'Slide decks', 'Diagram drills'] as const;
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  'auth/invalid-credential': 'Incorrect email or password.',
+  'auth/user-not-found': 'Incorrect email or password.',
+  'auth/wrong-password': 'Incorrect email or password.',
+  'auth/invalid-email': 'Enter a valid email address.',
+  'auth/too-many-requests': 'Too many attempts. Try again later.',
+  'auth/network-request-failed': 'Network error. Check your connection and try again.',
+  'auth/user-disabled': 'This account has been disabled.',
+};
+
+function getAuthErrorMessage(error: { code?: string }): string {
+  if (error.code && AUTH_ERROR_MESSAGES[error.code]) {
+    return AUTH_ERROR_MESSAGES[error.code];
+  }
+  return 'Could not sign in. Please try again.';
+}
+
 export const AuthForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -109,18 +126,20 @@ export const AuthForm = () => {
         <CardContent className={authFormStyles.content}>
           {error && (
             <div className={authFormStyles.errorContainer}>
-              <p className={authFormStyles.errorTitle}>Authentication Error</p>
-              <p className={authFormStyles.errorMessage}>{error.message}</p>
-              <details className={authFormStyles.errorDetails}>
-                <summary className={authFormStyles.errorSummary}>Debug Details</summary>
-                <pre className={authFormStyles.errorPre}>
-                  {JSON.stringify({
-                    code: error.code,
-                    message: error.message,
-                    name: error.name
-                  }, null, 2)}
-                </pre>
-              </details>
+              <p className={authFormStyles.errorTitle}>Sign in failed</p>
+              <p className={authFormStyles.errorMessage}>{getAuthErrorMessage(error)}</p>
+              {import.meta.env.DEV ? (
+                <details className={authFormStyles.errorDetails}>
+                  <summary className={authFormStyles.errorSummary}>Debug Details</summary>
+                  <pre className={authFormStyles.errorPre}>
+                    {JSON.stringify({
+                      code: error.code,
+                      message: error.message,
+                      name: error.name
+                    }, null, 2)}
+                  </pre>
+                </details>
+              ) : null}
             </div>
           )}
 

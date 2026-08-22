@@ -2,6 +2,41 @@ import type { Directory } from '@shared-types';
 
 const DIRECTORY_PATH_PREFIX = '/directory/';
 
+export const DIRECTORY_TABS = [
+  'sources',
+  'quizzes',
+  'cards',
+  'slides',
+  'diagramQuizzes',
+  'sequenceQuizzes',
+  'chat',
+  'rules',
+] as const;
+
+export type DirectoryTab = (typeof DIRECTORY_TABS)[number];
+
+const DIRECTORY_TAB_ALIASES: Record<string, DirectoryTab> = {
+  sources: 'sources',
+  quizzes: 'quizzes',
+  cards: 'cards',
+  flashcards: 'cards',
+  slides: 'slides',
+  diagramQuizzes: 'diagramQuizzes',
+  diagrams: 'diagramQuizzes',
+  sequenceQuizzes: 'sequenceQuizzes',
+  sequence: 'sequenceQuizzes',
+  chat: 'chat',
+  rules: 'rules',
+};
+
+/** Map a `?tab=` value (including short labels like `diagrams`) to a directory panel. */
+export function parseDirectoryTab(value: string | null | undefined): DirectoryTab {
+  if (!value) {
+    return 'sources';
+  }
+  return DIRECTORY_TAB_ALIASES[value] ?? 'sources';
+}
+
 /** Lowercase hyphen slug for readable directory URLs. */
 export function slugifyDirectoryName(name: string): string {
   return name

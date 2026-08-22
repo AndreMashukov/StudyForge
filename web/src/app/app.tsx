@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { Provider, useSelector } from 'react-redux';
 import { ThemeProvider, useTheme } from '@study-forge/ui';
 import { store } from '../store';
@@ -32,6 +32,7 @@ import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
 import { QuizIndexRedirect } from '../utils/QuizIndexRedirect';
 import { MascotImage } from '../components/MascotImage';
 import { CreateArtifactRouteRedirect } from '../utils/CreateArtifactRouteRedirect';
+import { NotFoundPage } from '../pages/NotFoundPage';
 
 export function App() {
   return (
@@ -96,6 +97,7 @@ const AppContent = () => {
     <Routes>
       {/* Auth route - accessible when not authenticated */}
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/dashboard" element={<Navigate to="/" replace />} />
 
       {/* Protected routes - wrapped in MainLayout */}
       <Route
@@ -394,6 +396,17 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <StatisticsPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+
+      <Route
+        path="*"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <NotFoundPage />
             </ProtectedRoute>
           </MainLayout>
         }

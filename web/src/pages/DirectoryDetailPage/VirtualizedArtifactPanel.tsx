@@ -43,9 +43,7 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
   ruleNamesMap,
   mayBeTruncated = false,
 }: IVirtualizedArtifactPanelProps<TType>): React.JSX.Element => {
-  const completedCount = artifacts.filter(
-    (artifact) => !artifact.generationStatus || artifact.generationStatus === 'completed',
-  ).length;
+  const visibleCount = artifacts.length;
   const { showOptimisticRow, optimisticTitle } = useOptimisticGeneratingRow(
     directoryId,
     panelType,
@@ -93,7 +91,7 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
         ) : (
           <div className="flex min-h-10 items-center justify-between gap-2">
             <h2 className="truncate text-lg font-semibold">
-              {title} ({completedCount})
+              {title} ({visibleCount})
             </h2>
             <Button size="sm" type="button" onClick={onCreate}>
               {createLabel}
