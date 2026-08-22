@@ -7,6 +7,7 @@ import {
 } from '../../../services/artifactFirestore';
 import { toFirestoreDoc } from '../../../services/firestoreReadUtils';
 import { attachArtifactDocListener } from '../utils/artifactDetailRealtime';
+import { runOptimisticArtifactDirectoryRemove } from '../utils/artifactGenerationOptimistic';
 import {
   SlideDeck,
   GenerateSlideDeckRequest,
@@ -132,6 +133,15 @@ export const slideDecksApi = baseApi.injectEndpoints({
         'UserSlideDecks',
         { type: 'SlideDeck', id: arg.slideDeckId },
       ],
+      async onQueryStarted({ slideDeckId }, { dispatch, getState, queryFulfilled }) {
+        await runOptimisticArtifactDirectoryRemove(
+          dispatch,
+          getState,
+          queryFulfilled,
+          slideDeckId,
+          'slideDeck',
+        );
+      },
     }),
   }),
 });

@@ -3,6 +3,7 @@ import {
   IBulkDeleteArtifactsRequest,
   IBulkOperationResponse,
 } from '@shared-types';
+import { removeArtifactSummaryFromDirectoryCaches } from '../utils/artifactGenerationOptimistic';
 
 export const artifactsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -25,6 +26,24 @@ export const artifactsApi = baseApi.injectEndpoints({
               'UserSequenceQuizzes',
             ]
           : [],
+      async onQueryStarted({ artifacts }, { dispatch, getState, queryFulfilled }) {
+        const patches = artifacts.flatMap((artifact) =>
+          removeArtifactSummaryFromDirectoryCaches(
+            dispatch,
+            getState,
+            artifact.id,
+            artifact.type,
+          ),
+        );
+        try {
+          const { data } = await queryFulfilled;
+          if (!data || data.succeeded === 0) {
+            patches.forEach((patch) => patch.undo());
+          }
+        } catch {
+          patches.forEach((patch) => patch.undo());
+        }
+      },
     }),
   }),
 });

@@ -7,6 +7,7 @@ import {
 } from '../../../services/artifactFirestore';
 import { toFirestoreDoc } from '../../../services/firestoreReadUtils';
 import { attachArtifactDocListener } from '../utils/artifactDetailRealtime';
+import { runOptimisticArtifactDirectoryRemove } from '../utils/artifactGenerationOptimistic';
 import {
   FlashcardSet,
   GenerateFlashcardsRequest,
@@ -137,6 +138,15 @@ export const flashcardsApi = baseApi.injectEndpoints({
         data,
       }),
       invalidatesTags: ['UserFlashcardSets'],
+      async onQueryStarted({ flashcardSetId }, { dispatch, getState, queryFulfilled }) {
+        await runOptimisticArtifactDirectoryRemove(
+          dispatch,
+          getState,
+          queryFulfilled,
+          flashcardSetId,
+          'flashcard',
+        );
+      },
     }),
 
     recordLearnedVocabulary: builder.mutation<

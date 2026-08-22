@@ -63,8 +63,8 @@ const ARTIFACT_PANEL_CONFIG: Partial<
 
 function forEachDirectoryContentsCache(
   state: RootState,
-  directoryId: string,
   fn: (args: DirectoryContentsQueryArgs) => void,
+  directoryId?: string,
 ): void {
   const queries = state[baseApi.reducerPath].queries;
   for (const entry of Object.values(queries)) {
@@ -72,9 +72,13 @@ function forEachDirectoryContentsCache(
       continue;
     }
     const args = entry.originalArgs as DirectoryContentsQueryArgs | undefined;
-    if (args?.directoryId === directoryId) {
-      fn(args);
+    if (!args?.directoryId) {
+      continue;
     }
+    if (directoryId && args.directoryId !== directoryId) {
+      continue;
+    }
+    fn(args);
   }
 }
 
@@ -93,7 +97,7 @@ function upsertArtifactSummaryInDirectoryState(
   directoryId: string,
   artifact: ArtifactSummary,
 ): void {
-  forEachDirectoryContentsCache(state, directoryId, (args) => {
+  forEachDirectoryContentsCache(state, (args) => {
     dispatch(
       directoryApi.util.updateQueryData('getDirectoryContentsWithArtifactSummaries', args, (draft) => {
         const idx = draft.artifactSummaries.findIndex(
@@ -106,7 +110,7 @@ function upsertArtifactSummaryInDirectoryState(
         }
       }),
     );
-  });
+  }, directoryId);
 }
 
 export function patchPendingArtifactSummaryFromResponse(
@@ -143,4 +147,54 @@ export function patchPendingArtifactSummaryFromResponse(
     generationStatus: 'pending',
     appliedRuleIds: ruleIds,
   });
+}
+
+export function removeArtifactSummaryFromDirectoryCaches(
+  dispatch: AppDispatch,
+  getState: () => unknown,
+  artifactId: string,
+  artifactType: ArtifactSummaryType,
+): Array<{ undo: () => void }> {
+  const patches: Array<{ undo: () => void }> = [];
+  forEachDirectoryContentsCache(getState() as RootState, (args) => {
+    patches.push(
+      dispatch(
+        directoryApi.util.updateQueryData('getDirectoryContentsWithArtifactSummaries', args, (draft) => {
+          const before = draft.artifactSummaries.length;
+          draft.artifactSummaries = draft.artifactSummaries.filter(
+            (summary) => !(summary.id === artifactId && summary.type === artifactType),
+          );
+          const removed = before - draft.artifactSummaries.length;
+          if (removed > 0) {
+            draft.totalCount = Math.max(0, (draft.totalCount || 0) - removed);
+          }
+        }),
+      ),
+    );
+  });
+  return patches;
+}
+
+export async function runOptimisticArtifactDirectoryRemove(
+  dispatch: AppDispatch,
+  getState: () => unknown,
+  queryFulfilled: Promise<{ data?: { success?: boolean } }>,
+  artifactId: string,
+  artifactType: ArtifactSummaryType,
+): Promise<void> {
+  const patches = removeArtifactSummaryFromDirectoryCaches(
+    dispatch,
+    getState,
+    artifactId,
+    artifactType,
+  );
+
+  try {
+    const result = await queryFulfilled;
+    if (result.data?.success === false) {
+      patches.forEach((patch) => patch.undo());
+    }
+  } catch {
+    patches.forEach((patch) => patch.undo());
+  }
 }

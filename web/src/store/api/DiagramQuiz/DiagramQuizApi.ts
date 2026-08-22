@@ -7,6 +7,7 @@ import {
 } from '../../../services/artifactFirestore';
 import { toFirestoreDoc } from '../../../services/firestoreReadUtils';
 import { attachArtifactDocListener } from '../utils/artifactDetailRealtime';
+import { runOptimisticArtifactDirectoryRemove } from '../utils/artifactGenerationOptimistic';
 import {
   ApiResponse,
   DiagramQuiz,
@@ -146,8 +147,16 @@ export const diagramQuizApi = baseApi.injectEndpoints({
       invalidatesTags: (result, error, arg) => [
         { type: 'DiagramQuiz', id: arg.diagramQuizId },
         'UserDiagramQuizzes',
-        { type: 'Directory', id: 'CONTENTS' },
       ],
+      async onQueryStarted({ diagramQuizId }, { dispatch, getState, queryFulfilled }) {
+        await runOptimisticArtifactDirectoryRemove(
+          dispatch,
+          getState,
+          queryFulfilled,
+          diagramQuizId,
+          'diagramQuiz',
+        );
+      },
     }),
   }),
 });

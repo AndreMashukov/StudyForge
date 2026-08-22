@@ -7,6 +7,7 @@ import {
   fetchUserQuizzesFromFirestore,
 } from '../../../services/quizListFirestore';
 import { attachArtifactDocListener } from '../utils/artifactDetailRealtime';
+import { runOptimisticArtifactDirectoryRemove } from '../utils/artifactGenerationOptimistic';
 import {
   Quiz,
   GenerateQuizRequest,
@@ -196,6 +197,15 @@ export const quizApi = baseApi.injectEndpoints({
         { type: 'Quiz', id: arg.quizId },
         'UserQuizzes',
       ],
+      async onQueryStarted({ quizId }, { dispatch, getState, queryFulfilled }) {
+        await runOptimisticArtifactDirectoryRemove(
+          dispatch,
+          getState,
+          queryFulfilled,
+          quizId,
+          'quiz',
+        );
+      },
     }),
   }),
 });

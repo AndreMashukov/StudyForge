@@ -382,14 +382,11 @@ export const directoryApi = baseApi.injectEndpoints({
           unsubscribe();
         }
       },
+      // Do not provide User* / Documents tags. Artifact deletes used to
+      // invalidate those and refetch this query; a stale getDocsFromServer
+      // can put a just-deleted item back until a hard reload.
       providesTags: (result, error, arg) => [
         { type: 'Directory', id: arg.directoryId || 'ROOT' },
-        'Documents',
-        'UserQuizzes',
-        'UserFlashcardSets',
-        'UserSlideDecks',
-        'UserDiagramQuizzes',
-        'UserSequenceQuizzes',
       ],
       keepUnusedDataFor: 300,
     }),
