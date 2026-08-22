@@ -27,12 +27,7 @@ export const slideDecksApi = baseApi.injectEndpoints({
       onQueryStarted: createArtifactOnQueryStarted('slides', 'Slide deck', 'slide deck', {
         successMessage: 'Slide deck is preparing',
       }),
-      invalidatesTags: (result, error, arg) => [
-        'UserSlideDecks',
-        ...(arg.directoryId
-          ? [{ type: 'Directory' as const, id: arg.directoryId }]
-          : []),
-      ],
+      invalidatesTags: ['UserSlideDecks'],
     }),
 
     getSlideDeck: builder.query<ApiResponse<SlideDeck>, { slideDeckId: string }>({

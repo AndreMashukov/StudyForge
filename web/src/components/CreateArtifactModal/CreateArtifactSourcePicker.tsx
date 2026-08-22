@@ -99,7 +99,12 @@ function SourcePickerContent({
         </Button>
       </div>
 
-      <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
+      <div
+        className="max-h-48 space-y-1 overflow-y-auto pr-1"
+        role="listbox"
+        aria-label="Source documents"
+        aria-multiselectable="true"
+      >
         {filteredDocuments.length === 0 ? (
           <p className="px-1 py-2 text-xs text-muted-foreground">No matching sources.</p>
         ) : (
@@ -107,17 +112,39 @@ function SourcePickerContent({
             const isSelected = draftSelectedIds.includes(document.id);
             const isDisabled = !isSelected && !canSelectMore;
             return (
-              <Checkbox
+              <div
                 key={document.id}
-                checked={isSelected}
-                disabled={isDisabled}
-                onChange={(checked) => onToggle(document.id, checked)}
-                label={document.title}
+                role="option"
+                aria-selected={isSelected}
+                aria-disabled={isDisabled}
+                tabIndex={isDisabled ? -1 : 0}
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  if (!isDisabled) {
+                    onToggle(document.id, !isSelected);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== ' ' && event.key !== 'Enter') {
+                    return;
+                  }
+                  event.preventDefault();
+                  if (!isDisabled) {
+                    onToggle(document.id, !isSelected);
+                  }
+                }}
                 className={cn(
-                  'rounded-md px-1 py-1 hover:bg-muted/40',
-                  isDisabled && 'opacity-50',
+                  'flex w-full items-center rounded-md px-1 py-1 text-left hover:bg-muted/40',
+                  isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
                 )}
-              />
+              >
+                <Checkbox
+                  checked={isSelected}
+                  disabled={isDisabled}
+                  label={document.title}
+                  className="pointer-events-none"
+                />
+              </div>
             );
           })
         )}
@@ -289,6 +316,8 @@ export const CreateArtifactSourcePicker: React.FC<ICreateArtifactSourcePicker> =
           align="start"
           sideOffset={6}
           collisionPadding={12}
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          onCloseAutoFocus={(event) => event.preventDefault()}
           className="z-[70] w-80 rounded-lg border border-border bg-background p-3 shadow-lg"
         >
           {pickerContent}

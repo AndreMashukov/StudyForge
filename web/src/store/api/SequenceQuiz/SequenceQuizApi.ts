@@ -30,12 +30,7 @@ export const sequenceQuizApi = baseApi.injectEndpoints({
       onQueryStarted: createArtifactOnQueryStarted('sequenceQuizzes', 'Sequence quiz', 'sequence quiz', {
         successMessage: 'Sequence quiz is preparing',
       }),
-      invalidatesTags: (result, error, arg) => [
-        'UserSequenceQuizzes',
-        ...(arg.directoryId
-          ? ([{ type: 'Directory' as const, id: arg.directoryId }] as const)
-          : []),
-      ],
+      invalidatesTags: ['UserSequenceQuizzes'],
     }),
 
     getSequenceQuiz: builder.query<

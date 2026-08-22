@@ -39,6 +39,7 @@ export const generateQuiz = onCall(
     memory: "512MiB",
   },
   async (request): Promise<ApiResponse<GenerateQuizResponse>> => {
+    let usageReservationId: string | undefined;
     try {
       const requestData = request.data as GenerateQuizRequest;
       const userId = request.auth?.uid;
@@ -56,23 +57,16 @@ export const generateQuiz = onCall(
         throw new Error("Maximum 5 documents allowed per quiz");
       }
 
-      const usageReservation = await enforceCallableGenerationLimits(userId, 'quiz');
-      const usageReservationId = usageReservation.id;
-
       console.log(`Generating quiz from ${documentIds.length} document(s): ${documentIds.join(', ')}`, {
         customQuizName: !!requestData.quizName,
         hasAdditionalPrompt: !!requestData.additionalPrompt,
         quizRuleCount: requestData.quizRuleIds?.length || 0,
         followupRuleCount: requestData.followupRuleIds?.length || 0,
       });
-      
-      // Fetch all documents and their content in parallel
-      const documentDataList = await Promise.all(
-        documentIds.map(async (docId) => {
-          const doc = await DocumentCrudService.getDocument(userId, docId);
-          const content = await FirestoreService.getDocumentContent(userId, docId);
-          return { doc, content };
-        })
+
+      const documentDataList = await DocumentCrudService.loadDocumentsWithContentForGeneration(
+        userId,
+        documentIds,
       );
 
       const resolvedDirectoryId = requestData.directoryId ?? documentDataList[0]?.doc.directoryId;
@@ -101,6 +95,9 @@ export const generateQuiz = onCall(
       };
       
       validateContentForArtifactGeneration(documentContent);
+
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'quiz');
+      usageReservationId = usageReservation.id;
 
       const pendingTitle = requestData.quizName?.trim()
         || (documentIds.length === 1
@@ -148,7 +145,10 @@ export const generateQuiz = onCall(
 
     } catch (error) {
       console.error("Error in generateQuiz:", error);
-      
+      if (usageReservationId && request.auth?.uid) {
+        await refundUsageReservationSafe(request.auth.uid, usageReservationId);
+      }
+
       return {
         success: false,
         error: getGenerationFailureEnvelope(error),

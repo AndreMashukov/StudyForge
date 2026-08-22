@@ -62,18 +62,12 @@ export const generateDiagramQuiz = onCall(
         throw new Error("Maximum 5 documents allowed per diagram quiz");
       }
 
-      const usageReservation = await enforceCallableGenerationLimits(userId, 'diagramQuiz');
-      usageReservationId = usageReservation.id;
-
       const { diagramQuizName, additionalPrompt, quizRuleIds, followupRuleIds } =
         requestData;
 
-      const documentDataList = await Promise.all(
-        documentIds.map(async (docId) => {
-          const doc = await DocumentCrudService.getDocument(userId, docId);
-          const content = await FirestoreService.getDocumentContent(userId, docId);
-          return { doc, content };
-        })
+      const documentDataList = await DocumentCrudService.loadDocumentsWithContentForGeneration(
+        userId,
+        documentIds,
       );
 
       const resolvedDirectoryId =
@@ -100,6 +94,9 @@ export const generateDiagramQuiz = onCall(
       };
 
       validateContentForArtifactGeneration(documentContent);
+
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'diagramQuiz');
+      usageReservationId = usageReservation.id;
 
       const pendingTitle = diagramQuizName?.trim()
         || (documentIds.length === 1

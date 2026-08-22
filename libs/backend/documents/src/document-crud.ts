@@ -190,6 +190,49 @@ export class DocumentCrudService {
   }
 
   /**
+   * Load generation sources without throwing on the first missing document.
+   * Throws a user-facing error if any selected document is gone.
+   */
+  static async loadDocumentsWithContentForGeneration(
+    userId: string,
+    documentIds: string[],
+  ): Promise<Array<{ doc: Document; content: string }>> {
+    const results = await Promise.all(
+      documentIds.map(async (documentId) => {
+        const snap = await FirestorePaths.document(userId, documentId).get();
+        if (!snap.exists) {
+          return { documentId, missing: true as const };
+        }
+
+        const doc = {
+          ...(snap.data() as Document),
+          id: snap.id,
+        };
+        const content = await FirestoreService.getDocumentContent(userId, documentId);
+        return { documentId, missing: false as const, doc, content };
+      }),
+    );
+
+    const missingCount = results.filter((result) => result.missing).length;
+    if (missingCount > 0) {
+      if (missingCount === documentIds.length) {
+        throw new Error(
+          'The selected documents are no longer available. They may have been deleted. Choose current sources and try again.',
+        );
+      }
+      throw new Error(
+        `${missingCount} of ${documentIds.length} selected documents ${
+          missingCount === 1 ? 'is' : 'are'
+        } no longer available. They may have been deleted. Choose current sources and try again.`,
+      );
+    }
+
+    return results.flatMap((result) =>
+      result.missing ? [] : [{ doc: result.doc, content: result.content }],
+    );
+  }
+
+  /**
    * Get document with content from storage
    * @param userId - The authenticated user's ID
    * @param documentId - The document identifier

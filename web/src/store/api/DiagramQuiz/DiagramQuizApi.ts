@@ -30,12 +30,7 @@ export const diagramQuizApi = baseApi.injectEndpoints({
       onQueryStarted: createArtifactOnQueryStarted('diagramQuizzes', 'Diagram quiz', 'diagram quiz', {
         successMessage: 'Diagram quiz generation started — it will appear when ready',
       }),
-      invalidatesTags: (result, error, arg) => [
-        'UserDiagramQuizzes',
-        ...(arg.directoryId
-          ? ([{ type: 'Directory' as const, id: arg.directoryId }] as const)
-          : []),
-      ],
+      invalidatesTags: ['UserDiagramQuizzes'],
     }),
 
     getDiagramQuiz: builder.query<

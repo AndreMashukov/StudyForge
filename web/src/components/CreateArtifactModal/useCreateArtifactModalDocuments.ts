@@ -1,28 +1,33 @@
 import { useMemo } from 'react';
-import { IGetUserDocumentsArgs } from '../../store/api/Documents/documentsApi';
-import { usePaginatedUserDocuments } from '../../hooks/usePaginatedUserDocuments';
+import { skipToken } from '@reduxjs/toolkit/query';
+import { useGetDirectoryContentsWithArtifactSummariesQuery } from '../../store/api/Directory/DirectoryApi';
 
-const ARTIFACT_SOURCE_DOCUMENTS_LIMIT = 100;
-
+/**
+ * Source picker must use the same directory items list as the Sources tab.
+ * A separate documents-collection query can still show deleted docs from the
+ * Firestore persistence cache.
+ */
 export function useCreateArtifactModalDocuments(directoryId: string | null) {
-  const queryArgs: IGetUserDocumentsArgs = useMemo(
-    () =>
-      directoryId
-        ? { directoryId, limit: ARTIFACT_SOURCE_DOCUMENTS_LIMIT }
-        : { limit: ARTIFACT_SOURCE_DOCUMENTS_LIMIT },
-    [directoryId],
+  const { data, isLoading, error, refetch } = useGetDirectoryContentsWithArtifactSummariesQuery(
+    directoryId ? { directoryId, artifactLimit: 100 } : skipToken,
   );
 
-  const paginated = usePaginatedUserDocuments(queryArgs);
+  const documents = useMemo(
+    () =>
+      (data?.documents ?? []).filter(
+        (document) => document.generationStatus !== 'pending',
+      ),
+    [data?.documents],
+  );
 
   return {
-    documents: paginated.documents,
-    isLoading: paginated.isLoading,
-    error: paginated.error,
-    refetch: paginated.refetch,
-    hasMore: paginated.hasMore,
-    isLoadingMore: paginated.isLoadingMore,
-    loadMore: paginated.loadMore,
-    loadError: paginated.loadError,
+    documents,
+    isLoading,
+    error,
+    refetch,
+    hasMore: false,
+    isLoadingMore: false,
+    loadMore: async () => undefined,
+    loadError: null as string | null,
   };
 }

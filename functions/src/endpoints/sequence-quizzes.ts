@@ -50,6 +50,7 @@ export const generateSequenceQuiz = onCall(
     memory: "512MiB",
   },
   async (request): Promise<ApiResponse<GenerateSequenceQuizResponse>> => {
+    let usageReservationId: string | undefined;
     try {
       const requestData = (request.data ?? {}) as Record<string, unknown>;
       const userId = request.auth?.uid;
@@ -69,9 +70,6 @@ export const generateSequenceQuiz = onCall(
       if (documentIds.length > 5) {
         throw new Error("Maximum 5 documents allowed per sequence quiz");
       }
-
-      const usageReservation = await enforceCallableGenerationLimits(userId, 'sequenceQuiz');
-      const usageReservationId = usageReservation.id;
 
       if (requestData.additionalRuleIds != null && !Array.isArray(requestData.additionalRuleIds)) {
         throw new Error("additionalRuleIds must be an array when provided");
@@ -105,12 +103,9 @@ export const generateSequenceQuiz = onCall(
         "directoryId"
       );
 
-      const documentDataList = await Promise.all(
-        documentIds.map(async (docId) => {
-          const doc = await DocumentCrudService.getDocument(userId, docId);
-          const content = await FirestoreService.getDocumentContent(userId, docId);
-          return { doc, content };
-        })
+      const documentDataList = await DocumentCrudService.loadDocumentsWithContentForGeneration(
+        userId,
+        documentIds,
       );
 
       const resolvedDirectoryId =
@@ -137,6 +132,9 @@ export const generateSequenceQuiz = onCall(
       };
 
       validateContentForArtifactGeneration(documentContent);
+
+      const usageReservation = await enforceCallableGenerationLimits(userId, 'sequenceQuiz');
+      usageReservationId = usageReservation.id;
 
       const pendingTitle = sequenceQuizName
         || (documentIds.length === 1
@@ -191,6 +189,9 @@ export const generateSequenceQuiz = onCall(
       }
     } catch (error) {
       console.error("Error in generateSequenceQuiz:", error);
+      if (usageReservationId && request.auth?.uid) {
+        await refundUsageReservationSafe(request.auth.uid, usageReservationId);
+      }
       return {
         success: false,
         error: getGenerationFailureEnvelope(error),
