@@ -29,6 +29,8 @@ import {
 } from '../../store/slices/uiSlice';
 import { useAuth } from '../../contexts/AuthContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { useGetUsageSummaryQuery } from '../../store/api/Usage/usageApi';
+import { formatUsagePlanLabel } from '../../utils/usagePlanLabel';
 
 interface NavItem {
   id: string;
@@ -39,13 +41,55 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: 'home', title: 'Dashboard', path: '/', icon: Home, section: 'navigation' },
-  { id: 'documents', title: 'My Directories', path: '/documents', icon: FileText, section: 'navigation' },
-  { id: 'statistics', title: 'Statistics', path: '/statistics', icon: BarChart3, section: 'navigation' },
-  { id: 'rules-manager', title: 'Rules Manager', path: '/rules', icon: Sparkles, section: 'navigation' },
-  { id: 'profile', title: 'Profile', path: '/profile', icon: User, section: 'account' },
-  { id: 'usage', title: 'Usage', path: '/usage', icon: Gauge, section: 'account' },
-  { id: 'settings', title: 'Settings', path: '/settings', icon: Settings, section: 'account' },
+  {
+    id: 'home',
+    title: 'Dashboard',
+    path: '/',
+    icon: Home,
+    section: 'navigation',
+  },
+  {
+    id: 'documents',
+    title: 'My Directories',
+    path: '/documents',
+    icon: FileText,
+    section: 'navigation',
+  },
+  {
+    id: 'statistics',
+    title: 'Statistics',
+    path: '/statistics',
+    icon: BarChart3,
+    section: 'navigation',
+  },
+  {
+    id: 'rules-manager',
+    title: 'Rules Manager',
+    path: '/rules',
+    icon: Sparkles,
+    section: 'navigation',
+  },
+  {
+    id: 'profile',
+    title: 'Profile',
+    path: '/profile',
+    icon: User,
+    section: 'account',
+  },
+  {
+    id: 'usage',
+    title: 'Usage',
+    path: '/usage',
+    icon: Gauge,
+    section: 'account',
+  },
+  {
+    id: 'settings',
+    title: 'Settings',
+    path: '/settings',
+    icon: Settings,
+    section: 'account',
+  },
 ];
 
 const sectionLabels: Record<string, string> = {
@@ -64,6 +108,10 @@ export const Sidebar = ({ className }: ISidebar) => {
 
   const isOpen = useSelector(selectSidebarIsOpen);
   const isMobile = useIsMobile();
+  const { data: usageSummary } = useGetUsageSummaryQuery(undefined, {
+    skip: !user,
+  });
+  const planLabel = formatUsagePlanLabel(usageSummary?.usageLimitsSetupName);
 
   // Desktop default is open; on narrow viewports hide the drawer until toggled.
   React.useEffect(() => {
@@ -106,18 +154,21 @@ export const Sidebar = ({ className }: ISidebar) => {
     <SidebarProfileFooter
       avatarLabel={user.email?.charAt(0).toUpperCase()}
       primaryText={user.email}
-      secondaryText="Free plan"
+      secondaryText={planLabel}
       isOpen={isOpen}
       action={
         <button
           className={cn(
             sidebarClassNames.footerAction,
-            !isOpen && 'relative group justify-center p-0'
+            !isOpen && 'relative group justify-center p-0',
           )}
           onClick={handleSignOut}
           aria-label="Sign out"
         >
-          <LogOut size={isOpen ? 14 : 16} className={sidebarClassNames.navItemIcon} />
+          <LogOut
+            size={isOpen ? 14 : 16}
+            className={sidebarClassNames.navItemIcon}
+          />
           {!isOpen ? (
             <div className={sidebarClassNames.collapsedTooltip}>Sign out</div>
           ) : null}
@@ -132,7 +183,7 @@ export const Sidebar = ({ className }: ISidebar) => {
         sidebarClassNames.container,
         isOpen ? sidebarClassNames.expanded : sidebarClassNames.collapsed,
         isMobile && isOpen && 'w-[280px]',
-        className
+        className,
       )}
       overlay={overlay}
       footer={footer}
@@ -145,7 +196,10 @@ export const Sidebar = ({ className }: ISidebar) => {
             label={sectionLabels[section]}
             isOpen={isOpen}
           >
-            <SidebarNav className={sidebarClassNames.navList} aria-label={sectionLabels[section]}>
+            <SidebarNav
+              className={sidebarClassNames.navList}
+              aria-label={sectionLabels[section]}
+            >
               {navItems
                 .filter((item) => item.section === section)
                 .map((item) => {
@@ -156,17 +210,26 @@ export const Sidebar = ({ className }: ISidebar) => {
                     <SidebarNavItem
                       key={item.id}
                       isActive={itemIsActive}
-                      icon={<ItemIcon className={sidebarClassNames.navItemIcon} size={16} />}
+                      icon={
+                        <ItemIcon
+                          className={sidebarClassNames.navItemIcon}
+                          size={16}
+                        />
+                      }
                       label={
                         isOpen ? (
-                          <span className={sidebarClassNames.navItemText}>{item.title}</span>
+                          <span className={sidebarClassNames.navItemText}>
+                            {item.title}
+                          </span>
                         ) : (
-                          <div className={sidebarClassNames.collapsedTooltip}>{item.title}</div>
+                          <div className={sidebarClassNames.collapsedTooltip}>
+                            {item.title}
+                          </div>
                         )
                       }
                       className={cn(
                         !isOpen && 'justify-center relative group',
-                        itemIsActive && sidebarClassNames.navItemActive
+                        itemIsActive && sidebarClassNames.navItemActive,
                       )}
                       onClick={() => handleNavigateToItem(item.path)}
                       onKeyDown={(e) => {

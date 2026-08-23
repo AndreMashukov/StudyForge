@@ -1,10 +1,21 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Tabs, TabsList, TabsTrigger } from '../../../components/ui/Tabs';
 import { Spinner } from '../../../components/ui/Spinner';
-import { BarChart3, TrendingUp, PieChart as PieIcon, Layers, FileText } from 'lucide-react';
+import {
+  BarChart3,
+  TrendingUp,
+  PieChart as PieIcon,
+  Layers,
+  FileText,
+} from 'lucide-react';
 import { useGetInteractionStatsQuery } from '../../../store/api/InteractionTracking/interactionTrackingApi';
 import { useGetDirectoryTreeQuery } from '../../../store/api/Directory/DirectoryApi';
 import { DirectoryTreeNode } from '@shared-types';
@@ -26,7 +37,7 @@ import { DirectoryShareChart } from '../../InteractionStatsPage/InteractionStats
 import { MascotImage } from '../../../components/MascotImage';
 
 function flattenDirectoryNames(
-  nodes: DirectoryTreeNode[] | undefined
+  nodes: DirectoryTreeNode[] | undefined,
 ): Record<string, string> {
   const result: Record<string, string> = {};
   if (!nodes) return result;
@@ -47,7 +58,7 @@ export const HomePageContainer = () => {
 
   const { startDate, endDate, label } = useMemo(
     () => getDateRange(timeframe),
-    [timeframe]
+    [timeframe],
   );
 
   const {
@@ -60,24 +71,27 @@ export const HomePageContainer = () => {
 
   const directoryNames = useMemo(
     () => flattenDirectoryNames(treeResponse?.tree),
-    [treeResponse]
+    [treeResponse],
   );
 
   const topLevelIds = useMemo(
     () => getTopLevelDirectoryIds(treeResponse?.tree),
-    [treeResponse]
+    [treeResponse],
   );
 
   const rows = useMemo(() => {
     if (!statsResponse?.stats) return [];
     const all = aggregateStatsByDirectory(statsResponse.stats, directoryNames);
-    const scoped = topLevelIds.size > 0 ? all.filter((r) => topLevelIds.has(r.directoryId)) : all;
+    const scoped =
+      topLevelIds.size > 0
+        ? all.filter((r) => topLevelIds.has(r.directoryId))
+        : all;
     return scoped.filter((r) => r.totalSeconds > 0);
   }, [statsResponse, directoryNames, topLevelIds]);
 
   const grandTotal = useMemo(
     () => rows.reduce((sum, r) => sum + r.totalSeconds, 0),
-    [rows]
+    [rows],
   );
 
   const barData = useMemo(() => toBarChartData(rows), [rows]);
@@ -87,7 +101,7 @@ export const HomePageContainer = () => {
       statsResponse?.stats
         ? toDailyTrendData(statsResponse.stats, startDate, endDate)
         : [],
-    [statsResponse, startDate, endDate]
+    [statsResponse, startDate, endDate],
   );
   const pieData = useMemo(() => toPieChartData(rows), [rows]);
 
@@ -140,7 +154,9 @@ export const HomePageContainer = () => {
             <p className="text-2xl font-bold font-heading mt-1">
               {statsLoading ? '—' : rows.length}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">with activity</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              with activity
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -155,7 +171,7 @@ export const HomePageContainer = () => {
       {!!statsError && (
         <Card className="border-destructive">
           <CardContent className="p-6">
-            <p className="text-destructive">Failed to load study stats.</p>
+            <p className="text-destructive">Could not load study stats.</p>
           </CardContent>
         </Card>
       )}
@@ -241,8 +257,6 @@ export const HomePageContainer = () => {
           </Card>
         </div>
       )}
-
-
     </div>
   );
 };

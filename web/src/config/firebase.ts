@@ -19,18 +19,37 @@ import {
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || import.meta.env.NX_PUBLIC_FIREBASE_API_KEY || "demo-api-key-for-emulator",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || import.meta.env.NX_PUBLIC_FIREBASE_AUTH_DOMAIN || "study-forge-202604.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || import.meta.env.NX_PUBLIC_FIREBASE_PROJECT_ID || "study-forge-202604",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || import.meta.env.NX_PUBLIC_FIREBASE_STORAGE_BUCKET || "study-forge-202604.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || import.meta.env.NX_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "853327102927",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || import.meta.env.NX_PUBLIC_FIREBASE_APP_ID || "1:853327102927:web:4a3444a27948fac44088ba"
+  apiKey:
+    import.meta.env.VITE_FIREBASE_API_KEY ||
+    import.meta.env.NX_PUBLIC_FIREBASE_API_KEY ||
+    'demo-api-key-for-emulator',
+  authDomain:
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ||
+    import.meta.env.NX_PUBLIC_FIREBASE_AUTH_DOMAIN ||
+    'study-forge-202604.firebaseapp.com',
+  projectId:
+    import.meta.env.VITE_FIREBASE_PROJECT_ID ||
+    import.meta.env.NX_PUBLIC_FIREBASE_PROJECT_ID ||
+    'study-forge-202604',
+  storageBucket:
+    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ||
+    import.meta.env.NX_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+    'study-forge-202604.firebasestorage.app',
+  messagingSenderId:
+    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ||
+    import.meta.env.NX_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ||
+    '853327102927',
+  appId:
+    import.meta.env.VITE_FIREBASE_APP_ID ||
+    import.meta.env.NX_PUBLIC_FIREBASE_APP_ID ||
+    '1:853327102927:web:4a3444a27948fac44088ba',
 };
 
 const app = initializeApp(firebaseConfig);
 
-export const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' ||
-                     import.meta.env.NX_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
+export const useEmulator =
+  import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' ||
+  import.meta.env.NX_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
 
 let appCheckInstance: AppCheck | undefined;
 let appCheckReadyPromise: Promise<void> | undefined;
@@ -60,18 +79,36 @@ function resolveAppCheckDebugToken(): boolean | string {
   return true;
 }
 
-function startAppCheckTokenFetch(appCheck: AppCheck): void {
-  appCheckReadyPromise = getToken(appCheck, false)
-    .then(() => {
+async function fetchAppCheckTokenWithRetry(appCheck: AppCheck): Promise<void> {
+  const retryDelaysMs = [0, 300, 700, 1500];
+  let lastError: unknown;
+
+  for (const [attempt, delayMs] of retryDelaysMs.entries()) {
+    if (delayMs > 0) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, delayMs);
+      });
+    }
+
+    try {
+      await getToken(appCheck, attempt > 0);
       console.log('✅ App Check token ready');
-    })
-    .catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(
-        '🔥 App Check token fetch failed. Register the reCAPTCHA v3 secret in Firebase Console → App Check and add production domains in reCAPTCHA Admin:',
-        message,
-      );
-    });
+      return;
+    } catch (error: unknown) {
+      lastError = error;
+    }
+  }
+
+  const message =
+    lastError instanceof Error ? lastError.message : String(lastError);
+  console.error(
+    '🔥 App Check token fetch failed. Register the reCAPTCHA v3 secret in Firebase Console App Check and add production domains in reCAPTCHA Admin:',
+    message,
+  );
+}
+
+function startAppCheckTokenFetch(appCheck: AppCheck): void {
+  appCheckReadyPromise = fetchAppCheckTokenWithRetry(appCheck);
 }
 
 function initializeWebAppCheck(options: { enableDebugToken: boolean }): void {
@@ -84,7 +121,9 @@ function initializeWebAppCheck(options: { enableDebugToken: boolean }): void {
     const setupHint =
       'Set NX_PUBLIC_FIREBASE_APPCHECK_SITE_KEY to a reCAPTCHA v3 site key. Callable functions enforce App Check.';
     if (useEmulator) {
-      console.warn(`⚠️ App Check: ${setupHint} Skipping App Check init in emulator.`);
+      console.warn(
+        `⚠️ App Check: ${setupHint} Skipping App Check init in emulator.`,
+      );
     } else {
       console.error(`🔥 App Check: ${setupHint}`);
     }
@@ -93,8 +132,11 @@ function initializeWebAppCheck(options: { enableDebugToken: boolean }): void {
 
   if (options.enableDebugToken) {
     const debugToken = resolveAppCheckDebugToken();
-    (globalThis as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean | string }).FIREBASE_APPCHECK_DEBUG_TOKEN =
-      debugToken;
+    (
+      globalThis as unknown as {
+        FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean | string;
+      }
+    ).FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken;
     if (typeof debugToken === 'string') {
       console.log(
         `ℹ️ App Check debug token (register in Firebase Console → App Check → Manage debug tokens): ${debugToken}`,
@@ -154,7 +196,10 @@ export async function evictFirestoreLocalCache(): Promise<void> {
     await clearIndexedDbPersistence(db);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.warn('Firestore local cache eviction failed (sign-out continues):', message);
+    console.warn(
+      'Firestore local cache eviction failed (sign-out continues):',
+      message,
+    );
   }
 }
 
@@ -169,7 +214,9 @@ if (typeof window !== 'undefined' && useEmulator) {
   console.log('🔧 Connecting to Firebase Emulators...');
 
   try {
-    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', {
+      disableWarnings: true,
+    });
     console.log('✅ Auth Emulator connected');
   } catch (error) {
     console.log('⚠️ Auth emulator already connected or error:', error);

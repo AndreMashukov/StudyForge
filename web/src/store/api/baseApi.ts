@@ -1,6 +1,7 @@
 import { createApi, BaseQueryFn } from '@reduxjs/toolkit/query/react';
 import { httpsCallable } from 'firebase/functions';
 import { functions, waitForAppCheckReady } from '../../config/firebase';
+import { getUserFacingCallableFailureMessage } from '../../utils/callableErrorMessages';
 import {
   getUserFacingLlmRoutingMessage,
   normalizeGenerationErrorMessage,
@@ -57,14 +58,12 @@ const firebaseCallableBaseQuery: BaseQueryFn<
         : undefined;
 
     const routingCode = detailsRecord?.code;
-    const isAppCheckRejection =
-      firebaseError.code === 'functions/unauthenticated' &&
-      firebaseError.message === 'Unauthenticated';
     const resolvedMessage =
       getUserFacingLlmRoutingMessage(routingCode, firebaseError.message) ??
-      (isAppCheckRejection
-        ? 'App Check verification failed. Ensure the reCAPTCHA v3 secret is registered in Firebase Console → App Check and production domains are allowed in reCAPTCHA Admin.'
-        : undefined) ??
+      getUserFacingCallableFailureMessage({
+        code: firebaseError.code,
+        message: firebaseError.message,
+      }) ??
       (typeof firebaseError.details === 'string'
         ? firebaseError.details
         : undefined) ??
