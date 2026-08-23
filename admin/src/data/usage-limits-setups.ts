@@ -50,7 +50,11 @@ function parseFeaturePolicies(value: unknown): IUsageFeaturePolicies | null {
 
     const enabled = policyValue.enabled;
     const creditCost = policyValue.creditCost;
-    if (typeof enabled !== 'boolean' || typeof creditCost !== 'number' || creditCost < 0) {
+    if (
+      typeof enabled !== 'boolean' ||
+      typeof creditCost !== 'number' ||
+      creditCost < 0
+    ) {
       return null;
     }
 
@@ -60,13 +64,23 @@ function parseFeaturePolicies(value: unknown): IUsageFeaturePolicies | null {
   return policies;
 }
 
-function parseUsageLimitsSetup(id: string, data: FirebaseFirestore.DocumentData): IUsageLimitsSetup | null {
+export function parseUsageLimitsSetup(
+  id: string,
+  data: FirebaseFirestore.DocumentData,
+): IUsageLimitsSetup | null {
   const name = typeof data.name === 'string' ? data.name.trim() : '';
   const monthlyCreditAllowance =
-    typeof data.monthlyCreditAllowance === 'number' ? data.monthlyCreditAllowance : NaN;
+    typeof data.monthlyCreditAllowance === 'number'
+      ? data.monthlyCreditAllowance
+      : NaN;
   const featurePolicies = parseFeaturePolicies(data.featurePolicies);
 
-  if (!name || !Number.isFinite(monthlyCreditAllowance) || monthlyCreditAllowance < 0 || !featurePolicies) {
+  if (
+    !name ||
+    !Number.isFinite(monthlyCreditAllowance) ||
+    monthlyCreditAllowance < 0 ||
+    !featurePolicies
+  ) {
     return null;
   }
 
@@ -89,7 +103,8 @@ function parseUsageLimitsSetup(id: string, data: FirebaseFirestore.DocumentData)
   return {
     id,
     name,
-    description: typeof data.description === 'string' ? data.description : undefined,
+    description:
+      typeof data.description === 'string' ? data.description : undefined,
     monthlyCreditAllowance,
     storageLimitBytes,
     dailySlideDeckLimit,
@@ -101,7 +116,7 @@ function parseUsageLimitsSetup(id: string, data: FirebaseFirestore.DocumentData)
 
 function toFirestoreUsageLimitsSetupDocument(
   setup: IUsageLimitsSetup,
-  options?: { clearDescription?: boolean }
+  options?: { clearDescription?: boolean },
 ): FirebaseFirestore.DocumentData {
   const document: FirebaseFirestore.DocumentData = {
     id: setup.id,
@@ -124,7 +139,8 @@ function toFirestoreUsageLimitsSetupDocument(
 }
 
 function countEnabledFeatures(featurePolicies: IUsageFeaturePolicies): number {
-  return Object.values(featurePolicies).filter((policy) => policy.enabled).length;
+  return Object.values(featurePolicies).filter((policy) => policy.enabled)
+    .length;
 }
 
 async function countGroupsForSetup(setupId: string): Promise<number> {
@@ -136,7 +152,9 @@ async function countGroupsForSetup(setupId: string): Promise<number> {
   return snapshot.size;
 }
 
-function normalizeFeaturePolicies(featurePolicies: IUsageFeaturePolicies): IUsageFeaturePolicies {
+function normalizeFeaturePolicies(
+  featurePolicies: IUsageFeaturePolicies,
+): IUsageFeaturePolicies {
   const normalized = createDefaultFeaturePolicies();
 
   for (const kind of ALL_GENERATION_KINDS) {
@@ -158,7 +176,9 @@ function normalizeFeaturePolicies(featurePolicies: IUsageFeaturePolicies): IUsag
   return normalized;
 }
 
-export function buildPresetFeaturePolicies(preset: IUsageLimitsProfilePreset): IUsageFeaturePolicies {
+export function buildPresetFeaturePolicies(
+  preset: IUsageLimitsProfilePreset,
+): IUsageFeaturePolicies {
   return createDefaultFeaturePolicies({ disabledKinds: preset.disabledKinds });
 }
 
@@ -173,10 +193,14 @@ export function buildPresetFormValues(preset: IUsageLimitsProfilePreset) {
   };
 }
 
-export async function listUsageLimitsSetups(): Promise<IAdminUsageLimitsSetupSummary[]> {
+export async function listUsageLimitsSetups(): Promise<
+  IAdminUsageLimitsSetupSummary[]
+> {
   await requireAdminSession();
 
-  const snapshot = await getAdminFirestore().collection(USAGE_LIMITS_SETUPS_COLLECTION).get();
+  const snapshot = await getAdminFirestore()
+    .collection(USAGE_LIMITS_SETUPS_COLLECTION)
+    .get();
   const summaries: IAdminUsageLimitsSetupSummary[] = [];
 
   for (const doc of snapshot.docs) {
@@ -196,11 +220,14 @@ export async function listUsageLimitsSetups(): Promise<IAdminUsageLimitsSetupSum
 }
 
 export async function getUsageLimitsSetupById(
-  setupId: string
+  setupId: string,
 ): Promise<IAdminUsageLimitsSetupSummary | null> {
   await requireAdminSession();
 
-  const doc = await getAdminFirestore().collection(USAGE_LIMITS_SETUPS_COLLECTION).doc(setupId).get();
+  const doc = await getAdminFirestore()
+    .collection(USAGE_LIMITS_SETUPS_COLLECTION)
+    .doc(setupId)
+    .get();
   if (!doc.exists) {
     return null;
   }
@@ -219,7 +246,7 @@ export async function getUsageLimitsSetupById(
 
 export async function createUsageLimitsSetup(
   input: ICreateUsageLimitsSetupRequest,
-  adminUid: string
+  adminUid: string,
 ): Promise<IUsageLimitsSetup> {
   await requireAdminSession();
 
@@ -245,11 +272,15 @@ export async function createUsageLimitsSetup(
     !Number.isSafeInteger(input.dailySlideDeckLimit) ||
     input.dailySlideDeckLimit < 0
   ) {
-    throw new Error('Daily slide deck limit must be a safe integer of zero or greater.');
+    throw new Error(
+      'Daily slide deck limit must be a safe integer of zero or greater.',
+    );
   }
 
   const now = new Date().toISOString();
-  const docRef = getAdminFirestore().collection(USAGE_LIMITS_SETUPS_COLLECTION).doc();
+  const docRef = getAdminFirestore()
+    .collection(USAGE_LIMITS_SETUPS_COLLECTION)
+    .doc();
   const setup: IUsageLimitsSetup = {
     id: docRef.id,
     name,
@@ -268,16 +299,21 @@ export async function createUsageLimitsSetup(
 
 export async function createUsageLimitsSetupFromRequest(
   body: Record<string, unknown>,
-  adminUid: string
+  adminUid: string,
 ): Promise<IUsageLimitsSetup> {
   const name = typeof body.name === 'string' ? body.name : '';
-  const description = typeof body.description === 'string' ? body.description : undefined;
+  const description =
+    typeof body.description === 'string' ? body.description : undefined;
   const monthlyCreditAllowance =
-    typeof body.monthlyCreditAllowance === 'number' ? body.monthlyCreditAllowance : NaN;
+    typeof body.monthlyCreditAllowance === 'number'
+      ? body.monthlyCreditAllowance
+      : NaN;
   const storageLimitBytes =
     typeof body.storageLimitBytes === 'number' ? body.storageLimitBytes : NaN;
   const dailySlideDeckLimit =
-    typeof body.dailySlideDeckLimit === 'number' ? body.dailySlideDeckLimit : NaN;
+    typeof body.dailySlideDeckLimit === 'number'
+      ? body.dailySlideDeckLimit
+      : NaN;
   const featurePolicies = parseFeaturePolicies(body.featurePolicies);
 
   if (!featurePolicies) {
@@ -289,7 +325,9 @@ export async function createUsageLimitsSetupFromRequest(
     !Number.isSafeInteger(storageLimitBytes) ||
     storageLimitBytes < 0
   ) {
-    throw new Error('storageLimitBytes must be a safe integer of zero or greater.');
+    throw new Error(
+      'storageLimitBytes must be a safe integer of zero or greater.',
+    );
   }
 
   if (
@@ -297,7 +335,9 @@ export async function createUsageLimitsSetupFromRequest(
     !Number.isSafeInteger(dailySlideDeckLimit) ||
     dailySlideDeckLimit < 0
   ) {
-    throw new Error('dailySlideDeckLimit must be a safe integer of zero or greater.');
+    throw new Error(
+      'dailySlideDeckLimit must be a safe integer of zero or greater.',
+    );
   }
 
   return createUsageLimitsSetup(
@@ -309,18 +349,20 @@ export async function createUsageLimitsSetupFromRequest(
       dailySlideDeckLimit,
       featurePolicies,
     },
-    adminUid
+    adminUid,
   );
 }
 
 export async function updateUsageLimitsSetup(
   setupId: string,
   input: IUpdateUsageLimitsSetupRequest,
-  adminUid: string
+  adminUid: string,
 ): Promise<IUsageLimitsSetup> {
   await requireAdminSession();
 
-  const docRef = getAdminFirestore().collection(USAGE_LIMITS_SETUPS_COLLECTION).doc(setupId);
+  const docRef = getAdminFirestore()
+    .collection(USAGE_LIMITS_SETUPS_COLLECTION)
+    .doc(setupId);
   const existing = await docRef.get();
 
   if (!existing.exists) {
@@ -347,7 +389,9 @@ export async function updateUsageLimitsSetup(
         ? input.monthlyCreditAllowance
         : current.monthlyCreditAllowance,
     storageLimitBytes:
-      input.storageLimitBytes !== undefined ? input.storageLimitBytes : current.storageLimitBytes,
+      input.storageLimitBytes !== undefined
+        ? input.storageLimitBytes
+        : current.storageLimitBytes,
     dailySlideDeckLimit:
       input.dailySlideDeckLimit !== undefined
         ? input.dailySlideDeckLimit
@@ -380,14 +424,16 @@ export async function updateUsageLimitsSetup(
     !Number.isSafeInteger(next.dailySlideDeckLimit) ||
     next.dailySlideDeckLimit < 0
   ) {
-    throw new Error('Daily slide deck limit must be a safe integer of zero or greater.');
+    throw new Error(
+      'Daily slide deck limit must be a safe integer of zero or greater.',
+    );
   }
 
   await docRef.set(
     toFirestoreUsageLimitsSetupDocument(next, {
       clearDescription: descriptionChanged && nextDescription === undefined,
     }),
-    { merge: true }
+    { merge: true },
   );
 
   return next;
@@ -396,7 +442,7 @@ export async function updateUsageLimitsSetup(
 export async function updateUsageLimitsSetupFromRequest(
   setupId: string,
   body: Record<string, unknown>,
-  adminUid: string
+  adminUid: string,
 ): Promise<IUsageLimitsSetup> {
   const input: IUpdateUsageLimitsSetupRequest = {};
 
@@ -441,30 +487,44 @@ export async function deleteUsageLimitsSetup(setupId: string): Promise<void> {
 
   if (!groupsSnapshot.empty) {
     const groupNames = groupsSnapshot.docs
-      .map((doc) => (typeof doc.data().name === 'string' ? doc.data().name : doc.id))
+      .map((doc) =>
+        typeof doc.data().name === 'string' ? doc.data().name : doc.id,
+      )
       .join(', ');
 
     throw new Error(
-      `Cannot delete setup because it is assigned to user groups: ${groupNames}. Reassign those groups first.`
+      `Cannot delete setup because it is assigned to user groups: ${groupNames}. Reassign those groups first.`,
     );
   }
 
-  await getAdminFirestore().collection(USAGE_LIMITS_SETUPS_COLLECTION).doc(setupId).delete();
+  await getAdminFirestore()
+    .collection(USAGE_LIMITS_SETUPS_COLLECTION)
+    .doc(setupId)
+    .delete();
 }
 
-export async function listUsageLimitsSetupOptions(): Promise<Array<{ id: string; name: string }>> {
+export async function listUsageLimitsSetupOptions(): Promise<
+  Array<{ id: string; name: string }>
+> {
   const setups = await listUsageLimitsSetups();
   return setups.map(({ id, name }) => ({ id, name }));
 }
 
-export async function ensureUsageLimitsSetupExists(setupId: string): Promise<void> {
-  const doc = await getAdminFirestore().collection(USAGE_LIMITS_SETUPS_COLLECTION).doc(setupId).get();
+export async function ensureUsageLimitsSetupExists(
+  setupId: string,
+): Promise<void> {
+  const doc = await getAdminFirestore()
+    .collection(USAGE_LIMITS_SETUPS_COLLECTION)
+    .doc(setupId)
+    .get();
   if (!doc.exists) {
     throw new Error('Selected usage limits setup does not exist.');
   }
 }
 
-export async function seedDefaultUsageLimitsSetups(adminUid: string): Promise<IUsageLimitsSetup[]> {
+export async function seedDefaultUsageLimitsSetups(
+  adminUid: string,
+): Promise<IUsageLimitsSetup[]> {
   await requireAdminSession();
 
   const created: IUsageLimitsSetup[] = [];
@@ -489,7 +549,7 @@ export async function seedDefaultUsageLimitsSetups(adminUid: string): Promise<IU
         dailySlideDeckLimit: preset.dailySlideDeckLimit,
         featurePolicies: buildPresetFeaturePolicies(preset),
       },
-      adminUid
+      adminUid,
     );
     created.push(setup);
   }

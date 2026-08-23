@@ -354,6 +354,15 @@ export function resolvePresetQuotaDefaults(presetId: string): {
   };
 }
 
+/**
+ * Credit allowance for the open period follows the user's live usage limits setup.
+ * Mid-period group or setup changes take effect immediately. Spent and reserved
+ * credits are not reset.
+ */
+export function resolveLivePeriodAllowance(liveSetupAllowance: number): number {
+  return liveSetupAllowance;
+}
+
 export function calculateRemainingCredits(params: {
   allowance: number;
   reservedCredits: number;

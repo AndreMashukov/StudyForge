@@ -2347,6 +2347,7 @@ export {
   POWER_TIER_STORAGE_LIMIT_BYTES,
   PRO_TIER_STORAGE_LIMIT_BYTES,
   resolveLegacySetupQuotaDefaults,
+  resolveLivePeriodAllowance,
   resolvePresetQuotaDefaults,
   STANDARD_TIER_STORAGE_LIMIT_BYTES,
   USAGE_LIMITS_PROFILE_PRESETS,

@@ -1,10 +1,15 @@
 import 'server-only';
 
-import type { ICreateUserGroupRequest, IUpdateUserGroupRequest, IUserGroup } from '@shared-types';
+import type {
+  ICreateUserGroupRequest,
+  IUpdateUserGroupRequest,
+  IUserGroup,
+} from '@shared-types';
 import { requireAdminSession } from '../auth/session';
 import { getAdminFirestore } from '../firebase/admin';
 import { ensureSetupExists } from './llm-setups';
 import { ensureUsageLimitsSetupExists } from './usage-limits-setups';
+import { refreshUsageForUsersInGroup } from './user-usage';
 
 const USER_GROUPS_COLLECTION = 'userGroups';
 const USERS_COLLECTION = 'users';
@@ -15,11 +20,17 @@ export interface IAdminUserGroupSummary extends IUserGroup {
   usageLimitsSetupName?: string;
 }
 
-function parseUserGroup(id: string, data: FirebaseFirestore.DocumentData): IUserGroup | null {
+function parseUserGroup(
+  id: string,
+  data: FirebaseFirestore.DocumentData,
+): IUserGroup | null {
   const name = typeof data.name === 'string' ? data.name.trim() : '';
-  const llmSetupId = typeof data.llmSetupId === 'string' ? data.llmSetupId.trim() : '';
+  const llmSetupId =
+    typeof data.llmSetupId === 'string' ? data.llmSetupId.trim() : '';
   const usageLimitsSetupId =
-    typeof data.usageLimitsSetupId === 'string' ? data.usageLimitsSetupId.trim() : '';
+    typeof data.usageLimitsSetupId === 'string'
+      ? data.usageLimitsSetupId.trim()
+      : '';
 
   if (!name || !llmSetupId || !usageLimitsSetupId) {
     return null;
@@ -45,13 +56,21 @@ async function countMembersForGroup(groupId: string): Promise<number> {
 }
 
 async function getSetupName(setupId: string): Promise<string | undefined> {
-  const doc = await getAdminFirestore().collection('llmSetups').doc(setupId).get();
+  const doc = await getAdminFirestore()
+    .collection('llmSetups')
+    .doc(setupId)
+    .get();
   const name = doc.data()?.name;
   return typeof name === 'string' ? name : undefined;
 }
 
-async function getUsageLimitsSetupName(setupId: string): Promise<string | undefined> {
-  const doc = await getAdminFirestore().collection('usageLimitsSetups').doc(setupId).get();
+async function getUsageLimitsSetupName(
+  setupId: string,
+): Promise<string | undefined> {
+  const doc = await getAdminFirestore()
+    .collection('usageLimitsSetups')
+    .doc(setupId)
+    .get();
   const name = doc.data()?.name;
   return typeof name === 'string' ? name : undefined;
 }
@@ -59,7 +78,9 @@ async function getUsageLimitsSetupName(setupId: string): Promise<string | undefi
 export async function listUserGroups(): Promise<IAdminUserGroupSummary[]> {
   await requireAdminSession();
 
-  const snapshot = await getAdminFirestore().collection(USER_GROUPS_COLLECTION).get();
+  const snapshot = await getAdminFirestore()
+    .collection(USER_GROUPS_COLLECTION)
+    .get();
 
   const summaries: IAdminUserGroupSummary[] = [];
 
@@ -73,17 +94,24 @@ export async function listUserGroups(): Promise<IAdminUserGroupSummary[]> {
       ...group,
       memberCount: await countMembersForGroup(doc.id),
       llmSetupName: await getSetupName(group.llmSetupId),
-      usageLimitsSetupName: await getUsageLimitsSetupName(group.usageLimitsSetupId),
+      usageLimitsSetupName: await getUsageLimitsSetupName(
+        group.usageLimitsSetupId,
+      ),
     });
   }
 
   return summaries.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function getUserGroupById(groupId: string): Promise<IAdminUserGroupSummary | null> {
+export async function getUserGroupById(
+  groupId: string,
+): Promise<IAdminUserGroupSummary | null> {
   await requireAdminSession();
 
-  const doc = await getAdminFirestore().collection(USER_GROUPS_COLLECTION).doc(groupId).get();
+  const doc = await getAdminFirestore()
+    .collection(USER_GROUPS_COLLECTION)
+    .doc(groupId)
+    .get();
   if (!doc.exists) {
     return null;
   }
@@ -97,13 +125,15 @@ export async function getUserGroupById(groupId: string): Promise<IAdminUserGroup
     ...group,
     memberCount: await countMembersForGroup(doc.id),
     llmSetupName: await getSetupName(group.llmSetupId),
-    usageLimitsSetupName: await getUsageLimitsSetupName(group.usageLimitsSetupId),
+    usageLimitsSetupName: await getUsageLimitsSetupName(
+      group.usageLimitsSetupId,
+    ),
   };
 }
 
 export async function createUserGroup(
   input: ICreateUserGroupRequest,
-  adminUid: string
+  adminUid: string,
 ): Promise<IUserGroup> {
   await requireAdminSession();
 
@@ -145,11 +175,13 @@ export async function createUserGroup(
 export async function updateUserGroup(
   groupId: string,
   input: IUpdateUserGroupRequest,
-  adminUid: string
+  adminUid: string,
 ): Promise<IUserGroup> {
   await requireAdminSession();
 
-  const docRef = getAdminFirestore().collection(USER_GROUPS_COLLECTION).doc(groupId);
+  const docRef = getAdminFirestore()
+    .collection(USER_GROUPS_COLLECTION)
+    .doc(groupId);
   const existing = await docRef.get();
 
   if (!existing.exists) {
@@ -162,7 +194,8 @@ export async function updateUserGroup(
   }
 
   const llmSetupId = input.llmSetupId?.trim() || current.llmSetupId;
-  const usageLimitsSetupId = input.usageLimitsSetupId?.trim() || current.usageLimitsSetupId;
+  const usageLimitsSetupId =
+    input.usageLimitsSetupId?.trim() || current.usageLimitsSetupId;
   await ensureSetupExists(llmSetupId);
   await ensureUsageLimitsSetupExists(usageLimitsSetupId);
 
@@ -180,6 +213,11 @@ export async function updateUserGroup(
   }
 
   await docRef.set(next, { merge: true });
+
+  if (next.usageLimitsSetupId !== current.usageLimitsSetupId) {
+    await refreshUsageForUsersInGroup(groupId);
+  }
+
   return next;
 }
 
@@ -194,19 +232,26 @@ export async function deleteUserGroup(groupId: string): Promise<void> {
 
   if (!membersSnapshot.empty) {
     throw new Error(
-      'Cannot delete group because users are still assigned. Reassign those users first.'
+      'Cannot delete group because users are still assigned. Reassign those users first.',
     );
   }
 
-  await getAdminFirestore().collection(USER_GROUPS_COLLECTION).doc(groupId).delete();
+  await getAdminFirestore()
+    .collection(USER_GROUPS_COLLECTION)
+    .doc(groupId)
+    .delete();
 }
 
-export async function listUserGroupOptions(): Promise<Array<{ id: string; name: string }>> {
+export async function listUserGroupOptions(): Promise<
+  Array<{ id: string; name: string }>
+> {
   const groups = await listUserGroups();
   return groups.map(({ id, name }) => ({ id, name }));
 }
 
-export async function listGroupMembers(groupId: string): Promise<Array<{ uid: string; email: string }>> {
+export async function listGroupMembers(
+  groupId: string,
+): Promise<Array<{ uid: string; email: string }>> {
   await requireAdminSession();
 
   const snapshot = await getAdminFirestore()
