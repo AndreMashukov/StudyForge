@@ -1,4 +1,5 @@
 import { isRejectedWithValue, Middleware } from '@reduxjs/toolkit';
+import { getUserFacingCallableFailureMessage } from '../../utils/callableErrorMessages';
 import {
   getUserFacingLlmRoutingMessage,
   normalizeGenerationErrorMessage,
@@ -28,12 +29,19 @@ export const errorToastMiddleware: Middleware = (api) => (next) => (action) => {
 
       const routingCode = payload?.data?.code ?? payload?.data?.details?.code;
       const rawMessage =
-        (typeof payload?.data?.message === 'string' ? payload.data.message : undefined) ||
+        (typeof payload?.data?.message === 'string'
+          ? payload.data.message
+          : undefined) ||
         payload?.status ||
         'An unexpected error occurred';
 
       const message = normalizeGenerationErrorMessage(
-        getUserFacingLlmRoutingMessage(routingCode, rawMessage) ?? rawMessage
+        getUserFacingLlmRoutingMessage(routingCode, rawMessage) ??
+          getUserFacingCallableFailureMessage({
+            code: payload?.status,
+            message: rawMessage,
+          }) ??
+          rawMessage,
       );
 
       api.dispatch(showToast({ message, type: 'error' }));
