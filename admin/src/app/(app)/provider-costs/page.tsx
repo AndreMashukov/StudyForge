@@ -6,6 +6,7 @@ import {
   listRecentAdminProviderCostPeriodKeys,
   readAdminProviderCostPeriod,
 } from '@admin/data/provider-costs';
+import { readProviderRateCatalog } from '@admin/data/provider-rate-catalog';
 import { buildUsagePeriodKey } from '@shared-types';
 import { ProviderCostsOverview } from './_components/ProviderCostsOverview';
 
@@ -24,7 +25,10 @@ function isUsagePeriodKey(value: string): boolean {
 }
 
 async function ProviderCostsSection({ periodKey }: IProviderCostsSectionProps) {
-  const period = await readAdminProviderCostPeriod(periodKey);
+  const [period, rateCatalog] = await Promise.all([
+    readAdminProviderCostPeriod(periodKey),
+    readProviderRateCatalog(),
+  ]);
   const routeSummaries = period ? buildRouteSummaries(period) : [];
 
   return (
@@ -32,11 +36,14 @@ async function ProviderCostsSection({ periodKey }: IProviderCostsSectionProps) {
       period={period}
       periodKey={periodKey}
       routeSummaries={routeSummaries}
+      rateCatalog={rateCatalog}
     />
   );
 }
 
-export default async function ProviderCostsPage({ searchParams }: IProviderCostsPageProps) {
+export default async function ProviderCostsPage({
+  searchParams,
+}: IProviderCostsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const requestedPeriod = resolvedSearchParams.period?.trim() ?? '';
   const periodKey = isUsagePeriodKey(requestedPeriod)

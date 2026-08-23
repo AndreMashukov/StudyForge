@@ -10,6 +10,7 @@ import type {
   IOpenRouterConnectionTestResult,
   IOpenRouterProviderConnection,
   IProviderAvailableModel,
+  IProviderRateCatalogEntry,
   ITogetherConnectionTestResult,
   ITogetherProviderConnection,
   IUpdateGeminiSettingsRequest,
@@ -17,10 +18,12 @@ import type {
   IUpdateOpenRouterSettingsRequest,
   IUpdateTogetherSettingsRequest,
   LlmModality,
+  LlmProviderKind,
   ProviderModelSyncSource,
 } from '@shared-types';
 import {
   ALL_LLM_MODALITIES,
+  buildProviderRateCatalogForSync,
   PRIMARY_GEMINI_CONNECTION_ID,
   PRIMARY_MINIMAX_CONNECTION_ID,
   PRIMARY_OPENROUTER_CONNECTION_ID,
@@ -39,7 +42,13 @@ import {
   parseAvailableModels,
   parseModelsSyncSource,
 } from './provider-model-catalog';
+import { persistProviderRateCatalog } from './provider-rate-catalog';
 import { toIsoString } from './firestore-iso';
+
+interface IFetchedProviderCatalog {
+  models: IProviderAvailableModel[];
+  rates: IProviderRateCatalogEntry[];
+}
 
 const OPENROUTER_CONNECTION_ID = PRIMARY_OPENROUTER_CONNECTION_ID;
 const MINIMAX_CONNECTION_ID = PRIMARY_MINIMAX_CONNECTION_ID;
@@ -52,13 +61,15 @@ export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 export const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 export const DEFAULT_OPENROUTER_MODEL = 'openrouter/auto';
 export const DEFAULT_OPENROUTER_VISION_MODEL = 'google/gemini-2.5-flash';
-export const DEFAULT_OPENROUTER_IMAGE_MODEL = 'google/gemini-3.1-flash-image-preview';
+export const DEFAULT_OPENROUTER_IMAGE_MODEL =
+  'google/gemini-3.1-flash-image-preview';
 export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 export const DEFAULT_MINIMAX_MODEL = 'MiniMax-M3';
 export const DEFAULT_MINIMAX_VISION_MODEL = 'MiniMax-M3';
 export const DEFAULT_MINIMAX_IMAGE_MODEL = 'image-01';
 export const DEFAULT_MINIMAX_BASE_URL = 'https://api.minimax.io/v1';
-export const DEFAULT_MINIMAX_IMAGE_URL = 'https://api.minimax.io/v1/image_generation';
+export const DEFAULT_MINIMAX_IMAGE_URL =
+  'https://api.minimax.io/v1/image_generation';
 export const DEFAULT_TOGETHER_MODEL = 'MiniMaxAI/MiniMax-M3';
 export const DEFAULT_TOGETHER_VISION_MODEL = 'MiniMaxAI/MiniMax-M3';
 export const DEFAULT_TOGETHER_IMAGE_MODEL = 'black-forest-labs/FLUX.1-schnell';
@@ -110,7 +121,7 @@ function normalizeVisionModel(model: string | undefined): string | undefined {
 
 function normalizeImageModel(
   model: string | undefined,
-  fallback: string
+  fallback: string,
 ): string {
   const normalized = model?.trim();
   return normalized && normalized.length > 0 ? normalized : fallback;
@@ -159,7 +170,7 @@ function parseSupportedModalities(value: unknown): LlmModality[] {
         entry === 'text' ||
         entry === 'vision' ||
         entry === 'image' ||
-        entry === 'embedding'
+        entry === 'embedding',
     );
     if (modalities.length > 0) {
       return modalities;
@@ -182,7 +193,7 @@ function getGeminiSecretRef(): admin.firestore.DocumentReference {
 }
 
 function buildDefaultGeminiConnection(
-  apiKeyConfigured: boolean
+  apiKeyConfigured: boolean,
 ): IGeminiProviderConnection {
   return {
     providerKind: 'gemini',
@@ -198,7 +209,7 @@ function buildDefaultGeminiConnection(
 }
 
 function buildDefaultOpenRouterConnection(
-  apiKeyConfigured: boolean
+  apiKeyConfigured: boolean,
 ): IOpenRouterProviderConnection {
   return {
     providerKind: 'openrouter',
@@ -215,7 +226,7 @@ function buildDefaultOpenRouterConnection(
 }
 
 function buildDefaultMiniMaxConnection(
-  apiKeyConfigured: boolean
+  apiKeyConfigured: boolean,
 ): IMiniMaxProviderConnection {
   return {
     providerKind: 'minimax',
@@ -233,7 +244,7 @@ function buildDefaultMiniMaxConnection(
 }
 
 function buildDefaultTogetherConnection(
-  apiKeyConfigured: boolean
+  apiKeyConfigured: boolean,
 ): ITogetherProviderConnection {
   return {
     providerKind: 'together',
@@ -251,7 +262,7 @@ function buildDefaultTogetherConnection(
 }
 
 function readHeaders(
-  value: unknown
+  value: unknown,
 ): IOpenRouterProviderConnection['headers'] | undefined {
   if (!isRecord(value)) {
     return undefined;
@@ -269,7 +280,7 @@ function readHeaders(
 }
 
 function readPreferences(
-  value: unknown
+  value: unknown,
 ): IOpenRouterProviderConnection['providerPreferences'] | undefined {
   if (!isRecord(value)) {
     return undefined;
@@ -290,7 +301,12 @@ function readPreferences(
       ? value.sort
       : undefined;
 
-  if (!order?.length && allowFallbacks === undefined && !sort && zdr === undefined) {
+  if (
+    !order?.length &&
+    allowFallbacks === undefined &&
+    !sort &&
+    zdr === undefined
+  ) {
     return undefined;
   }
 
@@ -319,17 +335,24 @@ export async function readGeminiConnection(): Promise<IGeminiProviderConnection>
     ...defaults,
     label: typeof data.label === 'string' ? data.label : defaults.label,
     apiKeyConfigured:
-      secretSnapshot.exists || data.apiKeyConfigured === true || defaults.apiKeyConfigured,
+      secretSnapshot.exists ||
+      data.apiKeyConfigured === true ||
+      defaults.apiKeyConfigured,
     supportedModalities: parseSupportedModalities(data.supportedModalities),
     defaultModel:
-      typeof data.defaultModel === 'string' ? data.defaultModel : defaults.defaultModel,
+      typeof data.defaultModel === 'string'
+        ? data.defaultModel
+        : defaults.defaultModel,
     defaultVisionModel:
       typeof data.defaultVisionModel === 'string'
         ? data.defaultVisionModel.trim() || undefined
         : defaults.defaultVisionModel,
     defaultImageModel:
       typeof data.defaultImageModel === 'string'
-        ? normalizeImageModel(data.defaultImageModel, defaults.defaultImageModel ?? DEFAULT_GEMINI_IMAGE_MODEL)
+        ? normalizeImageModel(
+            data.defaultImageModel,
+            defaults.defaultImageModel ?? DEFAULT_GEMINI_IMAGE_MODEL,
+          )
         : defaults.defaultImageModel,
     availableModels: parseAvailableModels(data.availableModels),
     modelsSyncedAt: toIsoString(data.modelsSyncedAt),
@@ -367,17 +390,21 @@ export async function readOpenRouterConnection(): Promise<IOpenRouterProviderCon
 
   const defaultImageModel =
     typeof data.defaultImageModel === 'string'
-      ? normalizeImageModel(data.defaultImageModel, defaults.defaultImageModel ?? DEFAULT_OPENROUTER_IMAGE_MODEL)
+      ? normalizeImageModel(
+          data.defaultImageModel,
+          defaults.defaultImageModel ?? DEFAULT_OPENROUTER_IMAGE_MODEL,
+        )
       : defaults.defaultImageModel;
 
   return {
     ...defaults,
     label: typeof data.label === 'string' ? data.label : defaults.label,
     apiKeyConfigured:
-      secretSnapshot.exists || data.apiKeyConfigured === true || defaults.apiKeyConfigured,
+      secretSnapshot.exists ||
+      data.apiKeyConfigured === true ||
+      defaults.apiKeyConfigured,
     supportedModalities: parseSupportedModalities(data.supportedModalities),
-    baseUrl:
-      typeof data.baseUrl === 'string' ? data.baseUrl : defaults.baseUrl,
+    baseUrl: typeof data.baseUrl === 'string' ? data.baseUrl : defaults.baseUrl,
     defaultModel:
       typeof data.defaultModel === 'string'
         ? data.defaultModel
@@ -427,10 +454,11 @@ export async function readMiniMaxConnection(): Promise<IMiniMaxProviderConnectio
     ...defaults,
     label: typeof data.label === 'string' ? data.label : defaults.label,
     apiKeyConfigured:
-      secretSnapshot.exists || data.apiKeyConfigured === true || defaults.apiKeyConfigured,
+      secretSnapshot.exists ||
+      data.apiKeyConfigured === true ||
+      defaults.apiKeyConfigured,
     supportedModalities: parseSupportedModalities(data.supportedModalities),
-    baseUrl:
-      typeof data.baseUrl === 'string' ? data.baseUrl : defaults.baseUrl,
+    baseUrl: typeof data.baseUrl === 'string' ? data.baseUrl : defaults.baseUrl,
     defaultModel:
       typeof data.defaultModel === 'string'
         ? data.defaultModel
@@ -441,7 +469,10 @@ export async function readMiniMaxConnection(): Promise<IMiniMaxProviderConnectio
         : defaults.defaultVisionModel,
     defaultImageModel:
       typeof data.defaultImageModel === 'string'
-        ? normalizeImageModel(data.defaultImageModel, defaults.defaultImageModel ?? DEFAULT_MINIMAX_IMAGE_MODEL)
+        ? normalizeImageModel(
+            data.defaultImageModel,
+            defaults.defaultImageModel ?? DEFAULT_MINIMAX_IMAGE_MODEL,
+          )
         : defaults.defaultImageModel,
     imageGenerationUrl:
       typeof data.imageGenerationUrl === 'string'
@@ -485,10 +516,11 @@ export async function readTogetherConnection(): Promise<ITogetherProviderConnect
     ...defaults,
     label: typeof data.label === 'string' ? data.label : defaults.label,
     apiKeyConfigured:
-      secretSnapshot.exists || data.apiKeyConfigured === true || defaults.apiKeyConfigured,
+      secretSnapshot.exists ||
+      data.apiKeyConfigured === true ||
+      defaults.apiKeyConfigured,
     supportedModalities: parseSupportedModalities(data.supportedModalities),
-    baseUrl:
-      typeof data.baseUrl === 'string' ? data.baseUrl : defaults.baseUrl,
+    baseUrl: typeof data.baseUrl === 'string' ? data.baseUrl : defaults.baseUrl,
     defaultModel:
       typeof data.defaultModel === 'string'
         ? data.defaultModel
@@ -501,7 +533,7 @@ export async function readTogetherConnection(): Promise<ITogetherProviderConnect
       typeof data.defaultImageModel === 'string'
         ? normalizeImageModel(
             data.defaultImageModel,
-            defaults.defaultImageModel ?? DEFAULT_TOGETHER_IMAGE_MODEL
+            defaults.defaultImageModel ?? DEFAULT_TOGETHER_IMAGE_MODEL,
           )
         : defaults.defaultImageModel,
     defaultEmbeddingModel:
@@ -529,7 +561,10 @@ export async function readTogetherConnection(): Promise<ITogetherProviderConnect
   };
 }
 
-function readEncryptedSecret(data: unknown, providerLabel: string): IEncryptedSecretRecord {
+function readEncryptedSecret(
+  data: unknown,
+  providerLabel: string,
+): IEncryptedSecretRecord {
   if (!isRecord(data)) {
     throw new Error(`Stored ${providerLabel} credential is malformed.`);
   }
@@ -602,7 +637,7 @@ async function updateValidationStatus(
   connectionRef: admin.firestore.DocumentReference,
   actorUid: string,
   status: 'healthy' | 'unhealthy',
-  errorMessage: string | null
+  errorMessage: string | null,
 ): Promise<void> {
   await connectionRef.set(
     {
@@ -613,7 +648,7 @@ async function updateValidationStatus(
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedBy: actorUid,
     },
-    { merge: true }
+    { merge: true },
   );
 }
 
@@ -621,7 +656,7 @@ async function persistAvailableModels(
   connectionRef: admin.firestore.DocumentReference,
   actorUid: string,
   models: IProviderAvailableModel[],
-  source: ProviderModelSyncSource
+  source: ProviderModelSyncSource,
 ): Promise<void> {
   await connectionRef.set(
     {
@@ -631,8 +666,45 @@ async function persistAvailableModels(
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedBy: actorUid,
     },
-    { merge: true }
+    { merge: true },
   );
+}
+
+async function persistFetchedProviderCatalog(
+  connectionRef: admin.firestore.DocumentReference,
+  actorUid: string,
+  catalog: IFetchedProviderCatalog,
+  source: ProviderModelSyncSource,
+): Promise<void> {
+  await persistAvailableModels(connectionRef, actorUid, catalog.models, source);
+  await persistProviderRateCatalog(catalog.rates);
+}
+
+function catalogSyncMessage(
+  providerLabel: string,
+  catalog: IFetchedProviderCatalog,
+): string {
+  if (catalog.models.length === 0) {
+    return `Validated ${providerLabel} access successfully, but no models were returned.`;
+  }
+
+  const ratePart =
+    catalog.rates.length > 0
+      ? ` Synced ${catalog.rates.length} rate catalog ${
+          catalog.rates.length === 1 ? 'entry' : 'entries'
+        }.`
+      : '';
+  return `Validated ${providerLabel} access and uploaded ${catalog.models.length} available models.${ratePart}`;
+}
+
+function catalogFromPayload(
+  providerKind: LlmProviderKind,
+  payload: unknown,
+): IFetchedProviderCatalog {
+  return {
+    models: normalizeProviderModels(providerKind, payload),
+    rates: buildProviderRateCatalogForSync(providerKind, payload),
+  };
 }
 
 function assertDefaultModelsAgainstCatalog(
@@ -643,7 +715,7 @@ function assertDefaultModelsAgainstCatalog(
     defaultVisionModel?: string;
     defaultImageModel?: string;
     defaultEmbeddingModel?: string;
-  }
+  },
 ): void {
   if (models.length === 0) {
     return;
@@ -654,7 +726,7 @@ function assertDefaultModelsAgainstCatalog(
     defaults.defaultModel,
     'text',
     `${connectionLabel} default text model`,
-    connectionLabel
+    connectionLabel,
   );
 
   if (defaults.defaultVisionModel) {
@@ -663,7 +735,7 @@ function assertDefaultModelsAgainstCatalog(
       defaults.defaultVisionModel,
       'vision',
       `${connectionLabel} default vision model`,
-      connectionLabel
+      connectionLabel,
     );
   }
 
@@ -673,7 +745,7 @@ function assertDefaultModelsAgainstCatalog(
       defaults.defaultImageModel,
       'image',
       `${connectionLabel} default image model`,
-      connectionLabel
+      connectionLabel,
     );
   }
 
@@ -683,7 +755,7 @@ function assertDefaultModelsAgainstCatalog(
       defaults.defaultEmbeddingModel,
       'embedding',
       `${connectionLabel} default embedding model`,
-      connectionLabel
+      connectionLabel,
     );
   }
 }
@@ -693,10 +765,13 @@ const MODEL_CATALOG_FETCH_TIMEOUT_MS = 15_000;
 async function fetchModelCatalog(
   url: string,
   init: RequestInit,
-  providerLabel: string
+  providerLabel: string,
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), MODEL_CATALOG_FETCH_TIMEOUT_MS);
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    MODEL_CATALOG_FETCH_TIMEOUT_MS,
+  );
 
   try {
     return await fetch(url, {
@@ -706,7 +781,7 @@ async function fetchModelCatalog(
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(
-        `${providerLabel} model catalog request timed out after ${MODEL_CATALOG_FETCH_TIMEOUT_MS}ms`
+        `${providerLabel} model catalog request timed out after ${MODEL_CATALOG_FETCH_TIMEOUT_MS}ms`,
       );
     }
     throw error;
@@ -715,30 +790,37 @@ async function fetchModelCatalog(
   }
 }
 
-async function fetchGeminiModelCatalog(apiKey: string): Promise<IProviderAvailableModel[]> {
+async function fetchGeminiModelCatalog(
+  apiKey: string,
+): Promise<IFetchedProviderCatalog> {
   const response = await fetchModelCatalog(
     `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
     {
       method: 'GET',
       cache: 'no-store',
     },
-    'Gemini'
+    'Gemini',
   );
   const payload = (await response.json().catch(() => null)) as unknown;
 
   if (!response.ok) {
     throw new Error(
-      getResponseErrorMessage(payload, response.status, response.statusText, 'Gemini')
+      getResponseErrorMessage(
+        payload,
+        response.status,
+        response.statusText,
+        'Gemini',
+      ),
     );
   }
 
-  return normalizeProviderModels('gemini', payload);
+  return catalogFromPayload('gemini', payload);
 }
 
 async function fetchOpenRouterModelCatalog(
   baseUrl: string,
-  apiKey: string
-): Promise<IProviderAvailableModel[]> {
+  apiKey: string,
+): Promise<IFetchedProviderCatalog> {
   const response = await fetchModelCatalog(
     `${normalizeBaseUrl(baseUrl, 'OpenRouter')}/models/user`,
     {
@@ -749,23 +831,28 @@ async function fetchOpenRouterModelCatalog(
       },
       cache: 'no-store',
     },
-    'OpenRouter'
+    'OpenRouter',
   );
   const payload = (await response.json().catch(() => null)) as unknown;
 
   if (!response.ok) {
     throw new Error(
-      getResponseErrorMessage(payload, response.status, response.statusText, 'OpenRouter')
+      getResponseErrorMessage(
+        payload,
+        response.status,
+        response.statusText,
+        'OpenRouter',
+      ),
     );
   }
 
-  return normalizeProviderModels('openrouter', payload);
+  return catalogFromPayload('openrouter', payload);
 }
 
 async function fetchMiniMaxModelCatalog(
   baseUrl: string,
-  apiKey: string
-): Promise<IProviderAvailableModel[]> {
+  apiKey: string,
+): Promise<IFetchedProviderCatalog> {
   const response = await fetchModelCatalog(
     `${normalizeBaseUrl(baseUrl, 'MiniMax')}/models`,
     {
@@ -776,23 +863,28 @@ async function fetchMiniMaxModelCatalog(
       },
       cache: 'no-store',
     },
-    'MiniMax'
+    'MiniMax',
   );
   const payload = (await response.json().catch(() => null)) as unknown;
 
   if (!response.ok) {
     throw new Error(
-      getResponseErrorMessage(payload, response.status, response.statusText, 'MiniMax')
+      getResponseErrorMessage(
+        payload,
+        response.status,
+        response.statusText,
+        'MiniMax',
+      ),
     );
   }
 
-  return normalizeProviderModels('minimax', payload);
+  return catalogFromPayload('minimax', payload);
 }
 
 async function fetchTogetherModelCatalog(
   baseUrl: string,
-  apiKey: string
-): Promise<IProviderAvailableModel[]> {
+  apiKey: string,
+): Promise<IFetchedProviderCatalog> {
   const response = await fetchModelCatalog(
     `${normalizeBaseUrl(baseUrl, 'Together')}/models`,
     {
@@ -803,24 +895,29 @@ async function fetchTogetherModelCatalog(
       },
       cache: 'no-store',
     },
-    'Together'
+    'Together',
   );
   const payload = (await response.json().catch(() => null)) as unknown;
 
   if (!response.ok) {
     throw new Error(
-      getResponseErrorMessage(payload, response.status, response.statusText, 'Together')
+      getResponseErrorMessage(
+        payload,
+        response.status,
+        response.statusText,
+        'Together',
+      ),
     );
   }
 
-  return normalizeProviderModels('together', payload);
+  return catalogFromPayload('together', payload);
 }
 
 function getResponseErrorMessage(
   payload: unknown,
   status: number,
   fallbackText: string,
-  providerLabel: string
+  providerLabel: string,
 ): string {
   if (isRecord(payload)) {
     if (
@@ -850,8 +947,12 @@ function getResponseErrorMessage(
 export async function getModelSettingsPageData(): Promise<IModelSettingsPageData> {
   await requireAdminSession();
 
-  const [geminiConnection, openRouterConnection, miniMaxConnection, togetherConnection] =
-    await Promise.all([
+  const [
+    geminiConnection,
+    openRouterConnection,
+    miniMaxConnection,
+    togetherConnection,
+  ] = await Promise.all([
     readGeminiConnection(),
     readOpenRouterConnection(),
     readMiniMaxConnection(),
@@ -869,7 +970,7 @@ export async function getModelSettingsPageData(): Promise<IModelSettingsPageData
 
 export async function updateOpenRouterSettings(
   input: IUpdateOpenRouterSettingsRequest,
-  actorUid: string
+  actorUid: string,
 ): Promise<IOpenRouterProviderConnection> {
   const currentConnection = await readOpenRouterConnection();
   const normalizedApiKey = input.apiKey?.trim();
@@ -879,7 +980,7 @@ export async function updateOpenRouterSettings(
   const nextDefaultVisionModel = normalizeVisionModel(input.defaultVisionModel);
   const nextDefaultImageModel = normalizeImageModel(
     input.defaultImageModel,
-    DEFAULT_OPENROUTER_IMAGE_MODEL
+    DEFAULT_OPENROUTER_IMAGE_MODEL,
   );
 
   if (!currentConnection.apiKeyConfigured && !hasNewApiKey) {
@@ -897,7 +998,7 @@ export async function updateOpenRouterSettings(
       defaultModel: nextDefaultModel,
       defaultVisionModel: nextDefaultVisionModel,
       defaultImageModel: nextDefaultImageModel,
-    }
+    },
   );
 
   const payload: Record<string, unknown> = {
@@ -928,7 +1029,7 @@ export async function updateOpenRouterSettings(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: actorUid,
       },
-      { merge: true }
+      { merge: true },
     );
   }
 
@@ -936,15 +1037,16 @@ export async function updateOpenRouterSettings(
     hasNewApiKey || nextBaseUrl !== currentConnection.baseUrl;
 
   if (shouldSyncModels) {
-    const apiKey = hasNewApiKey && normalizedApiKey
-      ? normalizedApiKey
-      : await readStoredOpenRouterApiKey();
-    const models = await fetchOpenRouterModelCatalog(nextBaseUrl, apiKey);
-    await persistAvailableModels(
+    const apiKey =
+      hasNewApiKey && normalizedApiKey
+        ? normalizedApiKey
+        : await readStoredOpenRouterApiKey();
+    const catalog = await fetchOpenRouterModelCatalog(nextBaseUrl, apiKey);
+    await persistFetchedProviderCatalog(
       getConnectionRef(),
       actorUid,
-      models,
-      'provider-save'
+      catalog,
+      'provider-save',
     );
   }
 
@@ -952,7 +1054,7 @@ export async function updateOpenRouterSettings(
 }
 
 export async function testStoredOpenRouterConnection(
-  actorUid: string
+  actorUid: string,
 ): Promise<{
   openRouterConnection: IOpenRouterProviderConnection;
   result: IOpenRouterConnectionTestResult;
@@ -961,25 +1063,25 @@ export async function testStoredOpenRouterConnection(
 
   try {
     const apiKey = await readStoredOpenRouterApiKey();
-    const models = await fetchOpenRouterModelCatalog(connection.baseUrl, apiKey);
+    const catalog = await fetchOpenRouterModelCatalog(
+      connection.baseUrl,
+      apiKey,
+    );
     const validatedAt = new Date().toISOString();
 
     await updateValidationStatus(getConnectionRef(), actorUid, 'healthy', null);
-    await persistAvailableModels(
+    await persistFetchedProviderCatalog(
       getConnectionRef(),
       actorUid,
-      models,
-      'provider-test'
+      catalog,
+      'provider-test',
     );
 
     return {
       openRouterConnection: await readOpenRouterConnection(),
       result: {
         success: true,
-        message:
-          models.length > 0
-            ? `Validated OpenRouter access and uploaded ${models.length} available models.`
-            : 'Validated OpenRouter access successfully, but no models were returned.',
+        message: catalogSyncMessage('OpenRouter', catalog),
         validatedAt,
         model: connection.defaultModel,
       },
@@ -988,7 +1090,12 @@ export async function testStoredOpenRouterConnection(
     const message =
       error instanceof Error ? error.message : 'OpenRouter validation failed.';
 
-    await updateValidationStatus(getConnectionRef(), actorUid, 'unhealthy', message);
+    await updateValidationStatus(
+      getConnectionRef(),
+      actorUid,
+      'unhealthy',
+      message,
+    );
 
     return {
       openRouterConnection: await readOpenRouterConnection(),
@@ -1002,7 +1109,7 @@ export async function testStoredOpenRouterConnection(
 
 export async function updateMiniMaxSettings(
   input: IUpdateMiniMaxSettingsRequest,
-  actorUid: string
+  actorUid: string,
 ): Promise<IMiniMaxProviderConnection> {
   const currentConnection = await readMiniMaxConnection();
   const normalizedApiKey = input.apiKey?.trim();
@@ -1012,7 +1119,7 @@ export async function updateMiniMaxSettings(
   const nextDefaultVisionModel = normalizeVisionModel(input.defaultVisionModel);
   const nextDefaultImageModel = normalizeImageModel(
     input.defaultImageModel,
-    DEFAULT_MINIMAX_IMAGE_MODEL
+    DEFAULT_MINIMAX_IMAGE_MODEL,
   );
 
   if (!currentConnection.apiKeyConfigured && !hasNewApiKey) {
@@ -1030,7 +1137,7 @@ export async function updateMiniMaxSettings(
       defaultModel: nextDefaultModel,
       defaultVisionModel: nextDefaultVisionModel,
       defaultImageModel: nextDefaultImageModel,
-    }
+    },
   );
 
   const payload: Record<string, unknown> = {
@@ -1043,7 +1150,10 @@ export async function updateMiniMaxSettings(
     defaultModel: nextDefaultModel,
     defaultVisionModel: nextDefaultVisionModel,
     defaultImageModel: nextDefaultImageModel,
-    imageGenerationUrl: normalizeBaseUrl(input.imageGenerationUrl, 'MiniMax image'),
+    imageGenerationUrl: normalizeBaseUrl(
+      input.imageGenerationUrl,
+      'MiniMax image',
+    ),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedBy: actorUid,
   };
@@ -1058,7 +1168,7 @@ export async function updateMiniMaxSettings(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: actorUid,
       },
-      { merge: true }
+      { merge: true },
     );
   }
 
@@ -1066,15 +1176,16 @@ export async function updateMiniMaxSettings(
     hasNewApiKey || nextBaseUrl !== currentConnection.baseUrl;
 
   if (shouldSyncModels) {
-    const apiKey = hasNewApiKey && normalizedApiKey
-      ? normalizedApiKey
-      : await readStoredMiniMaxApiKey();
-    const models = await fetchMiniMaxModelCatalog(nextBaseUrl, apiKey);
-    await persistAvailableModels(
+    const apiKey =
+      hasNewApiKey && normalizedApiKey
+        ? normalizedApiKey
+        : await readStoredMiniMaxApiKey();
+    const catalog = await fetchMiniMaxModelCatalog(nextBaseUrl, apiKey);
+    await persistFetchedProviderCatalog(
       getMiniMaxConnectionRef(),
       actorUid,
-      models,
-      'provider-save'
+      catalog,
+      'provider-save',
     );
   }
 
@@ -1097,7 +1208,7 @@ async function readStoredGeminiApiKey(): Promise<string> {
 
 export async function updateGeminiSettings(
   input: IUpdateGeminiSettingsRequest,
-  actorUid: string
+  actorUid: string,
 ): Promise<IGeminiProviderConnection> {
   const currentConnection = await readGeminiConnection();
   const normalizedApiKey = input.apiKey?.trim();
@@ -1106,7 +1217,7 @@ export async function updateGeminiSettings(
   const nextDefaultVisionModel = normalizeVisionModel(input.defaultVisionModel);
   const nextDefaultImageModel = normalizeImageModel(
     input.defaultImageModel,
-    DEFAULT_GEMINI_IMAGE_MODEL
+    DEFAULT_GEMINI_IMAGE_MODEL,
   );
 
   if (!currentConnection.apiKeyConfigured && !hasNewApiKey) {
@@ -1124,7 +1235,7 @@ export async function updateGeminiSettings(
       defaultModel: nextDefaultModel,
       defaultVisionModel: nextDefaultVisionModel,
       defaultImageModel: nextDefaultImageModel,
-    }
+    },
   );
 
   const payload: Record<string, unknown> = {
@@ -1150,26 +1261,24 @@ export async function updateGeminiSettings(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: actorUid,
       },
-      { merge: true }
+      { merge: true },
     );
   }
 
   if (hasNewApiKey && normalizedApiKey) {
-    const models = await fetchGeminiModelCatalog(normalizedApiKey);
-    await persistAvailableModels(
+    const catalog = await fetchGeminiModelCatalog(normalizedApiKey);
+    await persistFetchedProviderCatalog(
       getGeminiConnectionRef(),
       actorUid,
-      models,
-      'provider-save'
+      catalog,
+      'provider-save',
     );
   }
 
   return readGeminiConnection();
 }
 
-export async function testStoredGeminiConnection(
-  actorUid: string
-): Promise<{
+export async function testStoredGeminiConnection(actorUid: string): Promise<{
   geminiConnection: IGeminiProviderConnection;
   result: IGeminiConnectionTestResult;
 }> {
@@ -1177,33 +1286,41 @@ export async function testStoredGeminiConnection(
 
   try {
     const apiKey = await readStoredGeminiApiKey();
-    const models = await fetchGeminiModelCatalog(apiKey);
+    const catalog = await fetchGeminiModelCatalog(apiKey);
     const validatedAt = new Date().toISOString();
 
-    await updateValidationStatus(getGeminiConnectionRef(), actorUid, 'healthy', null);
-    await persistAvailableModels(
+    await updateValidationStatus(
       getGeminiConnectionRef(),
       actorUid,
-      models,
-      'provider-test'
+      'healthy',
+      null,
+    );
+    await persistFetchedProviderCatalog(
+      getGeminiConnectionRef(),
+      actorUid,
+      catalog,
+      'provider-test',
     );
 
     return {
       geminiConnection: await readGeminiConnection(),
       result: {
         success: true,
-        message:
-          models.length > 0
-            ? `Validated Gemini access and uploaded ${models.length} available models.`
-            : 'Validated Gemini access successfully, but no models were returned.',
+        message: catalogSyncMessage('Gemini', catalog),
         validatedAt,
         model: connection.defaultModel,
       },
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Gemini validation failed.';
+    const message =
+      error instanceof Error ? error.message : 'Gemini validation failed.';
 
-    await updateValidationStatus(getGeminiConnectionRef(), actorUid, 'unhealthy', message);
+    await updateValidationStatus(
+      getGeminiConnectionRef(),
+      actorUid,
+      'unhealthy',
+      message,
+    );
 
     return {
       geminiConnection: await readGeminiConnection(),
@@ -1215,9 +1332,7 @@ export async function testStoredGeminiConnection(
   }
 }
 
-export async function testStoredMiniMaxConnection(
-  actorUid: string
-): Promise<{
+export async function testStoredMiniMaxConnection(actorUid: string): Promise<{
   miniMaxConnection: IMiniMaxProviderConnection;
   result: IMiniMaxConnectionTestResult;
 }> {
@@ -1225,25 +1340,27 @@ export async function testStoredMiniMaxConnection(
 
   try {
     const apiKey = await readStoredMiniMaxApiKey();
-    const models = await fetchMiniMaxModelCatalog(connection.baseUrl, apiKey);
+    const catalog = await fetchMiniMaxModelCatalog(connection.baseUrl, apiKey);
     const validatedAt = new Date().toISOString();
 
-    await updateValidationStatus(getMiniMaxConnectionRef(), actorUid, 'healthy', null);
-    await persistAvailableModels(
+    await updateValidationStatus(
       getMiniMaxConnectionRef(),
       actorUid,
-      models,
-      'provider-test'
+      'healthy',
+      null,
+    );
+    await persistFetchedProviderCatalog(
+      getMiniMaxConnectionRef(),
+      actorUid,
+      catalog,
+      'provider-test',
     );
 
     return {
       miniMaxConnection: await readMiniMaxConnection(),
       result: {
         success: true,
-        message:
-          models.length > 0
-            ? `Validated MiniMax access and uploaded ${models.length} available models.`
-            : 'Validated MiniMax access successfully, but no models were returned.',
+        message: catalogSyncMessage('MiniMax', catalog),
         validatedAt,
         model: connection.defaultModel,
       },
@@ -1252,7 +1369,12 @@ export async function testStoredMiniMaxConnection(
     const message =
       error instanceof Error ? error.message : 'MiniMax validation failed.';
 
-    await updateValidationStatus(getMiniMaxConnectionRef(), actorUid, 'unhealthy', message);
+    await updateValidationStatus(
+      getMiniMaxConnectionRef(),
+      actorUid,
+      'unhealthy',
+      message,
+    );
 
     return {
       miniMaxConnection: await readMiniMaxConnection(),
@@ -1266,7 +1388,7 @@ export async function testStoredMiniMaxConnection(
 
 export async function updateTogetherSettings(
   input: IUpdateTogetherSettingsRequest,
-  actorUid: string
+  actorUid: string,
 ): Promise<ITogetherProviderConnection> {
   const currentConnection = await readTogetherConnection();
   const normalizedApiKey = input.apiKey?.trim();
@@ -1276,9 +1398,11 @@ export async function updateTogetherSettings(
   const nextDefaultVisionModel = normalizeVisionModel(input.defaultVisionModel);
   const nextDefaultImageModel = normalizeImageModel(
     input.defaultImageModel,
-    DEFAULT_TOGETHER_IMAGE_MODEL
+    DEFAULT_TOGETHER_IMAGE_MODEL,
   );
-  const nextDefaultEmbeddingModel = normalizeVisionModel(input.defaultEmbeddingModel);
+  const nextDefaultEmbeddingModel = normalizeVisionModel(
+    input.defaultEmbeddingModel,
+  );
 
   if (!currentConnection.apiKeyConfigured && !hasNewApiKey) {
     throw new Error('Together API key is required on first save.');
@@ -1296,7 +1420,7 @@ export async function updateTogetherSettings(
       defaultVisionModel: nextDefaultVisionModel,
       defaultImageModel: nextDefaultImageModel,
       defaultEmbeddingModel: nextDefaultEmbeddingModel,
-    }
+    },
   );
 
   const payload: Record<string, unknown> = {
@@ -1324,7 +1448,7 @@ export async function updateTogetherSettings(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: actorUid,
       },
-      { merge: true }
+      { merge: true },
     );
   }
 
@@ -1332,24 +1456,23 @@ export async function updateTogetherSettings(
     hasNewApiKey || nextBaseUrl !== currentConnection.baseUrl;
 
   if (shouldSyncModels) {
-    const apiKey = hasNewApiKey && normalizedApiKey
-      ? normalizedApiKey
-      : await readStoredTogetherApiKey();
-    const models = await fetchTogetherModelCatalog(nextBaseUrl, apiKey);
-    await persistAvailableModels(
+    const apiKey =
+      hasNewApiKey && normalizedApiKey
+        ? normalizedApiKey
+        : await readStoredTogetherApiKey();
+    const catalog = await fetchTogetherModelCatalog(nextBaseUrl, apiKey);
+    await persistFetchedProviderCatalog(
       getTogetherConnectionRef(),
       actorUid,
-      models,
-      'provider-save'
+      catalog,
+      'provider-save',
     );
   }
 
   return readTogetherConnection();
 }
 
-export async function testStoredTogetherConnection(
-  actorUid: string
-): Promise<{
+export async function testStoredTogetherConnection(actorUid: string): Promise<{
   togetherConnection: ITogetherProviderConnection;
   result: ITogetherConnectionTestResult;
 }> {
@@ -1357,25 +1480,27 @@ export async function testStoredTogetherConnection(
 
   try {
     const apiKey = await readStoredTogetherApiKey();
-    const models = await fetchTogetherModelCatalog(connection.baseUrl, apiKey);
+    const catalog = await fetchTogetherModelCatalog(connection.baseUrl, apiKey);
     const validatedAt = new Date().toISOString();
 
-    await updateValidationStatus(getTogetherConnectionRef(), actorUid, 'healthy', null);
-    await persistAvailableModels(
+    await updateValidationStatus(
       getTogetherConnectionRef(),
       actorUid,
-      models,
-      'provider-test'
+      'healthy',
+      null,
+    );
+    await persistFetchedProviderCatalog(
+      getTogetherConnectionRef(),
+      actorUid,
+      catalog,
+      'provider-test',
     );
 
     return {
       togetherConnection: await readTogetherConnection(),
       result: {
         success: true,
-        message:
-          models.length > 0
-            ? `Validated Together access and uploaded ${models.length} available models.`
-            : 'Validated Together access successfully, but no models were returned.',
+        message: catalogSyncMessage('Together', catalog),
         validatedAt,
         model: connection.defaultModel,
       },
@@ -1384,7 +1509,12 @@ export async function testStoredTogetherConnection(
     const message =
       error instanceof Error ? error.message : 'Together validation failed.';
 
-    await updateValidationStatus(getTogetherConnectionRef(), actorUid, 'unhealthy', message);
+    await updateValidationStatus(
+      getTogetherConnectionRef(),
+      actorUid,
+      'unhealthy',
+      message,
+    );
 
     return {
       togetherConnection: await readTogetherConnection(),

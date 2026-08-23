@@ -26,6 +26,16 @@ export const FALLBACK_PROVIDER_RATE_CATALOG: IProviderRateCatalogEntry[] = [
     source: 'fallback_catalog',
   },
   {
+    id: 'together-qwen38-24t',
+    providerKind: 'together',
+    model: 'Qwen/Qwen3.8-2.4T-A95B',
+    meter: 'token',
+    inputUsdPer1M: 2.5,
+    outputUsdPer1M: 6.25,
+    cachedInputUsdPer1M: 0.5,
+    source: 'fallback_catalog',
+  },
+  {
     id: 'together-glm-52',
     providerKind: 'together',
     model: 'zai-org/GLM-5.2',

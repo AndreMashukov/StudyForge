@@ -3,12 +3,12 @@ import type {
   IProviderRateSnapshot,
   IProviderUsageUnits,
   LlmProviderKind,
-  ProviderCostMeter,
 } from '@shared-types';
 import {
   buildRateCatalogDocId,
   inferProviderCostMeter,
   lookupFallbackRate,
+  parseProviderPricingFromTogetherModel,
 } from '@shared-types';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -18,10 +18,6 @@ export interface IResolveProviderRateSnapshotParams {
   providerKind: LlmProviderKind;
   model: string;
   units: IProviderUsageUnits;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 function asNonNegativeFinite(value: unknown): number | undefined {
@@ -49,7 +45,9 @@ function parseRateCatalogEntry(
       providerKind !== 'minimax' &&
       providerKind !== 'together') ||
     !model ||
-    (meter !== 'token' && meter !== 'image_megapixel' && meter !== 'embedding_token')
+    (meter !== 'token' &&
+      meter !== 'image_megapixel' &&
+      meter !== 'embedding_token')
   ) {
     return null;
   }
@@ -121,51 +119,4 @@ export async function resolveProviderRateSnapshot(
   return toRateSnapshot(fallback, 'fallback_catalog');
 }
 
-export function parseProviderPricingFromTogetherModel(
-  modelId: string,
-  pricing: unknown,
-): IProviderRateCatalogEntry | null {
-  if (!isRecord(pricing)) {
-    return null;
-  }
-
-  const imagePixel = pricing.image_pixel;
-  if (isRecord(imagePixel)) {
-    const imageUsdPerMegapixel = asNonNegativeFinite(imagePixel.price_per_megapixel);
-    if (imageUsdPerMegapixel === undefined) {
-      return null;
-    }
-
-    return {
-      id: buildRateCatalogDocId('together', modelId),
-      providerKind: 'together',
-      model: modelId,
-      meter: 'image_megapixel',
-      imageUsdPerMegapixel,
-      defaultSteps: asPositiveFinite(imagePixel.min_steps) ?? 4,
-      source: 'together_api',
-    };
-  }
-
-  const input = asNonNegativeFinite(pricing.input);
-  const output = asNonNegativeFinite(pricing.output);
-  if (input === undefined && output === undefined) {
-    return null;
-  }
-
-  const meter: ProviderCostMeter =
-    modelId.includes('embed') || modelId.includes('e5')
-      ? 'embedding_token'
-      : 'token';
-
-  return {
-    id: buildRateCatalogDocId('together', modelId),
-    providerKind: 'together',
-    model: modelId,
-    meter,
-    inputUsdPer1M: input,
-    outputUsdPer1M: output ?? input,
-    cachedInputUsdPer1M: asNonNegativeFinite(pricing.cached_input),
-    source: 'together_api',
-  };
-}
+export { parseProviderPricingFromTogetherModel };

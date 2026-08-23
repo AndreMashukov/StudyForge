@@ -2400,6 +2400,12 @@ export {
   FALLBACK_PROVIDER_RATE_CATALOG,
   lookupFallbackRate,
 } from './provider-rate-fallbacks';
+export {
+  buildProviderRateCatalogForSync,
+  extractRateCatalogEntriesFromProviderPayload,
+  parseProviderPricingFromOpenRouterModel,
+  parseProviderPricingFromTogetherModel,
+} from './provider-rate-catalog-parse';
 
 /** Stable error codes surfaced to clients when LLM routing cannot proceed. */
 export type LlmRoutingErrorCode =
