@@ -5,6 +5,7 @@ import {
   calculateRemainingCredits,
   DEFAULT_USAGE_CREDIT_COSTS,
   resolveLegacySetupQuotaDefaults,
+  resolveLivePeriodAllowance,
   type GenerationKind,
   type IUsageFeaturePolicies,
   type IUsageLimitsSetup,
@@ -81,7 +82,11 @@ function parseFeaturePolicies(value: unknown): IUsageFeaturePolicies | null {
 
     const enabled = policyValue.enabled;
     const creditCost = policyValue.creditCost;
-    if (typeof enabled !== 'boolean' || typeof creditCost !== 'number' || creditCost < 0) {
+    if (
+      typeof enabled !== 'boolean' ||
+      typeof creditCost !== 'number' ||
+      creditCost < 0
+    ) {
       return null;
     }
 
@@ -106,7 +111,9 @@ function parseUsageLimitsSetup(
 ): IUsageLimitsSetup | null {
   const name = typeof data.name === 'string' ? data.name.trim() : '';
   const monthlyCreditAllowance =
-    typeof data.monthlyCreditAllowance === 'number' ? data.monthlyCreditAllowance : NaN;
+    typeof data.monthlyCreditAllowance === 'number'
+      ? data.monthlyCreditAllowance
+      : NaN;
   const featurePolicies = parseFeaturePolicies(data.featurePolicies);
 
   if (
@@ -137,7 +144,8 @@ function parseUsageLimitsSetup(
   return {
     id,
     name,
-    description: typeof data.description === 'string' ? data.description : undefined,
+    description:
+      typeof data.description === 'string' ? data.description : undefined,
     monthlyCreditAllowance,
     storageLimitBytes,
     dailySlideDeckLimit,
@@ -164,7 +172,10 @@ function usageReservationRef(userId: string, reservationId: string) {
 }
 
 function usageEventsCollection(userId: string) {
-  return getFirestore().collection(USERS_COLLECTION).doc(userId).collection('usageEvents');
+  return getFirestore()
+    .collection(USERS_COLLECTION)
+    .doc(userId)
+    .collection('usageEvents');
 }
 
 const USAGE_SUMMARY_DOC_ID = 'current';
@@ -179,20 +190,30 @@ function usageSummaryRef(userId: string) {
 
 function readPeriodNumbers(periodData: FirebaseFirestore.DocumentData) {
   return {
-    allowance: typeof periodData.allowance === 'number' ? periodData.allowance : 0,
+    allowance:
+      typeof periodData.allowance === 'number' ? periodData.allowance : 0,
     reservedCredits:
-      typeof periodData.reservedCredits === 'number' ? periodData.reservedCredits : 0,
-    spentCredits: typeof periodData.spentCredits === 'number' ? periodData.spentCredits : 0,
+      typeof periodData.reservedCredits === 'number'
+        ? periodData.reservedCredits
+        : 0,
+    spentCredits:
+      typeof periodData.spentCredits === 'number' ? periodData.spentCredits : 0,
     refundedCredits:
-      typeof periodData.refundedCredits === 'number' ? periodData.refundedCredits : 0,
+      typeof periodData.refundedCredits === 'number'
+        ? periodData.refundedCredits
+        : 0,
     reservedOverageCredits:
       typeof periodData.reservedOverageCredits === 'number'
         ? periodData.reservedOverageCredits
         : 0,
     spentOverageCredits:
-      typeof periodData.spentOverageCredits === 'number' ? periodData.spentOverageCredits : 0,
+      typeof periodData.spentOverageCredits === 'number'
+        ? periodData.spentOverageCredits
+        : 0,
     overageAmountCents:
-      typeof periodData.overageAmountCents === 'number' ? periodData.overageAmountCents : 0,
+      typeof periodData.overageAmountCents === 'number'
+        ? periodData.overageAmountCents
+        : 0,
     reservedOverageAmountCents:
       typeof periodData.reservedOverageAmountCents === 'number'
         ? periodData.reservedOverageAmountCents
@@ -209,10 +230,9 @@ async function buildUserUsageSummary(
   periodKey: string,
   periodData: FirebaseFirestore.DocumentData,
 ): Promise<IUserUsageSummary> {
-  const allowance =
-    typeof periodData.allowance === 'number'
-      ? periodData.allowance
-      : context.setup.monthlyCreditAllowance;
+  const allowance = resolveLivePeriodAllowance(
+    context.setup.monthlyCreditAllowance,
+  );
   const numbers = readPeriodNumbers({ ...periodData, allowance });
   const remainingCredits = calculateRemainingCredits({
     allowance,
@@ -273,24 +293,60 @@ async function writeUsageSummaryDocument(
   });
 }
 
-async function syncUsageSummaryDocument(userId: string): Promise<IUserUsageSummary> {
+async function persistLivePeriodLimits(
+  userId: string,
+  periodKey: string,
+  summary: IUserUsageSummary,
+  periodData: FirebaseFirestore.DocumentData,
+): Promise<void> {
+  if (
+    periodData.allowance === summary.allowance &&
+    periodData.usageLimitsSetupId === summary.usageLimitsSetupId
+  ) {
+    return;
+  }
+
+  await usagePeriodRef(userId, periodKey).set(
+    {
+      periodKey,
+      allowance: summary.allowance,
+      usageLimitsSetupId: summary.usageLimitsSetupId,
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true },
+  );
+}
+
+async function syncUsageSummaryDocument(
+  userId: string,
+): Promise<IUserUsageSummary> {
   const context = await resolveUserUsageContext(userId);
   const periodKey = buildUsagePeriodKey();
   const periodSnapshot = await usagePeriodRef(userId, periodKey).get();
-  const summary = await buildUserUsageSummary(context, periodKey, periodSnapshot.data() ?? {});
+  const periodData = periodSnapshot.data() ?? {};
+  const summary = await buildUserUsageSummary(context, periodKey, periodData);
+  await persistLivePeriodLimits(userId, periodKey, summary, periodData);
   await writeUsageSummaryDocument(userId, summary);
   return summary;
 }
 
-async function resolveUserUsageContext(userId: string): Promise<IUserUsageLimitsContext> {
-  const userSnapshot = await getFirestore().collection(USERS_COLLECTION).doc(userId).get();
+async function resolveUserUsageContext(
+  userId: string,
+): Promise<IUserUsageLimitsContext> {
+  const userSnapshot = await getFirestore()
+    .collection(USERS_COLLECTION)
+    .doc(userId)
+    .get();
   const userGroupId =
     typeof userSnapshot.data()?.userGroupId === 'string'
       ? userSnapshot.data()?.userGroupId.trim()
       : '';
 
   if (!userGroupId) {
-    throw new UsageLimitError('User group is not assigned.', 'USER_GROUP_NOT_ASSIGNED');
+    throw new UsageLimitError(
+      'User group is not assigned.',
+      'USER_GROUP_NOT_ASSIGNED',
+    );
   }
 
   const groupSnapshot = await getFirestore()
@@ -303,7 +359,8 @@ async function resolveUserUsageContext(userId: string): Promise<IUserUsageLimits
   }
 
   const groupData = groupSnapshot.data() ?? {};
-  const llmSetupId = typeof groupData.llmSetupId === 'string' ? groupData.llmSetupId.trim() : '';
+  const llmSetupId =
+    typeof groupData.llmSetupId === 'string' ? groupData.llmSetupId.trim() : '';
   const usageLimitsSetupId =
     typeof groupData.usageLimitsSetupId === 'string'
       ? groupData.usageLimitsSetupId.trim()
@@ -322,12 +379,21 @@ async function resolveUserUsageContext(userId: string): Promise<IUserUsageLimits
     .get();
 
   if (!setupSnapshot.exists) {
-    throw new UsageLimitError('Usage limits setup not found.', 'USAGE_LIMITS_SETUP_NOT_FOUND');
+    throw new UsageLimitError(
+      'Usage limits setup not found.',
+      'USAGE_LIMITS_SETUP_NOT_FOUND',
+    );
   }
 
-  const setup = parseUsageLimitsSetup(setupSnapshot.id, setupSnapshot.data() ?? {});
+  const setup = parseUsageLimitsSetup(
+    setupSnapshot.id,
+    setupSnapshot.data() ?? {},
+  );
   if (!setup) {
-    throw new UsageLimitError('Usage limits setup data is invalid.', 'USAGE_LIMITS_SETUP_NOT_FOUND');
+    throw new UsageLimitError(
+      'Usage limits setup data is invalid.',
+      'USAGE_LIMITS_SETUP_NOT_FOUND',
+    );
   }
 
   return {
@@ -397,99 +463,101 @@ export async function reserveUsageCredits(params: {
   const reservationDocRef = usageReservationRef(params.userId, reservationId);
   const billingConfig = await getBillingConfig();
 
-  const reservation = await getFirestore().runTransaction(async (transaction) => {
-    const periodSnapshot = await transaction.get(periodRef);
-    const billingSnapshot = await transaction.get(billingStateDocRef);
-    const periodData = periodSnapshot.data() ?? {};
-    const allowance =
-      typeof periodData.allowance === 'number'
-        ? periodData.allowance
-        : context.setup.monthlyCreditAllowance;
-    const numbers = readPeriodNumbers({ ...periodData, allowance });
-    const billingState = parseUserBillingState(billingSnapshot.data(), {
-      defaultPricePerCreditCents: billingConfig.pricePerCreditCents,
-    });
-    const billing = buildUsageBillingContext(billingState, periodData);
-
-    const decision = evaluateUsageLimitDecision({
-      policy,
-      period: {
-        allowance,
-        reservedCredits: numbers.reservedCredits,
-        spentCredits: numbers.spentCredits,
-        refundedCredits: numbers.refundedCredits,
-        reservedOverageCredits: numbers.reservedOverageCredits,
-        spentOverageCredits: numbers.spentOverageCredits,
-        overageAmountCents: numbers.overageAmountCents,
-        reservedOverageAmountCents: numbers.reservedOverageAmountCents,
-      },
-      billing,
-      quantity: params.quantity,
-    });
-
-    if (decision.allowed === false) {
-      throw new UsageLimitError(decision.message, decision.code, {
-        generationKind,
-        remainingCredits: decision.remainingCredits,
-        resetAt: buildUsagePeriodResetAt(periodKey),
-        creditCost: decision.credits,
+  const reservation = await getFirestore().runTransaction(
+    async (transaction) => {
+      const periodSnapshot = await transaction.get(periodRef);
+      const billingSnapshot = await transaction.get(billingStateDocRef);
+      const periodData = periodSnapshot.data() ?? {};
+      const allowance = resolveLivePeriodAllowance(
+        context.setup.monthlyCreditAllowance,
+      );
+      const numbers = readPeriodNumbers({ ...periodData, allowance });
+      const billingState = parseUserBillingState(billingSnapshot.data(), {
+        defaultPricePerCreditCents: billingConfig.pricePerCreditCents,
       });
-    }
+      const billing = buildUsageBillingContext(billingState, periodData);
 
-    const now = new Date().toISOString();
-    transaction.set(
-      periodRef,
-      {
-        periodKey,
-        allowance,
+      const decision = evaluateUsageLimitDecision({
+        policy,
+        period: {
+          allowance,
+          reservedCredits: numbers.reservedCredits,
+          spentCredits: numbers.spentCredits,
+          refundedCredits: numbers.refundedCredits,
+          reservedOverageCredits: numbers.reservedOverageCredits,
+          spentOverageCredits: numbers.spentOverageCredits,
+          overageAmountCents: numbers.overageAmountCents,
+          reservedOverageAmountCents: numbers.reservedOverageAmountCents,
+        },
+        billing,
+        quantity: params.quantity,
+      });
+
+      if (decision.allowed === false) {
+        throw new UsageLimitError(decision.message, decision.code, {
+          generationKind,
+          remainingCredits: decision.remainingCredits,
+          resetAt: buildUsagePeriodResetAt(periodKey),
+          creditCost: decision.credits,
+        });
+      }
+
+      const now = new Date().toISOString();
+      transaction.set(
+        periodRef,
+        {
+          periodKey,
+          allowance,
+          usageLimitsSetupId: context.setup.id,
+          reservedCredits: numbers.reservedCredits + decision.includedCredits,
+          spentCredits: numbers.spentCredits,
+          refundedCredits: numbers.refundedCredits,
+          reservedOverageCredits:
+            numbers.reservedOverageCredits + decision.overageCredits,
+          spentOverageCredits: numbers.spentOverageCredits,
+          overageAmountCents: numbers.overageAmountCents,
+          reservedOverageAmountCents:
+            numbers.reservedOverageAmountCents + decision.overageAmountCents,
+          invoicedOverageAmountCents: numbers.invoicedOverageAmountCents,
+          blockedCount: FieldValue.increment(0),
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+
+      transaction.set(reservationDocRef, {
+        id: reservationId,
+        userId: params.userId,
+        userGroupId: context.userGroupId,
         usageLimitsSetupId: context.setup.id,
-        reservedCredits: numbers.reservedCredits + decision.includedCredits,
-        spentCredits: numbers.spentCredits,
-        refundedCredits: numbers.refundedCredits,
-        reservedOverageCredits: numbers.reservedOverageCredits + decision.overageCredits,
-        spentOverageCredits: numbers.spentOverageCredits,
-        overageAmountCents: numbers.overageAmountCents,
-        reservedOverageAmountCents:
-          numbers.reservedOverageAmountCents + decision.overageAmountCents,
-        invoicedOverageAmountCents: numbers.invoicedOverageAmountCents,
-        blockedCount: FieldValue.increment(0),
-        updatedAt: now,
-      },
-      { merge: true },
-    );
+        llmSetupId: context.llmSetupId,
+        generationKind,
+        credits: decision.credits,
+        includedCredits: decision.includedCredits,
+        overageCredits: decision.overageCredits,
+        overageAmountCents: decision.overageAmountCents,
+        periodKey,
+        status: 'pending',
+        createdAt: now,
+      });
 
-    transaction.set(reservationDocRef, {
-      id: reservationId,
-      userId: params.userId,
-      userGroupId: context.userGroupId,
-      usageLimitsSetupId: context.setup.id,
-      llmSetupId: context.llmSetupId,
-      generationKind,
-      credits: decision.credits,
-      includedCredits: decision.includedCredits,
-      overageCredits: decision.overageCredits,
-      overageAmountCents: decision.overageAmountCents,
-      periodKey,
-      status: 'pending',
-      createdAt: now,
-    });
-
-    return {
-      id: reservationId,
-      userId: params.userId,
-      userGroupId: context.userGroupId,
-      usageLimitsSetupId: context.setup.id,
-      llmSetupId: context.llmSetupId,
-      generationKind,
-      credits: decision.credits,
-      includedCredits: decision.includedCredits,
-      overageCredits: decision.overageCredits,
-      overageAmountCents: decision.overageAmountCents,
-      periodKey,
-      status: 'pending' as const,
-      createdAt: now,
-    };
-  });
+      return {
+        id: reservationId,
+        userId: params.userId,
+        userGroupId: context.userGroupId,
+        usageLimitsSetupId: context.setup.id,
+        llmSetupId: context.llmSetupId,
+        generationKind,
+        credits: decision.credits,
+        includedCredits: decision.includedCredits,
+        overageCredits: decision.overageCredits,
+        overageAmountCents: decision.overageAmountCents,
+        periodKey,
+        status: 'pending' as const,
+        createdAt: now,
+      };
+    },
+  );
 
   await appendUsageEvent({
     userId: params.userId,
@@ -511,13 +579,19 @@ export async function reserveUsageCredits(params: {
   return reservation;
 }
 
-export async function commitUsageReservation(userId: string, reservationId: string): Promise<void> {
+export async function commitUsageReservation(
+  userId: string,
+  reservationId: string,
+): Promise<void> {
   const reservationRef = usageReservationRef(userId, reservationId);
 
   const settled = await getFirestore().runTransaction(async (transaction) => {
     const reservationSnapshot = await transaction.get(reservationRef);
     if (!reservationSnapshot.exists) {
-      throw new UsageLimitError('Usage reservation not found.', 'RESERVATION_NOT_FOUND');
+      throw new UsageLimitError(
+        'Usage reservation not found.',
+        'RESERVATION_NOT_FOUND',
+      );
     }
 
     const reservationData = reservationSnapshot.data() ?? {};
@@ -527,22 +601,30 @@ export async function commitUsageReservation(userId: string, reservationId: stri
     }
 
     if (status !== 'pending') {
-      throw new UsageLimitError('Usage reservation is invalid.', 'RESERVATION_NOT_FOUND');
+      throw new UsageLimitError(
+        'Usage reservation is invalid.',
+        'RESERVATION_NOT_FOUND',
+      );
     }
 
-    const credits = typeof reservationData.credits === 'number' ? reservationData.credits : 0;
+    const credits =
+      typeof reservationData.credits === 'number' ? reservationData.credits : 0;
     const includedCredits =
       typeof reservationData.includedCredits === 'number'
         ? reservationData.includedCredits
         : credits;
     const overageCredits =
-      typeof reservationData.overageCredits === 'number' ? reservationData.overageCredits : 0;
+      typeof reservationData.overageCredits === 'number'
+        ? reservationData.overageCredits
+        : 0;
     const overageAmountCents =
       typeof reservationData.overageAmountCents === 'number'
         ? reservationData.overageAmountCents
         : 0;
     const periodKey =
-      typeof reservationData.periodKey === 'string' ? reservationData.periodKey : buildUsagePeriodKey();
+      typeof reservationData.periodKey === 'string'
+        ? reservationData.periodKey
+        : buildUsagePeriodKey();
     const periodRef = usagePeriodRef(userId, periodKey);
     const periodSnapshot = await transaction.get(periodRef);
     const periodData = periodSnapshot.data() ?? {};
@@ -553,7 +635,10 @@ export async function commitUsageReservation(userId: string, reservationId: stri
       {
         reservedCredits: Math.max(0, numbers.reservedCredits - includedCredits),
         spentCredits: numbers.spentCredits + includedCredits,
-        reservedOverageCredits: Math.max(0, numbers.reservedOverageCredits - overageCredits),
+        reservedOverageCredits: Math.max(
+          0,
+          numbers.reservedOverageCredits - overageCredits,
+        ),
         spentOverageCredits: numbers.spentOverageCredits + overageCredits,
         overageAmountCents: numbers.overageAmountCents + overageAmountCents,
         reservedOverageAmountCents: Math.max(
@@ -576,13 +661,17 @@ export async function commitUsageReservation(userId: string, reservationId: stri
 
     return {
       userGroupId:
-        typeof reservationData.userGroupId === 'string' ? reservationData.userGroupId : '',
+        typeof reservationData.userGroupId === 'string'
+          ? reservationData.userGroupId
+          : '',
       usageLimitsSetupId:
         typeof reservationData.usageLimitsSetupId === 'string'
           ? reservationData.usageLimitsSetupId
           : '',
       llmSetupId:
-        typeof reservationData.llmSetupId === 'string' ? reservationData.llmSetupId : undefined,
+        typeof reservationData.llmSetupId === 'string'
+          ? reservationData.llmSetupId
+          : undefined,
       generationKind: reservationData.generationKind as GenerationKind,
       credits,
       includedCredits,
@@ -616,27 +705,37 @@ export async function commitUsageReservation(userId: string, reservationId: stri
   const periodSnapshot = await usagePeriodRef(userId, settled.periodKey).get();
   const periodData = periodSnapshot.data() ?? {};
   const periodNumbers = readPeriodNumbers(periodData);
-  const committedCredits = periodNumbers.spentCredits + periodNumbers.spentOverageCredits;
+  const committedCredits =
+    periodNumbers.spentCredits + periodNumbers.spentOverageCredits;
   await syncCommittedCreditsToProviderCostRollups({
     userId,
     periodKey: settled.periodKey,
     committedCredits,
   }).catch((error) => {
-    functions.logger.warn('Failed to sync committed credits to provider cost rollup', {
-      userId,
-      periodKey: settled.periodKey,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    functions.logger.warn(
+      'Failed to sync committed credits to provider cost rollup',
+      {
+        userId,
+        periodKey: settled.periodKey,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
   });
 }
 
-export async function refundUsageReservation(userId: string, reservationId: string): Promise<void> {
+export async function refundUsageReservation(
+  userId: string,
+  reservationId: string,
+): Promise<void> {
   const reservationRef = usageReservationRef(userId, reservationId);
 
   const settled = await getFirestore().runTransaction(async (transaction) => {
     const reservationSnapshot = await transaction.get(reservationRef);
     if (!reservationSnapshot.exists) {
-      throw new UsageLimitError('Usage reservation not found.', 'RESERVATION_NOT_FOUND');
+      throw new UsageLimitError(
+        'Usage reservation not found.',
+        'RESERVATION_NOT_FOUND',
+      );
     }
 
     const reservationData = reservationSnapshot.data() ?? {};
@@ -646,22 +745,30 @@ export async function refundUsageReservation(userId: string, reservationId: stri
     }
 
     if (status !== 'pending') {
-      throw new UsageLimitError('Usage reservation is invalid.', 'RESERVATION_NOT_FOUND');
+      throw new UsageLimitError(
+        'Usage reservation is invalid.',
+        'RESERVATION_NOT_FOUND',
+      );
     }
 
-    const credits = typeof reservationData.credits === 'number' ? reservationData.credits : 0;
+    const credits =
+      typeof reservationData.credits === 'number' ? reservationData.credits : 0;
     const includedCredits =
       typeof reservationData.includedCredits === 'number'
         ? reservationData.includedCredits
         : credits;
     const overageCredits =
-      typeof reservationData.overageCredits === 'number' ? reservationData.overageCredits : 0;
+      typeof reservationData.overageCredits === 'number'
+        ? reservationData.overageCredits
+        : 0;
     const overageAmountCents =
       typeof reservationData.overageAmountCents === 'number'
         ? reservationData.overageAmountCents
         : 0;
     const periodKey =
-      typeof reservationData.periodKey === 'string' ? reservationData.periodKey : buildUsagePeriodKey();
+      typeof reservationData.periodKey === 'string'
+        ? reservationData.periodKey
+        : buildUsagePeriodKey();
     const periodRef = usagePeriodRef(userId, periodKey);
     const periodSnapshot = await transaction.get(periodRef);
     const periodData = periodSnapshot.data() ?? {};
@@ -672,7 +779,10 @@ export async function refundUsageReservation(userId: string, reservationId: stri
       {
         reservedCredits: Math.max(0, numbers.reservedCredits - includedCredits),
         refundedCredits: numbers.refundedCredits + includedCredits,
-        reservedOverageCredits: Math.max(0, numbers.reservedOverageCredits - overageCredits),
+        reservedOverageCredits: Math.max(
+          0,
+          numbers.reservedOverageCredits - overageCredits,
+        ),
         reservedOverageAmountCents: Math.max(
           0,
           numbers.reservedOverageAmountCents - overageAmountCents,
@@ -693,13 +803,17 @@ export async function refundUsageReservation(userId: string, reservationId: stri
 
     return {
       userGroupId:
-        typeof reservationData.userGroupId === 'string' ? reservationData.userGroupId : '',
+        typeof reservationData.userGroupId === 'string'
+          ? reservationData.userGroupId
+          : '',
       usageLimitsSetupId:
         typeof reservationData.usageLimitsSetupId === 'string'
           ? reservationData.usageLimitsSetupId
           : '',
       llmSetupId:
-        typeof reservationData.llmSetupId === 'string' ? reservationData.llmSetupId : undefined,
+        typeof reservationData.llmSetupId === 'string'
+          ? reservationData.llmSetupId
+          : undefined,
       generationKind: reservationData.generationKind as GenerationKind,
       credits,
       includedCredits,
@@ -731,7 +845,9 @@ export async function refundUsageReservation(userId: string, reservationId: stri
   await syncUsageSummaryDocument(userId);
 }
 
-export async function getUserUsageSummary(userId: string): Promise<IUserUsageSummary> {
+export async function getUserUsageSummary(
+  userId: string,
+): Promise<IUserUsageSummary> {
   return syncUsageSummaryDocument(userId);
 }
 
@@ -750,7 +866,9 @@ export async function listRecentUsageEvents(
   }));
 }
 
-export async function getUsagePeriodSummary(userId: string): Promise<IUsagePeriodSummary> {
+export async function getUsagePeriodSummary(
+  userId: string,
+): Promise<IUsagePeriodSummary> {
   const summary = await getUserUsageSummary(userId);
   return {
     periodKey: summary.periodKey,
@@ -768,7 +886,9 @@ export async function getUsagePeriodSummary(userId: string): Promise<IUsagePerio
   };
 }
 
-export async function resolveUserUsageLimitsContext(userId: string): Promise<IUserUsageLimitsContext> {
+export async function resolveUserUsageLimitsContext(
+  userId: string,
+): Promise<IUserUsageLimitsContext> {
   return resolveUserUsageContext(userId);
 }
 
@@ -786,13 +906,18 @@ export async function settleJobUsageReservation(params: {
   dailySlideDeckReservationId?: string;
 }): Promise<void> {
   if (params.dailySlideDeckReservationId) {
-    const { commitDailySlideDeckReservation, refundDailySlideDeckReservation } = await import(
-      './usage-quota-service'
-    );
+    const { commitDailySlideDeckReservation, refundDailySlideDeckReservation } =
+      await import('./usage-quota-service');
     if (params.succeeded) {
-      await commitDailySlideDeckReservation(params.userId, params.dailySlideDeckReservationId);
+      await commitDailySlideDeckReservation(
+        params.userId,
+        params.dailySlideDeckReservationId,
+      );
     } else {
-      await refundDailySlideDeckReservation(params.userId, params.dailySlideDeckReservationId);
+      await refundDailySlideDeckReservation(
+        params.userId,
+        params.dailySlideDeckReservationId,
+      );
     }
   }
 

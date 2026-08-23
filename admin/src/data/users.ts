@@ -3,6 +3,7 @@ import 'server-only';
 import { IAdminUserSummary } from '@admin/types/IAdminUserSummary';
 import { requireAdminSession } from '../auth/session';
 import { getAdminAuth, getAdminFirestore } from '../firebase/admin';
+import { refreshUserUsageAfterLimitsChange } from './user-usage';
 
 export interface IListUsersOptions {
   limit?: number;
@@ -26,12 +27,17 @@ function toIsoString(value: unknown): string | undefined {
   return undefined;
 }
 
-async function resolveGroupName(userGroupId?: string): Promise<string | undefined> {
+async function resolveGroupName(
+  userGroupId?: string,
+): Promise<string | undefined> {
   if (!userGroupId) {
     return undefined;
   }
 
-  const doc = await getAdminFirestore().collection('userGroups').doc(userGroupId).get();
+  const doc = await getAdminFirestore()
+    .collection('userGroups')
+    .doc(userGroupId)
+    .get();
   const name = doc.data()?.name;
   return typeof name === 'string' ? name : undefined;
 }
@@ -42,7 +48,7 @@ function mapUserSummary(
   authDisplayName: string | undefined,
   authCreatedAt: string | undefined,
   disabled: boolean,
-  firestoreData: FirebaseFirestore.DocumentData | undefined
+  firestoreData: FirebaseFirestore.DocumentData | undefined,
 ): IAdminUserSummary {
   const userGroupId =
     typeof firestoreData?.userGroupId === 'string'
@@ -51,8 +57,16 @@ function mapUserSummary(
 
   return {
     uid,
-    email: authEmail || (typeof firestoreData?.email === 'string' ? firestoreData.email : 'unknown'),
-    displayName: authDisplayName || (typeof firestoreData?.displayName === 'string' ? firestoreData.displayName : undefined),
+    email:
+      authEmail ||
+      (typeof firestoreData?.email === 'string'
+        ? firestoreData.email
+        : 'unknown'),
+    displayName:
+      authDisplayName ||
+      (typeof firestoreData?.displayName === 'string'
+        ? firestoreData.displayName
+        : undefined),
     createdAt: toIsoString(firestoreData?.createdAt) || authCreatedAt,
     disabled,
     userGroupId: userGroupId || undefined,
@@ -60,7 +74,7 @@ function mapUserSummary(
 }
 
 export async function listUsers(
-  options: IListUsersOptions = {}
+  options: IListUsersOptions = {},
 ): Promise<IAdminUserSummary[]> {
   await requireAdminSession();
 
@@ -79,7 +93,7 @@ export async function listUsers(
       user.displayName,
       user.metadata.creationTime,
       user.disabled,
-      doc.data()
+      doc.data(),
     );
 
     summary.userGroupName = await resolveGroupName(summary.userGroupId);
@@ -89,7 +103,9 @@ export async function listUsers(
   return summaries;
 }
 
-export async function getUserById(userId: string): Promise<IAdminUserSummary | null> {
+export async function getUserById(
+  userId: string,
+): Promise<IAdminUserSummary | null> {
   await requireAdminSession();
 
   const auth = getAdminAuth();
@@ -104,7 +120,7 @@ export async function getUserById(userId: string): Promise<IAdminUserSummary | n
       user.displayName,
       user.metadata.creationTime,
       user.disabled,
-      doc.data()
+      doc.data(),
     );
 
     summary.userGroupName = await resolveGroupName(summary.userGroupId);
@@ -117,11 +133,14 @@ export async function getUserById(userId: string): Promise<IAdminUserSummary | n
 export async function assignUserGroup(
   userId: string,
   userGroupId: string,
-  adminUid: string
+  adminUid: string,
 ): Promise<IAdminUserSummary> {
   await requireAdminSession();
 
-  const group = await getAdminFirestore().collection('userGroups').doc(userGroupId).get();
+  const group = await getAdminFirestore()
+    .collection('userGroups')
+    .doc(userGroupId)
+    .get();
   if (!group.exists) {
     throw new Error('User group not found.');
   }
@@ -137,8 +156,10 @@ export async function assignUserGroup(
       updatedAt: new Date().toISOString(),
       updatedBy: adminUid,
     },
-    { merge: true }
+    { merge: true },
   );
+
+  await refreshUserUsageAfterLimitsChange(userId);
 
   const updated = await getUserById(userId);
   if (!updated) {
