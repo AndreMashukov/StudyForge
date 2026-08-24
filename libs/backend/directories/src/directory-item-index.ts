@@ -232,10 +232,6 @@ export async function reorderDirectoryItems(
 ): Promise<ReorderDirectoryItemsResponse> {
   const { directoryId, itemType, orderedSourceIds } = request;
 
-  if (itemType === 'subdirectory') {
-    throw new Error('Cannot reorder subdirectories');
-  }
-
   if (!Array.isArray(orderedSourceIds) || orderedSourceIds.length === 0) {
     throw new Error('orderedSourceIds must be a non-empty array');
   }
