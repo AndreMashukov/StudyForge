@@ -23,11 +23,14 @@ function parseBucket(value: unknown): IProviderCostBucket {
 
   const knownCostUsd =
     typeof value.knownCostUsd === 'number' ? value.knownCostUsd : 0;
-  const eventCount = typeof value.eventCount === 'number' ? value.eventCount : 0;
+  const eventCount =
+    typeof value.eventCount === 'number' ? value.eventCount : 0;
   const committedCredits =
     typeof value.committedCredits === 'number' ? value.committedCredits : 0;
   const costUsdPerCredit =
-    typeof value.costUsdPerCredit === 'number' ? value.costUsdPerCredit : undefined;
+    typeof value.costUsdPerCredit === 'number'
+      ? value.costUsdPerCredit
+      : undefined;
 
   return {
     knownCostUsd,
@@ -65,7 +68,9 @@ function mergeBuckets(
   return merged;
 }
 
-function isUserPeriodDoc(doc: FirebaseFirestore.QueryDocumentSnapshot): boolean {
+function isUserPeriodDoc(
+  doc: FirebaseFirestore.QueryDocumentSnapshot,
+): boolean {
   return typeof doc.data().userId === 'string' && doc.data().userId.length > 0;
 }
 
@@ -95,9 +100,12 @@ export async function readAdminProviderCostPeriod(
 
   for (const doc of userDocs) {
     const data = doc.data();
-    knownCostUsd += typeof data.knownCostUsd === 'number' ? data.knownCostUsd : 0;
+    knownCostUsd +=
+      typeof data.knownCostUsd === 'number' ? data.knownCostUsd : 0;
     unknownCostEventCount +=
-      typeof data.unknownCostEventCount === 'number' ? data.unknownCostEventCount : 0;
+      typeof data.unknownCostEventCount === 'number'
+        ? data.unknownCostEventCount
+        : 0;
     totalEventCount +=
       typeof data.totalEventCount === 'number' ? data.totalEventCount : 0;
     committedCredits +=
