@@ -16,6 +16,8 @@ import {
   DeleteDirectoryResponse,
   IBulkDeleteDirectoriesRequest,
   IBulkOperationResponse,
+  ReorderDirectoryItemsRequest,
+  ReorderDirectoryItemsResponse,
 } from '@shared-types';
 import { auth } from '../../../config/firebase';
 import {
@@ -32,6 +34,7 @@ import {
 } from '../../../services/directoryItemIndex';
 import { mapDirectoryItemsToContentsResponse } from '../../../services/directoryItemIndexMappers';
 import { upsertSubdirectoryInDirectoryCaches } from '../../../hooks/directoryRealtimeCacheUtils';
+import { patchReorderInAllDirectoryContentsCaches } from './directoryReorderCacheUtils';
 import type { RootState } from '../../index';
 
 export const directoryApi = baseApi.injectEndpoints({
@@ -484,6 +487,34 @@ export const directoryApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Documents', { type: 'Directory', id: 'LIST' }],
     }),
+
+    reorderDirectoryItems: builder.mutation<
+      ReorderDirectoryItemsResponse,
+      ReorderDirectoryItemsRequest
+    >({
+      query: (data) => ({
+        functionName: 'reorderDirectoryItems',
+        data,
+      }),
+      async onQueryStarted(
+        { directoryId, itemType, orderedSourceIds },
+        { dispatch, queryFulfilled, getState },
+      ) {
+        const patchResults = patchReorderInAllDirectoryContentsCaches(
+          dispatch,
+          getState as () => RootState,
+          directoryId,
+          itemType,
+          orderedSourceIds,
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          patchResults.forEach((patch) => patch.undo());
+        }
+      },
+    }),
   }),
 });
 
@@ -501,4 +532,5 @@ export const {
   useMoveDirectoryMutation,
   useGetDirectoryByPathQuery,
   useMoveDocumentMutation,
+  useReorderDirectoryItemsMutation,
 } = directoryApi;

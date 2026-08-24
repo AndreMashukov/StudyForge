@@ -21,6 +21,7 @@ export const BulkSelectCheckbox: React.FC<IBulkSelectCheckbox> = ({
     <div
       className={cn('shrink-0', className)}
       onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
       <Checkbox

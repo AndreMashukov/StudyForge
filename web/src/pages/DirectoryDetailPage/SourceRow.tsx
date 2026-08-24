@@ -43,7 +43,10 @@ interface SourceRowProps {
   generationModel?: string;
   selected?: boolean;
   onSelectChange?: (selected: boolean) => void;
-  onCreateArtifact?: (artifactType: CreateArtifactModalType, documentId: string) => void;
+  onCreateArtifact?: (
+    artifactType: CreateArtifactModalType,
+    documentId: string,
+  ) => void;
 }
 
 export const SourceRow: React.FC<SourceRowProps> = ({
@@ -95,10 +98,17 @@ export const SourceRow: React.FC<SourceRowProps> = ({
       >
         {selectionControl}
         <div className="flex flex-1 items-center gap-3 p-3 min-w-0">
-          <Loader2 size={18} className="shrink-0 text-muted-foreground animate-spin" />
+          <Loader2
+            size={18}
+            className="shrink-0 text-muted-foreground animate-spin"
+          />
           <div className="flex-1 min-w-0">
-            <div className="font-medium truncate text-muted-foreground">{document.title}</div>
-            <Badge variant="secondary" className="mt-1 text-xs">Preparing</Badge>
+            <div className="font-medium truncate text-muted-foreground">
+              {document.title}
+            </div>
+            <Badge variant="secondary" className="mt-1 text-xs">
+              Preparing
+            </Badge>
           </div>
           <Button
             variant="ghost"
@@ -127,8 +137,12 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         <div className="flex flex-1 items-center gap-3 p-3 min-w-0">
           <AlertCircle size={18} className="shrink-0 text-destructive" />
           <div className="flex-1 min-w-0">
-            <div className="font-medium truncate text-destructive">{document.title}</div>
-            <div className="text-xs text-destructive/70 truncate">{document.generationError || 'Generation failed'}</div>
+            <div className="font-medium truncate text-destructive">
+              {document.title}
+            </div>
+            <div className="text-xs text-destructive/70 truncate">
+              {document.generationError || 'Generation failed'}
+            </div>
           </div>
           <Button
             variant="ghost"
@@ -165,11 +179,17 @@ export const SourceRow: React.FC<SourceRowProps> = ({
                 onChange={(event) => handleDraftTitleChange(event.target.value)}
                 onBlur={handleTitleBlur}
                 onKeyDown={handleTitleKeyDown}
+                onPointerDown={(event) => event.stopPropagation()}
                 disabled={isSavingTitle}
                 aria-label={`Edit name for ${document.title}`}
-                className={cn('h-8 font-medium', titleError && 'border-destructive')}
+                className={cn(
+                  'h-8 font-medium',
+                  titleError && 'border-destructive',
+                )}
               />
-              {titleError && <p className="text-xs text-destructive">{titleError}</p>}
+              {titleError && (
+                <p className="text-xs text-destructive">{titleError}</p>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-1 min-w-0">
@@ -189,6 +209,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
                   event.stopPropagation();
                   startEditingTitle();
                 }}
+                onPointerDown={(event) => event.stopPropagation()}
                 aria-label={`Edit name for ${document.title}`}
               >
                 <Pencil size={13} />
@@ -201,7 +222,10 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          <span onClick={(e) => e.stopPropagation()}>
+          <span
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
             <GenerationInfoTooltip
               createdAt={document.createdAt}
               completedAt={document.completedAt}
@@ -216,6 +240,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
                 size="sm"
                 className="h-7 text-xs gap-1 px-2"
                 onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
               >
                 Generate
                 <ChevronDown size={12} />
@@ -241,13 +266,17 @@ export const SourceRow: React.FC<SourceRowProps> = ({
                 Slide deck
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => onCreateArtifact?.('diagramQuizzes', document.id)}
+                onClick={() =>
+                  onCreateArtifact?.('diagramQuizzes', document.id)
+                }
               >
                 <Network size={14} className="mr-2" />
                 Diagram quiz
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => onCreateArtifact?.('sequenceQuizzes', document.id)}
+                onClick={() =>
+                  onCreateArtifact?.('sequenceQuizzes', document.id)
+                }
               >
                 <ListOrdered size={14} className="mr-2" />
                 Sequence quiz
@@ -262,15 +291,14 @@ export const SourceRow: React.FC<SourceRowProps> = ({
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-foreground"
                 onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
                 aria-label={`Actions for ${document.title}`}
               >
                 <MoreVertical size={14} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => onMove(document)}
-              >
+              <DropdownMenuItem onClick={() => onMove(document)}>
                 <FolderInput size={14} className="mr-2" />
                 Move
               </DropdownMenuItem>

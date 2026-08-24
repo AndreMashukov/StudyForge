@@ -122,6 +122,7 @@ export {
   moveDirectory,
   getDirectoryByPath,
   bulkDeleteDirectories,
+  reorderDirectoryItems,
 } from './endpoints/directories';
 
 // Export flashcard management functions

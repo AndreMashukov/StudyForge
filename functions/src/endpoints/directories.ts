@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { directoryService } from '@study-forge/backend-directories/directory';
+import { reorderDirectoryItems as reorderDirectoryItemsService } from '@study-forge/backend-directories/directory-item-index';
 import { validateAuth } from '@study-forge/backend-core/lib/auth';
 import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
 import { CursorPaginationError } from '@study-forge/backend-core/lib/cursor-pagination';
@@ -11,6 +12,7 @@ import {
   MoveDirectoryRequest,
   CreateDirectoryResponse,
   GetDirectoryResponse,
+  ReorderDirectoryItemsRequest,
   // GetDirectoryTreeResponse,
   // GetDirectoryContentsResponse,
   // GetDirectoryAncestorsResponse,
@@ -47,15 +49,14 @@ export const createDirectory = onCall(
 
       return response;
     } catch (error) {
-      logger.error('Error creating directory', { 
+      logger.error('Error creating directory', {
         error: error instanceof Error ? error.message : String(error),
         data: request.data,
       });
       throwCallableError(error, 'Unknown error');
     }
-  }
+  },
 );
-
 
 /**
  * Get a directory by ID
@@ -76,7 +77,10 @@ export const getDirectory = onCall(
 
       logger.info('Getting directory', { userId, directoryId });
 
-      const directory = await directoryService.getDirectory(userId, directoryId);
+      const directory = await directoryService.getDirectory(
+        userId,
+        directoryId,
+      );
 
       if (!directory) {
         throw new HttpsError('not-found', 'Directory not found');
@@ -85,12 +89,12 @@ export const getDirectory = onCall(
       const response: GetDirectoryResponse = { directory };
       return response;
     } catch (error) {
-      logger.error('Error getting directory', { 
-        error: error instanceof Error ? error.message : String(error) 
+      logger.error('Error getting directory', {
+        error: error instanceof Error ? error.message : String(error),
       });
       throwCallableError(error, 'Unknown error');
     }
-  }
+  },
 );
 
 /**
@@ -104,7 +108,9 @@ export const updateDirectory = onCall(
   async (request) => {
     try {
       const userId = await validateAuth(request);
-      const { directoryId, ...updateData } = request.data as { directoryId: string } & UpdateDirectoryRequest;
+      const { directoryId, ...updateData } = request.data as {
+        directoryId: string;
+      } & UpdateDirectoryRequest;
 
       if (!directoryId) {
         throw new HttpsError('invalid-argument', 'Directory ID is required');
@@ -112,17 +118,21 @@ export const updateDirectory = onCall(
 
       logger.info('Updating directory', { userId, directoryId });
 
-      const directory = await directoryService.updateDirectory(userId, directoryId, updateData);
+      const directory = await directoryService.updateDirectory(
+        userId,
+        directoryId,
+        updateData,
+      );
 
       const response: GetDirectoryResponse = { directory };
       return response;
     } catch (error) {
-      logger.error('Error updating directory', { 
-        error: error instanceof Error ? error.message : String(error) 
+      logger.error('Error updating directory', {
+        error: error instanceof Error ? error.message : String(error),
       });
       throwCallableError(error, 'Unknown error');
     }
-  }
+  },
 );
 
 /**
@@ -145,15 +155,18 @@ export const deleteDirectory = onCall(
 
       logger.info('Deleting directory', { userId, directoryId });
 
-      const result = await directoryService.deleteDirectory(userId, directoryId);
+      const result = await directoryService.deleteDirectory(
+        userId,
+        directoryId,
+      );
       return result;
     } catch (error) {
-      logger.error('Error deleting directory', { 
-        error: error instanceof Error ? error.message : String(error) 
+      logger.error('Error deleting directory', {
+        error: error instanceof Error ? error.message : String(error),
       });
       throwCallableError(error, 'Unknown error');
     }
-  }
+  },
 );
 
 /**
@@ -168,8 +181,14 @@ export const bulkDeleteDirectories = onCall(
     const userId = await validateAuth(request);
     const { directoryIds } = (request.data ?? {}) as { directoryIds?: unknown };
 
-    if (!Array.isArray(directoryIds) || !directoryIds.every((id) => typeof id === 'string')) {
-      throw new HttpsError('invalid-argument', 'directoryIds must be an array of strings.');
+    if (
+      !Array.isArray(directoryIds) ||
+      !directoryIds.every((id) => typeof id === 'string')
+    ) {
+      throw new HttpsError(
+        'invalid-argument',
+        'directoryIds must be an array of strings.',
+      );
     }
 
     return executeBulkOperation({
@@ -179,7 +198,7 @@ export const bulkDeleteDirectories = onCall(
         await directoryService.deleteDirectory(userId, directoryId);
       },
     });
-  }
+  },
 );
 
 /**
@@ -199,12 +218,12 @@ export const getDirectoryTree = onCall(
       const result = await directoryService.getDirectoryTree(userId);
       return result;
     } catch (error) {
-      logger.error('Error getting directory tree', { 
-        error: error instanceof Error ? error.message : String(error) 
+      logger.error('Error getting directory tree', {
+        error: error instanceof Error ? error.message : String(error),
       });
       throwCallableError(error, 'Unknown error');
     }
-  }
+  },
 );
 
 /**
@@ -222,15 +241,18 @@ export const getDirectoryContents = onCall(
 
       logger.info('Getting directory contents', { userId, directoryId });
 
-      const result = await directoryService.getDirectoryContents(userId, directoryId || null);
+      const result = await directoryService.getDirectoryContents(
+        userId,
+        directoryId || null,
+      );
       return result;
     } catch (error) {
-      logger.error('Error getting directory contents', { 
-        error: error instanceof Error ? error.message : String(error) 
+      logger.error('Error getting directory contents', {
+        error: error instanceof Error ? error.message : String(error),
       });
       throwCallableError(error, 'Unknown error');
     }
-  }
+  },
 );
 
 /**
@@ -252,15 +274,18 @@ export const getDirectoryAncestors = onCall(
 
       logger.info('Getting directory ancestors', { userId, directoryId });
 
-      const result = await directoryService.getDirectoryAncestors(userId, directoryId);
+      const result = await directoryService.getDirectoryAncestors(
+        userId,
+        directoryId,
+      );
       return result;
     } catch (error) {
-      logger.error('Error getting directory ancestors', { 
-        error: error instanceof Error ? error.message : String(error) 
+      logger.error('Error getting directory ancestors', {
+        error: error instanceof Error ? error.message : String(error),
       });
       throwCallableError(error, 'Unknown error');
     }
-  }
+  },
 );
 
 /**
@@ -274,27 +299,33 @@ export const moveDirectory = onCall(
   async (request) => {
     try {
       const userId = await validateAuth(request);
-      const { directoryId, ...moveData } = request.data as { directoryId: string } & MoveDirectoryRequest;
+      const { directoryId, ...moveData } = request.data as {
+        directoryId: string;
+      } & MoveDirectoryRequest;
 
       if (!directoryId) {
         throw new HttpsError('invalid-argument', 'Directory ID is required');
       }
 
-      logger.info('Moving directory', { 
-        userId, 
+      logger.info('Moving directory', {
+        userId,
         directoryId,
         targetParentId: moveData.targetParentId,
       });
 
-      const result = await directoryService.moveDirectory(userId, directoryId, moveData);
+      const result = await directoryService.moveDirectory(
+        userId,
+        directoryId,
+        moveData,
+      );
       return result;
     } catch (error) {
-      logger.error('Error moving directory', { 
-        error: error instanceof Error ? error.message : String(error) 
+      logger.error('Error moving directory', {
+        error: error instanceof Error ? error.message : String(error),
       });
       throwCallableError(error, 'Unknown error');
     }
-  }
+  },
 );
 
 /**
@@ -325,12 +356,12 @@ export const getDirectoryByPath = onCall(
       const response: GetDirectoryResponse = { directory };
       return response;
     } catch (error) {
-      logger.error('Error getting directory by path', { 
-        error: error instanceof Error ? error.message : String(error) 
+      logger.error('Error getting directory by path', {
+        error: error instanceof Error ? error.message : String(error),
       });
       throwCallableError(error, 'Unknown error');
     }
-  }
+  },
 );
 
 /**
@@ -367,7 +398,7 @@ export const getDirectoryContentsWithArtifacts = onCall(
       const result = await directoryService.getDirectoryContentsWithArtifacts(
         userId,
         directoryId ?? null,
-        { includeArtifacts, includeRules, artifactLimit }
+        { includeArtifacts, includeRules, artifactLimit },
       );
       return result;
     } catch (error) {
@@ -376,7 +407,7 @@ export const getDirectoryContentsWithArtifacts = onCall(
       });
       throwCallableError(error, 'Unknown error');
     }
-  }
+  },
 );
 
 /**
@@ -411,11 +442,12 @@ export const getDirectoryContentsWithArtifactSummaries = onCall(
         hasArtifactCursor: Boolean(artifactCursor),
       });
 
-      const result = await directoryService.getDirectoryContentsWithArtifactSummaries(
-        userId,
-        directoryId ?? null,
-        { includeRules, artifactLimit, artifactCursor }
-      );
+      const result =
+        await directoryService.getDirectoryContentsWithArtifactSummaries(
+          userId,
+          directoryId ?? null,
+          { includeRules, artifactLimit, artifactCursor },
+        );
       return result;
     } catch (error) {
       if (error instanceof CursorPaginationError) {
@@ -426,5 +458,65 @@ export const getDirectoryContentsWithArtifactSummaries = onCall(
       });
       throwCallableError(error, 'Unknown error');
     }
-  }
+  },
+);
+
+const REORDERABLE_ITEM_TYPES = new Set<
+  ReorderDirectoryItemsRequest['itemType']
+>([
+  'document',
+  'quiz',
+  'flashcard',
+  'slideDeck',
+  'diagramQuiz',
+  'sequenceQuiz',
+]);
+
+/**
+ * Persist manual display order for documents or artifacts within a directory.
+ */
+export const reorderDirectoryItems = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+  },
+  async (request) => {
+    try {
+      const userId = await validateAuth(request);
+      const data = request.data as ReorderDirectoryItemsRequest;
+
+      if (!data.directoryId) {
+        throw new HttpsError('invalid-argument', 'Directory ID is required');
+      }
+
+      if (!data.itemType || !REORDERABLE_ITEM_TYPES.has(data.itemType)) {
+        throw new HttpsError('invalid-argument', 'Invalid itemType');
+      }
+
+      if (
+        !Array.isArray(data.orderedSourceIds) ||
+        !data.orderedSourceIds.every((id) => typeof id === 'string')
+      ) {
+        throw new HttpsError(
+          'invalid-argument',
+          'orderedSourceIds must be an array of strings',
+        );
+      }
+
+      logger.info('Reordering directory items', {
+        userId,
+        directoryId: data.directoryId,
+        itemType: data.itemType,
+        count: data.orderedSourceIds.length,
+      });
+
+      return await reorderDirectoryItemsService(userId, data);
+    } catch (error) {
+      logger.error('Error reordering directory items', {
+        error: error instanceof Error ? error.message : String(error),
+        data: request.data,
+      });
+      throwCallableError(error, 'Unknown error');
+    }
+  },
 );

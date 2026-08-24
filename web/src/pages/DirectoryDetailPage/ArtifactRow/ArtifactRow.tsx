@@ -6,14 +6,18 @@ import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import { BulkSelectCheckbox } from '../../../components/BulkSelectCheckbox';
 import { GenerationInfoTooltip } from '../../../components/GenerationInfoTooltip';
-import { getColorRailStyle, getSegmentedRailColors, isMultiColor } from '../../../utils/sourceColorRail';
+import {
+  getColorRailStyle,
+  getSegmentedRailColors,
+  isMultiColor,
+} from '../../../utils/sourceColorRail';
 import { cn } from '../../../lib/utils';
 import type { IArtifactRow } from './IArtifactRow';
 
-const ColorRail: React.FC<{ documentColor?: string; documentColors?: string[] }> = ({
-  documentColor,
-  documentColors,
-}) => {
+const ColorRail: React.FC<{
+  documentColor?: string;
+  documentColors?: string[];
+}> = ({ documentColor, documentColors }) => {
   if (isMultiColor(documentColors)) {
     const segments = getSegmentedRailColors(documentColors);
     return (
@@ -71,12 +75,20 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
           selected && 'ring-2 ring-primary',
         )}
       >
-        <ColorRail documentColor={documentColor} documentColors={documentColors} />
+        <ColorRail
+          documentColor={documentColor}
+          documentColors={documentColors}
+        />
         {selectionControl}
         <div className="flex items-center gap-2 flex-1 min-w-0 p-3">
-          <Loader2 size={18} className="shrink-0 text-muted-foreground animate-spin" />
+          <Loader2
+            size={18}
+            className="shrink-0 text-muted-foreground animate-spin"
+          />
           <div className="flex-1 min-w-0">
-            <div className="font-medium truncate text-muted-foreground">{title}</div>
+            <div className="font-medium truncate text-muted-foreground">
+              {title}
+            </div>
             <Badge variant="secondary" className="mt-1 text-xs">
               Preparing
             </Badge>
@@ -89,6 +101,7 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
               e.stopPropagation();
               onDelete();
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             aria-label={deleteAriaLabel}
           >
             <Trash2 size={16} />
@@ -106,7 +119,10 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
           selected && 'ring-2 ring-primary',
         )}
       >
-        <ColorRail documentColor={documentColor} documentColors={documentColors} />
+        <ColorRail
+          documentColor={documentColor}
+          documentColors={documentColors}
+        />
         {selectionControl}
         <div className="flex items-center gap-2 flex-1 min-w-0 p-3">
           <AlertCircle size={18} className="shrink-0 text-destructive" />
@@ -124,6 +140,7 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
               e.stopPropagation();
               onDelete();
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             aria-label={deleteAriaLabel}
           >
             <Trash2 size={16} />
@@ -140,7 +157,10 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
         selected && 'ring-2 ring-primary',
       )}
     >
-      <ColorRail documentColor={documentColor} documentColors={documentColors} />
+      <ColorRail
+        documentColor={documentColor}
+        documentColors={documentColors}
+      />
       {selectionControl}
       <Link
         to={linkTo}
@@ -150,11 +170,16 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
         <Icon size={18} className="shrink-0 text-muted-foreground" />
         <div className="flex-1 min-w-0">
           <div className="font-medium truncate">{title}</div>
-          <div className="text-xs text-muted-foreground">{formatDate(createdAt)}</div>
+          <div className="text-xs text-muted-foreground">
+            {formatDate(createdAt)}
+          </div>
         </div>
       </Link>
       <div className="flex items-center gap-1 pr-1 shrink-0">
-        <span onClick={(e) => e.preventDefault()}>
+        <span
+          onClick={(e) => e.preventDefault()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <GenerationInfoTooltip
             createdAt={createdAt}
             completedAt={completedAt}
@@ -170,6 +195,7 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
             e.stopPropagation();
             onDelete();
           }}
+          onPointerDown={(e) => e.stopPropagation()}
           aria-label={deleteAriaLabel}
         >
           <Trash2 size={16} />

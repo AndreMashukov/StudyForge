@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { AlertTriangle, LucideIcon } from 'lucide-react';
 import { ArtifactSummary, ArtifactSummaryType } from '@shared-types';
 import { Button } from '../../components/ui/Button';
-import { VirtualizedList } from '../../components/VirtualizedList';
+import { SortableDirectoryList } from './SortableDirectoryList';
 import { ArtifactRow, ArtifactRowGenerating } from './ArtifactRow';
 import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
 import { useBulkArtifactPanel } from './hooks/useBulkArtifactPanel';
@@ -20,7 +20,11 @@ interface IVirtualizedArtifactPanelProps<TType extends ArtifactSummaryType> {
   artifactType: TType;
   icon: LucideIcon;
   buildLinkTo: (artifactId: string) => string;
-  onDeleteArtifact: (artifact: { id: string; title: string; type: TType }) => void;
+  onDeleteArtifact: (artifact: {
+    id: string;
+    title: string;
+    type: TType;
+  }) => void;
   onPrefetch?: (artifactId: string) => void;
   ruleNamesMap?: Map<string, string>;
   mayBeTruncated?: boolean;
@@ -63,7 +67,11 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
         createdAt={artifact.createdAt}
         linkTo={buildLinkTo(artifact.id)}
         onDelete={() =>
-          onDeleteArtifact({ id: artifact.id, title: artifact.title, type: artifactType })
+          onDeleteArtifact({
+            id: artifact.id,
+            title: artifact.title,
+            type: artifactType,
+          })
         }
         deleteAriaLabel={`Delete ${artifact.title}`}
         appliedRuleNames={artifact.appliedRuleIds?.map(
@@ -80,7 +88,15 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
         onSelectChange={() => bulk.toggle(artifact.id)}
       />
     ),
-    [artifactType, buildLinkTo, bulk, icon, onDeleteArtifact, onPrefetch, ruleNamesMap],
+    [
+      artifactType,
+      buildLinkTo,
+      bulk,
+      icon,
+      onDeleteArtifact,
+      onPrefetch,
+      ruleNamesMap,
+    ],
   );
 
   return (
@@ -108,15 +124,19 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
         </div>
       ) : null}
       {artifacts.length === 0 && !showOptimisticRow ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
+        <div className="py-8 text-center text-sm text-muted-foreground">
+          {emptyMessage}
+        </div>
       ) : (
-        <VirtualizedList
+        <SortableDirectoryList
           items={artifacts}
-          scrollMode="window"
-          estimateSize={88}
+          directoryId={directoryId}
+          itemType={artifactType}
           gap={8}
           leadingContent={
-            showOptimisticRow ? <ArtifactRowGenerating title={optimisticTitle} /> : null
+            showOptimisticRow ? (
+              <ArtifactRowGenerating title={optimisticTitle} />
+            ) : null
           }
           renderItem={renderArtifact}
         />

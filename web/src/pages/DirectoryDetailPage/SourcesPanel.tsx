@@ -7,7 +7,7 @@ import { useOptimisticGeneratingRow } from './hooks/useOptimisticGeneratingRow';
 import { BulkSelectionToolbar } from '../../components/BulkSelectionToolbar';
 import { BulkActionConfirmDialog } from '../../components/BulkActionConfirmDialog';
 import { BulkActionResultDialog } from '../../components/BulkActionResultDialog';
-import { VirtualizedList } from '../../components/VirtualizedList';
+import { SortableDirectoryList } from './SortableDirectoryList';
 import { useBulkSelection } from '../../hooks/useBulkSelection';
 import { useBulkActionFlow } from '../../hooks/useBulkActionFlow';
 import { useBulkDeleteDocumentsMutation } from '../../store/api/Documents/documentsApi';
@@ -38,7 +38,10 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
     documents,
   );
 
-  const visibleIds = React.useMemo(() => documents.map((doc) => doc.id), [documents]);
+  const visibleIds = React.useMemo(
+    () => documents.map((doc) => doc.id),
+    [documents],
+  );
   const labelsById = React.useMemo(
     () => Object.fromEntries(documents.map((doc) => [doc.id, doc.title])),
     [documents],
@@ -63,7 +66,14 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
         onCreateArtifact={onCreateArtifactFromDocument}
       />
     ),
-    [directoryId, onCreateArtifactFromDocument, onDeleteDocument, onMoveDocument, ruleNamesMap, selection],
+    [
+      directoryId,
+      onCreateArtifactFromDocument,
+      onDeleteDocument,
+      onMoveDocument,
+      ruleNamesMap,
+      selection,
+    ],
   );
 
   return (
@@ -87,16 +97,19 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
 
       {documents.length === 0 && !showOptimisticRow ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
-          No documents yet. Add a URL, upload markdown, or generate from a prompt.
+          No documents yet. Add a URL, upload markdown, or generate from a
+          prompt.
         </div>
       ) : (
-        <VirtualizedList
+        <SortableDirectoryList
           items={documents}
-          scrollMode="window"
-          estimateSize={88}
+          directoryId={directoryId}
+          itemType="document"
           gap={8}
           leadingContent={
-            showOptimisticRow ? <ArtifactRowGenerating title={optimisticTitle} /> : null
+            showOptimisticRow ? (
+              <ArtifactRowGenerating title={optimisticTitle} />
+            ) : null
           }
           renderItem={renderSource}
         />
@@ -107,7 +120,10 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
         onOpenChange={(open) => !open && flow.closeConfirm()}
         title={`Delete ${selection.selectedCount} source${selection.selectedCount === 1 ? '' : 's'}?`}
         description={
-          <p>This permanently deletes the selected documents and cannot be undone.</p>
+          <p>
+            This permanently deletes the selected documents and cannot be
+            undone.
+          </p>
         }
         confirmLabel={`Delete ${selection.selectedCount}`}
         mode="destructive"

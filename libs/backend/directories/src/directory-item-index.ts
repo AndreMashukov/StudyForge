@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import {
   buildDirectoryItemId,
@@ -7,6 +7,8 @@ import {
   type DirectoryItemType,
   directoryItemTypeToArtifactSummaryType,
   type ArtifactSummary,
+  type ReorderDirectoryItemsRequest,
+  type ReorderDirectoryItemsResponse,
 } from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import {
@@ -20,7 +22,10 @@ type FirestoreRecord = FirebaseFirestore.DocumentData;
 const ARTIFACT_COLLECTIONS: Array<{
   itemType: DirectoryItemType;
   query: (userId: string) => FirebaseFirestore.CollectionReference;
-  doc: (userId: string, artifactId: string) => FirebaseFirestore.DocumentReference;
+  doc: (
+    userId: string,
+    artifactId: string,
+  ) => FirebaseFirestore.DocumentReference;
 }> = [
   {
     itemType: 'quiz',
@@ -30,7 +35,8 @@ const ARTIFACT_COLLECTIONS: Array<{
   {
     itemType: 'flashcard',
     query: (userId) => FirestorePaths.flashcardSets(userId),
-    doc: (userId, artifactId) => FirestorePaths.flashcardSet(userId, artifactId),
+    doc: (userId, artifactId) =>
+      FirestorePaths.flashcardSet(userId, artifactId),
   },
   {
     itemType: 'slideDeck',
@@ -45,7 +51,8 @@ const ARTIFACT_COLLECTIONS: Array<{
   {
     itemType: 'sequenceQuiz',
     query: (userId) => FirestorePaths.sequenceQuizzes(userId),
-    doc: (userId, artifactId) => FirestorePaths.sequenceQuiz(userId, artifactId),
+    doc: (userId, artifactId) =>
+      FirestorePaths.sequenceQuiz(userId, artifactId),
   },
 ];
 
@@ -108,10 +115,12 @@ export function documentToDirectoryItem(
     createdAt: raw.createdAt ?? Timestamp.now(),
     updatedAt: raw.updatedAt,
     generationStatus: raw.generationStatus,
-    generationError: typeof raw.generationError === 'string' ? raw.generationError : undefined,
+    generationError:
+      typeof raw.generationError === 'string' ? raw.generationError : undefined,
     completedAt: raw.completedAt,
     appliedRuleIds: readStringArray(raw.appliedRuleIds),
-    generationModel: typeof raw.generationModel === 'string' ? raw.generationModel : undefined,
+    generationModel:
+      typeof raw.generationModel === 'string' ? raw.generationModel : undefined,
     color: typeof raw.color === 'string' ? raw.color : undefined,
     wordCount: typeof raw.wordCount === 'number' ? raw.wordCount : undefined,
   });
@@ -136,11 +145,14 @@ export function artifactToDirectoryItem(
     createdAt: raw.createdAt ?? Timestamp.now(),
     updatedAt: raw.updatedAt,
     generationStatus: raw.generationStatus,
-    generationError: typeof raw.generationError === 'string' ? raw.generationError : undefined,
+    generationError:
+      typeof raw.generationError === 'string' ? raw.generationError : undefined,
     completedAt: raw.completedAt,
     appliedRuleIds: readStringArray(raw.appliedRuleIds),
-    generationModel: typeof raw.generationModel === 'string' ? raw.generationModel : undefined,
-    documentColor: typeof raw.documentColor === 'string' ? raw.documentColor : undefined,
+    generationModel:
+      typeof raw.generationModel === 'string' ? raw.generationModel : undefined,
+    documentColor:
+      typeof raw.documentColor === 'string' ? raw.documentColor : undefined,
     documentColors: readStringArray(raw.documentColors),
   });
 }
@@ -159,15 +171,122 @@ export async function syncIndexSafely(
   }
 }
 
+async function getMinSortOrderForType(
+  userId: string,
+  directoryId: string,
+  itemType: DirectoryItemType,
+): Promise<number | null> {
+  const snapshot = await FirestorePaths.directoryItems(userId, directoryId)
+    .where('itemType', '==', itemType)
+    .get();
+
+  let min: number | null = null;
+  for (const doc of snapshot.docs) {
+    const sortOrder = doc.data().sortOrder;
+    if (typeof sortOrder === 'number') {
+      min = min === null ? sortOrder : Math.min(min, sortOrder);
+    }
+  }
+  return min;
+}
+
+async function ensureSortOrderForNewItem(
+  userId: string,
+  directoryId: string,
+  item: DirectoryItemSummary,
+): Promise<DirectoryItemSummary> {
+  if (item.itemType === 'subdirectory' || typeof item.sortOrder === 'number') {
+    return item;
+  }
+
+  const minSortOrder = await getMinSortOrderForType(
+    userId,
+    directoryId,
+    item.itemType,
+  );
+  if (minSortOrder === null) {
+    return item;
+  }
+
+  return {
+    ...item,
+    sortOrder: minSortOrder - 1,
+  };
+}
+
 export async function upsertDirectoryItem(
   userId: string,
   directoryId: string,
   item: DirectoryItemSummary,
 ): Promise<void> {
-  await FirestorePaths.directoryItem(userId, directoryId, item.id).set(
-    stripUndefined({ ...item }),
+  const enriched = await ensureSortOrderForNewItem(userId, directoryId, item);
+  await FirestorePaths.directoryItem(userId, directoryId, enriched.id).set(
+    stripUndefined({ ...enriched }),
     { merge: true },
   );
+}
+
+export async function reorderDirectoryItems(
+  userId: string,
+  request: ReorderDirectoryItemsRequest,
+): Promise<ReorderDirectoryItemsResponse> {
+  const { directoryId, itemType, orderedSourceIds } = request;
+
+  if (itemType === 'subdirectory') {
+    throw new Error('Cannot reorder subdirectories');
+  }
+
+  if (!Array.isArray(orderedSourceIds) || orderedSourceIds.length === 0) {
+    throw new Error('orderedSourceIds must be a non-empty array');
+  }
+
+  const directorySnap = await FirestorePaths.directory(
+    userId,
+    directoryId,
+  ).get();
+  if (!directorySnap.exists) {
+    throw new Error('Directory not found');
+  }
+
+  const snapshot = await FirestorePaths.directoryItems(userId, directoryId)
+    .where('itemType', '==', itemType)
+    .get();
+
+  const itemsBySourceId = new Map<
+    string,
+    FirebaseFirestore.DocumentReference
+  >();
+  for (const doc of snapshot.docs) {
+    const data = doc.data() as DirectoryItemSummary;
+    itemsBySourceId.set(data.sourceId, doc.ref);
+  }
+
+  for (const sourceId of orderedSourceIds) {
+    if (!itemsBySourceId.has(sourceId)) {
+      throw new Error(`Item not found: ${sourceId}`);
+    }
+  }
+
+  const orderedSet = new Set(orderedSourceIds);
+  const db = FirestorePaths.directoryItems(userId, directoryId).firestore;
+  const batch = db.batch();
+
+  orderedSourceIds.forEach((sourceId, index) => {
+    const ref = itemsBySourceId.get(sourceId);
+    if (ref) {
+      batch.update(ref, { sortOrder: index });
+    }
+  });
+
+  for (const doc of snapshot.docs) {
+    const data = doc.data() as DirectoryItemSummary;
+    if (!orderedSet.has(data.sourceId)) {
+      batch.update(doc.ref, { sortOrder: FieldValue.delete() });
+    }
+  }
+
+  await batch.commit();
+  return { success: true };
 }
 
 export async function removeDirectoryItem(
@@ -189,15 +308,26 @@ export async function moveDirectoryItem(
   toDirectoryId: string,
   item: DirectoryItemSummary,
 ): Promise<void> {
-  await removeDirectoryItem(userId, fromDirectoryId, item.itemType, item.sourceId);
+  await removeDirectoryItem(
+    userId,
+    fromDirectoryId,
+    item.itemType,
+    item.sourceId,
+  );
   await upsertDirectoryItem(userId, toDirectoryId, {
     ...item,
     directoryId: toDirectoryId,
   });
 }
 
-export async function deleteAllDirectoryItems(userId: string, directoryId: string): Promise<number> {
-  const snapshot = await FirestorePaths.directoryItems(userId, directoryId).get();
+export async function deleteAllDirectoryItems(
+  userId: string,
+  directoryId: string,
+): Promise<number> {
+  const snapshot = await FirestorePaths.directoryItems(
+    userId,
+    directoryId,
+  ).get();
   if (snapshot.empty) {
     return 0;
   }
@@ -214,12 +344,18 @@ export async function deleteAllDirectoryItems(userId: string, directoryId: strin
   return deleted;
 }
 
-export async function syncDocumentDirectoryIndex(userId: string, documentId: string): Promise<void> {
+export async function syncDocumentDirectoryIndex(
+  userId: string,
+  documentId: string,
+): Promise<void> {
   const snap = await FirestorePaths.document(userId, documentId).get();
   if (!snap.exists) {
     return;
   }
-  const item = documentToDirectoryItem(documentId, snap.data() as FirestoreRecord);
+  const item = documentToDirectoryItem(
+    documentId,
+    snap.data() as FirestoreRecord,
+  );
   if (!item) {
     return;
   }
@@ -249,7 +385,9 @@ export async function syncArtifactDirectoryIndex(
   itemType: DirectoryItemType,
   artifactId: string,
 ): Promise<void> {
-  const collection = ARTIFACT_COLLECTIONS.find((entry) => entry.itemType === itemType);
+  const collection = ARTIFACT_COLLECTIONS.find(
+    (entry) => entry.itemType === itemType,
+  );
   if (!collection) {
     return;
   }
@@ -259,7 +397,11 @@ export async function syncArtifactDirectoryIndex(
     return;
   }
 
-  const item = artifactToDirectoryItem(artifactId, itemType, snap.data() as FirestoreRecord);
+  const item = artifactToDirectoryItem(
+    artifactId,
+    itemType,
+    snap.data() as FirestoreRecord,
+  );
   if (!item) {
     return;
   }
@@ -288,7 +430,11 @@ export async function syncSubdirectoryDirectoryIndex(
   if (!parentId) {
     return;
   }
-  const item = subdirectoryToDirectoryItem(subdirectoryId, parentId, snap.data() as FirestoreRecord);
+  const item = subdirectoryToDirectoryItem(
+    subdirectoryId,
+    parentId,
+    snap.data() as FirestoreRecord,
+  );
   await upsertDirectoryItem(userId, parentId, item);
 }
 
@@ -300,7 +446,12 @@ export async function removeSubdirectoryDirectoryIndex(
   if (!parentDirectoryId) {
     return;
   }
-  await removeDirectoryItem(userId, parentDirectoryId, 'subdirectory', subdirectoryId);
+  await removeDirectoryItem(
+    userId,
+    parentDirectoryId,
+    'subdirectory',
+    subdirectoryId,
+  );
 }
 
 export async function moveSubdirectoryDirectoryIndex(
@@ -341,7 +492,9 @@ async function collectCanonicalItemsForDirectory(
   }
 
   for (const { itemType, query } of ARTIFACT_COLLECTIONS) {
-    const snapshot = await query(userId).where('directoryId', '==', directoryId).get();
+    const snapshot = await query(userId)
+      .where('directoryId', '==', directoryId)
+      .get();
     for (const doc of snapshot.docs) {
       const item = artifactToDirectoryItem(doc.id, itemType, doc.data());
       if (item) {
@@ -377,12 +530,19 @@ export async function rebuildDirectoryItemsForDirectory(
     const chunk = items.slice(i, i + 500);
     const batch = db.batch();
     for (const item of chunk) {
-      batch.set(FirestorePaths.directoryItem(userId, directoryId, item.id), stripUndefined({ ...item }));
+      batch.set(
+        FirestorePaths.directoryItem(userId, directoryId, item.id),
+        stripUndefined({ ...item }),
+      );
     }
     await batch.commit();
   }
 
-  logger.info('Rebuilt directory item index', { userId, directoryId, itemCount: items.length });
+  logger.info('Rebuilt directory item index', {
+    userId,
+    directoryId,
+    itemCount: items.length,
+  });
   return { directoryId, itemCount: items.length };
 }
 
@@ -403,7 +563,9 @@ export async function detectDirectoryIndexDrift(
   };
 }
 
-export async function rebuildDirectoryItemsForAllDirectories(userId: string): Promise<number> {
+export async function rebuildDirectoryItemsForAllDirectories(
+  userId: string,
+): Promise<number> {
   const directories = await FirestorePaths.directories(userId).get();
   let totalItems = 0;
   for (const dir of directories.docs) {
@@ -430,7 +592,9 @@ const ARTIFACT_DIRECTORY_ITEM_TYPES: DirectoryItemType[] = [
   'sequenceQuiz',
 ];
 
-function directoryItemRecordToSummary(item: DirectoryItemSummary): ArtifactSummary | null {
+function directoryItemRecordToSummary(
+  item: DirectoryItemSummary,
+): ArtifactSummary | null {
   const type = directoryItemTypeToArtifactSummaryType(item.itemType);
   if (!type) {
     return null;
@@ -463,8 +627,11 @@ export async function listPaginatedArtifactSummaries(
   const limit = Math.min(options.limit ?? 20, 100);
   const sortConfig = { sortBy: 'createdAt', sortOrder: 'desc' as const };
 
-  let query = FirestorePaths.directoryItems(userId, directoryId)
-    .where('itemType', 'in', ARTIFACT_DIRECTORY_ITEM_TYPES);
+  let query = FirestorePaths.directoryItems(userId, directoryId).where(
+    'itemType',
+    'in',
+    ARTIFACT_DIRECTORY_ITEM_TYPES,
+  );
 
   query = applyOrderedQueryWithCursor(query, sortConfig, options.cursor);
   query = query.limit(limit + 1);

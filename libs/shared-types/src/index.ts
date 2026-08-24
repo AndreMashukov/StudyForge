@@ -689,6 +689,24 @@ export interface DirectoryItemSummary {
   wordCount?: number;
   /** Lowercase name for client-side subdirectory sorting. */
   sortName?: string;
+  /** Manual display order within a directory for this itemType (lower = higher in list). */
+  sortOrder?: number;
+}
+
+/** Directory item types that support manual list reorder (excludes subdirectories). */
+export type ReorderableDirectoryItemType = Exclude<
+  DirectoryItemType,
+  'subdirectory'
+>;
+
+export interface ReorderDirectoryItemsRequest {
+  directoryId: string;
+  itemType: ReorderableDirectoryItemType;
+  orderedSourceIds: string[];
+}
+
+export interface ReorderDirectoryItemsResponse {
+  success: boolean;
 }
 
 export interface ArtifactSummary {

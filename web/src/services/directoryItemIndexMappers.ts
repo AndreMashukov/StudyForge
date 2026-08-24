@@ -19,6 +19,36 @@ function compareCreatedAtDesc(
   return rightTime - leftTime;
 }
 
+function typeHasManualOrder(items: DirectoryItemSummary[]): boolean {
+  return items.some((item) => typeof item.sortOrder === 'number');
+}
+
+function compareDirectoryItems(
+  left: DirectoryItemSummary,
+  right: DirectoryItemSummary,
+  hasManualOrder: boolean,
+): number {
+  if (!hasManualOrder) {
+    return compareCreatedAtDesc(left, right);
+  }
+
+  const leftHasOrder = typeof left.sortOrder === 'number';
+  const rightHasOrder = typeof right.sortOrder === 'number';
+
+  if (leftHasOrder && rightHasOrder) {
+    const leftOrder = left.sortOrder ?? 0;
+    const rightOrder = right.sortOrder ?? 0;
+    return leftOrder - rightOrder;
+  }
+  if (leftHasOrder && !rightHasOrder) {
+    return -1;
+  }
+  if (!leftHasOrder && rightHasOrder) {
+    return 1;
+  }
+  return compareCreatedAtDesc(left, right);
+}
+
 function compareSubdirectoryName(
   left: DirectoryItemSummary,
   right: DirectoryItemSummary,
@@ -28,7 +58,10 @@ function compareSubdirectoryName(
   return leftName.localeCompare(rightName);
 }
 
-function itemToSubdirectory(item: DirectoryItemSummary, userId: string): Directory {
+function itemToSubdirectory(
+  item: DirectoryItemSummary,
+  userId: string,
+): Directory {
   return {
     id: item.sourceId,
     userId,
@@ -49,7 +82,10 @@ function itemToSubdirectory(item: DirectoryItemSummary, userId: string): Directo
   };
 }
 
-function itemToDocument(item: DirectoryItemSummary, userId: string): DocumentEnhanced {
+function itemToDocument(
+  item: DirectoryItemSummary,
+  userId: string,
+): DocumentEnhanced {
   return {
     id: item.sourceId,
     userId,
@@ -63,7 +99,8 @@ function itemToDocument(item: DirectoryItemSummary, userId: string): DocumentEnh
     tags: [],
     directoryId: item.directoryId,
     createdAt: item.createdAt as DocumentEnhanced['createdAt'],
-    updatedAt: (item.updatedAt ?? item.createdAt) as DocumentEnhanced['updatedAt'],
+    updatedAt: (item.updatedAt ??
+      item.createdAt) as DocumentEnhanced['updatedAt'],
     generationStatus: item.generationStatus,
     generationError: item.generationError,
     completedAt: item.completedAt as DocumentEnhanced['completedAt'],
@@ -73,7 +110,10 @@ function itemToDocument(item: DirectoryItemSummary, userId: string): DocumentEnh
   } as DocumentEnhanced;
 }
 
-function itemToArtifactSummary(item: DirectoryItemSummary, type: ArtifactSummaryType): ArtifactSummary {
+function itemToArtifactSummary(
+  item: DirectoryItemSummary,
+  type: ArtifactSummaryType,
+): ArtifactSummary {
   return {
     id: item.sourceId,
     title: item.title,
@@ -110,7 +150,14 @@ function limitArtifactsByType(
 
   const limited: DirectoryItemSummary[] = [];
   for (const bucket of grouped.values()) {
-    limited.push(...bucket.sort(compareCreatedAtDesc).slice(0, artifactLimit));
+    const hasManualOrder = typeHasManualOrder(bucket);
+    limited.push(
+      ...bucket
+        .sort((left, right) =>
+          compareDirectoryItems(left, right, hasManualOrder),
+        )
+        .slice(0, artifactLimit),
+    );
   }
   return limited;
 }
@@ -125,32 +172,36 @@ export function mapDirectoryItemsToContentsResponse(
     .sort(compareSubdirectoryName)
     .map((item) => itemToSubdirectory(item, directory.userId));
 
-  const documents = items
-    .filter((item) => item.itemType === 'document')
-    .sort(compareCreatedAtDesc)
+  const documentItems = items.filter((item) => item.itemType === 'document');
+  const documentsHasManualOrder = typeHasManualOrder(documentItems);
+  const documents = documentItems
+    .sort((left, right) =>
+      compareDirectoryItems(left, right, documentsHasManualOrder),
+    )
     .map((item) => itemToDocument(item, directory.userId));
 
   const artifactItems = limitArtifactsByType(
-    items.filter((item) => directoryItemTypeToArtifactSummaryType(item.itemType) !== null),
+    items.filter(
+      (item) => directoryItemTypeToArtifactSummaryType(item.itemType) !== null,
+    ),
     artifactLimit,
   );
 
-  const artifactSummaries = artifactItems
-    .sort(compareCreatedAtDesc)
-    .map((item) => {
-      const type = directoryItemTypeToArtifactSummaryType(item.itemType);
-      if (!type) {
-        throw new Error(`Unexpected artifact item type: ${item.itemType}`);
-      }
-      return itemToArtifactSummary(item, type);
-    });
+  const artifactSummaries = artifactItems.map((item) => {
+    const type = directoryItemTypeToArtifactSummaryType(item.itemType);
+    if (!type) {
+      throw new Error(`Unexpected artifact item type: ${item.itemType}`);
+    }
+    return itemToArtifactSummary(item, type);
+  });
 
   return {
     directory,
     subdirectories,
     documents,
     artifactSummaries,
-    totalCount: subdirectories.length + documents.length + artifactSummaries.length,
+    totalCount:
+      subdirectories.length + documents.length + artifactSummaries.length,
     resolvedRules: {
       rules: [],
       inheritanceMap: {},
