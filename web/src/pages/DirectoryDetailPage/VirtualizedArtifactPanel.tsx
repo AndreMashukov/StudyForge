@@ -47,12 +47,8 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
   ruleNamesMap,
   mayBeTruncated = false,
 }: IVirtualizedArtifactPanelProps<TType>): React.JSX.Element => {
-  const visibleCount = artifacts.length;
-  const { showOptimisticRow, optimisticTitle } = useOptimisticGeneratingRow(
-    directoryId,
-    panelType,
-    artifacts,
-  );
+  const { placeholders } = useOptimisticGeneratingRow(directoryId, panelType);
+  const visibleCount = artifacts.length + placeholders.length;
   const bulk = useBulkArtifactPanel({
     artifacts,
     artifactType,
@@ -123,7 +119,7 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
           </span>
         </div>
       ) : null}
-      {artifacts.length === 0 && !showOptimisticRow ? (
+      {artifacts.length === 0 && placeholders.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
           {emptyMessage}
         </div>
@@ -134,8 +130,15 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
           itemType={artifactType}
           gap={8}
           leadingContent={
-            showOptimisticRow ? (
-              <ArtifactRowGenerating title={optimisticTitle} />
+            placeholders.length > 0 ? (
+              <>
+                {placeholders.map((placeholder) => (
+                  <ArtifactRowGenerating
+                    key={placeholder.id}
+                    title={placeholder.title}
+                  />
+                ))}
+              </>
             ) : null
           }
           renderItem={renderArtifact}

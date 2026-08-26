@@ -6,12 +6,14 @@ import { normalizeGenerationErrorMessage } from '../../../utils/llmRoutingErrors
 import type { AppDispatch } from '../../index';
 import {
   getOptimisticArtifactTitle,
+  IOptimisticTitleInput,
   patchPendingArtifactSummaryFromResponse,
 } from './artifactGenerationOptimistic';
 
-interface ArtifactGenerationArg {
+interface ArtifactGenerationArg extends IOptimisticTitleInput {
   directoryId?: string;
   documentIds: string[];
+  ruleIds?: string[];
 }
 
 interface CreateArtifactOnQueryStartedOptions {
@@ -38,10 +40,12 @@ export function createArtifactOnQueryStarted(
   ) => {
     if (!arg.directoryId) return;
 
+    const id = crypto.randomUUID();
     dispatch(addPendingGeneration({
+      id,
       directoryId: arg.directoryId,
       artifactType,
-      optimisticTitle: getOptimisticArtifactTitle(arg as unknown as Record<string, unknown>),
+      optimisticTitle: getOptimisticArtifactTitle(arg),
     }));
 
     try {
@@ -52,11 +56,11 @@ export function createArtifactOnQueryStarted(
         getState,
         artifactType,
         arg.directoryId,
-        arg as unknown as Record<string, unknown>,
+        arg,
         data,
       );
 
-      dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType }));
+      dispatch(removePendingGeneration({ id }));
 
       if (data?.success !== false) {
         const message = typeof options?.successMessage === 'function'
@@ -80,7 +84,7 @@ export function createArtifactOnQueryStarted(
         dispatch(showToast({ message: errorMessage, type: 'error' }));
       }
     } catch {
-      dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType }));
+      dispatch(removePendingGeneration({ id }));
       // Error is shown via the global errorToastMiddleware toast
     }
   };
