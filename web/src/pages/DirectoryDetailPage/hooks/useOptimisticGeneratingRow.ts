@@ -1,28 +1,34 @@
+import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import type { GenerationStatus } from '../../../types/generationStatus';
 import {
   ArtifactPanelType,
   selectPendingGenerations,
 } from '../../../store/slices/artifactGenerationSlice';
 
-interface GeneratingListItem {
-  generationStatus?: GenerationStatus;
+export interface OptimisticGeneratingPlaceholder {
+  id: string;
+  title: string;
 }
 
 export function useOptimisticGeneratingRow(
   directoryId: string,
   artifactType: ArtifactPanelType,
-  items: GeneratingListItem[],
 ) {
   const pendingGenerations = useSelector(selectPendingGenerations);
-  const pending = pendingGenerations.find(
-    (generation) =>
-      generation.directoryId === directoryId && generation.artifactType === artifactType,
-  );
-  const hasPendingInList = items.some((item) => item.generationStatus === 'pending');
 
-  return {
-    showOptimisticRow: Boolean(pending) && !hasPendingInList,
-    optimisticTitle: pending?.optimisticTitle ?? 'Preparing...',
-  };
+  const placeholders = useMemo((): OptimisticGeneratingPlaceholder[] => {
+    const matching = pendingGenerations.filter(
+      (generation) =>
+        generation.directoryId === directoryId && generation.artifactType === artifactType,
+    );
+    return matching
+      .slice()
+      .reverse()
+      .map((generation) => ({
+        id: generation.id,
+        title: generation.optimisticTitle ?? 'Preparing...',
+      }));
+  }, [pendingGenerations, directoryId, artifactType]);
+
+  return { placeholders };
 }

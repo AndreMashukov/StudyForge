@@ -2,7 +2,8 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export type ArtifactPanelType = 'quizzes' | 'cards' | 'slides' | 'diagramQuizzes' | 'sequenceQuizzes' | 'sources';
 
-interface PendingGeneration {
+export interface PendingGeneration {
+  id: string;
   directoryId: string;
   artifactType: ArtifactPanelType;
   optimisticTitle?: string;
@@ -23,11 +24,9 @@ const artifactGenerationSlice = createSlice({
     addPendingGeneration: (state, action: PayloadAction<PendingGeneration>) => {
       state.pendingGenerations.push(action.payload);
     },
-    removePendingGeneration: (state, action: PayloadAction<PendingGeneration>) => {
-      // Remove only ONE matching entry (ref-counted) so concurrent generations don't clobber each other
+    removePendingGeneration: (state, action: PayloadAction<{ id: string }>) => {
       const idx = state.pendingGenerations.findIndex(
-        (g) =>
-          g.directoryId === action.payload.directoryId && g.artifactType === action.payload.artifactType
+        (g) => g.id === action.payload.id,
       );
       if (idx !== -1) {
         state.pendingGenerations.splice(idx, 1);

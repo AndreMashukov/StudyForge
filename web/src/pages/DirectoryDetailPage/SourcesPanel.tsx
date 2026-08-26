@@ -32,11 +32,8 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
   ruleNamesMap,
   onCreateArtifactFromDocument,
 }) => {
-  const { showOptimisticRow, optimisticTitle } = useOptimisticGeneratingRow(
-    directoryId,
-    'sources',
-    documents,
-  );
+  const { placeholders } = useOptimisticGeneratingRow(directoryId, 'sources');
+  const visibleCount = documents.length + placeholders.length;
 
   const visibleIds = React.useMemo(
     () => documents.map((doc) => doc.id),
@@ -90,12 +87,12 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
           />
         ) : (
           <h2 className="flex min-h-10 items-center text-lg font-semibold">
-            Sources ({documents.length})
+            Sources ({visibleCount})
           </h2>
         )}
       </div>
 
-      {documents.length === 0 && !showOptimisticRow ? (
+      {documents.length === 0 && placeholders.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
           No documents yet. Add a URL, upload markdown, or generate from a
           prompt.
@@ -107,8 +104,15 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
           itemType="document"
           gap={8}
           leadingContent={
-            showOptimisticRow ? (
-              <ArtifactRowGenerating title={optimisticTitle} />
+            placeholders.length > 0 ? (
+              <>
+                {placeholders.map((placeholder) => (
+                  <ArtifactRowGenerating
+                    key={placeholder.id}
+                    title={placeholder.title}
+                  />
+                ))}
+              </>
             ) : null
           }
           renderItem={renderSource}

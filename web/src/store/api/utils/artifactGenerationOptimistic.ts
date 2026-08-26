@@ -16,6 +16,14 @@ const ARTIFACT_NAME_FIELDS = [
   'title',
 ] as const;
 
+function truncatePromptTitle(prompt: string): string {
+  const trimmed = prompt.trim();
+  if (trimmed.length > 50) {
+    return `${trimmed.substring(0, 50)}…`;
+  }
+  return trimmed;
+}
+
 export function getOptimisticArtifactTitle(arg: Record<string, unknown>): string | undefined {
   for (const field of ARTIFACT_NAME_FIELDS) {
     const value = arg[field];
@@ -23,6 +31,17 @@ export function getOptimisticArtifactTitle(arg: Record<string, unknown>): string
       return value.trim();
     }
   }
+
+  const prompt = arg.prompt;
+  if (typeof prompt === 'string' && prompt.trim()) {
+    return truncatePromptTitle(prompt);
+  }
+
+  const content = arg.content;
+  if (typeof content === 'string' && content.trim()) {
+    return 'Pasted text';
+  }
+
   return undefined;
 }
 

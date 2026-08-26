@@ -38,7 +38,9 @@ export function createArtifactOnQueryStarted(
   ) => {
     if (!arg.directoryId) return;
 
+    const id = crypto.randomUUID();
     dispatch(addPendingGeneration({
+      id,
       directoryId: arg.directoryId,
       artifactType,
       optimisticTitle: getOptimisticArtifactTitle(arg as unknown as Record<string, unknown>),
@@ -56,7 +58,7 @@ export function createArtifactOnQueryStarted(
         data,
       );
 
-      dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType }));
+      dispatch(removePendingGeneration({ id }));
 
       if (data?.success !== false) {
         const message = typeof options?.successMessage === 'function'
@@ -80,7 +82,7 @@ export function createArtifactOnQueryStarted(
         dispatch(showToast({ message: errorMessage, type: 'error' }));
       }
     } catch {
-      dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType }));
+      dispatch(removePendingGeneration({ id }));
       // Error is shown via the global errorToastMiddleware toast
     }
   };

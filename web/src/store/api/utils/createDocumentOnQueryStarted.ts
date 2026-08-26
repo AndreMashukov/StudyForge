@@ -19,20 +19,22 @@ export function createDocumentOnQueryStarted(
 ) {
   return async (arg: DocumentGenerationArg, { dispatch, queryFulfilled }: OnQueryStartedApi) => {
     if (!arg.directoryId) return;
+    const id = crypto.randomUUID();
     dispatch(addPendingGeneration({
+      id,
       directoryId: arg.directoryId,
       artifactType: 'sources',
       optimisticTitle: getOptimisticArtifactTitle(arg as Record<string, unknown>),
     }));
     try {
       await queryFulfilled;
-      dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType: 'sources' }));
+      dispatch(removePendingGeneration({ id }));
       dispatch(showToast({
         message: options?.successMessage || `${successLabel} created successfully`,
         type: 'success',
       }));
     } catch {
-      dispatch(removePendingGeneration({ directoryId: arg.directoryId, artifactType: 'sources' }));
+      dispatch(removePendingGeneration({ id }));
       // Error is shown via the global errorToastMiddleware toast
     }
   };
