@@ -131,6 +131,90 @@ export function evaluateUsageLimitDecision(params: {
   };
 }
 
+export function resolveMaxAffordableQuantity(params: {
+  policy: IUsageFeaturePolicy;
+  period: IUsagePeriodState;
+  billing?: IUsageBillingContext;
+  maxCredits: number;
+}): number {
+  if (!params.policy.enabled) {
+    return 0;
+  }
+
+  const unitCost = Math.max(1, Math.floor(params.policy.creditCost));
+  const maxCredits = Number.isFinite(params.maxCredits)
+    ? Math.max(0, Math.floor(params.maxCredits))
+    : 0;
+  const maxQuantity = Math.floor(maxCredits / unitCost);
+  if (maxQuantity < 1) {
+    return 0;
+  }
+
+  const remainingIncluded = calculateRemainingCredits(params.period);
+  const includedQuantity = Math.floor(remainingIncluded / unitCost);
+  if (includedQuantity >= maxQuantity) {
+    return maxQuantity;
+  }
+
+  if (!params.billing?.payAsYouGoEnabled || !params.billing.hasPaymentMethod) {
+    return Math.max(0, includedQuantity);
+  }
+
+  const remainingCapCents = calculateRemainingOverageCapCents({
+    monthlyCapCents: params.billing.monthlyCapCents,
+    overageAmountCents: params.billing.overageAmountCents,
+    reservedOverageAmountCents: params.billing.reservedOverageAmountCents,
+  });
+  const overageCreditsAffordable =
+    params.billing.pricePerCreditCents > 0
+      ? Math.floor(remainingCapCents / params.billing.pricePerCreditCents)
+      : 0;
+  const totalCredits = remainingIncluded + Math.max(0, overageCreditsAffordable);
+  const totalQuantity = Math.floor(totalCredits / unitCost);
+  return Math.min(maxQuantity, Math.max(0, totalQuantity));
+}
+
+export interface IReservationCommitSplit {
+  commitCredits: number;
+  commitIncludedCredits: number;
+  commitOverageCredits: number;
+  commitOverageAmountCents: number;
+  unusedIncludedCredits: number;
+  unusedOverageCredits: number;
+  unusedOverageAmountCents: number;
+}
+
+export function splitReservationForCommit(params: {
+  reservedCredits: number;
+  includedCredits: number;
+  overageCredits: number;
+  overageAmountCents: number;
+  creditsToCommit: number;
+}): IReservationCommitSplit {
+  const reserved = Math.max(0, params.reservedCredits);
+  const included = Math.max(0, params.includedCredits);
+  const overage = Math.max(0, params.overageCredits);
+  const overageAmount = Math.max(0, params.overageAmountCents);
+  const requested = Number.isFinite(params.creditsToCommit)
+    ? Math.max(0, Math.floor(params.creditsToCommit))
+    : 0;
+  const commitCredits = Math.min(reserved, requested);
+  const commitIncludedCredits = Math.min(commitCredits, included);
+  const commitOverageCredits = commitCredits - commitIncludedCredits;
+  const commitOverageAmountCents =
+    overage > 0 ? (overageAmount * commitOverageCredits) / overage : 0;
+
+  return {
+    commitCredits,
+    commitIncludedCredits,
+    commitOverageCredits,
+    commitOverageAmountCents,
+    unusedIncludedCredits: included - commitIncludedCredits,
+    unusedOverageCredits: overage - commitOverageCredits,
+    unusedOverageAmountCents: overageAmount - commitOverageAmountCents,
+  };
+}
+
 export function evaluateFeatureAffordability(params: {
   policy: IUsageFeaturePolicy;
   remainingIncluded: number;

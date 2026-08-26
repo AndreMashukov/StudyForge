@@ -1,14 +1,19 @@
 import { HttpsError } from 'firebase-functions/v2/https';
-import type { GenerationKind } from '@shared-types';
+import {
+  AGENT_LOOP_CREDIT_CAP,
+  type GenerationKind,
+} from '@shared-types';
 import {
   buildProviderCostContext,
   runWithProviderCostContext,
 } from '@study-forge/backend-core/services/provider-cost';
+import { getBillingConfig } from '@study-forge/backend-core/services/billing-service';
 import {
   commitUsageReservation,
   refundUsageReservation,
   reserveUsageCredits,
   resolveUserUsageLimitsContext,
+  settleAgentLoopUsageReservation,
   UsageLimitError,
   type IUsageReservation,
 } from '@study-forge/backend-core/services/usage-limits-service';
@@ -125,6 +130,49 @@ export async function enforceCallableGenerationLimits(
     }
     throw error;
   }
+}
+
+export interface IAgentLoopUsageHold {
+  usageReservation: IUsageReservation;
+  pricePerCreditCents: number;
+}
+
+export async function enforceCallableAgentLoopLimits(
+  userId: string,
+  generationKind: GenerationKind | string,
+): Promise<IAgentLoopUsageHold> {
+  await enforceCallableGenerationRateLimit(userId, generationKind);
+
+  try {
+    const billingConfig = await getBillingConfig();
+    const usageReservation = await reserveUsageCredits({
+      userId,
+      generationKind,
+      maxCredits: AGENT_LOOP_CREDIT_CAP,
+    });
+    return {
+      usageReservation,
+      pricePerCreditCents: billingConfig.pricePerCreditCents,
+    };
+  } catch (error) {
+    if (error instanceof UsageLimitError) {
+      throw toCallableUsageLimitError(error);
+    }
+    throw error;
+  }
+}
+
+export async function settleAgentLoopUsageReservationSafe(
+  userId: string,
+  reservationId?: string,
+): Promise<void> {
+  if (!reservationId) {
+    return;
+  }
+
+  await settleAgentLoopUsageReservation(userId, reservationId).catch(
+    () => undefined,
+  );
 }
 
 export async function enforceExternalDualGenerationLimits(

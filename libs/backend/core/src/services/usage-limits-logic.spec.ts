@@ -8,6 +8,8 @@ import {
 import {
   evaluateFeatureAffordability,
   evaluateUsageLimitDecision,
+  resolveMaxAffordableQuantity,
+  splitReservationForCommit,
   resolveUsageGenerationKind,
 } from './usage-limits-logic';
 
@@ -200,5 +202,113 @@ describe('usage-limits-logic', () => {
     expect(policies.slideDeckText.enabled).toBe(false);
     expect(policies.quiz.enabled).toBe(true);
     expect(policies.quiz.creditCost).toBeGreaterThan(0);
+  });
+});
+
+describe('resolveMaxAffordableQuantity', () => {
+  const policy = { enabled: true, creditCost: 1 };
+  const emptyPeriod = {
+    allowance: 100,
+    reservedCredits: 0,
+    spentCredits: 0,
+    refundedCredits: 0,
+  };
+
+  it('returns the cap when included credits cover it', () => {
+    expect(
+      resolveMaxAffordableQuantity({
+        policy,
+        period: emptyPeriod,
+        maxCredits: 50,
+      }),
+    ).toBe(50);
+  });
+
+  it('returns remaining included credits when pay-as-you-go is off', () => {
+    expect(
+      resolveMaxAffordableQuantity({
+        policy,
+        period: {
+          ...emptyPeriod,
+          spentCredits: 90,
+        },
+        maxCredits: 50,
+      }),
+    ).toBe(10);
+  });
+
+  it('adds overage credits up to the monthly cap', () => {
+    expect(
+      resolveMaxAffordableQuantity({
+        policy,
+        period: {
+          ...emptyPeriod,
+          spentCredits: 100,
+        },
+        billing: activeBilling,
+        maxCredits: 50,
+      }),
+    ).toBe(50);
+  });
+
+  it('stops at remaining overage room', () => {
+    expect(
+      resolveMaxAffordableQuantity({
+        policy,
+        period: {
+          ...emptyPeriod,
+          spentCredits: 100,
+        },
+        billing: {
+          ...activeBilling,
+          overageAmountCents: 1_950,
+        },
+        maxCredits: 50,
+      }),
+    ).toBe(20);
+  });
+
+  it('returns 0 when the feature is disabled', () => {
+    expect(
+      resolveMaxAffordableQuantity({
+        policy: { enabled: false, creditCost: 1 },
+        period: emptyPeriod,
+        maxCredits: 50,
+      }),
+    ).toBe(0);
+  });
+});
+
+describe('splitReservationForCommit', () => {
+  it('commits included credits first', () => {
+    expect(
+      splitReservationForCommit({
+        reservedCredits: 50,
+        includedCredits: 10,
+        overageCredits: 40,
+        overageAmountCents: 100,
+        creditsToCommit: 32,
+      }),
+    ).toEqual({
+      commitCredits: 32,
+      commitIncludedCredits: 10,
+      commitOverageCredits: 22,
+      commitOverageAmountCents: 55,
+      unusedIncludedCredits: 0,
+      unusedOverageCredits: 18,
+      unusedOverageAmountCents: 45,
+    });
+  });
+
+  it('caps commit at the reserved hold', () => {
+    const split = splitReservationForCommit({
+      reservedCredits: 10,
+      includedCredits: 10,
+      overageCredits: 0,
+      overageAmountCents: 0,
+      creditsToCommit: 40,
+    });
+    expect(split.commitCredits).toBe(10);
+    expect(split.unusedIncludedCredits).toBe(0);
   });
 });

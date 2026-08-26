@@ -4,14 +4,13 @@ import { agentMessageSchema } from '@shared-types';
 import { validateExternalAuthFromRequest } from '@study-forge/backend-core/lib/api-key-auth';
 import { verifyAppCheckHeader } from '@study-forge/backend-core/lib/app-check-verification';
 import { DirectoryAgentService } from '@study-forge/backend-agent';
-import { commitUsageReservation } from '@study-forge/backend-core/services/usage-limits-service';
 import {
   buildProviderCostContext,
   runWithProviderCostContext,
 } from '@study-forge/backend-core/services/provider-cost';
 import {
-  enforceCallableGenerationLimits,
-  refundUsageReservationSafe,
+  enforceCallableAgentLoopLimits,
+  settleAgentLoopUsageReservationSafe,
 } from '@study-forge/backend-generation/generation-limits';
 
 const runningInFunctionsEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
@@ -88,14 +87,15 @@ export const agentMessageStream = onRequest(
     }
 
     let usageReservationId: string;
+    let loopBudgetCredits = 0;
+    let pricePerCreditCents = 0;
     try {
       const usageKind =
         parsed.data.scope === 'workspace' ? 'directoryAgent' : 'directoryChat';
-      const usageReservation = await enforceCallableGenerationLimits(
-        userId,
-        usageKind,
-      );
-      usageReservationId = usageReservation.id;
+      const loopHold = await enforceCallableAgentLoopLimits(userId, usageKind);
+      usageReservationId = loopHold.usageReservation.id;
+      loopBudgetCredits = loopHold.usageReservation.credits;
+      pricePerCreditCents = loopHold.pricePerCreditCents;
     } catch (error) {
       if (error instanceof HttpsError) {
         const status =
@@ -137,6 +137,13 @@ export const agentMessageStream = onRequest(
     });
 
     let usageSettled = false;
+    const settleLoopUsage = async (): Promise<void> => {
+      if (usageSettled) {
+        return;
+      }
+      usageSettled = true;
+      await settleAgentLoopUsageReservationSafe(userId, usageReservationId);
+    };
     const providerCostContext = buildProviderCostContext({
       userId,
       generationKind:
@@ -144,6 +151,8 @@ export const agentMessageStream = onRequest(
       reservationId: usageReservationId,
       threadId: parsed.data.threadId,
       callRole: 'agent_step',
+      loopBudgetCredits,
+      pricePerCreditCents,
     });
 
     try {
@@ -156,14 +165,8 @@ export const agentMessageStream = onRequest(
             break;
           }
           writeSseEvent(res, event);
-          if (event.type === 'done') {
-            await commitUsageReservation(userId, usageReservationId);
-            usageSettled = true;
-            break;
-          }
-          if (event.type === 'error') {
-            await refundUsageReservationSafe(userId, usageReservationId);
-            usageSettled = true;
+          if (event.type === 'done' || event.type === 'error') {
+            await settleLoopUsage();
             break;
           }
         }
@@ -177,9 +180,7 @@ export const agentMessageStream = onRequest(
         });
       }
     } finally {
-      if (!usageSettled) {
-        await refundUsageReservationSafe(userId, usageReservationId);
-      }
+      await settleLoopUsage();
       if (!res.writableEnded) {
         res.end();
       }

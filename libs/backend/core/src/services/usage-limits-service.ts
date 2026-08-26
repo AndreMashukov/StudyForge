@@ -2,6 +2,7 @@ import {
   ALL_GENERATION_KINDS,
   buildUsagePeriodKey,
   buildUsagePeriodResetAt,
+  calculateAgentLoopCredits,
   calculateRemainingCredits,
   DEFAULT_USAGE_CREDIT_COSTS,
   resolveLegacySetupQuotaDefaults,
@@ -26,7 +27,9 @@ import {
   evaluateFeatureAffordability,
   evaluateUsageLimitDecision,
   mapJobKindToUsageGenerationKind,
+  resolveMaxAffordableQuantity,
   resolveUsageGenerationKind,
+  splitReservationForCommit,
 } from './usage-limits-logic';
 import { UsageLimitError } from './usage-limit-error';
 import {
@@ -35,7 +38,10 @@ import {
   reserveUserStorageBytes,
   type IUserUsageLimitsContext,
 } from './usage-quota-service';
-import { syncCommittedCreditsToProviderCostRollups } from './provider-cost/provider-cost-ledger-service';
+import {
+  sumAgentLoopUsageForReservation,
+  syncCommittedCreditsToProviderCostRollups,
+} from './provider-cost/provider-cost-ledger-service';
 
 export { UsageLimitError } from './usage-limit-error';
 export {
@@ -440,6 +446,7 @@ export async function reserveUsageCredits(params: {
   userId: string;
   generationKind: GenerationKind | string;
   quantity?: number;
+  maxCredits?: number;
 }): Promise<IUsageReservation> {
   const generationKind = resolveUsageGenerationKind(params.generationKind);
   const context = await resolveUserUsageContext(params.userId);
@@ -477,6 +484,26 @@ export async function reserveUsageCredits(params: {
       });
       const billing = buildUsageBillingContext(billingState, periodData);
 
+      let quantity = params.quantity;
+      if (params.maxCredits !== undefined) {
+        const affordableQuantity = resolveMaxAffordableQuantity({
+          policy,
+          period: {
+            allowance,
+            reservedCredits: numbers.reservedCredits,
+            spentCredits: numbers.spentCredits,
+            refundedCredits: numbers.refundedCredits,
+            reservedOverageCredits: numbers.reservedOverageCredits,
+            spentOverageCredits: numbers.spentOverageCredits,
+            overageAmountCents: numbers.overageAmountCents,
+            reservedOverageAmountCents: numbers.reservedOverageAmountCents,
+          },
+          billing,
+          maxCredits: params.maxCredits,
+        });
+        quantity = affordableQuantity < 1 ? 1 : affordableQuantity;
+      }
+
       const decision = evaluateUsageLimitDecision({
         policy,
         period: {
@@ -490,7 +517,7 @@ export async function reserveUsageCredits(params: {
           reservedOverageAmountCents: numbers.reservedOverageAmountCents,
         },
         billing,
-        quantity: params.quantity,
+        quantity,
       });
 
       if (decision.allowed === false) {
@@ -843,6 +870,259 @@ export async function refundUsageReservation(
   });
 
   await syncUsageSummaryDocument(userId);
+}
+
+export async function settleUsageReservationToCredits(
+  userId: string,
+  reservationId: string,
+  creditsToCommit: number,
+): Promise<void> {
+  const requested = Number.isFinite(creditsToCommit)
+    ? Math.max(0, Math.floor(creditsToCommit))
+    : 0;
+
+  const reservationRef = usageReservationRef(userId, reservationId);
+  const preview = await reservationRef.get();
+  if (!preview.exists) {
+    throw new UsageLimitError(
+      'Usage reservation not found.',
+      'RESERVATION_NOT_FOUND',
+    );
+  }
+
+  const previewData = preview.data() ?? {};
+  const reservedCredits =
+    typeof previewData.credits === 'number' ? previewData.credits : 0;
+  if (requested <= 0) {
+    await refundUsageReservation(userId, reservationId);
+    return;
+  }
+  if (requested >= reservedCredits) {
+    await commitUsageReservation(userId, reservationId);
+    return;
+  }
+
+  const settled = await getFirestore().runTransaction(async (transaction) => {
+    const reservationSnapshot = await transaction.get(reservationRef);
+    if (!reservationSnapshot.exists) {
+      throw new UsageLimitError(
+        'Usage reservation not found.',
+        'RESERVATION_NOT_FOUND',
+      );
+    }
+
+    const reservationData = reservationSnapshot.data() ?? {};
+    const status = reservationData.status;
+    if (status === 'committed' || status === 'refunded') {
+      return null;
+    }
+    if (status !== 'pending') {
+      throw new UsageLimitError(
+        'Usage reservation is invalid.',
+        'RESERVATION_NOT_FOUND',
+      );
+    }
+
+    const credits =
+      typeof reservationData.credits === 'number' ? reservationData.credits : 0;
+    const includedCredits =
+      typeof reservationData.includedCredits === 'number'
+        ? reservationData.includedCredits
+        : credits;
+    const overageCredits =
+      typeof reservationData.overageCredits === 'number'
+        ? reservationData.overageCredits
+        : 0;
+    const overageAmountCents =
+      typeof reservationData.overageAmountCents === 'number'
+        ? reservationData.overageAmountCents
+        : 0;
+    const split = splitReservationForCommit({
+      reservedCredits: credits,
+      includedCredits,
+      overageCredits,
+      overageAmountCents,
+      creditsToCommit: requested,
+    });
+
+    if (split.commitCredits <= 0) {
+      return { kind: 'refund' as const };
+    }
+    if (split.commitCredits >= credits) {
+      return { kind: 'commit' as const };
+    }
+
+    const periodKey =
+      typeof reservationData.periodKey === 'string'
+        ? reservationData.periodKey
+        : buildUsagePeriodKey();
+    const periodRef = usagePeriodRef(userId, periodKey);
+    const periodSnapshot = await transaction.get(periodRef);
+    const periodData = periodSnapshot.data() ?? {};
+    const numbers = readPeriodNumbers(periodData);
+    const now = new Date().toISOString();
+
+    transaction.set(
+      periodRef,
+      {
+        reservedCredits: Math.max(0, numbers.reservedCredits - includedCredits),
+        spentCredits: numbers.spentCredits + split.commitIncludedCredits,
+        refundedCredits: numbers.refundedCredits + split.unusedIncludedCredits,
+        reservedOverageCredits: Math.max(
+          0,
+          numbers.reservedOverageCredits - overageCredits,
+        ),
+        spentOverageCredits:
+          numbers.spentOverageCredits + split.commitOverageCredits,
+        overageAmountCents:
+          numbers.overageAmountCents + split.commitOverageAmountCents,
+        reservedOverageAmountCents: Math.max(
+          0,
+          numbers.reservedOverageAmountCents - overageAmountCents,
+        ),
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+
+    transaction.set(
+      reservationRef,
+      {
+        credits: split.commitCredits,
+        includedCredits: split.commitIncludedCredits,
+        overageCredits: split.commitOverageCredits,
+        overageAmountCents: split.commitOverageAmountCents,
+        trueUpFromCredits: credits,
+        status: 'committed',
+        settledAt: now,
+      },
+      { merge: true },
+    );
+
+    return {
+      kind: 'partial' as const,
+      userGroupId:
+        typeof reservationData.userGroupId === 'string'
+          ? reservationData.userGroupId
+          : '',
+      usageLimitsSetupId:
+        typeof reservationData.usageLimitsSetupId === 'string'
+          ? reservationData.usageLimitsSetupId
+          : '',
+      llmSetupId:
+        typeof reservationData.llmSetupId === 'string'
+          ? reservationData.llmSetupId
+          : undefined,
+      generationKind: reservationData.generationKind as GenerationKind,
+      periodKey,
+      split,
+    };
+  });
+
+  if (!settled) {
+    return;
+  }
+  if (settled.kind === 'refund') {
+    await refundUsageReservation(userId, reservationId);
+    return;
+  }
+  if (settled.kind === 'commit') {
+    await commitUsageReservation(userId, reservationId);
+    return;
+  }
+
+  const unusedCredits =
+    settled.split.unusedIncludedCredits + settled.split.unusedOverageCredits;
+  if (unusedCredits > 0) {
+    await appendUsageEvent({
+      userId,
+      type:
+        settled.split.unusedOverageCredits > 0 ? 'overage_refund' : 'refund',
+      userGroupId: settled.userGroupId,
+      usageLimitsSetupId: settled.usageLimitsSetupId,
+      llmSetupId: settled.llmSetupId,
+      generationKind: settled.generationKind,
+      credits: unusedCredits,
+      includedCredits: settled.split.unusedIncludedCredits,
+      overageCredits: settled.split.unusedOverageCredits,
+      overageAmountCents: settled.split.unusedOverageAmountCents,
+      periodKey: settled.periodKey,
+      reservationId,
+    });
+  }
+
+  await appendUsageEvent({
+    userId,
+    type: settled.split.commitOverageCredits > 0 ? 'overage_commit' : 'commit',
+    userGroupId: settled.userGroupId,
+    usageLimitsSetupId: settled.usageLimitsSetupId,
+    llmSetupId: settled.llmSetupId,
+    generationKind: settled.generationKind,
+    credits: settled.split.commitCredits,
+    includedCredits: settled.split.commitIncludedCredits,
+    overageCredits: settled.split.commitOverageCredits,
+    overageAmountCents: settled.split.commitOverageAmountCents,
+    periodKey: settled.periodKey,
+    reservationId,
+  });
+
+  await syncUsageSummaryDocument(userId);
+
+  const periodSnapshot = await usagePeriodRef(userId, settled.periodKey).get();
+  const periodData = periodSnapshot.data() ?? {};
+  const periodNumbers = readPeriodNumbers(periodData);
+  const committedCredits =
+    periodNumbers.spentCredits + periodNumbers.spentOverageCredits;
+  await syncCommittedCreditsToProviderCostRollups({
+    userId,
+    periodKey: settled.periodKey,
+    committedCredits,
+  }).catch((error) => {
+    functions.logger.warn(
+      'Failed to sync committed credits to provider cost rollup',
+      {
+        userId,
+        periodKey: settled.periodKey,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
+  });
+}
+
+export async function settleAgentLoopUsageReservation(
+  userId: string,
+  reservationId: string,
+): Promise<void> {
+  const reservationSnapshot = await usageReservationRef(
+    userId,
+    reservationId,
+  ).get();
+  if (!reservationSnapshot.exists) {
+    throw new UsageLimitError(
+      'Usage reservation not found.',
+      'RESERVATION_NOT_FOUND',
+    );
+  }
+
+  const reservationData = reservationSnapshot.data() ?? {};
+  const status = reservationData.status;
+  if (status === 'committed' || status === 'refunded') {
+    return;
+  }
+
+  const reservedCredits =
+    typeof reservationData.credits === 'number' ? reservationData.credits : 0;
+  const totals = await sumAgentLoopUsageForReservation(userId, reservationId);
+  const billingConfig = await getBillingConfig();
+  const creditsToCommit = calculateAgentLoopCredits({
+    knownCostUsd: totals.knownCostUsd,
+    unknownCallCount: totals.unknownCallCount,
+    pricePerCreditCents: billingConfig.pricePerCreditCents,
+    reservedCredits,
+    billableEventCount: totals.billableEventCount,
+  });
+
+  await settleUsageReservationToCredits(userId, reservationId, creditsToCommit);
 }
 
 export async function getUserUsageSummary(

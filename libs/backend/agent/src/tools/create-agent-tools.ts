@@ -27,7 +27,10 @@ import {
   enforceCallableGenerationLimits,
   refundUsageReservationSafe,
 } from '@study-forge/backend-generation/generation-limits';
-import { createPendingQuiz } from '@study-forge/backend-artifacts/artifact-generation-records';
+import {
+  createPendingQuiz,
+  failPendingQuiz,
+} from '@study-forge/backend-artifacts/artifact-generation-records';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { AgentKnowledgeIndexService } from '../knowledge/agent-knowledge-index-service';
 import { AgentKnowledgeLifecycle } from '../knowledge/agent-knowledge-lifecycle';
@@ -518,7 +521,8 @@ export function createAgentToolDefinitions(
     },
     {
       name: 'generate_quiz',
-      description: 'Generate a quiz from a document.',
+      description:
+        'Generate a quiz from a document. Uses the same quiz credit cost as the quiz generator in the app.',
       parameters: {
         type: 'object',
         properties: {
@@ -542,42 +546,58 @@ export function createAgentToolDefinitions(
           throw new Error('Document not found');
         }
         assertDirectoryInScope(context, document.directoryId);
-        const quizId = await createPendingQuiz({
-          userId: context.userId,
-          directoryId: document.directoryId,
-          documentId,
-          documentIds: [documentId],
-          documentTitle: document.title,
-          title:
-            typeof args.title === 'string'
-              ? args.title
-              : `${document.title} Quiz`,
-        });
-        const jobId = await enqueueGenerationJob({
-          userId: context.userId,
-          directoryId: document.directoryId,
-          recordId: quizId,
-          kind: 'quiz',
-          payload: {
+        const title =
+          typeof args.title === 'string'
+            ? args.title
+            : `${document.title} Quiz`;
+        const usageReservation = await enforceCallableGenerationLimits(
+          context.userId,
+          'quiz',
+        );
+        let quizId: string | undefined;
+        try {
+          quizId = await createPendingQuiz({
+            userId: context.userId,
+            directoryId: document.directoryId,
+            documentId,
             documentIds: [documentId],
-            title:
-              typeof args.title === 'string'
-                ? args.title
-                : `${document.title} Quiz`,
-            questionCount:
-              typeof args.questionCount === 'number'
-                ? Math.min(args.questionCount, 20)
-                : 10,
-          },
-        });
-        pushAction(context, {
-          kind: 'generate_quiz',
-          summary: `Started quiz generation for "${document.title}"`,
-          entityType: 'quiz',
-          entityId: quizId,
-          jobId,
-        });
-        return { quizId, jobId };
+            documentTitle: document.title,
+            title,
+          });
+          const jobId = await enqueueGenerationJob({
+            userId: context.userId,
+            directoryId: document.directoryId,
+            recordId: quizId,
+            kind: 'quiz',
+            usageReservationId: usageReservation.id,
+            payload: {
+              documentIds: [documentId],
+              title,
+              questionCount:
+                typeof args.questionCount === 'number'
+                  ? Math.min(args.questionCount, 20)
+                  : 10,
+            },
+          });
+          pushAction(context, {
+            kind: 'generate_quiz',
+            summary: `Started quiz generation for "${document.title}"`,
+            entityType: 'quiz',
+            entityId: quizId,
+            jobId,
+          });
+          return { quizId, jobId };
+        } catch (error) {
+          if (quizId) {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            await failPendingQuiz(context.userId, quizId, message).catch(
+              () => undefined,
+            );
+          }
+          await refundUsageReservationSafe(context.userId, usageReservation.id);
+          throw error;
+        }
       },
     },
     {
