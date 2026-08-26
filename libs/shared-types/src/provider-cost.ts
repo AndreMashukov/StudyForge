@@ -13,6 +13,12 @@ export type ProviderCostCallRole =
   | 'embed'
   | 'image';
 
+export function isAgentLoopBillableCallRole(
+  role: ProviderCostCallRole | undefined,
+): boolean {
+  return role === 'agent_step' || role === 'embed';
+}
+
 export type ProviderCostCallStatus = 'ok' | 'error' | 'timeout' | 'truncated';
 
 export type ProviderCostSource = 'provider_usage_estimate' | 'unknown';
@@ -139,6 +145,16 @@ export interface IProviderCostContext {
   modality?: LlmModality;
   callRole?: ProviderCostCallRole;
   connectionId?: string;
+  /** Credits held for this agent turn; used to stop the loop at the budget. */
+  loopBudgetCredits?: number;
+  /** Running known provider USD for agent_step and embed on this reservation. */
+  loopKnownCostUsd?: number;
+  /** Running count of agent_step/embed calls with unknown provider cost. */
+  loopUnknownCallCount?: number;
+  /** Running count of agent_step/embed calls on this reservation. */
+  loopBillableEventCount?: number;
+  /** Price used to convert running loop USD into credits. */
+  pricePerCreditCents?: number;
 }
 
 export interface IRecordProviderCallParams {

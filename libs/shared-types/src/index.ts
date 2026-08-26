@@ -2345,6 +2345,7 @@ export type {
   IUsageDailySlideDeckSummary,
   IUsageStorageSummary,
   IUserUsageSummary,
+  ICalculateAgentLoopCreditsParams,
   UsageLimitErrorCode,
   UsageLimitEventType,
 } from './usage-limits';
@@ -2358,8 +2359,12 @@ export {
   calculateRemainingDailySlideDecks,
   calculateRemainingStorageBytes,
   calculateUsageCreditCharge,
+  calculateAgentLoopCredits,
   createDefaultFeaturePolicies,
   DEFAULT_USAGE_CREDIT_COSTS,
+  AGENT_LOOP_CREDIT_CAP,
+  AGENT_LOOP_USD_MARKUP,
+  AGENT_LOOP_UNKNOWN_CALL_CREDITS,
   FREE_TIER_DISABLED_KINDS,
   FREE_TIER_STORAGE_LIMIT_BYTES,
   POWER_TIER_STORAGE_LIMIT_BYTES,
@@ -2408,6 +2413,7 @@ export type {
   ProviderCostMeter,
   ProviderCostSource,
 } from './provider-cost';
+export { isAgentLoopBillableCallRole } from './provider-cost';
 export {
   calculateProviderCostUsd,
   inferProviderCostMeter,

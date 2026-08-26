@@ -1,6 +1,10 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { IProviderCostContext } from '@shared-types';
-import { buildUsagePeriodKey } from '@shared-types';
+import {
+  buildUsagePeriodKey,
+  calculateAgentLoopCredits,
+  DEFAULT_PRICE_PER_CREDIT_CENTS,
+} from '@shared-types';
 
 const storage = new AsyncLocalStorage<IProviderCostContext>();
 
@@ -32,6 +36,30 @@ export function nextProviderCallSequence(): number {
   return callSequence;
 }
 
+export function getRunningAgentLoopCredits(): number {
+  const context = storage.getStore();
+  if (!context) {
+    return 0;
+  }
+
+  return calculateAgentLoopCredits({
+    knownCostUsd: context.loopKnownCostUsd ?? 0,
+    unknownCallCount: context.loopUnknownCallCount ?? 0,
+    pricePerCreditCents:
+      context.pricePerCreditCents ?? DEFAULT_PRICE_PER_CREDIT_CENTS,
+    reservedCredits: context.loopBudgetCredits ?? 0,
+    billableEventCount: context.loopBillableEventCount ?? 0,
+  });
+}
+
+export function isAgentLoopBudgetExhausted(): boolean {
+  const context = storage.getStore();
+  if (!context || !context.loopBudgetCredits || context.loopBudgetCredits <= 0) {
+    return false;
+  }
+  return getRunningAgentLoopCredits() >= context.loopBudgetCredits;
+}
+
 export function buildProviderCostContext(params: {
   userId: string;
   generationKind?: IProviderCostContext['generationKind'];
@@ -46,6 +74,8 @@ export function buildProviderCostContext(params: {
   callRole?: IProviderCostContext['callRole'];
   connectionId?: string;
   periodKey?: string;
+  loopBudgetCredits?: number;
+  pricePerCreditCents?: number;
 }): IProviderCostContext {
   return {
     userId: params.userId,
@@ -61,5 +91,10 @@ export function buildProviderCostContext(params: {
     modality: params.modality,
     callRole: params.callRole,
     connectionId: params.connectionId,
+    loopBudgetCredits: params.loopBudgetCredits,
+    loopKnownCostUsd: 0,
+    loopUnknownCallCount: 0,
+    loopBillableEventCount: 0,
+    pricePerCreditCents: params.pricePerCreditCents,
   };
 }

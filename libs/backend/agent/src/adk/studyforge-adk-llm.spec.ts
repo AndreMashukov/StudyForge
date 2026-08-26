@@ -1,10 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { patchProviderCostContext } from '@study-forge/backend-core/services/provider-cost';
-import { LlmGenerationRouteResolver } from '@study-forge/backend-llm/llm';
-import { StudyForgeAdkLlm } from './studyforge-adk-llm';
+import {
+  isAgentLoopBudgetExhausted,
+  patchProviderCostContext,
+} from '@study-forge/backend-core/services/provider-cost';
+import {
+  callToolChatCompletions,
+  LlmGenerationRouteResolver,
+} from '@study-forge/backend-llm/llm';
+import {
+  AGENT_LOOP_BUDGET_EXHAUSTED_REPLY,
+  StudyForgeAdkLlm,
+} from './studyforge-adk-llm';
 
 vi.mock('@study-forge/backend-core/services/provider-cost', () => ({
   patchProviderCostContext: vi.fn(),
+  isAgentLoopBudgetExhausted: vi.fn(() => false),
 }));
 
 vi.mock('@study-forge/backend-llm/llm', async (importOriginal) => {
@@ -25,6 +35,8 @@ vi.mock('@study-forge/backend-llm/llm', async (importOriginal) => {
 
 describe('StudyForgeAdkLlm provider cost context', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(isAgentLoopBudgetExhausted).mockReturnValue(false);
     vi.mocked(LlmGenerationRouteResolver.resolve).mockResolvedValue({
       route: {
         connectionId: 'conn-1',
@@ -82,5 +94,30 @@ describe('StudyForgeAdkLlm provider cost context', () => {
       'directoryAgent',
       { userId: 'user-1' },
     );
+  });
+
+  it('returns a budget-exhausted reply without calling the model', async () => {
+    vi.mocked(isAgentLoopBudgetExhausted).mockReturnValue(true);
+
+    const llm = new StudyForgeAdkLlm({
+      userId: 'user-1',
+      generationKind: 'directoryAgent',
+    });
+    const generator = llm.generateContentAsync({
+      contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
+      config: { systemInstruction: 'system' },
+    });
+
+    const result = await generator.next();
+
+    expect(result.value).toMatchObject({
+      content: {
+        role: 'model',
+        parts: [{ text: AGENT_LOOP_BUDGET_EXHAUSTED_REPLY }],
+      },
+      turnComplete: true,
+    });
+    expect(callToolChatCompletions).not.toHaveBeenCalled();
+    expect(LlmGenerationRouteResolver.resolve).not.toHaveBeenCalled();
   });
 });

@@ -41,6 +41,7 @@ vi.mock('@study-forge/backend-generation/generation-limits', () => ({
 
 vi.mock('@study-forge/backend-artifacts/artifact-generation-records', () => ({
   createPendingQuiz: vi.fn(),
+  failPendingQuiz: vi.fn(),
 }));
 
 vi.mock('@study-forge/backend-core/lib/firestore-paths', () => ({
@@ -81,7 +82,14 @@ import {
 import { getApplicableRules } from '@study-forge/backend-directories/rule-resolution';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
-import { enforceCallableGenerationLimits } from '@study-forge/backend-generation/generation-limits';
+import {
+  enforceCallableGenerationLimits,
+  refundUsageReservationSafe,
+} from '@study-forge/backend-generation/generation-limits';
+import {
+  createPendingQuiz,
+  failPendingQuiz,
+} from '@study-forge/backend-artifacts/artifact-generation-records';
 import { AgentKnowledgeLifecycle } from '../knowledge/agent-knowledge-lifecycle';
 import {
   createAgentToolDefinitions,
@@ -559,6 +567,113 @@ describe('createAgentToolDefinitions create_document', () => {
           prompt: 'Create a recap covering yesterday quiz gaps.',
         }),
       }),
+    );
+  });
+});
+
+describe('createAgentToolDefinitions generate_quiz', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('reserves quiz credits and attaches the reservation to the job', async () => {
+    vi.mocked(DocumentCrudService.getDocument).mockResolvedValue({
+      id: 'doc-1',
+      title: 'Supervised Learning',
+      directoryId: 'dir-1',
+    } as never);
+    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue({
+      id: 'quiz-reservation-1',
+    } as never);
+    vi.mocked(createPendingQuiz).mockResolvedValue('quiz-pending');
+    vi.mocked(enqueueGenerationJob).mockResolvedValue('quiz-job-1');
+
+    const context = createContext({ directoryIds: ['dir-1'] });
+    const tools = createAgentToolDefinitions(context);
+    const result = await executeAgentTool(tools, 'generate_quiz', {
+      documentId: 'doc-1',
+      title: 'Supervised Learning Quiz',
+      questionCount: 8,
+    });
+
+    expect(enforceCallableGenerationLimits).toHaveBeenCalledWith(
+      'user-1',
+      'quiz',
+    );
+    expect(createPendingQuiz).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        directoryId: 'dir-1',
+        documentId: 'doc-1',
+        title: 'Supervised Learning Quiz',
+      }),
+    );
+    expect(enqueueGenerationJob).toHaveBeenCalledWith({
+      userId: 'user-1',
+      directoryId: 'dir-1',
+      recordId: 'quiz-pending',
+      kind: 'quiz',
+      usageReservationId: 'quiz-reservation-1',
+      payload: {
+        documentIds: ['doc-1'],
+        title: 'Supervised Learning Quiz',
+        questionCount: 8,
+      },
+    });
+    expect(result).toEqual({ quizId: 'quiz-pending', jobId: 'quiz-job-1' });
+    expect(context.executedActions[0]?.summary).toBe(
+      'Started quiz generation for "Supervised Learning"',
+    );
+  });
+
+  it('does not create a pending quiz when credit reservation fails', async () => {
+    vi.mocked(DocumentCrudService.getDocument).mockResolvedValue({
+      id: 'doc-1',
+      title: 'Supervised Learning',
+      directoryId: 'dir-1',
+    } as never);
+    vi.mocked(enforceCallableGenerationLimits).mockRejectedValue(
+      new Error('You do not have enough credits for this action.'),
+    );
+
+    const tools = createAgentToolDefinitions(createContext());
+    await expect(
+      executeAgentTool(tools, 'generate_quiz', { documentId: 'doc-1' }),
+    ).rejects.toThrow('enough credits');
+
+    expect(createPendingQuiz).not.toHaveBeenCalled();
+    expect(enqueueGenerationJob).not.toHaveBeenCalled();
+  });
+
+  it('refunds the reservation and fails the pending quiz when enqueue fails', async () => {
+    vi.mocked(DocumentCrudService.getDocument).mockResolvedValue({
+      id: 'doc-1',
+      title: 'Supervised Learning',
+      directoryId: 'dir-1',
+    } as never);
+    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue({
+      id: 'quiz-reservation-1',
+    } as never);
+    vi.mocked(createPendingQuiz).mockResolvedValue('quiz-pending');
+    vi.mocked(enqueueGenerationJob).mockRejectedValue(
+      new Error('queue unavailable'),
+    );
+    vi.mocked(failPendingQuiz).mockResolvedValue(undefined);
+    vi.mocked(refundUsageReservationSafe).mockResolvedValue(undefined);
+
+    const tools = createAgentToolDefinitions(createContext());
+    await expect(
+      executeAgentTool(tools, 'generate_quiz', { documentId: 'doc-1' }),
+    ).rejects.toThrow('queue unavailable');
+
+    expect(failPendingQuiz).toHaveBeenCalledWith(
+      'user-1',
+      'quiz-pending',
+      'queue unavailable',
+    );
+    expect(refundUsageReservationSafe).toHaveBeenCalledWith(
+      'user-1',
+      'quiz-reservation-1',
     );
   });
 });

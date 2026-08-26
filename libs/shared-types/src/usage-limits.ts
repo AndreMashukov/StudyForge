@@ -380,3 +380,69 @@ export function calculateUsageCreditCharge(
     Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1;
   return policy.creditCost * normalizedQuantity;
 }
+
+/** Max credits held for one workspace/directory agent turn before USD true-up. */
+export const AGENT_LOOP_CREDIT_CAP = 50;
+
+/** Multiplier applied to recorded provider USD before converting to credits. */
+export const AGENT_LOOP_USD_MARKUP = 2;
+
+/** Credits charged for each loop call whose provider cost is unknown. */
+export const AGENT_LOOP_UNKNOWN_CALL_CREDITS = 1;
+
+export interface ICalculateAgentLoopCreditsParams {
+  knownCostUsd: number;
+  unknownCallCount: number;
+  pricePerCreditCents: number;
+  reservedCredits: number;
+  billableEventCount?: number;
+}
+
+/**
+ * Credits to commit for an agent tool-loop after provider events are recorded.
+ * Caps at the hold. Zero events and zero cost refunds the hold.
+ */
+export function calculateAgentLoopCredits(
+  params: ICalculateAgentLoopCreditsParams,
+): number {
+  const reserved = Number.isFinite(params.reservedCredits)
+    ? Math.max(0, Math.floor(params.reservedCredits))
+    : 0;
+  if (reserved <= 0) {
+    return 0;
+  }
+
+  const unknownCalls = Number.isFinite(params.unknownCallCount)
+    ? Math.max(0, Math.floor(params.unknownCallCount))
+    : 0;
+  const unknownCredits = unknownCalls * AGENT_LOOP_UNKNOWN_CALL_CREDITS;
+
+  const knownCostUsd =
+    Number.isFinite(params.knownCostUsd) && params.knownCostUsd > 0
+      ? params.knownCostUsd
+      : 0;
+  const pricePerCreditCents =
+    Number.isFinite(params.pricePerCreditCents) && params.pricePerCreditCents > 0
+      ? params.pricePerCreditCents
+      : 0;
+  const usdCredits =
+    knownCostUsd > 0 && pricePerCreditCents > 0
+      ? Math.ceil(
+          (knownCostUsd * AGENT_LOOP_USD_MARKUP * 100) / pricePerCreditCents,
+        )
+      : 0;
+
+  const billed = usdCredits + unknownCredits;
+  if (billed > 0) {
+    return Math.min(reserved, billed);
+  }
+
+  const billableEventCount = Number.isFinite(params.billableEventCount)
+    ? Math.max(0, Math.floor(params.billableEventCount ?? 0))
+    : 0;
+  if (billableEventCount > 0) {
+    return Math.min(reserved, 1);
+  }
+
+  return 0;
+}

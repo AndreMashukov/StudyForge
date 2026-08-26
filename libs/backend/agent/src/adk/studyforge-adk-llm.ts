@@ -9,7 +9,7 @@ import {
   callToolChatCompletions,
   LlmGenerationRouteResolver,
 } from '@study-forge/backend-llm/llm';
-import { patchProviderCostContext } from '@study-forge/backend-core/services/provider-cost';
+import { patchProviderCostContext, isAgentLoopBudgetExhausted } from '@study-forge/backend-core/services/provider-cost';
 import {
   geminiContentsToToolChatMessages,
   llmRequestToOpenAiTools,
@@ -26,6 +26,9 @@ export interface StudyForgeAdkLlmInput {
   userId: string;
   generationKind: StudyForgeAdkGenerationKind;
 }
+
+export const AGENT_LOOP_BUDGET_EXHAUSTED_REPLY =
+  'This turn used the agent-loop credit budget, so I stopped before more model calls. Any documents or quizzes already started will keep generating.';
 
 export class StudyForgeAdkLlm extends BaseLlm {
   private readonly userId: string;
@@ -44,6 +47,17 @@ export class StudyForgeAdkLlm extends BaseLlm {
   ): AsyncGenerator<LlmResponse, void> {
     if (abortSignal?.aborted) {
       yield { errorMessage: 'Aborted', turnComplete: true };
+      return;
+    }
+
+    if (isAgentLoopBudgetExhausted()) {
+      yield {
+        content: {
+          role: 'model',
+          parts: [{ text: AGENT_LOOP_BUDGET_EXHAUSTED_REPLY }],
+        },
+        turnComplete: true,
+      };
       return;
     }
 

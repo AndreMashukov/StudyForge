@@ -8,6 +8,12 @@ import {
   normalizeGeminiUsageMetadata,
   normalizeOpenAiCompatibleUsage,
 } from './provider-usage-normalizer';
+import {
+  buildProviderCostContext,
+  getRunningAgentLoopCredits,
+  isAgentLoopBudgetExhausted,
+  runWithProviderCostContext,
+} from './provider-cost-context';
 
 describe('provider-cost-logic', () => {
   it('computes token cost with cached input discount', () => {
@@ -124,5 +130,36 @@ describe('provider-usage-normalizer', () => {
     expect(inferProviderCostMeter({ inputTokens: 1, outputTokens: 2 })).toBe(
       'token',
     );
+  });
+});
+
+describe('agent loop budget helpers', () => {
+  it('is not exhausted before any billable loop cost', async () => {
+    const context = buildProviderCostContext({
+      userId: 'user-1',
+      loopBudgetCredits: 50,
+      pricePerCreditCents: 2.5,
+      callRole: 'agent_step',
+    });
+
+    await runWithProviderCostContext(context, async () => {
+      expect(isAgentLoopBudgetExhausted()).toBe(false);
+      expect(getRunningAgentLoopCredits()).toBe(0);
+    });
+  });
+
+  it('is exhausted when running loop credits reach the hold', async () => {
+    const context = buildProviderCostContext({
+      userId: 'user-1',
+      loopBudgetCredits: 10,
+      pricePerCreditCents: 2.5,
+      callRole: 'agent_step',
+    });
+    context.loopKnownCostUsd = 0.4;
+
+    await runWithProviderCostContext(context, async () => {
+      expect(getRunningAgentLoopCredits()).toBe(10);
+      expect(isAgentLoopBudgetExhausted()).toBe(true);
+    });
   });
 });

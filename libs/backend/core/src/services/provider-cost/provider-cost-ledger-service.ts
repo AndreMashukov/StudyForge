@@ -1,5 +1,6 @@
 import {
   calculateProviderCostUsd,
+  isAgentLoopBillableCallRole,
   type GenerationKind,
   type IProviderCostBucket,
   type IProviderUsageUnits,
@@ -211,6 +212,21 @@ export async function recordProviderCall(
   try {
     await eventRef.set(eventDoc);
 
+    const billableRole = isAgentLoopBillableCallRole(
+      params.callRole ?? context.callRole,
+    );
+    if (billableRole) {
+      const store = getProviderCostContext();
+      if (store) {
+        if (costKnown && costUsd !== null) {
+          store.loopKnownCostUsd = (store.loopKnownCostUsd ?? 0) + costUsd;
+        } else {
+          store.loopUnknownCallCount = (store.loopUnknownCallCount ?? 0) + 1;
+        }
+        store.loopBillableEventCount = (store.loopBillableEventCount ?? 0) + 1;
+      }
+    }
+
     if (costKnown && costUsd !== null) {
       await incrementCostRollups({
         userId: context.userId,
@@ -344,4 +360,45 @@ export function modalityFromCall(params: {
   defaultModality?: LlmModality;
 }): LlmModality {
   return params.modality ?? params.defaultModality ?? 'text';
+}
+
+export interface IAgentLoopUsageTotals {
+  knownCostUsd: number;
+  unknownCallCount: number;
+  billableEventCount: number;
+}
+
+export async function sumAgentLoopUsageForReservation(
+  userId: string,
+  reservationId: string,
+): Promise<IAgentLoopUsageTotals> {
+  const snapshot = await llmUsageEventsCollection(userId)
+    .where('reservationId', '==', reservationId)
+    .get();
+
+  let knownCostUsd = 0;
+  let unknownCallCount = 0;
+  let billableEventCount = 0;
+
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    const callRole = data.callRole;
+    if (callRole !== 'agent_step' && callRole !== 'embed') {
+      continue;
+    }
+
+    billableEventCount += 1;
+    const costKnown = data.costKnown === true;
+    const costUsd =
+      typeof data.costUsd === 'number' && Number.isFinite(data.costUsd)
+        ? data.costUsd
+        : undefined;
+    if (costKnown && costUsd !== undefined) {
+      knownCostUsd += costUsd;
+    } else {
+      unknownCallCount += 1;
+    }
+  }
+
+  return { knownCostUsd, unknownCallCount, billableEventCount };
 }
