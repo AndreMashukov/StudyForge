@@ -2,7 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export type ArtifactPanelType = 'quizzes' | 'cards' | 'slides' | 'diagramQuizzes' | 'sequenceQuizzes' | 'sources';
 
-export interface PendingGeneration {
+export interface IPendingGeneration {
   id: string;
   directoryId: string;
   artifactType: ArtifactPanelType;
@@ -10,7 +10,7 @@ export interface PendingGeneration {
 }
 
 interface ArtifactGenerationState {
-  pendingGenerations: PendingGeneration[];
+  pendingGenerations: IPendingGeneration[];
 }
 
 const initialState: ArtifactGenerationState = {
@@ -21,7 +21,7 @@ const artifactGenerationSlice = createSlice({
   name: 'artifactGeneration',
   initialState,
   reducers: {
-    addPendingGeneration: (state, action: PayloadAction<PendingGeneration>) => {
+    addPendingGeneration: (state, action: PayloadAction<IPendingGeneration>) => {
       state.pendingGenerations.push(action.payload);
     },
     removePendingGeneration: (state, action: PayloadAction<{ id: string }>) => {

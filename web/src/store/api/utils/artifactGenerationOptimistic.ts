@@ -9,12 +9,25 @@ interface DirectoryContentsQueryArgs {
   artifactLimit: number;
 }
 
+export interface IOptimisticTitleInput {
+  title?: string;
+  quizName?: string;
+  diagramQuizName?: string;
+  sequenceQuizName?: string;
+  prompt?: string;
+  content?: string;
+}
+
 const ARTIFACT_NAME_FIELDS = [
   'quizName',
   'diagramQuizName',
   'sequenceQuizName',
   'title',
-] as const;
+] as const satisfies ReadonlyArray<keyof IOptimisticTitleInput>;
+
+export interface IOptimisticArtifactPatchArg extends IOptimisticTitleInput {
+  ruleIds?: unknown;
+}
 
 function truncatePromptTitle(prompt: string): string {
   const trimmed = prompt.trim();
@@ -24,7 +37,7 @@ function truncatePromptTitle(prompt: string): string {
   return trimmed;
 }
 
-export function getOptimisticArtifactTitle(arg: Record<string, unknown>): string | undefined {
+export function getOptimisticArtifactTitle(arg: IOptimisticTitleInput): string | undefined {
   for (const field of ARTIFACT_NAME_FIELDS) {
     const value = arg[field];
     if (typeof value === 'string' && value.trim()) {
@@ -137,7 +150,7 @@ export function patchPendingArtifactSummaryFromResponse(
   getState: () => unknown,
   artifactType: ArtifactPanelType,
   directoryId: string,
-  arg: Record<string, unknown>,
+  arg: IOptimisticArtifactPatchArg,
   data: ApiResponse<unknown>,
 ): void {
   if (artifactType === 'sources') {

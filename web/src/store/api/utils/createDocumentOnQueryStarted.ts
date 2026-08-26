@@ -1,9 +1,9 @@
 import { ThunkDispatch, UnknownAction } from '@reduxjs/toolkit';
 import { addPendingGeneration, removePendingGeneration } from '../../slices/artifactGenerationSlice';
 import { showToast } from '../../slices/uiSlice';
-import { getOptimisticArtifactTitle } from './artifactGenerationOptimistic';
+import { getOptimisticArtifactTitle, IOptimisticTitleInput } from './artifactGenerationOptimistic';
 
-interface DocumentGenerationArg {
+interface DocumentGenerationArg extends IOptimisticTitleInput {
   directoryId?: string;
 }
 
@@ -24,7 +24,7 @@ export function createDocumentOnQueryStarted(
       id,
       directoryId: arg.directoryId,
       artifactType: 'sources',
-      optimisticTitle: getOptimisticArtifactTitle(arg as Record<string, unknown>),
+      optimisticTitle: getOptimisticArtifactTitle(arg),
     }));
     try {
       await queryFulfilled;

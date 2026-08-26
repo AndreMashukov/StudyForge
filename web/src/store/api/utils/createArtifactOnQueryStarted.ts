@@ -6,12 +6,14 @@ import { normalizeGenerationErrorMessage } from '../../../utils/llmRoutingErrors
 import type { AppDispatch } from '../../index';
 import {
   getOptimisticArtifactTitle,
+  IOptimisticTitleInput,
   patchPendingArtifactSummaryFromResponse,
 } from './artifactGenerationOptimistic';
 
-interface ArtifactGenerationArg {
+interface ArtifactGenerationArg extends IOptimisticTitleInput {
   directoryId?: string;
   documentIds: string[];
+  ruleIds?: string[];
 }
 
 interface CreateArtifactOnQueryStartedOptions {
@@ -43,7 +45,7 @@ export function createArtifactOnQueryStarted(
       id,
       directoryId: arg.directoryId,
       artifactType,
-      optimisticTitle: getOptimisticArtifactTitle(arg as unknown as Record<string, unknown>),
+      optimisticTitle: getOptimisticArtifactTitle(arg),
     }));
 
     try {
@@ -54,7 +56,7 @@ export function createArtifactOnQueryStarted(
         getState,
         artifactType,
         arg.directoryId,
-        arg as unknown as Record<string, unknown>,
+        arg,
         data,
       );
 

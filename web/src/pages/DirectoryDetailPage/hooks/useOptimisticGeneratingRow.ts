@@ -5,7 +5,7 @@ import {
   selectPendingGenerations,
 } from '../../../store/slices/artifactGenerationSlice';
 
-export interface OptimisticGeneratingPlaceholder {
+export interface IOptimisticGeneratingPlaceholder {
   id: string;
   title: string;
 }
@@ -16,7 +16,7 @@ export function useOptimisticGeneratingRow(
 ) {
   const pendingGenerations = useSelector(selectPendingGenerations);
 
-  const placeholders = useMemo((): OptimisticGeneratingPlaceholder[] => {
+  const placeholders = useMemo((): IOptimisticGeneratingPlaceholder[] => {
     const matching = pendingGenerations.filter(
       (generation) =>
         generation.directoryId === directoryId && generation.artifactType === artifactType,
