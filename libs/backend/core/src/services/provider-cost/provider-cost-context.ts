@@ -60,7 +60,7 @@ export function isAgentLoopBudgetExhausted(): boolean {
   return getRunningAgentLoopCredits() >= context.loopBudgetCredits;
 }
 
-export function buildProviderCostContext(params: {
+export interface IBuildProviderCostContextParams {
   userId: string;
   generationKind?: IProviderCostContext['generationKind'];
   reservationId?: string;
@@ -76,7 +76,11 @@ export function buildProviderCostContext(params: {
   periodKey?: string;
   loopBudgetCredits?: number;
   pricePerCreditCents?: number;
-}): IProviderCostContext {
+}
+
+export function buildProviderCostContext(
+  params: IBuildProviderCostContextParams,
+): IProviderCostContext {
   return {
     userId: params.userId,
     periodKey: params.periodKey ?? buildUsagePeriodKey(),

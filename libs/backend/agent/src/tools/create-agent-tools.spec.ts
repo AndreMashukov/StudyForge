@@ -71,6 +71,11 @@ vi.mock('../knowledge/agent-knowledge-lifecycle', () => ({
   },
 }));
 
+import {
+  DocumentSourceType,
+  DocumentStatus,
+  type DocumentEnhanced,
+} from '@shared-types';
 import { directoryService } from '@study-forge/backend-directories/directory';
 import {
   attachRuleToDirectory,
@@ -86,6 +91,7 @@ import {
   enforceCallableGenerationLimits,
   refundUsageReservationSafe,
 } from '@study-forge/backend-generation/generation-limits';
+import type { IUsageReservation } from '@study-forge/backend-core/services/usage-limits-service';
 import {
   createPendingQuiz,
   failPendingQuiz,
@@ -107,6 +113,48 @@ function createContext(
     directoryIds: ['dir-1'],
     executedActions: [],
     proposedDeletes: [],
+    ...overrides,
+  };
+}
+
+function createTestDocument(
+  overrides: Partial<DocumentEnhanced> = {},
+): DocumentEnhanced {
+  return {
+    id: 'doc-1',
+    userId: 'user-1',
+    title: 'Supervised Learning',
+    description: '',
+    sourceType: DocumentSourceType.GENERATED,
+    wordCount: 10,
+    status: DocumentStatus.ACTIVE,
+    storageUrl: '',
+    storagePath: 'users/user-1/documents/doc-1/content.html',
+    tags: [],
+    directoryId: 'dir-1',
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+function createTestUsageReservation(
+  overrides: Partial<IUsageReservation> = {},
+): IUsageReservation {
+  return {
+    id: 'reservation-1',
+    userId: 'user-1',
+    userGroupId: 'group-1',
+    usageLimitsSetupId: 'setup-1',
+    llmSetupId: 'llm-1',
+    generationKind: 'quiz',
+    credits: 5,
+    includedCredits: 5,
+    overageCredits: 0,
+    overageAmountCents: 0,
+    periodKey: '2026-08',
+    status: 'pending',
+    createdAt: '2026-08-26T00:00:00.000Z',
     ...overrides,
   };
 }
@@ -382,22 +430,12 @@ describe('createAgentToolDefinitions get_document_content', () => {
 
   it('reads document body and strips HTML', async () => {
     vi.mocked(DocumentCrudService.getDocumentWithContent).mockResolvedValue({
-      id: 'doc-1',
-      userId: 'user-1',
-      title: 'Using Tools with LangChain',
-      description: '',
-      sourceType: 'generated',
-      wordCount: 10,
-      status: 'ready',
-      storageUrl: '',
-      storagePath: 'users/user-1/documents/doc-1/content.html',
-      tags: [],
-      directoryId: 'dir-1',
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      ...createTestDocument({
+        title: 'Using Tools with LangChain',
+        contentFormat: 'html',
+      }),
       content: '<h1>Tools</h1><p>Use <code>tool.bind()</code> carefully.</p>',
-      contentFormat: 'html',
-    } as never);
+    });
 
     const tools = createAgentToolDefinitions(createContext());
     const result = await executeAgentTool(tools, 'get_document_content', {
@@ -419,22 +457,15 @@ describe('createAgentToolDefinitions get_document_content', () => {
 
   it('defaults to UI document context when documentId is omitted', async () => {
     vi.mocked(DocumentCrudService.getDocumentWithContent).mockResolvedValue({
-      id: 'doc-ui',
-      userId: 'user-1',
-      title: 'Current Doc',
-      description: '',
-      sourceType: 'generated',
-      wordCount: 3,
-      status: 'ready',
-      storageUrl: '',
-      storagePath: 'users/user-1/documents/doc-ui/content.html',
-      tags: [],
-      directoryId: 'dir-1',
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      ...createTestDocument({
+        id: 'doc-ui',
+        title: 'Current Doc',
+        wordCount: 3,
+        storagePath: 'users/user-1/documents/doc-ui/content.html',
+        contentFormat: 'markdown',
+      }),
       content: 'plain source text',
-      contentFormat: 'markdown',
-    } as never);
+    });
 
     const tools = createAgentToolDefinitions(
       createContext({
@@ -484,9 +515,14 @@ describe('createAgentToolDefinitions create_document', () => {
       rules: [],
       defaultRuleIds: ['mermaid-rule', 'html-rule'],
     });
-    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue({
-      id: 'reservation-1',
-    } as never);
+    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue(
+      createTestUsageReservation({
+        id: 'reservation-1',
+        generationKind: 'documentFromPrompt',
+        credits: 20,
+        includedCredits: 20,
+      }),
+    );
     vi.mocked(DocumentCrudService.createPendingDocument).mockResolvedValue(
       'doc-pending',
     );
@@ -548,9 +584,14 @@ describe('createAgentToolDefinitions create_document', () => {
       rules: [],
       defaultRuleIds: [],
     });
-    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue({
-      id: 'reservation-1',
-    } as never);
+    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue(
+      createTestUsageReservation({
+        id: 'reservation-1',
+        generationKind: 'documentFromPrompt',
+        credits: 20,
+        includedCredits: 20,
+      }),
+    );
     vi.mocked(DocumentCrudService.createPendingDocument).mockResolvedValue(
       'doc-pending',
     );
@@ -577,14 +618,12 @@ describe('createAgentToolDefinitions generate_quiz', () => {
   });
 
   it('reserves quiz credits and attaches the reservation to the job', async () => {
-    vi.mocked(DocumentCrudService.getDocument).mockResolvedValue({
-      id: 'doc-1',
-      title: 'Supervised Learning',
-      directoryId: 'dir-1',
-    } as never);
-    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue({
-      id: 'quiz-reservation-1',
-    } as never);
+    vi.mocked(DocumentCrudService.getDocument).mockResolvedValue(
+      createTestDocument(),
+    );
+    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue(
+      createTestUsageReservation({ id: 'quiz-reservation-1' }),
+    );
     vi.mocked(createPendingQuiz).mockResolvedValue('quiz-pending');
     vi.mocked(enqueueGenerationJob).mockResolvedValue('quiz-job-1');
 
@@ -627,11 +666,9 @@ describe('createAgentToolDefinitions generate_quiz', () => {
   });
 
   it('does not create a pending quiz when credit reservation fails', async () => {
-    vi.mocked(DocumentCrudService.getDocument).mockResolvedValue({
-      id: 'doc-1',
-      title: 'Supervised Learning',
-      directoryId: 'dir-1',
-    } as never);
+    vi.mocked(DocumentCrudService.getDocument).mockResolvedValue(
+      createTestDocument(),
+    );
     vi.mocked(enforceCallableGenerationLimits).mockRejectedValue(
       new Error('You do not have enough credits for this action.'),
     );
@@ -646,14 +683,12 @@ describe('createAgentToolDefinitions generate_quiz', () => {
   });
 
   it('refunds the reservation and fails the pending quiz when enqueue fails', async () => {
-    vi.mocked(DocumentCrudService.getDocument).mockResolvedValue({
-      id: 'doc-1',
-      title: 'Supervised Learning',
-      directoryId: 'dir-1',
-    } as never);
-    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue({
-      id: 'quiz-reservation-1',
-    } as never);
+    vi.mocked(DocumentCrudService.getDocument).mockResolvedValue(
+      createTestDocument(),
+    );
+    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue(
+      createTestUsageReservation({ id: 'quiz-reservation-1' }),
+    );
     vi.mocked(createPendingQuiz).mockResolvedValue('quiz-pending');
     vi.mocked(enqueueGenerationJob).mockRejectedValue(
       new Error('queue unavailable'),
