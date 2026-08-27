@@ -6,6 +6,12 @@ import {
   fetchDocumentQuizzesFromFirestore,
   fetchUserQuizzesFromFirestore,
 } from '../../../services/quizListFirestore';
+import { deleteQuizInFirestore } from '../../../services/artifactMutations';
+import {
+  authRequiredError,
+  customError,
+  notFoundError,
+} from '../../../services/firestoreReadUtils';
 import { attachArtifactDocListener } from '../utils/artifactDetailRealtime';
 import { runOptimisticArtifactDirectoryRemove } from '../utils/artifactGenerationOptimistic';
 import {
@@ -16,12 +22,15 @@ import {
   GetUserQuizzesResponse,
   GetDocumentQuizzesRequest,
   GetDocumentQuizzesResponse,
-  ApiResponse
+  ApiResponse,
 } from '@shared-types';
+
+function mutationError(error: unknown) {
+  return customError(error instanceof Error ? error.message : 'Unknown error');
+}
 
 export const quizApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Generate a quiz from one or more documents
     generateQuiz: builder.mutation<ApiResponse<GenerateQuizResponse>, GenerateQuizRequest>({
       query: (data) => ({
         functionName: 'generateQuiz',
@@ -30,61 +39,24 @@ export const quizApi = baseApi.injectEndpoints({
       onQueryStarted: createArtifactOnQueryStarted('quizzes', 'Quiz', 'quiz', {
         successMessage: 'Quiz is preparing',
       }),
-      invalidatesTags: (result, error, arg) => [
+      invalidatesTags: (_result, _error, arg) => [
         'UserQuizzes',
         ...arg.documentIds.map((id) => ({ type: 'DocumentQuizzes' as const, id })),
       ],
     }),
 
-    // Get a specific quiz — Firestore-native read with IndexedDB cache; callable fallback on failure.
     getQuiz: builder.query<ApiResponse<GetQuizResponse>, { quizId: string }>({
-      async queryFn({ quizId }, _api, _extraOptions, baseQuery) {
+      async queryFn({ quizId }) {
         const userId = auth.currentUser?.uid;
-        if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
-        }
-
-        if (!quizId.trim()) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Quiz ID is required' },
-            },
-          };
-        }
+        if (!userId) return authRequiredError();
+        if (!quizId.trim()) return customError('Quiz ID is required');
 
         try {
           const quiz = await fetchQuizFromFirestore(userId, quizId);
-          if (!quiz) {
-            return {
-              error: {
-                status: 'CUSTOM_ERROR',
-                data: { message: 'Quiz not found', code: 'NOT_FOUND' },
-              },
-            };
-          }
-
-          return {
-            data: {
-              success: true,
-              data: { quiz },
-            },
-          };
-        } catch (firestoreError) {
-          console.warn('Firestore quiz read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({
-            functionName: 'getQuiz',
-            data: { quizId },
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          return { data: fallback.data as ApiResponse<GetQuizResponse> };
+          if (!quiz) return notFoundError('Quiz not found');
+          return { data: { success: true, data: { quiz } } };
+        } catch (error) {
+          return mutationError(error);
         }
       },
       async onCacheEntryAdded({ quizId }, { updateCachedData, cacheDataLoaded, cacheEntryRemoved }) {
@@ -95,102 +67,68 @@ export const quizApi = baseApi.injectEndpoints({
           cacheEntryRemoved,
           onMapped: (quiz: Quiz) => {
             updateCachedData((draft) => {
-              if (!draft?.data?.quiz) {
-                return;
-              }
+              if (!draft?.data?.quiz) return;
               draft.data.quiz = quiz;
             });
           },
           mapSnapshot: (id, raw) => toQuiz(id, raw),
         });
       },
-      providesTags: (result, error, arg) => [{ type: 'Quiz', id: arg.quizId }],
+      providesTags: (_result, _error, arg) => [{ type: 'Quiz', id: arg.quizId }],
       keepUnusedDataFor: 300,
     }),
 
-    // Get user's quiz history (requires authentication)
     getUserQuizzes: builder.query<ApiResponse<GetUserQuizzesResponse>, void>({
-      async queryFn(_arg, _api, _extraOptions, baseQuery) {
+      async queryFn() {
         const userId = auth.currentUser?.uid;
-        if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
-        }
+        if (!userId) return authRequiredError();
 
         try {
           const quizzes = await fetchUserQuizzesFromFirestore(userId);
           return { data: { success: true, data: { quizzes } } };
-        } catch (firestoreError) {
-          console.warn('Firestore user quizzes read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({
-            functionName: 'getUserQuizzes',
-            data: {},
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          return { data: fallback.data as ApiResponse<GetUserQuizzesResponse> };
+        } catch (error) {
+          return mutationError(error);
         }
       },
       providesTags: ['UserQuizzes'],
       keepUnusedDataFor: 300,
     }),
 
-    // Get all quizzes for a specific document
-    getDocumentQuizzes: builder.query<ApiResponse<GetDocumentQuizzesResponse>, GetDocumentQuizzesRequest>({
-      async queryFn({ documentId }, _api, _extraOptions, baseQuery) {
+    getDocumentQuizzes: builder.query<
+      ApiResponse<GetDocumentQuizzesResponse>,
+      GetDocumentQuizzesRequest
+    >({
+      async queryFn({ documentId }) {
         const userId = auth.currentUser?.uid;
-        if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
-        }
-
-        if (!documentId.trim()) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Document ID is required' },
-            },
-          };
-        }
+        if (!userId) return authRequiredError();
+        if (!documentId.trim()) return customError('Document ID is required');
 
         try {
           const quizzes = await fetchDocumentQuizzesFromFirestore(userId, documentId);
           return { data: { success: true, data: { quizzes } } };
-        } catch (firestoreError) {
-          console.warn('Firestore document quizzes read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({
-            functionName: 'getDocumentQuizzes',
-            data: { documentId },
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          return { data: fallback.data as ApiResponse<GetDocumentQuizzesResponse> };
+        } catch (error) {
+          return mutationError(error);
         }
       },
-      providesTags: (result, error, arg) => [
+      providesTags: (_result, _error, arg) => [
         { type: 'DocumentQuizzes', id: arg.documentId },
         'UserQuizzes',
       ],
       keepUnusedDataFor: 300,
     }),
 
-    // Delete a quiz (if we implement this later)
     deleteQuiz: builder.mutation<ApiResponse<{ success: boolean }>, { quizId: string }>({
-      query: (data) => ({
-        functionName: 'deleteQuiz',
-        data,
-      }),
-      invalidatesTags: (result, error, arg) => [
+      async queryFn({ quizId }) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          await deleteQuizInFirestore(userId, quizId);
+          return { data: { success: true, data: { success: true } } };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
+      invalidatesTags: (_result, _error, arg) => [
         { type: 'Quiz', id: arg.quizId },
         'UserQuizzes',
       ],

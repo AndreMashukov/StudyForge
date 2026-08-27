@@ -1,11 +1,8 @@
 /**
- * Firebase Functions for Code Insights AI Quiz Generator
+ * Firebase Functions for StudyForge
  *
- * Phase 3: Core Backend Functionality
- * - Web scraping for article content
- * - Gemini 2.5 Pro integration for quiz generation
- * - Firestore data operations
- * - API endpoints: generateQuiz and getQuiz
+ * Generation, billing, API keys, and External API remain on the server.
+ * Library reads and non-generation mutations are handled client-side via Firestore.
  */
 
 import './global-options';
@@ -13,8 +10,6 @@ import { onRequest } from 'firebase-functions/v2/https';
 
 /**
  * Health check endpoint (HTTP for monitoring).
- * Public liveness probe — onRequest handlers do not inherit enforceAppCheck; no App Check here.
- * Returns process liveness only; no Gemini or Firestore calls.
  */
 export const healthCheck = onRequest(
   {
@@ -28,49 +23,26 @@ export const healthCheck = onRequest(
   },
 );
 
-// Export quiz management functions
-export {
-  generateQuiz,
-  getQuiz,
-  getUserQuizzes,
-  getDocumentQuizzes,
-  deleteQuiz,
-} from './endpoints/quizzes';
+// Generation — quizzes
+export { generateQuiz } from './endpoints/quizzes';
 
 export { processGenerationJob } from './tasks/process-generation-job';
 
 export { sweepStaleGenerationsSchedule } from './tasks/sweep-stale-generations';
 
-export {
-  generateDiagramQuiz,
-  getDiagramQuiz,
-  getUserDiagramQuizzes,
-  deleteDiagramQuiz,
-} from './endpoints/diagram-quizzes';
+export { generateDiagramQuiz } from './endpoints/diagram-quizzes';
 
-export {
-  generateSequenceQuiz,
-  getSequenceQuiz,
-  getUserSequenceQuizzes,
-  deleteSequenceQuiz,
-} from './endpoints/sequence-quizzes';
+export { generateSequenceQuiz } from './endpoints/sequence-quizzes';
 
-// Export quiz followup functions
 export { generateQuizFollowup } from './endpoints/quiz-followup';
 
-// Export document question functions
 export { askDocumentQuestion } from './endpoints/document-question';
 
 export { reviseDocumentWithAI } from './endpoints/document-revise';
 
-// Export directory chat functions
-export {
-  getDirectoryChat,
-  sendDirectoryChatMessage,
-  updateDirectoryChatSources,
-} from './endpoints/directory-chat';
+export { sendDirectoryChatMessage } from './endpoints/directory-chat';
 
-// Export document management functions
+// Document ingest and generation (not CRUD)
 export {
   createDocument,
   createDocumentFromPastedText,
@@ -78,112 +50,23 @@ export {
   createDocumentFromUrl,
   generateFromPrompt,
   generateFromScreenshot,
-  getDocument,
-  getDocumentWithContent,
-  updateDocument,
-  deleteDocument,
-  getUserDocuments,
-  listDocuments,
-  searchDocuments,
-  getDocumentStats,
-  getDocumentContent,
-  moveDocument,
-  bulkDeleteDocuments,
 } from './endpoints/documents';
 
-// Export rules management functions
-export {
-  createRuleEndpoint as createRule,
-  getRuleEndpoint as getRule,
-  getRulesEndpoint as getRules,
-  updateRuleEndpoint as updateRule,
-  deleteRuleEndpoint as deleteRule,
-  attachRuleToDirectoryEndpoint as attachRuleToDirectory,
-  detachRuleFromDirectoryEndpoint as detachRuleFromDirectory,
-  bulkDeleteRulesEndpoint as bulkDeleteRules,
-  bulkDetachRulesFromDirectoryEndpoint as bulkDetachRulesFromDirectory,
-  getDirectoryRulesEndpoint as getDirectoryRules,
-  getApplicableRulesEndpoint as getApplicableRules,
-  formatRulesForPromptEndpoint as formatRulesForPrompt,
-  getRuleTagsEndpoint as getRuleTags,
-} from './endpoints/rules';
-
-// Export directory management functions
-export {
-  createDirectory,
-  getDirectory,
-  updateDirectory,
-  deleteDirectory,
-  getDirectoryTree,
-  getDirectoryContents,
-  getDirectoryContentsWithArtifacts,
-  getDirectoryContentsWithArtifactSummaries,
-  getDirectoryAncestors,
-  moveDirectory,
-  getDirectoryByPath,
-  bulkDeleteDirectories,
-  reorderDirectoryItems,
-} from './endpoints/directories';
-
-// Export flashcard management functions
-
-// Export rule AI generation function
 export { generateRuleWithAI } from './endpoints/rule-ai';
-export {
-  generateFlashcards,
-  getFlashcardSet,
-  getUserFlashcardSets,
-  updateFlashcardSet,
-  deleteFlashcardSet,
-  recordLearnedVocabulary,
-} from './endpoints/flashcards';
 
-// Export slide deck management functions
-export {
-  generateSlideDeck,
-  getSlideDeck,
-  getUserSlideDecks,
-  deleteSlideDeck,
-} from './endpoints/slide-decks';
+export { generateFlashcards } from './endpoints/flashcards';
 
-// Export interaction tracking functions
-export {
-  flushInteractionSessionEndpoint as flushInteractionSession,
-  getInteractionStatsEndpoint as getInteractionStats,
-} from './endpoints/interaction-tracking';
+export { generateSlideDeck } from './endpoints/slide-decks';
 
-// Export learning telemetry functions
-export {
-  recordQuizAttemptEndpoint as recordQuizAttempt,
-  recordQuizExplanationRequestEndpoint as recordQuizExplanationRequest,
-  getQuizStatsEndpoint as getQuizStats,
-} from './endpoints/learning-telemetry';
-
-// Export statistics page functions
-export {
-  getStatisticsOverviewEndpoint as getStatisticsOverview,
-  getStatisticsQuizPerformanceEndpoint as getStatisticsQuizPerformance,
-  getStatisticsLearningTimeEndpoint as getStatisticsLearningTime,
-  getStatisticsQuizDetailEndpoint as getStatisticsQuizDetail,
-} from './endpoints/statistics';
-
-// External HTTP API (API key authenticated)
 export { api } from './endpoints/external-api';
 
-// Global directory agent (Firebase ID token + App Check SSE)
 export { agentMessageStream } from './endpoints/agent-message-stream';
-export { getAgentThread, listAgentThreads } from './endpoints/agent-threads';
 
-// API key management (callable — used by the web app)
 export {
   createApiKey,
-  listApiKeys,
   revokeApiKey,
   bulkRevokeApiKeys,
 } from './endpoints/api-keys';
-
-// Bulk artifact delete (directory detail panels)
-export { bulkDeleteArtifacts } from './endpoints/bulk-artifacts';
 
 export {
   getUsageSummary,
@@ -194,7 +77,6 @@ export {
   createBillingCheckoutSessionEndpoint as createBillingCheckoutSession,
   createBillingPortalSessionEndpoint as createBillingPortalSession,
   updatePayAsYouGoSettingsEndpoint as updatePayAsYouGoSettings,
-  getBillingState,
   refreshUsageSummary,
   stripeBillingWebhook,
 } from './endpoints/billing';

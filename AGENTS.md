@@ -194,9 +194,13 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 - Use Redux slices for all global and page-level state
 - Use RTK Query for all API calls — never duplicate API data in local `useState`
+- **Library reads and non-generation mutations** go through RTK `queryFn` + `web/src/services/` (Firestore/Storage). No callable fallback.
+- **Generation, billing checkout/portal, API-key create/revoke, and usage bootstrap** use `firebaseCallableBaseQuery` in `baseApi.ts`.
 - `useState` is allowed for purely local UI state (controlled form inputs, open/closed toggles)
 - Access Redux state with `useSelector` directly in components — do not thread it down via props
 - Mutations belong in handler hooks, not in effects
+
+See [docs/adr/002-client-library-paths.md](docs/adr/002-client-library-paths.md).
 
 ---
 

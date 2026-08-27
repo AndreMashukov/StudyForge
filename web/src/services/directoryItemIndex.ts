@@ -7,6 +7,7 @@ import {
 import type { DirectoryItemSummary } from '@shared-types';
 import { db } from '../config/firebase';
 import { serializeCommonTimestamps } from '../hooks/directoryRealtimeCacheUtils';
+import { subscribeWithReconnect } from './firestoreReadUtils';
 
 export function toDirectoryItemSummary(
   id: string,
@@ -49,21 +50,21 @@ export function subscribeToDirectoryItems(
     directoryId,
     'items',
   );
-  return onSnapshot(
-    itemsRef,
-    (snapshot) => {
-      // Cached snapshots can overwrite a just-created subdirectory before the
-      // Admin SDK write is in the client persistence layer.
-      if (snapshot.metadata.fromCache) {
-        return;
-      }
-      const items = snapshot.docs.map((doc) =>
-        toDirectoryItemSummary(doc.id, doc.data()),
-      );
-      onUpdate(items);
-    },
-    () => {
-      // Listener errors fall back to callable refetch via RTK defaults.
-    },
+  return subscribeWithReconnect((onError) =>
+    onSnapshot(
+      itemsRef,
+      (snapshot) => {
+        // Cached snapshots can overwrite a just-created subdirectory before the
+        // Admin SDK write is in the client persistence layer.
+        if (snapshot.metadata.fromCache) {
+          return;
+        }
+        const items = snapshot.docs.map((doc) =>
+          toDirectoryItemSummary(doc.id, doc.data()),
+        );
+        onUpdate(items);
+      },
+      onError,
+    ),
   );
 }

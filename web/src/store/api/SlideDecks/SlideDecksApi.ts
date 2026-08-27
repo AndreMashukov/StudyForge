@@ -5,20 +5,33 @@ import {
   fetchSlideDeckFromFirestore,
   fetchUserSlideDecksFromFirestore,
 } from '../../../services/artifactFirestore';
-import { toFirestoreDoc } from '../../../services/firestoreReadUtils';
+import { deleteSlideDeckInFirestore } from '../../../services/artifactMutations';
+import {
+  authRequiredError,
+  customError,
+  notFoundError,
+  toFirestoreDoc,
+} from '../../../services/firestoreReadUtils';
 import { attachArtifactDocListener } from '../utils/artifactDetailRealtime';
 import { runOptimisticArtifactDirectoryRemove } from '../utils/artifactGenerationOptimistic';
 import {
   SlideDeck,
   GenerateSlideDeckRequest,
   GenerateSlideDeckResponse,
-  ApiResponse
+  ApiResponse,
 } from '@shared-types';
 import { resolveSlideDeckImageUrls } from '../../../utils/slideImageUtils';
 
+function mutationError(error: unknown) {
+  return customError(error instanceof Error ? error.message : 'Unknown error');
+}
+
 export const slideDecksApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    generateSlideDeck: builder.mutation<ApiResponse<GenerateSlideDeckResponse>, GenerateSlideDeckRequest>({
+    generateSlideDeck: builder.mutation<
+      ApiResponse<GenerateSlideDeckResponse>,
+      GenerateSlideDeckRequest
+    >({
       query: (data) => ({
         functionName: 'generateSlideDeck',
         data,
@@ -31,42 +44,22 @@ export const slideDecksApi = baseApi.injectEndpoints({
     }),
 
     getSlideDeck: builder.query<ApiResponse<SlideDeck>, { slideDeckId: string }>({
-      async queryFn({ slideDeckId }, _api, _extraOptions, baseQuery) {
+      async queryFn({ slideDeckId }) {
         const userId = auth.currentUser?.uid;
-        if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
-        }
+        if (!userId) return authRequiredError();
 
         try {
           const slideDeck = await fetchSlideDeckFromFirestore(userId, slideDeckId);
-          if (!slideDeck) {
-            return {
-              error: {
-                status: 'CUSTOM_ERROR',
-                data: { message: 'Slide deck not found', code: 'NOT_FOUND' },
-              },
-            };
-          }
-
+          if (!slideDeck) return notFoundError('Slide deck not found');
           return { data: { success: true, data: resolveSlideDeckImageUrls(slideDeck) } };
-        } catch (firestoreError) {
-          console.warn('Firestore slide deck read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({
-            functionName: 'getSlideDeck',
-            data: { slideDeckId },
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          return { data: fallback.data as ApiResponse<SlideDeck> };
+        } catch (error) {
+          return mutationError(error);
         }
       },
-      async onCacheEntryAdded({ slideDeckId }, { updateCachedData, cacheDataLoaded, cacheEntryRemoved }) {
+      async onCacheEntryAdded(
+        { slideDeckId },
+        { updateCachedData, cacheDataLoaded, cacheEntryRemoved },
+      ) {
         await attachArtifactDocListener({
           collectionName: 'slideDecks',
           docId: slideDeckId,
@@ -74,9 +67,7 @@ export const slideDecksApi = baseApi.injectEndpoints({
           cacheEntryRemoved,
           onMapped: (slideDeck: SlideDeck) => {
             updateCachedData((draft) => {
-              if (!draft?.data) {
-                return;
-              }
+              if (!draft?.data) return;
               draft.data = resolveSlideDeckImageUrls(slideDeck);
             });
           },
@@ -84,47 +75,41 @@ export const slideDecksApi = baseApi.injectEndpoints({
             resolveSlideDeckImageUrls(toFirestoreDoc<SlideDeck>(id, raw)),
         });
       },
-      providesTags: (result, error, arg) => [{ type: 'SlideDeck', id: arg.slideDeckId }],
+      providesTags: (_result, _error, arg) => [{ type: 'SlideDeck', id: arg.slideDeckId }],
       keepUnusedDataFor: 300,
     }),
 
     getUserSlideDecks: builder.query<ApiResponse<SlideDeck[]>, void>({
-      async queryFn(_arg, _api, _extraOptions, baseQuery) {
+      async queryFn() {
         const userId = auth.currentUser?.uid;
-        if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
-        }
+        if (!userId) return authRequiredError();
 
         try {
           const slideDecks = await fetchUserSlideDecksFromFirestore(userId);
           return { data: { success: true, data: slideDecks } };
-        } catch (firestoreError) {
-          console.warn('Firestore slide deck list read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({
-            functionName: 'getUserSlideDecks',
-            data: {},
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          return { data: fallback.data as ApiResponse<SlideDeck[]> };
+        } catch (error) {
+          return mutationError(error);
         }
       },
       providesTags: ['UserSlideDecks'],
       keepUnusedDataFor: 300,
     }),
 
-    deleteSlideDeck: builder.mutation<ApiResponse<{ success: boolean }>, { slideDeckId: string }>({
-      query: (data) => ({
-        functionName: 'deleteSlideDeck',
-        data,
-      }),
-      invalidatesTags: (result, error, arg) => [
+    deleteSlideDeck: builder.mutation<
+      ApiResponse<{ success: boolean }>,
+      { slideDeckId: string }
+    >({
+      async queryFn({ slideDeckId }) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          await deleteSlideDeckInFirestore(userId, slideDeckId);
+          return { data: { success: true, data: { success: true } } };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
+      invalidatesTags: (_result, _error, arg) => [
         'UserSlideDecks',
         { type: 'SlideDeck', id: arg.slideDeckId },
       ],

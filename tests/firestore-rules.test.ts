@@ -107,18 +107,34 @@ describe('firestore.rules client write hardening', () => {
       await assertFails(getDocs(docsQuery));
     });
 
-    it('denies client create, update, and delete', async () => {
+    it('denies client create but allows owner update and delete', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
       const docRef = doc(owner.firestore(), `users/${OWNER_UID}/documents/new-doc`);
 
       await assertFails(setDoc(docRef, { title: 'blocked create' }));
-      await assertFails(
+      await assertSucceeds(
         updateDoc(doc(owner.firestore(), `users/${OWNER_UID}/documents/${documentId}`), {
-          title: 'blocked update',
+          title: 'Updated title',
         }),
       );
-      await assertFails(
+      await assertSucceeds(
         deleteDoc(doc(owner.firestore(), `users/${OWNER_UID}/documents/${documentId}`)),
+      );
+    });
+
+    it('denies client updates to generationStatus', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), `users/${OWNER_UID}/documents/doc-gen`), {
+          title: 'Generated doc',
+          generationStatus: 'completed',
+        });
+      });
+
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertFails(
+        updateDoc(doc(owner.firestore(), `users/${OWNER_UID}/documents/doc-gen`), {
+          generationStatus: 'failed',
+        }),
       );
     });
 
@@ -175,13 +191,21 @@ describe('firestore.rules client write hardening', () => {
       await assertSucceeds(getDocs(rulesQuery));
     });
 
-    it('denies client writes', async () => {
+    it('allows owner client writes', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
-      await assertFails(
+      await assertSucceeds(
         setDoc(doc(owner.firestore(), `users/${OWNER_UID}/rules/new-rule`), {
-          name: 'blocked',
-          content: 'blocked',
+          name: 'Client rule',
+          content: 'Explain with examples.',
         }),
+      );
+      await assertSucceeds(
+        updateDoc(doc(owner.firestore(), `users/${OWNER_UID}/rules/${ruleId}`), {
+          name: 'Updated rule',
+        }),
+      );
+      await assertSucceeds(
+        deleteDoc(doc(owner.firestore(), `users/${OWNER_UID}/rules/${ruleId}`)),
       );
     });
   });
@@ -215,11 +239,30 @@ describe('firestore.rules client write hardening', () => {
       await assertFails(getDocs(quizzesQuery));
     });
 
-    it('denies client writes', async () => {
+    it('denies client create but allows owner delete', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
       await assertFails(
         setDoc(doc(owner.firestore(), `users/${OWNER_UID}/quizzes/new-quiz`), {
           title: 'blocked',
+        }),
+      );
+      await assertSucceeds(
+        deleteDoc(doc(owner.firestore(), `users/${OWNER_UID}/quizzes/${quizId}`)),
+      );
+    });
+
+    it('denies client updates to generationStatus', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), `users/${OWNER_UID}/quizzes/quiz-gen`), {
+          title: 'Generated quiz',
+          generationStatus: 'completed',
+        });
+      });
+
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertFails(
+        updateDoc(doc(owner.firestore(), `users/${OWNER_UID}/quizzes/quiz-gen`), {
+          generationStatus: 'failed',
         }),
       );
     });
@@ -258,13 +301,18 @@ describe('firestore.rules client write hardening', () => {
       );
     });
 
-    it('denies owner read on interactionStats and learningEvents', async () => {
+    it('allows owner read and create on interactionStats and learningEvents', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
-      await assertFails(
+      await assertSucceeds(
         getDoc(doc(owner.firestore(), `users/${OWNER_UID}/interactionStats/stat-1`)),
       );
-      await assertFails(
+      await assertSucceeds(
         getDoc(doc(owner.firestore(), `users/${OWNER_UID}/learningEvents/event-1`)),
+      );
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), `users/${OWNER_UID}/learningEvents/event-2`), {
+          type: 'quiz_answer',
+        }),
       );
     });
   });
@@ -293,19 +341,31 @@ describe('firestore.rules client write hardening', () => {
       });
     });
 
-    it('denies owner read and write on chat thread and messages', async () => {
+    it('allows owner read and thread update but denies message writes', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
-      await assertFails(
+      await assertSucceeds(
         getDoc(
           doc(owner.firestore(), `users/${OWNER_UID}/directories/${directoryId}/chat/thread`),
         ),
       );
-      await assertFails(
+      await assertSucceeds(
         getDoc(
           doc(
             owner.firestore(),
             `users/${OWNER_UID}/directories/${directoryId}/chat/thread/messages/msg-1`,
           ),
+        ),
+      );
+      await assertSucceeds(
+        updateDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/directories/${directoryId}/chat/thread`),
+          { selectedSourceIds: ['doc-1'] },
+        ),
+      );
+      await assertSucceeds(
+        setDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/directories/${directoryId}/chat/new-thread`),
+          { selectedDocumentIds: ['doc-1'] },
         ),
       );
       await assertFails(

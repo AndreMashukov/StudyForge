@@ -11,6 +11,7 @@ import {
 import type { GetDirectoryTreeResponse } from '@shared-types';
 import { db } from '../config/firebase';
 import { toDirectory } from '../hooks/directoryRealtimeCacheUtils';
+import { subscribeWithReconnect } from './firestoreReadUtils';
 import { buildDirectoryTreeResponse } from '../utils/directoryTreeUtils';
 
 function directoriesFromSnapshot(
@@ -42,16 +43,16 @@ export function subscribeToDirectoryTreeIndex(
     orderBy('path', 'asc'),
   );
 
-  return onSnapshot(
-    directoriesQuery,
-    (snapshot) => {
-      if (snapshot.metadata.fromCache) {
-        return;
-      }
-      onUpdate(directoriesFromSnapshot(snapshot));
-    },
-    () => {
-      // Listener errors are handled by RTK queryFn callable fallback on refetch.
-    },
+  return subscribeWithReconnect((onError) =>
+    onSnapshot(
+      directoriesQuery,
+      (snapshot) => {
+        if (snapshot.metadata.fromCache) {
+          return;
+        }
+        onUpdate(directoriesFromSnapshot(snapshot));
+      },
+      onError,
+    ),
   );
 }

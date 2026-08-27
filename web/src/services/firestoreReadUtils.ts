@@ -1,15 +1,18 @@
 import {
   collection,
   doc,
+  documentId,
   getDoc,
   getDocs,
   limit,
   onSnapshot,
   orderBy,
   query,
+  startAfter,
   where,
   type DocumentData,
   type QueryConstraint,
+  type QueryDocumentSnapshot,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -29,6 +32,15 @@ export function notFoundError(message = 'Not found') {
     error: {
       status: 'CUSTOM_ERROR' as const,
       data: { message, code: 'NOT_FOUND' },
+    },
+  };
+}
+
+export function customError(message: string) {
+  return {
+    error: {
+      status: 'CUSTOM_ERROR' as const,
+      data: { message },
     },
   };
 }
@@ -74,6 +86,72 @@ export function whereEquals(field: string, value: string): QueryConstraint {
   return where(field, '==', value);
 }
 
+export const FIRESTORE_DOCUMENTS_LIST_LIMIT = 100;
+export const FIRESTORE_ARTIFACTS_LIST_LIMIT = 50;
+
+export async function fetchAllUserDocsPaginated(
+  userId: string,
+  collectionName: string,
+  filters: QueryConstraint[],
+  pageLimit: number,
+): Promise<QueryDocumentSnapshot<DocumentData>[]> {
+  const collectionRef = collection(db, 'users', userId, collectionName);
+  const results: QueryDocumentSnapshot<DocumentData>[] = [];
+  let lastDoc: QueryDocumentSnapshot<DocumentData> | undefined;
+
+  for (;;) {
+    const constraints: QueryConstraint[] = [...filters, orderBy(documentId())];
+    if (lastDoc) {
+      constraints.push(startAfter(lastDoc));
+    }
+    constraints.push(limit(pageLimit));
+
+    const snapshot = await getDocs(query(collectionRef, ...constraints));
+    results.push(...snapshot.docs);
+    if (snapshot.size < pageLimit) {
+      break;
+    }
+    lastDoc = snapshot.docs[snapshot.docs.length - 1];
+  }
+
+  return results;
+}
+
+export function subscribeWithReconnect(
+  connect: (onError: (error: Error) => void) => Unsubscribe,
+): Unsubscribe {
+  let stopped = false;
+  let current: Unsubscribe | undefined;
+  let attempt = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const start = () => {
+    if (stopped) {
+      return;
+    }
+    current = connect(() => {
+      current?.();
+      current = undefined;
+      if (stopped) {
+        return;
+      }
+      attempt += 1;
+      const delayMs = Math.min(30_000, 1000 * 2 ** Math.min(attempt, 5));
+      retryTimer = setTimeout(start, delayMs);
+    });
+  };
+
+  start();
+
+  return () => {
+    stopped = true;
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+    }
+    current?.();
+  };
+}
+
 export function subscribeToUserDoc(
   userId: string,
   collectionName: string,
@@ -86,7 +164,7 @@ export function subscribeToUserDoc(
       onUpdate(snapshot.exists() ? snapshot.data() : null, snapshot.id);
     },
     () => {
-      // Listener errors are handled by RTK queryFn callable fallback on refetch.
+      // Listener errors surface on RTK refetch; no callable fallback.
     },
   );
 }

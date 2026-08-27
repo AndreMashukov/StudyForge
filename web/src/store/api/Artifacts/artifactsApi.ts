@@ -3,7 +3,15 @@ import {
   IBulkDeleteArtifactsRequest,
   IBulkOperationResponse,
 } from '@shared-types';
+import { auth } from '../../../config/firebase';
+import { deleteArtifactByTypeInFirestore } from '../../../services/artifactMutations';
+import { executeBulkOperation } from '../../../services/bulkOperation';
+import { authRequiredError, customError } from '../../../services/firestoreReadUtils';
 import { removeArtifactSummaryFromDirectoryCaches } from '../utils/artifactGenerationOptimistic';
+
+function mutationError(error: unknown) {
+  return customError(error instanceof Error ? error.message : 'Unknown error');
+}
 
 export const artifactsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -11,10 +19,22 @@ export const artifactsApi = baseApi.injectEndpoints({
       IBulkOperationResponse,
       IBulkDeleteArtifactsRequest
     >({
-      query: (data) => ({
-        functionName: 'bulkDeleteArtifacts',
-        data,
-      }),
+      async queryFn({ artifacts }) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+
+        try {
+          const result = await executeBulkOperation({
+            items: artifacts,
+            getItemId: (item) => item.id,
+            runItem: (item) =>
+              deleteArtifactByTypeInFirestore(userId, item.type, item.id),
+          });
+          return { data: result };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
       invalidatesTags: (result) =>
         result && result.succeeded > 0
           ? [

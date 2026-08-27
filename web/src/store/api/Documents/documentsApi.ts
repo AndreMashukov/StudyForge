@@ -2,12 +2,25 @@ import { baseApi } from '../baseApi';
 import { createDocumentOnQueryStarted } from '../utils/createDocumentOnQueryStarted';
 import type { DocumentContentFormat } from '@shared-types';
 import { fetchDocumentContentFromStorage } from '../../../services/documentContentStorage';
-import { fetchDocumentFromFirestore } from '../../../services/documentFirestore';
+import {
+  fetchDocumentFromFirestore,
+  fetchUserDocumentsFromFirestore,
+} from '../../../services/documentFirestore';
+import {
+  updateDocumentInFirestore,
+  deleteDocumentInFirestore,
+} from '../../../services/documentMutations';
+import { executeBulkOperation } from '../../../services/bulkOperation';
 import { auth } from '../../../config/firebase';
-import { toFirestoreDoc } from '../../../services/firestoreReadUtils';
+import {
+  authRequiredError,
+  customError,
+  notFoundError,
+  toFirestoreDoc,
+} from '../../../services/firestoreReadUtils';
 import { attachArtifactDocListener } from '../utils/artifactDetailRealtime';
-import { 
-  DocumentEnhanced, 
+import {
+  DocumentEnhanced,
   CreateDocumentRequest,
   CreateDocumentFromUrlsRequest,
   CreateDocumentFromPastedTextRequest,
@@ -19,7 +32,7 @@ import {
   UploadDocumentRequest,
   IBulkDeleteDocumentsRequest,
   IBulkOperationResponse,
-} from "@shared-types";
+} from '@shared-types';
 
 interface ListDocumentsResponse {
   documents: DocumentEnhanced[];
@@ -34,80 +47,53 @@ export interface IGetUserDocumentsArgs {
   cursor?: string;
 }
 
-const DEFAULT_USER_DOCUMENTS_LIMIT = 100;
+function mutationError(error: unknown) {
+  return customError(error instanceof Error ? error.message : 'Unknown error');
+}
 
 export const documentsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getUserDocuments: builder.query<ListDocumentsResponse, IGetUserDocumentsArgs | void>({
-      query: (args) => ({
-        functionName: 'getUserDocuments',
-        data: {
-          limit: args?.limit ?? DEFAULT_USER_DOCUMENTS_LIMIT,
-          ...(args?.directoryId ? { directoryId: args.directoryId } : {}),
-          ...(args?.cursor ? { cursor: args.cursor } : {}),
-        },
-      }),
-      transformResponse: (response: {
-        success: boolean;
-        documents: DocumentEnhanced[];
-        total: number;
-        hasMore: boolean;
-        nextCursor?: string;
-      }) => {
-        return {
-          documents: response.documents,
-          total: response.total,
-          hasMore: response.hasMore,
-          nextCursor: response.nextCursor,
-        };
+      async queryFn(args) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+
+        try {
+          const page = await fetchUserDocumentsFromFirestore(userId, {
+            limit: args?.limit,
+            directoryId: args?.directoryId,
+            cursor: args?.cursor,
+          });
+          return {
+            data: {
+              documents: page.documents,
+              total: page.total,
+              hasMore: page.hasMore,
+              nextCursor: page.nextCursor,
+            },
+          };
+        } catch (error) {
+          return mutationError(error);
+        }
       },
       providesTags: ['Document'],
     }),
-    
+
     getDocument: builder.query<DocumentEnhanced, string>({
-      async queryFn(documentId, _api, _extraOptions, baseQuery) {
+      async queryFn(documentId) {
         const userId = auth.currentUser?.uid;
-        if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
-        }
+        if (!userId) return authRequiredError();
 
         if (!documentId.trim()) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Document ID is required' },
-            },
-          };
+          return customError('Document ID is required');
         }
 
         try {
           const document = await fetchDocumentFromFirestore(userId, documentId);
-          if (!document) {
-            return {
-              error: {
-                status: 'CUSTOM_ERROR',
-                data: { message: 'Document not found', code: 'NOT_FOUND' },
-              },
-            };
-          }
-
+          if (!document) return notFoundError('Document not found');
           return { data: document };
-        } catch (firestoreError) {
-          console.warn('Firestore document read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({
-            functionName: 'getDocument',
-            data: { documentId },
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          const response = fallback.data as { success: boolean; document: DocumentEnhanced };
-          return { data: response.document };
+        } catch (error) {
+          return mutationError(error);
         }
       },
       async onCacheEntryAdded(documentId, { updateCachedData, cacheDataLoaded, cacheEntryRemoved }) {
@@ -124,39 +110,31 @@ export const documentsApi = baseApi.injectEndpoints({
           mapSnapshot: (id, raw) => toFirestoreDoc<DocumentEnhanced>(id, raw),
         });
       },
-      providesTags: (result, error, documentId) => [
-        { type: 'Document', id: documentId }
+      providesTags: (_result, _error, documentId) => [
+        { type: 'Document', id: documentId },
       ],
       keepUnusedDataFor: 300,
     }),
-    
+
     createDocument: builder.mutation<DocumentEnhanced, CreateDocumentRequest>({
       query: (data) => ({
         functionName: 'createDocument',
-        data
+        data,
       }),
-      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) => {
-        return response.document;
-      },
-      invalidatesTags: [
-        'Document',
-        { type: 'Directory', id: 'LIST' },
-      ],
+      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) =>
+        response.document,
+      invalidatesTags: ['Document', { type: 'Directory', id: 'LIST' }],
       onQueryStarted: createDocumentOnQueryStarted('Document', 'create document'),
     }),
-    
+
     createDocumentFromUrl: builder.mutation<DocumentEnhanced, CreateDocumentFromUrlsRequest>({
       query: (data) => ({
         functionName: 'createDocumentFromUrl',
-        data
+        data,
       }),
-      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) => {
-        return response.document;
-      },
-      invalidatesTags: [
-        'Document',
-        { type: 'Directory', id: 'LIST' },
-      ],
+      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) =>
+        response.document,
+      invalidatesTags: ['Document', { type: 'Directory', id: 'LIST' }],
       onQueryStarted: createDocumentOnQueryStarted('Document', 'create document from URL'),
     }),
 
@@ -166,13 +144,9 @@ export const documentsApi = baseApi.injectEndpoints({
         data,
         timeout: 180000,
       }),
-      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) => {
-        return response.document;
-      },
-      invalidatesTags: [
-        'Document',
-        { type: 'Directory', id: 'LIST' },
-      ],
+      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) =>
+        response.document,
+      invalidatesTags: ['Document', { type: 'Directory', id: 'LIST' }],
       onQueryStarted: createDocumentOnQueryStarted('Document', 'upload document'),
     }),
 
@@ -191,22 +165,19 @@ export const documentsApi = baseApi.injectEndpoints({
         directoryId: response.directoryId,
         generationStatus: response.generationStatus,
       }),
-      invalidatesTags: [
-        'Document',
-        { type: 'Directory', id: 'LIST' },
-      ],
+      invalidatesTags: ['Document', { type: 'Directory', id: 'LIST' }],
       onQueryStarted: createDocumentOnQueryStarted('Document', 'create document from pasted text'),
     }),
-    
+
     generateFromPrompt: builder.mutation<GenerateFromPromptResponse, GenerateFromPromptRequest>({
       query: (data) => ({
         functionName: 'generateFromPrompt',
-        data: data
+        data,
       }),
       onQueryStarted: createDocumentOnQueryStarted('Document', 'generate document', {
         successMessage: 'Document is preparing',
       }),
-      transformResponse: (response: { 
+      transformResponse: (response: {
         success: boolean;
         id?: string;
         documentId: string;
@@ -221,35 +192,36 @@ export const documentsApi = baseApi.injectEndpoints({
           generatedAt: string;
           filesUsed?: number;
         };
-      }) => {
-        // Firebase Functions return data wrapped in the response
-        return {
-          success: response.success,
-          id: response.id || response.documentId,
-          documentId: response.documentId,
-          recordType: response.recordType || 'document',
-          directoryId: response.directoryId || '',
-          generationStatus: response.generationStatus || 'pending',
-          title: response.title,
-          content: response.content,
-          wordCount: response.wordCount,
-          metadata: response.metadata,
-        };
-      },
-      invalidatesTags: [
-        'Document',
-        { type: 'Directory', id: 'LIST' }, // Invalidate directory list
-      ],
-    }),
-    
-    updateDocument: builder.mutation<DocumentEnhanced, UpdateDocumentRequest & { documentId: string }>({
-      query: ({ documentId, ...updates }) => ({
-        functionName: 'updateDocument',
-        data: { documentId, updates },
+      }) => ({
+        success: response.success,
+        id: response.id || response.documentId,
+        documentId: response.documentId,
+        recordType: response.recordType || 'document',
+        directoryId: response.directoryId || '',
+        generationStatus: response.generationStatus || 'pending',
+        title: response.title,
+        content: response.content,
+        wordCount: response.wordCount,
+        metadata: response.metadata,
       }),
-      transformResponse: (response: { success: boolean; document: DocumentEnhanced }) =>
-        response.document,
-      invalidatesTags: (result, error, arg) => [
+      invalidatesTags: ['Document', { type: 'Directory', id: 'LIST' }],
+    }),
+
+    updateDocument: builder.mutation<
+      DocumentEnhanced,
+      UpdateDocumentRequest & { documentId: string }
+    >({
+      async queryFn({ documentId, ...updates }) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const document = await updateDocumentInFirestore(userId, documentId, updates);
+          return { data: document };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
+      invalidatesTags: (_result, _error, arg) => [
         { type: 'Document', id: arg.documentId },
         'Document',
         { type: 'Directory', id: 'LIST' },
@@ -257,93 +229,88 @@ export const documentsApi = baseApi.injectEndpoints({
     }),
 
     deleteDocument: builder.mutation<{ success: boolean }, DeleteDocumentRequest>({
-      query: (data) => ({
-        functionName: 'deleteDocument',
-        data
-      }),
-      invalidatesTags: (result, error, arg) => [
+      async queryFn({ documentId }) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          await deleteDocumentInFirestore(userId, documentId);
+          return { data: { success: true } };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
+      invalidatesTags: (_result, _error, arg) => [
         { type: 'Document', id: arg.documentId },
-        'Document', // Invalidate the general tag to refetch the documents list
-        { type: 'Directory', id: 'LIST' }, // Invalidate directory list
+        'Document',
+        { type: 'Directory', id: 'LIST' },
       ],
-      // Optimistically update the cache to immediately remove the document
       async onQueryStarted({ documentId }, { dispatch, queryFulfilled }) {
-        // Optimistically update getUserDocuments cache
         const patchResult = dispatch(
           documentsApi.util.updateQueryData('getUserDocuments', undefined, (draft) => {
-            if (draft && draft.documents) {
-              draft.documents = draft.documents.filter(doc => doc.id !== documentId);
+            if (draft?.documents) {
+              draft.documents = draft.documents.filter((doc) => doc.id !== documentId);
               draft.total = Math.max(0, (draft.total || 0) - 1);
             }
-          })
+          }),
         );
 
         try {
           await queryFulfilled;
         } catch {
-          // If the mutation fails, undo the optimistic update
           patchResult.undo();
         }
       },
     }),
 
-    bulkDeleteDocuments: builder.mutation<IBulkOperationResponse, IBulkDeleteDocumentsRequest>({
-      query: (data) => ({
-        functionName: 'bulkDeleteDocuments',
-        data,
-      }),
-      invalidatesTags: [
-        'Document',
-        'Documents',
-        { type: 'Directory', id: 'LIST' },
-      ],
+    bulkDeleteDocuments: builder.mutation<
+      IBulkOperationResponse,
+      IBulkDeleteDocumentsRequest
+    >({
+      async queryFn({ documentIds }) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const result = await executeBulkOperation({
+            items: documentIds,
+            getItemId: (id) => id,
+            runItem: (documentId) =>
+              deleteDocumentInFirestore(userId, documentId).then(() => undefined),
+          });
+          return { data: result };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
+      invalidatesTags: ['Document', 'Documents', { type: 'Directory', id: 'LIST' }],
     }),
-    
+
     searchDocuments: builder.query<ListDocumentsResponse, string>({
-      query: (query) => ({
+      query: (searchQuery) => ({
         functionName: 'searchDocuments',
-        data: { query }
+        data: { query: searchQuery },
       }),
       providesTags: ['Document'],
     }),
 
-    getDocumentContent: builder.query<{ content: string; contentFormat: DocumentContentFormat }, string>({
-      async queryFn(documentId, api, _extraOptions, baseQuery) {
+    getDocumentContent: builder.query<
+      { content: string; contentFormat: DocumentContentFormat },
+      string
+    >({
+      async queryFn(documentId, api) {
         try {
-          const cachedDocument = documentsApi.endpoints.getDocument.select(documentId)(api.getState() as never)
-            ?.data;
+          const cachedDocument = documentsApi.endpoints.getDocument
+            .select(documentId)(api.getState() as never)?.data;
           const fetched = await fetchDocumentContentFromStorage(documentId, {
             storagePath: cachedDocument?.storagePath || undefined,
             contentFormat: cachedDocument?.contentFormat,
           });
           return { data: fetched };
-        } catch (storageError) {
-          console.warn(
-            'Storage document content read failed, falling back to callable:',
-            storageError,
-          );
-          const fallback = await baseQuery({
-            functionName: 'getDocumentContent',
-            data: { documentId },
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          const response = fallback.data as {
-            success: boolean;
-            content: string;
-            contentFormat?: DocumentContentFormat;
-          };
-          return {
-            data: {
-              content: response.content,
-              contentFormat: response.contentFormat ?? 'markdown',
-            },
-          };
+        } catch (error) {
+          return mutationError(error);
         }
       },
-      providesTags: (result, error, documentId) => [
-        { type: 'Document', id: `${documentId}-content` }
+      providesTags: (_result, _error, documentId) => [
+        { type: 'Document', id: `${documentId}-content` },
       ],
     }),
   }),

@@ -2,48 +2,60 @@ rules_version='2'
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper function to check if user owns the resource (path-based)
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Enforce bounded collection queries (rules are not filters).
     function isBoundedList(maxLimit) {
       return request.query.limit != null
         && request.query.limit > 0
         && request.query.limit <= maxLimit;
     }
 
-    // All user-scoped collections under users/{userId}/
+    // Generation-owned fields must not change on client updates.
+    function generationFieldsUnchanged() {
+      return request.resource.data.get('generationStatus', null)
+          == resource.data.get('generationStatus', null)
+        && request.resource.data.get('generationError', null)
+          == resource.data.get('generationError', null)
+        && request.resource.data.get('generationModel', null)
+          == resource.data.get('generationModel', null)
+        && request.resource.data.get('generationModelUsage', null)
+          == resource.data.get('generationModelUsage', null)
+        && request.resource.data.get('completedAt', null)
+          == resource.data.get('completedAt', null);
+    }
+
     match /users/{userId} {
-      // Documents — server-maintained via Cloud Functions; client read-only.
+      // Documents — generation creates; client may edit metadata/content and delete.
       match /documents/{documentId} {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(100);
-        allow create, update, delete: if false;
+        allow create: if false;
+        allow update: if isOwner(userId) && generationFieldsUnchanged();
+        allow delete: if isOwner(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
         }
       }
 
-      // Quizzes — server-maintained via Cloud Functions; client read-only.
       match /quizzes/{quizId} {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(50);
-        allow create, update, delete: if false;
+        allow create: if false;
+        allow update: if isOwner(userId) && generationFieldsUnchanged();
+        allow delete: if isOwner(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
         }
       }
 
-      // Directories subcollection — user-managed folders.
       match /directories/{directoryId} {
         function isValidDirectory() {
           return request.resource.data.name is string &&
@@ -58,18 +70,19 @@ service cloud.firestore {
         allow update: if isOwner(userId) && isValidDirectory();
         allow delete: if isOwner(userId);
 
-        // Materialized directory listing index — server-maintained, client read-only.
         match /items/{itemId} {
           allow read: if isOwner(userId);
-          allow write: if false;
+          allow create, update, delete: if isOwner(userId);
         }
 
-        // Directory chat — server-maintained via Cloud Functions; callable API only.
         match /chat/{threadId} {
-          allow read, write: if false;
+          allow read: if isOwner(userId);
+          allow create, update: if isOwner(userId);
+          allow delete: if false;
 
           match /messages/{messageId} {
-            allow read, write: if false;
+            allow read: if isOwner(userId);
+            allow write: if false;
           }
         }
 
@@ -78,126 +91,135 @@ service cloud.firestore {
         }
       }
 
-      // Rules — server-maintained via Cloud Functions; client read-only.
       match /rules/{ruleId} {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(100);
-        allow create, update, delete: if false;
+        allow create, update, delete: if isOwner(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
         }
       }
 
-      // Flashcard sets — server-maintained via Cloud Functions; client read-only.
       match /flashcardSets/{flashcardSetId} {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(50);
-        allow create, update, delete: if false;
+        allow create: if false;
+        allow update: if isOwner(userId) && generationFieldsUnchanged();
+        allow delete: if isOwner(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
         }
       }
 
-      // Learned vocabulary — server-maintained via Cloud Functions.
       match /learnedVocabulary/{itemId} {
-        allow read, write: if false;
+        allow read, write: if isOwner(userId);
       }
 
-      // Slide decks — server-maintained via Cloud Functions; client read-only.
       match /slideDecks/{slideDeckId} {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(50);
-        allow create, update, delete: if false;
+        allow create: if false;
+        allow update: if isOwner(userId) && generationFieldsUnchanged();
+        allow delete: if isOwner(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
         }
       }
 
-      // Diagram quizzes — server-maintained via Cloud Functions; client read-only.
       match /diagramQuizzes/{diagramQuizId} {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(50);
-        allow create, update, delete: if false;
+        allow create: if false;
+        allow update: if isOwner(userId) && generationFieldsUnchanged();
+        allow delete: if isOwner(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
         }
       }
 
-      // Sequence quizzes — server-maintained via Cloud Functions; client read-only.
       match /sequenceQuizzes/{sequenceQuizId} {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId) && isBoundedList(50);
-        allow create, update, delete: if false;
+        allow create: if false;
+        allow update: if isOwner(userId) && generationFieldsUnchanged();
+        allow delete: if isOwner(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
         }
       }
 
-      // Generation jobs — server-maintained via Cloud Functions.
       match /generationJobs/{jobId} {
         allow read, write: if false;
       }
 
-      // Interaction tracking — server-maintained via Cloud Functions.
       match /interactionSessions/{sessionId} {
-        allow read, write: if false;
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update, delete: if false;
       }
 
       match /interactionStats/{statId} {
-        allow read, write: if false;
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId);
+        allow delete: if false;
       }
 
-      // Learning telemetry — server-maintained via Cloud Functions.
       match /learningEvents/{eventId} {
-        allow read, write: if false;
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update, delete: if false;
       }
 
       match /quizAttempts/{attemptId} {
-        allow read, write: if false;
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update, delete: if false;
       }
 
       match /quizStats/{statId} {
-        allow read, write: if false;
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId);
+        allow delete: if false;
       }
 
       match /questionStats/{statId} {
-        allow read, write: if false;
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId);
+        allow delete: if false;
       }
 
       match /knowledgeStats/{statId} {
-        allow read, write: if false;
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId);
+        allow delete: if false;
       }
 
-      // API rate limits — server-maintained via Cloud Functions.
       match /apiRateLimits/{limitId} {
         allow read, write: if false;
       }
 
-      // API keys are managed only via Cloud Functions.
       match /apiKeys/{keyId} {
-        allow read, write: if false;
+        allow get, list: if isOwner(userId);
+        allow create, update, delete: if false;
       }
 
-      // Usage summary — server-maintained denormalized meter doc; client read-only.
       match /usageSummary/{summaryId} {
         allow get: if isOwner(userId);
         allow list: if false;
         allow create, update, delete: if false;
       }
 
-      // Billing state — server-maintained; client read-only.
       match /billing/{billingDocId} {
         allow get: if isOwner(userId);
         allow list: if false;
         allow create, update, delete: if false;
       }
 
-      // Usage periods, reservations, and events — server-maintained only.
       match /usagePeriods/{periodKey} {
         allow read, write: if false;
       }
@@ -218,12 +240,13 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // Workspace agent threads and memory: server-maintained via Cloud Functions.
       match /agentThreads/{threadId} {
-        allow read, write: if false;
+        allow read: if isOwner(userId);
+        allow write: if false;
 
         match /messages/{messageId} {
-          allow read, write: if false;
+          allow read: if isOwner(userId);
+          allow write: if false;
         }
       }
 

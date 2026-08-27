@@ -2,7 +2,7 @@
 
 AI-powered study platform: users organize **source documents** in **directories**, apply **rules** to steer generation, and produce **artifacts** (quizzes, flashcards, slide decks, and more) for learning.
 
-Maintained via `/grill-with-docs`. Architectural decisions live in `docs/adr/`.
+Maintained via `/grill-with-docs`. Architectural decisions live in `docs/adr/` (see [002-client-library-paths.md](docs/adr/002-client-library-paths.md) for client Firestore reads/mutations).
 
 ## Organization
 
