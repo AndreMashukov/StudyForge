@@ -31,7 +31,7 @@ export async function createRuleInFirestore(
   }
 
   const ruleDocRef = doc(collection(db, 'users', userId, 'rules'));
-  const now = new Date().toISOString();
+  const now = new Date();
 
   const ruleData = {
     id: ruleDocRef.id,
@@ -56,8 +56,8 @@ export async function createRuleInFirestore(
 
   return {
     ...ruleData,
-    createdAt: new Date(now).toISOString(),
-    updatedAt: new Date(now).toISOString(),
+    createdAt: now,
+    updatedAt: now,
   };
 }
 

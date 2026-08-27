@@ -158,8 +158,9 @@ export async function moveDocumentInFirestore(
   }
 
   const oldDirectoryId = current.directoryId;
+  const countsDocument = shouldDecrementDocumentCount(current.generationStatus);
 
-  if (oldDirectoryId) {
+  if (oldDirectoryId && countsDocument) {
     await updateDoc(directoryRef(userId, oldDirectoryId), {
       documentCount: increment(-1),
       updatedAt: serverTimestamp(),
@@ -171,10 +172,12 @@ export async function moveDocumentInFirestore(
     updatedAt: serverTimestamp(),
   });
 
-  await updateDoc(directoryRef(userId, request.targetDirectoryId), {
-    documentCount: increment(1),
-    updatedAt: serverTimestamp(),
-  });
+  if (countsDocument) {
+    await updateDoc(directoryRef(userId, request.targetDirectoryId), {
+      documentCount: increment(1),
+      updatedAt: serverTimestamp(),
+    });
+  }
 
   const updatedSnap = await getDoc(documentRef(userId, documentId));
   const item = documentToDirectoryItem(documentId, updatedSnap.data() ?? {});

@@ -131,7 +131,7 @@ async function updateDescendantPaths(
       const pathParts = updatedPath.split('/').filter((part) => part.length > 0);
       batch.update(directoryRef(userId, descendant.id), {
         path: updatedPath,
-        level: pathParts.length,
+        level: Math.max(0, pathParts.length - 1),
         updatedAt: serverTimestamp(),
       });
     }
@@ -193,8 +193,8 @@ export async function createDirectoryInFirestore(
     slideDeckCount: 0,
     diagramQuizCount: 0,
     ruleIds: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
   const docRef = await addDoc(userCollection(userId, 'directories'), {
@@ -432,7 +432,12 @@ export async function moveDirectoryInFirestore(
     if (await isDescendant(userId, request.targetParentId, directoryId)) {
       throw new Error('Cannot move directory to its own descendant');
     }
-    if (targetParent.level >= DIRECTORY_CONSTRAINTS.MAX_DEPTH - 1) {
+    const descendants = await getDescendants(userId, directoryId);
+    const maxRelativeDepth = descendants.reduce((maxDepth, descendant) => {
+      const relative = descendant.level - directory.level;
+      return relative > maxDepth ? relative : maxDepth;
+    }, 0);
+    if (targetParent.level + 1 + maxRelativeDepth > DIRECTORY_CONSTRAINTS.MAX_DEPTH) {
       throw new Error('Target location exceeds maximum directory depth');
     }
   }

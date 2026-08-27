@@ -38,7 +38,7 @@ export const learningTelemetryApi = baseApi.injectEndpoints({
           return mutationError(error);
         }
       },
-      invalidatesTags: ['LearningStats'],
+      invalidatesTags: ['LearningStats', 'Statistics'],
     }),
 
     recordQuizExplanationRequest: builder.mutation<
@@ -55,7 +55,7 @@ export const learningTelemetryApi = baseApi.injectEndpoints({
           return mutationError(error);
         }
       },
-      invalidatesTags: ['LearningStats'],
+      invalidatesTags: ['LearningStats', 'Statistics'],
     }),
 
     getQuizStats: builder.query<GetQuizStatsResponse, GetQuizStatsRequest>({

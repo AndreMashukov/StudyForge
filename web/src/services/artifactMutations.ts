@@ -104,9 +104,9 @@ async function deleteArtifactWithIndex(
     ? (preSnap.data().directoryId as string | undefined)
     : undefined;
 
-  if (type === 'slideDeck' && preSnap.exists()) {
-    await deleteSlideDeckImages(preSnap.data() as SlideDeck);
-  }
+  const slideDeckData = type === 'slideDeck' && preSnap.exists()
+    ? (preSnap.data() as SlideDeck)
+    : undefined;
 
   await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(artifactDocRef);
@@ -124,6 +124,10 @@ async function deleteArtifactWithIndex(
       });
     }
   });
+
+  if (slideDeckData) {
+    await deleteSlideDeckImages(slideDeckData);
+  }
 
   if (directoryId) {
     await syncIndexSafely(`delete${type}`, () =>
@@ -273,6 +277,8 @@ export async function deleteArtifactsByDocumentId(
       const directoryId = data.directoryId as string | undefined;
       const gs = data.generationStatus as GenerationStatus | undefined;
 
+      await deleteDoc(artifactDoc.ref);
+
       if (col.type === 'slideDeck') {
         await deleteSlideDeckImages(data as SlideDeck);
       }
@@ -282,8 +288,6 @@ export async function deleteArtifactsByDocumentId(
           removeArtifactDirectoryIndex(userId, directoryId, col.indexType, artifactDoc.id),
         );
       }
-
-      await deleteDoc(artifactDoc.ref);
 
       if (directoryId && shouldDecrementCount(gs)) {
         try {

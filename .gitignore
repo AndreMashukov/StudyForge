@@ -165,6 +165,8 @@ test-results/
 .github/instructions/examples/*
 .github/instructions/*
 docs/*
+!docs/adr/
+!docs/adr/**
 
 # Firebase backups (contain sensitive data)
 *.backup

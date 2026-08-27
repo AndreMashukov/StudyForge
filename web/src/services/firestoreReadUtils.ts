@@ -117,6 +117,41 @@ export async function fetchAllUserDocsPaginated(
   return results;
 }
 
+export function subscribeWithReconnect(
+  connect: (onError: (error: Error) => void) => Unsubscribe,
+): Unsubscribe {
+  let stopped = false;
+  let current: Unsubscribe | undefined;
+  let attempt = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const start = () => {
+    if (stopped) {
+      return;
+    }
+    current = connect(() => {
+      current?.();
+      current = undefined;
+      if (stopped) {
+        return;
+      }
+      attempt += 1;
+      const delayMs = Math.min(30_000, 1000 * 2 ** Math.min(attempt, 5));
+      retryTimer = setTimeout(start, delayMs);
+    });
+  };
+
+  start();
+
+  return () => {
+    stopped = true;
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+    }
+    current?.();
+  };
+}
+
 export function subscribeToUserDoc(
   userId: string,
   collectionName: string,

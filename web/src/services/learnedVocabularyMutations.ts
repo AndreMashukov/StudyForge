@@ -4,6 +4,7 @@ import {
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
+import { z } from 'zod';
 import { db } from '../config/firebase';
 import { sha256HexPrefix } from '../utils/sha256Hex';
 import { flashcardSetRef } from './firestorePaths';
@@ -13,7 +14,7 @@ export function normalizeVocabularyTerm(term: string): string {
     .normalize('NFKC')
     .trim()
     .replace(/\s+/g, ' ')
-    .toLocaleLowerCase();
+    .toLowerCase();
 }
 
 async function learnedVocabularyDocId(
@@ -25,30 +26,26 @@ async function learnedVocabularyDocId(
   return `${safeLanguage}_${hash}`;
 }
 
-interface IFlashcardSetLearnedVocabRecord {
-  isLanguageLearning?: boolean;
-  targetLanguageCode?: string;
-  targetLanguageName?: string;
-  flashcards: Array<{ id: string; front: string; term?: string }>;
-}
+const flashcardSetLearnedVocabSchema = z.object({
+  isLanguageLearning: z.boolean().optional(),
+  targetLanguageCode: z.string().optional(),
+  targetLanguageName: z.string().optional(),
+  flashcards: z.array(
+    z.object({
+      id: z.string(),
+      front: z.string(),
+      term: z.string().optional(),
+    }).passthrough(),
+  ),
+});
 
-function isFlashcardSetLearnedVocabRecord(
+type IFlashcardSetLearnedVocabRecord = z.infer<typeof flashcardSetLearnedVocabSchema>;
+
+function parseFlashcardSetLearnedVocab(
   value: unknown,
-): value is IFlashcardSetLearnedVocabRecord {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return false;
-  }
-  const record = value as Record<string, unknown>;
-  if (!Array.isArray(record.flashcards)) {
-    return false;
-  }
-  return record.flashcards.every((card) => {
-    if (!card || typeof card !== 'object' || Array.isArray(card)) {
-      return false;
-    }
-    const entry = card as Record<string, unknown>;
-    return typeof entry.id === 'string' && typeof entry.front === 'string';
-  });
+): IFlashcardSetLearnedVocabRecord | null {
+  const parsed = flashcardSetLearnedVocabSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 export async function recordLearnedVocabularyInFirestore(params: {
@@ -62,8 +59,8 @@ export async function recordLearnedVocabularyInFirestore(params: {
     throw new Error('Flashcard set not found.');
   }
 
-  const raw = snap.data();
-  if (!isFlashcardSetLearnedVocabRecord(raw)) {
+  const raw = parseFlashcardSetLearnedVocab(snap.data());
+  if (!raw) {
     throw new Error('Flashcard set not found.');
   }
 

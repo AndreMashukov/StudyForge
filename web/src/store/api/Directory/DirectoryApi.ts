@@ -90,8 +90,8 @@ function buildRootDirectory(userId: string, subdirCount: number, docCount: numbe
     slideDeckCount: 0,
     diagramQuizCount: 0,
     ruleIds: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 }
 
@@ -112,8 +112,8 @@ async function fetchRootDirectoryContents(userId: string): Promise<GetDirectoryC
     ),
   );
 
-  const subdirectories = subdirSnap.docs.map(
-    (docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as Directory,
+  const subdirectories = subdirSnap.docs.map((docSnap) =>
+    toFirestoreDoc<Directory>(docSnap.id, docSnap.data()),
   );
   const documents = docsSnap.docs.map((docSnap) =>
     toFirestoreDoc<DocumentEnhanced>(docSnap.id, docSnap.data()),
@@ -362,11 +362,40 @@ export const directoryApi = baseApi.injectEndpoints({
 
           if (directoryId) {
             const items = await fetchDirectoryItemsFromFirestore(userId, directoryId);
-            const artifactItems = items.filter((item) =>
-              ['quiz', 'flashcard', 'slideDeck', 'diagramQuiz', 'sequenceQuiz'].includes(
-                item.itemType,
-              ),
-            );
+            const selectedByType: Record<
+              'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz',
+              typeof items
+            > = {
+              quiz: [],
+              flashcard: [],
+              slideDeck: [],
+              diagramQuiz: [],
+              sequenceQuiz: [],
+            };
+
+            for (const item of items) {
+              if (
+                item.itemType !== 'quiz'
+                && item.itemType !== 'flashcard'
+                && item.itemType !== 'slideDeck'
+                && item.itemType !== 'diagramQuiz'
+                && item.itemType !== 'sequenceQuiz'
+              ) {
+                continue;
+              }
+              const bucket = selectedByType[item.itemType];
+              if (bucket.length < limitCount) {
+                bucket.push(item);
+              }
+            }
+
+            const artifactItems = [
+              ...selectedByType.quiz,
+              ...selectedByType.flashcard,
+              ...selectedByType.slideDeck,
+              ...selectedByType.diagramQuiz,
+              ...selectedByType.sequenceQuiz,
+            ];
 
             const fetchArtifact = async (item: (typeof artifactItems)[number]) => {
               switch (item.itemType) {
@@ -395,9 +424,7 @@ export const directoryApi = baseApi.injectEndpoints({
               }
             };
 
-            const fetched = await Promise.all(
-              artifactItems.slice(0, limitCount * 5).map(fetchArtifact),
-            );
+            const fetched = await Promise.all(artifactItems.map(fetchArtifact));
 
             for (const entry of fetched) {
               if (!entry) continue;

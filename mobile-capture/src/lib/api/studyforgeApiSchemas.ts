@@ -44,7 +44,7 @@ const firestoreDateSchema = z.custom<
   return false;
 });
 
-const directorySchema = z.object({
+export const directorySchema = z.object({
   id: z.string(),
   userId: z.string(),
   name: z.string(),

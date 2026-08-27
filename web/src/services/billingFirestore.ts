@@ -37,15 +37,13 @@ export function parseBillingStateFromFirestore(
   };
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 export async function fetchBillingStateFromFirestore(
   userId: string,
 ): Promise<IUserBillingState> {
-  const snapshot = await fetchUserDoc<{ id: string } & IUserBillingState>(
-    userId,
-    'billing',
-    'state',
-  );
-  return parseBillingStateFromFirestore(
-    snapshot ? (snapshot as unknown as Record<string, unknown>) : undefined,
-  );
+  const snapshot = await fetchUserDoc<{ id: string }>(userId, 'billing', 'state');
+  return parseBillingStateFromFirestore(isPlainRecord(snapshot) ? snapshot : undefined);
 }

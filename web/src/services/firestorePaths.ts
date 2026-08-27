@@ -117,6 +117,10 @@ export function interactionStatRef(userId: string, statDocId: string) {
   return doc(db, 'users', userId, 'interactionStats', statDocId);
 }
 
+export function interactionStatCollection(userId: string) {
+  return collection(db, 'users', userId, 'interactionStats');
+}
+
 export function learnedVocabularyCollection(userId: string) {
   return collection(db, 'users', userId, 'learnedVocabulary');
 }

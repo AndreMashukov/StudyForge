@@ -65,6 +65,26 @@ function stringArray(value: unknown): string[] {
     : [];
 }
 
+function isStoredQuestion(value: unknown): value is StoredQuestion {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  return 'question' in value && typeof value.question === 'string';
+}
+
+function parseStoredQuiz(id: string, data: unknown): StoredQuiz | null {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return null;
+  }
+  if (!('questions' in data) || !Array.isArray(data.questions)) {
+    return null;
+  }
+  if (!data.questions.every(isStoredQuestion)) {
+    return null;
+  }
+  return { id, ...data, questions: data.questions } as StoredQuiz;
+}
+
 async function resolveQuiz(
   userId: string,
   quizType: QuizTelemetryType,
@@ -82,14 +102,16 @@ async function resolveQuiz(
     throw new Error('Quiz not found');
   }
 
-  const quiz = { id: snap.id, ...snap.data() } as StoredQuiz;
-  const questions = (quiz.questions ?? []) as StoredQuestion[];
+  const quiz = parseStoredQuiz(snap.id, snap.data());
+  if (!quiz) {
+    throw new Error('Quiz not found');
+  }
   const documentIds =
     stringArray(quiz.documentIds).length > 0
       ? stringArray(quiz.documentIds)
       : stringArray([quiz.documentId]);
 
-  return { quiz, questions, documentIds };
+  return { quiz, questions: quiz.questions, documentIds };
 }
 
 function normalizeKnowledge(
@@ -263,11 +285,14 @@ export async function recordQuizAttemptInFirestore(
 
   await runTransaction(db, async (transaction) => {
     const quizStatSnap = await transaction.get(quizStatDocRef);
-    const existingStats = quizStatSnap.exists()
-      ? (quizStatSnap.data() as Partial<QuizStatsSummary>)
-      : {};
-    const bestScore = Math.max(existingStats.bestScore ?? 0, score);
-    const bestPercentage = Math.max(existingStats.bestPercentage ?? 0, percentage);
+    const existingBestScore = quizStatSnap.exists()
+      ? Number(quizStatSnap.data().bestScore ?? 0)
+      : 0;
+    const existingBestPercentage = quizStatSnap.exists()
+      ? Number(quizStatSnap.data().bestPercentage ?? 0)
+      : 0;
+    const bestScore = Math.max(existingBestScore, score);
+    const bestPercentage = Math.max(existingBestPercentage, percentage);
 
     transaction.set(attemptRef, {
       id: attemptRef.id,
@@ -322,15 +347,21 @@ export async function recordQuizAttemptInFirestore(
       { merge: true },
     );
 
+    const knowledgeIncrements = new Map<
+      string,
+      {
+        knowledge: QuestionKnowledgeMetadata;
+        answerCount: number;
+        correctCount: number;
+        incorrectCount: number;
+      }
+    >();
+
     for (const answer of answers) {
       const answerEventRef = doc(learningEventCollection(userId));
       const questionStatDocRef = questionStatRef(
         userId,
         statId(data.quizType, data.quizId, answer.questionIndex),
-      );
-      const knowledgeDocRef = knowledgeStatRef(
-        userId,
-        knowledgeStatId(date, answer.knowledge),
       );
 
       transaction.set(answerEventRef, {
@@ -356,12 +387,29 @@ export async function recordQuizAttemptInFirestore(
         { merge: true },
       );
 
-      transaction.set(
-        knowledgeDocRef,
-        knowledgeStatPayload(userId, date, answer.knowledge, {
+      const knowledgeKey = knowledgeStatId(date, answer.knowledge);
+      const existing = knowledgeIncrements.get(knowledgeKey);
+      if (existing) {
+        existing.answerCount += 1;
+        existing.correctCount += answer.isCorrect ? 1 : 0;
+        existing.incorrectCount += answer.isCorrect ? 0 : 1;
+      } else {
+        knowledgeIncrements.set(knowledgeKey, {
+          knowledge: answer.knowledge,
           answerCount: 1,
           correctCount: answer.isCorrect ? 1 : 0,
           incorrectCount: answer.isCorrect ? 0 : 1,
+        });
+      }
+    }
+
+    for (const [knowledgeKey, incrementSet] of knowledgeIncrements) {
+      transaction.set(
+        knowledgeStatRef(userId, knowledgeKey),
+        knowledgeStatPayload(userId, date, incrementSet.knowledge, {
+          answerCount: incrementSet.answerCount,
+          correctCount: incrementSet.correctCount,
+          incorrectCount: incrementSet.incorrectCount,
         }),
         { merge: true },
       );
@@ -451,18 +499,25 @@ export async function recordQuizExplanationRequestInFirestore(
   return eventRef.id;
 }
 
-const QUIZ_STAT_ZEROES = {
-  attemptCount: 0,
-  totalScore: 0,
-  totalPercentage: 0,
-  totalDurationMs: 0,
-  bestScore: 0,
-  bestPercentage: 0,
-  latestScore: 0,
-  latestPercentage: 0,
-  incorrectAnswerCount: 0,
-  explanationRequestCount: 0,
-};
+function toStatDate(value: unknown, fallback: Date): Date {
+  if (value instanceof Timestamp) {
+    return value.toDate();
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+  return fallback;
+}
+
+function readStatNumber(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
 
 export async function getQuizStatsFromFirestore(
   userId: string,
@@ -474,17 +529,27 @@ export async function getQuizStatsFromFirestore(
     return null;
   }
 
-  const data = snap.data() as Partial<QuizStatsSummary>;
+  const data = snap.data();
+  const now = new Date();
   return {
     id: snap.id,
     userId,
     quizId,
     quizType,
-    directoryId: data.directoryId ?? '',
-    documentIds: data.documentIds ?? [],
-    totalQuestions: data.totalQuestions ?? 0,
-    ...QUIZ_STAT_ZEROES,
-    ...data,
-    updatedAt: data.updatedAt ?? new Date(),
-  } as QuizStatsSummary;
+    directoryId: typeof data.directoryId === 'string' ? data.directoryId : '',
+    documentIds: stringArray(data.documentIds),
+    totalQuestions: readStatNumber(data.totalQuestions),
+    attemptCount: readStatNumber(data.attemptCount),
+    totalScore: readStatNumber(data.totalScore),
+    totalPercentage: readStatNumber(data.totalPercentage),
+    totalDurationMs: readStatNumber(data.totalDurationMs),
+    bestScore: readStatNumber(data.bestScore),
+    bestPercentage: readStatNumber(data.bestPercentage),
+    latestScore: readStatNumber(data.latestScore),
+    latestPercentage: readStatNumber(data.latestPercentage),
+    incorrectAnswerCount: readStatNumber(data.incorrectAnswerCount),
+    explanationRequestCount: readStatNumber(data.explanationRequestCount),
+    lastAttemptAt: data.lastAttemptAt ? toStatDate(data.lastAttemptAt, now) : undefined,
+    updatedAt: toStatDate(data.updatedAt, now),
+  };
 }

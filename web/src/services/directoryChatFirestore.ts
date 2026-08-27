@@ -6,6 +6,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  Timestamp,
   where,
 } from 'firebase/firestore';
 import type {
@@ -145,20 +146,27 @@ async function getMessages(
     ),
   );
 
-  return snapshot.docs.map((messageDoc) => {
+  return snapshot.docs.flatMap((messageDoc) => {
     const data = messageDoc.data();
-    const createdAt =
-      data.createdAt && typeof data.createdAt === 'object' && 'toDate' in data.createdAt
-        ? (data.createdAt as { toDate: () => Date }).toDate().toISOString()
-        : new Date().toISOString();
+    const role = data.role === 'user' || data.role === 'assistant' ? data.role : null;
+    if (!role || typeof data.content !== 'string') {
+      return [];
+    }
 
-    return {
+    const createdAt =
+      data.createdAt instanceof Timestamp
+        ? data.createdAt.toDate().toISOString()
+        : typeof data.createdAt === 'string'
+          ? data.createdAt
+          : new Date().toISOString();
+
+    return [{
       id: messageDoc.id,
-      role: data.role as 'user' | 'assistant',
-      content: String(data.content ?? ''),
+      role,
+      content: data.content,
       createdAt,
       ...(typeof data.seedKey === 'string' ? { seedKey: data.seedKey } : {}),
-    };
+    }];
   });
 }
 

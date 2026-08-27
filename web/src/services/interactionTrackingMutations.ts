@@ -1,7 +1,7 @@
 import {
   addDoc,
-  collection,
   FieldPath,
+  getDoc,
   getDocs,
   increment,
   query,
@@ -13,7 +13,12 @@ import {
 import type { ArtifactType, InteractionStat } from '@shared-types';
 import { db } from '../config/firebase';
 import { computeExpiresAt } from './firestoreTtl';
-import { directoryRef, interactionSessionCollection, interactionStatRef } from './firestorePaths';
+import {
+  directoryRef,
+  interactionSessionCollection,
+  interactionStatCollection,
+  interactionStatRef,
+} from './firestorePaths';
 
 const EMPTY_ARTIFACT_COUNTS: Record<ArtifactType, number> = {
   document: 0,
@@ -32,7 +37,6 @@ export async function getAncestorDirectoryIds(
   let currentId: string | null = directoryId;
 
   for (let depth = 0; depth < 10 && currentId; depth += 1) {
-    const { getDoc } = await import('firebase/firestore');
     const dirDoc = await getDoc(directoryRef(userId, currentId));
     if (!dirDoc.exists()) {
       break;
@@ -131,7 +135,7 @@ export async function getInteractionStatsFromFirestore(
   ];
 
   const snapshot = await getDocs(
-    query(collection(db, 'users', userId, 'interactionStats'), ...constraints),
+    query(interactionStatCollection(userId), ...constraints),
   );
 
   return snapshot.docs.map((statDoc) => {
@@ -176,7 +180,7 @@ export async function recalculateStatsForDirectoryMove(
 
   const movedStatsSnap = await getDocs(
     query(
-      collection(db, 'users', userId, 'interactionStats'),
+      interactionStatCollection(userId),
       where('directoryId', '==', movedDirectoryId),
     ),
   );
@@ -195,13 +199,19 @@ export async function recalculateStatsForDirectoryMove(
 
     for (const ancestorId of removedAncestors) {
       const statRef = interactionStatRef(userId, `${ancestorId}_${date}`);
-      const payload: Record<string, unknown> = {
-        totalSeconds: increment(-totalSeconds),
-      };
-      for (const [artifactType, seconds] of Object.entries(byArtifactType)) {
-        payload[`byArtifactType.${artifactType}`] = increment(-seconds);
-      }
-      batch.set(statRef, payload, { merge: true });
+      batch.set(
+        statRef,
+        {
+          totalSeconds: increment(-totalSeconds),
+          byArtifactType: Object.fromEntries(
+            Object.entries(byArtifactType).map(([type, seconds]) => [
+              type,
+              increment(-seconds),
+            ]),
+          ),
+        },
+        { merge: true },
+      );
     }
 
     for (const ancestorId of addedAncestors) {

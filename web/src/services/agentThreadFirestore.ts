@@ -4,6 +4,7 @@ import {
   limit,
   orderBy,
   query,
+  Timestamp,
 } from 'firebase/firestore';
 import type {
   AgentThreadSummary,
@@ -19,16 +20,15 @@ const THREAD_MESSAGES_MAX_RETURNED = 200;
 const FALLBACK_THREAD_TITLE = 'Conversation';
 
 function timestampToIso(value: unknown, fallback: string): string {
-  if (
-    value
-    && typeof value === 'object'
-    && 'toDate' in value
-    && typeof (value as { toDate: () => Date }).toDate === 'function'
-  ) {
-    return (value as { toDate: () => Date }).toDate().toISOString();
+  if (value instanceof Timestamp) {
+    return value.toDate().toISOString();
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString();
   }
   if (typeof value === 'string' && value.trim().length > 0) {
-    return value;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
   }
   return fallback;
 }

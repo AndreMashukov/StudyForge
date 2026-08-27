@@ -77,8 +77,7 @@ service cloud.firestore {
 
         match /chat/{threadId} {
           allow read: if isOwner(userId);
-          allow create: if false;
-          allow update: if isOwner(userId);
+          allow create, update: if isOwner(userId);
           allow delete: if false;
 
           match /messages/{messageId} {

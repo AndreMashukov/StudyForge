@@ -74,12 +74,51 @@ function encodeDocumentCursor(sortValue: unknown, docId: string): string {
   return btoa(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+function isEncodedCursorPayload(value: unknown): value is EncodedCursorPayload {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  if (!('v' in value) || typeof value.v !== 'number') {
+    return false;
+  }
+  if (!('sortBy' in value) || typeof value.sortBy !== 'string') {
+    return false;
+  }
+  if (!('sortOrder' in value) || (value.sortOrder !== 'asc' && value.sortOrder !== 'desc')) {
+    return false;
+  }
+  if (!('id' in value) || typeof value.id !== 'string' || value.id.length === 0) {
+    return false;
+  }
+  if (!('sortValue' in value)) {
+    return false;
+  }
+  const sortValue = value.sortValue;
+  if (typeof sortValue === 'string' || typeof sortValue === 'number') {
+    return true;
+  }
+  return (
+    !!sortValue
+    && typeof sortValue === 'object'
+    && '_type' in sortValue
+    && sortValue._type === 'timestamp'
+    && 'seconds' in sortValue
+    && typeof sortValue.seconds === 'number'
+    && 'nanoseconds' in sortValue
+    && typeof sortValue.nanoseconds === 'number'
+  );
+}
+
 function decodeDocumentCursor(cursor: string): {
   sortValue: string | number | Timestamp;
   id: string;
 } {
   const json = atob(cursor.replace(/-/g, '+').replace(/_/g, '/'));
-  const payload = JSON.parse(json) as EncodedCursorPayload;
+  const parsed: unknown = JSON.parse(json);
+  if (!isEncodedCursorPayload(parsed)) {
+    throw new Error('Invalid cursor');
+  }
+  const payload = parsed;
   if (payload.v !== CURSOR_VERSION) {
     throw new Error('Unsupported cursor version');
   }
@@ -159,7 +198,9 @@ export async function fetchUserDocumentsFromFirestore(
     ? [whereEquals('directoryId', options.directoryId)]
     : [];
 
-  const total = await countMatchingDocuments(collectionRef, filters);
+  const total = options.cursor
+    ? 0
+    : await countMatchingDocuments(collectionRef, filters);
 
   const constraints = [
     ...filters,

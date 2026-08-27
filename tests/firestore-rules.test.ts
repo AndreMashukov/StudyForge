@@ -362,6 +362,12 @@ describe('firestore.rules client write hardening', () => {
           { selectedSourceIds: ['doc-1'] },
         ),
       );
+      await assertSucceeds(
+        setDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/directories/${directoryId}/chat/new-thread`),
+          { selectedDocumentIds: ['doc-1'] },
+        ),
+      );
       await assertFails(
         setDoc(
           doc(

@@ -258,17 +258,30 @@ async function getQuizMetadata(
   return metadata;
 }
 
+function orderNewestFirst(
+  range: StatisticsDateRangeRequest,
+  rangeField: string,
+  unboundedField: string,
+): QueryConstraint {
+  return range.startDate || range.endDate
+    ? orderBy(rangeField, 'desc')
+    : orderBy(unboundedField, 'desc');
+}
+
 async function getAttempts(
   userId: string,
   range: StatisticsDateRangeRequest,
   scope?: StatisticsScopeOptions,
+  quizFilter?: { quizId: string; quizType: QuizTelemetryType },
 ): Promise<IStoredAttempt[]> {
   const constraints: QueryConstraint[] = [
     ...applyDateRangeConstraints(range),
   ];
-  if (!range.startDate && !range.endDate) {
-    constraints.push(orderBy('completedAt', 'desc'));
+  if (quizFilter) {
+    constraints.push(where('quizId', '==', quizFilter.quizId));
+    constraints.push(where('quizType', '==', quizFilter.quizType));
   }
+  constraints.push(orderNewestFirst(range, 'date', 'completedAt'));
   constraints.push(limit(MAX_ATTEMPTS_TO_SCAN));
 
   const snapshot = await getDocs(
@@ -356,12 +369,14 @@ async function getExplanationCountsByQuiz(
   userId: string,
   range: StatisticsDateRangeRequest,
 ): Promise<Map<string, number>> {
-  const constraints: QueryConstraint[] = [];
+  const constraints: QueryConstraint[] = [
+    where('eventType', '==', 'detailed_explanation_requested'),
+  ];
   const start = parseDay(range.startDate);
   const end = parseDay(range.endDate, true);
   if (start) constraints.push(where('occurredAt', '>=', Timestamp.fromDate(start)));
   if (end) constraints.push(where('occurredAt', '<=', Timestamp.fromDate(end)));
-  if (!start && !end) constraints.push(orderBy('occurredAt', 'desc'));
+  constraints.push(orderBy('occurredAt', 'desc'));
   constraints.push(limit(MAX_EVENTS_TO_SCAN));
 
   const quizType = normalizeQuizType(range.quizType);
@@ -580,7 +595,11 @@ async function buildQuizPerformance(
   });
 }
 
-async function getArtifactRef(
+function isArtifactType(value: unknown): value is ArtifactType {
+  return typeof value === 'string' && value in ARTIFACT_TYPE_LABELS;
+}
+
+function getArtifactRef(
   userId: string,
   artifactType: ArtifactType,
   artifactId: string,
@@ -598,6 +617,8 @@ async function getArtifactRef(
       return flashcardSetRef(userId, artifactId);
     case 'slideDeck':
       return slideDeckRef(userId, artifactId);
+    default:
+      return null;
   }
 }
 
@@ -667,9 +688,7 @@ export async function getStatisticsLearningTimeFromFirestore(
   const constraints: QueryConstraint[] = [
     ...applyDateRangeConstraints(range),
   ];
-  if (!range.startDate && !range.endDate) {
-    constraints.push(orderBy('lastActiveAt', 'desc'));
-  }
+  constraints.push(orderNewestFirst(range, 'date', 'lastActiveAt'));
   constraints.push(limit(MAX_INTERACTION_SESSIONS_TO_SCAN));
 
   const snapshot = await getDocs(
@@ -680,7 +699,10 @@ export async function getStatisticsLearningTimeFromFirestore(
 
   for (const sessionDoc of snapshot.docs) {
     const data = sessionDoc.data();
-    const artifactType = data.artifactType as ArtifactType;
+    if (!isArtifactType(data.artifactType)) {
+      continue;
+    }
+    const artifactType = data.artifactType;
     const artifactId = String(data.artifactId ?? 'unknown');
     const activeSeconds = Number(data.activeSeconds ?? 0);
     const typeRow = byType.get(artifactType) ?? {
@@ -719,11 +741,14 @@ export async function getStatisticsLearningTimeFromFirestore(
     .slice(0, 10);
 
   for (const artifact of topArtifacts) {
-    const artifactDocRef = await getArtifactRef(
+    const artifactDocRef = getArtifactRef(
       userId,
       artifact.artifactType,
       artifact.artifactId,
     );
+    if (!artifactDocRef) {
+      continue;
+    }
     const snap = await getDoc(artifactDocRef);
     if (snap.exists()) {
       const data = snap.data() ?? {};
@@ -754,11 +779,11 @@ export async function getStatisticsQuizDetailFromFirestore(
   data: GetStatisticsQuizDetailRequest,
   scope?: StatisticsScopeOptions,
 ): Promise<GetStatisticsQuizDetailResponse> {
-  const attempts = (
-    await getAttempts(userId, { ...data, quizType: data.quizType }, scope)
-  ).filter(
-    (attempt) =>
-      attempt.quizId === data.quizId && attempt.quizType === data.quizType,
+  const attempts = await getAttempts(
+    userId,
+    { ...data, quizType: data.quizType },
+    scope,
+    { quizId: data.quizId, quizType: data.quizType },
   );
   const quizzes = await buildQuizPerformance(userId, attempts, data);
   const failedQuestions = await buildRecentFailures(userId, attempts, 25);

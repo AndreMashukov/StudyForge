@@ -1,5 +1,5 @@
 import { getDocs, orderBy, query } from 'firebase/firestore';
-import type { IApiKey } from '../store/api/ApiKeys/IApiKeysApi';
+import type { IApiKey } from '@shared-types';
 import { userCollection } from './firestorePaths';
 import { serializeCommonTimestamps } from '../hooks/directoryRealtimeCacheUtils';
 

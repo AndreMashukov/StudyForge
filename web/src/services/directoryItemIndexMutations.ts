@@ -47,12 +47,12 @@ function readString(value: unknown, fallback = ''): string {
 }
 
 function readTimestamp(value: unknown): DirectoryItemSummary['createdAt'] {
-  if (
-    value instanceof Timestamp
-    || value instanceof Date
-    || typeof value === 'string'
-  ) {
+  if (value instanceof Timestamp || value instanceof Date) {
     return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? Timestamp.now() : parsed;
   }
   if (
     value

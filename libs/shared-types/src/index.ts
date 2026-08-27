@@ -2529,6 +2529,15 @@ export interface IBulkDetachRulesFromDirectoryRequest {
   ruleIds: string[];
 }
 
+export interface IApiKey {
+  keyId: string;
+  name: string;
+  keyPrefix: string;
+  createdAt: string | null;
+  lastUsedAt: string | null;
+  active: boolean;
+}
+
 export interface IBulkRevokeApiKeysRequest {
   keyIds: string[];
 }

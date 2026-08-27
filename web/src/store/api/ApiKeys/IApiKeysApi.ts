@@ -1,11 +1,4 @@
-export interface IApiKey {
-  keyId: string;
-  name: string;
-  keyPrefix: string;
-  createdAt: string | null;
-  lastUsedAt: string | null;
-  active: boolean;
-}
+export type { IApiKey } from '@shared-types';
 
 export interface ICreateApiKeyResponse {
   keyId: string;

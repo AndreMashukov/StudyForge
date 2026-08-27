@@ -113,7 +113,10 @@ export const flashcardsApi = baseApi.injectEndpoints({
           return mutationError(error);
         }
       },
-      invalidatesTags: (_result, _error, arg) => [{ type: 'FlashcardSet', id: arg.flashcardSetId }],
+      invalidatesTags: (_result, _error, arg) => [
+        { type: 'FlashcardSet', id: arg.flashcardSetId },
+        'UserFlashcardSets',
+      ],
     }),
 
     deleteFlashcardSet: builder.mutation<
