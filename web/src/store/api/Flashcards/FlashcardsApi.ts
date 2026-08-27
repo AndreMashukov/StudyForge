@@ -5,7 +5,17 @@ import {
   fetchFlashcardSetFromFirestore,
   fetchUserFlashcardSetsFromFirestore,
 } from '../../../services/artifactFirestore';
-import { toFirestoreDoc } from '../../../services/firestoreReadUtils';
+import {
+  deleteFlashcardSetInFirestore,
+  updateFlashcardSetInFirestore,
+  recordLearnedVocabularyInFirestore,
+} from '../../../services/artifactMutations';
+import {
+  authRequiredError,
+  customError,
+  notFoundError,
+  toFirestoreDoc,
+} from '../../../services/firestoreReadUtils';
 import { attachArtifactDocListener } from '../utils/artifactDetailRealtime';
 import { runOptimisticArtifactDirectoryRemove } from '../utils/artifactGenerationOptimistic';
 import {
@@ -15,12 +25,19 @@ import {
   RecordLearnedVocabularyRequest,
   RecordLearnedVocabularyResponse,
   UpdateFlashcardSetRequest,
-  ApiResponse
+  ApiResponse,
 } from '@shared-types';
+
+function mutationError(error: unknown) {
+  return customError(error instanceof Error ? error.message : 'Unknown error');
+}
 
 export const flashcardsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    generateFlashcards: builder.mutation<ApiResponse<GenerateFlashcardsResponse>, GenerateFlashcardsRequest>({
+    generateFlashcards: builder.mutation<
+      ApiResponse<GenerateFlashcardsResponse>,
+      GenerateFlashcardsRequest
+    >({
       query: (data) => ({
         functionName: 'generateFlashcards',
         data,
@@ -32,42 +49,22 @@ export const flashcardsApi = baseApi.injectEndpoints({
     }),
 
     getFlashcardSet: builder.query<ApiResponse<FlashcardSet>, { flashcardSetId: string }>({
-      async queryFn({ flashcardSetId }, _api, _extraOptions, baseQuery) {
+      async queryFn({ flashcardSetId }) {
         const userId = auth.currentUser?.uid;
-        if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
-        }
+        if (!userId) return authRequiredError();
 
         try {
           const flashcardSet = await fetchFlashcardSetFromFirestore(userId, flashcardSetId);
-          if (!flashcardSet) {
-            return {
-              error: {
-                status: 'CUSTOM_ERROR',
-                data: { message: 'Flashcard set not found', code: 'NOT_FOUND' },
-              },
-            };
-          }
-
+          if (!flashcardSet) return notFoundError('Flashcard set not found');
           return { data: { success: true, data: flashcardSet } };
-        } catch (firestoreError) {
-          console.warn('Firestore flashcard set read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({
-            functionName: 'getFlashcardSet',
-            data: { flashcardSetId },
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          return { data: fallback.data as ApiResponse<FlashcardSet> };
+        } catch (error) {
+          return mutationError(error);
         }
       },
-      async onCacheEntryAdded({ flashcardSetId }, { updateCachedData, cacheDataLoaded, cacheEntryRemoved }) {
+      async onCacheEntryAdded(
+        { flashcardSetId },
+        { updateCachedData, cacheDataLoaded, cacheEntryRemoved },
+      ) {
         await attachArtifactDocListener({
           collectionName: 'flashcardSets',
           docId: flashcardSetId,
@@ -75,63 +72,64 @@ export const flashcardsApi = baseApi.injectEndpoints({
           cacheEntryRemoved,
           onMapped: (flashcardSet: FlashcardSet) => {
             updateCachedData((draft) => {
-              if (!draft?.data) {
-                return;
-              }
+              if (!draft?.data) return;
               draft.data = flashcardSet;
             });
           },
           mapSnapshot: (id, raw) => toFirestoreDoc<FlashcardSet>(id, raw),
         });
       },
-      providesTags: (result, error, arg) => [{ type: 'FlashcardSet', id: arg.flashcardSetId }],
+      providesTags: (_result, _error, arg) => [{ type: 'FlashcardSet', id: arg.flashcardSetId }],
       keepUnusedDataFor: 300,
     }),
 
     getUserFlashcardSets: builder.query<ApiResponse<FlashcardSet[]>, void>({
-      async queryFn(_arg, _api, _extraOptions, baseQuery) {
+      async queryFn() {
         const userId = auth.currentUser?.uid;
-        if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
-        }
+        if (!userId) return authRequiredError();
 
         try {
           const flashcardSets = await fetchUserFlashcardSetsFromFirestore(userId);
           return { data: { success: true, data: flashcardSets } };
-        } catch (firestoreError) {
-          console.warn('Firestore flashcard list read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({
-            functionName: 'getUserFlashcardSets',
-            data: {},
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          return { data: fallback.data as ApiResponse<FlashcardSet[]> };
+        } catch (error) {
+          return mutationError(error);
         }
       },
       providesTags: ['UserFlashcardSets'],
       keepUnusedDataFor: 300,
     }),
 
-    updateFlashcardSet: builder.mutation<ApiResponse<{ success: boolean }>, UpdateFlashcardSetRequest>({
-      query: (data) => ({
-        functionName: 'updateFlashcardSet',
-        data,
-      }),
-      invalidatesTags: (result, error, arg) => [{ type: 'FlashcardSet', id: arg.flashcardSetId }],
+    updateFlashcardSet: builder.mutation<
+      ApiResponse<{ success: boolean }>,
+      UpdateFlashcardSetRequest
+    >({
+      async queryFn(data) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          await updateFlashcardSetInFirestore(userId, data);
+          return { data: { success: true, data: { success: true } } };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
+      invalidatesTags: (_result, _error, arg) => [{ type: 'FlashcardSet', id: arg.flashcardSetId }],
     }),
 
-    deleteFlashcardSet: builder.mutation<ApiResponse<{ success: boolean }>, { flashcardSetId: string }>({
-      query: (data) => ({
-        functionName: 'deleteFlashcardSet',
-        data,
-      }),
+    deleteFlashcardSet: builder.mutation<
+      ApiResponse<{ success: boolean }>,
+      { flashcardSetId: string }
+    >({
+      async queryFn({ flashcardSetId }) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          await deleteFlashcardSetInFirestore(userId, flashcardSetId);
+          return { data: { success: true, data: { success: true } } };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
       invalidatesTags: ['UserFlashcardSets'],
       async onQueryStarted({ flashcardSetId }, { dispatch, getState, queryFulfilled }) {
         await runOptimisticArtifactDirectoryRemove(
@@ -148,10 +146,29 @@ export const flashcardsApi = baseApi.injectEndpoints({
       ApiResponse<RecordLearnedVocabularyResponse>,
       RecordLearnedVocabularyRequest
     >({
-      query: (data) => ({
-        functionName: 'recordLearnedVocabulary',
-        data,
-      }),
+      async queryFn(data) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const result = await recordLearnedVocabularyInFirestore({
+            userId,
+            flashcardSetId: data.flashcardSetId,
+            flashcardId: data.flashcardId,
+            term: data.term,
+          });
+          return {
+            data: {
+              success: true,
+              data: {
+                learnedVocabularyId: result.id,
+                created: result.created,
+              },
+            },
+          };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
     }),
   }),
 });

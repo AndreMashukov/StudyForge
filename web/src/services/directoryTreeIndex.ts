@@ -51,7 +51,7 @@ export function subscribeToDirectoryTreeIndex(
       onUpdate(directoriesFromSnapshot(snapshot));
     },
     () => {
-      // Listener errors are handled by RTK queryFn callable fallback on refetch.
+      // Listener errors surface on RTK refetch.
     },
   );
 }

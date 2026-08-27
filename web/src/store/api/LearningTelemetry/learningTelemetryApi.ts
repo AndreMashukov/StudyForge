@@ -1,4 +1,14 @@
 import { baseApi } from '../baseApi';
+import { auth } from '../../../config/firebase';
+import {
+  recordQuizAttemptInFirestore,
+  recordQuizExplanationRequestInFirestore,
+  getQuizStatsFromFirestore,
+} from '../../../services/learningTelemetryMutations';
+import {
+  authRequiredError,
+  customError,
+} from '../../../services/firestoreReadUtils';
 import {
   GetQuizStatsRequest,
   GetQuizStatsResponse,
@@ -8,16 +18,26 @@ import {
   RecordQuizExplanationResponse,
 } from '@shared-types';
 
+function mutationError(error: unknown) {
+  return customError(error instanceof Error ? error.message : 'Unknown error');
+}
+
 export const learningTelemetryApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     recordQuizAttempt: builder.mutation<
       RecordQuizAttemptResponse,
       RecordQuizAttemptRequest
     >({
-      query: (data) => ({
-        functionName: 'recordQuizAttempt',
-        data,
-      }),
+      async queryFn(data) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const attemptId = await recordQuizAttemptInFirestore(userId, data);
+          return { data: { attemptId } };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
       invalidatesTags: ['LearningStats'],
     }),
 
@@ -25,18 +45,30 @@ export const learningTelemetryApi = baseApi.injectEndpoints({
       RecordQuizExplanationResponse,
       RecordQuizExplanationRequest
     >({
-      query: (data) => ({
-        functionName: 'recordQuizExplanationRequest',
-        data,
-      }),
+      async queryFn(data) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const eventId = await recordQuizExplanationRequestInFirestore(userId, data);
+          return { data: { eventId } };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
       invalidatesTags: ['LearningStats'],
     }),
 
     getQuizStats: builder.query<GetQuizStatsResponse, GetQuizStatsRequest>({
-      query: (data) => ({
-        functionName: 'getQuizStats',
-        data,
-      }),
+      async queryFn({ quizId, quizType }) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const stats = await getQuizStatsFromFirestore(userId, quizType, quizId);
+          return { data: { stats } };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
       providesTags: ['LearningStats'],
     }),
   }),

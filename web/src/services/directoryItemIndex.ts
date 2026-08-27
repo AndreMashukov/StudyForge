@@ -63,7 +63,7 @@ export function subscribeToDirectoryItems(
       onUpdate(items);
     },
     () => {
-      // Listener errors fall back to callable refetch via RTK defaults.
+      // Listener errors surface on RTK refetch.
     },
   );
 }

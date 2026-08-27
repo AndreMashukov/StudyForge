@@ -5,7 +5,13 @@ import {
   fetchSequenceQuizFromFirestore,
   fetchUserSequenceQuizzesFromFirestore,
 } from '../../../services/artifactFirestore';
-import { toFirestoreDoc } from '../../../services/firestoreReadUtils';
+import { deleteSequenceQuizInFirestore } from '../../../services/artifactMutations';
+import {
+  authRequiredError,
+  customError,
+  notFoundError,
+  toFirestoreDoc,
+} from '../../../services/firestoreReadUtils';
 import { attachArtifactDocListener } from '../utils/artifactDetailRealtime';
 import { runOptimisticArtifactDirectoryRemove } from '../utils/artifactGenerationOptimistic';
 import {
@@ -15,6 +21,10 @@ import {
   GetSequenceQuizResponse,
   SequenceQuiz,
 } from '@shared-types';
+
+function mutationError(error: unknown) {
+  return customError(error instanceof Error ? error.message : 'Unknown error');
+}
 
 export const sequenceQuizApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -27,9 +37,12 @@ export const sequenceQuizApi = baseApi.injectEndpoints({
         data,
         timeout: 300000,
       }),
-      onQueryStarted: createArtifactOnQueryStarted('sequenceQuizzes', 'Sequence quiz', 'sequence quiz', {
-        successMessage: 'Sequence quiz is preparing',
-      }),
+      onQueryStarted: createArtifactOnQueryStarted(
+        'sequenceQuizzes',
+        'Sequence quiz',
+        'sequence quiz',
+        { successMessage: 'Sequence quiz is preparing' },
+      ),
       invalidatesTags: ['UserSequenceQuizzes'],
     }),
 
@@ -37,47 +50,22 @@ export const sequenceQuizApi = baseApi.injectEndpoints({
       ApiResponse<GetSequenceQuizResponse>,
       { sequenceQuizId: string }
     >({
-      async queryFn({ sequenceQuizId }, _api, _extraOptions, baseQuery) {
+      async queryFn({ sequenceQuizId }) {
         const userId = auth.currentUser?.uid;
-        if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
-        }
+        if (!userId) return authRequiredError();
 
         try {
           const sequenceQuiz = await fetchSequenceQuizFromFirestore(userId, sequenceQuizId);
-          if (!sequenceQuiz) {
-            return {
-              error: {
-                status: 'CUSTOM_ERROR',
-                data: { message: 'Sequence quiz not found', code: 'NOT_FOUND' },
-              },
-            };
-          }
-
-          return {
-            data: {
-              success: true,
-              data: { sequenceQuiz },
-            },
-          };
-        } catch (firestoreError) {
-          console.warn('Firestore sequence quiz read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({
-            functionName: 'getSequenceQuiz',
-            data: { sequenceQuizId },
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          return { data: fallback.data as ApiResponse<GetSequenceQuizResponse> };
+          if (!sequenceQuiz) return notFoundError('Sequence quiz not found');
+          return { data: { success: true, data: { sequenceQuiz } } };
+        } catch (error) {
+          return mutationError(error);
         }
       },
-      async onCacheEntryAdded({ sequenceQuizId }, { updateCachedData, cacheDataLoaded, cacheEntryRemoved }) {
+      async onCacheEntryAdded(
+        { sequenceQuizId },
+        { updateCachedData, cacheDataLoaded, cacheEntryRemoved },
+      ) {
         await attachArtifactDocListener({
           collectionName: 'sequenceQuizzes',
           docId: sequenceQuizId,
@@ -85,46 +73,30 @@ export const sequenceQuizApi = baseApi.injectEndpoints({
           cacheEntryRemoved,
           onMapped: (sequenceQuiz: SequenceQuiz) => {
             updateCachedData((draft) => {
-              if (!draft?.data?.sequenceQuiz) {
-                return;
-              }
+              if (!draft?.data?.sequenceQuiz) return;
               draft.data.sequenceQuiz = sequenceQuiz;
             });
           },
           mapSnapshot: (id, raw) => toFirestoreDoc<SequenceQuiz>(id, raw),
         });
       },
-      providesTags: (result, error, arg) => [
-        { type: 'SequenceQuiz', id: arg.sequenceQuizId },
-      ],
+      providesTags: (_result, _error, arg) => [{ type: 'SequenceQuiz', id: arg.sequenceQuizId }],
       keepUnusedDataFor: 300,
     }),
 
-    getUserSequenceQuizzes: builder.query<ApiResponse<{ sequenceQuizzes: SequenceQuiz[] }>, void>({
-      async queryFn(_arg, _api, _extraOptions, baseQuery) {
+    getUserSequenceQuizzes: builder.query<
+      ApiResponse<{ sequenceQuizzes: SequenceQuiz[] }>,
+      void
+    >({
+      async queryFn() {
         const userId = auth.currentUser?.uid;
-        if (!userId) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              data: { message: 'Authentication required' },
-            },
-          };
-        }
+        if (!userId) return authRequiredError();
 
         try {
           const sequenceQuizzes = await fetchUserSequenceQuizzesFromFirestore(userId);
           return { data: { success: true, data: { sequenceQuizzes } } };
-        } catch (firestoreError) {
-          console.warn('Firestore sequence quiz list read failed, falling back to callable:', firestoreError);
-          const fallback = await baseQuery({
-            functionName: 'getUserSequenceQuizzes',
-            data: {},
-          });
-          if (fallback.error) {
-            return { error: fallback.error };
-          }
-          return { data: fallback.data as ApiResponse<{ sequenceQuizzes: SequenceQuiz[] }> };
+        } catch (error) {
+          return mutationError(error);
         }
       },
       providesTags: ['UserSequenceQuizzes'],
@@ -135,11 +107,17 @@ export const sequenceQuizApi = baseApi.injectEndpoints({
       ApiResponse<{ success: boolean }>,
       { sequenceQuizId: string }
     >({
-      query: (data) => ({
-        functionName: 'deleteSequenceQuiz',
-        data,
-      }),
-      invalidatesTags: (result, error, arg) => [
+      async queryFn({ sequenceQuizId }) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          await deleteSequenceQuizInFirestore(userId, sequenceQuizId);
+          return { data: { success: true, data: { success: true } } };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
+      invalidatesTags: (_result, _error, arg) => [
         { type: 'SequenceQuiz', id: arg.sequenceQuizId },
         'UserSequenceQuizzes',
       ],

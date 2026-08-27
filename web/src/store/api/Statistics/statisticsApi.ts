@@ -1,4 +1,15 @@
 import { baseApi } from '../baseApi';
+import { auth } from '../../../config/firebase';
+import {
+  getStatisticsLearningTimeFromFirestore,
+  getStatisticsOverviewFromFirestore,
+  getStatisticsQuizDetailFromFirestore,
+  getStatisticsQuizPerformanceFromFirestore,
+} from '../../../services/statisticsFirestore';
+import {
+  authRequiredError,
+  customError,
+} from '../../../services/firestoreReadUtils';
 import {
   GetStatisticsLearningTimeResponse,
   GetStatisticsOverviewResponse,
@@ -8,16 +19,26 @@ import {
   StatisticsDateRangeRequest,
 } from '@shared-types';
 
+function mutationError(error: unknown) {
+  return customError(error instanceof Error ? error.message : 'Unknown error');
+}
+
 export const statisticsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getStatisticsOverview: builder.query<
       GetStatisticsOverviewResponse,
       StatisticsDateRangeRequest
     >({
-      query: (data) => ({
-        functionName: 'getStatisticsOverview',
-        data,
-      }),
+      async queryFn(data) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const result = await getStatisticsOverviewFromFirestore(userId, data);
+          return { data: result };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
       providesTags: ['Statistics'],
     }),
 
@@ -25,10 +46,16 @@ export const statisticsApi = baseApi.injectEndpoints({
       GetStatisticsQuizPerformanceResponse,
       StatisticsDateRangeRequest
     >({
-      query: (data) => ({
-        functionName: 'getStatisticsQuizPerformance',
-        data,
-      }),
+      async queryFn(data) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const result = await getStatisticsQuizPerformanceFromFirestore(userId, data);
+          return { data: result };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
       providesTags: ['Statistics'],
     }),
 
@@ -36,10 +63,16 @@ export const statisticsApi = baseApi.injectEndpoints({
       GetStatisticsLearningTimeResponse,
       StatisticsDateRangeRequest
     >({
-      query: (data) => ({
-        functionName: 'getStatisticsLearningTime',
-        data,
-      }),
+      async queryFn(data) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const result = await getStatisticsLearningTimeFromFirestore(userId, data);
+          return { data: result };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
       providesTags: ['Statistics'],
     }),
 
@@ -47,10 +80,16 @@ export const statisticsApi = baseApi.injectEndpoints({
       GetStatisticsQuizDetailResponse,
       GetStatisticsQuizDetailRequest
     >({
-      query: (data) => ({
-        functionName: 'getStatisticsQuizDetail',
-        data,
-      }),
+      async queryFn(data) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const result = await getStatisticsQuizDetailFromFirestore(userId, data);
+          return { data: result };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
       providesTags: ['Statistics'],
     }),
   }),

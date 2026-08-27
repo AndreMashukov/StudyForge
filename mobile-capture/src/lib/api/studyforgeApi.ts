@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { httpsCallable } from 'firebase/functions';
 import { CreateDocumentRequest, GenerateFromScreenshotRequest } from '@shared-types';
 import { functions, waitForAppCheckReady } from '../firebase';
+import { fetchDirectoryTreeFromFirestore } from './directoryTreeFirestore';
 import {
   createDocumentResponseSchema,
   generateFromScreenshotResponseSchema,
@@ -29,7 +30,8 @@ function isRecordWithMessage(value: unknown): value is { message?: string; code?
 }
 
 export async function getDirectoryTree(): Promise<IGetDirectoryTreeResponse> {
-  return callFunction('getDirectoryTree', {}, getDirectoryTreeResponseSchema);
+  const tree = await fetchDirectoryTreeFromFirestore();
+  return parseCallableResponse(getDirectoryTreeResponseSchema, tree);
 }
 
 export async function createDocument(request: CreateDocumentRequest): Promise<ICreateDocumentResponse> {

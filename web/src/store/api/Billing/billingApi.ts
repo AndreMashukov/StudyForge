@@ -7,19 +7,30 @@ import type {
   IUpdatePayAsYouGoSettingsRequest,
   IUserBillingState,
 } from '@shared-types';
+import { auth } from '../../../config/firebase';
+import { fetchBillingStateFromFirestore } from '../../../services/billingFirestore';
+import {
+  authRequiredError,
+  customError,
+} from '../../../services/firestoreReadUtils';
 import { baseApi } from '../baseApi';
+
+function mutationError(error: unknown) {
+  return customError(error instanceof Error ? error.message : 'Unknown error');
+}
 
 export const billingApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getBillingState: builder.query<IUserBillingState, void>({
-      query: () => ({
-        functionName: 'getBillingState',
-      }),
-      transformResponse: (response: ApiResponse<IUserBillingState>) => {
-        if (!response.success || !response.data) {
-          throw new Error('Failed to load billing state');
+      async queryFn() {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const data = await fetchBillingStateFromFirestore(userId);
+          return { data };
+        } catch (error) {
+          return mutationError(error);
         }
-        return response.data;
       },
     }),
     createBillingCheckoutSession: builder.mutation<
@@ -52,21 +63,22 @@ export const billingApi = baseApi.injectEndpoints({
         return response.data;
       },
     }),
-    updatePayAsYouGoSettings: builder.mutation<IUserBillingState, IUpdatePayAsYouGoSettingsRequest>(
-      {
-        query: (body) => ({
-          functionName: 'updatePayAsYouGoSettings',
-          data: body,
-        }),
-        transformResponse: (response: ApiResponse<IUserBillingState>) => {
-          if (!response.success || !response.data) {
-            throw new Error('Failed to update pay-as-you-go settings');
-          }
-          return response.data;
-        },
-        invalidatesTags: [],
+    updatePayAsYouGoSettings: builder.mutation<
+      IUserBillingState,
+      IUpdatePayAsYouGoSettingsRequest
+    >({
+      query: (body) => ({
+        functionName: 'updatePayAsYouGoSettings',
+        data: body,
+      }),
+      transformResponse: (response: ApiResponse<IUserBillingState>) => {
+        if (!response.success || !response.data) {
+          throw new Error('Failed to update pay-as-you-go settings');
+        }
+        return response.data;
       },
-    ),
+      invalidatesTags: [],
+    }),
   }),
 });
 

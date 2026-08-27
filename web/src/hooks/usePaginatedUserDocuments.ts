@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DocumentEnhanced } from '@shared-types';
-import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchUserDocumentsFromFirestore } from '../services/documentFirestore';
 
@@ -48,8 +47,7 @@ export function usePaginatedUserDocuments(
   const [isLoading, setIsLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<unknown>();
-  const [nextCursor, setNextCursor] =
-    useState<QueryDocumentSnapshot<DocumentData>>();
+  const [nextCursor, setNextCursor] = useState<string>();
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
