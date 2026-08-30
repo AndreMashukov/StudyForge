@@ -44,7 +44,8 @@ const SIDEBAR_COLLAPSED_PX = 64;
 const PAGE_WIDE_GAP_PX = 16;
 
 const arraysEqual = (left: string[], right: string[]): boolean =>
-  left.length === right.length && left.every((value, index) => value === right[index]);
+  left.length === right.length &&
+  left.every((value, index) => value === right[index]);
 
 export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   directoryId,
@@ -105,8 +106,7 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
     const sidebarWidth = sidebarIsOpen
       ? SIDEBAR_EXPANDED_PX
       : SIDEBAR_COLLAPSED_PX;
-    const contentLeft =
-      !isMobile && !isAppFullscreen ? sidebarWidth : 0;
+    const contentLeft = !isMobile && !isAppFullscreen ? sidebarWidth : 0;
     const contentTop = isAppFullscreen ? 0 : APP_BAR_HEIGHT_PX;
     return {
       top: contentTop + PAGE_WIDE_GAP_PX,
@@ -148,7 +148,7 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
 
   const { data, isLoading, error } = useGetDirectoryChatQuery(
     { directoryId },
-    { skip: !directoryId },
+    { skip: !directoryId || (collapsible && !isExpanded) },
   );
   const [sendDirectoryChatMessage, { isLoading: isSending }] =
     useSendDirectoryChatMessageMutation();
@@ -180,7 +180,9 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
     }
 
     const availableIds = new Set(data.sources.map((source) => source.id));
-    const validFocusedIds = focusedDocumentIds.filter((id) => availableIds.has(id));
+    const validFocusedIds = focusedDocumentIds.filter((id) =>
+      availableIds.has(id),
+    );
     if (validFocusedIds.length === 0) {
       return;
     }
@@ -404,16 +406,10 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
               size="icon"
               className="h-8 w-8"
               onClick={togglePageWide}
-              aria-label={
-                isPageWide ? 'Exit expanded chat' : 'Expand chat'
-              }
+              aria-label={isPageWide ? 'Exit expanded chat' : 'Expand chat'}
               aria-expanded={isPageWide}
             >
-              {isPageWide ? (
-                <Minimize2 size={16} />
-              ) : (
-                <Maximize2 size={16} />
-              )}
+              {isPageWide ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </Button>
           )}
           {collapsible && (

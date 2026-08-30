@@ -7,7 +7,6 @@ import {
   serverTimestamp,
   setDoc,
   Timestamp,
-  where,
 } from 'firebase/firestore';
 import type {
   DirectoryChatMessage,
@@ -20,8 +19,14 @@ import { fetchDirectoryFromFirestore } from './directoryFirestore';
 import {
   directoryChatMessagesCollection,
   directoryChatThreadRef,
-  userCollection,
 } from './firestorePaths';
+import { fetchDirectoryItemsFromFirestore } from './directoryItemIndex';
+import {
+  fetchAllUserDocsPaginated,
+  FIRESTORE_DOCUMENTS_LIST_LIMIT,
+  whereEquals,
+} from './firestoreReadUtils';
+
 const MAX_MESSAGES_RETURNED = 200;
 
 interface IDirectoryChatSourceState {
@@ -30,7 +35,9 @@ interface IDirectoryChatSourceState {
   documentCount: number;
 }
 
-function extractSummary(threadData: Record<string, unknown> | undefined): string | undefined {
+function extractSummary(
+  threadData: Record<string, unknown> | undefined,
+): string | undefined {
   const summary = threadData?.summary;
   return typeof summary === 'string' && summary.trim() ? summary : undefined;
 }
@@ -58,20 +65,36 @@ function normalizeSelectedDocumentIds(
     return [...allDocumentIds];
   }
   const availableIds = new Set(allDocumentIds);
-  const validSelectedIds = storedSelectedDocumentIds.filter((id) => availableIds.has(id));
+  const validSelectedIds = storedSelectedDocumentIds.filter((id) =>
+    availableIds.has(id),
+  );
   return validSelectedIds.length > 0 ? validSelectedIds : [...allDocumentIds];
 }
 
-async function resolveSourceState(
+async function listDirectoryDocumentSources(
   userId: string,
   directoryId: string,
-  threadData?: Record<string, unknown>,
-): Promise<IDirectoryChatSourceState> {
-  const docsSnapshot = await getDocs(
-    query(userCollection(userId, 'documents'), where('directoryId', '==', directoryId)),
+): Promise<DirectoryChatSourceSummary[]> {
+  const items = await fetchDirectoryItemsFromFirestore(userId, directoryId);
+  const fromItems = items
+    .filter((item) => item.itemType === 'document')
+    .map((item) => ({
+      id: item.sourceId,
+      title: item.title.trim() ? item.title.trim() : 'Untitled',
+    }));
+
+  if (fromItems.length > 0) {
+    return fromItems;
+  }
+
+  const documentSnaps = await fetchAllUserDocsPaginated(
+    userId,
+    'documents',
+    [whereEquals('directoryId', directoryId)],
+    FIRESTORE_DOCUMENTS_LIST_LIMIT,
   );
 
-  const sources = docsSnapshot.docs.map((docSnap) => {
+  return documentSnaps.map((docSnap) => {
     const data = docSnap.data();
     const title =
       typeof data.title === 'string' && data.title.trim()
@@ -79,11 +102,21 @@ async function resolveSourceState(
         : 'Untitled';
     return { id: docSnap.id, title };
   });
+}
+
+async function resolveSourceState(
+  userId: string,
+  directoryId: string,
+  threadData?: Record<string, unknown>,
+): Promise<IDirectoryChatSourceState> {
+  const sources = await listDirectoryDocumentSources(userId, directoryId);
 
   const allDocumentIds = sources.map((source) => source.id);
   let storedSelectedDocumentIds: string[] | undefined;
   if (threadData === undefined) {
-    const threadSnapshot = await getDoc(directoryChatThreadRef(userId, directoryId));
+    const threadSnapshot = await getDoc(
+      directoryChatThreadRef(userId, directoryId),
+    );
     storedSelectedDocumentIds = extractSelectedDocumentIds(
       threadSnapshot.exists() ? threadSnapshot.data() : undefined,
     );
@@ -97,11 +130,11 @@ async function resolveSourceState(
   );
 
   const shouldPersistSelection =
-    allDocumentIds.length > 0
-    && (storedSelectedDocumentIds === undefined
-      || storedSelectedDocumentIds.length === 0
-      || selectedDocumentIds.length !== storedSelectedDocumentIds.length
-      || selectedDocumentIds.some(
+    allDocumentIds.length > 0 &&
+    (storedSelectedDocumentIds === undefined ||
+      storedSelectedDocumentIds.length === 0 ||
+      selectedDocumentIds.length !== storedSelectedDocumentIds.length ||
+      selectedDocumentIds.some(
         (id, index) => id !== storedSelectedDocumentIds?.[index],
       ));
 
@@ -148,7 +181,8 @@ async function getMessages(
 
   return snapshot.docs.flatMap((messageDoc) => {
     const data = messageDoc.data();
-    const role = data.role === 'user' || data.role === 'assistant' ? data.role : null;
+    const role =
+      data.role === 'user' || data.role === 'assistant' ? data.role : null;
     if (!role || typeof data.content !== 'string') {
       return [];
     }
@@ -160,13 +194,15 @@ async function getMessages(
           ? data.createdAt
           : new Date().toISOString();
 
-    return [{
-      id: messageDoc.id,
-      role,
-      content: data.content,
-      createdAt,
-      ...(typeof data.seedKey === 'string' ? { seedKey: data.seedKey } : {}),
-    }];
+    return [
+      {
+        id: messageDoc.id,
+        role,
+        content: data.content,
+        createdAt,
+        ...(typeof data.seedKey === 'string' ? { seedKey: data.seedKey } : {}),
+      },
+    ];
   });
 }
 
@@ -184,7 +220,9 @@ export async function getDirectoryChatFromFirestore(
     getDoc(directoryChatThreadRef(userId, directoryId)),
   ]);
 
-  const threadData = threadSnapshot.exists() ? threadSnapshot.data() : undefined;
+  const threadData = threadSnapshot.exists()
+    ? threadSnapshot.data()
+    : undefined;
   const summary = extractSummary(threadData);
   const sourceState = await resolveSourceState(userId, directoryId, threadData);
 
@@ -217,7 +255,9 @@ export async function updateDirectoryChatSourcesInFirestore(
   const invalidIds = selectedDocumentIds.filter((id) => !availableIds.has(id));
 
   if (invalidIds.length > 0) {
-    throw new Error('One or more selected sources are not available in this directory.');
+    throw new Error(
+      'One or more selected sources are not available in this directory.',
+    );
   }
 
   await persistSelectedDocumentIds(userId, directoryId, selectedDocumentIds);
