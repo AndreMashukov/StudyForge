@@ -20,11 +20,13 @@ import {
   directoryChatMessagesCollection,
   directoryChatThreadRef,
 } from './firestorePaths';
+import { fetchDirectoryItemsFromFirestore } from './directoryItemIndex';
 import {
   fetchAllUserDocsPaginated,
   FIRESTORE_DOCUMENTS_LIST_LIMIT,
   whereEquals,
 } from './firestoreReadUtils';
+
 const MAX_MESSAGES_RETURNED = 200;
 
 interface IDirectoryChatSourceState {
@@ -69,11 +71,22 @@ function normalizeSelectedDocumentIds(
   return validSelectedIds.length > 0 ? validSelectedIds : [...allDocumentIds];
 }
 
-async function resolveSourceState(
+async function listDirectoryDocumentSources(
   userId: string,
   directoryId: string,
-  threadData?: Record<string, unknown>,
-): Promise<IDirectoryChatSourceState> {
+): Promise<DirectoryChatSourceSummary[]> {
+  const items = await fetchDirectoryItemsFromFirestore(userId, directoryId);
+  const fromItems = items
+    .filter((item) => item.itemType === 'document')
+    .map((item) => ({
+      id: item.sourceId,
+      title: item.title.trim() ? item.title.trim() : 'Untitled',
+    }));
+
+  if (fromItems.length > 0) {
+    return fromItems;
+  }
+
   const documentSnaps = await fetchAllUserDocsPaginated(
     userId,
     'documents',
@@ -81,7 +94,7 @@ async function resolveSourceState(
     FIRESTORE_DOCUMENTS_LIST_LIMIT,
   );
 
-  const sources = documentSnaps.map((docSnap) => {
+  return documentSnaps.map((docSnap) => {
     const data = docSnap.data();
     const title =
       typeof data.title === 'string' && data.title.trim()
@@ -89,6 +102,14 @@ async function resolveSourceState(
         : 'Untitled';
     return { id: docSnap.id, title };
   });
+}
+
+async function resolveSourceState(
+  userId: string,
+  directoryId: string,
+  threadData?: Record<string, unknown>,
+): Promise<IDirectoryChatSourceState> {
+  const sources = await listDirectoryDocumentSources(userId, directoryId);
 
   const allDocumentIds = sources.map((source) => source.id);
   let storedSelectedDocumentIds: string[] | undefined;
