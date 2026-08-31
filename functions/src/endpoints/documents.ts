@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import {
   enforceCallableGenerationLimits,
   refundUsageReservationSafe,
@@ -133,7 +133,7 @@ export const createDocument = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as CreateDocumentRequest;
 
       logger.info('Creating document (async HTML ADK)', { 
@@ -225,7 +225,7 @@ export const createDocumentFromPastedText = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       if (!isCreateDocumentFromPastedTextRequest(request.data)) {
         throw new HttpsError(
           'invalid-argument',
@@ -332,7 +332,7 @@ export const uploadAndCreateDocument = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as UploadDocumentRequest & {
         additionalRuleIds?: string[];
         ruleResolutionMode?: unknown;
@@ -465,7 +465,7 @@ export const createDocumentFromUrl = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as {
         url?: string;
         urls?: string[];
@@ -640,7 +640,7 @@ export const getDocument = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { documentId } = request.data as { documentId: string };
 
       // Additional validation to catch "undefined" string
@@ -677,7 +677,7 @@ export const getDocumentWithContent = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { documentId } = request.data as { documentId: string };
 
       if (!documentId || typeof documentId !== 'string') {
@@ -713,7 +713,7 @@ export const updateDocument = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { documentId, updates } = request.data as { 
         documentId: string; 
         updates: UpdateDocumentRequest;
@@ -762,7 +762,7 @@ export const deleteDocument = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { documentId } = request.data as { documentId: string };
 
       if (!documentId || typeof documentId !== 'string') {
@@ -797,7 +797,7 @@ export const bulkDeleteDocuments = onCall(
     cors: true,
   },
   async (request) => {
-    const userId = await validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const { documentIds } = (request.data ?? {}) as { documentIds?: unknown };
 
     if (!Array.isArray(documentIds) || !documentIds.every((id) => typeof id === 'string')) {
@@ -822,7 +822,7 @@ export const getUserDocuments = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const options = request.data || {};
 
       logger.info('Getting user documents', { 
@@ -862,7 +862,7 @@ export const listDocuments = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const options = request.data || {};
 
       logger.info('Listing documents', { 
@@ -902,7 +902,7 @@ export const searchDocuments = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { searchTerm, ...options } = request.data as { 
         searchTerm: string; 
         limit?: number;
@@ -948,7 +948,7 @@ export const getDocumentStats = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
 
       logger.info('Getting document statistics', { userId });
 
@@ -978,7 +978,7 @@ export const getDocumentContent = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { documentId } = request.data as { documentId: string };
 
       if (!documentId || documentId.trim().length === 0) {
@@ -1028,7 +1028,7 @@ export const generateFromPrompt = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as GenerateFromPromptRequest;
 
       // Count files by source type
@@ -1220,7 +1220,7 @@ export const generateFromScreenshot = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as GenerateFromScreenshotRequest;
 
       if (!data.imageBase64 || typeof data.imageBase64 !== 'string') {
@@ -1294,7 +1294,7 @@ export const moveDocument = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { documentId, targetDirectoryId } = request.data as { documentId: string; targetDirectoryId: string };
 
       if (!documentId || typeof documentId !== 'string') {

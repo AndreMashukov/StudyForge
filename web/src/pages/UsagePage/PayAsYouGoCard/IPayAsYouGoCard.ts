@@ -9,6 +9,5 @@ export interface IPayAsYouGoCardProps {
   onSaveMonthlyCap: () => void;
   onEnablePayAsYouGo: () => void;
   onDisablePayAsYouGo: () => void;
-  onSetupBilling: () => void;
   onManageBilling: () => void;
 }

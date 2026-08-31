@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
 import { withUsageReservation } from '@study-forge/backend-generation/generation-limits';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
@@ -31,7 +31,7 @@ export const generateQuizFollowup = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as GenerateFollowupRequest;
 
       logger.info('Generating quiz followup explanation', { 

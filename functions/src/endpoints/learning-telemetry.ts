@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
 import {
   GetQuizStatsRequest,
@@ -17,7 +17,7 @@ export const recordQuizAttemptEndpoint = onCall(
   { region: 'asia-east1', cors: true },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as RecordQuizAttemptRequest;
 
       if (!data.quizId || !data.quizType) {
@@ -42,7 +42,7 @@ export const recordQuizExplanationRequestEndpoint = onCall(
   { region: 'asia-east1', cors: true },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as RecordQuizExplanationRequest;
 
       if (!data.quizId || !data.quizType || data.questionIndex === undefined) {
@@ -67,7 +67,7 @@ export const getQuizStatsEndpoint = onCall(
   { region: 'asia-east1', cors: true },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as GetQuizStatsRequest;
 
       if (!data.quizId || !data.quizType) {

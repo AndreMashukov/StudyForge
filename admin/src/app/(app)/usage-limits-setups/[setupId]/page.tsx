@@ -41,7 +41,14 @@ export default async function UsageLimitsSetupDetailPage({
           setup.monthlyCreditAllowance,
           setup.storageLimitBytes,
           setup.dailySlideDeckLimit,
-          setup.featurePolicies
+          setup.featurePolicies,
+          {
+            isPublicPlan: setup.isPublicPlan,
+            isFreePlan: setup.isFreePlan,
+            monthlyPriceCents: setup.monthlyPriceCents,
+            stripePriceId: setup.stripePriceId,
+            displayOrder: setup.displayOrder,
+          },
         )}
       />
     </div>

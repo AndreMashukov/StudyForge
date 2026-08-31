@@ -33,6 +33,9 @@ export function UsersTable({ users }: IUsersTableProps) {
             <th className="px-4 py-3 font-medium" scope="col">
               Status
             </th>
+            <th className="px-4 py-3 font-medium" scope="col">
+              Verification
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -62,6 +65,15 @@ export function UsersTable({ users }: IUsersTableProps) {
                   <Badge variant="secondary">Disabled</Badge>
                 ) : (
                   <Badge variant="default">Active</Badge>
+                )}
+              </td>
+              <td className="px-4 py-3">
+                {user.emailVerified ? (
+                  <Badge variant="default">Verified</Badge>
+                ) : user.emailVerificationExempt ? (
+                  <Badge variant="secondary">Exempt</Badge>
+                ) : (
+                  <Badge variant="secondary">Required</Badge>
                 )}
               </td>
             </tr>

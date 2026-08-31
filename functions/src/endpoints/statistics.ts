@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
 import {
   GetStatisticsQuizDetailRequest,
@@ -21,7 +21,7 @@ export const getStatisticsOverviewEndpoint = onCall(
   { region: 'asia-east1', cors: true },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       return await getStatisticsOverview(userId, rangeData(request.data));
     } catch (error) {
       logger.error('Error getting statistics overview', {
@@ -36,7 +36,7 @@ export const getStatisticsQuizPerformanceEndpoint = onCall(
   { region: 'asia-east1', cors: true },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       return await getStatisticsQuizPerformance(userId, rangeData(request.data));
     } catch (error) {
       logger.error('Error getting statistics quiz performance', {
@@ -51,7 +51,7 @@ export const getStatisticsLearningTimeEndpoint = onCall(
   { region: 'asia-east1', cors: true },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       return await getStatisticsLearningTime(userId, rangeData(request.data));
     } catch (error) {
       logger.error('Error getting statistics learning time', {
@@ -66,7 +66,7 @@ export const getStatisticsQuizDetailEndpoint = onCall(
   { region: 'asia-east1', cors: true },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as GetStatisticsQuizDetailRequest;
       if (!data.quizId || !data.quizType) {
         throw new HttpsError('invalid-argument', 'quizId and quizType are required');

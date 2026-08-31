@@ -10,6 +10,21 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isEmailVerificationExempt(userId) {
+      let userDoc = get(/databases/$(database)/documents/users/$(userId));
+      return userDoc != null
+        && userDoc.data != null
+        && userDoc.data.get('emailVerificationExempt', false) == true;
+    }
+
+    function canAccessWorkspace(userId) {
+      return isOwner(userId)
+        && (
+          request.auth.token.email_verified == true
+          || isEmailVerificationExempt(userId)
+        );
+    }
+
     function isBoundedList(maxLimit) {
       return request.query.limit != null
         && request.query.limit > 0
@@ -31,13 +46,16 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list, create, update, delete: if false;
+
       // Documents — generation creates; client may edit metadata/content and delete.
       match /documents/{documentId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId) && isBoundedList(100);
+        allow get: if canAccessWorkspace(userId);
+        allow list: if canAccessWorkspace(userId) && isBoundedList(100);
         allow create: if false;
-        allow update: if isOwner(userId) && generationFieldsUnchanged();
-        allow delete: if isOwner(userId);
+        allow update: if canAccessWorkspace(userId) && generationFieldsUnchanged();
+        allow delete: if canAccessWorkspace(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
@@ -45,11 +63,11 @@ service cloud.firestore {
       }
 
       match /quizzes/{quizId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId) && isBoundedList(50);
+        allow get: if canAccessWorkspace(userId);
+        allow list: if canAccessWorkspace(userId) && isBoundedList(50);
         allow create: if false;
-        allow update: if isOwner(userId) && generationFieldsUnchanged();
-        allow delete: if isOwner(userId);
+        allow update: if canAccessWorkspace(userId) && generationFieldsUnchanged();
+        allow delete: if canAccessWorkspace(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
@@ -65,23 +83,23 @@ service cloud.firestore {
                  request.resource.data.level <= 10;
         }
 
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidDirectory();
-        allow update: if isOwner(userId) && isValidDirectory();
-        allow delete: if isOwner(userId);
+        allow read: if canAccessWorkspace(userId);
+        allow create: if canAccessWorkspace(userId) && isValidDirectory();
+        allow update: if canAccessWorkspace(userId) && isValidDirectory();
+        allow delete: if canAccessWorkspace(userId);
 
         match /items/{itemId} {
-          allow read: if isOwner(userId);
-          allow create, update, delete: if isOwner(userId);
+          allow read: if canAccessWorkspace(userId);
+          allow create, update, delete: if canAccessWorkspace(userId);
         }
 
         match /chat/{threadId} {
-          allow read: if isOwner(userId);
-          allow create, update: if isOwner(userId);
+          allow read: if canAccessWorkspace(userId);
+          allow create, update: if canAccessWorkspace(userId);
           allow delete: if false;
 
           match /messages/{messageId} {
-            allow read: if isOwner(userId);
+            allow read: if canAccessWorkspace(userId);
             allow write: if false;
           }
         }
@@ -92,9 +110,9 @@ service cloud.firestore {
       }
 
       match /rules/{ruleId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId) && isBoundedList(100);
-        allow create, update, delete: if isOwner(userId);
+        allow get: if canAccessWorkspace(userId);
+        allow list: if canAccessWorkspace(userId) && isBoundedList(100);
+        allow create, update, delete: if canAccessWorkspace(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
@@ -102,11 +120,11 @@ service cloud.firestore {
       }
 
       match /flashcardSets/{flashcardSetId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId) && isBoundedList(50);
+        allow get: if canAccessWorkspace(userId);
+        allow list: if canAccessWorkspace(userId) && isBoundedList(50);
         allow create: if false;
-        allow update: if isOwner(userId) && generationFieldsUnchanged();
-        allow delete: if isOwner(userId);
+        allow update: if canAccessWorkspace(userId) && generationFieldsUnchanged();
+        allow delete: if canAccessWorkspace(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
@@ -114,15 +132,15 @@ service cloud.firestore {
       }
 
       match /learnedVocabulary/{itemId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if canAccessWorkspace(userId);
       }
 
       match /slideDecks/{slideDeckId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId) && isBoundedList(50);
+        allow get: if canAccessWorkspace(userId);
+        allow list: if canAccessWorkspace(userId) && isBoundedList(50);
         allow create: if false;
-        allow update: if isOwner(userId) && generationFieldsUnchanged();
-        allow delete: if isOwner(userId);
+        allow update: if canAccessWorkspace(userId) && generationFieldsUnchanged();
+        allow delete: if canAccessWorkspace(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
@@ -130,11 +148,11 @@ service cloud.firestore {
       }
 
       match /diagramQuizzes/{diagramQuizId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId) && isBoundedList(50);
+        allow get: if canAccessWorkspace(userId);
+        allow list: if canAccessWorkspace(userId) && isBoundedList(50);
         allow create: if false;
-        allow update: if isOwner(userId) && generationFieldsUnchanged();
-        allow delete: if isOwner(userId);
+        allow update: if canAccessWorkspace(userId) && generationFieldsUnchanged();
+        allow delete: if canAccessWorkspace(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
@@ -142,11 +160,11 @@ service cloud.firestore {
       }
 
       match /sequenceQuizzes/{sequenceQuizId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId) && isBoundedList(50);
+        allow get: if canAccessWorkspace(userId);
+        allow list: if canAccessWorkspace(userId) && isBoundedList(50);
         allow create: if false;
-        allow update: if isOwner(userId) && generationFieldsUnchanged();
-        allow delete: if isOwner(userId);
+        allow update: if canAccessWorkspace(userId) && generationFieldsUnchanged();
+        allow delete: if canAccessWorkspace(userId);
 
         match /{nestedPath=**} {
           allow read, write: if false;
@@ -158,44 +176,44 @@ service cloud.firestore {
       }
 
       match /interactionSessions/{sessionId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId);
+        allow read: if canAccessWorkspace(userId);
+        allow create: if canAccessWorkspace(userId);
         allow update, delete: if false;
       }
 
       match /interactionStats/{statId} {
-        allow read: if isOwner(userId);
-        allow create, update: if isOwner(userId);
+        allow read: if canAccessWorkspace(userId);
+        allow create, update: if canAccessWorkspace(userId);
         allow delete: if false;
       }
 
       match /learningEvents/{eventId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId);
+        allow read: if canAccessWorkspace(userId);
+        allow create: if canAccessWorkspace(userId);
         allow update, delete: if false;
       }
 
       match /quizAttempts/{attemptId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId);
+        allow read: if canAccessWorkspace(userId);
+        allow create: if canAccessWorkspace(userId);
         allow update, delete: if false;
       }
 
       match /quizStats/{statId} {
-        allow read: if isOwner(userId);
-        allow create, update: if isOwner(userId);
+        allow read: if canAccessWorkspace(userId);
+        allow create, update: if canAccessWorkspace(userId);
         allow delete: if false;
       }
 
       match /questionStats/{statId} {
-        allow read: if isOwner(userId);
-        allow create, update: if isOwner(userId);
+        allow read: if canAccessWorkspace(userId);
+        allow create, update: if canAccessWorkspace(userId);
         allow delete: if false;
       }
 
       match /knowledgeStats/{statId} {
-        allow read: if isOwner(userId);
-        allow create, update: if isOwner(userId);
+        allow read: if canAccessWorkspace(userId);
+        allow create, update: if canAccessWorkspace(userId);
         allow delete: if false;
       }
 
@@ -204,18 +222,18 @@ service cloud.firestore {
       }
 
       match /apiKeys/{keyId} {
-        allow get, list: if isOwner(userId);
+        allow get, list: if canAccessWorkspace(userId);
         allow create, update, delete: if false;
       }
 
       match /usageSummary/{summaryId} {
-        allow get: if isOwner(userId);
+        allow get: if canAccessWorkspace(userId);
         allow list: if false;
         allow create, update, delete: if false;
       }
 
       match /billing/{billingDocId} {
-        allow get: if isOwner(userId);
+        allow get: if canAccessWorkspace(userId);
         allow list: if false;
         allow create, update, delete: if false;
       }
@@ -241,11 +259,11 @@ service cloud.firestore {
       }
 
       match /agentThreads/{threadId} {
-        allow read: if isOwner(userId);
+        allow read: if canAccessWorkspace(userId);
         allow write: if false;
 
         match /messages/{messageId} {
-          allow read: if isOwner(userId);
+          allow read: if canAccessWorkspace(userId);
           allow write: if false;
         }
       }

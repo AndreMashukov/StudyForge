@@ -10,6 +10,7 @@ import { listUserGroupOptions } from '@admin/data/user-groups';
 import { getUserById } from '@admin/data/users';
 import { getAdminUserUsageReport } from '@admin/data/user-usage';
 import { UserUsageReportCard } from '@admin/app/(app)/users/[userId]/_components/UserUsageReportCard';
+import { UserVerificationExemptionForm } from '@admin/app/(app)/users/[userId]/_components/UserVerificationExemptionForm';
 
 async function UserDetailSection({ userId }: { userId: string }) {
   const [user, groupOptions, usageReport] = await Promise.all([
@@ -55,6 +56,16 @@ async function UserDetailSection({ userId }: { userId: string }) {
               <Badge variant="default">Active</Badge>
             )}
           </p>
+          <p>
+            <span className="text-muted-foreground">Email verification:</span>{' '}
+            {user.emailVerified ? (
+              <Badge variant="default">Verified</Badge>
+            ) : user.emailVerificationExempt ? (
+              <Badge variant="secondary">Exempt</Badge>
+            ) : (
+              <Badge variant="secondary">Required</Badge>
+            )}
+          </p>
         </CardContent>
       </Card>
 
@@ -64,6 +75,12 @@ async function UserDetailSection({ userId }: { userId: string }) {
         userId={user.uid}
         currentGroupId={user.userGroupId}
         groupOptions={groupOptions}
+      />
+
+      <UserVerificationExemptionForm
+        userId={user.uid}
+        emailVerified={user.emailVerified === true}
+        emailVerificationExempt={user.emailVerificationExempt === true}
       />
     </div>
   );

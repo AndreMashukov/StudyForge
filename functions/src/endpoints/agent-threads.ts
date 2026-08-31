@@ -6,7 +6,7 @@ import {
   listAgentThreadsRequestSchema,
   ListAgentThreadsResponse,
 } from '@shared-types';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { AgentThreadStore } from '@study-forge/backend-agent';
 
 export const getAgentThread = onCall(
@@ -16,7 +16,7 @@ export const getAgentThread = onCall(
   },
   async (request): Promise<GetAgentThreadResponse & { success: boolean }> => {
     try {
-      const userId = validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const parsed = getAgentThreadRequestSchema.safeParse(request.data);
       if (!parsed.success) {
         throw new HttpsError('invalid-argument', 'threadId is required');
@@ -49,7 +49,7 @@ export const listAgentThreads = onCall(
   },
   async (request): Promise<ListAgentThreadsResponse & { success: boolean }> => {
     try {
-      const userId = validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const parsed = listAgentThreadsRequestSchema.safeParse(
         request.data ?? {},
       );

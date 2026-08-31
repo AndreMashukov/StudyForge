@@ -2291,6 +2291,7 @@ export interface IUserGroup {
   name: string;
   llmSetupId: string;
   usageLimitsSetupId: string;
+  isDefaultRegistrationGroup?: boolean;
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -2301,7 +2302,9 @@ export interface IUserProfile {
   email?: string;
   displayName?: string;
   createdAt?: string;
+  updatedAt?: string;
   userGroupId?: string;
+  emailVerificationExempt?: boolean;
 }
 
 export interface ICreateLlmSetupRequest {
@@ -2320,16 +2323,26 @@ export interface ICreateUserGroupRequest {
   name: string;
   llmSetupId: string;
   usageLimitsSetupId: string;
+  isDefaultRegistrationGroup?: boolean;
 }
 
 export interface IUpdateUserGroupRequest {
   name?: string;
   llmSetupId?: string;
   usageLimitsSetupId?: string;
+  isDefaultRegistrationGroup?: boolean;
 }
 
 export interface IAssignUserGroupRequest {
   userGroupId: string;
+}
+
+export interface IUpdateUserVerificationExemptionRequest {
+  emailVerificationExempt: boolean;
+}
+
+export interface IBootstrapUserProfileResponse {
+  profile: IUserProfile;
 }
 
 export type {
@@ -2342,6 +2355,7 @@ export type {
   IUsageLimitsProfilePreset,
   IUsageLimitsSetup,
   IUsagePeriodSummary,
+  ISubscriptionPlanSummary,
   IUsageDailySlideDeckSummary,
   IUsageStorageSummary,
   IUserUsageSummary,
@@ -2387,6 +2401,7 @@ export type {
   IUsageCreditSplit,
   IUsagePayAsYouGoSummary,
   IUserBillingState,
+  SubscriptionStatus,
 } from './billing';
 export {
   calculateOverageAmountCents,

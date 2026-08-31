@@ -3,6 +3,7 @@ import 'server-only';
 import type {
   GenerationKind,
   ICreateUsageLimitsSetupRequest,
+  ISubscriptionPlanSummary,
   IUpdateUsageLimitsSetupRequest,
   IUsageFeaturePolicies,
   IUsageLimitsSetup,
@@ -64,6 +65,22 @@ function parseFeaturePolicies(value: unknown): IUsageFeaturePolicies | null {
   return policies;
 }
 
+function parseOptionalPlanInteger(value: unknown): number | undefined {
+  if (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    Number.isSafeInteger(value) &&
+    value >= 0
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
+function parseOptionalNonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
 export function parseUsageLimitsSetup(
   id: string,
   data: FirebaseFirestore.DocumentData,
@@ -109,6 +126,11 @@ export function parseUsageLimitsSetup(
     storageLimitBytes,
     dailySlideDeckLimit,
     featurePolicies,
+    isPublicPlan: data.isPublicPlan === true,
+    isFreePlan: data.isFreePlan === true,
+    monthlyPriceCents: parseOptionalPlanInteger(data.monthlyPriceCents),
+    stripePriceId: parseOptionalNonEmptyString(data.stripePriceId),
+    displayOrder: parseOptionalPlanInteger(data.displayOrder),
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
   };
@@ -125,9 +147,19 @@ function toFirestoreUsageLimitsSetupDocument(
     storageLimitBytes: setup.storageLimitBytes,
     dailySlideDeckLimit: setup.dailySlideDeckLimit,
     featurePolicies: setup.featurePolicies,
+    isPublicPlan: setup.isPublicPlan === true,
+    isFreePlan: setup.isFreePlan === true,
+    monthlyPriceCents: setup.monthlyPriceCents ?? 0,
+    displayOrder: setup.displayOrder ?? 0,
     updatedAt: setup.updatedAt,
     updatedBy: setup.updatedBy,
   };
+
+  if (setup.stripePriceId) {
+    document.stripePriceId = setup.stripePriceId;
+  } else {
+    document.stripePriceId = admin.firestore.FieldValue.delete();
+  }
 
   if (options?.clearDescription) {
     document.description = admin.firestore.FieldValue.delete();
@@ -176,6 +208,42 @@ function normalizeFeaturePolicies(
   return normalized;
 }
 
+function assertPlanMetadata(setup: IUsageLimitsSetup): void {
+  if (setup.isFreePlan) {
+    return;
+  }
+
+  if (setup.isPublicPlan && !setup.stripePriceId) {
+    throw new Error('Public paid plans require a Stripe price ID.');
+  }
+
+  if (setup.isPublicPlan && (!setup.monthlyPriceCents || setup.monthlyPriceCents <= 0)) {
+    throw new Error('Public paid plans require a monthly price greater than zero.');
+  }
+}
+
+async function clearOtherFreePlanFlags(setupId: string): Promise<void> {
+  const snapshot = await getAdminFirestore()
+    .collection(USAGE_LIMITS_SETUPS_COLLECTION)
+    .where('isFreePlan', '==', true)
+    .get();
+
+  const batch = getAdminFirestore().batch();
+  let hasUpdates = false;
+
+  for (const doc of snapshot.docs) {
+    if (doc.id === setupId) {
+      continue;
+    }
+    batch.set(doc.ref, { isFreePlan: false }, { merge: true });
+    hasUpdates = true;
+  }
+
+  if (hasUpdates) {
+    await batch.commit();
+  }
+}
+
 export function buildPresetFeaturePolicies(
   preset: IUsageLimitsProfilePreset,
 ): IUsageFeaturePolicies {
@@ -183,12 +251,20 @@ export function buildPresetFeaturePolicies(
 }
 
 export function buildPresetFormValues(preset: IUsageLimitsProfilePreset) {
+  const presetIndex = USAGE_LIMITS_PROFILE_PRESETS.findIndex(
+    (entry) => entry.id === preset.id,
+  );
   return {
     name: preset.name,
     description: preset.description,
     monthlyCreditAllowance: preset.monthlyCreditAllowance,
     storageLimitBytes: preset.storageLimitBytes,
     dailySlideDeckLimit: preset.dailySlideDeckLimit,
+    isPublicPlan: preset.id === 'free',
+    isFreePlan: preset.id === 'free',
+    monthlyPriceCents: 0,
+    stripePriceId: '',
+    displayOrder: Math.max(0, presetIndex),
     featurePolicies: buildPresetFeaturePolicies(preset),
   };
 }
@@ -289,11 +365,20 @@ export async function createUsageLimitsSetup(
     storageLimitBytes: input.storageLimitBytes,
     dailySlideDeckLimit: input.dailySlideDeckLimit,
     featurePolicies: normalizeFeaturePolicies(input.featurePolicies),
+    isPublicPlan: input.isPublicPlan === true,
+    isFreePlan: input.isFreePlan === true,
+    monthlyPriceCents: parseOptionalPlanInteger(input.monthlyPriceCents) ?? 0,
+    stripePriceId: input.stripePriceId?.trim() || undefined,
+    displayOrder: parseOptionalPlanInteger(input.displayOrder) ?? 0,
     updatedAt: now,
     updatedBy: adminUid,
   };
 
+  assertPlanMetadata(setup);
   await docRef.set(toFirestoreUsageLimitsSetupDocument(setup));
+  if (setup.isFreePlan) {
+    await clearOtherFreePlanFlags(setup.id);
+  }
   return setup;
 }
 
@@ -348,6 +433,11 @@ export async function createUsageLimitsSetupFromRequest(
       storageLimitBytes,
       dailySlideDeckLimit,
       featurePolicies,
+      isPublicPlan: body.isPublicPlan === true,
+      isFreePlan: body.isFreePlan === true,
+      monthlyPriceCents: parseOptionalPlanInteger(body.monthlyPriceCents) ?? 0,
+      stripePriceId: parseOptionalNonEmptyString(body.stripePriceId),
+      displayOrder: parseOptionalPlanInteger(body.displayOrder) ?? 0,
     },
     adminUid,
   );
@@ -399,6 +489,21 @@ export async function updateUsageLimitsSetup(
     featurePolicies: input.featurePolicies
       ? normalizeFeaturePolicies(input.featurePolicies)
       : current.featurePolicies,
+    isPublicPlan:
+      input.isPublicPlan !== undefined ? input.isPublicPlan : current.isPublicPlan,
+    isFreePlan: input.isFreePlan !== undefined ? input.isFreePlan : current.isFreePlan,
+    monthlyPriceCents:
+      input.monthlyPriceCents !== undefined
+        ? parseOptionalPlanInteger(input.monthlyPriceCents) ?? 0
+        : current.monthlyPriceCents,
+    stripePriceId:
+      input.stripePriceId !== undefined
+        ? input.stripePriceId.trim() || undefined
+        : current.stripePriceId,
+    displayOrder:
+      input.displayOrder !== undefined
+        ? parseOptionalPlanInteger(input.displayOrder) ?? 0
+        : current.displayOrder,
     updatedAt: new Date().toISOString(),
     updatedBy: adminUid,
   };
@@ -429,12 +534,17 @@ export async function updateUsageLimitsSetup(
     );
   }
 
+  assertPlanMetadata(next);
   await docRef.set(
     toFirestoreUsageLimitsSetupDocument(next, {
       clearDescription: descriptionChanged && nextDescription === undefined,
     }),
     { merge: true },
   );
+
+  if (next.isFreePlan) {
+    await clearOtherFreePlanFlags(next.id);
+  }
 
   return next;
 }
@@ -474,6 +584,26 @@ export async function updateUsageLimitsSetupFromRequest(
     input.featurePolicies = featurePolicies;
   }
 
+  if (typeof body.isPublicPlan === 'boolean') {
+    input.isPublicPlan = body.isPublicPlan;
+  }
+
+  if (typeof body.isFreePlan === 'boolean') {
+    input.isFreePlan = body.isFreePlan;
+  }
+
+  if (typeof body.monthlyPriceCents === 'number') {
+    input.monthlyPriceCents = body.monthlyPriceCents;
+  }
+
+  if (typeof body.stripePriceId === 'string') {
+    input.stripePriceId = body.stripePriceId;
+  }
+
+  if (typeof body.displayOrder === 'number') {
+    input.displayOrder = body.displayOrder;
+  }
+
   return updateUsageLimitsSetup(setupId, input, adminUid);
 }
 
@@ -508,6 +638,25 @@ export async function listUsageLimitsSetupOptions(): Promise<
 > {
   const setups = await listUsageLimitsSetups();
   return setups.map(({ id, name }) => ({ id, name }));
+}
+
+export async function listPublicSubscriptionPlans(): Promise<ISubscriptionPlanSummary[]> {
+  const setups = await listUsageLimitsSetups();
+  return setups
+    .filter((setup) => setup.isPublicPlan || setup.isFreePlan)
+    .map((setup) => ({
+      usageLimitsSetupId: setup.id,
+      name: setup.name,
+      description: setup.description,
+      monthlyCreditAllowance: setup.monthlyCreditAllowance,
+      storageLimitBytes: setup.storageLimitBytes,
+      dailySlideDeckLimit: setup.dailySlideDeckLimit,
+      monthlyPriceCents: setup.isFreePlan ? 0 : setup.monthlyPriceCents ?? 0,
+      stripePriceId: setup.stripePriceId,
+      isFreePlan: setup.isFreePlan === true,
+      displayOrder: setup.displayOrder ?? 0,
+    }))
+    .sort((a, b) => a.displayOrder - b.displayOrder || a.monthlyPriceCents - b.monthlyPriceCents);
 }
 
 export async function ensureUsageLimitsSetupExists(
@@ -548,6 +697,10 @@ export async function seedDefaultUsageLimitsSetups(
         storageLimitBytes: preset.storageLimitBytes,
         dailySlideDeckLimit: preset.dailySlideDeckLimit,
         featurePolicies: buildPresetFeaturePolicies(preset),
+        isPublicPlan: preset.id === 'free',
+        isFreePlan: preset.id === 'free',
+        monthlyPriceCents: 0,
+        displayOrder: USAGE_LIMITS_PROFILE_PRESETS.findIndex((entry) => entry.id === preset.id),
       },
       adminUid,
     );

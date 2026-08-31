@@ -2,7 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { resolveDocumentContentFormat } from '@shared-types';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { withUsageReservation } from '@study-forge/backend-generation/generation-limits';
 import {
   AI_REVISION_EXISTING_CONTENT_MAX,
@@ -29,7 +29,7 @@ export const reviseDocumentWithAI = onCall(
   },
   async (request) => {
     try {
-      const userId = validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const parseResult = reviseDocumentWithAIRequestSchema.safeParse(request.data);
       if (!parseResult.success) {
         const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';

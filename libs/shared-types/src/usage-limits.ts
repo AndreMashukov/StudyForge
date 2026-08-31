@@ -42,6 +42,16 @@ export interface IUsageLimitsSetup {
   /** Maximum slide-deck generation jobs started per UTC day. */
   dailySlideDeckLimit: number;
   featurePolicies: IUsageFeaturePolicies;
+  /** True when this setup can be shown as a selectable plan in the web app. */
+  isPublicPlan?: boolean;
+  /** True for the free plan used for registration fallback and cancellation fallback. */
+  isFreePlan?: boolean;
+  /** Monthly recurring subscription price in cents. Omit for the free plan. */
+  monthlyPriceCents?: number;
+  /** Stripe recurring price ID for paid subscription checkout and webhook mapping. */
+  stripePriceId?: string;
+  /** Lower values are displayed first in user-facing plan lists. */
+  displayOrder?: number;
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -53,6 +63,11 @@ export interface ICreateUsageLimitsSetupRequest {
   storageLimitBytes: number;
   dailySlideDeckLimit: number;
   featurePolicies: IUsageFeaturePolicies;
+  isPublicPlan?: boolean;
+  isFreePlan?: boolean;
+  monthlyPriceCents?: number;
+  stripePriceId?: string;
+  displayOrder?: number;
 }
 
 export interface IUpdateUsageLimitsSetupRequest {
@@ -62,6 +77,11 @@ export interface IUpdateUsageLimitsSetupRequest {
   storageLimitBytes?: number;
   dailySlideDeckLimit?: number;
   featurePolicies?: IUsageFeaturePolicies;
+  isPublicPlan?: boolean;
+  isFreePlan?: boolean;
+  monthlyPriceCents?: number;
+  stripePriceId?: string;
+  displayOrder?: number;
 }
 
 export interface IUsagePeriodSummary {
@@ -120,6 +140,19 @@ export interface IUserUsageSummary {
   payAsYouGo?: IUsagePayAsYouGoSummary;
   storage?: IUsageStorageSummary;
   dailySlideDecks?: IUsageDailySlideDeckSummary;
+}
+
+export interface ISubscriptionPlanSummary {
+  usageLimitsSetupId: string;
+  name: string;
+  description?: string;
+  monthlyCreditAllowance: number;
+  storageLimitBytes: number;
+  dailySlideDeckLimit: number;
+  monthlyPriceCents: number;
+  stripePriceId?: string;
+  isFreePlan: boolean;
+  displayOrder: number;
 }
 
 export interface IUsageLimitEvent {

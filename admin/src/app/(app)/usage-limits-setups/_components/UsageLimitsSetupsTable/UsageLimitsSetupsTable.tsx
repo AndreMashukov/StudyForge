@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { IAdminUsageLimitsSetupSummary } from '@admin/data/usage-limits-setups';
+import { formatCurrencyFromCents } from '@shared-types';
 import { formatStorageLimitLabel } from '@admin/app/(app)/usage-limits-setups/_components/UsageLimitsSetupForm/UsageLimitsSetupForm.form';
 import { Badge } from '@admin/components/ui/Badge';
 
@@ -33,6 +34,9 @@ export function UsageLimitsSetupsTable({ setups }: IUsageLimitsSetupsTableProps)
               Enabled features
             </th>
             <th className="px-4 py-3 font-medium" scope="col">
+              Plan
+            </th>
+            <th className="px-4 py-3 font-medium" scope="col">
               Groups
             </th>
           </tr>
@@ -56,6 +60,17 @@ export function UsageLimitsSetupsTable({ setups }: IUsageLimitsSetupsTableProps)
               <td className="px-4 py-3">{setup.dailySlideDeckLimit.toLocaleString()}</td>
               <td className="px-4 py-3">
                 <Badge variant="secondary">{setup.enabledFeatureCount} enabled</Badge>
+              </td>
+              <td className="px-4 py-3">
+                {setup.isFreePlan ? (
+                  <Badge variant="default">Free</Badge>
+                ) : setup.isPublicPlan ? (
+                  <Badge variant="secondary">
+                    {formatCurrencyFromCents(setup.monthlyPriceCents ?? 0)}/mo
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">Private</span>
+                )}
               </td>
               <td className="px-4 py-3">{setup.referencedGroupCount}</td>
             </tr>

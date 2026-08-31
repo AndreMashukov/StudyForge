@@ -6,6 +6,7 @@ export interface IUserGroupMutationPayload {
   name: string;
   llmSetupId: string;
   usageLimitsSetupId: string;
+  isDefaultRegistrationGroup: boolean;
 }
 
 export async function saveUserGroup(

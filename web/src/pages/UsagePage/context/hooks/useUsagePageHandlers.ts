@@ -48,10 +48,13 @@ export function useUsagePageHandlers(): IUsagePageHandlers {
     setBillingError(null);
   };
 
-  const handleSetupBilling = async () => {
+  const handleSetupBilling = async (usageLimitsSetupId: string) => {
     clearBillingError();
     try {
-      const result = await createCheckout({ origin: window.location.origin }).unwrap();
+      const result = await createCheckout({
+        origin: window.location.origin,
+        usageLimitsSetupId,
+      }).unwrap();
       setIsRedirectingToBilling(true);
       window.location.assign(result.checkoutUrl);
     } catch (error) {

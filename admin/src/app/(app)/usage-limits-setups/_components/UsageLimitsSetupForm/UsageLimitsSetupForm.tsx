@@ -18,9 +18,11 @@ import {
   saveUsageLimitsSetup,
 } from '@admin/mutations/usage-limits-setups';
 import { Card, CardContent, CardHeader, CardTitle } from '@admin/components/ui/Card';
+import { Checkbox } from '@admin/components/ui/Checkbox';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -117,6 +119,11 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
         monthlyCreditAllowance: values.monthlyCreditAllowance,
         storageLimitBytes: storageLimitMegabytesToBytes(values.storageLimitMegabytes),
         dailySlideDeckLimit: values.dailySlideDeckLimit,
+        isPublicPlan: values.isPublicPlan,
+        isFreePlan: values.isFreePlan,
+        monthlyPriceCents: values.monthlyPriceCents,
+        stripePriceId: values.stripePriceId?.trim() || undefined,
+        displayOrder: values.displayOrder,
         featurePolicies: toFeaturePolicies(values),
       };
 
@@ -261,6 +268,128 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Input id="description" control={form.control} name="description" />
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="isPublicPlan"
+              render={({ field }) => (
+                <FormItem className="rounded-lg border border-border p-4">
+                  <div className="flex items-start gap-3">
+                    <FormControl>
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={Boolean(field.value)}
+                        onBlur={field.onBlur}
+                        onChange={(event) => field.onChange(event.target.checked)}
+                      />
+                    </FormControl>
+                    <div>
+                      <FormLabel>Show as public plan</FormLabel>
+                      <FormDescription>
+                        Visible on the web usage page.
+                      </FormDescription>
+                    </div>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="isFreePlan"
+              render={({ field }) => (
+                <FormItem className="rounded-lg border border-border p-4">
+                  <div className="flex items-start gap-3">
+                    <FormControl>
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={Boolean(field.value)}
+                        onBlur={field.onBlur}
+                        onChange={(event) => field.onChange(event.target.checked)}
+                      />
+                    </FormControl>
+                    <div>
+                      <FormLabel>Free plan fallback</FormLabel>
+                      <FormDescription>
+                        Used for registration and canceled subscriptions.
+                      </FormDescription>
+                    </div>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="monthlyPriceCents"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Monthly price (cents)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={typeof field.value === 'number' ? field.value : ''}
+                      onBlur={field.onBlur}
+                      onChange={(event) => {
+                        if (event.currentTarget.value === '') {
+                          field.onChange(undefined);
+                          return;
+                        }
+                        field.onChange(event.currentTarget.valueAsNumber);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="stripePriceId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Stripe price ID</FormLabel>
+                  <FormControl>
+                    <Input
+                      value={typeof field.value === 'string' ? field.value : ''}
+                      onBlur={field.onBlur}
+                      onChange={(event) => field.onChange(event.currentTarget.value)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="displayOrder"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Display order</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={typeof field.value === 'number' ? field.value : ''}
+                      onBlur={field.onBlur}
+                      onChange={(event) => {
+                        if (event.currentTarget.value === '') {
+                          field.onChange(undefined);
+                          return;
+                        }
+                        field.onChange(event.currentTarget.valueAsNumber);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
           {groups.map((group) => (

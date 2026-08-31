@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { IAdminUserGroupSummary } from '@admin/data/user-groups';
+import { Badge } from '@admin/components/ui/Badge';
 
 export interface IUserGroupsTableProps {
   groups: IAdminUserGroupSummary[];
@@ -18,6 +19,7 @@ export function UserGroupsTable({ groups }: IUserGroupsTableProps) {
             <th className="px-4 py-3 font-medium" scope="col">Name</th>
             <th className="px-4 py-3 font-medium" scope="col">LLM setup</th>
             <th className="px-4 py-3 font-medium" scope="col">Usage limits</th>
+            <th className="px-4 py-3 font-medium" scope="col">Registration</th>
             <th className="px-4 py-3 font-medium" scope="col">Members</th>
           </tr>
         </thead>
@@ -34,6 +36,13 @@ export function UserGroupsTable({ groups }: IUserGroupsTableProps) {
               </td>
               <td className="px-4 py-3 text-muted-foreground">
                 {group.usageLimitsSetupName ?? group.usageLimitsSetupId}
+              </td>
+              <td className="px-4 py-3">
+                {group.isDefaultRegistrationGroup ? (
+                  <Badge variant="default">Default</Badge>
+                ) : (
+                  <span className="text-muted-foreground">Manual</span>
+                )}
               </td>
               <td className="px-4 py-3">{group.memberCount}</td>
             </tr>

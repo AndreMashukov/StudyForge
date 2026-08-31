@@ -30,7 +30,7 @@ import {
   executeBulkOperation,
   runSoftResultItem,
 } from '@study-forge/backend-artifacts/bulk-operation';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
 
 /**
@@ -42,7 +42,7 @@ export const createRuleEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as CreateRuleRequest;
 
       logger.info('Creating rule', {
@@ -109,7 +109,7 @@ export const getRuleEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { ruleId } = request.data as { ruleId: string };
 
       if (!ruleId) {
@@ -144,7 +144,7 @@ export const getRulesEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
 
       const rules = await getRules(userId);
 
@@ -170,7 +170,7 @@ export const updateRuleEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as UpdateRuleRequest;
 
       logger.info('Updating rule', {
@@ -226,7 +226,7 @@ export const deleteRuleEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as DeleteRuleRequest;
 
       logger.info('Deleting rule', {
@@ -278,7 +278,7 @@ export const attachRuleToDirectoryEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as AttachRuleToDirectoryRequest;
 
       logger.info('Attaching rule to directory', {
@@ -320,7 +320,7 @@ export const detachRuleFromDirectoryEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as DetachRuleFromDirectoryRequest;
 
       logger.info('Detaching rule from directory', {
@@ -361,7 +361,7 @@ export const bulkDeleteRulesEndpoint = onCall(
     cors: true,
   },
   async (request) => {
-    const userId = await validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const { ruleIds } = (request.data ?? {}) as { ruleIds?: unknown };
 
     if (!Array.isArray(ruleIds) || !ruleIds.every((id) => typeof id === 'string')) {
@@ -384,7 +384,7 @@ export const bulkDetachRulesFromDirectoryEndpoint = onCall(
     cors: true,
   },
   async (request) => {
-    const userId = await validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const data = (request.data ?? {}) as {
       directoryId?: unknown;
       ruleIds?: unknown;
@@ -415,7 +415,7 @@ export const getDirectoryRulesEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as GetDirectoryRulesRequest;
 
       if (!data.directoryId) {
@@ -464,7 +464,7 @@ export const getApplicableRulesEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as GetApplicableRulesRequest;
 
       if (!data.directoryId || !data.operation) {
@@ -500,7 +500,7 @@ export const formatRulesForPromptEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as FormatRulesForPromptRequest;
 
       if (!data.ruleIds || !Array.isArray(data.ruleIds)) {
@@ -531,7 +531,7 @@ export const getRuleTagsEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
 
       const tags = await getRuleTags(userId);
 

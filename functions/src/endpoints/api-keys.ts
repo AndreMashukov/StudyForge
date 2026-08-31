@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as crypto from "crypto";
 import { getFirestore } from "firebase-admin/firestore";
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { hashApiKey } from '@study-forge/backend-core/lib/api-key-auth';
 import { executeBulkOperation } from '@study-forge/backend-artifacts/bulk-operation';
 
@@ -22,7 +22,7 @@ function getUserApiKeysCollection(db: FirebaseFirestore.Firestore, userId: strin
 export const createApiKey = onCall(
   { region: "asia-east1", cors: true },
   async (request) => {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const rawName = request.data.name;
     if (typeof rawName !== "string" || !rawName.trim()) {
       throw new HttpsError("invalid-argument", "API key name is required.");
@@ -81,7 +81,7 @@ export const createApiKey = onCall(
 export const listApiKeys = onCall(
   { region: "asia-east1", cors: true },
   async (request) => {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const db = getFirestore();
 
     const snap = await db
@@ -122,7 +122,7 @@ export const listApiKeys = onCall(
 export const revokeApiKey = onCall(
   { region: "asia-east1", cors: true },
   async (request) => {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const keyId = request.data.keyId;
     if (typeof keyId !== "string" || !keyId) {
       throw new HttpsError("invalid-argument", "keyId is required.");
@@ -151,7 +151,7 @@ export const revokeApiKey = onCall(
 export const bulkRevokeApiKeys = onCall(
   { region: "asia-east1", cors: true },
   async (request) => {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const { keyIds } = (request.data ?? {}) as { keyIds?: unknown };
 
     if (!Array.isArray(keyIds) || !keyIds.every((id) => typeof id === "string")) {
