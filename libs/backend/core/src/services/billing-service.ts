@@ -652,27 +652,58 @@ async function ensureCustomerDefaultPaymentMethod(
   });
 }
 
-function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status): SubscriptionStatus {
-  if (
-    status === 'incomplete' ||
-    status === 'trialing' ||
-    status === 'active' ||
-    status === 'past_due' ||
-    status === 'canceled' ||
-    status === 'unpaid' ||
-    status === 'paused'
-  ) {
+const STRIPE_SUBSCRIPTION_STATUS_SET = new Set<string>([
+  'incomplete',
+  'trialing',
+  'active',
+  'past_due',
+  'canceled',
+  'unpaid',
+  'paused',
+]);
+
+function isMappedSubscriptionStatus(status: string): status is SubscriptionStatus {
+  return STRIPE_SUBSCRIPTION_STATUS_SET.has(status);
+}
+
+function mapStripeSubscriptionStatus(
+  status: Stripe.Subscription.Status,
+): SubscriptionStatus {
+  if (isMappedSubscriptionStatus(status)) {
     return status;
   }
   return 'none';
 }
 
-function subscriptionCurrentPeriodEnd(subscription: Stripe.Subscription): string | undefined {
-  const value = subscription.current_period_end;
-  if (typeof value === 'number' && value > 0) {
-    return new Date(value * 1000).toISOString();
+function shouldAssignPaidPlan(status: SubscriptionStatus): boolean {
+  return status === 'active' || status === 'trialing' || status === 'past_due';
+}
+
+function shouldFallbackToFreePlan(status: SubscriptionStatus): boolean {
+  return status === 'canceled' || status === 'unpaid' || status === 'none';
+}
+
+function readCurrentPeriodEndSeconds(value: unknown): number | undefined {
+  if (typeof value !== 'object' || value === null) {
+    return undefined;
   }
-  return undefined;
+
+  const periodEnd = Reflect.get(value, 'current_period_end');
+  return typeof periodEnd === 'number' && periodEnd > 0 ? periodEnd : undefined;
+}
+
+function subscriptionCurrentPeriodEnd(
+  subscription: Stripe.Subscription,
+): string | undefined {
+  const seconds = subscription.items.data
+    .map((item) => readCurrentPeriodEndSeconds(item))
+    .find((value): value is number => typeof value === 'number');
+
+  if (seconds === undefined) {
+    return undefined;
+  }
+
+  return new Date(seconds * 1000).toISOString();
 }
 
 function subscriptionCustomerId(subscription: Stripe.Subscription): string | undefined {
@@ -700,7 +731,7 @@ async function syncUserSubscription(params: {
   const currentPeriodEnd = subscriptionCurrentPeriodEnd(params.subscription);
   const billing = await getUserBillingState(userId);
 
-  if (subscriptionStatus === 'canceled' || subscriptionStatus === 'unpaid') {
+  if (shouldFallbackToFreePlan(subscriptionStatus)) {
     const freeGroupId = await getDefaultRegistrationGroupId();
     await assignUserGroup(userId, freeGroupId);
     await billingStateRef(userId).set(
@@ -728,7 +759,9 @@ async function syncUserSubscription(params: {
 
   const plan = await getSubscriptionPlanByStripePriceId(stripePriceId);
   const userGroupId = await getUserGroupForUsageLimitsSetup(plan.usageLimitsSetupId);
-  await assignUserGroup(userId, userGroupId);
+  if (shouldAssignPaidPlan(subscriptionStatus)) {
+    await assignUserGroup(userId, userGroupId);
+  }
   await billingStateRef(userId).set(
     buildBillingStateWrite({
       stripeCustomerId: customerId,
@@ -737,10 +770,18 @@ async function syncUserSubscription(params: {
       ...(params.defaultPaymentMethodId
         ? { defaultPaymentMethodId: params.defaultPaymentMethodId }
         : {}),
-      billingStatus: subscriptionStatus === 'past_due' ? 'past_due' : 'active',
+      billingStatus: shouldAssignPaidPlan(subscriptionStatus)
+        ? subscriptionStatus === 'past_due'
+          ? 'past_due'
+          : 'active'
+        : billing.billingStatus,
       subscriptionStatus,
-      subscriptionUsageLimitsSetupId: plan.usageLimitsSetupId,
-      subscriptionUserGroupId: userGroupId,
+      subscriptionUsageLimitsSetupId: shouldAssignPaidPlan(subscriptionStatus)
+        ? plan.usageLimitsSetupId
+        : billing.subscriptionUsageLimitsSetupId,
+      subscriptionUserGroupId: shouldAssignPaidPlan(subscriptionStatus)
+        ? userGroupId
+        : billing.subscriptionUserGroupId,
       subscriptionCurrentPeriodEnd: currentPeriodEnd,
       cancelAtPeriodEnd: params.subscription.cancel_at_period_end === true,
       payAsYouGoEnabled: billing.payAsYouGoEnabled,

@@ -83,11 +83,24 @@ export async function bootstrapUserProfile(params: {
       ? existing.userGroupId.trim()
       : await resolveDefaultRegistrationGroupId();
 
+  const email =
+    typeof params.email === 'string' && params.email.trim()
+      ? params.email.trim()
+      : typeof existing.email === 'string' && existing.email.trim()
+        ? existing.email.trim()
+        : undefined;
+  const displayName =
+    typeof params.displayName === 'string' && params.displayName.trim()
+      ? params.displayName.trim()
+      : typeof existing.displayName === 'string' && existing.displayName.trim()
+        ? existing.displayName.trim()
+        : undefined;
+
   await userRef.set(
     {
       uid: params.userId,
-      email: params.email ?? existing.email ?? undefined,
-      displayName: params.displayName ?? existing.displayName ?? undefined,
+      ...(email ? { email } : {}),
+      ...(displayName ? { displayName } : {}),
       userGroupId,
       emailVerificationExempt: existing.emailVerificationExempt === true,
       createdAt:
@@ -99,17 +112,22 @@ export async function bootstrapUserProfile(params: {
     { merge: true },
   );
 
-  await billingStateRef(params.userId).set(
-    {
+  const billingRef = billingStateRef(params.userId);
+  await getFirestore().runTransaction(async (transaction) => {
+    const billingSnapshot = await transaction.get(billingRef);
+    if (billingSnapshot.exists) {
+      return;
+    }
+
+    transaction.set(billingRef, {
       payAsYouGoEnabled: false,
       monthlyCapCents: DEFAULT_PAYG_MONTHLY_CAP_CENTS,
       pricePerCreditCents: DEFAULT_PRICE_PER_CREDIT_CENTS,
       billingStatus: 'none',
       subscriptionStatus: 'none',
       updatedAt: now,
-    },
-    { merge: true },
-  );
+    });
+  });
 
   await getUserUsageSummary(params.userId);
 

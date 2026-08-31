@@ -18,9 +18,11 @@ import {
   saveUsageLimitsSetup,
 } from '@admin/mutations/usage-limits-setups';
 import { Card, CardContent, CardHeader, CardTitle } from '@admin/components/ui/Card';
+import { Checkbox } from '@admin/components/ui/Checkbox';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -274,20 +276,22 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
               name="isPublicPlan"
               render={({ field }) => (
                 <FormItem className="rounded-lg border border-border p-4">
-                  <label className="flex items-start gap-3 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(field.value)}
-                      onChange={(event) => field.onChange(event.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-border"
-                    />
-                    <span>
-                      <span className="block font-medium">Show as public plan</span>
-                      <span className="block text-muted-foreground">
+                  <div className="flex items-start gap-3">
+                    <FormControl>
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={Boolean(field.value)}
+                        onBlur={field.onBlur}
+                        onChange={(event) => field.onChange(event.target.checked)}
+                      />
+                    </FormControl>
+                    <div>
+                      <FormLabel>Show as public plan</FormLabel>
+                      <FormDescription>
                         Visible on the web usage page.
-                      </span>
-                    </span>
-                  </label>
+                      </FormDescription>
+                    </div>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -297,20 +301,22 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
               name="isFreePlan"
               render={({ field }) => (
                 <FormItem className="rounded-lg border border-border p-4">
-                  <label className="flex items-start gap-3 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(field.value)}
-                      onChange={(event) => field.onChange(event.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-border"
-                    />
-                    <span>
-                      <span className="block font-medium">Free plan fallback</span>
-                      <span className="block text-muted-foreground">
+                  <div className="flex items-start gap-3">
+                    <FormControl>
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={Boolean(field.value)}
+                        onBlur={field.onBlur}
+                        onChange={(event) => field.onChange(event.target.checked)}
+                      />
+                    </FormControl>
+                    <div>
+                      <FormLabel>Free plan fallback</FormLabel>
+                      <FormDescription>
                         Used for registration and canceled subscriptions.
-                      </span>
-                    </span>
-                  </label>
+                      </FormDescription>
+                    </div>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -341,10 +347,23 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
                 </FormItem>
               )}
             />
-            <div className="space-y-2">
-              <Label htmlFor="stripePriceId">Stripe price ID</Label>
-              <Input id="stripePriceId" control={form.control} name="stripePriceId" />
-            </div>
+            <FormField
+              control={form.control}
+              name="stripePriceId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Stripe price ID</FormLabel>
+                  <FormControl>
+                    <Input
+                      value={typeof field.value === 'string' ? field.value : ''}
+                      onBlur={field.onBlur}
+                      onChange={(event) => field.onChange(event.currentTarget.value)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="displayOrder"

@@ -63,6 +63,14 @@ export type IUsageLimitsSetupFormValues = z.infer<
   typeof usageLimitsSetupFormSchema
 >;
 
+export interface IUsageLimitsSetupPlanMetadata {
+  isPublicPlan?: boolean;
+  isFreePlan?: boolean;
+  monthlyPriceCents?: number;
+  stripePriceId?: string;
+  displayOrder?: number;
+}
+
 export function createEmptyFeaturePolicyFormValues(): IUsageFeaturePolicies {
   return createDefaultFeaturePolicies();
 }
@@ -89,13 +97,7 @@ export function featurePoliciesToFormValues(
   storageLimitBytes: number,
   dailySlideDeckLimit: number,
   featurePolicies: IUsageFeaturePolicies,
-  plan?: {
-    isPublicPlan?: boolean;
-    isFreePlan?: boolean;
-    monthlyPriceCents?: number;
-    stripePriceId?: string;
-    displayOrder?: number;
-  },
+  plan?: IUsageLimitsSetupPlanMetadata,
 ): IUsageLimitsSetupFormValues {
   const policies = createEmptyFeaturePolicyFormValues();
 

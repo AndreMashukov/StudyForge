@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
+  getIdToken,
   reload,
   sendEmailVerification,
   signInWithEmailAndPassword,
@@ -156,6 +157,7 @@ export const AuthForm = () => {
     setIsRefreshingVerification(true);
     try {
       await reload(auth.currentUser);
+      await getIdToken(auth.currentUser, true);
       setVerificationRefreshCount((count) => count + 1);
       await refetchProfile();
       if (!auth.currentUser.emailVerified && !isExempt) {
