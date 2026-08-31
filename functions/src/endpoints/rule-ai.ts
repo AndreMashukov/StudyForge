@@ -4,7 +4,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { z } from 'zod';
 import { RuleApplicability } from '@shared-types';
 import { LlmGenerationService } from '@study-forge/backend-llm/llm';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { withUsageReservation } from '@study-forge/backend-generation/generation-limits';
 import {
   aiRevisionExistingContentSchema,
@@ -28,7 +28,7 @@ export const generateRuleWithAI = onCall(
   { region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 300 },
   async (request) => {
     try {
-      const userId = validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const parseResult = generateRuleRequestSchema.safeParse(request.data);
       if (!parseResult.success) {
         const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';

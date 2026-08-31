@@ -48,6 +48,7 @@ function mapUserSummary(
   authDisplayName: string | undefined,
   authCreatedAt: string | undefined,
   disabled: boolean,
+  emailVerified: boolean,
   firestoreData: FirebaseFirestore.DocumentData | undefined,
 ): IAdminUserSummary {
   const userGroupId =
@@ -69,6 +70,8 @@ function mapUserSummary(
         : undefined),
     createdAt: toIsoString(firestoreData?.createdAt) || authCreatedAt,
     disabled,
+    emailVerified,
+    emailVerificationExempt: firestoreData?.emailVerificationExempt === true,
     userGroupId: userGroupId || undefined,
   };
 }
@@ -93,6 +96,7 @@ export async function listUsers(
       user.displayName,
       user.metadata.creationTime,
       user.disabled,
+      user.emailVerified,
       doc.data(),
     );
 
@@ -120,6 +124,7 @@ export async function getUserById(
       user.displayName,
       user.metadata.creationTime,
       user.disabled,
+      user.emailVerified,
       doc.data(),
     );
 
@@ -128,6 +133,36 @@ export async function getUserById(
   } catch {
     return null;
   }
+}
+
+export async function updateUserVerificationExemption(
+  userId: string,
+  emailVerificationExempt: boolean,
+  adminUid: string,
+): Promise<IAdminUserSummary> {
+  await requireAdminSession();
+
+  const auth = getAdminAuth();
+  const db = getAdminFirestore();
+  const user = await auth.getUser(userId);
+
+  await db.collection('users').doc(userId).set(
+    {
+      uid: userId,
+      email: user.email,
+      emailVerificationExempt,
+      updatedAt: new Date().toISOString(),
+      updatedBy: adminUid,
+    },
+    { merge: true },
+  );
+
+  const updated = await getUserById(userId);
+  if (!updated) {
+    throw new Error('Failed to load updated user.');
+  }
+
+  return updated;
 }
 
 export async function assignUserGroup(

@@ -22,7 +22,7 @@ import { GenerationJobsService } from '@study-forge/backend-generation/generatio
 import { enqueueGenerationJobTask } from '@study-forge/backend-generation/generation-task-queue';
 import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/artifact-agent';
 import { buildStartGenerationPayload } from '@study-forge/backend-core/lib/start-generation-response';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import {
   enforceCallableGenerationLimits,
   refundUsageReservationSafe,
@@ -91,7 +91,7 @@ const recordLearnedVocabularyRequestSchema = z.object({
  */
 export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 60 }, async (request) => {
   try {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const parseResult = generateFlashcardsRequestSchema.safeParse(request.data);
     if (!parseResult.success) {
       const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
@@ -232,7 +232,7 @@ export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, sec
  */
 export const getFlashcardSet = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const parseResult = flashcardSetIdRequestSchema.safeParse(request.data);
     if (!parseResult.success) {
       const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
@@ -259,7 +259,7 @@ export const getFlashcardSet = onCall({ region: 'asia-east1', cors: true }, asyn
  */
 export const getUserFlashcardSets = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const parseResult = getUserFlashcardSetsRequestSchema.safeParse(request.data ?? {});
     const limit = Math.min(parseResult.success ? (parseResult.data?.limit ?? 50) : 50, 100);
 
@@ -287,7 +287,7 @@ export const getUserFlashcardSets = onCall({ region: 'asia-east1', cors: true },
  */
 export const updateFlashcardSet = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const parseResult = updateFlashcardSetRequestSchema.safeParse(request.data);
     if (!parseResult.success) {
       const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
@@ -326,7 +326,7 @@ export const updateFlashcardSet = onCall({ region: 'asia-east1', cors: true }, a
  */
 export const recordLearnedVocabulary = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const parseResult = recordLearnedVocabularyRequestSchema.safeParse(request.data);
     if (!parseResult.success) {
       const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';
@@ -363,7 +363,7 @@ export const recordLearnedVocabulary = onCall({ region: 'asia-east1', cors: true
  */
 export const deleteFlashcardSet = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const parseResult = flashcardSetIdRequestSchema.safeParse(request.data);
     if (!parseResult.success) {
       const msg = parseResult.error.issues[0]?.message ?? 'Invalid request payload.';

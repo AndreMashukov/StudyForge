@@ -16,6 +16,24 @@ function parseBillingStatus(
   return undefined;
 }
 
+function parseSubscriptionStatus(
+  value: unknown,
+): IUserBillingState['subscriptionStatus'] | undefined {
+  if (
+    value === 'none' ||
+    value === 'incomplete' ||
+    value === 'trialing' ||
+    value === 'active' ||
+    value === 'past_due' ||
+    value === 'canceled' ||
+    value === 'unpaid' ||
+    value === 'paused'
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
 export function parseBillingStateFromFirestore(
   raw: Record<string, unknown> | undefined,
 ): IUserBillingState {
@@ -34,6 +52,23 @@ export function parseBillingStateFromFirestore(
         : undefined,
     stripeCustomerId:
       typeof raw?.stripeCustomerId === 'string' ? raw.stripeCustomerId : undefined,
+    stripeSubscriptionId:
+      typeof raw?.stripeSubscriptionId === 'string' ? raw.stripeSubscriptionId : undefined,
+    stripePriceId: typeof raw?.stripePriceId === 'string' ? raw.stripePriceId : undefined,
+    subscriptionStatus: parseSubscriptionStatus(raw?.subscriptionStatus) ?? 'none',
+    subscriptionUsageLimitsSetupId:
+      typeof raw?.subscriptionUsageLimitsSetupId === 'string'
+        ? raw.subscriptionUsageLimitsSetupId
+        : undefined,
+    subscriptionUserGroupId:
+      typeof raw?.subscriptionUserGroupId === 'string'
+        ? raw.subscriptionUserGroupId
+        : undefined,
+    subscriptionCurrentPeriodEnd:
+      typeof raw?.subscriptionCurrentPeriodEnd === 'string'
+        ? raw.subscriptionCurrentPeriodEnd
+        : undefined,
+    cancelAtPeriodEnd: raw?.cancelAtPeriodEnd === true,
   };
 }
 
@@ -44,6 +79,6 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 export async function fetchBillingStateFromFirestore(
   userId: string,
 ): Promise<IUserBillingState> {
-  const snapshot = await fetchUserDoc<{ id: string }>(userId, 'billing', 'state');
+  const snapshot = await fetchUserDoc<{ id: string }>(userId, 'billing', 'current');
   return parseBillingStateFromFirestore(isPlainRecord(snapshot) ? snapshot : undefined);
 }

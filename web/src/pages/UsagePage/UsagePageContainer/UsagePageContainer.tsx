@@ -10,6 +10,7 @@ import { StorageUsageCard } from '../StorageUsageCard';
 import { DailySlideDeckUsageCard } from '../DailySlideDeckUsageCard';
 import { PlanCard } from '../PlanCard';
 import { PayAsYouGoCard } from '../PayAsYouGoCard';
+import { SubscriptionPlansCard } from '../SubscriptionPlansCard';
 
 function defaultCapDollars(summaryCapCents?: number): string {
   const cents = summaryCapCents ?? DEFAULT_PAYG_MONTHLY_CAP_CENTS;
@@ -104,6 +105,23 @@ export const UsagePageContainer: React.FC = () => {
         {usage.data.dailySlideDecks ? (
           <DailySlideDeckUsageCard dailySlideDecks={usage.data.dailySlideDecks} />
         ) : null}
+        <SubscriptionPlansCard
+          summary={usage.data}
+          plans={usage.plans}
+          isLoading={usage.arePlansLoading}
+          isSaving={handlers.isSaving}
+          onSelectPlan={(usageLimitsSetupId) => {
+            void handlers.handleSetupBilling(usageLimitsSetupId);
+          }}
+          onManageBilling={() => {
+            void handlers.handleManageBilling();
+          }}
+        />
+        {usage.isPlansError ? (
+          <p className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Unable to load subscription plans.
+          </p>
+        ) : null}
         <PayAsYouGoCard
           summary={usage.data}
           monthlyCapDollars={monthlyCapDollars}
@@ -122,9 +140,6 @@ export const UsagePageContainer: React.FC = () => {
           }}
           onEnablePayAsYouGo={() => handlers.handleEnablePayAsYouGo(monthlyCapDollars)}
           onDisablePayAsYouGo={() => handlers.handleDisablePayAsYouGo(monthlyCapDollars)}
-          onSetupBilling={() => {
-            void handlers.handleSetupBilling();
-          }}
           onManageBilling={() => {
             void handlers.handleManageBilling();
           }}

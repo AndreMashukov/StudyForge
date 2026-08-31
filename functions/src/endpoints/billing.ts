@@ -2,7 +2,7 @@ import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import { z } from 'zod';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
 import {
   BillingError,
@@ -10,6 +10,7 @@ import {
   createBillingPortalSession,
   getUserBillingState,
   handleStripeBillingWebhook,
+  listPublicSubscriptionPlans,
   updatePayAsYouGoSettings,
 } from '@study-forge/backend-core/services/billing-service';
 import { getUserUsageSummary } from '@study-forge/backend-core/services/usage-limits-service';
@@ -18,6 +19,7 @@ import {
   type ApiResponse,
   type ICreateBillingCheckoutSessionResponse,
   type ICreateBillingPortalSessionResponse,
+  type ISubscriptionPlanSummary,
   type IUserBillingState,
   type IUserUsageSummary,
 } from '@shared-types';
@@ -27,6 +29,7 @@ const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
 
 const billingOriginRequestSchema = z.object({
   origin: z.string().url(),
+  usageLimitsSetupId: z.string().trim().min(1).optional(),
 });
 
 const updatePayAsYouGoSettingsRequestSchema = z.object({
@@ -57,6 +60,21 @@ function resolveAppOrigin(requestData: unknown): string {
   return origin;
 }
 
+function resolveCheckoutRequest(requestData: unknown): {
+  origin: string;
+  usageLimitsSetupId: string;
+} {
+  const parsed = billingOriginRequestSchema.safeParse(requestData);
+  if (!parsed.success || !parsed.data.usageLimitsSetupId) {
+    throw new HttpsError('invalid-argument', 'A valid billing plan is required.');
+  }
+
+  return {
+    origin: resolveAppOrigin(requestData),
+    usageLimitsSetupId: parsed.data.usageLimitsSetupId,
+  };
+}
+
 function throwBillingError(error: BillingError): never {
   const code =
     error.code === 'INVALID_CAP' || error.code === 'PAY_AS_YOU_GO_DISABLED'
@@ -76,11 +94,12 @@ export const createBillingCheckoutSessionEndpoint = onCall(
   },
   async (request): Promise<ApiResponse<ICreateBillingCheckoutSessionResponse>> => {
     try {
-      const userId = await validateAuth(request);
-      const origin = resolveAppOrigin(request.data);
+      const userId = await validateVerifiedAuth(request);
+      const { origin, usageLimitsSetupId } = resolveCheckoutRequest(request.data);
       const checkoutUrl = await createBillingCheckoutSession({
         userId,
         email: request.auth?.token.email,
+        usageLimitsSetupId,
         successUrl: `${origin}/usage?billing=success`,
         cancelUrl: `${origin}/usage?billing=cancelled`,
         stripeSecretKey: stripeSecretKey.value(),
@@ -107,7 +126,7 @@ export const createBillingPortalSessionEndpoint = onCall(
   },
   async (request): Promise<ApiResponse<ICreateBillingPortalSessionResponse>> => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const origin = resolveAppOrigin(request.data);
       const portalUrl = await createBillingPortalSession({
         userId,
@@ -128,11 +147,26 @@ export const createBillingPortalSessionEndpoint = onCall(
   },
 );
 
+export const listSubscriptionPlansEndpoint = onCall(
+  { region: 'asia-east1', cors: true },
+  async (): Promise<ApiResponse<ISubscriptionPlanSummary[]>> => {
+    try {
+      const plans = await listPublicSubscriptionPlans();
+      return {
+        success: true,
+        data: plans,
+      };
+    } catch (error) {
+      throwCallableError(error, 'Failed to load subscription plans');
+    }
+  },
+);
+
 export const updatePayAsYouGoSettingsEndpoint = onCall(
   { region: 'asia-east1', cors: true },
   async (request): Promise<ApiResponse<IUserBillingState>> => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const parsed = updatePayAsYouGoSettingsRequestSchema.safeParse(request.data);
       if (!parsed.success) {
         throw new HttpsError('invalid-argument', 'Invalid pay-as-you-go settings payload.');
@@ -157,7 +191,7 @@ export const getBillingState = onCall(
   { region: 'asia-east1', cors: true },
   async (request): Promise<ApiResponse<IUserBillingState>> => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const billing = await getUserBillingState(userId);
 
       return {
@@ -174,7 +208,7 @@ export const refreshUsageSummary = onCall(
   { region: 'asia-east1', cors: true },
   async (request): Promise<ApiResponse<IUserUsageSummary>> => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const summary = await getUserUsageSummary(userId);
 
       return {

@@ -68,6 +68,8 @@ export {
   bulkRevokeApiKeys,
 } from './endpoints/api-keys';
 
+export { bootstrapUserProfileEndpoint as bootstrapUserProfile } from './endpoints/auth';
+
 export {
   getUsageSummary,
   getRecentUsageEvents,
@@ -76,6 +78,7 @@ export {
 export {
   createBillingCheckoutSessionEndpoint as createBillingCheckoutSession,
   createBillingPortalSessionEndpoint as createBillingPortalSession,
+  listSubscriptionPlansEndpoint as listSubscriptionPlans,
   updatePayAsYouGoSettingsEndpoint as updatePayAsYouGoSettings,
   refreshUsageSummary,
   stripeBillingWebhook,

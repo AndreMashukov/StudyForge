@@ -14,7 +14,7 @@ import {
 } from '@study-forge/backend-artifacts/artifact-generation-records';
 import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
 import { buildStartGenerationPayload } from '@study-forge/backend-core/lib/start-generation-response';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import {
   enforceCallableSlideDeckGenerationLimits,
   refundSlideDeckGenerationReservationsSafe,
@@ -53,7 +53,7 @@ export const generateSlideDeck = onCall(
     let dailySlideDeckReservationId: string | undefined;
 
     try {
-      const userId = validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const parseResult = generateSlideDeckRequestSchema.safeParse(request.data);
       if (!parseResult.success) {
         const firstIssue = parseResult.error.issues[0];
@@ -199,7 +199,7 @@ export const generateSlideDeck = onCall(
  */
 export const getSlideDeck = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const parseResult = slideDeckIdRequestSchema.safeParse(request.data);
     if (!parseResult.success) {
       throw new HttpsError('invalid-argument', parseResult.error.issues[0]?.message ?? 'Invalid request.');
@@ -259,7 +259,7 @@ export const getSlideDeck = onCall({ region: 'asia-east1', cors: true }, async (
  */
 export const getUserSlideDecks = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
 
     const snapshot = await admin.firestore()
       .collection('users').doc(userId).collection('slideDecks')
@@ -280,7 +280,7 @@ export const getUserSlideDecks = onCall({ region: 'asia-east1', cors: true }, as
  */
 export const deleteSlideDeck = onCall({ region: 'asia-east1', cors: true }, async (request) => {
   try {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const parseResult = slideDeckIdRequestSchema.safeParse(request.data);
     if (!parseResult.success) {
       throw new HttpsError('invalid-argument', parseResult.error.issues[0]?.message ?? 'Invalid request.');

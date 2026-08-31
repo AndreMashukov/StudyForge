@@ -19,6 +19,11 @@ export default function NewUsageLimitsSetupPage() {
         monthlyCreditAllowance: 1000,
         storageLimitBytes: USAGE_LIMITS_PROFILE_PRESETS[1]?.storageLimitBytes ?? 1024 * 1024 * 1024,
         dailySlideDeckLimit: USAGE_LIMITS_PROFILE_PRESETS[1]?.dailySlideDeckLimit ?? 5,
+        isPublicPlan: false,
+        isFreePlan: false,
+        monthlyPriceCents: 0,
+        stripePriceId: '',
+        displayOrder: 0,
         featurePolicies: buildPresetFeaturePolicies(USAGE_LIMITS_PROFILE_PRESETS[0]),
       };
 
@@ -44,7 +49,14 @@ export default function NewUsageLimitsSetupPage() {
           presetValues.monthlyCreditAllowance,
           presetValues.storageLimitBytes,
           presetValues.dailySlideDeckLimit,
-          presetValues.featurePolicies
+          presetValues.featurePolicies,
+          {
+            isPublicPlan: presetValues.isPublicPlan,
+            isFreePlan: presetValues.isFreePlan,
+            monthlyPriceCents: presetValues.monthlyPriceCents,
+            stripePriceId: presetValues.stripePriceId,
+            displayOrder: presetValues.displayOrder,
+          },
         )}
       />
     </div>

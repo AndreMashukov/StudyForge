@@ -20,6 +20,7 @@ const userGroupFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   llmSetupId: z.string().trim().min(1, 'LLM setup is required'),
   usageLimitsSetupId: z.string().trim().min(1, 'Usage limits setup is required'),
+  isDefaultRegistrationGroup: z.boolean(),
 });
 
 export type IUserGroupFormValues = z.infer<typeof userGroupFormSchema>;
@@ -57,6 +58,7 @@ export function UserGroupForm({
         name: values.name.trim(),
         llmSetupId: values.llmSetupId.trim(),
         usageLimitsSetupId: values.usageLimitsSetupId.trim(),
+        isDefaultRegistrationGroup: values.isDefaultRegistrationGroup,
       };
 
       const { response, payload: result } = await saveUserGroup(groupId, payload);
@@ -159,6 +161,23 @@ export function UserGroupForm({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="rounded-lg border border-border p-4">
+            <label className="flex items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={Boolean(form.watch('isDefaultRegistrationGroup'))}
+                onChange={(event) => form.setValue('isDefaultRegistrationGroup', event.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-border"
+              />
+              <span>
+                <span className="block font-medium">Default registration group</span>
+                <span className="block text-muted-foreground">
+                  New verified users land in this group when their profile is created.
+                </span>
+              </span>
+            </label>
           </div>
 
           {notice ? <p className="text-sm text-destructive">{notice}</p> : null}

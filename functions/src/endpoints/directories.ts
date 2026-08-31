@@ -2,7 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { directoryService } from '@study-forge/backend-directories/directory';
 import { reorderDirectoryItems as reorderDirectoryItemsService } from '@study-forge/backend-directories/directory-item-index';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
 import { CursorPaginationError } from '@study-forge/backend-core/lib/cursor-pagination';
 import { executeBulkOperation } from '@study-forge/backend-artifacts/bulk-operation';
@@ -30,7 +30,7 @@ export const createDirectory = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as CreateDirectoryRequest;
 
       // Validate request
@@ -68,7 +68,7 @@ export const getDirectory = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { directoryId } = request.data as { directoryId: string };
 
       if (!directoryId) {
@@ -107,7 +107,7 @@ export const updateDirectory = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { directoryId, ...updateData } = request.data as {
         directoryId: string;
       } & UpdateDirectoryRequest;
@@ -146,7 +146,7 @@ export const deleteDirectory = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { directoryId } = request.data as { directoryId: string };
 
       if (!directoryId) {
@@ -178,7 +178,7 @@ export const bulkDeleteDirectories = onCall(
     cors: true,
   },
   async (request) => {
-    const userId = await validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const { directoryIds } = (request.data ?? {}) as { directoryIds?: unknown };
 
     if (
@@ -211,7 +211,7 @@ export const getDirectoryTree = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
 
       logger.info('Getting directory tree', { userId });
 
@@ -236,7 +236,7 @@ export const getDirectoryContents = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { directoryId } = request.data as { directoryId?: string | null };
 
       logger.info('Getting directory contents', { userId, directoryId });
@@ -265,7 +265,7 @@ export const getDirectoryAncestors = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { directoryId } = request.data as { directoryId: string };
 
       if (!directoryId) {
@@ -298,7 +298,7 @@ export const moveDirectory = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { directoryId, ...moveData } = request.data as {
         directoryId: string;
       } & MoveDirectoryRequest;
@@ -338,7 +338,7 @@ export const getDirectoryByPath = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const { path } = request.data as { path: string };
 
       if (!path) {
@@ -374,7 +374,7 @@ export const getDirectoryContentsWithArtifacts = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const {
         directoryId,
         includeArtifacts = true,
@@ -421,7 +421,7 @@ export const getDirectoryContentsWithArtifactSummaries = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const {
         directoryId,
         includeRules = true,
@@ -482,7 +482,7 @@ export const reorderDirectoryItems = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as ReorderDirectoryItemsRequest;
 
       if (!data.directoryId) {

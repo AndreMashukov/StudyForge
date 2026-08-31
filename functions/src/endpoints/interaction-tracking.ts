@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
 import {
   FlushInteractionSessionRequest,
@@ -18,7 +18,7 @@ export const flushInteractionSessionEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as FlushInteractionSessionRequest;
 
       if (!data.artifactId || !data.artifactType || !data.directoryId) {
@@ -56,7 +56,7 @@ export const getInteractionStatsEndpoint = onCall(
   },
   async (request) => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as GetInteractionStatsRequest;
 
       if (!data.startDate || !data.endDate) {

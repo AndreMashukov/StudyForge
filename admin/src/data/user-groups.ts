@@ -41,9 +41,32 @@ function parseUserGroup(
     name,
     llmSetupId,
     usageLimitsSetupId,
+    isDefaultRegistrationGroup: data.isDefaultRegistrationGroup === true,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
     updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined,
   };
+}
+
+async function clearOtherDefaultRegistrationGroups(groupId: string): Promise<void> {
+  const snapshot = await getAdminFirestore()
+    .collection(USER_GROUPS_COLLECTION)
+    .where('isDefaultRegistrationGroup', '==', true)
+    .get();
+
+  const batch = getAdminFirestore().batch();
+  let hasUpdates = false;
+
+  for (const doc of snapshot.docs) {
+    if (doc.id === groupId) {
+      continue;
+    }
+    batch.set(doc.ref, { isDefaultRegistrationGroup: false }, { merge: true });
+    hasUpdates = true;
+  }
+
+  if (hasUpdates) {
+    await batch.commit();
+  }
 }
 
 async function countMembersForGroup(groupId: string): Promise<number> {
@@ -164,11 +187,15 @@ export async function createUserGroup(
     name,
     llmSetupId,
     usageLimitsSetupId,
+    isDefaultRegistrationGroup: input.isDefaultRegistrationGroup === true,
     updatedAt: now,
     updatedBy: adminUid,
   };
 
   await docRef.set(group);
+  if (group.isDefaultRegistrationGroup) {
+    await clearOtherDefaultRegistrationGroups(group.id);
+  }
   return group;
 }
 
@@ -204,6 +231,10 @@ export async function updateUserGroup(
     name: input.name?.trim() || current.name,
     llmSetupId,
     usageLimitsSetupId,
+    isDefaultRegistrationGroup:
+      input.isDefaultRegistrationGroup !== undefined
+        ? input.isDefaultRegistrationGroup
+        : current.isDefaultRegistrationGroup,
     updatedAt: new Date().toISOString(),
     updatedBy: adminUid,
   };
@@ -213,6 +244,9 @@ export async function updateUserGroup(
   }
 
   await docRef.set(next, { merge: true });
+  if (next.isDefaultRegistrationGroup) {
+    await clearOtherDefaultRegistrationGroups(next.id);
+  }
 
   if (next.usageLimitsSetupId !== current.usageLimitsSetupId) {
     await refreshUsageForUsersInGroup(groupId);

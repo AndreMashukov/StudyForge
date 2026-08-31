@@ -110,6 +110,8 @@ export const baseApi = createApi({
     'Statistics',
     'ApiKeys',
     'AgentThread',
+    'UserProfile',
+    'BillingPlans',
   ],
   endpoints: () => ({}),
 });

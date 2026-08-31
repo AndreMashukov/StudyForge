@@ -4,7 +4,7 @@ import {
   IBulkDeleteArtifactItem,
   IBulkOperationResponse,
 } from '@shared-types';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { deleteArtifactByType } from '@study-forge/backend-artifacts/artifact-delete';
 import { executeBulkOperation } from '@study-forge/backend-artifacts/bulk-operation';
 
@@ -37,7 +37,7 @@ export const bulkDeleteArtifacts = onCall(
     cors: true,
   },
   async (request): Promise<IBulkOperationResponse> => {
-    const userId = validateAuth(request);
+    const userId = await validateVerifiedAuth(request);
     const { artifacts } = (request.data ?? {}) as { artifacts?: unknown };
 
     if (!Array.isArray(artifacts) || !artifacts.every(isBulkDeleteArtifactItem)) {

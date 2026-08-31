@@ -18,6 +18,16 @@ export type BillingStatus =
   | 'past_due'
   | 'disabled';
 
+export type SubscriptionStatus =
+  | 'none'
+  | 'incomplete'
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'canceled'
+  | 'unpaid'
+  | 'paused';
+
 export interface IBillingConfig {
   pricePerCreditCents: number;
   updatedAt?: string;
@@ -25,12 +35,19 @@ export interface IBillingConfig {
 
 export interface IUserBillingState {
   stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  stripePriceId?: string;
   defaultPaymentMethodId?: string;
   payAsYouGoEnabled: boolean;
   monthlyCapCents: number;
   /** Snapshot of the global price applied when billing was last updated. */
   pricePerCreditCents: number;
   billingStatus: BillingStatus;
+  subscriptionStatus?: SubscriptionStatus;
+  subscriptionUsageLimitsSetupId?: string;
+  subscriptionUserGroupId?: string;
+  subscriptionCurrentPeriodEnd?: string;
+  cancelAtPeriodEnd?: boolean;
   updatedAt?: string;
 }
 
@@ -54,6 +71,7 @@ export interface IUpdatePayAsYouGoSettingsRequest {
 
 export interface ICreateBillingCheckoutSessionRequest {
   origin: string;
+  usageLimitsSetupId: string;
 }
 
 export interface ICreateBillingPortalSessionRequest {

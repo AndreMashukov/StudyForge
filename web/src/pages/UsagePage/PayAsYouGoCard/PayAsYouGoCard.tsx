@@ -34,7 +34,6 @@ export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
   onSaveMonthlyCap,
   onEnablePayAsYouGo,
   onDisablePayAsYouGo,
-  onSetupBilling,
   onManageBilling,
 }) => {
   const payAsYouGo = summary.payAsYouGo;
@@ -120,11 +119,8 @@ export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
         {!hasPaymentMethod ? (
           <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
             <p className="text-sm text-muted-foreground">
-              Add a payment method to enable pay-as-you-go overage billing.
+              Choose a paid plan before enabling pay-as-you-go overage billing.
             </p>
-            <Button type="button" onClick={onSetupBilling} disabled={isSaving}>
-              Set up billing
-            </Button>
           </div>
         ) : (
           <div className="space-y-4 rounded-lg border border-border/60 bg-muted/20 p-4">

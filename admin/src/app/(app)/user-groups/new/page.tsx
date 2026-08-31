@@ -31,6 +31,7 @@ export default async function NewUserGroupPage() {
           name: '',
           llmSetupId: setupOptions[0]?.id ?? '',
           usageLimitsSetupId: usageLimitsSetupOptions[0]?.id ?? '',
+          isDefaultRegistrationGroup: false,
         }}
         setupOptions={setupOptions}
         usageLimitsSetupOptions={usageLimitsSetupOptions}

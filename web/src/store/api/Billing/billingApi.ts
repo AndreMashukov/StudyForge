@@ -4,6 +4,7 @@ import type {
   ICreateBillingCheckoutSessionResponse,
   ICreateBillingPortalSessionRequest,
   ICreateBillingPortalSessionResponse,
+  ISubscriptionPlanSummary,
   IUpdatePayAsYouGoSettingsRequest,
   IUserBillingState,
 } from '@shared-types';
@@ -32,6 +33,18 @@ export const billingApi = baseApi.injectEndpoints({
           return mutationError(error);
         }
       },
+    }),
+    listSubscriptionPlans: builder.query<ISubscriptionPlanSummary[], void>({
+      query: () => ({
+        functionName: 'listSubscriptionPlans',
+      }),
+      transformResponse: (response: ApiResponse<ISubscriptionPlanSummary[]>) => {
+        if (!response.success || !response.data) {
+          throw new Error('Failed to load subscription plans');
+        }
+        return response.data;
+      },
+      providesTags: ['BillingPlans'],
     }),
     createBillingCheckoutSession: builder.mutation<
       ICreateBillingCheckoutSessionResponse,
@@ -84,6 +97,7 @@ export const billingApi = baseApi.injectEndpoints({
 
 export const {
   useGetBillingStateQuery,
+  useListSubscriptionPlansQuery,
   useCreateBillingCheckoutSessionMutation,
   useCreateBillingPortalSessionMutation,
   useUpdatePayAsYouGoSettingsMutation,

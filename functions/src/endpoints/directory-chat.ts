@@ -9,7 +9,7 @@ import {
   UpdateDirectoryChatSourcesRequest,
   UpdateDirectoryChatSourcesResponse,
 } from '@shared-types';
-import { validateAuth } from '@study-forge/backend-core/lib/auth';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { withUsageReservation } from '@study-forge/backend-generation/generation-limits';
 import { DirectoryChatService } from '@study-forge/backend-directories/directory-chat';
 
@@ -23,7 +23,7 @@ export const getDirectoryChat = onCall(
   },
   async (request): Promise<GetDirectoryChatResponse> => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as GetDirectoryChatRequest;
 
       if (!data.directoryId) {
@@ -52,7 +52,7 @@ export const sendDirectoryChatMessage = onCall(
   },
   async (request): Promise<SendDirectoryChatMessageResponse> => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as SendDirectoryChatMessageRequest;
 
       if (!data.directoryId) {
@@ -102,7 +102,7 @@ export const updateDirectoryChatSources = onCall(
   },
   async (request): Promise<UpdateDirectoryChatSourcesResponse> => {
     try {
-      const userId = await validateAuth(request);
+      const userId = await validateVerifiedAuth(request);
       const data = request.data as UpdateDirectoryChatSourcesRequest;
 
       if (!data.directoryId) {

@@ -45,6 +45,7 @@ export default async function UserGroupDetailPage({
           name: group.name,
           llmSetupId: group.llmSetupId,
           usageLimitsSetupId: group.usageLimitsSetupId,
+          isDefaultRegistrationGroup: group.isDefaultRegistrationGroup === true,
         }}
         setupOptions={setupOptions}
         usageLimitsSetupOptions={usageLimitsSetupOptions}

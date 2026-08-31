@@ -48,6 +48,14 @@ export const usageLimitsSetupFormSchema = z.object({
     .number()
     .int()
     .min(0, 'Daily slide deck limit must be zero or greater'),
+  isPublicPlan: z.boolean(),
+  isFreePlan: z.boolean(),
+  monthlyPriceCents: z
+    .number()
+    .int()
+    .min(0, 'Monthly price must be zero or greater'),
+  stripePriceId: z.string().optional(),
+  displayOrder: z.number().int().min(0, 'Display order must be zero or greater'),
   featurePolicies: z.object(featurePoliciesShape),
 });
 
@@ -81,6 +89,13 @@ export function featurePoliciesToFormValues(
   storageLimitBytes: number,
   dailySlideDeckLimit: number,
   featurePolicies: IUsageFeaturePolicies,
+  plan?: {
+    isPublicPlan?: boolean;
+    isFreePlan?: boolean;
+    monthlyPriceCents?: number;
+    stripePriceId?: string;
+    displayOrder?: number;
+  },
 ): IUsageLimitsSetupFormValues {
   const policies = createEmptyFeaturePolicyFormValues();
 
@@ -101,6 +116,11 @@ export function featurePoliciesToFormValues(
         : 0,
     ),
     dailySlideDeckLimit,
+    isPublicPlan: plan?.isPublicPlan ?? false,
+    isFreePlan: plan?.isFreePlan ?? false,
+    monthlyPriceCents: plan?.monthlyPriceCents ?? 0,
+    stripePriceId: plan?.stripePriceId ?? '',
+    displayOrder: plan?.displayOrder ?? 0,
     featurePolicies: policies,
   };
 }
