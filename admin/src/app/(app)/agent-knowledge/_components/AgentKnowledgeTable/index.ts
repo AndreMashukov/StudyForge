@@ -1,0 +1,1 @@
+export { AgentKnowledgeTable } from './AgentKnowledgeTable';

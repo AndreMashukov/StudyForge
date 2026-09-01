@@ -5,4 +5,5 @@ export { parseAgentPlanOutput } from './runner/agent-plan-execute-helpers';
 export { AgentThreadStore } from './memory/agent-memory-service';
 export { AgentKnowledgeLifecycle } from './knowledge/agent-knowledge-lifecycle';
 export { AgentKnowledgeIndexService } from './knowledge/agent-knowledge-index-service';
+export { PlatformAgentKnowledgeIndexService } from './knowledge/platform-agent-knowledge-index-service';
 export { AgentEmbeddingService } from './knowledge/agent-embedding-service';

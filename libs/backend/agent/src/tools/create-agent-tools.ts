@@ -30,7 +30,20 @@ import {
 import {
   createPendingQuiz,
   failPendingQuiz,
+  createPendingFlashcardSet,
+  failPendingFlashcardSet,
 } from '@study-forge/backend-artifacts/artifact-generation-records';
+import { GenerationJobPayloadStorage } from '@study-forge/backend-generation/generation-job-payload-storage';
+import { GenerationJobsService } from '@study-forge/backend-generation/generation-jobs';
+import { enqueueGenerationJobTask } from '@study-forge/backend-generation/generation-task-queue';
+import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/artifact-agent';
+import type { IFlashcardJobPayload } from '@study-forge/backend-artifacts/flashcards';
+import { getDocumentFallbackColor } from '@shared-types';
+import {
+  assertGenerationBatchAllowed,
+  AGENT_GENERATION_LIMITS,
+  type IAgentGenerationPlanCounts,
+} from '../runner/agent-generation-plan';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { AgentKnowledgeIndexService } from '../knowledge/agent-knowledge-index-service';
 import { AgentKnowledgeLifecycle } from '../knowledge/agent-knowledge-lifecycle';
@@ -58,6 +71,7 @@ export interface AgentToolRuntimeContext {
   clientLocalDate?: string;
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
+  generationBatchCounts: IAgentGenerationPlanCounts;
 }
 
 export interface AgentToolDefinition {
@@ -450,6 +464,9 @@ export function createAgentToolDefinitions(
           );
         }
         assertDirectoryInScope(context, directoryId);
+        assertGenerationBatchAllowed(context.generationBatchCounts, {
+          documents: 1,
+        });
         const title = pendingTitleFromPrompt(prompt, titleArg || undefined);
         const { defaultRuleIds } = await getApplicableRules(
           context.userId,
@@ -496,6 +513,7 @@ export function createAgentToolDefinitions(
             entityId: pendingDocId,
             jobId,
           });
+          context.generationBatchCounts.documents += 1;
           return {
             id: pendingDocId,
             documentId: pendingDocId,
@@ -546,6 +564,9 @@ export function createAgentToolDefinitions(
           throw new Error('Document not found');
         }
         assertDirectoryInScope(context, document.directoryId);
+        assertGenerationBatchAllowed(context.generationBatchCounts, {
+          quizzes: 1,
+        });
         const title =
           typeof args.title === 'string'
             ? args.title
@@ -586,6 +607,7 @@ export function createAgentToolDefinitions(
             entityId: quizId,
             jobId,
           });
+          context.generationBatchCounts.quizzes += 1;
           return { quizId, jobId };
         } catch (error) {
           if (quizId) {
@@ -594,6 +616,158 @@ export function createAgentToolDefinitions(
             await failPendingQuiz(context.userId, quizId, message).catch(
               () => undefined,
             );
+          }
+          await refundUsageReservationSafe(context.userId, usageReservation.id);
+          throw error;
+        }
+      },
+    },
+    {
+      name: 'generate_flashcards',
+      description:
+        'Generate a flashcard set from one or more documents in the same directory. Uses the flashcards credit cost and artifact agent pipeline.',
+      parameters: {
+        type: 'object',
+        properties: {
+          documentIds: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          directoryId: { type: 'string' },
+          title: { type: 'string' },
+          additionalPrompt: { type: 'string' },
+        },
+        required: ['documentIds'],
+      },
+      execute: async (args) => {
+        const documentIds = parseStringArray(args.documentIds, 'documentIds');
+        if (documentIds.length === 0) {
+          throw new Error('documentIds must include at least one document');
+        }
+        if (documentIds.length > AGENT_GENERATION_LIMITS.maxSourceDocumentsPerFlashcardSet) {
+          throw new Error(
+            `Maximum ${AGENT_GENERATION_LIMITS.maxSourceDocumentsPerFlashcardSet} source documents per flashcard set`,
+          );
+        }
+
+        const documentDataList = await Promise.all(
+          documentIds.map(async (documentId) => {
+            const document = await DocumentCrudService.getDocumentWithContent(
+              context.userId,
+              documentId,
+            );
+            if (!document?.content || !document.directoryId) {
+              throw new Error(`Document not found or has no content: ${documentId}`);
+            }
+            return document;
+          }),
+        );
+
+        const resolvedDirectoryId =
+          typeof args.directoryId === 'string' && args.directoryId.trim().length > 0
+            ? args.directoryId.trim()
+            : documentDataList[0]?.directoryId;
+        if (!resolvedDirectoryId) {
+          throw new Error('directoryId is required');
+        }
+        assertDirectoryInScope(context, resolvedDirectoryId);
+        await directoryService.validateDirectoryId(
+          context.userId,
+          resolvedDirectoryId,
+        );
+        for (const document of documentDataList) {
+          if (document.directoryId !== resolvedDirectoryId) {
+            throw new Error('All documents must belong to the same directory');
+          }
+        }
+
+        assertGenerationBatchAllowed(context.generationBatchCounts, {
+          flashcardSets: 1,
+        });
+
+        const customTitle =
+          typeof args.title === 'string' ? args.title.trim() : '';
+        const pendingTitle =
+          customTitle ||
+          (documentIds.length === 1
+            ? `Flashcards for "${documentDataList[0].title}"`
+            : `Flashcards for "${documentDataList[0].title}" + ${documentIds.length - 1} more`);
+        const additionalPrompt =
+          typeof args.additionalPrompt === 'string'
+            ? args.additionalPrompt.trim()
+            : undefined;
+
+        const usageReservation = await enforceCallableGenerationLimits(
+          context.userId,
+          'flashcards',
+        );
+        let flashcardSetId: string | undefined;
+        try {
+          flashcardSetId = await createPendingFlashcardSet({
+            userId: context.userId,
+            directoryId: resolvedDirectoryId,
+            documentId: documentIds[0],
+            documentIds: documentIds.length > 1 ? documentIds : undefined,
+            documentTitle: documentDataList[0].title,
+            title: pendingTitle,
+            documentColor:
+              documentDataList[0].color ??
+              getDocumentFallbackColor(documentDataList[0].id),
+            documentColors:
+              documentDataList.length > 1
+                ? documentDataList.map(
+                    (document) =>
+                      document.color ?? getDocumentFallbackColor(document.id),
+                  )
+                : undefined,
+          });
+
+          const jobId = GenerationJobsService.newJobId(context.userId);
+          const payload: ArtifactAgentJobPayload<IFlashcardJobPayload> = {
+            artifactKind: 'flashcards',
+            documentIds,
+            directoryId: resolvedDirectoryId,
+            recordId: flashcardSetId,
+            title: pendingTitle,
+            additionalPrompt: additionalPrompt || undefined,
+            ruleResolutionMode: 'inherit-plus-explicit',
+            artifactPayload: {},
+          };
+          const payloadStoragePath = await GenerationJobPayloadStorage.saveJson(
+            context.userId,
+            jobId,
+            payload,
+          );
+          await GenerationJobsService.createJob({
+            jobId,
+            kind: 'artifactAgent',
+            userId: context.userId,
+            directoryId: resolvedDirectoryId,
+            recordId: flashcardSetId,
+            payloadStoragePath,
+            artifactKind: 'flashcards',
+            usageReservationId: usageReservation.id,
+          });
+          await enqueueGenerationJobTask({ userId: context.userId, jobId });
+
+          pushAction(context, {
+            kind: 'generate_flashcards',
+            summary: `Started flashcard generation for "${pendingTitle}"`,
+            entityType: 'flashcardSet',
+            entityId: flashcardSetId,
+            jobId,
+          });
+          context.generationBatchCounts.flashcardSets += 1;
+          return { flashcardSetId, jobId };
+        } catch (error) {
+          if (flashcardSetId) {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            await failPendingFlashcardSet(
+              context.userId,
+              flashcardSetId,
+              message,
+            ).catch(() => undefined);
           }
           await refundUsageReservationSafe(context.userId, usageReservation.id);
           throw error;

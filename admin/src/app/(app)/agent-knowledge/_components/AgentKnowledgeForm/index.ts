@@ -1,0 +1,1 @@
+export { AgentKnowledgeForm } from './AgentKnowledgeForm';
