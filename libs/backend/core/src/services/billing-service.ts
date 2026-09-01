@@ -904,6 +904,65 @@ export async function handleStripeBillingWebhook(params: {
   }
 }
 
+async function createAndCollectOverageInvoice(params: {
+  stripe: Stripe;
+  customerId: string;
+  amountCents: number;
+  periodKey: string;
+  userId: string;
+  idempotencyBase: string;
+}): Promise<{ invoiceId: string; amountPaidCents: number }> {
+  const invoice = await params.stripe.invoices.create(
+    {
+      customer: params.customerId,
+      auto_advance: false,
+      collection_method: 'charge_automatically',
+      pending_invoice_items_behavior: 'exclude',
+      metadata: {
+        userId: params.userId,
+        usagePeriodKey: params.periodKey,
+        invoicedAmountCents: String(params.amountCents),
+      },
+    },
+    { idempotencyKey: `${params.idempotencyBase}:invoice` },
+  );
+
+  await params.stripe.invoices.addLines(
+    invoice.id,
+    {
+      lines: [
+        {
+          amount: params.amountCents,
+          description: `StudyForge pay-as-you-go overage for ${params.periodKey}`,
+        },
+      ],
+    },
+    { idempotencyKey: `${params.idempotencyBase}:lines` },
+  );
+
+  let collected = await params.stripe.invoices.finalizeInvoice(invoice.id);
+  if (collected.total <= 0) {
+    throw new Error(
+      `Overage invoice ${invoice.id} finalized with total ${collected.total}; expected ${params.amountCents}.`,
+    );
+  }
+
+  if (collected.status !== 'paid') {
+    collected = await params.stripe.invoices.pay(invoice.id);
+  }
+
+  if (collected.status !== 'paid' || collected.amount_paid <= 0) {
+    throw new Error(
+      `Overage invoice ${invoice.id} was not paid (status=${collected.status}, amount_paid=${collected.amount_paid}).`,
+    );
+  }
+
+  return {
+    invoiceId: collected.id,
+    amountPaidCents: collected.amount_paid,
+  };
+}
+
 export async function processMonthlyOverageInvoices(stripeSecretKey: string): Promise<number> {
   const stripe = getStripeClient(stripeSecretKey);
   const PAGE_SIZE = 100;
@@ -927,7 +986,8 @@ export async function processMonthlyOverageInvoices(stripeSecretKey: string): Pr
       const billing = parseUserBillingState(billingSnapshot.data(), {
         defaultPricePerCreditCents: billingConfig.pricePerCreditCents,
       });
-      if (!billing.stripeCustomerId || billing.billingStatus !== 'active') {
+      const customerId = billing.stripeCustomerId;
+      if (!customerId || billing.billingStatus !== 'active') {
         continue;
       }
 
@@ -951,36 +1011,20 @@ export async function processMonthlyOverageInvoices(stripeSecretKey: string): Pr
           continue;
         }
 
-        const idempotencyBase = `overage:${userDoc.id}:${periodDoc.id}:${invoicedOverageAmountCents}`;
+        const idempotencyBase = `overage:v2:${userDoc.id}:${periodDoc.id}:${invoicedOverageAmountCents}`;
 
-        await stripe.invoiceItems.create(
-          {
-            customer: billing.stripeCustomerId,
-            amount: invoiceAmountCents,
-            currency: 'usd',
-            description: `StudyForge pay-as-you-go overage for ${periodDoc.id}`,
-          },
-          { idempotencyKey: `${idempotencyBase}:item` },
-        );
-
-        const invoice = await stripe.invoices.create(
-          {
-            customer: billing.stripeCustomerId,
-            auto_advance: true,
-            metadata: {
-              userId: userDoc.id,
-              usagePeriodKey: periodDoc.id,
-              invoicedAmountCents: String(invoiceAmountCents),
-            },
-          },
-          { idempotencyKey: `${idempotencyBase}:invoice` },
-        );
-
-        await stripe.invoices.finalizeInvoice(invoice.id);
+        const invoice = await createAndCollectOverageInvoice({
+          stripe,
+          customerId,
+          amountCents: invoiceAmountCents,
+          periodKey: periodDoc.id,
+          userId: userDoc.id,
+          idempotencyBase,
+        });
 
         await usagePeriodRef(userDoc.id, periodDoc.id).set(
           {
-            invoicedOverageAmountCents: invoicedOverageAmountCents + invoiceAmountCents,
+            invoicedOverageAmountCents: invoicedOverageAmountCents + invoice.amountPaidCents,
             updatedAt: new Date().toISOString(),
           },
           { merge: true },
