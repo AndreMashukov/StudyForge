@@ -160,6 +160,28 @@ _Avoid_: ADK memory (when meaning the StudyForge thread), planner history
 Conversational assistant scoped to a directory and its documents/artifacts. Uses follow-up rules and artifact context. Distinct from the workspace agent and directory-scoped agent panels.
 _Avoid_: folder chat, library chat
 
+## Plans and billing
+
+**Usage limits setup**:
+Named catalog entry for monthly credits, storage, daily slide-deck caps, and per-feature access. Users experience it as their plan tier.
+_Avoid_: plan doc (when meaning this catalog row), quota profile
+
+**User group**:
+Assignment bucket that links a user to one usage limits setup and one LLM setup.
+_Avoid_: tier (alone), role, account type
+
+**Default registration group**:
+The single user group assigned to new verified users before they subscribe to a paid plan (Free).
+_Avoid_: signup group, free tier group
+
+**Subscription**:
+Stripe monthly recurring charge mapped to a paid usage limits setup via `stripePriceId`. Checkout creates the subscription; webhooks keep the user's group in sync.
+_Avoid_: plan payment (alone), Stripe plan (when meaning the StudyForge setup)
+
+**Pay-as-you-go**:
+Optional overage billing after included monthly credits are exhausted, billed separately from the subscription with a monthly cap.
+_Avoid_: PAYG (in user-facing copy), usage billing (when meaning overage only)
+
 ## Relationships
 
 - A **Directory** contains **Documents** and **Artifacts**

@@ -204,10 +204,10 @@ export const FREE_TIER_DISABLED_KINDS: GenerationKind[] = [
 
 /** 100 MB */
 export const FREE_TIER_STORAGE_LIMIT_BYTES = 100 * 1024 * 1024;
-/** 1 GB */
-export const STANDARD_TIER_STORAGE_LIMIT_BYTES = 1024 * 1024 * 1024;
-/** 5 GB */
-export const PRO_TIER_STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024;
+/** 2 GB */
+export const STANDARD_TIER_STORAGE_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
+/** 8 GB */
+export const PRO_TIER_STORAGE_LIMIT_BYTES = 8 * 1024 * 1024 * 1024;
 /** 20 GB */
 export const POWER_TIER_STORAGE_LIMIT_BYTES = 20 * 1024 * 1024 * 1024;
 
@@ -226,7 +226,7 @@ export const USAGE_LIMITS_PROFILE_PRESETS: IUsageLimitsProfilePreset[] = [
     id: 'free',
     name: 'Free',
     description: 'Limited monthly credits with premium features disabled.',
-    monthlyCreditAllowance: 100,
+    monthlyCreditAllowance: 150,
     storageLimitBytes: FREE_TIER_STORAGE_LIMIT_BYTES,
     dailySlideDeckLimit: 1,
     disabledKinds: FREE_TIER_DISABLED_KINDS,
@@ -235,23 +235,23 @@ export const USAGE_LIMITS_PROFILE_PRESETS: IUsageLimitsProfilePreset[] = [
     id: 'standard',
     name: 'Standard',
     description: 'Normal learner allowance with all features enabled.',
-    monthlyCreditAllowance: 1_000,
+    monthlyCreditAllowance: 2_000,
     storageLimitBytes: STANDARD_TIER_STORAGE_LIMIT_BYTES,
-    dailySlideDeckLimit: 5,
+    dailySlideDeckLimit: 8,
   },
   {
     id: 'pro',
     name: 'Pro',
     description: 'Higher allowance for active learners.',
-    monthlyCreditAllowance: 5_000,
+    monthlyCreditAllowance: 8_000,
     storageLimitBytes: PRO_TIER_STORAGE_LIMIT_BYTES,
-    dailySlideDeckLimit: 20,
+    dailySlideDeckLimit: 25,
   },
   {
     id: 'power',
     name: 'Power',
     description: 'Internal or heavy-user allowance.',
-    monthlyCreditAllowance: 20_000,
+    monthlyCreditAllowance: 25_000,
     storageLimitBytes: POWER_TIER_STORAGE_LIMIT_BYTES,
     dailySlideDeckLimit: 100,
   },
@@ -383,7 +383,7 @@ export function resolvePresetQuotaDefaults(presetId: string): {
 
   return {
     storageLimitBytes: STANDARD_TIER_STORAGE_LIMIT_BYTES,
-    dailySlideDeckLimit: 5,
+    dailySlideDeckLimit: 8,
   };
 }
 
