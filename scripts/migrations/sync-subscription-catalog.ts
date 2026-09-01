@@ -435,8 +435,20 @@ async function main(): Promise<void> {
 
   if (dryRun) {
     console.log('\nDry run complete. Rerun without --dry-run to apply Firestore writes and create Stripe objects.');
+    console.log(
+      'After apply, run: npx tsx scripts/migrations/refresh-usage-summaries.ts --confirm-live',
+    );
   } else {
     console.log('\nCatalog sync complete.');
+    console.log('Refreshing cached usage summaries...');
+    const { execSync } = await import('node:child_process');
+    execSync(
+      'npx tsx scripts/migrations/refresh-usage-summaries.ts --confirm-live',
+      {
+        stdio: 'inherit',
+        env: { ...process.env, GCLOUD_PROJECT: PROJECT_ID },
+      },
+    );
   }
 }
 

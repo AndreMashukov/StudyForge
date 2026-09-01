@@ -33,27 +33,18 @@ export const usageApi = baseApi.injectEndpoints({
         }
 
         try {
-          let summary = await fetchUsageSummaryFromFirestore(userId);
+          const synced = await baseQuery({
+            functionName: 'getUsageSummary',
+          });
 
-          if (!summary) {
-            const bootstrap = await baseQuery({
-              functionName: 'getUsageSummary',
-            });
-
-            if ('error' in bootstrap) {
-              return firestoreReadError('Failed to bootstrap usage summary');
-            }
-
-            const bootstrapResponse = bootstrap.data as ApiResponse<IUserUsageSummary>;
-            if (bootstrapResponse.success && bootstrapResponse.data) {
-              summary = bootstrapResponse.data;
-            }
-
-            if (!summary) {
-              summary = await fetchUsageSummaryFromFirestore(userId);
+          if (!('error' in synced)) {
+            const syncedResponse = synced.data as ApiResponse<IUserUsageSummary>;
+            if (syncedResponse.success && syncedResponse.data) {
+              return { data: syncedResponse.data };
             }
           }
 
+          const summary = await fetchUsageSummaryFromFirestore(userId);
           if (!summary) {
             return notFoundError('Usage summary not available');
           }
