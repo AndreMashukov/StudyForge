@@ -189,7 +189,7 @@ export const Sidebar = ({ className }: ISidebar) => {
       footer={footer}
       aria-label="Main navigation"
     >
-      <div className="flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto scrollbar-hidden">
         {sectionOrder.map((section) => (
           <SidebarSection
             key={section}

@@ -48,7 +48,7 @@ export const sidebarClassNames = {
   collapsed: 'w-[64px]',
   navSectionLabel:
     'px-2.5 pb-1 pt-4 text-[11px] font-medium uppercase tracking-wider text-muted-foreground',
-  navList: 'space-y-0.5 px-2 pb-2 p-0',
+  navList: 'space-y-0.5 overflow-hidden px-2 pb-2 p-0',
   navItem:
     'flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground',
   navItemActive: '!bg-primary/10 !text-primary',
@@ -91,7 +91,10 @@ export function SidebarNav({
 }: ISidebarNav) {
   return (
     <nav
-      className={cn('flex flex-1 flex-col gap-1 overflow-y-auto p-4', className)}
+      className={cn(
+        'flex min-w-0 flex-1 flex-col gap-1 overflow-hidden p-4',
+        className
+      )}
       aria-label={ariaLabel}
     >
       {children}
