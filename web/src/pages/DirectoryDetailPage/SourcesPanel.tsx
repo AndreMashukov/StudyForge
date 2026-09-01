@@ -32,7 +32,7 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
   ruleNamesMap,
   onCreateArtifactFromDocument,
 }) => {
-  const { placeholders } = useOptimisticGeneratingRow(directoryId, 'sources');
+  const { placeholders } = useOptimisticGeneratingRow(directoryId, 'sources', documents);
   const visibleCount = documents.length + placeholders.length;
 
   const visibleIds = React.useMemo(
