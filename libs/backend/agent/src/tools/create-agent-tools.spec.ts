@@ -4,6 +4,7 @@ vi.mock('@study-forge/backend-directories/directory', () => ({
   directoryService: {
     getDirectory: vi.fn(),
     createDirectory: vi.fn(),
+    validateDirectoryId: vi.fn(),
   },
 }));
 
@@ -42,6 +43,25 @@ vi.mock('@study-forge/backend-generation/generation-limits', () => ({
 vi.mock('@study-forge/backend-artifacts/artifact-generation-records', () => ({
   createPendingQuiz: vi.fn(),
   failPendingQuiz: vi.fn(),
+  createPendingFlashcardSet: vi.fn(),
+  failPendingFlashcardSet: vi.fn(),
+}));
+
+vi.mock('@study-forge/backend-generation/generation-job-payload-storage', () => ({
+  GenerationJobPayloadStorage: {
+    saveJson: vi.fn(),
+  },
+}));
+
+vi.mock('@study-forge/backend-generation/generation-jobs', () => ({
+  GenerationJobsService: {
+    newJobId: vi.fn(),
+    createJob: vi.fn(),
+  },
+}));
+
+vi.mock('@study-forge/backend-generation/generation-task-queue', () => ({
+  enqueueGenerationJobTask: vi.fn(),
 }));
 
 vi.mock('@study-forge/backend-core/lib/firestore-paths', () => ({
@@ -95,7 +115,13 @@ import type { IUsageReservation } from '@study-forge/backend-core/services/usage
 import {
   createPendingQuiz,
   failPendingQuiz,
+  createPendingFlashcardSet,
+  failPendingFlashcardSet,
 } from '@study-forge/backend-artifacts/artifact-generation-records';
+import { GenerationJobPayloadStorage } from '@study-forge/backend-generation/generation-job-payload-storage';
+import { GenerationJobsService } from '@study-forge/backend-generation/generation-jobs';
+import { enqueueGenerationJobTask } from '@study-forge/backend-generation/generation-task-queue';
+import { directoryService } from '@study-forge/backend-directories/directory';
 import { AgentKnowledgeLifecycle } from '../knowledge/agent-knowledge-lifecycle';
 import {
   createAgentToolDefinitions,
@@ -113,6 +139,11 @@ function createContext(
     directoryIds: ['dir-1'],
     executedActions: [],
     proposedDeletes: [],
+    generationBatchCounts: {
+      documents: 0,
+      quizzes: 0,
+      flashcardSets: 0,
+    },
     ...overrides,
   };
 }
@@ -709,6 +740,94 @@ describe('createAgentToolDefinitions generate_quiz', () => {
     expect(refundUsageReservationSafe).toHaveBeenCalledWith(
       'user-1',
       'quiz-reservation-1',
+    );
+  });
+});
+
+describe('createAgentToolDefinitions generate_flashcards', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('reserves flashcard credits and enqueues an artifactAgent job', async () => {
+    vi.mocked(DocumentCrudService.getDocumentWithContent).mockResolvedValue(
+      createTestDocument({ content: '# Notes\nContent' }),
+    );
+    vi.mocked(directoryService.validateDirectoryId).mockResolvedValue(undefined);
+    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue(
+      createTestUsageReservation({ id: 'flashcard-reservation-1' }),
+    );
+    vi.mocked(createPendingFlashcardSet).mockResolvedValue('flashcard-pending');
+    vi.mocked(GenerationJobsService.newJobId).mockReturnValue('flashcard-job-1');
+    vi.mocked(GenerationJobPayloadStorage.saveJson).mockResolvedValue(
+      'users/user-1/generationJobs/flashcard-job-1/payload.json',
+    );
+    vi.mocked(GenerationJobsService.createJob).mockResolvedValue(undefined);
+    vi.mocked(enqueueGenerationJobTask).mockResolvedValue(undefined);
+
+    const context = createContext({ directoryIds: ['dir-1'] });
+    const tools = createAgentToolDefinitions(context);
+    const result = await executeAgentTool(tools, 'generate_flashcards', {
+      documentIds: ['doc-1'],
+      title: 'Key Terms',
+    });
+
+    expect(enforceCallableGenerationLimits).toHaveBeenCalledWith(
+      'user-1',
+      'flashcards',
+    );
+    expect(createPendingFlashcardSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        directoryId: 'dir-1',
+        documentId: 'doc-1',
+        title: 'Key Terms',
+      }),
+    );
+    expect(GenerationJobsService.createJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobId: 'flashcard-job-1',
+        kind: 'artifactAgent',
+        artifactKind: 'flashcards',
+        usageReservationId: 'flashcard-reservation-1',
+      }),
+    );
+    expect(result).toEqual({
+      flashcardSetId: 'flashcard-pending',
+      jobId: 'flashcard-job-1',
+    });
+    expect(context.generationBatchCounts.flashcardSets).toBe(1);
+  });
+
+  it('refunds flashcard credits when enqueue fails', async () => {
+    vi.mocked(DocumentCrudService.getDocumentWithContent).mockResolvedValue(
+      createTestDocument({ content: '# Notes\nContent' }),
+    );
+    vi.mocked(directoryService.validateDirectoryId).mockResolvedValue(undefined);
+    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue(
+      createTestUsageReservation({ id: 'flashcard-reservation-1' }),
+    );
+    vi.mocked(createPendingFlashcardSet).mockResolvedValue('flashcard-pending');
+    vi.mocked(GenerationJobsService.newJobId).mockReturnValue('flashcard-job-1');
+    vi.mocked(GenerationJobPayloadStorage.saveJson).mockRejectedValue(
+      new Error('queue unavailable'),
+    );
+    vi.mocked(failPendingFlashcardSet).mockResolvedValue(undefined);
+    vi.mocked(refundUsageReservationSafe).mockResolvedValue(undefined);
+
+    const tools = createAgentToolDefinitions(createContext());
+    await expect(
+      executeAgentTool(tools, 'generate_flashcards', { documentIds: ['doc-1'] }),
+    ).rejects.toThrow('queue unavailable');
+
+    expect(failPendingFlashcardSet).toHaveBeenCalledWith(
+      'user-1',
+      'flashcard-pending',
+      'queue unavailable',
+    );
+    expect(refundUsageReservationSafe).toHaveBeenCalledWith(
+      'user-1',
+      'flashcard-reservation-1',
     );
   });
 });

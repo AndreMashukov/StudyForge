@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  BookOpen,
   Brain,
   Cable,
   FileText,
@@ -41,6 +42,7 @@ const aiNavItems = [
     label: 'Generation settings',
     icon: SlidersHorizontal,
   },
+  { href: '/agent-knowledge', label: 'Agent knowledge', icon: BookOpen },
   { href: '/usage-limits-setups', label: 'Usage limits', icon: Gauge },
   { href: '/provider-costs', label: 'Provider costs', icon: Receipt },
   { href: '/provider-connections', label: 'Provider connections', icon: Cable },

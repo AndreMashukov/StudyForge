@@ -182,4 +182,11 @@ export const FirestorePaths = {
     return db().collection('users').doc(userId).collection('usageSummary');
   },
   usageSummaryCurrent: (userId: string) => FirestorePaths.usageSummary(userId).doc('current'),
+
+  platformAgentKnowledgeDocuments: () =>
+    db().collection('platformAgentKnowledgeDocuments'),
+  platformAgentKnowledgeDocument: (docId: string) =>
+    FirestorePaths.platformAgentKnowledgeDocuments().doc(docId),
+  platformAgentKnowledgeChunks: () =>
+    db().collection('platformAgentKnowledgeChunks'),
 };

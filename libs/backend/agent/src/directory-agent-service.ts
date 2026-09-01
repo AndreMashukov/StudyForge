@@ -37,6 +37,7 @@ import {
   createAgentToolDefinitions,
   toAgentReadableDocumentContent,
 } from './tools/create-agent-tools';
+import { PlatformAgentKnowledgeIndexService } from './knowledge/platform-agent-knowledge-index-service';
 import { resolveAgentCalendarDates } from './tools/quiz-statistics-tools';
 
 const MAX_DIRECTORY_IDS = 200;
@@ -242,6 +243,7 @@ function buildSystemPrompt(input: {
   memorySnippets: Array<{ content: string; memoryType: string }>;
   currentDocumentBodyBlock?: string;
   currentRuleBodyBlock?: string;
+  platformKnowledgeBlock?: string;
   today: string;
   yesterday: string;
 }): string {
@@ -280,11 +282,15 @@ function buildSystemPrompt(input: {
     'Never perform destructive deletes directly. Use propose_delete_* tools and wait for user confirmation.',
     'Directory names cannot contain / \\ : * ? " < > |. Use hyphens instead of slashes (for example, "AI-ML" not "AI/ML").',
     'When creating documents, call create_document with a generation prompt. The documentFromPrompt pipeline writes the HTML and applies always-apply rules for that directory. Do not write HTML or markdown yourself.',
+    'When generating documents, quizzes, or flashcard sets, state the estimated item counts and credits before enqueueing jobs. Under 100 credits and within 10 documents, 10 quizzes, and 10 flashcard sets per turn, you may generate in the same response. Above those limits, propose a smaller plan and ask for confirmation.',
+    'Never generate slide decks, diagram quizzes, or sequence quizzes from the workspace agent in this version. Explain they must use the app generators instead.',
+    'Route all generation through create_document, generate_quiz, or generate_flashcards. Never invent content directly when a generation pipeline exists.',
     'Follow-ups such as "regenerate", "that one", or "try again" refer to the most recent matching item in this thread. Do not ask the user to restate it.',
     'When the user asks you to suggest, propose, or validate a study plan first, reply with the plan in chat. Do not call create_document or create_directory until they approve.',
     'For other study plans and proposals, answer in chat first unless the user asks you to create directories or documents now.',
     input.currentDocumentBodyBlock,
     input.currentRuleBodyBlock,
+    input.platformKnowledgeBlock,
     memoryBlock,
   ]
     .filter(Boolean)
@@ -318,6 +324,11 @@ export class DirectoryAgentService {
       clientLocalDate: calendar.today,
       executedActions: [],
       proposedDeletes: [],
+      generationBatchCounts: {
+        documents: 0,
+        quizzes: 0,
+        flashcardSets: 0,
+      },
     };
 
     const thread = await AgentThreadStore.resolveThread({
@@ -334,11 +345,16 @@ export class DirectoryAgentService {
       history,
       currentDocumentBodyBlock,
       currentRuleBodyBlock,
+      platformKnowledgeMatches,
     ] = await Promise.all([
       AgentMemoryService.retrieveRelevantMemories(userId, request.message),
       AgentThreadStore.listRecentMessages(userId, thread.id, 12),
       loadCurrentDocumentBodyBlock(userId, request.promptContext),
       loadCurrentRuleBodyBlock(userId, request.promptContext),
+      PlatformAgentKnowledgeIndexService.searchPlatformKnowledge({
+        userId,
+        query: request.message,
+      }),
     ]);
 
     await AgentThreadStore.appendMessage({
@@ -353,6 +369,15 @@ export class DirectoryAgentService {
     });
 
     const tools = createAgentToolDefinitions(runtimeContext);
+    const platformKnowledgeBlock =
+      platformKnowledgeMatches.length > 0
+        ? [
+            'Platform knowledge (follow these operational policies when planning generation):',
+            ...platformKnowledgeMatches.map(
+              (entry) => `- [${entry.docTitle}] ${entry.text}`,
+            ),
+          ].join('\n')
+        : undefined;
     const systemPrompt = buildSystemPrompt({
       scope: request.scope,
       directoryId: request.directoryId,
@@ -360,6 +385,7 @@ export class DirectoryAgentService {
       memorySnippets,
       currentDocumentBodyBlock,
       currentRuleBodyBlock,
+      platformKnowledgeBlock,
       today: calendar.today,
       yesterday: calendar.yesterday,
     });

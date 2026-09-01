@@ -44,6 +44,7 @@ export const agentActionKindSchema = z.enum([
   'update_document',
   'move_document',
   'generate_quiz',
+  'generate_flashcards',
   'update_quiz',
   'create_rule',
   'update_rule',
@@ -219,3 +220,50 @@ export interface IAgentConversationMemory {
   createdAt: string;
   updatedAt: string;
 }
+
+export type PlatformAgentKnowledgeDocumentStatus = 'draft' | 'published';
+
+export type PlatformAgentKnowledgeIndexingStatus =
+  | 'idle'
+  | 'indexing'
+  | 'indexed'
+  | 'failed';
+
+export interface IPlatformAgentKnowledgeDocument {
+  id: string;
+  title: string;
+  bodyMarkdown: string;
+  status: PlatformAgentKnowledgeDocumentStatus;
+  tags?: string[];
+  updatedAt: string;
+  updatedBy?: string;
+  publishedAt?: string;
+  publishedBy?: string;
+  indexedAt?: string;
+  indexingStatus: PlatformAgentKnowledgeIndexingStatus;
+  indexingError?: string;
+}
+
+export interface IPlatformAgentKnowledgeChunk {
+  id: string;
+  docId: string;
+  docTitle: string;
+  text: string;
+  contentHash: string;
+  chunkIndex: number;
+  embedding?: number[];
+  updatedAt: string;
+}
+
+export const platformAgentKnowledgeDocumentFormSchema = z.object({
+  title: z.string().trim().min(1, 'Title is required').max(200),
+  bodyMarkdown: z.string().trim().min(1, 'Body is required').max(200_000),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
+});
+
+export type ICreatePlatformAgentKnowledgeDocumentRequest = z.infer<
+  typeof platformAgentKnowledgeDocumentFormSchema
+>;
+
+export type IUpdatePlatformAgentKnowledgeDocumentRequest =
+  Partial<ICreatePlatformAgentKnowledgeDocumentRequest>;
