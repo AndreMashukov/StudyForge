@@ -1,7 +1,6 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -13,7 +12,16 @@ import {
   isAdminUnauthorizedResponse,
   redirectToAdminLogin,
 } from '@admin/auth/client-login-redirect';
+import { Button } from '@admin/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@admin/components/ui/Card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@admin/components/ui/Form';
 import { Input } from '@admin/components/ui/Input';
 import {
   deletePlatformAgentKnowledgeDocument,
@@ -172,73 +180,92 @@ export function AgentKnowledgeForm({
           <p className="text-sm text-destructive">Last indexing error: {indexingError}</p>
         ) : null}
 
-        <form className="space-y-4" onSubmit={handleSave}>
-          <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input id="title" {...form.register('title')} />
-            {form.formState.errors.title ? (
-              <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="bodyMarkdown">Markdown body</Label>
-            <textarea
-              id="bodyMarkdown"
-              rows={18}
-              className="flex min-h-[320px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              {...form.register('bodyMarkdown')}
+        <Form {...form}>
+          <form className="space-y-4" onSubmit={handleSave}>
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            {form.formState.errors.bodyMarkdown ? (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.bodyMarkdown.message}
-              </p>
-            ) : null}
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="tags">Tags (comma-separated)</Label>
-            <Input
-              id="tags"
-              defaultValue={defaultValues.tags?.join(', ') ?? ''}
-              onChange={(event) => {
-                const tags = event.target.value
-                  .split(',')
-                  .map((tag) => tag.trim())
-                  .filter(Boolean);
-                form.setValue('tags', tags.length > 0 ? tags : undefined);
-              }}
+            <FormField
+              control={form.control}
+              name="bodyMarkdown"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Markdown body</FormLabel>
+                  <FormControl>
+                    <textarea
+                      rows={18}
+                      className="flex min-h-[320px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          {notice ? <p className="text-sm text-muted-foreground">{notice}</p> : null}
+            <FormField
+              control={form.control}
+              name="tags"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tags (comma-separated)</FormLabel>
+                  <FormControl>
+                    <Input
+                      value={field.value?.join(', ') ?? ''}
+                      onChange={(event) => {
+                        const tags = event.target.value
+                          .split(',')
+                          .map((tag) => tag.trim())
+                          .filter(Boolean);
+                        field.onChange(tags.length > 0 ? tags : undefined);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div className="flex flex-wrap gap-3">
-            <Button type="submit" disabled={isSaving || isPublishing || isDeleting}>
-              {isSaving ? 'Saving…' : 'Save draft'}
-            </Button>
-            {docId ? (
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={isSaving || isPublishing || isDeleting}
-                onClick={handlePublish}
-              >
-                {isPublishing ? 'Publishing…' : 'Publish and reindex'}
+            {notice ? <p className="text-sm text-muted-foreground">{notice}</p> : null}
+
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit" disabled={isSaving || isPublishing || isDeleting}>
+                {isSaving ? 'Saving…' : 'Save draft'}
               </Button>
-            ) : null}
-            {docId ? (
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={isSaving || isPublishing || isDeleting}
-                onClick={handleDelete}
-              >
-                {isDeleting ? 'Deleting…' : 'Delete'}
-              </Button>
-            ) : null}
-          </div>
-        </form>
+              {docId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSaving || isPublishing || isDeleting}
+                  onClick={handlePublish}
+                >
+                  {isPublishing ? 'Publishing…' : 'Publish and reindex'}
+                </Button>
+              ) : null}
+              {docId ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={isSaving || isPublishing || isDeleting}
+                  onClick={handleDelete}
+                >
+                  {isDeleting ? 'Deleting…' : 'Delete'}
+                </Button>
+              ) : null}
+            </div>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );

@@ -640,7 +640,7 @@ export function createAgentToolDefinitions(
         required: ['documentIds'],
       },
       execute: async (args) => {
-        const documentIds = parseStringArray(args.documentIds);
+        const documentIds = parseStringArray(args.documentIds, 'documentIds');
         if (documentIds.length === 0) {
           throw new Error('documentIds must include at least one document');
         }

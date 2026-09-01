@@ -239,6 +239,7 @@ export interface IPlatformAgentKnowledgeDocument {
   updatedBy?: string;
   publishedAt?: string;
   publishedBy?: string;
+  publishedContentHash?: string;
   indexedAt?: string;
   indexingStatus: PlatformAgentKnowledgeIndexingStatus;
   indexingError?: string;
@@ -250,6 +251,9 @@ export interface IPlatformAgentKnowledgeChunk {
   docTitle: string;
   text: string;
   contentHash: string;
+  sourceContentHash?: string;
+  embeddingUserId?: string;
+  embeddingRouteKey?: string;
   chunkIndex: number;
   embedding?: number[];
   updatedAt: string;
@@ -261,9 +265,13 @@ export const platformAgentKnowledgeDocumentFormSchema = z.object({
   tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
 });
 
+export const updatePlatformAgentKnowledgeDocumentFormSchema =
+  platformAgentKnowledgeDocumentFormSchema.partial();
+
 export type ICreatePlatformAgentKnowledgeDocumentRequest = z.infer<
   typeof platformAgentKnowledgeDocumentFormSchema
 >;
 
-export type IUpdatePlatformAgentKnowledgeDocumentRequest =
-  Partial<ICreatePlatformAgentKnowledgeDocumentRequest>;
+export type IUpdatePlatformAgentKnowledgeDocumentRequest = z.infer<
+  typeof updatePlatformAgentKnowledgeDocumentFormSchema
+>;

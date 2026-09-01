@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { ICreatePlatformAgentKnowledgeDocumentRequest } from '@shared-types';
+import { platformAgentKnowledgeDocumentFormSchema } from '@shared-types';
 import { revalidatePath } from 'next/cache';
 import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
 import { requireAdminSession } from '@admin/auth/session';
@@ -22,7 +22,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await requireAdminSession();
-    const body = (await request.json()) as ICreatePlatformAgentKnowledgeDocumentRequest;
+    const body = platformAgentKnowledgeDocumentFormSchema.parse(
+      await request.json(),
+    );
     const document = await createPlatformAgentKnowledgeDocument(body, session.uid);
     revalidatePath('/agent-knowledge');
     return NextResponse.json({ success: true, document });

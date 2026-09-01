@@ -1,6 +1,10 @@
 'use client';
 
 import { z } from 'zod';
+import type {
+  ICreatePlatformAgentKnowledgeDocumentRequest,
+  IUpdatePlatformAgentKnowledgeDocumentRequest,
+} from '@shared-types';
 import { requestJsonValidated } from './client';
 
 const knowledgeDocumentMutationSchema = z.object({
@@ -15,7 +19,9 @@ const knowledgeDocumentMutationSchema = z.object({
 
 export async function savePlatformAgentKnowledgeDocument(
   docId: string | undefined,
-  payload: Record<string, unknown>,
+  payload:
+    | ICreatePlatformAgentKnowledgeDocumentRequest
+    | IUpdatePlatformAgentKnowledgeDocumentRequest,
 ) {
   return requestJsonValidated(
     docId ? `/api/agent-knowledge/${docId}` : '/api/agent-knowledge',

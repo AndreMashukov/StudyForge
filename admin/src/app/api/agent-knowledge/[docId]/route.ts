@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { IUpdatePlatformAgentKnowledgeDocumentRequest } from '@shared-types';
+import { updatePlatformAgentKnowledgeDocumentFormSchema } from '@shared-types';
 import { revalidatePath } from 'next/cache';
 import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
 import { requireAdminSession } from '@admin/auth/session';
@@ -35,7 +35,9 @@ export async function PUT(request: Request, context: IRouteContext) {
   try {
     const session = await requireAdminSession();
     const { docId } = await context.params;
-    const body = (await request.json()) as IUpdatePlatformAgentKnowledgeDocumentRequest;
+    const body = updatePlatformAgentKnowledgeDocumentFormSchema.parse(
+      await request.json(),
+    );
     const document = await updatePlatformAgentKnowledgeDocument(
       docId,
       body,

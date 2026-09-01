@@ -41,6 +41,17 @@ export const indexPlatformAgentKnowledgeDocument = onDocumentWritten(
     const title = readStringField(after, 'title') ?? 'Untitled';
     const bodyMarkdown = readStringField(after, 'bodyMarkdown') ?? '';
     const publishedBy = readStringField(after, 'publishedBy') ?? 'system';
+    const publishedContentHash = readStringField(after, 'publishedContentHash');
+    if (!publishedContentHash) {
+      await FirestorePaths.platformAgentKnowledgeDocument(docId).set(
+        {
+          indexingStatus: 'failed',
+          indexingError: 'Published content hash is missing.',
+        },
+        { merge: true },
+      );
+      return;
+    }
 
     try {
       await PlatformAgentKnowledgeIndexService.replaceDocumentChunks({
@@ -48,16 +59,31 @@ export const indexPlatformAgentKnowledgeDocument = onDocumentWritten(
         docId,
         docTitle: title,
         bodyMarkdown,
+        sourceContentHash: publishedContentHash,
       });
 
-      await FirestorePaths.platformAgentKnowledgeDocument(docId).set(
-        {
-          indexingStatus: 'indexed',
-          indexedAt: new Date().toISOString(),
-          indexingError: null,
-        },
-        { merge: true },
-      );
+      const docRef = FirestorePaths.platformAgentKnowledgeDocument(docId);
+      await docRef.firestore.runTransaction(async (transaction) => {
+        const current = await transaction.get(docRef);
+        const currentData = current.data();
+        if (
+          !current.exists ||
+          currentData?.status !== 'published' ||
+          currentData?.indexingStatus !== 'indexing' ||
+          currentData?.publishedContentHash !== publishedContentHash
+        ) {
+          return;
+        }
+        transaction.set(
+          docRef,
+          {
+            indexingStatus: 'indexed',
+            indexedAt: new Date().toISOString(),
+            indexingError: null,
+          },
+          { merge: true },
+        );
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       functions.logger.error('Platform agent knowledge indexing failed', {

@@ -10,6 +10,26 @@ const MAX_BATCH_OPERATIONS = 400;
 
 type BatchOperation = (batch: FirebaseFirestore.WriteBatch) => void;
 
+export interface IReplaceDocumentChunksInput {
+  embeddingUserId: string;
+  docId: string;
+  docTitle: string;
+  bodyMarkdown: string;
+  sourceContentHash: string;
+}
+
+export interface ISearchPlatformKnowledgeInput {
+  userId: string;
+  query: string;
+  matchCount?: number;
+}
+
+export interface IPlatformKnowledgeMatch {
+  text: string;
+  docTitle: string;
+  score: number;
+}
+
 async function commitInBatches(
   firestore: FirebaseFirestore.Firestore,
   operations: BatchOperation[],
@@ -22,12 +42,26 @@ async function commitInBatches(
 }
 
 export class PlatformAgentKnowledgeIndexService {
-  static async replaceDocumentChunks(input: {
-    embeddingUserId: string;
-    docId: string;
-    docTitle: string;
-    bodyMarkdown: string;
-  }): Promise<void> {
+  private static async assertCurrentPublishedRevision(
+    input: IReplaceDocumentChunksInput,
+  ): Promise<void> {
+    const snapshot = await FirestorePaths.platformAgentKnowledgeDocument(
+      input.docId,
+    ).get();
+    const data = snapshot.data();
+    if (
+      !snapshot.exists ||
+      data?.status !== 'published' ||
+      data?.indexingStatus !== 'indexing' ||
+      data?.publishedContentHash !== input.sourceContentHash
+    ) {
+      throw new Error('Platform knowledge document changed while indexing');
+    }
+  }
+
+  static async replaceDocumentChunks(
+    input: IReplaceDocumentChunksInput,
+  ): Promise<void> {
     const chunks = chunkText(input.bodyMarkdown);
     const collection = FirestorePaths.platformAgentKnowledgeChunks();
     const existing = await collection.where('docId', '==', input.docId).get();
@@ -42,11 +76,24 @@ export class PlatformAgentKnowledgeIndexService {
       return;
     }
 
+    const embeddingRouteKey = await AgentEmbeddingService.resolveEmbeddingRouteKey(
+      input.embeddingUserId,
+    );
     const embeddings = await AgentEmbeddingService.embedTexts(
       input.embeddingUserId,
       chunks,
     );
+    const routeKeyAfterEmbedding = await AgentEmbeddingService.resolveEmbeddingRouteKey(
+      input.embeddingUserId,
+    );
+    if (routeKeyAfterEmbedding !== embeddingRouteKey) {
+      throw new Error('Agent knowledge embedding route changed while indexing');
+    }
     const now = new Date().toISOString();
+
+    await PlatformAgentKnowledgeIndexService.assertCurrentPublishedRevision(
+      input,
+    );
 
     chunks.forEach((chunk, chunkIndex) => {
       const docRef = collection.doc();
@@ -57,6 +104,9 @@ export class PlatformAgentKnowledgeIndexService {
           docTitle: input.docTitle,
           text: chunk,
           contentHash: hashContent(chunk),
+          sourceContentHash: input.sourceContentHash,
+          embeddingUserId: input.embeddingUserId,
+          embeddingRouteKey,
           chunkIndex,
           embedding: embeddings[chunkIndex] ?? [],
           updatedAt: now,
@@ -81,52 +131,82 @@ export class PlatformAgentKnowledgeIndexService {
     await commitInBatches(collection.firestore, operations);
   }
 
-  static async searchPlatformKnowledge(input: {
-    userId: string;
-    query: string;
-    matchCount?: number;
-  }): Promise<Array<{ text: string; docTitle: string; score: number }>> {
-    const queryEmbedding = await AgentEmbeddingService.embedText(
-      input.userId,
-      input.query,
-    );
+  static async searchPlatformKnowledge(
+    input: ISearchPlatformKnowledgeInput,
+  ): Promise<IPlatformKnowledgeMatch[]> {
     const snapshot = await FirestorePaths.platformAgentKnowledgeChunks().get();
     const publishedSnapshot = await FirestorePaths.platformAgentKnowledgeDocuments()
       .where('status', '==', 'published')
       .get();
-    const publishedDocIds = new Set(publishedSnapshot.docs.map((doc) => doc.id));
+    const publishedHashes = new Map<string, string>();
+    publishedSnapshot.docs.forEach((doc) => {
+      const hash = doc.data().publishedContentHash;
+      if (typeof hash === 'string') {
+        publishedHashes.set(doc.id, hash);
+      }
+    });
 
-    const scored = snapshot.docs
-      .map((doc) => {
-        const data = doc.data();
-        const docId = typeof data.docId === 'string' ? data.docId : '';
-        if (!publishedDocIds.has(docId)) {
-          return null;
-        }
-        const embedding = Array.isArray(data.embedding)
-          ? data.embedding.filter(
-              (value): value is number => typeof value === 'number',
-            )
-          : [];
+    const queryEmbeddingByRoute = new Map<string, number[]>();
+    const scored: IPlatformKnowledgeMatch[] = [];
 
-        return {
-          text: typeof data.text === 'string' ? data.text : '',
-          docTitle:
-            typeof data.docTitle === 'string' ? data.docTitle : 'Untitled',
-          score: cosineSimilarity(queryEmbedding, embedding),
-        };
-      })
-      .filter(
-        (
-          entry,
-        ): entry is { text: string; docTitle: string; score: number } =>
-          entry !== null,
-      )
-      .filter((entry) => entry.score >= MIN_SIMILARITY)
-      .sort((left, right) => right.score - left.score)
-      .slice(0, input.matchCount ?? MAX_MATCH_COUNT);
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      const docId = typeof data.docId === 'string' ? data.docId : '';
+      const sourceContentHash =
+        typeof data.sourceContentHash === 'string'
+          ? data.sourceContentHash
+          : '';
+      if (publishedHashes.get(docId) !== sourceContentHash) {
+        continue;
+      }
 
-    return scored;
+      const embeddingUserId =
+        typeof data.embeddingUserId === 'string'
+          ? data.embeddingUserId
+          : input.userId;
+      const embeddingRouteKey =
+        typeof data.embeddingRouteKey === 'string'
+          ? data.embeddingRouteKey
+          : '';
+      if (!embeddingRouteKey) {
+        continue;
+      }
+
+      const currentRouteKey =
+        await AgentEmbeddingService.resolveEmbeddingRouteKey(embeddingUserId);
+      if (currentRouteKey !== embeddingRouteKey) {
+        continue;
+      }
+
+      const cacheKey = `${embeddingUserId}:${embeddingRouteKey}`;
+      let queryEmbedding = queryEmbeddingByRoute.get(cacheKey);
+      if (!queryEmbedding) {
+        queryEmbedding = await AgentEmbeddingService.embedText(
+          embeddingUserId,
+          input.query,
+        );
+        queryEmbeddingByRoute.set(cacheKey, queryEmbedding);
+      }
+
+      const embedding = Array.isArray(data.embedding)
+        ? data.embedding.filter(
+            (value): value is number => typeof value === 'number',
+          )
+        : [];
+      const score = cosineSimilarity(queryEmbedding, embedding);
+      if (score < MIN_SIMILARITY) {
+        continue;
+      }
+      scored.push({
+        text: typeof data.text === 'string' ? data.text : '',
+        docTitle: typeof data.docTitle === 'string' ? data.docTitle : 'Untitled',
+        score,
+      });
+    }
+
+    scored.sort((left, right) => right.score - left.score);
+
+    return scored.slice(0, input.matchCount ?? MAX_MATCH_COUNT);
   }
 
   static toChunkRecord(
@@ -139,6 +219,18 @@ export class PlatformAgentKnowledgeIndexService {
       docTitle: typeof data.docTitle === 'string' ? data.docTitle : 'Untitled',
       text: typeof data.text === 'string' ? data.text : '',
       contentHash: typeof data.contentHash === 'string' ? data.contentHash : '',
+      sourceContentHash:
+        typeof data.sourceContentHash === 'string'
+          ? data.sourceContentHash
+          : undefined,
+      embeddingUserId:
+        typeof data.embeddingUserId === 'string'
+          ? data.embeddingUserId
+          : undefined,
+      embeddingRouteKey:
+        typeof data.embeddingRouteKey === 'string'
+          ? data.embeddingRouteKey
+          : undefined,
       chunkIndex: typeof data.chunkIndex === 'number' ? data.chunkIndex : 0,
       embedding: Array.isArray(data.embedding)
         ? data.embedding.filter((value): value is number => typeof value === 'number')

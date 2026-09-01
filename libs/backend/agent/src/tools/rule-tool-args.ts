@@ -54,15 +54,15 @@ export function parseOptionalRuleColor(value: unknown): RuleColor | undefined {
   return parseRuleColor(value);
 }
 
-export function parseStringArray(value: unknown): string[] {
+export function parseStringArray(value: unknown, fieldName = 'tags'): string[] {
   if (!Array.isArray(value)) {
-    throw new Error('tags must be an array of strings');
+    throw new Error(`${fieldName} must be an array of strings`);
   }
 
   const result: string[] = [];
   for (const item of value) {
     if (typeof item !== 'string') {
-      throw new Error('tags must be an array of strings');
+      throw new Error(`${fieldName} must be an array of strings`);
     }
     result.push(item);
   }

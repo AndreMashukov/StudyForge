@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
-import { Button } from '@study-forge/ui';
 import { AdminPageHeader } from '@admin/components/layout/AdminPageHeader';
+import { Button } from '@admin/components/ui/Button';
 import { TableSkeleton } from '@admin/components/loading';
 import { AgentKnowledgeTable } from '@admin/app/(app)/agent-knowledge/_components/AgentKnowledgeTable';
 import { listPlatformAgentKnowledgeDocuments } from '@admin/data/platform-agent-knowledge';

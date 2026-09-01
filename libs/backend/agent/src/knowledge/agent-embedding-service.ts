@@ -139,6 +139,18 @@ async function embedWithGemini(
 }
 
 export class AgentEmbeddingService {
+  static async resolveEmbeddingRouteKey(userId: string): Promise<string> {
+    const resolution = await LlmGenerationRouteResolver.resolve('agentKnowledgeEmbedding', {
+      userId,
+    });
+
+    return [
+      resolution.route.providerType,
+      resolution.route.connectionId,
+      resolution.route.model,
+    ].join(':');
+  }
+
   static async embedTexts(userId: string, inputs: string[]): Promise<number[][]> {
     if (inputs.length === 0) {
       return [];

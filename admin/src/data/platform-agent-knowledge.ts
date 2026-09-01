@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { createHash } from 'node:crypto';
+import { FieldValue } from 'firebase-admin/firestore';
 import type {
   ICreatePlatformAgentKnowledgeDocumentRequest,
   IPlatformAgentKnowledgeDocument,
@@ -12,6 +14,25 @@ import { requireAdminSession } from '../auth/session';
 import { getAdminApp, getAdminFirestore } from '../firebase/admin';
 
 const COLLECTION = 'platformAgentKnowledgeDocuments';
+
+interface IPlatformAgentKnowledgeDocumentUpdates {
+  title?: string;
+  bodyMarkdown?: string;
+  tags?: string[] | FirebaseFirestore.FieldValue;
+  status?: PlatformAgentKnowledgeDocumentStatus;
+  updatedAt?: string;
+  updatedBy?: string;
+  publishedAt?: string;
+  publishedBy?: string;
+  publishedContentHash?: string | FirebaseFirestore.FieldValue;
+  indexedAt?: string | FirebaseFirestore.FieldValue;
+  indexingStatus?: PlatformAgentKnowledgeIndexingStatus;
+  indexingError?: string | FirebaseFirestore.FieldValue | null;
+}
+
+function hashMarkdownContent(content: string): string {
+  return createHash('sha256').update(content).digest('hex');
+}
 
 function parseDocument(
   id: string,
@@ -51,6 +72,10 @@ function parseDocument(
       typeof data.publishedAt === 'string' ? data.publishedAt : undefined,
     publishedBy:
       typeof data.publishedBy === 'string' ? data.publishedBy : undefined,
+    publishedContentHash:
+      typeof data.publishedContentHash === 'string'
+        ? data.publishedContentHash
+        : undefined,
     indexedAt: typeof data.indexedAt === 'string' ? data.indexedAt : undefined,
     indexingStatus,
     indexingError:
@@ -119,11 +144,13 @@ export async function createPlatformAgentKnowledgeDocument(
     title: validated.title,
     bodyMarkdown: validated.bodyMarkdown,
     status: 'draft',
-    tags: validated.tags,
     updatedAt: now,
     updatedBy: adminUid,
     indexingStatus: 'idle',
   };
+  if (validated.tags?.length) {
+    record.tags = validated.tags;
+  }
 
   await ref.set(record);
   return record;
@@ -150,17 +177,19 @@ export async function updatePlatformAgentKnowledgeDocument(
   const validated = validateCreatePayload(merged);
   const now = new Date().toISOString();
 
-  const updates: Partial<IPlatformAgentKnowledgeDocument> = {
+  const updates: IPlatformAgentKnowledgeDocumentUpdates = {
     title: validated.title,
     bodyMarkdown: validated.bodyMarkdown,
-    tags: validated.tags,
+    tags: validated.tags?.length ? validated.tags : FieldValue.delete(),
     updatedAt: now,
     updatedBy: adminUid,
   };
 
   if (existing.status === 'published') {
     updates.indexingStatus = 'idle';
-    updates.indexingError = undefined;
+    updates.indexingError = FieldValue.delete();
+    updates.publishedContentHash = FieldValue.delete();
+    updates.indexedAt = FieldValue.delete();
   }
 
   await getAdminFirestore().collection(COLLECTION).doc(docId).set(updates, {
@@ -187,6 +216,7 @@ export async function publishPlatformAgentKnowledgeDocument(
   }
 
   const now = new Date().toISOString();
+  const publishedContentHash = hashMarkdownContent(existing.bodyMarkdown);
   await getAdminFirestore()
     .collection(COLLECTION)
     .doc(docId)
@@ -195,10 +225,11 @@ export async function publishPlatformAgentKnowledgeDocument(
         status: 'published' satisfies PlatformAgentKnowledgeDocumentStatus,
         publishedAt: now,
         publishedBy: adminUid,
+        publishedContentHash,
         updatedAt: now,
         updatedBy: adminUid,
         indexingStatus: 'indexing' satisfies PlatformAgentKnowledgeIndexingStatus,
-        indexingError: null,
+        indexingError: FieldValue.delete(),
       },
       { merge: true },
     );
