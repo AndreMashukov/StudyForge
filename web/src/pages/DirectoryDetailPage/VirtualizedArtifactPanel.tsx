@@ -47,7 +47,7 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
   ruleNamesMap,
   mayBeTruncated = false,
 }: IVirtualizedArtifactPanelProps<TType>): React.JSX.Element => {
-  const { placeholders } = useOptimisticGeneratingRow(directoryId, panelType);
+  const { placeholders } = useOptimisticGeneratingRow(directoryId, panelType, artifacts);
   const visibleCount = artifacts.length + placeholders.length;
   const bulk = useBulkArtifactPanel({
     artifacts,

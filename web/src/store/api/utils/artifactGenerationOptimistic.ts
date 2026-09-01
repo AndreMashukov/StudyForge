@@ -16,6 +16,8 @@ export interface IOptimisticTitleInput {
   sequenceQuizName?: string;
   prompt?: string;
   content?: string;
+  urls?: string[];
+  fileName?: string;
 }
 
 const ARTIFACT_NAME_FIELDS = [
@@ -43,6 +45,19 @@ export function getOptimisticArtifactTitle(arg: IOptimisticTitleInput): string |
     if (typeof value === 'string' && value.trim()) {
       return value.trim();
     }
+  }
+
+  const urls = arg.urls?.filter((url) => typeof url === 'string' && url.trim());
+  if (urls && urls.length === 1) {
+    return urls[0];
+  }
+  if (urls && urls.length > 1) {
+    return `Importing from ${urls.length} URLs…`;
+  }
+
+  const fileName = arg.fileName;
+  if (typeof fileName === 'string' && fileName.trim()) {
+    return fileName.trim();
   }
 
   const prompt = arg.prompt;
