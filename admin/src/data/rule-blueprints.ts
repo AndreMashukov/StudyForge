@@ -7,7 +7,7 @@ import type {
   IUpdateRuleBlueprintRequest,
   RuleBlueprintStatus,
 } from '@shared-types';
-import { ruleBlueprintFormSchema } from '@shared-types';
+import { parseRuleBlueprintForm } from '@shared-types';
 import { requireAdminSession } from '../auth/session';
 import { getAdminApp, getAdminFirestore } from '../firebase/admin';
 
@@ -90,12 +90,7 @@ function parseBlueprint(
 function validatePayload(
   payload: ICreateRuleBlueprintRequest,
 ): ICreateRuleBlueprintRequest {
-  const parsed = ruleBlueprintFormSchema.safeParse(payload);
-  if (!parsed.success) {
-    const message = parsed.error.issues[0]?.message ?? 'Invalid blueprint payload.';
-    throw new Error(message);
-  }
-  return parsed.data;
+  return parseRuleBlueprintForm(payload);
 }
 
 export async function listRuleBlueprints(): Promise<IRuleBlueprint[]> {

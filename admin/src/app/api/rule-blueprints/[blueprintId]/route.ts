@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { updateRuleBlueprintFormSchema } from '@shared-types';
+import { parseUpdateRuleBlueprintForm } from '@shared-types';
 import { revalidatePath } from 'next/cache';
 import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
 import { requireAdminSession } from '@admin/auth/session';
@@ -38,7 +38,7 @@ export async function PUT(request: Request, context: IRouteContext) {
   try {
     const session = await requireAdminSession();
     const { blueprintId } = await context.params;
-    const body = updateRuleBlueprintFormSchema.parse(await request.json());
+    const body = parseUpdateRuleBlueprintForm(await request.json());
     const blueprint = await updateRuleBlueprint(
       blueprintId,
       body,

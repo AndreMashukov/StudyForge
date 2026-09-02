@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { ruleBlueprintFormSchema } from '@shared-types';
+import { parseRuleBlueprintForm, parseUpdateRuleBlueprintForm } from '@shared-types';
 import { revalidatePath } from 'next/cache';
 import { getAdminApiStatusCode } from '@admin/app/api/_utils/route-utils';
 import { requireAdminSession } from '@admin/auth/session';
@@ -25,7 +25,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await requireAdminSession();
-    const body = ruleBlueprintFormSchema.parse(await request.json());
+    const body = parseRuleBlueprintForm(await request.json());
     const blueprint = await createRuleBlueprint(body, session.uid);
     revalidatePath('/rule-blueprints');
     return NextResponse.json({ success: true, blueprint });

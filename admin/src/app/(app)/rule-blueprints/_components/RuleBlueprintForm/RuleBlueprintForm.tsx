@@ -7,8 +7,10 @@ import { useForm } from 'react-hook-form';
 import {
   RuleApplicability,
   RuleColor,
+  parseRuleBlueprintForm,
   ruleBlueprintFormSchema,
   type ICreateRuleBlueprintRequest,
+  type IRuleBlueprintFormValues,
 } from '@shared-types';
 import {
   isAdminUnauthorizedResponse,
@@ -56,7 +58,7 @@ export function RuleBlueprintForm({
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const form = useForm<ICreateRuleBlueprintRequest>({
+  const form = useForm<IRuleBlueprintFormValues>({
     resolver: zodResolver(ruleBlueprintFormSchema),
     defaultValues,
   });
@@ -66,14 +68,7 @@ export function RuleBlueprintForm({
     setNotice(null);
 
     try {
-      const payload: ICreateRuleBlueprintRequest = {
-        name: values.name.trim(),
-        description: values.description?.trim() || undefined,
-        content: values.content.trim(),
-        color: values.color,
-        tags: values.tags.map((tag) => tag.trim()).filter(Boolean),
-        applicableTo: values.applicableTo,
-      };
+      const payload = parseRuleBlueprintForm(values);
 
       const { response, payload: result } = await saveRuleBlueprint(
         blueprintId,

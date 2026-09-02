@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { RuleApplicability, RuleColor } from './index';
+import { RuleApplicability, RuleColor } from './index';
 
 export type RuleBlueprintStatus = 'draft' | 'published' | 'archived';
 
@@ -33,6 +33,37 @@ export interface IRuleBlueprintSummary {
   status: RuleBlueprintStatus;
   version: number;
   updatedAt: string;
+}
+
+export interface ICreateRuleBlueprintRequest {
+  name: string;
+  description?: string;
+  content: string;
+  color: RuleColor;
+  tags: string[];
+  applicableTo: RuleApplicability[];
+}
+
+export interface IUpdateRuleBlueprintRequest {
+  name?: string;
+  description?: string;
+  content?: string;
+  color?: RuleColor;
+  tags?: string[];
+  applicableTo?: RuleApplicability[];
+}
+
+const RULE_COLOR_VALUES = new Set<string>(Object.values(RuleColor));
+const RULE_APPLICABILITY_VALUES = new Set<string>(
+  Object.values(RuleApplicability),
+);
+
+function isRuleColor(value: string): value is RuleColor {
+  return RULE_COLOR_VALUES.has(value);
+}
+
+function isRuleApplicability(value: string): value is RuleApplicability {
+  return RULE_APPLICABILITY_VALUES.has(value);
 }
 
 const ruleColorSchema = z.enum([
@@ -74,10 +105,82 @@ export const ruleBlueprintFormSchema = z.object({
 
 export const updateRuleBlueprintFormSchema = ruleBlueprintFormSchema.partial();
 
-export type ICreateRuleBlueprintRequest = z.infer<typeof ruleBlueprintFormSchema>;
-export type IUpdateRuleBlueprintRequest = z.infer<
-  typeof updateRuleBlueprintFormSchema
->;
+export type IRuleBlueprintFormValues = z.infer<typeof ruleBlueprintFormSchema>;
+
+function toCreateRuleBlueprintRequest(
+  parsed: IRuleBlueprintFormValues,
+): ICreateRuleBlueprintRequest {
+  if (!isRuleColor(parsed.color)) {
+    throw new Error('Invalid rule color.');
+  }
+
+  const applicableTo = parsed.applicableTo.filter(isRuleApplicability);
+  if (applicableTo.length !== parsed.applicableTo.length) {
+    throw new Error('Invalid rule applicability.');
+  }
+
+  return {
+    name: parsed.name,
+    description: parsed.description,
+    content: parsed.content,
+    color: parsed.color,
+    tags: parsed.tags,
+    applicableTo,
+  };
+}
+
+export function parseRuleBlueprintForm(
+  payload: unknown,
+): ICreateRuleBlueprintRequest {
+  const parsed = ruleBlueprintFormSchema.safeParse(payload);
+  if (!parsed.success) {
+    const message =
+      parsed.error.issues[0]?.message ?? 'Invalid blueprint payload.';
+    throw new Error(message);
+  }
+  return toCreateRuleBlueprintRequest(parsed.data);
+}
+
+export function parseUpdateRuleBlueprintForm(
+  payload: unknown,
+): IUpdateRuleBlueprintRequest {
+  const parsed = updateRuleBlueprintFormSchema.safeParse(payload);
+  if (!parsed.success) {
+    const message =
+      parsed.error.issues[0]?.message ?? 'Invalid blueprint payload.';
+    throw new Error(message);
+  }
+
+  const update: IUpdateRuleBlueprintRequest = {};
+
+  if (parsed.data.name !== undefined) {
+    update.name = parsed.data.name;
+  }
+  if (parsed.data.description !== undefined) {
+    update.description = parsed.data.description;
+  }
+  if (parsed.data.content !== undefined) {
+    update.content = parsed.data.content;
+  }
+  if (parsed.data.color !== undefined) {
+    if (!isRuleColor(parsed.data.color)) {
+      throw new Error('Invalid rule color.');
+    }
+    update.color = parsed.data.color;
+  }
+  if (parsed.data.tags !== undefined) {
+    update.tags = parsed.data.tags;
+  }
+  if (parsed.data.applicableTo !== undefined) {
+    const applicableTo = parsed.data.applicableTo.filter(isRuleApplicability);
+    if (applicableTo.length !== parsed.data.applicableTo.length) {
+      throw new Error('Invalid rule applicability.');
+    }
+    update.applicableTo = applicableTo;
+  }
+
+  return update;
+}
 
 export interface ISearchRuleBlueprintsRequest {
   query?: string;
