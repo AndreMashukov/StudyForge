@@ -43,6 +43,13 @@ export async function createRule(
     applicableTo: request.applicableTo,
     isDefault: request.isDefault || false,
     directoryIds: [], // Empty initially, attached separately
+    ...(request.sourceBlueprintId
+      ? {
+          sourceBlueprintId: request.sourceBlueprintId,
+          sourceBlueprintVersion: request.sourceBlueprintVersion,
+          sourceBlueprintName: request.sourceBlueprintName,
+        }
+      : {}),
     createdAt: now,
     updatedAt: now,
   };

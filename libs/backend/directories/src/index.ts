@@ -5,3 +5,4 @@ export * from './directory-chat-retrieval';
 export * from './directory-item-index';
 export * from './rule-crud';
 export * from './rule-resolution';
+export * from './rule-blueprints';

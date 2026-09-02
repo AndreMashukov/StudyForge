@@ -49,6 +49,7 @@ import {
 const MAX_MESSAGE_LENGTH = 10_000;
 const RULE_CACHE_ACTION_KINDS = new Set<AgentActionKind>([
   'create_rule',
+  'create_rule_from_blueprint',
   'update_rule',
   'attach_rule',
   'detach_rule',

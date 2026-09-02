@@ -20,6 +20,10 @@ import {
   getRules,
   updateRule,
 } from '@study-forge/backend-directories/rule-crud';
+import {
+  createRuleFromBlueprint,
+  searchRuleBlueprints,
+} from '@study-forge/backend-directories/rule-blueprints';
 import { getApplicableRules } from '@study-forge/backend-directories/rule-resolution';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
@@ -389,6 +393,39 @@ export function createAgentToolDefinitions(
       description: 'List user rules.',
       parameters: { type: 'object', properties: {} },
       execute: async () => getRules(context.userId),
+    },
+    {
+      name: 'search_rule_blueprints',
+      description:
+        'Search published platform rule blueprints. Use this before creating rules so you base new rules on canonical templates, not existing user-editable rules.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string' },
+          applicableTo: { type: 'string', enum: RULE_APPLICABILITY_ENUM },
+          tags: { type: 'array', items: { type: 'string' } },
+          limit: { type: 'number' },
+        },
+      },
+      execute: async (args) => {
+        const query = typeof args.query === 'string' ? args.query.trim() : '';
+        const applicableTo =
+          typeof args.applicableTo === 'string'
+            ? parseRuleApplicabilityArray([args.applicableTo])[0]
+            : undefined;
+        const tags =
+          args.tags === undefined ? undefined : parseStringArray(args.tags, 'tags');
+        const limit =
+          typeof args.limit === 'number' && Number.isFinite(args.limit)
+            ? Math.floor(args.limit)
+            : undefined;
+        return searchRuleBlueprints({
+          query: query || undefined,
+          applicableTo,
+          tags,
+          limit,
+        });
+      },
     },
     {
       name: 'create_directory',
@@ -777,7 +814,7 @@ export function createAgentToolDefinitions(
     {
       name: 'create_rule',
       description:
-        'Create a reusable rule. Set applicableTo to control which generation kinds use the rule (for example slide_deck, quiz, chat).',
+        'Create a reusable rule from scratch. Prefer create_rule_from_blueprint when a published blueprint matches the request.',
       parameters: {
         type: 'object',
         properties: {
@@ -824,6 +861,79 @@ export function createAgentToolDefinitions(
         pushAction(context, {
           kind: 'create_rule',
           summary: `Created rule "${rule.name}"`,
+          entityType: 'rule',
+          entityId: rule.id,
+        });
+        return rule;
+      },
+    },
+    {
+      name: 'create_rule_from_blueprint',
+      description:
+        'Create a user rule from a published platform blueprint. Search blueprints first, read the template, then pass a customized name and content variant. Optionally attach to a directory in the same call.',
+      parameters: {
+        type: 'object',
+        properties: {
+          blueprintId: { type: 'string' },
+          name: { type: 'string' },
+          content: { type: 'string' },
+          description: { type: 'string' },
+          color: { type: 'string', enum: RULE_COLOR_ENUM },
+          tags: { type: 'array', items: { type: 'string' } },
+          applicableTo: {
+            type: 'array',
+            items: { type: 'string', enum: RULE_APPLICABILITY_ENUM },
+          },
+          isDefault: { type: 'boolean' },
+          directoryId: { type: 'string' },
+        },
+        required: ['blueprintId', 'name', 'content'],
+      },
+      execute: async (args) => {
+        const blueprintId =
+          typeof args.blueprintId === 'string' ? args.blueprintId.trim() : '';
+        const name = typeof args.name === 'string' ? args.name.trim() : '';
+        const content =
+          typeof args.content === 'string' ? args.content.trim() : '';
+        if (!blueprintId || !name || !content) {
+          throw new Error('blueprintId, name, and content are required');
+        }
+
+        const directoryId =
+          typeof args.directoryId === 'string'
+            ? args.directoryId.trim()
+            : undefined;
+        if (directoryId) {
+          assertDirectoryInScope(context, directoryId);
+        }
+
+        const applicableTo =
+          args.applicableTo === undefined
+            ? undefined
+            : parseRuleApplicabilityArray(args.applicableTo);
+
+        const rule = await createRuleFromBlueprint(context.userId, {
+          blueprintId,
+          name,
+          content,
+          description:
+            typeof args.description === 'string' ? args.description : undefined,
+          color:
+            args.color === undefined
+              ? undefined
+              : (parseOptionalRuleColor(args.color) ?? undefined),
+          tags:
+            args.tags === undefined
+              ? undefined
+              : parseStringArray(args.tags, 'tags'),
+          applicableTo,
+          isDefault: parseOptionalBoolean(args.isDefault) ?? false,
+          directoryId,
+        });
+        await AgentKnowledgeLifecycle.indexRule(context.userId, rule.id);
+        pushAction(context, {
+          kind: 'create_rule_from_blueprint',
+          summary: `Created rule "${rule.name}" from blueprint`,
           entityType: 'rule',
           entityId: rule.id,
         });
@@ -1125,6 +1235,7 @@ export function actionKindFromToolName(
     create_document: 'create_document',
     generate_quiz: 'generate_quiz',
     create_rule: 'create_rule',
+    create_rule_from_blueprint: 'create_rule_from_blueprint',
     update_rule: 'update_rule',
     attach_rule_to_directory: 'attach_rule',
     detach_rule_from_directory: 'detach_rule',

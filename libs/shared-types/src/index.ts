@@ -1329,6 +1329,9 @@ export interface Rule {
   applicableTo: RuleApplicability[];
   isDefault: boolean; // Always apply — auto-selected for applicable operations
   directoryIds: string[]; // Directories this rule is attached to
+  sourceBlueprintId?: string;
+  sourceBlueprintVersion?: number;
+  sourceBlueprintName?: string;
   createdAt: Date | { toDate(): Date };
   updatedAt: Date | { toDate(): Date };
 }
@@ -1342,6 +1345,9 @@ export interface CreateRuleRequest {
   tags: string[];
   applicableTo: RuleApplicability[];
   isDefault?: boolean;
+  sourceBlueprintId?: string;
+  sourceBlueprintVersion?: number;
+  sourceBlueprintName?: string;
 }
 
 export interface UpdateRuleRequest {
@@ -2568,3 +2574,5 @@ export interface IBulkDeleteArtifactItem {
 export interface IBulkDeleteArtifactsRequest {
   artifacts: IBulkDeleteArtifactItem[];
 }
+
+export * from './rule-blueprints';

@@ -189,4 +189,8 @@ export const FirestorePaths = {
     FirestorePaths.platformAgentKnowledgeDocuments().doc(docId),
   platformAgentKnowledgeChunks: () =>
     db().collection('platformAgentKnowledgeChunks'),
+
+  platformRuleBlueprints: () => db().collection('platformRuleBlueprints'),
+  platformRuleBlueprint: (blueprintId: string) =>
+    FirestorePaths.platformRuleBlueprints().doc(blueprintId),
 };

@@ -285,6 +285,8 @@ function buildSystemPrompt(input: {
     'When generating documents, quizzes, or flashcard sets, state the estimated item counts and credits before enqueueing jobs. Under 100 credits and within 10 documents, 10 quizzes, and 10 flashcard sets per turn, you may generate in the same response. Above those limits, propose a smaller plan and ask for confirmation.',
     'Never generate slide decks, diagram quizzes, or sequence quizzes from the workspace agent in this version. Explain they must use the app generators instead.',
     'Route all generation through create_document, generate_quiz, or generate_flashcards. Never invent content directly when a generation pipeline exists.',
+    'When creating rules, search published rule blueprints first with search_rule_blueprints. Use create_rule_from_blueprint with a customized variant based on the best matching blueprint. Do not copy from existing user rules as templates.',
+    'For document generation rules, prefer separate optional blueprints for document format, Mermaid diagrams, math formulas, and Plotly plots. Attach only what the subject needs (for example skip math and plots for language learning).',
     'Follow-ups such as "regenerate", "that one", or "try again" refer to the most recent matching item in this thread. Do not ask the user to restate it.',
     'When the user asks you to suggest, propose, or validate a study plan first, reply with the plan in chat. Do not call create_document or create_directory until they approve.',
     'For other study plans and proposals, answer in chat first unless the user asks you to create directories or documents now.',

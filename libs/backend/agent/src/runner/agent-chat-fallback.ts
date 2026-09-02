@@ -212,6 +212,7 @@ function summarizeToolOutcome(outcome: AgentToolOutcome): string {
     case 'create_directory':
       return summarizeCreateDirectory(outcome.result);
     case 'create_rule':
+    case 'create_rule_from_blueprint':
       return summarizeCreateRule(outcome.result);
     case 'update_rule':
       return isRecord(outcome.result) && asString(outcome.result.name)
@@ -227,6 +228,10 @@ function summarizeToolOutcome(outcome: AgentToolOutcome): string {
       return Array.isArray(outcome.result)
         ? `Retrieved ${outcome.result.length} knowledge chunks.`
         : 'Searched knowledge.';
+    case 'search_rule_blueprints':
+      return Array.isArray(outcome.result)
+        ? `Found ${outcome.result.length} rule blueprints.`
+        : 'Searched rule blueprints.';
     case 'generate_quiz':
       return 'Started quiz generation.';
     case 'propose_delete_rule':

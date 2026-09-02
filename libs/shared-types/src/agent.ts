@@ -47,6 +47,7 @@ export const agentActionKindSchema = z.enum([
   'generate_flashcards',
   'update_quiz',
   'create_rule',
+  'create_rule_from_blueprint',
   'update_rule',
   'attach_rule',
   'detach_rule',
