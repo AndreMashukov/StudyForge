@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { RuleApplicability, RuleColor } from './index';
+import type { RuleApplicability, RuleColor } from './index';
 
 export type RuleBlueprintStatus = 'draft' | 'published' | 'archived';
 
@@ -53,19 +53,6 @@ export interface IUpdateRuleBlueprintRequest {
   applicableTo?: RuleApplicability[];
 }
 
-const RULE_COLOR_VALUES = new Set<string>(Object.values(RuleColor));
-const RULE_APPLICABILITY_VALUES = new Set<string>(
-  Object.values(RuleApplicability),
-);
-
-function isRuleColor(value: string): value is RuleColor {
-  return RULE_COLOR_VALUES.has(value);
-}
-
-function isRuleApplicability(value: string): value is RuleApplicability {
-  return RULE_APPLICABILITY_VALUES.has(value);
-}
-
 const ruleColorSchema = z.enum([
   'red',
   'orange',
@@ -91,6 +78,14 @@ const ruleApplicabilitySchema = z.enum([
   'diagram_quiz',
   'sequence_quiz',
 ]);
+
+function isRuleColor(value: string): value is RuleColor {
+  return ruleColorSchema.safeParse(value).success;
+}
+
+function isRuleApplicability(value: string): value is RuleApplicability {
+  return ruleApplicabilitySchema.safeParse(value).success;
+}
 
 export const ruleBlueprintFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(100),
