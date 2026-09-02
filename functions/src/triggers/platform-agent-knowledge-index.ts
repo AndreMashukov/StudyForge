@@ -1,7 +1,10 @@
+import { defineSecret } from 'firebase-functions/params';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as functions from 'firebase-functions/v2';
 import { PlatformAgentKnowledgeIndexService } from '@study-forge/backend-agent/knowledge/platform-agent-knowledge-index-service';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
+
+const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
 function readStringField(
   data: FirebaseFirestore.DocumentData | undefined,
@@ -15,6 +18,7 @@ export const indexPlatformAgentKnowledgeDocument = onDocumentWritten(
   {
     document: 'platformAgentKnowledgeDocuments/{docId}',
     region: 'asia-east1',
+    secrets: [llmSettingsEncryptionKey],
   },
   async (event) => {
     const docId = event.params.docId;
