@@ -41,7 +41,7 @@ export const UsagePageContainer: React.FC = () => {
   if (usage.isError) {
     return (
       <Page showSidebar={true}>
-        <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
           <header className="flex items-center gap-3">
             <Gauge className="h-6 w-6 text-primary" aria-hidden />
             <div>
@@ -66,7 +66,7 @@ export const UsagePageContainer: React.FC = () => {
   if (!usage.data) {
     return (
       <Page showSidebar={true}>
-        <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
           <header className="flex items-center gap-3">
             <Gauge className="h-6 w-6 text-primary" aria-hidden />
             <div>
@@ -90,7 +90,7 @@ export const UsagePageContainer: React.FC = () => {
 
   return (
     <Page showSidebar={true}>
-      <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
         <header className="flex items-center gap-3">
           <Gauge className="h-6 w-6 text-primary" aria-hidden />
           <div>
