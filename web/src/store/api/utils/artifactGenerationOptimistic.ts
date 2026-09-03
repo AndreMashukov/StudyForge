@@ -14,6 +14,7 @@ export interface IOptimisticTitleInput {
   quizName?: string;
   diagramQuizName?: string;
   sequenceQuizName?: string;
+  matchQuizName?: string;
   prompt?: string;
   content?: string;
   urls?: string[];
@@ -24,6 +25,7 @@ const ARTIFACT_NAME_FIELDS = [
   'quizName',
   'diagramQuizName',
   'sequenceQuizName',
+  'matchQuizName',
   'title',
 ] as const satisfies ReadonlyArray<keyof IOptimisticTitleInput>;
 
@@ -104,6 +106,12 @@ const ARTIFACT_PANEL_CONFIG: Partial<
     summaryType: 'sequenceQuiz',
     getRecordId: (data) =>
       (data.data as { sequenceQuizId?: string; id?: string } | undefined)?.sequenceQuizId
+      ?? (data.data as { id?: string } | undefined)?.id,
+  },
+  matchQuizzes: {
+    summaryType: 'matchQuiz',
+    getRecordId: (data) =>
+      (data.data as { matchQuizId?: string; id?: string } | undefined)?.matchQuizId
       ?? (data.data as { id?: string } | undefined)?.id,
   },
 };

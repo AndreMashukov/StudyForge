@@ -387,6 +387,12 @@ export async function deleteDirectoryInFirestore(
       dirId,
       FIRESTORE_ARTIFACTS_LIST_LIMIT,
     );
+    await deleteCollectionByDirectoryId(
+      userId,
+      'matchQuizzes',
+      dirId,
+      FIRESTORE_ARTIFACTS_LIST_LIMIT,
+    );
   }
 
   for (let i = 0; i < allDirectoryIds.length; i += 500) {

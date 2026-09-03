@@ -53,6 +53,10 @@ export function sequenceQuizRef(userId: string, sequenceQuizId: string) {
   return doc(db, 'users', userId, 'sequenceQuizzes', sequenceQuizId);
 }
 
+export function matchQuizRef(userId: string, matchQuizId: string) {
+  return doc(db, 'users', userId, 'matchQuizzes', matchQuizId);
+}
+
 export function directoryChatThreadRef(userId: string, directoryId: string) {
   return doc(db, 'users', userId, 'directories', directoryId, 'chat', 'thread');
 }

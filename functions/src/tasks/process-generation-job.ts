@@ -18,6 +18,7 @@ import { DocumentFromScreenshotGenerationProcessor } from '@study-forge/backend-
 import { FlashcardsGenerationProcessor } from '@study-forge/backend-generation/generation-processors/flashcards';
 import { QuizGenerationProcessor } from '@study-forge/backend-generation/generation-processors/quiz';
 import { SequenceQuizGenerationProcessor } from '@study-forge/backend-generation/generation-processors/sequence-quiz';
+import { MatchQuizGenerationProcessor } from '@study-forge/backend-generation/generation-processors/match-quiz';
 import { SlideDeckGenerationProcessor } from '@study-forge/backend-generation/generation-processors/slide-deck';
 import { ProcessGenerationJobTaskPayload } from '@study-forge/backend-generation/generation-task-queue';
 import {
@@ -137,6 +138,9 @@ async function processJob(job: GenerationJob): Promise<void> {
       return;
     case 'sequenceQuiz':
       await SequenceQuizGenerationProcessor.process(job);
+      return;
+    case 'matchQuiz':
+      await MatchQuizGenerationProcessor.process(job);
       return;
     case 'slideDeck':
       await SlideDeckGenerationProcessor.process(job);

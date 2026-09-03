@@ -49,6 +49,7 @@ import { SlidesPanel } from './SlidesPanel';
 import { DiagramQuizzesPanel } from './DiagramQuizzesPanel';
 import { Spinner } from '../../components/ui/Spinner';
 import { SequenceQuizzesPanel } from './SequenceQuizzesPanel';
+import { MatchQuizzesPanel } from './MatchQuizzesPanel';
 import { RulesPanel } from './RulesPanel';
 import { TooltipProvider } from '../../components/ui/Tooltip';
 import { DirectoryChatPanel } from '../../components/DirectoryChatPanel';
@@ -277,6 +278,7 @@ export const DirectoryDetailPageContainer = () => {
   const slideDecks = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'slideDeck' } => a.type === 'slideDeck');
   const diagramQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'diagramQuiz' } => a.type === 'diagramQuiz');
   const sequenceQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'sequenceQuiz' } => a.type === 'sequenceQuiz');
+  const matchQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'matchQuiz' } => a.type === 'matchQuiz');
   const directoryRules = directoryRulesData?.rules ?? [];
   const ruleNamesMap = new Map<string, string>(
     directoryRules.map((rule) => [rule.id, rule.name]),
@@ -289,6 +291,7 @@ export const DirectoryDetailPageContainer = () => {
   const slidesTruncated = slideDecks.length >= ARTIFACT_PAGE_LIMIT;
   const diagramQuizzesTruncated = diagramQuizzes.length >= ARTIFACT_PAGE_LIMIT;
   const sequenceQuizzesTruncated = sequenceQuizzes.length >= ARTIFACT_PAGE_LIMIT;
+  const matchQuizzesTruncated = matchQuizzes.length >= ARTIFACT_PAGE_LIMIT;
 
   return (
     <TooltipProvider>
@@ -482,6 +485,16 @@ export const DirectoryDetailPageContainer = () => {
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
                 ruleNamesMap={ruleNamesMap}
                 onCreate={() => handleOpenCreateArtifact('sequenceQuizzes')}
+              />
+            )}
+            {activePanel === 'matchQuizzes' && (
+              <MatchQuizzesPanel
+                matchQuizzes={matchQuizzes}
+                directoryId={directoryId}
+                mayBeTruncated={matchQuizzesTruncated}
+                onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
+                ruleNamesMap={ruleNamesMap}
+                onCreate={() => handleOpenCreateArtifact('matchQuizzes')}
               />
             )}
             {activePanel === 'chat' && (

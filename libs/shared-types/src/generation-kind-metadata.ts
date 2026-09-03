@@ -11,6 +11,7 @@ export type GenerationKind =
   | 'directoryChat'
   | 'diagramQuiz'
   | 'sequenceQuiz'
+  | 'matchQuiz'
   | 'slideDeckText'
   | 'slideDeckImage'
   | 'sourceDocumentEnhancement'
@@ -42,6 +43,7 @@ export const ALL_GENERATION_KINDS: GenerationKind[] = [
   'directoryChat',
   'diagramQuiz',
   'sequenceQuiz',
+  'matchQuiz',
   'slideDeckText',
   'slideDeckImage',
   'sourceDocumentEnhancement',
@@ -110,6 +112,15 @@ export const GENERATION_KIND_METADATA: Record<
     kind: 'sequenceQuiz',
     label: 'Sequence quiz',
     description: 'Ordering quiz generation.',
+    requiredModality: 'text',
+    supportedWorkflows: ['direct'],
+    defaultWorkflow: 'direct',
+    group: 'production',
+  },
+  matchQuiz: {
+    kind: 'matchQuiz',
+    label: 'Match quiz',
+    description: 'Match-the-pairs quiz generation with option chip banks.',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',

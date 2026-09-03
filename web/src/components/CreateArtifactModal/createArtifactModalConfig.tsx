@@ -5,6 +5,7 @@ import {
   ListOrdered,
   Network,
   Presentation,
+  Puzzle,
 } from 'lucide-react';
 import { RuleApplicability } from '@shared-types';
 import { ICreateArtifactModalConfig, CreateArtifactModalType } from './ICreateArtifactModal';
@@ -92,6 +93,22 @@ export const CREATE_ARTIFACT_MODAL_CONFIG: Record<
       plural: (count) => `Generate sequence quiz from ${count} documents`,
     },
     directoryTab: 'sequenceQuizzes',
+  },
+  matchQuizzes: {
+    title: 'Create match quiz',
+    icon: <Puzzle size={18} className="shrink-0 text-primary" />,
+    nameFieldLabel: 'Quiz name',
+    additionalPromptPlaceholder:
+      'e.g. Focus on key terminology, match concepts to definitions, use historically paired figures, etc.',
+    additionalPromptHelperText:
+      'Specialise how match pairs are generated. Without rules, the model infers meaningful prompt-to-option pairings from the source content.',
+    ruleApplicability: RuleApplicability.QUIZ,
+    followupRuleApplicability: RuleApplicability.FOLLOWUP,
+    generateLabels: {
+      single: 'Generate match quiz',
+      plural: (count) => `Generate match quiz from ${count} documents`,
+    },
+    directoryTab: 'matchQuizzes',
   },
 };
 

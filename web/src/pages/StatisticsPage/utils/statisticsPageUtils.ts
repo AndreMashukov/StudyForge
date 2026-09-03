@@ -7,7 +7,7 @@ import {
 } from '@shared-types';
 
 export function isQuizTelemetryType(value: string | undefined): value is QuizTelemetryType {
-  return value === 'quiz' || value === 'diagramQuiz' || value === 'sequenceQuiz';
+  return value === 'quiz' || value === 'diagramQuiz' || value === 'sequenceQuiz' || value === 'matchQuiz';
 }
 
 export const TIME_RANGE_OPTIONS: Array<{ value: StatisticsTimeRangeKey; label: string }> = [
@@ -22,12 +22,14 @@ export const QUIZ_TYPE_OPTIONS: Array<{ value: StatisticsQuizTypeFilter; label: 
   { value: 'quiz', label: 'Quiz' },
   { value: 'diagramQuiz', label: 'Diagram' },
   { value: 'sequenceQuiz', label: 'Sequence' },
+  { value: 'matchQuiz', label: 'Match' },
 ];
 
 const QUIZ_TYPE_LABELS: Record<QuizTelemetryType, string> = {
   quiz: 'Quiz',
   diagramQuiz: 'Diagram quiz',
   sequenceQuiz: 'Sequence quiz',
+  matchQuiz: 'Match quiz',
 };
 
 const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
@@ -37,6 +39,7 @@ const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
   slideDeck: 'Slide decks',
   diagramQuiz: 'Diagram quizzes',
   sequenceQuiz: 'Sequence quizzes',
+  matchQuiz: 'Match quizzes',
 };
 
 function toLocalDateString(date: Date): string {

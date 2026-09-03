@@ -6,6 +6,7 @@
 
 export type LlmGenerationFlowId =
   | 'sequenceQuiz'
+  | 'matchQuiz'
   | 'diagramQuiz.plan'
   | 'diagramQuiz.batch'
   | 'diagramQuiz.agent'
@@ -21,6 +22,7 @@ export type LlmGenerationFlowId =
 
 export const LLM_GENERATION_FLOW_IDS: LlmGenerationFlowId[] = [
   'sequenceQuiz',
+  'matchQuiz',
   'diagramQuiz.plan',
   'diagramQuiz.batch',
   'diagramQuiz.agent',
@@ -60,6 +62,12 @@ export const LLM_GENERATION_FLOW_METADATA: ILlmGenerationFlowMetadata[] = [
     label: 'Sequence quiz',
     description:
       'Full sequence-quiz JSON (8–12 questions). Raised for thinking models.',
+  },
+  {
+    id: 'matchQuiz',
+    label: 'Match quiz',
+    description:
+      'Full match-quiz JSON (5 questions with prompts and option banks).',
   },
   {
     id: 'diagramQuiz.plan',
@@ -139,6 +147,11 @@ export const DEFAULT_LLM_GENERATION_FLOWS: Record<
     ILlmGenerationFlowOverrides
 > = {
   sequenceQuiz: {
+    maxOutputTokens: 32_768,
+    temperature: 0.4,
+    disableReasoning: true,
+  },
+  matchQuiz: {
     maxOutputTokens: 32_768,
     temperature: 0.4,
     disableReasoning: true,

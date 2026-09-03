@@ -92,6 +92,13 @@ export const FirestorePaths = {
   sequenceQuiz: (userId: string, sequenceQuizId: string) =>
     FirestorePaths.sequenceQuizzes(userId).doc(sequenceQuizId),
 
+  matchQuizzes: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('matchQuizzes');
+  },
+  matchQuiz: (userId: string, matchQuizId: string) =>
+    FirestorePaths.matchQuizzes(userId).doc(matchQuizId),
+
   interactionSessions: (userId: string) => {
     validateUserId(userId);
     return db().collection('users').doc(userId).collection('interactionSessions');

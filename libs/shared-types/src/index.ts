@@ -322,6 +322,74 @@ export interface GetUserSequenceQuizzesResponse {
   sequenceQuizzes: SequenceQuiz[];
 }
 
+// Match Quiz — match-the-pairs quiz where option chips are assigned to prompt rows
+export interface MatchQuizPrompt {
+  id: string;
+  text: string;
+}
+
+export interface MatchQuizOption {
+  id: string;
+  text: string;
+  /** ID of the prompt this option matches; null means distractor (matches nothing). */
+  correctPromptId: string | null;
+}
+
+export interface MatchQuizQuestion {
+  prompts: MatchQuizPrompt[]; // Fixed left-side rows in display order
+  options: MatchQuizOption[]; // Chip bank (shuffled at display time on the client)
+  explanation: string;
+  hint?: string; // Optional hint shown via tooltip on lightbulb icon
+  knowledge?: QuestionKnowledgeMetadata;
+}
+
+export interface MatchQuiz {
+  id: string;
+  userId: string;
+  documentId: string;
+  documentIds?: string[];
+  documentTitle: string;
+  title: string;
+  questions: MatchQuizQuestion[];
+  directoryId: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  generationAttempt?: number;
+  followupRuleIds?: string[];
+  appliedRuleIds?: string[];
+  generationStatus?: GenerationStatus;
+  generationError?: string;
+  completedAt?: Timestamp;
+  /** Color of the primary source document, for left-rail rendering. */
+  documentColor?: string;
+  /** Colors of all source documents in documentIds order, for segmented rail. */
+  documentColors?: string[];
+}
+
+export interface GenerateMatchQuizRequest {
+  documentIds: string[];
+  directoryId?: string;
+  matchQuizName?: string;
+  additionalPrompt?: string;
+  ruleIds?: string[];
+  followupRuleIds?: string[];
+  additionalRuleIds?: string[];
+  ruleResolutionMode?: RuleResolutionMode;
+}
+
+export interface GenerateMatchQuizResponse extends StartGenerationResponse {
+  matchQuizId: string;
+  matchQuiz?: MatchQuiz;
+}
+
+export interface GetMatchQuizResponse {
+  matchQuiz: MatchQuiz;
+}
+
+export interface GetUserMatchQuizzesResponse {
+  matchQuizzes: MatchQuiz[];
+}
+
 // Diagram Quiz — multiple choice where each option is a Mermaid diagram
 export interface DiagramQuizQuestion {
   question: string;
@@ -428,6 +496,7 @@ export type ArtifactKind =
   | 'diagramQuiz'
   | 'slideDeck'
   | 'sequenceQuiz'
+  | 'matchQuiz'
   | 'flashcards'
   | 'documentFromPrompt'
   | 'documentFromScreenshot';
@@ -473,7 +542,8 @@ export type GenerationRecordType =
   | 'flashcardSet'
   | 'slideDeck'
   | 'diagramQuiz'
-  | 'sequenceQuiz';
+  | 'sequenceQuiz'
+  | 'matchQuiz';
 
 export interface StartGenerationResponse {
   success: boolean;
@@ -537,6 +607,8 @@ export interface Directory {
   diagramQuizCount?: number;
   /** Present for directories created after sequence quizzes; treat missing as 0 */
   sequenceQuizCount?: number;
+  /** Present for directories created after match quizzes; treat missing as 0 */
+  matchQuizCount?: number;
   ruleIds: string[];
   createdAt: Date | { toDate(): Date };
   updatedAt: Date | { toDate(): Date };
@@ -623,6 +695,7 @@ export interface GetDirectoryContentsWithArtifactsResponse
   slideDecks: SlideDeck[];
   diagramQuizzes: DiagramQuiz[];
   sequenceQuizzes: SequenceQuiz[];
+  matchQuizzes: MatchQuiz[];
   resolvedRules: {
     rules: Rule[];
     inheritanceMap: { [directoryId: string]: Rule[] };
@@ -634,7 +707,8 @@ export type ArtifactSummaryType =
   | 'flashcard'
   | 'slideDeck'
   | 'diagramQuiz'
-  | 'sequenceQuiz';
+  | 'sequenceQuiz'
+  | 'matchQuiz';
 
 /** Materialized directory listing row stored under directories/{id}/items/{itemId}. */
 export type DirectoryItemType =
@@ -644,7 +718,8 @@ export type DirectoryItemType =
   | 'flashcard'
   | 'slideDeck'
   | 'diagramQuiz'
-  | 'sequenceQuiz';
+  | 'sequenceQuiz'
+  | 'matchQuiz';
 
 export function buildDirectoryItemId(
   itemType: DirectoryItemType,
@@ -662,6 +737,7 @@ export function directoryItemTypeToArtifactSummaryType(
     case 'slideDeck':
     case 'diagramQuiz':
     case 'sequenceQuiz':
+    case 'matchQuiz':
       return itemType;
     default:
       return null;
@@ -758,6 +834,7 @@ export interface DeleteDirectoryResponse {
   deletedSlideDeckCount: number;
   deletedDiagramQuizCount?: number;
   deletedSequenceQuizCount?: number;
+  deletedMatchQuizCount?: number;
 }
 
 // Directory Validation Types
@@ -1196,6 +1273,7 @@ export interface DirectoryChatArtifactContext {
     | 'quiz'
     | 'diagramQuiz'
     | 'sequenceQuiz'
+    | 'matchQuiz'
     | 'slideDeck'
     | 'flashcardSet'
     | 'document';
@@ -1208,6 +1286,12 @@ export interface DirectoryChatArtifactContext {
   sequenceItems?: string[];
   userSequence?: string[];
   correctSequence?: string[];
+  /** Prompt texts for match-quiz context, in row order. */
+  matchPrompts?: string[];
+  /** User placements as prompt text to option text, in row order. */
+  userMatches?: string[];
+  /** Correct placements as prompt text to option text, in row order. */
+  correctMatches?: string[];
   slideTitle?: string;
   slideContent?: string;
   speakerNotes?: string;
@@ -1442,7 +1526,8 @@ export type ArtifactType =
   | 'flashcardSet'
   | 'slideDeck'
   | 'diagramQuiz'
-  | 'sequenceQuiz';
+  | 'sequenceQuiz'
+  | 'matchQuiz';
 
 export interface InteractionSession {
   id: string;
@@ -1491,7 +1576,11 @@ export interface GetInteractionStatsResponse {
 
 // ─── Learning Telemetry Types ───────────────────────────────────────────────
 
-export type QuizTelemetryType = 'quiz' | 'diagramQuiz' | 'sequenceQuiz';
+export type QuizTelemetryType =
+  | 'quiz'
+  | 'diagramQuiz'
+  | 'sequenceQuiz'
+  | 'matchQuiz';
 
 export type QuizAnswerValue = string | string[] | number | number[] | null;
 
@@ -1981,6 +2070,7 @@ export type LlmCapabilityKey =
   | 'diagramQuiz'
   | 'diagramQuizAgent'
   | 'sequenceQuiz'
+  | 'matchQuiz'
   | 'slideDeckText'
   | 'slideDeckImage'
   | 'sourceDocumentEnhancement'

@@ -26,6 +26,7 @@ import {
   diagramQuizRef,
   directoryRef,
   flashcardSetRef,
+  matchQuizRef,
   quizRef,
   sequenceQuizRef,
   slideDeckRef,
@@ -38,13 +39,14 @@ import {
 
 const ARTIFACT_COUNT_FIELD: Record<
   BulkDeletableArtifactType,
-  'quizCount' | 'flashcardSetCount' | 'slideDeckCount' | 'diagramQuizCount' | 'sequenceQuizCount'
+  'quizCount' | 'flashcardSetCount' | 'slideDeckCount' | 'diagramQuizCount' | 'sequenceQuizCount' | 'matchQuizCount'
 > = {
   quiz: 'quizCount',
   flashcard: 'flashcardSetCount',
   slideDeck: 'slideDeckCount',
   diagramQuiz: 'diagramQuizCount',
   sequenceQuiz: 'sequenceQuizCount',
+  matchQuiz: 'matchQuizCount',
 };
 
 function shouldDecrementCount(generationStatus: GenerationStatus | undefined): boolean {
@@ -67,6 +69,8 @@ function getArtifactDocRef(
       return diagramQuizRef(userId, artifactId);
     case 'sequenceQuiz':
       return sequenceQuizRef(userId, artifactId);
+    case 'matchQuiz':
+      return matchQuizRef(userId, artifactId);
     default: {
       const _exhaustive: never = type;
       throw new Error(`Unsupported artifact type: ${String(_exhaustive)}`);
@@ -76,7 +80,7 @@ function getArtifactDocRef(
 
 function getIndexItemType(
   type: BulkDeletableArtifactType,
-): 'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz' {
+): 'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz' | 'matchQuiz' {
   return type === 'flashcard' ? 'flashcard' : type;
 }
 
@@ -176,6 +180,13 @@ export async function deleteSequenceQuizInFirestore(
   await deleteArtifactWithIndex(userId, 'sequenceQuiz', sequenceQuizId);
 }
 
+export async function deleteMatchQuizInFirestore(
+  userId: string,
+  matchQuizId: string,
+): Promise<void> {
+  await deleteArtifactWithIndex(userId, 'matchQuiz', matchQuizId);
+}
+
 export async function deleteArtifactByTypeInFirestore(
   userId: string,
   type: BulkDeletableArtifactType,
@@ -196,6 +207,9 @@ export async function deleteArtifactByTypeInFirestore(
       return;
     case 'sequenceQuiz':
       await deleteSequenceQuizInFirestore(userId, artifactId);
+      return;
+    case 'matchQuiz':
+      await deleteMatchQuizInFirestore(userId, artifactId);
       return;
     default: {
       const _exhaustive: never = type;
@@ -261,6 +275,12 @@ export async function deleteArtifactsByDocumentId(
       type: 'sequenceQuiz',
       indexType: 'sequenceQuiz',
       countField: 'sequenceQuizCount',
+    },
+    {
+      name: 'matchQuizzes',
+      type: 'matchQuiz',
+      indexType: 'matchQuiz',
+      countField: 'matchQuizCount',
     },
   ];
 

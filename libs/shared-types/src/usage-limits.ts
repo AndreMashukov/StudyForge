@@ -182,6 +182,7 @@ export const DEFAULT_USAGE_CREDIT_COSTS: Record<GenerationKind, number> = {
   agentKnowledgeEmbedding: 3,
   quiz: 5,
   sequenceQuiz: 5,
+  matchQuiz: 5,
   sourceDocumentEnhancement: 5,
   flashcards: 10,
   diagramQuiz: 10,

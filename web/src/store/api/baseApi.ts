@@ -105,6 +105,8 @@ export const baseApi = createApi({
     'UserDiagramQuizzes',
     'SequenceQuiz',
     'UserSequenceQuizzes',
+    'MatchQuiz',
+    'UserMatchQuizzes',
     'InteractionStats',
     'LearningStats',
     'Statistics',

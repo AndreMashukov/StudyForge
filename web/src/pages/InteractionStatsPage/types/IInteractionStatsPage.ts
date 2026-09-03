@@ -25,6 +25,7 @@ export interface IStackedBarDatum {
   slideDeck: number;
   diagramQuiz: number;
   sequenceQuiz: number;
+  matchQuiz: number;
 }
 
 export interface IDailyTrendDatum {

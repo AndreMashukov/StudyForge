@@ -8,6 +8,7 @@ import {
   DiagramQuizQuestion,
   SequenceQuiz,
   SequenceQuizQuestion,
+  MatchQuiz,
 } from "@shared-types";
 import type {
   DiagramQuizGenerationResponse,
@@ -664,6 +665,72 @@ export class FirestoreService {
       functions.logger.error(`deleteSequenceQuiz ${sequenceQuizId}:`, error);
       throw new Error(
         `Failed to delete sequence quiz: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  public static async getMatchQuiz(
+    matchQuizId: string,
+    userId: string
+  ): Promise<MatchQuiz | null> {
+    try {
+      const snap = await FirestorePaths.matchQuiz(userId, matchQuizId).get();
+      if (!snap.exists) return null;
+      return { id: snap.id, ...snap.data() } as MatchQuiz;
+    } catch (error) {
+      functions.logger.error(`Error getMatchQuiz ${matchQuizId}:`, error);
+      throw new Error("Failed to fetch match quiz");
+    }
+  }
+
+  public static async getUserMatchQuizzes(userId: string): Promise<MatchQuiz[]> {
+    try {
+      const snapshot = await FirestorePaths.matchQuizzes(userId)
+        .orderBy("createdAt", "desc")
+        .get();
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as MatchQuiz));
+    } catch (error) {
+      functions.logger.error(`getUserMatchQuizzes ${userId}:`, error);
+      throw new Error("Failed to list match quizzes");
+    }
+  }
+
+  public static async deleteMatchQuiz(
+    matchQuizId: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      const ref = FirestorePaths.matchQuiz(userId, matchQuizId);
+      const db = this.getDb();
+      const preSnap = await ref.get();
+      const directoryId = preSnap.exists ? (preSnap.data() as MatchQuiz).directoryId : undefined;
+      await db.runTransaction(async (transaction) => {
+        const snap = await transaction.get(ref);
+        if (!snap.exists) {
+          throw new Error("Match quiz not found");
+        }
+        const data = snap.data() as MatchQuiz;
+        transaction.delete(ref);
+        if (data.directoryId && (!data.generationStatus || data.generationStatus === 'completed')) {
+          const dirRef = FirestorePaths.directory(userId, data.directoryId);
+          transaction.update(dirRef, {
+            matchQuizCount: FieldValue.increment(-1),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      });
+      if (directoryId) {
+        await syncIndexSafely('deleteMatchQuiz', () =>
+          removeArtifactDirectoryIndex(userId, directoryId, 'matchQuiz', matchQuizId),
+        );
+      }
+      functions.logger.info(`Deleted match quiz: ${matchQuizId}`);
+    } catch (error) {
+      functions.logger.error(`deleteMatchQuiz ${matchQuizId}:`, error);
+      throw new Error(
+        `Failed to delete match quiz: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );

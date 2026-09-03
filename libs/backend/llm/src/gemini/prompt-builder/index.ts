@@ -24,6 +24,7 @@ export {
 export { SlideDeckPromptBuilder } from './slide-deck';
 export { DiagramQuizPromptBuilder } from './diagram-quiz-prompt-builder';
 export { SequenceQuizPromptBuilder } from './sequence-quiz-prompt-builder';
+export { MatchQuizPromptBuilder } from './match-quiz-prompt-builder';
 export { ScreenshotPromptBuilder } from './screenshot-prompt-builder';
 
 import { QuizPromptBuilder } from './quiz-prompt-builder';

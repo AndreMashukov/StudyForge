@@ -24,6 +24,7 @@ export type GenerationJobKind =
   | 'quiz'
   | 'flashcards'
   | 'sequenceQuiz'
+  | 'matchQuiz'
   | 'slideDeck';
 export type GenerationJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
 
@@ -37,6 +38,7 @@ const GENERATION_JOB_KINDS: ReadonlySet<string> = new Set([
   'quiz',
   'flashcards',
   'sequenceQuiz',
+  'matchQuiz',
   'slideDeck',
 ]);
 
@@ -241,6 +243,8 @@ export function recordRefForGenerationJob(
       return FirestorePaths.flashcardSet(userId, recordId);
     case 'sequenceQuiz':
       return FirestorePaths.sequenceQuiz(userId, recordId);
+    case 'matchQuiz':
+      return FirestorePaths.matchQuiz(userId, recordId);
     case 'slideDeck':
       return FirestorePaths.slideDeck(userId, recordId);
     case 'artifactAgent':

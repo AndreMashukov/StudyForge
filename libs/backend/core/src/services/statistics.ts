@@ -39,6 +39,8 @@ interface IQuizMetadata {
     diagrams?: string[];
     diagramLabels?: string[];
     items?: string[];
+    prompts?: Array<{ id?: string; text?: string }>;
+    matchOptions?: Array<{ id?: string; text?: string }>;
   }>;
 }
 
@@ -54,6 +56,7 @@ const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
   slideDeck: 'Slide deck',
   diagramQuiz: 'Diagram quiz',
   sequenceQuiz: 'Sequence quiz',
+  matchQuiz: 'Match quiz',
 };
 
 function normalizeQuizType(
@@ -149,7 +152,19 @@ function answerLabel(
   value: QuizAnswerValue,
   question?: IQuizMetadata['questions'][number],
 ): string {
-  if (Array.isArray(value)) return value.join(' → ');
+  if (Array.isArray(value)) {
+    if (question?.matchOptions) {
+      const optionsById = new Map(
+        question.matchOptions
+          .filter((option) => typeof option.id === 'string')
+          .map((option) => [option.id as string, String(option.text ?? option.id)]),
+      );
+      return value
+        .map((id) => optionsById.get(String(id)) ?? String(id))
+        .join(' | ');
+    }
+    return value.join(' → ');
+  }
   if (value === null || value === undefined) return 'No answer';
   if (typeof value === 'number') {
     const label =
@@ -182,6 +197,8 @@ function getQuizRef(
       return FirestorePaths.diagramQuiz(userId, quizId);
     case 'sequenceQuiz':
       return FirestorePaths.sequenceQuiz(userId, quizId);
+    case 'matchQuiz':
+      return FirestorePaths.matchQuiz(userId, quizId);
   }
 }
 
@@ -199,6 +216,8 @@ function getArtifactRef(
       return FirestorePaths.diagramQuiz(userId, artifactId);
     case 'sequenceQuiz':
       return FirestorePaths.sequenceQuiz(userId, artifactId);
+    case 'matchQuiz':
+      return FirestorePaths.matchQuiz(userId, artifactId);
     case 'flashcardSet':
       return FirestorePaths.flashcardSet(userId, artifactId);
     case 'slideDeck':
@@ -245,9 +264,26 @@ async function getQuizMetadata(
 
   const snap = await getQuizRef(userId, quizType, quizId).get();
   const data = snap.exists ? (snap.data() ?? {}) : {};
+  const questions: IQuizMetadata['questions'] = Array.isArray(data.questions)
+    ? data.questions.map((raw: unknown) => {
+        if (!raw || typeof raw !== 'object') return {} as IQuizMetadata['questions'][number];
+        const question = raw as Record<string, unknown>;
+        const matchOptions =
+          quizType === 'matchQuiz' && Array.isArray(question.options)
+            ? (question.options as Array<{ id?: string; text?: string }>)
+            : undefined;
+        return {
+          ...question,
+          prompts: Array.isArray(question.prompts)
+            ? (question.prompts as Array<{ id?: string; text?: string }>)
+            : undefined,
+          matchOptions,
+        } as IQuizMetadata['questions'][number];
+      })
+    : [];
   const metadata = {
     title: typeof data.title === 'string' ? data.title : undefined,
-    questions: Array.isArray(data.questions) ? data.questions : [],
+    questions,
   } as IQuizMetadata;
   cache.set(cacheKey, metadata);
   return metadata;

@@ -54,6 +54,11 @@ const ARTIFACT_COLLECTIONS: Array<{
     doc: (userId, artifactId) =>
       FirestorePaths.sequenceQuiz(userId, artifactId),
   },
+  {
+    itemType: 'matchQuiz',
+    query: (userId) => FirestorePaths.matchQuizzes(userId),
+    doc: (userId, artifactId) => FirestorePaths.matchQuiz(userId, artifactId),
+  },
 ];
 
 function stripUndefined<T extends Record<string, unknown>>(value: T): T {
@@ -586,6 +591,7 @@ const ARTIFACT_DIRECTORY_ITEM_TYPES: DirectoryItemType[] = [
   'slideDeck',
   'diagramQuiz',
   'sequenceQuiz',
+  'matchQuiz',
 ];
 
 function directoryItemRecordToSummary(

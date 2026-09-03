@@ -4,6 +4,8 @@ import { FirestorePaths } from '../lib/firestore-paths';
 import {
   DiagramQuiz,
   DiagramQuizQuestion,
+  MatchQuiz,
+  MatchQuizQuestion,
   QuestionKnowledgeMetadata,
   Quiz,
   QuizAnswerValue,
@@ -18,8 +20,12 @@ import {
   SequenceQuizQuestion,
 } from '@shared-types';
 
-type StoredQuiz = Quiz | DiagramQuiz | SequenceQuiz;
-type StoredQuestion = QuizQuestion | DiagramQuizQuestion | SequenceQuizQuestion;
+type StoredQuiz = Quiz | DiagramQuiz | SequenceQuiz | MatchQuiz;
+type StoredQuestion =
+  | QuizQuestion
+  | DiagramQuizQuestion
+  | SequenceQuizQuestion
+  | MatchQuizQuestion;
 
 interface IResolvedQuiz {
   quiz: StoredQuiz;
@@ -68,6 +74,8 @@ function getQuizRef(userId: string, quizType: QuizTelemetryType, quizId: string)
       return FirestorePaths.diagramQuiz(userId, quizId);
     case 'sequenceQuiz':
       return FirestorePaths.sequenceQuiz(userId, quizId);
+    case 'matchQuiz':
+      return FirestorePaths.matchQuiz(userId, quizId);
     default:
       throw new Error(`Unsupported quiz type: ${quizType}`);
   }
@@ -115,6 +123,17 @@ function isSequenceQuestion(question: StoredQuestion): question is SequenceQuizQ
   return 'items' in question;
 }
 
+function isMatchQuestion(question: StoredQuestion): question is MatchQuizQuestion {
+  return 'prompts' in question && 'options' in question;
+}
+
+function questionTextFor(question: StoredQuestion): string {
+  if (isMatchQuestion(question)) {
+    return question.prompts.map((prompt) => prompt.text).join(' | ');
+  }
+  return question.question;
+}
+
 function selectedNumber(value: QuizAnswerValue): number | null {
   return typeof value === 'number' && Number.isInteger(value) ? value : null;
 }
@@ -133,6 +152,22 @@ function resolveAnswer(
       selectedAnswer,
       correctAnswer: question.items,
       isCorrect: arraysEqual(selectedAnswer, question.items),
+    };
+  }
+
+  if (isMatchQuestion(question)) {
+    // selectedAnswer/correctAnswer are arrays of option ids in prompt-row order.
+    const selectedAnswer = stringArray(input.selectedAnswer);
+    const correctAnswer = question.prompts.map((prompt) => {
+      const option = question.options.find(
+        (candidate) => candidate.correctPromptId === prompt.id,
+      );
+      return option ? option.id : '';
+    });
+    return {
+      selectedAnswer,
+      correctAnswer,
+      isCorrect: arraysEqual(selectedAnswer, correctAnswer),
     };
   }
 
@@ -161,7 +196,7 @@ function buildAttemptAnswers(
 
     return {
       questionIndex: input.questionIndex,
-      questionText: question.question,
+      questionText: questionTextFor(question),
       ...answer,
       ...(input.timeSpentMs !== undefined ? { timeSpentMs: Math.max(0, input.timeSpentMs) } : {}),
       knowledge: normalizeKnowledge(question, resolved.documentIds),
@@ -399,7 +434,7 @@ export async function recordQuizExplanationRequest(
   }, { merge: true });
   batch.set(questionStatRef, questionStatPayload(userId, data.quizId, data.quizType, {
     questionIndex: data.questionIndex,
-    questionText: question.question,
+    questionText: questionTextFor(question),
     selectedAnswer: null,
     correctAnswer: null,
     isCorrect: false,
