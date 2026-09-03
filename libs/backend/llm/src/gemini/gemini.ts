@@ -26,6 +26,7 @@ import {
   SlideDeckPromptBuilder,
   DiagramQuizPromptBuilder,
   SequenceQuizPromptBuilder,
+  MatchQuizPromptBuilder,
   ScreenshotPromptBuilder,
 } from './prompt-builder';
 import { RulePromptBuilder } from './prompt-builder/rule-prompt-builder';
@@ -60,7 +61,9 @@ export interface IGeminiRuntimeGenerationConfig {
  * Prefer Admin-resolved values from LlmGenerationService; these seeds only
  * apply for direct GeminiService calls that skip the profile merge layer.
  */
-function profileSeedDefaults(profileId: LlmGenerationProfileId): Required<
+function profileSeedDefaults(
+  profileId: LlmGenerationProfileId,
+): Required<
   Pick<
     IGeminiRuntimeGenerationConfig,
     'maxOutputTokens' | 'temperature' | 'topK' | 'topP'
@@ -131,6 +134,21 @@ export interface GeminiSequenceQuizResponse {
   questions: Array<{
     question: string;
     items: string[];
+    explanation: string;
+    hint?: string;
+    knowledge?: QuestionKnowledgeMetadata;
+  }>;
+}
+
+export interface GeminiMatchQuizResponse {
+  title: string;
+  questions: Array<{
+    prompts: Array<{ id: string; text: string }>;
+    options: Array<{
+      id: string;
+      text: string;
+      correctPromptId: string | null;
+    }>;
     explanation: string;
     hint?: string;
     knowledge?: QuestionKnowledgeMetadata;
@@ -342,6 +360,61 @@ export class GeminiService {
       }
       throw new Error(
         `Failed to generate sequence quiz: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    }
+  }
+
+  /**
+   * Generate a match quiz: prompts (descriptions) paired with draggable option chips.
+   * The prompt is domain-agnostic by design — specialisation is injected via rules.
+   */
+  public static async generateMatchQuiz(
+    content: ScrapedContent,
+    additionalPrompt?: string,
+    runtimeConfig?: IGeminiRuntimeGenerationConfig,
+  ): Promise<GeminiMatchQuizResponse> {
+    try {
+      functions.logger.info('Generating match quiz with Gemini AI...');
+      JsonSanitizer.validateContentForSafeGeneration(content.content);
+
+      const client = this.getClient();
+      const prompt = MatchQuizPromptBuilder.buildMatchQuizPrompt(
+        content,
+        additionalPrompt,
+      );
+
+      const response = await trackedGeminiGenerateContent(client, {
+        model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
+        contents: prompt,
+        config: buildGeminiGenerationConfig(
+          runtimeConfig,
+          'structuredArtifact',
+        ),
+      });
+
+      const text = response.text;
+      if (!text) {
+        throw new Error('Empty response from Gemini API');
+      }
+
+      return this.parseMatchQuizResponse(text);
+    } catch (error) {
+      functions.logger.error('Error generating match quiz:', error);
+      const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+      if (
+        isEmulator &&
+        error instanceof Error &&
+        error.message.includes('User location is not supported')
+      ) {
+        functions.logger.warn(
+          'Geographic restriction in emulator, falling back to mock match quiz',
+        );
+        return this.generateMockMatchQuiz(content);
+      }
+      throw new Error(
+        `Failed to generate match quiz: ${
           error instanceof Error ? error.message : error
         }`,
       );
@@ -1045,6 +1118,12 @@ This question is derived from: **${context.originalDocument.title}**
     return this.parseSequenceQuizResponse(responseText);
   }
 
+  public static parseMatchQuizResponseFromText(
+    responseText: string,
+  ): GeminiMatchQuizResponse {
+    return this.parseMatchQuizResponse(responseText);
+  }
+
   public static sanitizeMarkdownResponse(content: string): string {
     return this.validateAndFixFollowupContent(content);
   }
@@ -1446,7 +1525,10 @@ This question is derived from: **${context.originalDocument.title}**
       try {
         parsed = JsonSanitizer.tryFallbackParsing(cleanText);
       } catch (fallbackError) {
-        functions.logger.error('Sequence quiz JSON parse failed:', fallbackError);
+        functions.logger.error(
+          'Sequence quiz JSON parse failed:',
+          fallbackError,
+        );
         throw new Error(`Failed to parse sequence quiz response: ${error}`);
       }
     }
@@ -1520,7 +1602,9 @@ This question is derived from: **${context.originalDocument.title}**
     const root = parsed as Record<string, unknown>;
     const title = typeof root.title === 'string' ? root.title.trim() : '';
     if (!title) {
-      throw new Error('Invalid sequence quiz: title must be a non-empty string');
+      throw new Error(
+        'Invalid sequence quiz: title must be a non-empty string',
+      );
     }
     if (!Array.isArray(root.questions)) {
       throw new Error('Invalid sequence quiz: questions must be an array');
@@ -1530,7 +1614,11 @@ This question is derived from: **${context.originalDocument.title}**
     const dropped: string[] = [];
 
     root.questions.forEach((question, index) => {
-      if (!question || typeof question !== 'object' || Array.isArray(question)) {
+      if (
+        !question ||
+        typeof question !== 'object' ||
+        Array.isArray(question)
+      ) {
         dropped.push(`question ${index + 1}: not an object`);
         return;
       }
@@ -1573,7 +1661,9 @@ This question is derived from: **${context.originalDocument.title}**
       }
 
       const knowledge =
-        row.knowledge && typeof row.knowledge === 'object' && !Array.isArray(row.knowledge)
+        row.knowledge &&
+        typeof row.knowledge === 'object' &&
+        !Array.isArray(row.knowledge)
           ? (row.knowledge as GeminiSequenceQuizResponse['questions'][number]['knowledge'])
           : undefined;
 
@@ -1697,6 +1787,429 @@ This question is derived from: **${context.originalDocument.title}**
           items: ['Step A', 'Step B', 'Step C', 'Step D'],
           explanation: 'Mock explanation for local emulator testing.',
           hint: 'The mock labels already imply their order.',
+        },
+      ],
+    };
+  }
+
+  private static parseMatchQuizResponse(
+    responseText: string,
+  ): GeminiMatchQuizResponse {
+    let cleanText = '';
+    let parsed: unknown;
+
+    try {
+      cleanText = JsonSanitizer.initialCleanup(responseText);
+      cleanText = JsonSanitizer.sanitizeJsonText(cleanText);
+      cleanText = JsonSanitizer.applyComprehensiveCleanup(cleanText);
+      cleanText = JsonSanitizer.applyStateBased(cleanText);
+      parsed = JSON.parse(cleanText);
+    } catch (error) {
+      JsonSanitizer.logParsingError(error, responseText, cleanText);
+      try {
+        parsed = JsonSanitizer.tryFallbackParsing(cleanText);
+      } catch (fallbackError) {
+        functions.logger.error('Match quiz JSON parse failed:', fallbackError);
+        throw new Error(`Failed to parse match quiz response: ${error}`);
+      }
+    }
+
+    try {
+      const normalized = this.normalizeMatchQuizStructure(parsed);
+      this.validateMatchQuizStructure(normalized);
+      return normalized;
+    } catch (error) {
+      functions.logger.error('Match quiz structure validation failed:', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(`Failed to parse match quiz response: ${error}`);
+    }
+  }
+
+  private static allocateUniqueId(
+    used: Set<string>,
+    preferred: string,
+    prefix: string,
+    index: number,
+  ): string {
+    if (preferred && !used.has(preferred)) {
+      used.add(preferred);
+      return preferred;
+    }
+    let n = index + 1;
+    let candidate = `${prefix}${n}`;
+    while (used.has(candidate)) {
+      n += 1;
+      candidate = `${prefix}${n}`;
+    }
+    used.add(candidate);
+    return candidate;
+  }
+
+  /**
+   * Coerce common LLM shape drift into the sealed match-quiz contract, and
+   * drop questions that still cannot be repaired so one bad question does not
+   * fail the whole generation.
+   */
+  private static coerceMatchPairs(
+    raw: unknown,
+  ): Array<{ id: string; text: string }> | null {
+    if (!Array.isArray(raw)) {
+      return null;
+    }
+    const usedIds = new Set<string>();
+    const pairs: Array<{ id: string; text: string }> = [];
+    raw.forEach((entry, index) => {
+      if (typeof entry === 'string') {
+        pairs.push({
+          id: this.allocateUniqueId(usedIds, '', 'p', index),
+          text: entry.trim(),
+        });
+        return;
+      }
+      if (entry && typeof entry === 'object') {
+        const row = entry as Record<string, unknown>;
+        const text =
+          typeof row.text === 'string'
+            ? row.text.trim()
+            : typeof row.description === 'string'
+              ? row.description.trim()
+              : '';
+        const preferred =
+          typeof row.id === 'string' && row.id.trim() ? row.id.trim() : '';
+        if (text) {
+          pairs.push({
+            id: this.allocateUniqueId(usedIds, preferred, 'p', index),
+            text,
+          });
+        }
+      }
+    });
+    return pairs.length > 0 ? pairs : null;
+  }
+
+  private static coerceMatchOptions(
+    raw: unknown,
+    promptIds: Set<string>,
+  ): Array<{
+    id: string;
+    text: string;
+    correctPromptId: string | null;
+  }> | null {
+    if (!Array.isArray(raw)) {
+      return null;
+    }
+    const usedIds = new Set<string>();
+    const options: Array<{
+      id: string;
+      text: string;
+      correctPromptId: string | null;
+    }> = [];
+    raw.forEach((entry, index) => {
+      if (typeof entry === 'string') {
+        options.push({
+          id: this.allocateUniqueId(usedIds, '', 'o', index),
+          text: entry.trim(),
+          correctPromptId: null,
+        });
+        return;
+      }
+      if (entry && typeof entry === 'object') {
+        const row = entry as Record<string, unknown>;
+        const text =
+          typeof row.text === 'string'
+            ? row.text.trim()
+            : typeof row.label === 'string'
+              ? row.label.trim()
+              : '';
+        if (!text) {
+          return;
+        }
+        const rawCorrect = row.correctPromptId ?? row.promptId ?? row.correctId;
+        const correctPromptId =
+          typeof rawCorrect === 'string' && rawCorrect.trim()
+            ? rawCorrect.trim()
+            : null;
+        const preferred =
+          typeof row.id === 'string' && row.id.trim() ? row.id.trim() : '';
+        options.push({
+          id: this.allocateUniqueId(usedIds, preferred, 'o', index),
+          text,
+          correctPromptId,
+        });
+      }
+    });
+
+    // Options referencing unknown prompt ids become distractors.
+    for (const option of options) {
+      if (option.correctPromptId && !promptIds.has(option.correctPromptId)) {
+        option.correctPromptId = null;
+      }
+    }
+    return options.length > 0 ? options : null;
+  }
+
+  private static normalizeMatchQuizStructure(
+    parsed: unknown,
+  ): GeminiMatchQuizResponse {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Invalid match quiz: expected a JSON object');
+    }
+
+    const root = parsed as Record<string, unknown>;
+    const title = typeof root.title === 'string' ? root.title.trim() : '';
+    if (!title) {
+      throw new Error('Invalid match quiz: title must be a non-empty string');
+    }
+    if (!Array.isArray(root.questions)) {
+      throw new Error('Invalid match quiz: questions must be an array');
+    }
+
+    const normalizedQuestions: GeminiMatchQuizResponse['questions'] = [];
+    const dropped: string[] = [];
+
+    root.questions.forEach((question, index) => {
+      if (
+        !question ||
+        typeof question !== 'object' ||
+        Array.isArray(question)
+      ) {
+        dropped.push(`question ${index + 1}: not an object`);
+        return;
+      }
+
+      const row = question as Record<string, unknown>;
+      const prompts = this.coerceMatchPairs(
+        row.prompts ?? row.descriptions ?? row.rows,
+      );
+      if (!prompts || prompts.length < 4 || prompts.length > 6) {
+        dropped.push(
+          `question ${index + 1}: prompts length ${
+            prompts ? prompts.length : 'n/a'
+          } (need 4-6)`,
+        );
+        return;
+      }
+
+      const promptIds = new Set(prompts.map((prompt) => prompt.id));
+      const options = this.coerceMatchOptions(
+        row.options ?? row.chips ?? row.terms,
+        promptIds,
+      );
+      if (!options) {
+        dropped.push(`question ${index + 1}: missing options`);
+        return;
+      }
+
+      // Repair shape drift: if a prompt id lacks a matching option, link the
+      // first orphan option textually closest is unknowable here, so drop the
+      // question instead of guessing a pairing.
+      const matchedPromptIds = new Set(
+        options
+          .map((option) => option.correctPromptId)
+          .filter((id): id is string => id !== null),
+      );
+      const missingPrompts = [...promptIds].filter(
+        (id) => !matchedPromptIds.has(id),
+      );
+      if (missingPrompts.length > 0) {
+        dropped.push(
+          `question ${index + 1}: no option matched prompt(s) ${missingPrompts.join(', ')}`,
+        );
+        return;
+      }
+
+      const explanation =
+        typeof row.explanation === 'string' ? row.explanation.trim() : '';
+      if (!explanation) {
+        dropped.push(`question ${index + 1}: missing explanation`);
+        return;
+      }
+
+      const hint = typeof row.hint === 'string' ? row.hint.trim() : '';
+      if (!hint) {
+        dropped.push(`question ${index + 1}: missing hint`);
+        return;
+      }
+
+      const knowledge =
+        row.knowledge &&
+        typeof row.knowledge === 'object' &&
+        !Array.isArray(row.knowledge)
+          ? (row.knowledge as GeminiMatchQuizResponse['questions'][number]['knowledge'])
+          : undefined;
+
+      normalizedQuestions.push({
+        prompts,
+        options,
+        explanation,
+        hint,
+        ...(knowledge ? { knowledge } : {}),
+      });
+    });
+
+    if (dropped.length > 0) {
+      functions.logger.warn('Dropped invalid match quiz questions', {
+        dropped,
+        kept: normalizedQuestions.length,
+      });
+    }
+
+    return {
+      title,
+      questions: normalizedQuestions,
+    };
+  }
+
+  private static validateMatchQuizStructure(parsed: {
+    title?: unknown;
+    questions?: unknown;
+  }): void {
+    if (typeof parsed.title !== 'string' || parsed.title.trim().length === 0) {
+      throw new Error('Invalid match quiz: title must be a non-empty string');
+    }
+    if (!Array.isArray(parsed.questions)) {
+      throw new Error('Invalid match quiz: questions must be an array');
+    }
+    const qCount = parsed.questions.length;
+    // Prompt asks for 5; after dropping malformed LLM questions accept 3–5.
+    if (qCount < 3 || qCount > 5) {
+      throw new Error(
+        `Invalid match quiz: expected between 3 and 5 valid questions, got ${qCount}`,
+      );
+    }
+    (parsed.questions as unknown[]).forEach((q, index) => {
+      const row = q as Record<string, unknown>;
+      if (
+        !Array.isArray(row.prompts) ||
+        row.prompts.length < 4 ||
+        row.prompts.length > 6
+      ) {
+        throw new Error(
+          `Match quiz question ${index + 1}: prompts must be an array with between 4 and 6 elements`,
+        );
+      }
+      for (const prompt of row.prompts as unknown[]) {
+        const p = prompt as Record<string, unknown>;
+        if (
+          !p ||
+          typeof p !== 'object' ||
+          typeof p.id !== 'string' ||
+          !p.id.trim() ||
+          typeof p.text !== 'string' ||
+          !p.text.trim()
+        ) {
+          throw new Error(
+            `Match quiz question ${index + 1}: each prompt must have a non-empty id and text`,
+          );
+        }
+      }
+      if (!Array.isArray(row.options) || row.options.length < 4) {
+        throw new Error(
+          `Match quiz question ${index + 1}: options must be an array with at least 4 elements`,
+        );
+      }
+      const promptIds = new Set(
+        (row.prompts as Array<Record<string, unknown>>).map(
+          (p) => p.id as string,
+        ),
+      );
+      if (promptIds.size !== (row.prompts as unknown[]).length) {
+        throw new Error(
+          `Match quiz question ${index + 1}: prompt ids must be unique`,
+        );
+      }
+      const optionIds = new Set(
+        (row.options as Array<Record<string, unknown>>).map(
+          (o) => o.id as string,
+        ),
+      );
+      if (optionIds.size !== (row.options as unknown[]).length) {
+        throw new Error(
+          `Match quiz question ${index + 1}: option ids must be unique`,
+        );
+      }
+      const matchedPromptIds = new Set<string>();
+      for (const option of row.options as unknown[]) {
+        const o = option as Record<string, unknown>;
+        if (
+          !o ||
+          typeof o !== 'object' ||
+          typeof o.id !== 'string' ||
+          !o.id.trim() ||
+          typeof o.text !== 'string' ||
+          !o.text.trim()
+        ) {
+          throw new Error(
+            `Match quiz question ${index + 1}: each option must have a non-empty id and text`,
+          );
+        }
+        if (o.correctPromptId !== null && o.correctPromptId !== undefined) {
+          if (
+            typeof o.correctPromptId !== 'string' ||
+            !promptIds.has(o.correctPromptId)
+          ) {
+            throw new Error(
+              `Match quiz question ${index + 1}: option ${o.id as string} has unknown correctPromptId`,
+            );
+          }
+          matchedPromptIds.add(o.correctPromptId);
+        }
+      }
+      for (const promptId of promptIds) {
+        if (!matchedPromptIds.has(promptId)) {
+          throw new Error(
+            `Match quiz question ${index + 1}: prompt ${promptId} has no matching option`,
+          );
+        }
+      }
+      if (
+        !row.explanation ||
+        typeof row.explanation !== 'string' ||
+        row.explanation.trim().length === 0
+      ) {
+        throw new Error(
+          `Match quiz question ${index + 1}: missing explanation`,
+        );
+      }
+      this.validateQuestionHint(row, 'Match quiz', index);
+    });
+  }
+
+  private static generateMockMatchQuiz(
+    content: ScrapedContent,
+  ): GeminiMatchQuizResponse {
+    return {
+      title: `Mock Match Quiz: ${content.title}`,
+      questions: [
+        {
+          prompts: [
+            {
+              id: 'p1',
+              text: 'Mock description for the first term (mock question).',
+            },
+            {
+              id: 'p2',
+              text: 'Mock description for the second term (mock question).',
+            },
+            {
+              id: 'p3',
+              text: 'Mock description for the third term (mock question).',
+            },
+            {
+              id: 'p4',
+              text: 'Mock description for the fourth term (mock question).',
+            },
+          ],
+          options: [
+            { id: 'o1', text: 'Term One', correctPromptId: 'p1' },
+            { id: 'o2', text: 'Term Two', correctPromptId: 'p2' },
+            { id: 'o3', text: 'Term Three', correctPromptId: 'p3' },
+            { id: 'o4', text: 'Term Four', correctPromptId: 'p4' },
+            { id: 'o5', text: 'Distractor Term', correctPromptId: null },
+          ],
+          explanation: 'Mock explanation for local emulator testing.',
+          hint: 'Each description only fits one mock term.',
         },
       ],
     };

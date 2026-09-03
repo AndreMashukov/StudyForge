@@ -11,6 +11,7 @@ const EMPTY_ARTIFACT_COUNTS: Record<ArtifactType, number> = {
   slideDeck: 0,
   diagramQuiz: 0,
   sequenceQuiz: 0,
+  matchQuiz: 0,
 };
 
 /**
@@ -19,7 +20,7 @@ const EMPTY_ARTIFACT_COUNTS: Record<ArtifactType, number> = {
  */
 export async function getAncestorDirectoryIds(
   userId: string,
-  directoryId: string
+  directoryId: string,
 ): Promise<string[]> {
   const ancestors: string[] = [directoryId];
   let currentId: string | null = directoryId;
@@ -50,9 +51,10 @@ export async function flushInteractionSession(
     directoryId: string;
     activeSeconds: number;
     startedAt: string;
-  }
+  },
 ): Promise<string> {
-  const { artifactId, artifactType, directoryId, activeSeconds, startedAt } = data;
+  const { artifactId, artifactType, directoryId, activeSeconds, startedAt } =
+    data;
 
   if (activeSeconds <= 0) {
     throw new Error('activeSeconds must be positive');
@@ -122,7 +124,7 @@ export async function flushInteractionSession(
           'sessionCount',
           new FieldPath('byArtifactType', artifactType),
         ],
-      }
+      },
     );
   }
 
@@ -140,7 +142,7 @@ export async function getInteractionStats(
     directoryId?: string;
     startDate: string;
     endDate: string;
-  }
+  },
 ): Promise<InteractionStat[]> {
   const { directoryId, startDate, endDate } = data;
 
@@ -187,7 +189,7 @@ export async function recalculateStatsForDirectoryMove(
   userId: string,
   movedDirectoryId: string,
   oldParentId: string | null,
-  newParentId: string | null
+  newParentId: string | null,
 ): Promise<void> {
   // Build old ancestor chain (excluding the moved directory itself)
   const oldAncestors = oldParentId
@@ -208,10 +210,13 @@ export async function recalculateStatsForDirectoryMove(
   const addedAncestors = newAncestors.filter((id) => !oldSet.has(id));
 
   if (removedAncestors.length === 0 && addedAncestors.length === 0) {
-    logger.info('No ancestor changes after directory move, skipping stat recalculation', {
-      userId,
-      movedDirectoryId,
-    });
+    logger.info(
+      'No ancestor changes after directory move, skipping stat recalculation',
+      {
+        userId,
+        movedDirectoryId,
+      },
+    );
     return;
   }
 
@@ -229,10 +234,13 @@ export async function recalculateStatsForDirectoryMove(
     .get();
 
   if (statSnapshot.empty) {
-    logger.info('No interaction stats found for moved directory, nothing to recalculate', {
-      userId,
-      movedDirectoryId,
-    });
+    logger.info(
+      'No interaction stats found for moved directory, nothing to recalculate',
+      {
+        userId,
+        movedDirectoryId,
+      },
+    );
     return;
   }
 
@@ -256,7 +264,8 @@ export async function recalculateStatsForDirectoryMove(
     const date = stat.date as string;
     const totalSeconds = (stat.totalSeconds as number) || 0;
     const sessionCount = (stat.sessionCount as number) || 0;
-    const byArtifactType = (stat.byArtifactType as Record<ArtifactType, number>) || {};
+    const byArtifactType =
+      (stat.byArtifactType as Record<ArtifactType, number>) || {};
 
     // Decrement old-only ancestors
     for (const ancestorId of removedAncestors) {
@@ -272,7 +281,7 @@ export async function recalculateStatsForDirectoryMove(
             Object.entries(byArtifactType).map(([type, secs]) => [
               type,
               FieldValue.increment(-(secs as number)),
-            ])
+            ]),
           ),
         },
         {
@@ -280,10 +289,10 @@ export async function recalculateStatsForDirectoryMove(
             'totalSeconds',
             'sessionCount',
             ...Object.keys(byArtifactType).map(
-              (type) => new FieldPath('byArtifactType', type)
+              (type) => new FieldPath('byArtifactType', type),
             ),
           ],
-        }
+        },
       );
       addWrite();
     }
@@ -305,7 +314,7 @@ export async function recalculateStatsForDirectoryMove(
             Object.entries(byArtifactType).map(([type, secs]) => [
               type,
               FieldValue.increment(secs as number),
-            ])
+            ]),
           ),
         },
         {
@@ -316,10 +325,10 @@ export async function recalculateStatsForDirectoryMove(
             'totalSeconds',
             'sessionCount',
             ...Object.keys(byArtifactType).map(
-              (type) => new FieldPath('byArtifactType', type)
+              (type) => new FieldPath('byArtifactType', type),
             ),
           ],
-        }
+        },
       );
       addWrite();
     }

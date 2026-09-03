@@ -1,8 +1,8 @@
 /**
  * Artifact Generation Records Service
  *
- * Provides create / complete / fail helpers for each of the five artifact
- * types (quiz, flashcard, slideDeck, diagramQuiz, sequenceQuiz).
+ * Provides create / complete / fail helpers for each of the artifact
+ * types (quiz, flashcard, slideDeck, diagramQuiz, sequenceQuiz, matchQuiz).
  *
  * Design contract:
  *  - createPending* → writes a placeholder record with generationStatus='pending'
@@ -562,5 +562,102 @@ export async function failPendingSequenceQuiz(userId: string, sequenceQuizId: st
   logger.warn('Pending sequence quiz marked as failed', { sequenceQuizId, userId, error });
   await syncIndexSafely('failPendingSequenceQuiz', () =>
     syncArtifactDirectoryIndex(userId, 'sequenceQuiz', sequenceQuizId),
+  );
+}
+
+// ─── Match Quiz ───────────────────────────────────────────────────────────────
+
+export interface PendingMatchQuizParams {
+  directoryId: string;
+  documentId: string;
+  documentIds?: string[];
+  documentTitle: string;
+  title: string;
+  userId: string;
+  followupRuleIds?: string[];
+  documentColor?: string;
+  documentColors?: string[];
+}
+
+export async function createPendingMatchQuiz(params: PendingMatchQuizParams): Promise<string> {
+  const ref = FirestorePaths.matchQuizzes(params.userId).doc();
+  await ref.set({
+    id: ref.id,
+    userId: params.userId,
+    documentId: params.documentId,
+    ...(params.documentIds ? { documentIds: params.documentIds } : {}),
+    documentTitle: params.documentTitle,
+    title: params.title,
+    questions: [],
+    directoryId: params.directoryId,
+    followupRuleIds: params.followupRuleIds || [],
+    appliedRuleIds: [],
+    ...(params.documentColor ? { documentColor: params.documentColor } : {}),
+    ...(params.documentColors ? { documentColors: params.documentColors } : {}),
+    generationStatus: 'pending' as GenerationStatus,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  logger.info('Pending match quiz created', { matchQuizId: ref.id, userId: params.userId });
+  await syncIndexSafely('createPendingMatchQuiz', () =>
+    syncArtifactDirectoryIndex(params.userId, 'matchQuiz', ref.id),
+  );
+  return ref.id;
+}
+
+export async function completePendingMatchQuiz(
+  userId: string,
+  matchQuizId: string,
+  updates: {
+    title: string;
+    questions: object[];
+    appliedRuleIds?: string[];
+    followupRuleIds?: string[];
+    generationAttempt?: number;
+    generationModel?: string;
+    generationModelUsage?: IGenerationModelUsage[];
+  }
+): Promise<void> {
+  const ref = FirestorePaths.matchQuiz(userId, matchQuizId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new Error(`Pending match quiz ${matchQuizId} not found`);
+  const data = snap.data() as { directoryId?: string };
+
+  await ref.update({
+    title: updates.title,
+    questions: updates.questions,
+    appliedRuleIds: updates.appliedRuleIds || [],
+    ...(updates.followupRuleIds !== undefined ? { followupRuleIds: updates.followupRuleIds } : {}),
+    generationAttempt: updates.generationAttempt || 1,
+    ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
+    ...(updates.generationModelUsage?.length
+      ? { generationModelUsage: updates.generationModelUsage }
+      : {}),
+    generationStatus: 'completed' as GenerationStatus,
+    completedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  if (data.directoryId) {
+    await FirestorePaths.directory(userId, data.directoryId).update({
+      matchQuizCount: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+  logger.info('Pending match quiz completed', { matchQuizId, userId });
+  await syncIndexSafely('completePendingMatchQuiz', () =>
+    syncArtifactDirectoryIndex(userId, 'matchQuiz', matchQuizId),
+  );
+}
+
+export async function failPendingMatchQuiz(userId: string, matchQuizId: string, error: string): Promise<void> {
+  await FirestorePaths.matchQuiz(userId, matchQuizId).update({
+    generationStatus: 'failed' as GenerationStatus,
+    generationError: error,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  logger.warn('Pending match quiz marked as failed', { matchQuizId, userId, error });
+  await syncIndexSafely('failPendingMatchQuiz', () =>
+    syncArtifactDirectoryIndex(userId, 'matchQuiz', matchQuizId),
   );
 }

@@ -42,6 +42,30 @@ export interface ISequenceQuizGenerationResponse {
   questions: ISequenceQuizGenerationQuestion[];
 }
 
+export interface IMatchQuizGenerationPrompt {
+  id: string;
+  text: string;
+}
+
+export interface IMatchQuizGenerationOption {
+  id: string;
+  text: string;
+  correctPromptId: string | null;
+}
+
+export interface IMatchQuizGenerationQuestion {
+  prompts: IMatchQuizGenerationPrompt[];
+  options: IMatchQuizGenerationOption[];
+  explanation: string;
+  hint?: string;
+  knowledge?: QuestionKnowledgeMetadata;
+}
+
+export interface IMatchQuizGenerationResponse {
+  title: string;
+  questions: IMatchQuizGenerationQuestion[];
+}
+
 export type QuizGenerationResponse = IQuizGenerationResponse;
 export type DiagramQuizGenerationResponse = IDiagramQuizGenerationResponse;
 export type SequenceQuizGenerationResponse = ISequenceQuizGenerationResponse;

@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-export type ArtifactPanelType = 'quizzes' | 'cards' | 'slides' | 'diagramQuizzes' | 'sequenceQuizzes' | 'sources';
+export type ArtifactPanelType = 'quizzes' | 'cards' | 'slides' | 'diagramQuizzes' | 'sequenceQuizzes' | 'matchQuizzes' | 'sources';
 
 export interface IPendingGeneration {
   id: string;

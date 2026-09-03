@@ -55,6 +55,7 @@ import {
   fetchSlideDeckFromFirestore,
   fetchDiagramQuizFromFirestore,
   fetchSequenceQuizFromFirestore,
+  fetchMatchQuizFromFirestore,
 } from '../../../services/artifactFirestore';
 import { upsertSubdirectoryInDirectoryCaches } from '../../../hooks/directoryRealtimeCacheUtils';
 import { patchReorderInAllDirectoryContentsCaches } from './directoryReorderCacheUtils';
@@ -355,6 +356,7 @@ export const directoryApi = baseApi.injectEndpoints({
           const slideDecks: GetDirectoryContentsWithArtifactsResponse['slideDecks'] = [];
           const diagramQuizzes: GetDirectoryContentsWithArtifactsResponse['diagramQuizzes'] = [];
           const sequenceQuizzes: GetDirectoryContentsWithArtifactsResponse['sequenceQuizzes'] = [];
+          const matchQuizzes: GetDirectoryContentsWithArtifactsResponse['matchQuizzes'] = [];
           let resolvedRules: GetDirectoryContentsWithArtifactsResponse['resolvedRules'] = {
             rules: [],
             inheritanceMap: {},
@@ -363,7 +365,7 @@ export const directoryApi = baseApi.injectEndpoints({
           if (directoryId) {
             const items = await fetchDirectoryItemsFromFirestore(userId, directoryId);
             const selectedByType: Record<
-              'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz',
+              'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz' | 'matchQuiz',
               typeof items
             > = {
               quiz: [],
@@ -371,6 +373,7 @@ export const directoryApi = baseApi.injectEndpoints({
               slideDeck: [],
               diagramQuiz: [],
               sequenceQuiz: [],
+              matchQuiz: [],
             };
 
             for (const item of items) {
@@ -380,6 +383,7 @@ export const directoryApi = baseApi.injectEndpoints({
                 && item.itemType !== 'slideDeck'
                 && item.itemType !== 'diagramQuiz'
                 && item.itemType !== 'sequenceQuiz'
+                && item.itemType !== 'matchQuiz'
               ) {
                 continue;
               }
@@ -395,6 +399,7 @@ export const directoryApi = baseApi.injectEndpoints({
               ...selectedByType.slideDeck,
               ...selectedByType.diagramQuiz,
               ...selectedByType.sequenceQuiz,
+              ...selectedByType.matchQuiz,
             ];
 
             const fetchArtifact = async (item: (typeof artifactItems)[number]) => {
@@ -418,6 +423,10 @@ export const directoryApi = baseApi.injectEndpoints({
                 case 'sequenceQuiz': {
                   const sq = await fetchSequenceQuizFromFirestore(userId, item.sourceId);
                   return sq ? { type: 'sequenceQuiz' as const, value: sq } : null;
+                }
+                case 'matchQuiz': {
+                  const mq = await fetchMatchQuizFromFirestore(userId, item.sourceId);
+                  return mq ? { type: 'matchQuiz' as const, value: mq } : null;
                 }
                 default:
                   return null;
@@ -444,6 +453,9 @@ export const directoryApi = baseApi.injectEndpoints({
                 case 'sequenceQuiz':
                   if (sequenceQuizzes.length < limitCount) sequenceQuizzes.push(entry.value);
                   break;
+                case 'matchQuiz':
+                  if (matchQuizzes.length < limitCount) matchQuizzes.push(entry.value);
+                  break;
                 default:
                   break;
               }
@@ -462,6 +474,7 @@ export const directoryApi = baseApi.injectEndpoints({
               slideDecks,
               diagramQuizzes,
               sequenceQuizzes,
+              matchQuizzes,
               resolvedRules,
             },
           };
@@ -480,6 +493,7 @@ export const directoryApi = baseApi.injectEndpoints({
         'UserSlideDecks',
         'UserDiagramQuizzes',
         'UserSequenceQuizzes',
+        'UserMatchQuizzes',
       ],
       keepUnusedDataFor: 0,
     }),

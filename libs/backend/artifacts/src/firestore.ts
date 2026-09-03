@@ -1,24 +1,28 @@
-import * as admin from "firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
-import { 
-  Quiz, 
-  QuizQuestion, 
+import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
+import {
+  Quiz,
+  QuizQuestion,
   GeminiQuizResponse,
   DiagramQuiz,
   DiagramQuizQuestion,
   SequenceQuiz,
   SequenceQuizQuestion,
-} from "@shared-types";
+  MatchQuiz,
+} from '@shared-types';
 import type {
   DiagramQuizGenerationResponse,
   SequenceQuizGenerationResponse,
 } from '@study-forge/backend-llm/llm';
-import * as functions from "firebase-functions";
+import * as functions from 'firebase-functions';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { DocumentService } from '@study-forge/backend-documents/document-storage';
 import { adaptDocumentContentForLlm } from '@study-forge/backend-documents/document-html/html-utils';
 import type { DocumentContentFormat } from '@shared-types';
-import { removeArtifactDirectoryIndex, syncIndexSafely } from '@study-forge/backend-directories/directory-item-index';
+import {
+  removeArtifactDirectoryIndex,
+  syncIndexSafely,
+} from '@study-forge/backend-directories/directory-item-index';
 
 /**
  * Firestore service for managing URLs and Quizzes collections
@@ -32,34 +36,57 @@ interface IDocumentArtifactMetadata {
   contentFormat?: DocumentContentFormat;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function toMatchQuiz(id: string, data: unknown): MatchQuiz | null {
+  if (!isRecord(data)) return null;
+  if (typeof data.title !== 'string' || typeof data.userId !== 'string')
+    return null;
+  if (!Array.isArray(data.questions)) return null;
+  return { ...data, id } as MatchQuiz;
+}
+
 export class FirestoreService {
   private static db: admin.firestore.Firestore;
 
   /**
    * Safely check if a value is a Firestore Timestamp
    */
-  private static isFirestoreTimestamp(value: unknown): value is { toDate(): Date } {
+  private static isFirestoreTimestamp(
+    value: unknown,
+  ): value is { toDate(): Date } {
     try {
       // Check if it's a Firestore Timestamp object
-      return value !== null && 
-             value !== undefined &&
-             typeof value === 'object' && 
-             'toDate' in value &&
-             typeof (value as { toDate?: unknown }).toDate === 'function' &&
-             ((value as { constructor?: { name?: string } }).constructor?.name === 'Timestamp' || 
-              (value as { _delegate?: { constructor?: { name?: string } } })._delegate?.constructor?.name === 'Timestamp' ||
-              (admin.firestore.Timestamp && value instanceof admin.firestore.Timestamp));
+      return (
+        value !== null &&
+        value !== undefined &&
+        typeof value === 'object' &&
+        'toDate' in value &&
+        typeof (value as { toDate?: unknown }).toDate === 'function' &&
+        ((value as { constructor?: { name?: string } }).constructor?.name ===
+          'Timestamp' ||
+          (value as { _delegate?: { constructor?: { name?: string } } })
+            ._delegate?.constructor?.name === 'Timestamp' ||
+          (admin.firestore.Timestamp &&
+            value instanceof admin.firestore.Timestamp))
+      );
     } catch {
       // If instanceof check fails, fall back to duck typing
-      return value !== null && 
-             value !== undefined &&
-             typeof value === 'object' &&
-             'toDate' in value &&
-             typeof (value as { toDate?: unknown }).toDate === 'function';
+      return (
+        value !== null &&
+        value !== undefined &&
+        typeof value === 'object' &&
+        'toDate' in value &&
+        typeof (value as { toDate?: unknown }).toDate === 'function'
+      );
     }
   }
 
-  private static resolveDocumentContentFormat(value: unknown): DocumentContentFormat | undefined {
+  private static resolveDocumentContentFormat(
+    value: unknown,
+  ): DocumentContentFormat | undefined {
     return value === 'html' || value === 'markdown' ? value : undefined;
   }
 
@@ -106,10 +133,13 @@ export class FirestoreService {
   /**
    * Get quiz by ID
    */
-  public static async getQuiz(quizId: string, userId: string): Promise<Quiz | null> {
+  public static async getQuiz(
+    quizId: string,
+    userId: string,
+  ): Promise<Quiz | null> {
     try {
       const doc = await FirestorePaths.quiz(userId, quizId).get();
-      
+
       if (!doc.exists) {
         return null;
       }
@@ -129,10 +159,13 @@ export class FirestoreService {
   /**
    * Get all quizzes for a user
    */
-  public static async getUserQuizzes(userId: string, limit = 50): Promise<Quiz[]> {
+  public static async getUserQuizzes(
+    userId: string,
+    limit = 50,
+  ): Promise<Quiz[]> {
     try {
       const snapshot = await FirestorePaths.quizzes(userId)
-        .orderBy("createdAt", "desc")
+        .orderBy('createdAt', 'desc')
         .limit(limit)
         .get();
 
@@ -145,7 +178,10 @@ export class FirestoreService {
         };
       });
     } catch (error) {
-      functions.logger.error(`Error getting user quizzes for ${userId}:`, error);
+      functions.logger.error(
+        `Error getting user quizzes for ${userId}:`,
+        error,
+      );
       throw new Error(`Failed to get user quizzes: ${error}`);
     }
   }
@@ -153,24 +189,35 @@ export class FirestoreService {
   /**
    * Delete quiz by ID
    */
-  public static async deleteQuiz(quizId: string, userId: string): Promise<void> {
+  public static async deleteQuiz(
+    quizId: string,
+    userId: string,
+  ): Promise<void> {
     try {
       const quizRef = FirestorePaths.quiz(userId, quizId);
       const db = this.getDb();
       const preSnap = await quizRef.get();
-      const directoryId = preSnap.exists ? (preSnap.data() as Quiz).directoryId : undefined;
+      const directoryId = preSnap.exists
+        ? (preSnap.data() as Quiz).directoryId
+        : undefined;
       await db.runTransaction(async (transaction) => {
         const snap = await transaction.get(quizRef);
         if (!snap.exists) {
-          throw new Error("Quiz not found");
+          throw new Error('Quiz not found');
         }
         const data = snap.data() as Quiz;
         transaction.delete(quizRef);
-        if (data.directoryId && (!data.generationStatus || data.generationStatus === 'completed')) {
-          transaction.update(FirestorePaths.directory(userId, data.directoryId), {
-            quizCount: FieldValue.increment(-1),
-            updatedAt: FieldValue.serverTimestamp(),
-          });
+        if (
+          data.directoryId &&
+          (!data.generationStatus || data.generationStatus === 'completed')
+        ) {
+          transaction.update(
+            FirestorePaths.directory(userId, data.directoryId),
+            {
+              quizCount: FieldValue.increment(-1),
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+          );
         }
       });
       if (directoryId) {
@@ -190,13 +237,16 @@ export class FirestoreService {
   /**
    * Get collection statistics
    */
-  public static async getStats(): Promise<{ urlsCount: number; quizzesCount: number }> {
+  public static async getStats(): Promise<{
+    urlsCount: number;
+    quizzesCount: number;
+  }> {
     try {
       const db = this.getDb();
-      
+
       const [urlsSnapshot, quizzesSnapshot] = await Promise.all([
-        db.collection("urls").count().get(),
-        db.collectionGroup("quizzes").count().get(),
+        db.collection('urls').count().get(),
+        db.collectionGroup('quizzes').count().get(),
       ]);
 
       return {
@@ -204,7 +254,7 @@ export class FirestoreService {
         quizzesCount: quizzesSnapshot.data().count,
       };
     } catch (error) {
-      functions.logger.error("Error getting stats:", error);
+      functions.logger.error('Error getting stats:', error);
       throw new Error(`Failed to get stats: ${error}`);
     }
   }
@@ -217,28 +267,34 @@ export class FirestoreService {
   /**
    * Find existing quiz for a document
    */
-  public static async findExistingQuizByDocument(documentId: string, userId: string): Promise<Quiz | null> {
+  public static async findExistingQuizByDocument(
+    documentId: string,
+    userId: string,
+  ): Promise<Quiz | null> {
     try {
       const snapshot = await FirestorePaths.quizzes(userId)
-        .where("documentId", "==", documentId)
-        .orderBy("createdAt", "desc")
+        .where('documentId', '==', documentId)
+        .orderBy('createdAt', 'desc')
         .limit(1)
         .get();
-      
+
       if (snapshot.empty) {
         return null;
       }
 
       const doc = snapshot.docs[0];
       const data = doc.data() as Quiz;
-      
+
       return {
         ...data,
         id: doc.id,
         createdAt: this.convertTimestamp(data.createdAt),
       };
     } catch (error) {
-      functions.logger.error(`Error finding existing quiz for document ${documentId}:`, error);
+      functions.logger.error(
+        `Error finding existing quiz for document ${documentId}:`,
+        error,
+      );
       return null;
     }
   }
@@ -246,13 +302,16 @@ export class FirestoreService {
   /**
    * Get all quizzes for a specific document
    */
-  public static async getDocumentQuizzes(documentId: string, userId: string): Promise<Quiz[]> {
+  public static async getDocumentQuizzes(
+    documentId: string,
+    userId: string,
+  ): Promise<Quiz[]> {
     try {
       const snapshot = await FirestorePaths.quizzes(userId)
-        .where("documentId", "==", documentId)
-        .orderBy("createdAt", "desc")
+        .where('documentId', '==', documentId)
+        .orderBy('createdAt', 'desc')
         .get();
-      
+
       return snapshot.docs.map((doc) => {
         const data = doc.data() as Quiz;
         return {
@@ -262,32 +321,41 @@ export class FirestoreService {
         };
       });
     } catch (error) {
-      functions.logger.error(`Error getting quizzes for document ${documentId}:`, error);
-      throw new Error(`Failed to get document quizzes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      functions.logger.error(
+        `Error getting quizzes for document ${documentId}:`,
+        error,
+      );
+      throw new Error(
+        `Failed to get document quizzes: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
   /**
    * Get document metadata from documents collection
    */
-  public static async getDocument(userId: string, documentId: string): Promise<IDocumentArtifactMetadata> {
+  public static async getDocument(
+    userId: string,
+    documentId: string,
+  ): Promise<IDocumentArtifactMetadata> {
     try {
       const doc = await FirestorePaths.document(userId, documentId).get();
-      
+
       if (!doc.exists) {
-        throw new Error("Document not found");
+        throw new Error('Document not found');
       }
 
       const data = doc.data();
       if (!data) {
-        throw new Error("Document data is empty");
+        throw new Error('Document data is empty');
       }
-      
+
       return {
         id: doc.id,
         title: data.title,
         wordCount: data.wordCount,
-        storagePath: typeof data.storagePath === 'string' ? data.storagePath : undefined,
+        storagePath:
+          typeof data.storagePath === 'string' ? data.storagePath : undefined,
         contentFormat: this.resolveDocumentContentFormat(data.contentFormat),
       };
     } catch (error) {
@@ -299,16 +367,26 @@ export class FirestoreService {
   /**
    * Get document content from storage via DocumentCrudService
    */
-  public static async getDocumentContent(userId: string, documentId: string): Promise<string> {
+  public static async getDocumentContent(
+    userId: string,
+    documentId: string,
+  ): Promise<string> {
     try {
       const document = await this.getDocument(userId, documentId);
-      const stored = await DocumentService.getDocumentContentWithFormat(userId, documentId, {
-        storagePath: document.storagePath || undefined,
-        contentFormat: document.contentFormat,
-      });
+      const stored = await DocumentService.getDocumentContentWithFormat(
+        userId,
+        documentId,
+        {
+          storagePath: document.storagePath || undefined,
+          contentFormat: document.contentFormat,
+        },
+      );
       return adaptDocumentContentForLlm(stored.content, stored.contentFormat);
     } catch (error) {
-      functions.logger.error(`Error getting document content ${documentId}:`, error);
+      functions.logger.error(
+        `Error getting document content ${documentId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -323,33 +401,41 @@ export class FirestoreService {
     directoryId: string,
     followupRuleIds?: string[],
     allDocumentIds?: string[],
-    appliedRuleIds?: string[]
+    appliedRuleIds?: string[],
   ): Promise<Quiz> {
     try {
       const quizzesCollection = FirestorePaths.quizzes(userId);
 
       // Get document metadata for quiz title
       const document = await this.getDocument(userId, documentId);
-      
+
       // Count existing quizzes for this document to determine generation attempt
       const existingQuizzesSnapshot = await quizzesCollection
-        .where("documentId", "==", documentId)
+        .where('documentId', '==', documentId)
         .get();
-      
+
       const generationAttempt = existingQuizzesSnapshot.size + 1;
 
       const quiz: Quiz = {
-        id: "",
+        id: '',
         documentId: documentId,
         ...(allDocumentIds ? { documentIds: allDocumentIds } : {}),
         title: `${document.title} - Quiz ${generationAttempt}`,
-        questions: geminiQuiz.questions.map((q: { question: string; options: string[]; correctAnswer: number; explanation?: string; hint?: string }): QuizQuestion => ({
-          question: q.question,
-          options: q.options,
-          correctAnswer: q.correctAnswer,
-          explanation: q.explanation,
-          ...(q.hint ? { hint: q.hint } : {}),
-        })),
+        questions: geminiQuiz.questions.map(
+          (q: {
+            question: string;
+            options: string[];
+            correctAnswer: number;
+            explanation?: string;
+            hint?: string;
+          }): QuizQuestion => ({
+            question: q.question,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation,
+            ...(q.hint ? { hint: q.hint } : {}),
+          }),
+        ),
         createdAt: new Date(),
         userId: userId,
         directoryId,
@@ -387,11 +473,15 @@ export class FirestoreService {
       quiz.id = quizRef.id;
       quiz.createdAt = new Date();
 
-      functions.logger.info(`Quiz saved from document: ${quizRef.id} (document: ${documentId}, attempt: ${generationAttempt})`);
+      functions.logger.info(
+        `Quiz saved from document: ${quizRef.id} (document: ${documentId}, attempt: ${generationAttempt})`,
+      );
       return quiz;
     } catch (error) {
-      functions.logger.error("Error saving quiz from document:", error);
-      throw new Error(`Failed to save quiz: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      functions.logger.error('Error saving quiz from document:', error);
+      throw new Error(
+        `Failed to save quiz: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -405,25 +495,29 @@ export class FirestoreService {
     directoryId: string,
     followupRuleIds?: string[],
     allDocumentIds?: string[],
-    appliedRuleIds?: string[]
+    appliedRuleIds?: string[],
   ): Promise<DiagramQuiz> {
     try {
       const col = FirestorePaths.diagramQuizzes(userId);
       const document = await this.getDocument(userId, documentId);
-      const existing = await col.where("documentId", "==", documentId).get();
+      const existing = await col.where('documentId', '==', documentId).get();
       const generationAttempt = existing.size + 1;
 
-      const questions: DiagramQuizQuestion[] = geminiQuiz.questions.map((q) => ({
-        question: q.question,
-        diagrams: q.diagrams,
-        ...(q.diagramLabels?.length ? { diagramLabels: q.diagramLabels } : {}),
-        correctAnswer: q.correctAnswer,
-        explanation: q.explanation,
-        ...(q.hint ? { hint: q.hint } : {}),
-      }));
+      const questions: DiagramQuizQuestion[] = geminiQuiz.questions.map(
+        (q) => ({
+          question: q.question,
+          diagrams: q.diagrams,
+          ...(q.diagramLabels?.length
+            ? { diagramLabels: q.diagramLabels }
+            : {}),
+          correctAnswer: q.correctAnswer,
+          explanation: q.explanation,
+          ...(q.hint ? { hint: q.hint } : {}),
+        }),
+      );
 
       const diagramQuiz = {
-        id: "",
+        id: '',
         documentId,
         ...(allDocumentIds ? { documentIds: allDocumentIds } : {}),
         title: `${document.title} - Diagram Quiz ${generationAttempt}`,
@@ -440,7 +534,9 @@ export class FirestoreService {
       const payload = {
         id: ref.id,
         documentId: diagramQuiz.documentId,
-        ...(diagramQuiz.documentIds ? { documentIds: diagramQuiz.documentIds } : {}),
+        ...(diagramQuiz.documentIds
+          ? { documentIds: diagramQuiz.documentIds }
+          : {}),
         title: diagramQuiz.title,
         questions: diagramQuiz.questions,
         userId: diagramQuiz.userId,
@@ -464,70 +560,87 @@ export class FirestoreService {
       diagramQuiz.id = ref.id;
       return diagramQuiz as DiagramQuiz;
     } catch (error) {
-      functions.logger.error("Error saving diagram quiz:", error);
+      functions.logger.error('Error saving diagram quiz:', error);
       throw new Error(
         `Failed to save diagram quiz: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
       );
     }
   }
 
   public static async getDiagramQuiz(
     diagramQuizId: string,
-    userId: string
+    userId: string,
   ): Promise<DiagramQuiz | null> {
     try {
-      const snap = await FirestorePaths.diagramQuiz(userId, diagramQuizId).get();
+      const snap = await FirestorePaths.diagramQuiz(
+        userId,
+        diagramQuizId,
+      ).get();
       if (!snap.exists) return null;
       return { id: snap.id, ...snap.data() } as DiagramQuiz;
     } catch (error) {
       functions.logger.error(`Error getDiagramQuiz ${diagramQuizId}:`, error);
-      throw new Error("Failed to fetch diagram quiz");
+      throw new Error('Failed to fetch diagram quiz');
     }
   }
 
-  public static async getUserDiagramQuizzes(userId: string): Promise<DiagramQuiz[]> {
+  public static async getUserDiagramQuizzes(
+    userId: string,
+  ): Promise<DiagramQuiz[]> {
     try {
       const snapshot = await FirestorePaths.diagramQuizzes(userId)
-        .orderBy("createdAt", "desc")
+        .orderBy('createdAt', 'desc')
         .get();
-      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as DiagramQuiz));
+      return snapshot.docs.map(
+        (d) => ({ id: d.id, ...d.data() }) as DiagramQuiz,
+      );
     } catch (error) {
       functions.logger.error(`getUserDiagramQuizzes ${userId}:`, error);
-      throw new Error("Failed to list diagram quizzes");
+      throw new Error('Failed to list diagram quizzes');
     }
   }
 
   public static async deleteDiagramQuiz(
     diagramQuizId: string,
-    userId: string
+    userId: string,
   ): Promise<void> {
     try {
       const ref = FirestorePaths.diagramQuiz(userId, diagramQuizId);
       const db = this.getDb();
       const preSnap = await ref.get();
-      const directoryId = preSnap.exists ? (preSnap.data() as DiagramQuiz).directoryId : undefined;
+      const directoryId = preSnap.exists
+        ? (preSnap.data() as DiagramQuiz).directoryId
+        : undefined;
       await db.runTransaction(async (transaction) => {
         const snap = await transaction.get(ref);
         if (!snap.exists) {
-          throw new Error("Diagram quiz not found");
+          throw new Error('Diagram quiz not found');
         }
         const data = snap.data() as DiagramQuiz;
         transaction.delete(ref);
-        if (data.directoryId && (!data.generationStatus || data.generationStatus === 'completed')) {
+        if (
+          data.directoryId &&
+          (!data.generationStatus || data.generationStatus === 'completed')
+        ) {
           transaction.update(
             FirestorePaths.directory(userId, data.directoryId),
             {
               diagramQuizCount: FieldValue.increment(-1),
               updatedAt: FieldValue.serverTimestamp(),
-            }
+            },
           );
         }
       });
       if (directoryId) {
         await syncIndexSafely('deleteDiagramQuiz', () =>
-          removeArtifactDirectoryIndex(userId, directoryId, 'diagramQuiz', diagramQuizId),
+          removeArtifactDirectoryIndex(
+            userId,
+            directoryId,
+            'diagramQuiz',
+            diagramQuizId,
+          ),
         );
       }
       functions.logger.info(`Deleted diagram quiz: ${diagramQuizId}`);
@@ -535,8 +648,8 @@ export class FirestoreService {
       functions.logger.error(`deleteDiagramQuiz ${diagramQuizId}:`, error);
       throw new Error(
         `Failed to delete diagram quiz: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
       );
     }
   }
@@ -548,20 +661,22 @@ export class FirestoreService {
     directoryId: string,
     followupRuleIds?: string[],
     allDocumentIds?: string[],
-    appliedRuleIds?: string[]
+    appliedRuleIds?: string[],
   ): Promise<SequenceQuiz> {
     try {
       const col = FirestorePaths.sequenceQuizzes(userId);
       const document = await this.getDocument(userId, documentId);
-      const existing = await col.where("documentId", "==", documentId).get();
+      const existing = await col.where('documentId', '==', documentId).get();
       const generationAttempt = existing.size + 1;
 
-      const questions: SequenceQuizQuestion[] = geminiQuiz.questions.map((q) => ({
-        question: q.question,
-        items: q.items,
-        explanation: q.explanation,
-        ...(q.hint ? { hint: q.hint } : {}),
-      }));
+      const questions: SequenceQuizQuestion[] = geminiQuiz.questions.map(
+        (q) => ({
+          question: q.question,
+          items: q.items,
+          explanation: q.explanation,
+          ...(q.hint ? { hint: q.hint } : {}),
+        }),
+      );
 
       const db = this.getDb();
       const ref = col.doc();
@@ -591,62 +706,74 @@ export class FirestoreService {
 
       const savedSnap = await ref.get();
       if (!savedSnap.exists) {
-        throw new Error("Failed to read saved sequence quiz");
+        throw new Error('Failed to read saved sequence quiz');
       }
       return { id: savedSnap.id, ...savedSnap.data() } as SequenceQuiz;
     } catch (error) {
-      functions.logger.error("Error saving sequence quiz:", error);
+      functions.logger.error('Error saving sequence quiz:', error);
       throw new Error(
         `Failed to save sequence quiz: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
       );
     }
   }
 
   public static async getSequenceQuiz(
     sequenceQuizId: string,
-    userId: string
+    userId: string,
   ): Promise<SequenceQuiz | null> {
     try {
-      const snap = await FirestorePaths.sequenceQuiz(userId, sequenceQuizId).get();
+      const snap = await FirestorePaths.sequenceQuiz(
+        userId,
+        sequenceQuizId,
+      ).get();
       if (!snap.exists) return null;
       return { id: snap.id, ...snap.data() } as SequenceQuiz;
     } catch (error) {
       functions.logger.error(`Error getSequenceQuiz ${sequenceQuizId}:`, error);
-      throw new Error("Failed to fetch sequence quiz");
+      throw new Error('Failed to fetch sequence quiz');
     }
   }
 
-  public static async getUserSequenceQuizzes(userId: string): Promise<SequenceQuiz[]> {
+  public static async getUserSequenceQuizzes(
+    userId: string,
+  ): Promise<SequenceQuiz[]> {
     try {
       const snapshot = await FirestorePaths.sequenceQuizzes(userId)
-        .orderBy("createdAt", "desc")
+        .orderBy('createdAt', 'desc')
         .get();
-      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as SequenceQuiz));
+      return snapshot.docs.map(
+        (d) => ({ id: d.id, ...d.data() }) as SequenceQuiz,
+      );
     } catch (error) {
       functions.logger.error(`getUserSequenceQuizzes ${userId}:`, error);
-      throw new Error("Failed to list sequence quizzes");
+      throw new Error('Failed to list sequence quizzes');
     }
   }
 
   public static async deleteSequenceQuiz(
     sequenceQuizId: string,
-    userId: string
+    userId: string,
   ): Promise<void> {
     try {
       const ref = FirestorePaths.sequenceQuiz(userId, sequenceQuizId);
       const db = this.getDb();
       const preSnap = await ref.get();
-      const directoryId = preSnap.exists ? (preSnap.data() as SequenceQuiz).directoryId : undefined;
+      const directoryId = preSnap.exists
+        ? (preSnap.data() as SequenceQuiz).directoryId
+        : undefined;
       await db.runTransaction(async (transaction) => {
         const snap = await transaction.get(ref);
         if (!snap.exists) {
-          throw new Error("Sequence quiz not found");
+          throw new Error('Sequence quiz not found');
         }
         const data = snap.data() as SequenceQuiz;
         transaction.delete(ref);
-        if (data.directoryId && (!data.generationStatus || data.generationStatus === 'completed')) {
+        if (
+          data.directoryId &&
+          (!data.generationStatus || data.generationStatus === 'completed')
+        ) {
           const dirRef = FirestorePaths.directory(userId, data.directoryId);
           transaction.update(dirRef, {
             sequenceQuizCount: FieldValue.increment(-1),
@@ -656,7 +783,12 @@ export class FirestoreService {
       });
       if (directoryId) {
         await syncIndexSafely('deleteSequenceQuiz', () =>
-          removeArtifactDirectoryIndex(userId, directoryId, 'sequenceQuiz', sequenceQuizId),
+          removeArtifactDirectoryIndex(
+            userId,
+            directoryId,
+            'sequenceQuiz',
+            sequenceQuizId,
+          ),
         );
       }
       functions.logger.info(`Deleted sequence quiz: ${sequenceQuizId}`);
@@ -664,12 +796,91 @@ export class FirestoreService {
       functions.logger.error(`deleteSequenceQuiz ${sequenceQuizId}:`, error);
       throw new Error(
         `Failed to delete sequence quiz: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
       );
     }
   }
 
+  public static async getMatchQuiz(
+    matchQuizId: string,
+    userId: string,
+  ): Promise<MatchQuiz | null> {
+    try {
+      const snap = await FirestorePaths.matchQuiz(userId, matchQuizId).get();
+      if (!snap.exists) return null;
+      return toMatchQuiz(snap.id, snap.data());
+    } catch (error) {
+      functions.logger.error(`Error getMatchQuiz ${matchQuizId}:`, error);
+      throw new Error('Failed to fetch match quiz');
+    }
+  }
+
+  public static async getUserMatchQuizzes(
+    userId: string,
+  ): Promise<MatchQuiz[]> {
+    try {
+      const snapshot = await FirestorePaths.matchQuizzes(userId)
+        .orderBy('createdAt', 'desc')
+        .get();
+      return snapshot.docs
+        .map((d) => toMatchQuiz(d.id, d.data()))
+        .filter((quiz): quiz is MatchQuiz => quiz !== null);
+    } catch (error) {
+      functions.logger.error(`getUserMatchQuizzes ${userId}:`, error);
+      throw new Error('Failed to list match quizzes');
+    }
+  }
+
+  public static async deleteMatchQuiz(
+    matchQuizId: string,
+    userId: string,
+  ): Promise<void> {
+    try {
+      const ref = FirestorePaths.matchQuiz(userId, matchQuizId);
+      const db = this.getDb();
+      let directoryId: string | undefined;
+      await db.runTransaction(async (transaction) => {
+        const snap = await transaction.get(ref);
+        if (!snap.exists) {
+          throw new Error('Match quiz not found');
+        }
+        const data = snap.data();
+        directoryId =
+          typeof data?.directoryId === 'string' ? data.directoryId : undefined;
+        transaction.delete(ref);
+        if (
+          directoryId &&
+          (!data?.generationStatus || data.generationStatus === 'completed')
+        ) {
+          const dirRef = FirestorePaths.directory(userId, directoryId);
+          transaction.update(dirRef, {
+            matchQuizCount: FieldValue.increment(-1),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      });
+      if (directoryId) {
+        const cleanupDirectoryId = directoryId;
+        await syncIndexSafely('deleteMatchQuiz', () =>
+          removeArtifactDirectoryIndex(
+            userId,
+            cleanupDirectoryId,
+            'matchQuiz',
+            matchQuizId,
+          ),
+        );
+      }
+      functions.logger.info(`Deleted match quiz: ${matchQuizId}`);
+    } catch (error) {
+      functions.logger.error(`deleteMatchQuiz ${matchQuizId}:`, error);
+      throw new Error(
+        `Failed to delete match quiz: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      );
+    }
+  }
 }
 
 // Initialize Firestore on module load

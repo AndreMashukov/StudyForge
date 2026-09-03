@@ -17,6 +17,7 @@ import {
   type GeminiQuizResponse,
   type GeminiDiagramQuizResponse,
   type GeminiSequenceQuizResponse,
+  type GeminiMatchQuizResponse,
 } from '../gemini';
 import {
   QuizPromptBuilder,
@@ -28,6 +29,7 @@ import {
   DirectoryChatPromptBuilder,
   SlideDeckPromptBuilder,
   SequenceQuizPromptBuilder,
+  MatchQuizPromptBuilder,
   ScreenshotPromptBuilder,
 } from '../gemini/prompt-builder';
 import { RulePromptBuilder } from '../gemini/prompt-builder/rule-prompt-builder';
@@ -419,6 +421,41 @@ export class LlmGenerationService {
       { profile, flow: 'sequenceQuiz' },
     );
     return GeminiService.parseSequenceQuizResponseFromText(text);
+  }
+
+  static async generateMatchQuiz(
+    userId: string,
+    content: ScrapedContent,
+    additionalPrompt?: string,
+  ): Promise<GeminiMatchQuizResponse> {
+    const ctx = await resolveTextRoute(userId, 'matchQuiz', 'matchQuiz');
+    const profile = resolveLlmGenerationProfile('matchQuiz') ?? 'structuredArtifact';
+    const runtimeConfig = await buildGenerationConfig(
+      ctx.resolution.route.model,
+      profile,
+      { flow: 'matchQuiz' },
+    );
+
+    if (!ctx.usesExternalProvider) {
+      return GeminiService.generateMatchQuiz(
+        content,
+        additionalPrompt,
+        toGeminiContentOptions(runtimeConfig),
+      );
+    }
+
+    const prompt = MatchQuizPromptBuilder.buildMatchQuizPrompt(
+      content,
+      additionalPrompt,
+    );
+    const text = await generateExternalProviderText(
+      ctx,
+      prompt,
+      { model: ctx.resolution.route.model },
+      'Match quiz generated via external provider',
+      { profile, flow: 'matchQuiz' },
+    );
+    return GeminiService.parseMatchQuizResponseFromText(text);
   }
 
   static async generateFlashcards(

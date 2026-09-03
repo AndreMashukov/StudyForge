@@ -24,6 +24,7 @@ import { FlashcardSetPage } from '../pages/FlashcardSetPage';
 import { SlideDeckPage } from '../pages/SlideDeckPage';
 import { DiagramQuizPage } from '../pages/DiagramQuizPage';
 import { SequenceQuizPage } from '../pages/SequenceQuizPage';
+import { MatchQuizPage } from '../pages/MatchQuizPage';
 import { StatisticsPage } from '../pages/StatisticsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { UsagePage } from '../pages/UsagePage';
@@ -279,6 +280,30 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <SequenceQuizPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+
+      <Route
+        path="/match-quiz/create"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <CreateArtifactRouteRedirect
+                directoryTab="matchQuizzes"
+                artifactType="matchQuizzes"
+              />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/match-quiz/:matchQuizId"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <MatchQuizPage />
             </ProtectedRoute>
           </MainLayout>
         }

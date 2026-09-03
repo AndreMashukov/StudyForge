@@ -91,7 +91,23 @@
       ]
     },
     {
+      "collectionGroup": "matchQuizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "directoryId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "sequenceQuizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "documentId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "matchQuizzes",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "documentId", "order": "ASCENDING" },
@@ -180,6 +196,14 @@
     },
     {
       "collectionGroup": "sequenceQuizzes",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "generationStatus", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "matchQuizzes",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         { "fieldPath": "generationStatus", "order": "ASCENDING" },

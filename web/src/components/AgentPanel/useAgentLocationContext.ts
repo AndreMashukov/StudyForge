@@ -8,6 +8,7 @@ import { useGetFlashcardSetQuery } from '../../store/api/Flashcards/FlashcardsAp
 import { useGetSlideDeckQuery } from '../../store/api/SlideDecks/SlideDecksApi';
 import { useGetDiagramQuizQuery } from '../../store/api/DiagramQuiz/DiagramQuizApi';
 import { useGetSequenceQuizQuery } from '../../store/api/SequenceQuiz/SequenceQuizApi';
+import { useGetMatchQuizQuery } from '../../store/api/MatchQuiz/MatchQuizApi';
 import { useGetRuleQuery } from '../../store/api/Rules';
 import { extractDirectoryIdFromRouteParam } from '../../utils/directoryUrl';
 
@@ -31,7 +32,8 @@ type ResolvedRoute =
         | 'flashcardSet'
         | 'slideDeck'
         | 'diagramQuiz'
-        | 'sequenceQuiz';
+        | 'sequenceQuiz'
+        | 'matchQuiz';
       artifactId: string;
       queryDirectoryId?: string;
     }
@@ -111,6 +113,17 @@ function resolveRoute(pathname: string, search: string, params: Record<string, s
     };
   }
 
+  const matchQuizId =
+    params.matchQuizId?.trim() || pathname.match(/^\/match-quiz\/([^/?#]+)/)?.[1];
+  if (matchQuizId && matchQuizId !== 'create') {
+    return {
+      type: 'artifact',
+      artifact: 'matchQuiz',
+      artifactId: matchQuizId,
+      queryDirectoryId,
+    };
+  }
+
   return null;
 }
 
@@ -148,6 +161,10 @@ export function useAgentLocationContext(): IAgentLocationContext | null {
     { sequenceQuizId: artifact?.artifact === 'sequenceQuiz' ? artifact.artifactId : '' },
     { skip: artifact?.artifact !== 'sequenceQuiz' },
   );
+  const matchQuizQuery = useGetMatchQuizQuery(
+    { matchQuizId: artifact?.artifact === 'matchQuiz' ? artifact.artifactId : '' },
+    { skip: artifact?.artifact !== 'matchQuiz' },
+  );
 
   const artifactDirectoryId = useMemo(() => {
     if (!artifact) {
@@ -174,11 +191,18 @@ export function useAgentLocationContext(): IAgentLocationContext | null {
         artifact.queryDirectoryId
       );
     }
+    if (artifact.artifact === 'matchQuiz') {
+      return (
+        matchQuizQuery.data?.data?.matchQuiz?.directoryId?.trim() ||
+        artifact.queryDirectoryId
+      );
+    }
     return undefined;
   }, [
     artifact,
     diagramQuizQuery.data?.data?.diagramQuiz?.directoryId,
     flashcardQuery.data?.data?.directoryId,
+    matchQuizQuery.data?.data?.matchQuiz?.directoryId,
     quizQuery.data?.data?.quiz?.directoryId,
     sequenceQuizQuery.data?.data?.sequenceQuiz?.directoryId,
     slideDeckQuery.data?.data?.directoryId,

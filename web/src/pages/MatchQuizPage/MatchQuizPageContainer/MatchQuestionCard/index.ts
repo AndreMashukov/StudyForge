@@ -1,0 +1,1 @@
+export { MatchQuestionCard } from './MatchQuestionCard';

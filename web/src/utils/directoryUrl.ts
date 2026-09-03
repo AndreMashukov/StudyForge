@@ -9,6 +9,7 @@ export const DIRECTORY_TABS = [
   'slides',
   'diagramQuizzes',
   'sequenceQuizzes',
+  'matchQuizzes',
   'chat',
   'rules',
 ] as const;
@@ -25,6 +26,8 @@ const DIRECTORY_TAB_ALIASES: Record<string, DirectoryTab> = {
   diagrams: 'diagramQuizzes',
   sequenceQuizzes: 'sequenceQuizzes',
   sequence: 'sequenceQuizzes',
+  matchQuizzes: 'matchQuizzes',
+  match: 'matchQuizzes',
   chat: 'chat',
   rules: 'rules',
 };

@@ -24,6 +24,7 @@ function navigateToCreateArtifact(
     slides: 'slides',
     diagramQuizzes: 'diagramQuizzes',
     sequenceQuizzes: 'sequenceQuizzes',
+    matchQuizzes: 'matchQuizzes',
   };
 
   navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, tabByType[artifactType]), {

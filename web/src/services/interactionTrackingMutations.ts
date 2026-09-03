@@ -27,6 +27,7 @@ const EMPTY_ARTIFACT_COUNTS: Record<ArtifactType, number> = {
   slideDeck: 0,
   diagramQuiz: 0,
   sequenceQuiz: 0,
+  matchQuiz: 0,
 };
 
 export async function getAncestorDirectoryIds(

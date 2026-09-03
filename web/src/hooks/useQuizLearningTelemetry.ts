@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import {
   DiagramQuiz,
+  MatchQuiz,
   Quiz,
   QuizTelemetryType,
   RecordQuizAttemptAnswerInput,
@@ -11,7 +12,7 @@ import {
   useRecordQuizExplanationRequestMutation,
 } from '../store/api/LearningTelemetry/learningTelemetryApi';
 
-type TrackableQuiz = Quiz | DiagramQuiz | SequenceQuiz | null;
+type TrackableQuiz = Quiz | DiagramQuiz | SequenceQuiz | MatchQuiz | null;
 
 interface IUseQuizLearningTelemetryOptions {
   quiz: TrackableQuiz;

@@ -1,6 +1,7 @@
 import type {
   DiagramQuiz,
   FlashcardSet,
+  MatchQuiz,
   SequenceQuiz,
   SlideDeck,
 } from '@shared-types';
@@ -15,6 +16,7 @@ const USER_FLASHCARD_SETS_LIMIT = 50;
 const USER_SLIDE_DECKS_LIMIT = 50;
 const USER_DIAGRAM_QUIZZES_LIMIT = 50;
 const USER_SEQUENCE_QUIZZES_LIMIT = 50;
+const USER_MATCH_QUIZZES_LIMIT = 50;
 
 export function fetchFlashcardSetFromFirestore(
   userId: string,
@@ -73,6 +75,21 @@ export function fetchUserSequenceQuizzesFromFirestore(userId: string): Promise<S
     userId,
     'sequenceQuizzes',
     orderByCreatedAtDesc(USER_SEQUENCE_QUIZZES_LIMIT),
+  );
+}
+
+export function fetchMatchQuizFromFirestore(
+  userId: string,
+  matchQuizId: string,
+): Promise<MatchQuiz | null> {
+  return fetchUserDoc<MatchQuiz>(userId, 'matchQuizzes', matchQuizId);
+}
+
+export function fetchUserMatchQuizzesFromFirestore(userId: string): Promise<MatchQuiz[]> {
+  return fetchUserCollection<MatchQuiz>(
+    userId,
+    'matchQuizzes',
+    orderByCreatedAtDesc(USER_MATCH_QUIZZES_LIMIT),
   );
 }
 

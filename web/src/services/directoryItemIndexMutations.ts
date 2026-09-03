@@ -25,6 +25,7 @@ import {
   documentRef,
   diagramQuizRef,
   flashcardSetRef,
+  matchQuizRef,
   quizRef,
   sequenceQuizRef,
   slideDeckRef,
@@ -436,6 +437,8 @@ function getArtifactRef(
       return diagramQuizRef(userId, artifactId);
     case 'sequenceQuiz':
       return sequenceQuizRef(userId, artifactId);
+    case 'matchQuiz':
+      return matchQuizRef(userId, artifactId);
     default:
       throw new Error(`Unsupported artifact item type: ${itemType}`);
   }

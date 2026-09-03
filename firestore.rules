@@ -171,6 +171,18 @@ service cloud.firestore {
         }
       }
 
+      match /matchQuizzes/{matchQuizId} {
+        allow get: if canAccessWorkspace(userId);
+        allow list: if canAccessWorkspace(userId) && isBoundedList(50);
+        allow create: if false;
+        allow update: if canAccessWorkspace(userId) && generationFieldsUnchanged();
+        allow delete: if canAccessWorkspace(userId);
+
+        match /{nestedPath=**} {
+          allow read, write: if false;
+        }
+      }
+
       match /generationJobs/{jobId} {
         allow read, write: if false;
       }

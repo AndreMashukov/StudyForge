@@ -39,6 +39,7 @@ import {
   quizAttemptCollection,
   quizRef,
   sequenceQuizRef,
+  matchQuizRef,
   slideDeckRef,
 } from './firestorePaths';
 
@@ -73,6 +74,7 @@ const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
   slideDeck: 'Slide deck',
   diagramQuiz: 'Diagram quiz',
   sequenceQuiz: 'Sequence quiz',
+  matchQuiz: 'Match quiz',
 };
 
 function normalizeQuizType(
@@ -246,7 +248,9 @@ async function getQuizMetadata(
       ? quizRef(userId, quizId)
       : quizType === 'diagramQuiz'
         ? diagramQuizRef(userId, quizId)
-        : sequenceQuizRef(userId, quizId);
+        : quizType === 'matchQuiz'
+          ? matchQuizRef(userId, quizId)
+          : sequenceQuizRef(userId, quizId);
 
   const snap = await getDoc(quizDocRef);
   const data = snap.exists() ? (snap.data() ?? {}) : {};
@@ -613,6 +617,8 @@ function getArtifactRef(
       return diagramQuizRef(userId, artifactId);
     case 'sequenceQuiz':
       return sequenceQuizRef(userId, artifactId);
+    case 'matchQuiz':
+      return matchQuizRef(userId, artifactId);
     case 'flashcardSet':
       return flashcardSetRef(userId, artifactId);
     case 'slideDeck':

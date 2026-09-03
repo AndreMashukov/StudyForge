@@ -10,6 +10,7 @@ export {
   type GeminiQuizResponse,
   type GeminiDiagramQuizResponse,
   type GeminiSequenceQuizResponse,
+  type GeminiMatchQuizResponse,
 } from './gemini';
 export { JsonSanitizer } from './json-sanitizer';
 export { PromptBuilder } from './prompt-builder';

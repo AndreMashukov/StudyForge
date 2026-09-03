@@ -10,6 +10,7 @@ import {
   Presentation,
   Network,
   ListOrdered,
+  Puzzle,
   MoreVertical,
   FolderInput,
   Loader2,
@@ -280,6 +281,14 @@ export const SourceRow: React.FC<SourceRowProps> = ({
               >
                 <ListOrdered size={14} className="mr-2" />
                 Sequence quiz
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  onCreateArtifact?.('matchQuizzes', document.id)
+                }
+              >
+                <Puzzle size={14} className="mr-2" />
+                Match quiz
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

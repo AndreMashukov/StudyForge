@@ -96,6 +96,13 @@ export const useRealtimeDirectorySync = (
         listLimit: 50,
         tags: [...directoryTags, 'UserSequenceQuizzes' as const],
       },
+      // Match quizzes in the current directory
+      {
+        collectionName: 'matchQuizzes',
+        filters: [{ field: 'directoryId', value: dirValue }],
+        listLimit: 50,
+        tags: [...directoryTags, 'UserMatchQuizzes' as const],
+      },
     ];
   }, [directoryId, subdirectoriesOnly]);
 

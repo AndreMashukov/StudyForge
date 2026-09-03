@@ -34,6 +34,8 @@ export { generateDiagramQuiz } from './endpoints/diagram-quizzes';
 
 export { generateSequenceQuiz } from './endpoints/sequence-quizzes';
 
+export { generateMatchQuiz } from './endpoints/match-quizzes';
+
 export { generateQuizFollowup } from './endpoints/quiz-followup';
 
 export { askDocumentQuestion } from './endpoints/document-question';
