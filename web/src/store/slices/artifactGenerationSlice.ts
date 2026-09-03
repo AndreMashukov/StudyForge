@@ -1,12 +1,20 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-export type ArtifactPanelType = 'quizzes' | 'cards' | 'slides' | 'diagramQuizzes' | 'sequenceQuizzes' | 'matchQuizzes' | 'sources';
+export type ArtifactPanelType =
+  | 'quizzes'
+  | 'cards'
+  | 'slides'
+  | 'diagramQuizzes'
+  | 'sequenceQuizzes'
+  | 'matchQuizzes'
+  | 'sources';
 
 export interface IPendingGeneration {
   id: string;
   directoryId: string;
   artifactType: ArtifactPanelType;
   optimisticTitle?: string;
+  startedAtMs: number;
 }
 
 interface ArtifactGenerationState {
@@ -21,8 +29,16 @@ const artifactGenerationSlice = createSlice({
   name: 'artifactGeneration',
   initialState,
   reducers: {
-    addPendingGeneration: (state, action: PayloadAction<IPendingGeneration>) => {
-      state.pendingGenerations.push(action.payload);
+    addPendingGeneration: (
+      state,
+      action: PayloadAction<
+        Omit<IPendingGeneration, 'startedAtMs'> & { startedAtMs?: number }
+      >,
+    ) => {
+      state.pendingGenerations.push({
+        ...action.payload,
+        startedAtMs: action.payload.startedAtMs ?? Date.now(),
+      });
     },
     removePendingGeneration: (state, action: PayloadAction<{ id: string }>) => {
       const idx = state.pendingGenerations.findIndex(
@@ -35,7 +51,8 @@ const artifactGenerationSlice = createSlice({
   },
 });
 
-export const { addPendingGeneration, removePendingGeneration } = artifactGenerationSlice.actions;
+export const { addPendingGeneration, removePendingGeneration } =
+  artifactGenerationSlice.actions;
 
 interface StateWithArtifactGeneration {
   artifactGeneration: ArtifactGenerationState;
@@ -47,10 +64,10 @@ export const selectPendingGenerations = (state: StateWithArtifactGeneration) =>
 export const selectIsGeneratingArtifact = (
   state: StateWithArtifactGeneration,
   directoryId: string,
-  artifactType: ArtifactPanelType
+  artifactType: ArtifactPanelType,
 ) =>
   state.artifactGeneration.pendingGenerations.some(
-    (g) => g.directoryId === directoryId && g.artifactType === artifactType
+    (g) => g.directoryId === directoryId && g.artifactType === artifactType,
   );
 
 export default artifactGenerationSlice.reducer;
