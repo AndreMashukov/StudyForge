@@ -10,6 +10,8 @@ import {
 import type {
   DiagramQuiz,
   DiagramQuizQuestion,
+  MatchQuiz,
+  MatchQuizQuestion,
   QuestionKnowledgeMetadata,
   Quiz,
   QuizAnswerValue,
@@ -29,6 +31,7 @@ import {
   diagramQuizRef,
   knowledgeStatRef,
   learningEventCollection,
+  matchQuizRef,
   questionStatRef,
   quizAttemptCollection,
   quizRef,
@@ -36,8 +39,12 @@ import {
   sequenceQuizRef,
 } from './firestorePaths';
 
-type StoredQuiz = Quiz | DiagramQuiz | SequenceQuiz;
-type StoredQuestion = QuizQuestion | DiagramQuizQuestion | SequenceQuizQuestion;
+type StoredQuiz = Quiz | DiagramQuiz | SequenceQuiz | MatchQuiz;
+type StoredQuestion =
+  | QuizQuestion
+  | DiagramQuizQuestion
+  | SequenceQuizQuestion
+  | MatchQuizQuestion;
 
 interface IResolvedQuiz {
   quiz: StoredQuiz;
@@ -47,7 +54,11 @@ interface IResolvedQuiz {
 
 function statId(...parts: Array<string | number | undefined>): string {
   return parts
-    .map((part) => encodeURIComponent(String(part ?? 'unclassified').trim() || 'unclassified'))
+    .map((part) =>
+      encodeURIComponent(
+        String(part ?? 'unclassified').trim() || 'unclassified',
+      ),
+    )
     .join('__');
 }
 
@@ -61,15 +72,74 @@ function parseDate(value: string | undefined, fieldName: string): Date {
 
 function stringArray(value: unknown): string[] {
   return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    ? value.filter(
+        (item): item is string =>
+          typeof item === 'string' && item.trim().length > 0,
+      )
     : [];
+}
+
+function isSequenceQuestion(
+  question: StoredQuestion,
+): question is SequenceQuizQuestion {
+  return 'items' in question;
+}
+
+function isMatchQuestion(
+  question: StoredQuestion,
+): question is MatchQuizQuestion {
+  return 'prompts' in question && 'options' in question;
 }
 
 function isStoredQuestion(value: unknown): value is StoredQuestion {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return false;
   }
+  if (
+    'prompts' in value &&
+    'options' in value &&
+    Array.isArray(value.prompts) &&
+    Array.isArray(value.options)
+  ) {
+    return true;
+  }
+  if (
+    'items' in value &&
+    Array.isArray(value.items) &&
+    'question' in value &&
+    typeof value.question === 'string'
+  ) {
+    return true;
+  }
   return 'question' in value && typeof value.question === 'string';
+}
+
+function quizDocRef(
+  userId: string,
+  quizType: QuizTelemetryType,
+  quizId: string,
+) {
+  switch (quizType) {
+    case 'quiz':
+      return quizRef(userId, quizId);
+    case 'diagramQuiz':
+      return diagramQuizRef(userId, quizId);
+    case 'sequenceQuiz':
+      return sequenceQuizRef(userId, quizId);
+    case 'matchQuiz':
+      return matchQuizRef(userId, quizId);
+    default: {
+      const _exhaustive: never = quizType;
+      throw new Error(`Unsupported quiz type: ${String(_exhaustive)}`);
+    }
+  }
+}
+
+function questionTextFor(question: StoredQuestion): string {
+  if (isMatchQuestion(question)) {
+    return question.prompts.map((prompt) => prompt.text).join(' | ');
+  }
+  return question.question;
 }
 
 function parseStoredQuiz(id: string, data: unknown): StoredQuiz | null {
@@ -90,14 +160,7 @@ async function resolveQuiz(
   quizType: QuizTelemetryType,
   quizId: string,
 ): Promise<IResolvedQuiz> {
-  const quizDocRef =
-    quizType === 'quiz'
-      ? quizRef(userId, quizId)
-      : quizType === 'diagramQuiz'
-        ? diagramQuizRef(userId, quizId)
-        : sequenceQuizRef(userId, quizId);
-
-  const snap = await getDoc(quizDocRef);
+  const snap = await getDoc(quizDocRef(userId, quizType, quizId));
   if (!snap.exists()) {
     throw new Error('Quiz not found');
   }
@@ -127,15 +190,15 @@ function normalizeKnowledge(
   return {
     ...(source.subjectId ? { subjectId: source.subjectId } : {}),
     ...(source.subjectName ? { subjectName: source.subjectName } : {}),
-    ...(source.knowledgeDomainId ? { knowledgeDomainId: source.knowledgeDomainId } : {}),
-    ...(source.knowledgeDomainName ? { knowledgeDomainName: source.knowledgeDomainName } : {}),
+    ...(source.knowledgeDomainId
+      ? { knowledgeDomainId: source.knowledgeDomainId }
+      : {}),
+    ...(source.knowledgeDomainName
+      ? { knowledgeDomainName: source.knowledgeDomainName }
+      : {}),
     topicTags: stringArray(source.topicTags),
     sourceDocumentIds,
   };
-}
-
-function isSequenceQuestion(question: StoredQuestion): question is SequenceQuizQuestion {
-  return 'items' in question;
 }
 
 function selectedNumber(value: QuizAnswerValue): number | null {
@@ -143,7 +206,10 @@ function selectedNumber(value: QuizAnswerValue): number | null {
 }
 
 function arraysEqual(left: string[], right: string[]): boolean {
-  return left.length === right.length && left.every((item, index) => item === right[index]);
+  return (
+    left.length === right.length &&
+    left.every((item, index) => item === right[index])
+  );
 }
 
 function resolveAnswer(
@@ -156,6 +222,21 @@ function resolveAnswer(
       selectedAnswer,
       correctAnswer: question.items,
       isCorrect: arraysEqual(selectedAnswer, question.items),
+    };
+  }
+
+  if (isMatchQuestion(question)) {
+    const selectedAnswer = stringArray(input.selectedAnswer);
+    const correctAnswer = question.prompts.map((prompt) => {
+      const option = question.options.find(
+        (candidate) => candidate.correctPromptId === prompt.id,
+      );
+      return option ? option.id : '';
+    });
+    return {
+      selectedAnswer,
+      correctAnswer,
+      isCorrect: arraysEqual(selectedAnswer, correctAnswer),
     };
   }
 
@@ -180,13 +261,16 @@ function buildAttemptAnswers(
     const answer = resolveAnswer(question, input);
     const requestedAt = input.detailedExplanationRequestedAt
       ? Timestamp.fromDate(
-          parseDate(input.detailedExplanationRequestedAt, 'detailedExplanationRequestedAt'),
+          parseDate(
+            input.detailedExplanationRequestedAt,
+            'detailedExplanationRequestedAt',
+          ),
         )
       : undefined;
 
     return {
       questionIndex: input.questionIndex,
-      questionText: question.question,
+      questionText: questionTextFor(question),
       ...answer,
       ...(input.timeSpentMs !== undefined
         ? { timeSpentMs: Math.max(0, input.timeSpentMs) }
@@ -214,8 +298,12 @@ function knowledgeStatPayload(
     date,
     ...(knowledge.subjectId ? { subjectId: knowledge.subjectId } : {}),
     ...(knowledge.subjectName ? { subjectName: knowledge.subjectName } : {}),
-    ...(knowledge.knowledgeDomainId ? { knowledgeDomainId: knowledge.knowledgeDomainId } : {}),
-    ...(knowledge.knowledgeDomainName ? { knowledgeDomainName: knowledge.knowledgeDomainName } : {}),
+    ...(knowledge.knowledgeDomainId
+      ? { knowledgeDomainId: knowledge.knowledgeDomainId }
+      : {}),
+    ...(knowledge.knowledgeDomainName
+      ? { knowledgeDomainName: knowledge.knowledgeDomainName }
+      : {}),
     topicTags: knowledge.topicTags ?? [],
     answerCount: increment(increments.answerCount ?? 0),
     correctCount: increment(increments.correctCount ?? 0),
@@ -225,7 +313,10 @@ function knowledgeStatPayload(
   };
 }
 
-function knowledgeStatId(date: string, knowledge: QuestionKnowledgeMetadata): string {
+function knowledgeStatId(
+  date: string,
+  knowledge: QuestionKnowledgeMetadata,
+): string {
   return statId(
     date,
     knowledge.knowledgeDomainId || knowledge.knowledgeDomainName,
@@ -275,13 +366,19 @@ export async function recordQuizAttemptInFirestore(
   const answers = buildAttemptAnswers(resolved, data.answers ?? []);
   const score = answers.filter((answer) => answer.isCorrect).length;
   const totalQuestions = resolved.questions.length;
-  const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
-  const incorrectAnswerCount = answers.filter((answer) => !answer.isCorrect).length;
+  const percentage =
+    totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+  const incorrectAnswerCount = answers.filter(
+    (answer) => !answer.isCorrect,
+  ).length;
   const durationMs = Math.max(0, data.durationMs || 0);
 
   const attemptRef = doc(quizAttemptCollection(userId));
   const eventRef = doc(learningEventCollection(userId));
-  const quizStatDocRef = quizStatRef(userId, statId(data.quizType, data.quizId));
+  const quizStatDocRef = quizStatRef(
+    userId,
+    statId(data.quizType, data.quizId),
+  );
 
   await runTransaction(db, async (transaction) => {
     const quizStatSnap = await transaction.get(quizStatDocRef);
@@ -437,12 +534,18 @@ export async function recordQuizExplanationRequestInFirestore(
 
   const knowledge = normalizeKnowledge(question, resolved.documentIds);
   const eventRef = doc(learningEventCollection(userId));
-  const quizStatDocRef = quizStatRef(userId, statId(data.quizType, data.quizId));
+  const quizStatDocRef = quizStatRef(
+    userId,
+    statId(data.quizType, data.quizId),
+  );
   const questionStatDocRef = questionStatRef(
     userId,
     statId(data.quizType, data.quizId, data.questionIndex),
   );
-  const knowledgeDocRef = knowledgeStatRef(userId, knowledgeStatId(date, knowledge));
+  const knowledgeDocRef = knowledgeStatRef(
+    userId,
+    knowledgeStatId(date, knowledge),
+  );
 
   const batch = writeBatch(db);
   batch.set(eventRef, {
@@ -478,7 +581,7 @@ export async function recordQuizExplanationRequestInFirestore(
       data.quizType,
       {
         questionIndex: data.questionIndex,
-        questionText: question.question,
+        questionText: questionTextFor(question),
         selectedAnswer: null,
         correctAnswer: null,
         isCorrect: false,
@@ -491,7 +594,9 @@ export async function recordQuizExplanationRequestInFirestore(
   );
   batch.set(
     knowledgeDocRef,
-    knowledgeStatPayload(userId, date, knowledge, { explanationRequestCount: 1 }),
+    knowledgeStatPayload(userId, date, knowledge, {
+      explanationRequestCount: 1,
+    }),
     { merge: true },
   );
 
@@ -549,7 +654,9 @@ export async function getQuizStatsFromFirestore(
     latestPercentage: readStatNumber(data.latestPercentage),
     incorrectAnswerCount: readStatNumber(data.incorrectAnswerCount),
     explanationRequestCount: readStatNumber(data.explanationRequestCount),
-    lastAttemptAt: data.lastAttemptAt ? toStatDate(data.lastAttemptAt, now) : undefined,
+    lastAttemptAt: data.lastAttemptAt
+      ? toStatDate(data.lastAttemptAt, now)
+      : undefined,
     updatedAt: toStatDate(data.updatedAt, now),
   };
 }
