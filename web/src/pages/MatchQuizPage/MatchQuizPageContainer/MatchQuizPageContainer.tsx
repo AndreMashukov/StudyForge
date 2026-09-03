@@ -6,6 +6,7 @@ import { useMatchQuizPageContext } from '../context/hooks/useMatchQuizPageContex
 import { ScoreCard } from '../../QuizPage/QuizPageContainer/ScoreCard';
 import { MatchQuestionCard } from './MatchQuestionCard/MatchQuestionCard';
 import { Spinner } from '../../../components/ui/Spinner';
+import { Button } from '../../../components/ui/Button';
 import { DirectoryChatPanel } from '../../../components/DirectoryChatPanel';
 import {
   selectMatchQuizState,
@@ -30,32 +31,41 @@ export const MatchQuizPageContainer: React.FC = () => {
 
   const handleBackToDirectory = () => {
     if (directoryIdForBack) {
-      navigate(buildDirectoryPathWithOptionalName(directoryIdForBack, undefined, 'matchQuizzes'));
+      navigate(
+        buildDirectoryPathWithOptionalName(
+          directoryIdForBack,
+          undefined,
+          'matchQuizzes',
+        ),
+      );
     } else {
       navigate('/');
     }
   };
 
   const backButton = (
-    <button
+    <Button
       type="button"
+      variant="ghost"
       onClick={handleBackToDirectory}
-      className="mb-6 flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      className="mb-6 h-auto px-0 text-sm font-medium text-muted-foreground hover:text-foreground"
     >
       <ChevronLeft className="h-4 w-4 shrink-0" />
       Back to directory
-    </button>
+    </Button>
   );
 
   const inlineBackAction = (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="sm"
       onClick={handleBackToDirectory}
-      className="flex items-center gap-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+      className="h-auto px-0 text-xs font-medium text-muted-foreground hover:text-foreground"
     >
       <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
       Back
-    </button>
+    </Button>
   );
 
   if (!matchQuizApi.hasValidId) {
@@ -63,8 +73,12 @@ export const MatchQuizPageContainer: React.FC = () => {
       <div className="mx-auto max-w-4xl px-6 py-16">
         {backButton}
         <div className="text-center">
-          <h2 className="mb-4 text-2xl font-bold text-destructive">Invalid match quiz</h2>
-          <p className="mb-6 text-muted-foreground">No match quiz ID was provided.</p>
+          <h2 className="mb-4 text-2xl font-bold text-destructive">
+            Invalid match quiz
+          </h2>
+          <p className="mb-6 text-muted-foreground">
+            No match quiz ID was provided.
+          </p>
         </div>
       </div>
     );
@@ -84,15 +98,13 @@ export const MatchQuizPageContainer: React.FC = () => {
       <div className="mx-auto max-w-4xl px-6 py-16">
         {backButton}
         <div className="text-center">
-          <h2 className="mb-4 text-2xl font-bold text-destructive">Error loading match quiz</h2>
+          <h2 className="mb-4 text-2xl font-bold text-destructive">
+            Error loading match quiz
+          </h2>
           <p className="mb-6 text-muted-foreground">Failed to load quiz</p>
-          <button
-            type="button"
-            onClick={() => matchQuizApi.refetch()}
-            className="rounded bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-          >
+          <Button type="button" onClick={() => matchQuizApi.refetch()}>
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -104,13 +116,15 @@ export const MatchQuizPageContainer: React.FC = () => {
       totalQuestions: stats.totalQuestions,
       percentage: stats.percentage,
       timeTaken: stats.timeTaken,
-      answersBreakdown: stats.answersBreakdown.map((a): IQuizAnswer => ({
-        questionId: a.questionId,
-        selected: a.isCorrect ? 1 : 0,
-        correct: 1,
-        isCorrect: a.isCorrect,
-        timeSpent: a.timeSpent,
-      })),
+      answersBreakdown: stats.answersBreakdown.map(
+        (a): IQuizAnswer => ({
+          questionId: a.questionId,
+          selected: a.isCorrect ? 1 : 0,
+          correct: 1,
+          isCorrect: a.isCorrect,
+          timeSpent: a.timeSpent,
+        }),
+      ),
     };
     return (
       <div className="mx-auto max-w-4xl px-6 py-16">
@@ -134,11 +148,14 @@ export const MatchQuizPageContainer: React.FC = () => {
     );
   }
 
-  const isLastQuestion = quizState.currentQuestionIndex === quizState.questions.length - 1;
+  const isLastQuestion =
+    quizState.currentQuestionIndex === quizState.questions.length - 1;
   const questionIndex = quizState.currentQuestionIndex;
-  const directoryId = matchQuizApi.firestoreMatchQuiz?.directoryId || directoryIdForBack;
+  const directoryId =
+    matchQuizApi.firestoreMatchQuiz?.directoryId || directoryIdForBack;
   const detailedExplanationSeedKey = `matchQuiz:${matchQuizApi.firestoreMatchQuiz?.id ?? 'active'}:${questionIndex}:detailed-explanation`;
-  const detailedExplanationMessage = 'Explain this match quiz in detail. Include why my matches are right or wrong, how to reason about each pairing, and the source details that support it.';
+  const detailedExplanationMessage =
+    'Explain this match quiz in detail. Include why my matches are right or wrong, how to reason about each pairing, and the source details that support it.';
 
   const userMatchLabels = currentQuestion.prompts.map((prompt) => {
     const option = currentQuestion.options.find(
@@ -159,6 +176,7 @@ export const MatchQuizPageContainer: React.FC = () => {
         question={currentQuestion}
         bankOptionIds={quizState.bankOptionIds}
         placements={quizState.placements}
+        lockedPromptIds={quizState.lockedPromptIds}
         isChecked={quizState.isChecked}
         isCorrect={quizState.isCorrect}
         showExplanation={quizState.showExplanation}

@@ -23,6 +23,7 @@ import {
   SlideDeck,
   DiagramQuiz,
   SequenceQuiz,
+  MatchQuiz,
   Rule,
 } from '@shared-types';
 import { resolveRulesForDirectory } from './rule-resolution';
@@ -39,13 +40,12 @@ import {
 } from './directory-item-index';
 
 export class DirectoryService {
-
   /**
    * Create a new directory
    */
   async createDirectory(
     userId: string,
-    request: CreateDirectoryRequest
+    request: CreateDirectoryRequest,
   ): Promise<Directory> {
     logger.info('Creating directory', { userId, request });
 
@@ -69,7 +69,7 @@ export class DirectoryService {
       // Check depth constraint
       if (parentDirectory.level >= DIRECTORY_CONSTRAINTS.MAX_DEPTH - 1) {
         throw new Error(
-          `Maximum directory depth (${DIRECTORY_CONSTRAINTS.MAX_DEPTH}) exceeded`
+          `Maximum directory depth (${DIRECTORY_CONSTRAINTS.MAX_DEPTH}) exceeded`,
         );
       }
 
@@ -81,7 +81,7 @@ export class DirectoryService {
     const existingDir = await this.findDirectoryByNameAndParent(
       userId,
       request.name,
-      request.parentId || null
+      request.parentId || null,
     );
     if (existingDir) {
       throw new Error('Directory with this name already exists at this level');
@@ -97,7 +97,9 @@ export class DirectoryService {
       level,
       ...(request.color !== undefined ? { color: request.color } : {}),
       ...(request.icon !== undefined ? { icon: request.icon } : {}),
-      ...(request.description !== undefined ? { description: request.description } : {}),
+      ...(request.description !== undefined
+        ? { description: request.description }
+        : {}),
       documentCount: 0,
       childCount: 0,
       quizCount: 0,
@@ -109,16 +111,14 @@ export class DirectoryService {
       updatedAt: now,
     };
 
-    const docRef = await FirestorePaths.directories(userId)
-      .add(directoryData);
+    const docRef = await FirestorePaths.directories(userId).add(directoryData);
 
     // Update parent's child count
     if (parentDirectory) {
-      await FirestorePaths.directory(userId, parentDirectory.id)
-        .update({
-          childCount: FieldValue.increment(1),
-          updatedAt: now,
-        });
+      await FirestorePaths.directory(userId, parentDirectory.id).update({
+        childCount: FieldValue.increment(1),
+        updatedAt: now,
+      });
     }
 
     logger.info('Directory created', { directoryId: docRef.id });
@@ -138,7 +138,10 @@ export class DirectoryService {
   /**
    * Ensures a directory exists and is owned by the user (throws if not found).
    */
-  async validateDirectoryId(userId: string, directoryId: string): Promise<void> {
+  async validateDirectoryId(
+    userId: string,
+    directoryId: string,
+  ): Promise<void> {
     const dir = await this.getDirectory(userId, directoryId);
     if (!dir) {
       throw new Error(`Directory ${directoryId} does not exist.`);
@@ -152,7 +155,7 @@ export class DirectoryService {
     userId: string,
     directoryId: string,
     field: 'quizCount' | 'flashcardSetCount' | 'slideDeckCount',
-    delta: number
+    delta: number,
   ): Promise<void> {
     await FirestorePaths.directory(userId, directoryId).update({
       [field]: FieldValue.increment(delta),
@@ -163,7 +166,10 @@ export class DirectoryService {
   /**
    * Get a directory by ID
    */
-  async getDirectory(userId: string, directoryId: string): Promise<Directory | null> {
+  async getDirectory(
+    userId: string,
+    directoryId: string,
+  ): Promise<Directory | null> {
     logger.info('Getting directory', { userId, directoryId });
 
     const doc = await FirestorePaths.directory(userId, directoryId).get();
@@ -186,7 +192,7 @@ export class DirectoryService {
   async updateDirectory(
     userId: string,
     directoryId: string,
-    request: UpdateDirectoryRequest
+    request: UpdateDirectoryRequest,
   ): Promise<Directory> {
     logger.info('Updating directory', { userId, directoryId, request });
 
@@ -208,10 +214,12 @@ export class DirectoryService {
         const existingDir = await this.findDirectoryByNameAndParent(
           userId,
           request.name,
-          directory.parentId
+          directory.parentId,
         );
         if (existingDir && existingDir.id !== directoryId) {
-          throw new Error('Directory with this name already exists at this level');
+          throw new Error(
+            'Directory with this name already exists at this level',
+          );
         }
       }
     }
@@ -247,8 +255,7 @@ export class DirectoryService {
     }
 
     // Update directory
-    await FirestorePaths.directory(userId, directoryId)
-      .update(updateData);
+    await FirestorePaths.directory(userId, directoryId).update(updateData);
 
     // If name changed, update paths of all descendants
     if (request.name && request.name !== directory.name && updateData.path) {
@@ -272,7 +279,7 @@ export class DirectoryService {
    */
   async deleteDirectory(
     userId: string,
-    directoryId: string
+    directoryId: string,
   ): Promise<DeleteDirectoryResponse> {
     logger.info('Deleting directory', { userId, directoryId });
 
@@ -283,7 +290,7 @@ export class DirectoryService {
 
     // Get all descendant directories
     const descendants = await this.getDescendants(userId, directoryId);
-    const allDirectoryIds = [directoryId, ...descendants.map(d => d.id)];
+    const allDirectoryIds = [directoryId, ...descendants.map((d) => d.id)];
 
     // Remove materialized index rows and parent subdirectory link before bulk delete.
     await syncIndexSafely('deleteDirectory.items', () =>
@@ -314,10 +321,17 @@ export class DirectoryService {
         try {
           await DocumentService.deleteDocument(userId, doc.id);
         } catch (storageErr) {
-          logger.warn('Failed to delete storage for document during directory deletion', {
-            documentId: doc.id, directoryId: dirId,
-            error: storageErr instanceof Error ? storageErr.message : String(storageErr),
-          });
+          logger.warn(
+            'Failed to delete storage for document during directory deletion',
+            {
+              documentId: doc.id,
+              directoryId: dirId,
+              error:
+                storageErr instanceof Error
+                  ? storageErr.message
+                  : String(storageErr),
+            },
+          );
         }
       }
 
@@ -325,7 +339,7 @@ export class DirectoryService {
       for (let i = 0; i < docsSnapshot.docs.length; i += 500) {
         const chunk = docsSnapshot.docs.slice(i, i + 500);
         const batch = db.batch();
-        chunk.forEach(doc => batch.delete(doc.ref));
+        chunk.forEach((doc) => batch.delete(doc.ref));
         await batch.commit();
       }
 
@@ -337,7 +351,7 @@ export class DirectoryService {
       for (let i = 0; i < quizzesSnap.docs.length; i += 500) {
         const chunk = quizzesSnap.docs.slice(i, i + 500);
         const batch = db.batch();
-        chunk.forEach(d => batch.delete(d.ref));
+        chunk.forEach((d) => batch.delete(d.ref));
         await batch.commit();
       }
 
@@ -349,7 +363,7 @@ export class DirectoryService {
       for (let i = 0; i < fcSnap.docs.length; i += 500) {
         const chunk = fcSnap.docs.slice(i, i + 500);
         const batch = db.batch();
-        chunk.forEach(d => batch.delete(d.ref));
+        chunk.forEach((d) => batch.delete(d.ref));
         await batch.commit();
       }
 
@@ -359,15 +373,20 @@ export class DirectoryService {
         .get();
       deletedSlideDeckCount += sdSnap.size;
       for (const deckDoc of sdSnap.docs) {
-        const deck = deckDoc.data() as { slides?: { imageStoragePath?: string }[] };
+        const deck = deckDoc.data() as {
+          slides?: { imageStoragePath?: string }[];
+        };
         for (const slide of deck.slides || []) {
           if (slide.imageStoragePath) {
             try {
               await bucket.file(slide.imageStoragePath).delete();
             } catch {
-              logger.warn('Failed to delete slide image during directory deletion', {
-                path: slide.imageStoragePath,
-              });
+              logger.warn(
+                'Failed to delete slide image during directory deletion',
+                {
+                  path: slide.imageStoragePath,
+                },
+              );
             }
           }
         }
@@ -375,7 +394,7 @@ export class DirectoryService {
       for (let i = 0; i < sdSnap.docs.length; i += 500) {
         const chunk = sdSnap.docs.slice(i, i + 500);
         const batch = db.batch();
-        chunk.forEach(d => batch.delete(d.ref));
+        chunk.forEach((d) => batch.delete(d.ref));
         await batch.commit();
       }
 
@@ -386,7 +405,7 @@ export class DirectoryService {
       for (let i = 0; i < dqSnap.docs.length; i += 500) {
         const chunk = dqSnap.docs.slice(i, i + 500);
         const batch = db.batch();
-        chunk.forEach(d => batch.delete(d.ref));
+        chunk.forEach((d) => batch.delete(d.ref));
         await batch.commit();
       }
     }
@@ -395,7 +414,7 @@ export class DirectoryService {
     for (let i = 0; i < allDirectoryIds.length; i += 500) {
       const chunk = allDirectoryIds.slice(i, i + 500);
       const dirBatch = db.batch();
-      chunk.forEach(dirId => {
+      chunk.forEach((dirId) => {
         dirBatch.delete(FirestorePaths.directory(userId, dirId));
       });
       await dirBatch.commit();
@@ -403,11 +422,10 @@ export class DirectoryService {
 
     // Update parent's child count
     if (directory.parentId) {
-      await FirestorePaths.directory(userId, directory.parentId)
-        .update({
-          childCount: FieldValue.increment(-1),
-          updatedAt: new Date(),
-        });
+      await FirestorePaths.directory(userId, directory.parentId).update({
+        childCount: FieldValue.increment(-1),
+        updatedAt: new Date(),
+      });
     }
 
     logger.info('Directory deleted', {
@@ -442,10 +460,13 @@ export class DirectoryService {
       .orderBy('path', 'asc')
       .get();
 
-    const directories: Directory[] = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    } as Directory));
+    const directories: Directory[] = snapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Directory,
+    );
 
     // Build tree structure
     const tree = this.buildTree(directories);
@@ -466,7 +487,7 @@ export class DirectoryService {
    */
   async getDirectoryContents(
     userId: string,
-    directoryId: string | null
+    directoryId: string | null,
   ): Promise<GetDirectoryContentsResponse> {
     logger.info('Getting directory contents', { userId, directoryId });
 
@@ -475,7 +496,10 @@ export class DirectoryService {
       directory = await this.getDirectory(userId, directoryId);
       if (!directory) {
         // If directory not found, log a warning and return root directory contents instead
-        logger.warn('Directory not found, falling back to root', { userId, directoryId });
+        logger.warn('Directory not found, falling back to root', {
+          userId,
+          directoryId,
+        });
         directoryId = null; // Treat as root directory request
       }
     }
@@ -486,10 +510,13 @@ export class DirectoryService {
       .orderBy('name', 'asc')
       .get();
 
-    const subdirectories: Directory[] = subdirSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    } as Directory));
+    const subdirectories: Directory[] = subdirSnapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Directory,
+    );
 
     // Get documents in this directory
     const docsSnapshot = await FirestorePaths.documents(userId)
@@ -497,10 +524,13 @@ export class DirectoryService {
       .orderBy('createdAt', 'desc')
       .get();
 
-    const documents: DocumentEnhanced[] = docsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    } as DocumentEnhanced));
+    const documents: DocumentEnhanced[] = docsSnapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as DocumentEnhanced,
+    );
 
     logger.info('Directory contents retrieved', {
       subdirectories: subdirectories.length,
@@ -508,18 +538,20 @@ export class DirectoryService {
     });
 
     return {
-      directory: directory || ({
-        id: 'root',
-        userId,
-        name: 'Root',
-        parentId: null,
-        path: '/',
-        level: 0,
-        documentCount: documents.length,
-        childCount: subdirectories.length,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      } as Directory),
+      directory:
+        directory ||
+        ({
+          id: 'root',
+          userId,
+          name: 'Root',
+          parentId: null,
+          path: '/',
+          level: 0,
+          documentCount: documents.length,
+          childCount: subdirectories.length,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as Directory),
       subdirectories,
       documents,
       totalCount: subdirectories.length + documents.length,
@@ -532,7 +564,11 @@ export class DirectoryService {
   async getDirectoryContentsWithArtifacts(
     userId: string,
     directoryId: string | null,
-    options?: { includeArtifacts?: boolean; includeRules?: boolean; artifactLimit?: number }
+    options?: {
+      includeArtifacts?: boolean;
+      includeRules?: boolean;
+      artifactLimit?: number;
+    },
   ): Promise<GetDirectoryContentsWithArtifactsResponse> {
     const includeArtifacts = options?.includeArtifacts !== false;
     const includeRules = options?.includeRules !== false;
@@ -545,13 +581,17 @@ export class DirectoryService {
     let slideDecks: SlideDeck[] = [];
     let diagramQuizzes: DiagramQuiz[] = [];
     let sequenceQuizzes: SequenceQuiz[] = [];
-    let resolvedRules: { rules: Rule[]; inheritanceMap: { [key: string]: Rule[] } } = {
+    let matchQuizzes: MatchQuiz[] = [];
+    let resolvedRules: {
+      rules: Rule[];
+      inheritanceMap: { [key: string]: Rule[] };
+    } = {
       rules: [],
       inheritanceMap: {},
     };
 
     if (directoryId && includeArtifacts) {
-      const [qSnap, fSnap, sSnap, dqSnap, sqSnap] = await Promise.all([
+      const [qSnap, fSnap, sSnap, dqSnap, sqSnap, mqSnap] = await Promise.all([
         FirestorePaths.quizzes(userId)
           .where('directoryId', '==', directoryId)
           .orderBy('createdAt', 'desc')
@@ -577,13 +617,29 @@ export class DirectoryService {
           .orderBy('createdAt', 'desc')
           .limit(artifactLimit)
           .get(),
+        FirestorePaths.matchQuizzes(userId)
+          .where('directoryId', '==', directoryId)
+          .orderBy('createdAt', 'desc')
+          .limit(artifactLimit)
+          .get(),
       ]);
 
-      quizzes = qSnap.docs.map(d => ({ ...d.data(), id: d.id } as Quiz));
-      flashcardSets = fSnap.docs.map(d => ({ ...d.data(), id: d.id } as FlashcardSet));
-      slideDecks = sSnap.docs.map(d => ({ ...d.data(), id: d.id } as SlideDeck));
-      diagramQuizzes = dqSnap.docs.map(d => ({ ...d.data(), id: d.id } as DiagramQuiz));
-      sequenceQuizzes = sqSnap.docs.map(d => ({ ...d.data(), id: d.id } as SequenceQuiz));
+      quizzes = qSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as Quiz);
+      flashcardSets = fSnap.docs.map(
+        (d) => ({ ...d.data(), id: d.id }) as FlashcardSet,
+      );
+      slideDecks = sSnap.docs.map(
+        (d) => ({ ...d.data(), id: d.id }) as SlideDeck,
+      );
+      diagramQuizzes = dqSnap.docs.map(
+        (d) => ({ ...d.data(), id: d.id }) as DiagramQuiz,
+      );
+      sequenceQuizzes = sqSnap.docs.map(
+        (d) => ({ ...d.data(), id: d.id }) as SequenceQuiz,
+      );
+      matchQuizzes = mqSnap.docs.map(
+        (d) => ({ ...d.data(), id: d.id }) as MatchQuiz,
+      );
     }
 
     if (directoryId && includeRules) {
@@ -596,7 +652,8 @@ export class DirectoryService {
       flashcardSets.length +
       slideDecks.length +
       diagramQuizzes.length +
-      sequenceQuizzes.length;
+      sequenceQuizzes.length +
+      matchQuizzes.length;
 
     return {
       ...base,
@@ -605,6 +662,7 @@ export class DirectoryService {
       slideDecks,
       diagramQuizzes,
       sequenceQuizzes,
+      matchQuizzes,
       resolvedRules,
       totalCount,
     };
@@ -617,7 +675,11 @@ export class DirectoryService {
   async getDirectoryContentsWithArtifactSummaries(
     userId: string,
     directoryId: string | null,
-    options?: { includeRules?: boolean; artifactLimit?: number; artifactCursor?: string }
+    options?: {
+      includeRules?: boolean;
+      artifactLimit?: number;
+      artifactCursor?: string;
+    },
   ): Promise<GetDirectoryContentsWithArtifactSummariesResponse> {
     const includeRules = options?.includeRules !== false;
     const artifactLimit = Math.min(options?.artifactLimit ?? 20, 100);
@@ -627,16 +689,23 @@ export class DirectoryService {
     let artifactSummaries: ArtifactSummary[] = [];
     let artifactHasMore = false;
     let artifactNextCursor: string | undefined;
-    let resolvedRules: { rules: Rule[]; inheritanceMap: { [key: string]: Rule[] } } = {
+    let resolvedRules: {
+      rules: Rule[];
+      inheritanceMap: { [key: string]: Rule[] };
+    } = {
       rules: [],
       inheritanceMap: {},
     };
 
     if (directoryId) {
-      const artifactPage = await listPaginatedArtifactSummaries(userId, directoryId, {
-        limit: artifactLimit,
-        cursor: options?.artifactCursor,
-      });
+      const artifactPage = await listPaginatedArtifactSummaries(
+        userId,
+        directoryId,
+        {
+          limit: artifactLimit,
+          cursor: options?.artifactCursor,
+        },
+      );
       artifactSummaries = artifactPage.artifactSummaries;
       artifactHasMore = artifactPage.artifactHasMore;
       artifactNextCursor = artifactPage.artifactNextCursor;
@@ -663,7 +732,7 @@ export class DirectoryService {
    */
   async getDirectoryAncestors(
     userId: string,
-    directoryId: string
+    directoryId: string,
   ): Promise<GetDirectoryAncestorsResponse> {
     logger.info('Getting directory ancestors', { userId, directoryId });
 
@@ -693,7 +762,7 @@ export class DirectoryService {
   async moveDirectory(
     userId: string,
     directoryId: string,
-    request: MoveDirectoryRequest
+    request: MoveDirectoryRequest,
   ): Promise<MoveDirectoryResponse> {
     logger.info('Moving directory', { userId, directoryId, request });
 
@@ -704,13 +773,18 @@ export class DirectoryService {
 
     // Validate target parent
     if (request.targetParentId) {
-      const targetParent = await this.getDirectory(userId, request.targetParentId);
+      const targetParent = await this.getDirectory(
+        userId,
+        request.targetParentId,
+      );
       if (!targetParent) {
         throw new Error('Target parent directory not found');
       }
 
       // Prevent moving to a descendant
-      if (await this.isDescendant(userId, request.targetParentId, directoryId)) {
+      if (
+        await this.isDescendant(userId, request.targetParentId, directoryId)
+      ) {
         throw new Error('Cannot move directory to its own descendant');
       }
 
@@ -724,10 +798,12 @@ export class DirectoryService {
     const conflict = await this.findDirectoryByNameAndParent(
       userId,
       directory.name,
-      request.targetParentId
+      request.targetParentId,
     );
     if (conflict && conflict.id !== directoryId) {
-      throw new Error('A directory with this name already exists at the target location');
+      throw new Error(
+        'A directory with this name already exists at the target location',
+      );
     }
 
     // Calculate new path and level
@@ -735,7 +811,10 @@ export class DirectoryService {
     let newLevel: number;
 
     if (request.targetParentId) {
-      const targetParent = await this.getDirectory(userId, request.targetParentId);
+      const targetParent = await this.getDirectory(
+        userId,
+        request.targetParentId,
+      );
       if (targetParent) {
         newPath = `${targetParent.path}/${directory.name}`;
         newLevel = targetParent.level + 1;
@@ -749,40 +828,41 @@ export class DirectoryService {
 
     // Update old parent's child count
     if (directory.parentId) {
-      await FirestorePaths.directory(userId, directory.parentId)
-        .update({
-          childCount: FieldValue.increment(-1),
-          updatedAt: new Date(),
-        });
+      await FirestorePaths.directory(userId, directory.parentId).update({
+        childCount: FieldValue.increment(-1),
+        updatedAt: new Date(),
+      });
     }
 
     // Update new parent's child count
     if (request.targetParentId) {
-      await FirestorePaths.directory(userId, request.targetParentId)
-        .update({
-          childCount: FieldValue.increment(1),
-          updatedAt: new Date(),
-        });
+      await FirestorePaths.directory(userId, request.targetParentId).update({
+        childCount: FieldValue.increment(1),
+        updatedAt: new Date(),
+      });
     }
 
     // Update directory
-    await FirestorePaths.directory(userId, directoryId)
-      .update({
-        parentId: request.targetParentId || null,
-        path: newPath,
-        level: newLevel,
-        updatedAt: new Date(),
-      });
+    await FirestorePaths.directory(userId, directoryId).update({
+      parentId: request.targetParentId || null,
+      path: newPath,
+      level: newLevel,
+      updatedAt: new Date(),
+    });
 
     // Update paths of all descendants
-    const descendants = await this.updateDescendantPaths(userId, directoryId, newPath);
+    const descendants = await this.updateDescendantPaths(
+      userId,
+      directoryId,
+      newPath,
+    );
 
     // Recalculate interaction stats rollups for affected ancestor directories
     await recalculateStatsForDirectoryMove(
       userId,
       directoryId,
       directory.parentId,
-      request.targetParentId ?? null
+      request.targetParentId ?? null,
     );
 
     logger.info('Directory moved', {
@@ -814,7 +894,10 @@ export class DirectoryService {
   /**
    * Get directory by path
    */
-  async getDirectoryByPath(userId: string, path: string): Promise<Directory | null> {
+  async getDirectoryByPath(
+    userId: string,
+    path: string,
+  ): Promise<Directory | null> {
     logger.info('Getting directory by path', { userId, path });
 
     const snapshot = await FirestorePaths.directories(userId)
@@ -847,11 +930,12 @@ export class DirectoryService {
 
     if (name.length > DIRECTORY_CONSTRAINTS.MAX_NAME_LENGTH) {
       errors.push(
-        `Directory name must not exceed ${DIRECTORY_CONSTRAINTS.MAX_NAME_LENGTH} characters`
+        `Directory name must not exceed ${DIRECTORY_CONSTRAINTS.MAX_NAME_LENGTH} characters`,
       );
     }
 
-    const reservedNames = DIRECTORY_CONSTRAINTS.RESERVED_NAMES as readonly string[];
+    const reservedNames =
+      DIRECTORY_CONSTRAINTS.RESERVED_NAMES as readonly string[];
     if (reservedNames.includes(name.toLowerCase())) {
       errors.push('Directory name is reserved');
     }
@@ -873,7 +957,7 @@ export class DirectoryService {
   private async findDirectoryByNameAndParent(
     userId: string,
     name: string,
-    parentId: string | null
+    parentId: string | null,
   ): Promise<Directory | null> {
     const snapshot = await FirestorePaths.directories(userId)
       .where('name', '==', name)
@@ -900,7 +984,7 @@ export class DirectoryService {
     const rootNodes: DirectoryTreeNode[] = [];
 
     // Create nodes
-    directories.forEach(dir => {
+    directories.forEach((dir) => {
       nodeMap.set(dir.id, {
         directory: dir,
         children: [],
@@ -908,7 +992,7 @@ export class DirectoryService {
     });
 
     // Build tree
-    directories.forEach(dir => {
+    directories.forEach((dir) => {
       const node = nodeMap.get(dir.id);
       if (node) {
         if (dir.parentId && nodeMap.has(dir.parentId)) {
@@ -928,7 +1012,10 @@ export class DirectoryService {
   /**
    * Get all descendant directories
    */
-  private async getDescendants(userId: string, directoryId: string): Promise<Directory[]> {
+  private async getDescendants(
+    userId: string,
+    directoryId: string,
+  ): Promise<Directory[]> {
     const directory = await this.getDirectory(userId, directoryId);
     if (!directory) return [];
 
@@ -937,10 +1024,13 @@ export class DirectoryService {
       .where('path', '<', directory.path + '0')
       .get();
 
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    } as Directory));
+    return snapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Directory,
+    );
   }
 
   /**
@@ -949,9 +1039,12 @@ export class DirectoryService {
   private async isDescendant(
     userId: string,
     potentialDescendantId: string,
-    ancestorId: string
+    ancestorId: string,
   ): Promise<boolean> {
-    const potentialDescendant = await this.getDirectory(userId, potentialDescendantId);
+    const potentialDescendant = await this.getDirectory(
+      userId,
+      potentialDescendantId,
+    );
     if (!potentialDescendant) return false;
 
     const ancestor = await this.getDirectory(userId, ancestorId);
@@ -966,7 +1059,7 @@ export class DirectoryService {
   private async updateDescendantPaths(
     userId: string,
     directoryId: string,
-    newPath: string
+    newPath: string,
   ): Promise<number> {
     const directory = await this.getDirectory(userId, directoryId);
     if (!directory) return 0;
@@ -978,9 +1071,9 @@ export class DirectoryService {
     const batch = db.batch();
     const oldPath = directory.path;
 
-    descendants.forEach(desc => {
+    descendants.forEach((desc) => {
       const updatedPath = desc.path.replace(oldPath, newPath);
-      const pathParts = updatedPath.split('/').filter(p => p.length > 0);
+      const pathParts = updatedPath.split('/').filter((p) => p.length > 0);
       const updatedLevel = pathParts.length;
 
       batch.update(FirestorePaths.directory(userId, desc.id), {

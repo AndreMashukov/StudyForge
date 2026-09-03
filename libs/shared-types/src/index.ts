@@ -364,6 +364,10 @@ export interface MatchQuiz {
   documentColor?: string;
   /** Colors of all source documents in documentIds order, for segmented rail. */
   documentColors?: string[];
+  /** Model used for the primary generator pass */
+  generationModel?: string;
+  /** Structured audit trail for routed generation calls. */
+  generationModelUsage?: IGenerationModelUsage[];
 }
 
 export interface GenerateMatchQuizRequest {

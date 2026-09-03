@@ -11,6 +11,7 @@ import {
   failPendingFlashcardSet,
   failPendingQuiz,
   failPendingSequenceQuiz,
+  failPendingMatchQuiz,
   failPendingSlideDeck,
 } from '@study-forge/backend-artifacts/artifact-generation-records';
 import { failVisibleGenerationRecord } from './generation-job-failures';
@@ -36,6 +37,7 @@ export interface StaleGenerationSweepStats {
   orphanSlideDecksFailed: number;
   orphanDiagramQuizzesFailed: number;
   orphanSequenceQuizzesFailed: number;
+  orphanMatchQuizzesFailed: number;
 }
 
 function parseUserIdFromPath(path: string): string | null {
@@ -51,7 +53,7 @@ function parseUserIdFromPath(path: string): string | null {
 async function failOrphanPendingRecord(
   userId: string,
   recordRef: DocumentReference,
-  failFn: (userId: string, recordId: string, error: string) => Promise<void>
+  failFn: (userId: string, recordId: string, error: string) => Promise<void>,
 ): Promise<boolean> {
   const db = getFirestore();
   const claimed = await db.runTransaction(async (transaction) => {
@@ -71,7 +73,7 @@ async function failOrphanPendingRecord(
 
     if (recordData.generationJobId) {
       const jobSnap = await transaction.get(
-        FirestorePaths.generationJob(userId, recordData.generationJobId)
+        FirestorePaths.generationJob(userId, recordData.generationJobId),
       );
       if (jobSnap.exists) {
         const job = jobSnap.data() as GenerationJob;
@@ -85,7 +87,7 @@ async function failOrphanPendingRecord(
         FirestorePaths.generationJobs(userId)
           .where('recordId', '==', recordRef.id)
           .where('status', 'in', ['queued', 'processing'])
-          .limit(1)
+          .limit(1),
       );
       if (!legacyJobs.empty) {
         return false;
@@ -112,7 +114,7 @@ async function failOrphanPendingRecord(
 async function failStaleGenerationJob(
   userId: string,
   jobId: string,
-  nowMs: number
+  nowMs: number,
 ): Promise<boolean> {
   let failedJob: GenerationJob | null;
   try {
@@ -120,7 +122,7 @@ async function failStaleGenerationJob(
       userId,
       jobId,
       STALE_PENDING_SWEEP_MESSAGE,
-      nowMs
+      nowMs,
     );
   } catch (error) {
     logger.error('Sweeper failed to mark generation job as failed', {
@@ -135,7 +137,10 @@ async function failStaleGenerationJob(
     return false;
   }
 
-  await failVisibleGenerationRecord(failedJob, STALE_PENDING_SWEEP_MESSAGE).catch((error) => {
+  await failVisibleGenerationRecord(
+    failedJob,
+    STALE_PENDING_SWEEP_MESSAGE,
+  ).catch((error) => {
     logger.error('Sweeper failed to mark visible generation record as failed', {
       userId: failedJob.userId,
       jobId: failedJob.id,
@@ -168,9 +173,10 @@ async function sweepStaleGenerationJobs(nowMs: number): Promise<number> {
     }
 
     const referenceTime = getJobStaleReferenceTime(job);
-    const staleThreshold = job.status === 'processing'
-      ? STALE_PROCESSING_JOB_MS
-      : STALE_ORPHAN_PENDING_MS;
+    const staleThreshold =
+      job.status === 'processing'
+        ? STALE_PROCESSING_JOB_MS
+        : STALE_ORPHAN_PENDING_MS;
 
     // Cheap prefilter from query snapshot; authoritative check is transactional.
     if (!isStaleByAge(referenceTime, staleThreshold, nowMs)) {
@@ -214,17 +220,26 @@ async function sweepOrphanPendingDocuments(nowMs: number): Promise<number> {
     }
 
     const data = doc.data() as { createdAt?: Timestamp };
-    if (!isStaleByAge(getRecordStaleReferenceTime(data.createdAt), STALE_ORPHAN_PENDING_MS, nowMs)) {
+    if (
+      !isStaleByAge(
+        getRecordStaleReferenceTime(data.createdAt),
+        STALE_ORPHAN_PENDING_MS,
+        nowMs,
+      )
+    ) {
       continue;
     }
 
     const didFail = await failOrphanPendingRecord(
       userId,
       doc.ref,
-      DocumentCrudService.failPendingDocument.bind(DocumentCrudService)
+      DocumentCrudService.failPendingDocument.bind(DocumentCrudService),
     );
     if (didFail) {
-      logger.warn('Sweeping orphan pending document', { userId, documentId: doc.id });
+      logger.warn('Sweeping orphan pending document', {
+        userId,
+        documentId: doc.id,
+      });
       failed += 1;
     }
   }
@@ -235,7 +250,7 @@ async function sweepOrphanPendingDocuments(nowMs: number): Promise<number> {
 async function sweepOrphanPendingArtifacts(
   collectionGroup: string,
   failFn: (userId: string, recordId: string, error: string) => Promise<void>,
-  nowMs: number
+  nowMs: number,
 ): Promise<number> {
   const db = getFirestore();
   const cutoff = staleCutoffTimestamp(STALE_ORPHAN_PENDING_MS, nowMs);
@@ -255,7 +270,13 @@ async function sweepOrphanPendingArtifacts(
     }
 
     const data = doc.data() as { createdAt?: Timestamp };
-    if (!isStaleByAge(getRecordStaleReferenceTime(data.createdAt), STALE_ORPHAN_PENDING_MS, nowMs)) {
+    if (
+      !isStaleByAge(
+        getRecordStaleReferenceTime(data.createdAt),
+        STALE_ORPHAN_PENDING_MS,
+        nowMs,
+      )
+    ) {
       continue;
     }
 
@@ -283,36 +304,51 @@ export async function sweepStaleGenerations(): Promise<StaleGenerationSweepStats
     orphanSlideDecksFailed: 0,
     orphanDiagramQuizzesFailed: 0,
     orphanSequenceQuizzesFailed: 0,
+    orphanMatchQuizzesFailed: 0,
   };
 
   stats.staleJobsFailed = await sweepStaleGenerationJobs(nowMs);
   stats.orphanDocumentsFailed = await sweepOrphanPendingDocuments(nowMs);
-  stats.orphanQuizzesFailed = await sweepOrphanPendingArtifacts('quizzes', failPendingQuiz, nowMs);
+  stats.orphanQuizzesFailed = await sweepOrphanPendingArtifacts(
+    'quizzes',
+    failPendingQuiz,
+    nowMs,
+  );
   stats.orphanFlashcardSetsFailed = await sweepOrphanPendingArtifacts(
     'flashcardSets',
     failPendingFlashcardSet,
-    nowMs
+    nowMs,
   );
-  stats.orphanSlideDecksFailed = await sweepOrphanPendingArtifacts('slideDecks', failPendingSlideDeck, nowMs);
+  stats.orphanSlideDecksFailed = await sweepOrphanPendingArtifacts(
+    'slideDecks',
+    failPendingSlideDeck,
+    nowMs,
+  );
   stats.orphanDiagramQuizzesFailed = await sweepOrphanPendingArtifacts(
     'diagramQuizzes',
     failPendingDiagramQuiz,
-    nowMs
+    nowMs,
   );
   stats.orphanSequenceQuizzesFailed = await sweepOrphanPendingArtifacts(
     'sequenceQuizzes',
     failPendingSequenceQuiz,
-    nowMs
+    nowMs,
+  );
+  stats.orphanMatchQuizzesFailed = await sweepOrphanPendingArtifacts(
+    'matchQuizzes',
+    failPendingMatchQuiz,
+    nowMs,
   );
 
   const total =
-    stats.staleJobsFailed
-    + stats.orphanDocumentsFailed
-    + stats.orphanQuizzesFailed
-    + stats.orphanFlashcardSetsFailed
-    + stats.orphanSlideDecksFailed
-    + stats.orphanDiagramQuizzesFailed
-    + stats.orphanSequenceQuizzesFailed;
+    stats.staleJobsFailed +
+    stats.orphanDocumentsFailed +
+    stats.orphanQuizzesFailed +
+    stats.orphanFlashcardSetsFailed +
+    stats.orphanSlideDecksFailed +
+    stats.orphanDiagramQuizzesFailed +
+    stats.orphanSequenceQuizzesFailed +
+    stats.orphanMatchQuizzesFailed;
 
   if (total > 0) {
     logger.warn('Stale generation sweep completed', stats);

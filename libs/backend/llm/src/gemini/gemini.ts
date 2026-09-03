@@ -61,7 +61,9 @@ export interface IGeminiRuntimeGenerationConfig {
  * Prefer Admin-resolved values from LlmGenerationService; these seeds only
  * apply for direct GeminiService calls that skip the profile merge layer.
  */
-function profileSeedDefaults(profileId: LlmGenerationProfileId): Required<
+function profileSeedDefaults(
+  profileId: LlmGenerationProfileId,
+): Required<
   Pick<
     IGeminiRuntimeGenerationConfig,
     'maxOutputTokens' | 'temperature' | 'topK' | 'topP'
@@ -142,7 +144,11 @@ export interface GeminiMatchQuizResponse {
   title: string;
   questions: Array<{
     prompts: Array<{ id: string; text: string }>;
-    options: Array<{ id: string; text: string; correctPromptId: string | null }>;
+    options: Array<{
+      id: string;
+      text: string;
+      correctPromptId: string | null;
+    }>;
     explanation: string;
     hint?: string;
     knowledge?: QuestionKnowledgeMetadata;
@@ -1519,7 +1525,10 @@ This question is derived from: **${context.originalDocument.title}**
       try {
         parsed = JsonSanitizer.tryFallbackParsing(cleanText);
       } catch (fallbackError) {
-        functions.logger.error('Sequence quiz JSON parse failed:', fallbackError);
+        functions.logger.error(
+          'Sequence quiz JSON parse failed:',
+          fallbackError,
+        );
         throw new Error(`Failed to parse sequence quiz response: ${error}`);
       }
     }
@@ -1593,7 +1602,9 @@ This question is derived from: **${context.originalDocument.title}**
     const root = parsed as Record<string, unknown>;
     const title = typeof root.title === 'string' ? root.title.trim() : '';
     if (!title) {
-      throw new Error('Invalid sequence quiz: title must be a non-empty string');
+      throw new Error(
+        'Invalid sequence quiz: title must be a non-empty string',
+      );
     }
     if (!Array.isArray(root.questions)) {
       throw new Error('Invalid sequence quiz: questions must be an array');
@@ -1603,7 +1614,11 @@ This question is derived from: **${context.originalDocument.title}**
     const dropped: string[] = [];
 
     root.questions.forEach((question, index) => {
-      if (!question || typeof question !== 'object' || Array.isArray(question)) {
+      if (
+        !question ||
+        typeof question !== 'object' ||
+        Array.isArray(question)
+      ) {
         dropped.push(`question ${index + 1}: not an object`);
         return;
       }
@@ -1646,7 +1661,9 @@ This question is derived from: **${context.originalDocument.title}**
       }
 
       const knowledge =
-        row.knowledge && typeof row.knowledge === 'object' && !Array.isArray(row.knowledge)
+        row.knowledge &&
+        typeof row.knowledge === 'object' &&
+        !Array.isArray(row.knowledge)
           ? (row.knowledge as GeminiSequenceQuizResponse['questions'][number]['knowledge'])
           : undefined;
 
@@ -1809,6 +1826,26 @@ This question is derived from: **${context.originalDocument.title}**
     }
   }
 
+  private static allocateUniqueId(
+    used: Set<string>,
+    preferred: string,
+    prefix: string,
+    index: number,
+  ): string {
+    if (preferred && !used.has(preferred)) {
+      used.add(preferred);
+      return preferred;
+    }
+    let n = index + 1;
+    let candidate = `${prefix}${n}`;
+    while (used.has(candidate)) {
+      n += 1;
+      candidate = `${prefix}${n}`;
+    }
+    used.add(candidate);
+    return candidate;
+  }
+
   /**
    * Coerce common LLM shape drift into the sealed match-quiz contract, and
    * drop questions that still cannot be repaired so one bad question does not
@@ -1820,10 +1857,14 @@ This question is derived from: **${context.originalDocument.title}**
     if (!Array.isArray(raw)) {
       return null;
     }
+    const usedIds = new Set<string>();
     const pairs: Array<{ id: string; text: string }> = [];
     raw.forEach((entry, index) => {
       if (typeof entry === 'string') {
-        pairs.push({ id: `p${index + 1}`, text: entry.trim() });
+        pairs.push({
+          id: this.allocateUniqueId(usedIds, '', 'p', index),
+          text: entry.trim(),
+        });
         return;
       }
       if (entry && typeof entry === 'object') {
@@ -1834,12 +1875,13 @@ This question is derived from: **${context.originalDocument.title}**
             : typeof row.description === 'string'
               ? row.description.trim()
               : '';
-        const id =
-          typeof row.id === 'string' && row.id.trim()
-            ? row.id.trim()
-            : `p${index + 1}`;
+        const preferred =
+          typeof row.id === 'string' && row.id.trim() ? row.id.trim() : '';
         if (text) {
-          pairs.push({ id, text });
+          pairs.push({
+            id: this.allocateUniqueId(usedIds, preferred, 'p', index),
+            text,
+          });
         }
       }
     });
@@ -1849,10 +1891,15 @@ This question is derived from: **${context.originalDocument.title}**
   private static coerceMatchOptions(
     raw: unknown,
     promptIds: Set<string>,
-  ): Array<{ id: string; text: string; correctPromptId: string | null }> | null {
+  ): Array<{
+    id: string;
+    text: string;
+    correctPromptId: string | null;
+  }> | null {
     if (!Array.isArray(raw)) {
       return null;
     }
+    const usedIds = new Set<string>();
     const options: Array<{
       id: string;
       text: string;
@@ -1860,7 +1907,11 @@ This question is derived from: **${context.originalDocument.title}**
     }> = [];
     raw.forEach((entry, index) => {
       if (typeof entry === 'string') {
-        options.push({ id: `o${index + 1}`, text: entry.trim(), correctPromptId: null });
+        options.push({
+          id: this.allocateUniqueId(usedIds, '', 'o', index),
+          text: entry.trim(),
+          correctPromptId: null,
+        });
         return;
       }
       if (entry && typeof entry === 'object') {
@@ -1879,11 +1930,13 @@ This question is derived from: **${context.originalDocument.title}**
           typeof rawCorrect === 'string' && rawCorrect.trim()
             ? rawCorrect.trim()
             : null;
-        const id =
-          typeof row.id === 'string' && row.id.trim()
-            ? row.id.trim()
-            : `o${index + 1}`;
-        options.push({ id, text, correctPromptId });
+        const preferred =
+          typeof row.id === 'string' && row.id.trim() ? row.id.trim() : '';
+        options.push({
+          id: this.allocateUniqueId(usedIds, preferred, 'o', index),
+          text,
+          correctPromptId,
+        });
       }
     });
 
@@ -1916,7 +1969,11 @@ This question is derived from: **${context.originalDocument.title}**
     const dropped: string[] = [];
 
     root.questions.forEach((question, index) => {
-      if (!question || typeof question !== 'object' || Array.isArray(question)) {
+      if (
+        !question ||
+        typeof question !== 'object' ||
+        Array.isArray(question)
+      ) {
         dropped.push(`question ${index + 1}: not an object`);
         return;
       }
@@ -1976,7 +2033,9 @@ This question is derived from: **${context.originalDocument.title}**
       }
 
       const knowledge =
-        row.knowledge && typeof row.knowledge === 'object' && !Array.isArray(row.knowledge)
+        row.knowledge &&
+        typeof row.knowledge === 'object' &&
+        !Array.isArray(row.knowledge)
           ? (row.knowledge as GeminiMatchQuizResponse['questions'][number]['knowledge'])
           : undefined;
 
@@ -2051,8 +2110,25 @@ This question is derived from: **${context.originalDocument.title}**
         );
       }
       const promptIds = new Set(
-        (row.prompts as Array<Record<string, unknown>>).map((p) => p.id as string),
+        (row.prompts as Array<Record<string, unknown>>).map(
+          (p) => p.id as string,
+        ),
       );
+      if (promptIds.size !== (row.prompts as unknown[]).length) {
+        throw new Error(
+          `Match quiz question ${index + 1}: prompt ids must be unique`,
+        );
+      }
+      const optionIds = new Set(
+        (row.options as Array<Record<string, unknown>>).map(
+          (o) => o.id as string,
+        ),
+      );
+      if (optionIds.size !== (row.options as unknown[]).length) {
+        throw new Error(
+          `Match quiz question ${index + 1}: option ids must be unique`,
+        );
+      }
       const matchedPromptIds = new Set<string>();
       for (const option of row.options as unknown[]) {
         const o = option as Record<string, unknown>;
@@ -2069,7 +2145,10 @@ This question is derived from: **${context.originalDocument.title}**
           );
         }
         if (o.correctPromptId !== null && o.correctPromptId !== undefined) {
-          if (typeof o.correctPromptId !== 'string' || !promptIds.has(o.correctPromptId)) {
+          if (
+            typeof o.correctPromptId !== 'string' ||
+            !promptIds.has(o.correctPromptId)
+          ) {
             throw new Error(
               `Match quiz question ${index + 1}: option ${o.id as string} has unknown correctPromptId`,
             );
@@ -2105,10 +2184,22 @@ This question is derived from: **${context.originalDocument.title}**
       questions: [
         {
           prompts: [
-            { id: 'p1', text: 'Mock description for the first term (mock question).' },
-            { id: 'p2', text: 'Mock description for the second term (mock question).' },
-            { id: 'p3', text: 'Mock description for the third term (mock question).' },
-            { id: 'p4', text: 'Mock description for the fourth term (mock question).' },
+            {
+              id: 'p1',
+              text: 'Mock description for the first term (mock question).',
+            },
+            {
+              id: 'p2',
+              text: 'Mock description for the second term (mock question).',
+            },
+            {
+              id: 'p3',
+              text: 'Mock description for the third term (mock question).',
+            },
+            {
+              id: 'p4',
+              text: 'Mock description for the fourth term (mock question).',
+            },
           ],
           options: [
             { id: 'o1', text: 'Term One', correctPromptId: 'p1' },

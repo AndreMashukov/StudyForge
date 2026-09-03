@@ -5,16 +5,20 @@ import { useAppDispatch } from '../../hooks/redux';
 import { matchQuizApi } from '../../store/api/MatchQuiz/MatchQuizApi';
 import { VirtualizedArtifactPanel } from './VirtualizedArtifactPanel';
 
-interface MatchQuizzesPanelProps {
+interface IMatchQuizzesPanelProps {
   matchQuizzes: ArtifactSummary[];
   directoryId: string;
   mayBeTruncated?: boolean;
-  onDeleteArtifact: (artifact: { id: string; title: string; type: 'matchQuiz' }) => void;
+  onDeleteArtifact: (artifact: {
+    id: string;
+    title: string;
+    type: 'matchQuiz';
+  }) => void;
   ruleNamesMap?: Map<string, string>;
   onCreate: () => void;
 }
 
-export const MatchQuizzesPanel: React.FC<MatchQuizzesPanelProps> = ({
+export const MatchQuizzesPanel: React.FC<IMatchQuizzesPanelProps> = ({
   matchQuizzes,
   directoryId,
   mayBeTruncated = false,
@@ -26,7 +30,11 @@ export const MatchQuizzesPanel: React.FC<MatchQuizzesPanelProps> = ({
   const prefetchMatchQuiz = useCallback(
     (matchQuizId: string) => {
       dispatch(
-        matchQuizApi.util.prefetch('getMatchQuiz', { matchQuizId }, { force: false }),
+        matchQuizApi.util.prefetch(
+          'getMatchQuiz',
+          { matchQuizId },
+          { force: false },
+        ),
       );
     },
     [dispatch],

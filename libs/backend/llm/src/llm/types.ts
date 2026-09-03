@@ -18,6 +18,7 @@ export type LlmCapability =
   | 'diagramQuiz'
   | 'diagramQuizAgent'
   | 'sequenceQuiz'
+  | 'matchQuiz'
   | 'slideDeckText'
   | 'slideDeckImage'
   | 'sourceDocumentEnhancement'

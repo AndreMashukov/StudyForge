@@ -5,7 +5,7 @@ import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 export function recordRefForArtifactKind(
   userId: string,
   artifactKind: ArtifactKind,
-  recordId: string
+  recordId: string,
 ): DocumentReference {
   switch (artifactKind) {
     case 'diagramQuiz':
@@ -16,23 +16,28 @@ export function recordRefForArtifactKind(
       return FirestorePaths.slideDeck(userId, recordId);
     case 'sequenceQuiz':
       return FirestorePaths.sequenceQuiz(userId, recordId);
+    case 'matchQuiz':
+      return FirestorePaths.matchQuiz(userId, recordId);
     case 'documentFromScreenshot':
     case 'documentFromPrompt':
       return FirestorePaths.document(userId, recordId);
     default: {
       const _exhaustive: never = artifactKind;
-      throw new Error(`Unsupported artifact kind for record path: ${_exhaustive}`);
+      throw new Error(
+        `Unsupported artifact kind for record path: ${_exhaustive}`,
+      );
     }
   }
 }
 
 export function isArtifactKind(value: unknown): value is ArtifactKind {
   return (
-    value === 'diagramQuiz'
-    || value === 'flashcards'
-    || value === 'slideDeck'
-    || value === 'sequenceQuiz'
-    || value === 'documentFromScreenshot'
-    || value === 'documentFromPrompt'
+    value === 'diagramQuiz' ||
+    value === 'flashcards' ||
+    value === 'slideDeck' ||
+    value === 'sequenceQuiz' ||
+    value === 'matchQuiz' ||
+    value === 'documentFromScreenshot' ||
+    value === 'documentFromPrompt'
   );
 }

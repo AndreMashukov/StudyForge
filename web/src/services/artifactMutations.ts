@@ -1,7 +1,4 @@
-import {
-  deleteObject,
-  ref,
-} from 'firebase/storage';
+import { deleteObject, ref } from 'firebase/storage';
 import {
   deleteDoc,
   getDoc,
@@ -39,7 +36,12 @@ import {
 
 const ARTIFACT_COUNT_FIELD: Record<
   BulkDeletableArtifactType,
-  'quizCount' | 'flashcardSetCount' | 'slideDeckCount' | 'diagramQuizCount' | 'sequenceQuizCount' | 'matchQuizCount'
+  | 'quizCount'
+  | 'flashcardSetCount'
+  | 'slideDeckCount'
+  | 'diagramQuizCount'
+  | 'sequenceQuizCount'
+  | 'matchQuizCount'
 > = {
   quiz: 'quizCount',
   flashcard: 'flashcardSetCount',
@@ -49,7 +51,9 @@ const ARTIFACT_COUNT_FIELD: Record<
   matchQuiz: 'matchQuizCount',
 };
 
-function shouldDecrementCount(generationStatus: GenerationStatus | undefined): boolean {
+function shouldDecrementCount(
+  generationStatus: GenerationStatus | undefined,
+): boolean {
   return !generationStatus || generationStatus === 'completed';
 }
 
@@ -80,7 +84,13 @@ function getArtifactDocRef(
 
 function getIndexItemType(
   type: BulkDeletableArtifactType,
-): 'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz' | 'matchQuiz' {
+):
+  | 'quiz'
+  | 'flashcard'
+  | 'slideDeck'
+  | 'diagramQuiz'
+  | 'sequenceQuiz'
+  | 'matchQuiz' {
   return type === 'flashcard' ? 'flashcard' : type;
 }
 
@@ -103,14 +113,8 @@ async function deleteArtifactWithIndex(
   artifactId: string,
 ): Promise<void> {
   const artifactDocRef = getArtifactDocRef(userId, type, artifactId);
-  const preSnap = await getDoc(artifactDocRef);
-  const directoryId = preSnap.exists()
-    ? (preSnap.data().directoryId as string | undefined)
-    : undefined;
-
-  const slideDeckData = type === 'slideDeck' && preSnap.exists()
-    ? (preSnap.data() as SlideDeck)
-    : undefined;
+  let directoryId: string | undefined;
+  let slideDeckData: SlideDeck | undefined;
 
   await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(artifactDocRef);
@@ -119,10 +123,14 @@ async function deleteArtifactWithIndex(
     }
     const data = snap.data();
     const gs = data.generationStatus as GenerationStatus | undefined;
+    directoryId =
+      typeof data.directoryId === 'string' ? data.directoryId : undefined;
+    if (type === 'slideDeck') {
+      slideDeckData = data as SlideDeck;
+    }
     transaction.delete(artifactDocRef);
-    const dirId = data.directoryId as string | undefined;
-    if (dirId && shouldDecrementCount(gs)) {
-      transaction.update(directoryRef(userId, dirId), {
+    if (directoryId && shouldDecrementCount(gs)) {
+      transaction.update(directoryRef(userId, directoryId), {
         [ARTIFACT_COUNT_FIELD[type]]: increment(-1),
         updatedAt: serverTimestamp(),
       });
@@ -134,10 +142,11 @@ async function deleteArtifactWithIndex(
   }
 
   if (directoryId) {
+    const cleanupDirectoryId = directoryId;
     await syncIndexSafely(`delete${type}`, () =>
       removeArtifactDirectoryIndex(
         userId,
-        directoryId,
+        cleanupDirectoryId,
         getIndexItemType(type),
         artifactId,
       ),
@@ -249,9 +258,14 @@ export async function deleteArtifactsByDocumentId(
     name: string;
     type: BulkDeletableArtifactType;
     indexType: ReturnType<typeof getIndexItemType>;
-    countField: typeof ARTIFACT_COUNT_FIELD[BulkDeletableArtifactType];
+    countField: (typeof ARTIFACT_COUNT_FIELD)[BulkDeletableArtifactType];
   }> = [
-    { name: 'quizzes', type: 'quiz', indexType: 'quiz', countField: 'quizCount' },
+    {
+      name: 'quizzes',
+      type: 'quiz',
+      indexType: 'quiz',
+      countField: 'quizCount',
+    },
     {
       name: 'flashcardSets',
       type: 'flashcard',
@@ -305,7 +319,12 @@ export async function deleteArtifactsByDocumentId(
 
       if (directoryId) {
         await syncIndexSafely(`deleteDocument.${col.type}`, () =>
-          removeArtifactDirectoryIndex(userId, directoryId, col.indexType, artifactDoc.id),
+          removeArtifactDirectoryIndex(
+            userId,
+            directoryId,
+            col.indexType,
+            artifactDoc.id,
+          ),
         );
       }
 

@@ -4,6 +4,7 @@ import {
   placeOption,
   removeOption,
   resetBoard,
+  retryAfterCheck,
   checkAnswer,
   nextMatchQuestion,
   completeMatchQuiz,
@@ -22,18 +23,22 @@ export const useMatchQuizPageHandlers = () => {
     (promptId: string, optionId: string) => {
       dispatch(placeOption({ promptId, optionId }));
     },
-    [dispatch]
+    [dispatch],
   );
 
   const handleRemoveOption = useCallback(
     (promptId: string) => {
       dispatch(removeOption({ promptId }));
     },
-    [dispatch]
+    [dispatch],
   );
 
   const handleResetBoard = useCallback(() => {
     dispatch(resetBoard());
+  }, [dispatch]);
+
+  const handleRetryAfterCheck = useCallback(() => {
+    dispatch(retryAfterCheck());
   }, [dispatch]);
 
   const handleCheckAnswer = useCallback(() => {
@@ -57,13 +62,21 @@ export const useMatchQuizPageHandlers = () => {
       return;
     }
 
-    dispatch(openMatchFollowupChat({ questionIndex: quizState.currentQuestionIndex }));
-  }, [currentQuestion, dispatch, quizState.currentQuestionIndex, quizState.isChecked]);
+    dispatch(
+      openMatchFollowupChat({ questionIndex: quizState.currentQuestionIndex }),
+    );
+  }, [
+    currentQuestion,
+    dispatch,
+    quizState.currentQuestionIndex,
+    quizState.isChecked,
+  ]);
 
   return {
     handlePlaceOption,
     handleRemoveOption,
     handleResetBoard,
+    handleRetryAfterCheck,
     handleCheckAnswer,
     handleNextQuestion,
     handleCompleteQuiz,

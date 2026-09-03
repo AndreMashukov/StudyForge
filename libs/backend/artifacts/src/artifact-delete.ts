@@ -38,16 +38,24 @@ export async function deleteFlashcardSetForUser(
     transaction.delete(docRef);
     const gs = existing.generationStatus;
     if (existing.directoryId && (!gs || gs === 'completed')) {
-      transaction.update(FirestorePaths.directory(userId, existing.directoryId), {
-        flashcardSetCount: FieldValue.increment(-1),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+      transaction.update(
+        FirestorePaths.directory(userId, existing.directoryId),
+        {
+          flashcardSetCount: FieldValue.increment(-1),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+      );
     }
   });
 
   if (directoryId) {
     await syncIndexSafely('deleteFlashcardSet', () =>
-      removeArtifactDirectoryIndex(userId, directoryId, 'flashcard', flashcardSetId),
+      removeArtifactDirectoryIndex(
+        userId,
+        directoryId,
+        'flashcard',
+        flashcardSetId,
+      ),
     );
   }
 }
@@ -83,14 +91,18 @@ export async function deleteSlideDeckForUser(
           await file.delete();
           deletedBytes += sizeBytes;
         } catch {
-          logger.warn(`Failed to delete slide image: ${slide.imageStoragePath}`);
+          logger.warn(
+            `Failed to delete slide image: ${slide.imageStoragePath}`,
+          );
         }
       }
     }
   }
 
   if (deletedBytes > 0) {
-    await adjustUserStorageUsage({ userId, deltaBytes: -deletedBytes }).catch(() => undefined);
+    await adjustUserStorageUsage({ userId, deltaBytes: -deletedBytes }).catch(
+      () => undefined,
+    );
   }
 
   const db = admin.firestore();
@@ -112,7 +124,12 @@ export async function deleteSlideDeckForUser(
 
   if (directoryId) {
     await syncIndexSafely('deleteSlideDeck', () =>
-      removeArtifactDirectoryIndex(userId, directoryId, 'slideDeck', slideDeckId),
+      removeArtifactDirectoryIndex(
+        userId,
+        directoryId,
+        'slideDeck',
+        slideDeckId,
+      ),
     );
   }
 }
@@ -141,9 +158,15 @@ export async function deleteArtifactByType(
     case 'sequenceQuiz':
       await FirestoreService.deleteSequenceQuiz(artifactId, userId);
       return;
+    case 'matchQuiz':
+      await FirestoreService.deleteMatchQuiz(artifactId, userId);
+      return;
     default: {
       const _exhaustive: never = type;
-      throw new HttpsError('invalid-argument', `Unsupported artifact type: ${String(_exhaustive)}`);
+      throw new HttpsError(
+        'invalid-argument',
+        `Unsupported artifact type: ${String(_exhaustive)}`,
+      );
     }
   }
 }

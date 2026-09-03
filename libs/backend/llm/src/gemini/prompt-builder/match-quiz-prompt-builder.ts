@@ -17,7 +17,7 @@ import {
 export class MatchQuizPromptBuilder {
   static buildMatchQuizPrompt(
     content: ScrapedContent,
-    additionalPrompt?: string
+    additionalPrompt?: string,
   ): string {
     if (additionalPrompt?.trim()) {
       return this.buildFromCustomRules(content, additionalPrompt);
@@ -27,7 +27,7 @@ export class MatchQuizPromptBuilder {
 
   private static buildFromCustomRules(
     content: ScrapedContent,
-    customRules: string
+    customRules: string,
   ): string {
     const base = this.getBaseInstructions();
     const contentSection = this.formatContentSection(content);
@@ -116,7 +116,7 @@ ${buildQuizHintFieldInstruction('Look for the pairing that only fits one descrip
 - Distractor options must have \`correctPromptId: null\`.
 - Option texts must be short chip labels (≤ 8 words) and unique within a question.
 - Do NOT reveal the answer inside the prompt text.
-- Required fields per question: \`prompts\`, \`options\`, \`explanation\`, and \`hint\`.`;
+- Required fields per question: \`prompts\`, \`options\`, \`explanation\`, \`hint\`, and \`knowledge\`.`;
   }
 
   private static getJsonFormatRules(): string {
@@ -139,12 +139,16 @@ ${buildQuizHintJsonRule()}`;
     {
       "prompts": [
         { "id": "p1", "text": "A decentralized architecture where agents coordinate directly without a central manager." },
-        { "id": "p2", "text": "A centralized architecture where a single agent delegates tasks to worker agents." }
+        { "id": "p2", "text": "A centralized architecture where a single agent delegates tasks to worker agents." },
+        { "id": "p3", "text": "Agents that share a blackboard and react to posted facts." },
+        { "id": "p4", "text": "A chain of agents where each output becomes the next input." }
       ],
       "options": [
         { "id": "o1", "text": "Peer-to-Peer Pattern", "correctPromptId": "p1" },
         { "id": "o2", "text": "Orchestrator Pattern", "correctPromptId": "p2" },
-        { "id": "o3", "text": "State Management", "correctPromptId": null }
+        { "id": "o3", "text": "Blackboard Pattern", "correctPromptId": "p3" },
+        { "id": "o4", "text": "Pipeline Pattern", "correctPromptId": "p4" },
+        { "id": "o5", "text": "State Management", "correctPromptId": null }
       ],
       "explanation": "Why each option pairs with its prompt and why the distractor matches nothing.",
       "knowledge": {

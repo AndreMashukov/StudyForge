@@ -18,7 +18,7 @@ export interface IMatchQuizAnswer {
   timeSpent?: number;
 }
 
-interface MatchQuizPageState {
+interface IMatchQuizPageState {
   firestoreMatchQuiz: MatchQuiz | null;
   questions: IMatchQuizViewQuestion[];
   currentQuestionIndex: number;
@@ -26,6 +26,8 @@ interface MatchQuizPageState {
   bankOptionIds: string[];
   /** promptId -> optionId placed in that row. */
   placements: Record<string, string>;
+  /** Prompt rows locked after a correct match on submit. */
+  lockedPromptIds: string[];
   isChecked: boolean;
   isCorrect: boolean | null;
   showExplanation: boolean;
@@ -57,12 +59,13 @@ function bankIdsFor(question: IMatchQuizViewQuestion | undefined): string[] {
   return shuffleArray(question?.options.map((option) => option.id) ?? []);
 }
 
-const initialState: MatchQuizPageState = {
+const initialState: IMatchQuizPageState = {
   firestoreMatchQuiz: null,
   questions: [],
   currentQuestionIndex: 0,
   bankOptionIds: [],
   placements: {},
+  lockedPromptIds: [],
   isChecked: false,
   isCorrect: null,
   showExplanation: false,
@@ -84,10 +87,12 @@ const initialState: MatchQuizPageState = {
 function emptyBoardFor(question: IMatchQuizViewQuestion | undefined): {
   bankOptionIds: string[];
   placements: Record<string, string>;
+  lockedPromptIds: string[];
 } {
   return {
     bankOptionIds: bankIdsFor(question),
     placements: {},
+    lockedPromptIds: [],
   };
 }
 
@@ -97,7 +102,10 @@ const matchQuizPageSlice = createSlice({
   reducers: {
     loadMatchQuiz: (
       state,
-      action: PayloadAction<{ matchQuiz: MatchQuiz; questions: IMatchQuizViewQuestion[] }>
+      action: PayloadAction<{
+        matchQuiz: MatchQuiz;
+        questions: IMatchQuizViewQuestion[];
+      }>,
     ) => {
       const now = Date.now();
       state.firestoreMatchQuiz = action.payload.matchQuiz;
@@ -121,29 +129,39 @@ const matchQuizPageSlice = createSlice({
       state.followupError = null;
     },
 
-    placeOption: (state, action: PayloadAction<{ promptId: string; optionId: string }>) => {
-      if (state.isChecked) return;
+    placeOption: (
+      state,
+      action: PayloadAction<{ promptId: string; optionId: string }>,
+    ) => {
+      if (state.isCorrect) return;
       const { promptId, optionId } = action.payload;
-      const bankIdx = state.bankOptionIds.indexOf(optionId);
-      if (bankIdx === -1) return;
+      if (state.lockedPromptIds.includes(promptId)) return;
 
-      const previousPromptId = Object.keys(state.placements).find(
+      const currentOwner = Object.keys(state.placements).find(
         (key) => state.placements[key] === optionId,
       );
-      if (previousPromptId !== undefined) {
-        delete state.placements[previousPromptId];
-      }
+      if (currentOwner && state.lockedPromptIds.includes(currentOwner)) return;
+
+      const bankIdx = state.bankOptionIds.indexOf(optionId);
+      if (bankIdx === -1 && currentOwner === undefined) return;
+      if (currentOwner === promptId) return;
 
       const displacedOptionId = state.placements[promptId];
+      if (currentOwner !== undefined) {
+        delete state.placements[currentOwner];
+      } else {
+        state.bankOptionIds.splice(bankIdx, 1);
+      }
+
       state.placements[promptId] = optionId;
-      state.bankOptionIds.splice(bankIdx, 1);
       if (displacedOptionId) {
         state.bankOptionIds.push(displacedOptionId);
       }
     },
 
     removeOption: (state, action: PayloadAction<{ promptId: string }>) => {
-      if (state.isChecked) return;
+      if (state.isCorrect) return;
+      if (state.lockedPromptIds.includes(action.payload.promptId)) return;
       const optionId = state.placements[action.payload.promptId];
       if (!optionId) return;
       delete state.placements[action.payload.promptId];
@@ -151,14 +169,31 @@ const matchQuizPageSlice = createSlice({
     },
 
     resetBoard: (state) => {
-      if (state.isChecked) return;
+      if (state.isCorrect) return;
       const currentQuestion = state.questions[state.currentQuestionIndex];
       if (!currentQuestion) return;
-      Object.assign(state, emptyBoardFor(currentQuestion));
+      const locked = new Set(state.lockedPromptIds);
+      const kept: Record<string, string> = {};
+      for (const promptId of Object.keys(state.placements)) {
+        if (locked.has(promptId)) {
+          kept[promptId] = state.placements[promptId];
+        }
+      }
+      const used = new Set(Object.values(kept));
+      state.placements = kept;
+      state.bankOptionIds = bankIdsFor(currentQuestion).filter(
+        (id) => !used.has(id),
+      );
+      state.showExplanation = false;
+    },
+
+    retryAfterCheck: (state) => {
+      if (state.isCorrect) return;
+      state.showExplanation = false;
     },
 
     checkAnswer: (state) => {
-      if (state.isChecked) return;
+      if (state.isCorrect) return;
       const currentQuestion = state.questions[state.currentQuestionIndex];
       if (!currentQuestion) return;
 
@@ -166,36 +201,58 @@ const matchQuizPageSlice = createSlice({
       const allPlaced = prompts.every((prompt) => state.placements[prompt.id]);
       if (!allPlaced) return;
 
-      const placedOptionIds = prompts.map((prompt) => state.placements[prompt.id]);
+      const placedOptionIds = prompts.map(
+        (prompt) => state.placements[prompt.id],
+      );
       const correctOptionIds = prompts.map((prompt) => {
         const option = currentQuestion.options.find(
           (candidate) => candidate.correctPromptId === prompt.id,
         );
         return option ? option.id : '';
       });
-      const isCorrect = placedOptionIds.every(
+      const isFullyCorrect = placedOptionIds.every(
         (optionId, i) => optionId === correctOptionIds[i],
       );
 
+      const nextLocked = [...state.lockedPromptIds];
+      prompts.forEach((prompt, index) => {
+        if (placedOptionIds[index] === correctOptionIds[index]) {
+          if (!nextLocked.includes(prompt.id)) {
+            nextLocked.push(prompt.id);
+          }
+          return;
+        }
+        delete state.placements[prompt.id];
+        state.bankOptionIds.push(placedOptionIds[index]);
+      });
+      state.lockedPromptIds = nextLocked;
+
       state.isChecked = true;
-      state.isCorrect = isCorrect;
+      state.isCorrect = isFullyCorrect;
       state.showExplanation = true;
 
-      if (isCorrect) {
-        state.score += 1;
+      const alreadyRecorded = state.answers.some(
+        (answer) => answer.questionId === currentQuestion.id,
+      );
+      if (!alreadyRecorded) {
+        if (isFullyCorrect) {
+          state.score += 1;
+        }
+        const answer: IMatchQuizAnswer = {
+          questionId: currentQuestion.id,
+          placedOptionIds,
+          correctOptionIds,
+          isCorrect: isFullyCorrect,
+          timeSpent: state.questionStartTime
+            ? Date.now() - state.questionStartTime
+            : 0,
+        };
+        state.answers.push(answer);
       }
-
-      const answer: IMatchQuizAnswer = {
-        questionId: currentQuestion.id,
-        placedOptionIds,
-        correctOptionIds,
-        isCorrect,
-        timeSpent: state.questionStartTime ? Date.now() - state.questionStartTime : 0,
-      };
-      state.answers.push(answer);
     },
 
     nextMatchQuestion: (state) => {
+      if (!state.isCorrect) return;
       if (state.currentQuestionIndex < state.questions.length - 1) {
         state.currentQuestionIndex += 1;
         const nextQuestion = state.questions[state.currentQuestionIndex];
@@ -255,10 +312,11 @@ const matchQuizPageSlice = createSlice({
 
     setMatchFollowupGenerated: (
       state,
-      action: PayloadAction<{ questionIndex: number; content: string }>
+      action: PayloadAction<{ questionIndex: number; content: string }>,
     ) => {
       state.followupGenerated[action.payload.questionIndex] = true;
-      state.followupContent[action.payload.questionIndex] = action.payload.content;
+      state.followupContent[action.payload.questionIndex] =
+        action.payload.content;
       state.isGeneratingFollowup = false;
     },
 
@@ -267,7 +325,10 @@ const matchQuizPageSlice = createSlice({
       state.isGeneratingFollowup = false;
     },
 
-    openMatchFollowupChat: (state, action: PayloadAction<{ questionIndex: number }>) => {
+    openMatchFollowupChat: (
+      state,
+      action: PayloadAction<{ questionIndex: number }>,
+    ) => {
       state.followupChatOpen[action.payload.questionIndex] = true;
       state.followupGenerated[action.payload.questionIndex] = true;
       state.isGeneratingFollowup = false;
@@ -281,6 +342,7 @@ export const {
   placeOption,
   removeOption,
   resetBoard,
+  retryAfterCheck,
   checkAnswer,
   nextMatchQuestion,
   completeMatchQuiz,
@@ -294,25 +356,42 @@ export const {
   openMatchFollowupChat,
 } = matchQuizPageSlice.actions;
 
-export const selectMatchQuizState = (state: { matchQuizPage: MatchQuizPageState }) =>
-  state.matchQuizPage;
+export const selectMatchQuizState = (state: {
+  matchQuizPage: IMatchQuizPageState;
+}) => state.matchQuizPage;
 
-export const selectCurrentMatchQuestion = (state: { matchQuizPage: MatchQuizPageState }) => {
+export const selectCurrentMatchQuestion = (state: {
+  matchQuizPage: IMatchQuizPageState;
+}) => {
   const { questions, currentQuestionIndex } = state.matchQuizPage;
   return questions[currentQuestionIndex] ?? null;
 };
 
-export const selectMatchQuizProgress = (state: { matchQuizPage: MatchQuizPageState }) => {
+export const selectMatchQuizProgress = (state: {
+  matchQuizPage: IMatchQuizPageState;
+}) => {
   const { currentQuestionIndex, questions } = state.matchQuizPage;
-  return questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
+  return questions.length > 0
+    ? ((currentQuestionIndex + 1) / questions.length) * 100
+    : 0;
 };
 
-export const selectMatchQuizStats = (state: { matchQuizPage: MatchQuizPageState }) => {
-  const { score, questions, answers, quizStartTime, endTime } = state.matchQuizPage;
+export const selectMatchQuizStats = (state: {
+  matchQuizPage: IMatchQuizPageState;
+}) => {
+  const { score, questions, answers, quizStartTime, endTime } =
+    state.matchQuizPage;
   const totalQuestions = questions.length;
-  const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+  const percentage =
+    totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
   const timeTaken = quizStartTime && endTime ? endTime - quizStartTime : 0;
-  return { score, totalQuestions, percentage, timeTaken, answersBreakdown: answers };
+  return {
+    score,
+    totalQuestions,
+    percentage,
+    timeTaken,
+    answersBreakdown: answers,
+  };
 };
 
 export default matchQuizPageSlice.reducer;

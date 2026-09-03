@@ -6,6 +6,7 @@ const CAPABILITY_PROFILE_MAP: Partial<
 > = {
   quiz: 'structuredArtifact',
   sequenceQuiz: 'structuredArtifact',
+  matchQuiz: 'structuredArtifact',
   diagramQuiz: 'structuredArtifact',
   flashcards: 'structuredArtifact',
   documentFromPrompt: 'longformContent',

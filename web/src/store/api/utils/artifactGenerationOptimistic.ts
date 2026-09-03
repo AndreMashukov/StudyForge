@@ -1,4 +1,8 @@
-import type { ApiResponse, ArtifactSummary, ArtifactSummaryType } from '@shared-types';
+import type {
+  ApiResponse,
+  ArtifactSummary,
+  ArtifactSummaryType,
+} from '@shared-types';
 import type { AppDispatch, RootState } from '../../index';
 import { baseApi } from '../baseApi';
 import { directoryApi } from '../Directory/DirectoryApi';
@@ -33,6 +37,24 @@ export interface IOptimisticArtifactPatchArg extends IOptimisticTitleInput {
   ruleIds?: unknown;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readOptimisticRecordId(
+  data: ApiResponse<unknown>,
+  keys: string[],
+): string | undefined {
+  if (!isRecord(data.data)) return undefined;
+  for (const key of keys) {
+    const value = data.data[key];
+    if (typeof value === 'string' && value.length > 0) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
 function truncatePromptTitle(prompt: string): string {
   const trimmed = prompt.trim();
   if (trimmed.length > 50) {
@@ -41,7 +63,9 @@ function truncatePromptTitle(prompt: string): string {
   return trimmed;
 }
 
-export function getOptimisticArtifactTitle(arg: IOptimisticTitleInput): string | undefined {
+export function getOptimisticArtifactTitle(
+  arg: IOptimisticTitleInput,
+): string | undefined {
   for (const field of ARTIFACT_NAME_FIELDS) {
     const value = arg[field];
     if (typeof value === 'string' && value.trim()) {
@@ -76,43 +100,47 @@ export function getOptimisticArtifactTitle(arg: IOptimisticTitleInput): string |
 }
 
 const ARTIFACT_PANEL_CONFIG: Partial<
-  Record<Exclude<ArtifactPanelType, 'sources'>, { summaryType: ArtifactSummaryType; getRecordId: (data: ApiResponse<unknown>) => string | undefined }>
+  Record<
+    Exclude<ArtifactPanelType, 'sources'>,
+    {
+      summaryType: ArtifactSummaryType;
+      getRecordId: (data: ApiResponse<unknown>) => string | undefined;
+    }
+  >
 > = {
   quizzes: {
     summaryType: 'quiz',
     getRecordId: (data) =>
-      (data.data as { quizId?: string; id?: string } | undefined)?.quizId
-      ?? (data.data as { id?: string } | undefined)?.id,
+      (data.data as { quizId?: string; id?: string } | undefined)?.quizId ??
+      (data.data as { id?: string } | undefined)?.id,
   },
   cards: {
     summaryType: 'flashcard',
     getRecordId: (data) =>
-      (data.data as { flashcardSetId?: string; id?: string } | undefined)?.flashcardSetId
-      ?? (data.data as { id?: string } | undefined)?.id,
+      (data.data as { flashcardSetId?: string; id?: string } | undefined)
+        ?.flashcardSetId ?? (data.data as { id?: string } | undefined)?.id,
   },
   slides: {
     summaryType: 'slideDeck',
     getRecordId: (data) =>
-      (data.data as { slideDeckId?: string; id?: string } | undefined)?.slideDeckId
-      ?? (data.data as { id?: string } | undefined)?.id,
+      (data.data as { slideDeckId?: string; id?: string } | undefined)
+        ?.slideDeckId ?? (data.data as { id?: string } | undefined)?.id,
   },
   diagramQuizzes: {
     summaryType: 'diagramQuiz',
     getRecordId: (data) =>
-      (data.data as { diagramQuizId?: string; id?: string } | undefined)?.diagramQuizId
-      ?? (data.data as { id?: string } | undefined)?.id,
+      (data.data as { diagramQuizId?: string; id?: string } | undefined)
+        ?.diagramQuizId ?? (data.data as { id?: string } | undefined)?.id,
   },
   sequenceQuizzes: {
     summaryType: 'sequenceQuiz',
     getRecordId: (data) =>
-      (data.data as { sequenceQuizId?: string; id?: string } | undefined)?.sequenceQuizId
-      ?? (data.data as { id?: string } | undefined)?.id,
+      (data.data as { sequenceQuizId?: string; id?: string } | undefined)
+        ?.sequenceQuizId ?? (data.data as { id?: string } | undefined)?.id,
   },
   matchQuizzes: {
     summaryType: 'matchQuiz',
-    getRecordId: (data) =>
-      (data.data as { matchQuizId?: string; id?: string } | undefined)?.matchQuizId
-      ?? (data.data as { id?: string } | undefined)?.id,
+    getRecordId: (data) => readOptimisticRecordId(data, ['matchQuizId', 'id']),
   },
 };
 
@@ -123,7 +151,10 @@ function forEachDirectoryContentsCache(
 ): void {
   const queries = state[baseApi.reducerPath].queries;
   for (const entry of Object.values(queries)) {
-    if (!entry || entry.endpointName !== 'getDirectoryContentsWithArtifactSummaries') {
+    if (
+      !entry ||
+      entry.endpointName !== 'getDirectoryContentsWithArtifactSummaries'
+    ) {
       continue;
     }
     const args = entry.originalArgs as DirectoryContentsQueryArgs | undefined;
@@ -143,7 +174,12 @@ export function upsertArtifactSummaryInDirectoryCaches(
   directoryId: string,
   artifact: ArtifactSummary,
 ): void {
-  upsertArtifactSummaryInDirectoryState(getState() as RootState, dispatch, directoryId, artifact);
+  upsertArtifactSummaryInDirectoryState(
+    getState() as RootState,
+    dispatch,
+    directoryId,
+    artifact,
+  );
 }
 
 function upsertArtifactSummaryInDirectoryState(
@@ -152,20 +188,29 @@ function upsertArtifactSummaryInDirectoryState(
   directoryId: string,
   artifact: ArtifactSummary,
 ): void {
-  forEachDirectoryContentsCache(state, (args) => {
-    dispatch(
-      directoryApi.util.updateQueryData('getDirectoryContentsWithArtifactSummaries', args, (draft) => {
-        const idx = draft.artifactSummaries.findIndex(
-          (summary) => summary.id === artifact.id && summary.type === artifact.type,
-        );
-        if (idx >= 0) {
-          Object.assign(draft.artifactSummaries[idx], artifact);
-        } else {
-          draft.artifactSummaries.unshift(artifact);
-        }
-      }),
-    );
-  }, directoryId);
+  forEachDirectoryContentsCache(
+    state,
+    (args) => {
+      dispatch(
+        directoryApi.util.updateQueryData(
+          'getDirectoryContentsWithArtifactSummaries',
+          args,
+          (draft) => {
+            const idx = draft.artifactSummaries.findIndex(
+              (summary) =>
+                summary.id === artifact.id && summary.type === artifact.type,
+            );
+            if (idx >= 0) {
+              Object.assign(draft.artifactSummaries[idx], artifact);
+            } else {
+              draft.artifactSummaries.unshift(artifact);
+            }
+          },
+        ),
+      );
+    },
+    directoryId,
+  );
 }
 
 export function patchPendingArtifactSummaryFromResponse(
@@ -191,7 +236,9 @@ export function patchPendingArtifactSummaryFromResponse(
   }
 
   const ruleIds = Array.isArray(arg.ruleIds)
-    ? arg.ruleIds.filter((ruleId): ruleId is string => typeof ruleId === 'string')
+    ? arg.ruleIds.filter(
+        (ruleId): ruleId is string => typeof ruleId === 'string',
+      )
     : undefined;
 
   upsertArtifactSummaryInDirectoryCaches(dispatch, getState, directoryId, {
@@ -214,16 +261,21 @@ export function removeArtifactSummaryFromDirectoryCaches(
   forEachDirectoryContentsCache(getState() as RootState, (args) => {
     patches.push(
       dispatch(
-        directoryApi.util.updateQueryData('getDirectoryContentsWithArtifactSummaries', args, (draft) => {
-          const before = draft.artifactSummaries.length;
-          draft.artifactSummaries = draft.artifactSummaries.filter(
-            (summary) => !(summary.id === artifactId && summary.type === artifactType),
-          );
-          const removed = before - draft.artifactSummaries.length;
-          if (removed > 0) {
-            draft.totalCount = Math.max(0, (draft.totalCount || 0) - removed);
-          }
-        }),
+        directoryApi.util.updateQueryData(
+          'getDirectoryContentsWithArtifactSummaries',
+          args,
+          (draft) => {
+            const before = draft.artifactSummaries.length;
+            draft.artifactSummaries = draft.artifactSummaries.filter(
+              (summary) =>
+                !(summary.id === artifactId && summary.type === artifactType),
+            );
+            const removed = before - draft.artifactSummaries.length;
+            if (removed > 0) {
+              draft.totalCount = Math.max(0, (draft.totalCount || 0) - removed);
+            }
+          },
+        ),
       ),
     );
   });

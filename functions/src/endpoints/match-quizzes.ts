@@ -1,5 +1,5 @@
-import { onCall } from "firebase-functions/v2/https";
-import { defineSecret } from "firebase-functions/params";
+import { onCall } from 'firebase-functions/v2/https';
+import { defineSecret } from 'firebase-functions/params';
 import { validateContentForArtifactGeneration } from '@study-forge/backend-llm/llm';
 import { getGenerationFailureEnvelope } from '@study-forge/backend-llm/llm/llm-endpoint-error';
 import { mapErrorToArtifactEnvelope } from '@study-forge/backend-core/lib/callable-error';
@@ -22,23 +22,27 @@ import {
   ApiResponse,
   MatchQuiz,
   getDocumentFallbackColor,
-} from "@shared-types";
+} from '@shared-types';
 
-const geminiApiKey = defineSecret("GEMINI_API_KEY");
-const llmSettingsEncryptionKey = defineSecret("LLM_SETTINGS_ENCRYPTION_KEY");
+const geminiApiKey = defineSecret('GEMINI_API_KEY');
+const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
 function optionalTrimmedString(
   value: unknown,
-  fieldName: string
+  fieldName: string,
 ): string | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     throw new Error(`${fieldName} must be a string`);
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export const generateMatchQuiz = onCall(
@@ -47,83 +51,111 @@ export const generateMatchQuiz = onCall(
     secrets: [geminiApiKey, llmSettingsEncryptionKey],
     maxInstances: 5,
     timeoutSeconds: 60,
-    memory: "512MiB",
+    memory: '512MiB',
   },
   async (request): Promise<ApiResponse<GenerateMatchQuizResponse>> => {
     let usageReservationId: string | undefined;
     try {
-      const requestData = (request.data ?? {}) as Record<string, unknown>;
+      const requestData = isRecord(request.data) ? request.data : {};
       const userId = request.auth?.uid;
 
       if (!userId) {
-        throw new Error("Authentication required");
+        throw new Error('Authentication required');
       }
 
       const documentIds = requestData.documentIds;
       if (!Array.isArray(documentIds) || documentIds.length === 0) {
-        throw new Error("documentIds must be a non-empty array");
+        throw new Error('documentIds must be a non-empty array');
       }
-      if (!documentIds.every((id): id is string => typeof id === "string")) {
-        throw new Error("Each documentId must be a string");
+      if (!documentIds.every((id): id is string => typeof id === 'string')) {
+        throw new Error('Each documentId must be a string');
       }
 
       if (documentIds.length > 5) {
-        throw new Error("Maximum 5 documents allowed per match quiz");
+        throw new Error('Maximum 5 documents allowed per match quiz');
       }
 
-      if (requestData.additionalRuleIds != null && !Array.isArray(requestData.additionalRuleIds)) {
-        throw new Error("additionalRuleIds must be an array when provided");
+      if (
+        requestData.additionalRuleIds != null &&
+        !Array.isArray(requestData.additionalRuleIds)
+      ) {
+        throw new Error('additionalRuleIds must be an array when provided');
       }
-      if (requestData.followupRuleIds != null && !Array.isArray(requestData.followupRuleIds)) {
-        throw new Error("followupRuleIds must be an array when provided");
+      if (
+        requestData.followupRuleIds != null &&
+        !Array.isArray(requestData.followupRuleIds)
+      ) {
+        throw new Error('followupRuleIds must be an array when provided');
       }
       if (
         Array.isArray(requestData.additionalRuleIds) &&
-        !requestData.additionalRuleIds.every((id): id is string => typeof id === "string")
+        !requestData.additionalRuleIds.every(
+          (id): id is string => typeof id === 'string',
+        )
       ) {
-        throw new Error("Each additionalRuleId must be a string");
+        throw new Error('Each additionalRuleId must be a string');
       }
       if (
         Array.isArray(requestData.followupRuleIds) &&
-        !requestData.followupRuleIds.every((id): id is string => typeof id === "string")
+        !requestData.followupRuleIds.every(
+          (id): id is string => typeof id === 'string',
+        )
       ) {
-        throw new Error("Each followupRuleId must be a string");
+        throw new Error('Each followupRuleId must be a string');
+      }
+      if (requestData.ruleIds != null && !Array.isArray(requestData.ruleIds)) {
+        throw new Error('ruleIds must be an array when provided');
+      }
+      if (
+        Array.isArray(requestData.ruleIds) &&
+        !requestData.ruleIds.every((id): id is string => typeof id === 'string')
+      ) {
+        throw new Error('Each ruleId must be a string');
       }
 
       const matchQuizName = optionalTrimmedString(
         requestData.matchQuizName,
-        "matchQuizName"
+        'matchQuizName',
       );
       const additionalPrompt = optionalTrimmedString(
         requestData.additionalPrompt,
-        "additionalPrompt"
+        'additionalPrompt',
       );
       const directoryIdFromRequest = optionalTrimmedString(
         requestData.directoryId,
-        "directoryId"
+        'directoryId',
       );
 
-      const documentDataList = await DocumentCrudService.loadDocumentsWithContentForGeneration(
-        userId,
-        documentIds,
-      );
+      const documentDataList =
+        await DocumentCrudService.loadDocumentsWithContentForGeneration(
+          userId,
+          documentIds,
+        );
 
       const resolvedDirectoryId =
         directoryIdFromRequest ?? documentDataList[0]?.doc.directoryId;
       if (!resolvedDirectoryId) {
-        throw new Error("directoryId is required, or documents must belong to a directory");
+        throw new Error(
+          'directoryId is required, or documents must belong to a directory',
+        );
       }
       await directoryService.validateDirectoryId(userId, resolvedDirectoryId);
 
       for (const { doc } of documentDataList) {
         if (!doc.directoryId || doc.directoryId !== resolvedDirectoryId) {
-          throw new Error("All selected documents must belong to the same directory");
+          throw new Error(
+            'All selected documents must belong to the same directory',
+          );
         }
       }
 
-      const combinedContent = documentDataList.map((d) => d.content).join("\n\n---\n\n");
+      const combinedContent = documentDataList
+        .map((d) => d.content)
+        .join('\n\n---\n\n');
       const combinedWordCount = combinedContent.split(/\s+/).length;
-      const combinedTitle = documentDataList.map((d) => d.doc.title).join(" + ");
+      const combinedTitle = documentDataList
+        .map((d) => d.doc.title)
+        .join(' + ');
 
       const documentContent = {
         title: combinedTitle,
@@ -133,11 +165,15 @@ export const generateMatchQuiz = onCall(
 
       validateContentForArtifactGeneration(documentContent);
 
-      const usageReservation = await enforceCallableGenerationLimits(userId, 'matchQuiz');
+      const usageReservation = await enforceCallableGenerationLimits(
+        userId,
+        'matchQuiz',
+      );
       usageReservationId = usageReservation.id;
 
-      const pendingTitle = matchQuizName
-        || (documentIds.length === 1
+      const pendingTitle =
+        matchQuizName ||
+        (documentIds.length === 1
           ? `Match Quiz from ${documentDataList[0].doc.title}`
           : `Match Quiz from ${documentDataList[0].doc.title} + ${documentIds.length - 1} more`);
 
@@ -148,10 +184,15 @@ export const generateMatchQuiz = onCall(
         documentIds: documentIds.length > 1 ? documentIds : undefined,
         documentTitle: documentDataList[0].doc.title,
         title: pendingTitle,
-        documentColor: documentDataList[0].doc.color ?? getDocumentFallbackColor(documentDataList[0].doc.id),
-        documentColors: documentDataList.length > 1
-          ? documentDataList.map(d => d.doc.color ?? getDocumentFallbackColor(d.doc.id))
-          : undefined,
+        documentColor:
+          documentDataList[0].doc.color ??
+          getDocumentFallbackColor(documentDataList[0].doc.id),
+        documentColors:
+          documentDataList.length > 1
+            ? documentDataList.map(
+                (d) => d.doc.color ?? getDocumentFallbackColor(d.doc.id),
+              )
+            : undefined,
       });
 
       try {
@@ -164,9 +205,15 @@ export const generateMatchQuiz = onCall(
             documentIds,
             matchQuizName,
             additionalPrompt,
-            ruleIds: Array.isArray(requestData.ruleIds) ? requestData.ruleIds : undefined,
-            followupRuleIds: Array.isArray(requestData.followupRuleIds) ? requestData.followupRuleIds : undefined,
-            additionalRuleIds: Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds : undefined,
+            ruleIds: Array.isArray(requestData.ruleIds)
+              ? requestData.ruleIds
+              : undefined,
+            followupRuleIds: Array.isArray(requestData.followupRuleIds)
+              ? requestData.followupRuleIds
+              : undefined,
+            additionalRuleIds: Array.isArray(requestData.additionalRuleIds)
+              ? requestData.additionalRuleIds
+              : undefined,
             ruleResolutionMode: requestData.ruleResolutionMode,
           },
           usageReservationId,
@@ -175,20 +222,33 @@ export const generateMatchQuiz = onCall(
         return {
           success: true,
           data: {
-            ...buildStartGenerationPayload('matchQuiz', pendingMatchQuizId, resolvedDirectoryId, {
-              matchQuizId: pendingMatchQuizId,
-            }),
-            matchQuiz: { id: pendingMatchQuizId, generationStatus: 'pending' } as MatchQuiz,
+            ...buildStartGenerationPayload(
+              'matchQuiz',
+              pendingMatchQuizId,
+              resolvedDirectoryId,
+              {
+                matchQuizId: pendingMatchQuizId,
+              },
+            ),
+            matchQuiz: {
+              id: pendingMatchQuizId,
+              generationStatus: 'pending',
+            } as MatchQuiz,
           },
         };
       } catch (innerError) {
-        const msg = innerError instanceof Error ? innerError.message : String(innerError);
-        await failPendingMatchQuiz(userId, pendingMatchQuizId, msg).catch(() => {/* best-effort */});
+        const msg =
+          innerError instanceof Error ? innerError.message : String(innerError);
+        await failPendingMatchQuiz(userId, pendingMatchQuizId, msg).catch(
+          () => {
+            /* best-effort */
+          },
+        );
         await refundUsageReservationSafe(userId, usageReservationId);
         throw innerError;
       }
     } catch (error) {
-      console.error("Error in generateMatchQuiz:", error);
+      console.error('Error in generateMatchQuiz:', error);
       if (usageReservationId && request.auth?.uid) {
         await refundUsageReservationSafe(request.auth.uid, usageReservationId);
       }
@@ -197,29 +257,33 @@ export const generateMatchQuiz = onCall(
         error: getGenerationFailureEnvelope(error),
       };
     }
-  }
+  },
 );
 
 export const getMatchQuiz = onCall(
   { cors: true },
   async (request): Promise<ApiResponse<GetMatchQuizResponse>> => {
     try {
-      const data = (request.data ?? {}) as Record<string, unknown>;
-      const matchQuizId = typeof data.matchQuizId === "string" ? data.matchQuizId : undefined;
+      const data = isRecord(request.data) ? request.data : {};
+      const matchQuizId =
+        typeof data.matchQuizId === 'string' ? data.matchQuizId : undefined;
       const userId = request.auth?.uid;
 
       if (!userId) {
-        throw new Error("Authentication required");
+        throw new Error('Authentication required');
       }
       if (!matchQuizId) {
-        throw new Error("matchQuizId is required");
+        throw new Error('matchQuizId is required');
       }
 
-      const matchQuiz = await FirestoreService.getMatchQuiz(matchQuizId, userId);
+      const matchQuiz = await FirestoreService.getMatchQuiz(
+        matchQuizId,
+        userId,
+      );
       if (!matchQuiz) {
         return {
           success: false,
-          error: { code: "NOT_FOUND", message: "Match quiz not found" },
+          error: { code: 'NOT_FOUND', message: 'Match quiz not found' },
         };
       }
 
@@ -228,13 +292,13 @@ export const getMatchQuiz = onCall(
         data: { matchQuiz },
       };
     } catch (error) {
-      console.error("Error in getMatchQuiz:", error);
+      console.error('Error in getMatchQuiz:', error);
       return {
         success: false,
         error: mapErrorToArtifactEnvelope(error, 'FETCH_FAILED'),
       };
     }
-  }
+  },
 );
 
 export const getUserMatchQuizzes = onCall(
@@ -245,7 +309,10 @@ export const getUserMatchQuizzes = onCall(
       if (!userId) {
         return {
           success: false,
-          error: { code: "UNAUTHENTICATED", message: "Authentication required" },
+          error: {
+            code: 'UNAUTHENTICATED',
+            message: 'Authentication required',
+          },
         };
       }
 
@@ -255,13 +322,13 @@ export const getUserMatchQuizzes = onCall(
         data: { matchQuizzes },
       };
     } catch (error) {
-      console.error("Error in getUserMatchQuizzes:", error);
+      console.error('Error in getUserMatchQuizzes:', error);
       return {
         success: false,
         error: mapErrorToArtifactEnvelope(error, 'FETCH_FAILED'),
       };
     }
-  }
+  },
 );
 
 export const deleteMatchQuiz = onCall(
@@ -269,19 +336,28 @@ export const deleteMatchQuiz = onCall(
   async (request): Promise<ApiResponse<{ success: boolean }>> => {
     try {
       const userId = request.auth?.uid;
-      const deleteData = (request.data ?? {}) as Record<string, unknown>;
-      const matchQuizId = typeof deleteData.matchQuizId === "string" ? deleteData.matchQuizId : undefined;
+      const deleteData = isRecord(request.data) ? request.data : {};
+      const matchQuizId =
+        typeof deleteData.matchQuizId === 'string'
+          ? deleteData.matchQuizId
+          : undefined;
 
       if (!userId) {
         return {
           success: false,
-          error: { code: "UNAUTHENTICATED", message: "Authentication required" },
+          error: {
+            code: 'UNAUTHENTICATED',
+            message: 'Authentication required',
+          },
         };
       }
       if (!matchQuizId) {
         return {
           success: false,
-          error: { code: "MISSING_PARAMETER", message: "matchQuizId is required" },
+          error: {
+            code: 'MISSING_PARAMETER',
+            message: 'matchQuizId is required',
+          },
         };
       }
 
@@ -291,11 +367,11 @@ export const deleteMatchQuiz = onCall(
         data: { success: true },
       };
     } catch (error) {
-      console.error("Error in deleteMatchQuiz:", error);
+      console.error('Error in deleteMatchQuiz:', error);
       return {
         success: false,
         error: mapErrorToArtifactEnvelope(error, 'DELETE_FAILED'),
       };
     }
-  }
+  },
 );
