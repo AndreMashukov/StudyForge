@@ -8,6 +8,9 @@ import {
   runArtifactAgentPipeline,
 } from '@study-forge/backend-artifacts/artifact-agent';
 import {
+  runDiagramQuizLangGraphPipeline,
+} from '@study-forge/backend-artifacts/artifact-agent-langgraph';
+import {
   isArtifactKind,
   recordRefForArtifactKind,
 } from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-record-paths';
@@ -93,7 +96,14 @@ export class ArtifactAgentGenerationProcessor {
       recordId: job.recordId,
     });
 
-    await runArtifactAgentPipeline(input);
+    // Strangler fig router: `diagramQuiz` runs the LangGraph pipeline; all
+    // other kinds continue through the ADK pipeline. Flip this switch per
+    // spec phase 3 once LangGraph is verified.
+    if (artifactKind === 'diagramQuiz') {
+      await runDiagramQuizLangGraphPipeline(input);
+    } else {
+      await runArtifactAgentPipeline(input);
+    }
 
     await GenerationJobPayloadStorage.delete(job.payloadStoragePath).catch((error) => {
       logger.warn('Failed to delete artifact agent job payload after completion', {
