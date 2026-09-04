@@ -1,3 +1,4 @@
+import { getAuth } from 'firebase-admin/auth';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { userHasEmailVerificationExemption } from '../services/user-onboarding-service';
 
@@ -18,7 +19,10 @@ export interface ICallableAuthContext {
  */
 export function validateAuth(request: ICallableAuthContext): string {
   if (!request.auth?.uid) {
-    throw new HttpsError('unauthenticated', 'The function must be called while authenticated.');
+    throw new HttpsError(
+      'unauthenticated',
+      'The function must be called while authenticated.',
+    );
   }
   return request.auth.uid;
 }
@@ -32,6 +36,11 @@ export async function validateVerifiedAuth(
   const userId = validateAuth(request);
 
   if (request.auth?.token?.email_verified === true) {
+    return userId;
+  }
+
+  const authUser = await getAuth().getUser(userId);
+  if (authUser.emailVerified) {
     return userId;
   }
 

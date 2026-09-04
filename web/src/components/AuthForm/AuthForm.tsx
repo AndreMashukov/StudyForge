@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
   getIdToken,
@@ -22,7 +22,12 @@ import { Icon } from '../ui/Icon';
 import { authFormStyles } from './AuthForm.styles';
 import { MascotImage } from '../MascotImage';
 
-const workspaceArtifacts = ['Quizzes', 'Flashcards', 'Slide decks', 'Diagram drills'] as const;
+const workspaceArtifacts = [
+  'Quizzes',
+  'Flashcards',
+  'Slide decks',
+  'Diagram drills',
+] as const;
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   'auth/invalid-credential': 'Incorrect email or password.',
@@ -30,14 +35,44 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   'auth/wrong-password': 'Incorrect email or password.',
   'auth/invalid-email': 'Enter a valid email address.',
   'auth/too-many-requests': 'Too many attempts. Try again later.',
-  'auth/network-request-failed': 'Network error. Check your connection and try again.',
+  'auth/network-request-failed':
+    'Network error. Check your connection and try again.',
   'auth/user-disabled': 'This account has been disabled.',
   'auth/email-already-in-use': 'An account already exists for this email.',
   'auth/weak-password': 'Use a password with at least 6 characters.',
 };
 
-function isLocationState(value: unknown): value is { from?: { pathname?: string } } {
+function isLocationState(
+  value: unknown,
+): value is { from?: { pathname?: string } } {
   return typeof value === 'object' && value !== null && 'from' in value;
+}
+
+function getCallableErrorMessage(error: unknown): string | null {
+  if (typeof error !== 'object' || error === null) {
+    return null;
+  }
+
+  if (
+    'data' in error &&
+    typeof error.data === 'object' &&
+    error.data !== null &&
+    'message' in error.data &&
+    typeof error.data.message === 'string' &&
+    error.data.message.trim().length > 0
+  ) {
+    return error.data.message;
+  }
+
+  if (
+    'message' in error &&
+    typeof error.message === 'string' &&
+    error.message.trim().length > 0
+  ) {
+    return error.message;
+  }
+
+  return null;
 }
 
 function getAuthErrorMessage(error: unknown): string {
@@ -50,6 +85,12 @@ function getAuthErrorMessage(error: unknown): string {
   ) {
     return AUTH_ERROR_MESSAGES[error.code];
   }
+
+  const callableMessage = getCallableErrorMessage(error);
+  if (callableMessage) {
+    return callableMessage;
+  }
+
   return 'Authentication failed. Please try again.';
 }
 
@@ -77,6 +118,17 @@ async function sendVerificationEmail() {
   });
 }
 
+async function refreshCurrentUserAuthState(): Promise<boolean> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    return false;
+  }
+
+  await reload(currentUser);
+  await getIdToken(currentUser, true);
+  return currentUser.emailVerified === true;
+}
+
 export const AuthForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -85,18 +137,22 @@ export const AuthForm = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRefreshingVerification, setIsRefreshingVerification] = useState(false);
+  const [isRefreshingVerification, setIsRefreshingVerification] =
+    useState(false);
   const [verificationRefreshCount, setVerificationRefreshCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { signOut, loading: signOutLoading } = useSecureSignOut();
-  const [bootstrapUserProfile, bootstrapState] = useBootstrapUserProfileMutation();
-  const { data: profile, refetch: refetchProfile } = useGetCurrentUserProfileQuery(undefined, {
-    skip: !user,
-  });
+  const [bootstrapUserProfile, bootstrapState] =
+    useBootstrapUserProfileMutation();
+  const { data: profile, refetch: refetchProfile } =
+    useGetCurrentUserProfileQuery(undefined, {
+      skip: !user,
+    });
   const bootstrappedUserIdRef = useRef<string | null>(null);
+  const didAutoRefreshVerificationRef = useRef(false);
 
   const isVerified = user?.emailVerified === true;
   const isExempt = profile?.emailVerificationExempt === true;
@@ -116,15 +172,25 @@ export const AuthForm = () => {
     setIsSubmitting(true);
     try {
       if (isSignUp) {
-        const credential = await createUserWithEmailAndPassword(auth, email, password);
+        const credential = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password,
+        );
         await sendEmailVerification(credential.user, {
           url: `${window.location.origin}/auth?mode=verify`,
         });
-        setNotice('Verification email sent. Check your inbox before opening your workspace.');
+        setNotice(
+          'Verification email sent. Check your inbox before opening your workspace.',
+        );
         return;
       }
 
-      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
       if (!credential.user.emailVerified) {
         setNotice('Verify your email before opening your workspace.');
       }
@@ -141,7 +207,9 @@ export const AuthForm = () => {
     setIsSubmitting(true);
     try {
       await sendVerificationEmail();
-      setNotice('Verification email sent. Check your inbox and return here after verifying.');
+      setNotice(
+        'Verification email sent. Check your inbox and return here after verifying.',
+      );
     } catch (error) {
       setErrorMessage(getAuthErrorMessage(error));
     } finally {
@@ -149,18 +217,17 @@ export const AuthForm = () => {
     }
   };
 
-  const handleRefreshVerification = async () => {
+  const handleRefreshVerification = useCallback(async () => {
     if (!auth.currentUser) {
       return;
     }
     setErrorMessage(null);
     setIsRefreshingVerification(true);
     try {
-      await reload(auth.currentUser);
-      await getIdToken(auth.currentUser, true);
+      const isEmailVerified = await refreshCurrentUserAuthState();
       setVerificationRefreshCount((count) => count + 1);
       await refetchProfile();
-      if (!auth.currentUser.emailVerified && !isExempt) {
+      if (!isEmailVerified && !isExempt) {
         setNotice('Email is not verified yet. Check the link in your inbox.');
       }
     } catch (error) {
@@ -168,10 +235,17 @@ export const AuthForm = () => {
     } finally {
       setIsRefreshingVerification(false);
     }
+  }, [isExempt, refetchProfile]);
+
+  const handleRetryWorkspaceOpen = () => {
+    setErrorMessage(null);
+    bootstrappedUserIdRef.current = null;
+    setVerificationRefreshCount((count) => count + 1);
   };
 
   const handleSignOut = async () => {
     bootstrappedUserIdRef.current = null;
+    didAutoRefreshVerificationRef.current = false;
     await signOut();
   };
 
@@ -182,25 +256,65 @@ export const AuthForm = () => {
     signOutLoading;
 
   useEffect(() => {
-    if (!user || !canEnterWorkspace || bootstrappedUserIdRef.current === user.uid) {
+    if (!user || canEnterWorkspace || didAutoRefreshVerificationRef.current) {
       return;
     }
 
+    didAutoRefreshVerificationRef.current = true;
+    void handleRefreshVerification();
+  }, [canEnterWorkspace, handleRefreshVerification, user]);
+
+  useEffect(() => {
+    if (
+      !user ||
+      !canEnterWorkspace ||
+      bootstrappedUserIdRef.current === user.uid
+    ) {
+      return;
+    }
+
+    let cancelled = false;
     bootstrappedUserIdRef.current = user.uid;
     const redirectPath = getRedirectPath(location.state, forceUsageRedirect);
-    bootstrapUserProfile()
-      .unwrap()
-      .then(() => {
-        navigate(redirectPath, { replace: true });
-      })
-      .catch((error) => {
+
+    const openWorkspace = async () => {
+      const isEmailVerified = await refreshCurrentUserAuthState();
+      if (cancelled) {
+        return;
+      }
+
+      if (!isEmailVerified && !isExempt) {
         bootstrappedUserIdRef.current = null;
-        setErrorMessage(getAuthErrorMessage(error));
-      });
+        setNotice('Email is not verified yet. Check the link in your inbox.');
+        return;
+      }
+
+      await bootstrapUserProfile().unwrap();
+      if (cancelled) {
+        return;
+      }
+      navigate(redirectPath, { replace: true });
+    };
+
+    openWorkspace().catch((error: unknown) => {
+      if (cancelled) {
+        return;
+      }
+      bootstrappedUserIdRef.current = null;
+      setErrorMessage(getAuthErrorMessage(error));
+    });
+
+    return () => {
+      cancelled = true;
+      if (bootstrappedUserIdRef.current === user.uid) {
+        bootstrappedUserIdRef.current = null;
+      }
+    };
   }, [
     bootstrapUserProfile,
     canEnterWorkspace,
     forceUsageRedirect,
+    isExempt,
     location.state,
     navigate,
     user,
@@ -220,8 +334,8 @@ export const AuthForm = () => {
             <h2 className={authFormStyles.successTitle}>Verify your email</h2>
             <p className={authFormStyles.successSubtitle}>
               We sent a verification link to{' '}
-              <span className="font-medium">{user.email}</span>. Verify the email, then refresh
-              your status here.
+              <span className="font-medium">{user.email}</span>. Verify the
+              email, then refresh your status here.
             </p>
             {notice ? (
               <p className="mb-4 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
@@ -234,7 +348,11 @@ export const AuthForm = () => {
               </p>
             ) : null}
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-              <Button type="button" onClick={handleRefreshVerification} disabled={loading}>
+              <Button
+                type="button"
+                onClick={handleRefreshVerification}
+                disabled={loading}
+              >
                 {isRefreshingVerification ? 'Checking...' : 'Refresh status'}
               </Button>
               <Button
@@ -245,7 +363,12 @@ export const AuthForm = () => {
               >
                 Resend email
               </Button>
-              <Button type="button" variant="ghost" onClick={handleSignOut} disabled={loading}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleSignOut}
+                disabled={loading}
+              >
                 Sign out
               </Button>
             </div>
@@ -267,19 +390,47 @@ export const AuthForm = () => {
             />
             <div className={authFormStyles.successIcon}>
               <Icon size={24} className="text-accent-foreground">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M5 13l4 4L19 7"
+                ></path>
               </Icon>
             </div>
-            <h2 className={authFormStyles.successTitle}>
-              Opening StudyForge
-            </h2>
+            <h2 className={authFormStyles.successTitle}>Opening StudyForge</h2>
             <p className={authFormStyles.successSubtitle}>
               Signed in as <span className="font-medium">{user.email}</span>
             </p>
-            <div className={authFormStyles.successStatus}>
-              <div className={authFormStyles.successIndicator}></div>
-              Opening your workspace...
-            </div>
+            {errorMessage ? (
+              <p className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {errorMessage}
+              </p>
+            ) : null}
+            {errorMessage ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Button
+                  type="button"
+                  onClick={handleRetryWorkspaceOpen}
+                  disabled={loading}
+                >
+                  Try again
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleSignOut}
+                  disabled={loading}
+                >
+                  Sign out
+                </Button>
+              </div>
+            ) : (
+              <div className={authFormStyles.successStatus}>
+                <div className={authFormStyles.successIndicator}></div>
+                Opening your workspace...
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -298,10 +449,9 @@ export const AuthForm = () => {
             {isSignUp ? 'Create your account' : 'Welcome back'}
           </CardTitle>
           <p className={authFormStyles.subtitle}>
-            {isSignUp 
-              ? 'Start building study-ready quizzes, flashcards, and slide decks.' 
-              : 'Sign in to continue building study assets from documents, notes, and prompts.'
-            }
+            {isSignUp
+              ? 'Start building study-ready quizzes, flashcards, and slide decks.'
+              : 'Sign in to continue building study assets from documents, notes, and prompts.'}
           </p>
         </CardHeader>
 
@@ -352,7 +502,10 @@ export const AuthForm = () => {
 
               {isSignUp ? (
                 <div className={authFormStyles.fieldContainer}>
-                  <Label htmlFor="confirmPassword" className={authFormStyles.label}>
+                  <Label
+                    htmlFor="confirmPassword"
+                    className={authFormStyles.label}
+                  >
                     Confirm Password
                   </Label>
                   <Input
@@ -370,7 +523,9 @@ export const AuthForm = () => {
 
             <Button
               type="submit"
-              disabled={loading || !email || !password || (isSignUp && !confirmPassword)}
+              disabled={
+                loading || !email || !password || (isSignUp && !confirmPassword)
+              }
               className={authFormStyles.submitButton}
             >
               {loading ? (
@@ -378,8 +533,10 @@ export const AuthForm = () => {
                   <div className={authFormStyles.loadingSpinner}></div>
                   Working...
                 </div>
+              ) : isSignUp ? (
+                'Create account'
               ) : (
-                isSignUp ? 'Create account' : 'Sign in'
+                'Sign in'
               )}
             </Button>
           </form>
