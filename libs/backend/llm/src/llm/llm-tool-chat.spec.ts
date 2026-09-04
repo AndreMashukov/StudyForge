@@ -104,21 +104,47 @@ describe('buildToolChatRequestBody', () => {
 });
 
 describe('buildToolChatProviderBodyExtras', () => {
-  it('disables reasoning for Together tool chat', () => {
-    expect(buildToolChatProviderBodyExtras(togetherRoute)).toEqual({
+  const settings = {
+    temperature: 0.2,
+    topP: 0.9,
+    topK: 40,
+    maxOutputTokens: 1024,
+    requestTimeoutMs: 30_000,
+    disableReasoning: true,
+  };
+
+  it('disables reasoning for every Together model', () => {
+    const expected = {
       reasoning: { enabled: false },
-    });
+      thinking: { type: 'disabled' },
+    };
+
+    expect(buildToolChatProviderBodyExtras(togetherRoute, settings)).toEqual(
+      expected,
+    );
+    expect(
+      buildToolChatProviderBodyExtras(
+        { ...togetherRoute, model: 'Qwen/Qwen3.8-2.4T-A95B' },
+        settings,
+      ),
+    ).toEqual(expected);
+    expect(
+      buildToolChatProviderBodyExtras(
+        { ...togetherRoute, model: 'zai-org/GLM-5.2' },
+        settings,
+      ),
+    ).toEqual(expected);
   });
 
   it('disables MiniMax thinking for native MiniMax', () => {
-    expect(buildToolChatProviderBodyExtras(minimaxRoute)).toEqual({
+    expect(buildToolChatProviderBodyExtras(minimaxRoute, settings)).toEqual({
       reasoning_split: true,
       thinking: { type: 'disabled' },
     });
   });
 
   it('adds no body extras for Gemini', () => {
-    expect(buildToolChatProviderBodyExtras(geminiRoute)).toEqual({});
+    expect(buildToolChatProviderBodyExtras(geminiRoute, settings)).toEqual({});
   });
 });
 

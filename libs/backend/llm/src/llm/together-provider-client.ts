@@ -6,6 +6,7 @@ import {
   consumeTogetherChatCompletionStream,
   type ITogetherStreamedChatResult,
 } from './together-chat-stream';
+import { togetherReasoningBodyExtras } from './together-reasoning-body';
 import type {
   LlmImageRequest,
   LlmImageResult,
@@ -180,7 +181,7 @@ function buildTogetherChatBody(input: {
       input.temperature ?? DEFAULT_LLM_GENERATION_SETTINGS.temperature,
     top_p: input.topP,
     max_tokens: input.maxOutputTokens ?? 16384,
-    ...(input.disableReasoning ? { reasoning: { enabled: false } } : {}),
+    ...togetherReasoningBodyExtras(input.model, input.disableReasoning),
   });
 }
 

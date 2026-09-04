@@ -10,6 +10,7 @@ import {
 } from '@study-forge/backend-core/services/provider-cost';
 import type { ResolvedRoute } from './types';
 import { readLlmGenerationRuntimeSettings } from './llm-generation-settings-repository';
+import { togetherReasoningBodyExtras } from './together-reasoning-body';
 
 const GEMINI_OPENAI_COMPAT_BASE_URL =
   'https://generativelanguage.googleapis.com/v1beta/openai';
@@ -212,7 +213,7 @@ export function buildToolChatProviderBodyExtras(
   settings: ILlmGenerationRuntimeSettings,
 ): Record<string, unknown> {
   if (route.providerType === 'together') {
-    return settings.disableReasoning ? { reasoning: { enabled: false } } : {};
+    return togetherReasoningBodyExtras(route.model, settings.disableReasoning);
   }
 
   if (route.providerType === 'minimax') {
