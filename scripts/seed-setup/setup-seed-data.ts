@@ -4,7 +4,7 @@
  *
  * Steps performed:
  *   1. Create / update Auth user with a fixed UID and admin custom claim in the Auth emulator
- *   2. Ensure Firestore user document exists
+ *   2. Ensure Firestore user document exists (email verification exempt for local sign-in)
  *   3. Create "Study Materials" directory in Firestore
  *   4. Create HTML / Plotly / math document rules and attach them to the directory
  *   5. Inject sample documents into the directory in Firestore
@@ -320,10 +320,14 @@ async function main() {
   // ── Step 2: Firestore user document ─────────────────────────────────────
   console.log('\n[2] Ensuring Firestore user document …');
   await db.doc(`users/${TARGET_UID}`).set(
-    { email: TEST_EMAIL, createdAt: now },
+    {
+      email: TEST_EMAIL,
+      createdAt: now,
+      emailVerificationExempt: true,
+    },
     { merge: true }
   );
-  console.log('   ✅ User document ready');
+  console.log('   ✅ User document ready (emailVerificationExempt)');
 
   // ── Step 3: Directory ──────────────────────────────────────────────────
   console.log('\n[3] Creating "Study Materials" directory …');
