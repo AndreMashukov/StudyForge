@@ -72,51 +72,20 @@ function parseActiveThreadMap(raw: string): Record<string, string> {
   }
 }
 
-function readActiveThreadMap(): Record<string, string> {
-  if (!canUseStorage()) {
-    return {};
-  }
-
-  try {
-    const fromLocal = window.localStorage.getItem(ACTIVE_THREAD_STORAGE_KEY);
-    if (fromLocal && fromLocal.trim().length > 0) {
-      return parseActiveThreadMap(fromLocal);
-    }
-
-    const fromSession = window.sessionStorage.getItem(
-      LEGACY_SESSION_THREAD_KEY,
-    );
-    if (fromSession && fromSession.trim().length > 0) {
-      const threadId = fromSession.trim();
-      const nextMap = { [WORKSPACE_CONTEXT_KEY]: threadId };
-      window.localStorage.setItem(
-        ACTIVE_THREAD_STORAGE_KEY,
-        JSON.stringify(nextMap),
-      );
-      window.sessionStorage.removeItem(LEGACY_SESSION_THREAD_KEY);
-      window.sessionStorage.removeItem(LEGACY_SESSION_MESSAGES_KEY);
-      return nextMap;
-    }
-  } catch {
-    return {};
-  }
-
-  return {};
-}
-
-function persistActiveThreadMap(nextMap: Record<string, string>): void {
+function persistActiveThreadMap(
+  userId: string,
+  nextMap: Record<string, string>,
+): void {
   if (!canUseStorage()) {
     return;
   }
 
   try {
+    const scopedKey = `${ACTIVE_THREAD_STORAGE_KEY}:${userId}`;
     if (Object.keys(nextMap).length === 0) {
-      window.localStorage.removeItem(ACTIVE_THREAD_STORAGE_KEY);
+      window.localStorage.removeItem(scopedKey);
     } else {
-      window.localStorage.setItem(
-        ACTIVE_THREAD_STORAGE_KEY,
-        JSON.stringify(nextMap),
-      );
+      window.localStorage.setItem(scopedKey, JSON.stringify(nextMap));
     }
     window.sessionStorage.removeItem(LEGACY_SESSION_THREAD_KEY);
     window.sessionStorage.removeItem(LEGACY_SESSION_MESSAGES_KEY);
@@ -125,22 +94,49 @@ function persistActiveThreadMap(nextMap: Record<string, string>): void {
   }
 }
 
+function readActiveThreadMapForUser(userId: string): Record<string, string> {
+  if (!canUseStorage()) {
+    return {};
+  }
+
+  try {
+    const scoped = window.localStorage.getItem(
+      `${ACTIVE_THREAD_STORAGE_KEY}:${userId}`,
+    );
+    if (scoped && scoped.trim().length > 0) {
+      return parseActiveThreadMap(scoped);
+    }
+  } catch {
+    return {};
+  }
+
+  return {};
+}
+
 export function readActiveThreadId(
+  userId: string | undefined,
   scope: AgentScope,
   directoryId?: string,
 ): string | undefined {
+  if (!userId) {
+    return undefined;
+  }
   const contextKey = agentPanelContextKey(scope, directoryId);
-  const threadId = readActiveThreadMap()[contextKey];
+  const threadId = readActiveThreadMapForUser(userId)[contextKey];
   return threadId && threadId.trim().length > 0 ? threadId.trim() : undefined;
 }
 
 export function writeActiveThreadId(
+  userId: string | undefined,
   threadId: string | undefined,
   scope: AgentScope,
   directoryId?: string,
 ): void {
+  if (!userId) {
+    return;
+  }
   const contextKey = agentPanelContextKey(scope, directoryId);
-  const nextMap = { ...readActiveThreadMap() };
+  const nextMap = { ...readActiveThreadMapForUser(userId) };
 
   if (threadId && threadId.trim().length > 0) {
     nextMap[contextKey] = threadId.trim();
@@ -148,7 +144,7 @@ export function writeActiveThreadId(
     delete nextMap[contextKey];
   }
 
-  persistActiveThreadMap(nextMap);
+  persistActiveThreadMap(userId, nextMap);
 }
 
 export function writeStreamBackup(

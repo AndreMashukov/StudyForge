@@ -20,6 +20,7 @@ import { MarkdownRenderer } from '../MarkdownRenderer';
 import { stripAgentThinkingContent } from '../../utils/stripAgentThinkingContent';
 import { formatLocalIsoDate } from '../../utils/dateUtils';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../contexts/AuthContext';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
@@ -102,20 +103,30 @@ function isAgentThreadMissingError(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) {
     return false;
   }
-  if (!('status' in error) || error.status !== 'functions/not-found') {
+  if (!('status' in error) || !('data' in error)) {
     return false;
   }
-  if (
-    !('data' in error) ||
-    typeof error.data !== 'object' ||
-    error.data === null
-  ) {
+  if (typeof error.data !== 'object' || error.data === null) {
     return false;
   }
-  if (!('message' in error.data) || typeof error.data.message !== 'string') {
-    return false;
+
+  const message =
+    'message' in error.data && typeof error.data.message === 'string'
+      ? error.data.message
+      : '';
+  const code =
+    'code' in error.data && typeof error.data.code === 'string'
+      ? error.data.code
+      : '';
+
+  if (error.status === 'CUSTOM_ERROR') {
+    return code === 'NOT_FOUND' || message === 'Thread not found';
   }
-  return error.data.message === 'Agent thread not found';
+
+  return (
+    error.status === 'functions/not-found' &&
+    message === 'Agent thread not found'
+  );
 }
 
 function promptContextDirectoryId(
@@ -142,11 +153,11 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
   className,
 }) => {
   const dispatch = useAppDispatch();
+  const { user } = useAuth();
+  const userId = user?.uid;
   const [messages, setMessages] = useState<IAgentChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [threadId, setThreadId] = useState<string | undefined>(() =>
-    readActiveThreadId(scope, directoryId),
-  );
+  const [threadId, setThreadId] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -170,10 +181,21 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
 
   const persistActiveThreadId = useCallback(
     (nextThreadId: string | undefined) => {
-      writeStoredActiveThreadId(nextThreadId, scope, directoryId);
+      writeStoredActiveThreadId(userId, nextThreadId, scope, directoryId);
     },
-    [directoryId, scope],
+    [directoryId, scope, userId],
   );
+
+  useEffect(() => {
+    if (!userId) {
+      setThreadId(undefined);
+      setMessages([]);
+      return;
+    }
+
+    setThreadId(readActiveThreadId(userId, scope, directoryId));
+    setMessages([]);
+  }, [directoryId, scope, userId]);
 
   const visibleThreads = useMemo(() => {
     const threads = threadListData?.threads ?? [];
