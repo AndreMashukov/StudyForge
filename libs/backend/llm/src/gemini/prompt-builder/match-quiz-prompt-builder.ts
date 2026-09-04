@@ -101,6 +101,7 @@ ${content.content}
 
 **TASK:**
 Create **5** questions. For each question provide:
+- \`question\`: one short instruction stem the learner reads first (≤ 20 words). It must be a question or a match instruction, for example "Which agent performs each step?" or "Match each description to the correct term." Do not paste prompt texts into this field.
 - \`prompts\`: an array of objects \`{ "id": "p1", "text": "..." }\` in display order (4–6 prompts). Number the ids p1, p2, ... in order.
 - \`options\`: an array of objects \`{ "id": "o1", "text": "...", "correctPromptId": "p1" }\` covering every prompt id exactly once, plus 1–2 distractors with \`correctPromptId: null\`.
 - \`explanation\`: a concise explanation of the correct pairings.
@@ -116,7 +117,8 @@ ${buildQuizHintFieldInstruction('Look for the pairing that only fits one descrip
 - Distractor options must have \`correctPromptId: null\`.
 - Option texts must be short chip labels (≤ 8 words) and unique within a question.
 - Do NOT reveal the answer inside the prompt text.
-- Required fields per question: \`prompts\`, \`options\`, \`explanation\`, \`hint\`, and \`knowledge\`.`;
+- Required fields per question: \`question\`, \`prompts\`, \`options\`, \`explanation\`, \`hint\`, and \`knowledge\`.
+- \`question\` must be a single stem (question or match instruction). Do not concatenate prompt texts.`;
   }
 
   private static getJsonFormatRules(): string {
@@ -124,6 +126,7 @@ ${buildQuizHintFieldInstruction('Look for the pairing that only fits one descrip
 - Return **only** valid JSON. No markdown, no prose outside the JSON object.
 - **No backticks** in any string value.
 - **No unescaped double quotes** inside string values.
+- \`question\` is required and must be a non-empty instruction stem. Do not join prompt texts with \`|\` or commas.
 - \`prompts\` must be a non-empty array of 4–6 objects, each with a non-empty \`id\` and \`text\`.
 - \`options\` must contain one option per prompt id (its \`correctPromptId\`) plus 1–2 distractors with \`correctPromptId: null\`.
 - \`explanation\` is required and must be a non-empty string.
@@ -137,6 +140,7 @@ ${buildQuizHintJsonRule()}`;
   "title": "Short descriptive title for the quiz",
   "questions": [
     {
+      "question": "Match each architecture description to the pattern it names.",
       "prompts": [
         { "id": "p1", "text": "A decentralized architecture where agents coordinate directly without a central manager." },
         { "id": "p2", "text": "A centralized architecture where a single agent delegates tasks to worker agents." },
@@ -163,6 +167,6 @@ ${buildQuizHintJsonRule()}`;
   }
 
   private static getFinalInstructions(): string {
-    return `**FINAL CHECK:** Every question has 4–6 prompt objects, one matching option per prompt plus 1–2 distractors with \`correctPromptId: null\`, unique option texts, a non-empty explanation, and a non-empty hint. Generate the JSON now:`;
+    return `**FINAL CHECK:** Every question has a short \`question\` stem, 4–6 prompt objects, one matching option per prompt plus 1–2 distractors with \`correctPromptId: null\`, unique option texts, a non-empty explanation, and a non-empty hint. Generate the JSON now:`;
   }
 }

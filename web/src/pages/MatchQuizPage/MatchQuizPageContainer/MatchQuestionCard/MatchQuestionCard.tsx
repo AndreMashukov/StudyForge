@@ -328,7 +328,7 @@ export const MatchQuestionCard: React.FC<IMatchQuestionCardProps> = ({
         totalQuestions={totalQuestions}
         score={quizState.score}
         answeredCount={answeredCount}
-        questionText={question.prompts.map((p) => p.text).join(' | ')}
+        questionText={question.question}
         hint={question.hint}
         leadingAction={backAction}
       />

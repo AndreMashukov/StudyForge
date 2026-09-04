@@ -336,6 +336,8 @@ export interface MatchQuizOption {
 }
 
 export interface MatchQuizQuestion {
+  /** Stem shown above the match table, e.g. "Match each description to the correct agent." */
+  question?: string;
   prompts: MatchQuizPrompt[]; // Fixed left-side rows in display order
   options: MatchQuizOption[]; // Chip bank (shuffled at display time on the client)
   explanation: string;

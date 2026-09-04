@@ -26,6 +26,10 @@ export const useFetchMatchQuizData = () => {
   const transform = useCallback((mq: MatchQuiz): IMatchQuizViewQuestion[] => {
     return mq.questions.map((q, index) => ({
       id: index + 1,
+      question:
+        typeof q.question === 'string' && q.question.trim().length > 0
+          ? q.question.trim()
+          : 'Match each item to the correct option.',
       prompts: q.prompts,
       options: q.options,
       explanation: q.explanation,

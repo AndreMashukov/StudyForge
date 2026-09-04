@@ -143,6 +143,7 @@ export interface GeminiSequenceQuizResponse {
 export interface GeminiMatchQuizResponse {
   title: string;
   questions: Array<{
+    question: string;
     prompts: Array<{ id: string; text: string }>;
     options: Array<{
       id: string;
@@ -1979,6 +1980,8 @@ This question is derived from: **${context.originalDocument.title}**
       }
 
       const row = question as Record<string, unknown>;
+      const questionStem =
+        typeof row.question === 'string' ? row.question.trim() : '';
       const prompts = this.coerceMatchPairs(
         row.prompts ?? row.descriptions ?? row.rows,
       );
@@ -2040,6 +2043,8 @@ This question is derived from: **${context.originalDocument.title}**
           : undefined;
 
       normalizedQuestions.push({
+        question:
+          questionStem || 'Match each item to the correct option.',
         prompts,
         options,
         explanation,
@@ -2080,6 +2085,14 @@ This question is derived from: **${context.originalDocument.title}**
     }
     (parsed.questions as unknown[]).forEach((q, index) => {
       const row = q as Record<string, unknown>;
+      if (
+        typeof row.question !== 'string' ||
+        row.question.trim().length === 0
+      ) {
+        throw new Error(
+          `Match quiz question ${index + 1}: missing question stem`,
+        );
+      }
       if (
         !Array.isArray(row.prompts) ||
         row.prompts.length < 4 ||
@@ -2183,6 +2196,7 @@ This question is derived from: **${context.originalDocument.title}**
       title: `Mock Match Quiz: ${content.title}`,
       questions: [
         {
+          question: 'Match each mock description to the correct term.',
           prompts: [
             {
               id: 'p1',

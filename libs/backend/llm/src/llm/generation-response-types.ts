@@ -54,6 +54,7 @@ export interface IMatchQuizGenerationOption {
 }
 
 export interface IMatchQuizGenerationQuestion {
+  question: string;
   prompts: IMatchQuizGenerationPrompt[];
   options: IMatchQuizGenerationOption[];
   explanation: string;

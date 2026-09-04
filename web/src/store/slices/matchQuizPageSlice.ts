@@ -3,6 +3,7 @@ import { MatchQuiz, MatchQuizOption } from '@shared-types';
 
 export interface IMatchQuizViewQuestion {
   id: number;
+  question: string;
   prompts: Array<{ id: string; text: string }>;
   options: MatchQuizOption[];
   explanation: string;

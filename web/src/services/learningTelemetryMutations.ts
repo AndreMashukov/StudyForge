@@ -137,7 +137,10 @@ function quizDocRef(
 
 function questionTextFor(question: StoredQuestion): string {
   if (isMatchQuestion(question)) {
-    return question.prompts.map((prompt) => prompt.text).join(' | ');
+    const stem = question.question?.trim();
+    return stem && stem.length > 0
+      ? stem
+      : question.prompts.map((prompt) => prompt.text).join(' | ');
   }
   return question.question;
 }
