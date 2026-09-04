@@ -268,21 +268,18 @@ export async function finalizeNode(
     mergeFailuresIntoDiagnostics(diagnostics, novelFailures);
   }
 
-  // Per the spec, only NOVEL gate failures are blocking. Residual blockers
-  // from earlier repair passes that the gate still emits are not a fresh
-  // failure - the loop either converged on them or was capped and exited,
-  // and the diagnostics trail already records them. We still consult the
-  // full gate result for the failure message, since the user wants to know
-  // what's actually wrong with the final draft.
-  const novelBlockers = novelFailures.filter(
-    (failure) => failure.severity === 'blocker'
-  );
-  const gateBlocked = novelBlockers.length > 0;
+  // The final gate pass fails the run if any blocker is present, even one
+  // that survived the repair loop as a residual. Mirrors the ADK
+  // `FinalizeAgent` (`hasBlockerFailures(gateResult.failures)`) so a draft
+  // that still violates a blocking gate is rejected even when the residual
+  // deduplication below would otherwise hide it. `novelFailures` is kept
+  // solely for diagnostic deduplication.
+  const gateBlocked = hasBlockerFailures(gateResult.failures);
   const criticBlocked = isCriticBlocking(criticResult);
 
   if (gateBlocked || criticBlocked) {
     const failureMessage = pickFailureMessage(
-      novelBlockers,
+      gateResult.failures.filter((failure) => failure.severity === 'blocker'),
       gateResult.failures,
       criticResult
     );

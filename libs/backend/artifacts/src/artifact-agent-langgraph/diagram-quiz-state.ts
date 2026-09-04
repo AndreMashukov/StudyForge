@@ -75,6 +75,16 @@ export function mergeDiagnostics(
   if (current === undefined) {
     return incoming;
   }
+  // Nodes mutate the diagnostics object in place and return the same
+  // reference. Without this guard, the reducer would concat each array with
+  // itself on every write, doubling the audit trail on each stage.
+  const sameReference = current === incoming;
+  const modelUsage = sameReference
+    ? [...(incoming.modelUsage ?? [])]
+    : [...(current.modelUsage ?? []), ...(incoming.modelUsage ?? [])];
+  const residuals = sameReference
+    ? [...(incoming.residuals ?? [])]
+    : [...(current.residuals ?? []), ...(incoming.residuals ?? [])];
   return {
     artifactKind: incoming.artifactKind ?? current.artifactKind,
     agentDefinitionVersion:
@@ -93,8 +103,8 @@ export function mergeDiagnostics(
       typeof incoming.criticCycles === 'number'
         ? incoming.criticCycles
         : current.criticCycles,
-    modelUsage: [...(current.modelUsage ?? []), ...(incoming.modelUsage ?? [])],
-    residuals: [...(current.residuals ?? []), ...(incoming.residuals ?? [])],
+    modelUsage,
+    residuals,
     criticIssues: incoming.criticIssues ?? current.criticIssues,
     artifactDetails: incoming.artifactDetails ?? current.artifactDetails,
   };
@@ -199,18 +209,23 @@ export const DIAGRAM_QUIZ_LOOP_LIMITS = {
  * inputs. Diagnostics start in the same shape the ADK factory uses, and the
  * loop counters start at zero so the conditional edges enter the loop on the
  * first iteration.
+ *
+ * Returns `Partial<DiagramQuizState>` because the state annotation declares
+ * other channels (context, draft, outcome, etc.) as required, but those are
+ * populated downstream as the graph runs. Asserting the full state shape
+ * here would hide future channel additions from the compiler.
  */
 export function createInitialDiagramQuizState(input: {
   definition: DiagramQuizDefinition;
   jobInput: ArtifactAgentJobInput;
   diagnostics: IArtifactAgentDiagnostics;
-}): DiagramQuizState {
+}): Partial<DiagramQuizState> {
   return {
     [ARTIFACT_PIPELINE_STATE_KEYS.definition]: input.definition,
     [ARTIFACT_PIPELINE_STATE_KEYS.jobInput]: input.jobInput,
     [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]: input.diagnostics,
     [ARTIFACT_PIPELINE_STATE_KEYS.gateFailures]: [],
-    repair_iteration: 0,
-    critic_iteration: 0,
-  } as DiagramQuizState;
+    [DIAGRAM_QUIZ_LOOP_COUNTERS.repair]: 0,
+    [DIAGRAM_QUIZ_LOOP_COUNTERS.critic]: 0,
+  };
 }

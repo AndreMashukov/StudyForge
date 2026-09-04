@@ -32,6 +32,7 @@ import { END, START, StateGraph } from '@langchain/langgraph';
 import type { IArtifactCriticResult } from '@shared-types';
 
 import type { ArtifactAgentDefinition } from '../artifact-agent/artifact-agent-definition';
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
 import { criticNode } from './nodes/critic.node';
 import { finalizeNode } from './nodes/finalize.node';
 import { gateNode } from './nodes/gate.node';
@@ -88,7 +89,9 @@ function readCriticIteration(state: DiagramQuizState): number {
  * failures is part of the locked `ARTIFACT_PIPELINE_STATE_KEYS` map.
  */
 function readGateFailures(state: DiagramQuizState): ReadonlyArray<unknown> {
-  const channel = (state as Record<string, unknown>)['artifact_gate_failures'];
+  const channel = (state as Record<string, unknown>)[
+    ARTIFACT_PIPELINE_STATE_KEYS.gateFailures
+  ];
   return Array.isArray(channel) ? channel : [];
 }
 
@@ -100,7 +103,9 @@ function readGateFailures(state: DiagramQuizState): ReadonlyArray<unknown> {
 function readCriticResult(
   state: DiagramQuizState
 ): IArtifactCriticResult | undefined {
-  const value = (state as Record<string, unknown>)['artifact_critic_result'];
+  const value = (state as Record<string, unknown>)[
+    ARTIFACT_PIPELINE_STATE_KEYS.criticResult
+  ];
   return value as IArtifactCriticResult | undefined;
 }
 
@@ -112,7 +117,9 @@ function readCriticResult(
 function readDefinition(
   state: DiagramQuizState
 ): ArtifactAgentDefinition<unknown, unknown> | undefined {
-  const value = (state as Record<string, unknown>)['artifact_definition'];
+  const value = (state as Record<string, unknown>)[
+    ARTIFACT_PIPELINE_STATE_KEYS.definition
+  ];
   return value as ArtifactAgentDefinition<unknown, unknown> | undefined;
 }
 
@@ -201,18 +208,13 @@ function routeFromCritic(state: DiagramQuizState): string {
  * (see `run-diagram-quiz-pipeline.ts`) so this factory can be reused in tests
  * with different recursion limits or checkpointer configurations.
  *
- * The function accepts an optional `definition` so node factories can be
- * pre-bound; this lets the same graph topology serve different
- * `ArtifactAgentDefinition` instances without losing type information. When
- * omitted, the node factories read the definition off the state on each
- * invocation, which matches the way the ADK pipeline closes over the
- * definition per run.
+ * Each node reads `artifact_definition` off the invocation state, so callers
+ * must seed the state with the definition before invoking the graph. The
+ * `run-diagram-quiz-pipeline.ts` entry point does this in
+ * `buildInitialState` so production callers do not need to thread the
+ * definition through here.
  */
-export function createDiagramQuizStateGraph(options?: {
-  definition?: ArtifactAgentDefinition<unknown, unknown>;
-}) {
-  const definition = options?.definition;
-
+export function createDiagramQuizStateGraph() {
   const graph = new StateGraph(DiagramQuizStateAnnotation)
     .addNode(DIAGRAM_QUIZ_NODE_NAMES.loadContext, loadContextNode)
     .addNode(DIAGRAM_QUIZ_NODE_NAMES.generate, generateNode)
@@ -265,8 +267,6 @@ export function createDiagramQuizStateGraph(options?: {
  * `invoke()` use. The compiled graph is the LangGraph equivalent of
  * `InMemoryRunner({ agent, appName: 'study-forge-artifact-agent' })`.
  */
-export function compileDiagramQuizGraph(options?: {
-  definition?: ArtifactAgentDefinition<unknown, unknown>;
-}) {
-  return createDiagramQuizStateGraph(options).compile();
+export function compileDiagramQuizGraph() {
+  return createDiagramQuizStateGraph().compile();
 }

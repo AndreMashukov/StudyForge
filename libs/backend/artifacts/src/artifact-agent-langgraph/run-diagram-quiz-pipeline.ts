@@ -173,7 +173,7 @@ export async function runDiagramQuizLangGraphPipeline(
     orchestrationMode: 'langgraph-runner',
   });
 
-  const graph = compileDiagramQuizGraph({ definition });
+  const graph = compileDiagramQuizGraph();
   const initialState = buildInitialState({ definition, jobInput: input });
 
   // `invoke()` runs the compiled graph to completion. The LangGraph
