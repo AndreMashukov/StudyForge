@@ -3567,11 +3567,6 @@
     protobufjs "^7.5.4"
     ws "^8.18.0"
 
-"@google/generative-ai@^0.24.1":
-  version "0.24.1"
-  resolved "https://registry.yarnpkg.com/@google/generative-ai/-/generative-ai-0.24.1.tgz#634a3c06f8ea7a6125c1b0d6c1e66bb11afb52c9"
-  integrity sha512-MqO+MLfM6kjxcKoy0p1wRzG3b4ZZXtPI+z2IE26UogS2Cm/XHO+7gGRBh6gcJsOiIVoH93UwKvW4HdgiOZCy9Q==
-
 "@googleapis/sqladmin@^31.1.0":
   version "31.1.0"
   resolved "https://registry.npmmirror.com/@googleapis/sqladmin/-/sqladmin-31.1.0.tgz"
@@ -4343,13 +4338,6 @@
     mustache "^4.2.0"
     p-queue "^6.6.2"
     zod "^3.25.76 || ^4"
-
-"@langchain/google-genai@^2.3.0":
-  version "2.3.0"
-  resolved "https://registry.yarnpkg.com/@langchain/google-genai/-/google-genai-2.3.0.tgz#60eaf6b7ee2f5f2d76ec9336474b103e5485a20d"
-  integrity sha512-i797N4UToqFZHaXLR24mhLrlODwiEIxq/pnjHDvfQcrrm/qn+YIPBoIlefN6BVUua96rxumZ4m2iQ7FG6Aa2ww==
-  dependencies:
-    "@google/generative-ai" "^0.24.1"
 
 "@langchain/langgraph-checkpoint@^1.1.5":
   version "1.1.5"
