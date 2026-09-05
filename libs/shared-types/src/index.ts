@@ -516,7 +516,10 @@ export interface IArtifactCriticResult {
   }>;
 }
 
-export type ArtifactAgentOrchestrationMode = 'adk-runner' | 'imperative';
+export type ArtifactAgentOrchestrationMode =
+  | 'adk-runner'
+  | 'imperative'
+  | 'langgraph-runner';
 
 export interface IArtifactAgentDiagnostics {
   artifactKind: ArtifactKind;

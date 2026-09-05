@@ -19,20 +19,13 @@ import {
   mergeFailuresIntoDiagnostics,
   runArtifactGates,
 } from './artifact-agent-definition';
+import {
+  ARTIFACT_PIPELINE_STATE_KEYS,
+  type ArtifactPipelineStateKey,
+} from '../artifact-pipeline-state-keys';
 
-export const ARTIFACT_PIPELINE_STATE_KEYS = {
-  definition: 'artifact_definition',
-  jobInput: 'job_input',
-  context: 'artifact_context',
-  draft: 'artifact_draft',
-  diagnostics: 'artifact_diagnostics',
-  gateFailures: 'artifact_gate_failures',
-  criticResult: 'artifact_critic_result',
-  outcome: 'artifact_outcome',
-  failureMessage: 'artifact_failure_message',
-  generationModel: 'artifact_generation_model',
-  agentModel: 'artifact_agent_model',
-} as const;
+export { ARTIFACT_PIPELINE_STATE_KEYS };
+export type { ArtifactPipelineStateKey };
 
 export type ArtifactPipelineOutcome = 'completed' | 'failed';
 
