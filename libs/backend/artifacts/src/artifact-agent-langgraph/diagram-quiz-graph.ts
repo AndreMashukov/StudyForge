@@ -9,7 +9,7 @@
  * Repair loop:
  *   gate -> repair -> gate   (conditional edge from `gate` selects next node)
  *   Exit condition:
- *     - gate failures are empty, OR
+ *     - no blocker gate failures remain (warnings alone do not keep looping), OR
  *     - repair_iteration exceeds maxRepairIterations (4)
  *
  * Verification loop (only if both `definition.critic` and `definition.refiner`
@@ -31,7 +31,11 @@ import { END, START, StateGraph } from '@langchain/langgraph';
 
 import type { IArtifactCriticResult } from '@shared-types';
 
-import type { ArtifactAgentDefinition } from '../artifact-agent/artifact-agent-definition';
+import {
+  hasBlockerFailures,
+  type ArtifactAgentDefinition,
+  type ArtifactGateFailure,
+} from '../artifact-agent/artifact-agent-definition';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
 import { criticNode } from './nodes/critic.node';
 import { finalizeNode } from './nodes/finalize.node';
@@ -84,15 +88,32 @@ function readCriticIteration(state: DiagramQuizState): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
+function isArtifactGateFailure(value: unknown): value is ArtifactGateFailure {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  if (!('gateId' in value) || !('severity' in value) || !('message' in value)) {
+    return false;
+  }
+  return (
+    typeof value.gateId === 'string' &&
+    (value.severity === 'warning' || value.severity === 'blocker') &&
+    typeof value.message === 'string'
+  );
+}
+
 /**
  * Read the gate failures array off the state. The contract key for gate
  * failures is part of the locked `ARTIFACT_PIPELINE_STATE_KEYS` map.
  */
-function readGateFailures(state: DiagramQuizState): ReadonlyArray<unknown> {
+function readGateFailures(state: DiagramQuizState): ArtifactGateFailure[] {
   const channel = (state as Record<string, unknown>)[
     ARTIFACT_PIPELINE_STATE_KEYS.gateFailures
   ];
-  return Array.isArray(channel) ? channel : [];
+  if (!Array.isArray(channel)) {
+    return [];
+  }
+  return channel.filter(isArtifactGateFailure);
 }
 
 /**
@@ -129,10 +150,10 @@ function readDefinition(
  * the definition has no critic/refiner), or into `finalize` when the
  * repair iteration budget is exhausted.
  *
- * Exit conditions (mirrors the ADK LoopAgent with maxIterations):
- *   1. Gate failures empty AND no residual failures -> leave loop.
- *   2. repair_iteration >= maxRepairIterations       -> leave loop (budget exhausted).
- *   3. Otherwise                                    -> repair node.
+ * Exit conditions (mirrors ADK GateAgent `escalate: !hasBlockerFailures(...)`):
+ *   1. No blocker failures remain (warnings alone exit the loop).
+ *   2. repair_iteration >= maxRepairIterations -> leave loop (budget exhausted).
+ *   3. Otherwise -> repair node.
  *
  * Note: we compare `>=` rather than `>` because the gate node itself bumps
  * `repair_iteration` after recording failures, so the budget is reached when
@@ -141,9 +162,8 @@ function readDefinition(
 function routeFromGate(state: DiagramQuizState): string {
   const failures = readGateFailures(state);
   const repairIterations = readRepairIteration(state);
-  const hasFailures = failures.length > 0;
 
-  if (!hasFailures) {
+  if (!hasBlockerFailures(failures)) {
     return resolvePostRepairTarget(state);
   }
 
