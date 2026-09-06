@@ -1,316 +1,259 @@
-import type { IArtifactAgentDiagnostics, IArtifactCriticResult } from '@shared-types';
+/**
+ * LangGraph node: finalize the artifact pipeline run.
+ *
+ * This node is the terminal node of the diagram-quiz graph. It reads the
+ * accumulated pipeline state and produces a final outcome that the runner
+ * (`run-diagram-quiz-pipeline.ts`) persists through the normal Firestore
+ * teardown.
+ *
+ * Responsibilities:
+ * - Read `artifact_outcome` and `artifact_failure_message` from state. If
+ *   a prior node already wrote a failure, the failure channels pass
+ *   through unchanged (last-writer-wins on a null/empty default).
+ * - If no failure was recorded, mark the run as `succeeded`.
+ * - Invoke the artifact definition's `persistCompleted` (on success) or
+ *   `markFailed` (on failure) hook so the canonical ADK-side persistence
+ *   path (`completePendingDiagramQuiz` / `failPendingDiagramQuiz`) is
+ *   called from the LangGraph pipeline, matching the behaviour of the
+ *   legacy ADK pipeline that the diagram-quiz definition was authored for.
+ * - Push a `finalizer` role entry into `diagnostics.modelUsage` so the
+ *   downstream model-usage accounting reflects the finalize step.
+ *
+ * P6 (single-writer for model channels): this node does NOT write
+ * `artifact_generation_model` or `artifact_agent_model`. Those channels
+ * are written ONLY by `generate.node.ts`. The finalize pass does not
+ * invoke an LLM, so it has no business overwriting the model label. The
+ * `artifact_generation_model` / `artifact_agent_model` channels remain
+ * whatever `generate.node.ts` last wrote. Any prior version of this node
+ * that mirrored these channels has been scrubbed.
+ *
+ * P3 (wire finalize to definition hooks): this node dispatches to
+ * `definition.persistCompleted` or `definition.markFailed` based on
+ * `artifact_outcome`, so the LangGraph pipeline uses the same persistence
+ * surface as the legacy ADK pipeline.
+ *
+ * P5: Node signature uses the canonical LangGraph `GraphNode<StateShape>`
+ * type so the node accepts the typed `state` argument only and returns a
+ * partial state update.
+ *
+ * P7: this node is wrapped with `createNodeLifecycleLogger` so it emits a
+ * structured `node_enter` event before invocation and a `node_exit` event
+ * after the partial-state update is returned. Both events carry the
+ * per-invocation `jobId`, the node name, an ISO-8601 timestamp, and the
+ * orchestration mode. Wrapping the terminal node is especially useful
+ * because the `node_exit` event confirms the finalize node completed
+ * before the runner observes a terminal outcome.
+ */
+import type { GraphNode } from '@langchain/langgraph';
+
+import type { IArtifactAgentDiagnostics } from '@shared-types';
 import type {
-  ArtifactAgentContext,
   ArtifactAgentDefinition,
-  ArtifactGateFailure,
+  ArtifactAgentFailure,
+  ArtifactAgentResult,
 } from '../../artifact-agent/artifact-agent-definition';
 import {
-  hasBlockerFailures,
-  mergeFailuresIntoDiagnostics,
-  runArtifactGates,
+  createEmptyDiagnostics,
+  recordModelUsage,
 } from '../../artifact-agent/artifact-agent-definition';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
-import type { ArtifactPipelineOutcome } from '../diagram-quiz-state';
+import {
+  createNodeLifecycleLogger,
+  DIAGRAM_QUIZ_NODE_NAMES,
+} from '../diagram-quiz-graph';
+import type {
+  ArtifactPipelineOutcome,
+  DiagramQuizStateShape,
+} from '../diagram-quiz-state';
 
 /**
- * State shape consumed by the finalize node.
+ * Result type for the finalize node. Writes `artifact_outcome`,
+ * `artifact_failure_message`, and `artifact_diagnostics`.
  *
- * Mirrors the channels read and written by the ADK `FinalizeAgent`:
- *   - Reads the latest `artifact_definition`, `artifact_context`,
- *     `artifact_draft`, `artifact_diagnostics`, `artifact_critic_result`,
- *     `artifact_generation_model`, and `artifact_agent_model`.
- *   - Writes `artifact_outcome`, `artifact_failure_message`, and merges
- *     `artifact_diagnostics` with any novel gate residuals discovered on the
- *     final pass.
+ * P6 invariant: `artifact_generation_model` and `artifact_agent_model` are
+ * NEVER written by this node. Those channels are owned exclusively by
+ * `generate.node.ts`. This node must never overwrite them, even if it
+ * "knows" the model label.
  */
-export interface FinalizeNodeState {
-  [ARTIFACT_PIPELINE_STATE_KEYS.definition]:
-    | ArtifactAgentDefinition<unknown, unknown>
+export type FinalizeNodeResult = Partial<DiagramQuizStateShape>;
+
+/**
+ * Build the canonical success-channel update for the finalize node.
+ *
+ * P6: this helper deliberately does NOT write `artifact_generation_model`
+ * or `artifact_agent_model`.
+ */
+function buildFinalizeSuccess(
+  diagnostics: IArtifactAgentDiagnostics
+): FinalizeNodeResult {
+  return {
+    [ARTIFACT_PIPELINE_STATE_KEYS.outcome]:
+      'succeeded' satisfies ArtifactPipelineOutcome,
+    [ARTIFACT_PIPELINE_STATE_KEYS.failureMessage]: null,
+    [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]: diagnostics,
+  } as FinalizeNodeResult;
+}
+
+/**
+ * Build the canonical failure-pass-through update for the finalize node.
+ *
+ * P6: this helper deliberately does NOT write `artifact_generation_model`
+ * or `artifact_agent_model`.
+ */
+function buildFinalizeFailurePassThrough(
+  diagnostics: IArtifactAgentDiagnostics,
+  failureMessage: string | null
+): FinalizeNodeResult {
+  return {
+    [ARTIFACT_PIPELINE_STATE_KEYS.outcome]:
+      'failed' satisfies ArtifactPipelineOutcome,
+    [ARTIFACT_PIPELINE_STATE_KEYS.failureMessage]: failureMessage,
+    [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]: diagnostics,
+  } as FinalizeNodeResult;
+}
+
+/**
+ * Dispatch the persistence hook from the diagram-quiz definition based on
+ * the current `artifact_outcome`.
+ */
+async function dispatchDefinitionPersistenceHook(
+  definition: ArtifactAgentDefinition<unknown, unknown>,
+  state: DiagramQuizStateShape,
+  outcome: ArtifactPipelineOutcome,
+  failureMessage: string | null,
+  diagnostics: IArtifactAgentDiagnostics
+): Promise<void> {
+  const context = state[ARTIFACT_PIPELINE_STATE_KEYS.context] as
+    | Parameters<typeof definition.persistCompleted>[0]['context']
     | undefined;
-  [ARTIFACT_PIPELINE_STATE_KEYS.context]: ArtifactAgentContext | undefined;
-  [ARTIFACT_PIPELINE_STATE_KEYS.draft]: unknown;
-  [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]?: IArtifactAgentDiagnostics;
-  [ARTIFACT_PIPELINE_STATE_KEYS.criticResult]?: IArtifactCriticResult;
-  [ARTIFACT_PIPELINE_STATE_KEYS.generationModel]?: string;
-  [ARTIFACT_PIPELINE_STATE_KEYS.agentModel]?: string;
-  [ARTIFACT_PIPELINE_STATE_KEYS.outcome]?: ArtifactPipelineOutcome;
-  [ARTIFACT_PIPELINE_STATE_KEYS.failureMessage]?: string;
-}
 
-/**
- * Result shape returned by the finalize node. LangGraph merges these channels
- * back into the graph state; `artifact_outcome` and `artifact_failure_message`
- * are the terminal signals the runner reads to decide whether the pipeline
- * succeeded.
- */
-export type FinalizeNodeResult = Partial<{
-  [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]: IArtifactAgentDiagnostics;
-  [ARTIFACT_PIPELINE_STATE_KEYS.outcome]: ArtifactPipelineOutcome;
-  [ARTIFACT_PIPELINE_STATE_KEYS.failureMessage]: string;
-}>;
+  if (outcome === 'succeeded') {
+    const draft = state[ARTIFACT_PIPELINE_STATE_KEYS.draft] as unknown;
+    const generationModel =
+      (state[ARTIFACT_PIPELINE_STATE_KEYS.generationModel] as
+        | string
+        | undefined) ?? '';
+    const agentModel =
+      (state[ARTIFACT_PIPELINE_STATE_KEYS.agentModel] as
+        | string
+        | undefined) ?? '';
 
-/**
- * Pick a human-readable failure message from the critic result, if any.
- *
- * Mirrors the ADK `readCriticFailureMessage` helper. Preference order:
- *   1. The first blocker item's first non-empty issue text, prefixed with the
- *      1-based item index so the user can locate the failing item.
- *   2. A generic "critic flagged a blocker" message when the blocker carries
- *      no issue text.
- *   3. The "Critic rejected the artifact" message when the overall verdict is
- *      `fail` but no specific blocker item exists.
- *   4. `undefined` when the critic result is missing or the verdict is
- *      something other than `fail`/blocker.
- */
-function readCriticFailureMessage(
-  criticResult: IArtifactCriticResult | undefined
-): string | undefined {
-  if (!criticResult) {
-    return undefined;
-  }
-
-  const items = Array.isArray(criticResult.items) ? criticResult.items : [];
-  const blocker = items.find((item) => item.severity === 'blocker');
-  if (blocker) {
-    const issues = Array.isArray(blocker.issues) ? blocker.issues : [];
-    const issue = issues.find((text) => text && text.trim().length > 0);
-    if (issue) {
-      return `Question ${blocker.itemIndex + 1}: ${issue}`;
+    if (!context) {
+      throw new Error(
+        'Finalize node requires artifact_context in state to persist success'
+      );
     }
-    return `Question ${blocker.itemIndex + 1}: critic flagged a blocker`;
-  }
 
-  if (criticResult.overallVerdict === 'fail') {
-    return 'Critic rejected the artifact';
-  }
-
-  return undefined;
-}
-
-/**
- * Determine whether a gate failure has already been recorded as a residual.
- *
- * The finalize pass re-runs gates against the latest draft. GateAgent has
- * already appended residuals to `diagnostics.residuals` during the repair
- * loop, so we dedup by comparing the four fields the ADK pipeline uses to
- * define identity (gateId, severity, message, path). Without dedup, every
- * retry would double-count every blocker.
- */
-function isAlreadyRecorded(
-  diagnostics: IArtifactAgentDiagnostics,
-  failure: ArtifactGateFailure
-): boolean {
-  const residuals: ReadonlyArray<ArtifactGateFailure> = Array.isArray(
-    diagnostics.residuals
-  )
-    ? diagnostics.residuals
-    : [];
-  return residuals.some(
-    (residual: ArtifactGateFailure) =>
-      residual.gateId === failure.gateId &&
-      residual.severity === failure.severity &&
-      residual.message === failure.message &&
-      residual.path === failure.path
-  );
-}
-
-/**
- * Pick the failure message for the failure branch.
- *
- * Preference order (mirrors ADK FinalizeAgent exactly):
- *   1. The first novel blocker message from the freshly-computed gate result.
- *      Only novel blockers are surfaced so we don't repeat residual failures
- *      that already triggered repair attempts.
- *   2. Any blocker message from the freshly-computed gate result, regardless
- *      of novelty. The ADK pipeline surfaces the blocker that is actually
- *      present on the final draft so the user gets a precise error.
- *   3. A critic-derived message (`readCriticFailureMessage`).
- *   4. The generic "Automated verification failed" fallback when neither
- *      source produced a message.
- */
-function pickFailureMessage(
-  novelBlockerFailures: ArtifactGateFailure[],
-  gateFailures: ArtifactGateFailure[],
-  criticResult: IArtifactCriticResult | undefined
-): string {
-  const novelBlockerMessage = novelBlockerFailures.find(
-    (failure) => failure.severity === 'blocker'
-  )?.message;
-  if (novelBlockerMessage) {
-    return novelBlockerMessage;
-  }
-
-  const anyBlockerMessage = gateFailures.find(
-    (failure) => failure.severity === 'blocker'
-  )?.message;
-  if (anyBlockerMessage) {
-    return anyBlockerMessage;
-  }
-
-  return (
-    readCriticFailureMessage(criticResult) || 'Automated verification failed'
-  );
-}
-
-/**
- * Compute the set of gate failures that are novel relative to the residuals
- * already recorded by prior stages. Only these failures are merged into
- * `diagnostics.residuals` because old residual failures must not double-count.
- *
- * "Novel" here means the (gateId, severity, message, path) tuple is not yet
- * present in `diagnostics.residuals`. GateAgent appended residuals on every
- * repair pass, so a fresh run after refiner might surface failures the gate
- * had already seen and merged. Those do not count as novel.
- */
-function findNovelFailures(
-  diagnostics: IArtifactAgentDiagnostics,
-  gateFailures: ArtifactGateFailure[]
-): ArtifactGateFailure[] {
-  return gateFailures.filter((failure) => !isAlreadyRecorded(diagnostics, failure));
-}
-
-/**
- * Determine whether the critic result indicates a blocking failure.
- *
- * Mirrors the ADK FinalizeAgent predicate: a critic result blocks completion
- * when its overall verdict is `fail` OR any of its items are blockers.
- */
-function isCriticBlocking(
-  criticResult: IArtifactCriticResult | undefined
-): boolean {
-  if (!criticResult) {
-    return false;
-  }
-  if (criticResult.overallVerdict === 'fail') {
-    return true;
-  }
-  const items = Array.isArray(criticResult.items) ? criticResult.items : [];
-  return items.some((item) => item.severity === 'blocker');
-}
-
-/**
- * Finalize node for the LangGraph diagram-quiz pipeline.
- *
- * Behavior (mirrors the ADK `FinalizeAgent`):
- *   - Re-runs `definition.gates` against the latest draft. Only novel failures
- *     (i.e. failures whose gateId/severity/message/path tuple is not already
- *     recorded in `diagnostics.residuals`) are appended. Old residual
- *     failures must not double-count.
- *   - Treats the artifact as failed when a NOVEL blocker is present in the
- *     freshly-computed gate result OR the critic reported a `fail` verdict
- *     OR the critic recorded any blocker item. Per the spec, only novel
- *     gate failures count as blocking - residual blockers from earlier passes
- *     that the gate keeps re-emitting do not cause a fresh failure on the
- *     finalize pass (they were already counted in the diagnostics trail and
- *     the loop either converged or hit `maxRepairIterations` and exited).
- *   - On failure, calls `definition.markFailed(...)` and writes
- *     `artifact_outcome = 'failed'` plus an `artifact_failure_message`
- *     derived from the first blocking gate failure, the critic message, or
- *     a generic fallback.
- *   - On success, calls `definition.persistCompleted(...)` with the latest
- *     draft, diagnostics, and the recorded generation/agent model labels,
- *     and writes `artifact_outcome = 'completed'`.
- *   - Writes `artifact_outcome` and (on failure) `artifact_failure_message`.
- *
- * The graph's outgoing edge from `finalize` always terminates at `END`, so
- * this node is responsible for the side effects (Firestore writes via
- * `persistCompleted` or `markFailed`) that the ADK `FinalizeAgent` performed
- * inline. Either persistence call may throw; the LangGraph runner surfaces
- * that to the caller.
- */
-export async function finalizeNode(
-  state: FinalizeNodeState
-): Promise<FinalizeNodeResult> {
-  const definition = state[ARTIFACT_PIPELINE_STATE_KEYS.definition];
-  if (!definition) {
-    throw new Error(
-      'Artifact definition must be present in state before the finalize node runs'
-    );
-  }
-
-  const context = state[ARTIFACT_PIPELINE_STATE_KEYS.context];
-  if (!context) {
-    throw new Error(
-      'Artifact context must be loaded before the finalize node runs'
-    );
-  }
-
-  const draft = state[ARTIFACT_PIPELINE_STATE_KEYS.draft];
-  if (draft === undefined) {
-    throw new Error(
-      'Artifact draft must be present in state before the finalize node runs'
-    );
-  }
-
-  const diagnostics = state[ARTIFACT_PIPELINE_STATE_KEYS.diagnostics];
-  if (!diagnostics) {
-    throw new Error(
-      'Artifact diagnostics must be present in state before the finalize node runs'
-    );
-  }
-
-  const criticResult = state[ARTIFACT_PIPELINE_STATE_KEYS.criticResult];
-  const generationModel = state[ARTIFACT_PIPELINE_STATE_KEYS.generationModel];
-  const agentModel = state[ARTIFACT_PIPELINE_STATE_KEYS.agentModel];
-
-  // Re-run gates against the final draft. This mirrors the ADK FinalizeAgent,
-  // which re-validates after the repair and (if enabled) verification loops
-  // have produced their latest draft. The gate result is computed against
-  // the live draft in full - dedup happens after, against the residuals
-  // already recorded by GateAgent during the repair loop.
-  const gateResult = await runArtifactGates(definition.gates, draft, context);
-
-  // Dedup against residuals already recorded. Only failures we have not seen
-  // before (e.g. introduced by the refiner) are appended. Old residual
-  // failures must not double-count.
-  const novelFailures = findNovelFailures(diagnostics, gateResult.failures);
-  if (novelFailures.length > 0) {
-    mergeFailuresIntoDiagnostics(diagnostics, novelFailures);
-  }
-
-  // The final gate pass fails the run if any blocker is present, even one
-  // that survived the repair loop as a residual. Mirrors the ADK
-  // `FinalizeAgent` (`hasBlockerFailures(gateResult.failures)`) so a draft
-  // that still violates a blocking gate is rejected even when the residual
-  // deduplication below would otherwise hide it. `novelFailures` is kept
-  // solely for diagnostic deduplication.
-  const gateBlocked = hasBlockerFailures(gateResult.failures);
-  const criticBlocked = isCriticBlocking(criticResult);
-
-  if (gateBlocked || criticBlocked) {
-    const failureMessage = pickFailureMessage(
-      gateResult.failures.filter((failure) => failure.severity === 'blocker'),
-      gateResult.failures,
-      criticResult
-    );
-
-    await definition.markFailed({
-      context,
+    const result: ArtifactAgentResult<unknown> = {
+      context: context as ArtifactAgentResult<unknown>['context'],
+      draft,
       diagnostics,
-      message: failureMessage,
+      generationModel,
+      agentModel,
+    };
+
+    await definition.persistCompleted(
+      result as Parameters<typeof definition.persistCompleted>[0]
+    );
+    return;
+  }
+
+  // outcome === 'failed'
+  const failedContext = context ??
+    ({}) as ArtifactAgentFailure['context'];
+
+  const failure: ArtifactAgentFailure = {
+    context: failedContext,
+    message: failureMessage ?? 'Diagram-quiz pipeline failed without a message',
+    diagnostics,
+  };
+
+  await definition.markFailed(failure);
+}
+
+const finalizeNodeImpl: GraphNode<DiagramQuizStateShape> = async (state) => {
+  try {
+    const definition = state[
+      ARTIFACT_PIPELINE_STATE_KEYS.definition
+    ] as ArtifactAgentDefinition<unknown, unknown> | undefined;
+    if (!definition) {
+      return {
+        [ARTIFACT_PIPELINE_STATE_KEYS.outcome]: 'failed',
+        [ARTIFACT_PIPELINE_STATE_KEYS.failureMessage]:
+          'Finalize node requires artifact_definition in state',
+      } as FinalizeNodeResult;
+    }
+
+    const priorOutcome = state[ARTIFACT_PIPELINE_STATE_KEYS.outcome];
+    const priorFailureMessage = state[
+      ARTIFACT_PIPELINE_STATE_KEYS.failureMessage
+    ];
+
+    const diagnostics: IArtifactAgentDiagnostics =
+      (state[
+        ARTIFACT_PIPELINE_STATE_KEYS.diagnostics
+      ] as IArtifactAgentDiagnostics | undefined) ??
+      createEmptyDiagnostics(definition);
+
+    recordModelUsage(diagnostics, {
+      role: 'finalizer',
+      capability: definition.primaryCapability,
     });
 
+    const resolvedOutcome: ArtifactPipelineOutcome =
+      priorOutcome === 'failed' ? 'failed' : 'succeeded';
+    const resolvedFailureMessage =
+      priorOutcome === 'failed'
+        ? typeof priorFailureMessage === 'string'
+          ? priorFailureMessage
+          : null
+        : null;
+
+    try {
+      await dispatchDefinitionPersistenceHook(
+        definition,
+        state,
+        resolvedOutcome,
+        resolvedFailureMessage,
+        diagnostics
+      );
+    } catch (hookError) {
+      const reason =
+        hookError instanceof Error ? hookError.message : String(hookError);
+      return {
+        [ARTIFACT_PIPELINE_STATE_KEYS.outcome]: 'failed',
+        [ARTIFACT_PIPELINE_STATE_KEYS.failureMessage]:
+          resolvedFailureMessage ??
+          `Finalize persistence hook failed: ${reason}`,
+        [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]: diagnostics,
+      } as FinalizeNodeResult;
+    }
+
+    if (priorOutcome === 'failed') {
+      return buildFinalizeFailurePassThrough(
+        diagnostics,
+        resolvedFailureMessage
+      );
+    }
+
+    return buildFinalizeSuccess(diagnostics);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
     return {
-      [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]: diagnostics,
-      [ARTIFACT_PIPELINE_STATE_KEYS.outcome]:
-        'failed' satisfies ArtifactPipelineOutcome,
-      [ARTIFACT_PIPELINE_STATE_KEYS.failureMessage]: failureMessage,
-    };
+      [ARTIFACT_PIPELINE_STATE_KEYS.outcome]: 'failed',
+      [ARTIFACT_PIPELINE_STATE_KEYS.failureMessage]: `Finalize node crashed: ${reason}`,
+    } as FinalizeNodeResult;
   }
+};
 
-  await definition.persistCompleted({
-    context,
-    draft,
-    diagnostics,
-    generationModel,
-    agentModel,
-  });
-
-  return {
-    [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]: diagnostics,
-    [ARTIFACT_PIPELINE_STATE_KEYS.outcome]:
-      'completed' satisfies ArtifactPipelineOutcome,
-  };
-}
+/**
+ * P7: wrap the node with the structured `node_enter` / `node_exit` logger
+ * so the lifecycle events are emitted from inside the node module too.
+ */
+export const finalizeNode: GraphNode<DiagramQuizStateShape> =
+  createNodeLifecycleLogger(
+    DIAGRAM_QUIZ_NODE_NAMES.finalize,
+    finalizeNodeImpl
+  );
 
 export default finalizeNode;

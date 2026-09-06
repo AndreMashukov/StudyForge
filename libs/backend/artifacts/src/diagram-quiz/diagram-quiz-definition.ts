@@ -115,6 +115,68 @@ async function loadDiagramQuizContext(
   };
 }
 
+/**
+ * Persist a successful diagram-quiz run to Firestore.
+ *
+ * P3: invoked from the LangGraph `finalize.node.ts` when
+ * `artifact_outcome === 'succeeded'`. The LangGraph finalize node is
+ * responsible for assembling the `ArtifactAgentResult` payload from
+ * pipeline state and forwarding it here. The canonical completion path is
+ * `completePendingDiagramQuiz`, which writes the diagram-quiz document and
+ * marks the artifact-generation record complete.
+ */
+export async function persistCompletedDiagramQuiz(
+  result: ArtifactAgentResult<IDiagramQuizDraft>
+): Promise<void> {
+  const diagramAudit = await resolveTextGenerationAudit(result.context.userId, 'diagramQuiz');
+  const generationModel = result.generationModel || diagramAudit.generationModel;
+  const agentModel = result.agentModel || diagramAudit.generationModel;
+
+  await completePendingDiagramQuiz(result.context.userId, result.context.recordId, {
+    title: result.context.title,
+    questions: result.draft.questions,
+    appliedRuleIds: result.context.appliedRuleIds,
+    followupRuleIds: result.context.followupRuleIds,
+    generationModel,
+    agentModel,
+    generationModelUsage: diagramAudit.generationModelUsage,
+    generationDiagnostics: {
+      ...result.diagnostics,
+      adkSessionId: result.context.jobId,
+      artifactDetails: {
+        ...(result.diagnostics.artifactDetails ?? {}),
+        generationRoute: {
+          kind: diagramAudit.generationModelUsage[0]?.kind,
+          workflow: diagramAudit.generationModelUsage[0]?.workflow,
+          connectionId: diagramAudit.generationModelUsage[0]?.connectionId,
+          model: diagramAudit.generationModelUsage[0]?.model,
+          llmSetupId: diagramAudit.generationModelUsage[0]?.llmSetupId,
+        },
+      },
+    },
+  });
+}
+
+/**
+ * Persist a failed diagram-quiz run to Firestore.
+ *
+ * P3: invoked from the LangGraph `finalize.node.ts` when
+ * `artifact_outcome === 'failed'`. The LangGraph finalize node forwards
+ * the failure message and diagnostics collected across the pipeline. The
+ * canonical failure path is `failPendingDiagramQuiz`, which marks the
+ * artifact-generation record failed and surfaces the reason to the user.
+ */
+export async function markFailedDiagramQuiz(
+  result: ArtifactAgentFailure
+): Promise<void> {
+  await failPendingDiagramQuiz(
+    result.context.userId,
+    result.context.recordId,
+    result.message,
+    result.diagnostics
+  );
+}
+
 export const diagramQuizDefinition: ArtifactAgentDefinition<
   IDiagramQuizDraft,
   IDiagramQuizJobPayload
@@ -154,44 +216,15 @@ export const diagramQuizDefinition: ArtifactAgentDefinition<
   critic: diagramQuizCriticStrategy,
   refiner: diagramQuizRefinerStrategy,
 
-  async persistCompleted(result: ArtifactAgentResult<IDiagramQuizDraft>) {
-    const diagramAudit = await resolveTextGenerationAudit(result.context.userId, 'diagramQuiz');
-    const generationModel = result.generationModel || diagramAudit.generationModel;
-    const agentModel = result.agentModel || diagramAudit.generationModel;
-
-    await completePendingDiagramQuiz(result.context.userId, result.context.recordId, {
-      title: result.context.title,
-      questions: result.draft.questions,
-      appliedRuleIds: result.context.appliedRuleIds,
-      followupRuleIds: result.context.followupRuleIds,
-      generationModel,
-      agentModel,
-      generationModelUsage: diagramAudit.generationModelUsage,
-      generationDiagnostics: {
-        ...result.diagnostics,
-        adkSessionId: result.context.jobId,
-        artifactDetails: {
-          ...(result.diagnostics.artifactDetails ?? {}),
-          generationRoute: {
-            kind: diagramAudit.generationModelUsage[0]?.kind,
-            workflow: diagramAudit.generationModelUsage[0]?.workflow,
-            connectionId: diagramAudit.generationModelUsage[0]?.connectionId,
-            model: diagramAudit.generationModelUsage[0]?.model,
-            llmSetupId: diagramAudit.generationModelUsage[0]?.llmSetupId,
-          },
-        },
-      },
-    });
-  },
-
-  async markFailed(result: ArtifactAgentFailure) {
-    await failPendingDiagramQuiz(
-      result.context.userId,
-      result.context.recordId,
-      result.message,
-      result.diagnostics
-    );
-  },
+  // P3: the LangGraph `finalize.node.ts` calls these hooks based on
+  // `artifact_outcome`. The success path forwards the assembled
+  // `ArtifactAgentResult`; the failure path forwards an
+  // `ArtifactAgentFailure` with the message and diagnostics captured by
+  // the pipeline. Both delegate to the helpers exported from this module
+  // so the legacy ADK pipeline and the LangGraph pipeline share the same
+  // Firestore write surface.
+  persistCompleted: persistCompletedDiagramQuiz,
+  markFailed: markFailedDiagramQuiz,
 
   limits: {
     maxRepairIterations: 4,

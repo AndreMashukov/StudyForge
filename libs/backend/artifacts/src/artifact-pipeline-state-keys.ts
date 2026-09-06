@@ -11,6 +11,14 @@
  * Contract lock: these string keys are part of the durable Firestore
  * `session.state` shape and must not change without a coordinated
  * migration.
+ *
+ * Canonical key alignment: the string values declared here MUST match the
+ * channel names declared in
+ * `libs/backend/artifacts/src/artifact-agent-langgraph/diagram-quiz-state.ts`
+ * exactly. Watch for kebab-case vs camelCase drift; the `ArtifactKind`
+ * union in `libs/shared-types/src/index.ts` uses camelCase literals
+ * (e.g. `'diagramQuiz'`), but the session.state channels are snake_case
+ * to match the Firestore field naming convention.
  */
 
 export const ARTIFACT_PIPELINE_STATE_KEYS = {
