@@ -1,124 +1,76 @@
-/**
- * LangGraph node: generate the artifact draft.
- *
- * Mirrors `GenerateAgent` from the ADK `artifact-agent` module:
- *
- * - Reads `artifact_context` (produced by the load-context node) and the
- *   currently-stored `artifact_diagnostics` from state, then delegates to
- *   `definition.generate(context, diagnostics)` to produce a fresh draft.
- * - Increments `diagnostics.generatorAttempts` and ensures a generator
- *   `modelUsage` entry exists. The definition's `recordModelUsage` helper is
- *   the canonical place to push usage entries; we still seed a fallback entry
- *   here so `artifact_generation_model`/`artifact_agent_model` resolve even
- *   if the provider adapter forgot to push one.
- * - Writes `artifact_draft` and the mutated `artifact_diagnostics` back to
- *   state, and records the latest non-empty generator model label as both
- *   `artifact_generation_model` and `artifact_agent_model`. The same
- *   last-write-wins behaviour applies in ADK: both channels are derived from
- *   the same `modelUsage` lookup so they always agree.
- *
- * Diagnostics fallback: when `artifact_diagnostics` is absent (e.g. unit tests
- * that bypass the initial state seed), an empty diagnostics object is built
- * from `createEmptyDiagnostics(definition)` so the generator still has a
- * mutable object to push model-usage entries into. This matches the ADK
- * pipeline where the runner seeds an empty diagnostics object during
- * `createInitialSessionState`.
- *
- * Failure semantics: missing `artifact_definition` or `artifact_context` is
- * treated as a fatal pipeline error. Throwing lets the LangGraph runner
- * surface the failure to the caller the same way the ADK `GenerateAgent`
- * does when it calls `readContext` and finds no context.
- */
-import type { IArtifactAgentDiagnostics } from '@shared-types';
-import type {
-  ArtifactAgentContext,
-  ArtifactAgentDefinition,
-} from '../../artifact-agent/artifact-agent-definition';
+/** LangGraph node: generate the initial artifact draft. */
 import {
-  createEmptyDiagnostics,
-  recordModelUsage,
-} from '../../artifact-agent/artifact-agent-definition';
+  LlmGenerationRouteResolver,
+  formatGenerationModelLabel,
+} from '@study-forge/backend-llm/llm';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
 import type { DiagramQuizState } from '../diagram-quiz-state';
+import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
 
-/**
- * Result type for the generate node. Includes the `artifact_draft`,
- * `artifact_diagnostics`, and (when a generator model label exists)
- * `artifact_generation_model` and `artifact_agent_model` channels. Declaring
- * the return shape explicitly keeps the graph wiring obvious.
- */
+const NODE_NAME = 'generate';
+
 export type GenerateNodeResult = Partial<DiagramQuizState>;
 
 /**
- * LangGraph node function: delegates to `definition.generate(context, diagnostics)`.
+ * LangGraph node: generate the initial artifact draft.
  *
- * @param state - The current diagram-quiz pipeline state. Reads
- *   `artifact_definition`, `artifact_context`, and `artifact_diagnostics`.
- *   All other channels pass through unchanged.
- * @returns A partial state update that writes `artifact_draft`,
- *   `artifact_diagnostics`, and (when discoverable) the generator model
- *   labels.
+ * This is the ONLY node that writes `artifact_generation_model` and
+ * `artifact_agent_model` to the session state. Every other node must leave
+ * those keys untouched. Centralizing the model-name write here keeps the
+ * contract that the generation and agent model identifiers are captured at
+ * the moment the draft is produced, before any repair / refine / critic
+ * loop has a chance to overwrite them.
+ *
+ * The model identifiers are resolved via the same route resolver that the
+ * ADK `diagram-quiz-definition.generate` uses internally (and that
+ * `persistCompleted` later reads back out of the audit). This keeps the
+ * LangGraph pipeline's model fields in lock-step with the ADK audit values.
+ *
+ * Emits `node_enter` and `node_exit` structured log lines with `jobId` so
+ * generation latency and LLM errors can be tied back to the triggering
+ * artifact job in Cloud Logging.
  */
 export async function generateNode(
-  state: DiagramQuizState
+  state: typeof DiagramQuizState.State
 ): Promise<GenerateNodeResult> {
-  const definition = state[
-    ARTIFACT_PIPELINE_STATE_KEYS.definition
-  ] as ArtifactAgentDefinition<unknown, unknown> | undefined;
-  if (!definition) {
-    throw new Error('Generate node requires artifact_definition in state');
-  }
+  logNodeEnter(NODE_NAME, state);
+  try {
+    const context = state[ARTIFACT_PIPELINE_STATE_KEYS.context];
+    if (!context) {
+      throw new Error('Generate node requires artifact_context in state');
+    }
 
-  const context = state[
-    ARTIFACT_PIPELINE_STATE_KEYS.context
-  ] as ArtifactAgentContext | undefined;
-  if (!context) {
-    throw new Error(
-      'Generate node requires artifact_context (run loadContext first)'
+    const definition = state[ARTIFACT_PIPELINE_STATE_KEYS.definition];
+    if (!definition) {
+      throw new Error('Generate node requires artifact_definition in state');
+    }
+
+    const draft = await definition.generate(context);
+
+    // Resolve the same route the ADK definition records into diagnostics so
+    // `artifact_generation_model` and `artifact_agent_model` stay in sync
+    // with the actual model the LLM call used. Both fields use the same
+    // label: the ADK factory populates them from the audit, and the audit
+    // is keyed off the resolved route. Writing both here means downstream
+    // persistence can read either field without needing to consult
+    // diagnostics.
+    const routeResolution = await LlmGenerationRouteResolver.resolve(
+      definition.artifactKind,
+      { userId: context.userId }
     );
+    const modelLabel = formatGenerationModelLabel(routeResolution.route);
+
+    const result = {
+      [ARTIFACT_PIPELINE_STATE_KEYS.draft]: draft,
+      [ARTIFACT_PIPELINE_STATE_KEYS.generationModel]: modelLabel,
+      [ARTIFACT_PIPELINE_STATE_KEYS.agentModel]: modelLabel,
+    } as GenerateNodeResult;
+    logNodeExitOk(NODE_NAME, state);
+    return result;
+  } catch (err) {
+    logNodeExitError(NODE_NAME, state, err);
+    throw err;
   }
-
-  const diagnostics: IArtifactAgentDiagnostics =
-    (state[
-      ARTIFACT_PIPELINE_STATE_KEYS.diagnostics
-    ] as IArtifactAgentDiagnostics | undefined) ??
-    createEmptyDiagnostics(definition);
-
-  const draft = await definition.generate(context, diagnostics);
-  diagnostics.generatorAttempts += 1;
-
-  // Record a fallback generator usage entry so `artifact_generation_model`
-  // resolves even when the provider adapter did not push one. The duration
-  // and capability are filled in by the adapter in real runs; this entry
-  // ensures the model-usage lookup performed below always finds at least
-  // one row, matching the ADK `GenerateAgent.runAsyncImpl` semantics.
-  recordModelUsage(diagnostics, {
-    role: 'generator',
-    capability: definition.primaryCapability,
-  });
-
-  // Prefer the latest generator usage entry that recorded a non-empty model
-  // label. This mirrors `GenerateAgent` in the ADK pipeline.
-  const generatorModel = [...diagnostics.modelUsage]
-    .reverse()
-    .find(
-      (entry) =>
-        entry.role === 'generator' &&
-        typeof entry.model === 'string' &&
-        entry.model.trim().length > 0
-    )?.model;
-
-  const update: GenerateNodeResult = {
-    [ARTIFACT_PIPELINE_STATE_KEYS.draft]: draft,
-    [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]: diagnostics,
-  };
-
-  if (generatorModel) {
-    update[ARTIFACT_PIPELINE_STATE_KEYS.generationModel] = generatorModel;
-    update[ARTIFACT_PIPELINE_STATE_KEYS.agentModel] = generatorModel;
-  }
-
-  return update;
 }
 
 export default generateNode;

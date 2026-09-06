@@ -11,6 +11,17 @@
  * Contract lock: these string keys are part of the durable Firestore
  * `session.state` shape and must not change without a coordinated
  * migration.
+ *
+ * CamelCase drift check (t2):
+ * The keys below are referenced via the `ARTIFACT_PIPELINE_STATE_KEYS`
+ * constant in `libs/backend/artifacts/src/artifact-agent-langgraph/diagram-quiz-state.ts`.
+ * The local property names on the constant object are camelCase (e.g.
+ * `jobInput`, `gateFailures`), but the resolved string values are snake_case
+ * (e.g. `job_input`, `artifact_gate_failures`). Any future change to either
+ * side must keep this mapping exact. The diagram-quiz state schema MUST
+ * reference these via the constant (e.g.
+ * `[ARTIFACT_PIPELINE_STATE_KEYS.jobInput]`), never via a hand-typed
+ * string literal.
  */
 
 export const ARTIFACT_PIPELINE_STATE_KEYS = {
