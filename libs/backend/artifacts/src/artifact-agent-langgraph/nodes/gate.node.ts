@@ -1,7 +1,9 @@
 /** LangGraph node: evaluate the draft and persist gate diagnostics. */
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
 import type { DiagramQuizState } from '../diagram-quiz-state';
+import { DiagramQuizStateValue } from '../diagram-quiz-state';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
+import { runArtifactGates } from '../../artifact-agent/artifact-agent-definition';
 
 const NODE_NAME = 'gate';
 
@@ -46,7 +48,7 @@ export type GateNodeResult = Partial<DiagramQuizState>;
  * instead of attributing iteration here.
  */
 export async function gateNode(
-  state: typeof DiagramQuizState.State
+  state: typeof DiagramQuizStateValue.State
 ): Promise<GateNodeResult> {
   logNodeEnter(NODE_NAME, state);
   try {
@@ -60,10 +62,16 @@ export async function gateNode(
       throw new Error('Gate node requires artifact_definition in state');
     }
 
-    // Deterministic gate evaluation. No LLM, no Firestore. The audit
-    // contract above is the source of truth - the implementation below
-    // intentionally only reads `state.draft` and `definition.runGates`.
-    const gateFailures = (await definition.runGates?.(draft)) ?? [];
+    const context = state[ARTIFACT_PIPELINE_STATE_KEYS.context];
+    if (context === undefined || context === null) {
+      throw new Error('Gate node requires artifact_context in state');
+    }
+    const gateResult = await runArtifactGates(
+      definition.gates,
+      draft,
+      context
+    );
+    const gateFailures = gateResult.failures;
     const result = {
       [ARTIFACT_PIPELINE_STATE_KEYS.gateFailures]: gateFailures,
     } as GateNodeResult;

@@ -28,7 +28,6 @@
  * functions free of pipeline structure concerns.
  */
 import { END, START, StateGraph } from '@langchain/langgraph';
-import type { CompiledStateGraph } from '@langchain/langgraph';
 
 import type { IArtifactCriticResult } from '@shared-types';
 
@@ -407,5 +406,4 @@ export function compileDiagramQuizGraph() {
  * to `CompiledStateGraph` (rather than `any`) keeps the export typed so
  * consumers get autocomplete on `nodes`, `edges`, and `branches`.
  */
-export const diagramQuizGraph: CompiledStateGraph<unknown> =
-  compileDiagramQuizGraph() as unknown as CompiledStateGraph<unknown>;
+export const diagramQuizGraph = compileDiagramQuizGraph() as unknown as Record<string, unknown>;

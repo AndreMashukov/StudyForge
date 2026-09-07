@@ -1,6 +1,7 @@
 /** LangGraph node: repair gate failures in the draft. */
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
 import type { DiagramQuizState } from '../diagram-quiz-state';
+import { DiagramQuizStateValue } from '../diagram-quiz-state';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
 
 const NODE_NAME = 'repair';
@@ -26,7 +27,7 @@ export type RepairNodeResult = Partial<DiagramQuizState>;
  * lines with the conditional-edge routing decisions.
  */
 export async function repairNode(
-  state: typeof DiagramQuizState.State
+  state: typeof DiagramQuizStateValue.State
 ): Promise<RepairNodeResult> {
   const previousRepairCount = state.repair_iteration_count ?? 0;
   const nextRepairCount = previousRepairCount + 1;
@@ -52,7 +53,19 @@ export async function repairNode(
       return result;
     }
 
-    const repairedDraft = await definition.repair(draft, failures);
+    if (!definition.repair) {
+      throw new Error('Repair node requires definition.repair');
+    }
+    const repairedDraft = await definition.repair.repair(
+      draft,
+      failures,
+      state[ARTIFACT_PIPELINE_STATE_KEYS.context] as Parameters<
+        typeof definition.repair.repair
+      >[2],
+      state[ARTIFACT_PIPELINE_STATE_KEYS.diagnostics] as Parameters<
+        typeof definition.repair.repair
+      >[3]
+    );
 
     const result: RepairNodeResult = {
       [ARTIFACT_PIPELINE_STATE_KEYS.draft]: repairedDraft,

@@ -1,6 +1,7 @@
 /** LangGraph node: critique the refined draft. */
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
 import type { DiagramQuizState } from '../diagram-quiz-state';
+import { DiagramQuizStateValue } from '../diagram-quiz-state';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
 
 const NODE_NAME = 'critic';
@@ -26,7 +27,7 @@ export type CriticNodeResult = Partial<DiagramQuizState>;
  * log lines with the conditional-edge routing decisions.
  */
 export async function criticNode(
-  state: typeof DiagramQuizState.State
+  state: typeof DiagramQuizStateValue.State
 ): Promise<CriticNodeResult> {
   const previousCriticCount = state.critic_iteration_count ?? 0;
   const nextCriticCount = previousCriticCount + 1;
@@ -41,7 +42,18 @@ export async function criticNode(
       throw new Error('Critic node requires artifact_draft in state');
     }
 
-    const criticResult = await definition.critic(draft);
+    if (!definition.critic) {
+      throw new Error('Critic node requires definition.critic');
+    }
+    const criticResult = await definition.critic.criticize(
+      draft,
+      state[ARTIFACT_PIPELINE_STATE_KEYS.context] as Parameters<
+        typeof definition.critic.criticize
+      >[1],
+      state[ARTIFACT_PIPELINE_STATE_KEYS.diagnostics] as Parameters<
+        typeof definition.critic.criticize
+      >[2]
+    );
 
     const result: CriticNodeResult = {
       [ARTIFACT_PIPELINE_STATE_KEYS.criticResult]: criticResult,

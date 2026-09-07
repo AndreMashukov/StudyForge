@@ -26,6 +26,7 @@
  */
 import type { ArtifactKind } from '@shared-types';
 import type { DiagramQuizState } from '../diagram-quiz-state';
+import { DiagramQuizStateValue } from '../diagram-quiz-state';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
 
 export type NodeLogEvent = 'node_enter' | 'node_exit';

@@ -6,6 +6,7 @@ import type {
 } from '../../artifact-agent/artifact-agent-definition';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
 import type { DiagramQuizState } from '../diagram-quiz-state';
+import { DiagramQuizStateValue } from '../diagram-quiz-state';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
 
 const NODE_NAME = 'load-context';
@@ -52,7 +53,7 @@ export type LoadContextNodeResult = Partial<DiagramQuizState>;
  *     runs against a populated context) or it throws.
  */
 export async function loadContextNode(
-  state: typeof DiagramQuizState.State
+  state: typeof DiagramQuizStateValue.State
 ): Promise<LoadContextNodeResult> {
   // node_enter: emitted first so a failure thrown below produces a
   // corresponding node_exit(error) line. The loop counter is null because

@@ -1,6 +1,7 @@
 /** LangGraph node: refine the artifact after gate evaluation. */
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
 import type { DiagramQuizState } from '../diagram-quiz-state';
+import { DiagramQuizStateValue } from '../diagram-quiz-state';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
 
 const NODE_NAME = 'refiner';
@@ -20,7 +21,7 @@ export type RefinerNodeResult = Partial<DiagramQuizState>;
  * instead of attributing iteration here.
  */
 export async function refinerNode(
-  state: typeof DiagramQuizState.State
+  state: typeof DiagramQuizStateValue.State
 ): Promise<RefinerNodeResult> {
   logNodeEnter(NODE_NAME, state);
   try {
@@ -33,8 +34,24 @@ export async function refinerNode(
       throw new Error('Refiner node requires artifact_draft in state');
     }
 
+    if (!definition.refiner) {
+      throw new Error('Refiner node requires definition.refiner');
+    }
+    const criticResult = state[ARTIFACT_PIPELINE_STATE_KEYS.criticResult];
+    if (!criticResult) {
+      throw new Error('Refiner node requires artifact_critic_result in state');
+    }
     const result = {
-      [ARTIFACT_PIPELINE_STATE_KEYS.draft]: await definition.refine(draft),
+      [ARTIFACT_PIPELINE_STATE_KEYS.draft]: await definition.refiner.refine(
+        draft,
+        criticResult,
+        state[ARTIFACT_PIPELINE_STATE_KEYS.context] as Parameters<
+          typeof definition.refiner.refine
+        >[2],
+        state[ARTIFACT_PIPELINE_STATE_KEYS.diagnostics] as Parameters<
+          typeof definition.refiner.refine
+        >[3]
+      ),
     } as RefinerNodeResult;
     logNodeExitOk(NODE_NAME, state);
     return result;

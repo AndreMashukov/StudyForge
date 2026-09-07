@@ -30,7 +30,7 @@ export type { DiagramQuizLangGraphDefinition } from './run-diagram-quiz-pipeline
 export {
   DiagramQuizStateAnnotation,
   createInitialDiagramQuizState,
-  mergeDiagnostics,
+  replaceWithNext,
   incrementCounter,
   DIAGRAM_QUIZ_LOOP_COUNTERS,
   DIAGRAM_QUIZ_LOOP_LIMITS,

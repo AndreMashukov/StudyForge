@@ -172,6 +172,13 @@ export const DiagramQuizStateAnnotation = Annotation.Root({
 export type DiagramQuizState = typeof DiagramQuizStateAnnotation.State;
 
 /**
+ * Runtime alias for the Annotation value. Exists so node modules that
+ * import `DiagramQuizState` (as a value) can use it with `typeof X.State`
+ * access patterns. The state schema itself is named `DiagramQuizStateAnnotation`.
+ */
+export const DiagramQuizStateValue = DiagramQuizStateAnnotation;
+
+/**
  * Field names for the diagram-quiz loop counters, in addition to the shared
  * session.state contract. These keys are NOT part of the durable Firestore
  * `session.state` shape; they are internal to the LangGraph state channel and
