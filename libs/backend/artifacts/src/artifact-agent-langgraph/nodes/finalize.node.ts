@@ -49,10 +49,44 @@ export async function finalizeNode(
     const generationModel = state[ARTIFACT_PIPELINE_STATE_KEYS.generationModel];
     const agentModel = state[ARTIFACT_PIPELINE_STATE_KEYS.agentModel];
 
-    if (outcome === 'failed') {
+    // Derive the terminal outcome from the state routing produced, not
+    // from a default. The conditional edges route to finalize when the
+    // loop bounds are exhausted (with blockers or a non-pass critic
+    // verdict still present), or when a node wrote `outcome: 'failed'`.
+    // No node in the repair or critic loop writes `outcome = 'failed'`
+    // on budget exhaustion; detect that case here so a draft that still
+    // holds blocker gate failures is not persisted as a successful
+    // artifact.
+    const gateFailures =
+      state[ARTIFACT_PIPELINE_STATE_KEYS.gateFailures] ?? [];
+    const hasBlockers = gateFailures.some(
+      (failure) => failure.severity === 'blocker'
+    );
+    const criticResult = state[ARTIFACT_PIPELINE_STATE_KEYS.criticResult];
+    const criticBlocked =
+      criticResult !== undefined &&
+      (criticResult.overallVerdict === 'fail' ||
+        criticResult.items.some((item) => item.severity === 'blocker'));
+    const shouldFail =
+      outcome === 'failed' ||
+      draft === undefined ||
+      diagnostics === undefined ||
+      hasBlockers ||
+      criticBlocked;
+    const resolvedFailureMessage =
+      failureMessage ??
+      (hasBlockers
+        ? 'Gate blockers remained after the repair loop finished'
+        : criticBlocked
+          ? 'Critic rejected the artifact'
+          : draft === undefined
+            ? 'Artifact draft was not produced'
+            : 'Diagram-quiz pipeline failed without a message');
+
+    if (shouldFail) {
       const failure: ArtifactAgentFailure = {
         context: context as ArtifactAgentFailure['context'],
-        message: failureMessage ?? 'Diagram-quiz pipeline failed without a message',
+        message: resolvedFailureMessage,
         diagnostics: diagnostics as ArtifactAgentFailure['diagnostics'],
       };
       await definition.markFailed(failure);
@@ -68,8 +102,12 @@ export async function finalizeNode(
     }
 
     const nodeResult = {
-      [ARTIFACT_PIPELINE_STATE_KEYS.outcome]:
-        outcome ?? ('completed' as const),
+      [ARTIFACT_PIPELINE_STATE_KEYS.outcome]: shouldFail
+        ? ('failed' as const)
+        : ('completed' as const),
+      [ARTIFACT_PIPELINE_STATE_KEYS.failureMessage]: shouldFail
+        ? resolvedFailureMessage
+        : null,
     } as FinalizeNodeResult;
     logNodeExitOk(NODE_NAME, state);
     return nodeResult;

@@ -406,4 +406,4 @@ export function compileDiagramQuizGraph() {
  * to `CompiledStateGraph` (rather than `any`) keeps the export typed so
  * consumers get autocomplete on `nodes`, `edges`, and `branches`.
  */
-export const diagramQuizGraph = compileDiagramQuizGraph() as unknown as Record<string, unknown>;
+export const diagramQuizGraph = compileDiagramQuizGraph();
