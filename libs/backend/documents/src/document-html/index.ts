@@ -1,10 +1,11 @@
 import {
   createValidationReport,
   mergeValidationReports,
-  type DocumentRule,
+  type IValidateDocumentHtmlOptions,
   type ValidationReport,
 } from './types';
 import { validateHtmlStructure } from './html-validator';
+import { validateMathDelimiters } from './math-validator';
 import { validateMermaidBlocks } from './mermaid-validator';
 import { normalizeGeneratedHtmlFragment } from './normalize-html';
 import { validatePlotlyBlocks } from './plotly-validator';
@@ -21,7 +22,7 @@ import {
 
 export async function validateDocumentHtml(
   htmlFragment: string,
-  _rules: DocumentRule[] = []
+  options: IValidateDocumentHtmlOptions = {},
 ): Promise<ValidationReport> {
   const normalized = normalizeGeneratedHtmlFragment(htmlFragment);
   const findings = [
@@ -30,6 +31,9 @@ export async function validateDocumentHtml(
     ...validateAllowedTags(normalized),
     ...validateMermaidBlocks(normalized),
     ...validatePlotlyBlocks(normalized),
+    ...(options.skipMathGate
+      ? []
+      : validateMathDelimiters(normalized, options.rules ?? [])),
     ...(await validateHtmlStructure(normalized)),
   ];
 
@@ -38,7 +42,7 @@ export async function validateDocumentHtml(
 
 export async function prepareHtmlDocumentForStorage(
   content: string,
-  title: string
+  title: string,
 ): Promise<{ fullHtml: string; wordCount: number }> {
   const normalized = normalizeGeneratedHtmlFragment(content);
   const fragment =
@@ -46,7 +50,7 @@ export async function prepareHtmlDocumentForStorage(
       ? extractBodyHtml(normalized)
       : normalized;
 
-  const report = await validateDocumentHtml(fragment);
+  const report = await validateDocumentHtml(fragment, { skipMathGate: true });
   if (!report.passed) {
     const errors = report.findings
       .filter((finding) => finding.severity === 'error')
@@ -69,4 +73,5 @@ export * from './html-validator';
 export * from './normalize-html';
 export * from './security-validator';
 export * from './mermaid-validator';
+export * from './math-validator';
 export * from './plotly-validator';

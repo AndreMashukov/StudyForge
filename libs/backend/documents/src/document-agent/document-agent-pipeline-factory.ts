@@ -55,7 +55,9 @@ function readContext(context: InvocationContext): DocumentAgentContext {
   return value as DocumentAgentContext;
 }
 
-function readDiagnostics(context: InvocationContext): IArtifactAgentDiagnostics {
+function readDiagnostics(
+  context: InvocationContext,
+): IArtifactAgentDiagnostics {
   const value = context.session.state[STATE_KEYS.diagnostics];
   if (!value) {
     throw new Error('Document agent diagnostics missing from session state');
@@ -68,9 +70,13 @@ function readHtmlFragment(context: InvocationContext): string {
   return typeof value === 'string' ? value : '';
 }
 
-function readValidationReport(context: InvocationContext): ValidationReport | null {
+function readValidationReport(
+  context: InvocationContext,
+): ValidationReport | null {
   const value = context.session.state[STATE_KEYS.validationReport];
-  return value && typeof value === 'object' ? (value as ValidationReport) : null;
+  return value && typeof value === 'object'
+    ? (value as ValidationReport)
+    : null;
 }
 
 function readRepairCount(context: InvocationContext): number {
@@ -90,7 +96,7 @@ class PlanAgent extends BaseAgent {
       agentContext.userId,
       agentContext.userPrompt,
       agentContext.rules,
-      diagnostics
+      diagnostics,
     );
     yield createEvent({
       author: this.name,
@@ -112,7 +118,9 @@ class GenerateAgent extends BaseAgent {
   async *runAsyncImpl(context: InvocationContext) {
     const agentContext = readContext(context);
     const diagnostics = readDiagnostics(context);
-    const plan = context.session.state[STATE_KEYS.plan] as DocumentPlan | undefined;
+    const plan = context.session.state[STATE_KEYS.plan] as
+      | DocumentPlan
+      | undefined;
     const htmlFragment = normalizeGeneratedHtmlFragment(
       await draftDocumentHtml(
         agentContext.userId,
@@ -121,8 +129,8 @@ class GenerateAgent extends BaseAgent {
         agentContext.files,
         plan,
         diagnostics,
-        { isIngest: agentContext.isIngest }
-      )
+        { isIngest: agentContext.isIngest },
+      ),
     );
 
     const generatorModel = [...diagnostics.modelUsage]
@@ -135,7 +143,9 @@ class GenerateAgent extends BaseAgent {
         stateDelta: {
           [STATE_KEYS.htmlFragment]: htmlFragment,
           [STATE_KEYS.diagnostics]: diagnostics,
-          ...(generatorModel ? { [STATE_KEYS.generationModel]: generatorModel } : {}),
+          ...(generatorModel
+            ? { [STATE_KEYS.generationModel]: generatorModel }
+            : {}),
         },
       }),
     });
@@ -153,8 +163,12 @@ class ValidateAgent extends BaseAgent {
   }
 
   async *runAsyncImpl(context: InvocationContext) {
+    const agentContext = readContext(context);
     const htmlFragment = readHtmlFragment(context);
-    const validationReport = await validateDocumentHtml(htmlFragment);
+    const validationReport = await validateDocumentHtml(htmlFragment, {
+      rules: agentContext.rules,
+      skipMathGate: agentContext.isIngest,
+    });
     yield createEvent({
       author: this.name,
       actions: createEventActions({
@@ -179,7 +193,9 @@ class RepairAgent extends BaseAgent {
     const agentContext = readContext(context);
     const diagnostics = readDiagnostics(context);
     const validationReport = readValidationReport(context);
-    const plan = context.session.state[STATE_KEYS.plan] as DocumentPlan | undefined;
+    const plan = context.session.state[STATE_KEYS.plan] as
+      | DocumentPlan
+      | undefined;
     const repairCount = readRepairCount(context) + 1;
 
     if (!validationReport || validationReport.passed) {
@@ -195,8 +211,8 @@ class RepairAgent extends BaseAgent {
         formatValidationErrorsForRepair(validationReport.findings),
         plan,
         diagnostics,
-        { isIngest: agentContext.isIngest }
-      )
+        { isIngest: agentContext.isIngest },
+      ),
     );
 
     yield createEvent({
@@ -230,7 +246,7 @@ class CriticAgent extends BaseAgent {
       agentContext.userPrompt,
       agentContext.rules,
       readHtmlFragment(context),
-      diagnostics
+      diagnostics,
     );
 
     yield createEvent({
@@ -253,7 +269,10 @@ class CriticAgent extends BaseAgent {
 
 class RefinerAgent extends BaseAgent {
   constructor() {
-    super({ name: 'refinerAgent', description: 'Refine HTML based on critic feedback' });
+    super({
+      name: 'refinerAgent',
+      description: 'Refine HTML based on critic feedback',
+    });
   }
 
   async *runAsyncImpl(context: InvocationContext) {
@@ -271,8 +290,8 @@ class RefinerAgent extends BaseAgent {
         agentContext.rulesText,
         readHtmlFragment(context),
         criticFindings,
-        diagnostics
-      )
+        diagnostics,
+      ),
     );
 
     yield createEvent({
@@ -294,7 +313,10 @@ class RefinerAgent extends BaseAgent {
 
 class FinalizeAgent extends BaseAgent {
   constructor() {
-    super({ name: 'finalizeAgent', description: 'Wrap and persist completed document' });
+    super({
+      name: 'finalizeAgent',
+      description: 'Wrap and persist completed document',
+    });
   }
 
   async *runAsyncImpl(context: InvocationContext) {
@@ -302,7 +324,10 @@ class FinalizeAgent extends BaseAgent {
     const diagnostics = readDiagnostics(context);
     const repairCount = readRepairCount(context);
     const htmlFragment = normalizeGeneratedHtml(readHtmlFragment(context));
-    const validationReport = await validateDocumentHtml(htmlFragment);
+    const validationReport = await validateDocumentHtml(htmlFragment, {
+      rules: agentContext.rules,
+      skipMathGate: agentContext.isIngest,
+    });
 
     if (!validationReport.passed) {
       yield createEvent({
@@ -328,7 +353,9 @@ class FinalizeAgent extends BaseAgent {
         'Generated Document';
     const wrappedHtml = wrapHtmlDocument(htmlFragment, title);
     const generationModelLabel =
-      (context.session.state[STATE_KEYS.generationModel] as string | undefined) ||
+      (context.session.state[STATE_KEYS.generationModel] as
+        | string
+        | undefined) ||
       formatGenerationModelLabel({
         providerType: 'gemini',
         model: 'gemini',
@@ -354,7 +381,7 @@ class FinalizeAgent extends BaseAgent {
           },
         },
         contentFormat: 'html',
-      }
+      },
     );
 
     yield createEvent({
@@ -418,7 +445,9 @@ export function createDocumentPipeline(): SequentialAgent {
   });
 }
 
-export function readPipelineOutcome(state: Record<string, unknown>): PipelineOutcome | undefined {
+export function readPipelineOutcome(
+  state: Record<string, unknown>,
+): PipelineOutcome | undefined {
   const outcome = state[STATE_KEYS.outcome];
   if (outcome === 'completed' || outcome === 'failed') {
     return outcome;
@@ -426,7 +455,9 @@ export function readPipelineOutcome(state: Record<string, unknown>): PipelineOut
   return undefined;
 }
 
-export function readPipelineFailureMessage(state: Record<string, unknown>): string {
+export function readPipelineFailureMessage(
+  state: Record<string, unknown>,
+): string {
   const message = state[STATE_KEYS.failureMessage];
   return typeof message === 'string' && message.trim()
     ? message

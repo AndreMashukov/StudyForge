@@ -6,6 +6,7 @@ export type ValidationCategory =
   | 'format'
   | 'mermaid'
   | 'plotly'
+  | 'math'
   | 'rules'
   | 'empty';
 
@@ -28,11 +29,24 @@ export interface ValidationReport {
 export interface DocumentRule {
   name: string;
   content: string;
+  tags?: string[];
 }
 
-export function createValidationReport(findings: ValidationFinding[]): ValidationReport {
-  const errorCount = findings.filter((finding) => finding.severity === 'error').length;
-  const warningCount = findings.filter((finding) => finding.severity === 'warning').length;
+export interface IValidateDocumentHtmlOptions {
+  rules?: DocumentRule[];
+  /** Skip the rule-gated KaTeX check (ingest, direct-no-repair, user-saved HTML). */
+  skipMathGate?: boolean;
+}
+
+export function createValidationReport(
+  findings: ValidationFinding[],
+): ValidationReport {
+  const errorCount = findings.filter(
+    (finding) => finding.severity === 'error',
+  ).length;
+  const warningCount = findings.filter(
+    (finding) => finding.severity === 'warning',
+  ).length;
 
   return {
     passed: errorCount === 0,
@@ -42,14 +56,18 @@ export function createValidationReport(findings: ValidationFinding[]): Validatio
   };
 }
 
-export function formatValidationFindings(findings: ValidationFinding[]): string {
+export function formatValidationFindings(
+  findings: ValidationFinding[],
+): string {
   if (findings.length === 0) {
     return 'No validation issues found.';
   }
 
   return findings
     .map((finding, index) => {
-      const location = finding.pathOrSnippet ? ` at ${finding.pathOrSnippet}` : '';
+      const location = finding.pathOrSnippet
+        ? ` at ${finding.pathOrSnippet}`
+        : '';
       const hint = finding.repairHint ? ` Hint: ${finding.repairHint}` : '';
       return `${index + 1}. [${finding.severity.toUpperCase()}][${finding.code}] ${finding.message}${location}.${hint}`;
     })
@@ -58,7 +76,7 @@ export function formatValidationFindings(findings: ValidationFinding[]): string 
 
 export function mergeValidationReports(
   base: ValidationReport,
-  additional: ValidationReport
+  additional: ValidationReport,
 ): ValidationReport {
   const findings = [...base.findings, ...additional.findings];
   return createValidationReport(findings);

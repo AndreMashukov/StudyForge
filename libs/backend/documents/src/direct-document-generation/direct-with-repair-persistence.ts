@@ -28,7 +28,8 @@ import {
 import { getHardSecurityFindings } from './direct-with-repair-security';
 import { repairDirectDocumentHtml } from './direct-document-repair-llm';
 
-const DIRECT_WITH_REPAIR_AGENT_DEFINITION_VERSION = 'document-html-direct-with-repair-v1';
+const DIRECT_WITH_REPAIR_AGENT_DEFINITION_VERSION =
+  'document-html-direct-with-repair-v1';
 
 function stripCodeFences(text: string): string {
   return text
@@ -38,7 +39,9 @@ function stripCodeFences(text: string): string {
     .trim();
 }
 
-function serializeFindings(findings: ValidationFinding[]): Array<Record<string, string>> {
+function serializeFindings(
+  findings: ValidationFinding[],
+): Array<Record<string, string>> {
   return findings.map((finding) => ({
     code: finding.code,
     category: finding.category,
@@ -55,13 +58,22 @@ export async function persistDirectWithRepairHtmlDocument(params: {
   resolution: GenerationRouteResolution;
   rawFragment: string;
   generationDurationMs: number;
-  generationKind: Extract<GenerationKind, 'documentFromPrompt' | 'documentFromScreenshot'>;
+  generationKind: Extract<
+    GenerationKind,
+    'documentFromPrompt' | 'documentFromScreenshot'
+  >;
   description?: string;
   tags?: string[];
   screenshotContext?: string;
 }): Promise<void> {
-  const htmlFragment = normalizeGeneratedHtmlFragment(stripCodeFences(params.rawFragment));
-  const firstValidation = await validateDocumentHtml(htmlFragment);
+  const htmlFragment = normalizeGeneratedHtmlFragment(
+    stripCodeFences(params.rawFragment),
+  );
+  const validationOptions = { rules: params.agentContext.rules };
+  const firstValidation = await validateDocumentHtml(
+    htmlFragment,
+    validationOptions,
+  );
 
   let finalFragment = htmlFragment;
   let repairRan = false;
@@ -84,8 +96,13 @@ export async function persistDirectWithRepairHtmlDocument(params: {
     repairDurationMs = Date.now() - repairStartMs;
     repairRan = true;
 
-    finalFragment = normalizeGeneratedHtmlFragment(stripCodeFences(repairedRaw));
-    postRepairValidation = await validateDocumentHtml(finalFragment);
+    finalFragment = normalizeGeneratedHtmlFragment(
+      stripCodeFences(repairedRaw),
+    );
+    postRepairValidation = await validateDocumentHtml(
+      finalFragment,
+      validationOptions,
+    );
 
     const hardSecurityFindings = getHardSecurityFindings(postRepairValidation);
     if (hardSecurityFindings.length > 0) {
@@ -158,7 +175,7 @@ export async function persistDirectWithRepairHtmlDocument(params: {
       generationModelUsage,
       generationDiagnostics: diagnostics,
       contentFormat: 'html',
-    }
+    },
   );
 
   logger.info('Direct-with-repair HTML document generation completed', {

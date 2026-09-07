@@ -1,5 +1,9 @@
 import { logger } from 'firebase-functions/v2';
-import type { GenerationKind, IArtifactAgentDiagnostics, IGenerationModelUsage } from '@shared-types';
+import type {
+  GenerationKind,
+  IArtifactAgentDiagnostics,
+  IGenerationModelUsage,
+} from '@shared-types';
 import type { GenerationRouteResolution } from '@study-forge/backend-llm/llm/llm-generation-route-resolver';
 import {
   formatGenerationModelLabel,
@@ -38,8 +42,12 @@ export async function persistDirectHtmlDocument(params: {
   description?: string;
   tags?: string[];
 }): Promise<void> {
-  const htmlFragment = normalizeGeneratedHtmlFragment(stripCodeFences(params.rawFragment));
-  const validationReport = await validateDocumentHtml(htmlFragment);
+  const htmlFragment = normalizeGeneratedHtmlFragment(
+    stripCodeFences(params.rawFragment),
+  );
+  const validationReport = await validateDocumentHtml(htmlFragment, {
+    skipMathGate: true,
+  });
 
   if (!validationReport.passed) {
     const message = formatValidationFindings(validationReport.findings);
@@ -54,7 +62,10 @@ export async function persistDirectHtmlDocument(params: {
 
   const diagnostics: IArtifactAgentDiagnostics = {
     ...createEmptyDiagnostics({
-      artifactKind: params.generationKind === 'documentFromScreenshot' ? 'documentFromScreenshot' : 'documentFromPrompt',
+      artifactKind:
+        params.generationKind === 'documentFromScreenshot'
+          ? 'documentFromScreenshot'
+          : 'documentFromPrompt',
       agentDefinitionVersion: DIRECT_AGENT_DEFINITION_VERSION,
     }),
     orchestrationMode: 'imperative',
@@ -91,7 +102,7 @@ export async function persistDirectHtmlDocument(params: {
       generationModelUsage,
       generationDiagnostics: diagnostics,
       contentFormat: 'html',
-    }
+    },
   );
 
   logger.info('Direct HTML document generation completed', {
