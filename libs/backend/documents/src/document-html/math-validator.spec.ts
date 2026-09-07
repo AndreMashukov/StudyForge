@@ -63,9 +63,30 @@ describe('math delimiter gate', () => {
     expect(findings[0]?.code).toBe('MATH_UNDELIMITED_UNICODE');
   });
 
-  it('ignores unicode inside code samples', () => {
+  it('ignores unicode inside programming code samples', () => {
     const html =
       '<pre><code class="language-python">σ = 1</code></pre><p>No formula.</p>';
+    expect(validateMathDelimiters(html, [MATH_RULE])).toEqual([]);
+  });
+
+  it('flags unlabeled code blocks that dump equations', () => {
+    const html = `<pre><code>y(t) = σ(W · x(t) + b)
+a(t) = b + U · h(t-1) + W · x(t)
+h(t) = tanh(a(t))
+</code></pre>`;
+    const findings = validateMathDelimiters(html, [MATH_RULE]);
+    expect(
+      findings.some((finding) => finding.code === 'MATH_FORMULA_IN_CODE_BLOCK'),
+    ).toBe(true);
+    expect(validateMathDelimiters(html, [GENERIC_RULE])).toEqual([]);
+  });
+
+  it('does not flag a real python sample that happens to contain equals signs', () => {
+    const html = `<pre><code class="language-python">import torch
+from torch import nn
+output, hidden = RNN(data_tensor)
+print(output.shape)
+</code></pre>`;
     expect(validateMathDelimiters(html, [MATH_RULE])).toEqual([]);
   });
 });

@@ -130,7 +130,8 @@ When educational content includes mathematical formulas, emit LaTeX delimiters i
 - Prefer semantic delimiters (\`\\(...\\)\`, \`\\[...\\]\`) when dollar signs may conflict with currency.
 - Escape literal dollar signs in non-math text as \`\\$\`.
 - Keep long equations readable; the viewer scrolls overflow.
-- Do NOT wrap formulas in fenced code blocks.
+- Do NOT wrap formulas in markdown fences or in \`<pre>\` / \`<code>\`. Those blocks are for programs, not equations. Example of a forbidden formula dump: \`<pre><code>y(t) = sigma(W * x(t) + b)</code></pre>\`.
+- Do NOT fake math with Unicode subscripts, superscripts, or Greek letters outside delimiters (no \`σ\`, \`h⁽ᵗ⁾\`, \`e⁻ᶻ\`). Write TeX such as \`\\sigma\`, \`h^{(t)}\`, \`e^{-z}\`.
 - Do NOT include KaTeX/MathJax CDN tags — the viewer owns rendering.
 
 ## Graphs (see also Web Graph Rendering)
@@ -139,15 +140,18 @@ When a figure helps, embed Plotly JSON in \`<pre><code class="language-plotly">.
 
 export const MATH_STUDY_DOCUMENT_FORMATTING_CONTENT = `# Math Study Document Formatting
 
-When creating mathematical study documents, structure the content to maximize readability and comprehension:
+When creating mathematical study documents, structure the content so formulas render in the StudyForge KaTeX viewer.
 
-- **Use KaTeX-ready LaTeX:** Emit formulas with \`$...$\` / \`$$...$$\` or \`\\(...\\)\` / \`\\[...\\]\` in normal HTML text. Do not load KaTeX/MathJax CDN tags.
-- **Isolate Formulas:** Prefer display math on its own line for important equations. Do not bury key equations inside dense paragraphs without delimiters.
-- **Standardize Notation:** Use universally recognized mathematical notation for all equations and expressions.
-- **Define All Variables:** Immediately after introducing a formula, provide a bulleted list that defines every variable, constant, and symbol used.
-- **Show Step-by-Step Solutions:** When demonstrating how to use a formula, break the calculation down into clearly numbered steps from the initial equation to the final answer.
-- **Include Practice Examples:** Provide at least one fully solved practice problem for every new formula introduced.
-- **Emphasize Terminology:** Apply \`<strong>\` formatting to new mathematical terms, theorems, and foundational concepts upon their first mention.
+- **KaTeX in HTML text only:** Every formula must use \`$...$\` / \`$$...$$\` or \`\\(...\\)\` / \`\\[...\\]\` inside normal HTML (\`<p>\`, \`<li>\`, headings). Do not load KaTeX/MathJax CDN tags.
+- **Never put formulas in code blocks:** \`<pre>\`, \`<code>\`, and markdown fences are for executable programs (for example \`language-python\`). Do not dump equations there. Forbidden: \`<pre><code>h(t) = tanh(a(t))</code></pre>\`. Required: \`$$h^{(t)} = \\tanh(a^{(t)})$$\`.
+- **Never use Unicode fake math:** Do not write \`σ\`, \`⁻ᶻ\`, \`h⁽ᵗ⁾\`, \`Wₕₓ\`, or similar. Use TeX: \`\\sigma\`, \`e^{-z}\`, \`h^{(t)}\`, \`W_{hx}\`.
+- **Isolate display math:** Put important equations in \`$$...$$\` or \`\\[...\\]\` on their own. Do not bury key equations in dense paragraphs or monospace blocks.
+- **Inline variables:** In running text, write \`$h^{(t)}$\` or \`\\(h^{(t)}\\)\`, not \`<code>h(t)</code>\` and not Unicode subscripts.
+- **Standardize notation:** Use conventional mathematical notation for every equation.
+- **Define all variables:** Immediately after introducing a formula, provide a bulleted list that defines every variable, constant, and symbol used.
+- **Show step-by-step solutions:** When demonstrating a formula, number the steps from the initial equation to the final answer.
+- **Include practice examples:** Provide at least one fully solved practice problem for every new formula.
+- **Emphasize terminology:** Apply \`<strong>\` to new mathematical terms, theorems, and foundational concepts on first mention.
 - **Prefer graphs when helpful:** Use Web Graph Rendering (\`language-plotly\` blocks) for geometric intuition.
 `;
 

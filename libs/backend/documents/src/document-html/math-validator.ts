@@ -49,6 +49,100 @@ export function appliedRulesRequireKatexDelimiters(
   return rules.some(ruleRequiresKatexDelimiters);
 }
 
+const PRE_CODE_BLOCK_PATTERN =
+  /<pre[^>]*>\s*<code([^>]*)>([\s\S]*?)<\/code>\s*<\/pre>/gi;
+
+const PROGRAMMING_LANGUAGES = new Set([
+  'python',
+  'javascript',
+  'typescript',
+  'js',
+  'ts',
+  'bash',
+  'sh',
+  'shell',
+  'sql',
+  'json',
+  'html',
+  'css',
+  'rust',
+  'go',
+  'java',
+  'c',
+  'cpp',
+  'c++',
+  'ruby',
+  'php',
+  'swift',
+  'kotlin',
+  'r',
+  'matlab',
+  'yaml',
+  'xml',
+  'plotly',
+  'graph',
+  'mermaid',
+]);
+
+const PROGRAMMING_MARKERS =
+  /\b(import |from |def |class |function |const |let |var |return |print\(|#include|=>|\bfn )/i;
+
+const EQUATION_MARKERS =
+  /\b(tanh|softmax|sigmoid|relu|sin|cos|log|exp)\b|\([a-zA-Z]\w{0,3}\)|\s[·×÷]\s/iu;
+
+function decodeBasicEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+function readCodeLanguage(attributes: string): string {
+  const match = /language-([a-z0-9+#.-]+)/i.exec(attributes);
+  return match?.[1]?.toLowerCase() ?? '';
+}
+
+function looksLikeFormulaBlock(content: string): boolean {
+  const trimmed = content.trim();
+  if (!trimmed || PROGRAMMING_MARKERS.test(trimmed)) {
+    return false;
+  }
+
+  const equationLines = trimmed
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(
+      (line) =>
+        line.includes('=') &&
+        (UNDELIMITED_MATH_SYMBOLS.test(line) || EQUATION_MARKERS.test(line)),
+    );
+
+  return equationLines.length > 0;
+}
+
+export function findFormulaCodeBlockSnippet(
+  htmlFragment: string,
+): string | undefined {
+  for (const match of htmlFragment.matchAll(PRE_CODE_BLOCK_PATTERN)) {
+    const language = readCodeLanguage(match[1] ?? '');
+    if (PROGRAMMING_LANGUAGES.has(language)) {
+      continue;
+    }
+
+    const content = decodeBasicEntities(match[2] ?? '');
+    if (!looksLikeFormulaBlock(content)) {
+      continue;
+    }
+
+    return content.replace(/\s+/g, ' ').trim().slice(0, 80);
+  }
+
+  return undefined;
+}
+
 function stripIgnoredRegions(html: string): string {
   return html
     .replace(/<pre[\s\S]*?<\/pre>/gi, ' ')
@@ -84,21 +178,35 @@ export function validateMathDelimiters(
     return [];
   }
 
-  const snippet = findUndelimitedMathSnippet(htmlFragment);
-  if (!snippet) {
-    return [];
-  }
+  const findings: ValidationFinding[] = [];
 
-  return [
-    {
+  const unicodeSnippet = findUndelimitedMathSnippet(htmlFragment);
+  if (unicodeSnippet) {
+    findings.push({
       severity: 'error',
       code: 'MATH_UNDELIMITED_UNICODE',
       category: 'math',
       message:
         'Applied math rules require KaTeX delimiters; Unicode or plain-text formulas were found instead',
-      pathOrSnippet: snippet,
+      pathOrSnippet: unicodeSnippet,
       repairHint:
         'Rewrite formulas with $...$ / $$...$$ or \\(...\\) / \\[...\\] in normal HTML text. Do not use Unicode subscripts, superscripts, or Greek letters outside those delimiters.',
-    },
-  ];
+    });
+  }
+
+  const codeBlockSnippet = findFormulaCodeBlockSnippet(htmlFragment);
+  if (codeBlockSnippet) {
+    findings.push({
+      severity: 'error',
+      code: 'MATH_FORMULA_IN_CODE_BLOCK',
+      category: 'math',
+      message:
+        'Applied math rules require KaTeX delimiters in HTML text; formulas were placed in a code block',
+      pathOrSnippet: codeBlockSnippet,
+      repairHint:
+        'Move equations out of <pre>/<code> into $...$ / $$...$$ or \\(...\\) / \\[...\\] in a paragraph. Keep <pre><code> for executable programs only (for example language-python).',
+    });
+  }
+
+  return findings;
 }
