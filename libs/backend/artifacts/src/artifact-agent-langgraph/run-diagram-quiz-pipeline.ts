@@ -27,6 +27,7 @@
  * pipeline implementation.
  */
 import { logger } from 'firebase-functions/v2';
+import { GraphRecursionError } from '@langchain/langgraph';
 
 import { ArtifactAgentPipelineFailedError } from '../artifact-agent/artifact-agent-errors';
 import {
@@ -35,17 +36,14 @@ import {
   type ArtifactAgentJobInput,
 } from '../artifact-agent/artifact-agent-definition';
 import { compileDiagramQuizGraph } from './diagram-quiz-graph';
-import {
-  ARTIFACT_PIPELINE_STATE_KEYS as _UNUSED_STATE_KEYS,
-} from '../artifact-pipeline-state-keys';
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
 import { createInitialDiagramQuizState } from './diagram-quiz-state';
 
-// `ARTIFACT_PIPELINE_STATE_KEYS` is re-exported by the barrel `index.ts` and
-// referenced by callers that want to read the outcome/failure message keys
-// out of the final state. Importing it here keeps the dependency graph
-// explicit and surfaces any drift between the ADK and LangGraph
-// implementations at compile time.
-void _UNUSED_STATE_KEYS;
+// `ARTIFACT_PIPELINE_STATE_KEYS` is the single source of truth for the
+// Firestore `session.state` key contract. Both the ADK factory and this
+// LangGraph runner import from this constant so any drift between the two
+// implementations surfaces at compile time. Hand-typed string literals for
+// outcome / failure-message keys are intentionally avoided here.
 
 /**
  * Convenience alias for the LangGraph diagram-quiz definition type. The
@@ -93,18 +91,12 @@ function buildInitialState(input: {
 function readFinalOutcome(
   finalState: Record<string, unknown>
 ): 'completed' | 'failed' | undefined {
-  const outcome = finalState[ARTIFACT_PIPELINE_STATE_KEYS_OUTCOME];
+  const outcome = finalState[ARTIFACT_PIPELINE_STATE_KEYS.outcome];
   if (outcome === 'completed' || outcome === 'failed') {
     return outcome;
   }
   return undefined;
 }
-
-// Local re-export of the outcome key, aliased to keep the public surface of
-// this module narrow. Callers that need the keys directly import them from
-// the barrel `index.ts`.
-const ARTIFACT_PIPELINE_STATE_KEYS_OUTCOME = 'artifact_outcome';
-const ARTIFACT_PIPELINE_STATE_KEYS_FAILURE_MESSAGE = 'artifact_failure_message';
 
 /**
  * Read the failure message off the final state. Mirrors
@@ -114,11 +106,19 @@ const ARTIFACT_PIPELINE_STATE_KEYS_FAILURE_MESSAGE = 'artifact_failure_message';
  * messages logged by the runner match across orchestrations.
  */
 function readFinalFailureMessage(finalState: Record<string, unknown>): string {
-  const message = finalState[ARTIFACT_PIPELINE_STATE_KEYS_FAILURE_MESSAGE];
+  const message = finalState[ARTIFACT_PIPELINE_STATE_KEYS.failureMessage];
   return typeof message === 'string' && message.trim().length > 0
     ? message
     : 'Automated verification failed';
 }
+
+// Late import to avoid a circular dependency at module load time. The
+// registry re-exports the diagram-quiz definition from
+// `../diagram-quiz/diagram-quiz-definition` and the LangGraph graph reads
+// the same definition out of state. Importing the registry here, scoped
+// to this file, keeps the entry point self-contained while letting the
+// graph module remain testable in isolation.
+import { ArtifactAgentRegistry } from '../artifact-agent/artifact-agent-registry';
 
 /**
  * Run the LangGraph-backed diagram-quiz pipeline for a single generation
@@ -143,6 +143,10 @@ function readFinalFailureMessage(finalState: Record<string, unknown>): string {
  *   - The graph throws if a node throws. This is the same propagation
  *     behavior the ADK runner relies on - the Firebase Functions handler
  *     logs the error and marks the generation record failed.
+ *   - `GraphRecursionError` from LangGraph (raised when the configured
+ *     `recursionLimit` is exceeded) is caught and translated into the
+ *     standard `ArtifactAgentPipelineFailedError` so the caller's retry
+ *     and failure-marking logic stays uniform.
  *   - The runner does not retry. Retry semantics are the caller's
  *     responsibility (see `ArtifactAgentPipelineFailedError`).
  *
@@ -178,14 +182,50 @@ export async function runDiagramQuizLangGraphPipeline(
 
   // `invoke()` runs the compiled graph to completion. The LangGraph
   // equivalent of consuming the ADK `runAsync` event stream to completion.
-  // The `recursionLimit` is the only knob callers typically need; it
-  // bounds the worst-case number of node executions for a single run. The
-  // default of 25 is sufficient for the diagram-quiz topology (7 nodes
-  // + repair loop up to 4 iterations + critic loop up to 2 iterations),
-  // and we pass it explicitly to make the budget auditable.
-  const finalState = (await graph.invoke(initialState, {
-    recursionLimit: 50,
-  })) as Record<string, unknown>;
+  //
+  // Invocation options:
+  //   - `recursionLimit: 25` is the safety net that caps total super-steps
+  //     across the whole graph. The per-loop bounds (repair <= 4, critic
+  //     <= 2) are enforced by the conditional edges and the iteration
+  //     counters in state; `recursionLimit` exists to fail loud if a bug
+  //     ever causes runaway looping. The ceiling of 25 covers
+  //     load-context (1) + generate (1) + gate/repair loop (up to 8:
+  //     4 gate + 4 repair) + refiner/critic loop (up to 4: 2 refiner +
+  //     2 critic) + finalize (1) = 15 super-steps with headroom.
+  //   - `configurable.thread_id` is set to `jobId` so the run is
+  //     identifiable in LangGraph's checkpointer / tracing surface and
+  //     cannot be confused with an unrelated session string.
+  //
+  // `GraphRecursionError` is caught here and translated into the
+  // runner's standard failure contract so the Firebase Functions handler
+  // does not need a LangGraph-specific error branch.
+  let finalState: Record<string, unknown>;
+  try {
+    finalState = (await graph.invoke(initialState, {
+      recursionLimit: 25,
+      configurable: {
+        thread_id: input.jobId,
+      },
+    })) as Record<string, unknown>;
+  } catch (err) {
+    if (err instanceof GraphRecursionError) {
+      logger.warn(
+        'Diagram-quiz LangGraph pipeline exceeded recursionLimit',
+        {
+          artifactKind: input.artifactKind,
+          userId: input.userId,
+          recordId: input.recordId,
+          jobId: input.jobId,
+          recursionLimit: 25,
+          orchestrationMode: 'langgraph-runner',
+        }
+      );
+      throw new ArtifactAgentPipelineFailedError(
+        `Diagram-quiz LangGraph pipeline exceeded recursionLimit (jobId=${input.jobId})`
+      );
+    }
+    throw err;
+  }
 
   const outcome = readFinalOutcome(finalState);
 
@@ -216,11 +256,3 @@ export async function runDiagramQuizLangGraphPipeline(
     orchestrationMode: 'langgraph-runner',
   });
 }
-
-// Late import to avoid a circular dependency at module load time. The
-// registry re-exports the diagram-quiz definition from
-// `../diagram-quiz/diagram-quiz-definition` and the LangGraph graph reads
-// the same definition out of state. Importing the registry here, scoped
-// to this file, keeps the entry point self-contained while letting the
-// graph module remain testable in isolation.
-import { ArtifactAgentRegistry } from '../artifact-agent/artifact-agent-registry';

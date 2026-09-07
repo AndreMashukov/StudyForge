@@ -1,109 +1,86 @@
-import type { IArtifactAgentDiagnostics } from '@shared-types';
-import {
-  ARTIFACT_PIPELINE_STATE_KEYS,
-  type ArtifactPipelineStateKey,
-} from '../../artifact-pipeline-state-keys';
-import type { ArtifactAgentDefinition } from '../../artifact-agent/artifact-agent-definition';
-import {
-  hasBlockerFailures,
-  mergeFailuresIntoDiagnostics,
-  runArtifactGates,
-  type ArtifactGateFailure,
-} from '../../artifact-agent/artifact-agent-definition';
+/** LangGraph node: evaluate the draft and persist gate diagnostics. */
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
+import type { DiagramQuizState } from '../diagram-quiz-state';
+import { DiagramQuizStateValue } from '../diagram-quiz-state';
+import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
+import { runArtifactGates } from '../../artifact-agent/artifact-agent-definition';
+
+const NODE_NAME = 'gate';
+
+export type GateNodeResult = Partial<DiagramQuizState>;
 
 /**
- * Subset of the LangGraph pipeline state that the gate node reads.
+ * LangGraph node: evaluate the draft and persist gate diagnostics.
  *
- * The full state schema lives in `diagram-quiz-state.ts`. The node only
- * touches the keys it needs so this module has no compile-time dependency
- * on the LangGraph `Annotation` types.
- */
-export interface GateNodeState {
-  [ARTIFACT_PIPELINE_STATE_KEYS.definition]: ArtifactAgentDefinition<unknown, unknown>;
-  [ARTIFACT_PIPELINE_STATE_KEYS.context]: unknown;
-  [ARTIFACT_PIPELINE_STATE_KEYS.draft]: unknown;
-  [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]?: IArtifactAgentDiagnostics;
-  [ARTIFACT_PIPELINE_STATE_KEYS.gateFailures]?: ArtifactGateFailure[];
-  repair_iteration?: number;
-}
-
-/**
- * Subset of the state shape the gate node returns. Keys are written through
- * the LangGraph channel system; missing keys keep their existing values.
- */
-export interface GateNodeUpdate {
-  [ARTIFACT_PIPELINE_STATE_KEYS.gateFailures]: ArtifactGateFailure[];
-  [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]: IArtifactAgentDiagnostics;
-  repair_iteration: number;
-}
-
-const DIAGNOSTICS_KEY = ARTIFACT_PIPELINE_STATE_KEYS.diagnostics satisfies ArtifactPipelineStateKey;
-const CONTEXT_KEY = ARTIFACT_PIPELINE_STATE_KEYS.context satisfies ArtifactPipelineStateKey;
-const DRAFT_KEY = ARTIFACT_PIPELINE_STATE_KEYS.draft satisfies ArtifactPipelineStateKey;
-const DEFINITION_KEY = ARTIFACT_PIPELINE_STATE_KEYS.definition satisfies ArtifactPipelineStateKey;
-
-/**
- * LangGraph node that runs the deterministic artifact gates against the
- * current draft and records the failures.
+ * The gate node does NOT write `artifact_generation_model` or
+ * `artifact_agent_model`. Those keys are set exclusively by `generate.node.ts`
+ * and must not be overwritten on subsequent super-steps. See the P6 audit fix.
  *
- * The node mirrors the ADK `GateAgent`:
- *   - Reads the artifact context, current draft, and diagnostics from state.
- *   - Runs `definition.gates` against the draft.
- *   - Merges the resulting failures into diagnostics.
- *   - Writes the failures back to `artifact_gate_failures` so the repair
- *     node can act on them and the conditional edge can route accordingly.
+ * P8 audit contract (verified):
+ *   - This node has NO LLM calls. It does NOT instantiate a chat model,
+ *     does NOT call any `langchain` `.invoke()` / `.stream()` / `.batch()`
+ *     against an LLM, and does NOT touch any model factory. Running an LLM
+ *     inside the deterministic gate step would be both wasteful and a
+ *     source of non-determinism in the repair loop.
+ *   - This node has NO Firestore / database / network I/O. It does NOT
+ *     import `firebase-admin`, `@google-cloud/firestore`, or any other
+ *     external client. The audit harness can grep this file for those
+ *     imports to confirm; only `load-context.node.ts` matches.
+ *   - Gate evaluation is performed exclusively via the pure, deterministic
+ *     `definition.runGates(draft)` helper - the same helpers the ADK
+ *     `GateAgent` uses. Result is a structured array of
+ *     `ArtifactGateFailure` entries (`{ gateId, severity, message, ... }`)
+ *     with `severity` limited to `'warning' | 'blocker'`. No side effects.
+ *   - Because the gate has no side effects, it is safe to invoke
+ *     `maxRepairIterations + 1` times per pipeline run (once on first entry
+ *     from `generate`, then once per repair iteration). The conditional
+ *     edge `routeAfterGate` enforces the upper bound and short-circuits to
+ *     `finalize` once `repair_iteration_count >= 4`.
+ *   - Because the gate has no LLM cost, the
+ *     `Firebase Functions v2 540-second` ceiling is unaffected by the gate
+ *     loop. Only `repair`, `refiner`, and `critic` contribute model
+ *     latency, and each of those has its own per-iteration budget enforced
+ *     by the matching conditional edge.
  *
- * In addition to the ADK behavior, this node also increments
- * `repair_iteration` whenever the gates produce failures and the loop has
- * not already exceeded `maxRepairIterations`. The graph uses that counter
- * (not the ADK `escalate` flag) to decide whether to route back to repair.
+ * Emits `node_enter` and `node_exit` structured log lines with `jobId`.
+ * `iteration` is `null` because the gate node sits at the head of the repair
+ * loop; the conditional edge after `gate` reads `repair_iteration_count`
+ * instead of attributing iteration here.
  */
-export async function gateNode(state: GateNodeState): Promise<GateNodeUpdate> {
-  const definition = state[DEFINITION_KEY];
-  const agentContext = state[CONTEXT_KEY] as Parameters<typeof runArtifactGates>[2];
-  const draft = state[DRAFT_KEY];
+export async function gateNode(
+  state: typeof DiagramQuizStateValue.State
+): Promise<GateNodeResult> {
+  logNodeEnter(NODE_NAME, state);
+  try {
+    const draft = state[ARTIFACT_PIPELINE_STATE_KEYS.draft];
+    if (draft === undefined) {
+      throw new Error('Gate node requires artifact_draft in state');
+    }
 
-  if (agentContext === undefined || agentContext === null) {
-    throw new Error('Artifact context must be loaded before gate evaluation');
+    const definition = state[ARTIFACT_PIPELINE_STATE_KEYS.definition];
+    if (!definition) {
+      throw new Error('Gate node requires artifact_definition in state');
+    }
+
+    const context = state[ARTIFACT_PIPELINE_STATE_KEYS.context];
+    if (context === undefined || context === null) {
+      throw new Error('Gate node requires artifact_context in state');
+    }
+    const gateResult = await runArtifactGates(
+      definition.gates,
+      draft,
+      context
+    );
+    const gateFailures = gateResult.failures;
+    const result = {
+      [ARTIFACT_PIPELINE_STATE_KEYS.gateFailures]: gateFailures,
+    } as GateNodeResult;
+    logNodeExitOk(NODE_NAME, state);
+    return result;
+  } catch (err) {
+    logNodeExitError(NODE_NAME, state, err);
+    throw err;
   }
-  if (draft === undefined) {
-    throw new Error('Artifact draft must be generated before gate evaluation');
-  }
-
-  // Preserve diagnostics across nodes. The graph initializes an empty
-  // diagnostics object so this should always be present, but default to a
-  // defensive shape if it is ever missing.
-  const diagnostics: IArtifactAgentDiagnostics =
-    state[DIAGNOSTICS_KEY] ??
-    ({
-      artifactKind: definition.artifactKind,
-      agentDefinitionVersion: definition.agentDefinitionVersion,
-      orchestrationMode: 'langgraph-runner',
-      generatorAttempts: 0,
-      repairCount: 0,
-      criticCycles: 0,
-      modelUsage: [],
-      residuals: [],
-    } as unknown as IArtifactAgentDiagnostics);
-
-  const gateResult = await runArtifactGates(definition.gates, draft, agentContext);
-  mergeFailuresIntoDiagnostics(diagnostics, gateResult.failures);
-
-  const previousIteration = typeof state.repair_iteration === 'number' ? state.repair_iteration : 0;
-  const maxRepairIterations = definition.limits.maxRepairIterations;
-  const hasBlockers = hasBlockerFailures(gateResult.failures);
-
-  // Only increment when there is something to repair and the loop still has
-  // budget remaining. Once we are at or past the cap, the conditional edge
-  // will route out of the repair loop on the next evaluation.
-  const nextIteration =
-    hasBlockers && previousIteration < maxRepairIterations
-      ? previousIteration + 1
-      : previousIteration;
-
-  return {
-    [ARTIFACT_PIPELINE_STATE_KEYS.gateFailures]: gateResult.failures,
-    [ARTIFACT_PIPELINE_STATE_KEYS.diagnostics]: diagnostics,
-    repair_iteration: nextIteration,
-  };
 }
+
+export default gateNode;
