@@ -89,13 +89,12 @@ export function replaceWithNext<T>(
 }
 
 /**
- * Loop-counter reducer. Conditional edges feed the next iteration index into
- * the channel; nodes may also overwrite the counter with a freshly-computed
- * value. The reducer preserves the incoming value when it is a finite number
- * and falls back to the current value otherwise so an undefined write never
- * silently resets the counter.
+ * Loop-counter reducer. Nodes write the next counter value themselves.
+ * This reducer does not add 1. It keeps a finite incoming number and
+ * otherwise keeps the current value so an undefined write does not reset
+ * the counter.
  */
-export function incrementCounter(
+export function keepFiniteNumber(
   current: number | undefined,
   incoming: number | undefined
 ): number {
@@ -159,11 +158,11 @@ export const DiagramQuizStateAnnotation = Annotation.Root({
   >(),
 
   repair_iteration_count: Annotation<number>({
-    reducer: (current, incoming) => incrementCounter(current, incoming),
+    reducer: (current, incoming) => keepFiniteNumber(current, incoming),
     default: () => 0,
   }),
   critic_iteration_count: Annotation<number>({
-    reducer: (current, incoming) => incrementCounter(current, incoming),
+    reducer: (current, incoming) => keepFiniteNumber(current, incoming),
     default: () => 0,
   }),
 });

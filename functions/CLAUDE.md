@@ -33,6 +33,10 @@ Deploy only when explicitly requested: `yarn nx run functions:deploy`.
 
 Never import `@study-forge/backend-*` from `web` or `admin`.
 
+## LangGraph artifact pipelines
+
+Path-scoped constraints: `.claude/rules/langgraph-artifact-pipeline.md`. Load the `langgraph-artifact-pipeline` skill when you change graph state, nodes, routing, or the runner. CI uses esbuild; run `tsc -p functions/tsconfig.json --noEmit` before you call a LangGraph change done.
+
 ## Reference
 
 - Path rule: `.claude/rules/firebase-functions.md`

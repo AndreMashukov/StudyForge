@@ -31,7 +31,7 @@ export {
   DiagramQuizStateAnnotation,
   createInitialDiagramQuizState,
   replaceWithNext,
-  incrementCounter,
+  keepFiniteNumber,
   DIAGRAM_QUIZ_LOOP_COUNTERS,
   DIAGRAM_QUIZ_LOOP_LIMITS,
 } from './diagram-quiz-state';
@@ -47,6 +47,7 @@ export {
   DIAGRAM_QUIZ_NODE_NAMES,
   createDiagramQuizStateGraph,
   compileDiagramQuizGraph,
+  diagramQuizGraph,
 } from './diagram-quiz-graph';
 export type { DiagramQuizNodeName } from './diagram-quiz-graph';
 

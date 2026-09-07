@@ -3,8 +3,8 @@
  *
  * This module is the strangler-fig replacement for the ADK pipeline runner
  * (see `../artifact-agent/artifact-agent-runner.ts`). It exports
- * `runDiagramQuizLangGraphPipeline(input)` which compiles the diagram-quiz
- * `StateGraph`, seeds the initial state from the locked `session.state`
+ * `runDiagramQuizLangGraphPipeline(input)` which reuses the compiled
+ * `StateGraph` singleton, seeds the initial state from the locked `session.state`
  * contract, invokes the compiled graph, and translates the terminal
  * `artifact_outcome` into the same runner contract the ADK path uses:
  *
@@ -35,7 +35,7 @@ import {
   type ArtifactAgentDefinition,
   type ArtifactAgentJobInput,
 } from '../artifact-agent/artifact-agent-definition';
-import { compileDiagramQuizGraph } from './diagram-quiz-graph';
+import { diagramQuizGraph } from './diagram-quiz-graph';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
 import { createInitialDiagramQuizState } from './diagram-quiz-state';
 
@@ -127,8 +127,9 @@ import { ArtifactAgentRegistry } from '../artifact-agent/artifact-agent-registry
  *
  * Steps:
  *   1. Resolve the diagram-quiz definition from the shared registry.
- *   2. Compile the diagram-quiz `StateGraph` bound to that definition so
- *      each node factory closes over the same instance the ADK path uses.
+ *   2. Invoke the process-level compiled graph (`diagramQuizGraph`).
+ *      Nodes read the definition from seeded state, so the graph is not
+ *      recompiled per job.
  *   3. Build the initial state using the locked `session.state` contract.
  *      `artifact_definition`, `job_input`, and the loop counters are
  *      seeded; other channels start at their LangGraph defaults.
@@ -177,7 +178,6 @@ export async function runDiagramQuizLangGraphPipeline(
     orchestrationMode: 'langgraph-runner',
   });
 
-  const graph = compileDiagramQuizGraph();
   const initialState = buildInitialState({ definition, jobInput: input });
 
   // `invoke()` runs the compiled graph to completion. The LangGraph
@@ -201,7 +201,7 @@ export async function runDiagramQuizLangGraphPipeline(
   // does not need a LangGraph-specific error branch.
   let finalState: Record<string, unknown>;
   try {
-    finalState = (await graph.invoke(initialState, {
+    finalState = (await diagramQuizGraph.invoke(initialState, {
       recursionLimit: 25,
       configurable: {
         thread_id: input.jobId,
