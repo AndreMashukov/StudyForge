@@ -3,6 +3,7 @@ import {
   LlmGenerationRouteResolver,
   formatGenerationModelLabel,
 } from '@study-forge/backend-llm/llm';
+import type { IArtifactAgentDiagnostics } from '@shared-types';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
 import type { DiagramQuizState } from '../diagram-quiz-state';
 import { DiagramQuizStateValue } from '../diagram-quiz-state';
@@ -22,10 +23,15 @@ export type GenerateNodeResult = Partial<DiagramQuizState>;
  * the moment the draft is produced, before any repair / refine / critic
  * loop has a chance to overwrite them.
  *
- * The model identifiers are resolved via the same route resolver that the
- * ADK `diagram-quiz-definition.generate` uses internally (and that
- * `persistCompleted` later reads back out of the audit). This keeps the
- * LangGraph pipeline's model fields in lock-step with the ADK audit values.
+ * The model label is taken from the `generator` entry in
+ * `diagnostics.modelUsage` that `definition.generate` recorded. That
+ * entry reflects the model that actually produced the draft, including
+ * any provider/model fallback. Only if no `generator` usage was recorded
+ * do we fall back to the primary route label from
+ * `LlmGenerationRouteResolver`. This keeps the LangGraph pipeline's
+ * model fields in lock-step with the audit and prevents labeling the
+ * record with the primary route when the live call actually used a
+ * fallback.
  *
  * Emits `node_enter` and `node_exit` structured log lines with `jobId` so
  * generation latency and LLM errors can be tied back to the triggering
@@ -53,18 +59,24 @@ export async function generateNode(
       >[1]
     );
 
-    // Resolve the same route the ADK definition records into diagnostics so
-    // `artifact_generation_model` and `artifact_agent_model` stay in sync
-    // with the actual model the LLM call used. Both fields use the same
-    // label: the ADK factory populates them from the audit, and the audit
-    // is keyed off the resolved route. Writing both here means downstream
-    // persistence can read either field without needing to consult
-    // diagnostics.
-    const routeResolution = await LlmGenerationRouteResolver.resolve(
-      definition.artifactKind,
-      { userId: context.userId }
+    // Prefer the model the LLM call actually used (recorded in
+    // `diagnostics.modelUsage` by `definition.generate`). Fall back to the
+    // primary route label only when no generator usage was recorded.
+    const diagnostics = state[ARTIFACT_PIPELINE_STATE_KEYS.diagnostics] as
+      | IArtifactAgentDiagnostics
+      | undefined;
+    const generatorUsage = diagnostics?.modelUsage.find(
+      (entry) => entry.role === 'generator'
     );
-    const modelLabel = formatGenerationModelLabel(routeResolution.route);
+    const modelLabel =
+      generatorUsage?.model ??
+      formatGenerationModelLabel(
+        (
+          await LlmGenerationRouteResolver.resolve(definition.artifactKind, {
+            userId: context.userId,
+          })
+        ).route
+      );
 
     const result = {
       [ARTIFACT_PIPELINE_STATE_KEYS.draft]: draft,
