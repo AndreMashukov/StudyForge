@@ -18,7 +18,7 @@ Guidance for any LangGraph artifact graph under `artifact-agent-langgraph`. Appl
 4. **MUST keep routing on edges.** Use `addConditionalEdges` and exported pure route functions. Do not call `Command.goto` inside a node.
 5. **MUST exit a gate loop on blocker semantics**, not "empty failure list". Warnings alone must not keep the loop running.
 6. **MUST short-circuit to the terminal node** when `artifact_outcome === 'failed'`.
-7. **MUST invoke the compiled graph once per process.** Bind `configurable.thread_id` to the job id at `invoke` time. Do not recompile per job. Do not switch `invoke` to `stream` unless the change also writes real progress to Firestore.
+7. **MUST compile the graph once per process and invoke it once per job.** Bind `configurable.thread_id` to that job's id at `invoke` time. Do not recompile per job. Do not switch `invoke` to `stream` unless the change also writes real progress to Firestore.
 8. **MUST catch `GraphRecursionError`** at the runner and map it to the existing pipeline failure error.
 9. **MUST write generation/agent model labels once**, in the generate node. Later nodes only read them.
 10. **MUST keep I/O in load/persist nodes.** Gate and route functions stay deterministic (no LLM, no Firestore).

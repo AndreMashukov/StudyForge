@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ArtifactAgentDefinition } from '../artifact-agent/artifact-agent-definition';
+import type { ArtifactGateFailure } from '../artifact-agent/artifact-agent-definition';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
 import {
   routeAfterCritic,
@@ -9,34 +9,52 @@ import {
 import {
   DIAGRAM_QUIZ_LOOP_COUNTERS,
   DIAGRAM_QUIZ_LOOP_LIMITS,
+  type ArtifactPipelineOutcome,
   type DiagramQuizState,
 } from './diagram-quiz-state';
 
-function gateFailure(
-  severity: 'warning' | 'blocker'
-): { gateId: string; severity: 'warning' | 'blocker'; message: string } {
+/**
+ * Fields the route functions actually read. The production state type
+ * requires every channel; tests only fill the routing inputs.
+ */
+interface IRouteDefinitionFixture {
+  critic?: object;
+  refiner?: object;
+}
+
+interface IRouteCriticResultFixture {
+  overallVerdict?: string;
+}
+
+interface IRouteStateFixture {
+  [ARTIFACT_PIPELINE_STATE_KEYS.outcome]?: ArtifactPipelineOutcome;
+  [ARTIFACT_PIPELINE_STATE_KEYS.gateFailures]?: ArtifactGateFailure[];
+  [ARTIFACT_PIPELINE_STATE_KEYS.definition]?: IRouteDefinitionFixture;
+  [ARTIFACT_PIPELINE_STATE_KEYS.criticResult]?: IRouteCriticResultFixture;
+  [typeof DIAGRAM_QUIZ_LOOP_COUNTERS.repair]?: number;
+  [typeof DIAGRAM_QUIZ_LOOP_COUNTERS.critic]?: number;
+}
+
+function gateFailure(severity: ArtifactGateFailure['severity']): ArtifactGateFailure {
   return { gateId: 'test', severity, message: 'test' };
 }
 
-function state(partial: Record<string, unknown>): DiagramQuizState {
-  return partial as DiagramQuizState;
+function routeState(fixture: IRouteStateFixture): DiagramQuizState {
+  return fixture as DiagramQuizState;
 }
 
-const withVerificationLoop = {
+const withVerificationLoop: IRouteDefinitionFixture = {
   critic: {},
   refiner: {},
-} as ArtifactAgentDefinition<unknown, unknown>;
+};
 
-const withoutVerificationLoop = {} as ArtifactAgentDefinition<
-  unknown,
-  unknown
->;
+const withoutVerificationLoop: IRouteDefinitionFixture = {};
 
 describe('routeAfterGate', () => {
   it('routes to finalize when the run is already failed', () => {
     expect(
       routeAfterGate(
-        state({
+        routeState({
           [ARTIFACT_PIPELINE_STATE_KEYS.outcome]: 'failed',
           [ARTIFACT_PIPELINE_STATE_KEYS.gateFailures]: [
             gateFailure('blocker'),
@@ -51,7 +69,7 @@ describe('routeAfterGate', () => {
   it('leaves the repair loop when only warnings remain', () => {
     expect(
       routeAfterGate(
-        state({
+        routeState({
           [ARTIFACT_PIPELINE_STATE_KEYS.gateFailures]: [
             gateFailure('warning'),
           ],
@@ -65,7 +83,7 @@ describe('routeAfterGate', () => {
   it('skips verification when the definition has no critic or refiner', () => {
     expect(
       routeAfterGate(
-        state({
+        routeState({
           [ARTIFACT_PIPELINE_STATE_KEYS.gateFailures]: [
             gateFailure('warning'),
           ],
@@ -79,7 +97,7 @@ describe('routeAfterGate', () => {
   it('repairs when a blocker remains and the budget is open', () => {
     expect(
       routeAfterGate(
-        state({
+        routeState({
           [ARTIFACT_PIPELINE_STATE_KEYS.gateFailures]: [
             gateFailure('blocker'),
           ],
@@ -93,7 +111,7 @@ describe('routeAfterGate', () => {
   it('leaves the repair loop when blockers remain but the budget is spent', () => {
     expect(
       routeAfterGate(
-        state({
+        routeState({
           [ARTIFACT_PIPELINE_STATE_KEYS.gateFailures]: [
             gateFailure('blocker'),
           ],
@@ -110,7 +128,7 @@ describe('routeAfterCritic', () => {
   it('routes to finalize when the run is already failed', () => {
     expect(
       routeAfterCritic(
-        state({
+        routeState({
           [ARTIFACT_PIPELINE_STATE_KEYS.outcome]: 'failed',
           [ARTIFACT_PIPELINE_STATE_KEYS.criticResult]: {
             overallVerdict: 'needs_work',
@@ -124,7 +142,7 @@ describe('routeAfterCritic', () => {
   it('finalizes when the critic verdict is pass', () => {
     expect(
       routeAfterCritic(
-        state({
+        routeState({
           [ARTIFACT_PIPELINE_STATE_KEYS.criticResult]: {
             overallVerdict: 'pass',
           },
@@ -137,7 +155,7 @@ describe('routeAfterCritic', () => {
   it('continues refinement when the verdict is not pass and budget remains', () => {
     expect(
       routeAfterCritic(
-        state({
+        routeState({
           [ARTIFACT_PIPELINE_STATE_KEYS.criticResult]: {
             overallVerdict: 'needs_work',
           },
@@ -150,7 +168,7 @@ describe('routeAfterCritic', () => {
   it('finalizes when the critic budget is spent', () => {
     expect(
       routeAfterCritic(
-        state({
+        routeState({
           [ARTIFACT_PIPELINE_STATE_KEYS.criticResult]: {
             overallVerdict: 'needs_work',
           },

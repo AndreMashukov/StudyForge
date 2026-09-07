@@ -13,7 +13,7 @@ Use this skill when changing a LangGraph artifact graph. Read `.claude/rules/lan
 
 1. Find the graph, state schema, runner, and nodes under `libs/backend/artifacts/src/artifact-agent-langgraph/`.
 2. Keep topology decisions in `addConditionalEdges` plus named route functions. Test those functions with fixtures (blocker vs warning, failed outcome, loop budget).
-3. Seed state with the definition and job input. Nodes read the definition from state so one compiled graph can serve concurrent jobs.
+3. Compile the graph once per process. Invoke it once per job with that job's `thread_id`. Nodes read the definition from seeded state so concurrent jobs can share the compiled graph.
 4. Call definition strategy objects (`critic.criticize`, `repair.repair`, `refiner.refine`). Do not invent a second call shape.
 5. Persist only in the terminal node (`persistCompleted` / `markFailed`).
 
