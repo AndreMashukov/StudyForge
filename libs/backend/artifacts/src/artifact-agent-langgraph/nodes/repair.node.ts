@@ -18,7 +18,7 @@ export type RepairNodeResult = Partial<DiagramQuizState>;
  * P1 audit fix: explicitly increment `repair_iteration_count` on every visit
  * so the conditional edge after `gate` can enforce the maximum repair bound
  * (4 iterations) without relying solely on `recursionLimit`. The counter is
- * always returned as a finite number so the `incrementCounter` reducer on the
+ * always returned as a finite number so the `keepFiniteNumber` reducer on the
  * state channel preserves the new value.
  *
  * Emits `node_enter` and `node_exit` structured log lines with `jobId`. The
