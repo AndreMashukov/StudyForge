@@ -26,6 +26,10 @@
  * `ArtifactAgentDefinition<TDraft, TPayload>` is stored on the state via
  * `artifact_definition` and is read out by each node. This keeps the node
  * functions free of pipeline structure concerns.
+ *
+ * Phase A note: shared symbols previously located under `../artifact-agent/`
+ * have been relocated. `ArtifactAgentDefinition` and `ArtifactGateFailure`
+ * are now imported from `../artifact-definition`.
  */
 import { END, START, StateGraph } from '@langchain/langgraph';
 
@@ -35,7 +39,7 @@ import {
   hasBlockerFailures,
   type ArtifactAgentDefinition,
   type ArtifactGateFailure,
-} from '../artifact-agent/artifact-agent-definition';
+} from '../artifact-definition';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
 import { criticNode } from './nodes/critic.node';
 import { finalizeNode } from './nodes/finalize.node';

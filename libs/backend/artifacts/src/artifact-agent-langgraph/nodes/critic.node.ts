@@ -23,8 +23,8 @@ export type CriticNodeResult = Partial<DiagramQuizState>;
  *
  * Emits `node_enter` and `node_exit` structured log lines with `jobId`. The
  * `iteration` field on the log carries the `critic_iteration_count` value
- * the node is about to write (post-increment) so operators can correlate
- * log lines with the conditional-edge routing decisions.
+ * the node is about to write (post-increment) so operators can correlate log
+ * lines with the conditional-edge routing decisions.
  */
 export async function criticNode(
   state: typeof DiagramQuizStateValue.State

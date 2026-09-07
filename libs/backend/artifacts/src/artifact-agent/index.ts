@@ -1,30 +1,4 @@
-export type {
-  ArtifactAgentContext,
-  ArtifactAgentDefinition,
-  ArtifactAgentFailure,
-  ArtifactAgentJobInput,
-  ArtifactAgentJobPayload,
-  ArtifactAgentResult,
-  ArtifactCriticStrategy,
-  ArtifactGate,
-  ArtifactGateFailure,
-  ArtifactGateResult,
-  ArtifactRefinerStrategy,
-  ArtifactRepairStrategy,
-} from './artifact-agent-definition';
-export {
-  createEmptyDiagnostics,
-  hasBlockerFailures,
-  mergeFailuresIntoDiagnostics,
-  recordModelUsage,
-  runArtifactGates,
-} from './artifact-agent-definition';
-export { ArtifactAgentRegistry } from './artifact-agent-registry';
-export {
-  ARTIFACT_PIPELINE_STATE_KEYS,
-  createArtifactPipeline,
-  createInitialSessionState,
-  readPipelineFailureMessage,
-  readPipelineOutcome,
-} from './artifact-agent-pipeline-factory';
-export { runArtifactAgentPipeline } from './artifact-agent-runner';
+// ADK tree retired — see @study-forge/backend-artifacts artifact-definition,
+// artifact-errors, artifact-record-paths, artifact-registry, and
+// artifact-job-input for the relocated symbols.
+export {};

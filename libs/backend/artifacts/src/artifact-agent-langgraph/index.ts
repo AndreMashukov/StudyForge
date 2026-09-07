@@ -6,8 +6,9 @@
  * import from this barrel rather than reaching into individual files.
  *
  * The module is the strangler-fig replacement for the ADK pipeline at
- * `../artifact-agent`. After the big-bang cutover, the diagram-quiz
- * endpoint invokes `runDiagramQuizLangGraphPipeline` exported here.
+ * the legacy `artifact-agent/` tree (deleted in Phase D of the flashcards
+ * migration). After the big-bang cutover, the diagram-quiz endpoint invokes
+ * `runDiagramQuizLangGraphPipeline` exported here.
  *
  * The locked `session.state` key contract from
  * `../artifact-pipeline-state-keys` is re-exported so callers can read the

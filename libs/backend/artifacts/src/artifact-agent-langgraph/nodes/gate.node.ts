@@ -1,9 +1,9 @@
 /** LangGraph node: evaluate the draft and persist gate diagnostics. */
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
+import { runArtifactGates } from '../../artifact-definition';
 import type { DiagramQuizState } from '../diagram-quiz-state';
 import { DiagramQuizStateValue } from '../diagram-quiz-state';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
-import { runArtifactGates } from '../../artifact-agent/artifact-agent-definition';
 
 const NODE_NAME = 'gate';
 

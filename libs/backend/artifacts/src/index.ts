@@ -2,3 +2,8 @@ export * from './firestore';
 export * from './artifact-delete';
 export * from './artifact-generation-records';
 export * from './bulk-operation';
+export * from './artifact-definition';
+export * from './artifact-errors';
+export * from './artifact-record-paths';
+export * from './artifact-registry';
+export * from './artifact-job-input';

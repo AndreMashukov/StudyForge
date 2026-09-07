@@ -1,12 +1,12 @@
 /**
  * Entry point for the LangGraph-backed diagram-quiz pipeline.
  *
- * This module is the strangler-fig replacement for the ADK pipeline runner
- * (see `../artifact-agent/artifact-agent-runner.ts`). It exports
- * `runDiagramQuizLangGraphPipeline(input)` which reuses the compiled
- * `StateGraph` singleton, seeds the initial state from the locked `session.state`
- * contract, invokes the compiled graph, and translates the terminal
- * `artifact_outcome` into the same runner contract the ADK path uses:
+ * This module is the strangler-fig replacement for the ADK pipeline runner.
+ * It exports `runDiagramQuizLangGraphPipeline(input)` which reuses the
+ * compiled `StateGraph` singleton, seeds the initial state from the locked
+ * `session.state` contract, invokes the compiled graph, and translates the
+ * terminal `artifact_outcome` into the same runner contract the ADK path
+ * uses:
  *
  *   - `completed`  -> resolve normally. `definition.persistCompleted` has
  *                     already been called by `finalize`.
@@ -25,16 +25,25 @@
  * Firebase Functions handler and integration tests) need to know about.
  * Everything else under `artifact-agent-langgraph/` is internal to this
  * pipeline implementation.
+ *
+ * Phase A note: shared symbols previously located under `../artifact-agent/`
+ * have been relocated to siblings of this directory:
+ *   - `ArtifactAgentPipelineFailedError` -> `../artifact-errors`
+ *   - `ArtifactAgentDefinition`, `ArtifactAgentJobInput`,
+ *     `createEmptyDiagnostics` -> `../artifact-definition`
+ *   - `ArtifactAgentJobInput` type    -> `../artifact-job-input`
+ *   - `ArtifactAgentRegistry`         -> `../artifact-registry`
+ *   - record-path helpers             -> `../artifact-record-paths`
  */
 import { logger } from 'firebase-functions/v2';
 import { GraphRecursionError } from '@langchain/langgraph';
 
-import { ArtifactAgentPipelineFailedError } from '../artifact-agent/artifact-agent-errors';
+import { ArtifactAgentPipelineFailedError } from '../artifact-errors';
 import {
   createEmptyDiagnostics,
   type ArtifactAgentDefinition,
-  type ArtifactAgentJobInput,
-} from '../artifact-agent/artifact-agent-definition';
+} from '../artifact-definition';
+import type { ArtifactAgentJobInput } from '../artifact-job-input';
 import { diagramQuizGraph } from './diagram-quiz-graph';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
 import { createInitialDiagramQuizState } from './diagram-quiz-state';
@@ -113,12 +122,11 @@ function readFinalFailureMessage(finalState: Record<string, unknown>): string {
 }
 
 // Late import to avoid a circular dependency at module load time. The
-// registry re-exports the diagram-quiz definition from
-// `../diagram-quiz/diagram-quiz-definition` and the LangGraph graph reads
-// the same definition out of state. Importing the registry here, scoped
-// to this file, keeps the entry point self-contained while letting the
-// graph module remain testable in isolation.
-import { ArtifactAgentRegistry } from '../artifact-agent/artifact-agent-registry';
+// registry re-exports the diagram-quiz definition and the LangGraph graph
+// reads the same definition out of state. Importing the registry here,
+// scoped to this file, keeps the entry point self-contained while letting
+// the graph module remain testable in isolation.
+import { ArtifactAgentRegistry } from '../artifact-registry';
 
 /**
  * Run the LangGraph-backed diagram-quiz pipeline for a single generation
