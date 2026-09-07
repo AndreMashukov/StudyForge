@@ -33,6 +33,12 @@ Deploy only when explicitly requested: `yarn nx run functions:deploy`.
 
 Never import `@study-forge/backend-*` from `web` or `admin`.
 
+## LangGraph pipeline (diagram-quiz)
+
+`generateDiagramQuiz` runs the **LangGraph** pipeline at `@study-forge/backend-artifacts/artifact-agent-langgraph` (strangler-fig replacement for the ADK pipeline). `processGenerationJob` and other artifact kinds (`flashcards`, etc.) still use the ADK pipeline at `@study-forge/backend-artifacts/artifact-agent`. The dispatcher at `libs/backend/generation/src/generation-processors/artifact-agent.ts` is the single switch point.
+
+**Before any change under `libs/backend/artifacts/src/artifact-agent-langgraph/**` or `libs/backend/artifacts/src/diagram-quiz/**`, read `.claude/rules/langgraph-artifact-pipeline.md`.** CI runs esbuild, not `tsc` — verify with `tsc -p functions/tsconfig.json --noEmit` locally before pushing.
+
 ## Reference
 
 - Path rule: `.claude/rules/firebase-functions.md`
