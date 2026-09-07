@@ -9,8 +9,8 @@ import {
 } from '@study-forge/backend-artifacts/artifact-generation-records';
 import type { GenerationJob } from './generation-jobs';
 import { GenerationJobPayloadStorage } from './generation-job-payload-storage';
-import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/artifact-agent';
-import { isArtifactKind } from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-record-paths';
+import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/artifact-definition';
+import { isArtifactKind } from '@study-forge/backend-artifacts/artifact-record-paths';
 
 async function resolveArtifactKind(
   job: GenerationJob,

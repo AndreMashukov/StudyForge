@@ -4,7 +4,7 @@ import {
   formatGenerationModelLabel,
 } from '@study-forge/backend-llm/llm';
 import type { IArtifactAgentDiagnostics } from '@shared-types';
-import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../artifact-pipeline-state-keys';
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../../artifact-pipeline-state-keys';
 import { FlashcardsStateValue } from '../flashcards-state';
 import type { FlashcardsState } from '../flashcards-state';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';

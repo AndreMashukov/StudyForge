@@ -5,15 +5,17 @@ import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 import {
   ArtifactAgentJobInput,
   ArtifactAgentJobPayload,
-  runArtifactAgentPipeline,
-} from '@study-forge/backend-artifacts/artifact-agent';
+} from '@study-forge/backend-artifacts/artifact-definition';
 import {
   runDiagramQuizLangGraphPipeline,
 } from '@study-forge/backend-artifacts/artifact-agent-langgraph';
 import {
+  runFlashcardsLangGraphPipeline,
+} from '@study-forge/backend-artifacts/artifact-agent-langgraph/flashcards';
+import {
   isArtifactKind,
   recordRefForArtifactKind,
-} from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-record-paths';
+} from '@study-forge/backend-artifacts/artifact-record-paths';
 
 interface ArtifactRecordGenerationState {
   generationStatus?: GenerationStatus;
@@ -96,13 +98,18 @@ export class ArtifactAgentGenerationProcessor {
       recordId: job.recordId,
     });
 
-    // Strangler fig router: `diagramQuiz` runs the LangGraph pipeline; all
-    // other kinds continue through the ADK pipeline. Flip this switch per
-    // spec phase 3 once LangGraph is verified.
+    // Strangler fig router: diagram-quiz and flashcards both run on
+    // LangGraph. Any other kind is invalid post-ADK removal and surfaces
+    // an explicit error.
     if (artifactKind === 'diagramQuiz') {
       await runDiagramQuizLangGraphPipeline(input);
+    } else if (artifactKind === 'flashcards') {
+      await runFlashcardsLangGraphPipeline(input);
     } else {
-      await runArtifactAgentPipeline(input);
+      throw new Error(
+        `Artifact kind "${String(artifactKind)}" has no LangGraph runner; ` +
+          'ADK has been retired for this kind.'
+      );
     }
 
     await GenerationJobPayloadStorage.delete(job.payloadStoragePath).catch((error) => {

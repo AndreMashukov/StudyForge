@@ -43,14 +43,34 @@ export async function refinerNode(
     if (!definition.refiner) {
       throw new Error('Refiner node requires definition.refiner');
     }
+    const criticResult = state[ARTIFACT_PIPELINE_STATE_KEYS.criticResult];
+    if (criticResult === undefined) {
+      throw new Error('Refiner node requires artifact_critic_result in state');
+    }
+    // Skip refinement when the critic returned a terminal verdict. The ADK
+    // RefinerAgent is a no-op for both 'fail' (do not overwrite a draft the
+    // critic already rejected) and 'pass' (no revision needed). The
+    // LangGraph port must match that contract so the verification loop
+    // converges when the critic reaches a terminal verdict.
+    if (
+      criticResult.overallVerdict === 'fail' ||
+      criticResult.overallVerdict === 'pass'
+    ) {
+      const result: RefinerNodeResult = {
+        [ARTIFACT_PIPELINE_STATE_KEYS.draft]: draft,
+      };
+      logNodeExitOk(NODE_NAME, state, currentCriticCount);
+      return result;
+    }
     const refinedDraft = await definition.refiner.refine(
       draft,
+      criticResult,
       state[ARTIFACT_PIPELINE_STATE_KEYS.context] as Parameters<
         typeof definition.refiner.refine
-      >[1],
+      >[2],
       state[ARTIFACT_PIPELINE_STATE_KEYS.diagnostics] as Parameters<
         typeof definition.refiner.refine
-      >[2]
+      >[3]
     );
 
     const result: RefinerNodeResult = {

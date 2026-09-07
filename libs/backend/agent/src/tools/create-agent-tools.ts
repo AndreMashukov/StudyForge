@@ -40,7 +40,7 @@ import {
 import { GenerationJobPayloadStorage } from '@study-forge/backend-generation/generation-job-payload-storage';
 import { GenerationJobsService } from '@study-forge/backend-generation/generation-jobs';
 import { enqueueGenerationJobTask } from '@study-forge/backend-generation/generation-task-queue';
-import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/artifact-agent';
+import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/artifact-definition';
 import type { IFlashcardJobPayload } from '@study-forge/backend-artifacts/flashcards';
 import { getDocumentFallbackColor } from '@shared-types';
 import {

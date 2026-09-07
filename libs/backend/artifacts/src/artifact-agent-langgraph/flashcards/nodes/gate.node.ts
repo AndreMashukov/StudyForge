@@ -1,6 +1,6 @@
 /** LangGraph node: evaluate the flashcards draft and persist gate diagnostics. */
-import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../artifact-pipeline-state-keys';
-import { runArtifactGates } from '../../../artifact-definition';
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../../artifact-pipeline-state-keys';
+import { runArtifactGates } from '../../../../artifact-definition';
 import { FlashcardsStateValue } from '../flashcards-state';
 import type { FlashcardsState } from '../flashcards-state';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';

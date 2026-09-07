@@ -70,5 +70,5 @@ export type {
 // module so callers do not need to know the relative path.
 export {
   ARTIFACT_PIPELINE_STATE_KEYS,
-} from '../artifact-pipeline-state-keys';
-export type { ArtifactPipelineStateKey } from '../artifact-pipeline-state-keys';
+} from '../../artifact-pipeline-state-keys';
+export type { ArtifactPipelineStateKey } from '../../artifact-pipeline-state-keys';

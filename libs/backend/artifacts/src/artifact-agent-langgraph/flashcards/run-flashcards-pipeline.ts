@@ -45,19 +45,19 @@
 import { logger } from 'firebase-functions/v2';
 import { GraphRecursionError } from '@langchain/langgraph';
 
-import { ArtifactAgentPipelineFailedError } from '../artifact-errors';
+import { ArtifactAgentPipelineFailedError } from '../../artifact-errors';
 import {
   createEmptyDiagnostics,
   type ArtifactAgentDefinition,
-} from '../artifact-definition';
-import type { ArtifactAgentJobInput } from '../artifact-job-input';
+} from '../../artifact-definition';
+import type { ArtifactAgentJobInput } from '../../artifact-job-input';
 import {
   flashcardsGraph,
   FLASHCARDS_MAX_REPAIR_ITERATIONS,
 } from './flashcards-graph';
 import {
   ARTIFACT_PIPELINE_STATE_KEYS,
-} from '../artifact-pipeline-state-keys';
+} from '../../artifact-pipeline-state-keys';
 import { createInitialFlashcardsState } from './flashcards-state';
 
 // `ARTIFACT_PIPELINE_STATE_KEYS` is the single source of truth for the

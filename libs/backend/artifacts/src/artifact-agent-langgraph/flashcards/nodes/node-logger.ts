@@ -34,7 +34,7 @@
  *     coupling.
  */
 import type { ArtifactKind } from '@shared-types';
-import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../artifact-pipeline-state-keys';
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../../artifact-pipeline-state-keys';
 import type { FlashcardsState } from '../flashcards-state';
 import { FlashcardsStateValue } from '../flashcards-state';
 

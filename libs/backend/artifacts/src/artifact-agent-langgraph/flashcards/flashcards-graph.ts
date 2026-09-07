@@ -42,8 +42,8 @@ import { END, START, StateGraph } from '@langchain/langgraph';
 import type {
   ArtifactAgentDefinition,
   ArtifactGateFailure,
-} from '../artifact-definition';
-import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
+} from '../../artifact-definition';
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
 import { finalizeNode } from '../nodes/finalize.node';
 import { gateNode } from '../nodes/gate.node';
 import { generateNode } from '../nodes/generate.node';

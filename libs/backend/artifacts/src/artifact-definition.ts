@@ -2,6 +2,7 @@ import type {
   ArtifactKind,
   IArtifactAgentDiagnostics,
   IArtifactCriticResult,
+  LlmCapabilityKey,
   RuleResolutionMode,
 } from '@shared-types';
 import type { LlmCapability } from '@study-forge/backend-llm/llm/types';
@@ -145,3 +146,94 @@ export interface ArtifactGate<TDraft> {
     context: ArtifactAgentContext
   ): Promise<ArtifactGateFailure[]>;
 }
+
+
+// ---------------------------------------------------------------------------
+// Runtime helpers relocated from `artifact-agent/artifact-agent-definition.ts`.
+// Phase D of the flashcards migration retired the legacy ADK tree; these
+// helpers belong to the canonical symbol set used by both flashcards and
+// diagram-quiz paths.
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the initial IArtifactAgentDiagnostics shape used at runner seed
+ * time. Mirrors the ADK factory's seed: kind, definition version,
+ * orchestrationMode tag, and empty attempt / usage counters.
+ */
+export function createEmptyDiagnostics(
+  definition: Pick<ArtifactAgentDefinition<unknown>, 'artifactKind' | 'agentDefinitionVersion'>
+): IArtifactAgentDiagnostics {
+  return {
+    artifactKind: definition.artifactKind,
+    agentDefinitionVersion: definition.agentDefinitionVersion,
+    orchestrationMode: 'langgraph-runner',
+    generatorAttempts: 0,
+    repairCount: 0,
+    criticCycles: 0,
+    modelUsage: [],
+    residuals: [],
+  };
+}
+
+/**
+ * Record a model-usage entry on the live diagnostics. The "langgraph-runner"
+ * orchestration tag in `createEmptyDiagnostics` is what distinguishes these
+ * entries from the legacy ADK runner's seed.
+ */
+export function recordModelUsage(
+  diagnostics: IArtifactAgentDiagnostics,
+  entry: {
+    role: 'generator' | 'repair' | 'critic' | 'refiner';
+    capability: LlmCapabilityKey;
+    model?: string;
+    durationMs?: number;
+  }
+): void {
+  diagnostics.modelUsage.push(entry);
+}
+
+/**
+ * Run a definition's gate list sequentially, accumulating failures and
+ * propagating a single blocker-free pass/fail result. Equivalent to the
+ * ADK factory's gate runner; preserved verbatim from the retired tree.
+ */
+export function runArtifactGates<TDraft>(
+  gates: ArtifactGate<TDraft>[],
+  draft: TDraft,
+  context: ArtifactAgentContext
+): Promise<ArtifactGateResult> {
+  return gates.reduce<Promise<ArtifactGateResult>>(
+    async (previousPromise, gate) => {
+      const previous = await previousPromise;
+      const failures = await gate.run(draft, context);
+      return {
+        passed: previous.passed && failures.every((failure) => failure.severity !== 'blocker'),
+        failures: [...previous.failures, ...failures],
+      };
+    },
+    Promise.resolve({ passed: true, failures: [] as ArtifactGateFailure[] })
+  );
+}
+
+/**
+ * Return true when at least one of the supplied gate failures has
+ * severity `blocker`. Used by graph nodes and finalize to decide whether
+ * a draft is still a candidate or whether the loop should route to
+ * markFailed.
+ */
+export function hasBlockerFailures(failures: ArtifactGateFailure[]): boolean {
+  return failures.some((failure) => failure.severity === 'blocker');
+}
+
+// Re-exports: co-located relocation targets (Phase A). Kept on this module
+// so callers can keep importing `from '@study-forge/backend-artifacts/artifact-definition'`
+// while the dispatcher and downstream consumers migrate to direct imports.
+export type {
+  ArtifactAgentJobInput,
+  ArtifactAgentJobPayload,
+} from './artifact-job-input';
+export { ArtifactAgentPipelineFailedError } from './artifact-errors';
+export {
+  isArtifactKind,
+  recordRefForArtifactKind,
+} from './artifact-record-paths';
