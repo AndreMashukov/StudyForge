@@ -6,6 +6,16 @@ const MERMAID_BLOCK_PATTERN =
 
 const INVALID_MERMAID_LABEL_CHARS = /\[([^\]]*[/\\@][^\]]*)\]/;
 
+/**
+ * Detects Mermaid openers that appear as indented markdown (4+ spaces) outside
+ * of <pre> blocks. `graph` / `flowchart` require a direction token so Python
+ * like `graph = StateGraph(...)` does not false-positive.
+ */
+const INDENTED_MERMAID_OPENER_PATTERN =
+  /(?:^|\n)\s{4,}(?:flowchart(?:\s+[A-Za-z]+)?|graph\s+[A-Za-z]+|sequenceDiagram|classDiagram|erDiagram|stateDiagram(?:-v2)?)\b/m;
+
+const PRE_BLOCK_PATTERN = /<pre\b[^>]*>[\s\S]*?<\/pre>/gi;
+
 export function extractMermaidBlocks(htmlFragment: string): string[] {
   const blocks: string[] = [];
   for (const match of htmlFragment.matchAll(MERMAID_BLOCK_PATTERN)) {
@@ -14,6 +24,10 @@ export function extractMermaidBlocks(htmlFragment: string): string[] {
     }
   }
   return blocks;
+}
+
+function stripPreBlocks(htmlFragment: string): string {
+  return htmlFragment.replace(PRE_BLOCK_PATTERN, '');
 }
 
 export function validateMermaidBlocks(htmlFragment: string): ValidationFinding[] {
@@ -50,8 +64,11 @@ export function validateMermaidBlocks(htmlFragment: string): ValidationFinding[]
     }
   }
 
-  const indentedMermaidPattern = /(?:^|\n)\s{4,}(flowchart|graph|sequenceDiagram|classDiagram)/m;
-  if (indentedMermaidPattern.test(htmlFragment) && blocks.length === 0) {
+  const htmlOutsidePre = stripPreBlocks(htmlFragment);
+  if (
+    INDENTED_MERMAID_OPENER_PATTERN.test(htmlOutsidePre) &&
+    blocks.length === 0
+  ) {
     findings.push({
       severity: 'error',
       code: 'MERMAID_INDENTED_BLOCK',
