@@ -15,8 +15,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { ArtifactGateFailure } from '../artifact-definition';
-import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
+import type { ArtifactGateFailure } from '../../../artifact-definition';
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../artifact-pipeline-state-keys';
 import {
   FLASHCARDS_NODE_NAMES,
   routeAfterGenerate,

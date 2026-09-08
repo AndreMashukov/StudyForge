@@ -1,9 +1,9 @@
 /** LangGraph node: finalize the flashcards artifact and set the terminal outcome. */
-import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../../artifact-pipeline-state-keys';
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../artifact-pipeline-state-keys';
 import type {
   ArtifactAgentFailure,
   ArtifactAgentResult,
-} from '../../../../artifact-definition';
+} from '../../../artifact-definition';
 import { FlashcardsStateValue } from '../flashcards-state';
 import type { FlashcardsState } from '../flashcards-state';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';

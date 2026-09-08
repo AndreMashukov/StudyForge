@@ -54,9 +54,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GraphRecursionError } from '@langchain/langgraph';
 
-import { ArtifactAgentPipelineFailedError } from '../../artifact-errors';
-import type { ArtifactAgentJobInput } from '../../artifact-job-input';
-import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
+import { ArtifactAgentPipelineFailedError } from '../../../artifact-errors';
+import type { ArtifactAgentJobInput } from '../../../artifact-job-input';
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../artifact-pipeline-state-keys';
 
 // Mock the compiled graph so the runner test does not need the full
 // LangGraph runtime, Firestore, or Gemini. Each test controls whether

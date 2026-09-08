@@ -37,9 +37,9 @@ import type {
   ArtifactAgentContext,
   ArtifactAgentDefinition,
   ArtifactGateFailure,
-} from '../artifact-definition';
-import type { ArtifactAgentJobInput } from '../artifact-job-input';
-import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
+} from '../../../artifact-definition';
+import type { ArtifactAgentJobInput } from '../../../artifact-job-input';
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../artifact-pipeline-state-keys';
 import type { FlashcardsState } from '../flashcards-state';
 import { finalizeNode } from '../nodes/finalize.node';
 

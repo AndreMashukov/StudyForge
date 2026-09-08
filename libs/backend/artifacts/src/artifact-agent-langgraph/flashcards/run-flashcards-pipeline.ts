@@ -59,6 +59,11 @@ import {
   ARTIFACT_PIPELINE_STATE_KEYS,
 } from '../../artifact-pipeline-state-keys';
 import { createInitialFlashcardsState } from './flashcards-state';
+// Late import to avoid circular dependency at module load time. The
+// registry holds the canonical flashcards definition registered at
+// module-init by `../../artifact-registry`; the graph reads the same
+// definition off state via the `artifact_definition` channel.
+import { ArtifactAgentRegistry } from '../../artifact-registry';
 
 // `ARTIFACT_PIPELINE_STATE_KEYS` is the single source of truth for the
 // Firestore `session.state` key contract. Both the ADK factory and this
@@ -334,10 +339,14 @@ export async function runFlashcardsLangGraphPipeline(
  * callers always go through the factory.
  */
 function createFlashcardsDefinition(): FlashcardsLangGraphDefinition {
-  // The flashcards graph nodes cast through the generic
-  // `ArtifactAgentDefinition<unknown, unknown>` signature. The runtime
-  // definition is provided by the dispatcher / job-input when this runner
-  // is invoked; the graph does not require the definition to expose
-  // additional methods at compile time.
-  return {} as FlashcardsLangGraphDefinition;
+  // The flashcards definition is registered at module-init by
+  // `../../artifact-registry`. Returning `{} as FlashcardsLangGraphDefinition`
+  // would silently break every loadContext / generate / gate / finalize /
+  // markFailed / persistCompleted call because the graph nodes call those
+  // methods on the seeded `artifact_definition` channel. Resolve from the
+  // registry instead. The function is kept exported only for tests and to
+  // match the diagram-quiz runner surface; non-test callers should use the
+  // registry directly.
+  return ArtifactAgentRegistry.get<unknown, unknown>('flashcards');
+}
 }

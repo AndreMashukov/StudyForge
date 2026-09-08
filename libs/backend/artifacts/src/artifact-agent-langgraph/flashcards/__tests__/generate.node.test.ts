@@ -57,9 +57,9 @@ import type { IArtifactAgentDiagnostics } from '@shared-types';
 import type {
   ArtifactAgentContext,
   ArtifactAgentDefinition,
-} from '../artifact-definition';
-import type { ArtifactAgentJobInput } from '../artifact-job-input';
-import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
+} from '../../../artifact-definition';
+import type { ArtifactAgentJobInput } from '../../../artifact-job-input';
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../artifact-pipeline-state-keys';
 import { generateNode } from '../nodes/generate.node';
 import type { FlashcardsState } from '../flashcards-state';
 

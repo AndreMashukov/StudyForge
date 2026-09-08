@@ -2,9 +2,9 @@
 import type {
   ArtifactAgentContext,
   ArtifactAgentDefinition,
-} from '../../../../artifact-definition';
-import type { ArtifactAgentJobInput } from '../../../../artifact-job-input';
-import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../../artifact-pipeline-state-keys';
+} from '../../../artifact-definition';
+import type { ArtifactAgentJobInput } from '../../../artifact-job-input';
+import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../../artifact-pipeline-state-keys';
 import { FlashcardsStateValue } from '../flashcards-state';
 import type { FlashcardsState } from '../flashcards-state';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
