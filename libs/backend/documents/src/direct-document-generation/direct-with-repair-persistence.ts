@@ -9,7 +9,7 @@ import {
   formatGenerationModelLabel,
   toGenerationModelUsage,
 } from '@study-forge/backend-llm/llm';
-import { createEmptyDiagnostics } from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-definition';
+import { createEmptyDiagnostics } from '@study-forge/backend-artifacts/artifact-definition';
 import type { GenerationJob } from '@study-forge/backend-generation/generation-jobs';
 import { DocumentCrudService } from '../document-crud';
 import { DocumentAgentPipelineFailedError } from '../document-agent/document-agent-errors';

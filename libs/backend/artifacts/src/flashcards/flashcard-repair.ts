@@ -1,5 +1,5 @@
-import type { ArtifactRepairStrategy } from '../artifact-agent/artifact-agent-definition';
-import { recordModelUsage } from '../artifact-agent/artifact-agent-definition';
+import type { ArtifactRepairStrategy } from '../artifact-definition';
+import { recordModelUsage } from '../artifact-definition';
 import type {
   IFlashcardCardDraft,
   IFlashcardDraft,

@@ -22,7 +22,7 @@ import { GenerationJobPayloadStorage } from "@study-forge/backend-generation/gen
 import { GenerationJobsService } from '@study-forge/backend-generation/generation-jobs';
 import { enqueueGenerationJobTask } from '@study-forge/backend-generation/generation-task-queue';
 import { buildStartGenerationPayload } from '@study-forge/backend-core/lib/start-generation-response';
-import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/artifact-agent';
+import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/artifact-definition';
 import {
   GenerateDiagramQuizRequest,
   GenerateDiagramQuizResponse,

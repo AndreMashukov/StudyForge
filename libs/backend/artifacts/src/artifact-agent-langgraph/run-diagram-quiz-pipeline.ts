@@ -29,12 +29,13 @@
 import { logger } from 'firebase-functions/v2';
 import { GraphRecursionError } from '@langchain/langgraph';
 
-import { ArtifactAgentPipelineFailedError } from '../artifact-agent/artifact-agent-errors';
+import { ArtifactAgentPipelineFailedError } from '../artifact-errors';
 import {
   createEmptyDiagnostics,
   type ArtifactAgentDefinition,
   type ArtifactAgentJobInput,
-} from '../artifact-agent/artifact-agent-definition';
+} from '../artifact-definition';
+import { diagramQuizDefinition } from '../diagram-quiz/diagram-quiz-definition';
 import { diagramQuizGraph } from './diagram-quiz-graph';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
 import { createInitialDiagramQuizState } from './diagram-quiz-state';
@@ -112,14 +113,6 @@ function readFinalFailureMessage(finalState: Record<string, unknown>): string {
     : 'Automated verification failed';
 }
 
-// Late import to avoid a circular dependency at module load time. The
-// registry re-exports the diagram-quiz definition from
-// `../diagram-quiz/diagram-quiz-definition` and the LangGraph graph reads
-// the same definition out of state. Importing the registry here, scoped
-// to this file, keeps the entry point self-contained while letting the
-// graph module remain testable in isolation.
-import { ArtifactAgentRegistry } from '../artifact-agent/artifact-agent-registry';
-
 /**
  * Run the LangGraph-backed diagram-quiz pipeline for a single generation
  * job. This is the entry point the Firebase Functions v2 endpoint calls
@@ -167,8 +160,7 @@ export async function runDiagramQuizLangGraphPipeline(
     );
   }
 
-  const definition =
-    ArtifactAgentRegistry.get<unknown, unknown>('diagramQuiz');
+  const definition = diagramQuizDefinition;
 
   logger.info('Starting diagram-quiz LangGraph pipeline', {
     artifactKind: input.artifactKind,

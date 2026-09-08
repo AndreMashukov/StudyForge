@@ -19,9 +19,10 @@ Use this skill when changing a LangGraph artifact graph. Read `.claude/rules/lan
 
 ## When adding another artifact kind
 
-- Reuse the same state keys, runner contract, and node rules.
+- Add a kind-specific graph, state schema, runner, and nodes under `artifact-agent-langgraph/<kind>/`.
+- Reuse the shared `ARTIFACT_PIPELINE_STATE_KEYS` durable channels and the `ArtifactAgentDefinition` strategy object from `libs/backend/artifacts/src/`.
 - Change dispatch in one place (`libs/backend/generation/src/generation-processors/artifact-agent.ts`).
-- Do not copy a second state schema or a second invoke style.
+- Do not share node modules across kinds unless the behavior is truly identical.
 
 ## Verify before merge
 

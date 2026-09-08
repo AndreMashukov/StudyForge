@@ -75,7 +75,7 @@ A document or artifact Firestore record created before generation finishes, with
 _Avoid_: stub, placeholder record
 
 **Artifact agent platform**:
-Shared server-side pipeline (ADK-orchestrated) that generates an artifact, runs verification gates, self-repairs failures, and only marks the record completed when gates pass.
+Shared server-side LangGraph pipeline that generates an artifact, runs verification gates, self-repairs failures, and only marks the record completed when gates pass. Diagram quiz and flashcards use kind-specific graphs under `artifact-agent-langgraph`.
 _Avoid_: agent service, generation pipeline (when meaning this specific platform)
 
 ## AI routing

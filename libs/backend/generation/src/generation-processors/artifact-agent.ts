@@ -5,15 +5,15 @@ import { GenerationJobPayloadStorage } from '../generation-job-payload-storage';
 import {
   ArtifactAgentJobInput,
   ArtifactAgentJobPayload,
-  runArtifactAgentPipeline,
-} from '@study-forge/backend-artifacts/artifact-agent';
+} from '@study-forge/backend-artifacts/artifact-definition';
 import {
   runDiagramQuizLangGraphPipeline,
+  runFlashcardsPipeline,
 } from '@study-forge/backend-artifacts/artifact-agent-langgraph';
 import {
   isArtifactKind,
   recordRefForArtifactKind,
-} from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-record-paths';
+} from '@study-forge/backend-artifacts/artifact-record-paths';
 
 interface ArtifactRecordGenerationState {
   generationStatus?: GenerationStatus;
@@ -96,13 +96,12 @@ export class ArtifactAgentGenerationProcessor {
       recordId: job.recordId,
     });
 
-    // Strangler fig router: `diagramQuiz` runs the LangGraph pipeline; all
-    // other kinds continue through the ADK pipeline. Flip this switch per
-    // spec phase 3 once LangGraph is verified.
     if (artifactKind === 'diagramQuiz') {
       await runDiagramQuizLangGraphPipeline(input);
+    } else if (artifactKind === 'flashcards') {
+      await runFlashcardsPipeline(input);
     } else {
-      await runArtifactAgentPipeline(input);
+      throw new Error(`Unsupported artifact kind: ${artifactKind}`);
     }
 
     await GenerationJobPayloadStorage.delete(job.payloadStoragePath).catch((error) => {

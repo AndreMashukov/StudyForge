@@ -35,7 +35,7 @@ import {
   hasBlockerFailures,
   type ArtifactAgentDefinition,
   type ArtifactGateFailure,
-} from '../artifact-agent/artifact-agent-definition';
+} from '../artifact-definition';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
 import { criticNode } from './nodes/critic.node';
 import { finalizeNode } from './nodes/finalize.node';

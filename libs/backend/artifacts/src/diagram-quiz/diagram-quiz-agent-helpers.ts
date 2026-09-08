@@ -8,8 +8,8 @@ import type {
   ArtifactAgentContext,
   ArtifactGateFailure,
   ArtifactRepairStrategy,
-} from '../artifact-agent/artifact-agent-definition';
-import { recordModelUsage } from '../artifact-agent/artifact-agent-definition';
+} from '../artifact-definition';
+import { recordModelUsage } from '../artifact-definition';
 import type { IDiagramQuizDraft } from './diagram-quiz-types';
 import { getFirstRepairTarget, trackDiagramQuizArtifactDetails } from './diagram-quiz-gates';
 
