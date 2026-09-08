@@ -349,4 +349,3 @@ function createFlashcardsDefinition(): FlashcardsLangGraphDefinition {
   // registry directly.
   return ArtifactAgentRegistry.get<unknown, unknown>('flashcards');
 }
-}
