@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ArtifactAgentPipelineFailedError } from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-errors';
+import { ArtifactAgentPipelineFailedError } from '@study-forge/backend-artifacts/artifact-errors';
 import { RateLimitError } from '@study-forge/backend-core/services/api-rate-limit';
 import {
   formatGenerationError,

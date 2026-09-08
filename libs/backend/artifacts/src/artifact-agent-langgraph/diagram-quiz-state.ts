@@ -55,7 +55,7 @@ import type {
   ArtifactAgentDefinition,
   ArtifactAgentJobInput,
   ArtifactGateFailure,
-} from '../artifact-agent/artifact-agent-definition';
+} from '../artifact-definition';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../artifact-pipeline-state-keys';
 
 /**

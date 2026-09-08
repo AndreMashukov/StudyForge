@@ -13,8 +13,8 @@ import type {
   ArtifactAgentJobInput,
   ArtifactAgentResult,
   ArtifactAgentFailure,
-} from '../artifact-agent/artifact-agent-definition';
-import { recordModelUsage } from '../artifact-agent/artifact-agent-definition';
+} from '../artifact-definition';
+import { recordModelUsage } from '../artifact-definition';
 import { flashcardGates } from './flashcard-gates';
 import { flashcardRepairStrategy } from './flashcard-repair';
 import type { IFlashcardDraft, IFlashcardJobPayload } from './flashcard-types';
@@ -33,7 +33,7 @@ function readStringArray(value: unknown): string[] | undefined {
 
 async function loadFlashcardContext(
   input: ArtifactAgentJobInput<IFlashcardJobPayload>
-): Promise<import('../artifact-agent/artifact-agent-definition').ArtifactAgentContext> {
+): Promise<import('../artifact-definition').ArtifactAgentContext> {
   const payload = input.payload;
   const documentIds = payload.documentIds;
   if (!documentIds.length) {

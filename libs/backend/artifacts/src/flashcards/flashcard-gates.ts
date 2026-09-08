@@ -1,7 +1,7 @@
 import type {
   ArtifactGate,
   ArtifactGateFailure,
-} from '../artifact-agent/artifact-agent-definition';
+} from '../artifact-definition';
 import type { IFlashcardDraft } from './flashcard-types';
 import {
   LANGUAGE_LEARNING_CONFIDENCE_THRESHOLD,

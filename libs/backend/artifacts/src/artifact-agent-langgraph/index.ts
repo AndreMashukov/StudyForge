@@ -22,6 +22,7 @@
  * `./nodes/...` and document the dependency.
  */
 export { runDiagramQuizLangGraphPipeline } from './run-diagram-quiz-pipeline';
+export { runFlashcardsPipeline } from './flashcards';
 export type { DiagramQuizLangGraphDefinition } from './run-diagram-quiz-pipeline';
 
 // State shape and helpers. Re-exported so callers building checkpointer

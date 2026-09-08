@@ -9,7 +9,7 @@ import {
   toGenerationModelUsage,
 } from '@study-forge/backend-llm/llm';
 import { isRuleResolutionMode, resolveEffectiveRules } from '@study-forge/backend-directories/rule-resolution';
-import { createEmptyDiagnostics, recordModelUsage } from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-definition';
+import { createEmptyDiagnostics, recordModelUsage } from '@study-forge/backend-artifacts/artifact-definition';
 import type { GenerationJob } from '@study-forge/backend-generation/generation-jobs';
 
 const AGENT_DEFINITION_VERSION = 'screenshot-document-v1';

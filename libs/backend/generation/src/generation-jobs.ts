@@ -12,7 +12,7 @@ import { MAX_GENERATION_JOB_ATTEMPTS } from './generation-job-retry';
 import {
   isArtifactKind,
   recordRefForArtifactKind,
-} from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-record-paths';
+} from '@study-forge/backend-artifacts/artifact-record-paths';
 
 export type GenerationJobKind =
   | 'documentFromPrompt'

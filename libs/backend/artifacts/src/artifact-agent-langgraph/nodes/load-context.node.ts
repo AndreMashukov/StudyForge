@@ -3,7 +3,7 @@ import type {
   ArtifactAgentContext,
   ArtifactAgentDefinition,
   ArtifactAgentJobInput,
-} from '../../artifact-agent/artifact-agent-definition';
+} from '../../artifact-definition';
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
 import type { DiagramQuizState } from '../diagram-quiz-state';
 import { DiagramQuizStateValue } from '../diagram-quiz-state';

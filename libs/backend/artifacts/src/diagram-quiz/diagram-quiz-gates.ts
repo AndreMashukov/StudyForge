@@ -13,7 +13,7 @@ import type {
   ArtifactAgentContext,
   ArtifactGate,
   ArtifactGateFailure,
-} from '../artifact-agent/artifact-agent-definition';
+} from '../artifact-definition';
 import type { IDiagramQuizDraft } from './diagram-quiz-types';
 
 const MAX_NODES_HEURISTIC = 12;

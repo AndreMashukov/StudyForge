@@ -2,11 +2,10 @@
  * Shared keys for the artifact pipeline session state.
  *
  * This module is the single source of truth for the `session.state` shape
- * consumed by the artifact pipeline. Both the legacy ADK implementation
- * (`libs/backend/artifacts/src/artifact-agent/`) and the LangGraph
- * implementation (`libs/backend/artifacts/src/artifact-agent-langgraph/`)
- * import these keys so that any divergence in the state contract surfaces
- * at compile time rather than at runtime.
+ * consumed by the artifact pipeline. LangGraph implementations under
+ * `libs/backend/artifacts/src/artifact-agent-langgraph/` import these keys
+ * so that any divergence in the state contract surfaces at compile time
+ * rather than at runtime.
  *
  * Contract lock: these string keys are part of the durable Firestore
  * `session.state` shape and must not change without a coordinated

@@ -1,7 +1,7 @@
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { onTaskDispatched } from 'firebase-functions/v2/tasks';
-import { ArtifactAgentPipelineFailedError } from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-errors';
+import { ArtifactAgentPipelineFailedError } from '@study-forge/backend-artifacts/artifact-errors';
 import { DocumentAgentPipelineFailedError } from '@study-forge/backend-documents/document-agent/document-agent-errors';
 import { DocumentAgentGenerationProcessor } from '@study-forge/backend-generation/generation-processors/document-agent';
 import { failVisibleGenerationRecord } from '@study-forge/backend-generation/generation-job-failures';

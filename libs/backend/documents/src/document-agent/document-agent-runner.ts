@@ -6,7 +6,7 @@ import type {
 } from '@shared-types';
 import { buildFaithfulHtmlConversionPrompt } from '@shared-types';
 import type { GenerationJob } from '@study-forge/backend-generation/generation-jobs';
-import { createEmptyDiagnostics } from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-definition';
+import { createEmptyDiagnostics } from '@study-forge/backend-artifacts/artifact-definition';
 import { resolveEffectiveRules } from '@study-forge/backend-directories/rule-resolution';
 import { RuleApplicability } from '@shared-types';
 import {

@@ -18,8 +18,8 @@ import type {
   ArtifactAgentJobInput,
   ArtifactAgentResult,
   ArtifactAgentFailure,
-} from '../artifact-agent/artifact-agent-definition';
-import { recordModelUsage } from '../artifact-agent/artifact-agent-definition';
+} from '../artifact-definition';
+import { recordModelUsage } from '../artifact-definition';
 import { diagramQuizGates } from './diagram-quiz-gates';
 import {
   diagramQuizCriticStrategy,
@@ -32,7 +32,7 @@ const AGENT_DEFINITION_VERSION = 'diagram-quiz-v1';
 
 async function loadDiagramQuizContext(
   input: ArtifactAgentJobInput<IDiagramQuizJobPayload>
-): Promise<import('../artifact-agent/artifact-agent-definition').ArtifactAgentContext> {
+): Promise<import('../artifact-definition').ArtifactAgentContext> {
   const payload = input.payload;
   const documentIds = payload.documentIds;
   if (!documentIds.length) {

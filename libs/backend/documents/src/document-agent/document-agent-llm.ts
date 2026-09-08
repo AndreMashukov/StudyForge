@@ -4,7 +4,7 @@ import type { IFileContent, IArtifactAgentDiagnostics } from '@shared-types';
 import { buildHtmlDocumentPrompt, buildSealedHtmlOutputContract } from '@shared-types';
 import { LlmGenerationService } from '@study-forge/backend-llm/llm';
 import { resolveTextRoute } from '@study-forge/backend-llm/llm/llm-text-runner';
-import { recordModelUsage } from '@study-forge/backend-artifacts/artifact-agent/artifact-agent-definition';
+import { recordModelUsage } from '@study-forge/backend-artifacts/artifact-definition';
 import type { DocumentRule } from '../document-html/types';
 import { formatValidationFindings } from '../document-html/types';
 
