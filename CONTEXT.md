@@ -160,6 +160,14 @@ _Avoid_: ADK memory (when meaning the StudyForge thread), planner history
 Conversational assistant scoped to a directory and its documents/artifacts. Uses follow-up rules and artifact context. Distinct from the workspace agent and directory-scoped agent panels.
 _Avoid_: folder chat, library chat
 
+**Directory chat thread**:
+Durable Firestore transcript for directory chat: a thread document plus its message subcollection. Distinct from an **agent session** or workspace-agent thread.
+_Avoid_: chat session (when meaning directory chat), ADK thread
+
+**Conversation summary**:
+Rolling text stored on a **directory chat thread** that covers older turns (all but the last 8 messages), truncated for prompt assembly. Writing a summary does not delete messages from the thread.
+_Avoid_: thread summary (alone), chat memory
+
 ## Plans and billing
 
 **Usage limits setup**:

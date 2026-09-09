@@ -1,0 +1,3 @@
+export const SUMMARY_TRIGGER_MESSAGE_COUNT = 12;
+export const SUMMARY_RECENT_MESSAGE_COUNT = 8;
+export const SUMMARY_MAX_CHARS = 6000;

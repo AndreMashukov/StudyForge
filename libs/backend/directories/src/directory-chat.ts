@@ -11,13 +11,11 @@ import { computeExpiresAt } from '@study-forge/backend-core/lib/firestore-ttl';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { directoryService } from './directory';
 import { DirectoryChatContextAssembler } from './directory-chat-context-assembler';
-import { LlmGenerationService } from '@study-forge/backend-llm/llm';
+import { DIRECTORY_CHAT_PIPELINE_STATE_KEYS } from './directory-chat-pipeline-state-keys';
+import { runDirectoryChatGraphPipeline } from './directory-chat-langgraph';
 
 const MAX_USER_MESSAGE_LENGTH = 4000;
 const MAX_MESSAGES_RETURNED = 200;
-const SUMMARY_TRIGGER_MESSAGE_COUNT = 12;
-const SUMMARY_RECENT_MESSAGE_COUNT = 8;
-const SUMMARY_MAX_CHARS = 6000;
 
 interface StoredChatMessage {
   role: 'user' | 'assistant';
@@ -176,31 +174,28 @@ export class DirectoryChatService {
       ...(artifactContext ? { artifactContext } : {}),
     });
 
-    const answer = await LlmGenerationService.generateDirectoryChatAnswer(userId, promptContext);
-    const assistantNow = new Date();
-    const assistantMessageRef = FirestorePaths.directoryChatMessages(userId, directoryId).doc();
-    const assistantMessage: DirectoryChatMessage = {
-      id: assistantMessageRef.id,
-      role: 'assistant',
-      content: answer,
-      createdAt: assistantNow.toISOString(),
-    };
-
-    await assistantMessageRef.set({
-      role: 'assistant',
-      content: answer,
-      createdAt: Timestamp.fromDate(assistantNow),
-      expiresAt: computeExpiresAt(assistantNow, 'directoryChat'),
-    });
-
-    const messages = [...previousMessages, userMessage, assistantMessage];
-    const nextSummary = await this.updateThreadAfterMessage(
-      userId,
-      directoryId,
-      messages,
-      summary,
-      sourceState.selectedDocumentIds
+    const threadId = `${userId}:${directoryId}`;
+    const graphResult = await runDirectoryChatGraphPipeline(
+      {
+        [DIRECTORY_CHAT_PIPELINE_STATE_KEYS.userId]: userId,
+        [DIRECTORY_CHAT_PIPELINE_STATE_KEYS.directoryId]: directoryId,
+        [DIRECTORY_CHAT_PIPELINE_STATE_KEYS.threadId]: threadId,
+        [DIRECTORY_CHAT_PIPELINE_STATE_KEYS.assembledPrompt]: promptContext,
+        [DIRECTORY_CHAT_PIPELINE_STATE_KEYS.messages]: [...previousMessages, userMessage],
+        [DIRECTORY_CHAT_PIPELINE_STATE_KEYS.summaryText]: summary,
+        [DIRECTORY_CHAT_PIPELINE_STATE_KEYS.selectedDocumentIds]:
+          sourceState.selectedDocumentIds,
+      },
+      threadId
     );
+
+    const assistantMessage = graphResult[DIRECTORY_CHAT_PIPELINE_STATE_KEYS.assistantMessage];
+    if (!assistantMessage) {
+      throw new Error('Directory chat pipeline did not produce an assistant message');
+    }
+
+    const messages = graphResult[DIRECTORY_CHAT_PIPELINE_STATE_KEYS.messages];
+    const nextSummary = graphResult[DIRECTORY_CHAT_PIPELINE_STATE_KEYS.summaryText];
 
     return {
       directoryId,
@@ -341,48 +336,6 @@ export class DirectoryChatService {
       },
       { merge: true }
     );
-  }
-
-  private static async updateThreadAfterMessage(
-    userId: string,
-    directoryId: string,
-    messages: DirectoryChatMessage[],
-    currentSummary?: string,
-    selectedDocumentIds?: string[]
-  ): Promise<string | undefined> {
-    const nextSummary = this.buildRollingSummary(messages, currentSummary);
-    const threadUpdatedAt = new Date();
-
-    await FirestorePaths.directoryChatThread(userId, directoryId).set(
-      {
-        directoryId,
-        updatedAt: FieldValue.serverTimestamp(),
-        expiresAt: computeExpiresAt(threadUpdatedAt, 'directoryChat'),
-        ...(nextSummary ? { summary: nextSummary } : {}),
-        ...(selectedDocumentIds ? { selectedDocumentIds } : {}),
-      },
-      { merge: true }
-    );
-
-    return nextSummary;
-  }
-
-  private static buildRollingSummary(
-    messages: DirectoryChatMessage[],
-    currentSummary?: string
-  ): string | undefined {
-    if (messages.length <= SUMMARY_TRIGGER_MESSAGE_COUNT) {
-      return currentSummary;
-    }
-
-    const olderMessages = messages.slice(0, -SUMMARY_RECENT_MESSAGE_COUNT);
-    const summaryText = olderMessages
-      .map((message) => `${message.role === 'user' ? 'User' : 'Assistant'}: ${message.content}`)
-      .join('\n\n');
-
-    return summaryText.length > SUMMARY_MAX_CHARS
-      ? `${summaryText.slice(summaryText.length - SUMMARY_MAX_CHARS)}\n[Earlier chat compressed]`
-      : summaryText;
   }
 
   private static async getMessages(userId: string, directoryId: string): Promise<DirectoryChatMessage[]> {
