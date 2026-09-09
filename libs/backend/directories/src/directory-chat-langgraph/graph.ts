@@ -3,6 +3,7 @@ import { DirectoryChatStateAnnotation } from './state';
 import {
   DIRECTORY_CHAT_NODE_NAMES,
   routeAfterMaybeSummarize,
+  routeAfterSummarize,
 } from './routes';
 import { respondNode } from './nodes/respond';
 import { maybeSummarizeNode } from './nodes/maybe-summarize';
@@ -26,7 +27,14 @@ export function buildDirectoryChatGraph() {
         [END]: END,
       }
     )
-    .addEdge(DIRECTORY_CHAT_NODE_NAMES.summarize, DIRECTORY_CHAT_NODE_NAMES.persist)
+    .addConditionalEdges(
+      DIRECTORY_CHAT_NODE_NAMES.summarize,
+      routeAfterSummarize,
+      {
+        [DIRECTORY_CHAT_NODE_NAMES.persist]: DIRECTORY_CHAT_NODE_NAMES.persist,
+        [END]: END,
+      }
+    )
     .addEdge(DIRECTORY_CHAT_NODE_NAMES.persist, END)
     .compile();
 }

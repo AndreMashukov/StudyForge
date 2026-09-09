@@ -2,6 +2,7 @@ export { buildDirectoryChatGraph, compiledDirectoryChatGraph } from './graph';
 export {
   DIRECTORY_CHAT_NODE_NAMES,
   routeAfterMaybeSummarize,
+  routeAfterSummarize,
 } from './routes';
 export {
   DirectoryChatPipelineFailedError,

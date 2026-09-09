@@ -5,6 +5,7 @@ import { DIRECTORY_CHAT_PIPELINE_STATE_KEYS } from '../directory-chat-pipeline-s
 import {
   DIRECTORY_CHAT_NODE_NAMES,
   routeAfterMaybeSummarize,
+  routeAfterSummarize,
 } from './routes';
 import type { DirectoryChatState } from './state';
 
@@ -43,5 +44,23 @@ describe('routeAfterMaybeSummarize', () => {
         })
       )
     ).toBe(DIRECTORY_CHAT_NODE_NAMES.persist);
+  });
+});
+
+describe('routeAfterSummarize', () => {
+  it('routes to END when the run is already failed', () => {
+    expect(
+      routeAfterSummarize(
+        routeState({
+          [DIRECTORY_CHAT_PIPELINE_STATE_KEYS.directoryChatOutcome]: 'failed',
+        })
+      )
+    ).toBe(END);
+  });
+
+  it('routes to persist when summarization succeeded', () => {
+    expect(routeAfterSummarize(routeState({}))).toBe(
+      DIRECTORY_CHAT_NODE_NAMES.persist
+    );
   });
 });

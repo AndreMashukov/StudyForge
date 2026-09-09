@@ -14,6 +14,10 @@ export type RouteAfterMaybeSummarizeTarget =
   | typeof DIRECTORY_CHAT_NODE_NAMES.persist
   | typeof END;
 
+export type RouteAfterSummarizeTarget =
+  | typeof DIRECTORY_CHAT_NODE_NAMES.persist
+  | typeof END;
+
 function readOutcome(state: DirectoryChatState): string | undefined {
   const value = state[DIRECTORY_CHAT_PIPELINE_STATE_KEYS.directoryChatOutcome];
   return typeof value === 'string' ? value : undefined;
@@ -33,4 +37,14 @@ export function routeAfterMaybeSummarize(
   return readShouldSummarize(state)
     ? DIRECTORY_CHAT_NODE_NAMES.summarize
     : DIRECTORY_CHAT_NODE_NAMES.persist;
+}
+
+export function routeAfterSummarize(
+  state: DirectoryChatState
+): RouteAfterSummarizeTarget {
+  if (readOutcome(state) === 'failed') {
+    return END;
+  }
+
+  return DIRECTORY_CHAT_NODE_NAMES.persist;
 }

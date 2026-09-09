@@ -30,18 +30,23 @@ export async function persistNode(
       };
     }
 
+    const messageRef = FirestorePaths.directoryChatMessages(userId, directoryId).doc(
+      assistantMessage.id
+    );
+    const threadRef = FirestorePaths.directoryChatThread(userId, directoryId);
+    const batch = messageRef.firestore.batch();
+
     const assistantCreatedAt = new Date(assistantMessage.createdAt);
-    await FirestorePaths.directoryChatMessages(userId, directoryId)
-      .doc(assistantMessage.id)
-      .set({
-        role: 'assistant',
-        content: assistantMessage.content,
-        createdAt: Timestamp.fromDate(assistantCreatedAt),
-        expiresAt: computeExpiresAt(assistantCreatedAt, 'directoryChat'),
-      });
+    batch.set(messageRef, {
+      role: 'assistant',
+      content: assistantMessage.content,
+      createdAt: Timestamp.fromDate(assistantCreatedAt),
+      expiresAt: computeExpiresAt(assistantCreatedAt, 'directoryChat'),
+    });
 
     const threadUpdatedAt = new Date();
-    await FirestorePaths.directoryChatThread(userId, directoryId).set(
+    batch.set(
+      threadRef,
       {
         directoryId,
         updatedAt: FieldValue.serverTimestamp(),
@@ -53,6 +58,8 @@ export async function persistNode(
       },
       { merge: true }
     );
+
+    await batch.commit();
 
     const result = {
       [DIRECTORY_CHAT_PIPELINE_STATE_KEYS.directoryChatOutcome]: 'completed',

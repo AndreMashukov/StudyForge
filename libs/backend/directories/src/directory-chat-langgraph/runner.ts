@@ -34,15 +34,12 @@ export async function runDirectoryChatGraphPipeline(
   let finalState: DirectoryChatState;
 
   try {
-    finalState = (await compiledDirectoryChatGraph.invoke(
-      initialState as Record<string, unknown>,
-      {
-        recursionLimit: 25,
-        configurable: {
-          thread_id: threadId,
-        },
-      }
-    )) as DirectoryChatState;
+    finalState = await compiledDirectoryChatGraph.invoke(initialState, {
+      recursionLimit: 25,
+      configurable: {
+        thread_id: threadId,
+      },
+    });
   } catch (error) {
     if (error instanceof GraphRecursionError) {
       throw new DirectoryChatPipelineFailedError(
