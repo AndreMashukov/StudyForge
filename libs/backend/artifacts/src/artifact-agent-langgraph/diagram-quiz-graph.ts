@@ -72,10 +72,7 @@ export type DiagramQuizNodeName =
  * Conditional edge targets after `gate`. Hard-coded as a string literal
  * union so the `addConditionalEdges` mapping is statically verifiable.
  */
-export type RouteAfterGateTarget =
-  | 'repair'
-  | 'refiner'
-  | 'finalize';
+export type RouteAfterGateTarget = 'repair' | 'refiner' | 'finalize';
 
 /**
  * Conditional edge targets after `critic`. Hard-coded as a string literal
@@ -133,11 +130,11 @@ function readGateFailures(state: DiagramQuizState): ArtifactGateFailure[] {
 
 /**
  * Read the critic result off the state. Returns `undefined` when the critic
- * has not yet run so the conditional edge can route to `finalize` on first
- * entry.
+ * has not yet run. First entry into the verification loop is `gate` to
+ * `refiner`; that visit is a no-op until a critic result exists.
  */
 function readCriticResult(
-  state: DiagramQuizState
+  state: DiagramQuizState,
 ): IArtifactCriticResult | undefined {
   const value = (state as Record<string, unknown>)[
     ARTIFACT_PIPELINE_STATE_KEYS.criticResult
@@ -166,7 +163,7 @@ function readArtifactOutcome(state: DiagramQuizState): string | undefined {
  * is the only place that knows whether `critic` and `refiner` are configured.
  */
 function readDefinition(
-  state: DiagramQuizState
+  state: DiagramQuizState,
 ): ArtifactAgentDefinition<unknown, unknown> | undefined {
   const value = (state as Record<string, unknown>)[
     ARTIFACT_PIPELINE_STATE_KEYS.definition
@@ -261,7 +258,7 @@ export function routeAfterGate(state: DiagramQuizState): RouteAfterGateTarget {
  * separate from the `critic` node's state updates.
  */
 export function routeAfterCritic(
-  state: DiagramQuizState
+  state: DiagramQuizState,
 ): RouteAfterCriticTarget {
   // P4: short-circuit to finalize when a node has already marked the run
   // as terminally failed. A refiner or critic node that detects an
@@ -328,7 +325,7 @@ export function createDiagramQuizStateGraph() {
     .addEdge(START, DIAGRAM_QUIZ_NODE_NAMES.loadContext)
     .addEdge(
       DIAGRAM_QUIZ_NODE_NAMES.loadContext,
-      DIAGRAM_QUIZ_NODE_NAMES.generate
+      DIAGRAM_QUIZ_NODE_NAMES.generate,
     )
     .addEdge(DIAGRAM_QUIZ_NODE_NAMES.generate, DIAGRAM_QUIZ_NODE_NAMES.gate)
 
@@ -338,15 +335,11 @@ export function createDiagramQuizStateGraph() {
     // also short-circuits to finalize when artifact_outcome === 'failed'
     // (P4) so a known-failed run does not burn additional loop iterations.
     .addEdge(DIAGRAM_QUIZ_NODE_NAMES.repair, DIAGRAM_QUIZ_NODE_NAMES.gate)
-    .addConditionalEdges(
-      DIAGRAM_QUIZ_NODE_NAMES.gate,
-      routeAfterGate,
-      {
-        [DIAGRAM_QUIZ_NODE_NAMES.repair]: DIAGRAM_QUIZ_NODE_NAMES.repair,
-        [DIAGRAM_QUIZ_NODE_NAMES.refiner]: DIAGRAM_QUIZ_NODE_NAMES.refiner,
-        [DIAGRAM_QUIZ_NODE_NAMES.finalize]: DIAGRAM_QUIZ_NODE_NAMES.finalize,
-      }
-    )
+    .addConditionalEdges(DIAGRAM_QUIZ_NODE_NAMES.gate, routeAfterGate, {
+      [DIAGRAM_QUIZ_NODE_NAMES.repair]: DIAGRAM_QUIZ_NODE_NAMES.repair,
+      [DIAGRAM_QUIZ_NODE_NAMES.refiner]: DIAGRAM_QUIZ_NODE_NAMES.refiner,
+      [DIAGRAM_QUIZ_NODE_NAMES.finalize]: DIAGRAM_QUIZ_NODE_NAMES.finalize,
+    })
 
     // Verification loop: refiner -> critic -> refiner (via conditional edge
     // from critic). `routeAfterCritic` enforces critic_iteration_count <
@@ -354,14 +347,10 @@ export function createDiagramQuizStateGraph() {
     // exits. It also short-circuits to finalize when
     // artifact_outcome === 'failed' (P4).
     .addEdge(DIAGRAM_QUIZ_NODE_NAMES.refiner, DIAGRAM_QUIZ_NODE_NAMES.critic)
-    .addConditionalEdges(
-      DIAGRAM_QUIZ_NODE_NAMES.critic,
-      routeAfterCritic,
-      {
-        [DIAGRAM_QUIZ_NODE_NAMES.refiner]: DIAGRAM_QUIZ_NODE_NAMES.refiner,
-        [DIAGRAM_QUIZ_NODE_NAMES.finalize]: DIAGRAM_QUIZ_NODE_NAMES.finalize,
-      }
-    )
+    .addConditionalEdges(DIAGRAM_QUIZ_NODE_NAMES.critic, routeAfterCritic, {
+      [DIAGRAM_QUIZ_NODE_NAMES.refiner]: DIAGRAM_QUIZ_NODE_NAMES.refiner,
+      [DIAGRAM_QUIZ_NODE_NAMES.finalize]: DIAGRAM_QUIZ_NODE_NAMES.finalize,
+    })
 
     // Terminal edge: finalize -> END.
     .addEdge(DIAGRAM_QUIZ_NODE_NAMES.finalize, END);

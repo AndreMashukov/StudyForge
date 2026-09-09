@@ -21,7 +21,7 @@ export type RefinerNodeResult = Partial<DiagramQuizState>;
  * instead of attributing iteration here.
  */
 export async function refinerNode(
-  state: typeof DiagramQuizStateValue.State
+  state: typeof DiagramQuizStateValue.State,
 ): Promise<RefinerNodeResult> {
   logNodeEnter(NODE_NAME, state);
   try {
@@ -38,15 +38,18 @@ export async function refinerNode(
       throw new Error('Refiner node requires definition.refiner');
     }
     const criticResult = state[ARTIFACT_PIPELINE_STATE_KEYS.criticResult];
-    if (!criticResult) {
-      throw new Error('Refiner node requires artifact_critic_result in state');
-    }
-    // Skip refinement for terminal verdicts. The ADK `RefinerAgent` is a
+    // The verification loop starts at `refiner` (gate -> refiner -> critic).
+    // On first entry there is no critic result yet. Match the ADK
+    // `RefinerAgent`, which returned without changing the draft when critic
+    // findings were empty, then continue to `critic`.
+    //
+    // Skip refinement for terminal verdicts too. The ADK `RefinerAgent` is a
     // no-op for both 'fail' (do not overwrite a draft the critic already
     // rejected) and 'pass' (no revision needed). The LangGraph port must
     // match that contract so the verification loop converges when the
     // critic reaches a terminal verdict instead of clobbering the draft.
     if (
+      !criticResult ||
       criticResult.overallVerdict === 'fail' ||
       criticResult.overallVerdict === 'pass'
     ) {
@@ -65,7 +68,7 @@ export async function refinerNode(
         >[2],
         state[ARTIFACT_PIPELINE_STATE_KEYS.diagnostics] as Parameters<
           typeof definition.refiner.refine
-        >[3]
+        >[3],
       ),
     } as RefinerNodeResult;
     logNodeExitOk(NODE_NAME, state);
