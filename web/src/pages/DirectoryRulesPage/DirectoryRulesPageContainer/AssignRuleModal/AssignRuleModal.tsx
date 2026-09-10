@@ -106,15 +106,11 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
             Assign Rules to Directory: {state.directory?.name || ''}
           </DialogTitle>
         </DialogHeader>
-        
-        <DialogBody>
-          <div className="space-y-4">
-        {/* Search and Filter */}
-        <div className="space-y-3">
-          {/* Tag Filter Dropdown */}
+
+        <div className="shrink-0 space-y-3">
           <div>
-            <label 
-              className="block text-sm font-medium mb-2"
+            <label
+              className="mb-2 block text-sm font-medium"
               style={{ color: currentTheme.colors.foreground }}
             >
               Filter by tags:
@@ -124,7 +120,7 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
                 <button
                   key={tag}
                   onClick={() => handleToggleTag(tag)}
-                  className="px-3 py-1 rounded-md text-sm transition-colors"
+                  className="rounded-md px-3 py-1 text-sm transition-colors"
                   style={{
                     backgroundColor: selectedTags.includes(tag)
                       ? currentTheme.colors.primary
@@ -140,7 +136,7 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
               {selectedTags.length > 0 && (
                 <button
                   onClick={() => setSelectedTags([])}
-                  className="px-3 py-1 rounded-md text-sm"
+                  className="rounded-md px-3 py-1 text-sm"
                   style={{
                     backgroundColor: currentTheme.colors.muted,
                     color: currentTheme.colors.mutedForeground,
@@ -152,7 +148,6 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
             </div>
           </div>
 
-          {/* Search Input */}
           <Input
             type="text"
             placeholder="🔍 Search by name or tags..."
@@ -161,121 +156,122 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
           />
         </div>
 
-        {/* Rules List */}
-        <div
-          className="border rounded-lg"
-          style={{ borderColor: currentTheme.colors.border }}
-        >
-          {isLoading ? (
-            <div className="p-8 text-center">
-              <Spinner size="md" variant="muted" className="mx-auto" />
-            </div>
-          ) : filteredRules.length === 0 ? (
-            <div
-              className="p-8 text-center"
-              style={{ color: currentTheme.colors.mutedForeground }}
-            >
-              No rules found matching your criteria.
-            </div>
-          ) : (
-            <VirtualizedList
-              items={filteredRules}
-              scrollMode="container"
-              containerClassName="max-h-96"
-              estimateSize={96}
-              renderItem={(rule) => {
-                const isAssigned = assignedRuleIds.has(rule.id);
-                const isSelected = selectedRuleIds.has(rule.id);
+        <DialogBody className="flex flex-col overflow-hidden">
+          <div
+            className="min-h-0 max-h-full flex-1 overflow-hidden rounded-lg border"
+            style={{ borderColor: currentTheme.colors.border }}
+          >
+            {isLoading ? (
+              <div className="p-8 text-center">
+                <Spinner size="md" variant="muted" className="mx-auto" />
+              </div>
+            ) : filteredRules.length === 0 ? (
+              <div
+                className="p-8 text-center"
+                style={{ color: currentTheme.colors.mutedForeground }}
+              >
+                No rules found matching your criteria.
+              </div>
+            ) : (
+              <VirtualizedList
+                items={filteredRules}
+                scrollMode="container"
+                className="h-full min-h-0"
+                containerClassName="h-full"
+                estimateSize={96}
+                renderItem={(rule) => {
+                  const isAssigned = assignedRuleIds.has(rule.id);
+                  const isSelected = selectedRuleIds.has(rule.id);
 
-                return (
-                  <div
-                    className="flex items-start gap-3 border-b p-4 hover:bg-opacity-50 cursor-pointer last:border-b-0"
-                    style={{
-                      borderColor: currentTheme.colors.border,
-                      backgroundColor: isSelected
-                        ? currentTheme.colors.accent
-                        : 'transparent',
-                    }}
-                    onClick={() => {
-                      if (!isAssigned) handleToggleRule(rule.id);
-                    }}
-                  >
-                    <span onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={isSelected}
-                        onChange={() => handleToggleRule(rule.id)}
-                        disabled={isAssigned}
-                      />
-                    </span>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          className="font-medium"
-                          style={{ color: currentTheme.colors.foreground }}
-                        >
-                          {rule.name}
-                        </span>
-                        {isAssigned && (
+                  return (
+                    <div
+                      className="flex cursor-pointer items-start gap-3 border-b p-4 last:border-b-0 hover:bg-opacity-50"
+                      style={{
+                        borderColor: currentTheme.colors.border,
+                        backgroundColor: isSelected
+                          ? currentTheme.colors.accent
+                          : 'transparent',
+                      }}
+                      onClick={() => {
+                        if (!isAssigned) handleToggleRule(rule.id);
+                      }}
+                    >
+                      <span onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onChange={() => handleToggleRule(rule.id)}
+                          disabled={isAssigned}
+                        />
+                      </span>
+                      <div className="flex-1">
+                        <div className="mb-1 flex items-center gap-2">
                           <span
-                            className="text-xs px-2 py-0.5 rounded"
-                            style={{
-                              backgroundColor: currentTheme.colors.primary,
-                              color: currentTheme.colors.primaryForeground,
-                            }}
+                            className="font-medium"
+                            style={{ color: currentTheme.colors.foreground }}
                           >
-                            Already assigned ✓
+                            {rule.name}
                           </span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap gap-1 mb-1">
-                        {rule.applicableTo.map((app) => (
-                          <span
-                            key={app}
-                            className="text-xs px-2 py-0.5 rounded"
-                            style={{
-                              backgroundColor: currentTheme.colors.secondary,
-                              color: currentTheme.colors.secondaryForeground,
-                            }}
-                          >
-                            {app}
-                          </span>
-                        ))}
-                      </div>
-
-                      {rule.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 items-center">
-                          <span
-                            className="text-xs"
-                            style={{ color: currentTheme.colors.mutedForeground }}
-                          >
-                            <span role="img" aria-label="tags">
-                              🏷️
-                            </span>
-                          </span>
-                          {rule.tags.map((tag) => (
+                          {isAssigned && (
                             <span
-                              key={tag}
-                              className="text-xs"
-                              style={{ color: currentTheme.colors.mutedForeground }}
+                              className="rounded px-2 py-0.5 text-xs"
+                              style={{
+                                backgroundColor: currentTheme.colors.primary,
+                                color: currentTheme.colors.primaryForeground,
+                              }}
                             >
-                              {tag}
+                              Already assigned ✓
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mb-1 flex flex-wrap gap-1">
+                          {rule.applicableTo.map((app) => (
+                            <span
+                              key={app}
+                              className="rounded px-2 py-0.5 text-xs"
+                              style={{
+                                backgroundColor: currentTheme.colors.secondary,
+                                color: currentTheme.colors.secondaryForeground,
+                              }}
+                            >
+                              {app}
                             </span>
                           ))}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              }}
-            />
-          )}
-        </div>
 
-        {/* Info Note */}
-        <div 
-          className="text-sm p-3 rounded-md"
-          style={{ 
+                        {rule.tags.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span
+                              className="text-xs"
+                              style={{ color: currentTheme.colors.mutedForeground }}
+                            >
+                              <span role="img" aria-label="tags">
+                                🏷️
+                              </span>
+                            </span>
+                            {rule.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="text-xs"
+                                style={{ color: currentTheme.colors.mutedForeground }}
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }}
+              />
+            )}
+          </div>
+        </DialogBody>
+
+        <div
+          className="shrink-0 rounded-md p-3 text-sm"
+          style={{
             backgroundColor: currentTheme.colors.muted,
             color: currentTheme.colors.mutedForeground,
           }}
@@ -286,15 +282,13 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
           Note: Rules already inherited from parent directories are not shown here.
         </div>
 
-        {/* Selected Count */}
-        <div 
-          className="text-sm font-medium"
+        <div
+          className="shrink-0 text-sm font-medium"
           style={{ color: currentTheme.colors.foreground }}
         >
           Selected: {selectedRuleIds.size} rule{selectedRuleIds.size !== 1 ? 's' : ''}
         </div>
 
-        {/* Actions */}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel
@@ -306,8 +300,6 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
             {isAttaching ? 'Assigning...' : `Assign Selected Rule${selectedRuleIds.size !== 1 ? 's' : ''}`}
           </Button>
         </DialogFooter>
-      </div>
-      </DialogBody>
       </DialogContent>
     </Dialog>
   );
