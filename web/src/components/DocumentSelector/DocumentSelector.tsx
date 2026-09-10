@@ -6,8 +6,9 @@ import { Checkbox } from '../ui/Checkbox';
 import { VirtualizedList, type IVirtualizedListHandle } from '../VirtualizedList';
 import { IDocumentSelector } from './IDocumentSelector';
 import { documentSelectorStyles } from './DocumentSelector.styles';
-import { cn } from '../../lib/utils';
+import { Spinner } from '../ui/Spinner';
 import { formatDate } from '../../utils/dateUtils';
+import { cn } from '../../lib/utils';
 
 export const DocumentSelector = ({
   documents,
@@ -137,7 +138,7 @@ export const DocumentSelector = ({
     return (
       <div className={cn(documentSelectorStyles.container, className)}>
         <div className={documentSelectorStyles.loadingContainer}>
-          <div className={documentSelectorStyles.loadingSpinner} />
+          <Spinner size="md" />
           <p className={documentSelectorStyles.loadingText}>Loading your documents...</p>
         </div>
       </div>

@@ -4,7 +4,6 @@ export const documentSelectorStyles = {
 
   // Loading state
   loadingContainer: 'flex flex-col items-center justify-center py-12 space-y-3',
-  loadingSpinner: 'h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary',
   loadingText: 'text-sm text-muted-foreground',
 
   // Empty state

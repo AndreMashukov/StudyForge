@@ -18,9 +18,9 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
-import { Icon } from '../ui/Icon';
 import { authFormStyles } from './AuthForm.styles';
-import { MascotImage } from '../MascotImage';
+import { BrandMark } from '../BrandMark';
+import { ClusterLoader } from '../ClusterLoader';
 
 const workspaceArtifacts = [
   'Quizzes',
@@ -326,11 +326,7 @@ export const AuthForm = () => {
       <div className={authFormStyles.container}>
         <Card className={authFormStyles.successCard}>
           <CardContent className={authFormStyles.successContent}>
-            <MascotImage
-              variant="curious"
-              alt="Forge waiting for verification"
-              className="mx-auto mb-4 h-28 w-28"
-            />
+            <BrandMark className="mx-auto mb-4 h-28 w-28" title="StudyForge" />
             <h2 className={authFormStyles.successTitle}>Verify your email</h2>
             <p className={authFormStyles.successSubtitle}>
               We sent a verification link to{' '}
@@ -383,21 +379,7 @@ export const AuthForm = () => {
       <div className={authFormStyles.container}>
         <Card className={authFormStyles.successCard}>
           <CardContent className={authFormStyles.successContent}>
-            <MascotImage
-              variant="happy"
-              alt="Forge celebrating"
-              className="mx-auto mb-4 h-28 w-28"
-            />
-            <div className={authFormStyles.successIcon}>
-              <Icon size={24} className="text-accent-foreground">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M5 13l4 4L19 7"
-                ></path>
-              </Icon>
-            </div>
+            <ClusterLoader size="lg" className="mx-auto mb-4" label="Opening StudyForge" />
             <h2 className={authFormStyles.successTitle}>Opening StudyForge</h2>
             <p className={authFormStyles.successSubtitle}>
               Signed in as <span className="font-medium">{user.email}</span>
@@ -530,7 +512,7 @@ export const AuthForm = () => {
             >
               {loading ? (
                 <div className="flex items-center justify-center">
-                  <div className={authFormStyles.loadingSpinner}></div>
+                  <ClusterLoader size="sm" className="mr-2" decorative />
                   Working...
                 </div>
               ) : isSignUp ? (

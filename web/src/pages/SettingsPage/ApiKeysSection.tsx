@@ -19,6 +19,7 @@ import {
 } from '../../store/api/ApiKeys/apiKeysApi';
 import { IApiKey } from '../../store/api/ApiKeys/IApiKeysApi';
 import { cn } from '../../lib/utils';
+import { Spinner } from '../../components/ui/Spinner';
 import { formatDate } from '../../utils/dateUtils';
 import { useBulkSelection } from '../../hooks/useBulkSelection';
 import { useBulkActionFlow } from '../../hooks/useBulkActionFlow';
@@ -136,7 +137,7 @@ export const ApiKeysSection: React.FC = () => {
         <CardContent>
           {isLoading && (
             <div className="flex justify-center items-center py-8">
-              <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full" />
+              <Spinner size="md" />
             </div>
           )}
 

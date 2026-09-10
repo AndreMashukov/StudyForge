@@ -31,7 +31,7 @@ import { useGridColumns } from '../../../hooks/useGridColumns';
 import { VirtualizedGrid } from '../../../components/VirtualizedList';
 import { Spinner } from '../../../components/ui/Spinner';
 import { IndeterminateLinearProgress } from '../../../components/ui/IndeterminateLinearProgress';
-import { MascotImage } from '../../../components/MascotImage';
+import { BrandMark } from '../../../components/BrandMark';
 import { cn } from '../../../lib/utils';
 import { CreateDocumentModal } from '../../../components/CreateDocumentModal';
 import { buildDirectoryPathWithOptionalName } from '../../../utils/directoryUrl';
@@ -374,10 +374,9 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
             {showEmptyState && (
               <Card className={documentsPageStyles.emptyState}>
                 <CardContent className="text-center p-6 md:p-8">
-                  <MascotImage
-                    variant={selectedDirectoryId ? 'curious' : 'neutral'}
-                    alt={selectedDirectoryId ? 'Forge looking curious' : 'Forge waiting for documents'}
+                  <BrandMark
                     className="mx-auto mb-4 h-28 w-28"
+                    title="StudyForge"
                   />
                   <h3 className="text-lg font-semibold mb-2">
                     {selectedDirectoryId ? 'Empty folder' : 'No documents yet'}

@@ -34,7 +34,7 @@ import { TimePerDirectoryChart } from '../../InteractionStatsPage/InteractionSta
 import { ArtifactTypeBreakdownChart } from '../../InteractionStatsPage/InteractionStatsPageContainer/ArtifactTypeBreakdownChart';
 import { DailyTrendChart } from '../../InteractionStatsPage/InteractionStatsPageContainer/DailyTrendChart';
 import { DirectoryShareChart } from '../../InteractionStatsPage/InteractionStatsPageContainer/DirectoryShareChart';
-import { MascotImage } from '../../../components/MascotImage';
+import { BrandMark } from '../../../components/BrandMark';
 
 function flattenDirectoryNames(
   nodes: DirectoryTreeNode[] | undefined,
@@ -179,10 +179,9 @@ export const HomePageContainer = () => {
       {!statsLoading && !statsError && rows.length === 0 && (
         <Card>
           <CardContent className="p-10 text-center">
-            <MascotImage
-              variant="curious"
-              alt="Forge looking for study activity"
+            <BrandMark
               className="mx-auto mb-4 h-28 w-28"
+              title="StudyForge"
             />
             <p className="text-muted-foreground">
               No study activity recorded for this period.

@@ -31,12 +31,10 @@ export const authFormStyles = {
   
   // Button styles
   submitButton: "h-12 w-full rounded-xl text-sm font-semibold linear-button linear-glow-hover",
-  loadingSpinner: "w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2",
   
   // Success redirect styles
   successCard: "bg-card/95 rounded-[28px] border border-border/50 shadow-[0_24px_80px_rgba(0,0,0,0.35)]",
   successContent: "text-center p-8",
-  successIcon: "mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent",
   successTitle: "text-xl font-semibold text-foreground mb-2",
   successSubtitle: "text-muted-foreground mb-4",
   successStatus: "inline-flex items-center px-3 py-2 bg-accent/10 rounded-lg text-sm text-accent-foreground",
