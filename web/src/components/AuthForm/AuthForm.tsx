@@ -26,7 +26,10 @@ const workspaceArtifacts = [
   'Quizzes',
   'Flashcards',
   'Slide decks',
-  'Diagram drills',
+  'Diagram quizzes',
+  'Sequence quizzes',
+  'Match quizzes',
+  'Agent',
 ] as const;
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
@@ -432,7 +435,7 @@ export const AuthForm = () => {
           </CardTitle>
           <p className={authFormStyles.subtitle}>
             {isSignUp
-              ? 'Start building study-ready quizzes, flashcards, and slide decks.'
+              ? 'Start building quizzes, flashcards, slide decks, sequence quizzes, match quizzes, and more.'
               : 'Sign in to continue building study assets from documents, notes, and prompts.'}
           </p>
         </CardHeader>
