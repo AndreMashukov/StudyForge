@@ -84,7 +84,7 @@ export function TopAppBarBrand({
 }
 
 export function TopAppBarBrandContent({
-  mascotSrc = '/mascot/forge-happy.svg',
+  mascotSrc = '/logo/studyforge-mark.svg',
   title = 'StudyForge',
 }: ITopAppBarBrandContent) {
   return (

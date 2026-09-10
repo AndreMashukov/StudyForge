@@ -732,3 +732,30 @@
   word-break: break-word;
   font-size: 0.8rem;
 }
+
+@keyframes sf-cluster-pulse {
+  0%,
+  70%,
+  100% {
+    transform: scale(0.82);
+    opacity: 0.42;
+  }
+  18% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+.sf-cluster-cell {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sf-cluster-pulse 1.15s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-cluster-cell {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

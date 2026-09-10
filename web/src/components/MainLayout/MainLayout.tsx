@@ -11,8 +11,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { IMainLayout } from './IMainLayout';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
-import { Spinner } from '../ui/Spinner';
-import { MascotImage } from '../MascotImage';
+import { ClusterLoader } from '../ClusterLoader';
 import { DirectoryRealtimeBridge } from '../DirectoryRealtimeBridge';
 import { RulesRealtimeBridge } from '../RulesRealtimeBridge';
 import { UsageRealtimeBridge } from '../UsageRealtimeBridge';
@@ -49,12 +48,7 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <MascotImage
-            variant="thinking"
-            alt="Forge thinking"
-            className="mx-auto mb-4 h-24 w-24"
-          />
-          <Spinner size="lg" variant="muted" className="mx-auto" />
+          <ClusterLoader size="lg" className="mx-auto mb-4" label="Loading StudyForge" />
           <p className="mt-4 text-muted-foreground font-medium">Loading...</p>
         </div>
       </div>

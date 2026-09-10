@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" role="img">
+  <title>StudyForge</title>
   <rect x="2.4" y="2.4" width="15.2" height="15.2" rx="7.6" fill="#4C1D95"/>
   <rect x="14.4" y="2.4" width="15.2" height="15.2" rx="7.6" fill="#7C3AED"/>
   <rect x="2.4" y="14.4" width="15.2" height="15.2" rx="7.6" fill="#A855F7"/>

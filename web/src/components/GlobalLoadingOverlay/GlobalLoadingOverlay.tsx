@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSelector } from 'react-redux';
 import { selectIsLoading, selectLoadingMessage } from '../../store/slices/uiSlice';
-import { Spinner } from '../ui/Spinner';
+import { ClusterLoader } from '../ClusterLoader';
 
 const OVERLAY_ID = 'sf-global-loading-overlay';
 
@@ -71,7 +71,7 @@ export const GlobalLoadingOverlay = () => {
       aria-live="polite"
       aria-atomic="true"
     >
-      <Spinner size="lg" variant="muted" />
+      <ClusterLoader size="lg" label={message} />
       <p className="text-sm font-medium text-muted-foreground">{message}</p>
     </div>,
     document.body

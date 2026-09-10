@@ -1,7 +1,8 @@
 import React from 'react';
 import { AuthForm } from '../../components/AuthForm';
 import { Icon } from '../../components/ui/Icon';
-import { MascotImage } from '../../components/MascotImage';
+import { BrandMark } from '../../components/BrandMark';
+import { ClusterLoader } from '../../components/ClusterLoader';
 
 const authHighlights = [
   {
@@ -47,11 +48,7 @@ export const AuthPage: React.FC = () => {
           <section className="space-y-8 text-center lg:text-left">
             <div className="inline-flex items-center gap-3 rounded-full border border-primary/25 bg-primary/10 px-4 py-2 text-sm font-medium text-primary shadow-[0_12px_40px_rgba(99,14,212,0.18)]">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-card/60 ring-1 ring-primary/15 backdrop-blur-sm">
-                <MascotImage
-                  variant="happy"
-                  alt=""
-                  className="h-7 w-7"
-                />
+                <BrandMark className="h-7 w-7" decorative />
               </div>
               <span className="font-heading text-base tracking-tight">StudyForge</span>
             </div>
@@ -110,15 +107,11 @@ export const AuthPage: React.FC = () => {
               <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-primary/10 via-transparent to-transparent" />
               <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
                 <div className="flex h-28 w-28 items-center justify-center rounded-[26px] bg-muted/40 ring-1 ring-border/40">
-                  <MascotImage
-                    variant="curious"
-                    alt="Forge fox mascot"
-                    className="h-24 w-24"
-                  />
+                  <ClusterLoader size="lg" className="h-24 w-24" decorative />
                 </div>
                 <div className="space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.32em] text-primary/80">
-                    Meet Forge
+                    StudyForge
                   </p>
                   <h2 className="text-2xl font-semibold font-heading text-foreground sm:text-3xl">
                     A focused workspace for building study assets fast.

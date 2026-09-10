@@ -10,7 +10,7 @@ import { ReduxToastBridge } from '../components/Toast/ReduxToastBridge';
 import { GlobalLoadingOverlay } from '../components/GlobalLoadingOverlay';
 import { MainLayout } from '../components/MainLayout';
 import { ProtectedRoute } from '../utils/ProtectedRoute';
-import { Spinner } from '../components/ui/Spinner';
+import { ClusterLoader } from '../components/ClusterLoader';
 import { HomePage } from '../pages/HomePage';
 import { AuthPage } from '../pages/AuthPage';
 import { QuizPage } from '../pages/QuizPage';
@@ -31,7 +31,6 @@ import { UsagePage } from '../pages/UsagePage';
 import { Page } from '../components/Page';
 import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
 import { QuizIndexRedirect } from '../utils/QuizIndexRedirect';
-import { MascotImage } from '../components/MascotImage';
 import { CreateArtifactRouteRedirect } from '../utils/CreateArtifactRouteRedirect';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
@@ -77,12 +76,11 @@ const AppContent = () => {
         style={{ backgroundColor: currentTheme.colors.background }}
       >
         <div className="text-center">
-          <MascotImage
-            variant="thinking"
-            alt="Forge thinking"
-            className="mx-auto mb-4 h-24 w-24"
+          <ClusterLoader
+            size="lg"
+            className="mx-auto mb-4"
+            label="Initializing StudyForge"
           />
-          <Spinner size="lg" variant="muted" className="mx-auto" />
           <p
             className="mt-4 font-medium"
             style={{ color: currentTheme.colors.mutedForeground }}
