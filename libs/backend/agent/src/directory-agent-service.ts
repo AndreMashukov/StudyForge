@@ -17,10 +17,7 @@ import {
   deriveAgentThreadPreview,
   deriveAgentThreadTitle,
 } from './memory/agent-memory-service';
-import { AgentAdkRunner } from './adk/agent-adk-runner';
-import { AgentAdkPlanExecuteRunner } from './adk/agent-adk-plan-execute-runner';
-import { LlmGenerationRouteResolver } from '@study-forge/backend-llm/llm';
-import { emitAgentTextAsDeltas } from './runner/agent-chat-runner';
+import { WorkspaceAgentRunner } from './langgraph/workspace-agent-runner';
 import { withExecutedActionContext } from './runner/agent-history';
 import {
   buildReplyFromExecutedActions,
@@ -342,6 +339,8 @@ export class DirectoryAgentService {
 
     yield { type: 'thread', threadId: thread.id };
 
+    const turnId = request.turnId ?? randomUUID();
+
     const [
       memorySnippets,
       history,
@@ -349,26 +348,32 @@ export class DirectoryAgentService {
       currentRuleBodyBlock,
       platformKnowledgeMatches,
     ] = await Promise.all([
-      AgentMemoryService.retrieveRelevantMemories(userId, request.message),
+      request.resume
+        ? Promise.resolve([])
+        : AgentMemoryService.retrieveRelevantMemories(userId, request.message),
       AgentThreadStore.listRecentMessages(userId, thread.id, 12),
       loadCurrentDocumentBodyBlock(userId, request.promptContext),
       loadCurrentRuleBodyBlock(userId, request.promptContext),
-      PlatformAgentKnowledgeIndexService.searchPlatformKnowledge({
-        userId,
-        query: request.message,
-      }),
+      request.resume
+        ? Promise.resolve([])
+        : PlatformAgentKnowledgeIndexService.searchPlatformKnowledge({
+            userId,
+            query: request.message,
+          }),
     ]);
 
-    await AgentThreadStore.appendMessage({
-      userId,
-      threadId: thread.id,
-      role: 'user',
-      content: request.message,
-      promptContext: request.promptContext,
-      ...(history.length === 0
-        ? { title: deriveAgentThreadTitle(request.message) }
-        : {}),
-    });
+    if (!request.resume) {
+      await AgentThreadStore.appendMessage({
+        userId,
+        threadId: thread.id,
+        role: 'user',
+        content: request.message,
+        promptContext: request.promptContext,
+        ...(history.length === 0
+          ? { title: deriveAgentThreadTitle(request.message) }
+          : {}),
+      });
+    }
 
     const tools = createAgentToolDefinitions(runtimeContext);
     const platformKnowledgeBlock =
@@ -407,47 +412,21 @@ export class DirectoryAgentService {
       )
       .map((message) => historyMessageForModel(message));
 
-    const runnerInput = {
+    const runPromise = WorkspaceAgentRunner.run({
       userId,
-      threadId: thread.id,
+      studyForgeThreadId: thread.id,
+      turnId,
+      resume: request.resume,
       systemPrompt,
-      userMessage: formattedUserMessage,
+      objective: formattedUserMessage,
       history: historyForModel,
       tools,
-      generationKind:
-        request.scope === 'workspace'
-          ? ('directoryAgent' as const)
-          : ('directoryChat' as const),
       onEvent: (event: AgentMessageStreamEvent) => {
         if (event.type === 'delta' || event.type === 'status') {
           pendingEvents.push(event);
         }
       },
-    };
-
-    let runPromise: Promise<string>;
-    if (request.scope === 'workspace') {
-      const routeResolution = await LlmGenerationRouteResolver.resolve(
-        'directoryAgent',
-        { userId },
-      );
-      if (routeResolution.workflow === 'agentic') {
-        runPromise = AgentAdkPlanExecuteRunner.run({
-          userId,
-          threadId: thread.id,
-          systemPrompt,
-          objective: formattedUserMessage,
-          history: historyForModel,
-          tools,
-          onEvent: runnerInput.onEvent,
-        });
-      } else {
-        runPromise = AgentAdkRunner.run(runnerInput);
-      }
-    } else {
-      runPromise = AgentAdkRunner.run(runnerInput);
-    }
-    runPromise
+    })
       .then((result) => {
         reply = result;
       })
@@ -503,16 +482,6 @@ export class DirectoryAgentService {
       })
     ) {
       reply = UNGROUNDED_CREATE_FALLBACK;
-    }
-
-    await emitAgentTextAsDeltas(reply, (event) => {
-      pendingEvents.push(event);
-    });
-    while (pendingEvents.length > 0) {
-      const event = pendingEvents.shift();
-      if (event) {
-        yield event;
-      }
     }
 
     for (const action of runtimeContext.executedActions) {

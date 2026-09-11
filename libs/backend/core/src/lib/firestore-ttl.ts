@@ -6,6 +6,7 @@ export const TTL_RETENTION_DAYS = {
   interactionSession: 180,
   learningRaw: 180,
   directoryChat: 90,
+  agentCheckpoint: 7,
 } as const;
 
 export type TtlRetentionCategory = keyof typeof TTL_RETENTION_DAYS;

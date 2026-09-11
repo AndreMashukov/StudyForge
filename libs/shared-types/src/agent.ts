@@ -24,17 +24,29 @@ export const agentPromptContextSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
-export const agentMessageSchema = z.object({
-  scope: agentScopeSchema.default('workspace'),
-  directoryId: z.string().trim().min(1).optional(),
-  message: z.string().trim().min(1, 'Message is required').max(10_000),
-  threadId: z.string().trim().min(1).optional(),
-  promptContext: agentPromptContextSchema.optional(),
-  clientLocalDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'clientLocalDate must be YYYY-MM-DD')
-    .optional(),
-});
+export const agentMessageSchema = z
+  .object({
+    scope: agentScopeSchema.default('workspace'),
+    directoryId: z.string().trim().min(1).optional(),
+    message: z.string().trim().min(1, 'Message is required').max(10_000),
+    threadId: z.string().trim().min(1).optional(),
+    turnId: z.string().trim().min(1).optional(),
+    resume: z.boolean().optional(),
+    promptContext: agentPromptContextSchema.optional(),
+    clientLocalDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'clientLocalDate must be YYYY-MM-DD')
+      .optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.resume === true && !value.turnId) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'turnId is required when resume is true',
+        path: ['turnId'],
+      });
+    }
+  });
 
 export const agentActionKindSchema = z.enum([
   'create_directory',
