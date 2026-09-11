@@ -39,12 +39,21 @@ export const agentMessageSchema = z
       .optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.resume === true && !value.turnId) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'turnId is required when resume is true',
-        path: ['turnId'],
-      });
+    if (value.resume === true) {
+      if (!value.turnId) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'turnId is required when resume is true',
+          path: ['turnId'],
+        });
+      }
+      if (!value.threadId) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'threadId is required when resume is true',
+          path: ['threadId'],
+        });
+      }
     }
   });
 

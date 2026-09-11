@@ -1,4 +1,5 @@
 import type { RunnableConfig } from '@langchain/core/runnables';
+import { emitAgentTextAsDeltas } from '../../runner/agent-chat-runner';
 import {
   UNGROUNDED_CREATE_FALLBACK,
   buildPlannerUserMessage,
@@ -8,18 +9,19 @@ import { WORKSPACE_AGENT_STATE_KEYS } from '../workspace-agent-state-keys';
 import type { WorkspaceAgentState } from '../workspace-agent-state';
 import { WorkspaceAgentStateValue } from '../workspace-agent-state';
 import { readWorkspaceAgentConfig } from '../workspace-agent-config';
+import { callWorkspacePlannerModel } from '../workspace-agent-planner-llm';
 import {
-  callWorkspacePlannerModel,
-  callWorkspacePlannerModelStreaming,
-} from '../workspace-agent-planner-llm';
-import { FORCED_CREATE_DOCUMENT_STEP } from '../workspace-agent-limits';
+  FORCED_CREATE_DOCUMENT_STEP,
+  MAX_PLAN_STEPS,
+  MAX_REPLAN_CYCLES,
+} from '../workspace-agent-limits';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
 
 const NODE_NAME = 'planner';
 
 export type PlannerNodeResult = Partial<WorkspaceAgentState>;
 
-function shouldRunFinalPlanner(state: WorkspaceAgentState): boolean {
+export function shouldRunFinalPlanner(state: WorkspaceAgentState): boolean {
   const intent = state[WORKSPACE_AGENT_STATE_KEYS.plannerIntent];
   if (intent === 'final') {
     return true;
@@ -28,13 +30,26 @@ function shouldRunFinalPlanner(state: WorkspaceAgentState): boolean {
   const planSteps = state[WORKSPACE_AGENT_STATE_KEYS.planSteps] ?? [];
   const pastSteps = state[WORKSPACE_AGENT_STATE_KEYS.pastSteps] ?? [];
   const finalReply = state[WORKSPACE_AGENT_STATE_KEYS.finalReply];
+  const executedStepCount =
+    state[WORKSPACE_AGENT_STATE_KEYS.executedStepCount] ?? 0;
+  const replanCycle = state[WORKSPACE_AGENT_STATE_KEYS.replanCycle] ?? 0;
 
-  return (
-    !finalReply &&
-    planSteps.length === 0 &&
-    pastSteps.length > 0 &&
-    intent === 'replan'
-  );
+  if (finalReply) {
+    return false;
+  }
+
+  if (pastSteps.length === 0) {
+    return false;
+  }
+
+  if (
+    executedStepCount >= MAX_PLAN_STEPS ||
+    replanCycle >= MAX_REPLAN_CYCLES
+  ) {
+    return true;
+  }
+
+  return planSteps.length === 0 && intent === 'replan';
 }
 
 function buildFallbackFinalReply(state: WorkspaceAgentState): string {
@@ -42,6 +57,20 @@ function buildFallbackFinalReply(state: WorkspaceAgentState): string {
   return pastSteps.length > 0
     ? 'I completed the planned steps but could not compose a final reply.'
     : 'I could not complete your request within the planning limits.';
+}
+
+async function completeWithReply(input: {
+  state: WorkspaceAgentState;
+  reply: string;
+  streamed: boolean;
+}): Promise<PlannerNodeResult> {
+  logNodeExitOk(NODE_NAME, input.state);
+  return {
+    [WORKSPACE_AGENT_STATE_KEYS.finalReply]: input.reply,
+    [WORKSPACE_AGENT_STATE_KEYS.streamedFinalReply]: input.streamed,
+    [WORKSPACE_AGENT_STATE_KEYS.plannerIntent]: 'complete',
+    [WORKSPACE_AGENT_STATE_KEYS.agentOutcome]: 'succeeded',
+  };
 }
 
 export async function plannerNode(
@@ -62,6 +91,7 @@ export async function plannerNode(
       state[WORKSPACE_AGENT_STATE_KEYS.plannerIntent] ?? 'initial';
 
     if (!objective || !systemPrompt) {
+      logNodeExitOk(NODE_NAME, state);
       return {
         [WORKSPACE_AGENT_STATE_KEYS.agentOutcome]: 'failed',
         [WORKSPACE_AGENT_STATE_KEYS.failureMessage]:
@@ -75,7 +105,7 @@ export async function plannerNode(
         message: 'Planning final reply...',
       });
 
-      const finalOutput = await callWorkspacePlannerModelStreaming({
+      const finalOutput = await callWorkspacePlannerModel({
         userId: runtime.userId,
         systemPrompt,
         userMessage: buildPlannerUserMessage({
@@ -86,36 +116,25 @@ export async function plannerNode(
         tools: runtime.tools,
         isReplan: true,
         recoverOutcomes: allToolOutcomes,
-        onEvent: runtime.onEvent,
       });
-
-      if (finalOutput.type === 'response') {
-        const blocked = shouldBlockUngroundedCreateResponse({
-          objective,
-          outcomes: allToolOutcomes,
-        });
-        return {
-          [WORKSPACE_AGENT_STATE_KEYS.finalReply]: blocked
-            ? UNGROUNDED_CREATE_FALLBACK
-            : finalOutput.response,
-          [WORKSPACE_AGENT_STATE_KEYS.streamedFinalReply]: true,
-          [WORKSPACE_AGENT_STATE_KEYS.plannerIntent]: 'complete',
-          [WORKSPACE_AGENT_STATE_KEYS.agentOutcome]: 'succeeded',
-        };
-      }
 
       const blocked = shouldBlockUngroundedCreateResponse({
         objective,
         outcomes: allToolOutcomes,
       });
-      return {
-        [WORKSPACE_AGENT_STATE_KEYS.finalReply]: blocked
-          ? UNGROUNDED_CREATE_FALLBACK
-          : buildFallbackFinalReply(state),
-        [WORKSPACE_AGENT_STATE_KEYS.streamedFinalReply]: blocked,
-        [WORKSPACE_AGENT_STATE_KEYS.plannerIntent]: 'complete',
-        [WORKSPACE_AGENT_STATE_KEYS.agentOutcome]: 'succeeded',
-      };
+      const reply =
+        finalOutput.type === 'response' && !blocked
+          ? finalOutput.response
+          : blocked
+            ? UNGROUNDED_CREATE_FALLBACK
+            : buildFallbackFinalReply(state);
+
+      if (!blocked && finalOutput.type === 'response') {
+        await emitAgentTextAsDeltas(reply, runtime.onEvent);
+        return completeWithReply({ state, reply, streamed: true });
+      }
+
+      return completeWithReply({ state, reply, streamed: false });
     }
 
     const isInitial = plannerIntent === 'initial' && pastSteps.length === 0;
@@ -146,13 +165,6 @@ export async function plannerNode(
         objective,
         outcomes: allToolOutcomes,
       });
-      if (blocked && pastSteps.length === 0) {
-        logNodeExitOk(NODE_NAME, state);
-        return {
-          [WORKSPACE_AGENT_STATE_KEYS.planSteps]: [FORCED_CREATE_DOCUMENT_STEP],
-          [WORKSPACE_AGENT_STATE_KEYS.plannerIntent]: 'replan',
-        };
-      }
       if (blocked) {
         logNodeExitOk(NODE_NAME, state);
         return {
@@ -161,12 +173,12 @@ export async function plannerNode(
         };
       }
 
-      logNodeExitOk(NODE_NAME, state);
-      return {
-        [WORKSPACE_AGENT_STATE_KEYS.finalReply]: plannerOutput.response,
-        [WORKSPACE_AGENT_STATE_KEYS.plannerIntent]: 'complete',
-        [WORKSPACE_AGENT_STATE_KEYS.agentOutcome]: 'succeeded',
-      };
+      await emitAgentTextAsDeltas(plannerOutput.response, runtime.onEvent);
+      return completeWithReply({
+        state,
+        reply: plannerOutput.response,
+        streamed: true,
+      });
     }
 
     logNodeExitOk(NODE_NAME, state);

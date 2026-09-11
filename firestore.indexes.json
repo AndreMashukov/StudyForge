@@ -341,6 +341,12 @@
       "indexes": []
     },
     {
+      "collectionGroup": "writes",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "providerCostPeriods",
       "fieldPath": "periodKey",
       "indexes": [

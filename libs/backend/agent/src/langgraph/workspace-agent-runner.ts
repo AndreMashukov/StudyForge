@@ -3,7 +3,11 @@ import { MemorySaver } from '@langchain/langgraph-checkpoint';
 import type { AgentMessageStreamEvent } from '@shared-types';
 import type { AgentToolDefinition } from '../tools/create-agent-tools';
 import { EMPTY_AGENT_REPLY } from '../runner/agent-chat-fallback';
-import { getFirestoreCheckpointer, buildAgentTurnKey } from '../checkpointer';
+import {
+  getFirestoreCheckpointer,
+  buildAgentTurnKey,
+  CheckpointOverflowUnavailableError,
+} from '../checkpointer';
 import { WORKSPACE_AGENT_STATE_KEYS } from './workspace-agent-state-keys';
 import type { WorkspaceAgentState } from './workspace-agent-state';
 import { buildWorkspaceAgentGraph } from './build-workspace-agent-graph';
@@ -26,7 +30,7 @@ function getProductionGraph() {
   return productionGraph;
 }
 
-export interface WorkspaceAgentRunnerInput {
+export interface IWorkspaceAgentRunnerInput {
   userId: string;
   studyForgeThreadId: string;
   turnId: string;
@@ -55,7 +59,7 @@ function readFailureMessage(finalState: WorkspaceAgentState): string {
 }
 
 export class WorkspaceAgentRunner {
-  static async run(input: WorkspaceAgentRunnerInput): Promise<string> {
+  static async run(input: IWorkspaceAgentRunnerInput): Promise<string> {
     const graph = input.useMemoryCheckpointer
       ? testGraph
       : getProductionGraph();
@@ -104,6 +108,9 @@ export class WorkspaceAgentRunner {
         throw new WorkspaceAgentPipelineFailedError(
           'Workspace agent graph exceeded recursion limit',
         );
+      }
+      if (error instanceof CheckpointOverflowUnavailableError) {
+        throw new WorkspaceAgentPipelineFailedError(error.message);
       }
       throw error;
     }

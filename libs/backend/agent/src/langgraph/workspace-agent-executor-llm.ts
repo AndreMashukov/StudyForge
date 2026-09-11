@@ -8,7 +8,7 @@ import {
 } from '../runner/agent-plan-execute-helpers';
 import { AgentChatRunner } from '../runner/agent-chat-runner';
 
-export async function runWorkspaceExecutorStep(input: {
+export interface IRunWorkspaceExecutorStepInput {
   userId: string;
   systemPrompt: string;
   objective: string;
@@ -17,7 +17,22 @@ export async function runWorkspaceExecutorStep(input: {
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   tools: AgentToolDefinition[];
   onEvent?: (event: AgentMessageStreamEvent) => void;
-}): Promise<{ text: string; toolOutcomes: AgentToolOutcome[] }> {
+}
+
+export interface IWorkspaceExecutorStepResult {
+  text: string;
+  toolOutcomes: AgentToolOutcome[];
+}
+
+export interface IFormatExecutorPastStepInput {
+  step: string;
+  text: string;
+  toolOutcomes: AgentToolOutcome[];
+}
+
+export async function runWorkspaceExecutorStep(
+  input: IRunWorkspaceExecutorStepInput,
+): Promise<IWorkspaceExecutorStepResult> {
   const stepMessage = buildStepExecutionMessage({
     objective: input.objective,
     step: input.step,
@@ -42,11 +57,9 @@ export async function runWorkspaceExecutorStep(input: {
   };
 }
 
-export function formatExecutorPastStep(input: {
-  step: string;
-  text: string;
-  toolOutcomes: AgentToolOutcome[];
-}): AgentPlanExecutePastStep {
+export function formatExecutorPastStep(
+  input: IFormatExecutorPastStepInput,
+): AgentPlanExecutePastStep {
   return {
     step: input.step,
     result: composeExecutorStepResult(input.text, input.toolOutcomes),

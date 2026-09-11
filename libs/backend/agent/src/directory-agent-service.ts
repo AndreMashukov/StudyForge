@@ -18,6 +18,10 @@ import {
   deriveAgentThreadTitle,
 } from './memory/agent-memory-service';
 import { WorkspaceAgentRunner } from './langgraph/workspace-agent-runner';
+import {
+  buildAgentTurnKey,
+  claimAgentTurnCompletion,
+} from './checkpointer';
 import { withExecutedActionContext } from './runner/agent-history';
 import {
   buildReplyFromExecutedActions,
@@ -493,30 +497,50 @@ export class DirectoryAgentService {
     }
 
     const preview = deriveAgentThreadPreview(reply);
-    await AgentThreadStore.appendMessage({
+    const claimed = await claimAgentTurnCompletion(
       userId,
-      threadId: thread.id,
-      role: 'assistant',
-      content: reply,
-      executedActions: runtimeContext.executedActions,
-      proposedDeletes: runtimeContext.proposedDeletes,
-      ...(preview ? { preview } : {}),
-    });
+      buildAgentTurnKey(thread.id, turnId),
+      {
+        reply,
+        executedActions: runtimeContext.executedActions,
+        proposedDeletes: runtimeContext.proposedDeletes,
+      },
+    );
+    const persistedReply = claimed.completion.reply;
+    const persistedActions = claimed.alreadyCompleted
+      ? claimed.completion.executedActions
+      : runtimeContext.executedActions;
+    const persistedDeletes = claimed.alreadyCompleted
+      ? claimed.completion.proposedDeletes
+      : runtimeContext.proposedDeletes;
 
-    await AgentMemoryService.captureTurnMemories({
-      userId,
-      threadId: thread.id,
-      userMessage: request.message,
-      assistantReply: reply,
-    });
+    if (!claimed.alreadyCompleted) {
+      await AgentThreadStore.appendMessage({
+        userId,
+        threadId: thread.id,
+        role: 'assistant',
+        content: persistedReply,
+        turnId,
+        executedActions: persistedActions,
+        proposedDeletes: persistedDeletes,
+        ...(preview ? { preview } : {}),
+      });
+
+      await AgentMemoryService.captureTurnMemories({
+        userId,
+        threadId: thread.id,
+        userMessage: request.message,
+        assistantReply: persistedReply,
+      });
+    }
 
     yield {
       type: 'done',
       response: buildAgentResponse({
-        reply,
+        reply: persistedReply,
         threadId: thread.id,
-        executedActions: runtimeContext.executedActions,
-        proposedDeletes: runtimeContext.proposedDeletes,
+        executedActions: persistedActions,
+        proposedDeletes: persistedDeletes,
       }),
     };
   }

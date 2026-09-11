@@ -166,7 +166,7 @@ export const GENERATION_KIND_METADATA: Record<
     kind: 'directoryChat',
     label: 'Directory-scoped agent',
     description:
-      'ADK LlmAgent for directory-scoped AgentPanel chat (one directory tree).',
+      'LangGraph plan-execute agent for directory-scoped AgentPanel chat (one directory tree).',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',

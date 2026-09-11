@@ -43,7 +43,7 @@ export function routeAfterPlanner(
     return WORKSPACE_AGENT_NODE_NAMES.executor;
   }
 
-  if (pastSteps.length > 0 && planSteps.length === 0) {
+  if (pastSteps.length > 0) {
     return WORKSPACE_AGENT_NODE_NAMES.planner;
   }
 

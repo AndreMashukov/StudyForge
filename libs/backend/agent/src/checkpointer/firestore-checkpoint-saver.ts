@@ -12,6 +12,9 @@ import {
 } from '@langchain/langgraph-checkpoint';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { Timestamp } from 'firebase-admin/firestore';
+import type { AgentActionResult, AgentProposedDelete } from '@shared-types';
+import type { DocumentReference, Firestore } from 'firebase-admin/firestore';
+import { z } from 'zod';
 import { computeExpiresAt } from '@study-forge/backend-core/lib/firestore-ttl';
 import {
   agentCheckpointCollection,
@@ -20,12 +23,132 @@ import {
 } from './firestore-checkpoint-paths';
 
 const MAX_INLINE_BYTES = 800_000;
+const FIRESTORE_BATCH_LIMIT = 400;
+
+export interface IParsedWritesDocId {
+  taskId: string;
+  idx: number;
+}
+
+export class CheckpointOverflowUnavailableError extends Error {
+  constructor() {
+    super('Workspace agent checkpoint overflow data is missing');
+    this.name = 'CheckpointOverflowUnavailableError';
+  }
+}
+
+export class CheckpointSerializationTooLargeError extends Error {
+  constructor(byteLength: number) {
+    super(
+      `Workspace agent checkpoint channel values exceed ${MAX_INLINE_BYTES} bytes (${byteLength})`,
+    );
+    this.name = 'CheckpointSerializationTooLargeError';
+  }
+}
+
+const serializedBytesSchema = z.custom<Uint8Array | string>((value) => {
+  return toSerdeBytes(value) !== null;
+});
+
+const checkpointRecordSchema = z.object({
+  checkpoint: serializedBytesSchema,
+  metadata: serializedBytesSchema,
+  overflowRef: z.string().min(1).nullable().optional(),
+  parentCheckpointId: z.string().min(1).nullable().optional(),
+});
+
+const overflowRecordSchema = z.object({
+  channelValues: serializedBytesSchema,
+});
+
+const pendingWriteRecordSchema = z.object({
+  channel: z.string().min(1),
+  value: serializedBytesSchema,
+  taskId: z.string().min(1).optional(),
+});
+
+export type ICheckpointRecord = z.infer<typeof checkpointRecordSchema>;
+export type IOverflowRecord = z.infer<typeof overflowRecordSchema>;
+export type IPendingWriteRecord = z.infer<typeof pendingWriteRecordSchema>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function parseCompletedActions(value: unknown): AgentActionResult[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is AgentActionResult => {
+    return (
+      isRecord(entry) &&
+      typeof entry.kind === 'string' &&
+      typeof entry.summary === 'string'
+    );
+  });
+}
+
+function parseCompletedDeletes(value: unknown): AgentProposedDelete[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is AgentProposedDelete => {
+    return (
+      isRecord(entry) &&
+      typeof entry.targetType === 'string' &&
+      typeof entry.targetId === 'string' &&
+      typeof entry.label === 'string'
+    );
+  });
+}
+
+export function toSerdeBytes(value: unknown): Uint8Array | string | null {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value instanceof Uint8Array) {
+    return value;
+  }
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) {
+    return new Uint8Array(value);
+  }
+  if (
+    isRecord(value) &&
+    typeof value.toUint8Array === 'function'
+  ) {
+    const bytes = value.toUint8Array();
+    return bytes instanceof Uint8Array ? bytes : null;
+  }
+  return null;
+}
+
+function isCheckpoint(value: unknown): value is Checkpoint {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return typeof value.id === 'string' && typeof value.v === 'number';
+}
+
+function isCheckpointMetadata(value: unknown): value is CheckpointMetadata {
+  return isRecord(value);
+}
+
+export function applyOverflowChannelValues(
+  checkpoint: Checkpoint,
+  overflowChannelValues: unknown,
+): Checkpoint {
+  if (!isRecord(overflowChannelValues)) {
+    throw new CheckpointOverflowUnavailableError();
+  }
+  checkpoint.channel_values = overflowChannelValues;
+  return checkpoint;
+}
 
 function writesDocId(taskId: string, idx: number): string {
   return `${taskId}__${idx}`;
 }
 
-function parseWritesDocId(docId: string): { taskId: string; idx: number } {
+function parseWritesDocId(docId: string): IParsedWritesDocId {
   const separator = docId.lastIndexOf('__');
   if (separator <= 0) {
     return { taskId: docId, idx: 0 };
@@ -84,36 +207,54 @@ export class FirestoreCheckpointSaver extends BaseCheckpointSaver {
       return undefined;
     }
 
-    const data = doc.data();
-    if (!data) {
-      return undefined;
+    const parsedRecord = checkpointRecordSchema.safeParse(doc.data());
+    if (!parsedRecord.success) {
+      throw new Error('Workspace agent checkpoint record is invalid');
     }
 
-    const checkpoint = await this.serde.loadsTyped(
-      'json',
-      data.checkpoint as Uint8Array,
-    );
+    const checkpointBytes = toSerdeBytes(parsedRecord.data.checkpoint);
+    const metadataBytes = toSerdeBytes(parsedRecord.data.metadata);
+    if (!checkpointBytes || !metadataBytes) {
+      throw new Error('Workspace agent checkpoint record is invalid');
+    }
 
-    if (typeof data.overflowRef === 'string' && data.overflowRef.length > 0) {
+    const loadedCheckpoint: unknown = await this.serde.loadsTyped(
+      'json',
+      checkpointBytes,
+    );
+    if (!isCheckpoint(loadedCheckpoint)) {
+      throw new Error('Workspace agent checkpoint payload is invalid');
+    }
+
+    if (parsedRecord.data.overflowRef) {
       const overflowDoc = await agentCheckpointChannelValuesCollection(
         userId,
         threadId,
       )
-        .doc(data.overflowRef)
+        .doc(parsedRecord.data.overflowRef)
         .get();
-      const overflowData = overflowDoc.data();
-      if (overflowData?.channelValues) {
-        checkpoint.channel_values = await this.serde.loadsTyped(
-          'json',
-          overflowData.channelValues as Uint8Array,
-        );
+      const parsedOverflow = overflowRecordSchema.safeParse(overflowDoc.data());
+      if (!parsedOverflow.success) {
+        throw new CheckpointOverflowUnavailableError();
       }
+      const overflowBytes = toSerdeBytes(parsedOverflow.data.channelValues);
+      if (!overflowBytes) {
+        throw new CheckpointOverflowUnavailableError();
+      }
+      const overflowValues: unknown = await this.serde.loadsTyped(
+        'json',
+        overflowBytes,
+      );
+      applyOverflowChannelValues(loadedCheckpoint, overflowValues);
     }
 
-    const metadata = await this.serde.loadsTyped(
+    const loadedMetadata: unknown = await this.serde.loadsTyped(
       'json',
-      data.metadata as Uint8Array,
+      metadataBytes,
     );
+    if (!isCheckpointMetadata(loadedMetadata)) {
+      throw new Error('Workspace agent checkpoint metadata is invalid');
+    }
 
     const writesSnapshot = await collection
       .doc(checkpointId)
@@ -121,13 +262,21 @@ export class FirestoreCheckpointSaver extends BaseCheckpointSaver {
       .get();
     const pendingWrites = await Promise.all(
       writesSnapshot.docs.map(async (writeDoc) => {
-        const writeData = writeDoc.data();
+        const parsedWrite = pendingWriteRecordSchema.safeParse(writeDoc.data());
+        if (!parsedWrite.success) {
+          throw new Error('Workspace agent checkpoint write record is invalid');
+        }
+        const writeBytes = toSerdeBytes(parsedWrite.data.value);
+        if (!writeBytes) {
+          throw new Error('Workspace agent checkpoint write record is invalid');
+        }
         const parsed = parseWritesDocId(writeDoc.id);
-        return [
-          parsed.taskId,
-          writeData.channel as string,
-          await this.serde.loadsTyped('json', writeData.value as Uint8Array),
-        ] as [string, string, unknown];
+        const value: unknown = await this.serde.loadsTyped('json', writeBytes);
+        return [parsed.taskId, parsedWrite.data.channel, value] as [
+          string,
+          string,
+          unknown,
+        ];
       }),
     );
 
@@ -140,15 +289,12 @@ export class FirestoreCheckpointSaver extends BaseCheckpointSaver {
           userId,
         },
       },
-      checkpoint,
-      metadata,
+      checkpoint: loadedCheckpoint,
+      metadata: loadedMetadata,
       pendingWrites,
     };
 
-    const parentCheckpointId =
-      typeof data.parentCheckpointId === 'string'
-        ? data.parentCheckpointId
-        : undefined;
+    const parentCheckpointId = parsedRecord.data.parentCheckpointId ?? undefined;
     if (parentCheckpointId) {
       tuple.parentConfig = {
         configurable: {
@@ -241,6 +387,11 @@ export class FirestoreCheckpointSaver extends BaseCheckpointSaver {
       const channelValues = preparedCheckpoint.channel_values;
       preparedCheckpoint.channel_values = {};
       const [, channelValuesBytes] = await this.serde.dumpsTyped(channelValues);
+      if (channelValuesBytes.byteLength > MAX_INLINE_BYTES) {
+        throw new CheckpointSerializationTooLargeError(
+          channelValuesBytes.byteLength,
+        );
+      }
       overflowRef = checkpoint.id;
       inlineCheckpointBytes = (
         await this.serde.dumpsTyped(preparedCheckpoint)
@@ -293,6 +444,7 @@ export class FirestoreCheckpointSaver extends BaseCheckpointSaver {
     const writesCollection = agentCheckpointCollection(userId, threadId)
       .doc(checkpointId)
       .collection('writes');
+    const expiresAt = computeExpiresAt(new Date(), 'agentCheckpoint');
 
     await Promise.all(
       writes.map(async ([channel, value], idx) => {
@@ -302,6 +454,7 @@ export class FirestoreCheckpointSaver extends BaseCheckpointSaver {
           channel,
           value: serializedValue,
           taskId,
+          expiresAt,
         });
       }),
     );
@@ -309,8 +462,21 @@ export class FirestoreCheckpointSaver extends BaseCheckpointSaver {
 
   async deleteThread(threadId: string): Promise<void> {
     throw new Error(
-      `deleteThread requires userId context; call deleteAgentTurn(userId, turnKey) instead for ${threadId}`,
+      `deleteThread requires userId context; call deleteAgentTurnCheckpoints(userId, turnKey) instead for ${threadId}`,
     );
+  }
+}
+
+async function commitDeletes(
+  firestore: Firestore,
+  refs: DocumentReference[],
+): Promise<void> {
+  for (let index = 0; index < refs.length; index += FIRESTORE_BATCH_LIMIT) {
+    const batch = firestore.batch();
+    for (const ref of refs.slice(index, index + FIRESTORE_BATCH_LIMIT)) {
+      batch.delete(ref);
+    }
+    await batch.commit();
   }
 }
 
@@ -320,10 +486,65 @@ export async function deleteAgentTurnCheckpoints(
 ): Promise<void> {
   const turnRef = agentCheckpointTurnRef(userId, turnKey);
   const checkpoints = await agentCheckpointCollection(userId, turnKey).get();
-  const batch = turnRef.firestore.batch();
-  for (const doc of checkpoints.docs) {
-    batch.delete(doc.ref);
+  const channelValues = await agentCheckpointChannelValuesCollection(
+    userId,
+    turnKey,
+  ).get();
+  const refs: DocumentReference[] = [];
+
+  for (const checkpointDoc of checkpoints.docs) {
+    const writes = await checkpointDoc.ref.collection('writes').get();
+    for (const writeDoc of writes.docs) {
+      refs.push(writeDoc.ref);
+    }
+    refs.push(checkpointDoc.ref);
   }
-  batch.delete(turnRef);
-  await batch.commit();
+
+  for (const overflowDoc of channelValues.docs) {
+    refs.push(overflowDoc.ref);
+  }
+  refs.push(turnRef);
+
+  await commitDeletes(turnRef.firestore, refs);
+}
+
+export interface IAgentTurnCompletion {
+  reply: string;
+  executedActions: AgentActionResult[];
+  proposedDeletes: AgentProposedDelete[];
+}
+
+export async function claimAgentTurnCompletion(
+  userId: string,
+  turnKey: string,
+  completion: IAgentTurnCompletion,
+): Promise<{ alreadyCompleted: boolean; completion: IAgentTurnCompletion }> {
+  const turnRef = agentCheckpointTurnRef(userId, turnKey);
+  return turnRef.firestore.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(turnRef);
+    const data = snapshot.data();
+    if (typeof data?.completedReply === 'string' && data.completedReply.length > 0) {
+      return {
+        alreadyCompleted: true,
+        completion: {
+          reply: data.completedReply,
+          executedActions: parseCompletedActions(data.completedExecutedActions),
+          proposedDeletes: parseCompletedDeletes(data.completedProposedDeletes),
+        },
+      };
+    }
+
+    transaction.set(
+      turnRef,
+      {
+        completedReply: completion.reply,
+        completedExecutedActions: completion.executedActions,
+        completedProposedDeletes: completion.proposedDeletes,
+        completedAt: Timestamp.now(),
+      },
+      { merge: true },
+    );
+
+    return { alreadyCompleted: false, completion };
+  });
 }

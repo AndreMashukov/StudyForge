@@ -46,14 +46,16 @@ describe('routeAfterPlanner', () => {
     ).toBe(WORKSPACE_AGENT_NODE_NAMES.executor);
   });
 
-  it('routes back to planner for a final reply when steps are exhausted', () => {
+  it('routes back to planner when replan budget is exhausted with remaining steps', () => {
     expect(
       routeAfterPlanner(
         routeState({
-          [WORKSPACE_AGENT_STATE_KEYS.planSteps]: [],
+          [WORKSPACE_AGENT_STATE_KEYS.planSteps]: ['Create a document'],
           [WORKSPACE_AGENT_STATE_KEYS.pastSteps]: [
             { step: 'List documents', result: 'ok' },
           ],
+          [WORKSPACE_AGENT_STATE_KEYS.executedStepCount]: 8,
+          [WORKSPACE_AGENT_STATE_KEYS.replanCycle]: 8,
           [WORKSPACE_AGENT_STATE_KEYS.plannerIntent]: 'replan',
         }),
       ),

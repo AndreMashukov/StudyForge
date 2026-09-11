@@ -380,9 +380,11 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
 
       let activeThreadId = threadId;
       const turnId = crypto.randomUUID();
+      let receivedThreadEvent = Boolean(threadId);
 
       const handleStreamEvent = (event: AgentMessageStreamEvent) => {
               if (event.type === 'thread') {
+                receivedThreadEvent = true;
                 activeThreadId = event.threadId;
                 setThreadId(event.threadId);
                 persistActiveThreadId(event.threadId);
@@ -495,7 +497,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
             scope,
             directoryId: hintDirectoryId,
             message: trimmed,
-            threadId,
+            threadId: activeThreadId,
             turnId,
             resume,
             promptContext: activePromptContext,
@@ -516,7 +518,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
           if (controller.signal.aborted) {
             throw initialError;
           }
-          if (!retried) {
+          if (receivedThreadEvent) {
             retried = true;
             await runAgentStream(true);
           } else {
