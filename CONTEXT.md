@@ -145,16 +145,20 @@ _Avoid_: default rule, auto-select rule (prefer **always apply** in product copy
 ## Learning & chat
 
 **Workspace agent**:
-Floating assistant over the user's full library (`scope: workspace`). Runs as a Google ADK `LlmAgent` with StudyForge tools. Conversation history is stored on the ADK session for the turn, and on the StudyForge thread for later turns. Creating a document enqueues **documentFromPrompt** and applies **always apply** rules for the target directory.
-_Avoid_: global agent (alone), workspace chat
+Tool-capable AgentPanel over the user's full library (`scope: workspace`). Runs a plan-execute LangGraph: planner, executor, replan loop, then a final reply. Creating a document enqueues **documentFromPrompt** and applies **always apply** rules for the target directory.
+_Avoid_: global agent (alone), workspace chat, ADK workspace agent
 
 **Directory-scoped agent**:
-Tool-capable `AgentPanel` chat limited to one directory tree and its descendants (`scope: directory`). Same Google ADK `LlmAgent` tool loop as the workspace agent, with tools limited to that directory tree.
+Same plan-execute LangGraph as the workspace agent, but tools are limited to one directory tree and its descendants (`scope: directory`).
 _Avoid_: folder agent, scoped workspace agent
 
 **Agent session**:
-In-memory Google ADK conversation for one agent turn. Hydrated from the StudyForge thread history so follow-ups resolve, then discarded. The durable transcript stays on the StudyForge agent thread.
+One user turn of the workspace agent graph. Durable chat history stays on the StudyForge agent thread. Mid-turn graph state may be stored in a **workspace agent checkpoint** for resume after a dead Function.
 _Avoid_: ADK memory (when meaning the StudyForge thread), planner history
+
+**Workspace agent checkpoint**:
+Transient LangGraph checkpoint for one agent turn, used to resume after a Function timeout or crash. Stored under the user with a 7-day TTL. Not the StudyForge agent thread.
+_Avoid_: agent thread (when meaning checkpoint data), ADK session
 
 **Directory chat**:
 Conversational assistant scoped to a directory and its documents/artifacts. Uses follow-up rules and artifact context. Distinct from the workspace agent and directory-scoped agent panels.

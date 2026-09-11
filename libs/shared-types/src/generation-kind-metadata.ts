@@ -166,7 +166,7 @@ export const GENERATION_KIND_METADATA: Record<
     kind: 'directoryChat',
     label: 'Directory-scoped agent',
     description:
-      'ADK LlmAgent for directory-scoped AgentPanel chat (one directory tree).',
+      'LangGraph plan-execute agent for directory-scoped AgentPanel chat (one directory tree).',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',
@@ -203,7 +203,7 @@ export const GENERATION_KIND_METADATA: Record<
     kind: 'directoryAgent',
     label: 'Workspace agent',
     description:
-      'Floating workspace agent. ADK runs one tool-capable model loop. Plan-Execute uses a planner model plus an executor model with tools.',
+      'Floating workspace agent planner. LangGraph plan-execute uses this model for planning and final replies.',
     requiredModality: 'text',
     supportedWorkflows: ['direct', 'agentic'],
     defaultWorkflow: 'direct',
@@ -213,7 +213,7 @@ export const GENERATION_KIND_METADATA: Record<
     kind: 'agentExecutor',
     label: 'Workspace agent executor',
     description:
-      'Executor model for workspace Plan-Execute steps. Used when directoryAgent workflow is agentic.',
+      'Executor model for workspace plan-execute steps in the LangGraph agent.',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',

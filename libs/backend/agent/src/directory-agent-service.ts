@@ -17,10 +17,11 @@ import {
   deriveAgentThreadPreview,
   deriveAgentThreadTitle,
 } from './memory/agent-memory-service';
-import { AgentAdkRunner } from './adk/agent-adk-runner';
-import { AgentAdkPlanExecuteRunner } from './adk/agent-adk-plan-execute-runner';
-import { LlmGenerationRouteResolver } from '@study-forge/backend-llm/llm';
-import { emitAgentTextAsDeltas } from './runner/agent-chat-runner';
+import { WorkspaceAgentRunner } from './langgraph/workspace-agent-runner';
+import {
+  buildAgentTurnKey,
+  claimAgentTurnCompletion,
+} from './checkpointer';
 import { withExecutedActionContext } from './runner/agent-history';
 import {
   buildReplyFromExecutedActions,
@@ -342,6 +343,8 @@ export class DirectoryAgentService {
 
     yield { type: 'thread', threadId: thread.id };
 
+    const turnId = request.turnId ?? randomUUID();
+
     const [
       memorySnippets,
       history,
@@ -349,26 +352,32 @@ export class DirectoryAgentService {
       currentRuleBodyBlock,
       platformKnowledgeMatches,
     ] = await Promise.all([
-      AgentMemoryService.retrieveRelevantMemories(userId, request.message),
+      request.resume
+        ? Promise.resolve([])
+        : AgentMemoryService.retrieveRelevantMemories(userId, request.message),
       AgentThreadStore.listRecentMessages(userId, thread.id, 12),
       loadCurrentDocumentBodyBlock(userId, request.promptContext),
       loadCurrentRuleBodyBlock(userId, request.promptContext),
-      PlatformAgentKnowledgeIndexService.searchPlatformKnowledge({
-        userId,
-        query: request.message,
-      }),
+      request.resume
+        ? Promise.resolve([])
+        : PlatformAgentKnowledgeIndexService.searchPlatformKnowledge({
+            userId,
+            query: request.message,
+          }),
     ]);
 
-    await AgentThreadStore.appendMessage({
-      userId,
-      threadId: thread.id,
-      role: 'user',
-      content: request.message,
-      promptContext: request.promptContext,
-      ...(history.length === 0
-        ? { title: deriveAgentThreadTitle(request.message) }
-        : {}),
-    });
+    if (!request.resume) {
+      await AgentThreadStore.appendMessage({
+        userId,
+        threadId: thread.id,
+        role: 'user',
+        content: request.message,
+        promptContext: request.promptContext,
+        ...(history.length === 0
+          ? { title: deriveAgentThreadTitle(request.message) }
+          : {}),
+      });
+    }
 
     const tools = createAgentToolDefinitions(runtimeContext);
     const platformKnowledgeBlock =
@@ -407,47 +416,21 @@ export class DirectoryAgentService {
       )
       .map((message) => historyMessageForModel(message));
 
-    const runnerInput = {
+    const runPromise = WorkspaceAgentRunner.run({
       userId,
-      threadId: thread.id,
+      studyForgeThreadId: thread.id,
+      turnId,
+      resume: request.resume,
       systemPrompt,
-      userMessage: formattedUserMessage,
+      objective: formattedUserMessage,
       history: historyForModel,
       tools,
-      generationKind:
-        request.scope === 'workspace'
-          ? ('directoryAgent' as const)
-          : ('directoryChat' as const),
       onEvent: (event: AgentMessageStreamEvent) => {
         if (event.type === 'delta' || event.type === 'status') {
           pendingEvents.push(event);
         }
       },
-    };
-
-    let runPromise: Promise<string>;
-    if (request.scope === 'workspace') {
-      const routeResolution = await LlmGenerationRouteResolver.resolve(
-        'directoryAgent',
-        { userId },
-      );
-      if (routeResolution.workflow === 'agentic') {
-        runPromise = AgentAdkPlanExecuteRunner.run({
-          userId,
-          threadId: thread.id,
-          systemPrompt,
-          objective: formattedUserMessage,
-          history: historyForModel,
-          tools,
-          onEvent: runnerInput.onEvent,
-        });
-      } else {
-        runPromise = AgentAdkRunner.run(runnerInput);
-      }
-    } else {
-      runPromise = AgentAdkRunner.run(runnerInput);
-    }
-    runPromise
+    })
       .then((result) => {
         reply = result;
       })
@@ -505,16 +488,6 @@ export class DirectoryAgentService {
       reply = UNGROUNDED_CREATE_FALLBACK;
     }
 
-    await emitAgentTextAsDeltas(reply, (event) => {
-      pendingEvents.push(event);
-    });
-    while (pendingEvents.length > 0) {
-      const event = pendingEvents.shift();
-      if (event) {
-        yield event;
-      }
-    }
-
     for (const action of runtimeContext.executedActions) {
       yield { type: 'action', action };
     }
@@ -524,30 +497,50 @@ export class DirectoryAgentService {
     }
 
     const preview = deriveAgentThreadPreview(reply);
-    await AgentThreadStore.appendMessage({
+    const claimed = await claimAgentTurnCompletion(
       userId,
-      threadId: thread.id,
-      role: 'assistant',
-      content: reply,
-      executedActions: runtimeContext.executedActions,
-      proposedDeletes: runtimeContext.proposedDeletes,
-      ...(preview ? { preview } : {}),
-    });
+      buildAgentTurnKey(thread.id, turnId),
+      {
+        reply,
+        executedActions: runtimeContext.executedActions,
+        proposedDeletes: runtimeContext.proposedDeletes,
+      },
+    );
+    const persistedReply = claimed.completion.reply;
+    const persistedActions = claimed.alreadyCompleted
+      ? claimed.completion.executedActions
+      : runtimeContext.executedActions;
+    const persistedDeletes = claimed.alreadyCompleted
+      ? claimed.completion.proposedDeletes
+      : runtimeContext.proposedDeletes;
 
-    await AgentMemoryService.captureTurnMemories({
-      userId,
-      threadId: thread.id,
-      userMessage: request.message,
-      assistantReply: reply,
-    });
+    if (!claimed.alreadyCompleted) {
+      await AgentThreadStore.appendMessage({
+        userId,
+        threadId: thread.id,
+        role: 'assistant',
+        content: persistedReply,
+        turnId,
+        executedActions: persistedActions,
+        proposedDeletes: persistedDeletes,
+        ...(preview ? { preview } : {}),
+      });
+
+      await AgentMemoryService.captureTurnMemories({
+        userId,
+        threadId: thread.id,
+        userMessage: request.message,
+        assistantReply: persistedReply,
+      });
+    }
 
     yield {
       type: 'done',
       response: buildAgentResponse({
-        reply,
+        reply: persistedReply,
         threadId: thread.id,
-        executedActions: runtimeContext.executedActions,
-        proposedDeletes: runtimeContext.proposedDeletes,
+        executedActions: persistedActions,
+        proposedDeletes: persistedDeletes,
       }),
     };
   }

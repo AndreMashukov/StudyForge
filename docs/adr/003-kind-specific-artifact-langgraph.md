@@ -20,7 +20,7 @@ Shared contracts stay centralized:
 - `ArtifactAgentDefinition` strategy objects (generate, gates, repair, persist)
 - Dispatcher in `libs/backend/generation/src/generation-processors/artifact-agent.ts`
 
-Google ADK remains in use for workspace agents and document generation pipelines. Artifact generation no longer uses ADK after diagram quiz and flashcards cut over.
+Google ADK remains in use for document generation pipelines. Workspace agents moved to LangGraph in ADR 004. Artifact generation no longer uses ADK after diagram quiz and flashcards cut over.
 
 ## Consequences
 

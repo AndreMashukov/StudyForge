@@ -8,6 +8,7 @@ import React, {
 import { Bot, ChevronDown, Send } from 'lucide-react';
 import type {
   AgentActionKind,
+  AgentMessageStreamEvent,
   AgentProposedDelete,
   AgentPromptContext,
   IAgentThreadMessage,
@@ -378,21 +379,12 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
         promptContextDirectoryId(activePromptContext) ?? directoryId;
 
       let activeThreadId = threadId;
+      const turnId = crypto.randomUUID();
+      let receivedThreadEvent = Boolean(threadId);
 
-      try {
-        await streamAgentMessage(
-          {
-            scope,
-            directoryId: hintDirectoryId,
-            message: trimmed,
-            threadId,
-            promptContext: activePromptContext,
-            clientLocalDate: formatLocalIsoDate(),
-          },
-          {
-            signal: controller.signal,
-            onEvent: (event) => {
+      const handleStreamEvent = (event: AgentMessageStreamEvent) => {
               if (event.type === 'thread') {
+                receivedThreadEvent = true;
                 activeThreadId = event.threadId;
                 setThreadId(event.threadId);
                 persistActiveThreadId(event.threadId);
@@ -497,9 +489,42 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
                   ),
                 );
               }
-            },
+      };
+
+      const runAgentStream = async (resume: boolean) => {
+        await streamAgentMessage(
+          {
+            scope,
+            directoryId: hintDirectoryId,
+            message: trimmed,
+            threadId: activeThreadId,
+            turnId,
+            resume,
+            promptContext: activePromptContext,
+            clientLocalDate: formatLocalIsoDate(),
+          },
+          {
+            signal: controller.signal,
+            onEvent: handleStreamEvent,
           },
         );
+      };
+
+      try {
+        let retried = false;
+        try {
+          await runAgentStream(false);
+        } catch (initialError) {
+          if (controller.signal.aborted) {
+            throw initialError;
+          }
+          if (receivedThreadEvent) {
+            retried = true;
+            await runAgentStream(true);
+          } else {
+            throw initialError;
+          }
+        }
 
         if (activeThreadId) {
           persistActiveThreadId(activeThreadId);

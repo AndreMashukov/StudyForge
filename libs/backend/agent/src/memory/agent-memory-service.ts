@@ -374,6 +374,7 @@ export class AgentThreadStore {
     executedActions?: AgentActionResult[];
     proposedDeletes?: AgentProposedDelete[];
     title?: string;
+    turnId?: string;
     preview?: string;
   }): Promise<IAgentThreadMessage> {
     const now = new Date();
@@ -399,6 +400,7 @@ export class AgentThreadStore {
       ...(input.promptContext ? { promptContext: input.promptContext } : {}),
       executedActions: input.executedActions ?? [],
       proposedDeletes: input.proposedDeletes ?? [],
+      ...(input.turnId ? { turnId: input.turnId } : {}),
     });
 
     await FirestorePaths.agentThread(input.userId, input.threadId).update({

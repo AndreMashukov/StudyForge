@@ -156,6 +156,20 @@ export const FirestorePaths = {
     FirestorePaths.agentThreads(userId).doc(threadId),
   agentThreadMessages: (userId: string, threadId: string) =>
     FirestorePaths.agentThread(userId, threadId).collection('messages'),
+  agentCheckpoints: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId).collection('agentCheckpoints');
+  },
+  agentCheckpointTurn: (userId: string, turnKey: string) =>
+    FirestorePaths.agentCheckpoints(userId).doc(turnKey),
+  agentCheckpointDocs: (userId: string, turnKey: string) =>
+    FirestorePaths.agentCheckpointTurn(userId, turnKey).collection(
+      'checkpoints',
+    ),
+  agentCheckpointChannelValues: (userId: string, turnKey: string) =>
+    FirestorePaths.agentCheckpointTurn(userId, turnKey).collection(
+      'channelValues',
+    ),
   agentKnowledgeChunks: (userId: string) => {
     validateUserId(userId);
     return db().collection('users').doc(userId).collection('agentKnowledgeChunks');
