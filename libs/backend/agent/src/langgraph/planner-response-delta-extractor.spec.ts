@@ -44,6 +44,34 @@ describe('createPlannerResponseDeltaExtractor', () => {
       extractor.push('```json\n{"type":"response","response":"Done"}\n```'),
     ).toEqual(['Done']);
   });
+
+  it('ignores nested type and response fields on a top-level plan', () => {
+    const extractor = createPlannerResponseDeltaExtractor();
+    expect(
+      extractor.push(
+        '{"metadata":{"type":"response","response":"internal"},"type":"plan","steps":["List directories"]}',
+      ),
+    ).toEqual([]);
+    expect(extractor.emittedText()).toBe('');
+  });
+
+  it('uses the last top-level type when keys are duplicated', () => {
+    const planWins = createPlannerResponseDeltaExtractor();
+    expect(
+      planWins.push(
+        '{"type":"response","response":"leaked","type":"plan","steps":["List directories"]}',
+      ),
+    ).toEqual([]);
+    expect(planWins.emittedText()).toBe('');
+
+    const responseWins = createPlannerResponseDeltaExtractor();
+    expect(
+      responseWins.push(
+        '{"type":"plan","steps":["List directories"],"type":"response","response":"Final"}',
+      ),
+    ).toEqual(['Final']);
+    expect(responseWins.emittedText()).toBe('Final');
+  });
 });
 
 describe('reconcileStreamedPlannerReply', () => {
