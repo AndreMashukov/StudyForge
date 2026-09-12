@@ -364,7 +364,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
         isStreaming: true,
         executedActions: [],
         proposedDeletes: [],
-        statusMessage: 'Thinking...',
+        statusMessage: 'Planning...',
       };
 
       setMessages((current) => [...current, userMessage, assistantPlaceholder]);
@@ -383,112 +383,110 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
       let receivedThreadEvent = Boolean(threadId);
 
       const handleStreamEvent = (event: AgentMessageStreamEvent) => {
-              if (event.type === 'thread') {
-                receivedThreadEvent = true;
-                activeThreadId = event.threadId;
-                setThreadId(event.threadId);
-                persistActiveThreadId(event.threadId);
-              }
+        if (event.type === 'thread') {
+          receivedThreadEvent = true;
+          activeThreadId = event.threadId;
+          setThreadId(event.threadId);
+          persistActiveThreadId(event.threadId);
+        }
 
-              if (event.type === 'status') {
-                setMessages((current) =>
-                  current.map((message) =>
-                    message.id === assistantId
-                      ? { ...message, statusMessage: event.message }
-                      : message,
-                  ),
-                );
-              }
+        if (event.type === 'status') {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? { ...message, statusMessage: event.message }
+                : message,
+            ),
+          );
+        }
 
-              if (event.type === 'delta') {
-                setMessages((current) =>
-                  current.map((message) =>
-                    message.id === assistantId
-                      ? {
-                          ...message,
-                          content: stripAgentThinkingContent(
-                            `${message.content}${event.text}`,
-                          ),
-                          statusMessage: undefined,
-                        }
-                      : message,
-                  ),
-                );
-              }
+        if (event.type === 'delta') {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? {
+                    ...message,
+                    content: stripAgentThinkingContent(
+                      `${message.content}${event.text}`,
+                    ),
+                    statusMessage: undefined,
+                  }
+                : message,
+            ),
+          );
+        }
 
-              if (event.type === 'action') {
-                didMutate = true;
-                if (RULE_CACHE_ACTION_KINDS.has(event.action.kind)) {
-                  dispatch(
-                    baseApi.util.invalidateTags(['Rules', 'DirectoryRules']),
-                  );
-                }
-                setMessages((current) =>
-                  current.map((message) =>
-                    message.id === assistantId
-                      ? {
-                          ...message,
-                          executedActions: [
-                            ...(message.executedActions ?? []),
-                            event.action,
-                          ],
-                        }
-                      : message,
-                  ),
-                );
-              }
+        if (event.type === 'action') {
+          didMutate = true;
+          if (RULE_CACHE_ACTION_KINDS.has(event.action.kind)) {
+            dispatch(baseApi.util.invalidateTags(['Rules', 'DirectoryRules']));
+          }
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? {
+                    ...message,
+                    executedActions: [
+                      ...(message.executedActions ?? []),
+                      event.action,
+                    ],
+                  }
+                : message,
+            ),
+          );
+        }
 
-              if (event.type === 'delete_proposal') {
-                didMutate = true;
-                setMessages((current) =>
-                  current.map((message) =>
-                    message.id === assistantId
-                      ? {
-                          ...message,
-                          proposedDeletes: [
-                            ...(message.proposedDeletes ?? []),
-                            event.proposal,
-                          ],
-                        }
-                      : message,
-                  ),
-                );
-              }
+        if (event.type === 'delete_proposal') {
+          didMutate = true;
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? {
+                    ...message,
+                    proposedDeletes: [
+                      ...(message.proposedDeletes ?? []),
+                      event.proposal,
+                    ],
+                  }
+                : message,
+            ),
+          );
+        }
 
-              if (event.type === 'done') {
-                activeThreadId = event.response.threadId;
-                setThreadId(event.response.threadId);
-                persistActiveThreadId(event.response.threadId);
-                setMessages((current) =>
-                  current.map((message) =>
-                    message.id === assistantId
-                      ? {
-                          ...message,
-                          content: event.response.reply,
-                          executedActions: event.response.executedActions,
-                          proposedDeletes: event.response.proposedDeletes,
-                          isStreaming: false,
-                          statusMessage: undefined,
-                        }
-                      : message,
-                  ),
-                );
-              }
+        if (event.type === 'done') {
+          activeThreadId = event.response.threadId;
+          setThreadId(event.response.threadId);
+          persistActiveThreadId(event.response.threadId);
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? {
+                    ...message,
+                    content: event.response.reply,
+                    executedActions: event.response.executedActions,
+                    proposedDeletes: event.response.proposedDeletes,
+                    isStreaming: false,
+                    statusMessage: undefined,
+                  }
+                : message,
+            ),
+          );
+        }
 
-              if (event.type === 'error') {
-                setError(event.message);
-                setMessages((current) =>
-                  current.map((message) =>
-                    message.id === assistantId
-                      ? {
-                          ...message,
-                          isStreaming: false,
-                          statusMessage: undefined,
-                        }
-                      : message,
-                  ),
-                );
-              }
+        if (event.type === 'error') {
+          setError(event.message);
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? {
+                    ...message,
+                    isStreaming: false,
+                    statusMessage: undefined,
+                  }
+                : message,
+            ),
+          );
+        }
       };
 
       const runAgentStream = async (resume: boolean) => {
