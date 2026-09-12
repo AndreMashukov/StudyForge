@@ -1,5 +1,5 @@
 import type { RunnableConfig } from '@langchain/core/runnables';
-import { emitAgentTextAsDeltas } from '../../runner/agent-chat-runner';
+import type { AgentMessageStreamEvent } from '@shared-types';
 import {
   UNGROUNDED_CREATE_FALLBACK,
   buildPlannerUserMessage,
@@ -9,6 +9,7 @@ import { WORKSPACE_AGENT_STATE_KEYS } from '../workspace-agent-state-keys';
 import type { WorkspaceAgentState } from '../workspace-agent-state';
 import { WorkspaceAgentStateValue } from '../workspace-agent-state';
 import { readWorkspaceAgentConfig } from '../workspace-agent-config';
+import { reconcileStreamedPlannerReply } from '../planner-response-delta-extractor';
 import { callWorkspacePlannerModel } from '../workspace-agent-planner-llm';
 import {
   FORCED_CREATE_DOCUMENT_STEP,
@@ -42,14 +43,26 @@ export function shouldRunFinalPlanner(state: WorkspaceAgentState): boolean {
     return false;
   }
 
-  if (
-    executedStepCount >= MAX_PLAN_STEPS ||
-    replanCycle >= MAX_REPLAN_CYCLES
-  ) {
+  if (executedStepCount >= MAX_PLAN_STEPS || replanCycle >= MAX_REPLAN_CYCLES) {
     return true;
   }
 
   return planSteps.length === 0 && intent === 'replan';
+}
+
+function emitPlannerReplyDeltas(input: {
+  parsedReply: string;
+  streamedUserReply: string;
+  onEvent?: (event: AgentMessageStreamEvent) => void;
+}): { reply: string; streamed: boolean } {
+  const reconciled = reconcileStreamedPlannerReply({
+    parsedReply: input.parsedReply,
+    streamedUserReply: input.streamedUserReply,
+  });
+  if (reconciled.remainder.length > 0) {
+    input.onEvent?.({ type: 'delta', text: reconciled.remainder });
+  }
+  return { reply: reconciled.reply, streamed: reconciled.streamed };
 }
 
 function buildFallbackFinalReply(state: WorkspaceAgentState): string {
@@ -105,23 +118,29 @@ export async function plannerNode(
         message: 'Planning final reply...',
       });
 
-      const finalOutput = await callWorkspacePlannerModel({
-        userId: runtime.userId,
-        systemPrompt,
-        userMessage: buildPlannerUserMessage({
-          objective,
-          history,
-          pastSteps,
-        }),
-        tools: runtime.tools,
-        isReplan: true,
-        recoverOutcomes: allToolOutcomes,
-      });
-
       const blocked = shouldBlockUngroundedCreateResponse({
         objective,
         outcomes: allToolOutcomes,
       });
+      const { output: finalOutput, streamedUserReply } =
+        await callWorkspacePlannerModel({
+          userId: runtime.userId,
+          systemPrompt,
+          userMessage: buildPlannerUserMessage({
+            objective,
+            history,
+            pastSteps,
+          }),
+          tools: runtime.tools,
+          isReplan: true,
+          recoverOutcomes: allToolOutcomes,
+          onUserReplyDelta: blocked
+            ? undefined
+            : (text) => {
+                runtime.onEvent?.({ type: 'delta', text });
+              },
+        });
+
       const reply =
         finalOutput.type === 'response' && !blocked
           ? finalOutput.response
@@ -130,8 +149,16 @@ export async function plannerNode(
             : buildFallbackFinalReply(state);
 
       if (!blocked && finalOutput.type === 'response') {
-        await emitAgentTextAsDeltas(reply, runtime.onEvent);
-        return completeWithReply({ state, reply, streamed: true });
+        const emitted = emitPlannerReplyDeltas({
+          parsedReply: reply,
+          streamedUserReply,
+          onEvent: runtime.onEvent,
+        });
+        return completeWithReply({
+          state,
+          reply: emitted.reply,
+          streamed: emitted.streamed,
+        });
       }
 
       return completeWithReply({ state, reply, streamed: false });
@@ -146,25 +173,31 @@ export async function plannerNode(
       runtime.onEvent?.({ type: 'status', message: 'Planning next steps...' });
     }
 
-    const plannerOutput = await callWorkspacePlannerModel({
-      userId: runtime.userId,
-      systemPrompt,
-      userMessage: buildPlannerUserMessage({
-        objective,
-        history,
-        pastSteps,
-        remainingPlan: isReplan ? planSteps : undefined,
-      }),
-      tools: runtime.tools,
-      isReplan: isReplan && !isInitial,
-      recoverOutcomes: allToolOutcomes,
+    const blocked = shouldBlockUngroundedCreateResponse({
+      objective,
+      outcomes: allToolOutcomes,
     });
+    const { output: plannerOutput, streamedUserReply } =
+      await callWorkspacePlannerModel({
+        userId: runtime.userId,
+        systemPrompt,
+        userMessage: buildPlannerUserMessage({
+          objective,
+          history,
+          pastSteps,
+          remainingPlan: isReplan ? planSteps : undefined,
+        }),
+        tools: runtime.tools,
+        isReplan: isReplan && !isInitial,
+        recoverOutcomes: allToolOutcomes,
+        onUserReplyDelta: blocked
+          ? undefined
+          : (text) => {
+              runtime.onEvent?.({ type: 'delta', text });
+            },
+      });
 
     if (plannerOutput.type === 'response') {
-      const blocked = shouldBlockUngroundedCreateResponse({
-        objective,
-        outcomes: allToolOutcomes,
-      });
       if (blocked) {
         logNodeExitOk(NODE_NAME, state);
         return {
@@ -173,11 +206,15 @@ export async function plannerNode(
         };
       }
 
-      await emitAgentTextAsDeltas(plannerOutput.response, runtime.onEvent);
+      const emitted = emitPlannerReplyDeltas({
+        parsedReply: plannerOutput.response,
+        streamedUserReply,
+        onEvent: runtime.onEvent,
+      });
       return completeWithReply({
         state,
-        reply: plannerOutput.response,
-        streamed: true,
+        reply: emitted.reply,
+        streamed: emitted.streamed,
       });
     }
 
