@@ -1,7 +1,6 @@
 import {
   callToolChatCompletions,
   LlmGenerationRouteResolver,
-  type ILlmToolChatMessage,
 } from '@study-forge/backend-llm/llm';
 import type { AgentToolDefinition } from '../tools/create-agent-tools';
 import type { AgentToolOutcome } from '../runner/agent-chat-fallback';
@@ -12,6 +11,7 @@ import {
   type AgentPlanOutput,
 } from '../runner/agent-plan-execute-helpers';
 import { createPlannerResponseDeltaExtractor } from './planner-response-delta-extractor';
+import { buildWorkspacePlannerMessages } from './workspace-agent-planner-messages';
 
 const PLANNER_PARSE_RETRIES = 1;
 
@@ -37,6 +37,7 @@ async function runPlannerCompletion(input: {
   tools: AgentToolDefinition[];
   isReplan: boolean;
   streamUserReply: boolean;
+  previousInvalidContent?: string;
   onUserReplyDelta?: (text: string) => void;
 }): Promise<{ content: string; streamedUserReply: string }> {
   const resolution = await LlmGenerationRouteResolver.resolve(
@@ -55,10 +56,11 @@ async function runPlannerCompletion(input: {
     isReplan: input.isReplan,
   })}`;
 
-  const messages: ILlmToolChatMessage[] = [
-    { role: 'system', content: instruction },
-    { role: 'user', content: input.userMessage },
-  ];
+  const messages = buildWorkspacePlannerMessages({
+    instruction,
+    userMessage: input.userMessage,
+    previousInvalidContent: input.previousInvalidContent,
+  });
 
   const extractor = createPlannerResponseDeltaExtractor();
   const streamUserReply =
@@ -88,7 +90,7 @@ async function runPlannerCompletion(input: {
 export async function callWorkspacePlannerModel(
   input: ICallWorkspacePlannerModelInput,
 ): Promise<IWorkspacePlannerModelResult> {
-  let userMessage = input.userMessage;
+  let previousInvalidContent: string | undefined;
   let lastError: string | null = null;
 
   for (let attempt = 0; attempt <= PLANNER_PARSE_RETRIES; attempt += 1) {
@@ -96,10 +98,11 @@ export async function callWorkspacePlannerModel(
     const { content, streamedUserReply } = await runPlannerCompletion({
       userId: input.userId,
       systemPrompt: input.systemPrompt,
-      userMessage,
+      userMessage: input.userMessage,
       tools: input.tools,
       isReplan: input.isReplan,
       streamUserReply,
+      previousInvalidContent,
       onUserReplyDelta: streamUserReply ? input.onUserReplyDelta : undefined,
     });
 
@@ -116,8 +119,7 @@ export async function callWorkspacePlannerModel(
     }
 
     lastError = 'Planner returned invalid JSON';
-    userMessage =
-      'Your previous output was invalid. Return ONLY valid JSON matching the required schema.';
+    previousInvalidContent = content;
   }
 
   const grounded = input.recoverOutcomes

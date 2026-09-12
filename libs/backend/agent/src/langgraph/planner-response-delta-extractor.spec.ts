@@ -55,6 +55,13 @@ describe('createPlannerResponseDeltaExtractor', () => {
     expect(extractor.emittedText()).toBe('');
   });
 
+  it('streams plain text when the model skips planner JSON', () => {
+    const extractor = createPlannerResponseDeltaExtractor();
+    expect(extractor.push('Condensation is ')).toEqual(['Condensation is ']);
+    expect(extractor.push('the process')).toEqual(['the process']);
+    expect(extractor.emittedText()).toBe('Condensation is the process');
+  });
+
   it('uses the last top-level type when keys are duplicated', () => {
     const planWins = createPlannerResponseDeltaExtractor();
     expect(

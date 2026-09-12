@@ -165,6 +165,39 @@ function skipJsonValue(raw: string, start: number): IJsonSkipScan {
   return { end: cursor, complete: cursor > index && cursor < raw.length };
 }
 
+export function classifyPlannerStreamPayload(
+  raw: string,
+): 'json' | 'prose' | 'unknown' {
+  let index = skipJsonWhitespace(raw, 0);
+  if (index >= raw.length) {
+    return 'unknown';
+  }
+
+  if (raw.startsWith('```', index)) {
+    const newline = raw.indexOf('\n', index);
+    if (newline < 0) {
+      return 'unknown';
+    }
+    index = skipJsonWhitespace(raw, newline + 1);
+    if (index >= raw.length) {
+      return 'unknown';
+    }
+  }
+
+  return raw[index] === '{' ? 'json' : 'prose';
+}
+
+function stripPlannerFencePrefix(raw: string): string {
+  let index = skipJsonWhitespace(raw, 0);
+  if (raw.startsWith('```', index)) {
+    const newline = raw.indexOf('\n', index);
+    if (newline >= 0) {
+      index = newline + 1;
+    }
+  }
+  return raw.slice(index);
+}
+
 function scanTopLevelPlannerJson(raw: string): IScannedPlannerJson {
   const objectStart = raw.indexOf('{');
   if (objectStart < 0) {
@@ -252,16 +285,25 @@ export function createPlannerResponseDeltaExtractor(): IPlannerResponseDeltaExtr
       }
 
       raw += chunk;
-      const scanned = scanTopLevelPlannerJson(raw);
-      if (scanned.kind !== 'response') {
-        return [];
-      }
-      if (scanned.response.length <= emitted.length) {
+      const payloadKind = classifyPlannerStreamPayload(raw);
+      if (payloadKind === 'unknown') {
         return [];
       }
 
-      const delta = scanned.response.slice(emitted.length);
-      emitted = scanned.response;
+      const scanned =
+        payloadKind === 'json' ? scanTopLevelPlannerJson(raw) : null;
+      const visible =
+        payloadKind === 'prose'
+          ? stripPlannerFencePrefix(raw)
+          : scanned?.kind === 'response'
+            ? scanned.response
+            : '';
+      if (visible.length <= emitted.length) {
+        return [];
+      }
+
+      const delta = visible.slice(emitted.length);
+      emitted = visible;
       return delta.length > 0 ? [delta] : [];
     },
     emittedText(): string {
