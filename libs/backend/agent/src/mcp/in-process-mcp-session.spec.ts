@@ -26,6 +26,14 @@ function fixtureDefinitions(): AgentToolDefinition[] {
         throw new Error('boom');
       },
     },
+    {
+      name: 'void_result',
+      description: 'Returns undefined.',
+      parameters: { type: 'object', properties: {} },
+      execute: async () => {
+        return undefined;
+      },
+    },
   ];
 }
 
@@ -34,7 +42,7 @@ describe('createInProcessMcpSession', () => {
     const session = await createInProcessMcpSession(fixtureDefinitions());
     try {
       const tools = session.listOpenAiTools();
-      expect(tools).toHaveLength(2);
+      expect(tools).toHaveLength(3);
       expect(tools[0]).toMatchObject({
         type: 'function',
         function: {
@@ -59,6 +67,7 @@ describe('createInProcessMcpSession', () => {
       expect(session.listToolCatalog()).toEqual([
         { name: 'echo', description: 'Echoes the query back.' },
         { name: 'fail', description: 'Always fails.' },
+        { name: 'void_result', description: 'Returns undefined.' },
       ]);
     } finally {
       await session.close();
@@ -71,6 +80,15 @@ describe('createInProcessMcpSession', () => {
       await expect(session.callTool('echo', { query: 'hi' })).resolves.toEqual({
         echoed: 'hi',
       });
+    } finally {
+      await session.close();
+    }
+  });
+
+  it('callTool returns null when execute returns undefined', async () => {
+    const session = await createInProcessMcpSession(fixtureDefinitions());
+    try {
+      await expect(session.callTool('void_result', {})).resolves.toBeNull();
     } finally {
       await session.close();
     }

@@ -29,17 +29,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function readToolTextContent(
-  content: Array<{ type: string; text?: string }> | undefined,
-): string {
-  if (!content || content.length === 0) {
+function isTextContentBlock(
+  value: unknown,
+): value is { type: 'text'; text: string } {
+  return isRecord(value) && value.type === 'text' && typeof value.text === 'string';
+}
+
+function readToolTextContent(content: unknown): string {
+  if (!Array.isArray(content) || content.length === 0) {
     return '';
   }
   const first = content[0];
-  if (first?.type === 'text' && typeof first.text === 'string') {
+  if (isTextContentBlock(first)) {
     return first.text;
   }
   return '';
+}
+
+function serializeToolResult(result: unknown): string {
+  const serialized = JSON.stringify(result);
+  return typeof serialized === 'string' ? serialized : 'null';
+}
+
+function toolArgsFromMcp(args: unknown): Record<string, unknown> {
+  return isRecord(args) ? args : {};
 }
 
 function parametersToInputSchema(
@@ -58,15 +71,15 @@ function registerAgentTools(server: McpServer, definitions: AgentToolDefinition[
       },
       async (args) => {
         try {
-          const result = await definition.execute(args as Record<string, unknown>);
+          const result = await definition.execute(toolArgsFromMcp(args));
           return {
-            content: [{ type: 'text' as const, text: JSON.stringify(result) }],
+            content: [{ type: 'text', text: serializeToolResult(result) }],
           };
         } catch (error) {
           const message =
             error instanceof Error ? error.message : 'Tool execution failed';
           return {
-            content: [{ type: 'text' as const, text: message }],
+            content: [{ type: 'text', text: message }],
             isError: true,
           };
         }
@@ -169,9 +182,7 @@ class InProcessMcpSession implements IInProcessMcpSession {
       arguments: args,
     });
 
-    const text = readToolTextContent(
-      result.content as Array<{ type: string; text?: string }>,
-    );
+    const text = readToolTextContent(result.content);
 
     if (result.isError) {
       throw new Error(text || 'Tool execution failed');
@@ -182,7 +193,8 @@ class InProcessMcpSession implements IInProcessMcpSession {
     }
 
     try {
-      return JSON.parse(text) as unknown;
+      const parsed: unknown = JSON.parse(text);
+      return parsed;
     } catch {
       return text;
     }
