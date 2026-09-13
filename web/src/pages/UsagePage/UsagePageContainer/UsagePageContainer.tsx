@@ -90,10 +90,10 @@ export const UsagePageContainer: React.FC = () => {
 
   return (
     <Page showSidebar={true}>
-      <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-        <header className="flex items-center gap-3">
-          <Gauge className="h-6 w-6 text-primary" aria-hidden />
-          <div>
+      <div className="mx-auto max-w-6xl space-y-5 px-4 py-8 sm:px-6">
+        <header className="flex items-start gap-3 pb-1">
+          <Gauge className="mt-0.5 h-6 w-6 shrink-0 text-primary" aria-hidden />
+          <div className="space-y-1">
             <h1 className="text-2xl font-bold text-foreground">Usage</h1>
             <p className="text-sm text-muted-foreground">
               Track your monthly credit consumption, billing, and plan details.

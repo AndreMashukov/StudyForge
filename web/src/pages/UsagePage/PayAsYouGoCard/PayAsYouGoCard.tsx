@@ -23,6 +23,11 @@ import {
   MONTHLY_CAP_ERROR_MESSAGE,
   parseMonthlyCapDollars,
 } from '../utils/usagePageUtils';
+import {
+  usageDetailLabelClassName,
+  usageDetailValueClassName,
+  usageSectionCardClassName,
+} from '../UsagePage.styles';
 import type { IPayAsYouGoCardProps } from './IPayAsYouGoCard';
 
 export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
@@ -57,7 +62,7 @@ export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
           : 'Not set up';
 
   return (
-    <Card className="shadow-none border-border/50">
+    <Card className={usageSectionCardClassName}>
       <CardHeader className="px-5 py-4">
         <div className="flex items-center gap-2">
           <CreditCard className="h-5 w-5 text-primary" aria-hidden />
@@ -71,46 +76,39 @@ export const PayAsYouGoCard: React.FC<IPayAsYouGoCardProps> = ({
       </CardHeader>
       <CardContent className="space-y-5 px-5 pb-5 pt-0">
         {billingError ? (
-          <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+          <p
+            className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            role="alert"
+          >
             {billingError}
           </p>
         ) : null}
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Billing status
-            </dt>
-            <dd className="text-sm font-medium text-foreground">{billingStatusLabel}</dd>
+            <dt className={usageDetailLabelClassName}>Billing status</dt>
+            <dd className={usageDetailValueClassName}>{billingStatusLabel}</dd>
           </div>
           <div className="space-y-1">
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Price per credit
-            </dt>
-            <dd className="text-sm font-medium text-foreground tabular-nums">
+            <dt className={usageDetailLabelClassName}>Price per credit</dt>
+            <dd className={cn(usageDetailValueClassName, 'tabular-nums')}>
               {formatCreditUnitPriceFromCents(pricePerCredit)}
             </dd>
           </div>
           <div className="space-y-1">
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Overage this month
-            </dt>
-            <dd className="text-sm font-medium text-foreground tabular-nums">
+            <dt className={usageDetailLabelClassName}>Overage this month</dt>
+            <dd className={cn(usageDetailValueClassName, 'tabular-nums')}>
               {formatCurrencyFromCents(spentOverage)}
             </dd>
           </div>
           <div className="space-y-1">
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Remaining cap
-            </dt>
-            <dd className="text-sm font-medium text-foreground tabular-nums">
+            <dt className={usageDetailLabelClassName}>Remaining cap</dt>
+            <dd className={cn(usageDetailValueClassName, 'tabular-nums')}>
               {formatCurrencyFromCents(remainingCap)} of {formatCurrencyFromCents(monthlyCap)}
             </dd>
           </div>
           <div className="space-y-1">
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Overage credits used
-            </dt>
-            <dd className="text-sm font-medium text-foreground tabular-nums">
+            <dt className={usageDetailLabelClassName}>Overage credits used</dt>
+            <dd className={cn(usageDetailValueClassName, 'tabular-nums')}>
               {formatCreditCount(summary.spentOverageCredits ?? 0)}
             </dd>
           </div>
