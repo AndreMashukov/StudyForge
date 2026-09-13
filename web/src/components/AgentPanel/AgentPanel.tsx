@@ -711,7 +711,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
                   <div key={message.id} className="flex justify-start">
                     <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
                       <Spinner size="xs" />
-                      {message.statusMessage ?? 'Thinking...'}
+                      {message.statusMessage ?? 'Planning...'}
                     </div>
                   </div>
                 );

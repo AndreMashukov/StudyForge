@@ -20,7 +20,7 @@ The workspace agent is different: it runs inside a 300s Firebase Function HTTP r
 
 3. Resume after failure via a second HTTP/SSE request with `resume: true` and the same `turnId`. Do not use Cloud Tasks for workspace agent turns.
 
-4. Stream real token deltas only for the final planner reply through `@study-forge/backend-llm` `onDelta`. The planner completion still returns JSON; only decoded characters of the `response` field are forwarded as SSE `delta` events, and only after `"type":"response"` is known. Plan JSON, parse retries, and ungrounded create replies are not streamed. Planning and executor steps emit status SSE events only. Do not use LangGraph `astreamEvents`.
+4. Stream real token deltas only for the final planner reply through `@study-forge/backend-llm` `onDelta`. The planner completion still returns JSON; only decoded characters of the `response` field are forwarded as SSE `delta` events, and only after `"type":"response"` is known. Disable provider thinking on planner calls so those tokens start during generation instead of arriving as one dump after a thought block. Plan JSON, parse retries, and ungrounded create replies are not streamed. Planning and executor steps emit status SSE events only. Do not use LangGraph `astreamEvents`.
 
 5. Do not migrate historical ADK sessions into checkpoints. Durable chat history remains on StudyForge agent threads.
 
