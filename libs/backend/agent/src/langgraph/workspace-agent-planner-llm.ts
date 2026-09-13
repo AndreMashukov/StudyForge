@@ -71,6 +71,9 @@ async function runPlannerCompletion(input: {
     apiKey: resolution.providerApiKey,
     messages,
     tools: [],
+    // MiniMax thinking holds the JSON until the thought ends, so the UI
+    // gets one dump after Planning. Turn thinking off for planner turns.
+    disableReasoning: true,
     stream: streamUserReply,
     onDelta: streamUserReply
       ? (text) => {

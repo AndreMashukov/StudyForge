@@ -690,9 +690,14 @@ export async function callToolChatCompletions(input: {
   tools: ILlmOpenAiToolDefinition[];
   stream?: boolean;
   onDelta?: (text: string) => void;
+  disableReasoning?: boolean;
 }): Promise<ILlmToolChatMessage> {
   const preferStream = shouldStreamToolChat(input.stream ?? true);
-  const settings = await readLlmGenerationRuntimeSettings();
+  const baseSettings = await readLlmGenerationRuntimeSettings();
+  const settings =
+    input.disableReasoning === undefined
+      ? baseSettings
+      : { ...baseSettings, disableReasoning: input.disableReasoning };
 
   if (!preferStream) {
     return executeNonStreamToolChat({

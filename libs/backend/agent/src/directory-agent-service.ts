@@ -18,10 +18,7 @@ import {
   deriveAgentThreadTitle,
 } from './memory/agent-memory-service';
 import { WorkspaceAgentRunner } from './langgraph/workspace-agent-runner';
-import {
-  buildAgentTurnKey,
-  claimAgentTurnCompletion,
-} from './checkpointer';
+import { buildAgentTurnKey, claimAgentTurnCompletion } from './checkpointer';
 import { withExecutedActionContext } from './runner/agent-history';
 import {
   buildReplyFromExecutedActions,
@@ -300,12 +297,6 @@ function buildSystemPrompt(input: {
     .join('\n');
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
 export class DirectoryAgentService {
   static async *streamMessage(
     userId: string,
@@ -405,6 +396,25 @@ export class DirectoryAgentService {
     let runError: string | null = null;
     let reply = '';
     let runComplete = false;
+    let wakePending: (() => void) | undefined;
+
+    const notifyPending = (): void => {
+      const wake = wakePending;
+      wakePending = undefined;
+      wake?.();
+    };
+
+    const waitForPendingOrComplete = async (): Promise<void> => {
+      if (runComplete || pendingEvents.length > 0) {
+        return;
+      }
+      await new Promise<void>((resolve) => {
+        wakePending = resolve;
+        if (runComplete || pendingEvents.length > 0) {
+          notifyPending();
+        }
+      });
+    };
 
     const formattedUserMessage = formatUserMessageForModel(
       request.message,
@@ -428,6 +438,7 @@ export class DirectoryAgentService {
       onEvent: (event: AgentMessageStreamEvent) => {
         if (event.type === 'delta' || event.type === 'status') {
           pendingEvents.push(event);
+          notifyPending();
         }
       },
     })
@@ -440,6 +451,7 @@ export class DirectoryAgentService {
       })
       .finally(() => {
         runComplete = true;
+        notifyPending();
       });
 
     while (!runComplete || pendingEvents.length > 0) {
@@ -451,7 +463,7 @@ export class DirectoryAgentService {
       }
 
       if (!runComplete) {
-        await sleep(20);
+        await waitForPendingOrComplete();
       }
     }
 
