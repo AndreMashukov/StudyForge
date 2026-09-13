@@ -97,6 +97,8 @@ export async function updateRuleInFirestore(
   return updated;
 }
 
+const FIRESTORE_BATCH_MAX_OPS = 499;
+
 export async function deleteRuleInFirestore(
   userId: string,
   ruleId: string,
@@ -106,15 +108,38 @@ export async function deleteRuleInFirestore(
     throw new Error('Rule not found');
   }
 
-  if (existing.directoryIds && existing.directoryIds.length > 0) {
-    return {
-      success: false,
-      error: `Cannot delete rule. It is currently attached to ${existing.directoryIds.length} director${existing.directoryIds.length === 1 ? 'y' : 'ies'}. Please detach it first.`,
-    };
+  const directoryIds = existing.directoryIds ?? [];
+  const ruleDocRef = ruleRef(userId, ruleId);
+
+  if (directoryIds.length === 0) {
+    const { deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(ruleDocRef);
+    return { success: true };
   }
 
-  const { deleteDoc } = await import('firebase/firestore');
-  await deleteDoc(ruleRef(userId, ruleId));
+  for (let i = 0; i < directoryIds.length; i += FIRESTORE_BATCH_MAX_OPS) {
+    const chunk = directoryIds.slice(i, i + FIRESTORE_BATCH_MAX_OPS);
+    const isLastChunk = i + FIRESTORE_BATCH_MAX_OPS >= directoryIds.length;
+    const batch = writeBatch(db);
+
+    for (const directoryId of chunk) {
+      const dirDocRef = directoryRef(userId, directoryId);
+      const dirSnap = await getDoc(dirDocRef);
+      if (dirSnap.exists()) {
+        batch.update(dirDocRef, {
+          ruleIds: arrayRemove(ruleId),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    }
+
+    if (isLastChunk) {
+      batch.delete(ruleDocRef);
+    }
+
+    await batch.commit();
+  }
+
   return { success: true };
 }
 

@@ -40,4 +40,5 @@ export interface ICreateArtifactModalProps {
   open: boolean;
   state: ICreateArtifactModalOpenState | null;
   onClose: () => void;
+  onGenerationStarted?: (directoryTab: string) => void;
 }

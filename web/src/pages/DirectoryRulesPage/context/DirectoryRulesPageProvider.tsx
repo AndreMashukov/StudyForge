@@ -1,5 +1,6 @@
-import { ReactNode, useState, useCallback } from 'react';
+import { ReactNode, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { extractDirectoryIdFromRouteParam } from '../../../utils/directoryUrl';
 import { DirectoryRulesPageContext } from './DirectoryRulesPageContext';
 import { IDirectoryRulesPageContext } from '../types/IDirectoryRulesPageContext';
 import { 
@@ -12,12 +13,21 @@ import { useBulkDetachDirectoryRules } from './hooks/useBulkDetachDirectoryRules
 
 interface DirectoryRulesPageProviderProps {
   children: ReactNode;
+  directoryId?: string;
 }
 
 export const DirectoryRulesPageProvider = ({
   children,
+  directoryId: directoryIdProp,
 }: DirectoryRulesPageProviderProps) => {
-  const { directoryId } = useParams<{ directoryId: string }>();
+  const { directoryId: directoryRouteParam } = useParams<{ directoryId: string }>();
+  const directoryId = useMemo(
+    () =>
+      directoryIdProp ??
+      extractDirectoryIdFromRouteParam(directoryRouteParam) ??
+      '',
+    [directoryIdProp, directoryRouteParam],
+  );
   const navigate = useNavigate();
   
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);

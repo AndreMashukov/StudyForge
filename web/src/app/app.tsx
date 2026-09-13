@@ -19,7 +19,7 @@ import { DocumentsPage } from '../pages/DocumentsPage';
 import { DocumentViewerPage } from '../pages/DocumentViewerPage';
 import { RulesPage } from '../pages/RulesPage';
 import { RuleEditorPage } from '../pages/RuleEditorPage';
-import { DirectoryRulesPage } from '../pages/DirectoryRulesPage';
+import { DirectoryRulesRedirect } from './DirectoryRulesRedirect';
 import { FlashcardSetPage } from '../pages/FlashcardSetPage';
 import { SlideDeckPage } from '../pages/SlideDeckPage';
 import { DiagramQuizPage } from '../pages/DiagramQuizPage';
@@ -359,13 +359,13 @@ const AppContent = () => {
         }
       />
 
-      {/* Directory Rules Management Route */}
+      {/* Legacy directory rules URL redirects to directory Rules tab */}
       <Route
         path="/directories/:directoryId/rules"
         element={
           <MainLayout>
             <ProtectedRoute>
-              <DirectoryRulesPage />
+              <DirectoryRulesRedirect />
             </ProtectedRoute>
           </MainLayout>
         }

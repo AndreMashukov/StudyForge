@@ -24,6 +24,8 @@ import {
 } from '../../components/ui/DropdownMenu';
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronRight,
   Folder,
   FolderInput,
   FolderPlus,
@@ -50,7 +52,8 @@ import { DiagramQuizzesPanel } from './DiagramQuizzesPanel';
 import { Spinner } from '../../components/ui/Spinner';
 import { SequenceQuizzesPanel } from './SequenceQuizzesPanel';
 import { MatchQuizzesPanel } from './MatchQuizzesPanel';
-import { RulesPanel } from './RulesPanel';
+import { DirectoryRulesPageProvider } from '../DirectoryRulesPage/context/DirectoryRulesPageProvider';
+import { DirectoryRulesPageContainer } from '../DirectoryRulesPage/DirectoryRulesPageContainer';
 import { TooltipProvider } from '../../components/ui/Tooltip';
 import { DirectoryChatPanel } from '../../components/DirectoryChatPanel';
 import {
@@ -99,6 +102,7 @@ export const DirectoryDetailPageContainer = () => {
   const [deleteArtifactDialog, setDeleteArtifactDialog] = useState<{ artifact: ArtifactToDelete | null }>({ artifact: null });
   const [createArtifactModal, setCreateArtifactModal] = useState<ICreateArtifactModalOpenState | null>(null);
   const [createDocumentModalOpen, setCreateDocumentModalOpen] = useState(false);
+  const [subfolderPillsOpen, setSubfolderPillsOpen] = useState(true);
 
   const handleOpenCreateArtifact = useCallback(
     (artifactType: CreateArtifactModalType, preselectedDocumentIds?: string[]) => {
@@ -168,8 +172,7 @@ export const DirectoryDetailPageContainer = () => {
     skip: !directoryId,
   });
 
-  const { data: directoryRulesData, isLoading: isLoadingDirectoryRules } =
-    useGetDirectoryRulesQuery(
+  const { data: directoryRulesData } = useGetDirectoryRulesQuery(
       { directoryId: directoryId ?? '', includeAncestors: true },
       { skip: !directoryId },
     );
@@ -234,6 +237,14 @@ export const DirectoryDetailPageContainer = () => {
       });
     },
     [directoryId, location.state, navigate, titleDirectory],
+  );
+
+  const handleArtifactGenerationStarted = useCallback(
+    (directoryTab: string) => {
+      setCreateArtifactModal(null);
+      handlePanelChange(parseDirectoryTab(directoryTab));
+    },
+    [handlePanelChange],
   );
 
   if (!directoryId) {
@@ -356,7 +367,20 @@ export const DirectoryDetailPageContainer = () => {
 
           {/* Subfolder pills */}
           {subdirectories.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-start gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={() => setSubfolderPillsOpen((open) => !open)}
+                aria-expanded={subfolderPillsOpen}
+                aria-label={subfolderPillsOpen ? 'Hide subfolders' : 'Show subfolders'}
+              >
+                {subfolderPillsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </Button>
+              {subfolderPillsOpen && (
+                <div className="flex flex-wrap gap-2 min-w-0">
               {subdirectories.map((sub: Directory) => {
                 const IconComponent = ICON_MAP[sub.icon || 'Folder'] || Folder;
                 return (
@@ -402,7 +426,11 @@ export const DirectoryDetailPageContainer = () => {
                           Move to...
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => navigate(`/directories/${sub.id}/rules`)}
+                          onClick={() =>
+                            navigate(
+                              buildDirectoryPathWithOptionalName(sub.id, sub.name, 'rules'),
+                            )
+                          }
                         >
                           <Shield size={14} className="mr-2" />
                           Manage rules
@@ -419,6 +447,8 @@ export const DirectoryDetailPageContainer = () => {
                   </div>
                 );
               })}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -504,11 +534,9 @@ export const DirectoryDetailPageContainer = () => {
               />
             )}
             {activePanel === 'rules' && (
-              <RulesPanel
-                rules={directoryRules}
-                directoryId={directoryId}
-                isLoading={isLoadingDirectoryRules}
-              />
+              <DirectoryRulesPageProvider directoryId={directoryId}>
+                <DirectoryRulesPageContainer variant="panel" />
+              </DirectoryRulesPageProvider>
             )}
           </div>
         </div>
@@ -568,6 +596,7 @@ export const DirectoryDetailPageContainer = () => {
         open={createArtifactModal !== null}
         state={createArtifactModal}
         onClose={handleCloseCreateArtifact}
+        onGenerationStarted={handleArtifactGenerationStarted}
       />
 
       <CreateDocumentModal

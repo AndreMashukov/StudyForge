@@ -134,7 +134,9 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
         onEdit={() => setEditDialog({ open: true, directory: dir })}
         onDelete={() => setDeleteDialog({ open: true, directory: dir })}
         onMove={() => setMoveDialog({ directory: dir })}
-        onManageRules={() => navigate(`/directories/${dir.id}/rules`)}
+        onManageRules={() =>
+          navigate(buildDirectoryPathWithOptionalName(dir.id, dir.name, 'rules'))
+        }
       />
     ),
     [handlers, navigate],

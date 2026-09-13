@@ -68,6 +68,7 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
   open,
   state,
   onClose,
+  onGenerationStarted,
 }) => {
   const sidebarIsOpen = useSelector(selectSidebarIsOpen);
   const { isAppFullscreen } = useAppFullscreen();
@@ -200,10 +201,13 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
     (formData: CreateArtifactFormSchema) => {
       const started = submit(formData);
       if (started) {
+        if (onGenerationStarted && config) {
+          onGenerationStarted(config.directoryTab);
+        }
         onClose();
       }
     },
-    [onClose, submit],
+    [config, onClose, onGenerationStarted, submit],
   );
 
   if (!open || !state || !config || !directoryId || !artifactType) {

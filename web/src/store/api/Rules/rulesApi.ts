@@ -140,7 +140,7 @@ export const rulesApi = baseApi.injectEndpoints({
           return mutationError(error);
         }
       },
-      invalidatesTags: (result) => (result?.success ? ['Rules'] : []),
+      invalidatesTags: (result) => (result?.success ? ['Rules', 'DirectoryRules'] : []),
     }),
 
     attachRuleToDirectory: builder.mutation<void, AttachRuleToDirectoryRequest>({
@@ -199,7 +199,8 @@ export const rulesApi = baseApi.injectEndpoints({
           return mutationError(error);
         }
       },
-      invalidatesTags: (result) => (result && result.succeeded > 0 ? ['Rules'] : []),
+      invalidatesTags: (result) =>
+        result && result.succeeded > 0 ? ['Rules', 'DirectoryRules'] : [],
     }),
 
     bulkDetachRulesFromDirectory: builder.mutation<
