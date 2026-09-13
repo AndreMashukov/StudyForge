@@ -1,5 +1,5 @@
 import type { AgentMessageStreamEvent } from '@shared-types';
-import type { AgentToolDefinition } from '../tools/create-agent-tools';
+import type { IInProcessMcpSession } from '../mcp';
 import type { AgentToolOutcome } from '../runner/agent-chat-fallback';
 import {
   buildStepExecutionMessage,
@@ -15,7 +15,7 @@ export interface IRunWorkspaceExecutorStepInput {
   step: string;
   pastSteps: AgentPlanExecutePastStep[];
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
-  tools: AgentToolDefinition[];
+  toolSession: IInProcessMcpSession;
   onEvent?: (event: AgentMessageStreamEvent) => void;
 }
 
@@ -44,7 +44,7 @@ export async function runWorkspaceExecutorStep(
     systemPrompt: input.systemPrompt,
     userMessage: stepMessage,
     history: input.history,
-    tools: input.tools,
+    toolSession: input.toolSession,
     generationKind: 'agentExecutor',
     maxToolRounds: 4,
     emitDeltas: false,
