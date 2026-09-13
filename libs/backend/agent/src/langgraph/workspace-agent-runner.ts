@@ -2,6 +2,7 @@ import { GraphRecursionError } from '@langchain/langgraph';
 import { MemorySaver } from '@langchain/langgraph-checkpoint';
 import type { AgentMessageStreamEvent } from '@shared-types';
 import type { AgentToolDefinition } from '../tools/create-agent-tools';
+import { createInProcessMcpSession } from '../mcp';
 import { EMPTY_AGENT_REPLY } from '../runner/agent-chat-fallback';
 import {
   getFirestoreCheckpointer,
@@ -69,65 +70,73 @@ export class WorkspaceAgentRunner {
       input.turnId,
     );
 
-    const config = {
-      recursionLimit: WORKSPACE_AGENT_RECURSION_LIMIT,
-      configurable: {
-        thread_id: langGraphThreadId,
-        userId: input.userId,
-        tools: input.tools,
-        onEvent: input.onEvent,
-      },
-    };
-
-    let finalState: WorkspaceAgentState;
+    const toolSession = await createInProcessMcpSession(input.tools);
 
     try {
-      if (input.resume) {
-        finalState = await graph.invoke(null, config);
-      } else {
-        finalState = await graph.invoke(
-          {
-            [WORKSPACE_AGENT_STATE_KEYS.studyForgeThreadId]:
-              input.studyForgeThreadId,
-            [WORKSPACE_AGENT_STATE_KEYS.objective]: input.objective,
-            [WORKSPACE_AGENT_STATE_KEYS.systemPrompt]: input.systemPrompt,
-            [WORKSPACE_AGENT_STATE_KEYS.history]: input.history,
-            [WORKSPACE_AGENT_STATE_KEYS.plannerIntent]: 'initial',
-            [WORKSPACE_AGENT_STATE_KEYS.agentOutcome]: 'pending',
-            [WORKSPACE_AGENT_STATE_KEYS.planSteps]: [],
-            [WORKSPACE_AGENT_STATE_KEYS.pastSteps]: [],
-            [WORKSPACE_AGENT_STATE_KEYS.allToolOutcomes]: [],
-            [WORKSPACE_AGENT_STATE_KEYS.executedStepCount]: 0,
-            [WORKSPACE_AGENT_STATE_KEYS.replanCycle]: 0,
-          },
-          config,
-        );
+      const config = {
+        recursionLimit: WORKSPACE_AGENT_RECURSION_LIMIT,
+        configurable: {
+          thread_id: langGraphThreadId,
+          userId: input.userId,
+          toolSession,
+          onEvent: input.onEvent,
+        },
+      };
+
+      let finalState: WorkspaceAgentState;
+
+      try {
+        if (input.resume) {
+          finalState = await graph.invoke(null, config);
+        } else {
+          finalState = await graph.invoke(
+            {
+              [WORKSPACE_AGENT_STATE_KEYS.studyForgeThreadId]:
+                input.studyForgeThreadId,
+              [WORKSPACE_AGENT_STATE_KEYS.objective]: input.objective,
+              [WORKSPACE_AGENT_STATE_KEYS.systemPrompt]: input.systemPrompt,
+              [WORKSPACE_AGENT_STATE_KEYS.history]: input.history,
+              [WORKSPACE_AGENT_STATE_KEYS.plannerIntent]: 'initial',
+              [WORKSPACE_AGENT_STATE_KEYS.agentOutcome]: 'pending',
+              [WORKSPACE_AGENT_STATE_KEYS.planSteps]: [],
+              [WORKSPACE_AGENT_STATE_KEYS.pastSteps]: [],
+              [WORKSPACE_AGENT_STATE_KEYS.allToolOutcomes]: [],
+              [WORKSPACE_AGENT_STATE_KEYS.executedStepCount]: 0,
+              [WORKSPACE_AGENT_STATE_KEYS.replanCycle]: 0,
+            },
+            config,
+          );
+        }
+      } catch (error) {
+        if (error instanceof GraphRecursionError) {
+          throw new WorkspaceAgentPipelineFailedError(
+            'Workspace agent graph exceeded recursion limit',
+          );
+        }
+        if (error instanceof CheckpointOverflowUnavailableError) {
+          throw new WorkspaceAgentPipelineFailedError(error.message);
+        }
+        throw error;
       }
-    } catch (error) {
-      if (error instanceof GraphRecursionError) {
+
+      const outcome = finalState[WORKSPACE_AGENT_STATE_KEYS.agentOutcome];
+      if (outcome === 'failed') {
         throw new WorkspaceAgentPipelineFailedError(
-          'Workspace agent graph exceeded recursion limit',
+          readFailureMessage(finalState),
         );
       }
-      if (error instanceof CheckpointOverflowUnavailableError) {
-        throw new WorkspaceAgentPipelineFailedError(error.message);
+
+      const streamedFinal =
+        finalState[WORKSPACE_AGENT_STATE_KEYS.streamedFinalReply] === true;
+      const reply = readFinalReply(finalState);
+
+      if (!streamedFinal && reply.length > 0) {
+        input.onEvent?.({ type: 'delta', text: reply });
       }
-      throw error;
+
+      return reply;
+    } finally {
+      await toolSession.close();
     }
-
-    const outcome = finalState[WORKSPACE_AGENT_STATE_KEYS.agentOutcome];
-    if (outcome === 'failed') {
-      throw new WorkspaceAgentPipelineFailedError(readFailureMessage(finalState));
-    }
-
-    const streamedFinal =
-      finalState[WORKSPACE_AGENT_STATE_KEYS.streamedFinalReply] === true;
-    const reply = readFinalReply(finalState);
-
-    if (!streamedFinal && reply.length > 0) {
-      input.onEvent?.({ type: 'delta', text: reply });
-    }
-
-    return reply;
   }
 }

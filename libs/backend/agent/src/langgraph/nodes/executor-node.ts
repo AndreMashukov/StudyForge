@@ -72,7 +72,7 @@ export async function executorNode(
       step: currentStep,
       pastSteps,
       history,
-      tools: runtime.tools,
+      toolSession: runtime.toolSession,
       onEvent: runtime.onEvent,
     });
 

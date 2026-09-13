@@ -131,7 +131,7 @@ export async function plannerNode(
             history,
             pastSteps,
           }),
-          tools: runtime.tools,
+          toolCatalog: runtime.toolSession.listToolCatalog(),
           isReplan: true,
           recoverOutcomes: allToolOutcomes,
           onUserReplyDelta: blocked
@@ -187,7 +187,7 @@ export async function plannerNode(
           pastSteps,
           remainingPlan: isReplan ? planSteps : undefined,
         }),
-        tools: runtime.tools,
+        toolCatalog: runtime.toolSession.listToolCatalog(),
         isReplan: isReplan && !isInitial,
         recoverOutcomes: allToolOutcomes,
         onUserReplyDelta: blocked

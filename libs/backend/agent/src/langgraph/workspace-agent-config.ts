@@ -1,27 +1,13 @@
 import type { RunnableConfig } from '@langchain/core/runnables';
 import type { AgentMessageStreamEvent } from '@shared-types';
-import type { AgentToolDefinition } from '../tools/create-agent-tools';
+import type { IInProcessMcpSession } from '../mcp';
+import { isInProcessMcpSession } from '../mcp';
 
 export interface IWorkspaceAgentRunnableConfigurable {
   userId: string;
   thread_id: string;
-  tools: AgentToolDefinition[];
+  toolSession: IInProcessMcpSession;
   onEvent?: (event: AgentMessageStreamEvent) => void;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isAgentToolDefinition(value: unknown): value is AgentToolDefinition {
-  if (!isRecord(value)) {
-    return false;
-  }
-  return (
-    typeof value.name === 'string' &&
-    value.name.length > 0 &&
-    typeof value.execute === 'function'
-  );
 }
 
 function isAgentMessageStreamHandler(
@@ -47,14 +33,15 @@ export function readWorkspaceAgentConfig(
       ? configurable.thread_id
       : '';
 
-  const tools =
-    'tools' in configurable && Array.isArray(configurable.tools)
-      ? configurable.tools.filter(isAgentToolDefinition)
-      : [];
+  const toolSession =
+    'toolSession' in configurable &&
+    isInProcessMcpSession(configurable.toolSession)
+      ? configurable.toolSession
+      : null;
 
-  if (!userId || !threadId) {
+  if (!userId || !threadId || !toolSession) {
     throw new Error(
-      'Workspace agent graph requires userId and thread_id in configurable',
+      'Workspace agent graph requires userId, thread_id, and toolSession in configurable',
     );
   }
 
@@ -63,5 +50,5 @@ export function readWorkspaceAgentConfig(
       ? configurable.onEvent
       : undefined;
 
-  return { userId, thread_id: threadId, tools, onEvent };
+  return { userId, thread_id: threadId, toolSession, onEvent };
 }

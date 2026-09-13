@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { JsonSanitizer } from '@study-forge/backend-llm/llm';
-import type { AgentToolDefinition } from '../tools/create-agent-tools';
+import type { IAgentToolCatalogEntry } from '../mcp';
 import type { AgentToolOutcome } from './agent-chat-fallback';
 
 export const MAX_PLAN_STEPS = 8;
@@ -165,7 +165,7 @@ export function buildGroundedCreateReply(
     .join('\n\n');
 }
 
-export function formatToolCatalog(tools: AgentToolDefinition[]): string {
+export function formatToolCatalog(tools: IAgentToolCatalogEntry[]): string {
   return tools.map((tool) => `- ${tool.name}: ${tool.description}`).join('\n');
 }
 
@@ -183,7 +183,7 @@ function formatPastSteps(pastSteps: AgentPlanExecutePastStep[]): string {
 }
 
 export function buildPlannerPrompt(input: {
-  tools: AgentToolDefinition[];
+  tools: IAgentToolCatalogEntry[];
   isReplan: boolean;
 }): string {
   const mode = input.isReplan ? 'replanner' : 'planner';

@@ -4,11 +4,7 @@ import {
   type ILlmToolChatMessage,
 } from '@study-forge/backend-llm/llm';
 import type { AgentMessageStreamEvent, GenerationKind } from '@shared-types';
-import type { AgentToolDefinition } from '../tools/create-agent-tools';
-import {
-  executeAgentTool,
-  toolDefinitionsToOpenAiTools,
-} from '../tools/create-agent-tools';
+import type { IInProcessMcpSession } from '../mcp';
 import {
   buildEmptyModelFallback,
   type AgentToolOutcome,
@@ -66,7 +62,7 @@ export interface AgentChatRunnerInput {
   systemPrompt: string;
   userMessage: string;
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
-  tools: AgentToolDefinition[];
+  toolSession: IInProcessMcpSession;
   generationKind?: Extract<GenerationKind, 'directoryChat' | 'agentExecutor'>;
   maxToolRounds?: number;
   emitDeltas?: boolean;
@@ -97,7 +93,7 @@ export class AgentChatRunner {
       throw new Error('Agent chat provider credentials are missing');
     }
 
-    const openAiTools = toolDefinitionsToOpenAiTools(input.tools);
+    const openAiTools = input.toolSession.listOpenAiTools();
     const messages: ILlmToolChatMessage[] = [
       { role: 'system', content: input.systemPrompt },
       ...input.history.map((entry) => ({
@@ -177,8 +173,7 @@ export class AgentChatRunner {
         const args = parseToolArguments(toolCall.function.arguments);
         let toolContent: string;
         try {
-          const result = await executeAgentTool(
-            input.tools,
+          const result = await input.toolSession.callTool(
             toolCall.function.name,
             args,
           );

@@ -2,7 +2,7 @@ import {
   callToolChatCompletions,
   LlmGenerationRouteResolver,
 } from '@study-forge/backend-llm/llm';
-import type { AgentToolDefinition } from '../tools/create-agent-tools';
+import type { IAgentToolCatalogEntry } from '../mcp';
 import type { AgentToolOutcome } from '../runner/agent-chat-fallback';
 import {
   buildGroundedCreateReply,
@@ -19,7 +19,7 @@ export interface ICallWorkspacePlannerModelInput {
   userId: string;
   systemPrompt: string;
   userMessage: string;
-  tools: AgentToolDefinition[];
+  toolCatalog: IAgentToolCatalogEntry[];
   isReplan: boolean;
   recoverOutcomes?: AgentToolOutcome[];
   onUserReplyDelta?: (text: string) => void;
@@ -34,7 +34,7 @@ async function runPlannerCompletion(input: {
   userId: string;
   systemPrompt: string;
   userMessage: string;
-  tools: AgentToolDefinition[];
+  toolCatalog: IAgentToolCatalogEntry[];
   isReplan: boolean;
   streamUserReply: boolean;
   previousInvalidContent?: string;
@@ -52,7 +52,7 @@ async function runPlannerCompletion(input: {
   }
 
   const instruction = `${input.systemPrompt}\n\n${buildPlannerPrompt({
-    tools: input.tools,
+    tools: input.toolCatalog,
     isReplan: input.isReplan,
   })}`;
 
@@ -102,7 +102,7 @@ export async function callWorkspacePlannerModel(
       userId: input.userId,
       systemPrompt: input.systemPrompt,
       userMessage: input.userMessage,
-      tools: input.tools,
+      toolCatalog: input.toolCatalog,
       isReplan: input.isReplan,
       streamUserReply,
       previousInvalidContent,
