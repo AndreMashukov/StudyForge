@@ -13,6 +13,13 @@ import {
   formatCreditCount,
   roundPercent,
 } from '../utils/usagePageUtils';
+import {
+  usageMeterCardClassName,
+  usageMeterHeaderClassName,
+  usageMeterProgressFillClassName,
+  usageMeterProgressTrackClassName,
+  usageMeterStatPillClassName,
+} from '../UsagePage.styles';
 import type { IUsageCardProps } from './IUsageCard';
 
 export const UsageCard: React.FC<IUsageCardProps> = ({ summary }) => {
@@ -26,35 +33,29 @@ export const UsageCard: React.FC<IUsageCardProps> = ({ summary }) => {
   )} of ${formatCreditCount(summary.allowance)} credits remaining.`;
 
   return (
-    <Card className="shadow-none border-border/50">
+    <Card className={usageMeterCardClassName}>
       <CardHeader className="px-5 py-4">
-        <div className="flex items-baseline justify-between gap-4">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <div className={usageMeterHeaderClassName}>
+          <div className="min-w-0 space-y-1">
             <CardTitle className="text-lg font-semibold leading-none">Monthly Credits</CardTitle>
-            <span className="text-sm text-muted-foreground" aria-hidden>
-              ·
-            </span>
             <CardDescription className="text-sm">Resets on {resetLabel}</CardDescription>
           </div>
-          <span
-            className="text-sm font-medium text-muted-foreground tabular-nums"
-            aria-live="polite"
-          >
+          <span className={usageMeterStatPillClassName} aria-live="polite">
             {roundedPercent}% used
           </span>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 px-5 pb-5 pt-0">
+      <CardContent className="space-y-3 px-5 pb-5 pt-0">
         <div
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={roundedPercent}
           aria-label={percentAriaLabel}
-          className="h-2 w-full overflow-hidden rounded-full bg-muted"
+          className={usageMeterProgressTrackClassName}
         >
           <div
-            className="h-full bg-primary transition-[width] duration-300"
+            className={usageMeterProgressFillClassName}
             style={{ width: `${percent}%` }}
           />
         </div>

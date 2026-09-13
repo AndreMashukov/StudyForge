@@ -7,7 +7,13 @@ import {
   CardDescription,
   CardContent,
 } from '../../../components/ui/Card';
+import { cn } from '../../../lib/utils';
 import { formatCreditCount } from '../utils/usagePageUtils';
+import {
+  usageDetailLabelClassName,
+  usageDetailValueClassName,
+  usageSectionCardClassName,
+} from '../UsagePage.styles';
 import type { IPlanCardProps } from './IPlanCard';
 
 export const PlanCard: React.FC<IPlanCardProps> = ({ summary }) => {
@@ -15,9 +21,9 @@ export const PlanCard: React.FC<IPlanCardProps> = ({ summary }) => {
   const resetLabel = formatDateWithOptions(summary.resetAt, 'MMM d, yyyy');
 
   return (
-    <Card className="shadow-none border-border/50">
+    <Card className={usageSectionCardClassName}>
       <CardHeader className="px-5 py-4">
-        <div className="flex flex-col gap-1">
+        <div className="space-y-1">
           <CardTitle className="text-lg font-semibold leading-none">Current Plan</CardTitle>
           <CardDescription className="text-sm">{planName}</CardDescription>
         </div>
@@ -25,18 +31,14 @@ export const PlanCard: React.FC<IPlanCardProps> = ({ summary }) => {
       <CardContent className="px-5 pb-5 pt-0">
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Monthly allowance
-            </dt>
-            <dd className="text-sm font-medium text-foreground tabular-nums">
+            <dt className={usageDetailLabelClassName}>Monthly allowance</dt>
+            <dd className={cn(usageDetailValueClassName, 'tabular-nums')}>
               {formatCreditCount(summary.allowance)} credits
             </dd>
           </div>
           <div className="space-y-1">
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Next reset
-            </dt>
-            <dd className="text-sm font-medium text-foreground">{resetLabel}</dd>
+            <dt className={usageDetailLabelClassName}>Next reset</dt>
+            <dd className={usageDetailValueClassName}>{resetLabel}</dd>
           </div>
         </dl>
       </CardContent>
