@@ -13,6 +13,10 @@ import { WORKSPACE_AGENT_STATE_KEYS } from './workspace-agent-state-keys';
 import type { WorkspaceAgentState } from './workspace-agent-state';
 import { buildWorkspaceAgentGraph } from './build-workspace-agent-graph';
 import { WORKSPACE_AGENT_RECURSION_LIMIT } from './workspace-agent-limits';
+import {
+  buildLangGraphTraceConfig,
+  flushLangSmithTraces,
+} from '@study-forge/backend-core/services/langsmith-tracing';
 
 export class WorkspaceAgentPipelineFailedError extends Error {
   constructor(message: string) {
@@ -75,6 +79,15 @@ export class WorkspaceAgentRunner {
     try {
       const config = {
         recursionLimit: WORKSPACE_AGENT_RECURSION_LIMIT,
+        ...buildLangGraphTraceConfig({
+          runName: 'workspace-agent',
+          tags: ['langgraph', 'workspace-agent'],
+          metadata: {
+            userId: input.userId,
+            studyForgeThreadId: input.studyForgeThreadId,
+            turnId: input.turnId,
+          },
+        }),
         configurable: {
           thread_id: langGraphThreadId,
           userId: input.userId,
@@ -137,6 +150,7 @@ export class WorkspaceAgentRunner {
       return reply;
     } finally {
       await toolSession.close();
+      await flushLangSmithTraces();
     }
   }
 }

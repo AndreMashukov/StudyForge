@@ -1,5 +1,6 @@
 import { onCall } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
+import { langsmithApiKey } from '../langsmith-secret';
 import { validateContentForArtifactGeneration } from '@study-forge/backend-llm/llm';
 import { getGenerationFailureEnvelope } from '@study-forge/backend-llm/llm/llm-endpoint-error';
 import { mapErrorToArtifactEnvelope } from '@study-forge/backend-core/lib/callable-error';
@@ -48,7 +49,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export const generateMatchQuiz = onCall(
   {
     cors: true,
-    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey],
     maxInstances: 5,
     timeoutSeconds: 60,
     memory: '512MiB',

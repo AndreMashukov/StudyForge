@@ -12,6 +12,7 @@ import {
   enforceCallableAgentLoopLimits,
   settleAgentLoopUsageReservationSafe,
 } from '@study-forge/backend-generation/generation-limits';
+import { langsmithApiKey } from '../langsmith-secret';
 
 const runningInFunctionsEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
@@ -44,7 +45,7 @@ export const agentMessageStream = onRequest(
     timeoutSeconds: 300,
     memory: '1GiB',
     region: 'asia-east1',
-    secrets: [llmSettingsEncryptionKey],
+    secrets: [llmSettingsEncryptionKey, langsmithApiKey],
   },
   async (req, res) => {
     if (req.method !== 'POST') {

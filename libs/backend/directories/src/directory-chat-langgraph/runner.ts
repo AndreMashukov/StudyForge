@@ -1,4 +1,8 @@
 import { GraphRecursionError } from '@langchain/langgraph';
+import {
+  buildLangGraphTraceConfig,
+  flushLangSmithTraces,
+} from '@study-forge/backend-core/services/langsmith-tracing';
 import { DIRECTORY_CHAT_PIPELINE_STATE_KEYS } from '../directory-chat-pipeline-state-keys';
 import { compiledDirectoryChatGraph } from './graph';
 import type { DirectoryChatState } from './state';
@@ -36,6 +40,11 @@ export async function runDirectoryChatGraphPipeline(
   try {
     finalState = await compiledDirectoryChatGraph.invoke(initialState, {
       recursionLimit: 25,
+      ...buildLangGraphTraceConfig({
+        runName: 'directory-chat',
+        tags: ['langgraph', 'directory-chat'],
+        metadata: { threadId },
+      }),
       configurable: {
         thread_id: threadId,
       },
@@ -47,6 +56,8 @@ export async function runDirectoryChatGraphPipeline(
       );
     }
     throw error;
+  } finally {
+    await flushLangSmithTraces();
   }
 
   const outcome = readOutcome(finalState);

@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
+import { langsmithApiKey } from '../langsmith-secret';
 import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import {
   enforceCallableGenerationLimits,
@@ -129,7 +130,7 @@ export const createDocument = onCall(
   { 
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey],
   },
   async (request) => {
     try {
@@ -221,7 +222,7 @@ export const createDocumentFromPastedText = onCall(
   {
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey],
   },
   async (request) => {
     try {
@@ -326,7 +327,7 @@ export const uploadAndCreateDocument = onCall(
   {
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey],
     timeoutSeconds: 120,
     memory: '1GiB',
   },
@@ -459,7 +460,7 @@ export const createDocumentFromUrl = onCall(
   {
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey, llmSettingsEncryptionKey, apifyApiToken],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, apifyApiToken, langsmithApiKey],
     timeoutSeconds: 540,
     memory: '1GiB',
   },
@@ -1023,7 +1024,7 @@ export const generateFromPrompt = onCall(
   { 
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey],
     timeoutSeconds: 540, // 9 minutes for document generation
   },
   async (request) => {
@@ -1215,7 +1216,7 @@ export const generateFromScreenshot = onCall(
   {
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey],
     timeoutSeconds: 60,
   },
   async (request) => {

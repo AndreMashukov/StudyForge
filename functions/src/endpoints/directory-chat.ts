@@ -12,6 +12,7 @@ import {
 import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { withUsageReservation } from '@study-forge/backend-generation/generation-limits';
 import { DirectoryChatService } from '@study-forge/backend-directories/directory-chat';
+import { langsmithApiKey } from '../langsmith-secret';
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
@@ -46,7 +47,7 @@ export const sendDirectoryChatMessage = onCall(
   {
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey],
     timeoutSeconds: 300,
     memory: '1GiB',
   },

@@ -19,6 +19,7 @@ export * from './services/usage-quota-service';
 export * from './services/usage-limits-service';
 export * from './services/user-onboarding-service';
 export * from './services/provider-cost';
+export * from './services/langsmith-tracing';
 export * from './services/interaction-tracking';
 export * from './services/learning-telemetry';
 export * from './services/statistics';

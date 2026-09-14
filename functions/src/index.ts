@@ -6,6 +6,9 @@
  */
 
 import './global-options';
+import { applyLangSmithProcessDefaults } from '@study-forge/backend-core/services/langsmith-tracing';
+
+applyLangSmithProcessDefaults();
 import { onRequest } from 'firebase-functions/v2/https';
 
 /**

@@ -3,6 +3,7 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as functions from 'firebase-functions/v2';
 import { PlatformAgentKnowledgeIndexService } from '@study-forge/backend-agent/knowledge/platform-agent-knowledge-index-service';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
+import { langsmithApiKey } from '../langsmith-secret';
 
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
@@ -18,7 +19,7 @@ export const indexPlatformAgentKnowledgeDocument = onDocumentWritten(
   {
     document: 'platformAgentKnowledgeDocuments/{docId}',
     region: 'asia-east1',
-    secrets: [llmSettingsEncryptionKey],
+    secrets: [llmSettingsEncryptionKey, langsmithApiKey],
   },
   async (event) => {
     const docId = event.params.docId;

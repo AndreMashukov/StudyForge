@@ -1,5 +1,9 @@
 import { logger } from 'firebase-functions/v2';
 import { GraphRecursionError } from '@langchain/langgraph';
+import {
+  buildLangGraphTraceConfig,
+  flushLangSmithTraces,
+} from '@study-forge/backend-core/services/langsmith-tracing';
 
 import { ArtifactAgentPipelineFailedError } from '../../artifact-errors';
 import {
@@ -70,6 +74,15 @@ export async function runFlashcardsPipeline(
   try {
     finalState = (await flashcardsGraph.invoke(initialState, {
       recursionLimit,
+      ...buildLangGraphTraceConfig({
+        runName: 'flashcards',
+        tags: ['langgraph', 'flashcards'],
+        metadata: {
+          userId: input.userId,
+          jobId: input.jobId,
+          recordId: input.recordId,
+        },
+      }),
       configurable: {
         thread_id: input.jobId,
       },
@@ -89,6 +102,8 @@ export async function runFlashcardsPipeline(
       );
     }
     throw err;
+  } finally {
+    await flushLangSmithTraces();
   }
 
   const outcome = readFinalOutcome(finalState);

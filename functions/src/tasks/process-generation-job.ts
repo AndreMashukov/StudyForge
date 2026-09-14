@@ -29,6 +29,7 @@ import {
   mapJobKindToUsageGenerationKind,
   settleJobUsageReservation,
 } from '@study-forge/backend-core/services/usage-limits-service';
+import { langsmithApiKey } from '../langsmith-secret';
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
@@ -162,7 +163,7 @@ export const processGenerationJob = onTaskDispatched<ProcessGenerationJobTaskPay
     rateLimits: {
       maxConcurrentDispatches: 3,
     },
-    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey],
     timeoutSeconds: 540,
     memory: '1GiB',
   },

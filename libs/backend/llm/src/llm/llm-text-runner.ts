@@ -13,6 +13,7 @@ import {
   trackLlmProviderError,
   trackLlmProviderTextResult,
 } from './llm-provider-call-tracking';
+import { withLangSmithTrace } from '@study-forge/backend-core/services/langsmith-tracing';
 
 export interface TextRouteContext {
   resolution: GenerationRouteResolution;
@@ -55,7 +56,12 @@ export async function buildRoutedTextConfig(
   return applyLlmGenerationDefaults({ model, ...overrides }, { profile, flow });
 }
 
-export async function generateExternalProviderText(
+export const generateExternalProviderText = withLangSmithTrace(
+  generateExternalProviderTextImpl,
+  { name: 'external_provider_text', runType: 'llm' },
+);
+
+async function generateExternalProviderTextImpl(
   ctx: TextRouteContext,
   prompt: string,
   config: LlmTextConfig,

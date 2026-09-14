@@ -36,7 +36,7 @@ Read `CONTEXT.md` when exploring or naming things. Update it during `/grill-with
 | Kind | Names |
 |------|--------|
 | Planning | `/grill-with-docs` (user-invoked; runs grilling + domain-modeling) |
-| Knowledge | `page-pattern`, `styling-system`, `firebase-emulators`, `firebase-hosting`, `interactive-html`, `lab-to-studyforge` |
+| Knowledge | `page-pattern`, `styling-system`, `firebase-emulators`, `firebase-hosting`, `interactive-html`, `lab-to-studyforge`, `langsmith-trace` |
 | Tools | `/check`, `/format`, `/dev-bootstrap`, worktree-* |
 | Agents | `web-page-scaffolder`, `functions-reviewer`, `verify-changes` |
 

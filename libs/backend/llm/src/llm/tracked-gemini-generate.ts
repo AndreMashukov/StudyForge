@@ -5,6 +5,7 @@ import {
   normalizeGeminiUsageMetadata,
   recordLlmProviderResult,
 } from '@study-forge/backend-core/services/provider-cost';
+import { withLangSmithTrace } from '@study-forge/backend-core/services/langsmith-tracing';
 
 type GeminiGenerateContentRequest = Parameters<
   GoogleGenAI['models']['generateContent']
@@ -16,7 +17,12 @@ export interface IGeminiGenerationTracking {
   callRole?: ProviderCostCallRole;
 }
 
-export async function trackedGeminiGenerateContent(
+export const trackedGeminiGenerateContent = withLangSmithTrace(
+  trackedGeminiGenerateContentImpl,
+  { name: 'gemini_generate_content', runType: 'llm' },
+);
+
+async function trackedGeminiGenerateContentImpl(
   client: GoogleGenAI,
   request: GeminiGenerateContentRequest,
   tracking: IGeminiGenerationTracking = {},

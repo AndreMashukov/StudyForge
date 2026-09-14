@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
+import { langsmithApiKey } from '../langsmith-secret';
 import * as admin from 'firebase-admin';
 import { createHash } from 'crypto';
 import { z } from 'zod';
@@ -47,7 +48,7 @@ const slideDeckIdRequestSchema = z.object({
  * Generates a slide deck from a document using Gemini AI.
  */
 export const generateSlideDeck = onCall(
-  { region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 60, memory: '512MiB' },
+  { region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey], timeoutSeconds: 60, memory: '512MiB' },
   async (request) => {
     let usageReservationId: string | undefined;
     let dailySlideDeckReservationId: string | undefined;

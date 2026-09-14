@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
+import { langsmithApiKey } from '../langsmith-secret';
 import { logger } from 'firebase-functions/v2';
 import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { throwCallableError } from '@study-forge/backend-core/lib/callable-error';
@@ -25,7 +26,7 @@ export const askDocumentQuestion = onCall(
   { 
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey],
     timeoutSeconds: 300,
     memory: "1GiB",
   },

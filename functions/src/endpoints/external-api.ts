@@ -1,5 +1,6 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
+import { langsmithApiKey } from '../langsmith-secret';
 import * as admin from "firebase-admin";
 import { ExternalAuthResult, validateExternalAuthFromRequest } from '@study-forge/backend-core/lib/api-key-auth';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
@@ -170,7 +171,7 @@ async function saveExternalSlideImage(params: IExternalSlideImageParams): Promis
 export const api = onRequest(
   {
     cors: true,
-    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey],
     timeoutSeconds: 300,
     memory: "1GiB",
     maxInstances: 5,

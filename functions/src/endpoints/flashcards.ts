@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
+import { langsmithApiKey } from '../langsmith-secret';
 import * as admin from 'firebase-admin';
 import { createHash } from 'crypto';
 import { z } from 'zod';
@@ -89,7 +90,7 @@ const recordLearnedVocabularyRequestSchema = z.object({
 /**
  * Generates a new set of flashcards from a document.
  */
-export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 60 }, async (request) => {
+export const generateFlashcards = onCall({ region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey], timeoutSeconds: 60 }, async (request) => {
   try {
     const userId = await validateVerifiedAuth(request);
     const parseResult = generateFlashcardsRequestSchema.safeParse(request.data);

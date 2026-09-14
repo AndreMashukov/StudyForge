@@ -222,6 +222,17 @@ Use monitor mode first, then enforce per product in App Check settings. Callable
 
 `onRequest` handlers do not inherit `enforceAppCheck`. Use `functions/src/lib/app-check-verification.ts` for first-party HTTP routes. Public probes (`healthCheck`) and third-party API-key routes (`api`) intentionally skip App Check.
 
+## LangSmith tracing
+
+LangGraph pipelines and LLM wrappers send traces when `LANGSMITH_API_KEY` is present. Get a key from [LangSmith](https://smith.langchain.com/). Project name defaults to `study-forge`.
+
+| Environment | Where to store |
+|-------------|----------------|
+| **Local emulator** | `LANGSMITH_API_KEY` in `functions/.secret.local` (and optionally `LANGSMITH_TRACING` / `LANGSMITH_PROJECT` in `functions/.env.local`) |
+| **Production Functions** | `firebase functions:secrets:set LANGSMITH_API_KEY --project study-forge-202604` then `yarn nx run functions:deploy` |
+
+`LANGSMITH_TRACING_BACKGROUND=false` is applied automatically so traces flush before a Function exits. Set `LANGSMITH_TRACING=false` to disable tracing even when the API key is present.
+
 ### Production 401 / `functions/unauthenticated` with message `"Unauthenticated"`
 
 This is **App Check rejection**, not a missing login. Auth failures use the message `"The function must be called while authenticated."`
