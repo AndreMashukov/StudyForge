@@ -148,6 +148,26 @@ export const FirestorePaths = {
   knowledgeStat: (userId: string, statId: string) =>
     FirestorePaths.knowledgeStats(userId).doc(statId),
 
+  flashcardStudySessions: (userId: string) => {
+    validateUserId(userId);
+    return db()
+      .collection('users')
+      .doc(userId)
+      .collection('flashcardStudySessions');
+  },
+  flashcardStudySession: (userId: string, sessionId: string) =>
+    FirestorePaths.flashcardStudySessions(userId).doc(sessionId),
+
+  statisticsHiddenFailures: (userId: string) => {
+    validateUserId(userId);
+    return db()
+      .collection('users')
+      .doc(userId)
+      .collection('statisticsHiddenFailures');
+  },
+  statisticsHiddenFailure: (userId: string, hiddenId: string) =>
+    FirestorePaths.statisticsHiddenFailures(userId).doc(hiddenId),
+
   agentThreads: (userId: string) => {
     validateUserId(userId);
     return db().collection('users').doc(userId).collection('agentThreads');

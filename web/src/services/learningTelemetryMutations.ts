@@ -25,6 +25,10 @@ import type {
   SequenceQuiz,
   SequenceQuizQuestion,
 } from '@shared-types';
+import {
+  dedupeQuizAttemptAnswerInputs,
+  isAnsweredQuizInput,
+} from '@shared-types';
 import { db } from '../config/firebase';
 import { computeExpiresAt } from './firestoreTtl';
 import {
@@ -366,9 +370,19 @@ export async function recordQuizAttemptInFirestore(
   const completedAt = parseDate(data.completedAt, 'completedAt');
   const date = completedAt.toISOString().slice(0, 10);
   const resolved = await resolveQuiz(userId, data.quizType, data.quizId);
-  const answers = buildAttemptAnswers(resolved, data.answers ?? []);
+  const answeredInputs = dedupeQuizAttemptAnswerInputs(
+    (data.answers ?? []).filter((input) =>
+      isAnsweredQuizInput(input.selectedAnswer),
+    ),
+  );
+  if (answeredInputs.length === 0) {
+    throw new Error('At least one answered question is required');
+  }
+  const answers = buildAttemptAnswers(resolved, answeredInputs);
   const score = answers.filter((answer) => answer.isCorrect).length;
-  const totalQuestions = resolved.questions.length;
+  const totalQuestions = answers.length;
+  const fullQuestionCount = resolved.questions.length;
+  const isPartial = totalQuestions < fullQuestionCount;
   const percentage =
     totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
   const incorrectAnswerCount = answers.filter(
@@ -409,6 +423,7 @@ export async function recordQuizAttemptInFirestore(
       percentage,
       answers,
       date,
+      ...(isPartial ? { isPartial: true } : {}),
       expiresAt: computeExpiresAt(completedAt, 'learningRaw'),
     });
 
@@ -419,6 +434,7 @@ export async function recordQuizAttemptInFirestore(
       quizId: data.quizId,
       quizType: data.quizType,
       occurredAt: Timestamp.fromDate(completedAt),
+      ...(isPartial ? { isPartial: true } : {}),
       expiresAt: computeExpiresAt(completedAt, 'learningRaw'),
     });
 
@@ -430,7 +446,7 @@ export async function recordQuizAttemptInFirestore(
         quizType: data.quizType,
         directoryId: resolved.quiz.directoryId,
         documentIds: resolved.documentIds,
-        totalQuestions,
+        totalQuestions: fullQuestionCount,
         attemptCount: increment(1),
         totalScore: increment(score),
         totalPercentage: increment(percentage),

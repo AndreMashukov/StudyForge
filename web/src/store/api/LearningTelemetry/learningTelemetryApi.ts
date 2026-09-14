@@ -5,6 +5,7 @@ import {
   recordQuizExplanationRequestInFirestore,
   getQuizStatsFromFirestore,
 } from '../../../services/learningTelemetryMutations';
+import { recordFlashcardStudySessionInFirestore } from '../../../services/flashcardStudySessionMutations';
 import {
   authRequiredError,
   customError,
@@ -16,6 +17,8 @@ import {
   RecordQuizAttemptResponse,
   RecordQuizExplanationRequest,
   RecordQuizExplanationResponse,
+  RecordFlashcardStudySessionRequest,
+  RecordFlashcardStudySessionResponse,
 } from '@shared-types';
 
 function mutationError(error: unknown) {
@@ -58,6 +61,23 @@ export const learningTelemetryApi = baseApi.injectEndpoints({
       invalidatesTags: ['LearningStats', 'Statistics'],
     }),
 
+    recordFlashcardStudySession: builder.mutation<
+      RecordFlashcardStudySessionResponse,
+      RecordFlashcardStudySessionRequest
+    >({
+      async queryFn(data) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const sessionId = await recordFlashcardStudySessionInFirestore(userId, data);
+          return { data: { sessionId } };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
+      invalidatesTags: ['LearningStats', 'Statistics'],
+    }),
+
     getQuizStats: builder.query<GetQuizStatsResponse, GetQuizStatsRequest>({
       async queryFn({ quizId, quizType }) {
         const userId = auth.currentUser?.uid;
@@ -78,5 +98,6 @@ export const learningTelemetryApi = baseApi.injectEndpoints({
 export const {
   useRecordQuizAttemptMutation,
   useRecordQuizExplanationRequestMutation,
+  useRecordFlashcardStudySessionMutation,
   useGetQuizStatsQuery,
 } = learningTelemetryApi;

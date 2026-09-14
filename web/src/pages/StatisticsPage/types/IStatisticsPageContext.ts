@@ -29,6 +29,11 @@ export interface IStatisticsPageApi {
   quizDetail: IStatisticsQueryState<GetStatisticsQuizDetailResponse>;
   isLoading: boolean;
   hasError: boolean;
+  isLoadingMoreAttempts: boolean;
+  isLoadingMoreFlashcards: boolean;
+  loadMoreError: string | null;
+  loadMoreAttempts: () => Promise<void>;
+  loadMoreFlashcardFailures: () => Promise<void>;
   setTimeRange: (range: StatisticsTimeRangeKey) => void;
   setQuizType: (type: StatisticsQuizTypeFilter) => void;
 }

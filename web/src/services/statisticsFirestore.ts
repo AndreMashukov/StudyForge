@@ -1,9 +1,11 @@
 import {
+  doc,
   getDoc,
   getDocs,
   limit,
   orderBy,
   query,
+  startAfter,
   Timestamp,
   where,
   type QueryConstraint,
@@ -15,7 +17,6 @@ import {
   GetStatisticsQuizDetailRequest,
   GetStatisticsQuizDetailResponse,
   GetStatisticsQuizPerformanceResponse,
-  QuestionKnowledgeMetadata,
   QuizAnswerValue,
   QuizAttempt,
   QuizAttemptAnswer,
@@ -28,12 +29,23 @@ import {
   StatisticsQuizDetailAttempt,
   StatisticsQuizPerformanceItem,
   StatisticsQuizTypeFilter,
+  StatisticsAttemptCursor,
+  StatisticsFlashcardFailure,
+  StatisticsFlashcardSessionCursor,
+  StatisticsOverviewAttempt,
+  StatisticsOverviewAttemptAnswer,
   StatisticsRecentFailure,
+  FlashcardStudySession,
+} from '@shared-types';
+import {
+  flashcardFailureGroupKey,
+  quizFailureGroupKey,
 } from '@shared-types';
 import {
   diagramQuizRef,
   documentRef,
   flashcardSetRef,
+  flashcardStudySessionCollection,
   interactionSessionCollection,
   learningEventCollection,
   quizAttemptCollection,
@@ -41,13 +53,14 @@ import {
   sequenceQuizRef,
   matchQuizRef,
   slideDeckRef,
+  statisticsHiddenFailureCollection,
 } from './firestorePaths';
 
 export interface StatisticsScopeOptions {
   directoryIds?: string[];
 }
 
-interface IStoredAttempt extends QuizAttempt {
+export interface IStoredAttempt extends QuizAttempt {
   completedAtDate: Date;
 }
 
@@ -55,6 +68,8 @@ interface IQuizMetadata {
   title?: string;
   questions: Array<{
     question?: string;
+    hint?: string;
+    explanation?: string;
     options?: string[];
     diagrams?: string[];
     diagramLabels?: string[];
@@ -62,7 +77,8 @@ interface IQuizMetadata {
   }>;
 }
 
-const DEFAULT_RECENT_FAILURE_LIMIT = 40;
+export const ATTEMPT_PAGE_SIZE = 50;
+export const FLASHCARD_SESSION_PAGE_SIZE = 50;
 const MAX_ATTEMPTS_TO_SCAN = 500;
 const MAX_EVENTS_TO_SCAN = 500;
 const MAX_INTERACTION_SESSIONS_TO_SCAN = 1000;
@@ -116,28 +132,6 @@ function toIso(value: unknown): string | undefined {
 
 function accuracy(correct: number, total: number): number {
   return total > 0 ? Math.round((correct / total) * 100) : 0;
-}
-
-function knowledgeKeys(knowledge: QuestionKnowledgeMetadata | undefined): {
-  subjectKey: string;
-  knowledgeDomainKey: string;
-  subjectName: string;
-  knowledgeDomainName: string;
-} {
-  return {
-    subjectKey: keyPart(knowledge?.subjectId || knowledge?.subjectName),
-    knowledgeDomainKey: keyPart(
-      knowledge?.knowledgeDomainId || knowledge?.knowledgeDomainName,
-    ),
-    subjectName: knowledge?.subjectName || 'Unclassified subject',
-    knowledgeDomainName:
-      knowledge?.knowledgeDomainName || 'Unclassified domain',
-  };
-}
-
-function keyPart(value: string | undefined): string {
-  const normalized = value?.trim();
-  return normalized ? normalized.toLowerCase() : 'unclassified';
 }
 
 function matchesQuizType(
@@ -272,43 +266,183 @@ function orderNewestFirst(
     : orderBy(unboundedField, 'desc');
 }
 
-async function getAttempts(
+export async function getHiddenFailureGroupKeys(
   userId: string,
+): Promise<Set<string>> {
+  const snapshot = await getDocs(statisticsHiddenFailureCollection(userId));
+  const keys = new Set<string>();
+  for (const hiddenDoc of snapshot.docs) {
+    const data = hiddenDoc.data();
+    const groupKey =
+      typeof data.groupKey === 'string' ? data.groupKey : hiddenDoc.id;
+    keys.add(groupKey);
+  }
+  return keys;
+}
+
+function isQuestionHidden(
+  hiddenKeys: Set<string>,
+  quizType: QuizTelemetryType,
+  quizId: string,
+  questionIndex: number,
+): boolean {
+  return hiddenKeys.has(quizFailureGroupKey(quizType, quizId, questionIndex));
+}
+
+function mapAttemptDoc(
+  docSnap: { id: string; data: () => Record<string, unknown> | undefined },
+): IStoredAttempt {
+  const data = { id: docSnap.id, ...(docSnap.data() ?? {}) } as QuizAttempt;
+  return {
+    ...data,
+    completedAtDate: toDate(data.completedAt) ?? new Date(0),
+  };
+}
+
+function serializeOverviewAttemptAnswer(
+  answer: QuizAttemptAnswer,
+): StatisticsOverviewAttemptAnswer {
+  return {
+    questionIndex: answer.questionIndex,
+    questionText: answer.questionText,
+    selectedAnswer: answer.selectedAnswer,
+    correctAnswer: answer.correctAnswer,
+    isCorrect: answer.isCorrect,
+    ...(answer.timeSpentMs !== undefined ? { timeSpentMs: answer.timeSpentMs } : {}),
+    knowledge: answer.knowledge,
+    detailedExplanationRequested: answer.detailedExplanationRequested,
+    ...(answer.detailedExplanationRequestedAt
+      ? {
+          detailedExplanationRequestedAt:
+            toIso(answer.detailedExplanationRequestedAt),
+        }
+      : {}),
+  };
+}
+
+export function serializeOverviewAttempt(
+  attempt: IStoredAttempt,
+): StatisticsOverviewAttempt {
+  return {
+    id: attempt.id,
+    userId: attempt.userId,
+    quizId: attempt.quizId,
+    quizType: attempt.quizType,
+    documentIds: attempt.documentIds,
+    directoryId: attempt.directoryId,
+    startedAt: toIso(attempt.startedAt) ?? new Date(0).toISOString(),
+    completedAt: attempt.completedAtDate.toISOString(),
+    durationMs: attempt.durationMs,
+    score: attempt.score,
+    totalQuestions: attempt.totalQuestions,
+    percentage: attempt.percentage,
+    answers: (attempt.answers ?? []).map(serializeOverviewAttemptAnswer),
+    date: attempt.date,
+    ...(attempt.isPartial ? { isPartial: true } : {}),
+  };
+}
+
+function filterAttempts(
+  attempts: IStoredAttempt[],
   range: StatisticsDateRangeRequest,
   scope?: StatisticsScopeOptions,
   quizFilter?: { quizId: string; quizType: QuizTelemetryType },
-): Promise<IStoredAttempt[]> {
-  const constraints: QueryConstraint[] = [
-    ...applyDateRangeConstraints(range),
-  ];
+): IStoredAttempt[] {
+  const quizType = normalizeQuizType(range.quizType);
+  return dedupeAttempts(
+    attempts
+      .filter((attempt) => matchesQuizType(attempt, quizType))
+      .filter((attempt) => matchesDirectoryScope(attempt, scope?.directoryIds))
+      .filter((attempt) =>
+        quizFilter
+          ? attempt.quizId === quizFilter.quizId
+            && attempt.quizType === quizFilter.quizType
+          : true,
+      )
+      .sort(
+        (left, right) =>
+          right.completedAtDate.getTime() - left.completedAtDate.getTime(),
+      ),
+  );
+}
+
+export async function fetchQuizAttemptsPage(
+  userId: string,
+  range: StatisticsDateRangeRequest,
+  scope?: StatisticsScopeOptions,
+  cursor?: StatisticsAttemptCursor,
+  pageSize = ATTEMPT_PAGE_SIZE,
+  quizFilter?: { quizId: string; quizType: QuizTelemetryType },
+): Promise<{
+  attempts: IStoredAttempt[];
+  nextCursor?: StatisticsAttemptCursor;
+  hasMore: boolean;
+}> {
+  const constraints: QueryConstraint[] = [...applyDateRangeConstraints(range)];
   if (quizFilter) {
     constraints.push(where('quizId', '==', quizFilter.quizId));
     constraints.push(where('quizType', '==', quizFilter.quizType));
   }
   constraints.push(orderNewestFirst(range, 'date', 'completedAt'));
-  constraints.push(limit(MAX_ATTEMPTS_TO_SCAN));
+
+  if (cursor?.attemptId) {
+    const cursorSnap = await getDoc(
+      doc(quizAttemptCollection(userId), cursor.attemptId),
+    );
+    if (cursorSnap.exists()) {
+      constraints.push(startAfter(cursorSnap));
+    }
+  }
+
+  constraints.push(limit(pageSize + 1));
 
   const snapshot = await getDocs(
     query(quizAttemptCollection(userId), ...constraints),
   );
 
-  const quizType = normalizeQuizType(range.quizType);
-  const attempts = snapshot.docs
-    .map((docSnap) => {
-      const data = { id: docSnap.id, ...docSnap.data() } as QuizAttempt;
-      return {
-        ...data,
-        completedAtDate: toDate(data.completedAt) ?? new Date(0),
-      };
-    })
-    .filter((attempt) => matchesQuizType(attempt, quizType))
-    .filter((attempt) => matchesDirectoryScope(attempt, scope?.directoryIds))
-    .sort(
-      (left, right) =>
-        right.completedAtDate.getTime() - left.completedAtDate.getTime(),
-    );
+  const rawAttempts = snapshot.docs.map(mapAttemptDoc);
+  const hasMore = rawAttempts.length > pageSize;
+  const rawPageAttempts = hasMore
+    ? rawAttempts.slice(0, pageSize)
+    : rawAttempts;
+  const pageAttempts = filterAttempts(
+    rawPageAttempts,
+    range,
+    scope,
+    quizFilter,
+  );
 
-  return dedupeAttempts(attempts);
+  const lastRawAttempt = rawPageAttempts.at(-1);
+  const nextCursor =
+    hasMore && lastRawAttempt
+      ? {
+          completedAt: lastRawAttempt.completedAtDate.toISOString(),
+          attemptId: lastRawAttempt.id,
+        }
+      : undefined;
+
+  return {
+    attempts: pageAttempts,
+    nextCursor,
+    hasMore,
+  };
+}
+
+export async function getAttemptsForStatisticsOverview(
+  userId: string,
+  range: StatisticsDateRangeRequest,
+  scope?: StatisticsScopeOptions,
+  quizFilter?: { quizId: string; quizType: QuizTelemetryType },
+): Promise<IStoredAttempt[]> {
+  const { attempts } = await fetchQuizAttemptsPage(
+    userId,
+    range,
+    scope,
+    undefined,
+    MAX_ATTEMPTS_TO_SCAN,
+    quizFilter,
+  );
+  return attempts;
 }
 
 function dedupeAttempts(attempts: IStoredAttempt[]): IStoredAttempt[] {
@@ -327,6 +461,7 @@ function dedupeAttempts(attempts: IStoredAttempt[]): IStoredAttempt[] {
 
 function buildQuestionBreakdown(
   attempts: IStoredAttempt[],
+  hiddenKeys: Set<string> = new Set(),
 ): StatisticsQuestionBreakdownItem[] {
   const grouped = new Map<
     number,
@@ -341,6 +476,16 @@ function buildQuestionBreakdown(
 
   for (const attempt of attempts) {
     for (const answer of attempt.answers ?? []) {
+      if (
+        isQuestionHidden(
+          hiddenKeys,
+          attempt.quizType,
+          attempt.quizId,
+          answer.questionIndex,
+        )
+      ) {
+        continue;
+      }
       const existing = grouped.get(answer.questionIndex) ?? {
         questionIndex: answer.questionIndex,
         questionText: answer.questionText,
@@ -400,40 +545,113 @@ async function getExplanationCountsByQuiz(
   return counts;
 }
 
-async function buildRecentFailures(
+interface IGroupedFailureEntry {
+  attempt: IStoredAttempt;
+  answer: QuizAttemptAnswer;
+  occurredAt: Date;
+}
+
+function computeOverviewMetricsFromAttempts(
+  attempts: IStoredAttempt[],
+  hiddenKeys: Set<string>,
+  explanationRequestCount: number,
+): GetStatisticsOverviewResponse['metrics'] {
+  const quizIds = new Set<string>();
+  let answeredQuestionCount = 0;
+  let correctAnswerCount = 0;
+
+  for (const attempt of attempts) {
+    quizIds.add(`${attempt.quizType}:${attempt.quizId}`);
+    for (const answer of attempt.answers ?? []) {
+      if (
+        isQuestionHidden(
+          hiddenKeys,
+          attempt.quizType,
+          attempt.quizId,
+          answer.questionIndex,
+        )
+      ) {
+        continue;
+      }
+      answeredQuestionCount += 1;
+      if (answer.isCorrect) {
+        correctAnswerCount += 1;
+      }
+    }
+  }
+
+  const incorrectAnswerCount = Math.max(
+    0,
+    answeredQuestionCount - correctAnswerCount,
+  );
+
+  return {
+    attemptCount: attempts.length,
+    quizCount: quizIds.size,
+    answeredQuestionCount,
+    correctAnswerCount,
+    incorrectAnswerCount,
+    explanationRequestCount,
+    accuracyPercentage: accuracy(correctAnswerCount, answeredQuestionCount),
+  };
+}
+
+async function buildGroupedFailures(
   userId: string,
   attempts: IStoredAttempt[],
-  failureLimit = DEFAULT_RECENT_FAILURE_LIMIT,
+  hiddenKeys: Set<string>,
   filter?: (answer: QuizAttemptAnswer, attempt: IStoredAttempt) => boolean,
 ): Promise<StatisticsRecentFailure[]> {
   const quizCache = new Map<string, IQuizMetadata>();
   const documentCache = new Map<string, StatisticsDocumentSummary>();
-  const repeatedCounts = new Map<string, number>();
-  const failures: Array<{
-    attempt: IStoredAttempt;
-    answer: QuizAttemptAnswer;
-  }> = [];
+  const grouped = new Map<string, IGroupedFailureEntry>();
 
   for (const attempt of attempts) {
     for (const answer of attempt.answers ?? []) {
       if (answer.isCorrect || (filter && !filter(answer, attempt))) continue;
-      const keys = knowledgeKeys(answer.knowledge);
-      const failureKey = `${attempt.quizType}:${attempt.quizId}:${answer.questionIndex}:${keys.subjectKey}:${keys.knowledgeDomainKey}`;
-      repeatedCounts.set(failureKey, (repeatedCounts.get(failureKey) ?? 0) + 1);
-      failures.push({ attempt, answer });
+
+      const groupKey = quizFailureGroupKey(
+        attempt.quizType,
+        attempt.quizId,
+        answer.questionIndex,
+      );
+      if (hiddenKeys.has(groupKey)) continue;
+
+      const existing = grouped.get(groupKey);
+      if (
+        !existing
+        || attempt.completedAtDate.getTime() > existing.occurredAt.getTime()
+      ) {
+        grouped.set(groupKey, {
+          attempt,
+          answer,
+          occurredAt: attempt.completedAtDate,
+        });
+      }
     }
   }
 
-  const recent = failures
-    .sort(
-      (left, right) =>
-        right.attempt.completedAtDate.getTime()
-        - left.attempt.completedAtDate.getTime(),
-    )
-    .slice(0, failureLimit);
+  const repeatCounts = new Map<string, number>();
+  for (const attempt of attempts) {
+    for (const answer of attempt.answers ?? []) {
+      if (answer.isCorrect || (filter && !filter(answer, attempt))) continue;
+      const groupKey = quizFailureGroupKey(
+        attempt.quizType,
+        attempt.quizId,
+        answer.questionIndex,
+      );
+      if (hiddenKeys.has(groupKey)) continue;
+      repeatCounts.set(groupKey, (repeatCounts.get(groupKey) ?? 0) + 1);
+    }
+  }
+
+  const sortedGroups = Array.from(grouped.entries()).sort(
+    (left, right) =>
+      right[1].occurredAt.getTime() - left[1].occurredAt.getTime(),
+  );
 
   const result: StatisticsRecentFailure[] = [];
-  for (const failure of recent) {
+  for (const [groupKey, failure] of sortedGroups) {
     const { attempt, answer } = failure;
     const metadata = await getQuizMetadata(
       userId,
@@ -442,8 +660,6 @@ async function buildRecentFailures(
       quizCache,
     );
     const question = metadata.questions[answer.questionIndex];
-    const keys = knowledgeKeys(answer.knowledge);
-    const failureKey = `${attempt.quizType}:${attempt.quizId}:${answer.questionIndex}:${keys.subjectKey}:${keys.knowledgeDomainKey}`;
     const documents = await getDocumentSummaries(
       userId,
       sourceDocumentIds(answer, attempt),
@@ -460,13 +676,18 @@ async function buildRecentFailures(
         : undefined;
 
     result.push({
-      id: `${attempt.id}:${answer.questionIndex}`,
+      id: groupKey,
+      groupKey,
       attemptId: attempt.id,
       quizId: attempt.quizId,
       quizType: attempt.quizType,
       quizTitle: metadata.title,
       questionIndex: answer.questionIndex,
       questionText: answer.questionText,
+      ...(typeof question?.hint === 'string' ? { hint: question.hint } : {}),
+      ...(typeof question?.explanation === 'string'
+        ? { explanation: question.explanation }
+        : {}),
       selectedAnswer: answer.selectedAnswer,
       selectedAnswerLabel: answerLabel(answer.selectedAnswer, question),
       correctAnswer: answer.correctAnswer,
@@ -475,8 +696,173 @@ async function buildRecentFailures(
       ...(correctDiagramCode ? { correctDiagramCode } : {}),
       knowledge: answer.knowledge,
       sourceDocuments: documents,
-      occurredAt: attempt.completedAtDate.toISOString(),
-      repeatedFailureCount: repeatedCounts.get(failureKey) ?? 1,
+      occurredAt: failure.occurredAt.toISOString(),
+      repeatedFailureCount: repeatCounts.get(groupKey) ?? 1,
+    });
+  }
+
+  return result;
+}
+
+interface IStoredFlashcardSession extends FlashcardStudySession {
+  completedAtDate: Date;
+}
+
+export async function fetchFlashcardStudySessionsPage(
+  userId: string,
+  range: StatisticsDateRangeRequest,
+  cursor?: StatisticsFlashcardSessionCursor,
+  pageSize = FLASHCARD_SESSION_PAGE_SIZE,
+): Promise<{
+  sessions: IStoredFlashcardSession[];
+  nextCursor?: StatisticsFlashcardSessionCursor;
+  hasMore: boolean;
+}> {
+  const constraints: QueryConstraint[] = [...applyDateRangeConstraints(range)];
+  constraints.push(orderNewestFirst(range, 'date', 'completedAt'));
+
+  if (cursor?.sessionId) {
+    const cursorSnap = await getDoc(
+      doc(flashcardStudySessionCollection(userId), cursor.sessionId),
+    );
+    if (cursorSnap.exists()) {
+      constraints.push(startAfter(cursorSnap));
+    }
+  }
+
+  constraints.push(limit(pageSize + 1));
+
+  const snapshot = await getDocs(
+    query(flashcardStudySessionCollection(userId), ...constraints),
+  );
+
+  const rawSessions = snapshot.docs.map((sessionDoc) => {
+    const data = {
+      id: sessionDoc.id,
+      ...sessionDoc.data(),
+    } as FlashcardStudySession;
+    return {
+      ...data,
+      completedAtDate: toDate(data.completedAt) ?? new Date(0),
+    };
+  });
+
+  const hasMore = rawSessions.length > pageSize;
+  const sessions = hasMore ? rawSessions.slice(0, pageSize) : rawSessions;
+  const lastSession = sessions.at(-1);
+  const nextCursor =
+    hasMore && lastSession
+      ? {
+          completedAt: lastSession.completedAtDate.toISOString(),
+          sessionId: lastSession.id,
+        }
+      : undefined;
+
+  return { sessions, nextCursor, hasMore };
+}
+
+export async function buildGroupedFlashcardFailures(
+  userId: string,
+  sessions: IStoredFlashcardSession[],
+  hiddenKeys: Set<string>,
+): Promise<StatisticsFlashcardFailure[]> {
+  const setCache = new Map<string, { title?: string; cards: Map<string, { front: string; back: string; explanation?: string }> }>();
+  const documentCache = new Map<string, StatisticsDocumentSummary>();
+  const grouped = new Map<
+    string,
+    {
+      session: IStoredFlashcardSession;
+      cardId: string;
+      occurredAt: Date;
+    }
+  >();
+  const repeatCounts = new Map<string, number>();
+
+  for (const session of sessions) {
+    for (const card of session.cards ?? []) {
+      if (card.outcome !== 'failed') continue;
+
+      const groupKey = flashcardFailureGroupKey(
+        session.flashcardSetId,
+        card.cardId,
+      );
+      if (hiddenKeys.has(groupKey)) continue;
+
+      repeatCounts.set(groupKey, (repeatCounts.get(groupKey) ?? 0) + 1);
+
+      const existing = grouped.get(groupKey);
+      if (
+        !existing
+        || session.completedAtDate.getTime() > existing.occurredAt.getTime()
+      ) {
+        grouped.set(groupKey, {
+          session,
+          cardId: card.cardId,
+          occurredAt: session.completedAtDate,
+        });
+      }
+    }
+  }
+
+  const result: StatisticsFlashcardFailure[] = [];
+  for (const [groupKey, entry] of Array.from(grouped.entries()).sort(
+    (left, right) =>
+      right[1].occurredAt.getTime() - left[1].occurredAt.getTime(),
+  )) {
+    const { session, cardId, occurredAt } = entry;
+    const cacheKey = session.flashcardSetId;
+    let setMeta = setCache.get(cacheKey);
+    if (!setMeta) {
+      const snap = await getDoc(flashcardSetRef(userId, session.flashcardSetId));
+      const data = snap.exists() ? (snap.data() ?? {}) : {};
+      const cards = new Map<
+        string,
+        { front: string; back: string; explanation?: string }
+      >();
+      if (Array.isArray(data.flashcards)) {
+        for (const flashcard of data.flashcards) {
+          if (
+            flashcard
+            && typeof flashcard === 'object'
+            && typeof flashcard.id === 'string'
+          ) {
+            cards.set(flashcard.id, {
+              front: String(flashcard.front ?? ''),
+              back: String(flashcard.back ?? ''),
+              ...(typeof flashcard.explanation === 'string'
+                ? { explanation: flashcard.explanation }
+                : {}),
+            });
+          }
+        }
+      }
+      setMeta = {
+        title: typeof data.title === 'string' ? data.title : undefined,
+        cards,
+      };
+      setCache.set(cacheKey, setMeta);
+    }
+
+    const cardMeta = setMeta.cards.get(cardId);
+    const sourceDocuments = await getDocumentSummaries(
+      userId,
+      session.documentIds ?? [],
+      documentCache,
+    );
+
+    result.push({
+      id: groupKey,
+      groupKey,
+      sessionId: session.id,
+      flashcardSetId: session.flashcardSetId,
+      flashcardSetTitle: setMeta.title,
+      cardId,
+      cardFront: cardMeta?.front ?? 'Unknown card',
+      cardBack: cardMeta?.back ?? '',
+      ...(cardMeta?.explanation ? { cardExplanation: cardMeta.explanation } : {}),
+      sourceDocuments,
+      occurredAt: occurredAt.toISOString(),
+      repeatedFailureCount: repeatCounts.get(groupKey) ?? 1,
     });
   }
 
@@ -487,6 +873,7 @@ async function buildQuizPerformance(
   userId: string,
   attempts: IStoredAttempt[],
   range: StatisticsDateRangeRequest,
+  hiddenKeys: Set<string> = new Set(),
 ): Promise<StatisticsQuizPerformanceItem[]> {
   const explanationCounts = await getExplanationCountsByQuiz(userId, range);
   const quizCache = new Map<string, IQuizMetadata>();
@@ -526,11 +913,22 @@ async function buildQuizPerformance(
     for (const docId of attempt.documentIds ?? []) {
       existing.documentIds.add(docId);
     }
-    const correct =
-      attempt.answers?.filter((answer) => answer.isCorrect).length
-      ?? attempt.score
-      ?? 0;
-    const total = attempt.answers?.length ?? attempt.totalQuestions ?? 0;
+    let correct = 0;
+    let total = 0;
+    for (const answer of attempt.answers ?? []) {
+      if (
+        isQuestionHidden(
+          hiddenKeys,
+          attempt.quizType,
+          attempt.quizId,
+          answer.questionIndex,
+        )
+      ) {
+        continue;
+      }
+      total += 1;
+      if (answer.isCorrect) correct += 1;
+    }
     existing.attemptCount += 1;
     existing.answeredQuestionCount += total;
     existing.correctAnswerCount += correct;
@@ -628,50 +1026,59 @@ function getArtifactRef(
   }
 }
 
-export async function getStatisticsOverviewFromFirestore(
+export async function buildOverviewFromAttempts(
   userId: string,
+  failureAttempts: IStoredAttempt[],
   range: StatisticsDateRangeRequest,
-  scope?: StatisticsScopeOptions,
-): Promise<GetStatisticsOverviewResponse> {
-  const attempts = await getAttempts(userId, range, scope);
-  const recentFailures = await buildRecentFailures(userId, attempts);
-  const quizCount = new Set(
-    attempts.map((attempt) => `${attempt.quizType}:${attempt.quizId}`),
-  ).size;
+  hiddenKeys: Set<string>,
+  metricsAttempts?: IStoredAttempt[],
+): Promise<Pick<GetStatisticsOverviewResponse, 'metrics' | 'recentFailures'>> {
   const explanationCounts = await getExplanationCountsByQuiz(userId, range);
   const explanationRequestCount = Array.from(explanationCounts.values()).reduce(
     (sum, count) => sum + count,
     0,
   );
-  const answeredQuestionCount = attempts.reduce(
-    (sum, attempt) =>
-      sum + (attempt.answers?.length ?? attempt.totalQuestions ?? 0),
-    0,
-  );
-  const correctAnswerCount = attempts.reduce(
-    (sum, attempt) =>
-      sum
-      + (attempt.answers?.filter((answer) => answer.isCorrect).length
-        ?? attempt.score
-        ?? 0),
-    0,
-  );
-  const incorrectAnswerCount = Math.max(
-    0,
-    answeredQuestionCount - correctAnswerCount,
+  const attemptsForMetrics = metricsAttempts ?? failureAttempts;
+
+  return {
+    metrics: computeOverviewMetricsFromAttempts(
+      attemptsForMetrics,
+      hiddenKeys,
+      explanationRequestCount,
+    ),
+    recentFailures: await buildGroupedFailures(userId, failureAttempts, hiddenKeys),
+  };
+}
+
+export async function getStatisticsOverviewFromFirestore(
+  userId: string,
+  range: StatisticsDateRangeRequest,
+  scope?: StatisticsScopeOptions,
+): Promise<GetStatisticsOverviewResponse> {
+  const hiddenKeys = await getHiddenFailureGroupKeys(userId);
+  const attemptsPage = await fetchQuizAttemptsPage(userId, range, scope);
+  const allAttempts = await getAttemptsForStatisticsOverview(userId, range, scope);
+  const flashcardPage = await fetchFlashcardStudySessionsPage(userId, range);
+  const overview = await buildOverviewFromAttempts(
+    userId,
+    attemptsPage.attempts,
+    range,
+    hiddenKeys,
+    allAttempts,
   );
 
   return {
-    metrics: {
-      attemptCount: attempts.length,
-      quizCount,
-      answeredQuestionCount,
-      correctAnswerCount,
-      incorrectAnswerCount,
-      explanationRequestCount,
-      accuracyPercentage: accuracy(correctAnswerCount, answeredQuestionCount),
-    },
-    recentFailures,
+    ...overview,
+    attempts: attemptsPage.attempts.map(serializeOverviewAttempt),
+    nextAttemptCursor: attemptsPage.nextCursor,
+    hasMoreAttempts: attemptsPage.hasMore,
+    flashcardFailures: await buildGroupedFlashcardFailures(
+      userId,
+      flashcardPage.sessions,
+      hiddenKeys,
+    ),
+    nextFlashcardCursor: flashcardPage.nextCursor,
+    hasMoreFlashcardSessions: flashcardPage.hasMore,
   };
 }
 
@@ -680,10 +1087,11 @@ export async function getStatisticsQuizPerformanceFromFirestore(
   range: StatisticsDateRangeRequest,
   scope?: StatisticsScopeOptions,
 ): Promise<GetStatisticsQuizPerformanceResponse> {
-  const attempts = await getAttempts(userId, range, scope);
+  const hiddenKeys = await getHiddenFailureGroupKeys(userId);
+  const attempts = await getAttemptsForStatisticsOverview(userId, range, scope);
   return {
-    quizzes: await buildQuizPerformance(userId, attempts, range),
-    recentFailures: await buildRecentFailures(userId, attempts),
+    quizzes: await buildQuizPerformance(userId, attempts, range, hiddenKeys),
+    recentFailures: await buildGroupedFailures(userId, attempts, hiddenKeys),
   };
 }
 
@@ -785,14 +1193,21 @@ export async function getStatisticsQuizDetailFromFirestore(
   data: GetStatisticsQuizDetailRequest,
   scope?: StatisticsScopeOptions,
 ): Promise<GetStatisticsQuizDetailResponse> {
-  const attempts = await getAttempts(
+  const attempts = await getAttemptsForStatisticsOverview(
     userId,
     { ...data, quizType: data.quizType },
     scope,
     { quizId: data.quizId, quizType: data.quizType },
   );
-  const quizzes = await buildQuizPerformance(userId, attempts, data);
-  const failedQuestions = await buildRecentFailures(userId, attempts, 25);
+  const hiddenKeys = await getHiddenFailureGroupKeys(userId);
+  const quizzes = await buildQuizPerformance(userId, attempts, data, hiddenKeys);
+  const failedQuestions = await buildGroupedFailures(
+    userId,
+    attempts,
+    hiddenKeys,
+    (_answer, attempt) =>
+      attempt.quizId === data.quizId && attempt.quizType === data.quizType,
+  );
   const detailAttempts: StatisticsQuizDetailAttempt[] = attempts.map(
     (attempt) => ({
       attemptId: attempt.id,
@@ -809,7 +1224,7 @@ export async function getStatisticsQuizDetailFromFirestore(
   return {
     quiz: quizzes[0] ?? null,
     attempts: detailAttempts,
-    questionBreakdown: buildQuestionBreakdown(attempts),
+    questionBreakdown: buildQuestionBreakdown(attempts, hiddenKeys),
     failedQuestions,
   };
 }

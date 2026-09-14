@@ -18,6 +18,7 @@ import {
   RecordQuizExplanationRequest,
   SequenceQuiz,
   SequenceQuizQuestion,
+  dedupeQuizAttemptAnswerInputs,
 } from '@shared-types';
 
 type StoredQuiz = Quiz | DiagramQuiz | SequenceQuiz | MatchQuiz;
@@ -283,9 +284,23 @@ export async function recordQuizAttempt(
   const completedAt = parseDate(data.completedAt, 'completedAt');
   const date = completedAt.toISOString().slice(0, 10);
   const resolved = await resolveQuiz(userId, data.quizType, data.quizId);
-  const answers = buildAttemptAnswers(resolved, data.answers ?? []);
+  const answeredInputs = dedupeQuizAttemptAnswerInputs(
+    (data.answers ?? []).filter((input) => {
+      const value = input.selectedAnswer;
+      if (value === null || value === undefined) return false;
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'number') return value >= 0;
+      return String(value).trim().length > 0;
+    }),
+  );
+  if (answeredInputs.length === 0) {
+    throw new Error('At least one answered question is required');
+  }
+  const answers = buildAttemptAnswers(resolved, answeredInputs);
   const score = answers.filter((answer) => answer.isCorrect).length;
-  const totalQuestions = resolved.questions.length;
+  const totalQuestions = answers.length;
+  const fullQuestionCount = resolved.questions.length;
+  const isPartial = totalQuestions < fullQuestionCount;
   const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
   const incorrectAnswerCount = answers.filter((answer) => !answer.isCorrect).length;
   const durationMs = Math.max(0, data.durationMs || 0);
@@ -316,6 +331,7 @@ export async function recordQuizAttempt(
       percentage,
       answers,
       date,
+      ...(isPartial ? { isPartial: true } : {}),
       expiresAt: computeExpiresAt(completedAt, 'learningRaw'),
     });
 
@@ -326,6 +342,7 @@ export async function recordQuizAttempt(
       quizId: data.quizId,
       quizType: data.quizType,
       occurredAt: Timestamp.fromDate(completedAt),
+      ...(isPartial ? { isPartial: true } : {}),
       expiresAt: computeExpiresAt(completedAt, 'learningRaw'),
     });
 
@@ -335,7 +352,7 @@ export async function recordQuizAttempt(
       quizType: data.quizType,
       directoryId: resolved.quiz.directoryId,
       documentIds: resolved.documentIds,
-      totalQuestions,
+      totalQuestions: fullQuestionCount,
       attemptCount: FieldValue.increment(1),
       totalScore: FieldValue.increment(score),
       totalPercentage: FieldValue.increment(percentage),
