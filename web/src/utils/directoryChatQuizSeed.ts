@@ -28,13 +28,15 @@ export const buildDirectoryChatQuestionSeedKey = (
 export const buildDirectoryChatQuestionSeedMessage = (question: string): string =>
   `Quiz question: ${question}`;
 
-export const buildDirectoryChatQuestionSeed = (
-  input: IDirectoryChatQuestionSeedInput,
-): {
+export interface IDirectoryChatQuestionSeed {
   seedKey: string;
   seedMessage: string;
   artifactContext: DirectoryChatArtifactContext;
-} => {
+}
+
+export const buildDirectoryChatQuestionSeed = (
+  input: IDirectoryChatQuestionSeedInput,
+): IDirectoryChatQuestionSeed => {
   const trimmedQuestion = input.question.trim();
 
   return {

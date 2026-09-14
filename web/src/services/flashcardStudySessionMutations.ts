@@ -8,15 +8,23 @@ import type {
   FlashcardSet,
   RecordFlashcardStudySessionRequest,
 } from '@shared-types';
+import { parseRequiredIsoDateString } from '../utils/dateUtils';
 import { computeExpiresAt } from './firestoreTtl';
 import { flashcardSetRef, flashcardStudySessionCollection } from './firestorePaths';
 
-function parseDate(value: string | undefined, fieldName: string): Date {
-  const date = value ? new Date(value) : new Date();
-  if (Number.isNaN(date.getTime())) {
-    throw new Error(`${fieldName} must be a valid ISO date string`);
+function isFlashcardSetRecord(value: unknown): value is FlashcardSet {
+  if (!value || typeof value !== 'object') {
+    return false;
   }
-  return date;
+
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.id === 'string'
+    && typeof record.userId === 'string'
+    && typeof record.directoryId === 'string'
+    && typeof record.documentId === 'string'
+    && Array.isArray(record.flashcards)
+  );
 }
 
 async function resolveFlashcardSet(
@@ -27,7 +35,13 @@ async function resolveFlashcardSet(
   if (!snap.exists()) {
     throw new Error(`Flashcard set ${flashcardSetId} not found`);
   }
-  return { id: snap.id, ...snap.data() } as FlashcardSet;
+
+  const candidate = { id: snap.id, ...snap.data() };
+  if (!isFlashcardSetRecord(candidate)) {
+    throw new Error(`Flashcard set ${flashcardSetId} has invalid data`);
+  }
+
+  return candidate;
 }
 
 export async function recordFlashcardStudySessionInFirestore(
@@ -45,8 +59,8 @@ export async function recordFlashcardStudySessionInFirestore(
     throw new Error('At least one marked card is required');
   }
 
-  const startedAt = parseDate(data.startedAt, 'startedAt');
-  const completedAt = parseDate(data.completedAt, 'completedAt');
+  const startedAt = parseRequiredIsoDateString(data.startedAt, 'startedAt');
+  const completedAt = parseRequiredIsoDateString(data.completedAt, 'completedAt');
   const date = completedAt.toISOString().slice(0, 10);
   const flashcardSet = await resolveFlashcardSet(userId, data.flashcardSetId);
   const documentIds =

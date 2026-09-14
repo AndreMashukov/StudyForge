@@ -9,6 +9,7 @@ import {
   getStatisticsOverviewFromFirestore,
   getStatisticsQuizDetailFromFirestore,
   getStatisticsQuizPerformanceFromFirestore,
+  serializeOverviewAttempt,
 } from '../../../services/statisticsFirestore';
 import { hideStatisticsFailureInFirestore } from '../../../services/statisticsHiddenMutations';
 import {
@@ -124,7 +125,7 @@ export const statisticsApi = baseApi.injectEndpoints({
           );
           return {
             data: {
-              attempts: page.attempts,
+              attempts: page.attempts.map(serializeOverviewAttempt),
               nextCursor: page.nextCursor,
               hasMore: page.hasMore,
             },

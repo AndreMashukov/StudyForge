@@ -14,10 +14,19 @@ export function flashcardFailureGroupKey(
 }
 
 export function encodeStatisticsHiddenFailureId(groupKey: string): string {
-  return groupKey
-    .split(':')
-    .map((part) => encodeURIComponent(part))
-    .join('__');
+  return encodeURIComponent(groupKey);
+}
+
+export function dedupeQuizAttemptAnswerInputs<T extends { questionIndex: number }>(
+  inputs: T[],
+): T[] {
+  const byIndex = new Map<number, T>();
+  for (const input of inputs) {
+    byIndex.set(input.questionIndex, input);
+  }
+  return Array.from(byIndex.values()).sort(
+    (left, right) => left.questionIndex - right.questionIndex,
+  );
 }
 
 export function isAnsweredQuizInput(

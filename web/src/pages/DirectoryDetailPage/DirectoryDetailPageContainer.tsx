@@ -58,7 +58,7 @@ import { TooltipProvider } from '../../components/ui/Tooltip';
 import { DirectoryChatPanel } from '../../components/DirectoryChatPanel';
 import { cn } from '../../lib/utils';
 import {
-  clearPendingDirectoryChatSeed,
+  clearPendingDirectoryChatSeedIfMatches,
   selectPendingDirectoryChatSeed,
 } from '../../store/slices/directoryChatSlice';
 import {
@@ -245,9 +245,12 @@ export const DirectoryDetailPageContainer = () => {
     [directoryId, location.state, navigate, titleDirectory],
   );
 
-  const handleDirectoryChatSeedConsumed = useCallback(() => {
-    dispatch(clearPendingDirectoryChatSeed());
-  }, [dispatch]);
+  const handleDirectoryChatSeedConsumed = useCallback(
+    (consumedSeedKey: string) => {
+      dispatch(clearPendingDirectoryChatSeedIfMatches(consumedSeedKey));
+    },
+    [dispatch],
+  );
 
   const handleArtifactGenerationStarted = useCallback(
     (directoryTab: string) => {

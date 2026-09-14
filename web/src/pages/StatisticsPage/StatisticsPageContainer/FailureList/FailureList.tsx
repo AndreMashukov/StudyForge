@@ -110,11 +110,17 @@ const SequenceList = ({ items, correctItems, tone }: ISequenceListProps) => (
 
 interface IFailureListProps {
   failures: StatisticsRecentFailure[];
+  hasMore?: boolean;
   onHideFailure?: (request: HideStatisticsFailureRequest) => Promise<void>;
   footer?: React.ReactNode;
 }
 
-export const FailureList = ({ failures, onHideFailure, footer }: IFailureListProps) => {
+export const FailureList = ({
+  failures,
+  hasMore = false,
+  onHideFailure,
+  footer,
+}: IFailureListProps) => {
   const [openComparison, setOpenComparison] = useState<FailureComparisonState | null>(null);
   const [pendingHideKey, setPendingHideKey] = useState<string | null>(null);
 
@@ -158,6 +164,8 @@ export const FailureList = ({ failures, onHideFailure, footer }: IFailureListPro
           quizId: failure.quizId,
           questionIndex: failure.questionIndex,
         });
+      } catch {
+        window.alert('Failed to remove this failure from Statistics. Please try again.');
       } finally {
         setPendingHideKey(null);
       }
@@ -272,10 +280,13 @@ export const FailureList = ({ failures, onHideFailure, footer }: IFailureListPro
 
   if (failures.length === 0) {
     return (
-      <EmptyState
-        title="No failed answers in this range"
-        description="Quiz misses will appear here after completed attempts."
-      />
+      <>
+        <EmptyState
+          title="No failed answers in this range"
+          description="Quiz misses will appear here after completed attempts."
+        />
+        {hasMore ? footer : null}
+      </>
     );
   }
 

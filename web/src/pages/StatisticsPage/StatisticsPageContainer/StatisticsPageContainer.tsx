@@ -297,10 +297,17 @@ export const StatisticsPageContainer: React.FC = () => {
                     />
                   </div>
 
+                  {statisticsApi.loadMoreError && (
+                    <p className="text-sm text-destructive" role="alert">
+                      {statisticsApi.loadMoreError}
+                    </p>
+                  )}
+
                   <div className="space-y-3">
                     <h2 className="text-base font-semibold text-foreground">Failed quiz questions</h2>
                     <FailureList
                       failures={statisticsApi.overview.data?.recentFailures ?? []}
+                      hasMore={statisticsApi.overview.data?.hasMoreAttempts ?? false}
                       onHideFailure={handlers.handleHideFailure}
                       footer={loadMoreAttemptsFooter}
                     />
@@ -310,6 +317,7 @@ export const StatisticsPageContainer: React.FC = () => {
                     <h2 className="text-base font-semibold text-foreground">Failed flashcards</h2>
                     <FlashcardFailureList
                       failures={statisticsApi.overview.data?.flashcardFailures ?? []}
+                      hasMore={statisticsApi.overview.data?.hasMoreFlashcardSessions ?? false}
                       onHideFailure={handlers.handleHideFailure}
                       footer={loadMoreFlashcardsFooter}
                     />

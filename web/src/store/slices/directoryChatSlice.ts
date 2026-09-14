@@ -29,11 +29,22 @@ const directoryChatSlice = createSlice({
     clearPendingDirectoryChatSeed: (state) => {
       state.pendingSeed = null;
     },
+    clearPendingDirectoryChatSeedIfMatches: (
+      state,
+      action: PayloadAction<string>,
+    ) => {
+      if (state.pendingSeed?.seedKey === action.payload) {
+        state.pendingSeed = null;
+      }
+    },
   },
 });
 
-export const { setPendingDirectoryChatSeed, clearPendingDirectoryChatSeed } =
-  directoryChatSlice.actions;
+export const {
+  setPendingDirectoryChatSeed,
+  clearPendingDirectoryChatSeed,
+  clearPendingDirectoryChatSeedIfMatches,
+} = directoryChatSlice.actions;
 
 export const selectPendingDirectoryChatSeed = (state: {
   directoryChat: IDirectoryChatState;

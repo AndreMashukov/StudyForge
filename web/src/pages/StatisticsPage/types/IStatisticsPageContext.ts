@@ -31,6 +31,7 @@ export interface IStatisticsPageApi {
   hasError: boolean;
   isLoadingMoreAttempts: boolean;
   isLoadingMoreFlashcards: boolean;
+  loadMoreError: string | null;
   loadMoreAttempts: () => Promise<void>;
   loadMoreFlashcardFailures: () => Promise<void>;
   setTimeRange: (range: StatisticsTimeRangeKey) => void;

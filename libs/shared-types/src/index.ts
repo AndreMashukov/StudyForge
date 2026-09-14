@@ -1722,6 +1722,7 @@ export interface LearningTelemetryEvent {
   quizType: QuizTelemetryType;
   questionIndex?: number;
   isCorrect?: boolean;
+  isPartial?: boolean;
   knowledge?: QuestionKnowledgeMetadata;
   occurredAt: Date | { toDate(): Date };
 }
@@ -1797,8 +1798,39 @@ export interface StatisticsAttemptsPageRequest extends StatisticsDateRangeReques
   pageSize?: number;
 }
 
+export interface StatisticsOverviewAttemptAnswer {
+  questionIndex: number;
+  questionText: string;
+  selectedAnswer: QuizAnswerValue;
+  correctAnswer: QuizAnswerValue;
+  isCorrect: boolean;
+  timeSpentMs?: number;
+  knowledge: QuestionKnowledgeMetadata;
+  detailedExplanationRequested: boolean;
+  detailedExplanationRequestedAt?: string;
+}
+
+/** Serializable quiz attempt row for Statistics overview pagination in Redux. */
+export interface StatisticsOverviewAttempt {
+  id: string;
+  userId: string;
+  quizId: string;
+  quizType: QuizTelemetryType;
+  documentIds: string[];
+  directoryId: string;
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  score: number;
+  totalQuestions: number;
+  percentage: number;
+  answers: StatisticsOverviewAttemptAnswer[];
+  date: string;
+  isPartial?: boolean;
+}
+
 export interface StatisticsAttemptsPageResponse {
-  attempts: QuizAttempt[];
+  attempts: StatisticsOverviewAttempt[];
   nextCursor?: StatisticsAttemptCursor;
   hasMore: boolean;
 }
@@ -1894,7 +1926,7 @@ export interface GetStatisticsOverviewResponse {
   metrics: StatisticsOverviewMetrics;
   recentFailures: StatisticsRecentFailure[];
   /** Raw attempts included so the client can merge additional pages locally. */
-  attempts: QuizAttempt[];
+  attempts: StatisticsOverviewAttempt[];
   nextAttemptCursor?: StatisticsAttemptCursor;
   hasMoreAttempts: boolean;
   flashcardFailures: StatisticsFlashcardFailure[];

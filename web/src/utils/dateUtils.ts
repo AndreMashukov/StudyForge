@@ -203,6 +203,17 @@ export const formatLocalIsoDate = (date: Date = new Date()): string => {
   return format(date, 'yyyy-MM-dd');
 };
 
+export const parseRequiredIsoDateString = (
+  value: string | undefined,
+  fieldName: string,
+): Date => {
+  const date = value ? parseISO(value) : new Date();
+  if (!isValid(date)) {
+    throw new Error(`${fieldName} must be a valid ISO date string`);
+  }
+  return date;
+};
+
 export const formatDateWithOptions = (
   date:
     | Date

@@ -32,6 +32,8 @@ import {
   StatisticsAttemptCursor,
   StatisticsFlashcardFailure,
   StatisticsFlashcardSessionCursor,
+  StatisticsOverviewAttempt,
+  StatisticsOverviewAttemptAnswer,
   StatisticsRecentFailure,
   FlashcardStudySession,
 } from '@shared-types';
@@ -297,6 +299,49 @@ function mapAttemptDoc(
   };
 }
 
+function serializeOverviewAttemptAnswer(
+  answer: QuizAttemptAnswer,
+): StatisticsOverviewAttemptAnswer {
+  return {
+    questionIndex: answer.questionIndex,
+    questionText: answer.questionText,
+    selectedAnswer: answer.selectedAnswer,
+    correctAnswer: answer.correctAnswer,
+    isCorrect: answer.isCorrect,
+    ...(answer.timeSpentMs !== undefined ? { timeSpentMs: answer.timeSpentMs } : {}),
+    knowledge: answer.knowledge,
+    detailedExplanationRequested: answer.detailedExplanationRequested,
+    ...(answer.detailedExplanationRequestedAt
+      ? {
+          detailedExplanationRequestedAt:
+            toIso(answer.detailedExplanationRequestedAt),
+        }
+      : {}),
+  };
+}
+
+export function serializeOverviewAttempt(
+  attempt: IStoredAttempt,
+): StatisticsOverviewAttempt {
+  return {
+    id: attempt.id,
+    userId: attempt.userId,
+    quizId: attempt.quizId,
+    quizType: attempt.quizType,
+    documentIds: attempt.documentIds,
+    directoryId: attempt.directoryId,
+    startedAt: toIso(attempt.startedAt) ?? new Date(0).toISOString(),
+    completedAt: attempt.completedAtDate.toISOString(),
+    durationMs: attempt.durationMs,
+    score: attempt.score,
+    totalQuestions: attempt.totalQuestions,
+    percentage: attempt.percentage,
+    answers: (attempt.answers ?? []).map(serializeOverviewAttemptAnswer),
+    date: attempt.date,
+    ...(attempt.isPartial ? { isPartial: true } : {}),
+  };
+}
+
 function filterAttempts(
   attempts: IStoredAttempt[],
   range: StatisticsDateRangeRequest,
@@ -357,19 +402,22 @@ export async function fetchQuizAttemptsPage(
 
   const rawAttempts = snapshot.docs.map(mapAttemptDoc);
   const hasMore = rawAttempts.length > pageSize;
+  const rawPageAttempts = hasMore
+    ? rawAttempts.slice(0, pageSize)
+    : rawAttempts;
   const pageAttempts = filterAttempts(
-    hasMore ? rawAttempts.slice(0, pageSize) : rawAttempts,
+    rawPageAttempts,
     range,
     scope,
     quizFilter,
   );
 
-  const lastAttempt = pageAttempts.at(-1);
+  const lastRawAttempt = rawPageAttempts.at(-1);
   const nextCursor =
-    hasMore && lastAttempt
+    hasMore && lastRawAttempt
       ? {
-          completedAt: lastAttempt.completedAtDate.toISOString(),
-          attemptId: lastAttempt.id,
+          completedAt: lastRawAttempt.completedAtDate.toISOString(),
+          attemptId: lastRawAttempt.id,
         }
       : undefined;
 
@@ -380,7 +428,7 @@ export async function fetchQuizAttemptsPage(
   };
 }
 
-async function getAttempts(
+export async function getAttemptsForStatisticsOverview(
   userId: string,
   range: StatisticsDateRangeRequest,
   scope?: StatisticsScopeOptions,
@@ -980,23 +1028,25 @@ function getArtifactRef(
 
 export async function buildOverviewFromAttempts(
   userId: string,
-  attempts: IStoredAttempt[],
+  failureAttempts: IStoredAttempt[],
   range: StatisticsDateRangeRequest,
   hiddenKeys: Set<string>,
+  metricsAttempts?: IStoredAttempt[],
 ): Promise<Pick<GetStatisticsOverviewResponse, 'metrics' | 'recentFailures'>> {
   const explanationCounts = await getExplanationCountsByQuiz(userId, range);
   const explanationRequestCount = Array.from(explanationCounts.values()).reduce(
     (sum, count) => sum + count,
     0,
   );
+  const attemptsForMetrics = metricsAttempts ?? failureAttempts;
 
   return {
     metrics: computeOverviewMetricsFromAttempts(
-      attempts,
+      attemptsForMetrics,
       hiddenKeys,
       explanationRequestCount,
     ),
-    recentFailures: await buildGroupedFailures(userId, attempts, hiddenKeys),
+    recentFailures: await buildGroupedFailures(userId, failureAttempts, hiddenKeys),
   };
 }
 
@@ -1007,17 +1057,19 @@ export async function getStatisticsOverviewFromFirestore(
 ): Promise<GetStatisticsOverviewResponse> {
   const hiddenKeys = await getHiddenFailureGroupKeys(userId);
   const attemptsPage = await fetchQuizAttemptsPage(userId, range, scope);
+  const allAttempts = await getAttemptsForStatisticsOverview(userId, range, scope);
   const flashcardPage = await fetchFlashcardStudySessionsPage(userId, range);
   const overview = await buildOverviewFromAttempts(
     userId,
     attemptsPage.attempts,
     range,
     hiddenKeys,
+    allAttempts,
   );
 
   return {
     ...overview,
-    attempts: attemptsPage.attempts,
+    attempts: attemptsPage.attempts.map(serializeOverviewAttempt),
     nextAttemptCursor: attemptsPage.nextCursor,
     hasMoreAttempts: attemptsPage.hasMore,
     flashcardFailures: await buildGroupedFlashcardFailures(
@@ -1036,7 +1088,7 @@ export async function getStatisticsQuizPerformanceFromFirestore(
   scope?: StatisticsScopeOptions,
 ): Promise<GetStatisticsQuizPerformanceResponse> {
   const hiddenKeys = await getHiddenFailureGroupKeys(userId);
-  const attempts = await getAttempts(userId, range, scope);
+  const attempts = await getAttemptsForStatisticsOverview(userId, range, scope);
   return {
     quizzes: await buildQuizPerformance(userId, attempts, range, hiddenKeys),
     recentFailures: await buildGroupedFailures(userId, attempts, hiddenKeys),
@@ -1141,7 +1193,7 @@ export async function getStatisticsQuizDetailFromFirestore(
   data: GetStatisticsQuizDetailRequest,
   scope?: StatisticsScopeOptions,
 ): Promise<GetStatisticsQuizDetailResponse> {
-  const attempts = await getAttempts(
+  const attempts = await getAttemptsForStatisticsOverview(
     userId,
     { ...data, quizType: data.quizType },
     scope,

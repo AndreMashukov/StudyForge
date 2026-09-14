@@ -25,7 +25,10 @@ import type {
   SequenceQuiz,
   SequenceQuizQuestion,
 } from '@shared-types';
-import { isAnsweredQuizInput } from '@shared-types';
+import {
+  dedupeQuizAttemptAnswerInputs,
+  isAnsweredQuizInput,
+} from '@shared-types';
 import { db } from '../config/firebase';
 import { computeExpiresAt } from './firestoreTtl';
 import {
@@ -367,8 +370,10 @@ export async function recordQuizAttemptInFirestore(
   const completedAt = parseDate(data.completedAt, 'completedAt');
   const date = completedAt.toISOString().slice(0, 10);
   const resolved = await resolveQuiz(userId, data.quizType, data.quizId);
-  const answeredInputs = (data.answers ?? []).filter((input) =>
-    isAnsweredQuizInput(input.selectedAnswer),
+  const answeredInputs = dedupeQuizAttemptAnswerInputs(
+    (data.answers ?? []).filter((input) =>
+      isAnsweredQuizInput(input.selectedAnswer),
+    ),
   );
   if (answeredInputs.length === 0) {
     throw new Error('At least one answered question is required');
@@ -429,6 +434,7 @@ export async function recordQuizAttemptInFirestore(
       quizId: data.quizId,
       quizType: data.quizType,
       occurredAt: Timestamp.fromDate(completedAt),
+      ...(isPartial ? { isPartial: true } : {}),
       expiresAt: computeExpiresAt(completedAt, 'learningRaw'),
     });
 

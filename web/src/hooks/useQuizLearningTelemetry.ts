@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   DiagramQuiz,
   isAnsweredQuizInput,
@@ -58,14 +58,16 @@ export const useQuizLearningTelemetry = ({
     completedAtMs,
     answers,
   });
-  latestRef.current = {
-    quiz,
-    quizType,
-    isCompleted,
-    startedAtMs,
-    completedAtMs,
-    answers,
-  };
+  useLayoutEffect(() => {
+    latestRef.current = {
+      quiz,
+      quizType,
+      isCompleted,
+      startedAtMs,
+      completedAtMs,
+      answers,
+    };
+  }, [quiz, quizType, isCompleted, startedAtMs, completedAtMs, answers]);
 
   useEffect(() => {
     if (!quiz?.id) {

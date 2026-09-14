@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import type { FlashcardSet } from '@shared-types';
 import type { FlashcardCardOutcome } from '../pages/FlashcardSetPage/types/IFlashcardSetPageContext';
 import { useRecordFlashcardStudySessionMutation } from '../store/api/LearningTelemetry/learningTelemetryApi';
@@ -27,12 +27,14 @@ export const useFlashcardStudyTelemetry = ({
     sessionStartedAtMs,
     isSessionComplete,
   });
-  latestRef.current = {
-    flashcardSet,
-    outcomes,
-    sessionStartedAtMs,
-    isSessionComplete,
-  };
+  useLayoutEffect(() => {
+    latestRef.current = {
+      flashcardSet,
+      outcomes,
+      sessionStartedAtMs,
+      isSessionComplete,
+    };
+  }, [flashcardSet, outcomes, sessionStartedAtMs, isSessionComplete]);
 
   useEffect(() => {
     if (!flashcardSet?.id || !sessionStartedAtMs) {

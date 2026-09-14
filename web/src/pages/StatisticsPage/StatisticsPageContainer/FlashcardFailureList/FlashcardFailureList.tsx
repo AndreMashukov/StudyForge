@@ -11,12 +11,14 @@ import { EmptyState } from '../StatisticsShared/StatisticsShared';
 
 interface IFlashcardFailureListProps {
   failures: StatisticsFlashcardFailure[];
+  hasMore?: boolean;
   onHideFailure?: (request: HideStatisticsFailureRequest) => Promise<void>;
   footer?: React.ReactNode;
 }
 
 export const FlashcardFailureList = ({
   failures,
+  hasMore = false,
   onHideFailure,
   footer,
 }: IFlashcardFailureListProps) => {
@@ -38,6 +40,8 @@ export const FlashcardFailureList = ({
           flashcardSetId: failure.flashcardSetId,
           flashcardId: failure.cardId,
         });
+      } catch {
+        window.alert('Failed to remove this flashcard failure from Statistics. Please try again.');
       } finally {
         setPendingHideKey(null);
       }
@@ -109,10 +113,13 @@ export const FlashcardFailureList = ({
 
   if (failures.length === 0) {
     return (
-      <EmptyState
-        title="No failed flashcards in this range"
-        description="Cards you mark as failed will appear here after you leave or finish a turn."
-      />
+      <>
+        <EmptyState
+          title="No failed flashcards in this range"
+          description="Cards you mark as failed will appear here after you leave or finish a turn."
+        />
+        {hasMore ? footer : null}
+      </>
     );
   }
 

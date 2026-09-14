@@ -20,6 +20,8 @@ import {
   StatisticsQuizDetailAttempt,
   StatisticsQuizPerformanceItem,
   StatisticsQuizTypeFilter,
+  StatisticsOverviewAttempt,
+  StatisticsOverviewAttemptAnswer,
   StatisticsRecentFailure,
   FlashcardStudySession,
   StatisticsFlashcardFailure,
@@ -102,6 +104,47 @@ function toDate(value: unknown): Date | null {
 
 function toIso(value: unknown): string | undefined {
   return toDate(value)?.toISOString();
+}
+
+function serializeOverviewAttemptAnswer(
+  answer: QuizAttemptAnswer,
+): StatisticsOverviewAttemptAnswer {
+  return {
+    questionIndex: answer.questionIndex,
+    questionText: answer.questionText,
+    selectedAnswer: answer.selectedAnswer,
+    correctAnswer: answer.correctAnswer,
+    isCorrect: answer.isCorrect,
+    ...(answer.timeSpentMs !== undefined ? { timeSpentMs: answer.timeSpentMs } : {}),
+    knowledge: answer.knowledge,
+    detailedExplanationRequested: answer.detailedExplanationRequested,
+    ...(answer.detailedExplanationRequestedAt
+      ? {
+          detailedExplanationRequestedAt:
+            toIso(answer.detailedExplanationRequestedAt),
+        }
+      : {}),
+  };
+}
+
+function serializeOverviewAttempt(attempt: IStoredAttempt): StatisticsOverviewAttempt {
+  return {
+    id: attempt.id,
+    userId: attempt.userId,
+    quizId: attempt.quizId,
+    quizType: attempt.quizType,
+    documentIds: attempt.documentIds,
+    directoryId: attempt.directoryId,
+    startedAt: toIso(attempt.startedAt) ?? new Date(0).toISOString(),
+    completedAt: attempt.completedAtDate.toISOString(),
+    durationMs: attempt.durationMs,
+    score: attempt.score,
+    totalQuestions: attempt.totalQuestions,
+    percentage: attempt.percentage,
+    answers: (attempt.answers ?? []).map(serializeOverviewAttemptAnswer),
+    date: attempt.date,
+    ...(attempt.isPartial ? { isPartial: true } : {}),
+  };
 }
 
 function accuracy(correct: number, total: number): number {
@@ -633,7 +676,7 @@ async function buildGroupedFlashcardFailures(
       userId,
       entry.session.flashcardSetId,
     ).get();
-    const data = snap.exists() ? (snap.data() ?? {}) : {};
+    const data = snap.exists ? (snap.data() ?? {}) : {};
     const cards = Array.isArray(data.flashcards) ? data.flashcards : [];
     const cardMeta = cards.find(
       (card: { id?: string }) => card.id === entry.cardId,
@@ -839,7 +882,7 @@ export async function getStatisticsOverview(
       explanationRequestCount,
     ),
     recentFailures: await buildGroupedFailures(userId, attempts, hiddenKeys),
-    attempts,
+    attempts: attempts.slice(0, ATTEMPT_PAGE_SIZE).map(serializeOverviewAttempt),
     hasMoreAttempts: attempts.length >= ATTEMPT_PAGE_SIZE,
     flashcardFailures: await buildGroupedFlashcardFailures(
       userId,

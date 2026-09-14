@@ -11,6 +11,7 @@ import {
 import { auth } from '../../../../../config/firebase';
 import {
   buildOverviewFromAttempts,
+  getAttemptsForStatisticsOverview,
   getHiddenFailureGroupKeys,
   type IStoredAttempt,
 } from '../../../../../services/statisticsFirestore';
@@ -33,17 +34,52 @@ function toStoredAttempt(
   if ('completedAtDate' in attempt && attempt.completedAtDate instanceof Date) {
     return attempt;
   }
+
   const completedAt =
-    attempt.completedAt instanceof Date
-      ? attempt.completedAt
-      : typeof attempt.completedAt === 'object'
-        && attempt.completedAt
-        && 'toDate' in attempt.completedAt
-        ? attempt.completedAt.toDate()
-        : new Date(0);
+    typeof attempt.completedAt === 'string'
+      ? new Date(attempt.completedAt)
+      : attempt.completedAt instanceof Date
+        ? attempt.completedAt
+        : typeof attempt.completedAt === 'object'
+          && attempt.completedAt
+          && 'toDate' in attempt.completedAt
+          ? attempt.completedAt.toDate()
+          : new Date(0);
+  const startedAt =
+    typeof attempt.startedAt === 'string'
+      ? new Date(attempt.startedAt)
+      : attempt.startedAt;
+
   return {
     ...attempt,
+    startedAt,
+    completedAt,
     completedAtDate: completedAt,
+    answers: attempt.answers.map((answer) => {
+      const {
+        detailedExplanationRequestedAt: requestedAt,
+        ...rest
+      } = answer;
+      let detailedExplanationRequestedAt: Date | undefined;
+      if (typeof requestedAt === 'string') {
+        detailedExplanationRequestedAt = new Date(requestedAt);
+      } else if (requestedAt instanceof Date) {
+        detailedExplanationRequestedAt = requestedAt;
+      } else if (
+        requestedAt
+        && typeof requestedAt === 'object'
+        && 'toDate' in requestedAt
+      ) {
+        detailedExplanationRequestedAt = requestedAt.toDate();
+      }
+
+      return {
+        ...rest,
+        ...(detailedExplanationRequestedAt
+          ? { detailedExplanationRequestedAt }
+          : {}),
+      };
+    }),
   };
 }
 
@@ -94,6 +130,7 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
   const [accumulatedAttempts, setAccumulatedAttempts] = useState<IStoredAttempt[]>([]);
   const [isLoadingMoreAttempts, setIsLoadingMoreAttempts] = useState(false);
   const [isLoadingMoreFlashcards, setIsLoadingMoreFlashcards] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
 
   const overviewRequest = useMemo(
     () => getStatisticsDateRange(timeRange, quizType),
@@ -137,6 +174,7 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
     if (overviewQuery.data) {
       setMergedOverview(overviewQuery.data);
       setAccumulatedAttempts(overviewQuery.data.attempts.map(toStoredAttempt));
+      setLoadMoreError(null);
     } else {
       setMergedOverview(null);
       setAccumulatedAttempts([]);
@@ -150,6 +188,7 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
     if (!userId) return;
 
     setIsLoadingMoreAttempts(true);
+    setLoadMoreError(null);
     try {
       const page = await loadMoreAttemptsMutation({
         ...overviewRequest,
@@ -161,11 +200,16 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
         ...page.attempts.map(toStoredAttempt),
       ];
       const hiddenKeys = await getHiddenFailureGroupKeys(userId);
+      const allAttempts = await getAttemptsForStatisticsOverview(
+        userId,
+        overviewRequest,
+      );
       const overviewPart = await buildOverviewFromAttempts(
         userId,
         newAttempts,
         overviewRequest,
         hiddenKeys,
+        allAttempts,
       );
 
       setAccumulatedAttempts(newAttempts);
@@ -174,11 +218,15 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
           ? {
               ...current,
               ...overviewPart,
-              attempts: newAttempts.map(({ completedAtDate: _ignored, ...attempt }) => attempt),
+              attempts: [...current.attempts, ...page.attempts],
               nextAttemptCursor: page.nextCursor,
               hasMoreAttempts: page.hasMore,
             }
           : current,
+      );
+    } catch (error) {
+      setLoadMoreError(
+        error instanceof Error ? error.message : 'Failed to load more attempts',
       );
     } finally {
       setIsLoadingMoreAttempts(false);
@@ -195,6 +243,7 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
     if (!mergedOverview?.nextFlashcardCursor || isLoadingMoreFlashcards) return;
 
     setIsLoadingMoreFlashcards(true);
+    setLoadMoreError(null);
     try {
       const page = await loadMoreFlashcardsMutation({
         ...globalRequest,
@@ -213,6 +262,12 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
               hasMoreFlashcardSessions: page.hasMore,
             }
           : current,
+      );
+    } catch (error) {
+      setLoadMoreError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load more flashcard failures',
       );
     } finally {
       setIsLoadingMoreFlashcards(false);
@@ -267,6 +322,7 @@ export const useFetchStatisticsPageData = (): IStatisticsPageApi => {
     hasError,
     isLoadingMoreAttempts,
     isLoadingMoreFlashcards,
+    loadMoreError,
     loadMoreAttempts,
     loadMoreFlashcardFailures,
     setTimeRange,

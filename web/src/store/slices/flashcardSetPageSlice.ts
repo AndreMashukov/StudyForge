@@ -58,13 +58,7 @@ const flashcardSetPageSlice = createSlice({
       }
 
       state.activeQueue = retakeIds;
-      const next: Record<string, FlashcardCardOutcome> = {};
-      for (const [cardId, outcome] of Object.entries(state.outcomes)) {
-        if (outcome === 'learned') {
-          next[cardId] = outcome;
-        }
-      }
-      state.outcomes = next;
+      state.outcomes = {};
       state.currentIndex = 0;
       state.sessionStartedAtMs = Date.now();
     },

@@ -2,55 +2,10 @@ import { useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { RecordQuizAttemptAnswerInput } from '@shared-types';
 import { useQuizLearningTelemetry } from '../../../../hooks/useQuizLearningTelemetry';
-import { usePublishDirectoryChatQuizSeed } from '../../../../hooks/usePublishDirectoryChatQuizSeed';
 import { selectQuizState } from '../../../../store/slices/quizPageSlice';
-import { buildDirectoryChatQuestionSeed } from '../../../../utils/directoryChatQuizSeed';
 
 export const useQuizPageEffects = () => {
   const quizState = useSelector(selectQuizState);
-  const currentQuestion = quizState.questions[quizState.currentQuestionIndex];
-  const directoryId = quizState.firestoreQuiz?.directoryId;
-  const quizQuestionSeed = useMemo(() => {
-    if (
-      !directoryId ||
-      !quizState.firestoreQuiz ||
-      !currentQuestion ||
-      quizState.isCompleted
-    ) {
-      return null;
-    }
-
-    const selectedAnswerText =
-      quizState.selectedAnswer !== null
-        ? currentQuestion.options[quizState.selectedAnswer]
-        : undefined;
-    const seed = buildDirectoryChatQuestionSeed({
-      artifactType: 'quiz',
-      quizId: quizState.firestoreQuiz.id,
-      questionIndex: quizState.currentQuestionIndex,
-      question: currentQuestion.question,
-      title: quizState.firestoreQuiz.title,
-      options: currentQuestion.options,
-      userAnswer: selectedAnswerText,
-      correctAnswer: currentQuestion.options[currentQuestion.correct],
-      explanation: currentQuestion.explanation,
-      followupRuleIds: quizState.firestoreQuiz.followupRuleIds,
-    });
-
-    return {
-      directoryId,
-      ...seed,
-    };
-  }, [
-    currentQuestion,
-    directoryId,
-    quizState.currentQuestionIndex,
-    quizState.firestoreQuiz,
-    quizState.isCompleted,
-    quizState.selectedAnswer,
-  ]);
-
-  usePublishDirectoryChatQuizSeed(quizQuestionSeed);
   const telemetryAnswers = useMemo<RecordQuizAttemptAnswerInput[]>(() => {
     return quizState.answers.map((answer) => {
       const questionIndex = answer.questionId - 1;
@@ -82,12 +37,12 @@ export const useQuizPageEffects = () => {
         // This would need to be connected to handlers via custom events or Redux
         console.log(`Keyboard shortcut for answer ${answerIndex}`);
       }
-      
+
       if (event.key === 'Enter') {
         // Submit answer or go to next question
         console.log('Enter pressed - could dispatch Redux action');
       }
-      
+
       if (event.key === 'Escape') {
         // Maybe exit quiz or show menu
         console.log('Escape pressed - could navigate away');
@@ -95,7 +50,7 @@ export const useQuizPageEffects = () => {
     };
 
     document.addEventListener('keydown', handleKeyPress);
-    
+
     return () => {
       document.removeEventListener('keydown', handleKeyPress);
     };
@@ -112,7 +67,7 @@ export const useQuizPageEffects = () => {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -128,7 +83,7 @@ export const useQuizPageEffects = () => {
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
