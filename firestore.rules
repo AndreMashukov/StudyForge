@@ -211,6 +211,18 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      match /flashcardStudySessions/{sessionId} {
+        allow read: if canAccessWorkspace(userId);
+        allow create: if canAccessWorkspace(userId);
+        allow update, delete: if false;
+      }
+
+      match /statisticsHiddenFailures/{hiddenId} {
+        allow read: if canAccessWorkspace(userId);
+        allow create, update: if canAccessWorkspace(userId);
+        allow delete: if false;
+      }
+
       match /quizStats/{statId} {
         allow read: if canAccessWorkspace(userId);
         allow create, update: if canAccessWorkspace(userId);
