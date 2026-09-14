@@ -24,7 +24,7 @@ langsmith auth login
 langsmith auth info
 ```
 
-Alternatively, set `LANGSMITH_API_KEY`. The hidden `--api-key` flag remains available for compatibility, but do not place keys directly in commands or logs. Use `--profile` or `LANGSMITH_PROFILE` when selecting among saved profiles.
+Alternatively, set `LANGSMITH_API_KEY` in the environment. Do not pass API keys as CLI flags. Use `--profile` or `LANGSMITH_PROFILE` when selecting among saved profiles.
 
 **IMPORTANT:** `LANGSMITH_PROJECT` defaults trace and run queries; it does not choose an evaluator target. Evaluator creation and upload require an explicit `--dataset` or `--project`.
 
@@ -45,9 +45,9 @@ pip install langsmith langchain-openai python-dotenv
 ```
 
 CLI Tool
+Install the LangSmith CLI from a pinned package. Do not download or pipe remote installer scripts into a shell, and do not run `langsmith self-update`.
 ```bash
-curl -fsSL https://cli.langsmith.com/install.sh | sh
-langsmith self-update
+pipx install langsmith==0.10.3
 ```
 
 JavaScript Dependencies

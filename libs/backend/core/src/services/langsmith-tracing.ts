@@ -51,20 +51,26 @@ export async function flushLangSmithTraces(): Promise<void> {
   if (!client) {
     return;
   }
-  await client.awaitPendingTraceBatches();
+  try {
+    await client.awaitPendingTraceBatches();
+  } catch {
+    // Flush failures must not replace the pipeline result or error.
+  }
 }
 
 const SECRET_KEY_PATTERN = /api[_-]?key|authorization|secret|token|password/i;
+
+function isKvMap(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 function redactSecrets(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(redactSecrets);
   }
-  if (value && typeof value === 'object') {
+  if (isKvMap(value)) {
     const result: Record<string, unknown> = {};
-    for (const [key, nested] of Object.entries(
-      value as Record<string, unknown>,
-    )) {
+    for (const [key, nested] of Object.entries(value)) {
       result[key] = SECRET_KEY_PATTERN.test(key)
         ? '[redacted]'
         : redactSecrets(nested);
@@ -82,8 +88,8 @@ export interface ILangSmithTraceableOptions {
 export function withLangSmithTrace<Args extends unknown[], Result>(
   fn: (...args: Args) => Promise<Result>,
   options: ILangSmithTraceableOptions,
-): (...args: Args) => Promise<Result> {
-  const traced: unknown = traceable(fn, {
+) {
+  return traceable(fn, {
     name: options.name,
     run_type: options.runType ?? 'chain',
     processInputs: (inputs) => {
@@ -91,33 +97,23 @@ export function withLangSmithTrace<Args extends unknown[], Result>(
       return isKvMap(redacted) ? redacted : {};
     },
   });
-
-  if (!isAsyncFunction(traced)) {
-    return fn;
-  }
-
-  return (...args: Args) => traced(...args) as Promise<Result>;
 }
 
-function isAsyncFunction(
-  value: unknown,
-): value is (...args: unknown[]) => Promise<unknown> {
-  return typeof value === 'function';
-}
-
-function isKvMap(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-export function buildLangGraphTraceConfig(input: {
+export interface ILangGraphTraceConfigInput {
   runName: string;
   tags: string[];
   metadata?: Record<string, string>;
-}): {
+}
+
+export interface ILangGraphTraceConfig {
   runName: string;
   tags: string[];
   metadata: Record<string, string>;
-} {
+}
+
+export function buildLangGraphTraceConfig(
+  input: ILangGraphTraceConfigInput,
+): ILangGraphTraceConfig {
   const costContext = getProviderCostContext();
   return {
     runName: input.runName,

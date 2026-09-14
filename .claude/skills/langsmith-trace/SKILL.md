@@ -12,20 +12,22 @@ Environment Variables
 
 ```bash
 LANGSMITH_API_KEY=lsv2_pt_your_api_key_here          # REQUIRED
-LANGSMITH_PROJECT=your-project-name                   # Optional: default project
+LANGSMITH_PROJECT=your-project-name                   # REQUIRED for project-scoped queries
 LANGSMITH_WORKSPACE_ID=your-workspace-id              # Optional: for org-scoped keys
 ```
 
-Authentication is REQUIRED: either set the `LANGSMITH_API_KEY` environment variable, or pass the `--api-key` flag to CLI commands (preferred):
+Authentication is REQUIRED. Prefer a saved CLI profile or the `LANGSMITH_API_KEY` environment variable. Do not pass API keys as CLI flags.
 ```bash
-langsmith trace list --project my-project --api-key $LANGSMITH_API_KEY
+langsmith auth login
+langsmith auth info
 ```
 
-**IMPORTANT:** Always check the environment variables or `.env` file for `LANGSMITH_PROJECT` before querying or interacting with LangSmith. This tells you which project contains the relevant traces and data. If the LangSmith project is not available, use your best judgement to identify the right one.
+**IMPORTANT:** Read `LANGSMITH_PROJECT` from the environment or `.env` before any project-scoped query, export, or trace operation. If the project is missing, stop and ask for it. Do not guess a project.
 
 CLI Tool
+Install the LangSmith CLI from a pinned package. Do not download or pipe remote installer scripts into a shell.
 ```bash
-curl -sSL https://raw.githubusercontent.com/langchain-ai/langsmith-cli/main/scripts/install.sh | sh
+pipx install langsmith==0.10.3
 ```
 </setup>
 
@@ -196,30 +198,30 @@ Query traces using the `langsmith` CLI. Commands are language-agnostic.
 
 ```bash
 # List recent traces (most common operation)
-langsmith trace list --limit 10 --project my-project --api-key $LANGSMITH_API_KEY
+langsmith trace list --limit 10 --project "$LANGSMITH_PROJECT"
 
 # List traces with metadata (timing, tokens, costs)
-langsmith trace list --limit 10 --include-metadata --api-key $LANGSMITH_API_KEY
+langsmith trace list --limit 10 --include-metadata --project "$LANGSMITH_PROJECT"
 
 # Filter traces by time
-langsmith trace list --last-n-minutes 60 --api-key $LANGSMITH_API_KEY
-langsmith trace list --since 2025-01-20T10:00:00Z --api-key $LANGSMITH_API_KEY
+langsmith trace list --last-n-minutes 60 --project "$LANGSMITH_PROJECT"
+langsmith trace list --since 2025-01-20T10:00:00Z --project "$LANGSMITH_PROJECT"
 
 # Get specific trace with full hierarchy
-langsmith trace get <trace-id> --api-key $LANGSMITH_API_KEY
+langsmith trace get <trace-id> --project "$LANGSMITH_PROJECT"
 
 # List traces and show hierarchy inline
-langsmith trace list --limit 5 --show-hierarchy --api-key $LANGSMITH_API_KEY
+langsmith trace list --limit 5 --show-hierarchy --project "$LANGSMITH_PROJECT"
 
 # Export traces to JSONL (one file per trace, includes all runs)
-langsmith trace export ./traces --limit 20 --full --api-key $LANGSMITH_API_KEY
+langsmith trace export ./traces --limit 20 --full --project "$LANGSMITH_PROJECT"
 
 # Filter traces by performance
-langsmith trace list --min-latency 5.0 --limit 10 --api-key $LANGSMITH_API_KEY    # Slow traces (>= 5s)
-langsmith trace list --error --last-n-minutes 60 --api-key $LANGSMITH_API_KEY     # Failed traces
+langsmith trace list --min-latency 5.0 --limit 10 --project "$LANGSMITH_PROJECT"
+langsmith trace list --error --last-n-minutes 60 --project "$LANGSMITH_PROJECT"
 
 # List specific run types (flat list)
-langsmith run list --run-type llm --limit 20 --api-key $LANGSMITH_API_KEY
+langsmith run list --run-type llm --limit 20 --project "$LANGSMITH_PROJECT"
 ```
 </querying_traces>
 
@@ -246,7 +248,7 @@ All commands support these filters (all AND together):
 
 ```bash
 # Filter traces by feedback score using raw LangSmith query
-langsmith trace list --filter 'and(eq(feedback_key, "correctness"), gte(feedback_score, 0.8))' --api-key $LANGSMITH_API_KEY
+langsmith trace list --project "$LANGSMITH_PROJECT" --filter 'and(eq(feedback_key, "correctness"), gte(feedback_score, 0.8))'
 ```
 </filters>
 

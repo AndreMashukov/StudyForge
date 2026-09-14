@@ -16,27 +16,28 @@ LANGSMITH_PROJECT=your-project-name                   # Check this to know which
 LANGSMITH_WORKSPACE_ID=your-workspace-id              # Optional: for org-scoped keys
 ```
 
-Authentication is REQUIRED: either set the `LANGSMITH_API_KEY` environment variable, or pass the `--api-key` flag to CLI commands (preferred):
+Authentication is REQUIRED. Prefer a saved CLI profile or the `LANGSMITH_API_KEY` environment variable. Do not pass API keys as CLI flags.
 ```bash
-langsmith dataset list --api-key $LANGSMITH_API_KEY
+langsmith auth login
+langsmith auth info
 ```
 
-**IMPORTANT:** Always check the environment variables or `.env` file for `LANGSMITH_PROJECT` before querying or interacting with LangSmith. This tells you which project contains the relevant traces and data. If the LangSmith project is not available, use your best judgement to identify the right one.
+**IMPORTANT:** Read `LANGSMITH_PROJECT` from the environment or `.env` before any project-scoped query, export, or trace operation. If the project is missing, stop and ask for it. Do not guess a project.
 
 Python Dependencies
 ```bash
-pip install langsmith
+pip install langsmith==0.10.3
 ```
 
 JavaScript Dependencies
 ```bash
-npm install langsmith
+npm install langsmith@0.10.3
 ```
 
 CLI Tool
-
+Install the LangSmith CLI from a pinned package. Do not download or pipe remote installer scripts into a shell.
 ```bash
-curl -sSL https://raw.githubusercontent.com/langchain-ai/langsmith-cli/main/scripts/install.sh | sh
+pipx install langsmith==0.10.3
 ```
 </setup>
 
@@ -66,12 +67,12 @@ Use the `langsmith` CLI to manage datasets and examples.
 ### Common Flags
 
 - `--limit N` - Limit number of results
-- `--yes` - Skip confirmation prompts (use with caution)
+- `--yes` - Skip confirmation prompts only after the user explicitly authorizes that delete or overwrite
 
 **IMPORTANT - Safety Prompts:**
 - The CLI prompts for confirmation before destructive operations (delete, overwrite)
-- **If you are running with user input:** ALWAYS wait for user input; NEVER use `--yes` unless the user explicitly requests it
-- **If you are running non-interactively:** Use `--yes` to skip confirmation prompts
+- ALWAYS wait for explicit user approval before delete or overwrite, including non-interactive runs
+- NEVER use `--yes` unless the user explicitly requested that specific destructive operation
 </usage>
 
 <dataset_types_overview>
@@ -94,7 +95,7 @@ Export traces first, then process them into dataset format using code:
 
 ```bash
 # 1. Export traces to JSONL files
-langsmith trace export ./traces --project my-project --limit 20 --full --api-key $LANGSMITH_API_KEY
+langsmith trace export ./traces --project my-project --limit 20 --full
 ```
 
 <python>
@@ -153,7 +154,7 @@ writeFileSync("/tmp/dataset.json", JSON.stringify(examples, null, 2));
 
 ```bash
 # Upload local JSON file as a dataset
-langsmith dataset upload /tmp/dataset.json --name "My Evaluation Dataset" --api-key $LANGSMITH_API_KEY
+langsmith dataset upload /tmp/dataset.json --name "My Evaluation Dataset"
 ```
 
 ### Using the SDK Directly
@@ -237,34 +238,34 @@ await client.createExamples([
 
 ```bash
 # List all datasets
-langsmith dataset list --api-key $LANGSMITH_API_KEY
+langsmith dataset list
 
 # Get dataset details
-langsmith dataset get "My Dataset" --api-key $LANGSMITH_API_KEY
+langsmith dataset get "My Dataset"
 
 # Create an empty dataset
-langsmith dataset create --name "New Dataset" --description "For evaluation" --api-key $LANGSMITH_API_KEY
+langsmith dataset create --name "New Dataset" --description "For evaluation"
 
 # Upload a local JSON file
-langsmith dataset upload /tmp/dataset.json --name "My Dataset" --api-key $LANGSMITH_API_KEY
+langsmith dataset upload /tmp/dataset.json --name "My Dataset"
 
 # Export a dataset to local file
-langsmith dataset export "My Dataset" /tmp/exported.json --limit 100 --api-key $LANGSMITH_API_KEY
+langsmith dataset export "My Dataset" /tmp/exported.json --limit 100
 
 # Delete a dataset
-langsmith dataset delete "My Dataset" --api-key $LANGSMITH_API_KEY
+langsmith dataset delete "My Dataset"
 
 # List examples in a dataset
-langsmith example list --dataset "My Dataset" --limit 10 --api-key $LANGSMITH_API_KEY
+langsmith example list --dataset "My Dataset" --limit 10
 
 # Add an example
 langsmith example create --dataset "My Dataset" \
   --inputs '{"query": "test"}' \
-  --outputs '{"answer": "result"}' --api-key $LANGSMITH_API_KEY
+  --outputs '{"answer": "result"}'
 
 # List experiments
-langsmith experiment list --dataset "My Dataset" --api-key $LANGSMITH_API_KEY
-langsmith experiment get "eval-v1" --api-key $LANGSMITH_API_KEY
+langsmith experiment list --dataset "My Dataset"
+langsmith experiment get "eval-v1"
 ```
 </script_usage>
 
@@ -273,22 +274,22 @@ Complete workflow from traces to uploaded LangSmith dataset:
 
 ```bash
 # 1. Export traces from LangSmith
-langsmith trace export ./traces --project my-project --limit 20 --full --api-key $LANGSMITH_API_KEY
+langsmith trace export ./traces --project my-project --limit 20 --full
 
 # 2. Process traces into dataset format (using Python/JS code)
 # See "Creating Datasets" section above
 
 # 3. Upload to LangSmith
-langsmith dataset upload /tmp/final_response.json --name "Skills: Final Response" --api-key $LANGSMITH_API_KEY
-langsmith dataset upload /tmp/trajectory.json --name "Skills: Trajectory" --api-key $LANGSMITH_API_KEY
+langsmith dataset upload /tmp/final_response.json --name "Skills: Final Response"
+langsmith dataset upload /tmp/trajectory.json --name "Skills: Trajectory"
 
 # 4. Verify upload
-langsmith dataset list --api-key $LANGSMITH_API_KEY
-langsmith dataset get "Skills: Final Response" --api-key $LANGSMITH_API_KEY
-langsmith example list --dataset "Skills: Final Response" --limit 3 --api-key $LANGSMITH_API_KEY
+langsmith dataset list
+langsmith dataset get "Skills: Final Response"
+langsmith example list --dataset "Skills: Final Response" --limit 3
 
 # 5. Run experiments
-langsmith experiment list --dataset "Skills: Final Response" --api-key $LANGSMITH_API_KEY
+langsmith experiment list --dataset "Skills: Final Response"
 ```
 </example_workflow>
 

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   applyLangSmithProcessDefaults,
+  flushLangSmithTraces,
   isLangSmithTracingEnabled,
 } from './langsmith-tracing';
 
@@ -44,5 +45,11 @@ describe('isLangSmithTracingEnabled', () => {
     process.env.LANGSMITH_API_KEY = 'test-key';
     applyLangSmithProcessDefaults();
     expect(isLangSmithTracingEnabled()).toBe(true);
+  });
+
+  it('resolves flush when tracing is disabled', async () => {
+    delete process.env.LANGSMITH_TRACING;
+    delete process.env.LANGSMITH_API_KEY;
+    await expect(flushLangSmithTraces()).resolves.toBeUndefined();
   });
 });
