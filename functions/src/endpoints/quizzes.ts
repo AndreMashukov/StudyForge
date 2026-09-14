@@ -21,6 +21,7 @@ import {
   Quiz,
   getDocumentFallbackColor,
 } from "@shared-types";
+import { langsmithApiKey } from '../langsmith-secret';
 
 // Define secrets
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
@@ -33,7 +34,7 @@ const llmSettingsEncryptionKey = defineSecret("LLM_SETTINGS_ENCRYPTION_KEY");
 export const generateQuiz = onCall(
   {
     cors: true,
-    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey],
     maxInstances: 5,
     timeoutSeconds: 60,
     memory: "512MiB",

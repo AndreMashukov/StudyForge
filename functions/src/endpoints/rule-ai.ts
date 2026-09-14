@@ -11,6 +11,8 @@ import {
   aiRevisionInstructionSchema,
 } from '@study-forge/backend-core/lib/ai-revision-validation';
 
+import { langsmithApiKey } from '../langsmith-secret';
+
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
@@ -25,7 +27,7 @@ const generateRuleRequestSchema = z.object({
  * Generates or improves a rule using the LLM routing layer (OpenRouter or Gemini).
  */
 export const generateRuleWithAI = onCall(
-  { region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey], timeoutSeconds: 300 },
+  { region: 'asia-east1', cors: true, secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey], timeoutSeconds: 300 },
   async (request) => {
     try {
       const userId = await validateVerifiedAuth(request);

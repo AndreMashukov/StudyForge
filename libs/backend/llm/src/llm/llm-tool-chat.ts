@@ -8,6 +8,7 @@ import {
   normalizeOpenAiCompatibleUsage,
   recordLlmProviderResult,
 } from '@study-forge/backend-core/services/provider-cost';
+import { withLangSmithTrace } from '@study-forge/backend-core/services/langsmith-tracing';
 import type { ResolvedRoute } from './types';
 import { readLlmGenerationRuntimeSettings } from './llm-generation-settings-repository';
 import { togetherReasoningBodyExtras } from './together-reasoning-body';
@@ -683,7 +684,12 @@ async function executeStreamToolChat(input: {
   };
 }
 
-export async function callToolChatCompletions(input: {
+export const callToolChatCompletions = withLangSmithTrace(
+  callToolChatCompletionsImpl,
+  { name: 'llm_tool_chat', runType: 'llm' },
+);
+
+async function callToolChatCompletionsImpl(input: {
   route: ResolvedRoute;
   apiKey: string;
   messages: ILlmToolChatMessage[];

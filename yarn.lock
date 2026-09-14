@@ -16554,6 +16554,13 @@ langium@^4.0.0:
   dependencies:
     p-queue "6.6.2"
 
+langsmith@^0.10.3:
+  version "0.10.3"
+  resolved "https://registry.yarnpkg.com/langsmith/-/langsmith-0.10.3.tgz#9c097a55ccde83295a555ac93f74c0722bac6842"
+  integrity sha512-QQjH27gbMHGfEwCMN7wcE2a+AV3GrVAL3dZX33ZMGC45a6XeGtSB4Qnl1JiNdWe4QS4P3dsYQLsuCnN1Liztmw==
+  dependencies:
+    p-queue "6.6.2"
+
 language-subtag-registry@^0.3.20:
   version "0.3.23"
   resolved "https://registry.npmmirror.com/language-subtag-registry/-/language-subtag-registry-0.3.23.tgz"

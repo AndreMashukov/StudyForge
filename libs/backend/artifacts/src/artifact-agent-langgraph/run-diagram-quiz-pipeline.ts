@@ -28,6 +28,10 @@
  */
 import { logger } from 'firebase-functions/v2';
 import { GraphRecursionError } from '@langchain/langgraph';
+import {
+  buildLangGraphTraceConfig,
+  flushLangSmithTraces,
+} from '@study-forge/backend-core/services/langsmith-tracing';
 
 import { ArtifactAgentPipelineFailedError } from '../artifact-errors';
 import {
@@ -195,6 +199,15 @@ export async function runDiagramQuizLangGraphPipeline(
   try {
     finalState = (await diagramQuizGraph.invoke(initialState, {
       recursionLimit: 25,
+      ...buildLangGraphTraceConfig({
+        runName: 'diagram-quiz',
+        tags: ['langgraph', 'diagram-quiz'],
+        metadata: {
+          userId: input.userId,
+          jobId: input.jobId,
+          recordId: input.recordId,
+        },
+      }),
       configurable: {
         thread_id: input.jobId,
       },
@@ -217,6 +230,8 @@ export async function runDiagramQuizLangGraphPipeline(
       );
     }
     throw err;
+  } finally {
+    await flushLangSmithTraces();
   }
 
   const outcome = readFinalOutcome(finalState);

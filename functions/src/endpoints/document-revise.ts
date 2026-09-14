@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
+import { langsmithApiKey } from '../langsmith-secret';
 import { logger } from 'firebase-functions/v2';
 import { resolveDocumentContentFormat } from '@shared-types';
 import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
@@ -23,7 +24,7 @@ export const reviseDocumentWithAI = onCall(
   {
     region: 'asia-east1',
     cors: true,
-    secrets: [geminiApiKey, llmSettingsEncryptionKey],
+    secrets: [geminiApiKey, llmSettingsEncryptionKey, langsmithApiKey],
     timeoutSeconds: 300,
     memory: '1GiB',
   },
