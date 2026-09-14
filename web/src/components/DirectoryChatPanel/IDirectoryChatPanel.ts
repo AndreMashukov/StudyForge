@@ -24,4 +24,7 @@ export interface IDirectoryChatPanel {
   seedKey?: string;
   artifactContext?: DirectoryChatArtifactContext;
   autoSendSeed?: boolean;
+  /** Fill the parent height instead of a fixed panel height. */
+  fillAvailable?: boolean;
+  onSeedConsumed?: (seedKey: string) => void;
 }

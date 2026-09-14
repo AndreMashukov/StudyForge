@@ -1,12 +1,14 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StatisticsQuizTypeFilter, StatisticsTimeRangeKey } from '@shared-types';
+import { HideStatisticsFailureRequest, StatisticsQuizTypeFilter, StatisticsTimeRangeKey } from '@shared-types';
+import { useHideStatisticsFailureMutation } from '../../../../store/api/Statistics';
 import { IStatisticsPageApi } from '../../types/IStatisticsPageContext';
 import { IStatisticsPageHandlers, StatisticsTab } from '../../types/IStatisticsPageHandlers';
 
 export const useStatisticsPageHandlers = (statisticsApi: IStatisticsPageApi): IStatisticsPageHandlers => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<StatisticsTab>('overview');
+  const [hideStatisticsFailure] = useHideStatisticsFailureMutation();
 
   const handleActiveTabChange = useCallback((tab: StatisticsTab) => {
     setActiveTab(tab);
@@ -16,19 +18,34 @@ export const useStatisticsPageHandlers = (statisticsApi: IStatisticsPageApi): IS
     (range: StatisticsTimeRangeKey) => {
       statisticsApi.setTimeRange(range);
     },
-    [statisticsApi]
+    [statisticsApi],
   );
 
   const handleSetQuizType = useCallback(
     (type: StatisticsQuizTypeFilter) => {
       statisticsApi.setQuizType(type);
     },
-    [statisticsApi]
+    [statisticsApi],
   );
 
   const handleBackToStatistics = useCallback(() => {
     navigate('/statistics');
   }, [navigate]);
+
+  const handleLoadMoreAttempts = useCallback(async () => {
+    await statisticsApi.loadMoreAttempts();
+  }, [statisticsApi]);
+
+  const handleLoadMoreFlashcardFailures = useCallback(async () => {
+    await statisticsApi.loadMoreFlashcardFailures();
+  }, [statisticsApi]);
+
+  const handleHideFailure = useCallback(
+    async (request: HideStatisticsFailureRequest) => {
+      await hideStatisticsFailure(request).unwrap();
+    },
+    [hideStatisticsFailure],
+  );
 
   return {
     activeTab,
@@ -36,5 +53,10 @@ export const useStatisticsPageHandlers = (statisticsApi: IStatisticsPageApi): IS
     handleSetTimeRange,
     handleSetQuizType,
     handleBackToStatistics,
+    handleLoadMoreAttempts,
+    handleLoadMoreFlashcardFailures,
+    handleHideFailure,
+    isLoadingMoreAttempts: statisticsApi.isLoadingMoreAttempts,
+    isLoadingMoreFlashcards: statisticsApi.isLoadingMoreFlashcards,
   };
 };

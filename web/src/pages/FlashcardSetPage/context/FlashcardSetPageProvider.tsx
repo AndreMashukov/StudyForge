@@ -4,6 +4,7 @@ import { IFlashcardSetPageContext } from '../types/IFlashcardSetPageContext';
 import { useFetchFlashcardSetData } from './hooks/api/useFetchFlashcardSetData';
 import { useFlashcardSetPageHandlers } from './hooks/useFlashcardSetPageHandlers';
 import { useInteractionTracker } from '../../../hooks/useInteractionTracker';
+import { useFlashcardSetPageEffects } from './hooks/useFlashcardSetPageEffects';
 
 interface FlashcardSetPageProviderProps {
   children: React.ReactNode;
@@ -18,6 +19,8 @@ export const FlashcardSetPageProvider: React.FC<FlashcardSetPageProviderProps> =
     artifactType: 'flashcardSet',
     directoryId: api.flashcardSet?.directoryId,
   });
+
+  useFlashcardSetPageEffects(api.flashcardSet);
 
   const contextValue: IFlashcardSetPageContext = { api, handlers };
 

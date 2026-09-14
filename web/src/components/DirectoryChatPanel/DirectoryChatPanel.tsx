@@ -65,6 +65,8 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   seedKey,
   artifactContext,
   autoSendSeed = false,
+  fillAvailable = false,
+  onSeedConsumed,
 }) => {
   const isControlled = expanded !== undefined;
   const [uncontrolledExpanded, setUncontrolledExpanded] = useState(
@@ -144,7 +146,8 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   >([]);
   const [sendError, setSendError] = useState<string | null>(null);
   const sentSeedRef = useRef<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const consumedSeedRef = useRef<string | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   const { data, isLoading, error } = useGetDirectoryChatQuery(
     { directoryId },
@@ -211,7 +214,18 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   );
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    const container = messagesContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const scrollToEnd = () => {
+      container.scrollTop = container.scrollHeight;
+    };
+
+    scrollToEnd();
+    const frameId = window.requestAnimationFrame(scrollToEnd);
+    return () => window.cancelAnimationFrame(frameId);
   }, [displayMessages.length, isSending]);
 
   const handleSend = useCallback(
@@ -247,6 +261,10 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
 
         setVisibleMessages(result.messages);
         setOptimisticMessages([]);
+        if (nextSeedKey && consumedSeedRef.current !== nextSeedKey) {
+          consumedSeedRef.current = nextSeedKey;
+          onSeedConsumed?.(nextSeedKey);
+        }
       } catch (sendMessageError) {
         const hasErrorMessage = (
           err: unknown,
@@ -272,6 +290,7 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
       canChat,
       directoryId,
       isSending,
+      onSeedConsumed,
       sendDirectoryChatMessage,
     ],
   );
@@ -280,7 +299,13 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
     if (!autoSendSeed || !seedMessage || !seedKey || !canChat || isLoading)
       return;
     if (sentSeedRef.current === seedKey) return;
-    if (displayMessages.some((item) => item.seedKey === seedKey)) return;
+    if (displayMessages.some((item) => item.seedKey === seedKey)) {
+      if (consumedSeedRef.current !== seedKey) {
+        consumedSeedRef.current = seedKey;
+        onSeedConsumed?.(seedKey);
+      }
+      return;
+    }
 
     sentSeedRef.current = seedKey;
     void handleSend(seedMessage, seedKey, false);
@@ -290,6 +315,7 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
     displayMessages,
     handleSend,
     isLoading,
+    onSeedConsumed,
     seedKey,
     seedMessage,
   ]);
@@ -366,6 +392,9 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
     if (collapsible) {
       return 'h-80 w-96';
     }
+    if (fillAvailable) {
+      return 'h-full min-h-0';
+    }
     if (compact) {
       return 'h-[600px]';
     }
@@ -375,14 +404,14 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
   return (
     <section
       className={cn(
-        'flex flex-col rounded-lg border border-border bg-card/40',
+        'flex flex-col overflow-hidden rounded-lg border border-border bg-card/40',
         panelSizeClass,
         className,
       )}
       style={pageWideStyle}
       aria-label={title}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <MessageSquare size={18} className="shrink-0 text-primary" />
           <div className="min-w-0">
@@ -428,7 +457,10 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div
+        ref={messagesContainerRef}
+        className="min-h-0 flex-1 overflow-y-auto px-4 py-4"
+      >
         {hasLoadError && (
           <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
             <AlertCircle size={16} />
@@ -503,17 +535,16 @@ export const DirectoryChatPanel: React.FC<IDirectoryChatPanel> = ({
               </div>
             </div>
           )}
-          <div ref={scrollRef} />
         </div>
       </div>
 
       {sendError && (
-        <div className="border-t border-border px-4 py-2 text-sm text-destructive">
+        <div className="shrink-0 border-t border-border px-4 py-2 text-sm text-destructive">
           {sendError}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="border-t border-border p-3">
+      <form onSubmit={handleSubmit} className="shrink-0 border-t border-border p-3">
         <Textarea
           value={message}
           onChange={(event) => setMessage(event.target.value)}

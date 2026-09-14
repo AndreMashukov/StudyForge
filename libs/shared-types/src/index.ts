@@ -1657,6 +1657,8 @@ export interface QuizAttempt {
   percentage: number;
   answers: QuizAttemptAnswer[];
   date: string;
+  /** True when the learner left before answering every question in the artifact. */
+  isPartial?: boolean;
 }
 
 export interface QuizStatsSummary {
@@ -1762,12 +1764,15 @@ export interface StatisticsOverviewMetrics {
 
 export interface StatisticsRecentFailure {
   id: string;
+  groupKey: string;
   attemptId: string;
   quizId: string;
   quizType: QuizTelemetryType;
   quizTitle?: string;
   questionIndex: number;
   questionText: string;
+  hint?: string;
+  explanation?: string;
   selectedAnswer: QuizAnswerValue;
   selectedAnswerLabel: string;
   correctAnswer: QuizAnswerValue;
@@ -1782,9 +1787,119 @@ export interface StatisticsRecentFailure {
   repeatedFailureCount: number;
 }
 
+export interface StatisticsAttemptCursor {
+  completedAt: string;
+  attemptId: string;
+}
+
+export interface StatisticsAttemptsPageRequest extends StatisticsDateRangeRequest {
+  cursor?: StatisticsAttemptCursor;
+  pageSize?: number;
+}
+
+export interface StatisticsAttemptsPageResponse {
+  attempts: QuizAttempt[];
+  nextCursor?: StatisticsAttemptCursor;
+  hasMore: boolean;
+}
+
+export type StatisticsFailureKind = 'quiz' | 'flashcard';
+
+export interface StatisticsHiddenFailure {
+  id: string;
+  kind: StatisticsFailureKind;
+  groupKey: string;
+  quizType?: QuizTelemetryType;
+  quizId?: string;
+  questionIndex?: number;
+  flashcardSetId?: string;
+  flashcardId?: string;
+  hiddenAt: string;
+}
+
+export interface HideStatisticsFailureRequest {
+  kind: StatisticsFailureKind;
+  groupKey: string;
+  quizType?: QuizTelemetryType;
+  quizId?: string;
+  questionIndex?: number;
+  flashcardSetId?: string;
+  flashcardId?: string;
+}
+
+export interface HideStatisticsFailureResponse {
+  id: string;
+}
+
+export interface FlashcardStudySessionCard {
+  cardId: string;
+  outcome: 'failed' | 'learned';
+}
+
+export interface RecordFlashcardStudySessionRequest {
+  flashcardSetId: string;
+  startedAt: string;
+  completedAt: string;
+  cards: FlashcardStudySessionCard[];
+}
+
+export interface RecordFlashcardStudySessionResponse {
+  sessionId: string;
+}
+
+export interface FlashcardStudySession {
+  id: string;
+  userId: string;
+  flashcardSetId: string;
+  directoryId: string;
+  documentIds: string[];
+  startedAt: Date | { toDate(): Date };
+  completedAt: Date | { toDate(): Date };
+  cards: FlashcardStudySessionCard[];
+  date: string;
+}
+
+export interface StatisticsFlashcardFailure {
+  id: string;
+  groupKey: string;
+  sessionId: string;
+  flashcardSetId: string;
+  flashcardSetTitle?: string;
+  cardId: string;
+  cardFront: string;
+  cardBack: string;
+  cardExplanation?: string;
+  sourceDocuments: StatisticsDocumentSummary[];
+  occurredAt: string;
+  repeatedFailureCount: number;
+}
+
+export interface StatisticsFlashcardSessionCursor {
+  completedAt: string;
+  sessionId: string;
+}
+
+export interface StatisticsFlashcardFailuresPageRequest extends StatisticsDateRangeRequest {
+  cursor?: StatisticsFlashcardSessionCursor;
+  pageSize?: number;
+}
+
+export interface StatisticsFlashcardFailuresPageResponse {
+  failures: StatisticsFlashcardFailure[];
+  nextCursor?: StatisticsFlashcardSessionCursor;
+  hasMore: boolean;
+}
+
 export interface GetStatisticsOverviewResponse {
   metrics: StatisticsOverviewMetrics;
   recentFailures: StatisticsRecentFailure[];
+  /** Raw attempts included so the client can merge additional pages locally. */
+  attempts: QuizAttempt[];
+  nextAttemptCursor?: StatisticsAttemptCursor;
+  hasMoreAttempts: boolean;
+  flashcardFailures: StatisticsFlashcardFailure[];
+  nextFlashcardCursor?: StatisticsFlashcardSessionCursor;
+  hasMoreFlashcardSessions: boolean;
 }
 
 export interface StatisticsQuizPerformanceItem {
@@ -2675,3 +2790,4 @@ export interface IBulkDeleteArtifactsRequest {
 }
 
 export * from './rule-blueprints';
+export * from './statistics-keys';

@@ -2,10 +2,55 @@ import { useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { RecordQuizAttemptAnswerInput } from '@shared-types';
 import { useQuizLearningTelemetry } from '../../../../hooks/useQuizLearningTelemetry';
+import { usePublishDirectoryChatQuizSeed } from '../../../../hooks/usePublishDirectoryChatQuizSeed';
 import { selectQuizState } from '../../../../store/slices/quizPageSlice';
+import { buildDirectoryChatQuestionSeed } from '../../../../utils/directoryChatQuizSeed';
 
 export const useQuizPageEffects = () => {
   const quizState = useSelector(selectQuizState);
+  const currentQuestion = quizState.questions[quizState.currentQuestionIndex];
+  const directoryId = quizState.firestoreQuiz?.directoryId;
+  const quizQuestionSeed = useMemo(() => {
+    if (
+      !directoryId ||
+      !quizState.firestoreQuiz ||
+      !currentQuestion ||
+      quizState.isCompleted
+    ) {
+      return null;
+    }
+
+    const selectedAnswerText =
+      quizState.selectedAnswer !== null
+        ? currentQuestion.options[quizState.selectedAnswer]
+        : undefined;
+    const seed = buildDirectoryChatQuestionSeed({
+      artifactType: 'quiz',
+      quizId: quizState.firestoreQuiz.id,
+      questionIndex: quizState.currentQuestionIndex,
+      question: currentQuestion.question,
+      title: quizState.firestoreQuiz.title,
+      options: currentQuestion.options,
+      userAnswer: selectedAnswerText,
+      correctAnswer: currentQuestion.options[currentQuestion.correct],
+      explanation: currentQuestion.explanation,
+      followupRuleIds: quizState.firestoreQuiz.followupRuleIds,
+    });
+
+    return {
+      directoryId,
+      ...seed,
+    };
+  }, [
+    currentQuestion,
+    directoryId,
+    quizState.currentQuestionIndex,
+    quizState.firestoreQuiz,
+    quizState.isCompleted,
+    quizState.selectedAnswer,
+  ]);
+
+  usePublishDirectoryChatQuizSeed(quizQuestionSeed);
   const telemetryAnswers = useMemo<RecordQuizAttemptAnswerInput[]>(() => {
     return quizState.answers.map((answer) => {
       const questionIndex = answer.questionId - 1;
@@ -77,8 +122,9 @@ export const useQuizPageEffects = () => {
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
-      event.returnValue = 'Are you sure you want to leave? Your quiz progress will be lost.';
-      return 'Are you sure you want to leave? Your quiz progress will be lost.';
+      event.returnValue =
+        'Are you sure you want to leave? Answered questions will be saved to Statistics.';
+      return 'Are you sure you want to leave? Answered questions will be saved to Statistics.';
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);

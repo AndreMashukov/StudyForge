@@ -6,6 +6,7 @@ interface FlashcardSetPageState {
   activeQueue: string[];
   outcomes: Record<string, FlashcardCardOutcome>;
   queueInitializedForSetId: string | null;
+  sessionStartedAtMs: number | null;
 }
 
 const initialState: FlashcardSetPageState = {
@@ -13,6 +14,7 @@ const initialState: FlashcardSetPageState = {
   activeQueue: [],
   outcomes: {},
   queueInitializedForSetId: null,
+  sessionStartedAtMs: null,
 };
 
 const flashcardSetPageSlice = createSlice({
@@ -27,6 +29,7 @@ const flashcardSetPageSlice = createSlice({
       state.outcomes = {};
       state.currentIndex = 0;
       state.queueInitializedForSetId = action.payload.setId;
+      state.sessionStartedAtMs = Date.now();
     },
     advanceCurrentIndex: (state) => {
       state.currentIndex += 1;
@@ -63,11 +66,13 @@ const flashcardSetPageSlice = createSlice({
       }
       state.outcomes = next;
       state.currentIndex = 0;
+      state.sessionStartedAtMs = Date.now();
     },
     restartStudySession: (state, action: PayloadAction<{ cardIds: string[] }>) => {
       state.activeQueue = action.payload.cardIds;
       state.outcomes = {};
       state.currentIndex = 0;
+      state.sessionStartedAtMs = Date.now();
     },
   },
 });
@@ -97,5 +102,9 @@ export const selectFlashcardSetOutcomes = (state: {
 export const selectFlashcardSetQueueInitializedForSetId = (state: {
   flashcardSetPage: FlashcardSetPageState;
 }): string | null => state.flashcardSetPage.queueInitializedForSetId;
+
+export const selectFlashcardSetSessionStartedAtMs = (state: {
+  flashcardSetPage: FlashcardSetPageState;
+}): number | null => state.flashcardSetPage.sessionStartedAtMs;
 
 export default flashcardSetPageSlice.reducer;

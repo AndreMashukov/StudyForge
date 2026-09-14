@@ -10,6 +10,7 @@ export interface IQuestionCard {
   isLastQuestion: boolean;
   className?: string;
   backAction?: ReactNode;
+  onAskAboutQuestion?: () => void;
   onGenerateFollowup?: () => void;
   isGeneratingFollowup?: boolean;
   isFollowupGenerated?: boolean;

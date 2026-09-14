@@ -30,8 +30,10 @@ import {
   TIME_RANGE_OPTIONS,
 } from '../utils/statisticsPageUtils';
 import { FailureList } from './FailureList';
+import { FlashcardFailureList } from './FlashcardFailureList';
 import { EmptyState, ErrorBlock, LoadingBlock, MetricCard } from './StatisticsShared';
 import { VirtualizedList } from '../../../components/VirtualizedList';
+import { Spinner } from '../../../components/ui/Spinner';
 
 const QuizPerformanceTable = ({ quizzes }: { quizzes: StatisticsQuizPerformanceItem[] }) => {
   if (quizzes.length === 0) {
@@ -113,7 +115,7 @@ export const StatisticsPageContainer: React.FC = () => {
     statisticsApi.quizDetail.data?.quiz,
   ]);
 
-  const rangeControls = (
+  const timeRangeControls = (
     <div className="flex flex-wrap items-center gap-2">
       {TIME_RANGE_OPTIONS.map((option) => (
         <Button
@@ -125,6 +127,11 @@ export const StatisticsPageContainer: React.FC = () => {
           {option.label}
         </Button>
       ))}
+    </div>
+  );
+
+  const quizTypeControls = (
+    <div className="flex flex-wrap items-center gap-2">
       {QUIZ_TYPE_OPTIONS.map((option) => (
         <Button
           key={option.value}
@@ -137,6 +144,46 @@ export const StatisticsPageContainer: React.FC = () => {
       ))}
     </div>
   );
+
+  const loadMoreAttemptsFooter =
+    statisticsApi.overview.data?.hasMoreAttempts ? (
+      <div className="flex justify-center pt-4">
+        <Button
+          variant="outline"
+          onClick={() => void handlers.handleLoadMoreAttempts()}
+          disabled={handlers.isLoadingMoreAttempts}
+        >
+          {handlers.isLoadingMoreAttempts ? (
+            <>
+              <Spinner size="sm" className="mr-2" />
+              Loading...
+            </>
+          ) : (
+            'Load more'
+          )}
+        </Button>
+      </div>
+    ) : null;
+
+  const loadMoreFlashcardsFooter =
+    statisticsApi.overview.data?.hasMoreFlashcardSessions ? (
+      <div className="flex justify-center pt-4">
+        <Button
+          variant="outline"
+          onClick={() => void handlers.handleLoadMoreFlashcardFailures()}
+          disabled={handlers.isLoadingMoreFlashcards}
+        >
+          {handlers.isLoadingMoreFlashcards ? (
+            <>
+              <Spinner size="sm" className="mr-2" />
+              Loading...
+            </>
+          ) : (
+            'Load more'
+          )}
+        </Button>
+      </div>
+    ) : null;
 
   const renderQuizDetail = () => {
     const { quizDetail } = statisticsApi;
@@ -176,7 +223,10 @@ export const StatisticsPageContainer: React.FC = () => {
             />
           </CardContent>
         </Card>
-        <FailureList failures={detail.failedQuestions} />
+        <FailureList
+          failures={detail.failedQuestions}
+          onHideFailure={handlers.handleHideFailure}
+        />
       </div>
     );
   };
@@ -200,7 +250,7 @@ export const StatisticsPageContainer: React.FC = () => {
                 <p className="text-sm text-muted-foreground">{pageHeader.subtitle}</p>
               </div>
             </div>
-            {rangeControls}
+            {timeRangeControls}
           </div>
         </div>
       </header>
@@ -225,6 +275,7 @@ export const StatisticsPageContainer: React.FC = () => {
                 </TabsList>
 
                 <TabsContent value="overview" className="mt-6 space-y-6">
+                  {quizTypeControls}
                   <div className="grid gap-4 md:grid-cols-3">
                     <MetricCard
                       icon={TrendingUp}
@@ -246,12 +297,31 @@ export const StatisticsPageContainer: React.FC = () => {
                     />
                   </div>
 
-                  <FailureList failures={statisticsApi.overview.data?.recentFailures ?? []} />
+                  <div className="space-y-3">
+                    <h2 className="text-base font-semibold text-foreground">Failed quiz questions</h2>
+                    <FailureList
+                      failures={statisticsApi.overview.data?.recentFailures ?? []}
+                      onHideFailure={handlers.handleHideFailure}
+                      footer={loadMoreAttemptsFooter}
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <h2 className="text-base font-semibold text-foreground">Failed flashcards</h2>
+                    <FlashcardFailureList
+                      failures={statisticsApi.overview.data?.flashcardFailures ?? []}
+                      onHideFailure={handlers.handleHideFailure}
+                      footer={loadMoreFlashcardsFooter}
+                    />
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="performance" className="mt-6 space-y-6">
                   <QuizPerformanceTable quizzes={statisticsApi.performance.data?.quizzes ?? []} />
-                  <FailureList failures={statisticsApi.performance.data?.recentFailures ?? []} />
+                  <FailureList
+                    failures={statisticsApi.performance.data?.recentFailures ?? []}
+                    onHideFailure={handlers.handleHideFailure}
+                  />
                 </TabsContent>
 
                 <TabsContent value="time" className="mt-6 space-y-6">

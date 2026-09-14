@@ -128,3 +128,15 @@ export function interactionStatCollection(userId: string) {
 export function learnedVocabularyCollection(userId: string) {
   return collection(db, 'users', userId, 'learnedVocabulary');
 }
+
+export function flashcardStudySessionCollection(userId: string) {
+  return collection(db, 'users', userId, 'flashcardStudySessions');
+}
+
+export function statisticsHiddenFailureCollection(userId: string) {
+  return collection(db, 'users', userId, 'statisticsHiddenFailures');
+}
+
+export function statisticsHiddenFailureRef(userId: string, hiddenId: string) {
+  return doc(db, 'users', userId, 'statisticsHiddenFailures', hiddenId);
+}

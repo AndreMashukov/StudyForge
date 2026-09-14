@@ -172,6 +172,24 @@ _Avoid_: chat session (when meaning directory chat), ADK thread
 Rolling text stored on a **directory chat thread** that covers older turns (all but the last 8 messages), truncated for prompt assembly. Writing a summary does not delete messages from the thread.
 _Avoid_: thread summary (alone), chat memory
 
+## Learning telemetry & statistics
+
+**Quiz attempt**:
+A durable record of one visit to a quiz artifact (quiz, diagram quiz, sequence quiz, or match quiz). Written when the learner finishes or leaves after answering at least one question. Stores only answered questions; unanswered questions are not counted as misses.
+_Avoid_: session (when meaning this Firestore record), quiz result (alone)
+
+**Statistics failure group**:
+One row in Statistics for a single missed quiz question or failed flashcard, grouped by quiz type + quiz + question index, or by flashcard set + card. Shows the latest miss and how many times it was failed in the loaded history.
+_Avoid_: failure record (alone), miss entry
+
+**Hidden statistics failure**:
+A user choice to remove a **statistics failure group** from Statistics lists and from accuracy / fail counts. The underlying **quiz attempt** or **flashcard study session** is kept; only the grouped view is suppressed.
+_Avoid_: deleted failure, dismissed miss
+
+**Flashcard study session**:
+A durable record of one visit to a flashcard set. Written when the learner leaves or finishes a turn after marking at least one card. Failed cards in that session appear in Statistics; unmarked cards are omitted.
+_Avoid_: flashcard attempt, deck session
+
 ## Plans and billing
 
 **Usage limits setup**:
@@ -205,6 +223,7 @@ _Avoid_: PAYG (in user-facing copy), usage billing (when meaning overage only)
 - Every routed LLM call resolves a **generation route** by **generation kind** (full resolver coverage; legacy modality routes are migration-only)
 - A **Language-learning flashcard set** has one **Target language**
 - Checking a card in a **Language-learning flashcard set** may create a **Learned vocabulary item** for that user and **Target language**
+- A **Quiz attempt** or **Flashcard study session** feeds **Statistics failure groups**; **Hidden statistics failures** filter what Statistics shows without deleting raw telemetry
 
 ## Flagged ambiguities
 

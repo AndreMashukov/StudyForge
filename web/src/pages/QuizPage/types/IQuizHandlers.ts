@@ -9,6 +9,7 @@ export interface IQuizHandlers {
   handleStartQuiz: (questions: IQuizQuestion[]) => void;
   handleCompleteQuiz: () => void;
   handleSkipQuestion: () => void;
+  handleAskAboutQuestion: () => void;
 }
 
 // Quiz form handlers for answer validation

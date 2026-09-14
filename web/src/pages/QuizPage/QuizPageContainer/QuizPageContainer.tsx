@@ -175,6 +175,9 @@ export const QuizPageContainer: React.FC = () => {
         showExplanation={quizState.showExplanation}
         onAnswerSelect={handleAnswerSelect}
         onNextQuestion={handleNextQuestion}
+        onAskAboutQuestion={
+          directoryId ? handlers.handleAskAboutQuestion : undefined
+        }
         onGenerateFollowup={handleGenerateFollowup}
         isGeneratingFollowup={isGeneratingFollowup}
         isFollowupGenerated={isCurrentFollowupGenerated}
