@@ -165,15 +165,25 @@ async function readProviderApiKey(
   return { apiKey, baseUrl };
 }
 
-async function fetchProviderPayload(
-  providerKind: Exclude<LlmProviderKind, 'gemini'>,
-  baseUrl: string,
+function mergeOpenRouterModelPayloads(
+  userPayload: unknown,
+  embeddingPayload: unknown,
+): unknown {
+  const userEntries =
+    isRecord(userPayload) && Array.isArray(userPayload.data) ? userPayload.data : [];
+  const embeddingEntries =
+    isRecord(embeddingPayload) && Array.isArray(embeddingPayload.data)
+      ? embeddingPayload.data
+      : [];
+
+  return { data: [...userEntries, ...embeddingEntries] };
+}
+
+async function fetchJsonPayload(
+  url: string,
   apiKey: string,
+  label: string,
 ): Promise<unknown> {
-  const url =
-    providerKind === 'openrouter'
-      ? `${baseUrl.replace(/\/$/, '')}/models/user`
-      : `${baseUrl.replace(/\/$/, '')}/models`;
   const response = await fetch(url, {
     method: 'GET',
     headers: {
@@ -190,9 +200,32 @@ async function fetchProviderPayload(
       typeof payload.error.message === 'string'
         ? payload.error.message
         : response.statusText;
-    throw new Error(`${providerKind} catalog fetch failed (${response.status}): ${message}`);
+    throw new Error(`${label} catalog fetch failed (${response.status}): ${message}`);
   }
   return payload;
+}
+
+async function fetchProviderPayload(
+  providerKind: Exclude<LlmProviderKind, 'gemini'>,
+  baseUrl: string,
+  apiKey: string,
+): Promise<unknown> {
+  const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+
+  if (providerKind !== 'openrouter') {
+    return fetchJsonPayload(`${normalizedBaseUrl}/models`, apiKey, providerKind);
+  }
+
+  const [userPayload, embeddingPayload] = await Promise.all([
+    fetchJsonPayload(`${normalizedBaseUrl}/models/user`, apiKey, 'openrouter'),
+    fetchJsonPayload(
+      `${normalizedBaseUrl}/embeddings/models`,
+      apiKey,
+      'openrouter embeddings',
+    ),
+  ]);
+
+  return mergeOpenRouterModelPayloads(userPayload, embeddingPayload);
 }
 
 function mergeCatalogs(

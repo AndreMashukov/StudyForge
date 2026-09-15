@@ -704,6 +704,20 @@ function catalogSyncMessage(
   return `Validated ${providerLabel} access and uploaded ${catalog.models.length} available models.${ratePart}`;
 }
 
+function mergeOpenRouterModelPayloads(
+  userPayload: unknown,
+  embeddingPayload: unknown,
+): unknown {
+  const userEntries =
+    isRecord(userPayload) && Array.isArray(userPayload.data) ? userPayload.data : [];
+  const embeddingEntries =
+    isRecord(embeddingPayload) && Array.isArray(embeddingPayload.data)
+      ? embeddingPayload.data
+      : [];
+
+  return { data: [...userEntries, ...embeddingEntries] };
+}
+
 function catalogFromPayload(
   providerKind: LlmProviderKind,
   payload: unknown,
@@ -828,32 +842,56 @@ async function fetchOpenRouterModelCatalog(
   baseUrl: string,
   apiKey: string,
 ): Promise<IFetchedProviderCatalog> {
-  const response = await fetchModelCatalog(
-    `${normalizeBaseUrl(baseUrl, 'OpenRouter')}/models/user`,
-    {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      cache: 'no-store',
-    },
-    'OpenRouter',
-  );
-  const payload = (await response.json().catch(() => null)) as unknown;
+  const normalizedBaseUrl = normalizeBaseUrl(baseUrl, 'OpenRouter');
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
 
-  if (!response.ok) {
+  const [userModelsResponse, embeddingModelsResponse] = await Promise.all([
+    fetchModelCatalog(
+      `${normalizedBaseUrl}/models/user`,
+      { method: 'GET', headers, cache: 'no-store' },
+      'OpenRouter',
+    ),
+    fetchModelCatalog(
+      `${normalizedBaseUrl}/embeddings/models`,
+      { method: 'GET', headers, cache: 'no-store' },
+      'OpenRouter embeddings',
+    ),
+  ]);
+
+  const userPayload = (await userModelsResponse.json().catch(() => null)) as unknown;
+  const embeddingPayload = (await embeddingModelsResponse
+    .json()
+    .catch(() => null)) as unknown;
+
+  if (!userModelsResponse.ok) {
     throw new Error(
       getResponseErrorMessage(
-        payload,
-        response.status,
-        response.statusText,
+        userPayload,
+        userModelsResponse.status,
+        userModelsResponse.statusText,
         'OpenRouter',
       ),
     );
   }
 
-  return catalogFromPayload('openrouter', payload);
+  if (!embeddingModelsResponse.ok) {
+    throw new Error(
+      getResponseErrorMessage(
+        embeddingPayload,
+        embeddingModelsResponse.status,
+        embeddingModelsResponse.statusText,
+        'OpenRouter embeddings',
+      ),
+    );
+  }
+
+  return catalogFromPayload(
+    'openrouter',
+    mergeOpenRouterModelPayloads(userPayload, embeddingPayload),
+  );
 }
 
 async function fetchMiniMaxModelCatalog(
