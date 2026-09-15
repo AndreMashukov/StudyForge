@@ -14,6 +14,38 @@ import type { ResolvedRoute } from '@study-forge/backend-llm/llm/types';
 const TOGETHER_EMBEDDINGS_PATH = '/embeddings';
 const OPENROUTER_EMBEDDINGS_PATH = '/embeddings';
 
+export type EmbeddingInputRole = 'passage' | 'query';
+
+function isE5EmbeddingModel(model: string): boolean {
+  const lower = model.toLowerCase();
+  return (
+    lower.includes('multilingual-e5') ||
+    lower.includes('/e5-') ||
+    lower.includes('/e5/')
+  );
+}
+
+function formatE5EmbeddingInput(text: string, role: EmbeddingInputRole): string {
+  const trimmed = text.trimStart();
+  if (/^(query|passage):\s?/i.test(trimmed)) {
+    return text;
+  }
+
+  return role === 'query' ? `query: ${text}` : `passage: ${text}`;
+}
+
+function formatEmbeddingInputs(
+  model: string,
+  inputs: string[],
+  role: EmbeddingInputRole,
+): string[] {
+  if (!isE5EmbeddingModel(model)) {
+    return inputs;
+  }
+
+  return inputs.map((input) => formatE5EmbeddingInput(input, role));
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -151,7 +183,11 @@ export class AgentEmbeddingService {
     ].join(':');
   }
 
-  static async embedTexts(userId: string, inputs: string[]): Promise<number[][]> {
+  static async embedTexts(
+    userId: string,
+    inputs: string[],
+    options?: { role?: EmbeddingInputRole },
+  ): Promise<number[][]> {
     if (inputs.length === 0) {
       return [];
     }
@@ -159,6 +195,12 @@ export class AgentEmbeddingService {
     const resolution = await LlmGenerationRouteResolver.resolve('agentKnowledgeEmbedding', {
       userId,
     });
+    const role = options?.role ?? 'passage';
+    const formattedInputs = formatEmbeddingInputs(
+      resolution.route.model,
+      inputs,
+      role,
+    );
 
     functions.logger.info('Agent embedding route resolved', {
       userId,
@@ -178,7 +220,12 @@ export class AgentEmbeddingService {
         throw new Error('Gemini embedding credentials are missing');
       }
       const apiKey = decryptLlmSecret(secret);
-      return embedWithGemini(apiKey, resolution.route.model, inputs, resolution.route);
+      return embedWithGemini(
+        apiKey,
+        resolution.route.model,
+        formattedInputs,
+        resolution.route,
+      );
     }
 
     const client = LlmProviderClientFactory.create(
@@ -196,7 +243,7 @@ export class AgentEmbeddingService {
         url,
         resolution.providerApiKey,
         resolution.route.model,
-        inputs,
+        formattedInputs,
         resolution.route,
       );
     }
@@ -211,7 +258,7 @@ export class AgentEmbeddingService {
         url,
         resolution.providerApiKey,
         resolution.route.model,
-        inputs,
+        formattedInputs,
         resolution.route,
         {
           'HTTP-Referer': 'https://study-forge.app',
@@ -226,8 +273,14 @@ export class AgentEmbeddingService {
     );
   }
 
-  static async embedText(userId: string, input: string): Promise<number[]> {
-    const [vector] = await AgentEmbeddingService.embedTexts(userId, [input]);
+  static async embedText(
+    userId: string,
+    input: string,
+    options?: { role?: EmbeddingInputRole },
+  ): Promise<number[]> {
+    const [vector] = await AgentEmbeddingService.embedTexts(userId, [input], {
+      role: options?.role ?? 'query',
+    });
     if (!vector) {
       throw new Error('Embedding service returned no vector');
     }

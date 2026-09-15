@@ -2112,6 +2112,8 @@ export interface IOpenRouterProviderConnection
   defaultVisionModel?: string;
   /** Slide deck image generation model (text-in → image-out) */
   defaultImageModel?: string;
+  /** Agent knowledge embedding model (text-in → vector-out) */
+  defaultEmbeddingModel?: string;
   headers?: IOpenRouterProviderHeaders;
   providerPreferences?: IOpenRouterProviderPreferences;
 }
@@ -2132,6 +2134,7 @@ export interface IUpdateOpenRouterSettingsRequest {
   defaultModel: string;
   defaultVisionModel?: string;
   defaultImageModel?: string;
+  defaultEmbeddingModel?: string;
   apiKey?: string;
   headers?: IOpenRouterProviderHeaders;
 }

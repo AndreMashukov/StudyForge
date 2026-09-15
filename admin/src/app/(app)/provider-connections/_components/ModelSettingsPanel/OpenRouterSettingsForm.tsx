@@ -90,6 +90,7 @@ function isOpenRouterProviderConnection(
     typeof value.defaultModel === 'string' &&
     isOptionalString(value.defaultVisionModel) &&
     isOptionalString(value.defaultImageModel) &&
+    isOptionalString(value.defaultEmbeddingModel) &&
     isOptionalString(value.updatedAt) &&
     isOptionalString(value.updatedBy) &&
     isOptionalString(value.lastValidatedAt) &&
@@ -187,6 +188,8 @@ export function OpenRouterSettingsForm({
     useWatch({ control, name: 'defaultVisionModel' }) ?? '';
   const defaultImageModelValue =
     useWatch({ control, name: 'defaultImageModel' }) ?? '';
+  const defaultEmbeddingModelValue =
+    useWatch({ control, name: 'defaultEmbeddingModel' }) ?? '';
   const availableModels = openRouterConnection.availableModels ?? [];
   const hasModelCatalog = availableModels.length > 0;
 
@@ -224,6 +227,18 @@ export function OpenRouterSettingsForm({
         setNotice({
           type: 'error',
           message: 'Default image model is not in the uploaded catalog.',
+        });
+        return;
+      }
+
+      const embeddingModel = values.defaultEmbeddingModel?.trim();
+      if (
+        embeddingModel &&
+        !isModelInCatalogForModality(availableModels, embeddingModel, 'embedding')
+      ) {
+        setNotice({
+          type: 'error',
+          message: 'Default embedding model is not in the uploaded catalog.',
         });
         return;
       }
@@ -407,6 +422,27 @@ export function OpenRouterSettingsForm({
             ) : null}
             <p className="text-xs text-muted-foreground">
               Used for slide deck image generation (text to image).
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="openrouter-embedding-model">Default embedding model</Label>
+            <ConnectionModelSelect
+              control={control}
+              name="defaultEmbeddingModel"
+              models={availableModels}
+              modality="embedding"
+              currentValue={defaultEmbeddingModelValue}
+              ariaLabel="Default embedding model"
+              allowEmpty
+            />
+            {errors.defaultEmbeddingModel ? (
+              <p className="text-sm text-destructive" role="alert">
+                {errors.defaultEmbeddingModel.message}
+              </p>
+            ) : null}
+            <p className="text-xs text-muted-foreground">
+              Used globally for agent knowledge embedding and RAG indexing.
             </p>
           </div>
 

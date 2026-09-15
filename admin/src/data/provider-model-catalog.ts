@@ -134,6 +134,15 @@ function parseOpenRouterModalities(architecture: unknown): LlmModality[] {
   const output = outputPart;
   const result: LlmModality[] = [];
 
+  if (
+    output.includes('embed') ||
+    modality.includes('->embed') ||
+    modality.includes('embedding')
+  ) {
+    result.push('embedding');
+    return uniqueModalities(result);
+  }
+
   if (output.includes('image') || modality.includes('text->image')) {
     result.push('image');
   }
@@ -146,6 +155,19 @@ function parseOpenRouterModalities(architecture: unknown): LlmModality[] {
   }
 
   return uniqueModalities(result);
+}
+
+function inferOpenRouterEmbeddingModalities(modelId: string): LlmModality[] {
+  const lowerId = modelId.toLowerCase();
+  if (
+    includesAny(lowerId, ['embedding', 'embed']) ||
+    /\/e5[-/]/.test(lowerId) ||
+    lowerId.includes('multilingual-e5')
+  ) {
+    return ['embedding'];
+  }
+
+  return [];
 }
 
 function normalizeOpenRouterModels(payload: unknown): IProviderAvailableModel[] {
@@ -166,8 +188,9 @@ function normalizeOpenRouterModels(payload: unknown): IProviderAvailableModel[] 
     let modalities = parseOpenRouterModalities(entry.architecture);
 
     if (modalities.length === 0) {
-      // Conservative fallback: treat unknown OpenRouter chat models as text-only.
-      modalities = ['text'];
+      const inferredEmbedding = inferOpenRouterEmbeddingModalities(id);
+      modalities =
+        inferredEmbedding.length > 0 ? inferredEmbedding : ['text'];
     }
 
     const model = buildModel(id, label, modalities);

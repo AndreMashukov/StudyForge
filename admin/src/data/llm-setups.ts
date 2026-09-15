@@ -15,13 +15,15 @@ import {
   GENERATION_KIND_METADATA,
   isGenerationKind,
   isGenerationWorkflow,
+  PRIMARY_OPENROUTER_CONNECTION_ID,
   PRIMARY_TOGETHER_CONNECTION_ID,
 } from '@shared-types';
 import * as admin from 'firebase-admin';
 import { requireAdminSession } from '../auth/session';
 import { getAdminFirestore } from '../firebase/admin';
 import {
-  DEFAULT_TOGETHER_EMBEDDING_MODEL,
+  DEFAULT_OPENROUTER_EMBEDDING_MODEL,
+  readOpenRouterConnection,
   readTogetherConnection,
 } from './model-settings';
 import {
@@ -221,7 +223,10 @@ function toFirestoreLlmSetupDocument(
 }
 
 export async function createDefaultGenerationRoutes(): Promise<IGenerationRoutes> {
-  const together = await readTogetherConnection();
+  const [together, openRouter] = await Promise.all([
+    readTogetherConnection(),
+    readOpenRouterConnection(),
+  ]);
 
   const routesByModality: Record<LlmModality, ILlmModalityRoute> = {
     text: {
@@ -237,8 +242,9 @@ export async function createDefaultGenerationRoutes(): Promise<IGenerationRoutes
       model: together.defaultImageModel ?? together.defaultModel,
     },
     embedding: {
-      connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
-      model: together.defaultEmbeddingModel ?? DEFAULT_TOGETHER_EMBEDDING_MODEL,
+      connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
+      model:
+        openRouter.defaultEmbeddingModel ?? DEFAULT_OPENROUTER_EMBEDDING_MODEL,
     },
   };
 

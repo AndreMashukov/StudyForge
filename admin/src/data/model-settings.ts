@@ -63,6 +63,8 @@ export const DEFAULT_OPENROUTER_MODEL = 'openrouter/auto';
 export const DEFAULT_OPENROUTER_VISION_MODEL = 'google/gemini-2.5-flash';
 export const DEFAULT_OPENROUTER_IMAGE_MODEL =
   'google/gemini-3.1-flash-image-preview';
+export const DEFAULT_OPENROUTER_EMBEDDING_MODEL =
+  'intfloat/multilingual-e5-large';
 export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 export const DEFAULT_MINIMAX_MODEL = 'MiniMax-M3';
 export const DEFAULT_MINIMAX_VISION_MODEL = 'MiniMax-M3';
@@ -221,6 +223,7 @@ function buildDefaultOpenRouterConnection(
     defaultModel: DEFAULT_OPENROUTER_MODEL,
     defaultVisionModel: DEFAULT_OPENROUTER_VISION_MODEL,
     defaultImageModel: DEFAULT_OPENROUTER_IMAGE_MODEL,
+    defaultEmbeddingModel: DEFAULT_OPENROUTER_EMBEDDING_MODEL,
     lastValidationStatus: 'unknown',
   };
 }
@@ -414,6 +417,10 @@ export async function readOpenRouterConnection(): Promise<IOpenRouterProviderCon
         ? data.defaultVisionModel.trim() || undefined
         : defaults.defaultVisionModel,
     defaultImageModel,
+    defaultEmbeddingModel:
+      typeof data.defaultEmbeddingModel === 'string'
+        ? data.defaultEmbeddingModel.trim() || undefined
+        : defaults.defaultEmbeddingModel,
     headers: readHeaders(data.headers),
     providerPreferences: readPreferences(data.providerPreferences),
     availableModels: parseAvailableModels(data.availableModels),
@@ -982,6 +989,7 @@ export async function updateOpenRouterSettings(
     input.defaultImageModel,
     DEFAULT_OPENROUTER_IMAGE_MODEL,
   );
+  const nextDefaultEmbeddingModel = normalizeVisionModel(input.defaultEmbeddingModel);
 
   if (!currentConnection.apiKeyConfigured && !hasNewApiKey) {
     throw new Error('OpenRouter API key is required on first save.');
@@ -998,6 +1006,7 @@ export async function updateOpenRouterSettings(
       defaultModel: nextDefaultModel,
       defaultVisionModel: nextDefaultVisionModel,
       defaultImageModel: nextDefaultImageModel,
+      defaultEmbeddingModel: nextDefaultEmbeddingModel,
     },
   );
 
@@ -1011,6 +1020,7 @@ export async function updateOpenRouterSettings(
     defaultModel: nextDefaultModel,
     defaultVisionModel: nextDefaultVisionModel,
     defaultImageModel: nextDefaultImageModel,
+    defaultEmbeddingModel: nextDefaultEmbeddingModel,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedBy: actorUid,
   };

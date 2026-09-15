@@ -55,6 +55,15 @@ export const FALLBACK_PROVIDER_RATE_CATALOG: IProviderRateCatalogEntry[] = [
     source: 'fallback_catalog',
   },
   {
+    id: 'openrouter-e5-large',
+    providerKind: 'openrouter',
+    model: 'intfloat/multilingual-e5-large',
+    meter: 'embedding_token',
+    inputUsdPer1M: 0.01,
+    outputUsdPer1M: 0,
+    source: 'fallback_catalog',
+  },
+  {
     id: 'together-flux-schnell',
     providerKind: 'together',
     model: 'black-forest-labs/FLUX.1-schnell',

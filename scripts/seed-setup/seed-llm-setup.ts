@@ -1,23 +1,23 @@
 #!/usr/bin/env node
 /**
- * Seed LLM routing for local emulator E2E — MiniMax M3 + Together embeddings.
+ * Seed LLM routing for local emulator E2E — MiniMax M3 + OpenRouter embeddings.
  *
  * Creates:
  *   - llmProviderConnections/minimax-primary (+ encrypted API key)
- *   - llmProviderConnections/together-primary (+ encrypted API key)
+ *   - llmProviderConnections/openrouter-primary (+ encrypted API key)
  *   - llmSetups/e2e-minimax-m3
  *       text/vision/image → MiniMax-M3 / image-01
- *       agentKnowledgeEmbedding → Together intfloat/multilingual-e5-large-instruct (1024-d)
+ *       agentKnowledgeEmbedding → OpenRouter intfloat/multilingual-e5-large (1024-d)
  *   - userGroups/e2e-default-group
  *   - users/{uid}.userGroupId assignment
  *
  * Usage:
- *   MINIMAX_API_KEY=... TOGETHER_AI_API_KEY=... LLM_SETTINGS_ENCRYPTION_KEY=... \
+ *   MINIMAX_API_KEY=... OPENROUTER_API_KEY=... LLM_SETTINGS_ENCRYPTION_KEY=... \
  *     npx tsx scripts/seed-setup/seed-llm-setup.ts
  *
  * Env (also loaded from .env.local, functions/.env.local, functions/.env):
  *   MINIMAX_API_KEY — required unless already seeded in Firestore, or production copy succeeds
- *   TOGETHER_AI_API_KEY / TOGETHER_API_KEY — required for Together embeddings unless already seeded
+ *   OPENROUTER_API_KEY — required for OpenRouter embeddings unless already seeded
  *   LLM_SETTINGS_ENCRYPTION_KEY — required to encrypt provider secrets
  *   GCLOUD_PROJECT — defaults to study-forge-202604
  */
@@ -35,7 +35,7 @@ import {
 } from '../../libs/shared-types/src/generation-kind-metadata';
 import {
   PRIMARY_MINIMAX_CONNECTION_ID,
-  PRIMARY_TOGETHER_CONNECTION_ID,
+  PRIMARY_OPENROUTER_CONNECTION_ID,
   USAGE_LIMITS_PROFILE_PRESETS,
   createDefaultFeaturePolicies,
   type IGenerationRoutes,
@@ -56,10 +56,10 @@ const GROUP_ID = 'e2e-default-group';
 const TEXT_MODEL = 'MiniMax-M3';
 const VISION_MODEL = 'MiniMax-M3';
 const IMAGE_MODEL = 'image-01';
-const EMBEDDING_MODEL = 'intfloat/multilingual-e5-large-instruct';
+const EMBEDDING_MODEL = 'intfloat/multilingual-e5-large';
 const MINIMAX_BASE_URL = 'https://api.minimax.io/v1';
 const MINIMAX_IMAGE_URL = 'https://api.minimax.io/v1/image_generation';
-const TOGETHER_BASE_URL = 'https://api.together.xyz/v1';
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 const CONNECTIONS_COLLECTION = 'llmProviderConnections';
 const SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
@@ -84,10 +84,10 @@ const MINIMAX_CATALOG: IProviderAvailableModel[] = [
   },
 ];
 
-const TOGETHER_CATALOG: IProviderAvailableModel[] = [
+const OPENROUTER_CATALOG: IProviderAvailableModel[] = [
   {
     id: EMBEDDING_MODEL,
-    label: 'Multilingual E5 Large Instruct (1024-d)',
+    label: 'Multilingual E5 Large (1024-d)',
     supportedModalities: ['embedding'],
   },
 ];
@@ -131,7 +131,7 @@ function buildGenerationRoutes(): IGenerationRoutes {
 
     if (metadata.requiredModality === 'embedding') {
       routes[kind] = {
-        connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
+        connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
         model: EMBEDDING_MODEL,
         modality: 'embedding',
         workflow: metadata.defaultWorkflow,
@@ -157,16 +157,17 @@ function buildGenerationRoutes(): IGenerationRoutes {
   return routes;
 }
 
-function resolveTogetherApiKey(): string | undefined {
-  return (
-    process.env.TOGETHER_AI_API_KEY?.trim() ||
-    process.env.TOGETHER_API_KEY?.trim() ||
-    undefined
-  );
+function resolveOpenRouterApiKey(): string | undefined {
+  return process.env.OPENROUTER_API_KEY?.trim() || undefined;
 }
 
-async function ensureMinimaxSecretFromProduction(db: admin.firestore.Firestore): Promise<boolean> {
-  const secretRef = db.collection(SECRETS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID);
+async function ensureProviderSecretFromProduction(input: {
+  db: admin.firestore.Firestore;
+  connectionId: string;
+  appName: string;
+  label: string;
+}): Promise<boolean> {
+  const secretRef = input.db.collection(SECRETS_COLLECTION).doc(input.connectionId);
   if ((await secretRef.get()).exists) {
     return true;
   }
@@ -175,25 +176,27 @@ async function ensureMinimaxSecretFromProduction(db: admin.firestore.Firestore):
     return false;
   }
 
-  console.log('   MiniMax secret missing locally — trying production copy …');
+  console.log(`   ${input.label} secret missing locally — trying production copy …`);
   const savedEmulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
   delete process.env.FIRESTORE_EMULATOR_HOST;
 
-  const existing = admin.apps.find((app) => app?.name === 'production-minimax-seed');
+  const existing = admin.apps.find((app) => app?.name === input.appName);
   if (existing) {
     await existing.delete();
   }
 
   try {
-    const prodApp = admin.initializeApp({ projectId: PROJECT_ID }, 'production-minimax-seed');
+    const prodApp = admin.initializeApp({ projectId: PROJECT_ID }, input.appName);
     const prodDb = prodApp.firestore();
     const [connectionSnap, secretSnap] = await Promise.all([
-      prodDb.collection(CONNECTIONS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID).get(),
-      prodDb.collection(SECRETS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID).get(),
+      prodDb.collection(CONNECTIONS_COLLECTION).doc(input.connectionId).get(),
+      prodDb.collection(SECRETS_COLLECTION).doc(input.connectionId).get(),
     ]);
 
     if (!connectionSnap.exists || !secretSnap.exists) {
-      console.warn('   ⚠️ Production MiniMax connection/secret not found — skip copy');
+      console.warn(
+        `   ⚠️ Production ${input.label} connection/secret not found — skip copy`,
+      );
       return false;
     }
 
@@ -202,29 +205,29 @@ async function ensureMinimaxSecretFromProduction(db: admin.firestore.Firestore):
     }
 
     const now = new Date().toISOString();
-    await db.collection(CONNECTIONS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID).set(
+    await input.db.collection(CONNECTIONS_COLLECTION).doc(input.connectionId).set(
       {
         ...connectionSnap.data(),
         updatedAt: now,
         updatedBy: 'seed-llm-setup',
       },
-      { merge: true }
+      { merge: true },
     );
     await secretRef.set({
       ...secretSnap.data(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedBy: 'seed-llm-setup',
     });
-    console.log('   ✅ Copied MiniMax connection + secret from production');
+    console.log(`   ✅ Copied ${input.label} connection + secret from production`);
     return true;
   } catch (error) {
     console.warn(
-      '   ⚠️ Production MiniMax copy failed:',
-      error instanceof Error ? error.message : String(error)
+      `   ⚠️ Production ${input.label} copy failed:`,
+      error instanceof Error ? error.message : String(error),
     );
     return false;
   } finally {
-    const prodApp = admin.apps.find((app) => app?.name === 'production-minimax-seed');
+    const prodApp = admin.apps.find((app) => app?.name === input.appName);
     if (prodApp) {
       await prodApp.delete().catch(() => undefined);
     }
@@ -262,7 +265,7 @@ async function ensureProviderSecret(input: {
   });
   await input.db.collection(CONNECTIONS_COLLECTION).doc(input.connectionId).set(
     { apiKeyConfigured: true },
-    { merge: true }
+    { merge: true },
   );
   console.log(`   ✅ ${input.connectionId} secret stored`);
 }
@@ -281,7 +284,7 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
   const userId = options?.userId ?? TARGET_UID;
   const now = new Date().toISOString();
   const minimaxApiKey = process.env.MINIMAX_API_KEY?.trim();
-  const togetherApiKey = resolveTogetherApiKey();
+  const openRouterApiKey = resolveOpenRouterApiKey();
 
   console.log('\n[LLM] MiniMax provider connection …');
   const connectionRef = db.collection(CONNECTIONS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID);
@@ -289,7 +292,12 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
   let existingSecret = await secretRef.get();
 
   if (!existingSecret.exists && !minimaxApiKey) {
-    await ensureMinimaxSecretFromProduction(db);
+    await ensureProviderSecretFromProduction({
+      db,
+      connectionId: PRIMARY_MINIMAX_CONNECTION_ID,
+      appName: 'production-minimax-seed',
+      label: 'MiniMax',
+    });
     existingSecret = await secretRef.get();
   }
 
@@ -311,7 +319,7 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
       updatedAt: now,
       updatedBy: 'seed-llm-setup',
     },
-    { merge: true }
+    { merge: true },
   );
   console.log(`   ✅ Connection ${PRIMARY_MINIMAX_CONNECTION_ID}`);
 
@@ -326,51 +334,66 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
     console.log('\n[LLM] MiniMax secret already exists — skip');
   }
 
-  console.log('\n[LLM] Together provider connection (embeddings) …');
-  const togetherConnectionRef = db
+  console.log('\n[LLM] OpenRouter provider connection (embeddings) …');
+  const openRouterConnectionRef = db
     .collection(CONNECTIONS_COLLECTION)
-    .doc(PRIMARY_TOGETHER_CONNECTION_ID);
-  const togetherSecretRef = db.collection(SECRETS_COLLECTION).doc(PRIMARY_TOGETHER_CONNECTION_ID);
-  const existingTogetherSecret = await togetherSecretRef.get();
+    .doc(PRIMARY_OPENROUTER_CONNECTION_ID);
+  const openRouterSecretRef = db
+    .collection(SECRETS_COLLECTION)
+    .doc(PRIMARY_OPENROUTER_CONNECTION_ID);
+  let existingOpenRouterSecret = await openRouterSecretRef.get();
 
-  await togetherConnectionRef.set(
+  if (!existingOpenRouterSecret.exists && !openRouterApiKey) {
+    await ensureProviderSecretFromProduction({
+      db,
+      connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
+      appName: 'production-openrouter-seed',
+      label: 'OpenRouter',
+    });
+    existingOpenRouterSecret = await openRouterSecretRef.get();
+  }
+
+  await openRouterConnectionRef.set(
     {
-      providerKind: 'together',
-      label: 'Primary Together',
+      providerKind: 'openrouter',
+      label: 'Primary OpenRouter',
       credentialMode: 'encrypted-firestore',
       supportedModalities: ['text', 'vision', 'image', 'embedding'],
-      baseUrl: TOGETHER_BASE_URL,
-      defaultModel: EMBEDDING_MODEL,
-      availableModels: TOGETHER_CATALOG,
+      baseUrl: OPENROUTER_BASE_URL,
+      defaultEmbeddingModel: EMBEDDING_MODEL,
+      availableModels: OPENROUTER_CATALOG,
       modelsSyncedAt: now,
       modelsSyncSource: 'provider-save',
-      apiKeyConfigured: existingTogetherSecret.exists || Boolean(togetherApiKey),
+      apiKeyConfigured:
+        existingOpenRouterSecret.exists || Boolean(openRouterApiKey),
       updatedAt: now,
       updatedBy: 'seed-llm-setup',
     },
-    { merge: true }
+    { merge: true },
   );
-  console.log(`   ✅ Connection ${PRIMARY_TOGETHER_CONNECTION_ID}`);
+  console.log(`   ✅ Connection ${PRIMARY_OPENROUTER_CONNECTION_ID}`);
 
   await ensureProviderSecret({
     db,
-    connectionId: PRIMARY_TOGETHER_CONNECTION_ID,
-    apiKey: togetherApiKey,
-    label: 'Together',
+    connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
+    apiKey: openRouterApiKey,
+    label: 'OpenRouter',
   });
 
-  console.log('\n[LLM] LLM setup (MiniMax M3 + Together e5 embeddings) …');
+  console.log('\n[LLM] LLM setup (MiniMax M3 + OpenRouter e5 embeddings) …');
   const generationRoutes = buildGenerationRoutes();
   await db.collection(LLM_SETUPS_COLLECTION).doc(SETUP_ID).set({
-    name: 'E2E MiniMax M3 + Together E5',
+    name: 'E2E MiniMax M3 + OpenRouter E5',
     description:
-      'Local emulator setup — generation via MiniMax-M3; agentKnowledgeEmbedding via Together intfloat/multilingual-e5-large-instruct (1024-d)',
+      'Local emulator setup — generation via MiniMax-M3; agentKnowledgeEmbedding via OpenRouter intfloat/multilingual-e5-large (1024-d)',
     generationRoutes,
     updatedAt: now,
     updatedBy: 'seed-llm-setup',
   });
   console.log(`   ✅ LLM setup ${SETUP_ID}`);
-  console.log(`   ✅ agentKnowledgeEmbedding → ${EMBEDDING_MODEL} on ${PRIMARY_TOGETHER_CONNECTION_ID}`);
+  console.log(
+    `   ✅ agentKnowledgeEmbedding → ${EMBEDDING_MODEL} on ${PRIMARY_OPENROUTER_CONNECTION_ID}`,
+  );
 
   console.log('\n[LLM] Usage limits setup …');
   const standardPreset =
@@ -399,12 +422,12 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
   console.log('\n[LLM] Assign test user to group …');
   await db.collection('users').doc(userId).set(
     { userGroupId: GROUP_ID },
-    { merge: true }
+    { merge: true },
   );
   console.log(`   ✅ users/${userId}.userGroupId = ${GROUP_ID}`);
 
   console.log(
-    '\n✅ LLM setup seed complete (MiniMax-M3 + Together multilingual-e5-large-instruct).'
+    '\n✅ LLM setup seed complete (MiniMax-M3 + OpenRouter multilingual-e5-large).',
   );
 }
 
