@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   agentPlanOutputSchema,
   buildGroundedCreateReply,
+  buildGroundedToolReply,
   buildPlannerUserMessage,
   composeExecutorStepResult,
   formatConversationHistory,
@@ -181,6 +182,48 @@ describe('create_document grounding', () => {
   });
 });
 
+describe('buildGroundedToolReply', () => {
+  it('returns null when no tool succeeded', () => {
+    expect(
+      buildGroundedToolReply([
+        { name: 'list_directories', ok: false, error: 'denied' },
+      ]),
+    ).toBeNull();
+  });
+
+  it('lists successful tool results instead of an empty fallback', () => {
+    const reply = buildGroundedToolReply([
+      {
+        name: 'list_directories',
+        ok: true,
+        result: [
+          {
+            id: 'xcjt24QmCZ0pjyxC2mp6',
+            name: 'Study Materials',
+            path: '/Study Materials',
+          },
+        ],
+      },
+      {
+        name: 'list_documents',
+        ok: true,
+        result: [
+          {
+            id: 'quT7KxKa6JQofxJN4XAc',
+            title: 'A Comprehensive Guide to Machine Learning',
+          },
+        ],
+      },
+    ]);
+
+    expect(reply).toContain('tools returned before the turn ended');
+    expect(reply).toContain('list_directories');
+    expect(reply).toContain('id=xcjt24QmCZ0pjyxC2mp6');
+    expect(reply).toContain('list_documents');
+    expect(reply).toContain('id=quT7KxKa6JQofxJN4XAc');
+  });
+});
+
 describe('planner conversation history', () => {
   it('omits the recent conversation section when history is empty', () => {
     const message = buildPlannerUserMessage({
@@ -221,5 +264,19 @@ describe('planner conversation history', () => {
     expect(message).toContain('Knowledge Gaps Recap');
     expect(message).toContain('id=HBETddUOzkX4G2ILTCGD');
     expect(message).toContain('Objective:\ntry to regenerate');
+  });
+
+  it('forces a final response instead of another plan', () => {
+    const message = buildPlannerUserMessage({
+      objective: 'List all my directories and documents',
+      pastSteps: [{ step: 'List directories', result: '12 items' }],
+      remainingPlan: ['List more documents'],
+      forceFinalResponse: true,
+    });
+
+    expect(message).toContain('You MUST return type=response now');
+    expect(message).not.toContain(
+      'Decide whether to return the final user-facing response',
+    );
   });
 });

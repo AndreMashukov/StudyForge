@@ -167,6 +167,8 @@ test-results/
 docs/*
 !docs/adr/
 !docs/adr/**
+!docs/langsmith/
+!docs/langsmith/**
 
 # Firebase backups (contain sensitive data)
 *.backup

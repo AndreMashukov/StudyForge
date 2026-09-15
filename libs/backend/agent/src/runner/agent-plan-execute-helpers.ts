@@ -136,6 +136,20 @@ export function shouldBlockUngroundedCreateResponse(input: {
   );
 }
 
+export function buildGroundedToolReply(
+  outcomes: AgentToolOutcome[],
+): string | null {
+  const successful = outcomes.filter((outcome) => outcome.ok);
+  if (successful.length === 0) {
+    return null;
+  }
+
+  return [
+    'Here is what tools returned before the turn ended. Some requested items may still be missing.',
+    formatVerifiedToolResults(successful),
+  ].join('\n');
+}
+
 export function buildGroundedCreateReply(
   outcomes: AgentToolOutcome[],
 ): string | null {
@@ -206,6 +220,9 @@ export function buildPlannerPrompt(input: {
     '- If the user asked to create a document now and create_document did not succeed, return a plan step that calls create_document. Do not return type=response claiming it exists.',
     '- If the user asked to suggest, propose, or validate a study plan first, return type=response with the plan. Do not call create_document until they approve.',
     '- When listing a folder, only name items that appear in list_documents TOOL RESULTS. Do not add items from executor notes or earlier chat.',
+    '- list_directories already includes document counts. After listing directories, return type=response with that listing unless the user asked for every document title in every folder.',
+    '- After completed steps, prefer type=response that summarizes TOOL RESULTS you already have. Do not keep planning one list_documents call per remaining folder.',
+    '- If remaining work will not finish, still return type=response with what you already listed. Do not return another plan.',
     `- At most ${MAX_PLAN_STEPS} steps.`,
     'Available tools:',
     formatToolCatalog(input.tools),
@@ -227,6 +244,7 @@ export function buildPlannerUserMessage(input: {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   pastSteps: AgentPlanExecutePastStep[];
   remainingPlan?: string[];
+  forceFinalResponse?: boolean;
 }): string {
   const sections: string[] = [];
   const conversation = formatConversationHistory(input.history ?? []);
@@ -248,7 +266,11 @@ export function buildPlannerUserMessage(input: {
     );
   }
 
-  if (input.pastSteps.length > 0) {
+  if (input.forceFinalResponse) {
+    sections.push(
+      'You MUST return type=response now. Summarize completed TOOL RESULTS for the user. Do not return another plan.',
+    );
+  } else if (input.pastSteps.length > 0) {
     sections.push(
       'Decide whether to return the final user-facing response or an updated remaining plan.',
     );

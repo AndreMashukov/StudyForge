@@ -1,0 +1,16 @@
+{
+  "lc": 1,
+  "type": "constructor",
+  "id": ["langchain", "chat_models", "openai", "ChatOpenAI"],
+  "name": "ChatOpenAI",
+  "kwargs": {
+    "model": "zai-org/GLM-5.2",
+    "temperature": 0,
+    "openai_api_base": "https://api.together.xyz/v1",
+    "openai_api_key": {
+      "lc": 1,
+      "type": "secret",
+      "id": ["TOGETHER_AI_API_KEY"]
+    }
+  }
+}

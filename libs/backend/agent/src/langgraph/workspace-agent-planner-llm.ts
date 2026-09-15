@@ -6,6 +6,7 @@ import type { IAgentToolCatalogEntry } from '../mcp';
 import type { AgentToolOutcome } from '../runner/agent-chat-fallback';
 import {
   buildGroundedCreateReply,
+  buildGroundedToolReply,
   buildPlannerPrompt,
   parseAgentPlanOutput,
   type AgentPlanOutput,
@@ -125,12 +126,22 @@ export async function callWorkspacePlannerModel(
     previousInvalidContent = content;
   }
 
-  const grounded = input.recoverOutcomes
+  const groundedCreate = input.recoverOutcomes
     ? buildGroundedCreateReply(input.recoverOutcomes)
     : null;
-  if (grounded) {
+  if (groundedCreate) {
     return {
-      output: { type: 'response', response: grounded },
+      output: { type: 'response', response: groundedCreate },
+      streamedUserReply: '',
+    };
+  }
+
+  const groundedTools = input.recoverOutcomes
+    ? buildGroundedToolReply(input.recoverOutcomes)
+    : null;
+  if (groundedTools) {
+    return {
+      output: { type: 'response', response: groundedTools },
       streamedUserReply: '',
     };
   }

@@ -1,0 +1,5 @@
+{
+  "input": "input.objective",
+  "output": "output.finalReply",
+  "reference": "reference.finalReply"
+}

@@ -2,6 +2,7 @@ import type { RunnableConfig } from '@langchain/core/runnables';
 import type { AgentMessageStreamEvent } from '@shared-types';
 import {
   UNGROUNDED_CREATE_FALLBACK,
+  buildGroundedToolReply,
   buildPlannerUserMessage,
   shouldBlockUngroundedCreateResponse,
 } from '../../runner/agent-plan-execute-helpers';
@@ -65,7 +66,13 @@ function emitPlannerReplyDeltas(input: {
   return { reply: reconciled.reply, streamed: reconciled.streamed };
 }
 
-function buildFallbackFinalReply(state: WorkspaceAgentState): string {
+export function buildFallbackFinalReply(state: WorkspaceAgentState): string {
+  const outcomes = state[WORKSPACE_AGENT_STATE_KEYS.allToolOutcomes] ?? [];
+  const grounded = buildGroundedToolReply(outcomes);
+  if (grounded) {
+    return grounded;
+  }
+
   const pastSteps = state[WORKSPACE_AGENT_STATE_KEYS.pastSteps] ?? [];
   return pastSteps.length > 0
     ? 'I completed the planned steps but could not compose a final reply.'
@@ -130,6 +137,7 @@ export async function plannerNode(
             objective,
             history,
             pastSteps,
+            forceFinalResponse: true,
           }),
           toolCatalog: runtime.toolSession.listToolCatalog(),
           isReplan: true,

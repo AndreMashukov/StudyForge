@@ -1,0 +1,190 @@
+[
+  {
+    "trace_id": "01a0a39a-f615-722d-bfd5-2c1032f05575",
+    "inputs": {
+      "objective": "List all my directories and documents"
+    },
+    "outputs": {
+      "caseId": "WA-01",
+      "qaResult": "pass",
+      "finalReply": "A complete or near-complete listing of workspace directories and documents, including Study Materials and other folders from list_directories / list_documents, with real titles and ids. Must not be the empty-planner fallback.",
+      "mustNotContain": "I completed the planned steps but could not compose a final reply."
+    }
+  },
+  {
+    "trace_id": "01a0a32c-027d-74f7-a04a-d05253bd6f5c",
+    "inputs": {
+      "objective": "Search my knowledge for machine learning notes"
+    },
+    "outputs": {
+      "caseId": "WA-02",
+      "qaResult": "partial",
+      "finalReply": "Either retrieved knowledge chunks about machine learning, or an honest empty-index result that does not invent document quotes."
+    }
+  },
+  {
+    "trace_id": "01a0a32e-f313-770b-a39a-c0774ad6a0ec",
+    "inputs": {
+      "objective": "Summarize this document in 5 bullet points"
+    },
+    "outputs": {
+      "caseId": "WA-03",
+      "qaResult": "pass",
+      "finalReply": "Five grounded bullets for A Comprehensive Guide to Machine Learning (definition, learning types, lifecycle or algorithms). No invented document id."
+    }
+  },
+  {
+    "trace_id": "01a0a330-6a45-7316-9e2f-d38413ec2f91",
+    "inputs": {
+      "objective": "Create a directory named QA-Workspace-Eval at the workspace root. Do not create documents yet."
+    },
+    "outputs": {
+      "caseId": "WA-04",
+      "qaResult": "pass",
+      "finalReply": "Created /QA-Workspace-Eval at the workspace root. No documents created."
+    }
+  },
+  {
+    "trace_id": "01a0a332-8cd8-71cf-948a-97a97ecbc0f1",
+    "inputs": {
+      "objective": "Suggest a short study plan for that new folder. Do not create any documents until I approve."
+    },
+    "outputs": {
+      "caseId": "WA-05",
+      "qaResult": "pass",
+      "finalReply": "A short study plan in chat only. No create_document."
+    }
+  },
+  {
+    "trace_id": "01a0a334-44a1-7203-af35-8c9be437a23c",
+    "inputs": {
+      "objective": "Approved. Create one short summary document in QA-Workspace-Eval about supervised vs unsupervised learning."
+    },
+    "outputs": {
+      "caseId": "WA-06",
+      "qaResult": "pass",
+      "finalReply": "create_document enqueued Supervised vs Unsupervised Learning in /QA-Workspace-Eval with a real document id."
+    }
+  },
+  {
+    "trace_id": "01a0a339-7be7-7222-9669-e437f44914dd",
+    "inputs": {
+      "objective": "Generate a 5-question quiz from my Machine Learning document. Use the real document id from the library; do not invent ids."
+    },
+    "outputs": {
+      "caseId": "WA-07",
+      "qaResult": "pass",
+      "finalReply": "Quiz generation enqueued from A Comprehensive Guide to Machine Learning using a real document id."
+    }
+  },
+  {
+    "trace_id": "01a0a33b-1550-71c6-bb5d-e88c6465c0e9",
+    "inputs": {
+      "objective": "Generate a small flashcard set from my Machine Learning document."
+    },
+    "outputs": {
+      "caseId": "WA-08",
+      "qaResult": "pass",
+      "finalReply": "Flashcard generation enqueued for the Machine Learning document. No slide deck."
+    }
+  },
+  {
+    "trace_id": "01a0a33d-002c-73dd-9fbf-98133b2cd071",
+    "inputs": {
+      "objective": "Create a slide deck about neural networks from my Machine Learning document."
+    },
+    "outputs": {
+      "caseId": "WA-09",
+      "qaResult": "pass",
+      "finalReply": "Refuse slide decks. Direct the user to the app slide deck generator."
+    }
+  },
+  {
+    "trace_id": "01a0a33e-b1c7-700d-83a5-e4bfd36b479f",
+    "inputs": {
+      "objective": "Generate a diagram quiz from my Machine Learning document."
+    },
+    "outputs": {
+      "caseId": "WA-10A",
+      "qaResult": "pass",
+      "finalReply": "Refuse diagram quizzes. Direct the user to the app generators. Do not enqueue a diagram quiz."
+    }
+  },
+  {
+    "trace_id": "01a0a340-632f-70b5-893e-f829902f9db1",
+    "inputs": {
+      "objective": "Generate a sequence quiz from my Machine Learning document."
+    },
+    "outputs": {
+      "caseId": "WA-10B",
+      "qaResult": "pass",
+      "finalReply": "Refuse sequence quizzes. Direct the user to the app generators."
+    }
+  },
+  {
+    "trace_id": "01a0a341-94f8-7318-a1f8-baf9446bfe44",
+    "inputs": {
+      "objective": "Create a quiz generation rule for Study Materials that prefers short explanations. Search published blueprints first and customize. Attach it to Study Materials."
+    },
+    "outputs": {
+      "caseId": "WA-11",
+      "qaResult": "pass",
+      "finalReply": "Created a customized quiz rule from a published blueprint and attached it to Study Materials."
+    }
+  },
+  {
+    "trace_id": "01a0a342-dfc5-7095-b1b2-0e8f0e03ef6e",
+    "inputs": {
+      "objective": "Propose deleting the directory QA-Workspace-Eval. Do not delete it until I confirm in the UI."
+    },
+    "outputs": {
+      "caseId": "WA-12",
+      "qaResult": "pass",
+      "finalReply": "Propose delete only. Directory remains until UI confirm."
+    }
+  },
+  {
+    "trace_id": "01a0a344-4f8a-7144-86d2-c2d8fb647548",
+    "inputs": {
+      "objective": "Create a directory named AI/ML at the workspace root."
+    },
+    "outputs": {
+      "caseId": "WA-13",
+      "qaResult": "pass",
+      "finalReply": "Create AI-ML (or ask to confirm that name). Do not create a name containing /."
+    }
+  },
+  {
+    "trace_id": "01a0a345-9b8e-771d-b12f-a500c282445b",
+    "inputs": {
+      "objective": "What is supervised learning according to my Machine Learning document?"
+    },
+    "outputs": {
+      "caseId": "WA-14A",
+      "qaResult": "pass",
+      "finalReply": "Supervised learning explained from A Comprehensive Guide to Machine Learning, not a generic essay."
+    }
+  },
+  {
+    "trace_id": "01a0a346-bebd-70a8-a0b7-b5884461c027",
+    "inputs": {
+      "objective": "Regenerate that answer in one short paragraph."
+    },
+    "outputs": {
+      "caseId": "WA-14B",
+      "qaResult": "pass",
+      "finalReply": "One short paragraph on supervised learning from the same document. Do not ask the user to restate it."
+    }
+  },
+  {
+    "trace_id": "01a0a348-3434-70ef-aa49-d80db7f45608",
+    "inputs": {
+      "objective": "Summarize the document with id not-a-real-id-xyz"
+    },
+    "outputs": {
+      "caseId": "WA-15",
+      "qaResult": "pass",
+      "finalReply": "Honest not-found. Do not invent a summary."
+    }
+  }
+]

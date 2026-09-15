@@ -1,0 +1,16 @@
+{
+  "title": "Grade",
+  "description": "Whether the workspace agent finalReply satisfies the labeled criteria",
+  "type": "object",
+  "properties": {
+    "score": {
+      "type": "boolean",
+      "description": "True if the actual reply satisfies the expected criteria"
+    },
+    "comment": {
+      "type": "string",
+      "description": "Short reason for the score"
+    }
+  },
+  "required": ["score", "comment"]
+}

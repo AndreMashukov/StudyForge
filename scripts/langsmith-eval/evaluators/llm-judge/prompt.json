@@ -1,0 +1,10 @@
+[
+  [
+    "system",
+    "You grade a StudyForge workspace agent final reply.\nscore is true if the actual reply satisfies the expected criteria. Partial-but-honest answers can pass.\nscore is false if the reply invents ids, creates a forbidden artifact kind, uses the canned planner fallback, or misses the required behavior."
+  ],
+  [
+    "human",
+    "User objective:\n{{input}}\n\nExpected criteria:\n{{reference}}\n\nActual finalReply:\n{{output}}"
+  ]
+]
