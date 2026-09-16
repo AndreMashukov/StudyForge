@@ -1,17 +1,11 @@
-const CANNED_FALLBACK =
-  'I completed the planned steps but could not compose a final reply.';
+import { CANNED_FALLBACK } from '../shared/constants';
+import {
+  isKvMap,
+  type IEvalExampleLike,
+  type IEvalRunLike,
+} from '../shared/eval-types';
 
-export interface IEvalRunLike {
-  outputs?: unknown;
-}
-
-export interface IEvalExampleLike {
-  outputs?: unknown;
-}
-
-function isKvMap(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+export type { IEvalExampleLike, IEvalRunLike };
 
 export function readRunOutputs(run: IEvalRunLike): Record<string, unknown> {
   return isKvMap(run.outputs) ? run.outputs : {};

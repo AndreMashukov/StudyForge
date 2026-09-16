@@ -5,13 +5,13 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { config } from 'dotenv';
 import { Client } from 'langsmith';
+import { FINAL_RESPONSE_DATASET_NAME } from '../shared/constants';
+import { loadEvalEnv } from '../shared/env';
 
-config({ path: path.join(process.cwd(), '.env.local') });
-config({ path: path.join(process.cwd(), 'functions/.env.local') });
+loadEvalEnv();
 
-const DATASET_NAME = 'Workspace Agent: Final Response';
+const DATASET_NAME = FINAL_RESPONSE_DATASET_NAME;
 const DATASET_PATH = path.join(
   process.cwd(),
   'scripts/langsmith-eval/datasets/workspace-agent-final-response.json',

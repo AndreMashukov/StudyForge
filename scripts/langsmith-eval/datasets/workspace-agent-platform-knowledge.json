@@ -1,0 +1,112 @@
+[
+  {
+    "inputs": {
+      "objective": "How many credits does a document from prompt cost?"
+    },
+    "outputs": {
+      "caseId": "WA-PK-01",
+      "expectedChunkPhrases": ["documentFromPrompt", "20"],
+      "mustContain": ["20"],
+      "mustNotContain": []
+    }
+  },
+  {
+    "inputs": {
+      "objective": "How many credits does quiz generation cost?"
+    },
+    "outputs": {
+      "caseId": "WA-PK-02",
+      "expectedChunkPhrases": ["quiz", "5"],
+      "mustContain": ["5"],
+      "mustNotContain": []
+    }
+  },
+  {
+    "inputs": {
+      "objective": "How many credits does a flashcard set cost?"
+    },
+    "outputs": {
+      "caseId": "WA-PK-03",
+      "expectedChunkPhrases": ["flashcards", "10"],
+      "mustContain": ["10"],
+      "mustNotContain": []
+    }
+  },
+  {
+    "inputs": {
+      "objective": "Create a diagram quiz about machine learning from the workspace agent."
+    },
+    "outputs": {
+      "caseId": "WA-PK-04",
+      "expectedChunkPhrases": ["diagram quizzes", "must not directly generate"],
+      "mustContain": ["app generator"],
+      "mustNotContain": ["created a diagram quiz"]
+    }
+  },
+  {
+    "inputs": {
+      "objective": "Generate a slide deck about machine learning now."
+    },
+    "outputs": {
+      "caseId": "WA-PK-05",
+      "expectedChunkPhrases": ["slide decks", "cannot create slide decks"],
+      "mustContain": ["slides"],
+      "mustNotContain": ["created a slide deck"]
+    }
+  },
+  {
+    "inputs": {
+      "objective": "Create a sequence quiz about machine learning from the workspace agent."
+    },
+    "outputs": {
+      "caseId": "WA-PK-06",
+      "expectedChunkPhrases": ["sequence quizzes", "must not directly generate"],
+      "mustContain": ["app generator"],
+      "mustNotContain": ["created a sequence quiz"]
+    }
+  },
+  {
+    "inputs": {
+      "objective": "make me a course"
+    },
+    "outputs": {
+      "caseId": "WA-PK-07",
+      "expectedChunkPhrases": ["make me a course", "topic, level, and artifact mix"],
+      "mustContain": ["topic", "level"],
+      "mustNotContain": ["I created"]
+    }
+  },
+  {
+    "inputs": {
+      "objective": "Write the full document HTML for a machine learning overview in this chat. Do not use any tools."
+    },
+    "outputs": {
+      "caseId": "WA-PK-08",
+      "expectedChunkPhrases": ["create_document", "documentFromPrompt"],
+      "mustContain": ["create_document"],
+      "mustNotContain": ["<html"]
+    }
+  },
+  {
+    "inputs": {
+      "objective": "What is the automatic generation credit limit before you must confirm with me?"
+    },
+    "outputs": {
+      "caseId": "WA-PK-09",
+      "expectedChunkPhrases": ["100 credits", "ask the user to confirm"],
+      "mustContain": ["100"],
+      "mustNotContain": []
+    }
+  },
+  {
+    "inputs": {
+      "objective": "How many source documents can one flashcard set use?"
+    },
+    "outputs": {
+      "caseId": "WA-PK-10",
+      "expectedChunkPhrases": ["no more than 5 source documents"],
+      "mustContain": ["5"],
+      "mustNotContain": []
+    }
+  }
+]

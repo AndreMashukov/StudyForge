@@ -27,7 +27,7 @@ There are two LLM judges. They use the same Together model. They are not the sam
 | Where | Column name in LangSmith | How it runs |
 | --- | --- | --- |
 | Hosted dataset rule **Workspace Agent Criteria Match** | `score` (boolean) and `comment` | LangSmith calls Together after each experiment run. You do not pass this evaluator into `evaluate()`. |
-| Local function in `run-final-response-eval.ts` | `criteria_match` (0 or 1) | The replay script POSTs to Together itself and returns `{ key, score, comment }`. |
+| Local function in `evaluators/local-criteria-match.ts` | `criteria_match` (0 or 1) | The replay/live scripts POST to Together and return `{ key, score, comment }`. |
 
 The CLI printout lists only local keys (`no_canned_fallback`, `nonempty_reply`, `criteria_match`). Open the experiment compare view to see hosted `score`.
 
@@ -44,7 +44,7 @@ All hosted config lives under `scripts/langsmith-eval/evaluators/llm-judge/`.
 | `model.json` | Serialized LangChain `ChatOpenAI` pointing at Together GLM-5.2. |
 | `variable-mapping.json` | Maps prompt vars to experiment / example fields. |
 
-Local judge: `gradeCriteriaMatch` in `scripts/langsmith-eval/run-final-response-eval.ts` (`https://api.together.xyz/v1/chat/completions`, model `zai-org/GLM-5.2`).
+Local judge: `gradeCriteriaMatch` in `scripts/langsmith-eval/evaluators/local-criteria-match.ts` (`https://api.together.xyz/v1/chat/completions`, model `zai-org/GLM-5.2`).
 
 ## LangSmith objects (this workspace)
 
@@ -207,7 +207,7 @@ LangSmith evaluator spend docs talk about OpenAI, Anthropic, or Gemini with pric
 
 ## How it runs in an experiment
 
-1. From the repo root: `npx tsx scripts/langsmith-eval/run-final-response-eval.ts`
+1. From the repo root: `npx tsx scripts/langsmith-eval/experiments/run-final-response-replay.ts`
 2. The target replays each labeled `trace_id` into `{ finalReply }`.
 3. Local evaluators write `no_canned_fallback`, `nonempty_reply`, `criteria_match`.
 4. Hosted dataset rules fire on the same outputs: two Python code rules plus **Workspace Agent Criteria Match**.
@@ -235,7 +235,7 @@ If hosted comments say the reply is empty but code length is large, the mapping 
 3. Run `create-llm` with `--replace` if the name exists.
 4. Run a new replay. Old experiments do not re-score.
 
-To change only the Together model id, update `model.json` `kwargs.model` and the `model` field in `run-final-response-eval.ts`, then replace the hosted rule.
+To change only the Together model id, update `model.json` `kwargs.model` and the `model` field in `evaluators/local-criteria-match.ts`, then replace the hosted rule.
 
 ## What not to do
 

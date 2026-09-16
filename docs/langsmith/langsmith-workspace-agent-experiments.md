@@ -20,7 +20,7 @@ Hosted evaluators on the dataset **auto-run** when an experiment writes that `fi
 
 ### 1. Trace replay (what the repo script does today)
 
-`scripts/langsmith-eval/run-final-response-eval.ts` does **not** call `WorkspaceAgentRunner`. For each dataset `objective`, it looks up `trace_id` in the local JSON, reads that LangSmith root run, and copies `outputs.finalReply`.
+`scripts/langsmith-eval/experiments/run-final-response-replay.ts` does **not** call `WorkspaceAgentRunner`. For each dataset `objective`, it looks up `trace_id` in the local JSON, reads that LangSmith root run, and copies `outputs.finalReply`.
 
 Use this to:
 
@@ -30,20 +30,34 @@ Use this to:
 
 Do not use this to claim a *new* agent version is better unless you first collected new traces and updated `trace_id` values.
 
-### 2. Live agent (not in the repo yet)
+### 2. Live agent
 
-A live experiment would call `WorkspaceAgentRunner.run` (or production `agentMessageStream`) for each `objective` and return `{ finalReply }`. That needs a user, tools, LLM routing, and usually the Firebase emulator. Until that harness exists, live scoring is: run the [browser QA playbook](qa-workspace-agent-browser.md), label traces, then replay.
+`scripts/langsmith-eval/experiments/run-final-response-live.ts` POSTs each `objective` to emulator `agentMessageStream` (`scope: workspace`, new thread) and returns `{ finalReply }`. Hosted dataset evals then score this build.
+
+```bash
+yarn nx run functions:serve
+npx tsx scripts/seed-setup/setup-seed-data.ts
+npx tsx scripts/langsmith-eval/experiments/run-final-response-live.ts
+```
+
+Smoke two cases: `LANGSMITH_EVAL_MAX_EXAMPLES=2 npx tsx scripts/langsmith-eval/experiments/run-final-response-live.ts`
+
+This mutates the seed user's workspace. Re-seed between full runs. Production requires `LIVE_EVAL_TARGET=production` and `LIVE_EVAL_ALLOW_PRODUCTION=true`. Details: [next-steps.md](next-steps.md).
 
 ## Files
 
 | Path | Role |
 | --- | --- |
 | `scripts/langsmith-eval/datasets/workspace-agent-final-response.json` | Labeled examples (`trace_id`, `inputs`, `outputs`) |
-| `scripts/langsmith-eval/upload-final-response-dataset.ts` | Upsert examples by `outputs.caseId` |
-| `scripts/langsmith-eval/evaluators/workspace-agent-final-response.ts` | Local TypeScript code evaluators |
-| `scripts/langsmith-eval/evaluators/workspace_agent_final_response.py` | Hosted Python code evaluators |
+| `scripts/langsmith-eval/datasets/upload-final-response.ts` | Upsert examples by `outputs.caseId` |
+| `scripts/langsmith-eval/evaluators/final-response.ts` | Local TypeScript code evaluators |
+| `scripts/langsmith-eval/evaluators/final-response.py` | Hosted Python code evaluators |
 | `scripts/langsmith-eval/evaluators/llm-judge/` | Hosted LLM-as-judge prompt, schema, model, mapping |
-| `scripts/langsmith-eval/run-final-response-eval.ts` | Replay `evaluate()` plus local LLM judge |
+| `scripts/langsmith-eval/evaluators/local-criteria-match.ts` | Local Together `criteria_match` used by `evaluate()` |
+| `scripts/langsmith-eval/experiments/run-final-response-replay.ts` | Replay `evaluate()` plus local LLM judge |
+| `scripts/langsmith-eval/experiments/run-final-response-live.ts` | Live `evaluate()` via emulator `agentMessageStream` |
+| `scripts/langsmith-eval/shared/live-agent-client.ts` | Sign-in + SSE client for live eval |
+| `scripts/langsmith-eval/README.md` | Folder layout and commands |
 
 LangSmith names:
 
@@ -51,6 +65,7 @@ LangSmith names:
 - Dataset: `Workspace Agent: Final Response` (id `cd29f180-cfb3-4162-97cd-59cc6a8fa210`)
 - Hosted rules: **Workspace Agent No Canned Fallback**, **Workspace Agent Nonempty Reply**, **Workspace Agent Criteria Match**
 - Replay experiment prefix: `workspace-agent-replay-v3` (LangSmith appends a suffix)
+- Live experiment prefix: `workspace-agent-live-v1`
 
 ## Prerequisites
 
@@ -112,7 +127,7 @@ Yarn workspace already has `langsmith`. Run scripts with `npx tsx` from the repo
 Edit the JSON, then upsert. The upload script **updates** examples that share `outputs.caseId` and **creates** only new case ids. It will not delete remote examples that you removed from the file.
 
 ```bash
-npx tsx scripts/langsmith-eval/upload-final-response-dataset.ts
+npx tsx scripts/langsmith-eval/datasets/upload-final-response.ts
 ```
 
 After QA finds a better gold trace (example: WA-01 pass `01a0a39a-f615-722d-bfd5-2c1032f05575`):
@@ -132,7 +147,7 @@ These are attached to the dataset, enabled, sampling rate 1.0.
 | Workspace Agent No Canned Fallback | `canned_fallback_evaluator` | `finalReply` does not contain `mustNotContain` (default canned fallback string) |
 | Workspace Agent Nonempty Reply | `nonempty_reply_evaluator` | `finalReply` is a non-empty string |
 
-Source: `scripts/langsmith-eval/evaluators/workspace_agent_final_response.py`.
+Source: `scripts/langsmith-eval/evaluators/final-response.py`.
 
 Inspect:
 
@@ -148,7 +163,7 @@ langsmith evaluator get "Workspace Agent Criteria Match"
 Re-upload only if the Python file changed. `--replace` prompts first. Do **not** use `--yes` unless you explicitly want to skip that prompt.
 
 ```bash
-EVAL_FILE=scripts/langsmith-eval/evaluators/workspace_agent_final_response.py
+EVAL_FILE=scripts/langsmith-eval/evaluators/final-response.py
 DATASET="Workspace Agent: Final Response"
 
 langsmith evaluator upload "$EVAL_FILE" \
@@ -215,7 +230,7 @@ Online evaluators (`--project study-forge`) are a different signature `(run)` wi
 From the repo root:
 
 ```bash
-npx tsx scripts/langsmith-eval/run-final-response-eval.ts
+npx tsx scripts/langsmith-eval/experiments/run-final-response-replay.ts
 ```
 
 What happens:
@@ -230,6 +245,29 @@ What happens:
 The script prints an experiment name like `workspace-agent-replay-v3-<suffix>` and a LangSmith compare URL.
 
 `maxConcurrency` is 2 so the judge is not slammed.
+
+## Run a live experiment
+
+Emulators must already be up, with the seed user present:
+
+```bash
+npx tsx scripts/langsmith-eval/experiments/run-final-response-live.ts
+```
+
+What happens:
+
+1. Signs in as `test@example.com` on the Auth emulator (or `LANGSMITH_EVAL_ID_TOKEN`).
+2. For each dataset `objective`, POSTs to emulator `agentMessageStream` with `scope: workspace` and no `threadId`.
+3. Returns `{ finalReply }` from the SSE `done` event.
+4. Local evaluators plus hosted dataset rules score the new replies.
+
+`maxConcurrency` is 1. Re-seed between full runs. Prefix: `workspace-agent-live-v1`.
+
+Smoke:
+
+```bash
+LANGSMITH_EVAL_MAX_EXAMPLES=2 npx tsx scripts/langsmith-eval/experiments/run-final-response-live.ts
+```
 
 ### Metrics
 
@@ -268,7 +306,7 @@ When reading scores:
 2. Run browser cases from the QA playbook. Prefer a **new chat** per case.
 3. Confirm root runs named `workspace-agent` in project `study-forge`.
 4. Update JSON `trace_id` and gold criteria. Upsert the dataset.
-5. Run `npx tsx scripts/langsmith-eval/run-final-response-eval.ts`.
+5. Run `npx tsx scripts/langsmith-eval/experiments/run-final-response-replay.ts`.
 6. Compare the new experiment to the previous one in LangSmith.
 
 ## Common failures
@@ -288,5 +326,5 @@ When reading scores:
 - Do not `langsmith self-update` or pipe a remote `install.sh` into a shell (repo skill).
 - Do not pass secrets on the CLI.
 - Do not use `--yes` on evaluator replace or delete unless you asked for that skip.
-- Do not treat replay scores as a live regression test of `WorkspaceAgentRunner` until a live target exists.
+- Do not treat replay scores as a live regression test of the current agent. Use `run-final-response-live.ts` for that.
 - Do not mix `directory-chat` traces into this dataset.

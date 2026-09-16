@@ -145,7 +145,7 @@ _Avoid_: default rule, auto-select rule (prefer **always apply** in product copy
 ## Learning & chat
 
 **Workspace agent**:
-Tool-capable AgentPanel over the user's full library (`scope: workspace`). Runs a plan-execute LangGraph: planner, executor, replan loop, then a final reply. Creating a document enqueues **documentFromPrompt** and applies **always apply** rules for the target directory.
+Tool-capable AgentPanel over the user's full library (`scope: workspace`). Runs a plan-execute LangGraph: planner, executor, replan loop, then a final reply. Creating a document enqueues **documentFromPrompt** and applies **always apply** rules for the target directory. Retrieves **Platform agent knowledge** into the planner prompt; searches **User knowledge** with `search_knowledge`.
 _Avoid_: global agent (alone), workspace chat, ADK workspace agent
 
 **Directory-scoped agent**:
@@ -159,6 +159,18 @@ _Avoid_: ADK memory (when meaning the StudyForge thread), planner history
 **Workspace agent checkpoint**:
 Transient LangGraph checkpoint for one agent turn, used to resume after a Function timeout or crash. Stored under the user with a 7-day TTL. Not the StudyForge agent thread.
 _Avoid_: agent thread (when meaning checkpoint data), ADK session
+
+**Platform agent knowledge**:
+Admin-published operational policy for the workspace agent (credits, allowed artifacts, clarify-before-generate). Distinct from the user's library notes.
+_Avoid_: RAG (alone), knowledge base (alone), system prompt policy
+
+**Platform knowledge chunk**:
+Embedded slice of a published **Platform agent knowledge** document, retrieved into the planner prompt.
+_Avoid_: RAG chunk, embedding (when meaning the policy text)
+
+**User knowledge**:
+User-owned notes searchable with `search_knowledge`. Distinct from **Platform agent knowledge**.
+_Avoid_: RAG (alone), personal knowledge base, memory (when meaning note search)
 
 **Directory chat**:
 Conversational assistant scoped to a directory and its documents/artifacts. Uses follow-up rules and artifact context. Distinct from the workspace agent and directory-scoped agent panels.
@@ -224,6 +236,7 @@ _Avoid_: PAYG (in user-facing copy), usage billing (when meaning overage only)
 - A **Language-learning flashcard set** has one **Target language**
 - Checking a card in a **Language-learning flashcard set** may create a **Learned vocabulary item** for that user and **Target language**
 - A **Quiz attempt** or **Flashcard study session** feeds **Statistics failure groups**; **Hidden statistics failures** filter what Statistics shows without deleting raw telemetry
+- **Platform agent knowledge** is retrieved as **Platform knowledge chunks** into the workspace-agent planner prompt; **User knowledge** is searched separately with `search_knowledge`
 
 ## Flagged ambiguities
 

@@ -11,6 +11,7 @@
  *   6. Sync directory item index entries (required for the web directory UI)
  *   7. Upload document content files to the Storage emulator
  *   8. Seed LLM setup, user group, and assign the test user (required for generation)
+ *   9. Publish workspace-agent knowledge base and wait for chunk indexing
  *
  * Usage:
  *   npx tsx scripts/seed-setup/setup-seed-data.ts
@@ -457,6 +458,15 @@ async function main() {
   // ── Step 8: LLM setup + user group assignment ───────────────────────────
   console.log('\n[8] Seeding LLM setup and user group …');
   await seedLlmSetup({ userId: TARGET_UID });
+
+  console.log('\n[9] Publishing workspace-agent knowledge base …');
+  const { seedWorkspaceAgentKnowledge } = await import(
+    './seed-workspace-agent-knowledge'
+  );
+  const knowledge = await seedWorkspaceAgentKnowledge({ userId: TARGET_UID });
+  console.log(
+    `   ✅ ${knowledge.documentId} indexed (${knowledge.chunkCount} chunks)`,
+  );
 
   console.log('\n✅ E2E setup complete. Ready to run tests.');
 }
