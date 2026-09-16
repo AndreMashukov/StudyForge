@@ -1,9 +1,5 @@
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { setPendingDirectoryChatSeed } from '../../../../store/slices/directoryChatSlice';
-import { buildDirectoryChatQuestionSeed } from '../../../../utils/directoryChatQuizSeed';
-import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 import {
   loadQuiz,
   startQuiz,
@@ -23,8 +19,6 @@ import { Quiz } from '@shared-types';
 
 export const useQuizPageHandlers = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const currentQuestion = useSelector(selectCurrentQuestion);
   const quizState = useSelector(selectQuizState);
   const formState = useSelector(selectFormState);
@@ -69,53 +63,6 @@ export const useQuizPageHandlers = () => {
     dispatch(openFollowupChat({ questionIndex: quizState.currentQuestionIndex }));
   }, [currentQuestion, dispatch, formState.selectedAnswer, quizState.currentQuestionIndex]);
 
-  const handleAskAboutQuestion = useCallback(() => {
-    if (!currentQuestion) {
-      return;
-    }
-
-    const directoryId =
-      quizState.firestoreQuiz?.directoryId?.trim() ||
-      searchParams.get('directoryId')?.trim() ||
-      null;
-    if (!directoryId) {
-      return;
-    }
-
-    const selectedAnswerText =
-      formState.selectedAnswer !== null
-        ? currentQuestion.options[formState.selectedAnswer]
-        : undefined;
-    const seed = buildDirectoryChatQuestionSeed({
-      artifactType: 'quiz',
-      quizId: quizState.firestoreQuiz?.id ?? 'active',
-      questionIndex: quizState.currentQuestionIndex,
-      question: currentQuestion.question,
-      title: quizState.firestoreQuiz?.title,
-      options: currentQuestion.options,
-      userAnswer: selectedAnswerText,
-      correctAnswer: currentQuestion.options[currentQuestion.correct],
-      explanation: currentQuestion.explanation,
-      followupRuleIds: quizState.firestoreQuiz?.followupRuleIds,
-    });
-
-    dispatch(
-      setPendingDirectoryChatSeed({
-        directoryId,
-        ...seed,
-      }),
-    );
-    navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, 'chat'));
-  }, [
-    currentQuestion,
-    dispatch,
-    formState.selectedAnswer,
-    navigate,
-    quizState.currentQuestionIndex,
-    quizState.firestoreQuiz,
-    searchParams,
-  ]);
-
   return {
     // Quiz handlers (business logic only, no state)
     handleLoadQuiz,
@@ -125,7 +72,6 @@ export const useQuizPageHandlers = () => {
     handleStartQuiz,
     handleCompleteQuiz,
     handleSkipQuestion,
-    handleAskAboutQuestion,
     handleGenerateFollowup,
 
     // Form handlers

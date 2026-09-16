@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import { Check, MessageSquare, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { Card, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
@@ -21,7 +21,6 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
   isLastQuestion,
   className,
   backAction,
-  onAskAboutQuestion,
   onGenerateFollowup,
   isGeneratingFollowup = false,
   isFollowupGenerated = false,
@@ -61,18 +60,6 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
       />
 
       <CardContent className="space-y-3">
-        {onAskAboutQuestion && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onAskAboutQuestion}
-            className="gap-2"
-          >
-            <MessageSquare className="h-4 w-4" />
-            Ask about this question
-          </Button>
-        )}
         {question.options.map((option, index) => (
           <button
             key={index}
