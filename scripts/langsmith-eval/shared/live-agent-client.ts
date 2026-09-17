@@ -130,7 +130,15 @@ function parseSseBlock(block: string): Record<string, unknown> | null {
   }
 }
 
-function readDoneReply(event: Record<string, unknown>): string | null {
+export interface ILiveWorkspaceAgentRagOutput {
+  finalReply: string;
+  retrievedTexts: string[];
+  retrievedTextsPresent: boolean;
+}
+
+function readDoneResponse(
+  event: Record<string, unknown>,
+): ILiveWorkspaceAgentRagOutput | null {
   if (event.type !== 'done') {
     return null;
   }
@@ -138,7 +146,23 @@ function readDoneReply(event: Record<string, unknown>): string | null {
   if (!isKvRecord(response) || typeof response.reply !== 'string') {
     return null;
   }
-  return response.reply;
+
+  let retrievedTextsPresent = false;
+  let retrievedTexts: string[] = [];
+  if ('retrievedTexts' in response) {
+    retrievedTextsPresent = true;
+    if (Array.isArray(response.retrievedTexts)) {
+      retrievedTexts = response.retrievedTexts.filter(
+        (entry): entry is string => typeof entry === 'string',
+      );
+    }
+  }
+
+  return {
+    finalReply: response.reply,
+    retrievedTexts,
+    retrievedTextsPresent,
+  };
 }
 
 function readErrorMessage(event: Record<string, unknown>): string | null {
@@ -150,17 +174,17 @@ function readErrorMessage(event: Record<string, unknown>): string | null {
     : 'Agent stream error';
 }
 
-export async function streamWorkspaceAgentFinalReply(input: {
+export async function streamWorkspaceAgentRagOutput(input: {
   streamUrl: string;
   idToken: string;
   objective: string;
-}): Promise<string> {
+}): Promise<ILiveWorkspaceAgentRagOutput> {
   const maxAttempts = 8;
   let lastError: Error | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await streamWorkspaceAgentFinalReplyOnce(input);
+      return await streamWorkspaceAgentRagOutputOnce(input);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       lastError = error instanceof Error ? error : new Error(message);
@@ -181,11 +205,20 @@ export async function streamWorkspaceAgentFinalReply(input: {
   throw lastError ?? new Error('Agent stream failed');
 }
 
-async function streamWorkspaceAgentFinalReplyOnce(input: {
+export async function streamWorkspaceAgentFinalReply(input: {
   streamUrl: string;
   idToken: string;
   objective: string;
 }): Promise<string> {
+  const output = await streamWorkspaceAgentRagOutput(input);
+  return output.finalReply;
+}
+
+async function streamWorkspaceAgentRagOutputOnce(input: {
+  streamUrl: string;
+  idToken: string;
+  objective: string;
+}): Promise<ILiveWorkspaceAgentRagOutput> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS);
 
@@ -227,7 +260,7 @@ async function streamWorkspaceAgentFinalReplyOnce(input: {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-    let finalReply: string | null = null;
+    let finalOutput: ILiveWorkspaceAgentRagOutput | null = null;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -247,11 +280,11 @@ async function streamWorkspaceAgentFinalReplyOnce(input: {
         if (errorMessage) {
           throw new Error(errorMessage);
         }
-        const reply = readDoneReply(event);
-        if (reply !== null) {
-          finalReply = reply;
+        const output = readDoneResponse(event);
+        if (output !== null) {
+          finalOutput = output;
           await reader.cancel().catch(() => undefined);
-          return reply;
+          return output;
         }
       }
     }
@@ -263,15 +296,15 @@ async function streamWorkspaceAgentFinalReplyOnce(input: {
         if (errorMessage) {
           throw new Error(errorMessage);
         }
-        const reply = readDoneReply(event);
-        if (reply !== null) {
-          return reply;
+        const output = readDoneResponse(event);
+        if (output !== null) {
+          return output;
         }
       }
     }
 
-    if (finalReply !== null) {
-      return finalReply;
+    if (finalOutput !== null) {
+      return finalOutput;
     }
     throw new Error('Agent stream ended without a done event');
   } finally {

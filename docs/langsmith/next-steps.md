@@ -137,26 +137,13 @@ Keep workspace agent datasets separate from directory-chat and from artifact gra
 
 For each planner or tool change: live eval on the same dataset, compare to `workspace-agent-replay-v3-b0d7a67b` (replay baseline) or the latest **live** baseline. Only ship if canned/nonempty stay at 1 and `score` does not drop on WA-01, WA-02, create, and refuse-artifact cases.
 
-## 8. Platform knowledge: four RAG LLM-as-judge metrics (later)
+## 8. Platform knowledge: four RAG LLM-as-judge metrics (implemented)
 
-v1 platform-knowledge evals use **code** only. How to run them: [workspace-agent-platform-knowledge.md](workspace-agent-platform-knowledge.md).
+How to run: [workspace-agent-platform-knowledge.md](workspace-agent-platform-knowledge.md).
 
-- `retrieval_recall`: listed phrases must appear in returned chunk text (not an LLM “are these docs relevant?” grade).
-- `policy_facts`: every `mustContain` / no `mustNotContain` on `finalReply` (not “how similar is the answer”).
+- **Code gates:** `retrieval_recall` (retrieval experiment), `policy_facts` (application experiment). Retrieval pipeline: [workspace-agent-platform-knowledge-retrieval.md](workspace-agent-platform-knowledge-retrieval.md).
+- **LLM judges (local Together GLM-5.2):** `correctness`, `relevance`, `groundedness`, `retrieval_relevance` on experiment prefix `workspace-agent-pk-rag-v1`.
 
-The LangSmith RAG tutorial four judges are **not** in v1. They can be added later. They need a live target that returns **both** `finalReply` and `retrievedTexts` from the **same** `agentMessageStream` turn (the chunks actually injected into the planner prompt). A second `searchPlatformKnowledge` call is not the same retrieval.
+Same-turn `{ finalReply, retrievedTexts }` comes from `agentMessageStream` when `LANGSMITH_EVAL_EMIT_RETRIEVED_TEXTS=true` in `functions/.env.local`. Gold criteria live in `outputs.finalReply` on each PK example.
 
-Reuse the existing Together GLM-5.2 hosted judge stack. One evaluator per metric. Mapping must read `input.objective`, `output.finalReply`, `output.retrievedTexts`, and `reference.finalReply` (for correctness). Do not use `outputs.finalReply` (that left the earlier hosted judge empty).
-
-| Tutorial metric | Goal | Needs | v1 stand-in |
-| --- | --- | --- | --- |
-| Correctness (reply vs reference) | How similar the reply is to a gold answer | Gold `finalReply` (or criteria) on each example | `policy_facts` string checks |
-| Relevance (reply vs question) | Whether the reply addresses `objective` | Reply only | none |
-| Groundedness (reply vs retrieved chunks) | Whether the reply agrees with those chunks (faithfulness) | Same-turn `retrievedTexts` | none |
-| Retrieval relevance (chunks vs question) | Whether those chunks are relevant to `objective` | Same-turn `retrievedTexts` | `retrieval_recall` phrase hits |
-
-Keep `policy_facts` and `retrieval_recall` as cheap gates. Add the four judges as extra columns. A high judge score with a failed `policy_facts` still means a required fact was missed (for example “20”).
-
-**Order:** instrument same-turn `{ finalReply, retrievedTexts }` first, then retrieval relevance and groundedness, then correctness once gold replies exist, then relevance last (weakest signal for this policy file).
-
-Do not attach these judges as online evals on production `workspace-agent` traces until references (and retrieved chunk outputs) exist on those runs.
+Do not attach these judges as online evals on production `workspace-agent` traces. Production runs do not emit `retrievedTexts` by default and lack reference answers on live traces.

@@ -456,12 +456,16 @@ export function buildAgentResponse(input: {
   threadId: string;
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
+  retrievedTexts?: string[];
 }): AgentMessageResponse {
   return {
     reply: input.reply,
     threadId: input.threadId,
     executedActions: input.executedActions,
     proposedDeletes: input.proposedDeletes,
+    ...(input.retrievedTexts !== undefined
+      ? { retrievedTexts: input.retrievedTexts }
+      : {}),
   };
 }
 

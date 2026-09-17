@@ -102,6 +102,7 @@ export const agentMessageResponseSchema = z.object({
   threadId: z.string().trim().min(1),
   executedActions: z.array(agentActionResultSchema),
   proposedDeletes: z.array(agentProposedDeleteSchema),
+  retrievedTexts: z.array(z.string()).optional(),
 });
 
 export type AgentScope = z.output<typeof agentScopeSchema>;

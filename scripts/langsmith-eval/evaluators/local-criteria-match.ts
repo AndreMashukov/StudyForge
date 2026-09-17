@@ -3,6 +3,7 @@ import {
   extractFinalReply,
   nonemptyReplyEvaluator,
 } from './final-response';
+import { callTogetherScoreJudge } from './together-judge';
 import { CANNED_FALLBACK } from '../shared/constants';
 import { isKvMap, type IEvalExampleLike, type IEvalRunLike } from '../shared/eval-types';
 
@@ -11,18 +12,8 @@ export async function gradeCriteriaMatch(input: {
   criteria: string;
   actual: string;
 }): Promise<{ score: number; comment: string }> {
-  const apiKey = process.env.TOGETHER_AI_API_KEY;
-  if (!apiKey || apiKey.includes('your_') || apiKey.startsWith('demo-')) {
-    return {
-      score: 0,
-      comment:
-        'Skipped: TOGETHER_AI_API_KEY is missing, so criteria_match was not graded.',
-    };
-  }
-
   const prompt = [
     'You grade a StudyForge workspace agent final reply.',
-    'Return ONLY JSON: {"score": 0 or 1, "comment": "short reason"}.',
     'score=1 if the actual reply satisfies the expected criteria. Partial-but-honest answers can score 1.',
     'score=0 if it invents ids, creates a forbidden artifact kind, uses the canned planner fallback, or misses the required behavior.',
     `User objective:\n${input.objective}`,
@@ -30,101 +21,12 @@ export async function gradeCriteriaMatch(input: {
     `Actual finalReply:\n${input.actual}`,
   ].join('\n\n');
 
-  const response = await fetch('https://api.together.xyz/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'zai-org/GLM-5.2',
-      temperature: 0,
-      max_tokens: 300,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Respond with JSON only: {"score": 0 or 1, "comment": "short reason"}',
-        },
-        { role: 'user', content: prompt },
-      ],
-    }),
+  return callTogetherScoreJudge({
+    metric: 'criteria_match',
+    systemContent:
+      'Return JSON only. Put score first (0 or 1), then a one or two sentence comment. No markdown.',
+    userContent: prompt,
   });
-
-  if (!response.ok) {
-    const body = await response.text();
-    return {
-      score: 0,
-      comment: `Together judge HTTP ${response.status}: ${body.slice(0, 200)}`,
-    };
-  }
-
-  const payload: unknown = await response.json();
-  const text = stripJsonFence(readChatCompletionText(payload));
-  const parsed = parseJudgeJson(text);
-  if (!parsed) {
-    return {
-      score: 0,
-      comment: `Judge returned unparseable JSON: ${text.slice(0, 200)}`,
-    };
-  }
-  return parsed;
-}
-
-function readChatCompletionText(payload: unknown): string {
-  if (!isKvMap(payload) || !Array.isArray(payload.choices)) {
-    return '';
-  }
-  const first = payload.choices[0];
-  if (!isKvMap(first) || !isKvMap(first.message)) {
-    return '';
-  }
-  return typeof first.message.content === 'string' ? first.message.content : '';
-}
-
-function stripJsonFence(raw: string): string {
-  const trimmed = raw.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-  return fenced ? fenced[1].trim() : trimmed;
-}
-
-function parseJudgeJson(
-  raw: string,
-): { score: number; comment: string } | null {
-  const candidates = [stripJsonFence(raw)];
-  const embedded = raw.match(/\{[\s\S]*\}/);
-  if (embedded) {
-    candidates.push(embedded[0]);
-  }
-
-  for (const candidate of candidates) {
-    try {
-      const parsed: unknown = JSON.parse(candidate);
-      if (!isKvMap(parsed)) {
-        continue;
-      }
-      const score = parsed.score === 1 || parsed.score === true ? 1 : 0;
-      const comment =
-        typeof parsed.comment === 'string' ? parsed.comment : 'No comment';
-      return { score, comment };
-    } catch {
-      continue;
-    }
-  }
-
-  if (/"score"\s*:\s*1\b/.test(raw)) {
-    return {
-      score: 1,
-      comment: 'Judge JSON was truncated; score field was 1.',
-    };
-  }
-  if (/"score"\s*:\s*0\b/.test(raw)) {
-    return {
-      score: 0,
-      comment: 'Judge JSON was truncated; score field was 0.',
-    };
-  }
-  return null;
 }
 
 export function selfCheckFinalResponseEvaluators(): void {

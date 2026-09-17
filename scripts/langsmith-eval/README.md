@@ -1,6 +1,6 @@
 # LangSmith eval scripts
 
-Layout follows LangSmith’s three pieces: **datasets**, **evaluators**, **run functions** (`targets`), then **experiments** that call `evaluate()`.
+Layout follows LangSmith's three pieces: **datasets**, **evaluators**, **run functions** (`targets`), then **experiments** that call `evaluate()`.
 
 ```
 scripts/langsmith-eval/
@@ -26,14 +26,17 @@ Final response (live agent):
 npx tsx scripts/langsmith-eval/experiments/run-final-response-live.ts
 ```
 
-Platform knowledge (code metrics only; needs `--tsconfig` for retrieval):
+Platform knowledge (code + RAG LLM judges):
 
 ```bash
+# Set LANGSMITH_EVAL_EMIT_RETRIEVED_TEXTS=true in functions/.env.local, rebuild functions.
 npx tsx scripts/langsmith-eval/datasets/upload-platform-knowledge.ts
 npx tsx --tsconfig tsconfig.base.json scripts/langsmith-eval/experiments/run-platform-knowledge-retrieval.ts
 npx tsx --tsconfig tsconfig.base.json scripts/langsmith-eval/experiments/run-platform-knowledge-application.ts
 ```
 
+Retrieval: `retrieval_recall` only. How that experiment works: [docs/langsmith/workspace-agent-platform-knowledge-retrieval.md](../../docs/langsmith/workspace-agent-platform-knowledge-retrieval.md). Application: `policy_facts` plus four RAG judges (`correctness`, `relevance`, `groundedness`, `retrieval_relevance`). Needs `TOGETHER_AI_API_KEY`.
+
 Smoke: `LANGSMITH_EVAL_MAX_EXAMPLES=2`.
 
-Hosted Python code evals: `evaluators/final-response.py`. Hosted GLM-5.2 judge files: `evaluators/llm-judge/`.
+Hosted Python code evals: `evaluators/final-response.py`. Hosted GLM-5.2 judge files: `evaluators/llm-judge/`. Local RAG judges: `evaluators/rag-llm-judges.ts`.

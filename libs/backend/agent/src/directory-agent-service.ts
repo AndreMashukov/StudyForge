@@ -553,6 +553,13 @@ export class DirectoryAgentService {
         threadId: thread.id,
         executedActions: persistedActions,
         proposedDeletes: persistedDeletes,
+        ...(process.env['LANGSMITH_EVAL_EMIT_RETRIEVED_TEXTS'] === 'true'
+          ? {
+              retrievedTexts: platformKnowledgeMatches.map(
+                (entry) => entry.text,
+              ),
+            }
+          : {}),
       }),
     };
   }

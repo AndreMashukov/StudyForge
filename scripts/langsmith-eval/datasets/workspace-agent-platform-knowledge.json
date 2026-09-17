@@ -7,7 +7,8 @@
       "caseId": "WA-PK-01",
       "expectedChunkPhrases": ["documentFromPrompt", "20"],
       "mustContain": ["20"],
-      "mustNotContain": []
+      "mustNotContain": [],
+      "finalReply": "State that creating a document from prompt (documentFromPrompt) costs 20 credits."
     }
   },
   {
@@ -18,7 +19,8 @@
       "caseId": "WA-PK-02",
       "expectedChunkPhrases": ["quiz", "5"],
       "mustContain": ["5"],
-      "mustNotContain": []
+      "mustNotContain": [],
+      "finalReply": "State that quiz generation costs 5 credits."
     }
   },
   {
@@ -29,7 +31,8 @@
       "caseId": "WA-PK-03",
       "expectedChunkPhrases": ["flashcards", "10"],
       "mustContain": ["10"],
-      "mustNotContain": []
+      "mustNotContain": [],
+      "finalReply": "State that a flashcard set costs 10 credits."
     }
   },
   {
@@ -40,7 +43,8 @@
       "caseId": "WA-PK-04",
       "expectedChunkPhrases": ["diagram quizzes", "must not directly generate"],
       "mustContain": ["app generator"],
-      "mustNotContain": ["created a diagram quiz"]
+      "mustNotContain": ["created a diagram quiz"],
+      "finalReply": "Refuse to create a diagram quiz directly from the workspace agent. Explain that diagram quizzes must be created through the app generator, not by the workspace agent."
     }
   },
   {
@@ -51,7 +55,8 @@
       "caseId": "WA-PK-05",
       "expectedChunkPhrases": ["slide decks", "cannot create slide decks"],
       "mustContain": ["slides"],
-      "mustNotContain": ["created a slide deck"]
+      "mustNotContain": ["created a slide deck"],
+      "finalReply": "Refuse to create a slide deck. Explain that the workspace agent cannot create slide decks directly."
     }
   },
   {
@@ -62,7 +67,8 @@
       "caseId": "WA-PK-06",
       "expectedChunkPhrases": ["sequence quizzes", "must not directly generate"],
       "mustContain": ["app generator"],
-      "mustNotContain": ["created a sequence quiz"]
+      "mustNotContain": ["created a sequence quiz"],
+      "finalReply": "Refuse to create a sequence quiz directly from the workspace agent. Explain that sequence quizzes must be created through the app generator."
     }
   },
   {
@@ -73,7 +79,8 @@
       "caseId": "WA-PK-07",
       "expectedChunkPhrases": ["make me a course", "topic, level, and artifact mix"],
       "mustContain": ["topic", "level"],
-      "mustNotContain": ["I created"]
+      "mustNotContain": ["I created"],
+      "finalReply": "Do not create content yet. Ask the user to clarify topic, level, and artifact mix before generating a course."
     }
   },
   {
@@ -84,7 +91,8 @@
       "caseId": "WA-PK-08",
       "expectedChunkPhrases": ["create_document", "documentFromPrompt"],
       "mustContain": ["create_document"],
-      "mustNotContain": ["<html"]
+      "mustNotContain": ["<html"],
+      "finalReply": "Refuse to write full document HTML in chat. Direct the user to use create_document / documentFromPrompt instead."
     }
   },
   {
@@ -95,7 +103,8 @@
       "caseId": "WA-PK-09",
       "expectedChunkPhrases": ["100 credits", "ask the user to confirm"],
       "mustContain": ["100"],
-      "mustNotContain": []
+      "mustNotContain": [],
+      "finalReply": "State that automatic generation stops at 100 credits and the agent must ask the user to confirm before continuing."
     }
   },
   {
@@ -106,7 +115,8 @@
       "caseId": "WA-PK-10",
       "expectedChunkPhrases": ["no more than 5 source documents"],
       "mustContain": ["5"],
-      "mustNotContain": []
+      "mustNotContain": [],
+      "finalReply": "State that one flashcard set can use no more than 5 source documents."
     }
   }
 ]

@@ -44,7 +44,7 @@ All hosted config lives under `scripts/langsmith-eval/evaluators/llm-judge/`.
 | `model.json` | Serialized LangChain `ChatOpenAI` pointing at Together GLM-5.2. |
 | `variable-mapping.json` | Maps prompt vars to experiment / example fields. |
 
-Local judge: `gradeCriteriaMatch` in `scripts/langsmith-eval/evaluators/local-criteria-match.ts` (`https://api.together.xyz/v1/chat/completions`, model `zai-org/GLM-5.2`).
+Local judge: `gradeCriteriaMatch` in `scripts/langsmith-eval/evaluators/local-criteria-match.ts` (`https://api.together.xyz/v1/chat/completions`, model `zai-org/GLM-5.2`). Thinking is off (`reasoning.enabled=false`, `thinking.type=disabled`). Output is structured JSON (`json_schema`, fallback `json_object`).
 
 ## LangSmith objects (this workspace)
 
