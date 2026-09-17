@@ -61,3 +61,7 @@ export function getAdminAuth(): admin.auth.Auth {
 export function getAdminFirestore(): admin.firestore.Firestore {
   return getAdminApp().firestore();
 }
+
+export function isAdminUsingFirebaseEmulator(): boolean {
+  return isEmulatorMode();
+}

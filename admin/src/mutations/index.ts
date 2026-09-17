@@ -2,6 +2,7 @@
 
 export * from './auth';
 export * from './client';
+export * from './feature-flags';
 export * from './llm-generation-settings';
 export * from './llm-setups';
 export * from './model-settings';

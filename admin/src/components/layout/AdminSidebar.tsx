@@ -7,6 +7,7 @@ import {
   Brain,
   Cable,
   FileText,
+  Flag,
   Gauge,
   LayoutDashboard,
   LogOut,
@@ -34,6 +35,7 @@ const platformNavItems = [
   { href: '/users', label: 'Users', icon: Users },
   { href: '/user-groups', label: 'User groups', icon: UsersRound },
   { href: '/documents', label: 'Documents', icon: FileText },
+  { href: '/feature-flags', label: 'Feature flags', icon: Flag },
 ];
 
 const aiNavItems = [

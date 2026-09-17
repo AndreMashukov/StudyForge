@@ -379,4 +379,47 @@ describe('firestore.rules client write hardening', () => {
       );
     });
   });
+
+  describe('adminSettings', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'adminSettings/featureFlags'), {
+          supportEnabled: false,
+        });
+        await setDoc(doc(context.firestore(), 'adminSettings/llmGeneration'), {
+          temperature: 0.2,
+        });
+      });
+    });
+
+    it('allows authenticated read of featureFlags', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertSucceeds(
+        getDoc(doc(owner.firestore(), 'adminSettings/featureFlags')),
+      );
+    });
+
+    it('denies unauthenticated read of featureFlags', async () => {
+      const anon = testEnv.unauthenticatedContext();
+      await assertFails(
+        getDoc(doc(anon.firestore(), 'adminSettings/featureFlags')),
+      );
+    });
+
+    it('denies client write of featureFlags', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertFails(
+        setDoc(doc(owner.firestore(), 'adminSettings/featureFlags'), {
+          supportEnabled: true,
+        }),
+      );
+    });
+
+    it('denies client read of llmGeneration', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertFails(
+        getDoc(doc(owner.firestore(), 'adminSettings/llmGeneration')),
+      );
+    });
+  });
 });

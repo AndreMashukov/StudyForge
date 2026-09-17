@@ -308,5 +308,10 @@ service cloud.firestore {
     match /providerRateCatalog/{docId} {
       allow read, write: if false;
     }
+
+    match /adminSettings/{docId} {
+      allow read: if isAuthenticated() && docId == 'featureFlags';
+      allow write: if false;
+    }
   }
 }

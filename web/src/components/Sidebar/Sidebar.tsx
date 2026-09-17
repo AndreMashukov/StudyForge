@@ -10,6 +10,7 @@ import {
   LogOut,
   BarChart3,
   Gauge,
+  CircleHelp,
 } from 'lucide-react';
 import { useSecureSignOut } from '../../hooks/useSecureSignOut';
 import {
@@ -31,16 +32,18 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useGetUsageSummaryQuery } from '../../store/api/Usage/usageApi';
 import { formatUsagePlanLabel } from '../../utils/usagePlanLabel';
+import { useSupportAppEntryUrl } from '../../hooks/useSupportAppEntryUrl';
 
 interface NavItem {
   id: string;
   title: string;
-  path: string;
+  path?: string;
+  href?: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   section: 'navigation' | 'account';
 }
 
-const navItems: NavItem[] = [
+const staticNavItems: NavItem[] = [
   {
     id: 'home',
     title: 'Dashboard',
@@ -105,6 +108,30 @@ export const Sidebar = ({ className }: ISidebar) => {
   const location = useLocation();
   const { user } = useAuth();
   const { signOut } = useSecureSignOut();
+  const supportAppUrl = useSupportAppEntryUrl();
+
+  const navItems = React.useMemo(() => {
+    const settingsIndex = staticNavItems.findIndex(
+      (item) => item.id === 'settings',
+    );
+    if (!supportAppUrl || settingsIndex < 0) {
+      return staticNavItems;
+    }
+
+    const helpItem: NavItem = {
+      id: 'help',
+      title: 'Help',
+      href: supportAppUrl,
+      icon: CircleHelp,
+      section: 'account',
+    };
+
+    return [
+      ...staticNavItems.slice(0, settingsIndex),
+      helpItem,
+      ...staticNavItems.slice(settingsIndex),
+    ];
+  }, [supportAppUrl]);
 
   const isOpen = useSelector(selectSidebarIsOpen);
   const isMobile = useIsMobile();
@@ -124,8 +151,14 @@ export const Sidebar = ({ className }: ISidebar) => {
     dispatch(toggleSidebar());
   };
 
-  const handleNavigateToItem = (path: string) => {
-    navigate(path);
+  const handleNavigateToItem = (item: NavItem) => {
+    if (item.href) {
+      window.location.assign(item.href);
+      return;
+    }
+    if (item.path) {
+      navigate(item.path);
+    }
     if (isMobile) {
       dispatch(setSidebarOpen(false));
     }
@@ -135,7 +168,8 @@ export const Sidebar = ({ className }: ISidebar) => {
     await signOut();
   };
 
-  const isItemActive = (path: string) => location.pathname === path;
+  const isItemActive = (item: NavItem) =>
+    Boolean(item.path) && location.pathname === item.path;
 
   if (isMobile && !isOpen) {
     return null;
@@ -204,7 +238,7 @@ export const Sidebar = ({ className }: ISidebar) => {
                 .filter((item) => item.section === section)
                 .map((item) => {
                   const ItemIcon = item.icon;
-                  const itemIsActive = isItemActive(item.path);
+                  const itemIsActive = isItemActive(item);
 
                   return (
                     <SidebarNavItem
@@ -231,10 +265,10 @@ export const Sidebar = ({ className }: ISidebar) => {
                         !isOpen && 'justify-center relative group',
                         itemIsActive && sidebarClassNames.navItemActive,
                       )}
-                      onClick={() => handleNavigateToItem(item.path)}
+                      onClick={() => handleNavigateToItem(item)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
-                          handleNavigateToItem(item.path);
+                          handleNavigateToItem(item);
                         }
                       }}
                     />

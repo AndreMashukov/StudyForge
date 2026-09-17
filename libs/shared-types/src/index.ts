@@ -2824,5 +2824,6 @@ export interface IBulkDeleteArtifactsRequest {
   artifacts: IBulkDeleteArtifactItem[];
 }
 
+export * from './feature-flags';
 export * from './rule-blueprints';
 export * from './statistics-keys';

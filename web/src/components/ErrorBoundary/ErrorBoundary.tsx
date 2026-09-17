@@ -2,6 +2,7 @@ import { Component, ErrorInfo } from "react";
 import { Button } from "../ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
 import { IErrorBoundary } from "./IErrorBoundary";
+import { GetHelpButton } from "./GetHelpButton";
 
 interface IErrorBoundaryState {
   hasError: boolean;
@@ -73,7 +74,8 @@ export class ErrorBoundary extends Component<IErrorBoundary, IErrorBoundaryState
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                An unexpected error occurred. Please try refreshing the page or contact support if the problem persists.
+                An unexpected error occurred. Try refreshing the page. If it
+                still fails, use Get help.
               </p>
 
               {/* Error Details (Development Only) */}
@@ -126,6 +128,7 @@ export class ErrorBoundary extends Component<IErrorBoundary, IErrorBoundaryState
                 >
                   Go Home
                 </Button>
+                <GetHelpButton />
               </div>
             </CardContent>
           </Card>
