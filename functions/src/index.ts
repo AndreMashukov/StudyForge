@@ -92,3 +92,5 @@ export {
 export { processMonthlyOverageInvoicesSchedule } from './tasks/process-monthly-overage-invoices';
 
 export { indexPlatformAgentKnowledgeDocument } from './triggers/platform-agent-knowledge-index';
+
+export { supportCommandCdc, supportLeanProject } from './triggers/support-cdc';

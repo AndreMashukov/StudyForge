@@ -6,6 +6,7 @@ const workspaceRoot = resolve(import.meta.dirname, '..');
 const externalPackages = [
   'firebase-admin',
   'firebase-functions',
+  'google-auth-library',
   '@google/genai',
   '@google/adk',
   'cheerio',
