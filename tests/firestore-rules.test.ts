@@ -422,4 +422,50 @@ describe('firestore.rules client write hardening', () => {
       );
     });
   });
+
+  describe('support commands and lean tickets', () => {
+    it('allows owner create of supportCommands', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), 'supportCommands/cmd-1'), {
+          type: 'AskHowItWorks',
+          userId: OWNER_UID,
+          write_id: 'w1',
+          payload: { query: 'How do credits work?' },
+        }),
+      );
+    });
+
+    it('denies create with another userId', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertFails(
+        setDoc(doc(owner.firestore(), 'supportCommands/cmd-2'), {
+          type: 'AskHowItWorks',
+          userId: OTHER_UID,
+          write_id: 'w1',
+        }),
+      );
+    });
+
+    it('denies client write of lean tickets', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertFails(
+        setDoc(doc(owner.firestore(), 'supportTickets/t1'), {
+          userId: OWNER_UID,
+          status: 'open',
+        }),
+      );
+    });
+
+    it('allows owner read of lean ticket', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'supportTickets/t1'), {
+          userId: OWNER_UID,
+          status: 'open',
+        });
+      });
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertSucceeds(getDoc(doc(owner.firestore(), 'supportTickets/t1')));
+    });
+  });
 });

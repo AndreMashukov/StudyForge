@@ -1,12 +1,10 @@
-import { getSupportAppUrl } from '../config/supportApp';
 import { useFeatureFlags } from './useFeatureFlags';
 
-/** Support URL only when the feature flag is on and the env URL is set. */
+/** In-app Support route when the admin feature flag is on. */
 export function useSupportAppEntryUrl(): string | undefined {
-  const supportAppUrl = getSupportAppUrl();
   const { supportEnabled } = useFeatureFlags();
-  if (!supportAppUrl || !supportEnabled) {
+  if (!supportEnabled) {
     return undefined;
   }
-  return supportAppUrl;
+  return '/support';
 }

@@ -313,5 +313,48 @@ service cloud.firestore {
       allow read: if isAuthenticated() && docId == 'featureFlags';
       allow write: if false;
     }
+
+    function isMissingOrOwned() {
+      return resource == null || resource.data.userId == request.auth.uid;
+    }
+
+    match /supportCommands/{commandId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['type', 'userId', 'write_id']);
+      allow get: if isAuthenticated() && isMissingOrOwned();
+      allow list, update, delete: if false;
+    }
+
+    match /supportAskResults/{commandId} {
+      allow get: if isAuthenticated() && isMissingOrOwned();
+      allow list: if isAuthenticated()
+        && isBoundedList(20)
+        && resource.data.userId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /supportTickets/{ticketId} {
+      allow get: if isAuthenticated() && isMissingOrOwned();
+      allow list: if isAuthenticated()
+        && isBoundedList(50)
+        && resource.data.userId == request.auth.uid;
+      allow create, update, delete: if false;
+
+      match /messages/{messageId} {
+        allow get, list: if isAuthenticated()
+          && get(/databases/$(database)/documents/supportTickets/$(ticketId)).data.userId
+            == request.auth.uid;
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /supportAskSot/{docId} {
+      allow read, write: if false;
+    }
+
+    match /supportTicketSot/{docId} {
+      allow read, write: if false;
+    }
   }
 }

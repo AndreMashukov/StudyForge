@@ -28,6 +28,8 @@ import { MatchQuizPage } from '../pages/MatchQuizPage';
 import { StatisticsPage } from '../pages/StatisticsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { UsagePage } from '../pages/UsagePage';
+import { SupportPage } from '../pages/SupportPage/SupportPage';
+import { SupportTicketPage } from '../pages/SupportPage/SupportTicketPage';
 import { Page } from '../components/Page';
 import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
 import { QuizIndexRedirect } from '../utils/QuizIndexRedirect';
@@ -388,6 +390,27 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <UsagePage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+
+      <Route
+        path="/support"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <SupportPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/support/:ticketId"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <SupportTicketPage />
             </ProtectedRoute>
           </MainLayout>
         }

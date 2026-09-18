@@ -121,7 +121,7 @@ export const Sidebar = ({ className }: ISidebar) => {
     const helpItem: NavItem = {
       id: 'help',
       title: 'Help',
-      href: supportAppUrl,
+      path: supportAppUrl,
       icon: CircleHelp,
       section: 'account',
     };
