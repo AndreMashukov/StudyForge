@@ -162,8 +162,18 @@ export const supportLeanProject = onMessagePublished(
     const eventType = String(payload.event_type ?? '');
     if (eventType === 'ask.completed') {
       await projectAskCompleted(payload);
-      return;
     }
+  },
+);
+
+export const supportTicketLeanProject = onMessagePublished(
+  {
+    topic: SUPPORT_EVENTS_TOPIC,
+    region: 'asia-east1',
+  },
+  async (event) => {
+    const payload = (event.data.message.json ?? {}) as JsonMap;
+    const eventType = String(payload.event_type ?? '');
     if (eventType === 'ticket.created' || eventType === 'ticket.updated') {
       await projectTicketUpdated(payload);
     }
