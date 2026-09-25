@@ -24,7 +24,6 @@ import {
   createRuleFromBlueprint,
   searchRuleBlueprints,
 } from '@study-forge/backend-directories/rule-blueprints';
-import { getApplicableRules } from '@study-forge/backend-directories/rule-resolution';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
 import {
@@ -474,7 +473,7 @@ export function createAgentToolDefinitions(
     {
       name: 'create_document',
       description:
-        'Enqueue documentFromPrompt to generate a study document. Pass a generation prompt describing the document; do not write HTML or markdown yourself. Always-apply rules for the target directory are attached automatically.',
+        'Enqueue documentFromPrompt to generate a study document. Pass source text only in prompt (the material to transform or the topic). Do not paste rule bodies or write HTML or markdown yourself. Directory rules are injected by the generation pipeline.',
       parameters: {
         type: 'object',
         properties: {
@@ -505,11 +504,6 @@ export function createAgentToolDefinitions(
           documents: 1,
         });
         const title = pendingTitleFromPrompt(prompt, titleArg || undefined);
-        const { defaultRuleIds } = await getApplicableRules(
-          context.userId,
-          directoryId,
-          RuleApplicability.PROMPT,
-        );
         const usageReservation = await enforceCallableGenerationLimits(
           context.userId,
           'documentFromPrompt',
@@ -539,8 +533,7 @@ export function createAgentToolDefinitions(
               prompt,
               title,
               directoryId,
-              ruleIds: defaultRuleIds,
-              ruleResolutionMode: 'explicit-only',
+              ruleResolutionMode: 'inherit-plus-explicit',
             },
           });
           pushAction(context, {
@@ -557,7 +550,7 @@ export function createAgentToolDefinitions(
             title,
             jobId,
             generationStatus: 'pending',
-            appliedAlwaysApplyRuleIds: defaultRuleIds,
+            ruleResolutionMode: 'inherit-plus-explicit',
           };
         } catch (error) {
           if (pendingDocId) {

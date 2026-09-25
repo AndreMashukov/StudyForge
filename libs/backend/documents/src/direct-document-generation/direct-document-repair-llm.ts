@@ -32,7 +32,7 @@ Previous fragment:
 ${params.htmlFragment}
 
 Repair the fragment so it satisfies every validation rule and the sealed output contract:
-${buildSealedHtmlOutputContract()}`;
+${buildSealedHtmlOutputContract(params.rulesText || undefined)}`;
 
   const raw = await LlmGenerationService.generateText(
     params.userId,

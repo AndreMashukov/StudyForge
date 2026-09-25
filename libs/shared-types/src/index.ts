@@ -42,6 +42,7 @@ export {
 } from './language-code';
 
 export * from './document-contract';
+export * from './line-format-contract';
 export * from './agent';
 
 export type DocumentContentFormat = 'html' | 'markdown';

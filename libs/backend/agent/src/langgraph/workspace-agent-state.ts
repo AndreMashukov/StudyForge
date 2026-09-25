@@ -1,5 +1,10 @@
 import { Annotation } from '@langchain/langgraph';
 import {
+  mergeCappedHistory,
+  mergeCappedPastSteps,
+  mergeCappedToolOutcomes,
+} from '../checkpointer/checkpoint-state-trim';
+import {
   WORKSPACE_AGENT_STATE_KEYS,
   type WorkspaceAgentOutcome,
   type WorkspaceAgentPlannerIntent,
@@ -14,7 +19,7 @@ export const WorkspaceAgentStateAnnotation = Annotation.Root({
   [WORKSPACE_AGENT_STATE_KEYS.history]: Annotation<
     Array<{ role: 'user' | 'assistant'; content: string }>
   >({
-    reducer: (current, update) => current.concat(update),
+    reducer: (current, update) => mergeCappedHistory(current, update),
     default: () => [],
   }),
   [WORKSPACE_AGENT_STATE_KEYS.planSteps]: Annotation<string[]>({
@@ -24,12 +29,12 @@ export const WorkspaceAgentStateAnnotation = Annotation.Root({
   [WORKSPACE_AGENT_STATE_KEYS.pastSteps]: Annotation<
     AgentPlanExecutePastStep[]
   >({
-    reducer: (current, update) => current.concat(update),
+    reducer: (current, update) => mergeCappedPastSteps(current, update),
     default: () => [],
   }),
   [WORKSPACE_AGENT_STATE_KEYS.allToolOutcomes]: Annotation<AgentToolOutcome[]>(
     {
-      reducer: (current, update) => current.concat(update),
+      reducer: (current, update) => mergeCappedToolOutcomes(current, update),
       default: () => [],
     },
   ),

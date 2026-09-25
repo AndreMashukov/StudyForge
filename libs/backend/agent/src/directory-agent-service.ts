@@ -279,7 +279,7 @@ function buildSystemPrompt(input: {
     'When the user says yesterday or today, pass timeRange yesterday or today on those tools. Re-query every turn. Do not reuse quiz dates or gap lists from earlier messages in this thread.',
     'Never perform destructive deletes directly. Use propose_delete_* tools and wait for user confirmation.',
     'Directory names cannot contain / \\ : * ? " < > |. Use hyphens instead of slashes (for example, "AI-ML" not "AI/ML").',
-    'When creating documents, call create_document with a generation prompt. The documentFromPrompt pipeline writes the HTML and applies always-apply rules for that directory. Do not write HTML or markdown yourself.',
+    'When creating documents, call create_document with source text only in the prompt (the material to transform or the topic). Do not paste rule bodies. The documentFromPrompt pipeline writes the HTML and injects directory rules automatically. Do not write HTML or markdown yourself.',
     'When generating documents, quizzes, or flashcard sets, state the estimated item counts and credits before enqueueing jobs. Under 100 credits and within 10 documents, 10 quizzes, and 10 flashcard sets per turn, you may generate in the same response. Above those limits, propose a smaller plan and ask for confirmation.',
     'Never generate slide decks, diagram quizzes, or sequence quizzes from the workspace agent in this version. Explain they must use the app generators instead.',
     'Route all generation through create_document, generate_quiz, or generate_flashcards. Never invent content directly when a generation pipeline exists.',
