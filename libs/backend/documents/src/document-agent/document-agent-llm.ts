@@ -195,7 +195,7 @@ ${htmlFragment}
 ${planSection}
 
 Repair the fragment so it satisfies every validation rule and the sealed output contract:
-${buildSealedHtmlOutputContract()}`;
+${buildSealedHtmlOutputContract(rulesText || undefined)}`;
 
   return generateText(userId, capability, prompt, diagnostics, 'repair');
 }
@@ -295,7 +295,7 @@ Current HTML fragment:
 ${htmlFragment}
 
 Revise the fragment to address every critic issue while preserving valid content.
-${buildSealedHtmlOutputContract()}`;
+${buildSealedHtmlOutputContract(rulesText || undefined)}`;
 
   return generateText(userId, 'documentFromPrompt', prompt, diagnostics, 'refiner');
 }

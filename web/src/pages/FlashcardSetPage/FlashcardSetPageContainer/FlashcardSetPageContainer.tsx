@@ -233,13 +233,13 @@ export const FlashcardSetPageContainer = () => {
           <div className="flex items-center justify-between px-4 pt-3">
             <p className="text-xs text-muted-foreground tabular-nums">{positionLabel}</p>
           </div>
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 sm:px-8 text-center overflow-y-auto py-4">
+          <div className="flex flex-1 flex-col items-stretch justify-center gap-3 px-6 sm:px-8 text-left overflow-y-auto py-4">
             <FlashcardHtmlContent
               html={backHtml}
-              className="text-base sm:text-xl font-semibold leading-relaxed text-center"
+              className="w-full text-base sm:text-xl font-semibold leading-relaxed text-left"
             />
             {currentCard.explanation ? (
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
+              <p className="w-full text-sm text-muted-foreground leading-relaxed text-left">
                 {currentCard.explanation}
               </p>
             ) : null}

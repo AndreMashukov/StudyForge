@@ -17,10 +17,6 @@ vi.mock('@study-forge/backend-directories/rule-crud', () => ({
   updateRule: vi.fn(),
 }));
 
-vi.mock('@study-forge/backend-directories/rule-resolution', () => ({
-  getApplicableRules: vi.fn(),
-}));
-
 vi.mock('@study-forge/backend-documents/document-crud', () => ({
   DocumentCrudService: {
     getDocument: vi.fn(),
@@ -104,7 +100,6 @@ import {
   getRule,
   updateRule,
 } from '@study-forge/backend-directories/rule-crud';
-import { getApplicableRules } from '@study-forge/backend-directories/rule-resolution';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import { enqueueGenerationJob } from '@study-forge/backend-generation/generation-enqueue';
 import {
@@ -541,11 +536,7 @@ describe('createAgentToolDefinitions create_document', () => {
     vi.clearAllMocks();
   });
 
-  it('enqueues documentFromPrompt with always-apply prompt rules', async () => {
-    vi.mocked(getApplicableRules).mockResolvedValue({
-      rules: [],
-      defaultRuleIds: ['mermaid-rule', 'html-rule'],
-    });
+  it('enqueues documentFromPrompt with inherited directory rules', async () => {
     vi.mocked(enforceCallableGenerationLimits).mockResolvedValue(
       createTestUsageReservation({
         id: 'reservation-1',
@@ -567,11 +558,6 @@ describe('createAgentToolDefinitions create_document', () => {
       directoryId: 'dir-1',
     });
 
-    expect(getApplicableRules).toHaveBeenCalledWith(
-      'user-1',
-      'dir-1',
-      'prompt',
-    );
     expect(DocumentCrudService.createDocument).not.toHaveBeenCalled();
     expect(DocumentCrudService.createPendingDocument).toHaveBeenCalledWith(
       'user-1',
@@ -592,8 +578,7 @@ describe('createAgentToolDefinitions create_document', () => {
         prompt: 'Write a recap of quiz gaps with mermaid diagrams.',
         title: 'LangGraph Recap',
         directoryId: 'dir-1',
-        ruleIds: ['mermaid-rule', 'html-rule'],
-        ruleResolutionMode: 'explicit-only',
+        ruleResolutionMode: 'inherit-plus-explicit',
       },
     });
     expect(AgentKnowledgeLifecycle.indexDocument).not.toHaveBeenCalled();
@@ -603,7 +588,7 @@ describe('createAgentToolDefinitions create_document', () => {
       title: 'LangGraph Recap',
       jobId: 'job-1',
       generationStatus: 'pending',
-      appliedAlwaysApplyRuleIds: ['mermaid-rule', 'html-rule'],
+      ruleResolutionMode: 'inherit-plus-explicit',
     });
     expect(context.executedActions[0]?.summary).toBe(
       'Started document generation for "LangGraph Recap"',
@@ -611,10 +596,6 @@ describe('createAgentToolDefinitions create_document', () => {
   });
 
   it('accepts text as an alias for prompt', async () => {
-    vi.mocked(getApplicableRules).mockResolvedValue({
-      rules: [],
-      defaultRuleIds: [],
-    });
     vi.mocked(enforceCallableGenerationLimits).mockResolvedValue(
       createTestUsageReservation({
         id: 'reservation-1',

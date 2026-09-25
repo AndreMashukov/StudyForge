@@ -8,6 +8,7 @@ import {
   getFirestoreCheckpointer,
   buildAgentTurnKey,
   CheckpointOverflowUnavailableError,
+  CheckpointSerializationTooLargeError,
 } from '../checkpointer';
 import { WORKSPACE_AGENT_STATE_KEYS } from './workspace-agent-state-keys';
 import type { WorkspaceAgentState } from './workspace-agent-state';
@@ -126,7 +127,10 @@ export class WorkspaceAgentRunner {
             'Workspace agent graph exceeded recursion limit',
           );
         }
-        if (error instanceof CheckpointOverflowUnavailableError) {
+        if (
+          error instanceof CheckpointOverflowUnavailableError ||
+          error instanceof CheckpointSerializationTooLargeError
+        ) {
           throw new WorkspaceAgentPipelineFailedError(error.message);
         }
         throw error;

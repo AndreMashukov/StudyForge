@@ -1,6 +1,10 @@
 /**
  * Shared HTML output contract for document generation and validation.
  */
+import {
+  rulesTextRequiresLineFormatOutput,
+  SEALED_LINE_FORMAT_HTML_OUTPUT_CONTRACT_LINES,
+} from './line-format-contract';
 
 export const ALLOWED_HTML_TAGS = [
   'p',
@@ -76,8 +80,11 @@ export const SEALED_HTML_OUTPUT_CONTRACT_LINES = [
   '- Do NOT include Mermaid diagrams, Plotly graphs, or mathematical LaTeX unless a selected domain rule explicitly asks for them.',
 ] as const;
 
-export function buildSealedHtmlOutputContract(): string {
-  return `[SEALED OUTPUT CONTRACT — overrides all instructions above]\n${SEALED_HTML_OUTPUT_CONTRACT_LINES.join('\n')}`;
+export function buildSealedHtmlOutputContract(rules?: string): string {
+  const contractLines = rulesTextRequiresLineFormatOutput(rules)
+    ? SEALED_LINE_FORMAT_HTML_OUTPUT_CONTRACT_LINES
+    : SEALED_HTML_OUTPUT_CONTRACT_LINES;
+  return `[SEALED OUTPUT CONTRACT — overrides all instructions above]\n${contractLines.join('\n')}`;
 }
 
 export interface IHtmlScreenshotPromptInput {
@@ -126,7 +133,7 @@ ${userPrompt?.trim()}`
     defaultBehaviorSection,
     rulesSection,
     userSection,
-    buildSealedHtmlOutputContract(),
+    buildSealedHtmlOutputContract(rules),
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -159,6 +166,7 @@ export function buildFaithfulHtmlConversionPrompt(
 
 export function buildHtmlDocumentPrompt(userPrompt: string, rules?: string): string {
   const hasRules = !!rules?.trim();
+  const lineFormatOutput = rulesTextRequiresLineFormatOutput(rules);
   const rulesSection = hasRules
     ? `**DOMAIN RULES** (primary task and output structure — follow these over generic learning-document defaults):
 ---
@@ -166,14 +174,21 @@ ${rules}
 ---`
     : '';
 
-  const personaSection = hasRules
-    ? 'You are an expert content generator. Apply the Domain Rules to the user\'s request. Do not invent a comprehensive learning guide, glossary, or tutorial unless the Domain Rules ask for it.'
-    : 'You are an expert content generator. Generate comprehensive, well-structured content based on the user\'s request.';
+  const personaSection = lineFormatOutput
+    ? 'You are an expert content generator. Apply the Domain Rules to transform the source text. Output exactly one <pre> block with one transformed line per source word. Do not add titles, commentary, or other sections.'
+    : hasRules
+      ? 'You are an expert content generator. Apply the Domain Rules to the user\'s request. Do not invent a comprehensive learning guide, glossary, or tutorial unless the Domain Rules ask for it.'
+      : 'You are an expert content generator. Generate comprehensive, well-structured content based on the user\'s request.';
 
   const userSection = `**User's Request:**
 ${userPrompt}`;
 
-  return [personaSection, rulesSection, userSection, buildSealedHtmlOutputContract()]
+  return [
+    personaSection,
+    rulesSection,
+    userSection,
+    buildSealedHtmlOutputContract(rules),
+  ]
     .filter(Boolean)
     .join('\n\n');
 }

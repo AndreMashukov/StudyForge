@@ -6,6 +6,7 @@ import {
 } from './types';
 import { validateHtmlStructure } from './html-validator';
 import { validateMathDelimiters } from './math-validator';
+import { validateLineFormatOutput } from './line-format-validator';
 import { validateMermaidBlocks } from './mermaid-validator';
 import { normalizeGeneratedHtmlFragment } from './normalize-html';
 import { validatePlotlyBlocks } from './plotly-validator';
@@ -34,6 +35,7 @@ export async function validateDocumentHtml(
     ...(options.skipMathGate
       ? []
       : validateMathDelimiters(normalized, options.rules ?? [])),
+    ...validateLineFormatOutput(normalized, options.rules ?? []),
     ...(await validateHtmlStructure(normalized)),
   ];
 
