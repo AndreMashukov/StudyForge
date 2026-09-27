@@ -339,7 +339,14 @@ service cloud.firestore {
       allow list: if isAuthenticated()
         && isBoundedList(50)
         && resource.data.userId == request.auth.uid;
-      allow create, update, delete: if false;
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['userId', 'status', 'title', 'category'])
+        && get(/databases/$(database)/documents/supportCommands/$(ticketId)).data.userId
+          == request.auth.uid
+        && get(/databases/$(database)/documents/supportCommands/$(ticketId)).data.type
+          == 'CreateTicket';
+      allow update, delete: if false;
 
       match /messages/{messageId} {
         allow get, list: if isAuthenticated()

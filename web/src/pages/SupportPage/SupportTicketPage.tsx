@@ -22,26 +22,42 @@ import {
 function mergeThreadMessages(
   messages: SupportThreadMessage[],
   pendingBody: string | null,
+  ticket: SupportTicket | null,
 ): SupportThreadMessage[] {
-  if (!pendingBody) {
-    return messages;
+  let merged = messages;
+  if (pendingBody) {
+    const trimmed = pendingBody.trim();
+    const hasReal = messages.some(
+      (message) =>
+        message.authorType === 'user' && message.body.trim() === trimmed,
+    );
+    if (!hasReal) {
+      merged = [
+        ...messages,
+        {
+          id: '__pending__',
+          authorType: 'user',
+          body: trimmed,
+          createdAt: null,
+          pending: true,
+        },
+      ];
+    }
   }
-  const trimmed = pendingBody.trim();
-  const hasReal = messages.some(
-    (message) =>
-      message.authorType === 'user' && message.body.trim() === trimmed,
-  );
-  if (hasReal) {
-    return messages;
+  if (merged.length > 0 || !ticket) {
+    return merged;
+  }
+  const preview =
+    ticket.lastMessagePreview?.trim() || ticket.title.trim() || '';
+  if (!preview) {
+    return merged;
   }
   return [
-    ...messages,
     {
-      id: '__pending__',
+      id: '__initial__',
       authorType: 'user',
-      body: trimmed,
-      createdAt: null,
-      pending: true,
+      body: preview,
+      createdAt: ticket.createdAt,
     },
   ];
 }
@@ -86,8 +102,8 @@ export const SupportTicketPage: React.FC = () => {
   }, [messages, pendingBody]);
 
   const threadMessages = useMemo(
-    () => mergeThreadMessages(messages, pendingBody),
-    [messages, pendingBody],
+    () => mergeThreadMessages(messages, pendingBody, ticket),
+    [messages, pendingBody, ticket],
   );
 
   const isOpen = ticket?.status === 'open';

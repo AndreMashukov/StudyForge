@@ -48,6 +48,58 @@ function writeId(): string {
   return `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
+const TICKET_TITLE_MAX = 300;
+const TICKET_PREVIEW_MAX = 120;
+
+function ticketTitleFromQuery(query: string): string {
+  const trimmed = query.trim();
+  return trimmed.slice(0, TICKET_TITLE_MAX) || 'Support ticket';
+}
+
+function ticketPreviewFromQuery(query: string): string | null {
+  const trimmed = query.trim();
+  return trimmed ? trimmed.slice(0, TICKET_PREVIEW_MAX) : null;
+}
+
+export async function submitCreateTicket(input: {
+  userId: string;
+  userEmail: string;
+  payload: Record<string, unknown>;
+}): Promise<string> {
+  const commandId = crypto.randomUUID();
+  const write_id = writeId();
+  const now = new Date().toISOString();
+  const queryText = String(input.payload.query ?? '').trim();
+  const category = String(input.payload.category ?? 'bug');
+  const urlRaw = input.payload.url;
+  const url =
+    urlRaw != null && String(urlRaw).trim() ? String(urlRaw).trim() : null;
+
+  await setDoc(doc(db, 'supportCommands', commandId), {
+    type: 'CreateTicket',
+    userId: input.userId,
+    userEmail: input.userEmail,
+    write_id,
+    payload: input.payload,
+    createdAt: now,
+  });
+
+  await setDoc(doc(db, 'supportTickets', commandId), {
+    userId: input.userId,
+    userEmail: input.userEmail,
+    category,
+    status: 'open',
+    title: ticketTitleFromQuery(queryText),
+    ...(url ? { url } : {}),
+    createdAt: now,
+    updatedAt: now,
+    lastMessagePreview: ticketPreviewFromQuery(queryText),
+    write_id,
+  });
+
+  return commandId;
+}
+
 export async function submitSupportCommand(input: {
   type: 'AskHowItWorks' | 'CreateTicket' | 'AppendMessage';
   userId: string;

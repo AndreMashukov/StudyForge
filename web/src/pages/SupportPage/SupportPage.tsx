@@ -22,6 +22,7 @@ import {
 import {
   listenAskResult,
   listenMyTickets,
+  submitCreateTicket,
   submitSupportCommand,
   type SupportAskResult,
   type SupportCategory,
@@ -75,8 +76,7 @@ export const SupportPage: React.FC = () => {
         setAskId(commandId);
         setAskResult(null);
       } else {
-        await submitSupportCommand({
-          type: 'CreateTicket',
+        await submitCreateTicket({
           userId: user.uid,
           userEmail: user.email,
           payload: {
@@ -102,8 +102,7 @@ export const SupportPage: React.FC = () => {
     }
     setPending(true);
     try {
-      await submitSupportCommand({
-        type: 'CreateTicket',
+      await submitCreateTicket({
         userId: user.uid,
         userEmail: user.email,
         payload: {
@@ -112,6 +111,9 @@ export const SupportPage: React.FC = () => {
           askCommandId: askId,
         },
       });
+      setAskId(null);
+      setAskResult(null);
+      setQueryText('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create ticket');
     } finally {

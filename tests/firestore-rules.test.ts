@@ -447,12 +447,80 @@ describe('firestore.rules client write hardening', () => {
       );
     });
 
-    it('denies client write of lean tickets', async () => {
+    it('denies lean ticket create without matching CreateTicket command', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
       await assertFails(
         setDoc(doc(owner.firestore(), 'supportTickets/t1'), {
           userId: OWNER_UID,
           status: 'open',
+          title: 'Help',
+          category: 'bug',
+        }),
+      );
+    });
+
+    it('allows lean ticket create when CreateTicket command exists with same id', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), 'supportCommands/ticket-create-1'), {
+          type: 'CreateTicket',
+          userId: OWNER_UID,
+          write_id: 'w-create-1',
+          payload: { category: 'bug', query: 'Something broke' },
+        }),
+      );
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), 'supportTickets/ticket-create-1'), {
+          userId: OWNER_UID,
+          userEmail: 'owner@example.com',
+          status: 'open',
+          title: 'Something broke',
+          category: 'bug',
+          createdAt: '2026-09-27T00:00:00.000Z',
+          updatedAt: '2026-09-27T00:00:00.000Z',
+          lastMessagePreview: 'Something broke',
+          write_id: 'w-create-1',
+        }),
+      );
+    });
+
+    it('denies lean ticket create when command is not CreateTicket', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), 'supportCommands/cmd-ask-only'), {
+          type: 'AskHowItWorks',
+          userId: OWNER_UID,
+          write_id: 'w-ask',
+          payload: { query: 'How?' },
+        }),
+      );
+      await assertFails(
+        setDoc(doc(owner.firestore(), 'supportTickets/cmd-ask-only'), {
+          userId: OWNER_UID,
+          status: 'open',
+          title: 'How?',
+          category: 'how_it_works',
+        }),
+      );
+    });
+
+    it('denies lean ticket create for another users CreateTicket command', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), 'supportCommands/shared-cmd'), {
+          type: 'CreateTicket',
+          userId: OWNER_UID,
+          write_id: 'w-shared',
+          payload: { category: 'billing', query: 'Charge' },
+        }),
+      );
+      const other = testEnv.authenticatedContext(OTHER_UID);
+      await assertFails(
+        setDoc(doc(other.firestore(), 'supportTickets/shared-cmd'), {
+          userId: OTHER_UID,
+          status: 'open',
+          title: 'Charge',
+          category: 'billing',
         }),
       );
     });
