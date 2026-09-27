@@ -2,6 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Page } from '../../components/Page';
 import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Label } from '../../components/ui/Label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/Select';
+import { Textarea } from '../../components/ui/Textarea';
 import { useAuth } from '../../contexts/AuthContext';
 import { Badge } from '../../components/ui/Badge/Badge';
 import {
@@ -121,41 +131,45 @@ export const SupportPage: React.FC = () => {
         </div>
 
         <form className="space-y-4" onSubmit={onSubmit}>
-          <label className="block text-sm font-medium">
-            Category
-            <select
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+          <div className="space-y-2">
+            <Label htmlFor="support-category">Category</Label>
+            <Select
               value={category}
-              onChange={(change) =>
-                setCategory(change.target.value as SupportCategory)
-              }
-              data-testid="support-category"
+              onValueChange={(value) => setCategory(value as SupportCategory)}
             >
-              <option value="how_it_works">How it works</option>
-              <option value="bug">Bug</option>
-              <option value="billing">Billing</option>
-            </select>
-          </label>
-          <label className="block text-sm font-medium">
-            Question or report
-            <textarea
-              className="mt-1 min-h-28 w-full rounded-md border border-border bg-background px-3 py-2"
-              value={queryText}
-              onChange={(change) => setQueryText(change.target.value)}
-              required
-              data-testid="support-query"
-            />
-          </label>
+              <SelectTrigger
+                id="support-category"
+                aria-label="Category"
+                data-testid="support-category"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="how_it_works">How it works</SelectItem>
+                <SelectItem value="bug">Bug</SelectItem>
+                <SelectItem value="billing">Billing</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Textarea
+            id="support-query"
+            label="Question or report"
+            value={queryText}
+            onChange={(change) => setQueryText(change.target.value)}
+            required
+            className="min-h-28"
+            data-testid="support-query"
+          />
           {category !== 'how_it_works' ? (
-            <label className="block text-sm font-medium">
-              Page URL (optional)
-              <input
-                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+            <div className="space-y-2">
+              <Label htmlFor="support-url">Page URL (optional)</Label>
+              <Input
+                id="support-url"
                 value={url}
                 onChange={(change) => setUrl(change.target.value)}
                 data-testid="support-url"
               />
-            </label>
+            </div>
           ) : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <Button type="submit" disabled={pending} data-testid="support-submit">

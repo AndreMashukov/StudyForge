@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Page } from '../../components/Page';
 import { Badge } from '../../components/ui/Badge/Badge';
 import { Button } from '../../components/ui/Button';
+import { Textarea } from '../../components/ui/Textarea';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   formatMessageAuthor,
@@ -192,16 +193,15 @@ export const SupportTicketPage: React.FC = () => {
 
         {isOpen ? (
           <form className="space-y-3" onSubmit={onSend}>
-            <label className="block text-sm font-medium">
-              Reply
-              <textarea
-                className="mt-1 min-h-24 w-full rounded-md border border-border bg-background px-3 py-2"
-                value={body}
-                onChange={(change) => setBody(change.target.value)}
-                placeholder="Write a message to support"
-                data-testid="support-reply"
-              />
-            </label>
+            <Textarea
+              id="support-reply"
+              label="Reply"
+              value={body}
+              onChange={(change) => setBody(change.target.value)}
+              placeholder="Write a message to support"
+              className="min-h-24"
+              data-testid="support-reply"
+            />
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <Button type="submit" disabled={pending || !body.trim()}>
               Send
