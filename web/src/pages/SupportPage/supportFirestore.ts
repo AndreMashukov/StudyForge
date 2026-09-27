@@ -121,43 +121,17 @@ export function listenMyTickets(
   userId: string,
   onNext: (tickets: SupportTicket[]) => void,
 ): Unsubscribe {
-  const primaryQuery = query(
-    collection(db, 'supportTickets'),
-    where('userId', '==', userId),
-    orderBy('updatedAt', 'desc'),
-    limit(50),
-  );
-  const fallbackQuery = query(
+  const ticketsQuery = query(
     collection(db, 'supportTickets'),
     where('userId', '==', userId),
     limit(50),
   );
-
-  let activeUnsub: Unsubscribe | null = null;
-
-  activeUnsub = onSnapshot(
-    primaryQuery,
-    (snap) => {
-      onNext(
-        snap.docs.map((item) =>
-          mapSupportTicketDoc(item.id, item.data() as Record<string, unknown>),
-        ),
-      );
-    },
-    () => {
-      activeUnsub?.();
-      activeUnsub = onSnapshot(fallbackQuery, (snap) => {
-        const tickets = snap.docs.map((item) =>
-          mapSupportTicketDoc(item.id, item.data() as Record<string, unknown>),
-        );
-        onNext(sortTicketsByActivity(tickets));
-      });
-    },
-  );
-
-  return () => {
-    activeUnsub?.();
-  };
+  return onSnapshot(ticketsQuery, (snap) => {
+    const tickets = snap.docs.map((item) =>
+      mapSupportTicketDoc(item.id, item.data() as Record<string, unknown>),
+    );
+    onNext(sortTicketsByActivity(tickets));
+  });
 }
 
 export function listenSupportTicket(
