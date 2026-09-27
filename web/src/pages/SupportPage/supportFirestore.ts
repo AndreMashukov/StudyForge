@@ -133,32 +133,31 @@ export function listenMyTickets(
     limit(50),
   );
 
-  let activeUnsub: Unsubscribe = () => {};
+  let activeUnsub: Unsubscribe | null = null;
 
-  const subscribePrimary = () => {
-    activeUnsub = onSnapshot(
-      primaryQuery,
-      (snap) => {
-        onNext(
-          snap.docs.map((item) =>
-            mapSupportTicketDoc(item.id, item.data() as Record<string, unknown>),
-          ),
+  activeUnsub = onSnapshot(
+    primaryQuery,
+    (snap) => {
+      onNext(
+        snap.docs.map((item) =>
+          mapSupportTicketDoc(item.id, item.data() as Record<string, unknown>),
+        ),
+      );
+    },
+    () => {
+      activeUnsub?.();
+      activeUnsub = onSnapshot(fallbackQuery, (snap) => {
+        const tickets = snap.docs.map((item) =>
+          mapSupportTicketDoc(item.id, item.data() as Record<string, unknown>),
         );
-      },
-      () => {
-        activeUnsub();
-        activeUnsub = onSnapshot(fallbackQuery, (snap) => {
-          const tickets = snap.docs.map((item) =>
-            mapSupportTicketDoc(item.id, item.data() as Record<string, unknown>),
-          );
-          onNext(sortTicketsByActivity(tickets));
-        });
-      },
-    );
-  };
+        onNext(sortTicketsByActivity(tickets));
+      });
+    },
+  );
 
-  subscribePrimary();
-  return () => activeUnsub();
+  return () => {
+    activeUnsub?.();
+  };
 }
 
 export function listenSupportTicket(
