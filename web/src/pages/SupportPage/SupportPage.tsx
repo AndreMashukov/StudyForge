@@ -3,6 +3,12 @@ import { Link } from 'react-router-dom';
 import { Page } from '../../components/Page';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
+import { Badge } from '../../components/ui/Badge/Badge';
+import {
+  formatSupportCategory,
+  formatSupportWhen,
+  ticketSortTimestamp,
+} from './supportFormat';
 import {
   listenAskResult,
   listenMyTickets,
@@ -200,19 +206,52 @@ export const SupportPage: React.FC = () => {
           </section>
         ) : null}
 
-        <section>
+        <section className="space-y-3">
           <h2 className="font-heading text-lg font-semibold">My tickets</h2>
+          <p className="text-sm text-muted-foreground">
+            Sorted by latest activity. Open a ticket to see the full thread.
+          </p>
           {tickets.length === 0 ? (
-            <p className="mt-2 text-muted-foreground">No tickets yet.</p>
+            <p className="text-muted-foreground">No tickets yet.</p>
           ) : (
-            <ul className="mt-2 space-y-2" data-testid="support-ticket-list">
-              {tickets.map((ticket) => (
-                <li key={ticket.id}>
-                  <Link className="underline" to={`/support/${ticket.id}`}>
-                    {ticket.title} ({ticket.status})
-                  </Link>
-                </li>
-              ))}
+            <ul className="space-y-3" data-testid="support-ticket-list">
+              {tickets.map((ticket) => {
+                const activityAt = ticketSortTimestamp(
+                  ticket.updatedAt,
+                  ticket.createdAt,
+                );
+                const preview =
+                  ticket.lastMessagePreview?.trim() || 'No messages yet';
+                const isOpen = ticket.status === 'open';
+                return (
+                  <li key={ticket.id}>
+                    <Link
+                      className="block rounded-lg border border-border p-4 transition-colors hover:bg-muted/40"
+                      to={`/support/${ticket.id}`}
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={isOpen ? 'default' : 'secondary'}>
+                          {ticket.status}
+                        </Badge>
+                        <Badge variant="outline">
+                          {formatSupportCategory(ticket.category)}
+                        </Badge>
+                        {activityAt ? (
+                          <span className="text-xs text-muted-foreground">
+                            {formatSupportWhen(activityAt)}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-2 font-medium text-foreground">
+                        {ticket.title}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                        {preview}
+                      </p>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

@@ -267,6 +267,14 @@
         { "fieldPath": "checkpointNamespace", "order": "ASCENDING" },
         { "fieldPath": "checkpointId", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "supportTickets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

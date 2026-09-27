@@ -1,42 +1,118 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Page } from '../../components/Page';
+import { Badge } from '../../components/ui/Badge/Badge';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import {
+  formatMessageAuthor,
+  formatSupportCategory,
+  formatSupportWhen,
+  ticketSortTimestamp,
+} from './supportFormat';
+import {
+  listenSupportTicket,
   listenTicketMessages,
   submitSupportCommand,
-  type SupportMessage,
+  type SupportThreadMessage,
+  type SupportTicket,
 } from './supportFirestore';
+
+function mergeThreadMessages(
+  messages: SupportThreadMessage[],
+  pendingBody: string | null,
+): SupportThreadMessage[] {
+  if (!pendingBody) {
+    return messages;
+  }
+  const trimmed = pendingBody.trim();
+  const hasReal = messages.some(
+    (message) =>
+      message.authorType === 'user' && message.body.trim() === trimmed,
+  );
+  if (hasReal) {
+    return messages;
+  }
+  return [
+    ...messages,
+    {
+      id: '__pending__',
+      authorType: 'user',
+      body: trimmed,
+      createdAt: null,
+      pending: true,
+    },
+  ];
+}
 
 export const SupportTicketPage: React.FC = () => {
   const { ticketId } = useParams<{ ticketId: string }>();
   const { user } = useAuth();
-  const [messages, setMessages] = useState<SupportMessage[]>([]);
+  const [ticket, setTicket] = useState<SupportTicket | null>(null);
+  const [messages, setMessages] = useState<SupportThreadMessage[]>([]);
   const [body, setBody] = useState('');
   const [pending, setPending] = useState(false);
+  const [pendingBody, setPendingBody] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ticketId) {
       return;
     }
-    return listenTicketMessages(ticketId, setMessages);
+    return listenSupportTicket(ticketId, setTicket);
   }, [ticketId]);
+
+  useEffect(() => {
+    if (!ticketId || !ticket) {
+      setMessages([]);
+      return;
+    }
+    return listenTicketMessages(ticketId, setMessages);
+  }, [ticketId, ticket]);
+
+  useEffect(() => {
+    if (!pendingBody) {
+      return;
+    }
+    const matched = messages.some(
+      (message) =>
+        message.authorType === 'user' &&
+        message.body.trim() === pendingBody.trim(),
+    );
+    if (matched) {
+      setPendingBody(null);
+    }
+  }, [messages, pendingBody]);
+
+  const threadMessages = useMemo(
+    () => mergeThreadMessages(messages, pendingBody),
+    [messages, pendingBody],
+  );
+
+  const isOpen = ticket?.status === 'open';
+  const activityAt = ticket
+    ? ticketSortTimestamp(ticket.updatedAt, ticket.createdAt)
+    : '';
 
   const onSend = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!user?.uid || !user.email || !ticketId || !body.trim()) {
+    if (!user?.uid || !user.email || !ticketId || !body.trim() || !isOpen) {
       return;
     }
+    const trimmed = body.trim();
     setPending(true);
+    setError(null);
     try {
       await submitSupportCommand({
         type: 'AppendMessage',
         userId: user.uid,
         userEmail: user.email,
-        payload: { ticketId, body: body.trim() },
+        payload: { ticketId, body: trimmed },
       });
+      setPendingBody(trimmed);
       setBody('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send message');
     } finally {
       setPending(false);
     }
@@ -44,37 +120,94 @@ export const SupportTicketPage: React.FC = () => {
 
   return (
     <Page showSidebar={true}>
-      <div className="mx-auto max-w-3xl space-y-6 px-4 pt-6">
+      <div className="mx-auto max-w-3xl space-y-6 px-4 pt-6 pb-10">
         <p>
-          <Link className="underline" to="/support">
+          <Link className="text-sm underline" to="/support">
             Back to Support
           </Link>
         </p>
-        <h1 className="font-heading text-2xl font-bold">Ticket</h1>
+
+        {ticket ? (
+          <header className="space-y-2 border-b border-border pb-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={isOpen ? 'default' : 'secondary'}>
+                {ticket.status}
+              </Badge>
+              <Badge variant="outline">
+                {formatSupportCategory(ticket.category)}
+              </Badge>
+              {activityAt ? (
+                <span className="text-sm text-muted-foreground">
+                  Updated {formatSupportWhen(activityAt)}
+                </span>
+              ) : null}
+            </div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">
+              {ticket.title}
+            </h1>
+          </header>
+        ) : (
+          <h1 className="font-heading text-2xl font-bold">Ticket</h1>
+        )}
+
         <ol className="space-y-3" data-testid="support-thread">
-          {messages.map((message) => (
-            <li
-              key={message.id}
-              className="rounded-md border border-border p-3"
-            >
-              <p className="text-xs uppercase text-muted-foreground">
-                {message.authorType}
-              </p>
-              <p className="mt-1">{message.body}</p>
-            </li>
-          ))}
+          {threadMessages.length === 0 ? (
+            <li className="text-sm text-muted-foreground">No messages yet.</li>
+          ) : (
+            threadMessages.map((message) => (
+              <li
+                key={message.id}
+                className={`rounded-lg border border-border p-4 ${
+                  message.pending ? 'opacity-70' : ''
+                }`}
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {formatMessageAuthor(message.authorType)}
+                    {message.pending ? ' · Sending…' : ''}
+                  </p>
+                  {message.createdAt && !message.pending ? (
+                    <time
+                      className="text-xs text-muted-foreground"
+                      dateTime={message.createdAt}
+                    >
+                      {formatSupportWhen(message.createdAt)}
+                    </time>
+                  ) : null}
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-foreground">
+                  {message.body}
+                </p>
+              </li>
+            ))
+          )}
         </ol>
-        <form className="space-y-3" onSubmit={onSend}>
-          <textarea
-            className="min-h-20 w-full rounded-md border border-border bg-background px-3 py-2"
-            value={body}
-            onChange={(change) => setBody(change.target.value)}
-            data-testid="support-reply"
-          />
-          <Button type="submit" disabled={pending}>
-            Send
-          </Button>
-        </form>
+
+        {ticket && !isOpen ? (
+          <p className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+            This ticket is closed. You can read the history here, but new
+            messages are not accepted.
+          </p>
+        ) : null}
+
+        {isOpen ? (
+          <form className="space-y-3" onSubmit={onSend}>
+            <label className="block text-sm font-medium">
+              Reply
+              <textarea
+                className="mt-1 min-h-24 w-full rounded-md border border-border bg-background px-3 py-2"
+                value={body}
+                onChange={(change) => setBody(change.target.value)}
+                placeholder="Write a message to support"
+                data-testid="support-reply"
+              />
+            </label>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <Button type="submit" disabled={pending || !body.trim()}>
+              Send
+            </Button>
+          </form>
+        ) : null}
       </div>
     </Page>
   );

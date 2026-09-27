@@ -113,12 +113,42 @@ async function projectAskCompleted(payload: JsonMap): Promise<void> {
   });
 }
 
+const TICKET_PREVIEW_MAX = 120;
+
+function ticketActivityFromPayload(payload: JsonMap): {
+  updatedAt: string | null;
+  lastMessagePreview: string | null;
+} {
+  const messages = Array.isArray(payload.messages) ? payload.messages : [];
+  let latestCreated: string | null = null;
+  let latestBody = '';
+  for (const raw of messages) {
+    const message = asObject(raw);
+    const createdAt = String(message.created_at ?? '');
+    if (!createdAt) {
+      continue;
+    }
+    if (!latestCreated || createdAt > latestCreated) {
+      latestCreated = createdAt;
+      latestBody = String(message.body ?? '');
+    }
+  }
+  const fallbackCreated = payload.created_at ? String(payload.created_at) : null;
+  const updatedAt = latestCreated ?? fallbackCreated;
+  const trimmed = latestBody.trim();
+  const lastMessagePreview = trimmed
+    ? trimmed.slice(0, TICKET_PREVIEW_MAX)
+    : null;
+  return { updatedAt, lastMessagePreview };
+}
+
 async function projectTicketUpdated(payload: JsonMap): Promise<void> {
   const ticketId = String(payload.ticket_id ?? '');
   const writeId = String(payload.write_id ?? '');
   if (!ticketId) {
     return;
   }
+  const activity = ticketActivityFromPayload(payload);
   const ref = getFirestore().collection('supportTickets').doc(ticketId);
   const snap = await ref.get();
   if (leanWriteIdChanged(snap.data(), writeId)) {
@@ -132,8 +162,18 @@ async function projectTicketUpdated(payload: JsonMap): Promise<void> {
       createdAt: payload.created_at ?? null,
       closedAt: payload.closed_at ?? null,
       closedBy: payload.closed_by ?? null,
+      updatedAt: activity.updatedAt,
+      lastMessagePreview: activity.lastMessagePreview,
       write_id: writeId,
     });
+  } else {
+    await ref.set(
+      {
+        updatedAt: activity.updatedAt,
+        lastMessagePreview: activity.lastMessagePreview,
+      },
+      { merge: true },
+    );
   }
   const messages = Array.isArray(payload.messages) ? payload.messages : [];
   for (const raw of messages) {

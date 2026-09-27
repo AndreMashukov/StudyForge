@@ -10,6 +10,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { ticketSortTimestamp } from './supportFormat';
 
 export type SupportCategory = 'how_it_works' | 'bug' | 'billing';
 
@@ -27,13 +28,21 @@ export interface SupportTicket {
   title: string;
   category: string;
   status: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  lastMessagePreview: string | null;
 }
 
 export interface SupportMessage {
   id: string;
   authorType: string;
   body: string;
+  createdAt: string | null;
 }
+
+export type SupportThreadMessage = SupportMessage & {
+  pending?: boolean;
+};
 
 function writeId(): string {
   return `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
@@ -85,24 +94,92 @@ export function listenAskResult(
   );
 }
 
+function mapSupportTicketDoc(
+  id: string,
+  data: Record<string, unknown>,
+): SupportTicket {
+  return {
+    id,
+    title: String(data.title ?? 'Ticket'),
+    category: String(data.category ?? ''),
+    status: String(data.status ?? 'open'),
+    createdAt: (data.createdAt as string | null) ?? null,
+    updatedAt: (data.updatedAt as string | null) ?? null,
+    lastMessagePreview: (data.lastMessagePreview as string | null) ?? null,
+  };
+}
+
+function sortTicketsByActivity(tickets: SupportTicket[]): SupportTicket[] {
+  return [...tickets].sort((left, right) =>
+    ticketSortTimestamp(right.updatedAt, right.createdAt).localeCompare(
+      ticketSortTimestamp(left.updatedAt, left.createdAt),
+    ),
+  );
+}
+
 export function listenMyTickets(
   userId: string,
   onNext: (tickets: SupportTicket[]) => void,
 ): Unsubscribe {
-  const ticketsQuery = query(
+  const primaryQuery = query(
+    collection(db, 'supportTickets'),
+    where('userId', '==', userId),
+    orderBy('updatedAt', 'desc'),
+    limit(50),
+  );
+  const fallbackQuery = query(
     collection(db, 'supportTickets'),
     where('userId', '==', userId),
     limit(50),
   );
-  return onSnapshot(ticketsQuery, (snap) => {
-    onNext(
-      snap.docs.map((item) => ({
-        id: item.id,
-        title: String(item.data().title ?? 'Ticket'),
-        category: String(item.data().category ?? ''),
-        status: String(item.data().status ?? 'open'),
-      })),
+
+  let activeUnsub: Unsubscribe = () => {};
+
+  const subscribePrimary = () => {
+    activeUnsub = onSnapshot(
+      primaryQuery,
+      (snap) => {
+        onNext(
+          snap.docs.map((item) =>
+            mapSupportTicketDoc(item.id, item.data() as Record<string, unknown>),
+          ),
+        );
+      },
+      () => {
+        activeUnsub();
+        activeUnsub = onSnapshot(fallbackQuery, (snap) => {
+          const tickets = snap.docs.map((item) =>
+            mapSupportTicketDoc(item.id, item.data() as Record<string, unknown>),
+          );
+          onNext(sortTicketsByActivity(tickets));
+        });
+      },
     );
+  };
+
+  subscribePrimary();
+  return () => activeUnsub();
+}
+
+export function listenSupportTicket(
+  ticketId: string,
+  onNext: (ticket: SupportTicket | null) => void,
+): Unsubscribe {
+  return onSnapshot(doc(db, 'supportTickets', ticketId), (snap) => {
+    if (!snap.exists()) {
+      onNext(null);
+      return;
+    }
+    const data = snap.data();
+    onNext({
+      id: snap.id,
+      title: String(data.title ?? 'Ticket'),
+      category: String(data.category ?? ''),
+      status: String(data.status ?? 'open'),
+      createdAt: (data.createdAt as string | null) ?? null,
+      updatedAt: (data.updatedAt as string | null) ?? null,
+      lastMessagePreview: (data.lastMessagePreview as string | null) ?? null,
+    });
   });
 }
 
@@ -121,6 +198,7 @@ export function listenTicketMessages(
         id: item.id,
         authorType: String(item.data().authorType ?? 'user'),
         body: String(item.data().body ?? ''),
+        createdAt: (item.data().createdAt as string | null) ?? null,
       })),
     );
   });
