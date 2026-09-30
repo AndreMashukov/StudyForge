@@ -105,11 +105,11 @@ export class JsonSanitizer {
     cleanText = cleanText.replace(/"\s*\n\s*"/g, '",\n    "');
     cleanText = cleanText.replace(/"\s*"/g, '", "');
     
-    // Handle escaped quotes in JSON string values
-    cleanText = cleanText.replace(/\\"/g, "'");
-    cleanText = cleanText.replace(/\\"/g, "'");
+    // Turn an escaped quote (\") into a single quote. Do not touch \\" :
+    // that is a JSON-escaped backslash before the closing quote (a trailing
+    // shell "\"). Rewriting it to \' is an invalid escape and JSON.parse fails.
+    cleanText = cleanText.replace(/(?<!\\)\\"/g, "'");
     cleanText = cleanText.replace(/&quot;/g, '"');
-    cleanText = cleanText.replace(/\\\\"/g, '\\"');
     cleanText = cleanText.replace(/\s\\"\s/g, " ' ");
 
     // Fix missing commas after property values
