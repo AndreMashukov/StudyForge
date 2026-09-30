@@ -17,7 +17,7 @@ export type CriticNodeResult = Partial<DiagramQuizState>;
  *
  * P1 audit fix: explicitly increment `critic_iteration_count` on every visit
  * so the conditional edge after `critic` can enforce the maximum verification
- * bound (2 iterations) without relying solely on `recursionLimit`. The
+ * bound (3 iterations) without relying solely on `recursionLimit`. The
  * counter is always returned as a finite number so the `keepFiniteNumber`
  * reducer on the state channel preserves the new value.
  *

@@ -182,12 +182,12 @@ export async function runDiagramQuizLangGraphPipeline(
   // Invocation options:
   //   - `recursionLimit: 25` is the safety net that caps total super-steps
   //     across the whole graph. The per-loop bounds (repair <= 4, critic
-  //     <= 2) are enforced by the conditional edges and the iteration
+  //     <= 3) are enforced by the conditional edges and the iteration
   //     counters in state; `recursionLimit` exists to fail loud if a bug
   //     ever causes runaway looping. The ceiling of 25 covers
   //     load-context (1) + generate (1) + gate/repair loop (up to 8:
-  //     4 gate + 4 repair) + refiner/critic loop (up to 4: 2 refiner +
-  //     2 critic) + finalize (1) = 15 super-steps with headroom.
+  //     4 gate + 4 repair) + refiner/critic loop (up to 6: 3 refiner +
+  //     3 critic) + finalize (1) = 17 super-steps with headroom.
   //   - `configurable.thread_id` is set to `jobId` so the run is
   //     identifiable in LangGraph's checkpointer / tracing surface and
   //     cannot be confused with an unrelated session string.

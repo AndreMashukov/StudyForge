@@ -17,7 +17,7 @@
  *   refiner -> critic -> refiner  (conditional edge from `critic` selects next node)
  *   Exit condition:
  *     - critic verdict is 'pass', OR
- *     - critic_iteration exceeds maxCriticIterations (2)
+ *     - critic_iteration exceeds maxCriticIterations (3)
  *
  * Terminal:
  *   refiner|critic|gatelloop_exit -> finalize -> END
@@ -246,7 +246,7 @@ export function routeAfterGate(state: DiagramQuizState): RouteAfterGateTarget {
  * Exit conditions:
  *   1. artifact_outcome === 'failed'                     -> finalize (short-circuit).
  *   2. Critic verdict is 'pass'                          -> finalize (success).
- *   3. critic_iteration >= maxCriticIterations (2)      -> finalize (budget exhausted).
+ *   3. critic_iteration >= maxCriticIterations (3)      -> finalize (budget exhausted).
  *   4. Otherwise                                        -> refiner.
  *
  * The verdict comparison uses string literals that match the
@@ -343,7 +343,7 @@ export function createDiagramQuizStateGraph() {
 
     // Verification loop: refiner -> critic -> refiner (via conditional edge
     // from critic). `routeAfterCritic` enforces critic_iteration_count <
-    // maxCriticIterations (default 2) and routes to finalize once the loop
+    // maxCriticIterations (default 3) and routes to finalize once the loop
     // exits. It also short-circuits to finalize when
     // artifact_outcome === 'failed' (P4).
     .addEdge(DIAGRAM_QUIZ_NODE_NAMES.refiner, DIAGRAM_QUIZ_NODE_NAMES.critic)
