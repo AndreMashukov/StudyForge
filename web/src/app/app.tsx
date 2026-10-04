@@ -28,6 +28,7 @@ import { MatchQuizPage } from '../pages/MatchQuizPage';
 import { StatisticsPage } from '../pages/StatisticsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { UsagePage } from '../pages/UsagePage';
+import { SupportAskPage } from '../pages/SupportPage/SupportAskPage';
 import { SupportPage } from '../pages/SupportPage/SupportPage';
 import { SupportTicketPage } from '../pages/SupportPage/SupportTicketPage';
 import { Page } from '../components/Page';
@@ -401,6 +402,16 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <SupportPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/support/ask/:commandId"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <SupportAskPage />
             </ProtectedRoute>
           </MainLayout>
         }

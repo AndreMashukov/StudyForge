@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { Page } from '../../components/Page';
 import { Badge } from '../../components/ui/Badge/Badge';
 import { Button } from '../../components/ui/Button';
@@ -19,51 +19,43 @@ import {
   type SupportTicket,
 } from './supportFirestore';
 
+type TicketLocationState = {
+  justCreated?: boolean;
+};
+
 function mergeThreadMessages(
   messages: SupportThreadMessage[],
   pendingBody: string | null,
-  ticket: SupportTicket | null,
 ): SupportThreadMessage[] {
-  let merged = messages;
-  if (pendingBody) {
-    const trimmed = pendingBody.trim();
-    const hasReal = messages.some(
-      (message) =>
-        message.authorType === 'user' && message.body.trim() === trimmed,
-    );
-    if (!hasReal) {
-      merged = [
-        ...messages,
-        {
-          id: '__pending__',
-          authorType: 'user',
-          body: trimmed,
-          createdAt: null,
-          pending: true,
-        },
-      ];
-    }
+  if (!pendingBody) {
+    return messages;
   }
-  if (merged.length > 0 || !ticket) {
-    return merged;
-  }
-  const preview =
-    ticket.lastMessagePreview?.trim() || ticket.title.trim() || '';
-  if (!preview) {
-    return merged;
+  const trimmed = pendingBody.trim();
+  const hasReal = messages.some(
+    (message) =>
+      message.authorType === 'user' && message.body.trim() === trimmed,
+  );
+  if (hasReal) {
+    return messages;
   }
   return [
+    ...messages,
     {
-      id: '__initial__',
+      id: '__pending__',
       authorType: 'user',
-      body: preview,
-      createdAt: ticket.createdAt,
+      body: trimmed,
+      createdAt: null,
+      pending: true,
     },
   ];
 }
 
 export const SupportTicketPage: React.FC = () => {
   const { ticketId } = useParams<{ ticketId: string }>();
+  const location = useLocation();
+  const justCreated = Boolean(
+    (location.state as TicketLocationState | null)?.justCreated,
+  );
   const { user } = useAuth();
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [messages, setMessages] = useState<SupportThreadMessage[]>([]);
@@ -102,8 +94,8 @@ export const SupportTicketPage: React.FC = () => {
   }, [messages, pendingBody]);
 
   const threadMessages = useMemo(
-    () => mergeThreadMessages(messages, pendingBody, ticket),
-    [messages, pendingBody, ticket],
+    () => mergeThreadMessages(messages, pendingBody),
+    [messages, pendingBody],
   );
 
   const isOpen = ticket?.status === 'open';
@@ -143,6 +135,15 @@ export const SupportTicketPage: React.FC = () => {
             Back to Support
           </Link>
         </p>
+
+        {justCreated ? (
+          <p
+            className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-foreground"
+            data-testid="support-ticket-submitted"
+          >
+            Ticket submitted. We usually reply within a few hours.
+          </p>
+        ) : null}
 
         {ticket ? (
           <header className="space-y-2 border-b border-border pb-4">

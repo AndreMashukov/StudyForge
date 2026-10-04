@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Page } from '../../components/Page';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -20,24 +20,21 @@ import {
   ticketSortTimestamp,
 } from './supportFormat';
 import {
-  listenAskResult,
   listenMyTickets,
   submitCreateTicket,
   submitSupportCommand,
-  type SupportAskResult,
   type SupportCategory,
   type SupportTicket,
 } from './supportFirestore';
 
 export const SupportPage: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [category, setCategory] = useState<SupportCategory>('how_it_works');
   const [queryText, setQueryText] = useState('');
   const [url, setUrl] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [askId, setAskId] = useState<string | null>(null);
-  const [askResult, setAskResult] = useState<SupportAskResult | null>(null);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
 
   useEffect(() => {
@@ -46,13 +43,6 @@ export const SupportPage: React.FC = () => {
     }
     return listenMyTickets(user.uid, setTickets);
   }, [user?.uid]);
-
-  useEffect(() => {
-    if (!askId) {
-      return;
-    }
-    return listenAskResult(askId, setAskResult, setError);
-  }, [askId]);
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -73,10 +63,9 @@ export const SupportPage: React.FC = () => {
           userEmail: user.email,
           payload: { query: text },
         });
-        setAskId(commandId);
-        setAskResult(null);
+        navigate(`/support/ask/${commandId}`, { state: { query: text } });
       } else {
-        await submitCreateTicket({
+        const ticketId = await submitCreateTicket({
           userId: user.uid,
           userEmail: user.email,
           payload: {
@@ -85,37 +74,10 @@ export const SupportPage: React.FC = () => {
             ...(url.trim() ? { url: url.trim() } : {}),
           },
         });
-        setAskId(null);
-        setAskResult(null);
-        setQueryText('');
+        navigate(`/support/${ticketId}`, { state: { justCreated: true } });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not submit');
-    } finally {
-      setPending(false);
-    }
-  };
-
-  const onStillNeedHelp = async () => {
-    if (!user?.uid || !user.email || !queryText.trim()) {
-      return;
-    }
-    setPending(true);
-    try {
-      await submitCreateTicket({
-        userId: user.uid,
-        userEmail: user.email,
-        payload: {
-          category: 'how_it_works',
-          query: queryText.trim(),
-          askCommandId: askId,
-        },
-      });
-      setAskId(null);
-      setAskResult(null);
-      setQueryText('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create ticket');
     } finally {
       setPending(false);
     }
@@ -178,49 +140,6 @@ export const SupportPage: React.FC = () => {
             {category === 'how_it_works' ? 'Ask' : 'Create ticket'}
           </Button>
         </form>
-
-        {askId && !askResult ? (
-          <p className="text-muted-foreground" data-testid="support-ask-pending">
-            Looking up help articles...
-          </p>
-        ) : null}
-
-        {askResult ? (
-          <section
-            className="space-y-3 rounded-lg border border-border p-4"
-            data-testid="support-ask-result"
-          >
-            <h2 className="font-heading text-lg font-semibold">Answer</h2>
-            {askResult.answer ? (
-              <p>{askResult.answer}</p>
-            ) : (
-              <p>
-                {askResult.noAnswerReason ||
-                  'I do not have that in the help articles.'}
-              </p>
-            )}
-            {askResult.citations.length > 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Sources: {askResult.citations.join(', ')}
-              </p>
-            ) : null}
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setAskId(null);
-                  setAskResult(null);
-                }}
-              >
-                That helped
-              </Button>
-              <Button type="button" onClick={onStillNeedHelp} disabled={pending}>
-                Still need help
-              </Button>
-            </div>
-          </section>
-        ) : null}
 
         <section className="space-y-3">
           <h2 className="font-heading text-lg font-semibold">My tickets</h2>
