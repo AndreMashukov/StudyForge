@@ -2,7 +2,7 @@ import {
   callToolChatCompletions,
   LlmGenerationRouteResolver,
 } from '@study-forge/backend-llm/llm';
-import type { IAgentToolCatalogEntry } from '../mcp';
+import type { IAgentToolCatalogEntry } from '../tools/agent-tool-session';
 import type { AgentToolOutcome } from '../runner/agent-chat-fallback';
 import {
   buildGroundedCreateReply,

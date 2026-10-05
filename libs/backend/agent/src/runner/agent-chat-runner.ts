@@ -4,7 +4,7 @@ import {
   type ILlmToolChatMessage,
 } from '@study-forge/backend-llm/llm';
 import type { AgentMessageStreamEvent, GenerationKind } from '@shared-types';
-import type { IInProcessMcpSession } from '../mcp';
+import type { IAgentToolSession } from '../tools/agent-tool-session';
 import {
   buildEmptyModelFallback,
   type AgentToolOutcome,
@@ -28,6 +28,11 @@ function parseToolArguments(raw: string): Record<string, unknown> {
     return {};
   }
   return {};
+}
+
+function serializeToolResult(result: unknown): string {
+  const serialized = JSON.stringify(result);
+  return typeof serialized === 'string' ? serialized : 'null';
 }
 
 function sleep(ms: number): Promise<void> {
@@ -62,7 +67,7 @@ export interface AgentChatRunnerInput {
   systemPrompt: string;
   userMessage: string;
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
-  toolSession: IInProcessMcpSession;
+  toolSession: IAgentToolSession;
   generationKind?: Extract<GenerationKind, 'directoryChat' | 'agentExecutor'>;
   maxToolRounds?: number;
   emitDeltas?: boolean;
@@ -182,7 +187,7 @@ export class AgentChatRunner {
             ok: true,
             result,
           });
-          toolContent = JSON.stringify(result);
+          toolContent = serializeToolResult(result);
         } catch (error) {
           const message =
             error instanceof Error ? error.message : 'Tool execution failed';

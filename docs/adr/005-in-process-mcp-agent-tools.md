@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 006](./006-direct-agent-tool-calls.md). The live workspace agent calls `execute()` directly.
 
 ## Context
 

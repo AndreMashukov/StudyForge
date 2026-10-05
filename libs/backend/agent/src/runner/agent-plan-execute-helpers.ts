@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { JsonSanitizer } from '@study-forge/backend-llm/llm';
-import type { IAgentToolCatalogEntry } from '../mcp';
+import type { IAgentToolCatalogEntry } from '../tools/agent-tool-session';
 import type { AgentToolOutcome } from './agent-chat-fallback';
 
 export const MAX_PLAN_STEPS = 8;

@@ -1,12 +1,12 @@
 import type { RunnableConfig } from '@langchain/core/runnables';
 import type { AgentMessageStreamEvent } from '@shared-types';
-import type { IInProcessMcpSession } from '../mcp';
-import { isInProcessMcpSession } from '../mcp';
+import type { IAgentToolSession } from '../tools/agent-tool-session';
+import { isAgentToolSession } from '../tools/agent-tool-session';
 
 export interface IWorkspaceAgentRunnableConfigurable {
   userId: string;
   thread_id: string;
-  toolSession: IInProcessMcpSession;
+  toolSession: IAgentToolSession;
   onEvent?: (event: AgentMessageStreamEvent) => void;
 }
 
@@ -35,7 +35,7 @@ export function readWorkspaceAgentConfig(
 
   const toolSession =
     'toolSession' in configurable &&
-    isInProcessMcpSession(configurable.toolSession)
+    isAgentToolSession(configurable.toolSession)
       ? configurable.toolSession
       : null;
 

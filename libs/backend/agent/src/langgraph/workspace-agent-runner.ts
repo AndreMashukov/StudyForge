@@ -2,7 +2,7 @@ import { GraphRecursionError } from '@langchain/langgraph';
 import { MemorySaver } from '@langchain/langgraph-checkpoint';
 import type { AgentMessageStreamEvent } from '@shared-types';
 import type { AgentToolDefinition } from '../tools/create-agent-tools';
-import { createInProcessMcpSession } from '../mcp';
+import { createAgentToolSession } from '../tools/agent-tool-session';
 import { EMPTY_AGENT_REPLY } from '../runner/agent-chat-fallback';
 import {
   getFirestoreCheckpointer,
@@ -75,7 +75,7 @@ export class WorkspaceAgentRunner {
       input.turnId,
     );
 
-    const toolSession = await createInProcessMcpSession(input.tools);
+    const toolSession = createAgentToolSession(input.tools);
 
     try {
       const config = {
@@ -153,7 +153,6 @@ export class WorkspaceAgentRunner {
 
       return reply;
     } finally {
-      await toolSession.close();
       await flushLangSmithTraces();
     }
   }
