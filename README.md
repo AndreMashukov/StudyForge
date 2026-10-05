@@ -1,6 +1,6 @@
 # StudyForge
 
-AI-powered study platform. Organize source documents in directories, attach rules to steer generation, and produce artifacts — quizzes, flashcards, slide decks, and more — for learning.
+AI-powered study platform. Organize source documents in directories, attach rules to steer generation, and produce artifacts: quizzes, flashcards, slide decks, and more.
 
 ---
 
@@ -10,8 +10,8 @@ NX workspace with Yarn. Apps and libraries:
 
 | Project | Stack | Port / notes |
 | --- | --- | --- |
-| `web` | React 19 + Vite + Redux / RTK Query | `:4200` — public app (Firebase Hosting) |
-| `admin` | Next.js 16 App Router | `:4201` — internal admin (Vercel) |
+| `web` | React 19 + Vite + Redux / RTK Query | `:4200`. Public app (Firebase Hosting) |
+| `admin` | Next.js 16 App Router | `:4201`. Internal admin (Vercel) |
 | `functions` | Firebase Cloud Functions | Auth, Firestore, Storage, Gemini |
 | `extension` | Chrome extension (CRXJS + Vite) | Browser capture / helpers |
 | `shared-types` | Shared TypeScript types | Consumed by web, admin, functions |
@@ -52,10 +52,10 @@ See [scripts/ENV_SETUP.md](./scripts/ENV_SETUP.md) for details.
 ### 3. Emulators + seed
 
 ```bash
-# Terminal 1 — Auth :9099 · Firestore :8080 · Functions :5001 · Storage :9199
+# Terminal 1: Auth :9099, Firestore :8080, Functions :5001, Storage :9199
 yarn nx run functions:serve
 
-# Terminal 2 — seed test user + sample document
+# Terminal 2: seed test user + sample document
 npx tsx scripts/seed-setup/setup-seed-data.ts
 ```
 
@@ -104,7 +104,7 @@ NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run web:typecheck
 
 | Surface | How |
 | --- | --- |
-| **Web hosting** | Push to `main` — GitHub Actions deploys Firebase Hosting. Do not run `firebase deploy --only hosting` locally. |
+| **Web hosting** | Push to `main`. GitHub Actions deploys Firebase Hosting. Do not run `firebase deploy --only hosting` locally. |
 | **Functions** | `yarn nx run functions:deploy` when requested |
 | **Admin** | Vercel on push |
 
@@ -120,24 +120,66 @@ NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run web:typecheck
 | Env setup | [scripts/ENV_SETUP.md](./scripts/ENV_SETUP.md) |
 | Emulator quick start | [scripts/QUICK_SETUP.md](./scripts/QUICK_SETUP.md) |
 | Architecture decisions | `docs/adr/` |
+| Support app (sf-support) | [docs/support-app/](./docs/support-app/) |
 
 ---
 
-## Architecture (high level)
+## Architecture
 
-```
-┌─────────────┐     RTK Query      ┌──────────────────┐
-│  web / admin│ ─────────────────► │ Firebase callables│
-└─────────────┘                    │   (functions)     │
-                                   └────────┬─────────┘
-                                            │
-                    ┌───────────────────────┼───────────────────────┐
-                    ▼                       ▼                       ▼
-               Firestore              Cloud Storage              Gemini
-            (docs, artifacts)       (markdown, media)         (generation)
+### Runtime
+
+`web` and `admin` read and write user data through Firebase. Heavy work goes through Cloud Functions, which call the backend libraries under `libs/backend/`.
+
+```mermaid
+flowchart LR
+  web[web]
+  admin[admin]
+  functions[Cloud Functions]
+  firestore[(Firestore)]
+  storage[(Cloud Storage)]
+  llm[LLM providers]
+
+  web -->|library reads and edits| firestore
+  web -->|generation, billing, agent| functions
+  admin -->|Admin SDK| firestore
+  functions --> firestore
+  functions --> storage
+  functions --> llm
 ```
 
-Generation is async: endpoints create a pending record, enqueue a **generation job**, and return immediately. The UI tracks `generationStatus` (`pending` → `completed` / `failed`).
+### Generation jobs
+
+Endpoints create a pending document or artifact, enqueue a Cloud Task, and return. The UI watches `generationStatus`: `pending`, then `completed` or `failed`.
+
+```mermaid
+sequenceDiagram
+  participant UI as web
+  participant API as Callable function
+  participant DB as Firestore
+  participant Worker as processGenerationJob
+  participant Model as LLM
+
+  UI->>API: start generation
+  API->>DB: pending record and generation job
+  API-->>UI: record id
+  API->>Worker: enqueue Cloud Task
+  Worker->>Model: kind-specific LangGraph or processor
+  Worker->>DB: write content and set generationStatus
+  UI->>DB: listen until completed or failed
+```
+
+### Workspace agent
+
+Agent Panel uses one plan-execute LangGraph graph for workspace and directory scope. The planner emits a plan or a final reply. The executor runs one step and calls tools through `createAgentToolSession()`, which invokes each tool's `execute()` directly. Checkpoints live in Firestore so a dropped request can resume with the same `turnId`.
+
+```mermaid
+flowchart TD
+  request[SSE request] --> planner[Planner]
+  planner -->|JSON plan| executor[Executor step]
+  executor -->|tool calls| tools["AgentToolSession.execute"]
+  executor -->|step result| planner
+  planner -->|final reply| reply[Stream response tokens]
+```
 
 ---
 
