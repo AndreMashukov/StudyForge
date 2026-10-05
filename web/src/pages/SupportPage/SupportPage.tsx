@@ -22,7 +22,6 @@ import {
 import {
   listenMyTickets,
   submitCreateTicket,
-  submitSupportCommand,
   type SupportCategory,
   type SupportTicket,
 } from './supportFirestore';
@@ -56,26 +55,23 @@ export const SupportPage: React.FC = () => {
     setPending(true);
     setError(null);
     try {
-      if (category === 'how_it_works') {
-        const commandId = await submitSupportCommand({
-          type: 'AskHowItWorks',
-          userId: user.uid,
-          userEmail: user.email,
-          payload: { query: text },
-        });
-        navigate(`/support/ask/${commandId}`, { state: { query: text } });
-      } else {
-        const ticketId = await submitCreateTicket({
-          userId: user.uid,
-          userEmail: user.email,
-          payload: {
-            category,
-            query: text,
-            ...(url.trim() ? { url: url.trim() } : {}),
-          },
-        });
-        navigate(`/support/${ticketId}`, { state: { justCreated: true } });
-      }
+      const ticketId = await submitCreateTicket({
+        userId: user.uid,
+        userEmail: user.email,
+        payload: {
+          category,
+          query: text,
+          ...(category !== 'how_it_works' && url.trim()
+            ? { url: url.trim() }
+            : {}),
+        },
+      });
+      navigate(
+        `/support/${ticketId}`,
+        category === 'how_it_works'
+          ? undefined
+          : { state: { justCreated: true } },
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not submit');
     } finally {
