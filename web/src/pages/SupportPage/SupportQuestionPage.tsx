@@ -142,7 +142,7 @@ export const SupportQuestionPage: React.FC = () => {
   const awaitingAssistant =
     Boolean(pendingFollowUp) ||
     (!askResult && Boolean(commandId)) ||
-    (Boolean(askResult) &&
+    (askResult !== null &&
       messages.length === 0 &&
       !askResult.answer &&
       !askResult.noAnswerReason &&
