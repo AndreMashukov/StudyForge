@@ -9,6 +9,7 @@ import {
   buildEmptyModelFallback,
   type AgentToolOutcome,
 } from './agent-chat-fallback';
+import { throwIfAgentRequestAborted } from './agent-request-abort';
 
 const DEFAULT_MAX_TOOL_ROUNDS = 15;
 const FALLBACK_DELTA_CHUNK_SIZE = 28;
@@ -72,6 +73,7 @@ export interface AgentChatRunnerInput {
   maxToolRounds?: number;
   emitDeltas?: boolean;
   onEvent?: (event: AgentMessageStreamEvent) => void;
+  signal?: AbortSignal;
 }
 
 export interface AgentChatRunnerResult {
@@ -111,6 +113,7 @@ export class AgentChatRunner {
     let streamedTextLength = 0;
 
     for (let round = 0; round < maxToolRounds; round += 1) {
+      throwIfAgentRequestAborted(input.signal);
       input.onEvent?.({
         type: 'status',
         message: round === 0 ? 'Thinking...' : 'Running tools...',
@@ -148,6 +151,7 @@ export class AgentChatRunner {
         clearInterval(heartbeat);
       }
 
+      throwIfAgentRequestAborted(input.signal);
       messages.push(assistantMessage);
 
       if (
@@ -170,6 +174,7 @@ export class AgentChatRunner {
       }
 
       for (const toolCall of assistantMessage.tool_calls) {
+        throwIfAgentRequestAborted(input.signal);
         input.onEvent?.({
           type: 'status',
           message: `Running ${toolCall.function.name}...`,

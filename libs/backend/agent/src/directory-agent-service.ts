@@ -21,6 +21,7 @@ import { WorkspaceAgentRunner } from './langgraph/workspace-agent-runner';
 import { buildAgentTurnKey, claimAgentTurnCompletion } from './checkpointer';
 import { withExecutedActionContext } from './runner/agent-history';
 import {
+  buildIncompleteAgentReply,
   buildReplyFromExecutedActions,
   isGenericEmptyAgentReply,
   type AgentToolOutcome,
@@ -301,6 +302,7 @@ export class DirectoryAgentService {
   static async *streamMessage(
     userId: string,
     request: AgentMessageInput,
+    options?: { signal?: AbortSignal },
   ): AsyncGenerator<AgentMessageStreamEvent> {
     const directoryIds = await resolveDirectoryIds({
       userId,
@@ -323,6 +325,7 @@ export class DirectoryAgentService {
         quizzes: 0,
         flashcardSets: 0,
       },
+      abortSignal: options?.signal,
     };
 
     const thread = await AgentThreadStore.resolveThread({
@@ -404,13 +407,24 @@ export class DirectoryAgentService {
       wake?.();
     };
 
+    runtimeContext.onEvent = (event: AgentMessageStreamEvent) => {
+      pendingEvents.push(event);
+      notifyPending();
+    };
+
+    const signal = options?.signal;
+    const onAbort = (): void => {
+      notifyPending();
+    };
+    signal?.addEventListener('abort', onAbort);
+
     const waitForPendingOrComplete = async (): Promise<void> => {
-      if (runComplete || pendingEvents.length > 0) {
+      if (runComplete || pendingEvents.length > 0 || signal?.aborted) {
         return;
       }
       await new Promise<void>((resolve) => {
         wakePending = resolve;
-        if (runComplete || pendingEvents.length > 0) {
+        if (runComplete || pendingEvents.length > 0 || signal?.aborted) {
           notifyPending();
         }
       });
@@ -435,8 +449,13 @@ export class DirectoryAgentService {
       objective: formattedUserMessage,
       history: historyForModel,
       tools,
+      signal: options?.signal,
       onEvent: (event: AgentMessageStreamEvent) => {
-        if (event.type === 'delta' || event.type === 'status') {
+        if (
+          event.type === 'delta' ||
+          event.type === 'status' ||
+          event.type === 'action'
+        ) {
           pendingEvents.push(event);
           notifyPending();
         }
@@ -454,113 +473,171 @@ export class DirectoryAgentService {
         notifyPending();
       });
 
-    while (!runComplete || pendingEvents.length > 0) {
-      while (pendingEvents.length > 0) {
-        const event = pendingEvents.shift();
-        if (event) {
-          yield event;
+    try {
+      while (
+        (!runComplete || pendingEvents.length > 0) &&
+        !signal?.aborted
+      ) {
+        while (pendingEvents.length > 0) {
+          const event = pendingEvents.shift();
+          if (event) {
+            yield event;
+          }
+        }
+
+        if (!runComplete && !signal?.aborted) {
+          await waitForPendingOrComplete();
         }
       }
 
-      if (!runComplete) {
-        await waitForPendingOrComplete();
+      if (signal?.aborted && !runComplete) {
+        const incompleteReply = buildIncompleteAgentReply(
+          runtimeContext.executedActions,
+        );
+        yield* persistAndYieldDone({
+          userId,
+          threadId: thread.id,
+          turnId,
+          requestMessage: request.message,
+          reply: incompleteReply,
+          executedActions: runtimeContext.executedActions,
+          proposedDeletes: runtimeContext.proposedDeletes,
+          retrievedTexts:
+            process.env['LANGSMITH_EVAL_EMIT_RETRIEVED_TEXTS'] === 'true'
+              ? platformKnowledgeMatches.map((entry) => entry.text)
+              : undefined,
+        });
+        return;
       }
-    }
 
-    await runPromise;
+      await runPromise;
 
-    if (runError) {
-      yield { type: 'error', message: runError };
-      return;
-    }
+      if (runError) {
+        if (runtimeContext.executedActions.length > 0) {
+          yield* persistAndYieldDone({
+            userId,
+            threadId: thread.id,
+            turnId,
+            requestMessage: request.message,
+            reply: buildIncompleteAgentReply(runtimeContext.executedActions),
+            executedActions: runtimeContext.executedActions,
+            proposedDeletes: runtimeContext.proposedDeletes,
+          });
+          return;
+        }
+        yield { type: 'error', message: runError };
+        return;
+      }
 
-    if (
-      isGenericEmptyAgentReply(reply) &&
-      runtimeContext.executedActions.length > 0
-    ) {
-      reply = buildReplyFromExecutedActions(runtimeContext.executedActions);
-    }
+      if (
+        isGenericEmptyAgentReply(reply) &&
+        runtimeContext.executedActions.length > 0
+      ) {
+        reply = buildReplyFromExecutedActions(runtimeContext.executedActions);
+      }
 
-    const createOutcomes: AgentToolOutcome[] = runtimeContext.executedActions
-      .filter((action) => action.kind === 'create_document')
-      .map((action) => ({
-        name: 'create_document',
-        ok: true,
-        result: {
-          id: action.entityId,
-          documentId: action.entityId,
-        },
-      }));
-    if (
-      shouldBlockUngroundedCreateResponse({
-        objective: formattedUserMessage,
-        outcomes: createOutcomes,
-      })
-    ) {
-      reply = UNGROUNDED_CREATE_FALLBACK;
-    }
+      const createOutcomes: AgentToolOutcome[] = runtimeContext.executedActions
+        .filter((action) => action.kind === 'create_document')
+        .map((action) => ({
+          name: 'create_document',
+          ok: true,
+          result: {
+            id: action.entityId,
+            documentId: action.entityId,
+          },
+        }));
+      if (
+        shouldBlockUngroundedCreateResponse({
+          objective: formattedUserMessage,
+          outcomes: createOutcomes,
+        })
+      ) {
+        reply = UNGROUNDED_CREATE_FALLBACK;
+      }
 
-    for (const action of runtimeContext.executedActions) {
-      yield { type: 'action', action };
-    }
-
-    for (const proposal of runtimeContext.proposedDeletes) {
-      yield { type: 'delete_proposal', proposal };
-    }
-
-    const preview = deriveAgentThreadPreview(reply);
-    const claimed = await claimAgentTurnCompletion(
-      userId,
-      buildAgentTurnKey(thread.id, turnId),
-      {
+      yield* persistAndYieldDone({
+        userId,
+        threadId: thread.id,
+        turnId,
+        requestMessage: request.message,
         reply,
         executedActions: runtimeContext.executedActions,
         proposedDeletes: runtimeContext.proposedDeletes,
-      },
-    );
-    const persistedReply = claimed.completion.reply;
-    const persistedActions = claimed.alreadyCompleted
-      ? claimed.completion.executedActions
-      : runtimeContext.executedActions;
-    const persistedDeletes = claimed.alreadyCompleted
-      ? claimed.completion.proposedDeletes
-      : runtimeContext.proposedDeletes;
-
-    if (!claimed.alreadyCompleted) {
-      await AgentThreadStore.appendMessage({
-        userId,
-        threadId: thread.id,
-        role: 'assistant',
-        content: persistedReply,
-        turnId,
-        executedActions: persistedActions,
-        proposedDeletes: persistedDeletes,
-        ...(preview ? { preview } : {}),
+        retrievedTexts:
+          process.env['LANGSMITH_EVAL_EMIT_RETRIEVED_TEXTS'] === 'true'
+            ? platformKnowledgeMatches.map((entry) => entry.text)
+            : undefined,
       });
-
-      await AgentMemoryService.captureTurnMemories({
-        userId,
-        threadId: thread.id,
-        userMessage: request.message,
-        assistantReply: persistedReply,
-      });
+    } finally {
+      signal?.removeEventListener('abort', onAbort);
     }
-
-    yield {
-      type: 'done',
-      response: buildAgentResponse({
-        reply: persistedReply,
-        threadId: thread.id,
-        executedActions: persistedActions,
-        proposedDeletes: persistedDeletes,
-        ...(process.env['LANGSMITH_EVAL_EMIT_RETRIEVED_TEXTS'] === 'true'
-          ? {
-              retrievedTexts: platformKnowledgeMatches.map(
-                (entry) => entry.text,
-              ),
-            }
-          : {}),
-      }),
-    };
   }
+}
+
+async function* persistAndYieldDone(input: {
+  userId: string;
+  threadId: string;
+  turnId: string;
+  requestMessage: string;
+  reply: string;
+  executedActions: AgentToolRuntimeContext['executedActions'];
+  proposedDeletes: AgentToolRuntimeContext['proposedDeletes'];
+  retrievedTexts?: string[];
+}): AsyncGenerator<AgentMessageStreamEvent> {
+  for (const action of input.executedActions) {
+    yield { type: 'action', action };
+  }
+
+  for (const proposal of input.proposedDeletes) {
+    yield { type: 'delete_proposal', proposal };
+  }
+
+  const preview = deriveAgentThreadPreview(input.reply);
+  const claimed = await claimAgentTurnCompletion(
+    input.userId,
+    buildAgentTurnKey(input.threadId, input.turnId),
+    {
+      reply: input.reply,
+      executedActions: input.executedActions,
+      proposedDeletes: input.proposedDeletes,
+    },
+  );
+  const persistedReply = claimed.completion.reply;
+  const persistedActions = claimed.alreadyCompleted
+    ? claimed.completion.executedActions
+    : input.executedActions;
+  const persistedDeletes = claimed.alreadyCompleted
+    ? claimed.completion.proposedDeletes
+    : input.proposedDeletes;
+
+  if (!claimed.alreadyCompleted) {
+    await AgentThreadStore.appendMessage({
+      userId: input.userId,
+      threadId: input.threadId,
+      role: 'assistant',
+      content: persistedReply,
+      turnId: input.turnId,
+      executedActions: persistedActions,
+      proposedDeletes: persistedDeletes,
+      ...(preview ? { preview } : {}),
+    });
+
+    await AgentMemoryService.captureTurnMemories({
+      userId: input.userId,
+      threadId: input.threadId,
+      userMessage: input.requestMessage,
+      assistantReply: persistedReply,
+    });
+  }
+
+  yield {
+    type: 'done',
+    response: buildAgentResponse({
+      reply: persistedReply,
+      threadId: input.threadId,
+      executedActions: persistedActions,
+      proposedDeletes: persistedDeletes,
+      ...(input.retrievedTexts ? { retrievedTexts: input.retrievedTexts } : {}),
+    }),
+  };
 }

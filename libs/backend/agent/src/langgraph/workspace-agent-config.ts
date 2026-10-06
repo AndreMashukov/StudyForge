@@ -2,12 +2,14 @@ import type { RunnableConfig } from '@langchain/core/runnables';
 import type { AgentMessageStreamEvent } from '@shared-types';
 import type { IAgentToolSession } from '../tools/agent-tool-session';
 import { isAgentToolSession } from '../tools/agent-tool-session';
+import { isAbortSignal } from '../runner/agent-request-abort';
 
 export interface IWorkspaceAgentRunnableConfigurable {
   userId: string;
   thread_id: string;
   toolSession: IAgentToolSession;
   onEvent?: (event: AgentMessageStreamEvent) => void;
+  abortSignal?: AbortSignal;
 }
 
 function isAgentMessageStreamHandler(
@@ -50,5 +52,10 @@ export function readWorkspaceAgentConfig(
       ? configurable.onEvent
       : undefined;
 
-  return { userId, thread_id: threadId, toolSession, onEvent };
+  const abortSignal =
+    'abortSignal' in configurable && isAbortSignal(configurable.abortSignal)
+      ? configurable.abortSignal
+      : undefined;
+
+  return { userId, thread_id: threadId, toolSession, onEvent, abortSignal };
 }

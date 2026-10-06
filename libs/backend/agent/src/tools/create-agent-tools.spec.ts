@@ -124,6 +124,7 @@ import {
   toAgentReadableDocumentContent,
   type AgentToolRuntimeContext,
 } from './create-agent-tools';
+import { AgentRequestAbortedError } from '../runner/agent-request-abort';
 
 function createContext(
   overrides: Partial<AgentToolRuntimeContext> = {},
@@ -363,9 +364,11 @@ describe('createAgentToolDefinitions create_directory', () => {
       updatedAt: new Date(),
     });
 
+    const onEvent = vi.fn();
     const context = createContext({
       scope: 'workspace',
       directoryIds: ['aws-root', 'other-root'],
+      onEvent,
     });
     const tools = createAgentToolDefinitions(context);
     await executeAgentTool(tools, 'create_directory', { name: 'Python' });
@@ -378,6 +381,17 @@ describe('createAgentToolDefinitions create_directory', () => {
     expect(context.executedActions[0]?.summary).toBe(
       'Created directory "Python" at /Python',
     );
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'status',
+      message: 'Creating directory "Python"...',
+    });
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'action',
+      action: expect.objectContaining({
+        kind: 'create_directory',
+        summary: 'Created directory "Python" at /Python',
+      }),
+    });
   });
 
   it('nests under active directory in directory scope when parentId is omitted', async () => {
@@ -622,6 +636,58 @@ describe('createAgentToolDefinitions create_document', () => {
       }),
     );
   });
+
+  it('does not reserve usage when the request is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const tools = createAgentToolDefinitions(
+      createContext({ abortSignal: controller.signal }),
+    );
+
+    await expect(
+      executeAgentTool(tools, 'create_document', {
+        title: 'LangGraph Recap',
+        prompt: 'Write a recap of quiz gaps with mermaid diagrams.',
+        directoryId: 'dir-1',
+      }),
+    ).rejects.toThrow(AgentRequestAbortedError);
+
+    expect(enforceCallableGenerationLimits).not.toHaveBeenCalled();
+    expect(enqueueGenerationJob).not.toHaveBeenCalled();
+  });
+
+  it('refunds the reservation and skips enqueue when abort happens after reserve', async () => {
+    const controller = new AbortController();
+    vi.mocked(enforceCallableGenerationLimits).mockImplementation(async () => {
+      controller.abort();
+      return createTestUsageReservation({
+        id: 'reservation-1',
+        generationKind: 'documentFromPrompt',
+        credits: 20,
+        includedCredits: 20,
+      });
+    });
+    vi.mocked(refundUsageReservationSafe).mockResolvedValue(undefined);
+
+    const tools = createAgentToolDefinitions(
+      createContext({ abortSignal: controller.signal }),
+    );
+
+    await expect(
+      executeAgentTool(tools, 'create_document', {
+        title: 'LangGraph Recap',
+        prompt: 'Write a recap of quiz gaps with mermaid diagrams.',
+        directoryId: 'dir-1',
+      }),
+    ).rejects.toThrow(AgentRequestAbortedError);
+
+    expect(DocumentCrudService.createPendingDocument).not.toHaveBeenCalled();
+    expect(enqueueGenerationJob).not.toHaveBeenCalled();
+    expect(refundUsageReservationSafe).toHaveBeenCalledWith(
+      'user-1',
+      'reservation-1',
+    );
+  });
 });
 
 describe('createAgentToolDefinitions generate_quiz', () => {
@@ -718,6 +784,33 @@ describe('createAgentToolDefinitions generate_quiz', () => {
       'quiz-pending',
       'queue unavailable',
     );
+    expect(refundUsageReservationSafe).toHaveBeenCalledWith(
+      'user-1',
+      'quiz-reservation-1',
+    );
+  });
+
+  it('refunds the reservation and skips enqueue when abort happens after reserve', async () => {
+    const controller = new AbortController();
+    vi.mocked(DocumentCrudService.getDocument).mockResolvedValue(
+      createTestDocument(),
+    );
+    vi.mocked(enforceCallableGenerationLimits).mockImplementation(async () => {
+      controller.abort();
+      return createTestUsageReservation({ id: 'quiz-reservation-1' });
+    });
+    vi.mocked(refundUsageReservationSafe).mockResolvedValue(undefined);
+
+    const tools = createAgentToolDefinitions(
+      createContext({ abortSignal: controller.signal }),
+    );
+
+    await expect(
+      executeAgentTool(tools, 'generate_quiz', { documentId: 'doc-1' }),
+    ).rejects.toThrow(AgentRequestAbortedError);
+
+    expect(createPendingQuiz).not.toHaveBeenCalled();
+    expect(enqueueGenerationJob).not.toHaveBeenCalled();
     expect(refundUsageReservationSafe).toHaveBeenCalledWith(
       'user-1',
       'quiz-reservation-1',

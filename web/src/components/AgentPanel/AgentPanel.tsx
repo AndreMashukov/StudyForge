@@ -90,6 +90,27 @@ function createMessageId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function buildIncompleteAgentChatReply(
+  actions?: Array<{ summary: string }>,
+): string {
+  const lines = (actions ?? [])
+    .map((action) => action.summary.trim())
+    .filter((summary) => summary.length > 0);
+
+  if (lines.length === 0) {
+    return 'The agent ran out of time before it could finish a reply. Try a smaller request, or send another message to continue.';
+  }
+
+  return [
+    'I started this work, but the chat request hit the time limit before I could finish a written reply.',
+    '',
+    'Already started:',
+    ...lines.map((line) => `- ${line}`),
+    '',
+    'Open these items in your library. Generation may still be running. Send another message if you want me to continue.',
+  ].join('\n');
+}
+
 function toPanelMessage(message: IAgentThreadMessage): IAgentChatMessage {
   return {
     id: message.id,
@@ -381,6 +402,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
       let activeThreadId = threadId;
       const turnId = crypto.randomUUID();
       let receivedThreadEvent = Boolean(threadId);
+      let streamFinished = false;
 
       const handleStreamEvent = (event: AgentMessageStreamEvent) => {
         if (event.type === 'thread') {
@@ -454,6 +476,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
         }
 
         if (event.type === 'done') {
+          streamFinished = true;
           activeThreadId = event.response.threadId;
           setThreadId(event.response.threadId);
           persistActiveThreadId(event.response.threadId);
@@ -474,6 +497,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
         }
 
         if (event.type === 'error') {
+          streamFinished = true;
           setError(event.message);
           setMessages((current) =>
             current.map((message) =>
@@ -534,6 +558,24 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
           );
         }
         clearStreamBackup();
+
+        if (!streamFinished && !controller.signal.aborted) {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? {
+                    ...message,
+                    isStreaming: false,
+                    statusMessage: undefined,
+                    content:
+                      message.content.trim().length > 0
+                        ? message.content
+                        : buildIncompleteAgentChatReply(message.executedActions),
+                  }
+                : message,
+            ),
+          );
+        }
       } catch (sendError) {
         if (controller.signal.aborted) {
           setMessages((current) =>
@@ -559,7 +601,19 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
             : 'Failed to send message';
         setError(message);
         setMessages((current) =>
-          current.filter((entry) => entry.id !== assistantId),
+          current.map((entry) =>
+            entry.id === assistantId
+              ? {
+                  ...entry,
+                  isStreaming: false,
+                  statusMessage: undefined,
+                  content:
+                    entry.content.trim().length > 0
+                      ? entry.content
+                      : buildIncompleteAgentChatReply(entry.executedActions),
+                }
+              : entry,
+          ),
         );
       } finally {
         setLoading(false);

@@ -276,3 +276,25 @@ export function buildReplyFromExecutedActions(
     '\n',
   );
 }
+
+export function buildIncompleteAgentReply(actions: AgentActionResult[]): string {
+  const lines = actions
+    .map((action) => action.summary.trim())
+    .filter((summary) => summary.length > 0);
+
+  if (lines.length === 0) {
+    return [
+      'The agent ran out of time before it could finish a reply.',
+      'Try a smaller request, or send another message to continue.',
+    ].join(' ');
+  }
+
+  return [
+    'I started this work, but the chat request hit the time limit before I could finish a written reply.',
+    '',
+    'Already started:',
+    ...lines.map((line) => `- ${line}`),
+    '',
+    'Open these items in your library. Generation may still be running. Send another message if you want me to continue.',
+  ].join('\n');
+}
