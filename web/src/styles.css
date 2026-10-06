@@ -345,7 +345,11 @@
   line-height: 1.25;
 }
 
-.document-html-content :is(h1, h2, h3, h4, h5, h6):first-child {
+/* Only the first heading in the first HTML chunk. Headings after a
+   Mermaid/Plotly/code split are first-child of a new wrapper and must
+   keep their top margin. */
+.document-html-content > *:first-child > *:first-child:is(h1, h2, h3, h4, h5, h6),
+.document-html-content > *:first-child > *:first-child > :is(h1, h2, h3, h4, h5, h6):first-child {
   margin-top: 0;
 }
 
@@ -664,6 +668,14 @@
 
 .document-section-collapse.is-glossary .document-section-body {
   padding-top: 0.25rem;
+}
+
+.document-html-content .mermaid-diagram {
+  margin: 0 0 1.15rem;
+}
+
+.document-html-content .mermaid-diagram:last-child {
+  margin-bottom: 0;
 }
 
 .document-plotly {
