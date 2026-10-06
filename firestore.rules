@@ -337,7 +337,10 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.keys().hasAll(['type', 'userId', 'write_id'])
         && (
-          request.resource.data.type != 'MarkAskResolved'
+          (
+            request.resource.data.type != 'MarkAskResolved'
+            && request.resource.data.type != 'FollowUpAsk'
+          )
           || supportAskCommandOwnedByUser(supportCommandAskCommandId())
         );
       allow get: if isAuthenticated() && isMissingOrOwned();
@@ -350,6 +353,13 @@ service cloud.firestore {
         && isBoundedList(50)
         && resource.data.userId == request.auth.uid;
       allow create, update, delete: if false;
+
+      match /messages/{messageId} {
+        allow get, list: if isAuthenticated()
+          && get(/databases/$(database)/documents/supportAskResults/$(commandId)).data.userId
+            == request.auth.uid;
+        allow create, update, delete: if false;
+      }
     }
 
     match /supportTickets/{ticketId} {

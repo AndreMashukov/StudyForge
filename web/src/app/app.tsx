@@ -29,6 +29,7 @@ import { StatisticsPage } from '../pages/StatisticsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { UsagePage } from '../pages/UsagePage';
 import { SupportPage } from '../pages/SupportPage/SupportPage';
+import { SupportQuestionPage } from '../pages/SupportPage/SupportQuestionPage';
 import { SupportTicketPage } from '../pages/SupportPage/SupportTicketPage';
 import { Page } from '../components/Page';
 import { DirectoryDetailPage } from '../pages/DirectoryDetailPage';
@@ -401,6 +402,18 @@ const AppContent = () => {
           <MainLayout>
             <ProtectedRoute>
               <SupportPage />
+            </ProtectedRoute>
+          </MainLayout>
+        }
+      />
+      <Route path="/support/ask" element={<Navigate to="/support" replace />} />
+      <Route path="/support/ask/*" element={<Navigate to="/support" replace />} />
+      <Route
+        path="/support/question/:commandId"
+        element={
+          <MainLayout>
+            <ProtectedRoute>
+              <SupportQuestionPage />
             </ProtectedRoute>
           </MainLayout>
         }

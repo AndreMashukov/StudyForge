@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { MarkdownRenderer } from '../../components/MarkdownRenderer';
+import { Link, useNavigate } from 'react-router-dom';
 import { Page } from '../../components/Page';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -21,26 +20,18 @@ import {
   ticketSortTimestamp,
 } from './supportFormat';
 import {
-  listenAskResult,
   listenMyAskHistory,
   listenMyTickets,
   submitCreateTicket,
-  submitMarkAskResolved,
   submitSupportCommand,
   type SupportAskHistoryItem,
-  type SupportAskResult,
   type SupportCategory,
   type SupportTicket,
 } from './supportFirestore';
 
 export const SupportPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const helpId = searchParams.get('help');
   const { user } = useAuth();
-  const [askResult, setAskResult] = useState<SupportAskResult | null>(null);
-  const [askError, setAskError] = useState<string | null>(null);
-  const [askPending, setAskPending] = useState(false);
   const [category, setCategory] = useState<SupportCategory>('how_it_works');
   const [queryText, setQueryText] = useState('');
   const [url, setUrl] = useState('');
@@ -63,14 +54,6 @@ export const SupportPage: React.FC = () => {
     return listenMyAskHistory(user.uid, setAskHistory);
   }, [user?.uid]);
 
-  useEffect(() => {
-    if (!helpId) {
-      setAskResult(null);
-      return;
-    }
-    return listenAskResult(helpId, setAskResult, setAskError);
-  }, [helpId]);
-
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!user?.uid || !user.email) {
@@ -90,8 +73,7 @@ export const SupportPage: React.FC = () => {
           userEmail: user.email,
           payload: { query: text },
         });
-        setSearchParams({ help: commandId });
-        setQueryText('');
+        navigate(`/support/question/${commandId}`);
         return;
       }
       const ticketId = await submitCreateTicket({
@@ -169,30 +151,6 @@ export const SupportPage: React.FC = () => {
           </Button>
         </form>
 
-        {helpId ? (
-          <AskResultPanel
-            commandId={helpId}
-            askResult={askResult}
-            error={askError}
-            pending={askPending}
-            userId={user?.uid}
-            userEmail={user?.email}
-            onPending={setAskPending}
-            onResolved={() => {
-              setAskResult((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      resolution: 'confirmed_helped',
-                      resolvedAt: new Date().toISOString(),
-                    }
-                  : prev,
-              );
-              setSearchParams({});
-            }}
-          />
-        ) : null}
-
         <section className="space-y-3">
           <h2 className="font-heading text-lg font-semibold">Recent help</h2>
           <p className="text-sm text-muted-foreground">
@@ -206,7 +164,7 @@ export const SupportPage: React.FC = () => {
                 <li key={item.id}>
                   <Link
                     className="block rounded-lg border border-border p-4 transition-colors hover:bg-muted/40"
-                    to={`/support?help=${item.id}`}
+                    to={`/support/question/${item.id}`}
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">How it works</Badge>
@@ -282,137 +240,3 @@ export const SupportPage: React.FC = () => {
     </Page>
   );
 };
-
-function AskResultPanel(props: {
-  commandId: string;
-  askResult: SupportAskResult | null;
-  error: string | null;
-  pending: boolean;
-  userId: string | undefined;
-  userEmail: string | null | undefined;
-  onPending: (pending: boolean) => void;
-  onResolved: () => void;
-}) {
-  const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-  const isResolved = props.askResult?.resolution === 'confirmed_helped';
-  const isEscalated =
-    props.askResult?.resolution === 'escalated' || Boolean(props.askResult?.ticketId);
-  const showActions = props.askResult && !isResolved && !isEscalated;
-
-  const onThatHelped = async () => {
-    if (!props.userId || !props.userEmail) {
-      return;
-    }
-    props.onPending(true);
-    setError(null);
-    try {
-      await submitMarkAskResolved({
-        userId: props.userId,
-        userEmail: props.userEmail,
-        askCommandId: props.commandId,
-      });
-      props.onResolved();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save your choice');
-    } finally {
-      props.onPending(false);
-    }
-  };
-
-  const onStillNeedHelp = async () => {
-    const query = props.askResult?.query?.trim();
-    if (!props.userId || !props.userEmail || !query) {
-      return;
-    }
-    props.onPending(true);
-    setError(null);
-    try {
-      const ticketId = await submitCreateTicket({
-        userId: props.userId,
-        userEmail: props.userEmail,
-        payload: {
-          category: 'how_it_works',
-          query,
-          askCommandId: props.commandId,
-        },
-      });
-      navigate(`/support/${ticketId}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create ticket');
-    } finally {
-      props.onPending(false);
-    }
-  };
-
-  const shownError = error || props.error;
-
-  return (
-    <section
-      className="space-y-3 rounded-lg border border-border p-4"
-      data-testid="support-ask-result"
-    >
-      <h2 className="font-heading text-lg font-semibold">
-        {props.askResult?.query?.trim() || 'Your question'}
-      </h2>
-      {shownError ? <p className="text-sm text-destructive">{shownError}</p> : null}
-      {!props.askResult ? (
-        <p className="text-muted-foreground" data-testid="support-ask-pending">
-          Looking up help articles...
-        </p>
-      ) : (
-        <>
-          {props.askResult.answer ? (
-            <MarkdownRenderer
-              content={props.askResult.answer}
-              className="text-sm leading-relaxed [&_p:last-child]:!mb-0 [&_ul:last-child]:!mb-0"
-            />
-          ) : (
-            <p>
-              {props.askResult.noAnswerReason ||
-                'I do not have that in the help articles.'}
-            </p>
-          )}
-          {props.askResult.citations.length > 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Sources: {props.askResult.citations.join(', ')}
-            </p>
-          ) : null}
-          {isResolved ? (
-            <p className="text-sm text-muted-foreground">
-              You marked this answer as helpful.
-            </p>
-          ) : null}
-          {isEscalated && props.askResult.ticketId ? (
-            <p className="text-sm text-muted-foreground">
-              This question was escalated.{' '}
-              <Link className="underline" to={`/support/${props.askResult.ticketId}`}>
-                Open your ticket
-              </Link>
-              .
-            </p>
-          ) : null}
-          {showActions ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onThatHelped}
-                disabled={props.pending}
-              >
-                That helped
-              </Button>
-              <Button
-                type="button"
-                onClick={onStillNeedHelp}
-                disabled={props.pending}
-              >
-                Still need help
-              </Button>
-            </div>
-          ) : null}
-        </>
-      )}
-    </section>
-  );
-}

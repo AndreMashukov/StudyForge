@@ -131,8 +131,30 @@ export async function submitMarkAskResolved(input: {
   });
 }
 
+export async function submitFollowUpAsk(input: {
+  userId: string;
+  userEmail: string;
+  askCommandId: string;
+  query: string;
+}): Promise<void> {
+  const commandId = crypto.randomUUID();
+  await setDoc(doc(db, 'supportCommands', commandId), {
+    type: 'FollowUpAsk',
+    userId: input.userId,
+    userEmail: input.userEmail,
+    write_id: writeId(),
+    payload: { askCommandId: input.askCommandId, query: input.query },
+    createdAt: new Date().toISOString(),
+  });
+}
+
 export async function submitSupportCommand(input: {
-  type: 'AskHowItWorks' | 'CreateTicket' | 'AppendMessage' | 'MarkAskResolved';
+  type:
+    | 'AskHowItWorks'
+    | 'CreateTicket'
+    | 'AppendMessage'
+    | 'MarkAskResolved'
+    | 'FollowUpAsk';
   userId: string;
   userEmail: string;
   payload: Record<string, unknown>;
@@ -288,6 +310,27 @@ export function listenSupportTicket(
       updatedAt: (data.updatedAt as string | null) ?? null,
       lastMessagePreview: (data.lastMessagePreview as string | null) ?? null,
     });
+  });
+}
+
+export function listenAskMessages(
+  commandId: string,
+  onNext: (messages: SupportMessage[]) => void,
+): Unsubscribe {
+  const messagesQuery = query(
+    collection(db, 'supportAskResults', commandId, 'messages'),
+    orderBy('createdAt', 'asc'),
+    limit(100),
+  );
+  return onSnapshot(messagesQuery, (snap) => {
+    onNext(
+      snap.docs.map((item) => ({
+        id: item.id,
+        authorType: String(item.data().authorType ?? 'user'),
+        body: String(item.data().body ?? ''),
+        createdAt: (item.data().createdAt as string | null) ?? null,
+      })),
+    );
   });
 }
 

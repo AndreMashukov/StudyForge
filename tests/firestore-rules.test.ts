@@ -456,6 +456,73 @@ describe('firestore.rules client write hardening', () => {
       );
     });
 
+    it('allows FollowUpAsk when ask command is owned AskHowItWorks', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), 'supportCommands/ask-for-follow'), {
+          type: 'AskHowItWorks',
+          userId: OWNER_UID,
+          write_id: 'w-ask-follow',
+          payload: { query: 'Credits?' },
+        }),
+      );
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), 'supportCommands/follow-1'), {
+          type: 'FollowUpAsk',
+          userId: OWNER_UID,
+          write_id: 'w-follow-1',
+          payload: { askCommandId: 'ask-for-follow', query: 'What about plans?' },
+        }),
+      );
+    });
+
+    it('denies FollowUpAsk for another users ask command', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), 'supportCommands/ask-follow-other'), {
+          type: 'AskHowItWorks',
+          userId: OWNER_UID,
+          write_id: 'w-ask-follow-other',
+          payload: { query: 'Plan?' },
+        }),
+      );
+      const other = testEnv.authenticatedContext(OTHER_UID);
+      await assertFails(
+        setDoc(doc(other.firestore(), 'supportCommands/follow-bad'), {
+          type: 'FollowUpAsk',
+          userId: OTHER_UID,
+          write_id: 'w-follow-bad',
+          payload: { askCommandId: 'ask-follow-other', query: 'More?' },
+        }),
+      );
+    });
+
+    it('allows owner read of supportAskResults messages subcollection', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'supportAskResults/ask-read'), {
+          userId: OWNER_UID,
+          query: 'Q',
+        });
+        await setDoc(
+          doc(context.firestore(), 'supportAskResults/ask-read/messages/m1'),
+          {
+            authorType: 'user',
+            body: 'Q',
+            createdAt: '2026-09-27T00:00:00.000Z',
+          },
+        );
+      });
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(owner.firestore(), 'supportAskResults/ask-read/messages'),
+            limit(10),
+          ),
+        ),
+      );
+    });
+
     it('denies MarkAskResolved for another users ask command', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
       await assertSucceeds(

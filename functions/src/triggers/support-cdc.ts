@@ -124,6 +124,21 @@ async function projectAskCompleted(payload: JsonMap): Promise<void> {
   doc.createdAt =
     existingData?.createdAt ?? payload.created_at ?? null;
   await ref.set(doc);
+  const messages = Array.isArray(payload.messages) ? payload.messages : [];
+  for (const raw of messages) {
+    const message = asObject(raw);
+    const messageId = String(message.id ?? '');
+    if (!messageId) {
+      continue;
+    }
+    await ref.collection('messages').doc(messageId).set({
+      authorType: message.author_type ?? '',
+      authorId: message.author_id ?? null,
+      body: message.body ?? '',
+      createdAt: message.created_at ?? null,
+      write_id: writeId,
+    });
+  }
 }
 
 const TICKET_PREVIEW_MAX = 120;
