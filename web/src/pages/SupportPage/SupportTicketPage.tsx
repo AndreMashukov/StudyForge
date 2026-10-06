@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import { Page } from '../../components/Page';
+import { useLocation, useParams } from 'react-router-dom';
+import { SupportHub } from './SupportHub';
 import { MarkdownRenderer } from '../../components/MarkdownRenderer';
 import { Badge } from '../../components/ui/Badge/Badge';
 import { Button } from '../../components/ui/Button';
@@ -179,14 +179,8 @@ export const SupportTicketPage: React.FC = () => {
   };
 
   return (
-    <Page showSidebar={true}>
-      <div className="mx-auto flex max-w-3xl flex-col px-4 pt-6 pb-10">
-        <p className="mb-6">
-          <Link className="text-sm underline" to="/support">
-            Back to Support
-          </Link>
-        </p>
-
+    <SupportHub selectedTicketId={ticketId}>
+      <div className="flex flex-col border-t border-border pt-6">
         {showSubmittedBanner ? (
           <p
             className="mb-6 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-foreground"
@@ -335,6 +329,6 @@ export const SupportTicketPage: React.FC = () => {
           </form>
         ) : null}
       </div>
-    </Page>
+    </SupportHub>
   );
 };

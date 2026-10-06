@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Page } from '../../components/Page';
+import { SupportHub } from './SupportHub';
 import { MarkdownRenderer } from '../../components/MarkdownRenderer';
 import { Badge } from '../../components/ui/Badge/Badge';
 import { Button } from '../../components/ui/Button';
@@ -221,15 +221,9 @@ export const SupportQuestionPage: React.FC = () => {
   };
 
   return (
-    <Page showSidebar={true}>
-      <div className="mx-auto flex max-w-3xl flex-col px-4 pt-6 pb-10">
-        <p className="mb-6">
-          <Link className="text-sm underline" to="/support">
-            Back to Support
-          </Link>
-        </p>
-
-        <header className="mb-6 space-y-2 border-b border-border pb-4">
+    <SupportHub selectedAskId={commandId}>
+      <div className="flex flex-col border-t border-border pt-6">
+        <header className="mb-6 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">
               {formatSupportCategory('how_it_works')}
@@ -332,6 +326,6 @@ export const SupportQuestionPage: React.FC = () => {
           </div>
         ) : null}
       </div>
-    </Page>
+    </SupportHub>
   );
 };
