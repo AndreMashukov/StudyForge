@@ -363,9 +363,11 @@ describe('createAgentToolDefinitions create_directory', () => {
       updatedAt: new Date(),
     });
 
+    const onEvent = vi.fn();
     const context = createContext({
       scope: 'workspace',
       directoryIds: ['aws-root', 'other-root'],
+      onEvent,
     });
     const tools = createAgentToolDefinitions(context);
     await executeAgentTool(tools, 'create_directory', { name: 'Python' });
@@ -378,6 +380,17 @@ describe('createAgentToolDefinitions create_directory', () => {
     expect(context.executedActions[0]?.summary).toBe(
       'Created directory "Python" at /Python',
     );
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'status',
+      message: 'Creating directory "Python"...',
+    });
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'action',
+      action: expect.objectContaining({
+        kind: 'create_directory',
+        summary: 'Created directory "Python" at /Python',
+      }),
+    });
   });
 
   it('nests under active directory in directory scope when parentId is omitted', async () => {

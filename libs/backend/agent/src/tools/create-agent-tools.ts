@@ -1,6 +1,7 @@
 import type {
   AgentActionKind,
   AgentActionResult,
+  AgentMessageStreamEvent,
   AgentPromptContext,
   AgentProposedDelete,
   AgentScope,
@@ -75,6 +76,7 @@ export interface AgentToolRuntimeContext {
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
   generationBatchCounts: IAgentGenerationPlanCounts;
+  onEvent?: (event: AgentMessageStreamEvent) => void;
 }
 
 export interface AgentToolDefinition {
@@ -89,6 +91,10 @@ function pushAction(
   action: AgentActionResult,
 ): void {
   context.executedActions.push(action);
+  context.onEvent?.({ type: 'action', action });
+  if (action.summary.trim().length > 0) {
+    context.onEvent?.({ type: 'status', message: action.summary });
+  }
 }
 
 function assertDirectoryInScope(
@@ -446,6 +452,10 @@ export function createAgentToolDefinitions(
           throw new Error('name is required');
         }
         const parentId = resolveCreateDirectoryParentId(context, args);
+        context.onEvent?.({
+          type: 'status',
+          message: `Creating directory "${name}"...`,
+        });
         const directory = await directoryService.createDirectory(
           context.userId,
           {
@@ -504,6 +514,10 @@ export function createAgentToolDefinitions(
           documents: 1,
         });
         const title = pendingTitleFromPrompt(prompt, titleArg || undefined);
+        context.onEvent?.({
+          type: 'status',
+          message: `Starting document "${title}"...`,
+        });
         const usageReservation = await enforceCallableGenerationLimits(
           context.userId,
           'documentFromPrompt',

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildEmptyModelFallback,
+  buildIncompleteAgentReply,
   buildReplyFromExecutedActions,
   EMPTY_AGENT_REPLY,
   isGenericEmptyAgentReply,
@@ -122,5 +123,31 @@ describe('buildReplyFromExecutedActions', () => {
     expect(text).toContain('Python Intermediate Study Doc Format');
     expect(text).toContain('Decorators, Closures');
     expect(text).not.toContain(EMPTY_AGENT_REPLY);
+  });
+});
+
+describe('buildIncompleteAgentReply', () => {
+  it('lists started work when the chat request times out', () => {
+    const text = buildIncompleteAgentReply([
+      {
+        kind: 'create_directory',
+        summary: 'Created directory "Python Threads" at /Python Threads',
+        entityId: 'dir-1',
+      },
+      {
+        kind: 'create_document',
+        summary: 'Started document generation for "Threading Basics"',
+        entityId: 'doc-1',
+      },
+    ]);
+
+    expect(text).toContain('time limit');
+    expect(text).toContain('Python Threads');
+    expect(text).toContain('Threading Basics');
+    expect(text).toContain('Send another message');
+  });
+
+  it('asks the user to retry when no actions finished', () => {
+    expect(buildIncompleteAgentReply([])).toContain('ran out of time');
   });
 });

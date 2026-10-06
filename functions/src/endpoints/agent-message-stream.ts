@@ -134,8 +134,16 @@ export const agentMessageStream = onRequest(
     res.flushHeaders?.();
 
     let clientDisconnected = false;
+    const streamAbort = new AbortController();
+    // Leave headroom before the 300s Cloud Functions timeout so we can
+    // persist a written reply instead of dropping the SSE stream.
+    const softDeadlineMs = 270_000;
+    const softDeadline = setTimeout(() => {
+      streamAbort.abort();
+    }, softDeadlineMs);
     req.on('close', () => {
       clientDisconnected = true;
+      streamAbort.abort();
     });
 
     let usageSettled = false;
@@ -162,11 +170,11 @@ export const agentMessageStream = onRequest(
         for await (const event of DirectoryAgentService.streamMessage(
           userId,
           parsed.data,
+          { signal: streamAbort.signal },
         )) {
-          if (clientDisconnected || res.writableEnded) {
-            break;
+          if (!clientDisconnected && !res.writableEnded) {
+            writeSseEvent(res, event);
           }
-          writeSseEvent(res, event);
           if (event.type === 'done' || event.type === 'error') {
             await settleLoopUsage();
             break;
@@ -182,6 +190,7 @@ export const agentMessageStream = onRequest(
         });
       }
     } finally {
+      clearTimeout(softDeadline);
       await settleLoopUsage();
       if (!res.writableEnded) {
         res.end();
