@@ -164,7 +164,12 @@ async function projectTicketUpdated(payload: JsonMap): Promise<void> {
   const activity = ticketActivityFromPayload(payload);
   const ref = getFirestore().collection('supportTickets').doc(ticketId);
   const snap = await ref.get();
-  if (leanWriteIdChanged(snap.data(), writeId)) {
+  const existing = snap.data();
+  const lastMessagePreview =
+    activity.lastMessagePreview ??
+    (existing?.lastMessagePreview as string | undefined) ??
+    null;
+  if (leanWriteIdChanged(existing, writeId)) {
     await ref.set({
       userId: payload.user_id ?? '',
       userEmail: payload.user_email ?? '',
@@ -176,14 +181,14 @@ async function projectTicketUpdated(payload: JsonMap): Promise<void> {
       closedAt: payload.closed_at ?? null,
       closedBy: payload.closed_by ?? null,
       updatedAt: activity.updatedAt,
-      lastMessagePreview: activity.lastMessagePreview,
+      lastMessagePreview,
       write_id: writeId,
     });
   } else {
     await ref.set(
       {
         updatedAt: activity.updatedAt,
-        lastMessagePreview: activity.lastMessagePreview,
+        ...(lastMessagePreview ? { lastMessagePreview } : {}),
       },
       { merge: true },
     );

@@ -213,15 +213,9 @@ export const SupportTicketPage: React.FC = () => {
                 </span>
               ) : null}
             </div>
-            {!isHowItWorks ? (
-              <h1 className="font-heading text-2xl font-bold text-foreground">
-                {ticket.title}
-              </h1>
-            ) : (
-              <h1 className="font-heading text-lg font-semibold text-muted-foreground">
-                How it works
-              </h1>
-            )}
+            <h1 className="font-heading text-2xl font-bold text-foreground">
+              {ticket.title}
+            </h1>
           </header>
         ) : (
           <h1 className="mb-6 font-heading text-2xl font-bold">Ticket</h1>

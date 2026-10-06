@@ -347,7 +347,7 @@ service cloud.firestore {
     match /supportAskResults/{commandId} {
       allow get: if isAuthenticated() && isMissingOrOwned();
       allow list: if isAuthenticated()
-        && isBoundedList(20)
+        && isBoundedList(50)
         && resource.data.userId == request.auth.uid;
       allow create, update, delete: if false;
     }

@@ -33,6 +33,7 @@ export interface SupportAskHistoryItem {
   id: string;
   query: string;
   resolution: AskResolution | null;
+  ticketId: string | null;
   createdAt: string | null;
   enoughContext: boolean;
 }
@@ -211,6 +212,7 @@ function mapSupportAskHistoryItem(
     id,
     query: String(data.query ?? 'Question'),
     resolution: (data.resolution as AskResolution | null) ?? null,
+    ticketId: (data.ticketId as string | null) ?? null,
     createdAt: (data.createdAt as string | null) ?? null,
     enoughContext: Boolean(data.enoughContext),
   };
@@ -231,14 +233,23 @@ export function listenMyAskHistory(
     where('userId', '==', userId),
     limit(50),
   );
-  return onSnapshot(asksQuery, (snap) => {
-    const items = snap.docs
-      .map((item) =>
-        mapSupportAskHistoryItem(item.id, item.data() as Record<string, unknown>),
-      )
-      .filter((item) => item.resolution !== 'escalated');
-    onNext(sortAskHistory(items));
-  });
+  return onSnapshot(
+    asksQuery,
+    (snap) => {
+      const items = snap.docs
+        .map((item) =>
+          mapSupportAskHistoryItem(item.id, item.data() as Record<string, unknown>),
+        )
+        .filter(
+          (item) =>
+            item.resolution !== 'escalated' && item.ticketId == null,
+        );
+      onNext(sortAskHistory(items));
+    },
+    (err) => {
+      console.error('supportAskResults listener failed', err);
+    },
+  );
 }
 
 export function listenMyTickets(
