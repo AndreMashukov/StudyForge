@@ -325,6 +325,7 @@ export class DirectoryAgentService {
         quizzes: 0,
         flashcardSets: 0,
       },
+      abortSignal: options?.signal,
     };
 
     const thread = await AgentThreadStore.resolveThread({
@@ -448,6 +449,7 @@ export class DirectoryAgentService {
       objective: formattedUserMessage,
       history: historyForModel,
       tools,
+      signal: options?.signal,
       onEvent: (event: AgentMessageStreamEvent) => {
         if (
           event.type === 'delta' ||

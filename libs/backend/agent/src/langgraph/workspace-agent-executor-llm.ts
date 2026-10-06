@@ -17,6 +17,7 @@ export interface IRunWorkspaceExecutorStepInput {
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   toolSession: IAgentToolSession;
   onEvent?: (event: AgentMessageStreamEvent) => void;
+  signal?: AbortSignal;
 }
 
 export interface IWorkspaceExecutorStepResult {
@@ -49,6 +50,7 @@ export async function runWorkspaceExecutorStep(
     maxToolRounds: 4,
     emitDeltas: false,
     onEvent: input.onEvent,
+    signal: input.signal,
   });
 
   return {

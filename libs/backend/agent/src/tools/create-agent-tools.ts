@@ -62,6 +62,7 @@ import {
   RULE_COLOR_ENUM,
 } from './rule-tool-args';
 import { createQuizStatisticsToolDefinitions } from './quiz-statistics-tools';
+import { throwIfAgentRequestAborted } from '../runner/agent-request-abort';
 
 /** Soft cap so tool results stay within model context. */
 export const AGENT_DOCUMENT_CONTENT_MAX_CHARS = 60_000;
@@ -77,6 +78,7 @@ export interface AgentToolRuntimeContext {
   proposedDeletes: AgentProposedDelete[];
   generationBatchCounts: IAgentGenerationPlanCounts;
   onEvent?: (event: AgentMessageStreamEvent) => void;
+  abortSignal?: AbortSignal;
 }
 
 export interface AgentToolDefinition {
@@ -518,12 +520,14 @@ export function createAgentToolDefinitions(
           type: 'status',
           message: `Starting document "${title}"...`,
         });
+        throwIfAgentRequestAborted(context.abortSignal);
         const usageReservation = await enforceCallableGenerationLimits(
           context.userId,
           'documentFromPrompt',
         );
         let pendingDocId: string | undefined;
         try {
+          throwIfAgentRequestAborted(context.abortSignal);
           pendingDocId = await DocumentCrudService.createPendingDocument(
             context.userId,
             {
@@ -536,6 +540,7 @@ export function createAgentToolDefinitions(
               tags: ['ai-generated', 'prompt-based'],
             },
           );
+          throwIfAgentRequestAborted(context.abortSignal);
           const jobId = await enqueueGenerationJob({
             userId: context.userId,
             directoryId,
@@ -615,12 +620,14 @@ export function createAgentToolDefinitions(
           typeof args.title === 'string'
             ? args.title
             : `${document.title} Quiz`;
+        throwIfAgentRequestAborted(context.abortSignal);
         const usageReservation = await enforceCallableGenerationLimits(
           context.userId,
           'quiz',
         );
         let quizId: string | undefined;
         try {
+          throwIfAgentRequestAborted(context.abortSignal);
           quizId = await createPendingQuiz({
             userId: context.userId,
             directoryId: document.directoryId,
@@ -629,6 +636,7 @@ export function createAgentToolDefinitions(
             documentTitle: document.title,
             title,
           });
+          throwIfAgentRequestAborted(context.abortSignal);
           const jobId = await enqueueGenerationJob({
             userId: context.userId,
             directoryId: document.directoryId,
@@ -741,12 +749,14 @@ export function createAgentToolDefinitions(
             ? args.additionalPrompt.trim()
             : undefined;
 
+        throwIfAgentRequestAborted(context.abortSignal);
         const usageReservation = await enforceCallableGenerationLimits(
           context.userId,
           'flashcards',
         );
         let flashcardSetId: string | undefined;
         try {
+          throwIfAgentRequestAborted(context.abortSignal);
           flashcardSetId = await createPendingFlashcardSet({
             userId: context.userId,
             directoryId: resolvedDirectoryId,
@@ -777,6 +787,7 @@ export function createAgentToolDefinitions(
             ruleResolutionMode: 'inherit-plus-explicit',
             artifactPayload: {},
           };
+          throwIfAgentRequestAborted(context.abortSignal);
           const payloadStoragePath = await GenerationJobPayloadStorage.saveJson(
             context.userId,
             jobId,

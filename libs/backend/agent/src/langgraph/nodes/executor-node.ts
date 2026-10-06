@@ -12,6 +12,7 @@ import {
   MAX_REPLAN_CYCLES,
 } from '../workspace-agent-limits';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
+import { throwIfAgentRequestAborted } from '../../runner/agent-request-abort';
 
 const NODE_NAME = 'executor';
 
@@ -57,6 +58,8 @@ export async function executorNode(
       };
     }
 
+    throwIfAgentRequestAborted(runtime.abortSignal);
+
     const currentStep = planSteps[0];
     const totalSteps = executedStepCount + planSteps.length;
 
@@ -74,6 +77,7 @@ export async function executorNode(
       history,
       toolSession: runtime.toolSession,
       onEvent: runtime.onEvent,
+      signal: runtime.abortSignal,
     });
 
     const nextPastStep = formatExecutorPastStep({

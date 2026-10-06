@@ -18,6 +18,7 @@ import {
   MAX_REPLAN_CYCLES,
 } from '../workspace-agent-limits';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
+import { throwIfAgentRequestAborted } from '../../runner/agent-request-abort';
 
 const NODE_NAME = 'planner';
 
@@ -110,6 +111,8 @@ export async function plannerNode(
     const plannerIntent =
       state[WORKSPACE_AGENT_STATE_KEYS.plannerIntent] ?? 'initial';
 
+    throwIfAgentRequestAborted(runtime.abortSignal);
+
     if (!objective || !systemPrompt) {
       logNodeExitOk(NODE_NAME, state);
       return {
@@ -148,6 +151,7 @@ export async function plannerNode(
                 runtime.onEvent?.({ type: 'delta', text });
               },
         });
+      throwIfAgentRequestAborted(runtime.abortSignal);
 
       const reply =
         finalOutput.type === 'response' && !blocked
@@ -204,6 +208,7 @@ export async function plannerNode(
               runtime.onEvent?.({ type: 'delta', text });
             },
       });
+    throwIfAgentRequestAborted(runtime.abortSignal);
 
     if (plannerOutput.type === 'response') {
       if (blocked) {

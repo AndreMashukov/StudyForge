@@ -46,6 +46,7 @@ export interface IWorkspaceAgentRunnerInput {
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   tools: AgentToolDefinition[];
   onEvent?: (event: AgentMessageStreamEvent) => void;
+  signal?: AbortSignal;
   useMemoryCheckpointer?: boolean;
 }
 
@@ -94,6 +95,7 @@ export class WorkspaceAgentRunner {
           userId: input.userId,
           toolSession,
           onEvent: input.onEvent,
+          abortSignal: input.signal,
         },
       };
 
