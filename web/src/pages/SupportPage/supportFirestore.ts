@@ -14,6 +14,8 @@ import { ticketSortTimestamp } from './supportFormat';
 
 export type SupportCategory = 'how_it_works' | 'bug' | 'billing';
 
+export type AskResolution = 'confirmed_helped' | 'escalated';
+
 export interface SupportAskResult {
   enoughContext: boolean;
   answer: string | null;
@@ -21,6 +23,18 @@ export interface SupportAskResult {
   noAnswerReason: string | null;
   query: string;
   status: string;
+  resolution: AskResolution | null;
+  resolvedAt: string | null;
+  ticketId: string | null;
+  createdAt: string | null;
+}
+
+export interface SupportAskHistoryItem {
+  id: string;
+  query: string;
+  resolution: AskResolution | null;
+  createdAt: string | null;
+  enoughContext: boolean;
 }
 
 export interface SupportTicket {
@@ -100,8 +114,24 @@ export async function submitCreateTicket(input: {
   return commandId;
 }
 
+export async function submitMarkAskResolved(input: {
+  userId: string;
+  userEmail: string;
+  askCommandId: string;
+}): Promise<void> {
+  const commandId = crypto.randomUUID();
+  await setDoc(doc(db, 'supportCommands', commandId), {
+    type: 'MarkAskResolved',
+    userId: input.userId,
+    userEmail: input.userEmail,
+    write_id: writeId(),
+    payload: { askCommandId: input.askCommandId },
+    createdAt: new Date().toISOString(),
+  });
+}
+
 export async function submitSupportCommand(input: {
-  type: 'AskHowItWorks' | 'CreateTicket' | 'AppendMessage';
+  type: 'AskHowItWorks' | 'CreateTicket' | 'AppendMessage' | 'MarkAskResolved';
   userId: string;
   userEmail: string;
   payload: Record<string, unknown>;
@@ -138,6 +168,10 @@ export function listenAskResult(
         noAnswerReason: (data.noAnswerReason as string | null) ?? null,
         query: String(data.query ?? ''),
         status: String(data.status ?? ''),
+        resolution: (data.resolution as AskResolution | null) ?? null,
+        resolvedAt: (data.resolvedAt as string | null) ?? null,
+        ticketId: (data.ticketId as string | null) ?? null,
+        createdAt: (data.createdAt as string | null) ?? null,
       });
     },
     (err) => {
@@ -167,6 +201,44 @@ function sortTicketsByActivity(tickets: SupportTicket[]): SupportTicket[] {
       ticketSortTimestamp(left.updatedAt, left.createdAt),
     ),
   );
+}
+
+function mapSupportAskHistoryItem(
+  id: string,
+  data: Record<string, unknown>,
+): SupportAskHistoryItem {
+  return {
+    id,
+    query: String(data.query ?? 'Question'),
+    resolution: (data.resolution as AskResolution | null) ?? null,
+    createdAt: (data.createdAt as string | null) ?? null,
+    enoughContext: Boolean(data.enoughContext),
+  };
+}
+
+function sortAskHistory(items: SupportAskHistoryItem[]): SupportAskHistoryItem[] {
+  return [...items].sort((left, right) =>
+    String(right.createdAt ?? '').localeCompare(String(left.createdAt ?? '')),
+  );
+}
+
+export function listenMyAskHistory(
+  userId: string,
+  onNext: (items: SupportAskHistoryItem[]) => void,
+): Unsubscribe {
+  const asksQuery = query(
+    collection(db, 'supportAskResults'),
+    where('userId', '==', userId),
+    limit(50),
+  );
+  return onSnapshot(asksQuery, (snap) => {
+    const items = snap.docs
+      .map((item) =>
+        mapSupportAskHistoryItem(item.id, item.data() as Record<string, unknown>),
+      )
+      .filter((item) => item.resolution !== 'escalated');
+    onNext(sortAskHistory(items));
+  });
 }
 
 export function listenMyTickets(

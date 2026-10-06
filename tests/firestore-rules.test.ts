@@ -436,6 +436,47 @@ describe('firestore.rules client write hardening', () => {
       );
     });
 
+    it('allows MarkAskResolved when ask command is owned AskHowItWorks', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), 'supportCommands/ask-for-mark'), {
+          type: 'AskHowItWorks',
+          userId: OWNER_UID,
+          write_id: 'w-ask-mark',
+          payload: { query: 'Credits?' },
+        }),
+      );
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), 'supportCommands/mark-1'), {
+          type: 'MarkAskResolved',
+          userId: OWNER_UID,
+          write_id: 'w-mark-1',
+          payload: { askCommandId: 'ask-for-mark' },
+        }),
+      );
+    });
+
+    it('denies MarkAskResolved for another users ask command', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), 'supportCommands/ask-other'), {
+          type: 'AskHowItWorks',
+          userId: OWNER_UID,
+          write_id: 'w-ask-other',
+          payload: { query: 'Plan?' },
+        }),
+      );
+      const other = testEnv.authenticatedContext(OTHER_UID);
+      await assertFails(
+        setDoc(doc(other.firestore(), 'supportCommands/mark-bad'), {
+          type: 'MarkAskResolved',
+          userId: OTHER_UID,
+          write_id: 'w-mark-bad',
+          payload: { askCommandId: 'ask-other' },
+        }),
+      );
+    });
+
     it('denies create with another userId', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
       await assertFails(

@@ -101,7 +101,8 @@ async function projectAskCompleted(payload: JsonMap): Promise<void> {
   if (!leanWriteIdChanged(snap.data(), writeId)) {
     return;
   }
-  await ref.set({
+  const existingData = snap.data();
+  const doc: JsonMap = {
     userId: payload.user_id ?? '',
     query: payload.query ?? '',
     enoughContext: Boolean(payload.enough_context),
@@ -110,7 +111,19 @@ async function projectAskCompleted(payload: JsonMap): Promise<void> {
     noAnswerReason: payload.no_answer_reason ?? null,
     status: payload.status ?? 'completed',
     write_id: writeId,
-  });
+  };
+  if (payload.resolution != null && payload.resolution !== '') {
+    doc.resolution = payload.resolution;
+  }
+  if (payload.resolved_at) {
+    doc.resolvedAt = payload.resolved_at;
+  }
+  if (payload.ticket_id) {
+    doc.ticketId = payload.ticket_id;
+  }
+  doc.createdAt =
+    existingData?.createdAt ?? payload.created_at ?? null;
+  await ref.set(doc);
 }
 
 const TICKET_PREVIEW_MAX = 120;

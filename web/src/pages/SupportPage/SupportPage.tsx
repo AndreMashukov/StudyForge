@@ -20,8 +20,11 @@ import {
   ticketSortTimestamp,
 } from './supportFormat';
 import {
+  listenMyAskHistory,
   listenMyTickets,
   submitCreateTicket,
+  submitSupportCommand,
+  type SupportAskHistoryItem,
   type SupportCategory,
   type SupportTicket,
 } from './supportFirestore';
@@ -35,12 +38,20 @@ export const SupportPage: React.FC = () => {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [askHistory, setAskHistory] = useState<SupportAskHistoryItem[]>([]);
 
   useEffect(() => {
     if (!user?.uid) {
       return;
     }
     return listenMyTickets(user.uid, setTickets);
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      return;
+    }
+    return listenMyAskHistory(user.uid, setAskHistory);
   }, [user?.uid]);
 
   const onSubmit = async (event: React.FormEvent) => {
@@ -55,23 +66,26 @@ export const SupportPage: React.FC = () => {
     setPending(true);
     setError(null);
     try {
+      if (category === 'how_it_works') {
+        const commandId = await submitSupportCommand({
+          type: 'AskHowItWorks',
+          userId: user.uid,
+          userEmail: user.email,
+          payload: { query: text },
+        });
+        navigate(`/support/ask/${commandId}`, { state: { query: text } });
+        return;
+      }
       const ticketId = await submitCreateTicket({
         userId: user.uid,
         userEmail: user.email,
         payload: {
           category,
           query: text,
-          ...(category !== 'how_it_works' && url.trim()
-            ? { url: url.trim() }
-            : {}),
+          ...(url.trim() ? { url: url.trim() } : {}),
         },
       });
-      navigate(
-        `/support/${ticketId}`,
-        category === 'how_it_works'
-          ? undefined
-          : { state: { justCreated: true } },
-      );
+      navigate(`/support/${ticketId}`, { state: { justCreated: true } });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not submit');
     } finally {
@@ -136,6 +150,40 @@ export const SupportPage: React.FC = () => {
             {category === 'how_it_works' ? 'Ask' : 'Create ticket'}
           </Button>
         </form>
+
+        <section className="space-y-3">
+          <h2 className="font-heading text-lg font-semibold">Recent help</h2>
+          <p className="text-sm text-muted-foreground">
+            Past how-it-works answers. Escalated questions appear under My tickets.
+          </p>
+          {askHistory.length === 0 ? (
+            <p className="text-muted-foreground">No help questions yet.</p>
+          ) : (
+            <ul className="space-y-3" data-testid="support-ask-history">
+              {askHistory.map((item) => (
+                <li key={item.id}>
+                  <Link
+                    className="block rounded-lg border border-border p-4 transition-colors hover:bg-muted/40"
+                    to={`/support/ask/${item.id}`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">How it works</Badge>
+                      {item.resolution === 'confirmed_helped' ? (
+                        <Badge variant="secondary">That helped</Badge>
+                      ) : null}
+                      {item.createdAt ? (
+                        <span className="text-xs text-muted-foreground">
+                          {formatSupportWhen(item.createdAt)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-2 font-medium text-foreground">{item.query}</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <section className="space-y-3">
           <h2 className="font-heading text-lg font-semibold">My tickets</h2>

@@ -318,10 +318,28 @@ service cloud.firestore {
       return resource == null || resource.data.userId == request.auth.uid;
     }
 
+    function supportCommandAskCommandId() {
+      return request.resource.data.payload.askCommandId;
+    }
+
+    function supportAskCommandOwnedByUser(askCommandId) {
+      return askCommandId is string
+        && askCommandId.size() > 0
+        && exists(/databases/$(database)/documents/supportCommands/$(askCommandId))
+        && get(/databases/$(database)/documents/supportCommands/$(askCommandId)).data.userId
+          == request.auth.uid
+        && get(/databases/$(database)/documents/supportCommands/$(askCommandId)).data.type
+          == 'AskHowItWorks';
+    }
+
     match /supportCommands/{commandId} {
       allow create: if isAuthenticated()
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.keys().hasAll(['type', 'userId', 'write_id']);
+        && request.resource.data.keys().hasAll(['type', 'userId', 'write_id'])
+        && (
+          request.resource.data.type != 'MarkAskResolved'
+          || supportAskCommandOwnedByUser(supportCommandAskCommandId())
+        );
       allow get: if isAuthenticated() && isMissingOrOwned();
       allow list, update, delete: if false;
     }

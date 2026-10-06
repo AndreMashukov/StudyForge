@@ -8,6 +8,7 @@ import { formatSupportCategory } from './supportFormat';
 import {
   listenAskResult,
   submitCreateTicket,
+  submitMarkAskResolved,
   type SupportAskResult,
 } from './supportFirestore';
 
@@ -34,6 +35,27 @@ export const SupportAskPage: React.FC = () => {
 
   const title =
     askResult?.query?.trim() || queryFromState || 'Your question';
+
+  const onThatHelped = async () => {
+    if (!user?.uid || !user.email || !commandId) {
+      navigate('/support');
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      await submitMarkAskResolved({
+        userId: user.uid,
+        userEmail: user.email,
+        askCommandId: commandId,
+      });
+      navigate('/support');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save your choice');
+    } finally {
+      setPending(false);
+    }
+  };
 
   const onStillNeedHelp = async () => {
     const query = askResult?.query?.trim() || queryFromState;
@@ -109,7 +131,8 @@ export const SupportAskPage: React.FC = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate('/support')}
+                onClick={onThatHelped}
+                disabled={pending}
               >
                 That helped
               </Button>
