@@ -332,10 +332,19 @@ service cloud.firestore {
           == 'AskHowItWorks';
     }
 
+    function supportCreateTicketFromClientAllowed() {
+      return request.resource.data.type != 'CreateTicket'
+        || (
+          request.resource.data.payload.category != 'how_it_works'
+          && !request.resource.data.payload.keys().hasAny(['askCommandId'])
+        );
+    }
+
     match /supportCommands/{commandId} {
       allow create: if isAuthenticated()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.keys().hasAll(['type', 'userId', 'write_id'])
+        && supportCreateTicketFromClientAllowed()
         && (
           (
             request.resource.data.type != 'MarkAskResolved'

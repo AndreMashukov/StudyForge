@@ -555,6 +555,42 @@ describe('firestore.rules client write hardening', () => {
       );
     });
 
+    it('denies CreateTicket with category how_it_works', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertFails(
+        setDoc(doc(owner.firestore(), 'supportCommands/hiw-ticket'), {
+          type: 'CreateTicket',
+          userId: OWNER_UID,
+          write_id: 'w-hiw',
+          payload: { category: 'how_it_works', query: 'How?' },
+        }),
+      );
+    });
+
+    it('denies CreateTicket with askCommandId', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID);
+      await assertSucceeds(
+        setDoc(doc(owner.firestore(), 'supportCommands/ask-for-escalate-deny'), {
+          type: 'AskHowItWorks',
+          userId: OWNER_UID,
+          write_id: 'w-ask-esc',
+          payload: { query: 'Credits?' },
+        }),
+      );
+      await assertFails(
+        setDoc(doc(owner.firestore(), 'supportCommands/escalate-deny'), {
+          type: 'CreateTicket',
+          userId: OWNER_UID,
+          write_id: 'w-esc',
+          payload: {
+            category: 'bug',
+            query: 'Credits?',
+            askCommandId: 'ask-for-escalate-deny',
+          },
+        }),
+      );
+    });
+
     it('denies lean ticket create without matching CreateTicket command', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
       await assertFails(

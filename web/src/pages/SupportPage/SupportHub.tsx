@@ -175,8 +175,7 @@ export const SupportHub: React.FC<SupportHubProps> = ({
           <section className="space-y-3">
             <h2 className="font-heading text-lg font-semibold">Recent help</h2>
             <p className="text-sm text-muted-foreground">
-              Past how-it-works answers. Escalated questions appear under My
-              tickets.
+              Past how-it-works answers from help articles.
             </p>
             {askHistory.length === 0 ? (
               <p className="text-muted-foreground">No help questions yet.</p>

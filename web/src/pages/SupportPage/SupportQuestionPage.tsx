@@ -12,7 +12,6 @@ import { formatSupportCategory } from './supportFormat';
 import {
   listenAskMessages,
   listenAskResult,
-  submitCreateTicket,
   submitFollowUpAsk,
   submitMarkAskResolved,
   type SupportAskResult,
@@ -180,31 +179,6 @@ export const SupportQuestionPage: React.FC = () => {
     }
   };
 
-  const onStillNeedHelp = async () => {
-    const query = askResult?.query?.trim();
-    if (!user?.uid || !user.email || !query || !commandId) {
-      return;
-    }
-    setPending(true);
-    setError(null);
-    try {
-      const ticketId = await submitCreateTicket({
-        userId: user.uid,
-        userEmail: user.email,
-        payload: {
-          category: 'how_it_works',
-          query,
-          askCommandId: commandId,
-        },
-      });
-      navigate(`/support/${ticketId}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create ticket');
-    } finally {
-      setPending(false);
-    }
-  };
-
   const onFollowUp = async (event: React.FormEvent) => {
     event.preventDefault();
     const text = followUpText.trim();
@@ -316,9 +290,6 @@ export const SupportQuestionPage: React.FC = () => {
                 disabled={pending}
               >
                 That helped
-              </Button>
-              <Button type="button" onClick={onStillNeedHelp} disabled={pending}>
-                Still need help
               </Button>
             </div>
             <form className="space-y-2" onSubmit={onFollowUp}>
