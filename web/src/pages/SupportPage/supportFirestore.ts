@@ -322,16 +322,22 @@ export function listenAskMessages(
     orderBy('createdAt', 'asc'),
     limit(100),
   );
-  return onSnapshot(messagesQuery, (snap) => {
-    onNext(
-      snap.docs.map((item) => ({
-        id: item.id,
-        authorType: String(item.data().authorType ?? 'user'),
-        body: String(item.data().body ?? ''),
-        createdAt: (item.data().createdAt as string | null) ?? null,
-      })),
-    );
-  });
+  return onSnapshot(
+    messagesQuery,
+    (snap) => {
+      onNext(
+        snap.docs.map((item) => ({
+          id: item.id,
+          authorType: String(item.data().authorType ?? 'user'),
+          body: String(item.data().body ?? ''),
+          createdAt: (item.data().createdAt as string | null) ?? null,
+        })),
+      );
+    },
+    (err) => {
+      console.error('supportAskResults messages listener failed', err);
+    },
+  );
 }
 
 export function listenTicketMessages(

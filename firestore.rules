@@ -356,8 +356,11 @@ service cloud.firestore {
 
       match /messages/{messageId} {
         allow get, list: if isAuthenticated()
-          && get(/databases/$(database)/documents/supportAskResults/$(commandId)).data.userId
-            == request.auth.uid;
+          && (
+            !exists(/databases/$(database)/documents/supportAskResults/$(commandId))
+            || get(/databases/$(database)/documents/supportAskResults/$(commandId)).data.userId
+              == request.auth.uid
+          );
         allow create, update, delete: if false;
       }
     }

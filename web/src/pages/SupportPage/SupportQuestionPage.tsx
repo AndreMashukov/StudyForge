@@ -96,12 +96,13 @@ export const SupportQuestionPage: React.FC = () => {
     return listenAskResult(commandId, setAskResult, setError);
   }, [commandId]);
 
+  const askReady = askResult != null;
   useEffect(() => {
-    if (!commandId) {
+    if (!commandId || !askReady) {
       return;
     }
     return listenAskMessages(commandId, setMessages);
-  }, [commandId]);
+  }, [commandId, askReady]);
 
   useEffect(() => {
     if (!pendingFollowUp) {
@@ -139,8 +140,17 @@ export const SupportQuestionPage: React.FC = () => {
   const isEscalated =
     askResult?.resolution === 'escalated' || Boolean(askResult?.ticketId);
   const threadOpen = Boolean(askResult) && !isResolved && !isEscalated;
+  const followUpWaitingOnServer =
+    Boolean(pendingFollowUp) &&
+    !messages.some(
+      (message, index) =>
+        !message.pending &&
+        message.authorType === 'user' &&
+        message.body.trim() === pendingFollowUp?.trim() &&
+        messages.slice(index + 1).some((later) => isAssistantMessage(later.authorType)),
+    );
   const awaitingAssistant =
-    Boolean(pendingFollowUp) ||
+    followUpWaitingOnServer ||
     (!askResult && Boolean(commandId)) ||
     (askResult !== null &&
       messages.length === 0 &&
