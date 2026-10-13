@@ -12,6 +12,7 @@ import type {
 } from '@shared-types';
 import {
   ALL_GENERATION_KINDS,
+  backfillMissingGenerationRoute,
   GENERATION_KIND_METADATA,
   isGenerationKind,
   isGenerationWorkflow,
@@ -82,9 +83,16 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
   }
 
   const routes = {} as IGenerationRoutes;
+  const diagramQuizRoute = parseGenerationRoute(value.diagramQuiz);
 
   for (const kind of ALL_GENERATION_KINDS) {
     let route = parseGenerationRoute(value[kind]);
+    route = backfillMissingGenerationRoute(
+      kind,
+      route,
+      diagramQuizRoute,
+      Object.prototype.hasOwnProperty.call(value, kind),
+    );
     if (!route) {
       return null;
     }

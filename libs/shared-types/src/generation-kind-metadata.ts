@@ -10,6 +10,7 @@ export type GenerationKind =
   | 'documentRevise'
   | 'directoryChat'
   | 'diagramQuiz'
+  | 'escalation'
   | 'sequenceQuiz'
   | 'matchQuiz'
   | 'slideDeckText'
@@ -42,6 +43,7 @@ export const ALL_GENERATION_KINDS: GenerationKind[] = [
   'documentRevise',
   'directoryChat',
   'diagramQuiz',
+  'escalation',
   'sequenceQuiz',
   'matchQuiz',
   'slideDeckText',
@@ -106,6 +108,16 @@ export const GENERATION_KIND_METADATA: Record<
     requiredModality: 'text',
     supportedWorkflows: ['agentic'],
     defaultWorkflow: 'agentic',
+    group: 'production',
+  },
+  escalation: {
+    kind: 'escalation',
+    label: 'Escalation',
+    description:
+      'Model for diagram-quiz repair, critic, and refiner after the same diagram has failed repair twice.',
+    requiredModality: 'text',
+    supportedWorkflows: ['direct'],
+    defaultWorkflow: 'direct',
     group: 'production',
   },
   sequenceQuiz: {

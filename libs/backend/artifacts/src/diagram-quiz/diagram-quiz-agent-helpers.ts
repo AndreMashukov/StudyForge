@@ -12,8 +12,24 @@ import type {
 import { recordModelUsage } from '../artifact-definition';
 import type { IDiagramQuizDraft } from './diagram-quiz-types';
 import { getFirstRepairTarget, trackDiagramQuizArtifactDetails } from './diagram-quiz-gates';
+import {
+  diagramQuizRepairTargetKey,
+  readDiagramQuizEscalationDetails,
+  recordDiagramQuizRepairAttempt,
+  resolveDiagramQuizAgentRouteCapability,
+  resolveDiagramQuizRefineRouteCapability,
+} from './diagram-quiz-escalation';
 
 const MAX_DIAGRAM_FIXES = 12;
+
+function ensureArtifactDetails(
+  diagnostics: IArtifactAgentDiagnostics,
+): Record<string, unknown> {
+  if (!diagnostics.artifactDetails || typeof diagnostics.artifactDetails !== 'object') {
+    diagnostics.artifactDetails = {};
+  }
+  return diagnostics.artifactDetails as Record<string, unknown>;
+}
 
 function assertFourDiagrams(
   diagrams: string[]
@@ -55,6 +71,14 @@ export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft
         return draft;
       }
 
+      const artifactDetails = ensureArtifactDetails(diagnostics);
+      const targetKey = diagramQuizRepairTargetKey(questionIndex);
+      const escalationDetails = readDiagramQuizEscalationDetails(artifactDetails);
+      const routeCapability = resolveDiagramQuizAgentRouteCapability(
+        escalationDetails,
+        targetKey,
+      );
+
       try {
         const startedAt = Date.now();
         const rebalanced = await LlmGenerationService.rebalanceDiagramQuizQuestion(
@@ -67,6 +91,7 @@ export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft
             diagrams: assertFourDiagrams(question.diagrams),
             validationError: complexityFailure.message,
             syntaxRules: DiagramQuizPromptBuilder.getDiagramSyntaxRulesExcerpt(),
+            routeCapability,
           }
         );
         question.diagrams = [...rebalanced];
@@ -75,7 +100,7 @@ export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft
         });
         recordModelUsage(diagnostics, {
           role: 'repair',
-          capability: 'diagramQuizAgent',
+          capability: routeCapability,
           durationMs: Date.now() - startedAt,
         });
       } catch (error) {
@@ -89,6 +114,8 @@ export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft
           diagramsFixed,
           autoRepairFailures,
         });
+      } finally {
+        recordDiagramQuizRepairAttempt(artifactDetails, targetKey);
       }
 
       return draft;
@@ -113,6 +140,14 @@ export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft
           (failure.repairTarget.diagramIndex ?? diagramIndex) === diagramIndex
       )?.message || 'Diagram failed validation';
 
+    const artifactDetails = ensureArtifactDetails(diagnostics);
+    const targetKey = diagramQuizRepairTargetKey(questionIndex, diagramIndex);
+    const escalationDetails = readDiagramQuizEscalationDetails(artifactDetails);
+    const routeCapability = resolveDiagramQuizAgentRouteCapability(
+      escalationDetails,
+      targetKey,
+    );
+
     try {
       const startedAt = Date.now();
       const fixedDiagram = await LlmGenerationService.repairDiagramQuizDiagram(context.userId, {
@@ -121,6 +156,7 @@ export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft
         brokenDiagram,
         parseError: failureMessage,
         syntaxRules: DiagramQuizPromptBuilder.getDiagramSyntaxRulesExcerpt(),
+        routeCapability,
       });
       question.diagrams[diagramIndex] = fixedDiagram;
       trackDiagramQuizArtifactDetails(diagnostics, {
@@ -128,7 +164,7 @@ export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft
       });
       recordModelUsage(diagnostics, {
         role: 'repair',
-        capability: 'diagramQuizAgent',
+        capability: routeCapability,
         durationMs: Date.now() - startedAt,
       });
     } catch (error) {
@@ -142,6 +178,8 @@ export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft
         diagramsFixed,
         autoRepairFailures,
       });
+    } finally {
+      recordDiagramQuizRepairAttempt(artifactDetails, targetKey);
     }
 
     return draft;
@@ -178,15 +216,22 @@ export const diagramQuizCriticStrategy = {
     context: ArtifactAgentContext,
     diagnostics: IArtifactAgentDiagnostics
   ): Promise<IArtifactCriticResult> {
+    const artifactDetails = ensureArtifactDetails(diagnostics);
+    const escalationDetails = readDiagramQuizEscalationDetails(artifactDetails);
+    const routeCapability = resolveDiagramQuizRefineRouteCapability(escalationDetails);
+    const criticCapability =
+      routeCapability === 'escalation' ? 'escalation' : 'diagramQuizAgent';
+
     const startedAt = Date.now();
     const raw = await LlmGenerationService.runDiagramQuizCritic(context.userId, {
       sourceContent: context.sourceContent,
       draft,
       styleRules: DiagramQuizPromptBuilder.getDiagramSyntaxRulesExcerpt(),
+      routeCapability: criticCapability,
     });
     recordModelUsage(diagnostics, {
       role: 'critic',
-      capability: 'diagramQuizAgent',
+      capability: criticCapability,
       durationMs: Date.now() - startedAt,
     });
 
@@ -224,6 +269,11 @@ export const diagramQuizRefinerStrategy = {
       return draft;
     }
 
+    const artifactDetails = ensureArtifactDetails(diagnostics);
+    const routeCapability = resolveDiagramQuizRefineRouteCapability(
+      readDiagramQuizEscalationDetails(artifactDetails),
+    );
+
     const startedAt = Date.now();
     try {
       const refined = await LlmGenerationService.refineDiagramQuiz(context.userId, {
@@ -232,10 +282,11 @@ export const diagramQuizRefinerStrategy = {
         criticResult,
         failingQuestionIndexes: failingIndexes,
         enhancedPrompt: context.enhancedPrompt,
+        routeCapability,
       });
       recordModelUsage(diagnostics, {
         role: 'refiner',
-        capability: 'diagramQuiz',
+        capability: routeCapability,
         durationMs: Date.now() - startedAt,
       });
       return refined;
@@ -246,7 +297,7 @@ export const diagramQuizRefinerStrategy = {
       });
       recordModelUsage(diagnostics, {
         role: 'refiner',
-        capability: 'diagramQuiz',
+        capability: routeCapability,
         durationMs: Date.now() - startedAt,
       });
       return draft;

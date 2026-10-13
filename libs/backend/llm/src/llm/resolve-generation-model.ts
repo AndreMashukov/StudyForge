@@ -12,6 +12,7 @@ export async function resolveTextGenerationModelLabel(
     | 'documentFromPrompt'
     | 'diagramQuiz'
     | 'diagramQuizAgent'
+    | 'escalation'
     | 'sequenceQuiz'
     | 'slideDeckText'
     | 'sourceDocumentEnhancement'

@@ -186,6 +186,7 @@ export const DEFAULT_USAGE_CREDIT_COSTS: Record<GenerationKind, number> = {
   sourceDocumentEnhancement: 5,
   flashcards: 10,
   diagramQuiz: 10,
+  escalation: 10,
   slideDeckImage: 10,
   documentFromPrompt: 20,
   documentFromScreenshot: 25,

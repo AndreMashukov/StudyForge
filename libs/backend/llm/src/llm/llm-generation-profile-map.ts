@@ -21,6 +21,7 @@ const CAPABILITY_PROFILE_MAP: Partial<
   ruleGeneration: 'faithfulEdit',
   sourceDocumentEnhancement: 'deterministicUtility',
   diagramQuizAgent: 'deterministicUtility',
+  escalation: 'deterministicUtility',
 };
 
 export function resolveLlmGenerationProfile(

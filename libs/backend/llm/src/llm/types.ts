@@ -17,6 +17,7 @@ export type LlmCapability =
   | 'directoryChat'
   | 'diagramQuiz'
   | 'diagramQuizAgent'
+  | 'escalation'
   | 'sequenceQuiz'
   | 'matchQuiz'
   | 'slideDeckText'

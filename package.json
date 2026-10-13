@@ -79,6 +79,7 @@
     "migrate:directory-centric": "tsx scripts/migrations/backfill-directory-centric.ts",
     "migrate:llm-setup-routes": "tsx scripts/migrations/migrate-llm-setup-routes.ts",
     "migrate:generation-routes": "tsx scripts/migrations/migrate-generation-routes.ts",
+    "migrate:escalation-route": "tsx scripts/migrations/backfill-escalation-route.ts",
     "migrate:drop-legacy-llm-setup-routes": "tsx scripts/migrations/drop-legacy-llm-setup-routes.ts",
     "test:firestore-rules": "firebase emulators:exec --only firestore --project demo-study-forge-rules-test --config firebase.firestore-rules-test.json \"npx vitest run --config vitest.firestore-rules.config.ts\""
   },

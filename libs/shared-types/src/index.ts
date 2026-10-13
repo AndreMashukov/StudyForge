@@ -2229,6 +2229,7 @@ export type LlmCapabilityKey =
   | 'directoryChat'
   | 'diagramQuiz'
   | 'diagramQuizAgent'
+  | 'escalation'
   | 'sequenceQuiz'
   | 'matchQuiz'
   | 'slideDeckText'
@@ -2260,6 +2261,10 @@ export {
   isGenerationWorkflow,
   resolveGenerationKind,
 } from './generation-kind-metadata';
+export {
+  backfillMissingGenerationRoute,
+  type IGenerationRouteBackfill,
+} from './generation-routes-backfill';
 
 import {
   applyLlmGenerationFlowOverrides,

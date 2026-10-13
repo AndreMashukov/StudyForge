@@ -1238,12 +1238,14 @@ ${markdownContent}
       brokenDiagram: string;
       parseError: string;
       syntaxRules: string;
+      routeCapability?: Extract<LlmCapability, 'diagramQuizAgent' | 'escalation'>;
     },
   ): Promise<string> {
+    const routeCapability = params.routeCapability ?? 'diagramQuizAgent';
     const ctx = await resolveTextRoute(
       userId,
-      'diagramQuizAgent',
-      'diagramQuizAgent',
+      routeCapability,
+      routeCapability,
     );
     const prompt = `Fix this broken Mermaid diagram for a diagram quiz question.
 
@@ -1262,7 +1264,7 @@ Use the same neutral palette across all four options (never green/red answer hin
 Return ONLY the corrected Mermaid source with no markdown fences or commentary.`;
 
     const profile =
-      resolveLlmGenerationProfile('diagramQuizAgent') ?? 'deterministicUtility';
+      resolveLlmGenerationProfile(routeCapability) ?? 'deterministicUtility';
     const repairConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
@@ -1309,12 +1311,14 @@ Return ONLY the corrected Mermaid source with no markdown fences or commentary.`
       diagrams: [string, string, string, string];
       validationError: string;
       syntaxRules: string;
+      routeCapability?: Extract<LlmCapability, 'diagramQuizAgent' | 'escalation'>;
     },
   ): Promise<[string, string, string, string]> {
+    const routeCapability = params.routeCapability ?? 'diagramQuizAgent';
     const ctx = await resolveTextRoute(
       userId,
-      'diagramQuizAgent',
-      'diagramQuizAgent',
+      routeCapability,
+      routeCapability,
     );
     const optionLabels = ['A', 'B', 'C', 'D'] as const;
     const currentOptions = params.diagrams
@@ -1357,7 +1361,7 @@ Return ONLY valid JSON:
 }`;
 
     const profile =
-      resolveLlmGenerationProfile('diagramQuizAgent') ?? 'deterministicUtility';
+      resolveLlmGenerationProfile(routeCapability) ?? 'deterministicUtility';
     const repairConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
@@ -1428,12 +1432,14 @@ Return ONLY valid JSON:
       sourceContent: ScrapedContent;
       draft: GeminiDiagramQuizResponse;
       styleRules?: string;
+      routeCapability?: Extract<LlmCapability, 'diagramQuizAgent' | 'escalation'>;
     },
   ): Promise<string> {
+    const routeCapability = params.routeCapability ?? 'diagramQuizAgent';
     const ctx = await resolveTextRoute(
       userId,
-      'diagramQuizAgent',
-      'diagramQuizAgent',
+      routeCapability,
+      routeCapability,
     );
     const styleSection = params.styleRules?.trim()
       ? `\nDiagram quiz styling rules (must be enforced):\n${params.styleRules}\n`
@@ -1462,7 +1468,7 @@ Flag as "revise" when one option is uniquely more detailed/complex than the othe
 Use "revise" for fixable pedagogical issues and "fail" only for severe factual errors.`;
 
     const profile =
-      resolveLlmGenerationProfile('diagramQuizAgent') ?? 'deterministicUtility';
+      resolveLlmGenerationProfile(routeCapability) ?? 'deterministicUtility';
     const criticConfig = await buildGenerationConfig(
       ctx.resolution.route.model,
       profile,
@@ -1501,9 +1507,11 @@ Use "revise" for fixable pedagogical issues and "fail" only for severe factual e
       criticResult: import('@shared-types').IArtifactCriticResult;
       failingQuestionIndexes: number[];
       enhancedPrompt?: string;
+      routeCapability?: Extract<LlmCapability, 'diagramQuiz' | 'escalation'>;
     },
   ): Promise<GeminiDiagramQuizResponse> {
-    const ctx = await resolveTextRoute(userId, 'diagramQuiz', 'diagramQuiz');
+    const routeCapability = params.routeCapability ?? 'diagramQuiz';
+    const ctx = await resolveTextRoute(userId, routeCapability, routeCapability);
     const failingQuestions = params.failingQuestionIndexes.map((index) => ({
       index,
       ...params.draft.questions[index],
