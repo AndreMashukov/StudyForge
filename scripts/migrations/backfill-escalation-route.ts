@@ -17,6 +17,10 @@ config({ path: path.join(process.cwd(), '.env.local') });
 config({ path: path.join(process.cwd(), 'functions/.env.local') });
 config({ path: path.join(process.cwd(), 'functions/.env') });
 
+if (!process.argv.includes('--emulator')) {
+  delete process.env.FIRESTORE_EMULATOR_HOST;
+}
+
 const LLM_SETUPS_COLLECTION = 'llmSetups';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
