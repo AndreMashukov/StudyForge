@@ -1,10 +1,18 @@
 import { buildHtmlDocumentPrompt } from '@shared-types';
 import type { DocumentAgentContext } from '../document-agent/document-agent-runner';
 
+function resolveIncludeDiagrams(agentContext: DocumentAgentContext): boolean {
+  return (
+    agentContext.payload.sourceKind === 'prompt' &&
+    agentContext.payload.includeDiagrams === true
+  );
+}
+
 export function buildDirectHtmlPrompt(agentContext: DocumentAgentContext): string {
   const base = buildHtmlDocumentPrompt(
     agentContext.userPrompt,
-    agentContext.rulesText || undefined
+    agentContext.rulesText || undefined,
+    { includeDiagrams: resolveIncludeDiagrams(agentContext) },
   );
 
   if (!agentContext.files?.length) {

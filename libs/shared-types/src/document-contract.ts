@@ -80,10 +80,34 @@ export const SEALED_HTML_OUTPUT_CONTRACT_LINES = [
   '- Do NOT include Mermaid diagrams, Plotly graphs, or mathematical LaTeX unless a selected domain rule explicitly asks for them.',
 ] as const;
 
-export function buildSealedHtmlOutputContract(rules?: string): string {
-  const contractLines = rulesTextRequiresLineFormatOutput(rules)
+export interface IHtmlDocumentPromptOptions {
+  includeDiagrams?: boolean;
+}
+
+function resolveSealedHtmlOutputContractLines(
+  rules?: string,
+  options?: IHtmlDocumentPromptOptions,
+): readonly string[] {
+  const baseLines = rulesTextRequiresLineFormatOutput(rules)
     ? SEALED_LINE_FORMAT_HTML_OUTPUT_CONTRACT_LINES
     : SEALED_HTML_OUTPUT_CONTRACT_LINES;
+
+  if (!options?.includeDiagrams) {
+    return baseLines;
+  }
+
+  return baseLines.map((line) =>
+    line.includes('Mermaid diagrams')
+      ? `- Include one or more Mermaid diagrams using <pre><code class="language-mermaid"> blocks where they clarify the topic. Supported diagram types: ${MERMAID_DIAGRAM_PREFIXES.join(', ')}.`
+      : line,
+  );
+}
+
+export function buildSealedHtmlOutputContract(
+  rules?: string,
+  options?: IHtmlDocumentPromptOptions,
+): string {
+  const contractLines = resolveSealedHtmlOutputContractLines(rules, options);
   return `[SEALED OUTPUT CONTRACT — overrides all instructions above]\n${contractLines.join('\n')}`;
 }
 
@@ -164,7 +188,11 @@ export function buildFaithfulHtmlConversionPrompt(
   ].join('\n');
 }
 
-export function buildHtmlDocumentPrompt(userPrompt: string, rules?: string): string {
+export function buildHtmlDocumentPrompt(
+  userPrompt: string,
+  rules?: string,
+  options?: IHtmlDocumentPromptOptions,
+): string {
   const hasRules = !!rules?.trim();
   const lineFormatOutput = rulesTextRequiresLineFormatOutput(rules);
   const rulesSection = hasRules
@@ -187,7 +215,7 @@ ${userPrompt}`;
     personaSection,
     rulesSection,
     userSection,
-    buildSealedHtmlOutputContract(rules),
+    buildSealedHtmlOutputContract(rules, options),
   ]
     .filter(Boolean)
     .join('\n\n');

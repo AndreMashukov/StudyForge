@@ -92,6 +92,9 @@ export async function persistDirectWithRepairHtmlDocument(params: {
       htmlFragment,
       validationErrors,
       screenshotContext: params.screenshotContext,
+      includeDiagrams:
+        params.agentContext.payload.sourceKind === 'prompt' &&
+        params.agentContext.payload.includeDiagrams === true,
     });
     repairDurationMs = Date.now() - repairStartMs;
     repairRan = true;

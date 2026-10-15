@@ -29,6 +29,8 @@ import {
   DeleteDocumentRequest,
   GenerateFromPromptRequest,
   GenerateFromPromptResponse,
+  EvaluatePromptDiagramSuitabilityRequest,
+  EvaluatePromptDiagramSuitabilityResponse,
   UploadDocumentRequest,
   IBulkDeleteDocumentsRequest,
   IBulkOperationResponse,
@@ -167,6 +169,16 @@ export const documentsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Document', { type: 'Directory', id: 'LIST' }],
       onQueryStarted: createDocumentOnQueryStarted('Document', 'create document from pasted text'),
+    }),
+
+    evaluatePromptDiagramSuitability: builder.mutation<
+      EvaluatePromptDiagramSuitabilityResponse,
+      EvaluatePromptDiagramSuitabilityRequest
+    >({
+      query: (data) => ({
+        functionName: 'evaluatePromptDiagramSuitability',
+        data,
+      }),
     }),
 
     generateFromPrompt: builder.mutation<GenerateFromPromptResponse, GenerateFromPromptRequest>({
@@ -328,6 +340,7 @@ export const {
   useUploadAndCreateDocumentMutation,
   useCreateDocumentFromPastedTextMutation,
   useCreateDocumentFromUrlMutation,
+  useEvaluatePromptDiagramSuitabilityMutation,
   useGenerateFromPromptMutation,
   useUpdateDocumentMutation,
   useDeleteDocumentMutation,

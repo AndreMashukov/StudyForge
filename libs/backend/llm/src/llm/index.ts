@@ -1,3 +1,12 @@
+export {
+  evaluateMermaidDiagramSuitability,
+  JEV_DECISIONS_MODEL,
+  JEV_DIAGRAM_SUITABILITY_THRESHOLD,
+} from './jev-decisions-client';
+export type {
+  IEvaluateMermaidDiagramSuitabilityParams,
+  IEvaluateMermaidDiagramSuitabilityResult,
+} from './jev-decisions-client';
 export { LlmGenerationService } from './llm-generation-service';
 export type { GenerateFlashcardsResult } from './llm-generation-service';
 export {

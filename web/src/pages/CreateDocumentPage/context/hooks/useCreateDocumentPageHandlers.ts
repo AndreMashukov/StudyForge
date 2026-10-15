@@ -137,6 +137,7 @@ export const useCreateDocumentPageHandlers = (
       directoryId,
       ruleIds: data.ruleIds || [],
       ruleResolutionMode: 'explicit-only',
+      ...(data.includeDiagrams ? { includeDiagrams: true } : {}),
     });
 
     if (fileUploadHelpers) {

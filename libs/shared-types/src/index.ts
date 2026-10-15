@@ -1033,6 +1033,18 @@ export interface GenerateFromPromptRequest {
   directoryId: string; // Directory to place the generated document
   ruleIds?: string[]; // Optional rules for content generation
   ruleResolutionMode?: RuleResolutionMode;
+  /** When true, generation should include Mermaid diagrams (user opted in after Jev suitability). */
+  includeDiagrams?: boolean;
+}
+
+export interface EvaluatePromptDiagramSuitabilityRequest {
+  prompt: string;
+}
+
+export interface EvaluatePromptDiagramSuitabilityResponse {
+  success: boolean;
+  suitable: boolean;
+  probability: number;
 }
 
 export interface GenerateFromPromptResponse extends StartGenerationResponse {
@@ -2756,6 +2768,7 @@ export interface IDocumentAgentJobPayload {
   ruleIds?: string[];
   additionalRuleIds?: string[];
   ruleResolutionMode?: RuleResolutionMode;
+  includeDiagrams?: boolean;
   /** URL import metadata for description/tags. */
   sourceUrls?: string[];
   sourceUrl?: string;

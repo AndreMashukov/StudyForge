@@ -29,6 +29,7 @@ export interface DocumentPlan {
 
 export interface IDocumentHtmlGenerationOptions {
   isIngest?: boolean;
+  includeDiagrams?: boolean;
 }
 
 function stripCodeFences(text: string): string {
@@ -46,8 +47,15 @@ function formatRulesForPrompt(rules: DocumentRule[]): string {
   return rules.map((rule, index) => `RULE ${index + 1}: ${rule.name}\n${rule.content}`).join('\n\n');
 }
 
-function buildContextPrompt(userPrompt: string, files: IFileContent[] | undefined, rulesText: string): string {
-  const base = buildHtmlDocumentPrompt(userPrompt, rulesText || undefined);
+function buildContextPrompt(
+  userPrompt: string,
+  files: IFileContent[] | undefined,
+  rulesText: string,
+  includeDiagrams?: boolean,
+): string {
+  const base = buildHtmlDocumentPrompt(userPrompt, rulesText || undefined, {
+    includeDiagrams,
+  });
   if (!files?.length) {
     return base;
   }
@@ -157,7 +165,7 @@ Generate the complete HTML fragment now.`;
       ? `\n\nDocument plan:\nOutline: ${plan.outline.join(' > ')}\nRule checklist: ${plan.ruleChecklist.join('; ')}`
       : '';
 
-    prompt = `${buildContextPrompt(userPrompt, files, rulesText)}${planSection}
+    prompt = `${buildContextPrompt(userPrompt, files, rulesText, options?.includeDiagrams)}${planSection}
 
 Generate the complete HTML fragment now.`;
   }
@@ -181,9 +189,12 @@ export async function repairDocumentHtml(
   const capability = isIngest ? 'sourceDocumentEnhancement' : 'documentFromPrompt';
   const planSection = plan ? `\nPlan outline: ${plan.outline.join(' > ')}` : '';
 
+  const includeDiagrams = options?.includeDiagrams === true;
   const basePrompt = isIngest
     ? userPrompt
-    : buildHtmlDocumentPrompt(userPrompt, rulesText || undefined);
+    : buildHtmlDocumentPrompt(userPrompt, rulesText || undefined, {
+        includeDiagrams,
+      });
 
   const prompt = `${basePrompt}
 
@@ -195,7 +206,7 @@ ${htmlFragment}
 ${planSection}
 
 Repair the fragment so it satisfies every validation rule and the sealed output contract:
-${buildSealedHtmlOutputContract(rulesText || undefined)}`;
+${buildSealedHtmlOutputContract(rulesText || undefined, { includeDiagrams })}`;
 
   return generateText(userId, capability, prompt, diagnostics, 'repair');
 }

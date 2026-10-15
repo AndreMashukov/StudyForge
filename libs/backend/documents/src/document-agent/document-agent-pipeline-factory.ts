@@ -129,7 +129,12 @@ class GenerateAgent extends BaseAgent {
         agentContext.files,
         plan,
         diagnostics,
-        { isIngest: agentContext.isIngest },
+        {
+          isIngest: agentContext.isIngest,
+          includeDiagrams:
+            agentContext.payload.sourceKind === 'prompt' &&
+            agentContext.payload.includeDiagrams === true,
+        },
       ),
     );
 
@@ -211,7 +216,12 @@ class RepairAgent extends BaseAgent {
         formatValidationErrorsForRepair(validationReport.findings),
         plan,
         diagnostics,
-        { isIngest: agentContext.isIngest },
+        {
+          isIngest: agentContext.isIngest,
+          includeDiagrams:
+            agentContext.payload.sourceKind === 'prompt' &&
+            agentContext.payload.includeDiagrams === true,
+        },
       ),
     );
 

@@ -59,6 +59,8 @@ export {
 
 export { generateRuleWithAI } from './endpoints/rule-ai';
 
+export { evaluatePromptDiagramSuitability } from './endpoints/prompt-diagram-suitability';
+
 export { generateFlashcards } from './endpoints/flashcards';
 
 export { generateSlideDeck } from './endpoints/slide-decks';
