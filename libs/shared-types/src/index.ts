@@ -1028,7 +1028,7 @@ export interface IFileContent {
 }
 
 export interface GenerateFromPromptRequest {
-  prompt: string; // User's text prompt (max 10000 characters)
+  prompt: string;
   files?: IFileContent[]; // Optional reference documents (max 5 files)
   directoryId: string; // Directory to place the generated document
   ruleIds?: string[]; // Optional rules for content generation

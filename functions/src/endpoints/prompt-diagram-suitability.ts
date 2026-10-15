@@ -10,7 +10,6 @@ import {
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
 const MIN_PROMPT_LENGTH = 10;
-const MAX_PROMPT_LENGTH = 10_000;
 
 function readPrompt(data: unknown): string {
   const rawPrompt = (data as { prompt?: unknown } | null)?.prompt;
@@ -25,13 +24,6 @@ function readPrompt(data: unknown): string {
     throw new HttpsError(
       'invalid-argument',
       `prompt must be at least ${MIN_PROMPT_LENGTH} characters`,
-    );
-  }
-
-  if (trimmedPrompt.length > MAX_PROMPT_LENGTH) {
-    throw new HttpsError(
-      'invalid-argument',
-      `prompt must be at most ${MAX_PROMPT_LENGTH} characters`,
     );
   }
 
