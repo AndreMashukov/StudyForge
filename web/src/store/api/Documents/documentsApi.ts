@@ -31,6 +31,8 @@ import {
   GenerateFromPromptResponse,
   EvaluatePromptDiagramSuitabilityRequest,
   EvaluatePromptDiagramSuitabilityResponse,
+  EvaluatePromptDiagramCountRequest,
+  EvaluatePromptDiagramCountResponse,
   UploadDocumentRequest,
   IBulkDeleteDocumentsRequest,
   IBulkOperationResponse,
@@ -177,6 +179,16 @@ export const documentsApi = baseApi.injectEndpoints({
     >({
       query: (data) => ({
         functionName: 'evaluatePromptDiagramSuitability',
+        data,
+      }),
+    }),
+
+    evaluatePromptDiagramCount: builder.mutation<
+      EvaluatePromptDiagramCountResponse,
+      EvaluatePromptDiagramCountRequest
+    >({
+      query: (data) => ({
+        functionName: 'evaluatePromptDiagramCount',
         data,
       }),
     }),
@@ -341,6 +353,7 @@ export const {
   useCreateDocumentFromPastedTextMutation,
   useCreateDocumentFromUrlMutation,
   useEvaluatePromptDiagramSuitabilityMutation,
+  useEvaluatePromptDiagramCountMutation,
   useGenerateFromPromptMutation,
   useUpdateDocumentMutation,
   useDeleteDocumentMutation,

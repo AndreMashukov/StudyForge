@@ -1,9 +1,12 @@
 export {
+  diagramCountFromJevScore,
+  evaluateMermaidDiagramCount,
   evaluateMermaidDiagramSuitability,
   JEV_DECISIONS_MODEL,
   JEV_DIAGRAM_SUITABILITY_THRESHOLD,
 } from './jev-decisions-client';
 export type {
+  IEvaluateMermaidDiagramCountResult,
   IEvaluateMermaidDiagramSuitabilityParams,
   IEvaluateMermaidDiagramSuitabilityResult,
 } from './jev-decisions-client';

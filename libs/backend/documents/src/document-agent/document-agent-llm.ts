@@ -1,7 +1,11 @@
 import { logger } from 'firebase-functions/v2';
 import { z } from 'zod';
 import type { IFileContent, IArtifactAgentDiagnostics } from '@shared-types';
-import { buildHtmlDocumentPrompt, buildSealedHtmlOutputContract } from '@shared-types';
+import {
+  buildHtmlDocumentPrompt,
+  buildSealedHtmlOutputContract,
+  type IHtmlDocumentPromptOptions,
+} from '@shared-types';
 import { LlmGenerationService } from '@study-forge/backend-llm/llm';
 import { resolveTextRoute } from '@study-forge/backend-llm/llm/llm-text-runner';
 import { recordModelUsage } from '@study-forge/backend-artifacts/artifact-definition';
@@ -30,6 +34,7 @@ export interface DocumentPlan {
 export interface IDocumentHtmlGenerationOptions {
   isIngest?: boolean;
   includeDiagrams?: boolean;
+  diagramCount?: number;
 }
 
 function stripCodeFences(text: string): string {
@@ -47,15 +52,26 @@ function formatRulesForPrompt(rules: DocumentRule[]): string {
   return rules.map((rule, index) => `RULE ${index + 1}: ${rule.name}\n${rule.content}`).join('\n\n');
 }
 
+function diagramPromptOptions(
+  options?: IDocumentHtmlGenerationOptions,
+): IHtmlDocumentPromptOptions {
+  return {
+    includeDiagrams: options?.includeDiagrams === true,
+    diagramCount: options?.diagramCount,
+  };
+}
+
 function buildContextPrompt(
   userPrompt: string,
   files: IFileContent[] | undefined,
   rulesText: string,
-  includeDiagrams?: boolean,
+  options?: IDocumentHtmlGenerationOptions,
 ): string {
-  const base = buildHtmlDocumentPrompt(userPrompt, rulesText || undefined, {
-    includeDiagrams,
-  });
+  const base = buildHtmlDocumentPrompt(
+    userPrompt,
+    rulesText || undefined,
+    diagramPromptOptions(options),
+  );
   if (!files?.length) {
     return base;
   }
@@ -165,7 +181,7 @@ Generate the complete HTML fragment now.`;
       ? `\n\nDocument plan:\nOutline: ${plan.outline.join(' > ')}\nRule checklist: ${plan.ruleChecklist.join('; ')}`
       : '';
 
-    prompt = `${buildContextPrompt(userPrompt, files, rulesText, options?.includeDiagrams)}${planSection}
+    prompt = `${buildContextPrompt(userPrompt, files, rulesText, options)}${planSection}
 
 Generate the complete HTML fragment now.`;
   }
@@ -189,12 +205,10 @@ export async function repairDocumentHtml(
   const capability = isIngest ? 'sourceDocumentEnhancement' : 'documentFromPrompt';
   const planSection = plan ? `\nPlan outline: ${plan.outline.join(' > ')}` : '';
 
-  const includeDiagrams = options?.includeDiagrams === true;
+  const diagramOptions = diagramPromptOptions(options);
   const basePrompt = isIngest
     ? userPrompt
-    : buildHtmlDocumentPrompt(userPrompt, rulesText || undefined, {
-        includeDiagrams,
-      });
+    : buildHtmlDocumentPrompt(userPrompt, rulesText || undefined, diagramOptions);
 
   const prompt = `${basePrompt}
 
@@ -206,7 +220,7 @@ ${htmlFragment}
 ${planSection}
 
 Repair the fragment so it satisfies every validation rule and the sealed output contract:
-${buildSealedHtmlOutputContract(rulesText || undefined, { includeDiagrams })}`;
+${buildSealedHtmlOutputContract(rulesText || undefined, diagramOptions)}`;
 
   return generateText(userId, capability, prompt, diagnostics, 'repair');
 }

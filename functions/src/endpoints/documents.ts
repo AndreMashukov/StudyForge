@@ -28,6 +28,7 @@ import {
   DocumentStatus,
   GenerateFromPromptRequest,
   GenerateFromScreenshotRequest,
+  isPromptDiagramCount,
   IFileContent,
   IDocumentAgentJobPayload,
   MoveDocumentRequest,
@@ -1125,6 +1126,19 @@ export const generateFromPrompt = onCall(
         ? rawRuleData.ruleResolutionMode
         : (data.ruleIds?.length ? 'explicit-only' : 'inherit-plus-explicit');
 
+      let includeDiagrams: true | undefined;
+      let diagramCount: number | undefined;
+      if (data.includeDiagrams === true) {
+        if (!isPromptDiagramCount(data.diagramCount)) {
+          throw new HttpsError(
+            'invalid-argument',
+            'diagramCount must be an integer from 1 to 5 when diagrams are included',
+          );
+        }
+        includeDiagrams = true;
+        diagramCount = data.diagramCount;
+      }
+
       if (!data.directoryId) {
         throw new HttpsError('invalid-argument', 'directoryId is required');
       }
@@ -1155,6 +1169,8 @@ export const generateFromPrompt = onCall(
           prompt: trimmedPrompt,
           ruleResolutionMode: mode,
           additionalRuleIds: rawRuleData.additionalRuleIds,
+          includeDiagrams,
+          diagramCount,
         });
         await GenerationJobsService.createJob({
           jobId,

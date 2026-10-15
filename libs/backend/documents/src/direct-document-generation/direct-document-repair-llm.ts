@@ -19,15 +19,17 @@ export async function repairDirectDocumentHtml(params: {
   validationErrors: string;
   screenshotContext?: string;
   includeDiagrams?: boolean;
+  diagramCount?: number;
 }): Promise<string> {
-  const includeDiagrams = params.includeDiagrams === true;
+  const diagramOptions = {
+    includeDiagrams: params.includeDiagrams === true,
+    diagramCount: params.diagramCount,
+  };
   const sourceSection = params.screenshotContext
     ? `\nScreenshot context (metadata only, image not included):\n${params.screenshotContext}`
     : '';
 
-  const prompt = `${buildHtmlDocumentPrompt(params.userPrompt, params.rulesText || undefined, {
-    includeDiagrams,
-  })}${sourceSection}
+  const prompt = `${buildHtmlDocumentPrompt(params.userPrompt, params.rulesText || undefined, diagramOptions)}${sourceSection}
 
 The previous HTML fragment failed validation:
 ${params.validationErrors}
@@ -36,7 +38,7 @@ Previous fragment:
 ${params.htmlFragment}
 
 Repair the fragment so it satisfies every validation rule and the sealed output contract:
-${buildSealedHtmlOutputContract(params.rulesText || undefined, { includeDiagrams })}`;
+${buildSealedHtmlOutputContract(params.rulesText || undefined, diagramOptions)}`;
 
   const raw = await LlmGenerationService.generateText(
     params.userId,

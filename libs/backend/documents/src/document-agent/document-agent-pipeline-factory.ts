@@ -6,7 +6,7 @@ import {
   createEventActions,
 } from '@google/adk';
 import type { InvocationContext } from '@google/adk';
-import type { IArtifactAgentDiagnostics } from '@shared-types';
+import { resolvePromptDiagramPromptOptions, type IArtifactAgentDiagnostics } from '@shared-types';
 import { DocumentCrudService } from '../document-crud';
 import {
   extractDocumentTitle,
@@ -131,9 +131,7 @@ class GenerateAgent extends BaseAgent {
         diagnostics,
         {
           isIngest: agentContext.isIngest,
-          includeDiagrams:
-            agentContext.payload.sourceKind === 'prompt' &&
-            agentContext.payload.includeDiagrams === true,
+          ...resolvePromptDiagramPromptOptions(agentContext.payload),
         },
       ),
     );
@@ -218,9 +216,7 @@ class RepairAgent extends BaseAgent {
         diagnostics,
         {
           isIngest: agentContext.isIngest,
-          includeDiagrams:
-            agentContext.payload.sourceKind === 'prompt' &&
-            agentContext.payload.includeDiagrams === true,
+          ...resolvePromptDiagramPromptOptions(agentContext.payload),
         },
       ),
     );

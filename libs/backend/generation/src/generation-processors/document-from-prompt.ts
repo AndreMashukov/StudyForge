@@ -44,6 +44,7 @@ export class DocumentFromPromptGenerationProcessor {
             ruleIds: data.ruleIds,
             ruleResolutionMode: data.ruleResolutionMode,
             includeDiagrams: data.includeDiagrams,
+            diagramCount: data.diagramCount,
           };
 
     logger.info('Starting async prompt document generation', {

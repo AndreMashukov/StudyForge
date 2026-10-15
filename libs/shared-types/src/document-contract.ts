@@ -80,8 +80,35 @@ export const SEALED_HTML_OUTPUT_CONTRACT_LINES = [
   '- Do NOT include Mermaid diagrams, Plotly graphs, or mathematical LaTeX unless a selected domain rule explicitly asks for them.',
 ] as const;
 
+export const PROMPT_DIAGRAM_COUNT_MIN = 1;
+export const PROMPT_DIAGRAM_COUNT_MAX = 5;
+
 export interface IHtmlDocumentPromptOptions {
   includeDiagrams?: boolean;
+  diagramCount?: number;
+}
+
+export function isPromptDiagramCount(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= PROMPT_DIAGRAM_COUNT_MIN &&
+    value <= PROMPT_DIAGRAM_COUNT_MAX
+  );
+}
+
+export function resolvePromptDiagramPromptOptions(payload: {
+  sourceKind?: string;
+  includeDiagrams?: boolean;
+  diagramCount?: unknown;
+}): IHtmlDocumentPromptOptions {
+  if (payload.sourceKind !== 'prompt' || payload.includeDiagrams !== true) {
+    return {};
+  }
+
+  return isPromptDiagramCount(payload.diagramCount)
+    ? { includeDiagrams: true, diagramCount: payload.diagramCount }
+    : { includeDiagrams: true };
 }
 
 function resolveSealedHtmlOutputContractLines(
@@ -96,11 +123,12 @@ function resolveSealedHtmlOutputContractLines(
     return baseLines;
   }
 
-  return baseLines.map((line) =>
-    line.includes('Mermaid diagrams')
-      ? `- Include one or more Mermaid diagrams using <pre><code class="language-mermaid"> blocks where they clarify the topic. Supported diagram types: ${MERMAID_DIAGRAM_PREFIXES.join(', ')}.`
-      : line,
-  );
+  const diagramTypes = MERMAID_DIAGRAM_PREFIXES.join(', ');
+  const diagramLine = isPromptDiagramCount(options.diagramCount)
+    ? `- Include exactly ${options.diagramCount} Mermaid ${options.diagramCount === 1 ? 'diagram' : 'diagrams'} using <pre><code class="language-mermaid"> blocks. Do not include more than ${options.diagramCount}. Supported diagram types: ${diagramTypes}.`
+    : `- Include one or more Mermaid diagrams using <pre><code class="language-mermaid"> blocks where they clarify the topic. Supported diagram types: ${diagramTypes}.`;
+
+  return baseLines.map((line) => (line.includes('Mermaid diagrams') ? diagramLine : line));
 }
 
 export function buildSealedHtmlOutputContract(

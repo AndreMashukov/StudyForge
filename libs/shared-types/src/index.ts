@@ -1035,6 +1035,8 @@ export interface GenerateFromPromptRequest {
   ruleResolutionMode?: RuleResolutionMode;
   /** When true, generation should include Mermaid diagrams (user opted in after Jev suitability). */
   includeDiagrams?: boolean;
+  /** How many Mermaid diagrams to include. Required with includeDiagrams. */
+  diagramCount?: number;
 }
 
 export interface EvaluatePromptDiagramSuitabilityRequest {
@@ -1045,6 +1047,15 @@ export interface EvaluatePromptDiagramSuitabilityResponse {
   success: boolean;
   suitable: boolean;
   probability: number;
+}
+
+export interface EvaluatePromptDiagramCountRequest {
+  prompt: string;
+}
+
+export interface EvaluatePromptDiagramCountResponse {
+  success: boolean;
+  maxDiagrams: number;
 }
 
 export interface GenerateFromPromptResponse extends StartGenerationResponse {
@@ -2769,6 +2780,7 @@ export interface IDocumentAgentJobPayload {
   additionalRuleIds?: string[];
   ruleResolutionMode?: RuleResolutionMode;
   includeDiagrams?: boolean;
+  diagramCount?: number;
   /** URL import metadata for description/tags. */
   sourceUrls?: string[];
   sourceUrl?: string;

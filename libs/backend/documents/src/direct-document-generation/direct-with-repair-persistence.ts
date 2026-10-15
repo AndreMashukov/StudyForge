@@ -1,8 +1,9 @@
 import { logger } from 'firebase-functions/v2';
-import type {
-  GenerationKind,
-  IArtifactAgentDiagnostics,
-  IGenerationModelUsage,
+import {
+  resolvePromptDiagramPromptOptions,
+  type GenerationKind,
+  type IArtifactAgentDiagnostics,
+  type IGenerationModelUsage,
 } from '@shared-types';
 import type { GenerationRouteResolution } from '@study-forge/backend-llm/llm/llm-generation-route-resolver';
 import {
@@ -92,9 +93,7 @@ export async function persistDirectWithRepairHtmlDocument(params: {
       htmlFragment,
       validationErrors,
       screenshotContext: params.screenshotContext,
-      includeDiagrams:
-        params.agentContext.payload.sourceKind === 'prompt' &&
-        params.agentContext.payload.includeDiagrams === true,
+      ...resolvePromptDiagramPromptOptions(params.agentContext.payload),
     });
     repairDurationMs = Date.now() - repairStartMs;
     repairRan = true;
