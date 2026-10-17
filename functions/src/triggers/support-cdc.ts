@@ -60,6 +60,127 @@ async function publishSupportEvent(payload: JsonMap): Promise<void> {
   });
 }
 
+const BILLING_FIELDS = [
+  'subscriptionStatus',
+  'billingStatus',
+  'subscriptionUsageLimitsSetupId',
+  'subscriptionCurrentPeriodEnd',
+  'cancelAtPeriodEnd',
+  'payAsYouGoEnabled',
+] as const;
+
+export function billingFieldsChanged(
+  before: FirebaseFirestore.DocumentData | undefined,
+  after: FirebaseFirestore.DocumentData | undefined,
+): boolean {
+  return BILLING_FIELDS.some(
+    (field) => JSON.stringify(before?.[field] ?? null) !== JSON.stringify(after?.[field] ?? null),
+  );
+}
+
+export function spentCreditsChanged(
+  before: FirebaseFirestore.DocumentData | undefined,
+  after: FirebaseFirestore.DocumentData | undefined,
+): boolean {
+  return (before?.spentCredits ?? null) !== (after?.spentCredits ?? null);
+}
+
+function currentUsagePeriodKey(now = new Date()): string {
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+function asInt(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : 0;
+}
+
+async function accountSnapshotPayload(userId: string): Promise<JsonMap | null> {
+  const db = getFirestore();
+  const userSnap = await db.collection('users').doc(userId).get();
+  if (!userSnap.exists) {
+    return null;
+  }
+  const user = userSnap.data() ?? {};
+  const setupId =
+    typeof user.subscriptionUsageLimitsSetupId === 'string'
+      ? user.subscriptionUsageLimitsSetupId
+      : '';
+  let includedCredits = 0;
+  if (setupId) {
+    const setupSnap = await db.collection('usageLimitsSetups').doc(setupId).get();
+    includedCredits = asInt(setupSnap.data()?.monthlyCreditAllowance);
+  }
+  const periodKey = currentUsagePeriodKey();
+  const periodSnap = await db
+    .collection('users')
+    .doc(userId)
+    .collection('usagePeriods')
+    .doc(periodKey)
+    .get();
+  const periodEnd =
+    typeof user.subscriptionCurrentPeriodEnd === 'string'
+      ? user.subscriptionCurrentPeriodEnd
+      : null;
+  return {
+    v: 1,
+    event_type: 'account.snapshot.updated',
+    user_id: userId,
+    updated_at: new Date().toISOString(),
+    subscription_status:
+      typeof user.subscriptionStatus === 'string' ? user.subscriptionStatus : '',
+    billing_status: typeof user.billingStatus === 'string' ? user.billingStatus : '',
+    usage_limits_setup_id: setupId,
+    current_period_end: periodEnd,
+    cancel_at_period_end: user.cancelAtPeriodEnd === true,
+    pay_as_you_go_enabled: user.payAsYouGoEnabled === true,
+    included_credits: includedCredits,
+    spent_credits: asInt(periodSnap.data()?.spentCredits),
+  };
+}
+
+export const accountSnapshotFromUser = onDocumentWritten(
+  {
+    document: 'users/{userId}',
+    region: 'asia-east1',
+  },
+  async (event) => {
+    const userId = event.params.userId;
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!userId || !after || !billingFieldsChanged(before, after)) {
+      return;
+    }
+    const payload = await accountSnapshotPayload(userId);
+    if (!payload) {
+      return;
+    }
+    await publishSupportEvent(payload);
+    logger.info('support-cdc published account.snapshot.updated', userId);
+  },
+);
+
+export const accountSnapshotFromUsage = onDocumentWritten(
+  {
+    document: 'users/{userId}/usagePeriods/{periodKey}',
+    region: 'asia-east1',
+  },
+  async (event) => {
+    const userId = event.params.userId;
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!userId || !after || !spentCreditsChanged(before, after)) {
+      return;
+    }
+    const payload = await accountSnapshotPayload(userId);
+    if (!payload) {
+      return;
+    }
+    await publishSupportEvent(payload);
+    logger.info('support-cdc published account.snapshot.updated from usage', userId);
+  },
+);
+
 export const supportCommandCdc = onDocumentWritten(
   {
     document: 'supportCommands/{commandId}',
