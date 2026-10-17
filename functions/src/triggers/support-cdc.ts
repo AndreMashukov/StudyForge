@@ -95,49 +95,84 @@ function asInt(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : 0;
 }
 
+function stringField(
+  data: FirebaseFirestore.DocumentData | undefined,
+  key: string,
+): string {
+  const value = data?.[key];
+  return typeof value === 'string' ? value : '';
+}
+
+export function userGroupChanged(
+  before: FirebaseFirestore.DocumentData | undefined,
+  after: FirebaseFirestore.DocumentData | undefined,
+): boolean {
+  return stringField(before, 'userGroupId') !== stringField(after, 'userGroupId');
+}
+
 async function accountSnapshotPayload(userId: string): Promise<JsonMap | null> {
   const db = getFirestore();
-  const userSnap = await db.collection('users').doc(userId).get();
+  const userRef = db.collection('users').doc(userId);
+  const userSnap = await userRef.get();
   if (!userSnap.exists) {
     return null;
   }
   const user = userSnap.data() ?? {};
-  const setupId =
-    typeof user.subscriptionUsageLimitsSetupId === 'string'
-      ? user.subscriptionUsageLimitsSetupId
-      : '';
+  const billingSnap = await userRef.collection('billing').doc('current').get();
+  const billing = billingSnap.data() ?? {};
+  const groupId = stringField(user, 'userGroupId');
+  let setupId = stringField(billing, 'subscriptionUsageLimitsSetupId');
+  if (!setupId && groupId) {
+    const groupSnap = await db.collection('userGroups').doc(groupId).get();
+    setupId = stringField(groupSnap.data(), 'usageLimitsSetupId');
+  }
   let includedCredits = 0;
   if (setupId) {
     const setupSnap = await db.collection('usageLimitsSetups').doc(setupId).get();
     includedCredits = asInt(setupSnap.data()?.monthlyCreditAllowance);
   }
   const periodKey = currentUsagePeriodKey();
-  const periodSnap = await db
-    .collection('users')
-    .doc(userId)
-    .collection('usagePeriods')
-    .doc(periodKey)
-    .get();
-  const periodEnd =
-    typeof user.subscriptionCurrentPeriodEnd === 'string'
-      ? user.subscriptionCurrentPeriodEnd
-      : null;
+  const periodSnap = await userRef.collection('usagePeriods').doc(periodKey).get();
+  const periodEnd = stringField(billing, 'subscriptionCurrentPeriodEnd');
   return {
     v: 1,
     event_type: 'account.snapshot.updated',
     user_id: userId,
     updated_at: new Date().toISOString(),
-    subscription_status:
-      typeof user.subscriptionStatus === 'string' ? user.subscriptionStatus : '',
-    billing_status: typeof user.billingStatus === 'string' ? user.billingStatus : '',
+    subscription_status: stringField(billing, 'subscriptionStatus'),
+    billing_status: stringField(billing, 'billingStatus'),
     usage_limits_setup_id: setupId,
-    current_period_end: periodEnd,
-    cancel_at_period_end: user.cancelAtPeriodEnd === true,
-    pay_as_you_go_enabled: user.payAsYouGoEnabled === true,
+    current_period_end: periodEnd || null,
+    cancel_at_period_end: billing.cancelAtPeriodEnd === true,
+    pay_as_you_go_enabled: billing.payAsYouGoEnabled === true,
     included_credits: includedCredits,
     spent_credits: asInt(periodSnap.data()?.spentCredits),
   };
 }
+
+export const accountSnapshotFromBilling = onDocumentWritten(
+  {
+    document: 'users/{userId}/billing/{billingId}',
+    region: 'asia-east1',
+  },
+  async (event) => {
+    const userId = event.params.userId;
+    if (!userId || event.params.billingId !== 'current') {
+      return;
+    }
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!after || !billingFieldsChanged(before, after)) {
+      return;
+    }
+    const payload = await accountSnapshotPayload(userId);
+    if (!payload) {
+      return;
+    }
+    await publishSupportEvent(payload);
+    logger.info('support-cdc published account.snapshot.updated from billing', userId);
+  },
+);
 
 export const accountSnapshotFromUser = onDocumentWritten(
   {
@@ -148,7 +183,7 @@ export const accountSnapshotFromUser = onDocumentWritten(
     const userId = event.params.userId;
     const before = event.data?.before?.data();
     const after = event.data?.after?.data();
-    if (!userId || !after || !billingFieldsChanged(before, after)) {
+    if (!userId || !after || !userGroupChanged(before, after)) {
       return;
     }
     const payload = await accountSnapshotPayload(userId);
