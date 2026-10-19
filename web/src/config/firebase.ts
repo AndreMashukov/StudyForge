@@ -111,6 +111,53 @@ function startAppCheckTokenFetch(appCheck: AppCheck): void {
   appCheckReadyPromise = fetchAppCheckTokenWithRetry(appCheck);
 }
 
+export const APP_CHECK_UNAVAILABLE_MESSAGE =
+  'This browser could not be verified. Reload the page and try again.';
+
+/**
+ * Returns a real App Check token, retrying with a forced refresh.
+ * Callables omit the header when this fails, and enforced functions then return 401.
+ */
+export async function ensureAppCheckToken(): Promise<string | undefined> {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  if (!appCheckInstance) {
+    if (useEmulator) {
+      return undefined;
+    }
+    throw new Error(APP_CHECK_UNAVAILABLE_MESSAGE);
+  }
+
+  if (appCheckReadyPromise) {
+    await appCheckReadyPromise;
+  }
+
+  const retryDelaysMs = [0, 400, 1200];
+  let lastError: unknown;
+
+  for (const [attempt, delayMs] of retryDelaysMs.entries()) {
+    if (delayMs > 0) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, delayMs);
+      });
+    }
+
+    try {
+      const result = await getToken(appCheckInstance, attempt > 0);
+      return result.token;
+    } catch (error: unknown) {
+      lastError = error;
+    }
+  }
+
+  const detail =
+    lastError instanceof Error ? lastError.message : String(lastError);
+  console.error('App Check token unavailable:', detail);
+  throw new Error(APP_CHECK_UNAVAILABLE_MESSAGE);
+}
+
 function initializeWebAppCheck(options: { enableDebugToken: boolean }): void {
   if (typeof window === 'undefined') {
     return;
@@ -203,11 +250,9 @@ export async function evictFirestoreLocalCache(): Promise<void> {
   }
 }
 
-/** Resolves once the first App Check token is obtained (no-op when App Check is disabled). */
+/** Resolves once a usable App Check token is available. */
 export async function waitForAppCheckReady(): Promise<void> {
-  if (appCheckReadyPromise) {
-    await appCheckReadyPromise;
-  }
+  await ensureAppCheckToken();
 }
 
 if (typeof window !== 'undefined' && useEmulator) {

@@ -1,11 +1,9 @@
 import {
   auth,
-  appCheckInstance,
+  ensureAppCheckToken,
   firebaseProjectId,
   useEmulator,
-  waitForAppCheckReady,
 } from '../config/firebase';
-import { getToken } from 'firebase/app-check';
 import {
   AgentMessageInput,
   AgentMessageStreamEvent,
@@ -105,8 +103,6 @@ export async function streamAgentMessage(
     signal?: AbortSignal;
   }
 ): Promise<void> {
-  await waitForAppCheckReady();
-
   const user = auth.currentUser;
   if (!user) {
     throw new Error('You must be signed in to use the agent.');
@@ -114,9 +110,7 @@ export async function streamAgentMessage(
 
   const [idToken, appCheckToken] = await Promise.all([
     user.getIdToken(),
-    appCheckInstance
-      ? getToken(appCheckInstance, false).then((result) => result.token).catch(() => undefined)
-      : Promise.resolve(undefined),
+    ensureAppCheckToken(),
   ]);
 
   const headers: Record<string, string> = {
