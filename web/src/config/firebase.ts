@@ -116,7 +116,8 @@ export const APP_CHECK_UNAVAILABLE_MESSAGE =
 
 /**
  * Returns a real App Check token, retrying with a forced refresh.
- * Callables omit the header when this fails, and enforced functions then return 401.
+ * Callers that talk to enforced functions must send this value as
+ * X-Firebase-AppCheck. httpsCallable does not guarantee that header.
  */
 export async function ensureAppCheckToken(): Promise<string | undefined> {
   if (typeof window === 'undefined') {

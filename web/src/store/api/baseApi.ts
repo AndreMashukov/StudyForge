@@ -1,6 +1,5 @@
 import { createApi, BaseQueryFn } from '@reduxjs/toolkit/query/react';
-import { httpsCallable } from 'firebase/functions';
-import { functions, waitForAppCheckReady } from '../../config/firebase';
+import { callCallable } from '../../services/callableClient';
 import { getUserFacingCallableFailureMessage } from '../../utils/callableErrorMessages';
 import {
   getUserFacingLlmRoutingMessage,
@@ -19,22 +18,15 @@ const firebaseCallableBaseQuery: BaseQueryFn<
   unknown
 > = async ({ functionName, data, timeout }) => {
   try {
-    await waitForAppCheckReady();
     console.log(`Firebase Callable - Starting: ${functionName}`);
 
-    const callable = httpsCallable(
-      functions,
-      functionName,
-      timeout ? { timeout } : undefined,
-    );
-
     const startTime = Date.now();
-    const result = await callable(data || {});
+    const result = await callCallable(functionName, data ?? {}, timeout);
     const duration = Date.now() - startTime;
 
     console.log(`Firebase Callable - Success: ${functionName} (${duration}ms)`);
 
-    return { data: result.data };
+    return { data: result };
   } catch (error: unknown) {
     console.error(`Firebase Callable - Error: ${functionName}`, error);
     console.error(
