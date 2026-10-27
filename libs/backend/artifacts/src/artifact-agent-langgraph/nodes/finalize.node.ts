@@ -4,6 +4,10 @@ import type {
   ArtifactAgentFailure,
   ArtifactAgentResult,
 } from '../../artifact-definition';
+import {
+  hasBlockerFailures,
+  runArtifactGates,
+} from '../../artifact-definition';
 import type { DiagramQuizState } from '../diagram-quiz-state';
 import { DiagramQuizStateValue } from '../diagram-quiz-state';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
@@ -57,31 +61,29 @@ export async function finalizeNode(
     // on budget exhaustion; detect that case here so a draft that still
     // holds blocker gate failures is not persisted as a successful
     // artifact.
-    const gateFailures =
+    let gateFailures =
       state[ARTIFACT_PIPELINE_STATE_KEYS.gateFailures] ?? [];
-    const hasBlockers = gateFailures.some(
-      (failure) => failure.severity === 'blocker'
-    );
-    const criticResult = state[ARTIFACT_PIPELINE_STATE_KEYS.criticResult];
-    const criticBlocked =
-      criticResult !== undefined &&
-      (criticResult.overallVerdict === 'fail' ||
-        criticResult.items.some((item) => item.severity === 'blocker'));
+    if (draft !== undefined && definition.gates?.length) {
+      const gateResult = await runArtifactGates(
+        definition.gates,
+        draft,
+        context as Parameters<typeof runArtifactGates>[2],
+      );
+      gateFailures = gateResult.failures;
+    }
+    const hasBlockers = hasBlockerFailures(gateFailures);
     const shouldFail =
       outcome === 'failed' ||
       draft === undefined ||
       diagnostics === undefined ||
-      hasBlockers ||
-      criticBlocked;
+      hasBlockers;
     const resolvedFailureMessage =
       failureMessage ??
       (hasBlockers
         ? 'Gate blockers remained after the repair loop finished'
-        : criticBlocked
-          ? 'Critic rejected the artifact'
-          : draft === undefined
-            ? 'Artifact draft was not produced'
-            : 'Diagram-quiz pipeline failed without a message');
+        : draft === undefined
+          ? 'Artifact draft was not produced'
+          : 'Diagram-quiz pipeline failed without a message');
 
     if (shouldFail) {
       const failure: ArtifactAgentFailure = {

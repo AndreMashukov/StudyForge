@@ -2,6 +2,7 @@
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
 import type { DiagramQuizState } from '../diagram-quiz-state';
 import { DiagramQuizStateValue } from '../diagram-quiz-state';
+import { recordCriticLoopEscalationSignal } from '../../diagram-quiz/diagram-quiz-escalation';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
 
 const NODE_NAME = 'critic';
@@ -17,7 +18,7 @@ export type CriticNodeResult = Partial<DiagramQuizState>;
  *
  * P1 audit fix: explicitly increment `critic_iteration_count` on every visit
  * so the conditional edge after `critic` can enforce the maximum verification
- * bound (3 iterations) without relying solely on `recursionLimit`. The
+ * bound (4 iterations) without relying solely on `recursionLimit`. The
  * counter is always returned as a finite number so the `keepFiniteNumber`
  * reducer on the state channel preserves the new value.
  *
@@ -45,15 +46,30 @@ export async function criticNode(
     if (!definition.critic) {
       throw new Error('Critic node requires definition.critic');
     }
+
+    const diagnostics = state[ARTIFACT_PIPELINE_STATE_KEYS.diagnostics];
+    const priorCriticResult = state[ARTIFACT_PIPELINE_STATE_KEYS.criticResult];
+    if (diagnostics) {
+      recordCriticLoopEscalationSignal(diagnostics, {
+        completedCriticIterations: previousCriticCount,
+        lastVerdict: priorCriticResult?.overallVerdict,
+      });
+    }
+
     const criticResult = await definition.critic.criticize(
       draft,
       state[ARTIFACT_PIPELINE_STATE_KEYS.context] as Parameters<
         typeof definition.critic.criticize
       >[1],
-      state[ARTIFACT_PIPELINE_STATE_KEYS.diagnostics] as Parameters<
-        typeof definition.critic.criticize
-      >[2]
+      diagnostics as Parameters<typeof definition.critic.criticize>[2],
     );
+
+    if (diagnostics) {
+      recordCriticLoopEscalationSignal(diagnostics, {
+        completedCriticIterations: nextCriticCount,
+        lastVerdict: criticResult.overallVerdict,
+      });
+    }
 
     const result: CriticNodeResult = {
       [ARTIFACT_PIPELINE_STATE_KEYS.criticResult]: criticResult,

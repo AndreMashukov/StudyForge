@@ -198,7 +198,7 @@ export type DiagramQuizLoopCounterKey =
  */
 export const DIAGRAM_QUIZ_LOOP_LIMITS = {
   maxRepairIterations: 4,
-  maxCriticIterations: 3,
+  maxCriticIterations: 4,
 } as const;
 
 /**

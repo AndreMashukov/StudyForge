@@ -165,6 +165,19 @@ describe('routeAfterCritic', () => {
     ).toBe('refiner');
   });
 
+  it('continues refinement on critic iteration 3 when the cap is 4', () => {
+    expect(
+      routeAfterCritic(
+        routeState({
+          [ARTIFACT_PIPELINE_STATE_KEYS.criticResult]: {
+            overallVerdict: 'revise',
+          },
+          [DIAGRAM_QUIZ_LOOP_COUNTERS.critic]: 3,
+        }),
+      ),
+    ).toBe('refiner');
+  });
+
   it('finalizes when the critic budget is spent', () => {
     expect(
       routeAfterCritic(

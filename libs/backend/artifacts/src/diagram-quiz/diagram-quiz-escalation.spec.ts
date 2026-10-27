@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   diagramQuizRepairTargetKey,
   readDiagramQuizEscalationDetails,
+  recordCriticLoopEscalationSignal,
   recordDiagramQuizRepairAttempt,
   resolveDiagramQuizAgentRouteCapability,
   resolveDiagramQuizRefineRouteCapability,
   shouldUseEscalationForCriticOrRefiner,
 } from './diagram-quiz-escalation';
+import { createEmptyDiagnostics } from '../artifact-definition';
 
 describe('diagram-quiz escalation', () => {
   const targetKey = diagramQuizRepairTargetKey(3, 1);
@@ -39,13 +41,42 @@ describe('diagram-quiz escalation', () => {
     );
   });
 
-  it('switches critic and refiner after any target reaches two repairs', () => {
+  it('does not escalate critic or refiner after repair attempts alone', () => {
     const artifactDetails: Record<string, unknown> = {};
     recordDiagramQuizRepairAttempt(artifactDetails, targetKey);
     recordDiagramQuizRepairAttempt(artifactDetails, targetKey);
     const details = readDiagramQuizEscalationDetails(artifactDetails);
+    expect(shouldUseEscalationForCriticOrRefiner(details)).toBe(false);
+    expect(resolveDiagramQuizRefineRouteCapability(details)).toBe('diagramQuiz');
+  });
+
+  it('escalates critic and refiner after two completed non-pass critic results', () => {
+    const diagnostics = createEmptyDiagnostics({
+      artifactKind: 'diagramQuiz',
+    });
+    recordCriticLoopEscalationSignal(diagnostics, {
+      completedCriticIterations: 2,
+      lastVerdict: 'revise',
+    });
+    const details = readDiagramQuizEscalationDetails(
+      diagnostics.artifactDetails,
+    );
     expect(shouldUseEscalationForCriticOrRefiner(details)).toBe(true);
     expect(resolveDiagramQuizRefineRouteCapability(details)).toBe('escalation');
+  });
+
+  it('does not escalate critic loop after one non-pass critic result', () => {
+    const diagnostics = createEmptyDiagnostics({
+      artifactKind: 'diagramQuiz',
+    });
+    recordCriticLoopEscalationSignal(diagnostics, {
+      completedCriticIterations: 1,
+      lastVerdict: 'revise',
+    });
+    const details = readDiagramQuizEscalationDetails(
+      diagnostics.artifactDetails,
+    );
+    expect(shouldUseEscalationForCriticOrRefiner(details)).toBe(false);
   });
 
   it('ignores invalid stored repair attempt counts', () => {
@@ -73,6 +104,5 @@ describe('diagram-quiz escalation', () => {
     const details = recordDiagramQuizRepairAttempt(artifactDetails, targetKey);
 
     expect(details.repairAttemptsByTarget).toEqual({ [targetKey]: 1 });
-    expect(details.repairEscalated).toBe(false);
   });
 });

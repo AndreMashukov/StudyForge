@@ -2,6 +2,7 @@
 import { ARTIFACT_PIPELINE_STATE_KEYS } from '../../artifact-pipeline-state-keys';
 import type { DiagramQuizState } from '../diagram-quiz-state';
 import { DiagramQuizStateValue } from '../diagram-quiz-state';
+import { recordCriticLoopEscalationSignal } from '../../diagram-quiz/diagram-quiz-escalation';
 import { logNodeEnter, logNodeExitError, logNodeExitOk } from './node-logger';
 
 const NODE_NAME = 'refiner';
@@ -59,6 +60,14 @@ export async function refinerNode(
       logNodeExitOk(NODE_NAME, state);
       return result;
     }
+    const diagnostics = state[ARTIFACT_PIPELINE_STATE_KEYS.diagnostics];
+    if (diagnostics) {
+      recordCriticLoopEscalationSignal(diagnostics, {
+        completedCriticIterations: state.critic_iteration_count ?? 0,
+        lastVerdict: criticResult.overallVerdict,
+      });
+    }
+
     const result = {
       [ARTIFACT_PIPELINE_STATE_KEYS.draft]: await definition.refiner.refine(
         draft,
@@ -66,9 +75,7 @@ export async function refinerNode(
         state[ARTIFACT_PIPELINE_STATE_KEYS.context] as Parameters<
           typeof definition.refiner.refine
         >[2],
-        state[ARTIFACT_PIPELINE_STATE_KEYS.diagnostics] as Parameters<
-          typeof definition.refiner.refine
-        >[3],
+        diagnostics as Parameters<typeof definition.refiner.refine>[3],
       ),
     } as RefinerNodeResult;
     logNodeExitOk(NODE_NAME, state);

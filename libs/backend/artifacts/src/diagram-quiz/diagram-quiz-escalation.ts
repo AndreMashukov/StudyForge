@@ -1,14 +1,28 @@
+import type {
+  IArtifactAgentDiagnostics,
+  IArtifactCriticResult,
+} from '@shared-types';
 import type { LlmCapability } from '@study-forge/backend-llm/llm/types';
 
 const ESCALATION_REPAIR_THRESHOLD = 2;
+/** After this many completed critic passes, use escalation when the last verdict is not pass. */
+const CRITIC_LOOP_ESCALATION_THRESHOLD = 2;
 
 export interface DiagramQuizEscalationDetails {
   repairAttemptsByTarget?: Record<string, number>;
-  repairEscalated?: boolean;
+  criticLoopEscalate?: boolean;
+  criticCompletedIterations?: number;
+  criticLastVerdict?: IArtifactCriticResult['overallVerdict'];
 }
 
 function isValidRepairAttemptCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function isCriticVerdict(
+  value: unknown,
+): value is IArtifactCriticResult['overallVerdict'] {
+  return value === 'pass' || value === 'revise' || value === 'fail';
 }
 
 export function diagramQuizRepairTargetKey(
@@ -34,9 +48,19 @@ export function readDiagramQuizEscalationDetails(
           ),
         )
       : undefined;
+  const criticLastVerdict = isCriticVerdict(raw.criticLastVerdict)
+    ? raw.criticLastVerdict
+    : undefined;
+  const criticCompletedIterations = isValidRepairAttemptCount(
+    raw.criticCompletedIterations,
+  )
+    ? raw.criticCompletedIterations
+    : undefined;
   return {
     repairAttemptsByTarget,
-    repairEscalated: raw.repairEscalated === true,
+    criticLoopEscalate: raw.criticLoopEscalate === true,
+    criticCompletedIterations,
+    criticLastVerdict,
   };
 }
 
@@ -57,7 +81,7 @@ export function shouldUseEscalationForRepair(
 export function shouldUseEscalationForCriticOrRefiner(
   details: DiagramQuizEscalationDetails,
 ): boolean {
-  return details.repairEscalated === true;
+  return details.criticLoopEscalate === true;
 }
 
 export function resolveDiagramQuizAgentRouteCapability(
@@ -79,6 +103,30 @@ export function resolveDiagramQuizRefineRouteCapability(
   return 'diagramQuiz';
 }
 
+export function recordCriticLoopEscalationSignal(
+  diagnostics: IArtifactAgentDiagnostics,
+  params: {
+    completedCriticIterations: number;
+    lastVerdict: IArtifactCriticResult['overallVerdict'] | undefined;
+  },
+): DiagramQuizEscalationDetails {
+  const artifactDetails = diagnostics.artifactDetails ?? {};
+  diagnostics.artifactDetails = artifactDetails;
+
+  const criticLoopEscalate =
+    params.completedCriticIterations >= CRITIC_LOOP_ESCALATION_THRESHOLD &&
+    params.lastVerdict !== undefined &&
+    params.lastVerdict !== 'pass';
+
+  artifactDetails.criticLoopEscalate = criticLoopEscalate;
+  artifactDetails.criticCompletedIterations = params.completedCriticIterations;
+  if (params.lastVerdict !== undefined) {
+    artifactDetails.criticLastVerdict = params.lastVerdict;
+  }
+
+  return readDiagramQuizEscalationDetails(artifactDetails);
+}
+
 export function recordDiagramQuizRepairAttempt(
   artifactDetails: Record<string, unknown>,
   targetKey: string,
@@ -89,18 +137,11 @@ export function recordDiagramQuizRepairAttempt(
     ...(current.repairAttemptsByTarget ?? {}),
     [targetKey]: nextCount,
   };
-  const repairEscalated =
-    current.repairEscalated === true ||
-    nextCount >= ESCALATION_REPAIR_THRESHOLD ||
-    Object.values(repairAttemptsByTarget).some(
-      (count) => count >= ESCALATION_REPAIR_THRESHOLD,
-    );
 
   artifactDetails.repairAttemptsByTarget = repairAttemptsByTarget;
-  artifactDetails.repairEscalated = repairEscalated;
 
   return {
+    ...readDiagramQuizEscalationDetails(artifactDetails),
     repairAttemptsByTarget,
-    repairEscalated,
   };
 }

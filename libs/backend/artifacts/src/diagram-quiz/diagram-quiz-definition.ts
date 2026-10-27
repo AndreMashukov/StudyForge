@@ -195,7 +195,7 @@ export const diagramQuizDefinition: ArtifactAgentDefinition<
 
   limits: {
     maxRepairIterations: 4,
-    maxCriticIterations: 3,
+    maxCriticIterations: 4,
     timeoutSeconds: 480,
   },
 };
