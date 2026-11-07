@@ -36,7 +36,7 @@ export class CaptureScanCommandHandler {
     return this.state;
   }
 
-  async handle(directoryId: string): Promise<IScanPipelineResult> {
+  async handle(directoryId: string): Promise<IScanPipelineResult | null> {
     if (this.state !== 'idle') {
       throw new Error('Another capture is already in progress.');
     }
@@ -51,14 +51,23 @@ export class CaptureScanCommandHandler {
       const { scanDocument, recognizeText } = await loadScanNativeModules();
 
       this.transitionTo('capturing');
-      const scanResult = await scanDocument({
-        maxNumDocuments: 1,
-        quality: 0.85,
-      });
+      let scanResult;
+      try {
+        scanResult = await scanDocument({
+          maxNumDocuments: 1,
+          quality: 0.85,
+        });
+      } catch (error) {
+        const message = getCallableErrorMessage(error);
+        if (/User cancelled the scan(?: \(resultCode=0\))?\./.test(message)) {
+          return null;
+        }
+        throw error;
+      }
 
       const firstPage = scanResult.pages[0];
       if (!firstPage?.uri) {
-        throw new Error('Document scan was cancelled or returned no pages.');
+        throw new Error('Document scanner returned no pages.');
       }
 
       this.transitionTo('ocr');

@@ -101,6 +101,13 @@
         "command": "tsc -p mobile-capture/tsconfig.json --noEmit"
       }
     },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "vitest run --config mobile-capture/vitest.config.ts"
+      }
+    },
     "lint": {
       "executor": "nx:run-commands",
       "options": {

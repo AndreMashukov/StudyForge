@@ -100,6 +100,9 @@ export function CaptureScreen() {
 
     try {
       const result = await handler.handle(defaultDirectoryId);
+      if (!result) {
+        return;
+      }
       setPendingScan({
         imageUri: result.imageUri,
         ocrText: result.ocrText,
