@@ -110,16 +110,9 @@ export function DocumentScratchPadBox({
       data-testid={`scratch-pad-${pad.sectionIndex}`}
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Scratchpad
-          </p>
-          {memoryCount > 0 ? (
-            <Badge variant="secondary" title="Questions kept in memory">
-              {memoryCount}
-            </Badge>
-          ) : null}
-        </div>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Scratchpad
+        </p>
         <div className="inline-flex shrink-0 rounded-md border border-border p-0.5">
           <button
             type="button"
@@ -236,22 +229,29 @@ export function DocumentScratchPadBox({
           </Button>
         ) : null}
         {onClearMemory ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={busy || memoryCount === 0}
-            className="gap-2"
-            onClick={() => {
-              void handleClearMemory();
-            }}
-          >
-            <RotateCcw
-              size={14}
-              className={cn(isClearing && 'animate-spin')}
-            />
-            Reset
-          </Button>
+          <span className="inline-flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy || memoryCount === 0}
+              className="gap-2"
+              onClick={() => {
+                void handleClearMemory();
+              }}
+            >
+              <RotateCcw
+                size={14}
+                className={cn(isClearing && 'animate-spin')}
+              />
+              Reset
+            </Button>
+            {memoryCount > 0 ? (
+              <Badge variant="secondary" title="Questions kept in memory">
+                {memoryCount}
+              </Badge>
+            ) : null}
+          </span>
         ) : null}
       </div>
       {errorMessage ? (
