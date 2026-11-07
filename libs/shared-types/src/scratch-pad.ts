@@ -10,6 +10,8 @@ export interface RegenerateScratchPadQuestionRequest {
   documentId: string;
   sectionIndex: number;
   ruleIds?: string[];
+  /** When true, generate from section content only without avoiding the current question. */
+  ignorePrevious?: boolean;
 }
 
 export interface RegenerateScratchPadQuestionResponse {

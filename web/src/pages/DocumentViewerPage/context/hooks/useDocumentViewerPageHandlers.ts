@@ -81,7 +81,7 @@ export const useDocumentViewerPageHandlers = ({
   }, [content, document]);
 
   const handleRegenerateScratchPad = useCallback(
-    async (sectionIndex: number) => {
+    async (sectionIndex: number, options?: { ignorePrevious?: boolean }) => {
       if (!document?.id) {
         throw new Error('Document not loaded');
       }
@@ -89,6 +89,7 @@ export const useDocumentViewerPageHandlers = ({
         documentId: document.id,
         sectionIndex,
         ruleIds: document.appliedRuleIds,
+        ...(options?.ignorePrevious ? { ignorePrevious: true } : {}),
       }).unwrap();
       if (!response.success) {
         throw new Error('Regeneration failed');

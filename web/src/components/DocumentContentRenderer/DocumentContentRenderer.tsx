@@ -15,7 +15,10 @@ export interface IDocumentContentRenderer {
   showToc?: boolean;
   onTocGenerated?: (items: TocItem[]) => void;
   scratchPads?: IScratchPad[];
-  onRegenerateScratchPad?: (sectionIndex: number) => Promise<void>;
+  onRegenerateScratchPad?: (
+    sectionIndex: number,
+    options?: { ignorePrevious?: boolean },
+  ) => Promise<void>;
 }
 
 function generateHtmlToc(content: string): TocItem[] {

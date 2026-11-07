@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { IScratchPad } from '@shared-types';
 import { Button } from '../ui/Button';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, RotateCcw } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export interface IDocumentScratchPadBox {
   pad: IScratchPad;
-  onRegenerate?: (sectionIndex: number) => Promise<void>;
+  onRegenerate?: (
+    sectionIndex: number,
+    options?: { ignorePrevious?: boolean },
+  ) => Promise<void>;
 }
 
 export function DocumentScratchPadBox({
@@ -15,6 +18,7 @@ export function DocumentScratchPadBox({
 }: IDocumentScratchPadBox) {
   const [revealed, setRevealed] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,21 +26,35 @@ export function DocumentScratchPadBox({
     setErrorMessage(null);
   }, [pad.question, pad.answer]);
 
-  const handleRegenerate = useCallback(async () => {
-    if (!onRegenerate || isRegenerating) {
-      return;
-    }
-    setIsRegenerating(true);
-    setRevealed(false);
-    setErrorMessage(null);
-    try {
-      await onRegenerate(pad.sectionIndex);
-    } catch {
-      setErrorMessage('Could not generate a different question. Try again.');
-    } finally {
-      setIsRegenerating(false);
-    }
-  }, [isRegenerating, onRegenerate, pad.sectionIndex]);
+  const runRegenerate = useCallback(
+    async (ignorePrevious: boolean) => {
+      if (!onRegenerate || isRegenerating || isResetting) {
+        return;
+      }
+      if (ignorePrevious) {
+        setIsResetting(true);
+      } else {
+        setIsRegenerating(true);
+      }
+      setRevealed(false);
+      setErrorMessage(null);
+      try {
+        await onRegenerate(pad.sectionIndex, { ignorePrevious });
+      } catch {
+        setErrorMessage(
+          ignorePrevious
+            ? 'Could not reset the scratch pad. Try again.'
+            : 'Could not generate a different question. Try again.',
+        );
+      } finally {
+        setIsRegenerating(false);
+        setIsResetting(false);
+      }
+    },
+    [isRegenerating, isResetting, onRegenerate, pad.sectionIndex],
+  );
+
+  const busy = isRegenerating || isResetting;
 
   return (
     <div
@@ -69,9 +87,10 @@ export function DocumentScratchPadBox({
             type="button"
             variant="ghost"
             size="sm"
-            disabled={isRegenerating}
+            disabled={busy}
+            className="gap-2"
             onClick={() => {
-              void handleRegenerate();
+              void runRegenerate(false);
             }}
           >
             <RefreshCw
@@ -79,6 +98,24 @@ export function DocumentScratchPadBox({
               className={cn(isRegenerating && 'animate-spin')}
             />
             Generate a different question
+          </Button>
+        ) : null}
+        {onRegenerate ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            className="gap-2"
+            onClick={() => {
+              void runRegenerate(true);
+            }}
+          >
+            <RotateCcw
+              size={14}
+              className={cn(isResetting && 'animate-spin')}
+            />
+            Reset
           </Button>
         ) : null}
       </div>

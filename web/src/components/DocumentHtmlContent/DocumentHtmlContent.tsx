@@ -195,7 +195,10 @@ export const DocumentHtmlContent = memo(function DocumentHtmlContent({
   html: string;
   className?: string;
   scratchPads?: IScratchPad[];
-  onRegenerateScratchPad?: (sectionIndex: number) => Promise<void>;
+  onRegenerateScratchPad?: (
+    sectionIndex: number,
+    options?: { ignorePrevious?: boolean },
+  ) => Promise<void>;
 }) {
   const sections = useMemo(() => splitDocumentHtmlRenderSections(html), [html]);
   const padBySection = useMemo(() => {

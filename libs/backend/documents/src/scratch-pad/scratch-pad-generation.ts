@@ -52,13 +52,27 @@ function buildBatchScratchPadsPrompt(
 function buildReplaceScratchPadPrompt(params: {
   heading: string;
   sectionHtml: string;
-  previousQuestion: string;
+  previousQuestion?: string;
   rulesText?: string;
+  ignorePrevious?: boolean;
 }): string {
+  if (params.ignorePrevious) {
+    return [
+      'Write a short open recall question for this lesson section and a short answer.',
+      'The question must be answerable from this section only.',
+      `Section heading: ${params.heading}`,
+      `<section_html>\n${params.sectionHtml}\n</section_html>`,
+      'Return JSON only: { "question": string, "answer": string }',
+      params.rulesText ? `Rules:\n${params.rulesText}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }
+
   return [
     'Write a new short open recall question for this lesson section and a short answer.',
     'The new question must differ from the previous question in meaning, not just wording.',
-    `Previous question to avoid repeating: ${params.previousQuestion}`,
+    `Previous question to avoid repeating: ${params.previousQuestion ?? ''}`,
     `Section heading: ${params.heading}`,
     `<section_html>\n${params.sectionHtml}\n</section_html>`,
     'Return JSON only: { "question": string, "answer": string }',
@@ -191,14 +205,16 @@ export async function regenerateScratchPadForSection(params: {
   heading: string;
   sectionHtml: string;
   sectionIndex: number;
-  previousQuestion: string;
+  previousQuestion?: string;
   rulesText?: string;
+  ignorePrevious?: boolean;
 }): Promise<IScratchPad | null> {
   const prompt = buildReplaceScratchPadPrompt({
     heading: params.heading,
     sectionHtml: params.sectionHtml,
     previousQuestion: params.previousQuestion,
     rulesText: params.rulesText,
+    ignorePrevious: params.ignorePrevious,
   });
 
   try {

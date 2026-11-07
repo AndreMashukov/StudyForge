@@ -108,13 +108,18 @@ export const regenerateScratchPadQuestion = onCall(
             heading: lessonSection.heading,
             sectionHtml: lessonSection.html,
             sectionIndex: data.sectionIndex,
-            previousQuestion: existingPad.question,
+            previousQuestion: data.ignorePrevious
+              ? undefined
+              : existingPad.question,
             rulesText: rulesText || undefined,
+            ignorePrevious: data.ignorePrevious === true,
           });
           if (!result) {
             throw new HttpsError(
               'internal',
-              'Could not generate a different question. Try again.',
+              data.ignorePrevious
+                ? 'Could not reset the scratch pad. Try again.'
+                : 'Could not generate a different question. Try again.',
             );
           }
           return result;
