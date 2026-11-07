@@ -17,6 +17,12 @@
 
 # StudyForge — Coding Conventions
 
+## Shared agent setup
+
+- Codex workflows live in `.agents/skills/`; their shared instructions are maintained in `.claude/skills/`. See `.codex/SETUP.md` for the mapping and limitations.
+- Read `CONTEXT.md` when working with domain terminology. Follow `.claude/rules/typescript.md` for TypeScript and `.claude/rules/production-infra.md` when changing Firebase or GitHub Actions deployment configuration.
+- Never deploy Firebase Hosting from the local CLI or run `web:deploy` / `web:deploy-fresh`; CI deploys hosting on merge to `main`. Deploy functions only when explicitly requested. Do not force-push or expose secrets.
+
 ## Project Overview
 
 React + TypeScript apps in an NX monorepo. The public app lives in `web/src/` (Vite + React Router v6 + Redux). The internal **admin** app lives in `admin/src/` (Next.js 16 App Router, RSC-first, Firebase Admin on the server, deployed to Vercel). UI uses shadcn/ui and Tailwind CSS in both apps.
