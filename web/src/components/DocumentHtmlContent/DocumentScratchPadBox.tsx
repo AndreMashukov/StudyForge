@@ -3,6 +3,12 @@ import type { IScratchPad } from '@shared-types';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge/Badge';
 import { Textarea } from '../ui/Textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/Tooltip';
 import { RefreshCw, RotateCcw } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -103,42 +109,43 @@ export function DocumentScratchPadBox({
       )}
       data-testid={`scratch-pad-${pad.sectionIndex}`}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Scratchpad
-        </p>
-        {memoryCount > 0 ? (
-          <Badge variant="secondary" title="Questions kept in memory">
-            {memoryCount}
-          </Badge>
-        ) : null}
-      </div>
-
-      <div className="mt-3 inline-flex rounded-md border border-border p-0.5">
-        <button
-          type="button"
-          className={cn(
-            'rounded px-2.5 py-1 text-xs font-medium transition-colors',
-            mode === 'reveal'
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-          onClick={() => setMode('reveal')}
-        >
-          Reveal
-        </button>
-        <button
-          type="button"
-          className={cn(
-            'rounded px-2.5 py-1 text-xs font-medium transition-colors',
-            mode === 'type'
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-          onClick={() => setMode('type')}
-        >
-          Type
-        </button>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Scratchpad
+          </p>
+          {memoryCount > 0 ? (
+            <Badge variant="secondary" title="Questions kept in memory">
+              {memoryCount}
+            </Badge>
+          ) : null}
+        </div>
+        <div className="inline-flex shrink-0 rounded-md border border-border p-0.5">
+          <button
+            type="button"
+            className={cn(
+              'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+              mode === 'reveal'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            onClick={() => setMode('reveal')}
+          >
+            Reveal
+          </button>
+          <button
+            type="button"
+            className={cn(
+              'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+              mode === 'type'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            onClick={() => setMode('type')}
+          >
+            Type
+          </button>
+        </div>
       </div>
 
       <p className="mt-3 text-base font-medium text-foreground">{pad.question}</p>
@@ -170,30 +177,42 @@ export function DocumentScratchPadBox({
             rows={3}
             className="min-h-[72px] resize-y text-sm"
           />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={busy || !typedAnswer.trim()}
-            onClick={() => {
-              void handleCheck();
-            }}
-          >
-            {isChecking ? 'Checking…' : 'Check'}
-          </Button>
-          {checkResult ? (
-            <div className="space-y-2 text-sm">
-              <p className="text-foreground">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={busy || !typedAnswer.trim()}
+              onClick={() => {
+                void handleCheck();
+              }}
+            >
+              {isChecking ? 'Checking…' : 'Check'}
+            </Button>
+            {checkResult ? (
+              <p className="text-sm text-foreground">
                 Score: <span className="font-semibold">{checkResult.score}</span>
                 /10
               </p>
-              {checkResult.hint ? (
-                <p className="rounded-md border border-border bg-background/80 px-3 py-2 text-muted-foreground">
-                  {checkResult.hint}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
+            ) : null}
+            {checkResult?.hint ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-medium text-foreground"
+                    >
+                      Hint
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-sm text-sm">
+                    {checkResult.hint}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : null}
+          </div>
         </div>
       )}
 
