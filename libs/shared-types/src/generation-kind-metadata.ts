@@ -7,6 +7,7 @@ export type GenerationKind =
   | 'documentFromScreenshot'
   | 'quizFollowup'
   | 'documentQuestion'
+  | 'scratchPadQuestion'
   | 'documentRevise'
   | 'directoryChat'
   | 'diagramQuiz'
@@ -40,6 +41,7 @@ export const ALL_GENERATION_KINDS: GenerationKind[] = [
   'documentFromScreenshot',
   'quizFollowup',
   'documentQuestion',
+  'scratchPadQuestion',
   'documentRevise',
   'directoryChat',
   'diagramQuiz',
@@ -188,6 +190,16 @@ export const GENERATION_KIND_METADATA: Record<
     kind: 'documentQuestion',
     label: 'Document question',
     description: 'Interactive Q&A about a single document.',
+    requiredModality: 'text',
+    supportedWorkflows: ['direct'],
+    defaultWorkflow: 'direct',
+    group: 'interactive',
+  },
+  scratchPadQuestion: {
+    kind: 'scratchPadQuestion',
+    label: 'Scratch pad question',
+    description:
+      'Replace a single section scratch pad recall question and answer.',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',

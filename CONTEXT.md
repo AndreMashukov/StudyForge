@@ -18,6 +18,10 @@ _Avoid_: corpus, datastore
 User-owned source material used as input for artifact generation. Ingest paths (file upload, pasted text, URL import) convert existing content to HTML while preserving structure. Prompt generation creates a new learning document and may apply directory rules. Legacy documents may still use markdown storage (`content.md`). Distinct from artifacts: a document is _read_; an artifact is _studied_.
 _Avoid_: source doc, file (when meaning study content), content item
 
+**Scratch pad**:
+On AI Prompt documents, one short open recall question and hidden answer per lesson section (each main `h2`, excluding Glossary and Examples). Stored on the document record, not inside the HTML body. Optional at generation time via the Scratchpad toggle; learners reveal the answer or request a different question.
+_Avoid_: inline quiz, document Q&A box
+
 ## Generated content
 
 **Artifact**:

@@ -436,6 +436,8 @@ export const DocumentViewerPageContainer = () => {
                       content={contentApi.data.content}
                       contentFormat={contentFormat}
                       onTocGenerated={handlers.handleTocGenerated}
+                      scratchPads={documentApi.data?.scratchPads}
+                      onRegenerateScratchPad={handlers.handleRegenerateScratchPad}
                     />
                   </>
                 ) : (

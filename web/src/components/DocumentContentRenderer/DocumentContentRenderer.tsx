@@ -1,5 +1,9 @@
 import { useEffect, useMemo } from 'react';
-import { DocumentContentFormat, resolveDocumentContentFormat } from '@shared-types';
+import {
+  DocumentContentFormat,
+  type IScratchPad,
+  resolveDocumentContentFormat,
+} from '@shared-types';
 import { MarkdownRenderer, TocItem } from '../MarkdownRenderer';
 import { DocumentHtmlContent } from '../DocumentHtmlContent';
 import { extractBodyHtml } from '../../lib/document-html-enhance';
@@ -10,6 +14,8 @@ export interface IDocumentContentRenderer {
   className?: string;
   showToc?: boolean;
   onTocGenerated?: (items: TocItem[]) => void;
+  scratchPads?: IScratchPad[];
+  onRegenerateScratchPad?: (sectionIndex: number) => Promise<void>;
 }
 
 function generateHtmlToc(content: string): TocItem[] {
@@ -37,6 +43,8 @@ export function DocumentContentRenderer({
   className,
   showToc = true,
   onTocGenerated,
+  scratchPads,
+  onRegenerateScratchPad,
 }: IDocumentContentRenderer) {
   const format = resolveDocumentContentFormat(contentFormat);
   const bodyHtml = useMemo(
@@ -56,7 +64,14 @@ export function DocumentContentRenderer({
   }, [format, showToc, onTocGenerated, htmlToc]);
 
   if (format === 'html') {
-    return <DocumentHtmlContent html={bodyHtml} className={className} />;
+    return (
+      <DocumentHtmlContent
+        html={bodyHtml}
+        className={className}
+        scratchPads={scratchPads}
+        onRegenerateScratchPad={onRegenerateScratchPad}
+      />
+    );
   }
 
   return (

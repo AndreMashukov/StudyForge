@@ -42,6 +42,7 @@ export const TextPromptForm = ({ onSubmit }: ITextPromptFormProps) => {
   const selectedRuleIds = useSelector((state: RootState) => selectPromptRules(state));
 
   const [prompt, setPrompt] = useState('');
+  const [includeScratchPads, setIncludeScratchPads] = useState(true);
   const [includeDiagrams, setIncludeDiagrams] = useState(false);
   const [showDiagramCheckbox, setShowDiagramCheckbox] = useState(false);
   const [isEvaluatingDiagrams, setIsEvaluatingDiagrams] = useState(false);
@@ -189,6 +190,7 @@ export const TextPromptForm = ({ onSubmit }: ITextPromptFormProps) => {
     onSubmit({
       prompt: prompt.trim(),
       ruleIds: selectedRuleIds,
+      includeScratchPads,
       includeDiagrams: diagramsSelected,
       ...(diagramsSelected ? { diagramCount } : {}),
     });
@@ -299,6 +301,18 @@ export const TextPromptForm = ({ onSubmit }: ITextPromptFormProps) => {
             diagrams, and detailed explanations.
           </p>
         )}
+      </div>
+
+      <div className={textPromptFormStyles.formGroup}>
+        <Checkbox
+          id="include-scratchpads"
+          label="Scratchpad"
+          checked={includeScratchPads}
+          onChange={setIncludeScratchPads}
+        />
+        <p className={textPromptFormStyles.helpText}>
+          Adds a recall question after each main section of the generated document.
+        </p>
       </div>
 
       {directoryId && (

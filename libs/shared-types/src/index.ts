@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import type { IScratchPad } from './scratch-pad';
 
 // ─── Document color provenance ───────────────────────────────────────────────
 /** Vivid palette used for document accent colors; neutral grays are excluded so
@@ -595,6 +596,8 @@ export interface DocumentEnhanced {
   color?: string;
   /** Body storage format. Missing means legacy markdown (`content.md`). */
   contentFormat?: DocumentContentFormat;
+  /** Section recall questions for AI Prompt documents. */
+  scratchPads?: IScratchPad[];
 }
 
 // Directory Types
@@ -932,6 +935,7 @@ export interface UpdateDocumentRequest {
   content?: string;
   status?: DocumentStatus;
   tags?: string[];
+  scratchPads?: IScratchPad[] | null;
 }
 
 // Storage Types
@@ -1037,6 +1041,8 @@ export interface GenerateFromPromptRequest {
   includeDiagrams?: boolean;
   /** How many Mermaid diagrams to include. Required with includeDiagrams. */
   diagramCount?: number;
+  /** Include scratch pad questions after lesson sections. Defaults to true when omitted. */
+  includeScratchPads?: boolean;
 }
 
 export interface EvaluatePromptDiagramSuitabilityRequest {
@@ -2248,6 +2254,7 @@ export type LlmCapabilityKey =
   | 'documentFromScreenshot'
   | 'quizFollowup'
   | 'documentQuestion'
+  | 'scratchPadQuestion'
   | 'documentRevise'
   | 'directoryChat'
   | 'diagramQuiz'
@@ -2288,6 +2295,17 @@ export {
   backfillMissingGenerationRoute,
   type IGenerationRouteBackfill,
 } from './generation-routes-backfill';
+export {
+  splitDocumentHtmlRenderSections,
+  splitLessonH2Sections,
+  type IDocumentHtmlRenderSection,
+  type ILessonSection,
+} from './document-html-sections';
+export type {
+  IScratchPad,
+  RegenerateScratchPadQuestionRequest,
+  RegenerateScratchPadQuestionResponse,
+} from './scratch-pad';
 
 import {
   applyLlmGenerationFlowOverrides,
@@ -2394,7 +2412,12 @@ export const LLM_GENERATION_PROFILE_METADATA: ILlmGenerationProfileMetadata[] =
       id: 'explanatoryChat',
       label: 'Explanatory chat',
       description: 'Follow-ups, document Q&A, and directory chat answers.',
-      flows: ['quizFollowup', 'documentQuestion', 'directoryChat'],
+      flows: [
+        'quizFollowup',
+        'documentQuestion',
+        'scratchPadQuestion',
+        'directoryChat',
+      ],
     },
     {
       id: 'longformContent',
@@ -2781,6 +2804,8 @@ export interface IDocumentAgentJobPayload {
   ruleResolutionMode?: RuleResolutionMode;
   includeDiagrams?: boolean;
   diagramCount?: number;
+  /** Include scratch pad questions after lesson sections. Defaults to true when omitted. */
+  includeScratchPads?: boolean;
   /** URL import metadata for description/tags. */
   sourceUrls?: string[];
   sourceUrl?: string;

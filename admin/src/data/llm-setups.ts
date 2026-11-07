@@ -84,6 +84,7 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
 
   const routes = {} as IGenerationRoutes;
   const diagramQuizRoute = parseGenerationRoute(value.diagramQuiz);
+  const documentQuestionRoute = parseGenerationRoute(value.documentQuestion);
 
   for (const kind of ALL_GENERATION_KINDS) {
     let route = parseGenerationRoute(value[kind]);
@@ -92,6 +93,7 @@ function parseGenerationRoutes(value: unknown): IGenerationRoutes | null {
       route,
       diagramQuizRoute,
       Object.prototype.hasOwnProperty.call(value, kind),
+      documentQuestionRoute,
     );
     if (!route) {
       return null;

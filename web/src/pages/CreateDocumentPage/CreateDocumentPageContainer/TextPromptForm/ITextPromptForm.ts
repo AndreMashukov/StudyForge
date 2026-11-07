@@ -3,6 +3,7 @@ export interface ITextPromptFormData {
   ruleIds?: string[];
   includeDiagrams?: boolean;
   diagramCount?: number;
+  includeScratchPads?: boolean;
 }
 
 export interface ITextPromptFormProps {

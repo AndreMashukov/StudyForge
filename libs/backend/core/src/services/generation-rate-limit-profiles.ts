@@ -65,6 +65,7 @@ export const GENERATION_RATE_LIMIT_PROFILES: Record<
   documentFromScreenshot: VISION_PROFILE,
   quizFollowup: INTERACTIVE_PROFILE,
   documentQuestion: INTERACTIVE_PROFILE,
+  scratchPadQuestion: INTERACTIVE_PROFILE,
   documentRevise: INTERACTIVE_PROFILE,
   directoryChat: INTERACTIVE_PROFILE,
   directoryAgent: INTERACTIVE_PROFILE,

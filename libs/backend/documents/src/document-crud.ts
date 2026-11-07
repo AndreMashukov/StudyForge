@@ -35,6 +35,7 @@ import {
   resolveDocumentContentFormat,
   type IGenerationModelUsage,
   type IArtifactAgentDiagnostics,
+  type IScratchPad,
 } from "@shared-types";
 
 /**
@@ -352,6 +353,11 @@ export class DocumentCrudService {
       if (storageFile) {
         firestoreUpdates.storageUrl = storageFile.downloadUrl;
         firestoreUpdates.wordCount = wordCount;
+        firestoreUpdates.scratchPads = [];
+      }
+
+      if (updates.scratchPads !== undefined) {
+        firestoreUpdates.scratchPads = updates.scratchPads ?? [];
       }
 
       // Update document in Firestore
@@ -987,6 +993,7 @@ export class DocumentCrudService {
       generationModelUsage?: IGenerationModelUsage[];
       generationDiagnostics?: IArtifactAgentDiagnostics;
       contentFormat?: DocumentContentFormat;
+      scratchPads?: IScratchPad[];
     }
   ): Promise<Document> {
     const contentFormat = params.contentFormat ?? 'html';
@@ -1033,6 +1040,7 @@ export class DocumentCrudService {
         ? { generationModelUsage: params.generationModelUsage }
         : {}),
       ...(params.generationDiagnostics ? { generationDiagnostics: params.generationDiagnostics } : {}),
+      ...(params.scratchPads?.length ? { scratchPads: params.scratchPads } : {}),
       generationStatus: 'completed' as GenerationStatus,
       completedAt: now,
       updatedAt: now,

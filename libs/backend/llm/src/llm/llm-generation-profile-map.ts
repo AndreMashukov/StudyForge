@@ -14,6 +14,7 @@ const CAPABILITY_PROFILE_MAP: Partial<
   slideDeckText: 'longformContent',
   quizFollowup: 'explanatoryChat',
   documentQuestion: 'explanatoryChat',
+  scratchPadQuestion: 'explanatoryChat',
   directoryChat: 'explanatoryChat',
   directoryAgent: 'explanatoryChat',
   agentExecutor: 'explanatoryChat',

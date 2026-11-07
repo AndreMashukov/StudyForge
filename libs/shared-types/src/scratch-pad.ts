@@ -1,0 +1,17 @@
+/** One recall question and hidden answer tied to a lesson h2 section. */
+export interface IScratchPad {
+  sectionIndex: number;
+  heading: string;
+  question: string;
+  answer: string;
+}
+
+export interface RegenerateScratchPadQuestionRequest {
+  documentId: string;
+  sectionIndex: number;
+  ruleIds?: string[];
+}
+
+export interface RegenerateScratchPadQuestionResponse {
+  scratchPad: IScratchPad;
+}

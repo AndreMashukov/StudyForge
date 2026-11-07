@@ -1,9 +1,11 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { IScratchPad } from '@shared-types';
+import { splitDocumentHtmlRenderSections } from '@shared-types';
 import { MermaidDiagram } from '../MermaidDiagram';
 import { CodeBlock } from '../MarkdownRenderer/CodeBlock/CodeBlock';
 import { HtmlWithMath } from './HtmlWithMath';
 import { PlotlyGraph } from './PlotlyGraph';
-import { splitCollapsibleSections } from '../../lib/document-html-enhance';
+import { DocumentScratchPadBox } from './DocumentScratchPadBox';
 import { cn } from '../../lib/utils';
 import { ChevronDown } from 'lucide-react';
 
@@ -80,7 +82,7 @@ function CollapsibleDocSection({
   children,
 }: {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const normalized = title.trim().toLowerCase();
   const contentId = `doc-section-${sectionSlug(title) || 'section'}`;
@@ -187,11 +189,22 @@ function DocumentSegmentList({
 export const DocumentHtmlContent = memo(function DocumentHtmlContent({
   html,
   className,
+  scratchPads,
+  onRegenerateScratchPad,
 }: {
   html: string;
   className?: string;
+  scratchPads?: IScratchPad[];
+  onRegenerateScratchPad?: (sectionIndex: number) => Promise<void>;
 }) {
-  const sections = useMemo(() => splitCollapsibleSections(html), [html]);
+  const sections = useMemo(() => splitDocumentHtmlRenderSections(html), [html]);
+  const padBySection = useMemo(() => {
+    const map = new Map<number, IScratchPad>();
+    for (const pad of scratchPads ?? []) {
+      map.set(pad.sectionIndex, pad);
+    }
+    return map;
+  }, [scratchPads]);
 
   if (!html.trim()) {
     return null;
@@ -202,12 +215,28 @@ export const DocumentHtmlContent = memo(function DocumentHtmlContent({
       {sections.map((section, index) => {
         const keyPrefix = `section-${index}`;
         const body = <DocumentSegmentList html={section.html} keyPrefix={keyPrefix} />;
+        const pad =
+          section.kind === 'lesson' ? padBySection.get(section.sectionIndex) : undefined;
 
-        if (section.kind === 'collapse' && section.title) {
+        if (section.kind === 'collapse') {
           return (
             <CollapsibleDocSection key={keyPrefix} title={section.title}>
               {body}
             </CollapsibleDocSection>
+          );
+        }
+
+        if (section.kind === 'lesson') {
+          return (
+            <div key={keyPrefix}>
+              {body}
+              {pad ? (
+                <DocumentScratchPadBox
+                  pad={pad}
+                  onRegenerate={onRegenerateScratchPad}
+                />
+              ) : null}
+            </div>
           );
         }
 

@@ -21,6 +21,7 @@ import {
   wrapHtmlDocument,
 } from '../document-html';
 import { formatValidationFindings } from '../document-html/types';
+import { resolveScratchPadsForPromptCompletion } from '../scratch-pad';
 
 const DIRECT_AGENT_DEFINITION_VERSION = 'document-html-direct-v1';
 
@@ -89,6 +90,14 @@ export async function persistDirectHtmlDocument(params: {
     },
   ];
 
+  const scratchPads = await resolveScratchPadsForPromptCompletion({
+    userId: params.agentContext.userId,
+    htmlFragment,
+    generationKind: params.generationKind,
+    payload: params.agentContext.payload,
+    rulesText: params.agentContext.rulesText,
+  });
+
   await DocumentCrudService.completePendingDocument(
     params.agentContext.userId,
     params.agentContext.documentId,
@@ -102,6 +111,7 @@ export async function persistDirectHtmlDocument(params: {
       generationModelUsage,
       generationDiagnostics: diagnostics,
       contentFormat: 'html',
+      scratchPads,
     },
   );
 

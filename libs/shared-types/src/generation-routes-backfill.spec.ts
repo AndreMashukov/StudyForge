@@ -55,4 +55,23 @@ describe('backfillMissingGenerationRoute', () => {
       backfillMissingGenerationRoute('quiz', null, diagramQuizRoute, false),
     ).toBeNull();
   });
+
+  const documentQuestionRoute = {
+    connectionId: 'gemini-primary',
+    model: 'gemini-2.5-flash',
+    modality: 'text' as const,
+    workflow: 'direct' as const,
+  };
+
+  it('inherits document question route for missing scratchPadQuestion', () => {
+    expect(
+      backfillMissingGenerationRoute(
+        'scratchPadQuestion',
+        null,
+        diagramQuizRoute,
+        false,
+        documentQuestionRoute,
+      ),
+    ).toEqual(documentQuestionRoute);
+  });
 });

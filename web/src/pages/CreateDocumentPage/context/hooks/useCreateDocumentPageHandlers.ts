@@ -140,6 +140,7 @@ export const useCreateDocumentPageHandlers = (
       ...(data.includeDiagrams && data.diagramCount
         ? { includeDiagrams: true, diagramCount: data.diagramCount }
         : {}),
+      ...(data.includeScratchPads === false ? { includeScratchPads: false } : {}),
     });
 
     if (fileUploadHelpers) {

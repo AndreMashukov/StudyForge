@@ -13,6 +13,7 @@ export type LlmCapability =
   | 'documentFromScreenshot'
   | 'quizFollowup'
   | 'documentQuestion'
+  | 'scratchPadQuestion'
   | 'documentRevise'
   | 'directoryChat'
   | 'diagramQuiz'

@@ -27,6 +27,7 @@ import {
   type DocumentPlan,
 } from './document-agent-llm';
 import type { DocumentAgentContext } from './document-agent-runner';
+import { resolveScratchPadsForPromptCompletion } from '../scratch-pad';
 
 const STATE_KEYS = {
   agentContext: 'agentContext',
@@ -369,6 +370,14 @@ class FinalizeAgent extends BaseAgent {
         fallbackUsed: false,
       });
 
+    const scratchPads = await resolveScratchPadsForPromptCompletion({
+      userId: agentContext.userId,
+      htmlFragment,
+      generationKind: 'documentFromPrompt',
+      payload: agentContext.payload,
+      rulesText: agentContext.rulesText,
+    });
+
     await DocumentCrudService.completePendingDocument(
       agentContext.userId,
       agentContext.documentId,
@@ -387,6 +396,7 @@ class FinalizeAgent extends BaseAgent {
           },
         },
         contentFormat: 'html',
+        scratchPads,
       },
     );
 

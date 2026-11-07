@@ -92,6 +92,7 @@ export async function updateDocumentInFirestore(
     const downloadUrl = await getDownloadURL(ref(storage, htmlPath));
     firestoreUpdates.storageUrl = downloadUrl;
     firestoreUpdates.wordCount = countWords(updates.content);
+    firestoreUpdates.scratchPads = [];
   }
 
   await updateDoc(documentRef(userId, documentId), firestoreUpdates);

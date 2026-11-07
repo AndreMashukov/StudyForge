@@ -176,6 +176,7 @@ export interface IUsageLimitEvent {
 export const DEFAULT_USAGE_CREDIT_COSTS: Record<GenerationKind, number> = {
   directoryChat: 1,
   documentQuestion: 1,
+  scratchPadQuestion: 1,
   quizFollowup: 1,
   documentRevise: 3,
   ruleGeneration: 3,

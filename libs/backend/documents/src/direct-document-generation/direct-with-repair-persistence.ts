@@ -28,6 +28,7 @@ import {
 } from '../document-html/types';
 import { getHardSecurityFindings } from './direct-with-repair-security';
 import { repairDirectDocumentHtml } from './direct-document-repair-llm';
+import { resolveScratchPadsForPromptCompletion } from '../scratch-pad';
 
 const DIRECT_WITH_REPAIR_AGENT_DEFINITION_VERSION =
   'document-html-direct-with-repair-v1';
@@ -164,6 +165,14 @@ export async function persistDirectWithRepairHtmlDocument(params: {
     });
   }
 
+  const scratchPads = await resolveScratchPadsForPromptCompletion({
+    userId: params.agentContext.userId,
+    htmlFragment: finalFragment,
+    generationKind: params.generationKind,
+    payload: params.agentContext.payload,
+    rulesText: params.agentContext.rulesText,
+  });
+
   await DocumentCrudService.completePendingDocument(
     params.agentContext.userId,
     params.agentContext.documentId,
@@ -177,6 +186,7 @@ export async function persistDirectWithRepairHtmlDocument(params: {
       generationModelUsage,
       generationDiagnostics: diagnostics,
       contentFormat: 'html',
+      scratchPads,
     },
   );
 

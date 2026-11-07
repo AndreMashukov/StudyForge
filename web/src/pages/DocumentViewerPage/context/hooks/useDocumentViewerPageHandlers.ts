@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { TocItem, exportToPDF } from '../../../../components/MarkdownRenderer';
 import { downloadMarkdownFile } from '../../../../utils/downloadUtils';
 import { DocumentEnhanced } from '@shared-types';
+import { useRegenerateScratchPadQuestionMutation } from '../../../../store/api/ScratchPad/scratchPadApi';
 import {
   setTocItems,
   toggleToc,
@@ -23,6 +24,7 @@ export const useDocumentViewerPageHandlers = ({
 }: UseDocumentViewerPageHandlersProps) => {
   const dispatch = useDispatch();
   const isExporting = useSelector(selectIsExporting);
+  const [regenerateScratchPadQuestion] = useRegenerateScratchPadQuestionMutation();
 
   const handleTocGenerated = useCallback(
     (toc: TocItem[]) => {
@@ -78,12 +80,30 @@ export const useDocumentViewerPageHandlers = ({
     downloadMarkdownFile(content, document.title);
   }, [content, document]);
 
+  const handleRegenerateScratchPad = useCallback(
+    async (sectionIndex: number) => {
+      if (!document?.id) {
+        throw new Error('Document not loaded');
+      }
+      const response = await regenerateScratchPadQuestion({
+        documentId: document.id,
+        sectionIndex,
+        ruleIds: document.appliedRuleIds,
+      }).unwrap();
+      if (!response.success) {
+        throw new Error('Regeneration failed');
+      }
+    },
+    [document, regenerateScratchPadQuestion],
+  );
+
   return {
     handleTocGenerated,
     handleExportPDF,
     handleDownloadMd,
     handleToggleToc,
     handleTocItemClick,
+    handleRegenerateScratchPad,
     isExporting,
   };
 };

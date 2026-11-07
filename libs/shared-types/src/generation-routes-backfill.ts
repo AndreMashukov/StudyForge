@@ -20,15 +20,22 @@ export function backfillMissingGenerationRoute(
   route: IGenerationRouteBackfill | null,
   diagramQuizRoute: IGenerationRouteBackfill | null,
   routeFieldPresent: boolean,
+  documentQuestionRoute?: IGenerationRouteBackfill | null,
 ): IGenerationRouteBackfill | null {
   if (route) {
     return route;
   }
-  if (routeFieldPresent || kind !== 'escalation' || !diagramQuizRoute) {
+  if (routeFieldPresent) {
     return null;
   }
-  return {
-    ...diagramQuizRoute,
-    workflow: 'direct',
-  };
+  if (kind === 'escalation' && diagramQuizRoute) {
+    return {
+      ...diagramQuizRoute,
+      workflow: 'direct',
+    };
+  }
+  if (kind === 'scratchPadQuestion' && documentQuestionRoute) {
+    return { ...documentQuestionRoute };
+  }
+  return null;
 }

@@ -42,6 +42,7 @@ export { generateMatchQuiz } from './endpoints/match-quizzes';
 export { generateQuizFollowup } from './endpoints/quiz-followup';
 
 export { askDocumentQuestion } from './endpoints/document-question';
+export { regenerateScratchPadQuestion } from './endpoints/scratch-pad-question';
 
 export { reviseDocumentWithAI } from './endpoints/document-revise';
 
