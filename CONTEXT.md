@@ -19,7 +19,7 @@ User-owned source material used as input for artifact generation. Ingest paths (
 _Avoid_: source doc, file (when meaning study content), content item
 
 **Scratch pad**:
-On AI Prompt documents, one short open recall question and hidden answer per lesson section (each main `h2`, excluding Glossary and Examples). Stored on the document record, not inside the HTML body. Optional at generation time via the Scratchpad toggle; learners reveal the answer or request a different question.
+On AI Prompt documents, one short open recall question and hidden answer per lesson section (each main `h2`, excluding Glossary and Examples). Stored on the document record, not inside the HTML body. Optional at generation time via the Scratchpad toggle. Each pad can remember prior replaced questions (`avoidedQuestions`) so Generate a different question avoids repeats; Reset clears that list only. Learners use Reveal mode to show the stored answer, or Type mode to submit an answer for a 1 to 10 score and an optional hint when not perfect.
 _Avoid_: inline quiz, document Q&A box
 
 ## Generated content

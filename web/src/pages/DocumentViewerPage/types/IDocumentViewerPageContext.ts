@@ -20,10 +20,12 @@ export interface IDocumentViewerPageContext {
     handleDownloadMd: () => void;
     handleToggleToc: () => void;
     handleTocItemClick: (id: string) => void;
-    handleRegenerateScratchPad: (
+    handleRegenerateScratchPad: (sectionIndex: number) => Promise<void>;
+    handleClearScratchPadMemory: (sectionIndex: number) => Promise<void>;
+    handleEvaluateScratchPad: (
       sectionIndex: number,
-      options?: { ignorePrevious?: boolean },
-    ) => Promise<void>;
+      userAnswer: string,
+    ) => Promise<{ score: number; hint?: string }>;
     isExporting: boolean;
   };
   contentRef: React.RefObject<HTMLDivElement | null>;

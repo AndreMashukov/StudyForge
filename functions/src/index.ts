@@ -43,6 +43,8 @@ export { generateQuizFollowup } from './endpoints/quiz-followup';
 
 export { askDocumentQuestion } from './endpoints/document-question';
 export { regenerateScratchPadQuestion } from './endpoints/scratch-pad-question';
+export { clearScratchPadAvoidedQuestions } from './endpoints/scratch-pad-clear';
+export { evaluateScratchPadAnswerCallable } from './endpoints/scratch-pad-evaluate';
 
 export { reviseDocumentWithAI } from './endpoints/document-revise';
 

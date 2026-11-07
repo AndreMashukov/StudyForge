@@ -25,6 +25,11 @@ const scratchPadSingleSchema = z.object({
   answer: z.string().min(1),
 });
 
+const scratchPadEvaluateSchema = z.object({
+  score: z.number().int().min(1).max(10),
+  hint: z.string().optional(),
+});
+
 function buildBatchScratchPadsPrompt(
   sections: ReturnType<typeof splitLessonH2Sections>,
   rulesText?: string,
@@ -52,30 +57,51 @@ function buildBatchScratchPadsPrompt(
 function buildReplaceScratchPadPrompt(params: {
   heading: string;
   sectionHtml: string;
-  previousQuestion?: string;
+  avoidedQuestions: string[];
   rulesText?: string;
-  ignorePrevious?: boolean;
 }): string {
-  if (params.ignorePrevious) {
-    return [
-      'Write a short open recall question for this lesson section and a short answer.',
-      'The question must be answerable from this section only.',
-      `Section heading: ${params.heading}`,
-      `<section_html>\n${params.sectionHtml}\n</section_html>`,
-      'Return JSON only: { "question": string, "answer": string }',
-      params.rulesText ? `Rules:\n${params.rulesText}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n\n');
-  }
+  const avoidBlock =
+    params.avoidedQuestions.length > 0
+      ? [
+          'Do not repeat or closely paraphrase any of these questions:',
+          ...params.avoidedQuestions.map(
+            (question, index) => `${index + 1}. ${question}`,
+          ),
+        ].join('\n')
+      : 'Write a question that is meaningfully distinct for this section.';
 
   return [
     'Write a new short open recall question for this lesson section and a short answer.',
-    'The new question must differ from the previous question in meaning, not just wording.',
-    `Previous question to avoid repeating: ${params.previousQuestion ?? ''}`,
+    'The new question must differ in meaning from every avoided question below.',
+    avoidBlock,
     `Section heading: ${params.heading}`,
     `<section_html>\n${params.sectionHtml}\n</section_html>`,
     'Return JSON only: { "question": string, "answer": string }',
+    params.rulesText ? `Rules:\n${params.rulesText}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+function buildEvaluateScratchPadPrompt(params: {
+  heading: string;
+  sectionHtml: string;
+  question: string;
+  referenceAnswer: string;
+  userAnswer: string;
+  rulesText?: string;
+}): string {
+  return [
+    'Grade the learner answer against the reference answer for this recall question.',
+    'Return JSON only: { "score": integer from 1 to 10, "hint"?: string }',
+    'score 10 means fully correct and complete.',
+    'When score is below 10, include a short hint that nudges the learner without stating the full reference answer.',
+    'When score is 10, omit hint.',
+    `Question: ${params.question}`,
+    `Reference answer: ${params.referenceAnswer}`,
+    `Learner answer: ${params.userAnswer}`,
+    `Section heading: ${params.heading}`,
+    `<section_html>\n${params.sectionHtml}\n</section_html>`,
     params.rulesText ? `Rules:\n${params.rulesText}` : '',
   ]
     .filter(Boolean)
@@ -200,21 +226,42 @@ export async function generateScratchPadsForDocument(params: {
   return [];
 }
 
+function parseScratchPadEvaluation(
+  raw: string,
+): { score: number; hint?: string } | null {
+  try {
+    const cleaned = JsonSanitizer.applyStateBased(
+      JsonSanitizer.applyComprehensiveCleanup(
+        JsonSanitizer.sanitizeJsonText(JsonSanitizer.initialCleanup(raw)),
+      ),
+    );
+    const parsed = scratchPadEvaluateSchema.safeParse(JSON.parse(cleaned));
+    if (!parsed.success) {
+      return null;
+    }
+    const hint = parsed.data.hint?.trim();
+    return {
+      score: parsed.data.score,
+      ...(parsed.data.score < 10 && hint ? { hint } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function regenerateScratchPadForSection(params: {
   userId: string;
   heading: string;
   sectionHtml: string;
   sectionIndex: number;
-  previousQuestion?: string;
+  avoidedQuestions: string[];
   rulesText?: string;
-  ignorePrevious?: boolean;
 }): Promise<IScratchPad | null> {
   const prompt = buildReplaceScratchPadPrompt({
     heading: params.heading,
     sectionHtml: params.sectionHtml,
-    previousQuestion: params.previousQuestion,
+    avoidedQuestions: params.avoidedQuestions,
     rulesText: params.rulesText,
-    ignorePrevious: params.ignorePrevious,
   });
 
   try {
@@ -236,11 +283,49 @@ export async function regenerateScratchPadForSection(params: {
       heading: params.heading,
       question: parsed.question,
       answer: parsed.answer,
+      avoidedQuestions: params.avoidedQuestions,
     };
   } catch (error) {
     logger.warn('Scratch pad regeneration failed', {
       error: error instanceof Error ? error.message : String(error),
       sectionIndex: params.sectionIndex,
+    });
+    return null;
+  }
+}
+
+export async function evaluateScratchPadAnswer(params: {
+  userId: string;
+  heading: string;
+  sectionHtml: string;
+  question: string;
+  referenceAnswer: string;
+  userAnswer: string;
+  rulesText?: string;
+}): Promise<{ score: number; hint?: string } | null> {
+  const prompt = buildEvaluateScratchPadPrompt({
+    heading: params.heading,
+    sectionHtml: params.sectionHtml,
+    question: params.question,
+    referenceAnswer: params.referenceAnswer,
+    userAnswer: params.userAnswer,
+    rulesText: params.rulesText,
+  });
+
+  try {
+    const raw = await LlmGenerationService.generateText(
+      params.userId,
+      'scratchPadQuestion',
+      prompt,
+      {
+        logLabel: 'scratch-pad-evaluate',
+        profile: 'explanatoryChat',
+      },
+    );
+    return parseScratchPadEvaluation(raw);
+  } catch (error) {
+    logger.warn('Scratch pad answer evaluation failed', {
+      error: error instanceof Error ? error.message : String(error),
     });
     return null;
   }

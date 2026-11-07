@@ -2302,6 +2302,10 @@ export {
   type ILessonSection,
 } from './document-html-sections';
 export type {
+  ClearScratchPadAvoidedQuestionsRequest,
+  ClearScratchPadAvoidedQuestionsResponse,
+  EvaluateScratchPadAnswerRequest,
+  EvaluateScratchPadAnswerResponse,
   IScratchPad,
   RegenerateScratchPadQuestionRequest,
   RegenerateScratchPadQuestionResponse,

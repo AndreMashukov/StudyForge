@@ -4,16 +4,37 @@ export interface IScratchPad {
   heading: string;
   question: string;
   answer: string;
+  /** Questions replaced via Generate a different question; used to avoid repeats. */
+  avoidedQuestions?: string[];
 }
 
 export interface RegenerateScratchPadQuestionRequest {
   documentId: string;
   sectionIndex: number;
   ruleIds?: string[];
-  /** When true, generate from section content only without avoiding the current question. */
-  ignorePrevious?: boolean;
 }
 
 export interface RegenerateScratchPadQuestionResponse {
   scratchPad: IScratchPad;
+}
+
+export interface ClearScratchPadAvoidedQuestionsRequest {
+  documentId: string;
+  sectionIndex: number;
+}
+
+export interface ClearScratchPadAvoidedQuestionsResponse {
+  scratchPad: IScratchPad;
+}
+
+export interface EvaluateScratchPadAnswerRequest {
+  documentId: string;
+  sectionIndex: number;
+  userAnswer: string;
+  ruleIds?: string[];
+}
+
+export interface EvaluateScratchPadAnswerResponse {
+  score: number;
+  hint?: string;
 }
