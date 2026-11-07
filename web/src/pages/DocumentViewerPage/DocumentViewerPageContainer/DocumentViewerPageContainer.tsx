@@ -438,6 +438,8 @@ export const DocumentViewerPageContainer = () => {
                       onTocGenerated={handlers.handleTocGenerated}
                       scratchPads={documentApi.data?.scratchPads}
                       onRegenerateScratchPad={handlers.handleRegenerateScratchPad}
+                      onClearScratchPadMemory={handlers.handleClearScratchPadMemory}
+                      onEvaluateScratchPad={handlers.handleEvaluateScratchPad}
                     />
                   </>
                 ) : (

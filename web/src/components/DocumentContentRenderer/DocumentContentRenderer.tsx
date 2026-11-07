@@ -15,10 +15,12 @@ export interface IDocumentContentRenderer {
   showToc?: boolean;
   onTocGenerated?: (items: TocItem[]) => void;
   scratchPads?: IScratchPad[];
-  onRegenerateScratchPad?: (
+  onRegenerateScratchPad?: (sectionIndex: number) => Promise<void>;
+  onClearScratchPadMemory?: (sectionIndex: number) => Promise<void>;
+  onEvaluateScratchPad?: (
     sectionIndex: number,
-    options?: { ignorePrevious?: boolean },
-  ) => Promise<void>;
+    userAnswer: string,
+  ) => Promise<{ score: number; hint?: string }>;
 }
 
 function generateHtmlToc(content: string): TocItem[] {
@@ -48,6 +50,8 @@ export function DocumentContentRenderer({
   onTocGenerated,
   scratchPads,
   onRegenerateScratchPad,
+  onClearScratchPadMemory,
+  onEvaluateScratchPad,
 }: IDocumentContentRenderer) {
   const format = resolveDocumentContentFormat(contentFormat);
   const bodyHtml = useMemo(
@@ -73,6 +77,8 @@ export function DocumentContentRenderer({
         className={className}
         scratchPads={scratchPads}
         onRegenerateScratchPad={onRegenerateScratchPad}
+        onClearScratchPadMemory={onClearScratchPadMemory}
+        onEvaluateScratchPad={onEvaluateScratchPad}
       />
     );
   }

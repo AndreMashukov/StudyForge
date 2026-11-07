@@ -3,7 +3,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import { TocItem, exportToPDF } from '../../../../components/MarkdownRenderer';
 import { downloadMarkdownFile } from '../../../../utils/downloadUtils';
 import { DocumentEnhanced } from '@shared-types';
-import { useRegenerateScratchPadQuestionMutation } from '../../../../store/api/ScratchPad/scratchPadApi';
+import {
+  useClearScratchPadAvoidedQuestionsMutation,
+  useEvaluateScratchPadAnswerMutation,
+  useRegenerateScratchPadQuestionMutation,
+} from '../../../../store/api/ScratchPad/scratchPadApi';
 import {
   setTocItems,
   toggleToc,
@@ -25,6 +29,9 @@ export const useDocumentViewerPageHandlers = ({
   const dispatch = useDispatch();
   const isExporting = useSelector(selectIsExporting);
   const [regenerateScratchPadQuestion] = useRegenerateScratchPadQuestionMutation();
+  const [clearScratchPadAvoidedQuestions] =
+    useClearScratchPadAvoidedQuestionsMutation();
+  const [evaluateScratchPadAnswer] = useEvaluateScratchPadAnswerMutation();
 
   const handleTocGenerated = useCallback(
     (toc: TocItem[]) => {
@@ -81,7 +88,7 @@ export const useDocumentViewerPageHandlers = ({
   }, [content, document]);
 
   const handleRegenerateScratchPad = useCallback(
-    async (sectionIndex: number, options?: { ignorePrevious?: boolean }) => {
+    async (sectionIndex: number) => {
       if (!document?.id) {
         throw new Error('Document not loaded');
       }
@@ -89,13 +96,50 @@ export const useDocumentViewerPageHandlers = ({
         documentId: document.id,
         sectionIndex,
         ruleIds: document.appliedRuleIds,
-        ...(options?.ignorePrevious ? { ignorePrevious: true } : {}),
       }).unwrap();
       if (!response.success) {
         throw new Error('Regeneration failed');
       }
     },
     [document, regenerateScratchPadQuestion],
+  );
+
+  const handleClearScratchPadMemory = useCallback(
+    async (sectionIndex: number) => {
+      if (!document?.id) {
+        throw new Error('Document not loaded');
+      }
+      const response = await clearScratchPadAvoidedQuestions({
+        documentId: document.id,
+        sectionIndex,
+      }).unwrap();
+      if (!response.success) {
+        throw new Error('Clear memory failed');
+      }
+    },
+    [clearScratchPadAvoidedQuestions, document],
+  );
+
+  const handleEvaluateScratchPad = useCallback(
+    async (sectionIndex: number, userAnswer: string) => {
+      if (!document?.id) {
+        throw new Error('Document not loaded');
+      }
+      const response = await evaluateScratchPadAnswer({
+        documentId: document.id,
+        sectionIndex,
+        userAnswer,
+        ruleIds: document.appliedRuleIds,
+      }).unwrap();
+      if (!response.success || !response.data) {
+        throw new Error('Evaluation failed');
+      }
+      return {
+        score: response.data.score,
+        hint: response.data.hint,
+      };
+    },
+    [document, evaluateScratchPadAnswer],
   );
 
   return {
@@ -105,6 +149,8 @@ export const useDocumentViewerPageHandlers = ({
     handleToggleToc,
     handleTocItemClick,
     handleRegenerateScratchPad,
+    handleClearScratchPadMemory,
+    handleEvaluateScratchPad,
     isExporting,
   };
 };

@@ -191,14 +191,18 @@ export const DocumentHtmlContent = memo(function DocumentHtmlContent({
   className,
   scratchPads,
   onRegenerateScratchPad,
+  onClearScratchPadMemory,
+  onEvaluateScratchPad,
 }: {
   html: string;
   className?: string;
   scratchPads?: IScratchPad[];
-  onRegenerateScratchPad?: (
+  onRegenerateScratchPad?: (sectionIndex: number) => Promise<void>;
+  onClearScratchPadMemory?: (sectionIndex: number) => Promise<void>;
+  onEvaluateScratchPad?: (
     sectionIndex: number,
-    options?: { ignorePrevious?: boolean },
-  ) => Promise<void>;
+    userAnswer: string,
+  ) => Promise<{ score: number; hint?: string }>;
 }) {
   const sections = useMemo(() => splitDocumentHtmlRenderSections(html), [html]);
   const padBySection = useMemo(() => {
@@ -237,6 +241,8 @@ export const DocumentHtmlContent = memo(function DocumentHtmlContent({
                 <DocumentScratchPadBox
                   pad={pad}
                   onRegenerate={onRegenerateScratchPad}
+                  onClearMemory={onClearScratchPadMemory}
+                  onEvaluate={onEvaluateScratchPad}
                 />
               ) : null}
             </div>

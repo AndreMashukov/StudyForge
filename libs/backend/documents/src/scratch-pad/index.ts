@@ -1,4 +1,5 @@
 export {
+  evaluateScratchPadAnswer,
   generateScratchPadsForDocument,
   regenerateScratchPadForSection,
   resolveScratchPadsForPromptCompletion,

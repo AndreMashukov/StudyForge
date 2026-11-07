@@ -21,6 +21,67 @@ import {
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
+async function loadScratchPadContext(
+  userId: string,
+  documentId: string,
+  sectionIndex: number,
+  ruleIds?: string[],
+): Promise<{
+  existingPads: IScratchPad[];
+  existingPad: IScratchPad;
+  lessonSection: { heading: string; html: string };
+  rulesText: string;
+}> {
+  const document = await DocumentCrudService.getDocumentWithContent(userId, documentId);
+
+  if (
+    document.generationStatus === 'pending' ||
+    document.generationStatus === 'failed'
+  ) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Document is not ready for scratch pad updates.',
+    );
+  }
+
+  const contentFormat = resolveDocumentContentFormat(document.contentFormat);
+  if (contentFormat === 'markdown') {
+    throw new HttpsError(
+      'failed-precondition',
+      'Scratch pads are only available on HTML documents.',
+    );
+  }
+
+  const existingPads = document.scratchPads ?? [];
+  const existingPad = existingPads.find((pad) => pad.sectionIndex === sectionIndex);
+  if (!existingPad) {
+    throw new HttpsError('not-found', 'No scratch pad found for this section.');
+  }
+
+  const content = document.content?.trim() ?? '';
+  const bodyHtml = extractBodyHtml(content);
+  const lessonSection = splitLessonH2Sections(bodyHtml).find(
+    (section) => section.sectionIndex === sectionIndex,
+  );
+  if (!lessonSection) {
+    throw new HttpsError('failed-precondition', 'Lesson section not found.');
+  }
+
+  let rulesText = '';
+  const effectiveRuleIds = ruleIds?.length ? ruleIds : document.appliedRuleIds;
+  if (effectiveRuleIds?.length) {
+    const { text } = await resolveEffectiveRules({
+      userId,
+      operation: RuleApplicability.PROMPT,
+      additionalRuleIds: effectiveRuleIds,
+      mode: 'explicit-only',
+    });
+    rulesText = text;
+  }
+
+  return { existingPads, existingPad, lessonSection, rulesText };
+}
+
 export const regenerateScratchPadQuestion = onCall(
   {
     region: 'asia-east1',
@@ -41,62 +102,18 @@ export const regenerateScratchPadQuestion = onCall(
         );
       }
 
-      const document = await DocumentCrudService.getDocumentWithContent(
-        userId,
-        data.documentId,
-      );
-
-      if (
-        document.generationStatus === 'pending' ||
-        document.generationStatus === 'failed'
-      ) {
-        throw new HttpsError(
-          'failed-precondition',
-          'Document is not ready for scratch pad updates.',
-        );
-      }
-
-      const contentFormat = resolveDocumentContentFormat(document.contentFormat);
-      if (contentFormat === 'markdown') {
-        throw new HttpsError(
-          'failed-precondition',
-          'Scratch pads are only available on HTML documents.',
-        );
-      }
-
-      const existingPads = document.scratchPads ?? [];
-      const existingPad = existingPads.find(
-        (pad) => pad.sectionIndex === data.sectionIndex,
-      );
-      if (!existingPad) {
-        throw new HttpsError(
-          'not-found',
-          'No scratch pad found for this section.',
-        );
-      }
-
-      const content = document.content?.trim() ?? '';
-      const bodyHtml = extractBodyHtml(content);
-      const lessonSection = splitLessonH2Sections(bodyHtml).find(
-        (section) => section.sectionIndex === data.sectionIndex,
-      );
-      if (!lessonSection) {
-        throw new HttpsError('failed-precondition', 'Lesson section not found.');
-      }
-
-      let rulesText = '';
-      const ruleIds = data.ruleIds?.length
-        ? data.ruleIds
-        : document.appliedRuleIds;
-      if (ruleIds?.length) {
-        const { text } = await resolveEffectiveRules({
+      const { existingPads, existingPad, lessonSection, rulesText } =
+        await loadScratchPadContext(
           userId,
-          operation: RuleApplicability.PROMPT,
-          additionalRuleIds: ruleIds,
-          mode: 'explicit-only',
-        });
-        rulesText = text;
-      }
+          data.documentId,
+          data.sectionIndex,
+          data.ruleIds,
+        );
+
+      const avoidedForPrompt = [
+        ...(existingPad.avoidedQuestions ?? []),
+        existingPad.question,
+      ];
 
       const replacement = await withUsageReservation(
         userId,
@@ -108,18 +125,13 @@ export const regenerateScratchPadQuestion = onCall(
             heading: lessonSection.heading,
             sectionHtml: lessonSection.html,
             sectionIndex: data.sectionIndex,
-            previousQuestion: data.ignorePrevious
-              ? undefined
-              : existingPad.question,
+            avoidedQuestions: avoidedForPrompt,
             rulesText: rulesText || undefined,
-            ignorePrevious: data.ignorePrevious === true,
           });
           if (!result) {
             throw new HttpsError(
               'internal',
-              data.ignorePrevious
-                ? 'Could not reset the scratch pad. Try again.'
-                : 'Could not generate a different question. Try again.',
+              'Could not generate a different question. Try again.',
             );
           }
           return result;
@@ -138,6 +150,7 @@ export const regenerateScratchPadQuestion = onCall(
         userId,
         documentId: data.documentId,
         sectionIndex: data.sectionIndex,
+        avoidedCount: replacement.avoidedQuestions?.length ?? 0,
       });
 
       return {
