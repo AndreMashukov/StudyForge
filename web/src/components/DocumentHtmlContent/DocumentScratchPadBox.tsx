@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { IScratchPad } from '@shared-types';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge/Badge';
@@ -41,10 +41,13 @@ export function DocumentScratchPadBox({
   const [isClearing, setIsClearing] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const typedAnswerRef = useRef(typedAnswer);
+  typedAnswerRef.current = typedAnswer;
 
   const memoryCount = pad.avoidedQuestions?.length ?? 0;
 
   useEffect(() => {
+    typedAnswerRef.current = '';
     setRevealed(false);
     setTypedAnswer('');
     setCheckResult(null);
@@ -85,16 +88,31 @@ export function DocumentScratchPadBox({
     }
   }, [busy, memoryCount, onClearMemory, pad.sectionIndex]);
 
+  const handleAnswerChange = useCallback((value: string) => {
+    typedAnswerRef.current = value;
+    setTypedAnswer(value);
+    setCheckResult(null);
+    setErrorMessage(null);
+  }, []);
+
   const handleCheck = useCallback(async () => {
     if (!onEvaluate || busy || !typedAnswer.trim()) {
       return;
     }
+    const submitted = typedAnswer.trim();
     setIsChecking(true);
+    setCheckResult(null);
     setErrorMessage(null);
     try {
-      const result = await onEvaluate(pad.sectionIndex, typedAnswer.trim());
+      const result = await onEvaluate(pad.sectionIndex, submitted);
+      if (typedAnswerRef.current.trim() !== submitted) {
+        return;
+      }
       setCheckResult(result);
     } catch {
+      if (typedAnswerRef.current.trim() !== submitted) {
+        return;
+      }
       setErrorMessage('Could not evaluate your answer. Try again.');
     } finally {
       setIsChecking(false);
@@ -165,7 +183,7 @@ export function DocumentScratchPadBox({
         <div className="mt-3 space-y-2">
           <Textarea
             value={typedAnswer}
-            onChange={(event) => setTypedAnswer(event.target.value)}
+            onChange={(event) => handleAnswerChange(event.target.value)}
             placeholder="Type your answer"
             rows={3}
             className="min-h-[72px] resize-y text-sm"
