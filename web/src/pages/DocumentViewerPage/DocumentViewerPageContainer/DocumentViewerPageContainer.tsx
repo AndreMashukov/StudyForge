@@ -197,10 +197,10 @@ export const DocumentViewerPageContainer = () => {
 
   return (
     <Page showSidebar={true}>
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="mx-auto min-w-0 max-w-4xl space-y-6 max-xl:pb-24 max-xl:pr-20">
         {/* Header */}
         <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 border-b">
-          <div className="flex items-center gap-3 px-4 py-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-3 px-4 py-2">
             <Button
               variant="ghost"
               size="sm"
@@ -224,7 +224,7 @@ export const DocumentViewerPageContainer = () => {
           <CardHeader className="pb-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="space-y-2 min-w-0 flex-1">
-                <CardTitle className="text-2xl font-bold leading-tight">
+                <CardTitle className="break-words text-2xl font-bold leading-tight">
                   {documentApi.data.title}
                 </CardTitle>
                 {documentApi.data.description && (
@@ -233,7 +233,7 @@ export const DocumentViewerPageContainer = () => {
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 {/* TOC Toggle */}
                 {tocItems.length > 0 && (
                   <Button
@@ -333,7 +333,7 @@ export const DocumentViewerPageContainer = () => {
         </Card>
 
         {/* Main Content Area */}
-        <div className="flex gap-6 relative">
+        <div className="relative flex min-w-0 gap-6">
           {/* TOC Sidebar */}
           {showToc && tocItems.length > 0 && (
             <div className="w-72 flex-shrink-0 hidden lg:block">

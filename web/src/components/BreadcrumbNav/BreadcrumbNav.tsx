@@ -56,7 +56,7 @@ export const BreadcrumbNav = ({ directoryId, onNavigate, className, lastItemClic
         const isLast = index === path.length - 1;
         const isCurrent = isLast && isLastItemCurrent;
         return (
-          <div key={dir.id} className="flex items-center gap-2">
+          <div key={dir.id} className="flex min-w-0 max-w-full items-center gap-2">
             <ChevronRight size={16} className={breadcrumbNavStyles.separator} />
             <button
               onClick={() => !isCurrent && onNavigate({ id: dir.id, name: dir.name })}
