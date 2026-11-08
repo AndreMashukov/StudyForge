@@ -91,7 +91,7 @@ export function CaptureScreen() {
     : null;
 
   const handleScan = useCallback(async () => {
-    if (!defaultDirectoryId) {
+    if (!defaultDirectoryId || !defaultDirectory) {
       setStatusMessage('Choose a default directory in Settings before scanning.');
       return;
     }
@@ -112,7 +112,7 @@ export function CaptureScreen() {
     } catch (scanError) {
       setStatusMessage(scanError instanceof Error ? scanError.message : 'Scan failed.');
     }
-  }, [defaultDirectoryId, handler, resetStatus, router, setPendingScan, setStatusMessage]);
+  }, [defaultDirectoryId, defaultDirectory, handler, resetStatus, router, setPendingScan, setStatusMessage]);
 
   if (isLoading) {
     return <LoadingState message="Loading capture settings…" />;
@@ -189,7 +189,7 @@ export function CaptureScreen() {
         />
         <Button
           label={captureState === 'idle' ? 'Scan document' : stateLabel(captureState)}
-          disabled={captureState !== 'idle' || !defaultDirectoryId}
+          disabled={captureState !== 'idle' || !defaultDirectory}
           onPress={() => void handleScan()}
         />
         <Button

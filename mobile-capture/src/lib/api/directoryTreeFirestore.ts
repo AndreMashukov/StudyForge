@@ -1,9 +1,9 @@
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, getDocsFromServer, orderBy, query } from 'firebase/firestore';
 import type { Directory, DirectoryTreeNode, GetDirectoryTreeResponse } from '@shared-types';
 import { auth, db } from '../firebase';
 import { directorySchema } from './studyforgeApiSchemas';
 
-function buildDirectoryTreeFromDirectories(directories: Directory[]): DirectoryTreeNode[] {
+export function buildDirectoryTreeFromDirectories(directories: Directory[]): DirectoryTreeNode[] {
   const nodeMap = new Map<string, DirectoryTreeNode>();
   const rootNodes: DirectoryTreeNode[] = [];
 
@@ -47,7 +47,7 @@ function toDateValue(
   return new Date();
 }
 
-function toDirectory(id: string, raw: unknown): Directory | null {
+export function toDirectory(id: string, raw: unknown): Directory | null {
   const source = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? raw : {};
   const parsed = directorySchema.safeParse({
     ...source,
@@ -69,7 +69,7 @@ export async function fetchDirectoryTreeFromFirestore(): Promise<GetDirectoryTre
     throw new Error('Authentication required');
   }
 
-  const snapshot = await getDocs(
+  const snapshot = await getDocsFromServer(
     query(collection(db, 'users', userId, 'directories'), orderBy('path', 'asc')),
   );
 

@@ -19,6 +19,7 @@ const FIREBASE_PUBLIC_ENV_KEYS = [
   'NX_PUBLIC_FIREBASE_APP_ID',
   'NX_PUBLIC_USE_FIREBASE_EMULATOR',
   'NX_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN',
+  'NX_PUBLIC_WEB_APP_ORIGIN',
 ] as const;
 
 function readFirebasePublicEnv(): Record<string, string> {

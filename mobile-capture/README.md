@@ -17,6 +17,8 @@ Stack aligns with [expo_app_stack_2026.md](../docs/tasks/16-mobile-ocr-app/expo_
 
 Mobile reads Firebase config from the **workspace root** `.env` / `.env.local` (same as web). Values are injected via `app.config.ts` → `expo-constants`.
 
+Set `NX_PUBLIC_WEB_APP_ORIGIN` to the web app origin if it differs from `https://study-forge-202604.web.app`. Library uses this origin when opening artifacts or the original document in the browser. Browser sign-in is separate from mobile sign-in.
+
 | Mode | `.env.local` |
 |---|---|
 | **Local emulators** | `NX_PUBLIC_USE_FIREBASE_EMULATOR=true` and `NX_PUBLIC_FIREBASE_API_KEY=demo-api-key-for-emulator` |

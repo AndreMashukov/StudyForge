@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../../lib/api/queryKeys';
 import { createDocument, generateFromScreenshot, getDirectoryTree } from '../../../lib/api/studyforgeApi';
 import type { IGetDirectoryTreeResponse } from '../../../lib/api/studyforgeApiSchemas';
+import { useAuthUser } from '../../auth/hooks/useAuthUser';
 
 export type IMobileDirectory = IGetDirectoryTreeResponse['tree'][number]['directory'];
 
@@ -35,9 +36,11 @@ export function flattenDirectoryTree(nodes: IGetDirectoryTreeResponse['tree']): 
 }
 
 export function useDirectoryTreeQuery() {
+  const { user } = useAuthUser();
   return useQuery({
-    queryKey: queryKeys.directoryTree,
+    queryKey: queryKeys.directoryTree(user?.uid ?? ''),
     queryFn: getDirectoryTree,
+    enabled: Boolean(user),
   });
 }
 

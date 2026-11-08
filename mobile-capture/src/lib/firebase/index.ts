@@ -2,6 +2,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import {
   FIREBASE_FUNCTIONS_REGION,
   getEmulatorHost,
@@ -19,6 +20,7 @@ initializeMobileAppCheck(app);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const functions = getFunctions(app, FIREBASE_FUNCTIONS_REGION);
+export const storage = getStorage(app);
 
 let emulatorsConnected = false;
 
@@ -29,6 +31,7 @@ if (useFirebaseEmulator() && !emulatorsConnected) {
     connectAuthEmulator(auth, `http://${host}:9099`, { disableWarnings: true });
     connectFirestoreEmulator(db, host, 8080);
     connectFunctionsEmulator(functions, host, 5001);
+    connectStorageEmulator(storage, host, 9199);
   } catch {
     // Hot reload can re-run this module while Firebase instances stay connected.
   }

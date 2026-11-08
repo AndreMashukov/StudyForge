@@ -25,6 +25,13 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
 
+  if (moduleName === 'entities/decode' && context.originModulePath.includes(`${path.sep}htmlparser2${path.sep}`)) {
+    return {
+      type: 'sourceFile',
+      filePath: require.resolve('entities/decode', { paths: [path.dirname(context.originModulePath)] }),
+    };
+  }
+
   if (defaultResolveRequest) {
     return defaultResolveRequest(context, moduleName, platform);
   }

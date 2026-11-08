@@ -1,7 +1,7 @@
 import '../../global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import {
   HankenGrotesk_400Regular,
@@ -17,6 +17,7 @@ import { LoadingState } from '@studyforge/mobile-ui';
 import { useAuthUser } from '../features/auth/hooks/useAuthUser';
 import { queryClient } from '../lib/api/queryClient';
 import { usePreferencesStore } from '../features/preferences/store/preferencesStore';
+import { useCaptureStore } from '../features/capture/store/captureStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -25,6 +26,17 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const router = useRouter();
   const hydratePreferences = usePreferencesStore((state) => state.hydrate);
+  const previousUserId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (initializing) return;
+    if (previousUserId.current && previousUserId.current !== user?.uid) {
+      queryClient.clear();
+      useCaptureStore.setState({ captureState: 'idle', statusMessage: null, pendingScan: null, lastDocumentId: null, lastTitle: null });
+      usePreferencesStore.setState({ defaultDirectoryId: null, hydrated: false });
+    }
+    previousUserId.current = user?.uid ?? null;
+  }, [initializing, user?.uid]);
 
   useEffect(() => {
     void hydratePreferences();
@@ -85,7 +97,9 @@ export default function RootLayout() {
               }}
             >
               <Stack.Screen name="index" />
+              <Stack.Screen name="library" />
               <Stack.Screen name="settings" />
+              <Stack.Screen name="document/[id]" />
               <Stack.Screen
                 name="scan/review"
                 options={{
