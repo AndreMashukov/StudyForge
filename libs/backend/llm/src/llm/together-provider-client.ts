@@ -7,6 +7,7 @@ import {
   type ITogetherStreamedChatResult,
 } from './together-chat-stream';
 import { togetherReasoningBodyExtras } from './together-reasoning-body';
+import { topPInsideTogetherErrorRange } from './together-top-p';
 import type {
   LlmImageRequest,
   LlmImageResult,
@@ -185,6 +186,54 @@ function buildTogetherChatBody(input: {
   });
 }
 
+async function requestTogetherChatStream(params: {
+  url: string;
+  apiKey: string;
+  errorLabel: string;
+  timeoutMs?: number;
+  body: {
+    model: string;
+    messages: unknown[];
+    temperature?: number;
+    topP?: number;
+    maxOutputTokens?: number;
+    disableReasoning?: boolean;
+  };
+}): Promise<ITogetherStreamedChatResult> {
+  const post = (topP: number | undefined) =>
+    fetchTogetherChatCompletionStream(
+      params.url,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${params.apiKey}`,
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        },
+        body: buildTogetherChatBody({ ...params.body, topP }),
+      },
+      params.errorLabel,
+      params.timeoutMs,
+    );
+
+  try {
+    return await post(params.body.topP);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const clampedTopP = topPInsideTogetherErrorRange(params.body.topP, message);
+    if (clampedTopP === undefined) {
+      throw error;
+    }
+
+    functions.logger.warn('Retrying Together chat with clamped top_p', {
+      model: params.body.model,
+      topP: params.body.topP,
+      clampedTopP,
+    });
+    return post(clampedTopP);
+  }
+}
+
 export class TogetherProviderClient implements LlmProviderClient {
   constructor(
     private readonly apiKey: string,
@@ -202,29 +251,20 @@ export class TogetherProviderClient implements LlmProviderClient {
 
   async generateText(request: LlmTextRequest): Promise<LlmTextResult> {
     const startedAt = Date.now();
-    const body = buildTogetherChatBody({
-      model: request.config.model,
-      messages: [{ role: 'user', content: request.prompt }],
-      temperature: request.config.temperature,
-      topP: request.config.topP,
-      maxOutputTokens: request.config.maxOutputTokens,
-      disableReasoning: request.config.disableReasoning,
-    });
-
-    const streamed = await fetchTogetherChatCompletionStream(
-      this.chatCompletionsUrl,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          Accept: 'text/event-stream',
-        },
-        body,
+    const streamed = await requestTogetherChatStream({
+      url: this.chatCompletionsUrl,
+      apiKey: this.apiKey,
+      errorLabel: 'Together API error',
+      timeoutMs: request.config.requestTimeoutMs,
+      body: {
+        model: request.config.model,
+        messages: [{ role: 'user', content: request.prompt }],
+        temperature: request.config.temperature,
+        topP: request.config.topP,
+        maxOutputTokens: request.config.maxOutputTokens,
+        disableReasoning: request.config.disableReasoning,
       },
-      'Together API error',
-      request.config.requestTimeoutMs,
-    );
+    });
 
     if (!streamed.text) {
       throwEmptyTogetherChatResponse(
@@ -251,43 +291,34 @@ export class TogetherProviderClient implements LlmProviderClient {
     const startedAt = Date.now();
     const detail = request.detail ?? 'auto';
 
-    const body = buildTogetherChatBody({
-      model: request.config.model,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: request.prompt },
-            {
-              type: 'image_url',
-              image_url: {
-                url: request.imageDataUrl,
-                detail,
+    const streamed = await requestTogetherChatStream({
+      url: this.chatCompletionsUrl,
+      apiKey: this.apiKey,
+      errorLabel: 'Together vision API error',
+      timeoutMs: request.config.requestTimeoutMs,
+      body: {
+        model: request.config.model,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: request.prompt },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: request.imageDataUrl,
+                  detail,
+                },
               },
-            },
-          ],
-        },
-      ],
-      temperature: request.config.temperature,
-      topP: request.config.topP,
-      maxOutputTokens: request.config.maxOutputTokens,
-      disableReasoning: request.config.disableReasoning,
-    });
-
-    const streamed = await fetchTogetherChatCompletionStream(
-      this.chatCompletionsUrl,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          Accept: 'text/event-stream',
-        },
-        body,
+            ],
+          },
+        ],
+        temperature: request.config.temperature,
+        topP: request.config.topP,
+        maxOutputTokens: request.config.maxOutputTokens,
+        disableReasoning: request.config.disableReasoning,
       },
-      'Together vision API error',
-      request.config.requestTimeoutMs,
-    );
+    });
 
     if (!streamed.text) {
       throwEmptyTogetherChatResponse(

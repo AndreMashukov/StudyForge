@@ -10,7 +10,10 @@ import type {
   DocumentReviseContext,
   DirectoryChatPromptContext,
 } from '@shared-types';
-import { resolveDocumentContentFormat } from '@shared-types';
+import {
+  DEFAULT_LLM_GENERATION_SETTINGS,
+  resolveDocumentContentFormat,
+} from '@shared-types';
 import {
   GeminiService,
   JsonSanitizer,
@@ -1271,7 +1274,7 @@ Return ONLY the corrected Mermaid source with no markdown fences or commentary.`
       {
         flow: 'diagramQuiz.agent',
         topK: 20,
-        topP: 0.9,
+        topP: DEFAULT_LLM_GENERATION_SETTINGS.topP,
       },
     );
 
@@ -1289,7 +1292,7 @@ Return ONLY the corrected Mermaid source with no markdown fences or commentary.`
       {
         model: ctx.resolution.route.model,
         topK: 20,
-        topP: 0.9,
+        topP: DEFAULT_LLM_GENERATION_SETTINGS.topP,
       },
       'Diagram quiz repair via OpenRouter',
       { profile, flow: 'diagramQuiz.agent' },
@@ -1368,7 +1371,7 @@ Return ONLY valid JSON:
       {
         flow: 'diagramQuiz.agent',
         topK: 20,
-        topP: 0.9,
+        topP: DEFAULT_LLM_GENERATION_SETTINGS.topP,
         temperature: 0.25,
       },
     );
@@ -1384,7 +1387,7 @@ Return ONLY valid JSON:
           {
             model: ctx.resolution.route.model,
             topK: 20,
-            topP: 0.9,
+            topP: DEFAULT_LLM_GENERATION_SETTINGS.topP,
             temperature: 0.25,
           },
           'Diagram quiz visual-complexity rebalance via OpenRouter',
@@ -1475,7 +1478,7 @@ Use "revise" for fixable pedagogical issues and "fail" only for severe factual e
       {
         flow: 'diagramQuiz.agent',
         topK: 20,
-        topP: 0.9,
+        topP: DEFAULT_LLM_GENERATION_SETTINGS.topP,
       },
     );
 
@@ -1492,7 +1495,7 @@ Use "revise" for fixable pedagogical issues and "fail" only for severe factual e
       {
         model: ctx.resolution.route.model,
         topK: 20,
-        topP: 0.9,
+        topP: DEFAULT_LLM_GENERATION_SETTINGS.topP,
       },
       'Diagram quiz critic via OpenRouter',
       { profile, flow: 'diagramQuiz.agent' },
