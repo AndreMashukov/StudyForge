@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -17,7 +23,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
 import type {
   GenerationStatus,
   ReorderableDirectoryItemType,
@@ -45,6 +51,19 @@ interface ISortableRowProps {
   suppressClickRef: React.MutableRefObject<boolean>;
 }
 
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    target.isContentEditable
+  );
+}
+
 const SortableRow: React.FC<ISortableRowProps> = ({
   id,
   children,
@@ -54,10 +73,30 @@ const SortableRow: React.FC<ISortableRowProps> = ({
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
   } = useSortable({ id });
+  // Keyboard drag starts only when Space or Enter is pressed on this row.
+  // Text fields inside the row must receive those keys as characters.
+  const setRowRef = useCombinedRefs(setNodeRef, setActivatorNodeRef);
+  const rowListeners = useMemo(() => {
+    if (!listeners) {
+      return listeners;
+    }
+
+    return {
+      ...listeners,
+      onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => {
+        if (isTextEntryTarget(event.target)) {
+          return;
+        }
+
+        listeners.onKeyDown?.(event);
+      },
+    };
+  }, [listeners]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -66,10 +105,10 @@ const SortableRow: React.FC<ISortableRowProps> = ({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={setRowRef}
       style={style}
       {...attributes}
-      {...listeners}
+      {...rowListeners}
       className={cn(
         'touch-none',
         isDragging && 'opacity-50',

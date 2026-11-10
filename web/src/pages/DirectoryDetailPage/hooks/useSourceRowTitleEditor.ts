@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react';
 import { useUpdateDocumentMutation } from '../../../store/api/Documents/documentsApi';
 
 interface UseSourceRowTitleEditorParams {
@@ -13,7 +19,8 @@ export function useSourceRowTitleEditor({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(documentTitle);
   const [titleError, setTitleError] = useState<string | null>(null);
-  const [updateDocument, { isLoading: isSavingTitle }] = useUpdateDocumentMutation();
+  const [updateDocument, { isLoading: isSavingTitle }] =
+    useUpdateDocumentMutation();
   const titleInputRef = useRef<HTMLInputElement>(null);
   const cancelEditRef = useRef(false);
 
@@ -86,6 +93,9 @@ export function useSourceRowTitleEditor({
 
   const handleTitleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLInputElement>) => {
+      // Keep Space and Enter in the field. The source row also listens for them to drag.
+      event.stopPropagation();
+
       if (event.key === 'Enter') {
         event.preventDefault();
         void saveTitle();
