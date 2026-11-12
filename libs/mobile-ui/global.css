@@ -4,25 +4,27 @@
 
 @layer base {
   :root {
-    /* Obsidian Pulse — Google Stitch "Modern AI Chat Interface" */
-    --background: 18 20 20;
-    --foreground: 226 226 226;
-    --card: 23 23 23;
-    --primary: 139 92 246;
+    /* CrowdsNow — light theme, deep purple brand, Inter. */
+    --background: 255 255 255;
+    --foreground: 32 34 44;
+    --card: 255 255 255;
+    --primary: 67 11 112;
     --primary-foreground: 255 255 255;
-    --accent: 34 197 94;
-    --muted: 38 38 38;
-    --muted-foreground: 203 195 215;
-    --destructive: 255 180 171;
-    --error-container: 147 0 10;
-    --on-error-container: 255 218 214;
-    --border: 38 38 38;
-    --input: 23 23 23;
-    --ring: 139 92 246;
-    --radius: 0.5rem;
-    --surface-container-high: 40 42 43;
-    --surface-container-lowest: 12 15 15;
-    --outline: 149 142 160;
-    --outline-variant: 73 68 84;
+    --accent: 24 123 73;
+    --muted: 245 245 245;
+    --muted-foreground: 110 119 126;
+    --destructive: 224 2 82;
+    --error-container: 249 231 238;
+    --on-error-container: 224 2 82;
+    --border: 229 229 229;
+    --input: 255 255 255;
+    --ring: 67 11 112;
+    --radius: 1rem;
+    --surface-container-high: 255 255 255;
+    --surface-container-lowest: 255 255 255;
+    --outline: 171 184 195;
+    --outline-variant: 229 229 229;
+    --switch-off: 218 217 210;
+    --tab-bar: 0 0 0;
   }
 }

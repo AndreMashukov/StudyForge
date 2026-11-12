@@ -4,57 +4,72 @@ import { cn } from '../../lib/cn';
 import { mobileUiColors } from '../../tokens/colors';
 import type { IButton } from './IButton';
 
-const variantClasses: Record<NonNullable<IButton['variant']>, string> = {
+type ButtonVariant = NonNullable<IButton['variant']>;
+type ButtonSize = NonNullable<IButton['size']>;
+
+const variantClasses: Record<ButtonVariant, string> = {
   primary: 'bg-primary border border-primary',
-  secondary: 'bg-card border border-border',
-  destructive: 'bg-error-container border border-transparent',
+  secondary: 'bg-background border border-foreground',
+  destructive: 'bg-destructive border border-destructive',
   ghost: 'bg-transparent border border-transparent',
 };
 
-const sizeClasses: Record<NonNullable<IButton['size']>, string> = {
-  default: 'min-h-12 px-4 py-3',
-  sm: 'min-h-10 px-4 py-2',
-  lg: 'min-h-14 px-5 py-4',
+const disabledVariantClasses: Record<ButtonVariant, string> = {
+  primary: 'bg-outline border border-outline',
+  secondary: 'bg-background border border-outline',
+  destructive: 'bg-outline border border-outline',
+  ghost: 'bg-transparent border border-transparent',
 };
 
-const shapeClasses: Record<NonNullable<IButton['shape']>, string> = {
-  default: 'rounded-lg',
-  pill: 'rounded-full',
+const sizeClasses: Record<ButtonSize, string> = {
+  default: 'h-[50px] px-6',
+  sm: 'h-10 px-4',
+  lg: 'h-14 px-6',
 };
 
-const labelSizeClasses: Record<NonNullable<IButton['size']>, string> = {
-  default: 'text-base',
-  sm: 'text-sm',
-  lg: 'text-base',
+const labelSizeClasses: Record<ButtonSize, string> = {
+  default: 'text-lg leading-[22px]',
+  sm: 'text-sm leading-[17px]',
+  lg: 'text-lg leading-[22px]',
 };
 
-function getLabelColorClass(variant: NonNullable<IButton['variant']>): string {
-  if (variant === 'primary') {
+const iconSizes: Record<ButtonSize, number> = {
+  default: 20,
+  sm: 16,
+  lg: 20,
+};
+
+function isFilled(variant: ButtonVariant): boolean {
+  return variant === 'primary' || variant === 'destructive';
+}
+
+function getLabelColorClass(variant: ButtonVariant, disabled: boolean): string {
+  if (isFilled(variant)) {
     return 'text-primary-foreground';
   }
-  if (variant === 'destructive') {
-    return 'text-on-error-container';
+  if (disabled) {
+    return 'text-outline';
   }
-  return 'text-foreground';
+  return variant === 'ghost' ? 'text-primary' : 'text-foreground';
 }
 
-function getIconColor(variant: NonNullable<IButton['variant']>): string {
-  if (variant === 'primary') {
+function getIconColor(variant: ButtonVariant, disabled: boolean): string {
+  if (isFilled(variant)) {
     return mobileUiColors.primaryForeground;
   }
-  if (variant === 'destructive') {
-    return mobileUiColors.onErrorContainer;
+  if (disabled) {
+    return mobileUiColors.outline;
   }
-  return mobileUiColors.foreground;
+  return variant === 'ghost' ? mobileUiColors.primary : mobileUiColors.foreground;
 }
 
+/** CrowdsNow buttons are always pills, so `shape` no longer changes the look. */
 export function Button({
   label,
   onPress,
-  disabled,
+  disabled = false,
   variant = 'primary',
   size = 'default',
-  shape = 'default',
   icon,
   className,
 }: IButton) {
@@ -64,16 +79,23 @@ export function Button({
       disabled={disabled}
       onPress={onPress}
       className={cn(
-        'flex-row items-center justify-center gap-1',
-        shapeClasses[shape],
-        variantClasses[variant],
+        'flex-row items-center justify-center gap-2 rounded-full',
+        disabled ? disabledVariantClasses[variant] : variantClasses[variant],
         sizeClasses[size],
-        disabled && 'opacity-50',
         className
       )}
     >
-      {icon ? <MaterialIcons name={icon} size={18} color={getIconColor(variant)} /> : null}
-      <Text className={cn('font-sans-semibold', labelSizeClasses[size], getLabelColorClass(variant))}>
+      {icon ? (
+        <MaterialIcons name={icon} size={iconSizes[size]} color={getIconColor(variant, disabled)} />
+      ) : null}
+      <Text
+        numberOfLines={1}
+        className={cn(
+          'flex-shrink font-sans-bold',
+          labelSizeClasses[size],
+          getLabelColorClass(variant, disabled)
+        )}
+      >
         {label}
       </Text>
     </Pressable>

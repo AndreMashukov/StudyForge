@@ -9,14 +9,14 @@ export function ScreenHeader({ title, leading, trailing, className }: IScreenHea
     <SafeAreaView
       edges={['top']}
       className={cn(
-        '-mx-container px-container border-b border-outline-variant bg-background',
+        '-mx-container rounded-b-[25px] bg-primary',
         className
       )}
     >
-      <View className="h-12 flex-row items-center justify-between">
-        <View className="flex-1 flex-row items-center gap-4">
+      <View className="min-h-12 flex-row items-center justify-between px-container pb-6 pt-2">
+        <View className="flex-1 flex-row items-center gap-2">
           {leading}
-          <Heading level={2} numberOfLines={1} className="flex-shrink text-primary">
+          <Heading level={2} numberOfLines={1} className="flex-shrink text-primary-foreground">
             {title}
           </Heading>
         </View>

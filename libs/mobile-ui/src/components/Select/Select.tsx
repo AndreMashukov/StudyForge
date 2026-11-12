@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { MaterialIcons } from '@expo/vector-icons';
 import { Modal, Pressable, ScrollView, Text } from 'react-native';
+import { mobileUiColors } from '../../tokens/colors';
 import { cn } from '../../lib/cn';
 import type { ISelect } from './ISelect';
 
@@ -25,25 +27,26 @@ export function Select({
         disabled={disabled}
         onPress={() => setOpen(true)}
         className={cn(
-          'min-h-12 bg-input border border-border rounded-lg px-3.5 py-3 mb-2',
+          'h-11 flex-row items-center justify-between gap-2.5 border-b border-outline mb-2',
           disabled && 'opacity-50',
           className
         )}
       >
         <Text
           className={cn(
-            'text-base font-sans',
-            value ? 'text-foreground' : 'text-muted-foreground'
+            'flex-1 text-sm leading-[17px] font-sans',
+            value ? 'text-foreground' : 'text-outline'
           )}
         >
           {selectedLabel}
         </Text>
+        <MaterialIcons name="keyboard-arrow-down" size={22} color={mobileUiColors.foreground} />
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable className="flex-1 bg-black/70 justify-end" onPress={() => setOpen(false)}>
-          <Pressable className="bg-surface-high rounded-t-2xl border border-border px-container pt-4 pb-8 max-h-[60%]">
-            <Text className="text-foreground text-lg leading-6 font-sans-semibold mb-3">
+        <Pressable className="flex-1 bg-black/50 justify-end" onPress={() => setOpen(false)}>
+          <Pressable className="bg-background rounded-t-[25px] px-container pt-6 pb-8 max-h-[60%]">
+            <Text className="text-foreground text-lg leading-[22px] font-sans-bold mb-4">
               Choose an option
             </Text>
             <ScrollView>
@@ -58,11 +61,11 @@ export function Select({
                       setOpen(false);
                     }}
                     className={cn(
-                      'min-h-12 rounded-lg border px-3.5 py-3 mb-gutter',
-                      selected ? 'border-primary bg-primary/10' : 'border-border bg-card'
+                      'min-h-12 justify-center rounded-2xl border-2 px-4 py-3 mb-gutter',
+                      selected ? 'border-primary bg-primary/10' : 'border-border bg-background'
                     )}
                   >
-                    <Text className="text-foreground text-base font-sans">{option.label}</Text>
+                    <Text className="text-foreground text-sm leading-[17px] font-sans-medium">{option.label}</Text>
                   </Pressable>
                 );
               })}

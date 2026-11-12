@@ -11,12 +11,12 @@ const preview: Preview = {
     (Story) => (
       <SafeAreaProvider>
         <div
-          className="dark font-sans"
+          className="font-sans"
           style={{
             minHeight: '100vh',
             display: 'flex',
             flexDirection: 'column',
-            backgroundColor: 'rgb(18, 20, 20)',
+            backgroundColor: 'rgb(255, 255, 255)',
           }}
         >
           <Story />

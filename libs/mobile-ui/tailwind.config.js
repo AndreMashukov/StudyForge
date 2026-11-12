@@ -1,11 +1,11 @@
 const path = require('path');
 
-const obsidianPulseTheme = {
+const crowdsNowTheme = {
   fontFamily: {
-    sans: ['HankenGrotesk_400Regular'],
-    'sans-medium': ['HankenGrotesk_500Medium'],
-    'sans-semibold': ['HankenGrotesk_600SemiBold'],
-    'sans-bold': ['HankenGrotesk_700Bold'],
+    sans: ['Inter_400Regular'],
+    'sans-medium': ['Inter_500Medium'],
+    'sans-semibold': ['Inter_600SemiBold'],
+    'sans-bold': ['Inter_700Bold'],
   },
   borderRadius: {
     lg: 'var(--radius)',
@@ -16,7 +16,11 @@ const obsidianPulseTheme = {
   },
   spacing: {
     gutter: '12px',
-    container: '20px',
+    container: '16px',
+  },
+  boxShadow: {
+    raised: '0 8px 6px rgba(0, 0, 0, 0.06)',
+    field: '0 6px 24px rgba(32, 34, 44, 0.1)',
   },
   colors: {
     background: 'rgb(var(--background) / <alpha-value>)',
@@ -43,6 +47,8 @@ const obsidianPulseTheme = {
     },
     outline: 'rgb(var(--outline) / <alpha-value>)',
     'outline-variant': 'rgb(var(--outline-variant) / <alpha-value>)',
+    'switch-off': 'rgb(var(--switch-off) / <alpha-value>)',
+    'tab-bar': 'rgb(var(--tab-bar) / <alpha-value>)',
   },
 };
 
@@ -55,7 +61,7 @@ module.exports = {
   ],
   presets: [require('nativewind/preset')],
   theme: {
-    extend: obsidianPulseTheme,
+    extend: crowdsNowTheme,
   },
   plugins: [],
 };

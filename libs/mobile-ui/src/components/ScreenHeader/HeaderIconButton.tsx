@@ -15,9 +15,9 @@ export function HeaderIconButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      className={cn('min-h-12 min-w-12 items-center justify-center', className)}
+      className={cn('h-10 w-10 items-center justify-center', className)}
     >
-      <MaterialIcons name={icon} size={24} color={mobileUiColors.primary} />
+      <MaterialIcons name={icon} size={24} color={mobileUiColors.primaryForeground} />
     </Pressable>
   );
 }

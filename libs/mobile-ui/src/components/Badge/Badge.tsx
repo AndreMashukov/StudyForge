@@ -4,20 +4,22 @@ import type { IBadge } from './IBadge';
 
 const variantClasses: Record<NonNullable<IBadge['variant']>, string> = {
   default: 'bg-primary border border-primary',
-  secondary: 'bg-muted border border-border',
+  secondary: 'bg-primary/10 border border-transparent',
   destructive: 'bg-destructive border border-destructive',
   outline: 'border border-border bg-transparent',
 };
 
 export function Badge({ label, variant = 'default', className }: IBadge) {
   return (
-    <View className={cn('self-start rounded-full px-2.5 py-1', variantClasses[variant], className)}>
+    <View className={cn('self-start items-center justify-center rounded-xl px-2 py-1', variantClasses[variant], className)}>
       <Text
         className={cn(
-          'text-xs leading-4 font-sans-bold uppercase tracking-widest',
+          'text-xs leading-[15px] font-sans-bold',
           variant === 'default' || variant === 'destructive'
             ? 'text-primary-foreground'
-            : 'text-foreground'
+            : variant === 'secondary'
+              ? 'text-primary'
+              : 'text-foreground'
         )}
       >
         {label}

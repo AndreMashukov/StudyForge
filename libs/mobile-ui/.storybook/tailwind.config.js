@@ -13,10 +13,10 @@ module.exports = {
     extend: {
       ...nativeConfig.theme.extend,
       fontFamily: {
-        sans: ['Hanken Grotesk', 'system-ui', 'sans-serif'],
-        'sans-medium': ['Hanken Grotesk', 'system-ui', 'sans-serif'],
-        'sans-semibold': ['Hanken Grotesk', 'system-ui', 'sans-serif'],
-        'sans-bold': ['Hanken Grotesk', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        'sans-medium': ['Inter', 'system-ui', 'sans-serif'],
+        'sans-semibold': ['Inter', 'system-ui', 'sans-serif'],
+        'sans-bold': ['Inter', 'system-ui', 'sans-serif'],
       },
     },
   },

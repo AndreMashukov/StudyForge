@@ -1,3 +1,4 @@
+import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { cn } from '../../lib/cn';
 import type { IScreenFooter } from './IScreenFooter';
@@ -7,11 +8,11 @@ export function ScreenFooter({ children, className }: IScreenFooter) {
     <SafeAreaView
       edges={['bottom']}
       className={cn(
-        '-mx-container border-t border-outline-variant bg-surface-lowest p-4',
+        '-mx-container border-t border-border bg-background',
         className
       )}
     >
-      {children}
+      <View className="p-4">{children}</View>
     </SafeAreaView>
   );
 }
