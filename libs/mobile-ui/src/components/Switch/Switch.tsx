@@ -15,11 +15,11 @@ export function Switch({ value, onValueChange, label, disabled, className }: ISw
         className
       )}
     >
-      <Text className="text-foreground text-sm leading-[17px] font-sans flex-1">{label}</Text>
+      <Text className="text-foreground text-base leading-6 font-sans flex-1">{label}</Text>
       <View
         className={cn(
           'h-[31px] w-[51px] justify-center rounded-full p-0.5',
-          value ? 'bg-accent' : 'bg-switch-off'
+          value ? 'bg-primary' : 'bg-switch-off'
         )}
       >
         <View

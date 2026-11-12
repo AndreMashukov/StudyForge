@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Image } from 'react-native';
+import { Image, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { DocumentSourceType } from '@shared-types';
 import {
@@ -20,8 +20,14 @@ import {
   reviewDocumentSchema,
 } from '../schemas/reviewSchemas';
 import { useCaptureStore } from '../store/captureStore';
-import { useCreateDocumentMutation, useGenerateFromScreenshotMutation } from '../../directories/api/directoryQueries';
-import { deriveTitleFromContent, prepareImageBase64DataUrl } from '../../../lib/capture/imageEncoding';
+import {
+  useCreateDocumentMutation,
+  useGenerateFromScreenshotMutation,
+} from '../../directories/api/directoryQueries';
+import {
+  deriveTitleFromContent,
+  prepareImageBase64DataUrl,
+} from '../../../lib/capture/imageEncoding';
 import { getCallableErrorMessage } from '../../../lib/api/studyforgeApi';
 
 export function ReviewScreen() {
@@ -104,12 +110,13 @@ export function ReviewScreen() {
         prompt: form.getValues('content') || undefined,
       });
 
-      const displayTitle = response.title?.trim() || formTitle || 'Captured Document';
+      const displayTitle =
+        response.title?.trim() || formTitle || 'Captured Document';
       setLastResult(response.documentId, displayTitle);
 
       if (response.generationStatus === 'pending') {
         setStatusMessage(
-          `Document "${displayTitle}" is generating in StudyForge. Open the web app to view it when ready.`
+          `Document "${displayTitle}" is generating in StudyForge. Open the web app to view it when ready.`,
         );
       } else {
         setStatusMessage(`Created "${displayTitle}" from scanned image.`);
@@ -122,7 +129,9 @@ export function ReviewScreen() {
     }
   };
 
-  const isSubmitting = createDocumentMutation.isPending || generateFromScreenshotMutation.isPending;
+  const isSubmitting =
+    createDocumentMutation.isPending ||
+    generateFromScreenshotMutation.isPending;
 
   return (
     <Screen className="pt-0">
@@ -136,50 +145,61 @@ export function ReviewScreen() {
           />
         }
       />
-      <Text tone="muted" className="mt-6 mb-4">
-        Edit OCR text or send the scanned image for AI document generation.
-      </Text>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: 24 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Text tone="muted" className="mt-2 mb-4">
+          Edit OCR text or send the scanned image for AI document generation.
+        </Text>
 
-      <Image
-        source={{ uri: pendingScan.imageUri }}
-        className="w-full h-40 rounded-lg border border-border mb-4"
-        resizeMode="cover"
-      />
-
-      <Form {...form}>
-        <FormTextInput
-          control={form.control}
-          name="title"
-          label="Title"
-          placeholder="Document title"
+        <Image
+          source={{ uri: pendingScan.imageUri }}
+          className="w-full h-40 rounded-lg border border-border mb-4"
+          resizeMode="cover"
         />
 
-        <FormTextInput
-          control={form.control}
-          name="content"
-          label="OCR text"
-          placeholder="Recognized text"
-          multiline
-          numberOfLines={8}
-        />
-
-        <FormRootError />
-
-        <Stack gap="sm" className="mt-2">
-          <Button
-            label={isSubmitting ? 'Saving…' : 'Save OCR text as document'}
-            disabled={isSubmitting}
-            onPress={() => void submitTextDocument()}
+        <Form {...form}>
+          <FormTextInput
+            control={form.control}
+            name="title"
+            label="Title"
+            placeholder="Document title"
           />
-          <Button
-            label={isSubmitting ? 'Sending…' : 'Send image to StudyForge AI'}
-            variant="secondary"
-            disabled={isSubmitting}
-            onPress={() => void submitVisionDocument()}
+
+          <FormTextInput
+            control={form.control}
+            name="content"
+            label="OCR text"
+            placeholder="Recognized text"
+            multiline
+            numberOfLines={8}
           />
-          <Button label="Cancel" variant="secondary" onPress={() => router.back()} />
-        </Stack>
-      </Form>
+
+          <FormRootError />
+
+          <Stack gap="sm" className="mt-2">
+            <Button
+              label={isSubmitting ? 'Saving…' : 'Save OCR text as document'}
+              disabled={isSubmitting}
+              onPress={() => void submitTextDocument()}
+            />
+            <Button
+              label={isSubmitting ? 'Sending…' : 'Send image to StudyForge AI'}
+              variant="secondary"
+              disabled={isSubmitting}
+              onPress={() => void submitVisionDocument()}
+            />
+            <Button
+              label="Cancel"
+              variant="secondary"
+              onPress={() => router.back()}
+            />
+          </Stack>
+        </Form>
+      </ScrollView>
     </Screen>
   );
 }

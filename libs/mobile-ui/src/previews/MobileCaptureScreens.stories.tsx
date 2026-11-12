@@ -36,9 +36,9 @@ function PhoneFrame({ children }: { children: ReactNode }) {
         className="overflow-hidden rounded-[36px] border border-border bg-background shadow-field"
         style={{ width: 390, height: 844 }}
       >
-        <View className="h-9 flex-row items-center justify-between bg-primary px-6">
-          <NativeText className="text-xs font-sans-semibold text-primary-foreground">18:30</NativeText>
-          <NativeText className="text-xs font-sans-semibold text-primary-foreground">5G · 56%</NativeText>
+        <View className="h-9 flex-row items-center justify-between bg-background px-6">
+          <NativeText className="text-xs font-sans-semibold text-foreground">18:30</NativeText>
+          <NativeText className="text-xs font-sans-semibold text-foreground">5G · 56%</NativeText>
         </View>
         {children}
       </View>
@@ -65,7 +65,7 @@ function CaptureScreenPreview({ hasDirectory }: { hasDirectory: boolean }) {
           trailing={<HeaderIconButton icon="settings" accessibilityLabel="Open settings" onPress={noop} />}
         />
 
-        <Card className="mt-6 mb-5 gap-3">
+        <Card className="mt-2 mb-5 gap-2">
           <Text variant="label" tone="muted">
             Pipeline
           </Text>

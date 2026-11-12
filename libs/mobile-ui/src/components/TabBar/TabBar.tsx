@@ -7,7 +7,7 @@ import type { ITabBar } from './ITabBar';
 
 const MIN_BOTTOM_GAP = 12;
 
-/** Floating black pill tab bar that stays above the system navigation bar. */
+/** Floating segmented pill tab bar that stays above the system navigation bar. */
 export function TabBar<TValue extends string>({
   items,
   value,
@@ -21,7 +21,7 @@ export function TabBar<TValue extends string>({
       className={cn('bg-background px-5 pt-2', className)}
       style={{ paddingBottom: Math.max(insets.bottom, MIN_BOTTOM_GAP) }}
     >
-      <View accessibilityRole="tablist" className="h-[51px] flex-row items-center rounded-[41px] bg-tab-bar px-2">
+      <View accessibilityRole="tablist" className="h-[52px] flex-row items-center rounded-full bg-tab-bar p-1">
         {items.map((item) => {
           const selected = item.value === value;
           return (
@@ -30,17 +30,20 @@ export function TabBar<TValue extends string>({
               accessibilityRole="tab"
               accessibilityState={{ selected }}
               onPress={() => onValueChange(item.value)}
-              className="h-full flex-1 flex-row items-center justify-center gap-1.5"
+              className={cn(
+                'h-full flex-1 flex-row items-center justify-center gap-1.5 rounded-full',
+                selected && 'bg-background shadow-raised'
+              )}
             >
               <MaterialIcons
                 name={item.icon}
                 size={20}
-                color={selected ? mobileUiColors.primaryForeground : mobileUiColors.tabBarInactive}
+                color={selected ? mobileUiColors.foreground : mobileUiColors.tabBarInactive}
               />
               <Text
                 className={cn(
-                  'text-xs leading-[15px] font-sans-bold',
-                  selected ? 'text-primary-foreground' : 'text-outline'
+                  'text-sm leading-5',
+                  selected ? 'font-sans-semibold text-foreground' : 'font-sans-medium text-muted-foreground'
                 )}
               >
                 {item.label}

@@ -19,7 +19,7 @@ const crowdsNowTheme = {
     container: '16px',
   },
   boxShadow: {
-    raised: '0 8px 6px rgba(0, 0, 0, 0.06)',
+    raised: '0 1px 3px rgba(0, 0, 0, 0.12)',
     field: '0 6px 24px rgba(32, 34, 44, 0.1)',
   },
   colors: {

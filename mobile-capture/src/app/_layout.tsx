@@ -4,16 +4,16 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect, useRef } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import {
-  HankenGrotesk_400Regular,
-  HankenGrotesk_500Medium,
-  HankenGrotesk_600SemiBold,
-  HankenGrotesk_700Bold,
-} from '@expo-google-fonts/hanken-grotesk';
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { LoadingState } from '@studyforge/mobile-ui';
+import { LoadingState, mobileUiColors } from '@studyforge/mobile-ui';
 import { useAuthUser } from '../features/auth/hooks/useAuthUser';
 import { queryClient } from '../lib/api/queryClient';
 import { usePreferencesStore } from '../features/preferences/store/preferencesStore';
@@ -32,8 +32,17 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (initializing) return;
     if (previousUserId.current && previousUserId.current !== user?.uid) {
       queryClient.clear();
-      useCaptureStore.setState({ captureState: 'idle', statusMessage: null, pendingScan: null, lastDocumentId: null, lastTitle: null });
-      usePreferencesStore.setState({ defaultDirectoryId: null, hydrated: false });
+      useCaptureStore.setState({
+        captureState: 'idle',
+        statusMessage: null,
+        pendingScan: null,
+        lastDocumentId: null,
+        lastTitle: null,
+      });
+      usePreferencesStore.setState({
+        defaultDirectoryId: null,
+        hydrated: false,
+      });
     }
     previousUserId.current = user?.uid ?? null;
   }, [initializing, user?.uid]);
@@ -68,10 +77,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    HankenGrotesk_400Regular,
-    HankenGrotesk_500Medium,
-    HankenGrotesk_600SemiBold,
-    HankenGrotesk_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   useEffect(() => {
@@ -86,14 +95,14 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <GestureHandlerRootView style={{ flex: 1 }}>
         <QueryClientProvider client={queryClient}>
           <AuthGate>
             <Stack
               screenOptions={{
                 headerShown: false,
-                contentStyle: { backgroundColor: 'rgb(18, 20, 20)' },
+                contentStyle: { backgroundColor: mobileUiColors.background },
               }}
             >
               <Stack.Screen name="index" />

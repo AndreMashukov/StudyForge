@@ -1,4 +1,4 @@
-/** CrowdsNow typography scale — Inter, line height ≈ 1.22 × font size. */
+/** Monochrome chat-app typography scale — Inter, relaxed line heights. */
 export const mobileUiTypography = {
   displayLg: {
     fontSize: 32,

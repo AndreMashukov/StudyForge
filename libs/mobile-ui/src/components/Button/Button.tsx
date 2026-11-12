@@ -8,29 +8,36 @@ type ButtonVariant = NonNullable<IButton['variant']>;
 type ButtonSize = NonNullable<IButton['size']>;
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-primary border border-primary',
-  secondary: 'bg-background border border-foreground',
-  destructive: 'bg-destructive border border-destructive',
-  ghost: 'bg-transparent border border-transparent',
+  primary: 'bg-primary',
+  secondary: 'bg-muted',
+  destructive: 'bg-muted',
+  ghost: 'bg-transparent',
 };
 
-const disabledVariantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-outline border border-outline',
-  secondary: 'bg-background border border-outline',
-  destructive: 'bg-outline border border-outline',
-  ghost: 'bg-transparent border border-transparent',
+const labelColorClasses: Record<ButtonVariant, string> = {
+  primary: 'text-primary-foreground',
+  secondary: 'text-foreground',
+  destructive: 'text-destructive',
+  ghost: 'text-foreground',
+};
+
+const iconColors: Record<ButtonVariant, string> = {
+  primary: mobileUiColors.primaryForeground,
+  secondary: mobileUiColors.foreground,
+  destructive: mobileUiColors.destructive,
+  ghost: mobileUiColors.foreground,
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  default: 'h-[50px] px-6',
+  default: 'h-[52px] px-6',
   sm: 'h-10 px-4',
   lg: 'h-14 px-6',
 };
 
 const labelSizeClasses: Record<ButtonSize, string> = {
-  default: 'text-lg leading-[22px]',
-  sm: 'text-sm leading-[17px]',
-  lg: 'text-lg leading-[22px]',
+  default: 'text-base leading-6',
+  sm: 'text-sm leading-5',
+  lg: 'text-[17px] leading-6',
 };
 
 const iconSizes: Record<ButtonSize, number> = {
@@ -39,31 +46,7 @@ const iconSizes: Record<ButtonSize, number> = {
   lg: 20,
 };
 
-function isFilled(variant: ButtonVariant): boolean {
-  return variant === 'primary' || variant === 'destructive';
-}
-
-function getLabelColorClass(variant: ButtonVariant, disabled: boolean): string {
-  if (isFilled(variant)) {
-    return 'text-primary-foreground';
-  }
-  if (disabled) {
-    return 'text-outline';
-  }
-  return variant === 'ghost' ? 'text-primary' : 'text-foreground';
-}
-
-function getIconColor(variant: ButtonVariant, disabled: boolean): string {
-  if (isFilled(variant)) {
-    return mobileUiColors.primaryForeground;
-  }
-  if (disabled) {
-    return mobileUiColors.outline;
-  }
-  return variant === 'ghost' ? mobileUiColors.primary : mobileUiColors.foreground;
-}
-
-/** CrowdsNow buttons are always pills, so `shape` no longer changes the look. */
+/** Buttons are always pills, so `shape` no longer changes the look. */
 export function Button({
   label,
   onPress,
@@ -80,21 +63,16 @@ export function Button({
       onPress={onPress}
       className={cn(
         'flex-row items-center justify-center gap-2 rounded-full',
-        disabled ? disabledVariantClasses[variant] : variantClasses[variant],
+        variantClasses[variant],
         sizeClasses[size],
+        disabled && 'opacity-40',
         className
       )}
     >
-      {icon ? (
-        <MaterialIcons name={icon} size={iconSizes[size]} color={getIconColor(variant, disabled)} />
-      ) : null}
+      {icon ? <MaterialIcons name={icon} size={iconSizes[size]} color={iconColors[variant]} /> : null}
       <Text
         numberOfLines={1}
-        className={cn(
-          'flex-shrink font-sans-bold',
-          labelSizeClasses[size],
-          getLabelColorClass(variant, disabled)
-        )}
+        className={cn('flex-shrink font-sans-semibold', labelSizeClasses[size], labelColorClasses[variant])}
       >
         {label}
       </Text>

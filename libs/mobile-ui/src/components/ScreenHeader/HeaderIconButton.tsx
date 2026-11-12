@@ -17,7 +17,7 @@ export function HeaderIconButton({
       onPress={onPress}
       className={cn('h-10 w-10 items-center justify-center', className)}
     >
-      <MaterialIcons name={icon} size={24} color={mobileUiColors.primaryForeground} />
+      <MaterialIcons name={icon} size={24} color={mobileUiColors.foreground} />
     </Pressable>
   );
 }

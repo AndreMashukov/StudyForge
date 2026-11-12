@@ -4,27 +4,27 @@
 
 @layer base {
   :root {
-    /* CrowdsNow — light theme, deep purple brand, Inter. */
+    /* Monochrome chat-app look — white canvas, near-black ink, soft gray fills. */
     --background: 255 255 255;
-    --foreground: 32 34 44;
-    --card: 255 255 255;
-    --primary: 67 11 112;
+    --foreground: 13 13 13;
+    --card: 244 244 244;
+    --primary: 13 13 13;
     --primary-foreground: 255 255 255;
-    --accent: 24 123 73;
-    --muted: 245 245 245;
-    --muted-foreground: 110 119 126;
-    --destructive: 224 2 82;
-    --error-container: 249 231 238;
-    --on-error-container: 224 2 82;
-    --border: 229 229 229;
-    --input: 255 255 255;
-    --ring: 67 11 112;
+    --accent: 16 163 127;
+    --muted: 244 244 244;
+    --muted-foreground: 93 93 93;
+    --destructive: 220 38 38;
+    --error-container: 254 226 226;
+    --on-error-container: 185 28 28;
+    --border: 236 236 236;
+    --input: 244 244 244;
+    --ring: 13 13 13;
     --radius: 1rem;
     --surface-container-high: 255 255 255;
     --surface-container-lowest: 255 255 255;
-    --outline: 171 184 195;
+    --outline: 143 143 143;
     --outline-variant: 229 229 229;
-    --switch-off: 218 217 210;
-    --tab-bar: 0 0 0;
+    --switch-off: 215 215 215;
+    --tab-bar: 244 244 244;
   }
 }

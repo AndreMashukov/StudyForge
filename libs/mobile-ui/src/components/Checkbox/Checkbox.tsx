@@ -1,4 +1,6 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
+import { mobileUiColors } from '../../tokens/colors';
 import { cn } from '../../lib/cn';
 import type { ICheckbox } from './ICheckbox';
 
@@ -15,12 +17,17 @@ export function Checkbox({
       accessibilityState={{ checked, disabled }}
       disabled={disabled}
       onPress={() => onCheckedChange(!checked)}
-      className={cn('min-h-12 flex-row items-center gap-2.5', disabled && 'opacity-50', className)}
+      className={cn('min-h-12 flex-row items-center gap-3', disabled && 'opacity-50', className)}
     >
-      <View className="h-4 w-4 items-center justify-center border border-primary">
-        {checked ? <View className="h-2 w-2 bg-primary" /> : null}
+      <View
+        className={cn(
+          'h-[22px] w-[22px] items-center justify-center rounded-full border-2',
+          checked ? 'border-primary bg-primary' : 'border-outline-variant bg-background'
+        )}
+      >
+        {checked ? <MaterialIcons name="check" size={14} color={mobileUiColors.primaryForeground} /> : null}
       </View>
-      <Text className="text-foreground text-sm leading-[17px] font-sans">{label}</Text>
+      <Text className="text-foreground text-base leading-6 font-sans">{label}</Text>
     </Pressable>
   );
 }

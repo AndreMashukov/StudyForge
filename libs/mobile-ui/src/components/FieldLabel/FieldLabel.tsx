@@ -4,7 +4,7 @@ import type { IFieldLabel } from './IFieldLabel';
 
 export function FieldLabel({ children, className }: IFieldLabel) {
   return (
-    <Text className={cn('text-foreground/50 text-sm leading-[17px] font-sans-medium mb-1', className)}>
+    <Text className={cn('text-foreground text-sm leading-5 font-sans-medium mb-1.5 ml-1', className)}>
       {children}
     </Text>
   );

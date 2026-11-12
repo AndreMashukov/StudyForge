@@ -1,22 +1,33 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, Pressable, View } from 'react-native';
+import { AppState, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text } from '@studyforge/mobile-ui';
+import { TabBar, type ITabBarItem } from '@studyforge/mobile-ui';
 import { CaptureScreen } from '../features/capture/screens/CaptureScreen';
 import { LibraryScreen } from '../features/library/LibraryScreen';
 
+type IndexTab = 'capture' | 'library';
+
+const TAB_ITEMS: ReadonlyArray<ITabBarItem<IndexTab>> = [
+  { value: 'capture', label: 'Capture', icon: 'photo-camera' },
+  { value: 'library', label: 'Library', icon: 'folder' },
+];
+
 export default function IndexRoute() {
   const { view } = useLocalSearchParams<{ view?: string }>();
-  const [tab, setTab] = useState<'capture' | 'library'>(view === 'library' ? 'library' : 'capture');
+  const [tab, setTab] = useState<IndexTab>(
+    view === 'library' ? 'library' : 'capture',
+  );
   const focused = useIsFocused();
-  const insets = useSafeAreaInsets();
-  const [appActive, setAppActive] = useState(AppState.currentState === 'active');
+  const [appActive, setAppActive] = useState(
+    AppState.currentState === 'active',
+  );
   const showCapture = useCallback(() => setTab('capture'), []);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (state) => setAppActive(state === 'active'));
+    const subscription = AppState.addEventListener('change', (state) =>
+      setAppActive(state === 'active'),
+    );
     return () => subscription.remove();
   }, []);
 
@@ -26,15 +37,16 @@ export default function IndexRoute() {
 
   return (
     <View className="flex-1 bg-background">
-      <View style={{ flex: 1, display: tab === 'capture' ? 'flex' : 'none' }}><CaptureScreen /></View>
-      <View style={{ flex: 1, display: tab === 'library' ? 'flex' : 'none' }}><LibraryScreen active={focused && appActive && tab === 'library'} onCapture={showCapture} /></View>
-      <View className="flex-row border-t border-border bg-background pt-2" style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
-        {(['capture', 'library'] as const).map((name) => (
-          <Pressable key={name} accessibilityRole="tab" accessibilityState={{ selected: tab === name }} onPress={() => setTab(name)} className="flex-1 items-center py-3">
-            <Text tone={tab === name ? 'primary' : 'muted'}>{name === 'capture' ? 'Capture' : 'Library'}</Text>
-          </Pressable>
-        ))}
+      <View style={{ flex: 1, display: tab === 'capture' ? 'flex' : 'none' }}>
+        <CaptureScreen />
       </View>
+      <View style={{ flex: 1, display: tab === 'library' ? 'flex' : 'none' }}>
+        <LibraryScreen
+          active={focused && appActive && tab === 'library'}
+          onCapture={showCapture}
+        />
+      </View>
+      <TabBar items={TAB_ITEMS} value={tab} onValueChange={setTab} />
     </View>
   );
 }
