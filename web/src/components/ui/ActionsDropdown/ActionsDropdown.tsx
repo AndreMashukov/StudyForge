@@ -50,7 +50,7 @@ export const ActionsDropdown = ({
                 actionsDropdownStyles.item,
                 item.destructive && actionsDropdownStyles.itemDestructive,
                 item.disabled && 'opacity-50 cursor-not-allowed',
-                !item.disabled && 'hover:bg-accent hover:text-accent-foreground cursor-pointer'
+                !item.disabled && 'hover:bg-foreground/[0.07] cursor-pointer'
               )}
               onClick={() => handleItemClick(item)}
               role="menuitem"

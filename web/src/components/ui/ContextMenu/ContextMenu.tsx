@@ -107,7 +107,7 @@ export const ContextMenu = ({ items, isOpen, position, onClose }: IContextMenu) 
             tabIndex={-1}
             className={cn(
               "flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
-              "hover:bg-accent hover:text-accent-foreground",
+              "hover:bg-foreground/[0.07]",
               "disabled:pointer-events-none disabled:opacity-50",
               item.destructive && "text-destructive hover:bg-destructive/10",
               "focus:outline-none focus:bg-transparent focus:text-inherit"

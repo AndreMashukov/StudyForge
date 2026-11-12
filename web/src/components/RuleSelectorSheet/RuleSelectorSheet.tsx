@@ -61,7 +61,7 @@ export const RuleSelectorSheet = ({
           <button
             onClick={handleClose}
             disabled={isBusy}
-            className="p-1 rounded-md hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+            className="p-1 rounded-md hover:bg-foreground/[0.07] disabled:pointer-events-none disabled:opacity-50"
           >
             <X size={20} />
           </button>

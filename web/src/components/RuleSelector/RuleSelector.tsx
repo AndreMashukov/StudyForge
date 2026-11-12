@@ -120,7 +120,7 @@ export const RuleSelector = ({
                 void handleToggle(rule.id);
               }}
               disabled={isRulesInteractionDisabled}
-              className="flex w-full items-center gap-2 p-2 rounded-md hover:bg-accent transition-colors"
+              className="flex w-full items-center gap-2 p-2 rounded-md hover:bg-foreground/[0.07] transition-colors"
               label={
                 <div className="flex-1">
                   <div className="flex items-center gap-2">

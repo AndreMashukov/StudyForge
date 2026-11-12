@@ -97,8 +97,8 @@ export const DropdownMenuItem = React.forwardRef<
       disabled={disabled}
       className={cn(
         'relative flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors',
-        'hover:bg-accent hover:text-accent-foreground',
-        'focus-visible:bg-accent focus-visible:text-accent-foreground',
+        'hover:bg-foreground/[0.07]',
+        'focus-visible:bg-foreground/[0.07]',
         'disabled:pointer-events-none disabled:opacity-50',
         className,
       )}

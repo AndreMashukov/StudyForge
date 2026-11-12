@@ -206,7 +206,7 @@ export const AttachRuleModal = ({
                     "w-full text-left border rounded-lg p-3 space-y-2 transition-colors",
                     selectedRuleIds.includes(rule.id)
                       ? "border-primary bg-primary/5"
-                      : "border-border hover:bg-accent"
+                      : "border-border hover:bg-foreground/[0.07]"
                   )}
                 >
                   <div className="flex items-center justify-between">

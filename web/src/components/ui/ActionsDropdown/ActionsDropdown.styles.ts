@@ -5,7 +5,7 @@ export const actionsDropdownStyles = {
     "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium",
     "ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2",
     "focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-    "border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+    "border border-input bg-background hover:bg-foreground/[0.07] h-10 px-4 py-2"
   ),
   content: cn(
     "z-50 min-w-[8rem] w-max overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground",
@@ -17,7 +17,7 @@ export const actionsDropdownStyles = {
   ),
   item: cn(
     "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
-    "transition-colors focus:bg-accent focus:text-accent-foreground",
+    "transition-colors focus:bg-foreground/[0.07]",
     "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
     "whitespace-nowrap"
   ),

@@ -2,13 +2,13 @@ import { cn } from "../../lib/utils";
 
 export const authFormStyles = {
   container: "w-full max-w-lg mx-auto",
-  card: "linear-glass overflow-hidden rounded-[28px] border border-border/40 shadow-[0_24px_80px_rgba(0,0,0,0.35)]",
+  card: "overflow-hidden rounded-[28px] border border-border/60 bg-background shadow-[0_8px_30px_rgb(0_0_0/0.08)]",
   
   // Header styles
   header: "text-center px-8 pt-8 pb-6",
-  eyebrow: "mb-4 flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-primary/80",
-  eyebrowDot: "h-2 w-2 rounded-full bg-primary shadow-[0_0_18px_color-mix(in_srgb,var(--primary)_65%,transparent)]",
-  title: "text-3xl font-semibold font-heading text-foreground",
+  eyebrow: "mb-4 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground",
+  eyebrowDot: "h-2 w-2 rounded-full bg-primary",
+  title: "text-3xl font-semibold tracking-tight text-foreground",
   subtitle: "mt-3 text-sm leading-6 text-muted-foreground",
   
   // Content styles
@@ -27,26 +27,26 @@ export const authFormStyles = {
   formFields: "space-y-5",
   fieldContainer: "",
   label: "text-sm text-foreground/90 font-medium",
-  input: "mt-2 h-12 rounded-xl border-border/60 bg-input/80 px-4 focus:border-primary/60 focus:ring-2 focus:ring-primary/15 linear-transition",
+  input: "mt-2 h-12 px-5",
   
   // Button styles
-  submitButton: "h-12 w-full rounded-xl text-sm font-semibold linear-button linear-glow-hover",
+  submitButton: "h-12 w-full text-sm font-semibold",
   
   // Success redirect styles
-  successCard: "bg-card/95 rounded-[28px] border border-border/50 shadow-[0_24px_80px_rgba(0,0,0,0.35)]",
+  successCard: "rounded-[28px] border border-border/60 bg-background shadow-[0_8px_30px_rgb(0_0_0/0.08)]",
   successContent: "text-center p-8",
   successTitle: "text-xl font-semibold text-foreground mb-2",
   successSubtitle: "text-muted-foreground mb-4",
-  successStatus: "inline-flex items-center px-3 py-2 bg-accent/10 rounded-lg text-sm text-accent-foreground",
-  successIndicator: "w-2 h-2 bg-accent rounded-full mr-2 animate-pulse",
+  successStatus: "inline-flex items-center px-3 py-2 bg-muted rounded-full text-sm text-foreground",
+  successIndicator: "w-2 h-2 bg-primary rounded-full mr-2 animate-pulse",
   
   // Support panel styles
   divider: "mt-6",
-  dividerLine: "h-px bg-gradient-to-r from-transparent via-border/70 to-transparent",
-  supportPanel: "mt-6 rounded-2xl border border-border/40 bg-background/35 p-4 text-left",
-  supportLabel: "text-[11px] font-semibold uppercase tracking-[0.28em] text-primary/80",
+  dividerLine: "h-px bg-border/60",
+  supportPanel: "mt-6 text-left",
+  supportLabel: "text-xs font-medium text-muted-foreground",
   supportChips: "mt-3 flex flex-wrap gap-2",
-  supportChip: "rounded-full border border-border/40 bg-muted/40 px-3 py-1 text-xs text-muted-foreground",
+  supportChip: "rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground",
 } as const;
 
 // Helper function for conditional classes
