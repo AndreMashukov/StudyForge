@@ -271,7 +271,7 @@ export const CreateArtifactSourcePicker: React.FC<ICreateArtifactSourcePicker> =
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="rounded-md p-1 hover:bg-accent"
+                  className="rounded-md p-1 hover:bg-foreground/[0.07]"
                   aria-label="Close source picker"
                 >
                   <X size={20} />

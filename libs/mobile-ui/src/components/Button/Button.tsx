@@ -4,57 +4,55 @@ import { cn } from '../../lib/cn';
 import { mobileUiColors } from '../../tokens/colors';
 import type { IButton } from './IButton';
 
-const variantClasses: Record<NonNullable<IButton['variant']>, string> = {
-  primary: 'bg-primary border border-primary',
-  secondary: 'bg-card border border-border',
-  destructive: 'bg-error-container border border-transparent',
-  ghost: 'bg-transparent border border-transparent',
+type ButtonVariant = NonNullable<IButton['variant']>;
+type ButtonSize = NonNullable<IButton['size']>;
+
+const variantClasses: Record<ButtonVariant, string> = {
+  primary: 'bg-primary',
+  secondary: 'bg-muted',
+  destructive: 'bg-muted',
+  ghost: 'bg-transparent',
 };
 
-const sizeClasses: Record<NonNullable<IButton['size']>, string> = {
-  default: 'min-h-12 px-4 py-3',
-  sm: 'min-h-10 px-4 py-2',
-  lg: 'min-h-14 px-5 py-4',
+const labelColorClasses: Record<ButtonVariant, string> = {
+  primary: 'text-primary-foreground',
+  secondary: 'text-foreground',
+  destructive: 'text-destructive',
+  ghost: 'text-foreground',
 };
 
-const shapeClasses: Record<NonNullable<IButton['shape']>, string> = {
-  default: 'rounded-lg',
-  pill: 'rounded-full',
+const iconColors: Record<ButtonVariant, string> = {
+  primary: mobileUiColors.primaryForeground,
+  secondary: mobileUiColors.foreground,
+  destructive: mobileUiColors.destructive,
+  ghost: mobileUiColors.foreground,
 };
 
-const labelSizeClasses: Record<NonNullable<IButton['size']>, string> = {
-  default: 'text-base',
-  sm: 'text-sm',
-  lg: 'text-base',
+const sizeClasses: Record<ButtonSize, string> = {
+  default: 'h-[52px] px-6',
+  sm: 'h-10 px-4',
+  lg: 'h-14 px-6',
 };
 
-function getLabelColorClass(variant: NonNullable<IButton['variant']>): string {
-  if (variant === 'primary') {
-    return 'text-primary-foreground';
-  }
-  if (variant === 'destructive') {
-    return 'text-on-error-container';
-  }
-  return 'text-foreground';
-}
+const labelSizeClasses: Record<ButtonSize, string> = {
+  default: 'text-base leading-6',
+  sm: 'text-sm leading-5',
+  lg: 'text-[17px] leading-6',
+};
 
-function getIconColor(variant: NonNullable<IButton['variant']>): string {
-  if (variant === 'primary') {
-    return mobileUiColors.primaryForeground;
-  }
-  if (variant === 'destructive') {
-    return mobileUiColors.onErrorContainer;
-  }
-  return mobileUiColors.foreground;
-}
+const iconSizes: Record<ButtonSize, number> = {
+  default: 20,
+  sm: 16,
+  lg: 20,
+};
 
+/** Buttons are always pills, so `shape` no longer changes the look. */
 export function Button({
   label,
   onPress,
-  disabled,
+  disabled = false,
   variant = 'primary',
   size = 'default',
-  shape = 'default',
   icon,
   className,
 }: IButton) {
@@ -64,16 +62,18 @@ export function Button({
       disabled={disabled}
       onPress={onPress}
       className={cn(
-        'flex-row items-center justify-center gap-1',
-        shapeClasses[shape],
+        'flex-row items-center justify-center gap-2 rounded-full',
         variantClasses[variant],
         sizeClasses[size],
-        disabled && 'opacity-50',
+        disabled && 'opacity-40',
         className
       )}
     >
-      {icon ? <MaterialIcons name={icon} size={18} color={getIconColor(variant)} /> : null}
-      <Text className={cn('font-sans-semibold', labelSizeClasses[size], getLabelColorClass(variant))}>
+      {icon ? <MaterialIcons name={icon} size={iconSizes[size]} color={iconColors[variant]} /> : null}
+      <Text
+        numberOfLines={1}
+        className={cn('flex-shrink font-sans-semibold', labelSizeClasses[size], labelColorClasses[variant])}
+      >
         {label}
       </Text>
     </Pressable>

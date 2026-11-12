@@ -37,7 +37,7 @@ const firebasePublicEnv = readFirebasePublicEnv();
 const projectId =
   firebasePublicEnv.NX_PUBLIC_FIREBASE_PROJECT_ID ?? 'study-forge-202604';
 
-const OBSIDIAN_PULSE_BACKGROUND = '#121414';
+const APP_BACKGROUND = '#FFFFFF';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -46,11 +46,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '1.0.0',
   orientation: 'portrait',
   scheme: 'studyforge',
-  userInterfaceStyle: 'dark',
-  backgroundColor: OBSIDIAN_PULSE_BACKGROUND,
+  userInterfaceStyle: 'light',
+  backgroundColor: APP_BACKGROUND,
   androidStatusBar: {
-    barStyle: 'light-content',
-    backgroundColor: OBSIDIAN_PULSE_BACKGROUND,
+    barStyle: 'dark-content',
+    backgroundColor: APP_BACKGROUND,
   },
   ios: {
     supportsTablet: true,

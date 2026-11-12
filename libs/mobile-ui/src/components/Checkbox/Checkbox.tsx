@@ -1,4 +1,6 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
+import { mobileUiColors } from '../../tokens/colors';
 import { cn } from '../../lib/cn';
 import type { ICheckbox } from './ICheckbox';
 
@@ -19,13 +21,13 @@ export function Checkbox({
     >
       <View
         className={cn(
-          'h-5 w-5 items-center justify-center rounded-sm border border-border',
-          checked && 'bg-primary border-primary'
+          'h-[22px] w-[22px] items-center justify-center rounded-full border-2',
+          checked ? 'border-primary bg-primary' : 'border-outline-variant bg-background'
         )}
       >
-        {checked ? <Text className="text-primary-foreground text-xs font-sans-bold">✓</Text> : null}
+        {checked ? <MaterialIcons name="check" size={14} color={mobileUiColors.primaryForeground} /> : null}
       </View>
-      <Text className="text-foreground text-base font-sans">{label}</Text>
+      <Text className="text-foreground text-base leading-6 font-sans">{label}</Text>
     </Pressable>
   );
 }

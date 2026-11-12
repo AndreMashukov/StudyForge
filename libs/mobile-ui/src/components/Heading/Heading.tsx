@@ -3,8 +3,8 @@ import { cn } from '../../lib/cn';
 import type { IHeading } from './IHeading';
 
 const levelClasses: Record<NonNullable<IHeading['level']>, string> = {
-  1: 'text-[32px] leading-10 font-sans-bold tracking-tight',
-  2: 'text-2xl leading-8 font-sans-semibold tracking-tight',
+  1: 'text-[28px] leading-[34px] font-sans-semibold tracking-tight',
+  2: 'text-[22px] leading-7 font-sans-semibold tracking-tight',
   3: 'text-lg leading-6 font-sans-semibold',
   4: 'text-base leading-6 font-sans-semibold',
 };

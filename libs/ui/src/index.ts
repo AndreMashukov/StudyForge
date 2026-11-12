@@ -73,3 +73,18 @@ export type {
   ISidebarProfileFooter,
   ISidebarSection,
 } from './lib/Sidebar';
+export { Badge, badgeVariants } from './lib/Badge';
+export type { IBadge } from './lib/Badge';
+export {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from './lib/Card';
+export type { ICard, ICardText, ICardTitle } from './lib/Card';
+export { Checkbox } from './lib/Checkbox';
+export type { ICheckbox } from './lib/Checkbox';
+export { Textarea } from './lib/Textarea';
+export type { ITextarea } from './lib/Textarea';

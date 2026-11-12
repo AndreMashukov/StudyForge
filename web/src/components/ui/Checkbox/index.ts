@@ -1,2 +1,2 @@
-export * from './Checkbox';
-export * from './ICheckbox';
+export { Checkbox } from '@study-forge/ui';
+export type { ICheckbox } from '@study-forge/ui';

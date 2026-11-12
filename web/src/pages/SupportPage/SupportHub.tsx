@@ -13,7 +13,7 @@ import {
 } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
 import { useAuth } from '../../contexts/AuthContext';
-import { Badge } from '../../components/ui/Badge/Badge';
+import { Badge } from '../../components/ui/Badge';
 import { cn } from '../../lib/utils';
 import {
   formatSupportCategory,

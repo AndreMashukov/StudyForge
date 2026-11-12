@@ -5,7 +5,7 @@ import type { IText } from './IText';
 const variantClasses: Record<NonNullable<IText['variant']>, string> = {
   body: 'text-base leading-6 font-sans',
   caption: 'text-sm leading-5 font-sans',
-  label: 'text-xs leading-4 font-sans-bold uppercase tracking-widest',
+  label: 'text-[13px] leading-[18px] font-sans-medium',
 };
 
 const toneClasses: Record<NonNullable<IText['tone']>, string> = {

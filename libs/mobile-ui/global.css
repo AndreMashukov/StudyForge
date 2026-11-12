@@ -4,25 +4,27 @@
 
 @layer base {
   :root {
-    /* Obsidian Pulse — Google Stitch "Modern AI Chat Interface" */
-    --background: 18 20 20;
-    --foreground: 226 226 226;
-    --card: 23 23 23;
-    --primary: 139 92 246;
+    /* Monochrome chat-app look — white canvas, near-black ink, soft gray fills. */
+    --background: 255 255 255;
+    --foreground: 13 13 13;
+    --card: 244 244 244;
+    --primary: 13 13 13;
     --primary-foreground: 255 255 255;
-    --accent: 34 197 94;
-    --muted: 38 38 38;
-    --muted-foreground: 203 195 215;
-    --destructive: 255 180 171;
-    --error-container: 147 0 10;
-    --on-error-container: 255 218 214;
-    --border: 38 38 38;
-    --input: 23 23 23;
-    --ring: 139 92 246;
-    --radius: 0.5rem;
-    --surface-container-high: 40 42 43;
-    --surface-container-lowest: 12 15 15;
-    --outline: 149 142 160;
-    --outline-variant: 73 68 84;
+    --accent: 16 163 127;
+    --muted: 244 244 244;
+    --muted-foreground: 93 93 93;
+    --destructive: 220 38 38;
+    --error-container: 254 226 226;
+    --on-error-container: 185 28 28;
+    --border: 236 236 236;
+    --input: 244 244 244;
+    --ring: 13 13 13;
+    --radius: 1rem;
+    --surface-container-high: 255 255 255;
+    --surface-container-lowest: 255 255 255;
+    --outline: 143 143 143;
+    --outline-variant: 229 229 229;
+    --switch-off: 215 215 215;
+    --tab-bar: 244 244 244;
   }
 }

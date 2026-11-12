@@ -7,7 +7,7 @@ export function LoadingState({ message, className }: ILoadingState) {
   return (
     <View className={cn('flex-1 items-center justify-center gap-3 bg-background font-sans', className)}>
       <Spinner size="large" />
-      <Text className="text-muted-foreground text-base font-sans">{message}</Text>
+      <Text className="text-muted-foreground text-base leading-6 font-sans">{message}</Text>
     </View>
   );
 }

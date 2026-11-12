@@ -15,6 +15,7 @@ export * from './components/Select';
 export * from './components/Spinner';
 export * from './components/Stack';
 export * from './components/Switch';
+export * from './components/TabBar';
 export * from './components/Text';
 export * from './components/TextInputField';
 export { cn } from './lib/cn';

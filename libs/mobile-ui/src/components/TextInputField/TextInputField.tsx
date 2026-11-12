@@ -29,8 +29,8 @@ export function TextInputField({
       editable={editable}
       textAlignVertical={multiline ? 'top' : 'center'}
       className={cn(
-        'min-h-12 bg-input border border-border rounded-lg px-3.5 py-3 text-foreground text-base font-sans mb-2',
-        multiline && 'min-h-[160px]',
+        'bg-input text-foreground text-base font-sans mb-2 px-4',
+        multiline ? 'min-h-[130px] rounded-3xl py-3.5 leading-6' : 'h-12 rounded-full py-0',
         !editable && 'opacity-60',
         className
       )}

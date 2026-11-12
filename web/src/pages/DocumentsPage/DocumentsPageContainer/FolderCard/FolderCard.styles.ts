@@ -1,5 +1,5 @@
 export const folderCardStyles = {
-  card: "group relative flex flex-col gap-3 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer",
+  card: "group relative flex flex-col gap-3 p-4 rounded-lg border bg-card hover:bg-foreground/[0.04] transition-colors cursor-pointer",
   iconContainer: "flex items-center justify-center w-12 h-12",
   content: "flex-1 min-w-0",
   title: "font-medium text-foreground truncate",

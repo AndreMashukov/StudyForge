@@ -64,48 +64,44 @@ const publicPlans = [
   },
 ] as const;
 
+const cardClassName =
+  'rounded-2xl border border-border/60 bg-card p-5 text-left';
+
 export const AuthPage: React.FC = () => {
   return (
     <div className="fixed inset-0 overflow-y-auto overscroll-contain bg-background text-foreground">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-90"
-        style={{
-          background:
-            'radial-gradient(circle at 12% 12%, rgba(124, 58, 237, 0.22), transparent 30%), radial-gradient(circle at 88% 18%, rgba(99, 14, 212, 0.18), transparent 24%), linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%)',
-        }}
-      />
-      <div className="pointer-events-none absolute -left-24 top-20 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
-      <div className="pointer-events-none absolute -right-20 bottom-10 h-80 w-80 rounded-full bg-accent/10 blur-3xl" />
+      <header className="mx-auto flex h-14 w-full max-w-7xl items-center px-6 lg:px-10">
+        <div className="flex items-center gap-2.5">
+          <BrandMark className="h-7 w-7" decorative />
+          <span className="text-base font-semibold tracking-tight">
+            StudyForge
+          </span>
+        </div>
+      </header>
 
-      <div className="relative mx-auto w-full max-w-7xl px-6 py-10 lg:px-10">
-        <div className="grid w-full gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,460px)] lg:items-start">
-          <section className="space-y-8 text-center lg:text-left">
-            <div className="inline-flex items-center gap-3 rounded-2xl border border-primary/25 bg-primary/10 px-3 py-2 text-sm font-medium text-primary shadow-[0_12px_40px_rgba(99,14,212,0.18)]">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-card p-2 ring-1 ring-border/50">
-                <BrandMark className="h-7 w-7" decorative />
-              </div>
-              <span className="font-heading text-base tracking-tight">StudyForge</span>
-            </div>
-
+      <div className="mx-auto w-full max-w-7xl px-6 pb-16 pt-8 lg:px-10 lg:pt-14">
+        <div className="grid w-full gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,460px)] lg:items-start">
+          <section className="space-y-10 text-center lg:text-left">
             <div className="space-y-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-primary/80 sm:text-sm">
+              <p className="text-sm font-medium text-primary">
                 Source material, refined
               </p>
-              <h1 className="mx-auto max-w-3xl text-balance text-5xl font-bold font-heading tracking-tight text-foreground sm:text-6xl lg:mx-0 lg:text-[4.5rem] lg:leading-[1.02]">
+              <h1 className="mx-auto max-w-3xl text-balance text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:mx-0 lg:text-6xl lg:leading-[1.05]">
                 Forge raw content into polished study systems.
               </h1>
-              <p className="mx-auto max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl lg:mx-0">
-                StudyForge turns notes, articles, and prompts into quizzes, flashcards,
-                slide decks, diagram quizzes, sequence quizzes, and match quizzes. An
-                agent can work across your library or inside one directory.
+              <p className="mx-auto max-w-2xl text-lg leading-8 text-muted-foreground lg:mx-0">
+                StudyForge turns notes, articles, and prompts into quizzes,
+                flashcards, slide decks, diagram quizzes, sequence quizzes, and
+                match quizzes. An agent can work across your library or inside
+                one directory.
               </p>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-3 lg:justify-start">
+            <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
               {workflowTags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full border border-border/50 bg-card/50 px-4 py-2 text-sm text-muted-foreground shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-sm"
+                  className="rounded-full bg-muted px-4 py-2 text-sm text-foreground/80"
                 >
                   {tag}
                 </span>
@@ -116,17 +112,14 @@ export const AuthPage: React.FC = () => {
               {productHighlights.map((highlight) => {
                 const Icon = highlight.icon;
                 return (
-                  <div
-                    key={highlight.title}
-                    className="linear-glass rounded-3xl border border-border/40 p-5 text-left shadow-[0_18px_50px_rgba(0,0,0,0.2)]"
-                  >
-                    <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/12 text-primary ring-1 ring-primary/20">
+                  <div key={highlight.title} className={cardClassName}>
+                    <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                       <Icon size={18} aria-hidden />
                     </div>
-                    <h2 className="text-xl font-semibold font-heading text-foreground">
+                    <h2 className="text-lg font-semibold tracking-tight text-foreground">
                       {highlight.title}
                     </h2>
-                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       {highlight.description}
                     </p>
                   </div>
@@ -134,58 +127,51 @@ export const AuthPage: React.FC = () => {
               })}
             </div>
 
-            <div className="space-y-4 text-left">
+            <div className="space-y-5 text-left">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-primary/80">
-                  Pricing
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold font-heading text-foreground sm:text-3xl">
+                <p className="text-sm font-medium text-primary">Pricing</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                   Start free, then add credits when you need them.
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  These public monthly prices are listed here for preview. After you
-                  sign in, Usage shows the live catalog and checkout.
+                  These public monthly prices are listed here for preview. After
+                  you sign in, Usage shows the live catalog and checkout.
                 </p>
               </div>
               <div className="grid gap-4 md:grid-cols-3">
                 {publicPlans.map((plan) => (
-                  <div
-                    key={plan.name}
-                    className="linear-glass rounded-3xl border border-border/40 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.2)]"
-                  >
-                    <p className="text-sm font-medium text-muted-foreground">{plan.name}</p>
-                    <p className="mt-2 text-3xl font-semibold font-heading text-foreground">
+                  <div key={plan.name} className={cardClassName}>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {plan.name}
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
                       {plan.price}
-                      <span className="ml-1 text-sm font-normal text-muted-foreground">
+                      <span className="ml-1 text-sm font-normal tracking-normal text-muted-foreground">
                         {plan.cadence}
                       </span>
                     </p>
                     <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                      <li className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-                        {plan.credits}
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-                        {plan.storage}
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-                        {plan.slides}
-                      </li>
+                      {[plan.credits, plan.storage, plan.slides].map((item) => (
+                        <li key={item} className="flex items-start gap-2">
+                          <Check
+                            className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                            aria-hidden
+                          />
+                          {item}
+                        </li>
+                      ))}
                     </ul>
-                    <p className="mt-4 text-xs leading-5 text-muted-foreground">{plan.note}</p>
+                    <p className="mt-4 text-xs leading-5 text-muted-foreground">
+                      {plan.note}
+                    </p>
                   </div>
                 ))}
               </div>
             </div>
           </section>
 
-          <section className="relative pb-8 lg:sticky lg:top-8 lg:self-start">
-            <div className="absolute inset-6 rounded-full bg-primary/15 blur-3xl" />
-            <div className="relative">
-              <AuthForm />
-            </div>
+          <section className="pb-8 lg:sticky lg:top-8 lg:self-start">
+            <AuthForm />
           </section>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { Image, Linking, ScrollView, Text as NativeText } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useQuery } from '@tanstack/react-query';
-import { Button, HeaderIconButton, Screen, ScreenHeader, Stack, Text } from '@studyforge/mobile-ui';
+import { Button, HeaderIconButton, Screen, ScreenHeader, Stack, Text, mobileUiColors } from '@studyforge/mobile-ui';
 import { useAuthUser } from '../auth/hooks/useAuthUser';
 import { queryKeys } from '../../lib/api/queryKeys';
 import { getCallableErrorMessage } from '../../lib/api/studyforgeApi';
@@ -30,20 +30,20 @@ function ReaderBlock({ block }: { block: IDocumentBlock }) {
   return (
     <NativeText
       style={{
-        color: block.kind === 'placeholder' ? '#a1a1aa' : '#ffffff',
+        color: block.kind === 'placeholder' ? mobileUiColors.mutedForeground : mobileUiColors.foreground,
         fontSize: block.kind === 'heading' ? Math.max(19, 28 - (block.level ?? 1) * 2) : 16,
         fontWeight: block.kind === 'heading' ? '700' : '400',
         lineHeight: block.kind === 'heading' ? 34 : 25,
         marginVertical: 7,
         marginLeft: block.kind === 'list' ? Math.min(48, (block.level ?? 0) * 16) : 0,
         padding: block.kind === 'code' || block.kind === 'quote' ? 12 : 0,
-        backgroundColor: block.kind === 'code' ? '#27272a' : 'transparent',
+        backgroundColor: block.kind === 'code' ? mobileUiColors.muted : 'transparent',
         fontFamily: block.kind === 'code' ? 'monospace' : undefined,
       }}
     >
       {block.kind === 'list' ? '• ' : ''}
       {block.spans.map((span, index) => (
-        <NativeText key={index} onPress={span.href ? () => openLink(span.href ?? '') : undefined} style={{ fontWeight: span.bold ? '700' : undefined, fontStyle: span.italic ? 'italic' : undefined, fontFamily: span.code ? 'monospace' : undefined, color: span.href ? '#a78bfa' : undefined, textDecorationLine: span.href ? 'underline' : undefined }}>{span.text}</NativeText>
+        <NativeText key={index} onPress={span.href ? () => openLink(span.href ?? '') : undefined} style={{ fontWeight: span.bold ? '700' : undefined, fontStyle: span.italic ? 'italic' : undefined, fontFamily: span.code ? 'monospace' : undefined, color: span.href ? mobileUiColors.accent : undefined, textDecorationLine: span.href ? 'underline' : undefined }}>{span.text}</NativeText>
       ))}
     </NativeText>
   );

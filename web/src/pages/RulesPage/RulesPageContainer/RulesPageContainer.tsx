@@ -230,7 +230,7 @@ export const RulesPageContainer = () => {
                         checked={filters.applicableTo.includes(ruleType)}
                         onChange={() => handleRuleTypeToggle(ruleType)}
                         label={getRuleApplicabilityLabel(ruleType)}
-                        className="flex w-full rounded-sm px-2 py-1.5 transition-colors hover:bg-accent hover:text-accent-foreground"
+                        className="flex w-full rounded-sm px-2 py-1.5 transition-colors hover:bg-foreground/[0.07]"
                       />
                     ))}
                   </div>
