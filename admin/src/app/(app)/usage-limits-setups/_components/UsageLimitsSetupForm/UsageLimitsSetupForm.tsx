@@ -75,7 +75,7 @@ function FeaturePolicyRow({
               <input
                 type="checkbox"
                 checked={Boolean(field.value)}
-                onChange={(event) => field.onChange(event.target.checked)}
+                onChange={field.onChange}
                 className="h-4 w-4 rounded border-border"
               />
               Enabled
@@ -282,7 +282,7 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
                         className="mt-0.5"
                         checked={Boolean(field.value)}
                         onBlur={field.onBlur}
-                        onChange={(event) => field.onChange(event.target.checked)}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <div>
@@ -307,7 +307,7 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
                         className="mt-0.5"
                         checked={Boolean(field.value)}
                         onBlur={field.onBlur}
-                        onChange={(event) => field.onChange(event.target.checked)}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <div>

@@ -307,7 +307,7 @@ function GenerationStepSection({
                 <Checkbox
                   checked={field.value}
                   onBlur={field.onBlur}
-                  onChange={(event) => field.onChange(event.target.checked)}
+                  onChange={field.onChange}
                 />
               </FormControl>
               <FormLabel className="text-sm font-normal">
@@ -423,9 +423,7 @@ export function LlmGenerationSettingsForm({
                         <Checkbox
                           checked={field.value}
                           onBlur={field.onBlur}
-                          onChange={(event) =>
-                            field.onChange(event.target.checked)
-                          }
+                          onChange={field.onChange}
                         />
                       </FormControl>
                       <FormLabel className="text-sm font-normal">

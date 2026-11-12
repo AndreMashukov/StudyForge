@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { IScratchPad } from '@shared-types';
 import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge/Badge';
+import { Badge } from '../ui/Badge';
 import { Textarea } from '../ui/Textarea';
 import {
   Tooltip,

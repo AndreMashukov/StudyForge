@@ -17,7 +17,6 @@ import {
   CardTitle,
 } from '@admin/components/ui/Card';
 import { Checkbox } from '@admin/components/ui/Checkbox';
-import { Label } from '@admin/components/ui/Label';
 
 export interface IFeatureFlagsFormProps {
   flags: IFeatureFlags;
@@ -81,20 +80,12 @@ export function FeatureFlagsForm({ flags }: IFeatureFlagsFormProps) {
       </CardHeader>
       <CardContent>
         <form className="space-y-6" onSubmit={handleSubmit}>
-          <label className="flex items-start gap-3 text-sm">
-            <Checkbox
-              checked={supportEnabled}
-              onChange={(event) => setSupportEnabled(event.target.checked)}
-              className="mt-0.5"
-            />
-            <span>
-              <Label className="block">Support</Label>
-              <span className="block text-muted-foreground">
-                Show Help in the web app and link to the support app. Direct
-                visits to the support URL still work.
-              </span>
-            </span>
-          </label>
+          <Checkbox
+            checked={supportEnabled}
+            onChange={setSupportEnabled}
+            label={<span className="text-sm font-medium">Support</span>}
+            description="Show Help in the web app and link to the support app. Direct visits to the support URL still work."
+          />
 
           {notice ? (
             <p

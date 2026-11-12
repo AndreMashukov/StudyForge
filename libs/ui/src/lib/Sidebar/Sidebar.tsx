@@ -24,14 +24,12 @@ export function Sidebar({
       {overlay}
       <aside
         className={cn(
-          'flex h-full flex-col border-r border-border bg-card',
-          className
+          'flex h-full flex-col border-r border-border/40 bg-[rgb(var(--sidebar))]',
+          className,
         )}
         aria-label={ariaLabel}
       >
-        {header ? (
-          <div className="flex-shrink-0 border-b border-border">{header}</div>
-        ) : null}
+        {header ? <div className="flex-shrink-0">{header}</div> : null}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {children}
         </div>
@@ -43,29 +41,29 @@ export function Sidebar({
 
 export const sidebarClassNames = {
   container:
-    'fixed left-0 top-12 z-[1200] flex h-[calc(100vh-48px)] flex-col overflow-x-hidden overflow-y-auto border-r border-border bg-card text-xs duration-300 scrollbar-hidden',
+    'fixed left-0 top-12 z-[1200] flex h-[calc(100vh-48px)] flex-col overflow-x-hidden overflow-y-auto border-r border-border/40 bg-[rgb(var(--sidebar))] text-xs duration-300 scrollbar-hidden',
   expanded: 'w-[220px]',
   collapsed: 'w-[64px]',
   navSectionLabel:
-    'px-2.5 pb-1 pt-4 text-[11px] font-medium uppercase tracking-wider text-muted-foreground',
+    'px-2.5 pb-1.5 pt-4 text-xs font-medium text-muted-foreground',
   navList: 'space-y-0.5 overflow-hidden px-2 pb-2 p-0',
   navItem:
-    'flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground',
-  navItemActive: '!bg-primary/10 !text-primary',
+    'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-normal text-foreground transition-colors hover:bg-foreground/[0.06]',
+  navItemActive: '!bg-foreground/[0.09] font-medium',
   navItemIcon: 'h-4 w-4 flex-shrink-0',
   navItemText: 'flex-1 truncate',
   collapsedTooltip:
-    'absolute left-full z-50 ml-2 whitespace-nowrap rounded-md border border-border bg-popover px-2 py-1 text-xs text-popover-foreground opacity-0 shadow-md transition-all duration-200 pointer-events-none invisible group-hover:visible group-hover:opacity-100',
-  footer: 'mt-auto flex-shrink-0 border-t border-border',
-  footerExpanded: 'flex items-center gap-2.5 px-3 py-3',
+    'absolute left-full z-50 ml-2 whitespace-nowrap rounded-lg border border-border/60 bg-popover px-2 py-1 text-xs text-popover-foreground opacity-0 shadow-md transition-all duration-200 pointer-events-none invisible group-hover:visible group-hover:opacity-100',
+  footer: 'mt-auto flex-shrink-0',
+  footerExpanded: 'flex items-center gap-2.5 p-3',
   footerCollapsed: 'flex flex-col items-center gap-1.5 py-2',
   avatar:
     'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/15 text-xs font-semibold text-primary',
   profileInfo: 'min-w-0 flex-1',
-  profilePrimary: 'block truncate text-xs font-medium text-foreground',
-  profileSecondary: 'block text-[11px] text-muted-foreground',
+  profilePrimary: 'block truncate text-sm font-medium text-foreground',
+  profileSecondary: 'block truncate text-xs text-muted-foreground',
   footerAction:
-    'rounded-md border-none bg-transparent px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground',
+    'rounded-lg border-none bg-transparent px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground',
 } as const;
 
 export function SidebarSection({
@@ -92,8 +90,8 @@ export function SidebarNav({
   return (
     <nav
       className={cn(
-        'flex min-w-0 flex-1 flex-col gap-1 overflow-hidden p-4',
-        className
+        'flex min-w-0 flex-1 flex-col gap-1 overflow-hidden p-2',
+        className,
       )}
       aria-label={ariaLabel}
     >
@@ -115,7 +113,7 @@ export function SidebarNavItem({
   const itemClassName = cn(
     sidebarClassNames.navItem,
     isActive && sidebarClassNames.navItemActive,
-    className
+    className,
   );
 
   if (asChild && children) {
@@ -159,7 +157,7 @@ export function SidebarProfileFooter({
         isOpen
           ? sidebarClassNames.footerExpanded
           : sidebarClassNames.footerCollapsed,
-        className
+        className,
       )}
     >
       <div className={sidebarClassNames.avatar}>{avatarLabel}</div>
@@ -196,14 +194,9 @@ export function SidebarBrand({
   title: React.ReactNode;
 }) {
   return (
-    <div
-      className={cn(
-        'flex items-center gap-2 px-6 py-5',
-        className
-      )}
-    >
+    <div className={cn('flex items-center gap-2 px-4 py-4', className)}>
       {icon}
-      <span className="font-heading text-lg font-semibold">{title}</span>
+      <span className="text-base font-semibold tracking-tight">{title}</span>
     </div>
   );
 }

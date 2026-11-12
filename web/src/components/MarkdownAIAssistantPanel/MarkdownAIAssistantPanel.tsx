@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Sparkles, X } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { Textarea } from '../ui/Textarea/Textarea';
+import { Textarea } from '../ui/Textarea';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarkdownRenderer } from '../MarkdownRenderer/MarkdownRenderer';
 import { Spinner } from '../ui/Spinner';

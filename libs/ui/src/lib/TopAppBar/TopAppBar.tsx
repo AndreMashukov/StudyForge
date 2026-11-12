@@ -25,14 +25,14 @@ export function TopAppBar({
   return (
     <header
       className={cn(
-        'linear-glass z-[1100] flex h-12 w-full flex-shrink-0 items-center border-b border-border/30',
-        className
+        'z-[1100] flex h-12 w-full flex-shrink-0 items-center bg-background',
+        className,
       )}
     >
       <div
         className={cn(
           'flex w-full items-center justify-between px-4',
-          innerClassName
+          innerClassName,
         )}
       >
         <div className="flex items-center gap-2.5">
@@ -54,8 +54,8 @@ export function TopAppBarMenuButton({
     <button
       type="button"
       className={cn(
-        'flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground',
-        className
+        'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground',
+        className,
       )}
       {...props}
     >
@@ -75,7 +75,7 @@ export function TopAppBarBrand({
     <Comp
       className={cn(
         'linear-transition flex items-center gap-1.5 hover:opacity-80',
-        className
+        className,
       )}
     >
       {children ?? <TopAppBarBrandContent />}

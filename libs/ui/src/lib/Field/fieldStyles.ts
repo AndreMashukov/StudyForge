@@ -1,6 +1,6 @@
-/** Shared surface styles for text fields and select triggers. */
+/** Shared surface styles for text fields and select triggers — borderless soft-gray pills. */
 export const fieldStyles =
-  'flex h-10 w-full items-center rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground ring-offset-background ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ' +
+  'flex h-10 w-full items-center rounded-full border border-transparent bg-input px-4 py-2 text-sm text-foreground ring-offset-background transition-colors ' +
+  'focus-visible:outline-none focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/30 ' +
   'disabled:cursor-not-allowed disabled:opacity-50 ' +
-  'dark:bg-[rgb(44_40_51)] hover:border-primary/50 hover:bg-foreground/5';
+  'hover:border-border';

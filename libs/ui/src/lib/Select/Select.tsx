@@ -84,7 +84,7 @@ export const SelectContent = React.forwardRef<
       className={cn(
         selectContentStyles,
         position === 'popper' && selectContentPopperStyles,
-        className
+        className,
       )}
       position={position}
       {...props}
@@ -92,8 +92,8 @@ export const SelectContent = React.forwardRef<
       <SelectScrollUpButton />
       <SelectPrimitive.Viewport
         className={cn(
-          'p-1',
-          position === 'popper' && selectViewportPopperStyles
+          'p-1.5',
+          position === 'popper' && selectViewportPopperStyles,
         )}
       >
         {children}
@@ -125,7 +125,7 @@ export const SelectItem = React.forwardRef<
     className={cn(selectItemStyles, className)}
     {...props}
   >
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+    <span className="absolute left-2.5 flex h-3.5 w-3.5 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
         <Check className="h-4 w-4" aria-hidden />
       </SelectPrimitive.ItemIndicator>
