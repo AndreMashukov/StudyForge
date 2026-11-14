@@ -1,81 +1,103 @@
-import React from 'react';
+import { useState } from 'react';
+import { Button } from '../../../../components/ui/Button';
 import {
-  PieChart,
-  Pie,
-  Cell,
   Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
-import { IPieChartDatum } from '../../types/IInteractionStatsPage';
-import { CHART_COLORS, formatDuration } from '../../utils/interactionStatsUtils';
-import { useChartTheme } from '../useChartTheme';
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../../../../components/ui/Tooltip';
+import type { IPieChartDatum } from '../../types/IInteractionStatsPage';
+import { CHART_COLORS } from '../../utils/interactionStatsUtils';
+import { directorySharePercentages } from './directorySharePercentages';
 
 interface IDirectoryShareChart {
   data: IPieChartDatum[];
 }
 
-export const DirectoryShareChart: React.FC<IDirectoryShareChart> = ({
-  data,
-}) => {
-  const theme = useChartTheme();
-  const total = data.reduce((sum, d) => sum + d.value, 0);
-  const filteredData = data.filter(
-    (d) => total > 0 && Math.round((d.value / total) * 100) > 0
-  );
-  const filteredTotal = filteredData.reduce((sum, d) => sum + d.value, 0);
+export const DirectoryShareChart = ({ data }: IDirectoryShareChart) => {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const rows = directorySharePercentages(data);
+  const selected = rows.find((row) => row.directoryId === selectedId);
+  let end = 0;
+  const gradient = rows
+    .map((row, index) => {
+      const start = end;
+      end += row.percentage;
+      return `${CHART_COLORS[index % CHART_COLORS.length]} ${start}% ${end}%`;
+    })
+    .join(', ');
+
+  if (!rows.length)
+    return (
+      <p className="flex min-h-56 items-center justify-center text-sm text-muted-foreground">
+        No recorded activity in this range.
+      </p>
+    );
 
   return (
-    <div role="img" aria-label="Pie chart showing the share of study time per directory">
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={filteredData}
-          cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={100}
-          paddingAngle={2}
-          dataKey="value"
-          nameKey="name"
-          strokeWidth={0}
+    <TooltipProvider delayDuration={150}>
+      <div className="flex min-h-64 flex-col items-center justify-center gap-7 py-4 sm:flex-row">
+        <div
+          className="relative flex h-44 w-44 shrink-0 items-center justify-center rounded-full"
+          style={{ background: `conic-gradient(${gradient})` }}
+          role="img"
+          aria-label={`Directory share of recorded activity: ${rows.map((row) => `${row.name} ${row.percentageLabel}`).join(', ')}`}
         >
-          {filteredData.map((_, idx) => (
-            <Cell
-              key={idx}
-              fill={CHART_COLORS[idx % CHART_COLORS.length]}
-            />
+          <div className="absolute inset-6 rounded-full bg-card" />
+          <div className="relative max-w-28 text-center text-xs leading-relaxed text-muted-foreground">
+            {selected ? (
+              <>
+                <strong className="block text-2xl font-semibold text-foreground">
+                  {selected.percentageLabel}
+                </strong>
+                {selected.name}
+              </>
+            ) : (
+              <>
+                Relative
+                <br />
+                activity share
+              </>
+            )}
+          </div>
+        </div>
+        <div className="w-full min-w-0 flex-1 space-y-1.5">
+          {rows.map((row, index) => (
+            <Tooltip key={row.directoryId}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-auto w-full justify-start gap-2 whitespace-normal px-1 py-1.5 text-left text-xs font-normal"
+                  aria-label={`${row.name}: ${row.percentageLabel} of recorded activity`}
+                  aria-pressed={row.directoryId === selectedId}
+                  onClick={() => setSelectedId(row.directoryId)}
+                >
+                  <span
+                    className="h-2 w-2 shrink-0"
+                    style={{
+                      backgroundColor:
+                        CHART_COLORS[index % CHART_COLORS.length],
+                    }}
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0 flex-1">{row.name}</span>
+                  <span className="shrink-0 font-medium">
+                    {row.percentageLabel}
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {row.name} · {row.percentageLabel} of recorded activity
+              </TooltipContent>
+            </Tooltip>
           ))}
-        </Pie>
-        <Tooltip
-          contentStyle={{
-            backgroundColor: theme.tooltipBg,
-            border: `1px solid ${theme.border}`,
-            borderRadius: 8,
-            color: theme.tooltipText,
-          }}
-          formatter={(value) => {
-            const v = Number(value);
-            const pct = filteredTotal > 0 ? Math.round((v / filteredTotal) * 100) : 0;
-            return [`${formatDuration(v * 60)} (${pct}%)`, 'Time'];
-          }}
-        />
-        <Legend
-          layout="vertical"
-          align="right"
-          verticalAlign="middle"
-          wrapperStyle={{ fontSize: 12, color: theme.text }}
-          formatter={(value: string, entry) => {
-            const payload = entry.payload as IPieChartDatum & { value: number };
-            const pct =
-              filteredTotal > 0
-                ? Math.round((payload.value / filteredTotal) * 100)
-                : 0;
-            return `${value} (${pct}%)`;
-          }}
-        />
-      </PieChart>
-    </ResponsiveContainer>
-    </div>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground" role="status">
+        {selected
+          ? `${selected.name} · ${selected.percentageLabel} of recorded activity.`
+          : 'Choose a directory to inspect its relative share.'}
+      </p>
+    </TooltipProvider>
   );
 };

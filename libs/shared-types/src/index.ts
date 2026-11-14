@@ -2887,3 +2887,8 @@ export interface IBulkDeleteArtifactsRequest {
 export * from './feature-flags';
 export * from './rule-blueprints';
 export * from './statistics-keys';
+
+export type {
+  ICompletedDashboardArtifact,
+  ICompletedDashboardArtifactsResponse,
+} from './dashboard';

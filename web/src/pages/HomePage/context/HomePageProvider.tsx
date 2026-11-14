@@ -1,22 +1,19 @@
-import React, { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { HomePageContext } from './HomePageContext';
-import { IHomePageContext } from '../types/IHomePageContext';
+import { useFetchHomePageData } from './hooks/api/useFetchHomePageData';
 import { useHomePageHandlers } from './hooks/useHomePageHandlers';
+import { useHomePageEffects } from './hooks/useHomePageEffects';
 
 interface IHomePageProviderProps {
   children: ReactNode;
 }
 
-export const HomePageProvider: React.FC<IHomePageProviderProps> = ({ children }) => {
-  // Handler hooks - self-contained business logic
+export const HomePageProvider = ({ children }: IHomePageProviderProps) => {
+  const api = useFetchHomePageData();
   const handlers = useHomePageHandlers();
-
-  const contextValue: IHomePageContext = {
-    handlers,
-  };
-
+  useHomePageEffects();
   return (
-    <HomePageContext.Provider value={contextValue}>
+    <HomePageContext.Provider value={{ api, handlers }}>
       {children}
     </HomePageContext.Provider>
   );

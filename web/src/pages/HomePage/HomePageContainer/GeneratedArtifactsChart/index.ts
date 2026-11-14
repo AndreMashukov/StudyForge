@@ -1,0 +1,1 @@
+export { GeneratedArtifactsChart } from './GeneratedArtifactsChart';

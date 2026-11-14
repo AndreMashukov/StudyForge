@@ -237,3 +237,11 @@ export const formatDateWithOptions = (
     return 'Invalid date';
   }
 };
+
+/** Activity aggregates use UTC date keys; completion dates must use the same boundary. */
+export const formatUtcIsoDate = (
+  date: Parameters<typeof formatDate>[0] = new Date(),
+): string => {
+  const parsedDate = parseDate(date);
+  return parsedDate ? parsedDate.toISOString().slice(0, 10) : 'Invalid date';
+};

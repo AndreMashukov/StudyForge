@@ -1,9 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
+import { setupListeners } from '@reduxjs/toolkit/query';
 import { baseApi } from './api/baseApi';
 import { errorToastMiddleware } from './middleware/errorToastMiddleware';
 import { loadingOverlayMiddleware } from './middleware/loadingOverlayMiddleware';
 import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
+import homePageReducer from './slices/homePageSlice';
 import quizPageReducer from './slices/quizPageSlice';
 import diagramQuizPageReducer from './slices/diagramQuizPageSlice';
 import sequenceQuizPageReducer from './slices/sequenceQuizPageSlice';
@@ -20,6 +22,7 @@ export const store = configureStore({
   reducer: {
     auth: authReducer,
     ui: uiReducer,
+    homePage: homePageReducer,
     quizPage: quizPageReducer,
     diagramQuizPage: diagramQuizPageReducer,
     sequenceQuizPage: sequenceQuizPageReducer,
@@ -42,8 +45,14 @@ export const store = configureStore({
         ],
         ignoredPaths: ['auth.user'],
       },
-    }).concat(baseApi.middleware, errorToastMiddleware, loadingOverlayMiddleware),
+    }).concat(
+      baseApi.middleware,
+      errorToastMiddleware,
+      loadingOverlayMiddleware,
+    ),
 });
+
+setupListeners(store.dispatch);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

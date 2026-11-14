@@ -1,42 +1,19 @@
-import { useCallback } from 'react';
 import { useAppDispatch } from '../../../../hooks/redux';
-import { showToast } from '../../../../store/slices/uiSlice';
-import { useNavigate } from 'react-router-dom';
-import { useFetchQuizzes } from './api/useFetchQuizzes';
+import {
+  setGenerationGrouping,
+  setHomeTimeframe,
+} from '../../../../store/slices/homePageSlice';
+import type { IHomePageHandlers } from '../../types/IHomePageContext';
 
-export const useHomePageHandlers = () => {
+export const useHomePageHandlers = (): IHomePageHandlers => {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  
-  // Get quiz data for refetching
-  const { userQuizzes } = useFetchQuizzes();
-
-
-
-  const handleNavigateToQuiz = useCallback((quizId: string) => {
-    navigate(`/quiz/${quizId}`);
-  }, [navigate]);
-
-  const handleDeleteQuiz = useCallback(async (quizId: string) => {
-    try {
-      // TODO: Implement delete quiz mutation when backend supports it
-      dispatch(showToast({
-        message: 'Quiz deleted successfully',
-        type: 'success'
-      }));
-      return { success: true };
-    } catch {
-      dispatch(showToast({
-        message: 'Failed to delete quiz',
-        type: 'error'
-      }));
-      return { success: false };
-    }
-  }, [dispatch]);
-
-  return {
-    userQuizzes,
-    handleNavigateToQuiz,
-    handleDeleteQuiz,
+  const handleTimeframeChange = (value: string) => {
+    if (value === 'day' || value === 'week' || value === 'month')
+      dispatch(setHomeTimeframe(value));
   };
+  const handleGenerationGroupingChange = (value: string) => {
+    if (value === 'date' || value === 'type')
+      dispatch(setGenerationGrouping(value));
+  };
+  return { handleTimeframeChange, handleGenerationGroupingChange };
 };
