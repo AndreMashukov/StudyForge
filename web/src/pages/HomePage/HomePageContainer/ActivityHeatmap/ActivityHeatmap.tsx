@@ -22,6 +22,9 @@ import { useHomePageContext } from '../../context/HomePageContext';
 import {
   buildActivityDays,
   DASHBOARD_TYPE_LABELS,
+  HEATMAP_ACTIVITY_LABELS,
+  heatmapActivityDescription,
+  heatmapActivityLevel,
   shiftReportingDay,
 } from '../../utils/dashboardUtils';
 import { formatDateWithOptions } from '../../../../utils/dateUtils';
@@ -156,7 +159,7 @@ export const ActivityHeatmap = () => {
                   </div>
                   <div
                     className={heatmapStyles.grid}
-                    aria-label="Daily recorded material variety"
+                    aria-label="Daily recorded activity intensity"
                   >
                     {Array.from({ length: padding }, (_, index) => (
                       <span
@@ -166,15 +169,8 @@ export const ActivityHeatmap = () => {
                       />
                     ))}
                     {days.map((day) => {
-                      const count = day.materialTypes.length;
-                      const level = day.hasActivity
-                        ? Math.max(1, Math.min(4, count))
-                        : 0;
-                      const description = !day.hasActivity
-                        ? 'No record'
-                        : count
-                          ? `${count} distinct material ${count === 1 ? 'type' : 'types'} recorded`
-                          : 'Recorded activity; material types unavailable';
+                      const level = heatmapActivityLevel(day);
+                      const description = heatmapActivityDescription(day);
                       const label = `${formatDateWithOptions(day.date, 'MMM d, yyyy')}: ${description}`;
                       return (
                         <Tooltip key={day.date}>
@@ -210,23 +206,17 @@ export const ActivityHeatmap = () => {
               </div>
             </div>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-              <span>Distinct material types recorded per day</span>
+              <span>Stronger color reflects more recorded study activity</span>
               <div
                 className="flex items-center gap-1"
-                aria-label="Color scale: no record, one, two, three, four or more types"
+                aria-label="Recorded activity intensity, from less to more"
               >
                 <span className="mr-1">Less</span>
                 {heatmapStyles.levels.map((level, index) => (
                   <span
                     key={level}
                     className={cn('h-3 w-3 rounded-[3px]', level)}
-                    title={
-                      index === 0
-                        ? 'No record'
-                        : index === 4
-                          ? '4+ types'
-                          : `${index} types`
-                    }
+                    title={HEATMAP_ACTIVITY_LABELS[index]}
                   />
                 ))}
                 <span className="ml-1">More</span>
@@ -240,9 +230,7 @@ export const ActivityHeatmap = () => {
                 {formatDateWithOptions(date, 'MMM d')}
               </span>
               {selected?.hasActivity
-                ? selected.materialTypes.length
-                  ? `${selected.materialTypes.length} material types recorded · ${selected.materialTypes.map((type) => DASHBOARD_TYPE_LABELS[type]).join(' · ')}`
-                  : 'Activity recorded; material types unavailable.'
+                ? `${heatmapActivityDescription(selected)}${selected.materialTypes.length ? ` · ${selected.materialTypes.map((type) => DASHBOARD_TYPE_LABELS[type]).join(' · ')}` : ''}`
                 : 'No activity record available for this date.'}
             </p>
           </TooltipProvider>

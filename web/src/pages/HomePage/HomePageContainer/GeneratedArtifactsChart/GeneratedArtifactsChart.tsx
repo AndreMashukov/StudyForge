@@ -79,14 +79,19 @@ export const GeneratedArtifactsChart = () => {
                   handlers.handleGenerationGroupingChange(mode);
                 }}
               >
-                By {mode}
+                By {mode === 'date' && range.dayCount === 30 ? 'week' : mode}
               </Button>
             ))}
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
           Completed artifacts by{' '}
-          {grouping === 'date' ? 'completion date' : 'type'}.
+          {grouping === 'date'
+            ? range.dayCount === 30
+              ? 'completion week'
+              : 'completion date'
+            : 'type'}
+          .
         </p>
       </CardHeader>
       <CardContent>
@@ -139,10 +144,16 @@ export const GeneratedArtifactsChart = () => {
             <p className="mt-3 text-xs text-muted-foreground">
               {total} completed artifacts in this range
               {grouping === 'date' && range.dayCount === 30
-                ? ' · 5-day groups'
+                ? ' · weekly groups (Mon–Sun, UTC)'
                 : ''}
               .
             </p>
+            {grouping === 'date' && range.dayCount === 30 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                First and last weeks include only dates within the selected
+                range.
+              </p>
+            )}
           </>
         )}
         <p className="mt-4 text-xs leading-relaxed text-muted-foreground">

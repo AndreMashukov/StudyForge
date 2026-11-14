@@ -10,6 +10,7 @@ export interface IActivityHeatmapDay {
   date: string;
   hasActivity: boolean;
   materialTypes: ArtifactType[];
+  recordedSeconds: number;
 }
 
 export interface IGenerationBucket {

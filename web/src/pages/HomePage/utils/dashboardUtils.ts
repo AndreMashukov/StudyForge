@@ -19,6 +19,13 @@ import {
 } from '../../../utils/dateUtils';
 
 export const HEATMAP_DAY_COUNT = 153;
+export const HEATMAP_ACTIVITY_LABELS = [
+  'No record',
+  'Light recorded activity',
+  'Moderate recorded activity',
+  'High recorded activity',
+  'Very high recorded activity',
+];
 export const DASHBOARD_MATERIAL_TYPES: ArtifactType[] = [
   'document',
   'quiz',
@@ -87,9 +94,10 @@ export function buildActivityDays(
   const dates = new Map<string, IActivityHeatmapDay>(
     reportingDates(range).map((date) => [
       date,
-      { date, hasActivity: false, materialTypes: [] },
+      { date, hasActivity: false, materialTypes: [], recordedSeconds: 0 },
     ]),
   );
+  const directoryDurations = new Map<string, number>();
   for (const stat of stats) {
     const day = dates.get(stat.date);
     if (!day) continue;
@@ -99,10 +107,37 @@ export function buildActivityDays(
         stat.byArtifactType[type] > 0,
     );
     day.hasActivity ||=
-      stat.totalSeconds > 0 || stat.ownSeconds > 0 || types.length > 0;
+      (Number.isFinite(stat.totalSeconds) && stat.totalSeconds > 0) ||
+      (Number.isFinite(stat.ownSeconds) && stat.ownSeconds > 0) ||
+      types.length > 0;
     day.materialTypes = [...new Set([...day.materialTypes, ...types])];
+    // totalSeconds includes ancestor rollups; ownSeconds counts each directory's activity once.
+    const key = `${stat.directoryId}:${stat.date}`;
+    const previous = directoryDurations.get(key) ?? 0;
+    const duration = Number.isFinite(stat.ownSeconds)
+      ? Math.max(0, stat.ownSeconds)
+      : 0;
+    if (duration > previous) {
+      day.recordedSeconds += duration - previous;
+      directoryDurations.set(key, duration);
+    }
   }
   return [...dates.values()];
+}
+
+export function heatmapActivityLevel(day: IActivityHeatmapDay): number {
+  if (!day.hasActivity) return 0;
+  // Stable bands keep a day's shade independent of the other dates in the history window.
+  if (day.recordedSeconds <= 300) return 1;
+  if (day.recordedSeconds <= 900) return 2;
+  if (day.recordedSeconds <= 1800) return 3;
+  return 4;
+}
+
+export function heatmapActivityDescription(day: IActivityHeatmapDay): string {
+  if (day.hasActivity && day.recordedSeconds <= 0)
+    return 'Activity recorded; intensity unavailable';
+  return HEATMAP_ACTIVITY_LABELS[heatmapActivityLevel(day)];
 }
 
 export function directoryShareData(
@@ -152,24 +187,29 @@ export function generationBuckets(
       label: DASHBOARD_TYPE_LABELS[type],
       artifacts: rows.filter((row) => row.artifactType === type),
     }));
-  const dates = reportingDates(range),
-    step = range.dayCount === 30 ? 5 : 1;
-  return dates
-    .filter((_, i) => i % step === 0)
-    .map((date, i) => {
-      const last = dates[Math.min((i + 1) * step, dates.length) - 1];
-      return {
-        id: date,
-        label:
-          step === 1
-            ? formatDateWithOptions(date, 'MMM d')
-            : `${formatDateWithOptions(date, 'MMM d')}–${formatDateWithOptions(last, 'MMM d')}`,
-        artifacts: rows.filter((row) => {
-          const day = formatUtcIsoDate(row.completedAt);
-          return day >= date && day <= last;
-        }),
-      };
-    });
+  const weekly = range.dayCount === 30;
+  const starts = reportingDates(range).filter(
+    (date, index) =>
+      !weekly || index === 0 || new Date(`${date}T12:00:00Z`).getUTCDay() === 1,
+  );
+  return starts.map((date, index) => {
+    const last = weekly
+      ? starts[index + 1]
+        ? shiftReportingDay(starts[index + 1], -1)
+        : range.endDate
+      : date;
+    return {
+      id: date,
+      label:
+        date === last
+          ? formatDateWithOptions(date, 'MMM d')
+          : `${formatDateWithOptions(date, 'MMM d')}–${formatDateWithOptions(last, 'MMM d')}`,
+      artifacts: rows.filter((row) => {
+        const day = formatUtcIsoDate(row.completedAt);
+        return day >= date && day <= last;
+      }),
+    };
+  });
 }
 
 export function artifactPath(artifact: ICompletedDashboardArtifact): string {
