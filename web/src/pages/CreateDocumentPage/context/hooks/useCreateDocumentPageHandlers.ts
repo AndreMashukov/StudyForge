@@ -1,11 +1,11 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  useCreateDocumentFromUrlMutation, 
+import {
+  useCreateDocumentFromUrlMutation,
   useUploadAndCreateDocumentMutation,
   useCreateDocumentFromPastedTextMutation,
-  useGenerateFromPromptMutation 
+  useGenerateFromPromptMutation,
 } from '../../../../store/api/Documents';
 import { IUrlScrapingFormData } from '../../CreateDocumentPageContainer/UrlScrapingForm/IUrlScrapingForm';
 import { IFileUploadFormData } from '../../CreateDocumentPageContainer/FileUploadForm/IFileUploadForm';
@@ -16,9 +16,9 @@ import {
   readFileAsBase64,
   stripDocumentUploadExtension,
 } from '../../../../utils/documentUploadUtils';
-import { 
-  setError, 
-  clearError, 
+import {
+  setError,
+  clearError,
   selectCreateDocumentPageError,
   clearFiles,
 } from '../../../../store/slices/createDocumentPageSlice';
@@ -36,118 +36,166 @@ export const useCreateDocumentPageHandlers = (
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const onRequestStarted = options?.onRequestStarted;
-  
-  const error = useSelector((state: RootState) => selectCreateDocumentPageError(state));
-  const directoryId = useSelector((state: RootState) => selectSelectedDirectoryId(state));
-  
+
+  const error = useSelector((state: RootState) =>
+    selectCreateDocumentPageError(state),
+  );
+  const directoryId = useSelector((state: RootState) =>
+    selectSelectedDirectoryId(state),
+  );
+
   const [createDocumentFromUrl] = useCreateDocumentFromUrlMutation();
   const [uploadAndCreateDocument] = useUploadAndCreateDocumentMutation();
-  const [createDocumentFromPastedText] = useCreateDocumentFromPastedTextMutation();
+  const [createDocumentFromPastedText] =
+    useCreateDocumentFromPastedTextMutation();
   const [generateFromPrompt] = useGenerateFromPromptMutation();
 
-  const navigateToSources = useCallback((targetDirectoryId: string) => {
-    if (onRequestStarted) {
-      onRequestStarted(targetDirectoryId);
-      return;
-    }
+  const navigateToSources = useCallback(
+    (targetDirectoryId: string) => {
+      if (onRequestStarted) {
+        onRequestStarted(targetDirectoryId);
+        return;
+      }
 
-    navigate(buildDirectoryPathWithOptionalName(targetDirectoryId, undefined, 'sources'));
-  }, [navigate, onRequestStarted]);
+      navigate(
+        buildDirectoryPathWithOptionalName(
+          targetDirectoryId,
+          undefined,
+          'sources',
+        ),
+      );
+    },
+    [navigate, onRequestStarted],
+  );
 
-  const handleCreateFromUrl = useCallback((data: IUrlScrapingFormData) => {
-    dispatch(clearError());
-    if (!directoryId) {
-      dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
-      return;
-    }
-    createDocumentFromUrl({
-      urls: data.urls,
-      title: data.title,
-      directoryId,
-    });
-    navigateToSources(directoryId);
-  }, [createDocumentFromUrl, navigateToSources, dispatch, directoryId]);
-
-  const handleCreateFromFile = useCallback(async (data: IFileUploadFormData) => {
-    dispatch(clearError());
-    if (!directoryId) {
-      dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
-      return;
-    }
-
-    try {
-      const content = await readFileAsBase64(data.file);
-      const uploadPromise = uploadAndCreateDocument({
-        fileName: data.file.name,
-        content,
-        mimeType: data.file.type || undefined,
-        size: data.file.size,
-        title: data.title || stripDocumentUploadExtension(data.file.name),
+  const handleCreateFromUrl = useCallback(
+    (data: IUrlScrapingFormData) => {
+      dispatch(clearError());
+      if (!directoryId) {
+        dispatch(
+          setError(
+            'Open Library and select a directory before creating a document.',
+          ),
+        );
+        return;
+      }
+      createDocumentFromUrl({
+        urls: data.urls,
+        title: data.title,
         directoryId,
-      }).unwrap();
-
-      navigateToSources(directoryId);
-
-      void uploadPromise.catch((error) => {
-        dispatch(setError(getSubmissionErrorMessage(error)));
       });
-    } catch (error) {
-      dispatch(setError(getSubmissionErrorMessage(error)));
-    }
-  }, [uploadAndCreateDocument, navigateToSources, dispatch, directoryId]);
+      navigateToSources(directoryId);
+    },
+    [createDocumentFromUrl, navigateToSources, dispatch, directoryId],
+  );
 
-  const handleCreateFromPastedText = useCallback((data: IPasteTextFormData) => {
-    dispatch(clearError());
-    if (!directoryId) {
-      dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
-      return;
-    }
+  const handleCreateFromFile = useCallback(
+    async (data: IFileUploadFormData) => {
+      dispatch(clearError());
+      if (!directoryId) {
+        dispatch(
+          setError(
+            'Open Library and select a directory before creating a document.',
+          ),
+        );
+        return;
+      }
 
-    createDocumentFromPastedText({
-      content: data.content,
-      directoryId,
-    });
-    navigateToSources(directoryId);
-  }, [createDocumentFromPastedText, navigateToSources, dispatch, directoryId]);
+      try {
+        const content = await readFileAsBase64(data.file);
+        const uploadPromise = uploadAndCreateDocument({
+          fileName: data.file.name,
+          content,
+          mimeType: data.file.type || undefined,
+          size: data.file.size,
+          title: data.title || stripDocumentUploadExtension(data.file.name),
+          directoryId,
+        }).unwrap();
 
-  const handleCreateFromTextPrompt = useCallback((
-    data: ITextPromptFormData,
-    fileUploadHelpers?: {
-      isContextSizeValid: () => boolean;
-      getFilesForSubmission: () => IFileContent[];
-    }
-  ) => {
-    dispatch(clearError());
+        navigateToSources(directoryId);
 
-    if (fileUploadHelpers && !fileUploadHelpers.isContextSizeValid()) {
-      dispatch(setError('Total context size exceeds limit. Please remove some files.'));
-      return;
-    }
+        void uploadPromise.catch((error) => {
+          dispatch(setError(getSubmissionErrorMessage(error)));
+        });
+      } catch (error) {
+        dispatch(setError(getSubmissionErrorMessage(error)));
+      }
+    },
+    [uploadAndCreateDocument, navigateToSources, dispatch, directoryId],
+  );
 
-    if (!directoryId) {
-      dispatch(setError('Select a folder first (open My Directories and choose a folder).'));
-      return;
-    }
+  const handleCreateFromPastedText = useCallback(
+    (data: IPasteTextFormData) => {
+      dispatch(clearError());
+      if (!directoryId) {
+        dispatch(
+          setError(
+            'Open Library and select a directory before creating a document.',
+          ),
+        );
+        return;
+      }
 
-    const files = fileUploadHelpers?.getFilesForSubmission() ?? [];
+      createDocumentFromPastedText({
+        content: data.content,
+        directoryId,
+      });
+      navigateToSources(directoryId);
+    },
+    [createDocumentFromPastedText, navigateToSources, dispatch, directoryId],
+  );
 
-    generateFromPrompt({
-      prompt: data.prompt,
-      files: files.length > 0 ? files : undefined,
-      directoryId,
-      ruleIds: data.ruleIds || [],
-      ruleResolutionMode: 'explicit-only',
-      ...(data.includeDiagrams && data.diagramCount
-        ? { includeDiagrams: true, diagramCount: data.diagramCount }
-        : {}),
-      ...(data.includeScratchPads === false ? { includeScratchPads: false } : {}),
-    });
+  const handleCreateFromTextPrompt = useCallback(
+    (
+      data: ITextPromptFormData,
+      fileUploadHelpers?: {
+        isContextSizeValid: () => boolean;
+        getFilesForSubmission: () => IFileContent[];
+      },
+    ) => {
+      dispatch(clearError());
 
-    if (fileUploadHelpers) {
-      dispatch(clearFiles());
-    }
-    navigateToSources(directoryId);
-  }, [generateFromPrompt, navigateToSources, dispatch, directoryId]);
+      if (fileUploadHelpers && !fileUploadHelpers.isContextSizeValid()) {
+        dispatch(
+          setError(
+            'Total context size exceeds limit. Please remove some files.',
+          ),
+        );
+        return;
+      }
+
+      if (!directoryId) {
+        dispatch(
+          setError(
+            'Open Library and select a directory before creating a document.',
+          ),
+        );
+        return;
+      }
+
+      const files = fileUploadHelpers?.getFilesForSubmission() ?? [];
+
+      generateFromPrompt({
+        prompt: data.prompt,
+        files: files.length > 0 ? files : undefined,
+        directoryId,
+        ruleIds: data.ruleIds || [],
+        ruleResolutionMode: 'explicit-only',
+        ...(data.includeDiagrams && data.diagramCount
+          ? { includeDiagrams: true, diagramCount: data.diagramCount }
+          : {}),
+        ...(data.includeScratchPads === false
+          ? { includeScratchPads: false }
+          : {}),
+      });
+
+      if (fileUploadHelpers) {
+        dispatch(clearFiles());
+      }
+      navigateToSources(directoryId);
+    },
+    [generateFromPrompt, navigateToSources, dispatch, directoryId],
+  );
 
   return {
     handleCreateFromUrl,
@@ -164,7 +212,10 @@ function getSubmissionErrorMessage(error: unknown): string {
   }
 
   if (typeof error === 'object' && error !== null) {
-    const maybeError = error as { data?: { message?: unknown }; message?: unknown };
+    const maybeError = error as {
+      data?: { message?: unknown };
+      message?: unknown;
+    };
     if (typeof maybeError.data?.message === 'string') {
       return maybeError.data.message;
     }

@@ -7,7 +7,10 @@ import { Input } from '../../../components/ui/Input';
 import { Badge } from '../../../components/ui/Badge';
 import { RuleCard } from './RuleCard';
 import { Checkbox } from '../../../components/ui/Checkbox';
-import { VirtualizedGrid, VirtualizedList } from '../../../components/VirtualizedList';
+import {
+  VirtualizedGrid,
+  VirtualizedList,
+} from '../../../components/VirtualizedList';
 import { useGridColumns } from '../../../hooks/useGridColumns';
 import {
   DropdownMenu,
@@ -17,7 +20,15 @@ import {
 import { BulkSelectionToolbar } from '../../../components/BulkSelectionToolbar';
 import { BulkActionConfirmDialog } from '../../../components/BulkActionConfirmDialog';
 import { BulkActionResultDialog } from '../../../components/BulkActionResultDialog';
-import { Plus, Search, Grid3x3, List, Filter, ChevronDown, X } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Grid3x3,
+  List,
+  Filter,
+  ChevronDown,
+  X,
+} from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { Spinner } from '../../../components/ui/Spinner';
 import { getRuleApplicabilityLabel } from '../../../utils/ruleApplicabilityUtils';
@@ -35,14 +46,8 @@ const defaultFilters = {
 };
 
 export const RulesPageContainer = () => {
-  const {
-    rulesApi,
-    handlers,
-    filters,
-    viewMode,
-    searchQuery,
-    filteredRules,
-  } = useRulesPageContext();
+  const { rulesApi, handlers, filters, viewMode, searchQuery, filteredRules } =
+    useRulesPageContext();
 
   const { currentTheme } = useTheme();
   const gridColumns = useGridColumns({ default: 1, md: 2, lg: 3 });
@@ -66,7 +71,9 @@ export const RulesPageContainer = () => {
 
   const handleRuleTypeToggle = (ruleType: RuleApplicability) => {
     const nextApplicableTo = filters.applicableTo.includes(ruleType)
-      ? filters.applicableTo.filter((selectedRuleType) => selectedRuleType !== ruleType)
+      ? filters.applicableTo.filter(
+          (selectedRuleType) => selectedRuleType !== ruleType,
+        )
       : [...filters.applicableTo, ruleType];
 
     handlers.handleFilterChange({
@@ -132,10 +139,7 @@ export const RulesPageContainer = () => {
                 ? rulesApi.error.message
                 : 'An unknown error occurred'}
             </p>
-            <Button
-              onClick={() => rulesApi.refetch()}
-              variant="outline"
-            >
+            <Button onClick={() => rulesApi.refetch()} variant="outline">
               Try Again
             </Button>
           </div>
@@ -157,7 +161,7 @@ export const RulesPageContainer = () => {
               className="text-3xl font-bold font-heading"
               style={{ color: currentTheme.colors.foreground }}
             >
-              Rules Manager
+              Rules
             </h1>
             <p
               className="text-sm mt-1"
@@ -208,7 +212,10 @@ export const RulesPageContainer = () => {
                     <ChevronDown size={14} className="flex-shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-2rem)]">
+                <DropdownMenuContent
+                  align="end"
+                  className="w-80 max-w-[calc(100vw-2rem)]"
+                >
                   <div className="flex items-center justify-between px-2 py-1.5">
                     <span className="text-xs font-medium uppercase text-muted-foreground">
                       Rule Type
@@ -270,7 +277,11 @@ export const RulesPageContainer = () => {
         {hasRuleTypeFilter && (
           <div className="flex flex-wrap items-center gap-2">
             {filters.applicableTo.map((ruleType) => (
-              <Badge key={ruleType} variant="outline" className="gap-1.5 pr-1.5">
+              <Badge
+                key={ruleType}
+                variant="outline"
+                className="gap-1.5 pr-1.5"
+              >
                 {getRuleApplicabilityLabel(ruleType)}
                 <button
                   type="button"
@@ -314,8 +325,9 @@ export const RulesPageContainer = () => {
                 className="text-sm mb-6"
                 style={{ color: currentTheme.colors.mutedForeground }}
               >
-                Create your first rule to start customizing AI behavior for your documents.
-                Rules help guide content generation, quizzes, and more.
+                Create your first rule to start customizing AI behavior for your
+                documents. Rules help guide content generation, quizzes, and
+                more.
               </p>
               <Button onClick={handlers.handleCreateRule}>
                 <Plus size={16} className="mr-2" />
@@ -350,12 +362,10 @@ export const RulesPageContainer = () => {
                 className="text-sm mb-6"
                 style={{ color: currentTheme.colors.mutedForeground }}
               >
-                No rules match your search criteria. Try adjusting your search or filters.
+                No rules match your search criteria. Try adjusting your search
+                or filters.
               </p>
-              <Button
-                variant="outline"
-                onClick={handleClearSearchAndFilters}
-              >
+              <Button variant="outline" onClick={handleClearSearchAndFilters}>
                 Clear Filters
               </Button>
             </div>
@@ -380,7 +390,8 @@ export const RulesPageContainer = () => {
                   className="flex min-h-10 items-center text-sm"
                   style={{ color: currentTheme.colors.mutedForeground }}
                 >
-                  {filteredRules.length} {filteredRules.length === 1 ? 'rule' : 'rules'} found
+                  {filteredRules.length}{' '}
+                  {filteredRules.length === 1 ? 'rule' : 'rules'} found
                 </p>
               )}
             </div>

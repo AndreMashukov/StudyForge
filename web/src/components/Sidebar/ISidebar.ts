@@ -1,5 +1,15 @@
+import type { LucideIcon } from 'lucide-react';
+
 export interface ISidebar {
   className?: string;
+}
+
+export interface ISidebarNavigationItem {
+  id: string;
+  title: string;
+  path: string;
+  icon: LucideIcon;
+  activePaths?: string[];
 }
 
 export interface SidebarSection {

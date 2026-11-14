@@ -13,8 +13,18 @@ import {
 import { StatisticsQuizPerformanceItem } from '@shared-types';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/Tabs';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '../../../components/ui/Card';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '../../../components/ui/Tabs';
 import { useStatisticsPageContext } from '../context/hooks/useStatisticsPageContext';
 import { StatisticsTab } from '../types/IStatisticsPageHandlers';
 import {
@@ -31,11 +41,20 @@ import {
 } from '../utils/statisticsPageUtils';
 import { FailureList } from './FailureList';
 import { FlashcardFailureList } from './FlashcardFailureList';
-import { EmptyState, ErrorBlock, LoadingBlock, MetricCard } from './StatisticsShared';
+import {
+  EmptyState,
+  ErrorBlock,
+  LoadingBlock,
+  MetricCard,
+} from './StatisticsShared';
 import { VirtualizedList } from '../../../components/VirtualizedList';
 import { Spinner } from '../../../components/ui/Spinner';
 
-const QuizPerformanceTable = ({ quizzes }: { quizzes: StatisticsQuizPerformanceItem[] }) => {
+const QuizPerformanceTable = ({
+  quizzes,
+}: {
+  quizzes: StatisticsQuizPerformanceItem[];
+}) => {
   if (quizzes.length === 0) {
     return (
       <EmptyState
@@ -72,18 +91,29 @@ const QuizPerformanceTable = ({ quizzes }: { quizzes: StatisticsQuizPerformanceI
               renderItem={(quiz) => (
                 <div className="grid grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] border-b border-border/60 px-4 py-3 text-sm last:border-0">
                   <div>
-                    <Link className="font-medium text-foreground hover:text-primary" to={detailQuizPath(quiz.quizType, quiz.quizId)}>
+                    <Link
+                      className="font-medium text-foreground hover:text-primary"
+                      to={detailQuizPath(quiz.quizType, quiz.quizId)}
+                    >
                       {quiz.quizTitle || 'Untitled quiz'}
                     </Link>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <Badge variant="outline">{quizTypeLabel(quiz.quizType)}</Badge>
-                      <span className="text-xs text-muted-foreground">{quiz.attemptCount} attempts</span>
+                      <Badge variant="outline">
+                        {quizTypeLabel(quiz.quizType)}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {quiz.attemptCount} attempts
+                      </span>
                     </div>
                   </div>
-                  <div className="font-semibold">{formatPercentage(quiz.accuracyPercentage)}</div>
+                  <div className="font-semibold">
+                    {formatPercentage(quiz.accuracyPercentage)}
+                  </div>
                   <div>{formatInteger(quiz.incorrectAnswerCount)}</div>
                   <div>{formatInteger(quiz.explanationRequestCount)}</div>
-                  <div className="text-muted-foreground">{formatDateTime(quiz.lastAttemptAt)}</div>
+                  <div className="text-muted-foreground">
+                    {formatDateTime(quiz.lastAttemptAt)}
+                  </div>
                 </div>
               )}
             />
@@ -107,13 +137,10 @@ export const StatisticsPageContainer: React.FC = () => {
       };
     }
     return {
-      title: 'Statistics',
+      title: 'Progress',
       subtitle: 'Quiz performance and learning time',
     };
-  }, [
-    quizDetailRequest,
-    statisticsApi.quizDetail.data?.quiz,
-  ]);
+  }, [quizDetailRequest, statisticsApi.quizDetail.data?.quiz]);
 
   const timeRangeControls = (
     <div className="flex flex-wrap items-center gap-2">
@@ -145,45 +172,45 @@ export const StatisticsPageContainer: React.FC = () => {
     </div>
   );
 
-  const loadMoreAttemptsFooter =
-    statisticsApi.overview.data?.hasMoreAttempts ? (
-      <div className="flex justify-center pt-4">
-        <Button
-          variant="outline"
-          onClick={() => void handlers.handleLoadMoreAttempts()}
-          disabled={handlers.isLoadingMoreAttempts}
-        >
-          {handlers.isLoadingMoreAttempts ? (
-            <>
-              <Spinner size="sm" className="mr-2" />
-              Loading...
-            </>
-          ) : (
-            'Load more'
-          )}
-        </Button>
-      </div>
-    ) : null;
+  const loadMoreAttemptsFooter = statisticsApi.overview.data
+    ?.hasMoreAttempts ? (
+    <div className="flex justify-center pt-4">
+      <Button
+        variant="outline"
+        onClick={() => void handlers.handleLoadMoreAttempts()}
+        disabled={handlers.isLoadingMoreAttempts}
+      >
+        {handlers.isLoadingMoreAttempts ? (
+          <>
+            <Spinner size="sm" className="mr-2" />
+            Loading...
+          </>
+        ) : (
+          'Load more'
+        )}
+      </Button>
+    </div>
+  ) : null;
 
-  const loadMoreFlashcardsFooter =
-    statisticsApi.overview.data?.hasMoreFlashcardSessions ? (
-      <div className="flex justify-center pt-4">
-        <Button
-          variant="outline"
-          onClick={() => void handlers.handleLoadMoreFlashcardFailures()}
-          disabled={handlers.isLoadingMoreFlashcards}
-        >
-          {handlers.isLoadingMoreFlashcards ? (
-            <>
-              <Spinner size="sm" className="mr-2" />
-              Loading...
-            </>
-          ) : (
-            'Load more'
-          )}
-        </Button>
-      </div>
-    ) : null;
+  const loadMoreFlashcardsFooter = statisticsApi.overview.data
+    ?.hasMoreFlashcardSessions ? (
+    <div className="flex justify-center pt-4">
+      <Button
+        variant="outline"
+        onClick={() => void handlers.handleLoadMoreFlashcardFailures()}
+        disabled={handlers.isLoadingMoreFlashcards}
+      >
+        {handlers.isLoadingMoreFlashcards ? (
+          <>
+            <Spinner size="sm" className="mr-2" />
+            Loading...
+          </>
+        ) : (
+          'Load more'
+        )}
+      </Button>
+    </div>
+  ) : null;
 
   const renderQuizDetail = () => {
     const { quizDetail } = statisticsApi;
@@ -191,16 +218,41 @@ export const StatisticsPageContainer: React.FC = () => {
     if (quizDetail.error) return <ErrorBlock />;
     const detail = quizDetail.data;
     if (!detail?.quiz) {
-      return <EmptyState title="Quiz detail is empty" description="No attempts match the selected range." />;
+      return (
+        <EmptyState
+          title="Quiz detail is empty"
+          description="No attempts match the selected range."
+        />
+      );
     }
 
     return (
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-4">
-          <MetricCard icon={Target} label="Accuracy" value={formatPercentage(detail.quiz.accuracyPercentage)} detail={`${detail.quiz.attemptCount} attempts`} />
-          <MetricCard icon={AlertTriangle} label="Failed answers" value={formatInteger(detail.quiz.incorrectAnswerCount)} detail="Across selected attempts" />
-          <MetricCard icon={Brain} label="Explanations" value={formatInteger(detail.quiz.explanationRequestCount)} detail="Detailed requests" />
-          <MetricCard icon={Clock3} label="Time spent" value={formatDurationMs(detail.quiz.totalDurationMs)} detail="Quiz duration" />
+          <MetricCard
+            icon={Target}
+            label="Accuracy"
+            value={formatPercentage(detail.quiz.accuracyPercentage)}
+            detail={`${detail.quiz.attemptCount} attempts`}
+          />
+          <MetricCard
+            icon={AlertTriangle}
+            label="Failed answers"
+            value={formatInteger(detail.quiz.incorrectAnswerCount)}
+            detail="Across selected attempts"
+          />
+          <MetricCard
+            icon={Brain}
+            label="Explanations"
+            value={formatInteger(detail.quiz.explanationRequestCount)}
+            detail="Detailed requests"
+          />
+          <MetricCard
+            icon={Clock3}
+            label="Time spent"
+            value={formatDurationMs(detail.quiz.totalDurationMs)}
+            detail="Quiz duration"
+          />
         </div>
         <Card>
           <CardHeader>
@@ -214,10 +266,16 @@ export const StatisticsPageContainer: React.FC = () => {
               gap={12}
               renderItem={(attempt) => (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm">
-                  <span className="text-muted-foreground">{formatDateTime(attempt.completedAt)}</span>
-                  <span className="font-medium">{attempt.score}/{attempt.totalQuestions}</span>
+                  <span className="text-muted-foreground">
+                    {formatDateTime(attempt.completedAt)}
+                  </span>
+                  <span className="font-medium">
+                    {attempt.score}/{attempt.totalQuestions}
+                  </span>
                   <span>{formatPercentage(attempt.percentage)}</span>
-                  <span className="text-muted-foreground">{formatDurationMs(attempt.durationMs)}</span>
+                  <span className="text-muted-foreground">
+                    {formatDurationMs(attempt.durationMs)}
+                  </span>
                 </div>
               )}
             />
@@ -238,7 +296,12 @@ export const StatisticsPageContainer: React.FC = () => {
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
               {isDetailRoute && (
-                <Button variant="ghost" size="icon" onClick={handlers.handleBackToStatistics} aria-label="Back to Statistics">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handlers.handleBackToStatistics}
+                  aria-label="Back to Progress"
+                >
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
               )}
@@ -246,8 +309,12 @@ export const StatisticsPageContainer: React.FC = () => {
                 <BarChart3 className="h-5 w-5" />
               </div>
               <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-foreground">{pageHeader.title}</h1>
-                <p className="text-sm text-muted-foreground">{pageHeader.subtitle}</p>
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                  {pageHeader.title}
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {pageHeader.subtitle}
+                </p>
               </div>
             </div>
             {timeRangeControls}
@@ -266,11 +333,15 @@ export const StatisticsPageContainer: React.FC = () => {
             {!statisticsApi.isLoading && !statisticsApi.hasError && (
               <Tabs
                 value={handlers.activeTab}
-                onValueChange={(value) => handlers.handleActiveTabChange(value as StatisticsTab)}
+                onValueChange={(value) =>
+                  handlers.handleActiveTabChange(value as StatisticsTab)
+                }
               >
                 <TabsList className="flex flex-wrap">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="performance">Quiz Performance</TabsTrigger>
+                  <TabsTrigger value="performance">
+                    Quiz Performance
+                  </TabsTrigger>
                   <TabsTrigger value="time">Learning Time</TabsTrigger>
                 </TabsList>
 
@@ -280,19 +351,28 @@ export const StatisticsPageContainer: React.FC = () => {
                     <MetricCard
                       icon={TrendingUp}
                       label="Overall accuracy"
-                      value={formatPercentage(statisticsApi.overview.data?.metrics.accuracyPercentage ?? 0)}
+                      value={formatPercentage(
+                        statisticsApi.overview.data?.metrics
+                          .accuracyPercentage ?? 0,
+                      )}
                       detail={`${formatInteger(statisticsApi.overview.data?.metrics.answeredQuestionCount ?? 0)} answers`}
                     />
                     <MetricCard
                       icon={AlertTriangle}
                       label="Failed questions"
-                      value={formatInteger(statisticsApi.overview.data?.metrics.incorrectAnswerCount ?? 0)}
+                      value={formatInteger(
+                        statisticsApi.overview.data?.metrics
+                          .incorrectAnswerCount ?? 0,
+                      )}
                       detail="Incorrect answers"
                     />
                     <MetricCard
                       icon={Brain}
                       label="Explanation requests"
-                      value={formatInteger(statisticsApi.overview.data?.metrics.explanationRequestCount ?? 0)}
+                      value={formatInteger(
+                        statisticsApi.overview.data?.metrics
+                          .explanationRequestCount ?? 0,
+                      )}
                       detail="Detailed help requested"
                     />
                   </div>
@@ -304,20 +384,33 @@ export const StatisticsPageContainer: React.FC = () => {
                   )}
 
                   <div className="space-y-3">
-                    <h2 className="text-base font-semibold text-foreground">Failed quiz questions</h2>
+                    <h2 className="text-base font-semibold text-foreground">
+                      Failed quiz questions
+                    </h2>
                     <FailureList
-                      failures={statisticsApi.overview.data?.recentFailures ?? []}
-                      hasMore={statisticsApi.overview.data?.hasMoreAttempts ?? false}
+                      failures={
+                        statisticsApi.overview.data?.recentFailures ?? []
+                      }
+                      hasMore={
+                        statisticsApi.overview.data?.hasMoreAttempts ?? false
+                      }
                       onHideFailure={handlers.handleHideFailure}
                       footer={loadMoreAttemptsFooter}
                     />
                   </div>
 
                   <div className="space-y-3">
-                    <h2 className="text-base font-semibold text-foreground">Failed flashcards</h2>
+                    <h2 className="text-base font-semibold text-foreground">
+                      Failed flashcards
+                    </h2>
                     <FlashcardFailureList
-                      failures={statisticsApi.overview.data?.flashcardFailures ?? []}
-                      hasMore={statisticsApi.overview.data?.hasMoreFlashcardSessions ?? false}
+                      failures={
+                        statisticsApi.overview.data?.flashcardFailures ?? []
+                      }
+                      hasMore={
+                        statisticsApi.overview.data?.hasMoreFlashcardSessions ??
+                        false
+                      }
                       onHideFailure={handlers.handleHideFailure}
                       footer={loadMoreFlashcardsFooter}
                     />
@@ -325,9 +418,13 @@ export const StatisticsPageContainer: React.FC = () => {
                 </TabsContent>
 
                 <TabsContent value="performance" className="mt-6 space-y-6">
-                  <QuizPerformanceTable quizzes={statisticsApi.performance.data?.quizzes ?? []} />
+                  <QuizPerformanceTable
+                    quizzes={statisticsApi.performance.data?.quizzes ?? []}
+                  />
                   <FailureList
-                    failures={statisticsApi.performance.data?.recentFailures ?? []}
+                    failures={
+                      statisticsApi.performance.data?.recentFailures ?? []
+                    }
                     onHideFailure={handlers.handleHideFailure}
                   />
                 </TabsContent>
@@ -337,19 +434,27 @@ export const StatisticsPageContainer: React.FC = () => {
                     <MetricCard
                       icon={Clock3}
                       label="Active learning time"
-                      value={formatSeconds(statisticsApi.learningTime.data?.totalSeconds ?? 0)}
+                      value={formatSeconds(
+                        statisticsApi.learningTime.data?.totalSeconds ?? 0,
+                      )}
                       detail={`${formatInteger(statisticsApi.learningTime.data?.sessionCount ?? 0)} sessions`}
                     />
                     <MetricCard
                       icon={BookOpen}
                       label="Tracked artifacts"
-                      value={formatInteger(statisticsApi.learningTime.data?.topArtifacts.length ?? 0)}
+                      value={formatInteger(
+                        statisticsApi.learningTime.data?.topArtifacts.length ??
+                          0,
+                      )}
                       detail="Most engaged items"
                     />
                     <MetricCard
                       icon={BarChart3}
                       label="Activity types"
-                      value={formatInteger(statisticsApi.learningTime.data?.byArtifactType.length ?? 0)}
+                      value={formatInteger(
+                        statisticsApi.learningTime.data?.byArtifactType
+                          .length ?? 0,
+                      )}
                       detail="Documents, quizzes, and artifacts"
                     />
                   </div>
@@ -357,18 +462,27 @@ export const StatisticsPageContainer: React.FC = () => {
                   <div className="grid gap-6 lg:grid-cols-2">
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-base">Time by Activity</CardTitle>
+                        <CardTitle className="text-base">
+                          Time by Activity
+                        </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <VirtualizedList
-                          items={statisticsApi.learningTime.data?.byArtifactType ?? []}
+                          items={
+                            statisticsApi.learningTime.data?.byArtifactType ??
+                            []
+                          }
                           scrollMode="window"
                           estimateSize={64}
                           gap={12}
                           renderItem={(row) => (
                             <div className="flex items-center justify-between rounded-md border p-3">
-                              <span className="font-medium">{artifactTypeLabel(row.artifactType)}</span>
-                              <span className="text-muted-foreground">{formatSeconds(row.totalSeconds)}</span>
+                              <span className="font-medium">
+                                {artifactTypeLabel(row.artifactType)}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {formatSeconds(row.totalSeconds)}
+                              </span>
                             </div>
                           )}
                         />
@@ -376,11 +490,15 @@ export const StatisticsPageContainer: React.FC = () => {
                     </Card>
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-base">Most Engaged</CardTitle>
+                        <CardTitle className="text-base">
+                          Most Engaged
+                        </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <VirtualizedList
-                          items={statisticsApi.learningTime.data?.topArtifacts ?? []}
+                          items={
+                            statisticsApi.learningTime.data?.topArtifacts ?? []
+                          }
                           scrollMode="window"
                           estimateSize={88}
                           gap={12}
@@ -388,10 +506,16 @@ export const StatisticsPageContainer: React.FC = () => {
                             <div className="rounded-md border p-3">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                  <p className="truncate font-medium text-foreground">{artifact.title}</p>
-                                  <p className="text-xs text-muted-foreground">{artifactTypeLabel(artifact.artifactType)}</p>
+                                  <p className="truncate font-medium text-foreground">
+                                    {artifact.title}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {artifactTypeLabel(artifact.artifactType)}
+                                  </p>
                                 </div>
-                                <span className="text-sm text-muted-foreground">{formatSeconds(artifact.totalSeconds)}</span>
+                                <span className="text-sm text-muted-foreground">
+                                  {formatSeconds(artifact.totalSeconds)}
+                                </span>
                               </div>
                             </div>
                           )}

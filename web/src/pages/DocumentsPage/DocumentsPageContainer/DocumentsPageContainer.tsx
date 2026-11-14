@@ -8,7 +8,12 @@ import {
   useGetDirectoryTreeQuery,
 } from '../../../store/api/Directory/DirectoryApi';
 import { Page } from '../../../components/Page';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { ActionsDropdown } from '../../../components/ui/ActionsDropdown';
 import { DirectoryTree } from '../../../components/DirectoryTree';
@@ -19,8 +24,24 @@ import { EditDirectoryDialog } from './EditDirectoryDialog';
 import { DeleteDirectoryDialog } from './DeleteDirectoryDialog';
 import { MoveDirectoryDialog } from './MoveDirectoryDialog';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
-import { Plus, FileText, Calendar, Eye, Brain, Trash2, FolderPlus, Menu, Layers, Presentation, Loader2 } from 'lucide-react';
-import { DocumentEnhanced, Directory, getDocumentFallbackColor } from "@shared-types";
+import {
+  Plus,
+  FileText,
+  Calendar,
+  Eye,
+  Brain,
+  Trash2,
+  FolderPlus,
+  Menu,
+  Layers,
+  Presentation,
+  Loader2,
+} from 'lucide-react';
+import {
+  DocumentEnhanced,
+  Directory,
+  getDocumentFallbackColor,
+} from '@shared-types';
 import { formatDate } from '../../../utils/dateUtils';
 import {
   getDirectoryNameFromTree,
@@ -51,10 +72,8 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
 
   const selectedDirectoryId = useSelector(selectSelectedDirectoryId);
 
-  const {
-    data: treeData,
-    isLoading: isLoadingTree,
-  } = useGetDirectoryTreeQuery();
+  const { data: treeData, isLoading: isLoadingTree } =
+    useGetDirectoryTreeQuery();
 
   const {
     data: directoryContents,
@@ -65,21 +84,34 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
 
   // Local state for dialogs
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [createDialogParentId, setCreateDialogParentId] = useState<string | null>(null);
-  const [editDialog, setEditDialog] = useState<{ open: boolean; directory: Directory | null }>({
+  const [createDialogParentId, setCreateDialogParentId] = useState<
+    string | null
+  >(null);
+  const [editDialog, setEditDialog] = useState<{
+    open: boolean;
+    directory: Directory | null;
+  }>({
     open: false,
     directory: null,
   });
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; directory: Directory | null }>({
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    directory: Directory | null;
+  }>({
     open: false,
     directory: null,
   });
-  const [moveDialog, setMoveDialog] = useState<{ directory: Directory | null }>({ directory: null });
-  const [createDocumentModalDirectoryId, setCreateDocumentModalDirectoryId] = useState<string | null>(null);
+  const [moveDialog, setMoveDialog] = useState<{ directory: Directory | null }>(
+    { directory: null },
+  );
+  const [createDocumentModalDirectoryId, setCreateDocumentModalDirectoryId] =
+    useState<string | null>(null);
 
   const handleOpenCreateDocumentModal = useCallback(() => {
     if (!selectedDirectoryId) {
-      window.alert('Select or create a folder first, then add documents inside it.');
+      window.alert(
+        'Select or create a folder first, then add documents inside it.',
+      );
       return;
     }
 
@@ -90,10 +122,15 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     setCreateDocumentModalDirectoryId(null);
   }, []);
 
-  const handleCreateDocumentRequestStarted = useCallback((directoryId: string) => {
-    setCreateDocumentModalDirectoryId(null);
-    navigate(buildDirectoryPathWithOptionalName(directoryId, undefined, 'sources'));
-  }, [navigate]);
+  const handleCreateDocumentRequestStarted = useCallback(
+    (directoryId: string) => {
+      setCreateDocumentModalDirectoryId(null);
+      navigate(
+        buildDirectoryPathWithOptionalName(directoryId, undefined, 'sources'),
+      );
+    },
+    [navigate],
+  );
 
   const handleCreateDirectory = (parentId: string | null) => {
     setCreateDialogParentId(parentId);
@@ -101,7 +138,10 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
   };
 
   const subdirectories = useMemo(() => {
-    const fromTree = getSubdirectoriesForParent(treeData?.tree, selectedDirectoryId);
+    const fromTree = getSubdirectoriesForParent(
+      treeData?.tree,
+      selectedDirectoryId,
+    );
     if (fromTree !== undefined) {
       return fromTree;
     }
@@ -115,15 +155,15 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
   const isRoot = !selectedDirectoryId;
   const gridColumns = useGridColumns({ default: 1, sm: 2, lg: 3 });
   const isLoadingDocuments = isLoadingContents && !directoryContents;
-  const showRootLoadingIndicator = isRoot && (isLoadingDocuments || isFetchingContents);
+  const showRootLoadingIndicator =
+    isRoot && (isLoadingDocuments || isFetchingContents);
   const directoryTitle =
     (selectedDirectoryId && directoryContents?.directory.name) ||
     getDirectoryNameFromTree(treeData?.tree, selectedDirectoryId) ||
-    (selectedDirectoryId ? 'Folder' : 'Root');
+    (selectedDirectoryId ? 'Directory' : 'Library');
 
   const isInitialLoading =
-    (isLoadingTree && !treeData) &&
-    (isLoadingContents && !directoryContents);
+    isLoadingTree && !treeData && isLoadingContents && !directoryContents;
   const error = contentsError;
 
   const renderFolderCard = useCallback(
@@ -135,7 +175,9 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
         onDelete={() => setDeleteDialog({ open: true, directory: dir })}
         onMove={() => setMoveDialog({ directory: dir })}
         onManageRules={() =>
-          navigate(buildDirectoryPathWithOptionalName(dir.id, dir.name, 'rules'))
+          navigate(
+            buildDirectoryPathWithOptionalName(dir.id, dir.name, 'rules'),
+          )
         }
       />
     ),
@@ -146,12 +188,17 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     (document: DocumentEnhanced) => (
       <Card
         className={cn(documentsPageStyles.documentCard + ' border-l-[4px]')}
-        style={{ borderLeftColor: document.color ?? getDocumentFallbackColor(document.id) }}
+        style={{
+          borderLeftColor:
+            document.color ?? getDocumentFallbackColor(document.id),
+        }}
       >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <CardTitle className="text-base md:text-lg truncate">{document.title}</CardTitle>
+              <CardTitle className="text-base md:text-lg truncate">
+                {document.title}
+              </CardTitle>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-2">
                 <span className="flex items-center gap-1">
                   <FileText size={14} />
@@ -173,7 +220,8 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
               </span>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
-              {document.description || `Document with ${document.wordCount} words`}
+              {document.description ||
+                `Document with ${document.wordCount} words`}
             </p>
             <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <Button
@@ -191,7 +239,10 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                     label: 'Create Quiz',
                     icon: <Brain size={14} />,
                     onClick: () =>
-                      handlers.handleCreateQuizFromDocument(document.id, document.directoryId),
+                      handlers.handleCreateQuizFromDocument(
+                        document.id,
+                        document.directoryId,
+                      ),
                   },
                   {
                     id: 'generate-flashcards',
@@ -267,14 +318,14 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
         {isMobile && isMobileSidebarOpen && (
           <>
             {/* Backdrop */}
-            <div 
+            <div
               className="fixed inset-0 bg-black/50 z-40"
               onClick={() => setIsMobileSidebarOpen(false)}
             />
             {/* Sidebar */}
             <div className="fixed inset-y-0 left-0 w-64 bg-background border-r z-50 overflow-y-auto">
               <div className="p-4">
-                <DirectoryTree 
+                <DirectoryTree
                   onSelectDirectory={(id, name) => {
                     handlers.handleSelectDirectory(id, name);
                     setIsMobileSidebarOpen(false);
@@ -290,7 +341,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
         {!isMobile && (
           <div className="w-64 border-r bg-background overflow-y-auto">
             <div className="p-4">
-              <DirectoryTree 
+              <DirectoryTree
                 onSelectDirectory={handlers.handleSelectDirectory}
                 onCreateDirectory={handleCreateDirectory}
               />
@@ -316,19 +367,27 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
               </div>
             )}
 
-            {/* Breadcrumb Navigation — hidden at root (redundant with Root title) */}
+            {/* Breadcrumb Navigation — hidden at root (redundant with Library title) */}
             {!isRoot && (
               <BreadcrumbNav
                 directoryId={selectedDirectoryId}
                 onNavigate={(directory) =>
-                  handlers.handleSelectDirectory(directory?.id ?? null, directory?.name)
+                  handlers.handleSelectDirectory(
+                    directory?.id ?? null,
+                    directory?.name,
+                  )
                 }
                 className="px-4 md:px-6 pt-4 md:pt-6"
               />
             )}
 
             {/* Header */}
-            <div className={cn(documentsPageStyles.header, isRoot && 'pt-4 md:pt-6')}>
+            <div
+              className={cn(
+                documentsPageStyles.header,
+                isRoot && 'pt-4 md:pt-6',
+              )}
+            >
               <div className={documentsPageStyles.headerRow}>
                 <div className={documentsPageStyles.headerContent}>
                   <h1 className={documentsPageStyles.title}>
@@ -338,12 +397,13 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                     <p className={documentsPageStyles.subtitle}>
                       {subdirectories.length} folder(s),{' '}
                       {isLoadingDocuments ? '…' : documents.length} document(s)
-                      {(isFetchingContents || isLoadingDocuments) && (directoryContents || treeData) && (
-                        <Loader2
-                          className="inline-block ml-2 h-3.5 w-3.5 animate-spin text-muted-foreground"
-                          aria-label="Refreshing"
-                        />
-                      )}
+                      {(isFetchingContents || isLoadingDocuments) &&
+                        (directoryContents || treeData) && (
+                          <Loader2
+                            className="inline-block ml-2 h-3.5 w-3.5 animate-spin text-muted-foreground"
+                            aria-label="Refreshing"
+                          />
+                        )}
                     </p>
                   )}
                 </div>
@@ -384,14 +444,13 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                     {selectedDirectoryId ? 'Empty folder' : 'No documents yet'}
                   </h3>
                   <p className="text-muted-foreground mb-4 text-sm md:text-base">
-                    {selectedDirectoryId 
+                    {selectedDirectoryId
                       ? 'Add documents or create subfolders to organize your content'
-                      : 'Create your first document from a URL or by uploading a markdown file'
-                    }
+                      : 'Create your first document from a URL or by uploading a markdown file'}
                   </p>
                   <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => handleCreateDirectory(selectedDirectoryId)}
                       className="w-full sm:w-auto gap-2"
                     >
@@ -399,7 +458,7 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                       New Folder
                     </Button>
                     {selectedDirectoryId && (
-                      <Button 
+                      <Button
                         onClick={handleOpenCreateDocumentModal}
                         className="w-full sm:w-auto"
                       >
@@ -413,7 +472,9 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
             )}
 
             {/* Content Section - Folders and Documents */}
-            {(subdirectories.length > 0 || documents.length > 0 || isLoadingDocuments) && (
+            {(subdirectories.length > 0 ||
+              documents.length > 0 ||
+              isLoadingDocuments) && (
               <div className="space-y-6">
                 {/* Folders Section */}
                 {subdirectories.length > 0 && (
@@ -424,7 +485,9 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                     {isRoot ? (
                       <div className={documentsPageStyles.documentsGrid}>
                         {subdirectories.map((dir: Directory) => (
-                          <React.Fragment key={dir.id}>{renderFolderCard(dir)}</React.Fragment>
+                          <React.Fragment key={dir.id}>
+                            {renderFolderCard(dir)}
+                          </React.Fragment>
                         ))}
                       </div>
                     ) : (

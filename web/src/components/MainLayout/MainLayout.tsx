@@ -48,7 +48,11 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <ClusterLoader size="lg" className="mx-auto mb-4" label="Loading StudyForge" />
+          <ClusterLoader
+            size="lg"
+            className="mx-auto mb-4"
+            label="Loading StudyForge"
+          />
           <p className="mt-4 text-muted-foreground font-medium">Loading...</p>
         </div>
       </div>
@@ -61,6 +65,7 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
         hidden={isAppFullscreen}
         start={
           <TopAppBarMenuButton
+            id="sidebar-toggle"
             onClick={() => dispatch(toggleSidebar())}
             icon={<Menu size={18} />}
             aria-label="Toggle sidebar"

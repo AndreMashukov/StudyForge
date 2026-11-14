@@ -35,20 +35,22 @@ export const DropdownMenuTrigger = ({
     return <Popover.Trigger asChild>{children}</Popover.Trigger>;
   }
 
-  return <Popover.Trigger asChild><button type="button">{children}</button></Popover.Trigger>;
+  return (
+    <Popover.Trigger asChild>
+      <button type="button">{children}</button>
+    </Popover.Trigger>
+  );
 };
 
-interface IDropdownMenuContent {
+interface IDropdownMenuContent
+  extends React.ComponentPropsWithoutRef<typeof Popover.Content> {
   children: React.ReactNode;
-  align?: 'start' | 'end' | 'center';
-  className?: string;
-  sideOffset?: number;
 }
 
 export const DropdownMenuContent = React.forwardRef<
   HTMLDivElement,
   IDropdownMenuContent
->(({ children, align = 'end', className, sideOffset = 8 }, ref) => (
+>(({ children, align = 'end', className, sideOffset = 8, ...props }, ref) => (
   <Popover.Portal>
     <Popover.Content
       ref={ref}
@@ -65,6 +67,7 @@ export const DropdownMenuContent = React.forwardRef<
       )}
       onOpenAutoFocus={(event) => event.preventDefault()}
       onCloseAutoFocus={(event) => event.preventDefault()}
+      {...props}
     >
       {children}
     </Popover.Content>

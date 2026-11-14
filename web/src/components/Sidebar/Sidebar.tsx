@@ -1,106 +1,58 @@
 import React from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate, useLocation } from 'react-router-dom';
-import {
-  Home,
-  Settings,
-  User,
-  FileText,
-  Sparkles,
-  LogOut,
-  BarChart3,
-  Gauge,
-  CircleHelp,
-} from 'lucide-react';
-import { useSecureSignOut } from '../../hooks/useSecureSignOut';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { ChevronDown, CircleHelp, LogOut, X } from 'lucide-react';
 import {
   Sidebar as SharedSidebar,
   SidebarNav,
   SidebarNavItem,
-  SidebarProfileFooter,
   SidebarSection,
   sidebarClassNames,
 } from '@study-forge/ui';
+import { useSecureSignOut } from '../../hooks/useSecureSignOut';
 import { cn } from '../../lib/utils';
-import { ISidebar } from './ISidebar';
+import type { ISidebar, ISidebarNavigationItem } from './ISidebar';
+import { sidebarStyles } from './Sidebar.styles';
+import {
+  accountNavigationItems,
+  isSidebarItemActive,
+  settingsNavigationItem,
+  studyNavigationItems,
+  toolNavigationItems,
+  usageNavigationItem,
+} from './sidebarNavigation';
 import {
   selectSidebarIsOpen,
   setSidebarOpen,
-  toggleSidebar,
 } from '../../store/slices/uiSlice';
 import { useAuth } from '../../contexts/AuthContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useGetUsageSummaryQuery } from '../../store/api/Usage/usageApi';
 import { formatUsagePlanLabel } from '../../utils/usagePlanLabel';
 import { useSupportAppEntryUrl } from '../../hooks/useSupportAppEntryUrl';
-
-interface NavItem {
-  id: string;
-  title: string;
-  path?: string;
-  href?: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  section: 'navigation' | 'account';
-}
-
-const staticNavItems: NavItem[] = [
-  {
-    id: 'home',
-    title: 'Dashboard',
-    path: '/',
-    icon: Home,
-    section: 'navigation',
-  },
-  {
-    id: 'documents',
-    title: 'My Directories',
-    path: '/documents',
-    icon: FileText,
-    section: 'navigation',
-  },
-  {
-    id: 'statistics',
-    title: 'Statistics',
-    path: '/statistics',
-    icon: BarChart3,
-    section: 'navigation',
-  },
-  {
-    id: 'rules-manager',
-    title: 'Rules Manager',
-    path: '/rules',
-    icon: Sparkles,
-    section: 'navigation',
-  },
-  {
-    id: 'profile',
-    title: 'Profile',
-    path: '/profile',
-    icon: User,
-    section: 'account',
-  },
-  {
-    id: 'usage',
-    title: 'Usage',
-    path: '/usage',
-    icon: Gauge,
-    section: 'account',
-  },
-  {
-    id: 'settings',
-    title: 'Settings',
-    path: '/settings',
-    icon: Settings,
-    section: 'account',
-  },
-];
-
-const sectionLabels: Record<string, string> = {
-  navigation: 'Navigation',
-  account: 'Account',
-};
-
-const sectionOrder = ['navigation', 'account'];
+import { Button } from '../ui/Button';
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from '../ui/Dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../ui/DropdownMenu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/Tooltip';
 
 export const Sidebar = ({ className }: ISidebar) => {
   const dispatch = useDispatch();
@@ -109,175 +61,278 @@ export const Sidebar = ({ className }: ISidebar) => {
   const { user } = useAuth();
   const { signOut } = useSecureSignOut();
   const supportAppUrl = useSupportAppEntryUrl();
-
-  const navItems = React.useMemo(() => {
-    const settingsIndex = staticNavItems.findIndex(
-      (item) => item.id === 'settings',
-    );
-    if (!supportAppUrl || settingsIndex < 0) {
-      return staticNavItems;
-    }
-
-    const helpItem: NavItem = {
-      id: 'help',
-      title: 'Help',
-      path: supportAppUrl,
-      icon: CircleHelp,
-      section: 'account',
-    };
-
-    return [
-      ...staticNavItems.slice(0, settingsIndex),
-      helpItem,
-      ...staticNavItems.slice(settingsIndex),
-    ];
-  }, [supportAppUrl]);
-
   const isOpen = useSelector(selectSidebarIsOpen);
   const isMobile = useIsMobile();
+  const accountTriggerRef = React.useRef<HTMLButtonElement>(null);
+  const firstAccountItemRef = React.useRef<HTMLButtonElement>(null);
   const { data: usageSummary } = useGetUsageSummaryQuery(undefined, {
     skip: !user,
   });
   const planLabel = formatUsagePlanLabel(usageSummary?.usageLimitsSetupName);
+  const utilityItems: ISidebarNavigationItem[] = [usageNavigationItem];
 
-  // Desktop default is open; on narrow viewports hide the drawer until toggled.
+  if (supportAppUrl) {
+    utilityItems.push({
+      id: 'help',
+      title: 'Help & support',
+      path: supportAppUrl,
+      icon: CircleHelp,
+    });
+  }
+  utilityItems.push(settingsNavigationItem);
+
   React.useEffect(() => {
     if (isMobile) {
       dispatch(setSidebarOpen(false));
     }
   }, [isMobile, dispatch]);
 
-  const handleToggleSidebar = () => {
-    dispatch(toggleSidebar());
+  const handleSidebarOpenChange = (open: boolean) => {
+    dispatch(setSidebarOpen(open));
   };
 
-  const handleNavigateToItem = (item: NavItem) => {
-    if (item.href) {
-      window.location.assign(item.href);
-      return;
-    }
-    if (item.path) {
-      navigate(item.path);
-    }
+  const handleNavigate = () => {
     if (isMobile) {
       dispatch(setSidebarOpen(false));
     }
+  };
+
+  const handleAccountNavigate = (path: string) => {
+    navigate(path);
+    handleNavigate();
   };
 
   const handleSignOut = async () => {
     await signOut();
   };
 
-  const isItemActive = (item: NavItem) =>
-    Boolean(item.path) && location.pathname === item.path;
+  const renderNavigationItem = (
+    item: ISidebarNavigationItem,
+    isUtility = false,
+  ) => {
+    const ItemIcon = item.icon;
+    const isActive = isSidebarItemActive(item, location.pathname);
 
-  if (isMobile && !isOpen) {
-    return null;
-  }
-
-  const overlay =
-    isMobile && isOpen ? (
-      <div
-        className="fixed inset-0 bg-black/50 z-[1199]"
-        onClick={handleToggleSidebar}
-        aria-hidden="true"
-      />
-    ) : null;
-
-  const footer = user ? (
-    <SidebarProfileFooter
-      avatarLabel={user.email?.charAt(0).toUpperCase()}
-      primaryText={user.email}
-      secondaryText={planLabel}
-      isOpen={isOpen}
-      action={
-        <button
+    return (
+      <Tooltip key={item.id}>
+        <SidebarNavItem
+          asChild
+          isActive={isActive}
           className={cn(
-            sidebarClassNames.footerAction,
-            !isOpen && 'relative group justify-center p-0',
+            sidebarStyles.navItem,
+            isUtility && sidebarStyles.utilityItem,
+            !isOpen && 'justify-center',
+            isActive && sidebarStyles.navItemActive,
           )}
-          onClick={handleSignOut}
-          aria-label="Sign out"
         >
-          <LogOut
-            size={isOpen ? 14 : 16}
-            className={sidebarClassNames.navItemIcon}
-          />
-          {!isOpen ? (
-            <div className={sidebarClassNames.collapsedTooltip}>Sign out</div>
-          ) : null}
-        </button>
-      }
-    />
+          <TooltipTrigger asChild>
+            <Link
+              to={item.path}
+              onClick={handleNavigate}
+              aria-label={item.title}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              <ItemIcon
+                className={sidebarClassNames.navItemIcon}
+                aria-hidden="true"
+              />
+              <span
+                className={isOpen ? sidebarClassNames.navItemText : 'sr-only'}
+              >
+                {item.title}
+              </span>
+            </Link>
+          </TooltipTrigger>
+        </SidebarNavItem>
+        {!isOpen && (
+          <TooltipContent side="right" className={sidebarStyles.tooltip}>
+            {item.title}
+          </TooltipContent>
+        )}
+      </Tooltip>
+    );
+  };
+
+  const accountMenu = user ? (
+    <div className="mx-2 border-t border-border/60">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            ref={accountTriggerRef}
+            variant="ghost"
+            aria-label="Account options"
+            className={cn(
+              sidebarStyles.accountTrigger,
+              !isOpen && sidebarStyles.accountTriggerCollapsed,
+              location.pathname === '/profile' &&
+                sidebarStyles.accountTriggerActive,
+            )}
+          >
+            <span className={sidebarClassNames.avatar} aria-hidden="true">
+              {user.email?.charAt(0).toUpperCase() || 'U'}
+            </span>
+            {isOpen && (
+              <>
+                <span className={sidebarClassNames.profileInfo}>
+                  <span className={sidebarClassNames.profilePrimary}>
+                    {user.displayName || user.email}
+                  </span>
+                  {planLabel && (
+                    <span className={sidebarClassNames.profileSecondary}>
+                      {planLabel}
+                    </span>
+                  )}
+                </span>
+                <ChevronDown
+                  size={14}
+                  className="shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              </>
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          side={isOpen ? 'top' : 'right'}
+          align={isOpen ? 'start' : 'end'}
+          className={sidebarStyles.accountMenu}
+          aria-label="Account options"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            firstAccountItemRef.current?.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            accountTriggerRef.current?.focus();
+          }}
+        >
+          <div className="px-2 py-2 text-xs text-muted-foreground">
+            <div className="truncate">{user.email}</div>
+            {planLabel && <div className="mt-1">{planLabel}</div>}
+          </div>
+          {accountNavigationItems.map((item, index) => {
+            const ItemIcon = item.icon;
+            const isActive = isSidebarItemActive(item, location.pathname);
+            return (
+              <DropdownMenuItem
+                key={item.id}
+                ref={index === 0 ? firstAccountItemRef : undefined}
+                onClick={() => handleAccountNavigate(item.path)}
+                className={cn(
+                  'gap-2',
+                  isActive && 'bg-primary/10 text-primary',
+                )}
+              >
+                <ItemIcon size={16} aria-hidden="true" />
+                {item.title}
+              </DropdownMenuItem>
+            );
+          })}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleSignOut} className="gap-2">
+            <LogOut size={16} aria-hidden="true" />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   ) : null;
 
-  return (
+  const sidebar = (
     <SharedSidebar
       className={cn(
         sidebarClassNames.container,
         isOpen ? sidebarClassNames.expanded : sidebarClassNames.collapsed,
-        isMobile && isOpen && 'w-[280px]',
+        sidebarStyles.container,
+        isMobile && sidebarStyles.mobileSidebar,
         className,
       )}
-      overlay={overlay}
-      footer={footer}
+      header={
+        isMobile ? (
+          <div className="flex justify-end px-3 pt-2">
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" aria-label="Close navigation">
+                <X size={16} aria-hidden="true" />
+              </Button>
+            </DialogClose>
+          </div>
+        ) : undefined
+      }
+      footer={
+        <div>
+          <SidebarNav
+            className={cn(
+              sidebarClassNames.navList,
+              sidebarStyles.navList,
+              sidebarStyles.utilities,
+            )}
+            aria-label="Utilities"
+          >
+            {utilityItems.map((item) => renderNavigationItem(item, true))}
+          </SidebarNav>
+          {accountMenu}
+        </div>
+      }
       aria-label="Main navigation"
     >
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto scrollbar-hidden">
-        {sectionOrder.map((section) => (
-          <SidebarSection
-            key={section}
-            label={sectionLabels[section]}
-            isOpen={isOpen}
+      <div className={sidebarStyles.scrollArea}>
+        <SidebarSection
+          label="Study"
+          isOpen={isOpen}
+          className={sidebarStyles.section}
+        >
+          <SidebarNav
+            className={cn(sidebarClassNames.navList, sidebarStyles.navList)}
+            aria-label="Study"
           >
-            <SidebarNav
-              className={sidebarClassNames.navList}
-              aria-label={sectionLabels[section]}
-            >
-              {navItems
-                .filter((item) => item.section === section)
-                .map((item) => {
-                  const ItemIcon = item.icon;
-                  const itemIsActive = isItemActive(item);
-
-                  return (
-                    <SidebarNavItem
-                      key={item.id}
-                      isActive={itemIsActive}
-                      icon={
-                        <ItemIcon
-                          className={sidebarClassNames.navItemIcon}
-                          size={16}
-                        />
-                      }
-                      label={
-                        isOpen ? (
-                          <span className={sidebarClassNames.navItemText}>
-                            {item.title}
-                          </span>
-                        ) : (
-                          <div className={sidebarClassNames.collapsedTooltip}>
-                            {item.title}
-                          </div>
-                        )
-                      }
-                      className={cn(
-                        !isOpen && 'justify-center relative group',
-                        itemIsActive && sidebarClassNames.navItemActive,
-                      )}
-                      onClick={() => handleNavigateToItem(item)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          handleNavigateToItem(item);
-                        }
-                      }}
-                    />
-                  );
-                })}
-            </SidebarNav>
-          </SidebarSection>
-        ))}
+            {studyNavigationItems.map((item) => renderNavigationItem(item))}
+          </SidebarNav>
+        </SidebarSection>
+        <SidebarSection
+          label="Tools"
+          isOpen={isOpen}
+          className={sidebarStyles.section}
+        >
+          <SidebarNav
+            className={cn(
+              sidebarClassNames.navList,
+              sidebarStyles.navList,
+              !isOpen && 'mt-4',
+            )}
+            aria-label="Tools"
+          >
+            {toolNavigationItems.map((item) => renderNavigationItem(item))}
+          </SidebarNav>
+        </SidebarSection>
       </div>
     </SharedSidebar>
+  );
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      {isMobile ? (
+        <Dialog open={isOpen} onOpenChange={handleSidebarOpenChange}>
+          <DialogPortal>
+            <DialogOverlay className={sidebarStyles.mobileOverlay} />
+            <DialogPrimitive.Content
+              aria-modal="true"
+              className={sidebarStyles.mobileContent}
+              onCloseAutoFocus={(event) => {
+                event.preventDefault();
+                document.getElementById('sidebar-toggle')?.focus();
+              }}
+            >
+              <DialogTitle className="sr-only">Main navigation</DialogTitle>
+              <DialogDescription className="sr-only">
+                Study destinations, tools, and account options.
+              </DialogDescription>
+              {sidebar}
+            </DialogPrimitive.Content>
+          </DialogPortal>
+        </Dialog>
+      ) : (
+        sidebar
+      )}
+    </TooltipProvider>
   );
 };
