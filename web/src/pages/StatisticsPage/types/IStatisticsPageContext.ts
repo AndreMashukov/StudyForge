@@ -1,5 +1,4 @@
 import {
-  GetStatisticsLearningTimeResponse,
   GetStatisticsOverviewResponse,
   GetStatisticsQuizDetailRequest,
   GetStatisticsQuizDetailResponse,
@@ -25,15 +24,10 @@ export interface IStatisticsPageApi {
   quizDetailRequest: GetStatisticsQuizDetailRequest | null;
   overview: IStatisticsQueryState<GetStatisticsOverviewResponse>;
   performance: IStatisticsQueryState<GetStatisticsQuizPerformanceResponse>;
-  learningTime: IStatisticsQueryState<GetStatisticsLearningTimeResponse>;
   quizDetail: IStatisticsQueryState<GetStatisticsQuizDetailResponse>;
-  isLoading: boolean;
-  hasError: boolean;
   isLoadingMoreAttempts: boolean;
-  isLoadingMoreFlashcards: boolean;
   loadMoreError: string | null;
   loadMoreAttempts: () => Promise<void>;
-  loadMoreFlashcardFailures: () => Promise<void>;
   setTimeRange: (range: StatisticsTimeRangeKey) => void;
   setQuizType: (type: StatisticsQuizTypeFilter) => void;
 }

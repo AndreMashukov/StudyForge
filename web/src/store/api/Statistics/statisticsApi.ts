@@ -1,4 +1,5 @@
 import { baseApi } from '../baseApi';
+import type { IStatisticsOverviewRequest } from './IStatisticsApi';
 import { auth } from '../../../config/firebase';
 import {
   buildGroupedFlashcardFailures,
@@ -39,13 +40,24 @@ export const statisticsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getStatisticsOverview: builder.query<
       GetStatisticsOverviewResponse,
-      StatisticsDateRangeRequest
+      IStatisticsOverviewRequest
     >({
+      serializeQueryArgs: ({ endpointName, queryArgs }) => {
+        const { attemptLimit: _attemptLimit, ...range } = queryArgs;
+        return `${endpointName}(${JSON.stringify(range)})`;
+      },
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.attemptLimit !== previousArg?.attemptLimit,
       async queryFn(data) {
         const userId = auth.currentUser?.uid;
         if (!userId) return authRequiredError();
         try {
-          const result = await getStatisticsOverviewFromFirestore(userId, data);
+          const result = await getStatisticsOverviewFromFirestore(
+            userId,
+            data,
+            undefined,
+            data.attemptLimit,
+          );
           return { data: result };
         } catch (error) {
           return mutationError(error);
@@ -64,7 +76,7 @@ export const statisticsApi = baseApi.injectEndpoints({
         try {
           const result = await getStatisticsQuizPerformanceFromFirestore(
             userId,
-            { ...data, quizType: 'all' },
+            data,
           );
           return { data: result };
         } catch (error) {
@@ -82,7 +94,10 @@ export const statisticsApi = baseApi.injectEndpoints({
         const userId = auth.currentUser?.uid;
         if (!userId) return authRequiredError();
         try {
-          const result = await getStatisticsLearningTimeFromFirestore(userId, data);
+          const result = await getStatisticsLearningTimeFromFirestore(
+            userId,
+            data,
+          );
           return { data: result };
         } catch (error) {
           return mutationError(error);
@@ -99,7 +114,10 @@ export const statisticsApi = baseApi.injectEndpoints({
         const userId = auth.currentUser?.uid;
         if (!userId) return authRequiredError();
         try {
-          const result = await getStatisticsQuizDetailFromFirestore(userId, data);
+          const result = await getStatisticsQuizDetailFromFirestore(
+            userId,
+            data,
+          );
           return { data: result };
         } catch (error) {
           return mutationError(error);

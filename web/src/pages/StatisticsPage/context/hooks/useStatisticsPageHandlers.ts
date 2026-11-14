@@ -1,18 +1,33 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
+import { useAppDispatch, useAppSelector } from '../../../../hooks/redux';
+import { setStatisticsTab } from '../../../../store/slices/statisticsPageSlice';
 import { useNavigate } from 'react-router-dom';
-import { HideStatisticsFailureRequest, StatisticsQuizTypeFilter, StatisticsTimeRangeKey } from '@shared-types';
+import {
+  HideStatisticsFailureRequest,
+  StatisticsQuizTypeFilter,
+  StatisticsTimeRangeKey,
+} from '@shared-types';
 import { useHideStatisticsFailureMutation } from '../../../../store/api/Statistics';
 import { IStatisticsPageApi } from '../../types/IStatisticsPageContext';
-import { IStatisticsPageHandlers, StatisticsTab } from '../../types/IStatisticsPageHandlers';
+import {
+  IStatisticsPageHandlers,
+  StatisticsTab,
+} from '../../types/IStatisticsPageHandlers';
 
-export const useStatisticsPageHandlers = (statisticsApi: IStatisticsPageApi): IStatisticsPageHandlers => {
+export const useStatisticsPageHandlers = (
+  statisticsApi: IStatisticsPageApi,
+): IStatisticsPageHandlers => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<StatisticsTab>('overview');
+  const dispatch = useAppDispatch();
+  const activeTab = useAppSelector((state) => state.statisticsPage.activeTab);
   const [hideStatisticsFailure] = useHideStatisticsFailureMutation();
 
-  const handleActiveTabChange = useCallback((tab: StatisticsTab) => {
-    setActiveTab(tab);
-  }, []);
+  const handleActiveTabChange = useCallback(
+    (tab: StatisticsTab) => {
+      dispatch(setStatisticsTab(tab));
+    },
+    [dispatch],
+  );
 
   const handleSetTimeRange = useCallback(
     (range: StatisticsTimeRangeKey) => {
@@ -36,10 +51,6 @@ export const useStatisticsPageHandlers = (statisticsApi: IStatisticsPageApi): IS
     await statisticsApi.loadMoreAttempts();
   }, [statisticsApi]);
 
-  const handleLoadMoreFlashcardFailures = useCallback(async () => {
-    await statisticsApi.loadMoreFlashcardFailures();
-  }, [statisticsApi]);
-
   const handleHideFailure = useCallback(
     async (request: HideStatisticsFailureRequest) => {
       await hideStatisticsFailure(request).unwrap();
@@ -54,9 +65,7 @@ export const useStatisticsPageHandlers = (statisticsApi: IStatisticsPageApi): IS
     handleSetQuizType,
     handleBackToStatistics,
     handleLoadMoreAttempts,
-    handleLoadMoreFlashcardFailures,
     handleHideFailure,
     isLoadingMoreAttempts: statisticsApi.isLoadingMoreAttempts,
-    isLoadingMoreFlashcards: statisticsApi.isLoadingMoreFlashcards,
   };
 };

@@ -1,118 +1,61 @@
-import React, { useCallback, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { BookOpen, Eye, Lightbulb, ListOrdered, Trash2 } from 'lucide-react';
 import {
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
+import { Link } from 'react-router-dom';
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  MoreHorizontal,
+  Search,
+  Trash2,
+} from 'lucide-react';
+import type {
   HideStatisticsFailureRequest,
-  QuizAnswerValue,
   StatisticsRecentFailure,
 } from '@shared-types';
 import { Badge } from '../../../../components/ui/Badge';
 import { Button } from '../../../../components/ui/Button';
 import { Card, CardContent } from '../../../../components/ui/Card';
+import { Input } from '../../../../components/ui/Input';
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/Dialog';
-import { MermaidDiagram } from '../../../../components/MermaidDiagram';
-import { VirtualizedList } from '../../../../components/VirtualizedList';
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '../../../../components/ui/DropdownMenu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../../../components/ui/Select';
+import { useAppDispatch, useAppSelector } from '../../../../hooks/redux';
+import {
+  selectStatisticsFailure,
+  setStatisticsSearch,
+  setStatisticsSort,
+} from '../../../../store/slices/statisticsPageSlice';
+import { cn } from '../../../../lib/utils';
 import {
   detailQuizPath,
   formatDateTime,
   quizTypeLabel,
 } from '../../utils/statisticsPageUtils';
 import { EmptyState } from '../StatisticsShared/StatisticsShared';
-
-type FailureComparisonState =
-  | {
-      kind: 'diagram';
-      questionText: string;
-      selectedCode: string;
-      correctCode: string;
-    }
-  | {
-      kind: 'sequence';
-      questionText: string;
-      selectedItems: string[];
-      correctItems: string[];
-    };
-
-function isDiagramQuiz(quizType: string | undefined): boolean {
-  return quizType === 'diagramQuiz';
-}
-
-function isSequenceQuiz(quizType: string | undefined): boolean {
-  return quizType === 'sequenceQuiz';
-}
-
-function isStringArray(value: QuizAnswerValue): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === 'string');
-}
-
-function resolveSequenceItems(value: QuizAnswerValue, labelFallback: string): string[] {
-  if (isStringArray(value)) return value;
-  return labelFallback
-    .split(',')
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
-}
-
-function canOpenDiagramComparison(failure: StatisticsRecentFailure): boolean {
-  return Boolean(failure.selectedDiagramCode && failure.correctDiagramCode);
-}
-
-interface ISequenceListProps {
-  items: string[];
-  correctItems: string[];
-  tone: 'wrong' | 'right';
-}
-
-const SequenceList = ({ items, correctItems, tone }: ISequenceListProps) => (
-  <ol className="space-y-2 text-sm">
-    {items.map((item, index) => {
-      const isDivergent =
-        tone === 'wrong'
-        && (index >= correctItems.length || item !== correctItems[index]);
-
-      return (
-        <li
-          key={`${tone}-${index}-${item}`}
-          className={
-            isDivergent
-              ? 'flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2'
-              : tone === 'wrong'
-                ? 'flex items-start gap-3 rounded-md border border-border bg-muted/20 px-3 py-2'
-                : 'flex items-start gap-3 rounded-md border border-success/40 bg-success/10 px-3 py-2'
-          }
-        >
-          <span
-            className={
-              isDivergent
-                ? 'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-destructive/20 text-xs font-semibold text-destructive'
-                : tone === 'wrong'
-                  ? 'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground'
-                  : 'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/20 text-xs font-semibold text-success'
-            }
-          >
-            {index + 1}
-          </span>
-          <span className={isDivergent ? 'text-destructive' : 'text-foreground'}>
-            {item}
-          </span>
-        </li>
-      );
-    })}
-  </ol>
-);
+import { FailureAnswerComparison } from './FailureAnswerComparison';
 
 interface IFailureListProps {
   failures: StatisticsRecentFailure[];
   hasMore?: boolean;
   onHideFailure?: (request: HideStatisticsFailureRequest) => Promise<void>;
-  footer?: React.ReactNode;
+  footer?: ReactNode;
 }
 
 export const FailureList = ({
@@ -121,251 +64,329 @@ export const FailureList = ({
   onHideFailure,
   footer,
 }: IFailureListProps) => {
-  const [openComparison, setOpenComparison] = useState<FailureComparisonState | null>(null);
-  const [pendingHideKey, setPendingHideKey] = useState<string | null>(null);
-
-  const handleOpenComparison = useCallback((failure: StatisticsRecentFailure) => {
-    if (isDiagramQuiz(failure.quizType)) {
-      const selectedCode = failure.selectedDiagramCode;
-      const correctCode = failure.correctDiagramCode;
-      if (!selectedCode || !correctCode) return;
-      setOpenComparison({
-        kind: 'diagram',
-        questionText: failure.questionText,
-        selectedCode,
-        correctCode,
-      });
-      return;
-    }
-    if (isSequenceQuiz(failure.quizType)) {
-      setOpenComparison({
-        kind: 'sequence',
-        questionText: failure.questionText,
-        selectedItems: resolveSequenceItems(failure.selectedAnswer, failure.selectedAnswerLabel),
-        correctItems: resolveSequenceItems(failure.correctAnswer, failure.correctAnswerLabel),
-      });
-    }
-  }, []);
-
-  const handleHideFailure = useCallback(
-    async (failure: StatisticsRecentFailure) => {
-      if (!onHideFailure) return;
-      const confirmed = window.confirm(
-        'Remove this failed question from Statistics? Accuracy and fail counts will update.',
-      );
-      if (!confirmed) return;
-
-      setPendingHideKey(failure.groupKey);
-      try {
-        await onHideFailure({
-          kind: 'quiz',
-          groupKey: failure.groupKey,
-          quizType: failure.quizType,
-          quizId: failure.quizId,
-          questionIndex: failure.questionIndex,
-        });
-      } catch {
-        window.alert('Failed to remove this failure from Statistics. Please try again.');
-      } finally {
-        setPendingHideKey(null);
-      }
-    },
-    [onHideFailure],
+  const dispatch = useAppDispatch();
+  const { search, sort, selectedFailureKey } = useAppSelector(
+    (state) => state.statisticsPage,
   );
-
-  const renderFailure = useCallback(
-    (failure: StatisticsRecentFailure) => {
-      const isDiagram = isDiagramQuiz(failure.quizType);
-      const isSequence = isSequenceQuiz(failure.quizType);
-      const showRichAnswer = isDiagram || isSequence;
-      const canOpenComparison = isDiagram ? canOpenDiagramComparison(failure) : isSequence;
-
-      return (
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{quizTypeLabel(failure.quizType)}</Badge>
-                  {failure.quizTitle && (
-                    <span className="text-xs font-medium text-foreground">{failure.quizTitle}</span>
-                  )}
-                  <span className="text-xs text-muted-foreground">{formatDateTime(failure.occurredAt)}</span>
+  const [pendingHideKey, setPendingHideKey] = useState<string | null>(null);
+  const [hideError, setHideError] = useState<string | null>(null);
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const panelId = useId();
+  const filtered = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return failures
+      .filter((failure) =>
+        `${failure.questionText} ${failure.quizTitle ?? ''} ${failure.sourceDocuments.map((document) => document.title).join(' ')}`
+          .toLocaleLowerCase()
+          .includes(query),
+      )
+      .sort(
+        (left, right) =>
+          (sort === 'repeats'
+            ? right.repeatedFailureCount - left.repeatedFailureCount
+            : 0) ||
+          new Date(right.occurredAt).getTime() -
+            new Date(left.occurredAt).getTime(),
+      );
+  }, [failures, search, sort]);
+  const selectedIndex = Math.max(
+    0,
+    filtered.findIndex((failure) => failure.groupKey === selectedFailureKey),
+  );
+  const selected = filtered[selectedIndex];
+  const select = (index: number, focus = false) => {
+    const failure = filtered[index];
+    if (!failure) return;
+    dispatch(selectStatisticsFailure(failure.groupKey));
+    const button = buttons.current.get(failure.groupKey);
+    if (focus) button?.focus({ preventScroll: true });
+    button?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  };
+  const handleKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
+    const offsets: Record<string, number> = {
+      ArrowDown: 1,
+      ArrowRight: 1,
+      ArrowUp: -1,
+      ArrowLeft: -1,
+    };
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      select(event.key === 'Home' ? 0 : filtered.length - 1, true);
+    } else if (offsets[event.key]) {
+      event.preventDefault();
+      select(index + offsets[event.key], true);
+    }
+  };
+  const handleHide = async (failure: StatisticsRecentFailure) => {
+    if (
+      !onHideFailure ||
+      !window.confirm(
+        'Remove this question from Progress? The question will be excluded from displayed accuracy and fail counts. Your underlying attempt history is kept.',
+      )
+    )
+      return;
+    setPendingHideKey(failure.groupKey);
+    setHideError(null);
+    try {
+      await onHideFailure({
+        kind: 'quiz',
+        groupKey: failure.groupKey,
+        quizType: failure.quizType,
+        quizId: failure.quizId,
+        questionIndex: failure.questionIndex,
+      });
+    } catch {
+      setHideError('Could not remove this question. Please try again.');
+    } finally {
+      setPendingHideKey(null);
+    }
+  };
+  return (
+    <div className="min-w-0 space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-base font-semibold">Questions to revisit</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Latest miss shown. Repeated misses are grouped by question.
+          </p>
+        </div>
+        <div className="flex min-w-0 gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              className="pl-9 sm:w-64"
+              type="search"
+              aria-label="Search questions or quizzes"
+              placeholder="Search questions or quizzes"
+              value={search}
+              onChange={(event) =>
+                dispatch(setStatisticsSearch(event.target.value))
+              }
+            />
+          </div>
+          <Select
+            value={sort}
+            onValueChange={(value) => {
+              if (value === 'recent' || value === 'repeats')
+                dispatch(setStatisticsSort(value));
+            }}
+          >
+            <SelectTrigger
+              className="w-36 shrink-0"
+              aria-label="Sort questions"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recent">Latest miss</SelectItem>
+              <SelectItem value="repeats">Most repeated</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      {hideError && (
+        <p role="alert" className="text-sm text-destructive">
+          {hideError}
+        </p>
+      )}
+      {!selected ? (
+        <EmptyState
+          title={
+            search
+              ? 'No questions match your search'
+              : 'No missed questions in this history'
+          }
+          description={
+            hasMore
+              ? 'Load more history to find earlier questions.'
+              : 'Try another filter or continue practising a quiz.'
+          }
+        />
+      ) : (
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+          <nav
+            aria-label="Questions to revisit"
+            className="flex max-w-full self-start gap-px overflow-x-auto rounded-xl border bg-border lg:max-h-[70vh] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden"
+          >
+            {filtered.map((failure, index) => (
+              <button
+                key={failure.groupKey}
+                type="button"
+                ref={(element) => {
+                  if (element) buttons.current.set(failure.groupKey, element);
+                  else buttons.current.delete(failure.groupKey);
+                }}
+                onClick={() => select(index)}
+                onKeyDown={(event) => handleKeyDown(event, index)}
+                aria-pressed={index === selectedIndex}
+                aria-controls={panelId}
+                tabIndex={index === selectedIndex ? 0 : -1}
+                className={cn(
+                  'w-64 shrink-0 border-l-2 border-transparent bg-card p-4 text-left transition-colors hover:bg-muted lg:w-full',
+                  index === selectedIndex && 'border-primary bg-primary/10',
+                )}
+              >
+                <span className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">
+                    {quizTypeLabel(failure.quizType)}
+                  </Badge>
                   {failure.repeatedFailureCount > 1 && (
-                    <Badge variant="outline">{failure.repeatedFailureCount} repeats</Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {failure.repeatedFailureCount} misses
+                    </span>
+                  )}
+                </span>
+                <span className="my-2 line-clamp-2 block text-sm leading-relaxed">
+                  {failure.questionText}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {formatDateTime(failure.occurredAt)}
+                </span>
+              </button>
+            ))}
+          </nav>
+          <section
+            id={panelId}
+            aria-label="Selected question"
+            className="min-w-0 self-start lg:sticky lg:top-28"
+          >
+            <Card key={selected.groupKey}>
+              <CardContent className="min-w-0 p-4 sm:p-6">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant="secondary">
+                    {quizTypeLabel(selected.quizType)}
+                  </Badge>
+                  <span className="min-w-0 break-words">
+                    {selected.quizTitle}
+                  </span>
+                  <span>{formatDateTime(selected.occurredAt)}</span>
+                  {selected.repeatedFailureCount > 1 && (
+                    <span>Missed {selected.repeatedFailureCount} times</span>
                   )}
                 </div>
-                <h3 className="text-sm font-semibold text-foreground">{failure.questionText}</h3>
-                {failure.hint && (
-                  <div className="mt-2 flex items-start gap-2 rounded-md border border-border bg-muted/20 p-3 text-sm">
-                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    <div>
-                      <p className="text-xs uppercase text-muted-foreground">Hint</p>
-                      <p className="mt-1 text-foreground">{failure.hint}</p>
-                    </div>
-                  </div>
+                <h3 className="my-4 break-words text-base font-semibold leading-relaxed">
+                  {selected.questionText}
+                </h3>
+                <FailureAnswerComparison failure={selected} />
+                {(selected.hint || selected.explanation) && (
+                  <details className="mt-4 text-sm leading-relaxed">
+                    <summary className="cursor-pointer text-xs text-muted-foreground">
+                      Hint & explanation
+                    </summary>
+                    {selected.hint && (
+                      <p className="mt-3 whitespace-pre-wrap break-words">
+                        <span className="font-medium">Hint · </span>
+                        {selected.hint}
+                      </p>
+                    )}
+                    {selected.explanation && (
+                      <p className="mt-3 whitespace-pre-wrap break-words">
+                        <span className="font-medium">Explanation · </span>
+                        {selected.explanation}
+                      </p>
+                    )}
+                  </details>
                 )}
-                {failure.explanation && (
-                  <div className="mt-2 rounded-md border border-border bg-muted/10 p-3 text-sm">
-                    <p className="text-xs uppercase text-muted-foreground">Explanation</p>
-                    <p className="mt-1 text-foreground">{failure.explanation}</p>
-                  </div>
-                )}
-                {showRichAnswer ? (
-                  <div className="mt-3 rounded-md border border-dashed border-border bg-muted/20 p-3">
-                    <p className="text-xs uppercase text-muted-foreground">Comparison</p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
-                      onClick={() => handleOpenComparison(failure)}
-                      disabled={!canOpenComparison}
-                      aria-label={
-                        isDiagram ? 'View diagram comparison' : 'View sequence comparison'
-                      }
-                    >
-                      {isDiagram ? (
-                        <Eye className="mr-2 h-4 w-4" />
-                      ) : (
-                        <ListOrdered className="mr-2 h-4 w-4" />
-                      )}
-                      {isDiagram ? 'View diagram' : 'View sequence'}
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+                  <div className="flex min-w-0 max-w-full flex-wrap gap-1">
+                    {selected.sourceDocuments.map((document) => (
+                      <Button
+                        key={document.id}
+                        size="sm"
+                        variant="ghost"
+                        asChild
+                      >
+                        <Link
+                          to={`/document/${document.id}`}
+                          title={document.title}
+                          className="max-w-full"
+                        >
+                          <BookOpen
+                            className="mr-2 h-3.5 w-3.5"
+                            aria-hidden="true"
+                          />
+                          <span className="truncate">
+                            {selected.sourceDocuments.length === 1
+                              ? 'Source document'
+                              : document.title}
+                          </span>
+                        </Link>
+                      </Button>
+                    ))}
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link
+                        to={detailQuizPath(selected.quizType, selected.quizId)}
+                      >
+                        Quiz detail
+                      </Link>
                     </Button>
                   </div>
-                ) : (
-                  <div className="mt-3 grid gap-2 text-sm md:grid-cols-2">
-                    <div className="rounded-md bg-destructive/10 p-3">
-                      <p className="text-xs uppercase text-muted-foreground">Your answer</p>
-                      <p className="mt-1 text-destructive">{failure.selectedAnswerLabel}</p>
-                    </div>
-                    <div className="rounded-md bg-accent/10 p-3">
-                      <p className="text-xs uppercase text-muted-foreground">Correct answer</p>
-                      <p className="mt-1 text-foreground">{failure.correctAnswerLabel}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col gap-2 md:w-48">
-                <Button variant="outline" size="sm" asChild>
-                  <Link to={detailQuizPath(failure.quizType, failure.quizId)}>Quiz detail</Link>
-                </Button>
-                {failure.sourceDocuments.slice(0, 1).map((document) => (
-                  <Button key={document.id} variant="ghost" size="sm" asChild>
-                    <Link to={`/document/${document.id}`}>
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      Source
-                    </Link>
-                  </Button>
-                ))}
-                {onHideFailure && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => void handleHideFailure(failure)}
-                    disabled={pendingHideKey === failure.groupKey}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Remove
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    },
-    [handleHideFailure, handleOpenComparison, onHideFailure, pendingHideKey],
-  );
-
-  if (failures.length === 0) {
-    return (
-      <>
-        <EmptyState
-          title="No failed answers in this range"
-          description="Quiz misses will appear here after completed attempts."
-        />
-        {hasMore ? footer : null}
-      </>
-    );
-  }
-
-  const handleClose = () => setOpenComparison(null);
-
-  return (
-    <>
-      <VirtualizedList
-        items={failures}
-        scrollMode="window"
-        estimateSize={260}
-        gap={12}
-        renderItem={renderFailure}
-      />
-      {footer}
-
-      <Dialog
-        open={openComparison !== null}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) handleClose();
-        }}
-      >
-        <DialogContent className="max-w-4xl">
-          {openComparison && (
-            <>
-              <DialogHeader>
-                <DialogTitle>
-                  {openComparison.kind === 'diagram' ? 'Diagram comparison' : 'Sequence comparison'}
-                </DialogTitle>
-                <DialogDescription>{openComparison.questionText}</DialogDescription>
-              </DialogHeader>
-              <DialogBody>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase text-destructive">Your answer</p>
-                    {openComparison.kind === 'diagram' ? (
-                      <div className="space-y-3">
-                        <MermaidDiagram code={openComparison.selectedCode} className="min-h-[200px]" />
-                        <details className="rounded-md border border-border bg-muted/20 p-3">
-                          <summary className="cursor-pointer text-sm font-medium">Show source</summary>
-                          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs text-foreground">
-                            {openComparison.selectedCode}
-                          </pre>
-                        </details>
-                      </div>
-                    ) : (
-                      <SequenceList
-                        items={openComparison.selectedItems}
-                        correctItems={openComparison.correctItems}
-                        tone="wrong"
-                      />
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase text-success">Correct answer</p>
-                    {openComparison.kind === 'diagram' ? (
-                      <div className="space-y-3">
-                        <MermaidDiagram code={openComparison.correctCode} className="min-h-[200px]" />
-                        <details className="rounded-md border border-border bg-muted/20 p-3">
-                          <summary className="cursor-pointer text-sm font-medium">Show source</summary>
-                          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs text-foreground">
-                            {openComparison.correctCode}
-                          </pre>
-                        </details>
-                      </div>
-                    ) : (
-                      <SequenceList
-                        items={openComparison.correctItems}
-                        correctItems={openComparison.correctItems}
-                        tone="right"
-                      />
-                    )}
-                  </div>
+                  {onHideFailure && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Question actions"
+                          disabled={pendingHideKey !== null}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => void handleHide(selected)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Remove from Progress
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
-              </DialogBody>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
+              </CardContent>
+            </Card>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => select(selectedIndex - 1)}
+                disabled={selectedIndex === 0}
+              >
+                <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+                Previous
+              </Button>
+              <span role="status" className="text-xs text-muted-foreground">
+                Question {selectedIndex + 1} of {filtered.length}
+                {hasMore ? ' loaded' : ''}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => select(selectedIndex + 1)}
+                disabled={selectedIndex === filtered.length - 1}
+              >
+                Next
+                <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
+      {footer}
+      {hasMore && (
+        <p className="text-xs text-muted-foreground">
+          Search and sort apply to loaded questions. Load more to include
+          earlier history.
+        </p>
+      )}
+    </div>
   );
 };

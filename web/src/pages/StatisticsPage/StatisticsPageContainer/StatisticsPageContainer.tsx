@@ -4,11 +4,10 @@ import {
   AlertTriangle,
   ArrowLeft,
   BarChart3,
-  BookOpen,
   Brain,
-  Clock3,
   Target,
   TrendingUp,
+  ListChecks,
 } from 'lucide-react';
 import { StatisticsQuizPerformanceItem } from '@shared-types';
 import { Badge } from '../../../components/ui/Badge';
@@ -19,28 +18,17 @@ import {
   CardHeader,
   CardTitle,
 } from '../../../components/ui/Card';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '../../../components/ui/Tabs';
 import { useStatisticsPageContext } from '../context/hooks/useStatisticsPageContext';
-import { StatisticsTab } from '../types/IStatisticsPageHandlers';
 import {
-  artifactTypeLabel,
   detailQuizPath,
   formatDateTime,
-  formatDurationMs,
   formatInteger,
   formatPercentage,
-  formatSeconds,
   QUIZ_TYPE_OPTIONS,
   quizTypeLabel,
   TIME_RANGE_OPTIONS,
 } from '../utils/statisticsPageUtils';
 import { FailureList } from './FailureList';
-import { FlashcardFailureList } from './FlashcardFailureList';
 import {
   EmptyState,
   ErrorBlock,
@@ -50,11 +38,11 @@ import {
 import { VirtualizedList } from '../../../components/VirtualizedList';
 import { Spinner } from '../../../components/ui/Spinner';
 
-const QuizPerformanceTable = ({
-  quizzes,
-}: {
+interface IQuizPerformanceTable {
   quizzes: StatisticsQuizPerformanceItem[];
-}) => {
+}
+
+const QuizPerformanceTable = ({ quizzes }: IQuizPerformanceTable) => {
   if (quizzes.length === 0) {
     return (
       <EmptyState
@@ -138,7 +126,7 @@ export const StatisticsPageContainer: React.FC = () => {
     }
     return {
       title: 'Progress',
-      subtitle: 'Quiz performance and learning time',
+      subtitle: 'Understand your quiz results. Decide what to revisit.',
     };
   }, [quizDetailRequest, statisticsApi.quizDetail.data?.quiz]);
 
@@ -192,26 +180,6 @@ export const StatisticsPageContainer: React.FC = () => {
     </div>
   ) : null;
 
-  const loadMoreFlashcardsFooter = statisticsApi.overview.data
-    ?.hasMoreFlashcardSessions ? (
-    <div className="flex justify-center pt-4">
-      <Button
-        variant="outline"
-        onClick={() => void handlers.handleLoadMoreFlashcardFailures()}
-        disabled={handlers.isLoadingMoreFlashcards}
-      >
-        {handlers.isLoadingMoreFlashcards ? (
-          <>
-            <Spinner size="sm" className="mr-2" />
-            Loading...
-          </>
-        ) : (
-          'Load more'
-        )}
-      </Button>
-    </div>
-  ) : null;
-
   const renderQuizDetail = () => {
     const { quizDetail } = statisticsApi;
     if (quizDetail.isLoading) return <LoadingBlock />;
@@ -228,7 +196,7 @@ export const StatisticsPageContainer: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3">
           <MetricCard
             icon={Target}
             label="Accuracy"
@@ -246,12 +214,6 @@ export const StatisticsPageContainer: React.FC = () => {
             label="Explanations"
             value={formatInteger(detail.quiz.explanationRequestCount)}
             detail="Detailed requests"
-          />
-          <MetricCard
-            icon={Clock3}
-            label="Time spent"
-            value={formatDurationMs(detail.quiz.totalDurationMs)}
-            detail="Quiz duration"
           />
         </div>
         <Card>
@@ -273,9 +235,6 @@ export const StatisticsPageContainer: React.FC = () => {
                     {attempt.score}/{attempt.totalQuestions}
                   </span>
                   <span>{formatPercentage(attempt.percentage)}</span>
-                  <span className="text-muted-foreground">
-                    {formatDurationMs(attempt.durationMs)}
-                  </span>
                 </div>
               )}
             />
@@ -291,7 +250,7 @@ export const StatisticsPageContainer: React.FC = () => {
 
   return (
     <div className="min-h-full bg-background">
-      <header className="sticky top-0 z-10 border-b bg-background/95 px-4 py-4 backdrop-blur md:px-0">
+      <header className="border-b bg-background px-4 py-5 md:px-6">
         <div className="mx-auto flex max-w-7xl flex-col gap-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
@@ -327,66 +286,107 @@ export const StatisticsPageContainer: React.FC = () => {
 
         {!isDetailRoute && (
           <>
-            {statisticsApi.isLoading && <LoadingBlock />}
-            {statisticsApi.hasError && <ErrorBlock />}
-
-            {!statisticsApi.isLoading && !statisticsApi.hasError && (
-              <Tabs
-                value={handlers.activeTab}
-                onValueChange={(value) =>
-                  handlers.handleActiveTabChange(value as StatisticsTab)
-                }
-              >
-                <TabsList className="flex flex-wrap">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="performance">
-                    Quiz Performance
-                  </TabsTrigger>
-                  <TabsTrigger value="time">Learning Time</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="overview" className="mt-6 space-y-6">
-                  {quizTypeControls}
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <MetricCard
-                      icon={TrendingUp}
-                      label="Overall accuracy"
-                      value={formatPercentage(
-                        statisticsApi.overview.data?.metrics
-                          .accuracyPercentage ?? 0,
-                      )}
-                      detail={`${formatInteger(statisticsApi.overview.data?.metrics.answeredQuestionCount ?? 0)} answers`}
-                    />
-                    <MetricCard
-                      icon={AlertTriangle}
-                      label="Failed questions"
-                      value={formatInteger(
-                        statisticsApi.overview.data?.metrics
-                          .incorrectAnswerCount ?? 0,
-                      )}
-                      detail="Incorrect answers"
-                    />
-                    <MetricCard
-                      icon={Brain}
-                      label="Explanation requests"
-                      value={formatInteger(
-                        statisticsApi.overview.data?.metrics
-                          .explanationRequestCount ?? 0,
-                      )}
-                      detail="Detailed help requested"
-                    />
-                  </div>
-
-                  {statisticsApi.loadMoreError && (
-                    <p className="text-sm text-destructive" role="alert">
-                      {statisticsApi.loadMoreError}
-                    </p>
+            {statisticsApi.overview.isLoading ? (
+              <LoadingBlock />
+            ) : statisticsApi.overview.error && !statisticsApi.overview.data ? (
+              <ErrorBlock />
+            ) : (
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <MetricCard
+                  compact
+                  icon={TrendingUp}
+                  label="Answer accuracy"
+                  value={
+                    statisticsApi.overview.data?.metrics.answeredQuestionCount
+                      ? formatPercentage(
+                          statisticsApi.overview.data.metrics
+                            .accuracyPercentage,
+                        )
+                      : '—'
+                  }
+                  detail={`${formatInteger(statisticsApi.overview.data?.metrics.correctAnswerCount ?? 0)} correct of ${formatInteger(statisticsApi.overview.data?.metrics.answeredQuestionCount ?? 0)} answers`}
+                />
+                <MetricCard
+                  compact
+                  icon={AlertTriangle}
+                  label="Incorrect answers"
+                  value={formatInteger(
+                    statisticsApi.overview.data?.metrics.incorrectAnswerCount ??
+                      0,
                   )}
-
-                  <div className="space-y-3">
-                    <h2 className="text-base font-semibold text-foreground">
-                      Failed quiz questions
-                    </h2>
+                  detail="Includes repeat misses"
+                />
+                <MetricCard
+                  compact
+                  icon={ListChecks}
+                  label="Questions to revisit"
+                  value={`${formatInteger(statisticsApi.overview.data?.recentFailures.length ?? 0)}${statisticsApi.overview.data?.hasMoreAttempts ? '+' : ''}`}
+                  detail={
+                    statisticsApi.overview.data?.hasMoreAttempts
+                      ? 'Loaded questions · more history available'
+                      : 'Repeated misses grouped by question'
+                  }
+                />
+              </div>
+            )}
+            <div>
+              <div
+                role="group"
+                aria-label="Progress view"
+                className="mb-5 inline-flex gap-1 rounded-lg bg-muted p-1"
+              >
+                <Button
+                  variant={
+                    handlers.activeTab === 'overview' ? 'secondary' : 'ghost'
+                  }
+                  size="sm"
+                  aria-pressed={handlers.activeTab === 'overview'}
+                  aria-controls="statistics-review"
+                  onClick={() => handlers.handleActiveTabChange('overview')}
+                >
+                  Review questions
+                </Button>
+                <Button
+                  variant={
+                    handlers.activeTab === 'performance' ? 'secondary' : 'ghost'
+                  }
+                  size="sm"
+                  aria-pressed={handlers.activeTab === 'performance'}
+                  aria-controls="statistics-performance"
+                  onClick={() => handlers.handleActiveTabChange('performance')}
+                >
+                  Quiz performance
+                </Button>
+              </div>
+              {quizTypeControls}
+              <section
+                id="statistics-review"
+                aria-label="Review questions"
+                hidden={handlers.activeTab !== 'overview'}
+                className="mt-5 space-y-4"
+              >
+                {statisticsApi.overview.isLoading ? null : statisticsApi
+                    .overview.error && !statisticsApi.overview.data ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => statisticsApi.overview.refetch()}
+                  >
+                    Retry questions
+                  </Button>
+                ) : (
+                  <>
+                    {statisticsApi.loadMoreError && (
+                      <p className="text-sm text-destructive" role="alert">
+                        {statisticsApi.loadMoreError}
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={() => statisticsApi.overview.refetch()}
+                        >
+                          Retry
+                        </Button>
+                      </p>
+                    )}
                     <FailureList
                       failures={
                         statisticsApi.overview.data?.recentFailures ?? []
@@ -397,135 +397,34 @@ export const StatisticsPageContainer: React.FC = () => {
                       onHideFailure={handlers.handleHideFailure}
                       footer={loadMoreAttemptsFooter}
                     />
-                  </div>
-
-                  <div className="space-y-3">
-                    <h2 className="text-base font-semibold text-foreground">
-                      Failed flashcards
-                    </h2>
-                    <FlashcardFailureList
-                      failures={
-                        statisticsApi.overview.data?.flashcardFailures ?? []
-                      }
-                      hasMore={
-                        statisticsApi.overview.data?.hasMoreFlashcardSessions ??
-                        false
-                      }
-                      onHideFailure={handlers.handleHideFailure}
-                      footer={loadMoreFlashcardsFooter}
-                    />
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="performance" className="mt-6 space-y-6">
+                  </>
+                )}
+              </section>
+              <section
+                id="statistics-performance"
+                aria-label="Quiz performance"
+                hidden={handlers.activeTab !== 'performance'}
+                className="mt-5 space-y-4"
+              >
+                {statisticsApi.performance.isLoading ? (
+                  <LoadingBlock />
+                ) : statisticsApi.performance.error ? (
+                  <>
+                    <ErrorBlock />
+                    <Button
+                      variant="outline"
+                      onClick={() => statisticsApi.performance.refetch()}
+                    >
+                      Retry performance
+                    </Button>
+                  </>
+                ) : (
                   <QuizPerformanceTable
                     quizzes={statisticsApi.performance.data?.quizzes ?? []}
                   />
-                  <FailureList
-                    failures={
-                      statisticsApi.performance.data?.recentFailures ?? []
-                    }
-                    onHideFailure={handlers.handleHideFailure}
-                  />
-                </TabsContent>
-
-                <TabsContent value="time" className="mt-6 space-y-6">
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <MetricCard
-                      icon={Clock3}
-                      label="Active learning time"
-                      value={formatSeconds(
-                        statisticsApi.learningTime.data?.totalSeconds ?? 0,
-                      )}
-                      detail={`${formatInteger(statisticsApi.learningTime.data?.sessionCount ?? 0)} sessions`}
-                    />
-                    <MetricCard
-                      icon={BookOpen}
-                      label="Tracked artifacts"
-                      value={formatInteger(
-                        statisticsApi.learningTime.data?.topArtifacts.length ??
-                          0,
-                      )}
-                      detail="Most engaged items"
-                    />
-                    <MetricCard
-                      icon={BarChart3}
-                      label="Activity types"
-                      value={formatInteger(
-                        statisticsApi.learningTime.data?.byArtifactType
-                          .length ?? 0,
-                      )}
-                      detail="Documents, quizzes, and artifacts"
-                    />
-                  </div>
-
-                  <div className="grid gap-6 lg:grid-cols-2">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">
-                          Time by Activity
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <VirtualizedList
-                          items={
-                            statisticsApi.learningTime.data?.byArtifactType ??
-                            []
-                          }
-                          scrollMode="window"
-                          estimateSize={64}
-                          gap={12}
-                          renderItem={(row) => (
-                            <div className="flex items-center justify-between rounded-md border p-3">
-                              <span className="font-medium">
-                                {artifactTypeLabel(row.artifactType)}
-                              </span>
-                              <span className="text-muted-foreground">
-                                {formatSeconds(row.totalSeconds)}
-                              </span>
-                            </div>
-                          )}
-                        />
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">
-                          Most Engaged
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <VirtualizedList
-                          items={
-                            statisticsApi.learningTime.data?.topArtifacts ?? []
-                          }
-                          scrollMode="window"
-                          estimateSize={88}
-                          gap={12}
-                          renderItem={(artifact) => (
-                            <div className="rounded-md border p-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <p className="truncate font-medium text-foreground">
-                                    {artifact.title}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {artifactTypeLabel(artifact.artifactType)}
-                                  </p>
-                                </div>
-                                <span className="text-sm text-muted-foreground">
-                                  {formatSeconds(artifact.totalSeconds)}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        />
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            )}
+                )}
+              </section>
+            </div>
           </>
         )}
       </main>

@@ -1793,6 +1793,13 @@ export interface StatisticsOverviewMetrics {
   accuracyPercentage: number;
 }
 
+export interface IStatisticsMatchPair {
+  prompt: string;
+  selectedText: string;
+  correctText: string;
+  isCorrect: boolean;
+}
+
 export interface StatisticsRecentFailure {
   id: string;
   groupKey: string;
@@ -1808,6 +1815,7 @@ export interface StatisticsRecentFailure {
   selectedAnswerLabel: string;
   correctAnswer: QuizAnswerValue;
   correctAnswerLabel: string;
+  matchPairs?: IStatisticsMatchPair[];
   /** Mermaid source for diagram-quiz failures (selected option index). */
   selectedDiagramCode?: string;
   /** Mermaid source for diagram-quiz failures (correct option index). */

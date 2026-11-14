@@ -6,6 +6,7 @@ import { loadingOverlayMiddleware } from './middleware/loadingOverlayMiddleware'
 import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
 import homePageReducer from './slices/homePageSlice';
+import statisticsPageReducer from './slices/statisticsPageSlice';
 import quizPageReducer from './slices/quizPageSlice';
 import diagramQuizPageReducer from './slices/diagramQuizPageSlice';
 import sequenceQuizPageReducer from './slices/sequenceQuizPageSlice';
@@ -23,6 +24,7 @@ export const store = configureStore({
     auth: authReducer,
     ui: uiReducer,
     homePage: homePageReducer,
+    statisticsPage: statisticsPageReducer,
     quizPage: quizPageReducer,
     diagramQuizPage: diagramQuizPageReducer,
     sequenceQuizPage: sequenceQuizPageReducer,
