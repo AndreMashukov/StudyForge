@@ -41,7 +41,11 @@ export default [
             },
             {
               sourceTag: 'scope:web',
-              onlyDependOnLibsWithTags: ['scope:shared', 'scope:ui'],
+              onlyDependOnLibsWithTags: [
+                'scope:shared',
+                'scope:ui',
+                'scope:client-data',
+              ],
             },
             {
               sourceTag: 'scope:admin',
@@ -49,7 +53,15 @@ export default [
             },
             {
               sourceTag: 'scope:mobile-capture',
-              onlyDependOnLibsWithTags: ['scope:shared', 'scope:mobile-ui'],
+              onlyDependOnLibsWithTags: [
+                'scope:shared',
+                'scope:mobile-ui',
+                'scope:client-data',
+              ],
+            },
+            {
+              sourceTag: 'scope:client-data',
+              onlyDependOnLibsWithTags: ['scope:shared'],
             },
             {
               sourceTag: 'scope:extension',

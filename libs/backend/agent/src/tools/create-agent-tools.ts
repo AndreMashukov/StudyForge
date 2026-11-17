@@ -4,10 +4,14 @@ import type {
   AgentMessageStreamEvent,
   AgentPromptContext,
   AgentProposedDelete,
+  AgentReferencedItem,
+  AgentReferencedItemType,
   AgentScope,
   UpdateRuleRequest,
 } from '@shared-types';
 import {
+  agentReferencedItemSchema,
+  agentReferencedItemTypeSchema,
   DocumentSourceType,
   RuleApplicability,
   RuleColor,
@@ -76,6 +80,10 @@ export interface AgentToolRuntimeContext {
   clientLocalDate?: string;
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
+  /** Items the agent chose to present as cards this turn (via present_items). */
+  referencedItems: AgentReferencedItem[];
+  /** Items returned by list/get tools this turn; present_items only accepts these. */
+  seenItems: Map<string, AgentReferencedItem>;
   generationBatchCounts: IAgentGenerationPlanCounts;
   onEvent?: (event: AgentMessageStreamEvent) => void;
   abortSignal?: AbortSignal;
@@ -98,6 +106,202 @@ function pushAction(
     context.onEvent?.({ type: 'status', message: action.summary });
   }
 }
+
+/** Max cards one turn can present, so a reply never turns into a full listing. */
+export const AGENT_MAX_REFERENCED_ITEMS = 8;
+
+export function referencedItemKey(
+  itemType: AgentReferencedItemType,
+  id: string,
+): string {
+  return `${itemType}:${id}`;
+}
+
+export function rememberSeenItem(
+  context: Pick<AgentToolRuntimeContext, 'seenItems'>,
+  item: AgentReferencedItem,
+): void {
+  // Validate here so one malformed record can never break the client's `done` event.
+  const parsed = agentReferencedItemSchema.safeParse(item);
+  if (!parsed.success) {
+    return;
+  }
+  context.seenItems.set(
+    referencedItemKey(parsed.data.itemType, parsed.data.id),
+    parsed.data,
+  );
+}
+
+/**
+ * Accept only items a tool already returned this turn. IDs the model writes
+ * itself are rejected, so a card can never point at an invented record.
+ */
+export function presentReferencedItems(
+  context: Pick<
+    AgentToolRuntimeContext,
+    'seenItems' | 'referencedItems' | 'onEvent'
+  >,
+  requested: Array<{ itemType: AgentReferencedItemType; id: string }>,
+): {
+  presented: AgentReferencedItem[];
+  rejected: string[];
+  overLimit: string[];
+} {
+  const presented: AgentReferencedItem[] = [];
+  const rejected: string[] = [];
+  const overLimit: string[] = [];
+  const already = new Set(
+    context.referencedItems.map((item) =>
+      referencedItemKey(item.itemType, item.id),
+    ),
+  );
+  for (const request of requested) {
+    const key = referencedItemKey(request.itemType, request.id);
+    const seen = context.seenItems.get(key);
+    if (!seen) {
+      rejected.push(key);
+      continue;
+    }
+    if (already.has(key)) {
+      continue;
+    }
+    if (context.referencedItems.length >= AGENT_MAX_REFERENCED_ITEMS) {
+      overLimit.push(key);
+      continue;
+    }
+    already.add(key);
+    context.referencedItems.push(seen);
+    presented.push(seen);
+    context.onEvent?.({ type: 'reference', item: seen });
+  }
+  return { presented, rejected, overLimit };
+}
+
+function asRecordArray(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter(
+        (entry): entry is Record<string, unknown> =>
+          typeof entry === 'object' && entry !== null,
+      )
+    : [];
+}
+
+function optionalId(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/**
+ * After a resumed turn (the Function died mid-run), rebuild what earlier steps
+ * saw and presented from the checkpointed tool outcomes, so present_items keeps
+ * accepting items listed before the crash and already-shown cards survive.
+ */
+export function restoreReferencedItemsFromOutcomes(
+  context: Pick<AgentToolRuntimeContext, 'seenItems' | 'referencedItems'>,
+  checkpointOutcomes: unknown[],
+): void {
+  const outcomes = asRecordArray(checkpointOutcomes);
+  for (const outcome of outcomes) {
+    if (outcome.ok !== true) continue;
+    const rows =
+      outcome.name === 'get_document_content'
+        ? asRecordArray([outcome.result])
+        : asRecordArray(outcome.result);
+    for (const row of rows) {
+      const id = optionalId(row.id);
+      if (!id) continue;
+      if (outcome.name === 'list_directories') {
+        rememberSeenItem(context, {
+          itemType: 'directory',
+          id,
+          title: typeof row.name === 'string' ? row.name : '',
+          ...(optionalId(row.parentId)
+            ? { directoryId: optionalId(row.parentId) }
+            : {}),
+        });
+      } else if (
+        outcome.name === 'list_documents' ||
+        outcome.name === 'get_document_content'
+      ) {
+        rememberSeenItem(context, {
+          itemType: 'document',
+          id,
+          title: typeof row.title === 'string' ? row.title : '',
+          ...(optionalId(row.directoryId)
+            ? { directoryId: optionalId(row.directoryId) }
+            : {}),
+        });
+      } else if (outcome.name === 'list_artifacts') {
+        const itemType = agentReferencedItemTypeSchema.safeParse(row.itemType);
+        if (itemType.success) {
+          rememberSeenItem(context, {
+            itemType: itemType.data,
+            id,
+            title: typeof row.title === 'string' ? row.title : '',
+            ...(optionalId(row.directoryId)
+              ? { directoryId: optionalId(row.directoryId) }
+              : {}),
+          });
+        }
+      }
+    }
+  }
+  const already = new Set(
+    context.referencedItems.map((item) =>
+      referencedItemKey(item.itemType, item.id),
+    ),
+  );
+  for (const outcome of outcomes) {
+    if (outcome.ok !== true || outcome.name !== 'present_items') continue;
+    const result = outcome.result;
+    const presented =
+      typeof result === 'object' && result !== null && 'presented' in result
+        ? asRecordArray(result.presented)
+        : [];
+    for (const row of presented) {
+      const itemType = agentReferencedItemTypeSchema.safeParse(row.itemType);
+      const id = optionalId(row.id);
+      if (!itemType.success || !id) continue;
+      const key = referencedItemKey(itemType.data, id);
+      const seen = context.seenItems.get(key);
+      if (
+        seen &&
+        !already.has(key) &&
+        context.referencedItems.length < AGENT_MAX_REFERENCED_ITEMS
+      ) {
+        already.add(key);
+        context.referencedItems.push(seen);
+      }
+    }
+  }
+}
+
+function parsePresentItemsArgs(
+  value: unknown,
+): Array<{ itemType: AgentReferencedItemType; id: string }> {
+  if (!Array.isArray(value)) {
+    throw new Error('items must be an array of { itemType, id }');
+  }
+  return value.flatMap((entry) => {
+    if (typeof entry !== 'object' || entry === null) {
+      return [];
+    }
+    const itemType = agentReferencedItemTypeSchema.safeParse(
+      'itemType' in entry ? entry.itemType : undefined,
+    );
+    const id =
+      'id' in entry && typeof entry.id === 'string' ? entry.id.trim() : '';
+    return itemType.success && id ? [{ itemType: itemType.data, id }] : [];
+  });
+}
+
+const ARTIFACT_ITEM_TYPES: ReadonlySet<string> = new Set([
+  'quiz',
+  'flashcard',
+  'slideDeck',
+  'diagramQuiz',
+  'sequenceQuiz',
+  'matchQuiz',
+]);
 
 function assertDirectoryInScope(
   context: AgentToolRuntimeContext,
@@ -264,7 +468,19 @@ export function createAgentToolDefinitions(
             directoryService.getDirectory(context.userId, directoryId),
           ),
         );
-        return directories.filter(Boolean);
+        const found = directories.filter(
+          (directory): directory is NonNullable<typeof directory> =>
+            Boolean(directory),
+        );
+        for (const directory of found) {
+          rememberSeenItem(context, {
+            itemType: 'directory',
+            id: directory.id,
+            title: directory.name,
+            ...(directory.parentId ? { directoryId: directory.parentId } : {}),
+          });
+        }
+        return found;
       },
     },
     {
@@ -298,7 +514,7 @@ export function createAgentToolDefinitions(
               .get(),
           ),
         );
-        return snapshots.flatMap((snapshot) =>
+        const documents = snapshots.flatMap((snapshot) =>
           snapshot.docs.map((doc) => {
             const data = doc.data();
             return {
@@ -320,6 +536,17 @@ export function createAgentToolDefinitions(
             };
           }),
         );
+        for (const document of documents) {
+          rememberSeenItem(context, {
+            itemType: 'document',
+            id: document.id,
+            title: document.title,
+            ...(document.directoryId
+              ? { directoryId: document.directoryId }
+              : {}),
+          });
+        }
+        return documents;
       },
     },
     {
@@ -358,6 +585,12 @@ export function createAgentToolDefinitions(
           document.contentFormat,
         );
         const truncated = truncateAgentText(readable);
+        rememberSeenItem(context, {
+          itemType: 'document',
+          id: document.id,
+          title: document.title,
+          directoryId: document.directoryId,
+        });
 
         return {
           id: document.id,
@@ -394,6 +627,124 @@ export function createAgentToolDefinitions(
           );
       },
     },
+    {
+      name: 'list_artifacts',
+      description:
+        'List study artifacts (quizzes, flashcard sets, slide decks, diagram/sequence/match quizzes) with titles and types. Pass directoryId to focus on one folder; omit it to list every folder in scope.',
+      parameters: {
+        type: 'object',
+        properties: {
+          directoryId: { type: 'string' },
+        },
+      },
+      execute: async (args) => {
+        const requestedDirectoryId =
+          typeof args.directoryId === 'string' &&
+          args.directoryId.trim().length > 0
+            ? args.directoryId.trim()
+            : undefined;
+        // The id becomes a Firestore path segment, so accept only known directories in every scope.
+        if (
+          requestedDirectoryId &&
+          !context.directoryIds.includes(requestedDirectoryId)
+        ) {
+          throw new Error('Directory is outside the active agent scope');
+        }
+        const targetDirectoryIds = requestedDirectoryId
+          ? [requestedDirectoryId]
+          : context.directoryIds;
+        const snapshots = await Promise.all(
+          targetDirectoryIds.map((directoryId) =>
+            FirestorePaths.directoryItems(context.userId, directoryId).get(),
+          ),
+        );
+        const artifacts = snapshots.flatMap((snapshot, index) =>
+          snapshot.docs.flatMap((doc) => {
+            const data = doc.data();
+            const itemType =
+              typeof data.itemType === 'string' ? data.itemType : '';
+            const parsedType =
+              agentReferencedItemTypeSchema.safeParse(itemType);
+            if (!ARTIFACT_ITEM_TYPES.has(itemType) || !parsedType.success) {
+              return [];
+            }
+            const id = typeof data.sourceId === 'string' ? data.sourceId : '';
+            if (!id) {
+              return [];
+            }
+            return [
+              {
+                itemType: parsedType.data,
+                id,
+                title: typeof data.title === 'string' ? data.title : '',
+                directoryId: targetDirectoryIds[index],
+                generationStatus:
+                  typeof data.generationStatus === 'string'
+                    ? data.generationStatus
+                    : undefined,
+              },
+            ];
+          }),
+        );
+        for (const artifact of artifacts) {
+          rememberSeenItem(context, {
+            itemType: artifact.itemType,
+            id: artifact.id,
+            title: artifact.title,
+            directoryId: artifact.directoryId,
+          });
+        }
+        return artifacts;
+      },
+    },
+    {
+      name: 'present_items',
+      description:
+        'Show specific directories, documents, or artifacts to the user as tappable cards. Use whenever the user asks to find, open, show, or pick items. Only items returned by list_directories, list_documents, list_artifacts, or get_document_content earlier in this turn are accepted; call those first. Pass the itemType and id exactly as those tools returned them. At most 8 items.',
+      parameters: {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                itemType: {
+                  type: 'string',
+                  enum: agentReferencedItemTypeSchema.options,
+                },
+                id: { type: 'string' },
+              },
+              required: ['itemType', 'id'],
+            },
+          },
+        },
+        required: ['items'],
+      },
+      execute: async (args) => {
+        const requested = parsePresentItemsArgs(args.items);
+        const result = presentReferencedItems(context, requested);
+        return {
+          presented: result.presented.map((item) => ({
+            itemType: item.itemType,
+            id: item.id,
+            title: item.title,
+          })),
+          rejected: result.rejected,
+          ...(result.overLimit.length > 0
+            ? {
+                overLimit: result.overLimit,
+                limitNote: `Only ${AGENT_MAX_REFERENCED_ITEMS} cards can be shown per reply; mention the rest by name.`,
+              }
+            : {}),
+          ...(result.rejected.length > 0
+            ? {
+                note: 'Rejected items were not returned by a list or get tool this turn. List them first, then present again.',
+              }
+            : {}),
+        };
+      },
+    },
     ...createQuizStatisticsToolDefinitions(context),
     {
       name: 'list_rules',
@@ -421,7 +772,9 @@ export function createAgentToolDefinitions(
             ? parseRuleApplicabilityArray([args.applicableTo])[0]
             : undefined;
         const tags =
-          args.tags === undefined ? undefined : parseStringArray(args.tags, 'tags');
+          args.tags === undefined
+            ? undefined
+            : parseStringArray(args.tags, 'tags');
         const limit =
           typeof args.limit === 'number' && Number.isFinite(args.limit)
             ? Math.floor(args.limit)
@@ -696,7 +1049,10 @@ export function createAgentToolDefinitions(
         if (documentIds.length === 0) {
           throw new Error('documentIds must include at least one document');
         }
-        if (documentIds.length > AGENT_GENERATION_LIMITS.maxSourceDocumentsPerFlashcardSet) {
+        if (
+          documentIds.length >
+          AGENT_GENERATION_LIMITS.maxSourceDocumentsPerFlashcardSet
+        ) {
           throw new Error(
             `Maximum ${AGENT_GENERATION_LIMITS.maxSourceDocumentsPerFlashcardSet} source documents per flashcard set`,
           );
@@ -709,14 +1065,17 @@ export function createAgentToolDefinitions(
               documentId,
             );
             if (!document?.content || !document.directoryId) {
-              throw new Error(`Document not found or has no content: ${documentId}`);
+              throw new Error(
+                `Document not found or has no content: ${documentId}`,
+              );
             }
             return document;
           }),
         );
 
         const resolvedDirectoryId =
-          typeof args.directoryId === 'string' && args.directoryId.trim().length > 0
+          typeof args.directoryId === 'string' &&
+          args.directoryId.trim().length > 0
             ? args.directoryId.trim()
             : documentDataList[0]?.directoryId;
         if (!resolvedDirectoryId) {

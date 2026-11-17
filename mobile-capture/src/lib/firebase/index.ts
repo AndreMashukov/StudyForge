@@ -13,7 +13,8 @@ import { initializeMobileAppCheck } from './appCheck';
 
 const firebaseConfig = getFirebasePublicConfig();
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const app =
+  getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 initializeMobileAppCheck(app);
 
@@ -37,5 +38,5 @@ if (useFirebaseEmulator() && !emulatorsConnected) {
   }
 }
 
-export { waitForAppCheckReady } from './appCheck';
+export { getAppCheckTokenForRequest, waitForAppCheckReady } from './appCheck';
 export default app;

@@ -15,6 +15,9 @@ const DEFAULT_TOKEN_TTL_MS = 55 * 60 * 1000;
 
 let appCheckReadyPromise: Promise<void> | undefined;
 let appCheckInitialized = false;
+let nativeAppCheckInstance: Awaited<
+  ReturnType<typeof initializeNativeAppCheck>
+> | null = null;
 
 function resolveUseDebugProvider(debugToken: string | undefined): boolean {
   // Sideloaded release APKs fail Play Integrity. A registered debug token opts into
@@ -48,7 +51,10 @@ function resolveExpireTimeMillis(token: string): number {
       return Date.now() + DEFAULT_TOKEN_TTL_MS;
     }
     const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+    const padded = normalized.padEnd(
+      normalized.length + ((4 - (normalized.length % 4)) % 4),
+      '=',
+    );
     const parsed: unknown = JSON.parse(atob(padded));
     if (
       typeof parsed === 'object' &&
@@ -79,6 +85,7 @@ export function initializeMobileAppCheck(jsApp: FirebaseApp): void {
       provider: buildNativeAppCheckProvider(),
       isTokenAutoRefreshEnabled: true,
     });
+    nativeAppCheckInstance = nativeAppCheck;
 
     initializeJsAppCheck(jsApp, {
       provider: new CustomProvider({
@@ -120,4 +127,20 @@ export async function waitForAppCheckReady(): Promise<void> {
   if (appCheckReadyPromise) {
     await appCheckReadyPromise;
   }
+}
+
+/**
+ * App Check token for raw HTTP endpoints (the agent SSE stream), which the JS SDK
+ * does not attach automatically. Null against emulators, where App Check is off.
+ */
+export async function getAppCheckTokenForRequest(): Promise<string | null> {
+  if (useFirebaseEmulator()) {
+    return null;
+  }
+  await waitForAppCheckReady();
+  if (!nativeAppCheckInstance) {
+    return null;
+  }
+  const { token } = await getToken(nativeAppCheckInstance, false);
+  return token || null;
 }

@@ -1,0 +1,23 @@
+{
+  "name": "client-data",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/client-data/src",
+  "projectType": "library",
+  "tags": ["type:lib", "scope:client-data"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "tsc -p libs/client-data/tsconfig.lib.json --noEmit"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "eslint libs/client-data --ext .ts"
+      }
+    }
+  }
+}

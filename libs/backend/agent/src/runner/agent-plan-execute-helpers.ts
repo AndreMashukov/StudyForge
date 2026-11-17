@@ -220,6 +220,7 @@ export function buildPlannerPrompt(input: {
     '- If the user asked to create a document now and create_document did not succeed, return a plan step that calls create_document. Do not return type=response claiming it exists.',
     '- If the user asked to suggest, propose, or validate a study plan first, return type=response with the plan. Do not call create_document until they approve.',
     '- When listing a folder, only name items that appear in list_documents TOOL RESULTS. Do not add items from executor notes or earlier chat.',
+    '- When the user asks to find, open, show, or pick documents, artifacts, or folders, plan a step that locates them (list_documents, list_artifacts, list_directories) and then calls present_items with the matching ones, so they appear as tappable cards.',
     '- list_directories already includes document counts. After listing directories, return type=response with that listing unless the user asked for every document title in every folder.',
     '- After completed steps, prefer type=response that summarizes TOOL RESULTS you already have. Do not keep planning one list_documents call per remaining folder.',
     '- If remaining work will not finish, still return type=response with what you already listed. Do not return another plan.',

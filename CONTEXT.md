@@ -18,6 +18,14 @@ _Avoid_: corpus, datastore
 User-owned source material used as input for artifact generation. Ingest paths (file upload, pasted text, URL import) convert existing content to HTML while preserving structure. Prompt generation creates a new learning document and may apply directory rules. Legacy documents may still use markdown storage (`content.md`). Distinct from artifacts: a document is _read_; an artifact is _studied_.
 _Avoid_: source doc, file (when meaning study content), content item
 
+**Capture**:
+A document created from the mobile app's + sheet (scan, camera, photo, pasted text, or web link), saved into the directory the learner is in or, from outside any directory, the default capture directory.
+_Avoid_: upload (alone), import, inbox item
+
+**Default capture directory**:
+An ordinary, user-chosen directory where captures land when they are not started inside a directory. Chosen per device; not a special system folder.
+_Avoid_: Captures folder, inbox
+
 **Scratch pad**:
 On AI Prompt documents, one short open recall question and hidden answer per lesson section (each main `h2`, excluding Glossary and Examples). Stored on the document record, not inside the HTML body. Optional at generation time via the Scratchpad toggle. Each pad can remember prior replaced questions (`avoidedQuestions`) so Generate a different question avoids repeats; Reset clears that list only. Learners use Reveal mode to show the stored answer, or Type mode to submit an answer for a 1 to 10 score and an optional hint when not perfect.
 _Avoid_: inline quiz, document Q&A box
@@ -25,7 +33,7 @@ _Avoid_: inline quiz, document Q&A box
 ## Generated content
 
 **Artifact**:
-Any AI-generated study output stored in a directory: quiz, flashcard set, slide deck, diagram quiz, or sequence quiz.
+Any AI-generated study output stored in a directory: quiz, flashcard set, slide deck, diagram quiz, sequence quiz, or match quiz.
 _Avoid_: content, output, generated doc
 
 **Quiz**:
@@ -176,6 +184,10 @@ _Avoid_: RAG chunk, embedding (when meaning the policy text)
 User-owned notes searchable with `search_knowledge`. Distinct from **Platform agent knowledge**.
 _Avoid_: RAG (alone), personal knowledge base, memory (when meaning note search)
 
+**Referenced item**:
+A directory, document, or artifact that the workspace agent or directory-scoped agent surfaced through its tools during a turn, shown to the learner as a tappable card. Comes from tool results, never from IDs written in the reply text.
+_Avoid_: citation, search result (when meaning agent output)
+
 **Directory chat**:
 Conversational assistant scoped to a directory and its documents/artifacts. Uses follow-up rules and artifact context. Distinct from the workspace agent and directory-scoped agent panels.
 _Avoid_: folder chat, library chat
@@ -240,6 +252,8 @@ _Avoid_: PAYG (in user-facing copy), usage billing (when meaning overage only)
 - A **Language-learning flashcard set** has one **Target language**
 - Checking a card in a **Language-learning flashcard set** may create a **Learned vocabulary item** for that user and **Target language**
 - A **Quiz attempt** or **Flashcard study session** feeds **Statistics failure groups**; **Hidden statistics failures** filter what Statistics shows without deleting raw telemetry
+- A **Capture** creates a **Document** in the current **Directory** or the **Default capture directory**
+- An agent turn may return **Referenced items** alongside its reply
 - **Platform agent knowledge** is retrieved as **Platform knowledge chunks** into the workspace-agent planner prompt; **User knowledge** is searched separately with `search_knowledge`
 
 ## Flagged ambiguities
@@ -247,3 +261,5 @@ _Avoid_: PAYG (in user-facing copy), usage billing (when meaning overage only)
 - **Document vs artifact** — both can be AI-generated; "document" means source material, "artifact" means study output. Prompt-generated HTML is a document, not an artifact.
 - **Quiz** — used generically in some API paths; prefer the specific kind (diagram quiz, sequence quiz) when the distinction matters.
 - **Record vs job** — the user-visible Firestore entity (document/artifact) vs the `GenerationJob` tracking async work; don't conflate their status fields.
+- **"Due"** — StudyForge has no spaced-repetition schedule, so nothing is "due". Say "missed" for cards and questions drawn from **statistics failure groups**.
+- **"Assistant"** — in mobile copy, means the **workspace agent** or **directory-scoped agent**, never **directory chat**.

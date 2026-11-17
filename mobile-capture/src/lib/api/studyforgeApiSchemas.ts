@@ -14,7 +14,7 @@ function isFirestoreTimestamp(value: unknown): value is { toDate(): Date } {
 }
 
 function isSerializedFirestoreTimestamp(
-  value: unknown
+  value: unknown,
 ): value is { seconds: number; nanoseconds: number } {
   if (!isRecord(value)) {
     return false;
@@ -73,13 +73,14 @@ interface IDirectoryTreeNodeSchema {
   isSelected?: boolean;
 }
 
-const directoryTreeNodeSchema: z.ZodType<IDirectoryTreeNodeSchema> = z.lazy(() =>
-  z.object({
-    directory: directorySchema,
-    children: z.array(directoryTreeNodeSchema),
-    isExpanded: z.boolean().optional(),
-    isSelected: z.boolean().optional(),
-  })
+const directoryTreeNodeSchema: z.ZodType<IDirectoryTreeNodeSchema> = z.lazy(
+  () =>
+    z.object({
+      directory: directorySchema,
+      children: z.array(directoryTreeNodeSchema),
+      isExpanded: z.boolean().optional(),
+      isSelected: z.boolean().optional(),
+    }),
 );
 
 export const getDirectoryTreeResponseSchema = z.object({
@@ -135,7 +136,24 @@ export const generateFromScreenshotResponseSchema = z.object({
     .optional(),
 });
 
-export function parseCallableResponse<T>(schema: z.ZodType<T>, data: unknown): T {
+/** Generation and ingest callables return a pending record; mobile only needs success. */
+export const startGenerationResponseSchema = z
+  .object({
+    success: z.boolean(),
+    id: z.string().optional(),
+    documentId: z.string().optional(),
+  })
+  .passthrough();
+
+export const evaluateScratchPadAnswerResponseSchema = z.object({
+  success: z.boolean(),
+  data: z.object({ score: z.number(), hint: z.string().optional() }),
+});
+
+export function parseCallableResponse<T>(
+  schema: z.ZodType<T>,
+  data: unknown,
+): T {
   const parsed = schema.safeParse(data);
   if (!parsed.success) {
     throw new Error(`Invalid callable response: ${parsed.error.message}`);
@@ -143,6 +161,18 @@ export function parseCallableResponse<T>(schema: z.ZodType<T>, data: unknown): T
   return parsed.data;
 }
 
-export type IGetDirectoryTreeResponse = z.infer<typeof getDirectoryTreeResponseSchema>;
-export type ICreateDocumentResponse = z.infer<typeof createDocumentResponseSchema>;
-export type IGenerateFromScreenshotResponse = z.infer<typeof generateFromScreenshotResponseSchema>;
+export type IGetDirectoryTreeResponse = z.infer<
+  typeof getDirectoryTreeResponseSchema
+>;
+export type ICreateDocumentResponse = z.infer<
+  typeof createDocumentResponseSchema
+>;
+export type IGenerateFromScreenshotResponse = z.infer<
+  typeof generateFromScreenshotResponseSchema
+>;
+export type IStartGenerationResponse = z.infer<
+  typeof startGenerationResponseSchema
+>;
+export type IEvaluateScratchPadAnswerResponse = z.infer<
+  typeof evaluateScratchPadAnswerResponseSchema
+>;

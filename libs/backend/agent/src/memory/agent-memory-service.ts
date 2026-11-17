@@ -6,6 +6,7 @@ import type {
   AgentMessageStreamEvent,
   AgentPromptContext,
   AgentProposedDelete,
+  AgentReferencedItem,
   AgentScope,
   AgentThreadSummary,
   GetAgentThreadResponse,
@@ -14,6 +15,7 @@ import type {
 } from '@shared-types';
 import { agentPromptContextSchema } from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
+import { parseReferencedItems } from '../checkpointer/firestore-checkpoint-saver';
 import { AgentEmbeddingService } from '../knowledge/agent-embedding-service';
 import { cosineSimilarity } from '../knowledge/knowledge-chunk-utils';
 
@@ -373,6 +375,7 @@ export class AgentThreadStore {
     promptContext?: AgentPromptContext;
     executedActions?: AgentActionResult[];
     proposedDeletes?: AgentProposedDelete[];
+    referencedItems?: AgentReferencedItem[];
     title?: string;
     turnId?: string;
     preview?: string;
@@ -391,6 +394,9 @@ export class AgentThreadStore {
       promptContext: input.promptContext,
       executedActions: input.executedActions,
       proposedDeletes: input.proposedDeletes,
+      ...(input.referencedItems?.length
+        ? { referencedItems: input.referencedItems }
+        : {}),
     };
 
     await docRef.set({
@@ -400,6 +406,7 @@ export class AgentThreadStore {
       ...(input.promptContext ? { promptContext: input.promptContext } : {}),
       executedActions: input.executedActions ?? [],
       proposedDeletes: input.proposedDeletes ?? [],
+      referencedItems: input.referencedItems ?? [],
       ...(input.turnId ? { turnId: input.turnId } : {}),
     });
 
@@ -441,6 +448,9 @@ export class AgentThreadStore {
           proposedDeletes: Array.isArray(data.proposedDeletes)
             ? data.proposedDeletes
             : undefined,
+          referencedItems: Array.isArray(data.referencedItems)
+            ? parseReferencedItems(data.referencedItems)
+            : undefined,
         } satisfies IAgentThreadMessage;
       })
       .reverse();
@@ -456,6 +466,7 @@ export function buildAgentResponse(input: {
   threadId: string;
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
+  referencedItems?: AgentReferencedItem[];
   retrievedTexts?: string[];
 }): AgentMessageResponse {
   return {
@@ -463,6 +474,7 @@ export function buildAgentResponse(input: {
     threadId: input.threadId,
     executedActions: input.executedActions,
     proposedDeletes: input.proposedDeletes,
+    referencedItems: input.referencedItems ?? [],
     ...(input.retrievedTexts !== undefined
       ? { retrievedTexts: input.retrievedTexts }
       : {}),

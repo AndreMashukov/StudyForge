@@ -12,14 +12,21 @@
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/netinfo": "11.5.2",
     "@react-native-firebase/app": "^22.4.0",
     "@react-native-firebase/app-check": "^22.4.0",
+    "@react-navigation/drawer": "7.12.2",
+    "@tanstack/query-sync-storage-persister": "5.101.0",
+    "@tanstack/react-query-persist-client": "5.101.0",
     "expo": "~55.0.26",
     "expo-camera": "~55.0.18",
+    "expo-clipboard": "~55.0.13",
     "expo-constants": "~55.0.16",
+    "expo-crypto": "~55.0.15",
     "expo-dev-client": "~55.0.35",
     "expo-document-scanner": "^0.2.7",
     "expo-image-manipulator": "~55.0.16",
+    "expo-image-picker": "~55.0.20",
     "expo-linking": "~55.0.15",
     "expo-ocr-kit": "^0.1.4",
     "expo-router": "~55.0.16",
@@ -36,7 +43,9 @@
   },
   "expo": {
     "autolinking": {
-      "searchPaths": [".."]
+      "searchPaths": [
+        ".."
+      ]
     }
   }
 }

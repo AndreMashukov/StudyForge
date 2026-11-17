@@ -46,6 +46,8 @@ export interface IWorkspaceAgentRunnerInput {
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   tools: AgentToolDefinition[];
   onEvent?: (event: AgentMessageStreamEvent) => void;
+  /** On resume, receives tool outcomes already in the checkpoint before the graph continues. */
+  onResumeToolOutcomes?: (outcomes: unknown[]) => void;
   signal?: AbortSignal;
   useMemoryCheckpointer?: boolean;
 }
@@ -103,6 +105,12 @@ export class WorkspaceAgentRunner {
 
       try {
         if (input.resume) {
+          if (input.onResumeToolOutcomes) {
+            const snapshot = await graph.getState(config);
+            const prior: unknown =
+              snapshot.values?.[WORKSPACE_AGENT_STATE_KEYS.allToolOutcomes];
+            input.onResumeToolOutcomes(Array.isArray(prior) ? prior : []);
+          }
           finalState = await graph.invoke(null, config);
         } else {
           finalState = await graph.invoke(

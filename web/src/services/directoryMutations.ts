@@ -1,5 +1,4 @@
 import {
-  addDoc,
   deleteDoc,
   getDocs,
   increment,
@@ -11,16 +10,16 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import type {
-  CreateDirectoryRequest,
   DeleteDirectoryResponse,
   Directory,
-  DirectoryValidationResult,
   MoveDirectoryRequest,
   MoveDirectoryResponse,
   UpdateDirectoryRequest,
 } from '@shared-types';
 import { DIRECTORY_CONSTRAINTS } from '@shared-types';
 import { db } from '../config/firebase';
+import './clientDataSetup';
+import { validateDirectoryName } from '@studyforge/client-data/directoryCreate';
 import { fetchDirectoryFromFirestore } from './directoryFirestore';
 import { directoryRef, userCollection } from './firestorePaths';
 import {
@@ -38,26 +37,6 @@ import {
   FIRESTORE_ARTIFACTS_LIST_LIMIT,
   FIRESTORE_DOCUMENTS_LIST_LIMIT,
 } from './firestoreReadUtils';
-
-function validateDirectoryName(name: string): DirectoryValidationResult {
-  const errors: string[] = [];
-  if (!name || name.trim().length === 0) {
-    errors.push('Directory name is required');
-  }
-  if (name.length > DIRECTORY_CONSTRAINTS.MAX_NAME_LENGTH) {
-    errors.push(
-      `Directory name must not exceed ${DIRECTORY_CONSTRAINTS.MAX_NAME_LENGTH} characters`,
-    );
-  }
-  const reservedNames = DIRECTORY_CONSTRAINTS.RESERVED_NAMES as readonly string[];
-  if (reservedNames.includes(name.toLowerCase())) {
-    errors.push('Directory name is reserved');
-  }
-  if (/[/\\:*?"<>|]/.test(name)) {
-    errors.push('Directory name contains invalid characters');
-  }
-  return { isValid: errors.length === 0, errors };
-}
 
 async function findDirectoryByNameAndParent(
   userId: string,
@@ -79,7 +58,10 @@ async function findDirectoryByNameAndParent(
   return { id: docSnap.id, ...docSnap.data() } as Directory;
 }
 
-async function getDescendants(userId: string, directoryId: string): Promise<Directory[]> {
+async function getDescendants(
+  userId: string,
+  directoryId: string,
+): Promise<Directory[]> {
   const directory = await fetchDirectoryFromFirestore(userId, directoryId);
   if (!directory) {
     return [];
@@ -91,7 +73,9 @@ async function getDescendants(userId: string, directoryId: string): Promise<Dire
       where('path', '<', `${directory.path}0`),
     ),
   );
-  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as Directory);
+  return snapshot.docs.map(
+    (docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as Directory,
+  );
 }
 
 async function isDescendant(
@@ -100,7 +84,10 @@ async function isDescendant(
   ancestorId: string,
 ): Promise<boolean> {
   const ancestor = await fetchDirectoryFromFirestore(userId, ancestorId);
-  const candidate = await fetchDirectoryFromFirestore(userId, potentialDescendantId);
+  const candidate = await fetchDirectoryFromFirestore(
+    userId,
+    potentialDescendantId,
+  );
   if (!ancestor || !candidate) {
     return false;
   }
@@ -128,7 +115,9 @@ async function updateDescendantPaths(
     const batch = writeBatch(db);
     for (const descendant of chunk) {
       const updatedPath = descendant.path.replace(oldPath, newPath);
-      const pathParts = updatedPath.split('/').filter((part) => part.length > 0);
+      const pathParts = updatedPath
+        .split('/')
+        .filter((part) => part.length > 0);
       batch.update(directoryRef(userId, descendant.id), {
         path: updatedPath,
         level: Math.max(0, pathParts.length - 1),
@@ -141,83 +130,7 @@ async function updateDescendantPaths(
   return descendants.length;
 }
 
-export async function createDirectoryInFirestore(
-  userId: string,
-  request: CreateDirectoryRequest,
-): Promise<Directory> {
-  const validation = validateDirectoryName(request.name);
-  if (!validation.isValid) {
-    throw new Error(validation.errors.join(', '));
-  }
-
-  let parentDirectory: Directory | null = null;
-  let level = 0;
-  let path = `/${request.name}`;
-
-  if (request.parentId) {
-    parentDirectory = await fetchDirectoryFromFirestore(userId, request.parentId);
-    if (!parentDirectory) {
-      throw new Error('Parent directory not found');
-    }
-    if (parentDirectory.level >= DIRECTORY_CONSTRAINTS.MAX_DEPTH - 1) {
-      throw new Error(
-        `Maximum directory depth (${DIRECTORY_CONSTRAINTS.MAX_DEPTH}) exceeded`,
-      );
-    }
-    level = parentDirectory.level + 1;
-    path = `${parentDirectory.path}/${request.name}`;
-  }
-
-  const existingDir = await findDirectoryByNameAndParent(
-    userId,
-    request.name,
-    request.parentId ?? null,
-  );
-  if (existingDir) {
-    throw new Error('Directory with this name already exists at this level');
-  }
-
-  const directoryData: Omit<Directory, 'id'> = {
-    userId,
-    name: request.name,
-    parentId: request.parentId ?? null,
-    path,
-    level,
-    ...(request.color !== undefined ? { color: request.color } : {}),
-    ...(request.icon !== undefined ? { icon: request.icon } : {}),
-    ...(request.description !== undefined ? { description: request.description } : {}),
-    documentCount: 0,
-    childCount: 0,
-    quizCount: 0,
-    flashcardSetCount: 0,
-    slideDeckCount: 0,
-    diagramQuizCount: 0,
-    ruleIds: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
-  const docRef = await addDoc(userCollection(userId, 'directories'), {
-    ...directoryData,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-
-  if (parentDirectory) {
-    await updateDoc(directoryRef(userId, parentDirectory.id), {
-      childCount: increment(1),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  if (request.parentId) {
-    await syncIndexSafely('createDirectory', () =>
-      syncSubdirectoryDirectoryIndex(userId, docRef.id),
-    );
-  }
-
-  return { id: docRef.id, ...directoryData };
-}
+export { createDirectoryInFirestore } from '@studyforge/client-data/directoryCreate';
 
 export async function updateDirectoryInFirestore(
   userId: string,
@@ -241,7 +154,9 @@ export async function updateDirectoryInFirestore(
         directory.parentId,
       );
       if (existingDir && existingDir.id !== directoryId) {
-        throw new Error('Directory with this name already exists at this level');
+        throw new Error(
+          'Directory with this name already exists at this level',
+        );
       }
     }
   }
@@ -250,7 +165,10 @@ export async function updateDirectoryInFirestore(
   if (request.name) {
     updateData.name = request.name;
     if (directory.parentId) {
-      const parent = await fetchDirectoryFromFirestore(userId, directory.parentId);
+      const parent = await fetchDirectoryFromFirestore(
+        userId,
+        directory.parentId,
+      );
       if (parent) {
         updateData.path = `${parent.path}/${request.name}`;
       }
@@ -260,7 +178,8 @@ export async function updateDirectoryInFirestore(
   }
   if (request.color !== undefined) updateData.color = request.color;
   if (request.icon !== undefined) updateData.icon = request.icon;
-  if (request.description !== undefined) updateData.description = request.description;
+  if (request.description !== undefined)
+    updateData.description = request.description;
 
   await updateDoc(directoryRef(userId, directoryId), {
     ...updateData,
@@ -431,7 +350,10 @@ export async function moveDirectoryInFirestore(
   }
 
   if (request.targetParentId) {
-    const targetParent = await fetchDirectoryFromFirestore(userId, request.targetParentId);
+    const targetParent = await fetchDirectoryFromFirestore(
+      userId,
+      request.targetParentId,
+    );
     if (!targetParent) {
       throw new Error('Target parent directory not found');
     }
@@ -443,7 +365,10 @@ export async function moveDirectoryInFirestore(
       const relative = descendant.level - directory.level;
       return relative > maxDepth ? relative : maxDepth;
     }, 0);
-    if (targetParent.level + 1 + maxRelativeDepth > DIRECTORY_CONSTRAINTS.MAX_DEPTH) {
+    if (
+      targetParent.level + 1 + maxRelativeDepth >
+      DIRECTORY_CONSTRAINTS.MAX_DEPTH
+    ) {
       throw new Error('Target location exceeds maximum directory depth');
     }
   }
@@ -454,13 +379,18 @@ export async function moveDirectoryInFirestore(
     request.targetParentId ?? null,
   );
   if (conflict && conflict.id !== directoryId) {
-    throw new Error('A directory with this name already exists at the target location');
+    throw new Error(
+      'A directory with this name already exists at the target location',
+    );
   }
 
   let newPath: string;
   let newLevel: number;
   if (request.targetParentId) {
-    const targetParent = await fetchDirectoryFromFirestore(userId, request.targetParentId);
+    const targetParent = await fetchDirectoryFromFirestore(
+      userId,
+      request.targetParentId,
+    );
     if (!targetParent) {
       throw new Error('Target parent directory not found');
     }
@@ -491,7 +421,11 @@ export async function moveDirectoryInFirestore(
     updatedAt: serverTimestamp(),
   });
 
-  const affectedDescendants = await updateDescendantPaths(userId, directoryId, newPath);
+  const affectedDescendants = await updateDescendantPaths(
+    userId,
+    directoryId,
+    newPath,
+  );
 
   await recalculateStatsForDirectoryMove(
     userId,
@@ -526,7 +460,11 @@ export async function getDirectoryByPathFromFirestore(
   path: string,
 ): Promise<Directory | null> {
   const snapshot = await getDocs(
-    query(userCollection(userId, 'directories'), where('path', '==', path), limit(1)),
+    query(
+      userCollection(userId, 'directories'),
+      where('path', '==', path),
+      limit(1),
+    ),
   );
   if (snapshot.empty) {
     return null;

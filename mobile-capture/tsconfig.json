@@ -12,9 +12,16 @@
     "paths": {
       "@shared-types": ["libs/shared-types/src/index.ts"],
       "@studyforge/mobile-ui": ["libs/mobile-ui/src/index.ts"],
+      "@studyforge/client-data": ["libs/client-data/src/index.ts"],
+      "@studyforge/client-data/*": ["libs/client-data/src/*"],
       "@mobile-capture/*": ["mobile-capture/src/*"]
     }
   },
-  "include": ["nativewind-env.d.ts", "src/**/*.ts", "src/**/*.tsx", "app.config.ts"],
+  "include": [
+    "nativewind-env.d.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "app.config.ts"
+  ],
   "exclude": ["node_modules"]
 }

@@ -97,11 +97,36 @@ export const agentProposedDeleteSchema = z.object({
   reason: z.string().optional(),
 });
 
+/** Library item kinds an agent turn can surface as a tappable card. */
+export const agentReferencedItemTypeSchema = z.enum([
+  'directory',
+  'document',
+  'quiz',
+  'flashcard',
+  'slideDeck',
+  'diagramQuiz',
+  'sequenceQuiz',
+  'matchQuiz',
+]);
+
+/**
+ * Referenced item: a library item the agent's tools returned during a turn and
+ * the agent chose to present. `id` is the source record id (document id,
+ * artifact id, or directory id), never a directory-item index row id.
+ */
+export const agentReferencedItemSchema = z.object({
+  itemType: agentReferencedItemTypeSchema,
+  id: z.string().trim().min(1),
+  title: z.string(),
+  directoryId: z.string().trim().min(1).optional(),
+});
+
 export const agentMessageResponseSchema = z.object({
   reply: z.string(),
   threadId: z.string().trim().min(1),
   executedActions: z.array(agentActionResultSchema),
   proposedDeletes: z.array(agentProposedDeleteSchema),
+  referencedItems: z.array(agentReferencedItemSchema).default([]),
   retrievedTexts: z.array(z.string()).optional(),
 });
 
@@ -113,6 +138,10 @@ export type AgentActionKind = z.output<typeof agentActionKindSchema>;
 export type AgentDeleteTarget = z.output<typeof agentDeleteTargetSchema>;
 export type AgentActionResult = z.output<typeof agentActionResultSchema>;
 export type AgentProposedDelete = z.output<typeof agentProposedDeleteSchema>;
+export type AgentReferencedItemType = z.output<
+  typeof agentReferencedItemTypeSchema
+>;
+export type AgentReferencedItem = z.output<typeof agentReferencedItemSchema>;
 export type AgentMessageResponse = z.output<typeof agentMessageResponseSchema>;
 
 export const agentMessageStreamEventSchema = z.discriminatedUnion('type', [
@@ -135,6 +164,10 @@ export const agentMessageStreamEventSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('delete_proposal'),
     proposal: agentProposedDeleteSchema,
+  }),
+  z.object({
+    type: z.literal('reference'),
+    item: agentReferencedItemSchema,
   }),
   z.object({
     type: z.literal('done'),
@@ -231,6 +264,7 @@ export interface IAgentThreadMessage {
   promptContext?: AgentPromptContext;
   executedActions?: AgentActionResult[];
   proposedDeletes?: AgentProposedDelete[];
+  referencedItems?: AgentReferencedItem[];
 }
 
 export interface IAgentConversationMemory {

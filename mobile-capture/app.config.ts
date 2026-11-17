@@ -41,7 +41,8 @@ const APP_BACKGROUND = '#FFFFFF';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'StudyForge Capture',
+  // Display name only. Slug, scheme and bundle IDs stay so installs and App Check registrations carry over.
+  name: 'StudyForge',
   slug: 'studyforge-capture',
   version: '1.0.0',
   orientation: 'portrait',
@@ -79,6 +80,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-ocr-kit',
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Allow StudyForge to read photos you choose to add to your library.',
+        cameraPermission: 'Allow StudyForge to capture documents with your camera.',
+      },
+    ],
   ],
   extra: {
     eas: {

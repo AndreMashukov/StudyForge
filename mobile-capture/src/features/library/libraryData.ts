@@ -96,12 +96,23 @@ export interface ILibraryDocument {
   generationStatus?: 'pending' | 'completed' | 'failed';
   generationError?: string;
   updatedAt?: unknown;
+  scratchPads?: IMobileScratchPad[];
 }
+
+export interface IMobileScratchPad {
+  sectionIndex: number;
+  heading: string;
+  question: string;
+  answer: string;
+}
+
+const scratchPadSchema = z.object({ sectionIndex: z.number(), heading: z.string(), question: z.string(), answer: z.string() });
 
 const documentSchema = z.object({
   title: z.string(), directoryId: z.string(), storagePath: z.string().optional(),
   contentFormat: z.enum(['html', 'markdown']).optional(),
   generationStatus: z.enum(['pending', 'completed', 'failed']).optional(), generationError: z.string().optional(), updatedAt: z.unknown().optional(),
+  scratchPads: z.array(scratchPadSchema).nullable().optional().transform((pads) => pads ?? undefined),
 });
 
 export function useLibraryDocument(userId: string | undefined, documentId: string | undefined) {

@@ -43,11 +43,14 @@ vi.mock('@study-forge/backend-artifacts/artifact-generation-records', () => ({
   failPendingFlashcardSet: vi.fn(),
 }));
 
-vi.mock('@study-forge/backend-generation/generation-job-payload-storage', () => ({
-  GenerationJobPayloadStorage: {
-    saveJson: vi.fn(),
-  },
-}));
+vi.mock(
+  '@study-forge/backend-generation/generation-job-payload-storage',
+  () => ({
+    GenerationJobPayloadStorage: {
+      saveJson: vi.fn(),
+    },
+  }),
+);
 
 vi.mock('@study-forge/backend-generation/generation-jobs', () => ({
   GenerationJobsService: {
@@ -64,6 +67,7 @@ vi.mock('@study-forge/backend-core/lib/firestore-paths', () => ({
   FirestorePaths: {
     documents: vi.fn(),
     quizzes: vi.fn(),
+    directoryItems: vi.fn(),
   },
 }));
 
@@ -118,7 +122,10 @@ import { GenerationJobsService } from '@study-forge/backend-generation/generatio
 import { enqueueGenerationJobTask } from '@study-forge/backend-generation/generation-task-queue';
 import { directoryService } from '@study-forge/backend-directories/directory';
 import { AgentKnowledgeLifecycle } from '../knowledge/agent-knowledge-lifecycle';
+import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import {
+  AGENT_MAX_REFERENCED_ITEMS,
+  restoreReferencedItemsFromOutcomes,
   createAgentToolDefinitions,
   executeAgentTool,
   toAgentReadableDocumentContent,
@@ -135,6 +142,8 @@ function createContext(
     directoryIds: ['dir-1'],
     executedActions: [],
     proposedDeletes: [],
+    referencedItems: [],
+    seenItems: new Map(),
     generationBatchCounts: {
       documents: 0,
       quizzes: 0,
@@ -827,12 +836,16 @@ describe('createAgentToolDefinitions generate_flashcards', () => {
     vi.mocked(DocumentCrudService.getDocumentWithContent).mockResolvedValue(
       createTestDocument({ content: '# Notes\nContent' }),
     );
-    vi.mocked(directoryService.validateDirectoryId).mockResolvedValue(undefined);
+    vi.mocked(directoryService.validateDirectoryId).mockResolvedValue(
+      undefined,
+    );
     vi.mocked(enforceCallableGenerationLimits).mockResolvedValue(
       createTestUsageReservation({ id: 'flashcard-reservation-1' }),
     );
     vi.mocked(createPendingFlashcardSet).mockResolvedValue('flashcard-pending');
-    vi.mocked(GenerationJobsService.newJobId).mockReturnValue('flashcard-job-1');
+    vi.mocked(GenerationJobsService.newJobId).mockReturnValue(
+      'flashcard-job-1',
+    );
     vi.mocked(GenerationJobPayloadStorage.saveJson).mockResolvedValue(
       'users/user-1/generationJobs/flashcard-job-1/payload.json',
     );
@@ -877,12 +890,16 @@ describe('createAgentToolDefinitions generate_flashcards', () => {
     vi.mocked(DocumentCrudService.getDocumentWithContent).mockResolvedValue(
       createTestDocument({ content: '# Notes\nContent' }),
     );
-    vi.mocked(directoryService.validateDirectoryId).mockResolvedValue(undefined);
+    vi.mocked(directoryService.validateDirectoryId).mockResolvedValue(
+      undefined,
+    );
     vi.mocked(enforceCallableGenerationLimits).mockResolvedValue(
       createTestUsageReservation({ id: 'flashcard-reservation-1' }),
     );
     vi.mocked(createPendingFlashcardSet).mockResolvedValue('flashcard-pending');
-    vi.mocked(GenerationJobsService.newJobId).mockReturnValue('flashcard-job-1');
+    vi.mocked(GenerationJobsService.newJobId).mockReturnValue(
+      'flashcard-job-1',
+    );
     vi.mocked(GenerationJobPayloadStorage.saveJson).mockRejectedValue(
       new Error('queue unavailable'),
     );
@@ -891,7 +908,9 @@ describe('createAgentToolDefinitions generate_flashcards', () => {
 
     const tools = createAgentToolDefinitions(createContext());
     await expect(
-      executeAgentTool(tools, 'generate_flashcards', { documentIds: ['doc-1'] }),
+      executeAgentTool(tools, 'generate_flashcards', {
+        documentIds: ['doc-1'],
+      }),
     ).rejects.toThrow('queue unavailable');
 
     expect(failPendingFlashcardSet).toHaveBeenCalledWith(
@@ -903,5 +922,239 @@ describe('createAgentToolDefinitions generate_flashcards', () => {
       'user-1',
       'flashcard-reservation-1',
     );
+  });
+});
+
+describe('createAgentToolDefinitions present_items', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function mockDirectoryItems(rows: Array<Record<string, unknown>>): void {
+    const get = vi.fn().mockResolvedValue({
+      docs: rows.map((row, index) => ({
+        id: `item-${index}`,
+        data: () => row,
+      })),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Firestore query mock boundary
+    vi.mocked(FirestorePaths.directoryItems).mockReturnValue({ get } as any);
+  }
+
+  it('presents artifacts returned by list_artifacts and emits reference events', async () => {
+    mockDirectoryItems([
+      { itemType: 'flashcard', sourceId: 'fc-1', title: 'Organelles' },
+      { itemType: 'document', sourceId: 'doc-1', title: 'Notes' },
+      { itemType: 'subdirectory', sourceId: 'dir-2', title: 'Child' },
+    ]);
+    const onEvent = vi.fn();
+    const context = createContext({ onEvent });
+    const tools = createAgentToolDefinitions(context);
+
+    const listed = await executeAgentTool(tools, 'list_artifacts', {});
+    expect(listed).toEqual([
+      expect.objectContaining({
+        itemType: 'flashcard',
+        id: 'fc-1',
+        title: 'Organelles',
+        directoryId: 'dir-1',
+      }),
+    ]);
+
+    const result = await executeAgentTool(tools, 'present_items', {
+      items: [{ itemType: 'flashcard', id: 'fc-1' }],
+    });
+
+    expect(result).toMatchObject({ presented: [{ id: 'fc-1' }], rejected: [] });
+    expect(context.referencedItems).toEqual([
+      {
+        itemType: 'flashcard',
+        id: 'fc-1',
+        title: 'Organelles',
+        directoryId: 'dir-1',
+      },
+    ]);
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'reference',
+      item: {
+        itemType: 'flashcard',
+        id: 'fc-1',
+        title: 'Organelles',
+        directoryId: 'dir-1',
+      },
+    });
+  });
+
+  it('rejects ids that no tool returned this turn', async () => {
+    const context = createContext();
+    const tools = createAgentToolDefinitions(context);
+
+    const result = await executeAgentTool(tools, 'present_items', {
+      items: [{ itemType: 'document', id: 'invented-id' }],
+    });
+
+    expect(result).toMatchObject({
+      presented: [],
+      rejected: ['document:invented-id'],
+    });
+    expect(context.referencedItems).toEqual([]);
+  });
+
+  it('presents a document read with get_document_content once, even if requested twice', async () => {
+    vi.mocked(DocumentCrudService.getDocumentWithContent).mockResolvedValue({
+      ...createTestDocument({ title: 'Mitochondria' }),
+      content: 'ATP',
+    });
+    const context = createContext();
+    const tools = createAgentToolDefinitions(context);
+    await executeAgentTool(tools, 'get_document_content', {
+      documentId: 'doc-1',
+    });
+
+    await executeAgentTool(tools, 'present_items', {
+      items: [
+        { itemType: 'document', id: 'doc-1' },
+        { itemType: 'document', id: 'doc-1' },
+      ],
+    });
+
+    expect(context.referencedItems).toEqual([
+      {
+        itemType: 'document',
+        id: 'doc-1',
+        title: 'Mitochondria',
+        directoryId: 'dir-1',
+      },
+    ]);
+  });
+
+  it('caps presented items per turn', async () => {
+    mockDirectoryItems(
+      Array.from({ length: AGENT_MAX_REFERENCED_ITEMS + 3 }, (_, index) => ({
+        itemType: 'quiz',
+        sourceId: `quiz-${index}`,
+        title: `Quiz ${index}`,
+      })),
+    );
+    const context = createContext();
+    const tools = createAgentToolDefinitions(context);
+    await executeAgentTool(tools, 'list_artifacts', {});
+
+    await executeAgentTool(tools, 'present_items', {
+      items: Array.from(
+        { length: AGENT_MAX_REFERENCED_ITEMS + 3 },
+        (_, index) => ({
+          itemType: 'quiz',
+          id: `quiz-${index}`,
+        }),
+      ),
+    });
+
+    expect(context.referencedItems).toHaveLength(AGENT_MAX_REFERENCED_ITEMS);
+  });
+
+  it('reports items dropped by the per-reply cap', async () => {
+    mockDirectoryItems(
+      Array.from({ length: AGENT_MAX_REFERENCED_ITEMS + 2 }, (_, index) => ({
+        itemType: 'quiz',
+        sourceId: `quiz-${index}`,
+        title: `Quiz ${index}`,
+      })),
+    );
+    const tools = createAgentToolDefinitions(createContext());
+    await executeAgentTool(tools, 'list_artifacts', {});
+
+    const result = await executeAgentTool(tools, 'present_items', {
+      items: Array.from(
+        { length: AGENT_MAX_REFERENCED_ITEMS + 2 },
+        (_, index) => ({
+          itemType: 'quiz',
+          id: `quiz-${index}`,
+        }),
+      ),
+    });
+
+    expect(result).toMatchObject({
+      overLimit: [
+        `quiz:quiz-${AGENT_MAX_REFERENCED_ITEMS}`,
+        `quiz:quiz-${AGENT_MAX_REFERENCED_ITEMS + 1}`,
+      ],
+    });
+  });
+
+  it('rejects list_artifacts for an unknown directory even in workspace scope', async () => {
+    const tools = createAgentToolDefinitions(
+      createContext({ scope: 'workspace', directoryIds: ['dir-1'] }),
+    );
+
+    await expect(
+      executeAgentTool(tools, 'list_artifacts', {
+        directoryId: 'dir-1/items/x',
+      }),
+    ).rejects.toThrow('outside the active agent scope');
+  });
+
+  it('restores seen and presented items from checkpointed outcomes after a resume', async () => {
+    const context = createContext();
+    restoreReferencedItemsFromOutcomes(context, [
+      {
+        name: 'list_artifacts',
+        ok: true,
+        result: [
+          {
+            itemType: 'flashcard',
+            id: 'fc-1',
+            title: 'Organelles',
+            directoryId: 'dir-1',
+          },
+        ],
+      },
+      {
+        name: 'list_documents',
+        ok: true,
+        result: [{ id: 'doc-1', title: 'Mitochondria', directoryId: 'dir-1' }],
+      },
+      {
+        name: 'present_items',
+        ok: true,
+        result: {
+          presented: [
+            { itemType: 'flashcard', id: 'fc-1', title: 'Organelles' },
+          ],
+        },
+      },
+      { name: 'list_documents', ok: false, error: 'boom' },
+      'not-an-outcome',
+    ]);
+
+    expect(context.referencedItems).toEqual([
+      {
+        itemType: 'flashcard',
+        id: 'fc-1',
+        title: 'Organelles',
+        directoryId: 'dir-1',
+      },
+    ]);
+
+    const tools = createAgentToolDefinitions(context);
+    const result = await executeAgentTool(tools, 'present_items', {
+      items: [{ itemType: 'document', id: 'doc-1' }],
+    });
+    expect(result).toMatchObject({
+      presented: [{ id: 'doc-1' }],
+      rejected: [],
+    });
+  });
+
+  it('rejects list_artifacts for a directory outside directory scope', async () => {
+    const context = createContext({
+      scope: 'directory',
+      directoryIds: ['dir-1'],
+    });
+    const tools = createAgentToolDefinitions(context);
+
+    await expect(
+      executeAgentTool(tools, 'list_artifacts', { directoryId: 'other-dir' }),
+    ).rejects.toThrow('outside the active agent scope');
   });
 });

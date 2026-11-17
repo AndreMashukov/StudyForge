@@ -1,8 +1,9 @@
 import '../../global.css';
+import '../lib/clientData';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useEffect, useRef } from 'react';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -16,10 +17,23 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LoadingState, mobileUiColors } from '@studyforge/mobile-ui';
 import { useAuthUser } from '../features/auth/hooks/useAuthUser';
 import { queryClient } from '../lib/api/queryClient';
+import {
+  QUERY_CACHE_MAX_AGE_MS,
+  hydrateQueryCacheStorage,
+  queryPersister,
+  shouldPersistQuery,
+} from '../lib/api/queryPersistence';
+import { wireOnlineManager } from '../lib/network/online';
+import { hydrateRecentlyOpened } from '../lib/storage/recentlyOpened';
+import { startTelemetryOutbox } from '../features/study/telemetry';
 import { usePreferencesStore } from '../features/preferences/store/preferencesStore';
 import { useCaptureStore } from '../features/capture/store/captureStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
+wireOnlineManager();
+
+/** Bump to discard persisted query caches after a breaking change to cached shapes. */
+const QUERY_CACHE_BUSTER = 'study-app-1';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, initializing } = useAuthUser();
@@ -83,13 +97,23 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
+  const [storageReady, setStorageReady] = useState(false);
+
   useEffect(() => {
-    if (fontsLoaded) {
+    // MMKV is synchronous; the AsyncStorage fallback needs these keys loaded before first render.
+    void Promise.all([hydrateQueryCacheStorage(), hydrateRecentlyOpened()])
+      .catch(() => undefined)
+      .finally(() => setStorageReady(true));
+    void startTelemetryOutbox();
+  }, []);
+
+  useEffect(() => {
+    if (fontsLoaded && storageReady) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, storageReady]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || !storageReady) {
     return null;
   }
 
@@ -97,7 +121,15 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <QueryClientProvider client={queryClient}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{
+            persister: queryPersister,
+            maxAge: QUERY_CACHE_MAX_AGE_MS,
+            buster: QUERY_CACHE_BUSTER,
+            dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+          }}
+        >
           <AuthGate>
             <Stack
               screenOptions={{
@@ -105,10 +137,8 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: mobileUiColors.background },
               }}
             >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="library" />
-              <Stack.Screen name="settings" />
-              <Stack.Screen name="document/[id]" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(app)" />
               <Stack.Screen
                 name="scan/review"
                 options={{
@@ -118,7 +148,7 @@ export default function RootLayout() {
               />
             </Stack>
           </AuthGate>
-        </QueryClientProvider>
+        </PersistQueryClientProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );

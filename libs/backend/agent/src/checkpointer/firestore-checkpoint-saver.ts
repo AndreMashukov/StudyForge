@@ -12,7 +12,12 @@ import {
 } from '@langchain/langgraph-checkpoint';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { Timestamp } from 'firebase-admin/firestore';
-import type { AgentActionResult, AgentProposedDelete } from '@shared-types';
+import type {
+  AgentActionResult,
+  AgentProposedDelete,
+  AgentReferencedItem,
+} from '@shared-types';
+import { agentReferencedItemSchema } from '@shared-types';
 import type { DocumentReference, Firestore } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import { computeExpiresAt } from '@study-forge/backend-core/lib/firestore-ttl';
@@ -102,6 +107,16 @@ function parseCompletedDeletes(value: unknown): AgentProposedDelete[] {
   });
 }
 
+export function parseReferencedItems(value: unknown): AgentReferencedItem[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((entry) => {
+    const parsed = agentReferencedItemSchema.safeParse(entry);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+
 export function toSerdeBytes(value: unknown): Uint8Array | string | null {
   if (typeof value === 'string') {
     return value;
@@ -112,10 +127,7 @@ export function toSerdeBytes(value: unknown): Uint8Array | string | null {
   if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) {
     return new Uint8Array(value);
   }
-  if (
-    isRecord(value) &&
-    typeof value.toUint8Array === 'function'
-  ) {
+  if (isRecord(value) && typeof value.toUint8Array === 'function') {
     const bytes = value.toUint8Array();
     return bytes instanceof Uint8Array ? bytes : null;
   }
@@ -294,7 +306,8 @@ export class FirestoreCheckpointSaver extends BaseCheckpointSaver {
       pendingWrites,
     };
 
-    const parentCheckpointId = parsedRecord.data.parentCheckpointId ?? undefined;
+    const parentCheckpointId =
+      parsedRecord.data.parentCheckpointId ?? undefined;
     if (parentCheckpointId) {
       tuple.parentConfig = {
         configurable: {
@@ -357,9 +370,8 @@ export class FirestoreCheckpointSaver extends BaseCheckpointSaver {
     const threadId = this.resolveThreadId(config);
     const checkpointNamespace = this.checkpointNamespace(config);
     const preparedCheckpoint = copyCheckpoint(checkpoint);
-    const [, serializedCheckpoint] = await this.serde.dumpsTyped(
-      preparedCheckpoint,
-    );
+    const [, serializedCheckpoint] =
+      await this.serde.dumpsTyped(preparedCheckpoint);
     const [, serializedMetadata] = await this.serde.dumpsTyped(metadata);
 
     const now = new Date();
@@ -512,6 +524,7 @@ export interface IAgentTurnCompletion {
   reply: string;
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
+  referencedItems: AgentReferencedItem[];
 }
 
 export async function claimAgentTurnCompletion(
@@ -523,13 +536,17 @@ export async function claimAgentTurnCompletion(
   return turnRef.firestore.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(turnRef);
     const data = snapshot.data();
-    if (typeof data?.completedReply === 'string' && data.completedReply.length > 0) {
+    if (
+      typeof data?.completedReply === 'string' &&
+      data.completedReply.length > 0
+    ) {
       return {
         alreadyCompleted: true,
         completion: {
           reply: data.completedReply,
           executedActions: parseCompletedActions(data.completedExecutedActions),
           proposedDeletes: parseCompletedDeletes(data.completedProposedDeletes),
+          referencedItems: parseReferencedItems(data.completedReferencedItems),
         },
       };
     }
@@ -540,6 +557,7 @@ export async function claimAgentTurnCompletion(
         completedReply: completion.reply,
         completedExecutedActions: completion.executedActions,
         completedProposedDeletes: completion.proposedDeletes,
+        completedReferencedItems: completion.referencedItems,
         completedAt: Timestamp.now(),
       },
       { merge: true },

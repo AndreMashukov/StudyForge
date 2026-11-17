@@ -79,6 +79,13 @@ export function ReviewScreen() {
     );
   }
 
+  /** Close the review sheet and show the destination directory, where the new document is listed. */
+  const finish = (directoryId: string) => {
+    setPendingScan(null);
+    router.back();
+    router.push({ pathname: '/dir/[id]', params: { id: directoryId } });
+  };
+
   const submitTextDocument = form.handleSubmit(async (values) => {
     try {
       const response = await createDocumentMutation.mutateAsync({
@@ -92,8 +99,7 @@ export function ReviewScreen() {
 
       setLastResult(response.document.id, response.document.title);
       setStatusMessage(`Created "${response.document.title}" from OCR text.`);
-      setPendingScan(null);
-      router.back();
+      finish(pendingScan.directoryId);
     } catch (error) {
       form.setError('root', { message: getCallableErrorMessage(error) });
     }
@@ -114,16 +120,12 @@ export function ReviewScreen() {
         response.title?.trim() || formTitle || 'Captured Document';
       setLastResult(response.documentId, displayTitle);
 
-      if (response.generationStatus === 'pending') {
-        setStatusMessage(
-          `Document "${displayTitle}" is generating in StudyForge. Open the web app to view it when ready.`,
-        );
-      } else {
-        setStatusMessage(`Created "${displayTitle}" from scanned image.`);
-      }
-
-      setPendingScan(null);
-      router.back();
+      setStatusMessage(
+        response.generationStatus === 'pending'
+          ? `"${displayTitle}" is generating. It will appear in the directory when ready.`
+          : `Created "${displayTitle}" from scanned image.`,
+      );
+      finish(pendingScan.directoryId);
     } catch (error) {
       form.setError('root', { message: getCallableErrorMessage(error) });
     }

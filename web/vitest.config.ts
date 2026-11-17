@@ -3,11 +3,26 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   resolve: {
-    alias: {
-      '@shared-types': fileURLToPath(
-        new URL('../libs/shared-types/src/index.ts', import.meta.url),
-      ),
-    },
+    alias: [
+      {
+        find: '@shared-types',
+        replacement: fileURLToPath(
+          new URL('../libs/shared-types/src/index.ts', import.meta.url),
+        ),
+      },
+      {
+        find: /^@studyforge\/client-data\/(.*)$/,
+        replacement: fileURLToPath(
+          new URL('../libs/client-data/src/$1', import.meta.url),
+        ),
+      },
+      {
+        find: /^@studyforge\/client-data$/,
+        replacement: fileURLToPath(
+          new URL('../libs/client-data/src/index.ts', import.meta.url),
+        ),
+      },
+    ],
   },
   test: {
     environment: 'node',

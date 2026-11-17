@@ -6760,6 +6760,11 @@
   dependencies:
     merge-options "^3.0.4"
 
+"@react-native-community/netinfo@11.5.2":
+  version "11.5.2"
+  resolved "https://registry.yarnpkg.com/@react-native-community/netinfo/-/netinfo-11.5.2.tgz#daf3bc1b5cf6e9fc6725600c9e95875b5e50e694"
+  integrity sha512-/g0m65BtX9HU+bPiCH2517bOHpEIUsGrWFXDzi1a5nNKn5KujQgm04WhL7/OSXWKHyrT8VVtUoJA0XKRxueBpQ==
+
 "@react-native-firebase/app-check@^22.4.0":
   version "22.4.0"
   resolved "https://registry.yarnpkg.com/@react-native-firebase/app-check/-/app-check-22.4.0.tgz#85c19f518b29e51a0324aff0e48b148c510408db"
@@ -6943,6 +6948,16 @@
     react-is "^19.1.0"
     use-latest-callback "^0.2.4"
     use-sync-external-store "^1.5.0"
+
+"@react-navigation/drawer@7.12.2":
+  version "7.12.2"
+  resolved "https://registry.yarnpkg.com/@react-navigation/drawer/-/drawer-7.12.2.tgz#f94af837ce6c27efdbfeb958c501ca4cd4b4e445"
+  integrity sha512-LEwER8YRq6Kjxjw9vECOVgWUAiP8l2jso3XntfAvthZqYWtVD4Ms1HdAUAf4Emwp78W15PEj7m0PV2StmglkLw==
+  dependencies:
+    "@react-navigation/elements" "^2.9.25"
+    color "^4.2.3"
+    react-native-drawer-layout "^4.2.5"
+    use-latest-callback "^0.2.4"
 
 "@react-navigation/elements@^2.9.25":
   version "2.9.25"
@@ -7728,6 +7743,28 @@
   version "5.101.0"
   resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.101.0.tgz#45391ce143c270b7e7a55bd1a6696918f20782d1"
   integrity sha512-cQetA74EB+seWySv1TTKr828TnP0u39m6LykwDXIo84SNortpDkp30TMEjkqtYCNP9c40uT/iwl6MLiufEt0Ow==
+
+"@tanstack/query-persist-client-core@5.101.0":
+  version "5.101.0"
+  resolved "https://registry.yarnpkg.com/@tanstack/query-persist-client-core/-/query-persist-client-core-5.101.0.tgz#7cafe8b273e3ff68104f47bb5aad6c64767a59a9"
+  integrity sha512-LH99WepGVLwlLfuOcQcPK7f3Xg/Gf+xlMMIj9xWu/8oQ3egnDzjr+a4HvEmi6PGob5SmGXvmDKZaH5+In9dzjw==
+  dependencies:
+    "@tanstack/query-core" "5.101.0"
+
+"@tanstack/query-sync-storage-persister@5.101.0":
+  version "5.101.0"
+  resolved "https://registry.yarnpkg.com/@tanstack/query-sync-storage-persister/-/query-sync-storage-persister-5.101.0.tgz#8602002e2972d59ff6cfc5050b3e3b29c0a6c0e9"
+  integrity sha512-UAGbsIJe9vkV/rbFxUBOPH27Eu6K17KuVLfK1mSy8qoSUJ4qt6JKGMxA8NMUoowbPG0ZnTfRt1Y5SFsqfqlfcA==
+  dependencies:
+    "@tanstack/query-core" "5.101.0"
+    "@tanstack/query-persist-client-core" "5.101.0"
+
+"@tanstack/react-query-persist-client@5.101.0":
+  version "5.101.0"
+  resolved "https://registry.yarnpkg.com/@tanstack/react-query-persist-client/-/react-query-persist-client-5.101.0.tgz#020d1b2d47f111ed176bfb6dee37b4d877cc71ce"
+  integrity sha512-AUcdBgz8V6sM9axzdqkVmWjYSOETkhr6yAZSBnEFyZT2jo6vkFq3UrpRuxGs6fmhKMWv8FA+ZJGcbaKPaoAElQ==
+  dependencies:
+    "@tanstack/query-persist-client-core" "5.101.0"
 
 "@tanstack/react-query@^5.101.0":
   version "5.101.0"
@@ -13360,12 +13397,22 @@ expo-camera@~55.0.18:
   dependencies:
     barcode-detector "^3.0.0"
 
+expo-clipboard@~55.0.13:
+  version "55.0.17"
+  resolved "https://registry.yarnpkg.com/expo-clipboard/-/expo-clipboard-55.0.17.tgz#fbbdc7ef579c15a6e78512742bc94196e720bb0b"
+  integrity sha512-wVWLvBfsFE3W3MBBSYAjwybkV40XowK65R9PDqfiuU2F9h7grKVjCjWD6FE7I4goZo0hFM8MfZNP+7XOdJMYiQ==
+
 expo-constants@~55.0.16:
   version "55.0.16"
   resolved "https://registry.yarnpkg.com/expo-constants/-/expo-constants-55.0.16.tgz#b2ffdc354716488aa38684c8cbf097150089b9b7"
   integrity sha512-Z15/No94UHoogD+pulxjudGAeOHTEIWZgb/vnX48Wx5D+apWTeCbnKxQZZtGQlosvduYL5kaic2/W8U+NHfBQQ==
   dependencies:
     "@expo/env" "~2.1.2"
+
+expo-crypto@~55.0.15:
+  version "55.0.19"
+  resolved "https://registry.yarnpkg.com/expo-crypto/-/expo-crypto-55.0.19.tgz#94316938fa1285c9195f2e47332cead5b58cd016"
+  integrity sha512-Ip1jQ5GphvrC4Ls5osAmIapi+JZXOqRJYaaMxTFWpkhssNUq88oP45pWGv2uU2K/Ci6j7iLDJzU8eN3v+B7jrA==
 
 expo-dev-client@~55.0.35:
   version "55.0.35"
@@ -13430,6 +13477,13 @@ expo-image-manipulator@~55.0.16:
   version "55.0.17"
   resolved "https://registry.yarnpkg.com/expo-image-manipulator/-/expo-image-manipulator-55.0.17.tgz#64c1fa612e7fd1334906d17253d5304f630b5227"
   integrity sha512-lTYhmXejHnMp+vjFID0Q/jD+Qic3U9OP4qw3tCVHCVp4TTmx9hbifTIN0hmw02ak7LsBkxuYnP+uglvUKgJAzA==
+  dependencies:
+    expo-image-loader "~55.0.1"
+
+expo-image-picker@~55.0.20:
+  version "55.0.24"
+  resolved "https://registry.yarnpkg.com/expo-image-picker/-/expo-image-picker-55.0.24.tgz#8686cc9cdd5a73e4e006a24b5a9aaf71b4a14764"
+  integrity sha512-scbtvQIgiqiOxQx/lFEocJkWPzYANHjwFLnzfKjdZNWh3RJjjMmtHaEoeu7lM9RzqE3EwF+JQecgy+FATXNfiQ==
   dependencies:
     expo-image-loader "~55.0.1"
 
@@ -20693,6 +20747,13 @@ react-native-css-interop@0.2.5:
     debug "^4.3.7"
     lightningcss "~1.27.0"
     semver "^7.6.3"
+
+react-native-drawer-layout@^4.2.5:
+  version "4.2.13"
+  resolved "https://registry.yarnpkg.com/react-native-drawer-layout/-/react-native-drawer-layout-4.2.13.tgz#c0ca511577016ea5c0b44ece22a3ebdee61d424a"
+  integrity sha512-1eUmyGwSpdZ02KWH5cdxJDZlw8pJMvsyQetZTthqyPKcQcmKWuANICOMvvSCDFTQ/pyaQzrreu6JrQxtx0FVQg==
+  dependencies:
+    use-latest-callback "^0.2.4"
 
 react-native-gesture-handler@~2.30.0:
   version "2.30.1"

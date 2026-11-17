@@ -24,6 +24,13 @@ async function loadScanNativeModules() {
   }
 }
 
+/** On-device OCR for a camera shot or gallery photo; same engine as the scanner path. */
+export async function recognizeImageText(imageUri: string): Promise<string> {
+  const { recognizeText } = await loadScanNativeModules();
+  const result = await recognizeText(imageUri);
+  return result.text.trim();
+}
+
 export class CaptureScanCommandHandler {
   private state: CaptureState = 'idle';
   private onStateChange?: (state: CaptureState) => void;
@@ -45,7 +52,9 @@ export class CaptureScanCommandHandler {
       this.transitionTo('validating');
 
       if (!directoryId.trim()) {
-        throw new Error('Default directory is required. Choose one in Settings.');
+        throw new Error(
+          'Default directory is required. Choose one in Settings.',
+        );
       }
 
       const { scanDocument, recognizeText } = await loadScanNativeModules();
@@ -80,7 +89,10 @@ export class CaptureScanCommandHandler {
       };
     } catch (error) {
       this.transitionTo('error');
-      if (error instanceof Error && error.message === DEV_BUILD_REQUIRED_MESSAGE) {
+      if (
+        error instanceof Error &&
+        error.message === DEV_BUILD_REQUIRED_MESSAGE
+      ) {
         throw error;
       }
       throw new Error(getCallableErrorMessage(error));

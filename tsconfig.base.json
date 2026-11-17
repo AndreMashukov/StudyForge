@@ -19,6 +19,8 @@
       "@admin/*": ["admin/src/*"],
       "@study-forge/ui": ["libs/ui/src/index.ts"],
       "@studyforge/mobile-ui": ["libs/mobile-ui/src/index.ts"],
+      "@studyforge/client-data": ["libs/client-data/src/index.ts"],
+      "@studyforge/client-data/*": ["libs/client-data/src/*"],
       "@mobile-capture/*": ["mobile-capture/src/*"],
       "@study-forge/backend-core": ["./libs/backend/core/src/index.ts"],
       "@study-forge/backend-core/*": ["./libs/backend/core/src/*"],

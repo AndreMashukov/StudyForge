@@ -34,6 +34,7 @@ import {
   AGENT_DOCUMENT_CONTENT_MAX_CHARS,
   AgentToolRuntimeContext,
   createAgentToolDefinitions,
+  restoreReferencedItemsFromOutcomes,
   toAgentReadableDocumentContent,
 } from './tools/create-agent-tools';
 import { PlatformAgentKnowledgeIndexService } from './knowledge/platform-agent-knowledge-index-service';
@@ -320,6 +321,8 @@ export class DirectoryAgentService {
       clientLocalDate: calendar.today,
       executedActions: [],
       proposedDeletes: [],
+      referencedItems: [],
+      seenItems: new Map(),
       generationBatchCounts: {
         documents: 0,
         quizzes: 0,
@@ -445,6 +448,8 @@ export class DirectoryAgentService {
       studyForgeThreadId: thread.id,
       turnId,
       resume: request.resume,
+      onResumeToolOutcomes: (outcomes) =>
+        restoreReferencedItemsFromOutcomes(runtimeContext, outcomes),
       systemPrompt,
       objective: formattedUserMessage,
       history: historyForModel,
@@ -474,10 +479,7 @@ export class DirectoryAgentService {
       });
 
     try {
-      while (
-        (!runComplete || pendingEvents.length > 0) &&
-        !signal?.aborted
-      ) {
+      while ((!runComplete || pendingEvents.length > 0) && !signal?.aborted) {
         while (pendingEvents.length > 0) {
           const event = pendingEvents.shift();
           if (event) {
@@ -502,6 +504,7 @@ export class DirectoryAgentService {
           reply: incompleteReply,
           executedActions: runtimeContext.executedActions,
           proposedDeletes: runtimeContext.proposedDeletes,
+          referencedItems: runtimeContext.referencedItems,
           retrievedTexts:
             process.env['LANGSMITH_EVAL_EMIT_RETRIEVED_TEXTS'] === 'true'
               ? platformKnowledgeMatches.map((entry) => entry.text)
@@ -522,6 +525,7 @@ export class DirectoryAgentService {
             reply: buildIncompleteAgentReply(runtimeContext.executedActions),
             executedActions: runtimeContext.executedActions,
             proposedDeletes: runtimeContext.proposedDeletes,
+            referencedItems: runtimeContext.referencedItems,
           });
           return;
         }
@@ -563,6 +567,7 @@ export class DirectoryAgentService {
         reply,
         executedActions: runtimeContext.executedActions,
         proposedDeletes: runtimeContext.proposedDeletes,
+        referencedItems: runtimeContext.referencedItems,
         retrievedTexts:
           process.env['LANGSMITH_EVAL_EMIT_RETRIEVED_TEXTS'] === 'true'
             ? platformKnowledgeMatches.map((entry) => entry.text)
@@ -582,6 +587,7 @@ async function* persistAndYieldDone(input: {
   reply: string;
   executedActions: AgentToolRuntimeContext['executedActions'];
   proposedDeletes: AgentToolRuntimeContext['proposedDeletes'];
+  referencedItems: AgentToolRuntimeContext['referencedItems'];
   retrievedTexts?: string[];
 }): AsyncGenerator<AgentMessageStreamEvent> {
   for (const action of input.executedActions) {
@@ -592,6 +598,10 @@ async function* persistAndYieldDone(input: {
     yield { type: 'delete_proposal', proposal };
   }
 
+  for (const item of input.referencedItems) {
+    yield { type: 'reference', item };
+  }
+
   const preview = deriveAgentThreadPreview(input.reply);
   const claimed = await claimAgentTurnCompletion(
     input.userId,
@@ -600,6 +610,7 @@ async function* persistAndYieldDone(input: {
       reply: input.reply,
       executedActions: input.executedActions,
       proposedDeletes: input.proposedDeletes,
+      referencedItems: input.referencedItems,
     },
   );
   const persistedReply = claimed.completion.reply;
@@ -609,6 +620,9 @@ async function* persistAndYieldDone(input: {
   const persistedDeletes = claimed.alreadyCompleted
     ? claimed.completion.proposedDeletes
     : input.proposedDeletes;
+  const persistedReferences = claimed.alreadyCompleted
+    ? claimed.completion.referencedItems
+    : input.referencedItems;
 
   if (!claimed.alreadyCompleted) {
     await AgentThreadStore.appendMessage({
@@ -619,6 +633,7 @@ async function* persistAndYieldDone(input: {
       turnId: input.turnId,
       executedActions: persistedActions,
       proposedDeletes: persistedDeletes,
+      referencedItems: persistedReferences,
       ...(preview ? { preview } : {}),
     });
 
@@ -637,6 +652,7 @@ async function* persistAndYieldDone(input: {
       threadId: input.threadId,
       executedActions: persistedActions,
       proposedDeletes: persistedDeletes,
+      referencedItems: persistedReferences,
       ...(input.retrievedTexts ? { retrievedTexts: input.retrievedTexts } : {}),
     }),
   };

@@ -1,6 +1,6 @@
-# StudyForge Mobile Capture
+# StudyForge Mobile
 
-Expo development-build app for document scanning, on-device OCR, and upload to StudyForge via Firebase callables.
+Expo development-build app (display name **StudyForge**; project, slug and bundle ID stay `mobile-capture` / `io.studyforge.capture`). A phone study companion: the assistant home, a sidebar library, reading, native quiz and flashcard players, and capture. Design decisions: [ADR 007](../docs/adr/007-shared-client-data-library.md), [ADR 008](../docs/adr/008-mobile-assistant-uses-agent.md), and the navigation spec in the workspace `docs/mobile-study-app/`.
 
 Stack aligns with [expo_app_stack_2026.md](../docs/tasks/16-mobile-ocr-app/expo_app_stack_2026.md):
 
@@ -77,10 +77,16 @@ NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run mobile-capture:lint
 
 ## Flow
 
-1. Sign in with Firebase email/password (same project as web)
-2. Choose a default directory in Settings
-3. Tap **Scan document** — native scanner → on-device OCR → review form sheet
-4. **Save OCR text as document** (`createDocument`) or **Send image to StudyForge AI** (`generateFromScreenshot`)
+1. Sign in with Firebase email/password (same project as web).
+2. **Home is the assistant.** The composer talks to the workspace agent; the title menu scopes it to one directory (directory-scoped agent). Replies show tappable cards for documents and artifacts the agent found (`referencedItems`).
+3. **Sidebar (☰ or swipe):** search, Home, Library, the directory tree, recent items and chats, Settings.
+4. **Directory pages** drill down with a breadcrumb: subdirectories, then Documents / Artifacts / Chats. Their composer asks about that directory.
+5. **Reader** shows the document, scratch pads (Reveal or Type to get a 1 to 10 score), and **Study this**: existing quizzes and flashcard sets, plus one-tap **+ Quiz** / **+ Flashcards** (inherited rules).
+6. **Players:** quizzes and flashcard sets play in the app and write quiz attempts and flashcard study sessions through `@studyforge/client-data`. Other artifact kinds open in the web app.
+7. **Capture (+):** Scan, Camera, Photos (on-device OCR → review sheet → `createDocument` or `generateFromScreenshot`), Paste text (`createDocumentFromPastedText`), Web link (`createDocumentFromUrl`). Captures go to the current directory; from home they go to the default capture directory, which is asked for once.
+8. **Offline:** the library structure and the ~20 most recently opened documents and study sets stay cached (TanStack Query persisted to MMKV). Study sessions done offline queue in an outbox and are written when the device reconnects. The assistant, capture and generation need a connection.
+
+Library management on mobile is limited to **New directory**. Agent delete proposals link to the web app to confirm.
 
 ## Native rebuild
 
@@ -91,7 +97,7 @@ NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run mobile-capture:android
 # or: yarn nx run mobile-capture:ios
 ```
 
-Native Expo modules must be declared in [`package.json`](./package.json) (not only the workspace root) so autolinking includes them in the Android/iOS project. Missing modules cause startup crashes such as `Cannot find native module 'ExpoLinking'`.
+Native Expo modules must be declared in [`package.json`](./package.json) and [`yarn.lock`](./yarn.lock) here (not only the workspace root) so autolinking includes them in the Android/iOS project. Missing modules cause startup crashes such as `Cannot find native module 'ExpoLinking'`.
 
 Then start Metro with a clean cache:
 
