@@ -24,6 +24,8 @@ export interface ICallWorkspacePlannerModelInput {
   isReplan: boolean;
   recoverOutcomes?: AgentToolOutcome[];
   onUserReplyDelta?: (text: string) => void;
+  /** Aborts the in-flight planner request (Stop, soft deadline). */
+  signal?: AbortSignal;
 }
 
 export interface IWorkspacePlannerModelResult {
@@ -40,6 +42,7 @@ async function runPlannerCompletion(input: {
   streamUserReply: boolean;
   previousInvalidContent?: string;
   onUserReplyDelta?: (text: string) => void;
+  signal?: AbortSignal;
 }): Promise<{ content: string; streamedUserReply: string }> {
   const resolution = await LlmGenerationRouteResolver.resolve(
     'directoryAgent',
@@ -76,6 +79,7 @@ async function runPlannerCompletion(input: {
     // gets one dump after Planning. Turn thinking off for planner turns.
     disableReasoning: true,
     stream: streamUserReply,
+    signal: input.signal,
     onDelta: streamUserReply
       ? (text) => {
           for (const piece of extractor.push(text)) {
@@ -108,6 +112,7 @@ export async function callWorkspacePlannerModel(
       streamUserReply,
       previousInvalidContent,
       onUserReplyDelta: streamUserReply ? input.onUserReplyDelta : undefined,
+      signal: input.signal,
     });
 
     const parsed = parseAgentPlanOutput(content);

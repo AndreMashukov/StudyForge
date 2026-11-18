@@ -399,6 +399,15 @@ async function recordToolChatProviderUsage(params: {
   });
 }
 
+/** Combines the per-request timeout with an optional caller abort (Stop / deadline). */
+function buildToolChatRequestSignal(
+  timeoutMs: number,
+  signal?: AbortSignal,
+): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  return signal ? AbortSignal.any([timeout, signal]) : timeout;
+}
+
 async function executeNonStreamToolChat(input: {
   route: ResolvedRoute;
   apiKey: string;
@@ -407,12 +416,16 @@ async function executeNonStreamToolChat(input: {
   settings: ILlmGenerationRuntimeSettings;
   onDelta?: (text: string) => void;
   emitDeltas: boolean;
+  signal?: AbortSignal;
 }): Promise<ILlmToolChatMessage> {
   const startedAt = Date.now();
   const url = resolveToolChatCompletionsUrl(input.route);
   const response = await fetch(url, {
     method: 'POST',
-    signal: AbortSignal.timeout(input.settings.requestTimeoutMs),
+    signal: buildToolChatRequestSignal(
+      input.settings.requestTimeoutMs,
+      input.signal,
+    ),
     headers: buildRequestHeaders(input.apiKey, input.route.providerType),
     body: JSON.stringify(
       buildToolChatRequestBody({
@@ -474,13 +487,17 @@ async function executeStreamToolChat(input: {
   tools: ILlmOpenAiToolDefinition[];
   settings: ILlmGenerationRuntimeSettings;
   onDelta?: (text: string) => void;
+  signal?: AbortSignal;
 }): Promise<ILlmToolChatMessage> {
   const startedAt = Date.now();
   const url = resolveToolChatCompletionsUrl(input.route);
   const thinkingFilter = createStreamingThinkingFilter();
   const response = await fetch(url, {
     method: 'POST',
-    signal: AbortSignal.timeout(input.settings.requestTimeoutMs),
+    signal: buildToolChatRequestSignal(
+      input.settings.requestTimeoutMs,
+      input.signal,
+    ),
     headers: buildRequestHeaders(input.apiKey, input.route.providerType),
     body: JSON.stringify(
       buildToolChatRequestBody({
@@ -697,6 +714,8 @@ async function callToolChatCompletionsImpl(input: {
   stream?: boolean;
   onDelta?: (text: string) => void;
   disableReasoning?: boolean;
+  /** Aborts the in-flight provider request (agent Stop, soft deadline). */
+  signal?: AbortSignal;
 }): Promise<ILlmToolChatMessage> {
   const preferStream = shouldStreamToolChat(input.stream ?? true);
   const baseSettings = await readLlmGenerationRuntimeSettings();
@@ -714,6 +733,7 @@ async function callToolChatCompletionsImpl(input: {
       settings,
       onDelta: input.onDelta,
       emitDeltas: true,
+      signal: input.signal,
     });
   }
 
@@ -724,6 +744,7 @@ async function callToolChatCompletionsImpl(input: {
     tools: input.tools,
     settings,
     onDelta: input.onDelta,
+    signal: input.signal,
   });
 
   if (!toolCallNeedsGeminiSignatureRetry(input.route, streamed)) {
@@ -751,5 +772,6 @@ async function callToolChatCompletionsImpl(input: {
     settings,
     onDelta: input.onDelta,
     emitDeltas: !(streamed.content && streamed.content.length > 0),
+    signal: input.signal,
   });
 }

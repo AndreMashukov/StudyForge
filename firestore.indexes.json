@@ -147,6 +147,14 @@
       ]
     },
     {
+      "collectionGroup": "turns",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "generationJobs",
       "queryScope": "COLLECTION",
       "fields": [
@@ -364,6 +372,47 @@
       "collectionGroup": "agentCheckpoints",
       "fieldPath": "expiresAt",
       "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "turns",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "turns",
+      "fieldPath": "reply",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "turns",
+      "fieldPath": "executedActions",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "turns",
+      "fieldPath": "proposedDeletes",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "turns",
+      "fieldPath": "referencedItems",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "turns",
+      "fieldPath": "request",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "turns",
+      "fieldPath": "statusMessage",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "turns",
+      "fieldPath": "evalRetrievedTexts",
       "indexes": []
     },
     {

@@ -50,6 +50,8 @@ export interface IWorkspaceAgentRunnerInput {
   onResumeToolOutcomes?: (outcomes: unknown[]) => void;
   signal?: AbortSignal;
   useMemoryCheckpointer?: boolean;
+  /** 1-based task attempt, for trace metadata. */
+  attempt?: number;
 }
 
 function readFinalReply(finalState: WorkspaceAgentState): string {
@@ -90,6 +92,8 @@ export class WorkspaceAgentRunner {
             userId: input.userId,
             studyForgeThreadId: input.studyForgeThreadId,
             turnId: input.turnId,
+            turnKey: langGraphThreadId,
+            attempt: String(input.attempt ?? 1),
           },
         }),
         configurable: {
@@ -101,35 +105,45 @@ export class WorkspaceAgentRunner {
         },
       };
 
+      const freshInput = {
+        [WORKSPACE_AGENT_STATE_KEYS.studyForgeThreadId]:
+          input.studyForgeThreadId,
+        [WORKSPACE_AGENT_STATE_KEYS.objective]: input.objective,
+        [WORKSPACE_AGENT_STATE_KEYS.systemPrompt]: input.systemPrompt,
+        [WORKSPACE_AGENT_STATE_KEYS.history]: input.history,
+        [WORKSPACE_AGENT_STATE_KEYS.plannerIntent]: 'initial',
+        [WORKSPACE_AGENT_STATE_KEYS.agentOutcome]: 'pending',
+        [WORKSPACE_AGENT_STATE_KEYS.planSteps]: [],
+        [WORKSPACE_AGENT_STATE_KEYS.pastSteps]: [],
+        [WORKSPACE_AGENT_STATE_KEYS.allToolOutcomes]: [],
+        [WORKSPACE_AGENT_STATE_KEYS.executedStepCount]: 0,
+        [WORKSPACE_AGENT_STATE_KEYS.replanCycle]: 0,
+      } satisfies Partial<WorkspaceAgentState>;
+
       let finalState: WorkspaceAgentState;
+      // A graph that already finished in an earlier attempt never streamed its
+      // reply to this attempt, so its reply is always emitted below.
+      let finishedInEarlierAttempt = false;
 
       try {
         if (input.resume) {
-          if (input.onResumeToolOutcomes) {
-            const snapshot = await graph.getState(config);
+          const snapshot = await graph.getState(config);
+          if (snapshot.createdAt === undefined) {
+            // The earlier attempt died before the first checkpoint: start over.
+            finalState = await graph.invoke(freshInput, config);
+          } else {
             const prior: unknown =
               snapshot.values?.[WORKSPACE_AGENT_STATE_KEYS.allToolOutcomes];
-            input.onResumeToolOutcomes(Array.isArray(prior) ? prior : []);
+            input.onResumeToolOutcomes?.(Array.isArray(prior) ? prior : []);
+            if (snapshot.next.length === 0) {
+              finalState = snapshot.values;
+              finishedInEarlierAttempt = true;
+            } else {
+              finalState = await graph.invoke(null, config);
+            }
           }
-          finalState = await graph.invoke(null, config);
         } else {
-          finalState = await graph.invoke(
-            {
-              [WORKSPACE_AGENT_STATE_KEYS.studyForgeThreadId]:
-                input.studyForgeThreadId,
-              [WORKSPACE_AGENT_STATE_KEYS.objective]: input.objective,
-              [WORKSPACE_AGENT_STATE_KEYS.systemPrompt]: input.systemPrompt,
-              [WORKSPACE_AGENT_STATE_KEYS.history]: input.history,
-              [WORKSPACE_AGENT_STATE_KEYS.plannerIntent]: 'initial',
-              [WORKSPACE_AGENT_STATE_KEYS.agentOutcome]: 'pending',
-              [WORKSPACE_AGENT_STATE_KEYS.planSteps]: [],
-              [WORKSPACE_AGENT_STATE_KEYS.pastSteps]: [],
-              [WORKSPACE_AGENT_STATE_KEYS.allToolOutcomes]: [],
-              [WORKSPACE_AGENT_STATE_KEYS.executedStepCount]: 0,
-              [WORKSPACE_AGENT_STATE_KEYS.replanCycle]: 0,
-            },
-            config,
-          );
+          finalState = await graph.invoke(freshInput, config);
         }
       } catch (error) {
         if (error instanceof GraphRecursionError) {
@@ -154,6 +168,7 @@ export class WorkspaceAgentRunner {
       }
 
       const streamedFinal =
+        !finishedInEarlierAttempt &&
         finalState[WORKSPACE_AGENT_STATE_KEYS.streamedFinalReply] === true;
       const reply = readFinalReply(finalState);
 

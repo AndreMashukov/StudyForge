@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import type { IAgentConversationEntry } from '@studyforge/client-data/agentConversation';
 import {
-  applyAgentEvent,
-  emptyAssistantMessage,
+  fromConversationEntry,
   replyCards,
+  type IChatMessage,
 } from './agentEvents';
 
 const card = {
@@ -12,43 +13,100 @@ const card = {
   directoryId: 'cell',
 };
 
-describe('applyAgentEvent', () => {
-  it('streams deltas and status, then takes the final reply from done', () => {
-    let message = emptyAssistantMessage('m1');
-    message = applyAgentEvent(message, {
-      type: 'status',
-      message: 'Searching your library',
-    });
-    message = applyAgentEvent(message, { type: 'delta', text: 'Found ' });
-    message = applyAgentEvent(message, { type: 'delta', text: 'one' });
+function assistantMessage(id: string): IChatMessage {
+  return {
+    id,
+    role: 'assistant',
+    content: '',
+    referencedItems: [],
+    actions: [],
+    deletes: [],
+    streaming: false,
+  };
+}
+
+function entry(
+  overrides: Partial<IAgentConversationEntry> = {},
+): IAgentConversationEntry {
+  return {
+    id: 'assistant-turn-1',
+    role: 'assistant',
+    content: '',
+    createdAt: '2026-11-18T12:00:00.000Z',
+    executedActions: [],
+    proposedDeletes: [],
+    referencedItems: [],
+    turnId: 'turn-1',
+    ...overrides,
+  };
+}
+
+describe('fromConversationEntry', () => {
+  it('shows a live turn as streaming with its status', () => {
+    const message = fromConversationEntry(
+      entry({
+        content: 'Found ',
+        live: {
+          status: 'running',
+          statusMessage: 'Searching your library',
+          cancelRequested: false,
+          stuck: false,
+        },
+      }),
+    );
     expect(message).toMatchObject({
-      content: 'Found one',
+      content: 'Found ',
       status: 'Searching your library',
       streaming: true,
     });
-
-    message = applyAgentEvent(message, {
-      type: 'done',
-      response: {
-        reply: 'Found one match.',
-        threadId: 't1',
-        executedActions: [],
-        proposedDeletes: [],
-        referencedItems: [card],
-      },
-    });
-    expect(message).toMatchObject({
-      content: 'Found one match.',
-      streaming: false,
-      status: undefined,
-      referencedItems: [card],
-    });
   });
 
-  it('dedupes references replayed before done', () => {
-    let message = emptyAssistantMessage('m1');
-    message = applyAgentEvent(message, { type: 'reference', item: card });
-    message = applyAgentEvent(message, { type: 'reference', item: card });
+  it('says Starting… for a queued turn and Stopping… after Stop', () => {
+    const live = {
+      status: 'queued' as const,
+      statusMessage: null,
+      cancelRequested: false,
+      stuck: false,
+    };
+    expect(fromConversationEntry(entry({ live })).status).toBe('Starting…');
+    expect(
+      fromConversationEntry(
+        entry({ live: { ...live, status: 'running', cancelRequested: true } }),
+      ).status,
+    ).toBe('Stopping…');
+  });
+
+  it('marks a stopped reply and hides delete proposals while live', () => {
+    const proposal = {
+      targetType: 'document' as const,
+      targetId: 'd1',
+      label: 'Old notes',
+    };
+    expect(
+      fromConversationEntry(
+        entry({ content: 'Stopped.', turnStatus: 'cancelled', proposedDeletes: [proposal] }),
+      ),
+    ).toMatchObject({ note: 'Stopped', streaming: false, deletes: [proposal] });
+    expect(
+      fromConversationEntry(
+        entry({
+          proposedDeletes: [proposal],
+          live: {
+            status: 'running',
+            statusMessage: null,
+            cancelRequested: false,
+            stuck: true,
+          },
+        }),
+      ),
+    ).toMatchObject({ deletes: [], stuck: true });
+  });
+
+  it('leaves a normal finished reply without a note', () => {
+    const message = fromConversationEntry(
+      entry({ content: 'Done.', turnStatus: 'completed', referencedItems: [card] }),
+    );
+    expect(message.note).toBeUndefined();
     expect(message.referencedItems).toEqual([card]);
   });
 });
@@ -56,7 +114,7 @@ describe('applyAgentEvent', () => {
 describe('replyCards', () => {
   it('lists presented items, then created artifacts, skipping duplicates and rules', () => {
     const message = {
-      ...emptyAssistantMessage('m1'),
+      ...assistantMessage('m1'),
       referencedItems: [card],
       actions: [
         {

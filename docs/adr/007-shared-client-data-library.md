@@ -23,3 +23,4 @@ Extract the client-owned Firestore paths, learning telemetry mutations and stati
 - `libs/client-data` must stay platform-neutral: no DOM, React Native, or web-only Firebase config imports.
 - Mobile wraps these writes in an offline outbox. The library itself assumes it is online.
 - The library also holds the other client paths both apps need: directory creation and the directory-item index writer, agent thread reads, and the agent SSE parser. Web's delete and move mutations stay in `web/src/services` for now because their read helpers depend on the web Redux cache; moving them means first separating those helpers from Redux.
+- Since [ADR 010](010-durable-agent-turns-cloud-tasks.md) the library also holds the agent turn subscriptions (`agentTurnFirestore`) and the conversation merge both apps render (`agentConversation`). The agent SSE parser stays only while the legacy `agentMessageStream` bridge exists.

@@ -126,6 +126,7 @@ import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import {
   AGENT_MAX_REFERENCED_ITEMS,
   restoreReferencedItemsFromOutcomes,
+  seedRuntimeContextFromTurn,
   createAgentToolDefinitions,
   executeAgentTool,
   toAgentReadableDocumentContent,
@@ -1156,5 +1157,45 @@ describe('createAgentToolDefinitions present_items', () => {
     await expect(
       executeAgentTool(tools, 'list_artifacts', { directoryId: 'other-dir' }),
     ).rejects.toThrow('outside the active agent scope');
+  });
+});
+
+describe('seedRuntimeContextFromTurn', () => {
+  it('restores lists and generation counts from an earlier attempt', () => {
+    const context = {
+      executedActions: [],
+      proposedDeletes: [],
+      referencedItems: [],
+      seenItems: new Map(),
+      generationBatchCounts: { documents: 0, quizzes: 0, flashcardSets: 0 },
+    };
+
+    seedRuntimeContextFromTurn(context, {
+      executedActions: [
+        { kind: 'create_document', summary: 'Doc A', entityId: 'doc-a' },
+        { kind: 'create_document', summary: 'Doc B', entityId: 'doc-b' },
+        { kind: 'generate_quiz', summary: 'Quiz', entityId: 'quiz-1' },
+        { kind: 'create_directory', summary: 'Folder', entityId: 'dir-1' },
+      ],
+      proposedDeletes: [
+        { targetType: 'document', targetId: 'doc-old', label: 'Old doc' },
+      ],
+      referencedItems: [
+        { itemType: 'document', id: 'doc-a', title: 'Doc A' },
+        { itemType: 'document', id: 'doc-a', title: 'Doc A' },
+      ],
+    });
+
+    expect(context.generationBatchCounts).toEqual({
+      documents: 2,
+      quizzes: 1,
+      flashcardSets: 0,
+    });
+    expect(context.executedActions).toHaveLength(4);
+    expect(context.proposedDeletes).toHaveLength(1);
+    expect(context.referencedItems).toEqual([
+      { itemType: 'document', id: 'doc-a', title: 'Doc A' },
+    ]);
+    expect(context.seenItems.has('document:doc-a')).toBe(true);
   });
 });

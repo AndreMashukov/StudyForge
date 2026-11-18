@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { httpsCallable } from 'firebase/functions';
 import type {
+  CancelAgentTurnRequest,
+  CancelAgentTurnResponse,
+  StartAgentTurnRequest,
+  StartAgentTurnResponse,
   CreateDocumentFromPastedTextRequest,
   CreateDocumentFromUrlRequest,
   CreateDocumentRequest,
@@ -8,6 +12,10 @@ import type {
   GenerateFlashcardsRequest,
   GenerateFromScreenshotRequest,
   GenerateQuizRequest,
+} from '@shared-types';
+import {
+  cancelAgentTurnResponseSchema,
+  startAgentTurnResponseSchema,
 } from '@shared-types';
 import { functions, waitForAppCheckReady } from '../firebase';
 import { fetchDirectoryTreeFromFirestore } from './directoryTreeFirestore';
@@ -124,6 +132,30 @@ export async function evaluateScratchPadAnswer(
     60_000,
   );
   return response.data;
+}
+
+/** Starts a durable agent turn; the reply arrives through the turn doc (ADR 010). */
+export async function startAgentTurn(
+  request: StartAgentTurnRequest,
+): Promise<StartAgentTurnResponse> {
+  return callFunction(
+    'startAgentTurn',
+    request,
+    startAgentTurnResponseSchema,
+    30_000,
+  );
+}
+
+/** Stop for a running agent turn. */
+export async function cancelAgentTurn(
+  request: CancelAgentTurnRequest,
+): Promise<CancelAgentTurnResponse> {
+  return callFunction(
+    'cancelAgentTurn',
+    request,
+    cancelAgentTurnResponseSchema,
+    30_000,
+  );
 }
 
 /** Out of credits or over a plan limit. Mobile shows a plain message, no purchase path (decision 12). */

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. §3 superseded and §4 amended by [ADR 010](010-durable-agent-turns-cloud-tasks.md): turns run in a Cloud Task, and replies reach clients through the agent turn doc instead of SSE deltas.
 
 ## Context
 

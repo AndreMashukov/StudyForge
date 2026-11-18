@@ -10,7 +10,7 @@ Replay (`readRun(trace_id)`) only grades old chats. A live target calls the curr
 
 Do **not** call `WorkspaceAgentRunner.run` from the eval script first. Production does more than the graph: tools, system prompt, thread store, memory, ungrounded-create guard, `done.response.reply`.
 
-Use `DirectoryAgentService.streamMessage` (same path as `agentMessageStream`):
+Use `executeAgentTurn` from `@study-forge/backend-agent` (the execution core the `runAgentTurnTask` worker runs, ADR 010). It persists nothing, so give each example its own `threadId` and `turnId`:
 
 ```ts
 async function liveWorkspaceAgent(inputs: {
@@ -18,22 +18,20 @@ async function liveWorkspaceAgent(inputs: {
 }): Promise<{ finalReply: string }> {
   const objective =
     typeof inputs.objective === 'string' ? inputs.objective : '';
-  let finalReply = '';
-
-  for await (const event of DirectoryAgentService.streamMessage(userId, {
-    scope: 'workspace',
-    message: objective,
-    // omit threadId: new thread per example, same as QA "new chat"
-  })) {
-    if (event.type === 'error') {
-      throw new Error(event.message);
-    }
-    if (event.type === 'done') {
-      finalReply = event.response.reply;
-    }
+  const outcome = await executeAgentTurn(
+    {
+      userId,
+      threadId: `eval-${randomUUID()}`, // new thread per example, same as QA "new chat"
+      turnId: randomUUID(),
+      request: { scope: 'workspace', message: objective },
+      resume: false,
+    },
+    { onEvent: () => undefined },
+  );
+  if (outcome.kind === 'failed') {
+    throw new Error(outcome.errorMessage ?? 'Agent turn failed');
   }
-
-  return { finalReply };
+  return { finalReply: outcome.reply };
 }
 ```
 
@@ -75,7 +73,7 @@ This hits usage reservation, App Check skip (emulator), and real tool Firestore 
 
 **B. In-process `tsx` import**
 
-Import `DirectoryAgentService` from `@study-forge/backend-agent` after pointing Firestore/Storage at the emulator and initializing Admin SDK. You still need LLM routing secrets (`LLM_SETTINGS_ENCRYPTION_KEY`, provider keys). This skips HTTP and usage holds. It is more NX/tsconfig work. Use it later if HTTP overhead bothers you.
+Import `executeAgentTurn` from `@study-forge/backend-agent` after pointing Firestore/Storage at the emulator and initializing Admin SDK. You still need LLM routing secrets (`LLM_SETTINGS_ENCRYPTION_KEY`, provider keys). This skips HTTP and usage holds. It is more NX/tsconfig work. Use it later if HTTP overhead bothers you.
 
 Do not point the first live eval at **production** `agentMessageStream`. That mutates a real user and spends production credits.
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AgentRequestAbortedError,
   isAbortSignal,
+  readAgentTurnAbortReason,
   throwIfAgentRequestAborted,
 } from './agent-request-abort';
 
@@ -26,5 +27,24 @@ describe('isAbortSignal', () => {
   it('accepts AbortSignal instances', () => {
     expect(isAbortSignal(new AbortController().signal)).toBe(true);
     expect(isAbortSignal({})).toBe(false);
+  });
+});
+
+describe('readAgentTurnAbortReason', () => {
+  it('returns null while the signal is open', () => {
+    expect(readAgentTurnAbortReason(new AbortController().signal)).toBeNull();
+    expect(readAgentTurnAbortReason()).toBeNull();
+  });
+
+  it('reads a known reason', () => {
+    const controller = new AbortController();
+    controller.abort('deadline');
+    expect(readAgentTurnAbortReason(controller.signal)).toBe('deadline');
+  });
+
+  it('treats an unknown reason as a cancel', () => {
+    const controller = new AbortController();
+    controller.abort();
+    expect(readAgentTurnAbortReason(controller.signal)).toBe('cancel');
   });
 });

@@ -275,6 +275,57 @@ export function restoreReferencedItemsFromOutcomes(
   }
 }
 
+/**
+ * Seeds a retried turn with what earlier attempts already did, read from the
+ * turn doc: actions, delete proposals and cards survive, and the per-turn
+ * generation caps keep counting the jobs already enqueued.
+ */
+export function seedRuntimeContextFromTurn(
+  context: Pick<
+    AgentToolRuntimeContext,
+    | 'executedActions'
+    | 'proposedDeletes'
+    | 'referencedItems'
+    | 'seenItems'
+    | 'generationBatchCounts'
+  >,
+  seed: {
+    executedActions: AgentActionResult[];
+    proposedDeletes: AgentProposedDelete[];
+    referencedItems: AgentReferencedItem[];
+  },
+): void {
+  context.executedActions.push(...seed.executedActions);
+  context.proposedDeletes.push(...seed.proposedDeletes);
+
+  const already = new Set(
+    context.referencedItems.map((item) =>
+      referencedItemKey(item.itemType, item.id),
+    ),
+  );
+  for (const item of seed.referencedItems) {
+    rememberSeenItem(context, item);
+    const key = referencedItemKey(item.itemType, item.id);
+    if (
+      !already.has(key) &&
+      context.referencedItems.length < AGENT_MAX_REFERENCED_ITEMS
+    ) {
+      already.add(key);
+      context.referencedItems.push(item);
+    }
+  }
+
+  for (const action of seed.executedActions) {
+    if (action.kind === 'create_document') {
+      context.generationBatchCounts.documents += 1;
+    } else if (action.kind === 'generate_quiz') {
+      context.generationBatchCounts.quizzes += 1;
+    } else if (action.kind === 'generate_flashcards') {
+      context.generationBatchCounts.flashcardSets += 1;
+    }
+  }
+}
+
 function parsePresentItemsArgs(
   value: unknown,
 ): Array<{ itemType: AgentReferencedItemType; id: string }> {

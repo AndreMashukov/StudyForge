@@ -218,6 +218,9 @@ export interface IAgentThread {
   createdAt: string;
   updatedAt: string;
   lastMessageAt?: string;
+  /** Turn still running in this thread, if any (see agent-turn.ts). */
+  activeTurnId?: string;
+  activeTurnStartedAt?: string;
 }
 
 export interface AgentThreadSummary {
@@ -229,6 +232,8 @@ export interface AgentThreadSummary {
   createdAt: string;
   updatedAt: string;
   lastMessageAt?: string;
+  activeTurnId?: string;
+  activeTurnStartedAt?: string;
 }
 
 export const getAgentThreadRequestSchema = z.object({
@@ -265,6 +270,10 @@ export interface IAgentThreadMessage {
   executedActions?: AgentActionResult[];
   proposedDeletes?: AgentProposedDelete[];
   referencedItems?: AgentReferencedItem[];
+  /** Turn that wrote this message (both roles). */
+  turnId?: string;
+  /** Assistant messages only: how the turn ended. */
+  turnStatus?: 'completed' | 'incomplete' | 'cancelled' | 'failed';
 }
 
 export interface IAgentConversationMemory {

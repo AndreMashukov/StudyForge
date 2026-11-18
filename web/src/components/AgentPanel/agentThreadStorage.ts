@@ -1,31 +1,12 @@
 import { z } from 'zod';
 import type { AgentScope, IAgentThread } from '@shared-types';
-import {
-  agentActionResultSchema,
-  agentProposedDeleteSchema,
-} from '@shared-types';
-import { IAgentChatMessage } from './IAgentPanel';
 
 const ACTIVE_THREAD_STORAGE_KEY = 'sf-global-agent-active-thread-id';
 const LEGACY_SESSION_THREAD_KEY = 'sf-global-agent-thread-id';
 const LEGACY_SESSION_MESSAGES_KEY = 'sf-global-agent-session';
-const STREAM_BACKUP_KEY = 'sf-global-agent-stream-backup';
+/** Retired: agent turns are durable now, so in-flight replies need no backup. */
+const LEGACY_STREAM_BACKUP_KEY = 'sf-global-agent-stream-backup';
 const WORKSPACE_CONTEXT_KEY = 'workspace';
-
-const storedAgentMessageSchema = z.object({
-  id: z.string(),
-  role: z.enum(['user', 'assistant']),
-  content: z.string(),
-  executedActions: z.array(agentActionResultSchema).optional(),
-  proposedDeletes: z.array(agentProposedDeleteSchema).optional(),
-  statusMessage: z.string().optional(),
-  isStreaming: z.boolean().optional(),
-});
-
-const streamBackupSchema = z.object({
-  threadId: z.string().optional(),
-  messages: z.array(storedAgentMessageSchema),
-});
 
 const activeThreadMapSchema = z.record(z.string().min(1), z.string().min(1));
 
@@ -89,6 +70,7 @@ function persistActiveThreadMap(
     }
     window.sessionStorage.removeItem(LEGACY_SESSION_THREAD_KEY);
     window.sessionStorage.removeItem(LEGACY_SESSION_MESSAGES_KEY);
+    window.sessionStorage.removeItem(LEGACY_STREAM_BACKUP_KEY);
   } catch {
     // Ignore restricted storage contexts.
   }
@@ -145,77 +127,4 @@ export function writeActiveThreadId(
   }
 
   persistActiveThreadMap(userId, nextMap);
-}
-
-export function writeStreamBackup(
-  threadId: string | undefined,
-  messages: IAgentChatMessage[],
-): void {
-  if (!canUseStorage()) {
-    return;
-  }
-
-  const hasStreaming = messages.some((message) => message.isStreaming);
-  try {
-    if (!hasStreaming) {
-      window.sessionStorage.removeItem(STREAM_BACKUP_KEY);
-      return;
-    }
-
-    window.sessionStorage.setItem(
-      STREAM_BACKUP_KEY,
-      JSON.stringify({
-        threadId,
-        messages: messages.map((message) => ({
-          ...message,
-          isStreaming: Boolean(message.isStreaming),
-        })),
-      }),
-    );
-  } catch {
-    // Ignore restricted storage contexts.
-  }
-}
-
-export function consumeStreamBackup(
-  threadId: string | undefined,
-): IAgentChatMessage[] | undefined {
-  if (!canUseStorage() || !threadId) {
-    return undefined;
-  }
-
-  try {
-    const raw = window.sessionStorage.getItem(STREAM_BACKUP_KEY);
-    window.sessionStorage.removeItem(STREAM_BACKUP_KEY);
-    if (!raw) {
-      return undefined;
-    }
-
-    const parsed = streamBackupSchema.safeParse(JSON.parse(raw));
-    if (!parsed.success || parsed.data.threadId !== threadId) {
-      return undefined;
-    }
-
-    return parsed.data.messages.map((message) => ({
-      ...message,
-      isStreaming: false,
-      statusMessage: message.isStreaming
-        ? (message.statusMessage ?? 'Interrupted')
-        : message.statusMessage,
-    }));
-  } catch {
-    return undefined;
-  }
-}
-
-export function clearStreamBackup(): void {
-  if (!canUseStorage()) {
-    return;
-  }
-
-  try {
-    window.sessionStorage.removeItem(STREAM_BACKUP_KEY);
-  } catch {
-    // Ignore restricted storage contexts.
-  }
 }

@@ -1,5 +1,5 @@
+import type { IAgentConversationEntry } from '../../services/agentConversation';
 import type {
-  AgentActionResult,
   AgentMessageResponse,
   AgentProposedDelete,
   AgentScope,
@@ -16,13 +16,10 @@ export interface IAgentPanel {
 }
 
 export interface IAgentChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  executedActions?: AgentActionResult[];
-  proposedDeletes?: AgentProposedDelete[];
-  isStreaming?: boolean;
-  statusMessage?: string;
+  entry: IAgentConversationEntry;
+  /** Delete proposals still awaiting confirmation (confirmed ones are hidden). */
+  proposedDeletes: AgentProposedDelete[];
+  onDeleteConfirmed: (proposal: AgentProposedDelete) => void;
 }
 
 export interface IAgentDeleteProposalCard {

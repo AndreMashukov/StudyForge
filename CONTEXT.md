@@ -164,12 +164,24 @@ _Avoid_: global agent (alone), workspace chat, ADK workspace agent
 Same plan-execute LangGraph as the workspace agent, but tools are limited to one directory tree and its descendants (`scope: directory`).
 _Avoid_: folder agent, scoped workspace agent
 
-**Agent session**:
-One user turn of the workspace agent graph. Durable chat history stays on the StudyForge agent thread. Mid-turn graph state may be stored in a **workspace agent checkpoint** for resume after a dead Function.
-_Avoid_: ADK memory (when meaning the StudyForge thread), planner history
+**Agent turn**:
+One user message and the agent's work to answer it (one run of the plan-execute graph). It runs in the `runAgentTurnTask` Cloud Task, not in the client's request, so closing the panel, leaving the screen or backgrounding the app never stops it. Clients follow it through its **agent turn doc** and re-attach when they come back. Durable chat history stays on the StudyForge agent thread.
+_Avoid_: agent session, agent request, stream (when meaning the turn itself)
+
+**Agent turn doc**:
+Client-readable Firestore record of one **agent turn** (`agentThreads/{threadId}/turns/{turnId}`): status, live status line, reply text so far, actions and cards, then the terminal outcome. Written only by Functions; 7-day TTL. Distinct from the thread's messages (the durable transcript) and from the **workspace agent checkpoint** (graph state).
+_Avoid_: turn status (when meaning the whole record), job
+
+**Active turn**:
+The **agent turn** a thread is still answering (`activeTurnId` on the thread). A thread has at most one; sending another message while it runs is refused.
+_Avoid_: current request, open stream
+
+**Stop (agent turn)**:
+The user's explicit cancel of an **agent turn**. The only thing that ends a turn early on purpose; work already started (for example a queued document) keeps going, and the reply so far is kept.
+_Avoid_: abort (in product copy), close
 
 **Workspace agent checkpoint**:
-Transient LangGraph checkpoint for one agent turn, used to resume after a Function timeout or crash. Stored under the user with a 7-day TTL. Not the StudyForge agent thread.
+Transient LangGraph checkpoint for one **agent turn**, used by a task retry to resume where the failed attempt stopped. Stored under the user with a 7-day TTL. Not the StudyForge agent thread and not the **agent turn doc**.
 _Avoid_: agent thread (when meaning checkpoint data), ADK session
 
 **Platform agent knowledge**:
@@ -271,7 +283,8 @@ _Avoid_: migration order, pre/post hook
 - Checking a card in a **Language-learning flashcard set** may create a **Learned vocabulary item** for that user and **Target language**
 - A **Quiz attempt** or **Flashcard study session** feeds **Statistics failure groups**; **Hidden statistics failures** filter what Statistics shows without deleting raw telemetry
 - A **Capture** creates a **Document** in the current **Directory** or the **Default capture directory**
-- An agent turn may return **Referenced items** alongside its reply
+- An **agent turn** may return **Referenced items** alongside its reply
+- An agent thread has many **agent turns** and at most one **active turn**; every turn that ends writes exactly one assistant message
 - **Platform agent knowledge** is retrieved as **Platform knowledge chunks** into the workspace-agent planner prompt; **User knowledge** is searched separately with `search_knowledge`
 
 ## Flagged ambiguities
@@ -281,3 +294,4 @@ _Avoid_: migration order, pre/post hook
 - **Record vs job** — the user-visible Firestore entity (document/artifact) vs the `GenerationJob` tracking async work; don't conflate their status fields.
 - **"Due"** — StudyForge has no spaced-repetition schedule, so nothing is "due". Say "missed" for cards and questions drawn from **statistics failure groups**.
 - **"Assistant"** — in mobile copy, means the **workspace agent** or **directory-scoped agent**, never **directory chat**.
+- **"Turn"** — means an **agent turn** in agent code and docs. The **flashcard study session** definition also says "turn" for one visit to a set; that is unrelated.

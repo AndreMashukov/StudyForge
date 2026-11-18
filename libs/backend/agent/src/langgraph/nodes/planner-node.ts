@@ -145,6 +145,7 @@ export async function plannerNode(
           toolCatalog: runtime.toolSession.listToolCatalog(),
           isReplan: true,
           recoverOutcomes: allToolOutcomes,
+          signal: runtime.abortSignal,
           onUserReplyDelta: blocked
             ? undefined
             : (text) => {
@@ -202,6 +203,7 @@ export async function plannerNode(
         toolCatalog: runtime.toolSession.listToolCatalog(),
         isReplan: isReplan && !isInitial,
         recoverOutcomes: allToolOutcomes,
+        signal: runtime.abortSignal,
         onUserReplyDelta: blocked
           ? undefined
           : (text) => {

@@ -12,11 +12,7 @@ import {
 } from '@langchain/langgraph-checkpoint';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { Timestamp } from 'firebase-admin/firestore';
-import type {
-  AgentActionResult,
-  AgentProposedDelete,
-  AgentReferencedItem,
-} from '@shared-types';
+import type { AgentReferencedItem } from '@shared-types';
 import { agentReferencedItemSchema } from '@shared-types';
 import type { DocumentReference, Firestore } from 'firebase-admin/firestore';
 import { z } from 'zod';
@@ -78,33 +74,6 @@ export type IPendingWriteRecord = z.infer<typeof pendingWriteRecordSchema>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function parseCompletedActions(value: unknown): AgentActionResult[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.filter((entry): entry is AgentActionResult => {
-    return (
-      isRecord(entry) &&
-      typeof entry.kind === 'string' &&
-      typeof entry.summary === 'string'
-    );
-  });
-}
-
-function parseCompletedDeletes(value: unknown): AgentProposedDelete[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.filter((entry): entry is AgentProposedDelete => {
-    return (
-      isRecord(entry) &&
-      typeof entry.targetType === 'string' &&
-      typeof entry.targetId === 'string' &&
-      typeof entry.label === 'string'
-    );
-  });
 }
 
 export function parseReferencedItems(value: unknown): AgentReferencedItem[] {
@@ -518,51 +487,4 @@ export async function deleteAgentTurnCheckpoints(
   refs.push(turnRef);
 
   await commitDeletes(turnRef.firestore, refs);
-}
-
-export interface IAgentTurnCompletion {
-  reply: string;
-  executedActions: AgentActionResult[];
-  proposedDeletes: AgentProposedDelete[];
-  referencedItems: AgentReferencedItem[];
-}
-
-export async function claimAgentTurnCompletion(
-  userId: string,
-  turnKey: string,
-  completion: IAgentTurnCompletion,
-): Promise<{ alreadyCompleted: boolean; completion: IAgentTurnCompletion }> {
-  const turnRef = agentCheckpointTurnRef(userId, turnKey);
-  return turnRef.firestore.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(turnRef);
-    const data = snapshot.data();
-    if (
-      typeof data?.completedReply === 'string' &&
-      data.completedReply.length > 0
-    ) {
-      return {
-        alreadyCompleted: true,
-        completion: {
-          reply: data.completedReply,
-          executedActions: parseCompletedActions(data.completedExecutedActions),
-          proposedDeletes: parseCompletedDeletes(data.completedProposedDeletes),
-          referencedItems: parseReferencedItems(data.completedReferencedItems),
-        },
-      };
-    }
-
-    transaction.set(
-      turnRef,
-      {
-        completedReply: completion.reply,
-        completedExecutedActions: completion.executedActions,
-        completedProposedDeletes: completion.proposedDeletes,
-        completedReferencedItems: completion.referencedItems,
-        completedAt: Timestamp.now(),
-      },
-      { merge: true },
-    );
-
-    return { alreadyCompleted: false, completion };
-  });
 }

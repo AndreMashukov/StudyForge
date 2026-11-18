@@ -290,6 +290,13 @@ service cloud.firestore {
           allow read: if canAccessWorkspace(userId);
           allow write: if false;
         }
+
+        // Durable agent turn (ADR 010): clients follow one turn by id.
+        // Written only by Functions; Stop goes through cancelAgentTurn.
+        match /turns/{turnId} {
+          allow get: if canAccessWorkspace(userId);
+          allow list, write: if false;
+        }
       }
 
       match /agentConversationMemories/{memoryId} {

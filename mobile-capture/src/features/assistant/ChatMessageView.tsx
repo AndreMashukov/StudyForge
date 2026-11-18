@@ -85,7 +85,7 @@ export function ChatMessageView({ message }: { message: IChatMessage }) {
 
   return (
     <View className="gap-1">
-      {message.streaming && !message.content ? (
+      {message.streaming ? (
         <View className="flex-row items-center gap-2 py-1">
           <Spinner />
           <Text tone="muted" variant="caption">
@@ -96,6 +96,16 @@ export function ChatMessageView({ message }: { message: IChatMessage }) {
       {blocks.map((block, index) => (
         <ReaderBlock key={index} block={block} />
       ))}
+      {message.stuck ? (
+        <Text tone="muted" variant="caption">
+          Still working. This is taking longer than usual.
+        </Text>
+      ) : null}
+      {message.note ? (
+        <Text tone="muted" variant="caption">
+          {message.note}
+        </Text>
+      ) : null}
       {cards.length ? (
         <View className="mt-1 rounded-2xl border border-border px-3">
           {cards.map((card) => (
