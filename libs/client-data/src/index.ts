@@ -12,4 +12,5 @@ export * from './directoryCreate';
 export * from './agentSse';
 export * from './agentThreadFirestore';
 export * from './agentTurnFirestore';
+export * from './agentThreadMessageSync';
 export * from './agentConversation';

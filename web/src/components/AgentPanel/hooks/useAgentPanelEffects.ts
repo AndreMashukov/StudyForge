@@ -15,6 +15,7 @@ import { useAppDispatch } from '../../../hooks/redux';
 import type { IAgentConversationEntry } from '../../../services/agentConversation';
 import { threadMatchesPanelContext } from '../agentThreadStorage';
 import { isAgentThreadMissingError } from '../agentPanelErrors';
+import { isThreadStarting } from '../agentThreadStarts';
 import type { IAgentPendingTurn } from './useAgentConversation';
 
 const RULE_CACHE_ACTION_KINDS = new Set<AgentActionKind>([
@@ -65,7 +66,12 @@ export function useAgentPanelEffects(input: {
   }, [directoryId, scope, selectThread, threadData]);
 
   useEffect(() => {
-    if (threadId && threadError && isAgentThreadMissingError(threadError)) {
+    if (
+      threadId &&
+      threadError &&
+      isAgentThreadMissingError(threadError) &&
+      !isThreadStarting(threadId)
+    ) {
       selectThread(undefined);
     }
   }, [selectThread, threadError, threadId]);

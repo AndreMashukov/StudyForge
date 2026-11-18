@@ -2,10 +2,10 @@ import { baseApi } from '../baseApi';
 import { auth } from '../../../config/firebase';
 import {
   getAgentThreadFromFirestore,
-  listAgentThreadMessages,
   listAgentThreadsFromFirestore,
 } from '../../../services/agentThreadFirestore';
 import {
+  createAgentThreadMessageSync,
   getAgentTurnFromFirestore,
   subscribeAgentThread,
   subscribeAgentTurn,
@@ -46,11 +46,11 @@ export const agentThreadApi = baseApi.injectEndpoints({
           return mutationError(error);
         }
       },
-      // Live thread doc (title, preview, activeTurnId). Messages are refetched
-      // when a turn writes one (lastMessageAt moves), not listened to.
+      // Live thread doc (title, preview, activeTurnId). Messages are re-read
+      // from the server when lastMessageAt moves, not listened to.
       async onCacheEntryAdded(
         { threadId },
-        { updateCachedData, cacheDataLoaded, cacheEntryRemoved, getCacheEntry },
+        { updateCachedData, cacheDataLoaded, cacheEntryRemoved },
       ) {
         try {
           await cacheDataLoaded;
@@ -63,30 +63,24 @@ export const agentThreadApi = baseApi.injectEndpoints({
           return;
         }
 
-        let refetchSeq = 0;
+        const messageSync = createAgentThreadMessageSync({
+          userId,
+          threadId,
+          onMessages: (messages) => {
+            updateCachedData((draft) => {
+              draft.messages = messages;
+            });
+          },
+        });
         const unsubscribe = subscribeAgentThread(userId, threadId, {
           onThread: (thread, meta) => {
             if (!thread || meta.fromCache) {
               return;
             }
-            const previous = getCacheEntry().data?.thread;
             updateCachedData((draft) => {
               draft.thread = thread;
             });
-            if (previous?.lastMessageAt === thread.lastMessageAt) {
-              return;
-            }
-            const seq = ++refetchSeq;
-            void listAgentThreadMessages(userId, threadId)
-              .then((messages) => {
-                if (seq !== refetchSeq) {
-                  return;
-                }
-                updateCachedData((draft) => {
-                  draft.messages = messages;
-                });
-              })
-              .catch(() => undefined);
+            messageSync.onThread(thread);
           },
         });
 
@@ -94,6 +88,7 @@ export const agentThreadApi = baseApi.injectEndpoints({
           await cacheEntryRemoved;
         } finally {
           unsubscribe();
+          messageSync.dispose();
         }
       },
       providesTags: (_result, _error, arg) => [

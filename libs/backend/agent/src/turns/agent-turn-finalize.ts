@@ -132,14 +132,23 @@ export interface IFinalizeAgentTurnInput {
   userId: string;
   threadId: string;
   turnId: string;
-  state: IAgentTurnTerminalState;
+  /**
+   * The terminal state, or a function that builds it from the turn as read
+   * inside the transaction (so progress written after an earlier read is kept).
+   */
+  state:
+    | IAgentTurnTerminalState
+    | ((turn: AgentTurnRecord) => IAgentTurnTerminalState);
   /**
    * Only finalize when this still holds for the stored turn (for example, the
    * worker's lease still matches). Terminal turns are never finalized again.
    */
   guard?: (turn: AgentTurnRecord) => boolean;
   /** 'refund' when no LLM work ran (cancelled while queued, enqueue failure). */
-  settlement: 'settle' | 'refund';
+  settlement:
+    | 'settle'
+    | 'refund'
+    | ((turn: AgentTurnRecord) => 'settle' | 'refund');
   /** Capture conversation memories (completed turns, inside the cost context). */
   captureMemories?: boolean;
 }
@@ -160,41 +169,63 @@ export async function finalizeAgentTurn(
   const turnRef = FirestorePaths.agentThreadTurn(userId, threadId, turnId);
   const threadRef = FirestorePaths.agentThread(userId, threadId);
 
-  const result = await turnRef.firestore.runTransaction(async (transaction) => {
-    const [turnSnap, threadSnap] = await transaction.getAll(turnRef, threadRef);
-    const turn = parseAgentTurnRecord(turnSnap.data());
-    if (!turn) {
-      return { didTransition: false, turn: null };
-    }
-    if (isAgentTurnTerminal(turn.status)) {
-      return { didTransition: false, turn };
-    }
-    if (input.guard && !input.guard(turn)) {
-      return { didTransition: false, turn };
-    }
+  const outcome = await turnRef.firestore.runTransaction(
+    async (
+      transaction,
+    ): Promise<
+      | { didTransition: false; turn: AgentTurnRecord | null }
+      | {
+          didTransition: true;
+          turn: AgentTurnRecord;
+          state: IAgentTurnTerminalState;
+          settlement: 'settle' | 'refund';
+        }
+    > => {
+      const [turnSnap, threadSnap] = await transaction.getAll(
+        turnRef,
+        threadRef,
+      );
+      const turn = parseAgentTurnRecord(turnSnap.data());
+      if (!turn) {
+        return { didTransition: false, turn: null };
+      }
+      if (isAgentTurnTerminal(turn.status)) {
+        return { didTransition: false, turn };
+      }
+      if (input.guard && !input.guard(turn)) {
+        return { didTransition: false, turn };
+      }
 
-    applyAgentTurnTerminalWrites(transaction, {
-      userId,
-      threadId,
-      turnId,
-      clearActiveTurn: threadSnap.get('activeTurnId') === turnId,
-      state: input.state,
-      now: new Date(),
-    });
-    return { didTransition: true, turn };
-  });
+      const state =
+        typeof input.state === 'function' ? input.state(turn) : input.state;
+      const settlement =
+        typeof input.settlement === 'function'
+          ? input.settlement(turn)
+          : input.settlement;
+      applyAgentTurnTerminalWrites(transaction, {
+        userId,
+        threadId,
+        turnId,
+        clearActiveTurn: threadSnap.get('activeTurnId') === turnId,
+        state,
+        now: new Date(),
+      });
+      return { didTransition: true, turn, state, settlement };
+    },
+  );
 
-  if (!result.didTransition || !result.turn) {
-    return result;
+  if (!outcome.didTransition) {
+    return outcome;
   }
 
-  const turn = result.turn;
-  if (input.captureMemories && input.state.status === 'completed') {
+  const { turn, state, settlement } = outcome;
+  const result: IFinalizeAgentTurnResult = { didTransition: true, turn };
+  if (input.captureMemories && state.status === 'completed') {
     await AgentMemoryService.captureTurnMemories({
       userId,
       threadId,
       userMessage: turn.request.message,
-      assistantReply: input.state.reply,
+      assistantReply: state.reply,
     }).catch((error: unknown) => {
       logger.warn('Agent turn memory capture failed', {
         userId,
@@ -205,7 +236,7 @@ export async function finalizeAgentTurn(
     });
   }
 
-  if (input.settlement === 'refund') {
+  if (settlement === 'refund') {
     await refundUsageReservationSafe(userId, turn.usage.reservationId);
   } else {
     await settleAgentLoopUsageReservationSafe(userId, turn.usage.reservationId);

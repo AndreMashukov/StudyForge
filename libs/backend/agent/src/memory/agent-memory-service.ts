@@ -19,6 +19,11 @@ import {
 } from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { parseReferencedItems } from '../checkpointer/firestore-checkpoint-saver';
+import {
+  serializeAgentActions,
+  serializeAgentDeletes,
+  serializeAgentReferences,
+} from '../turns/agent-turn-record';
 import { AgentEmbeddingService } from '../knowledge/agent-embedding-service';
 import { cosineSimilarity } from '../knowledge/knowledge-chunk-utils';
 
@@ -181,9 +186,10 @@ export function buildAgentThreadMessageData(
     content: input.content,
     createdAt: Timestamp.fromDate(input.createdAt),
     ...(input.promptContext ? { promptContext: input.promptContext } : {}),
-    executedActions: input.executedActions ?? [],
-    proposedDeletes: input.proposedDeletes ?? [],
-    referencedItems: input.referencedItems ?? [],
+    // Firestore rejects `undefined` fields, so optional keys are dropped here.
+    executedActions: serializeAgentActions(input.executedActions ?? []),
+    proposedDeletes: serializeAgentDeletes(input.proposedDeletes ?? []),
+    referencedItems: serializeAgentReferences(input.referencedItems ?? []),
     ...(input.turnId ? { turnId: input.turnId } : {}),
     ...(input.turnStatus ? { turnStatus: input.turnStatus } : {}),
   };

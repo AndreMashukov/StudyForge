@@ -1,4 +1,11 @@
-import { getDoc, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import {
+  getDoc,
+  getDocs,
+  getDocsFromServer,
+  limit,
+  orderBy,
+  query,
+} from 'firebase/firestore';
 import type {
   AgentThreadSummary,
   GetAgentThreadResponse,
@@ -112,15 +119,20 @@ export function mapAgentThreadMessage(
 export async function listAgentThreadMessages(
   userId: string,
   threadId: string,
-  maxMessages = THREAD_MESSAGES_MAX_RETURNED,
+  options: {
+    maxMessages?: number;
+    /** Skip the local cache (it can hold an older transcript after a reconnect). */
+    fromServer?: boolean;
+  } = {},
 ): Promise<IAgentThreadMessage[]> {
-  const messagesSnap = await getDocs(
-    query(
-      agentThreadMessagesCollection(userId, threadId),
-      orderBy('createdAt', 'desc'),
-      limit(maxMessages),
-    ),
+  const messagesQuery = query(
+    agentThreadMessagesCollection(userId, threadId),
+    orderBy('createdAt', 'desc'),
+    limit(options.maxMessages ?? THREAD_MESSAGES_MAX_RETURNED),
   );
+  const messagesSnap = options.fromServer
+    ? await getDocsFromServer(messagesQuery)
+    : await getDocs(messagesQuery);
   const fallbackIso = new Date().toISOString();
   return messagesSnap.docs
     .map((messageDoc) =>

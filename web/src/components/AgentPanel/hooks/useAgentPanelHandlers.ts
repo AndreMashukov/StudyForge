@@ -2,9 +2,15 @@ import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import type { AgentPromptContext, AgentScope, AgentTurn } from '@shared-types';
 import { isAgentTurnTerminal } from '@shared-types';
 import {
+  agentThreadApi,
   useCancelAgentTurnMutation,
   useStartAgentTurnMutation,
 } from '../../../store/api/AgentThread';
+import { useAppDispatch } from '../../../hooks/redux';
+import {
+  clearThreadStarting,
+  markThreadStarting,
+} from '../agentThreadStarts';
 import { formatLocalIsoDate } from '../../../utils/dateUtils';
 import { readAgentRequestErrorMessage } from '../agentPanelErrors';
 import type { IAgentPendingTurn } from './useAgentConversation';
@@ -55,6 +61,7 @@ export function useAgentPanelHandlers(input: {
     setInput,
     setError,
   } = input;
+  const dispatch = useAppDispatch();
   const [startAgentTurn] = useStartAgentTurnMutation();
   const [cancelAgentTurn, { isLoading: isStopping }] =
     useCancelAgentTurnMutation();
@@ -83,6 +90,10 @@ export function useAgentPanelHandlers(input: {
       });
       // Remember the thread first, so closing the panel mid-start still finds it.
       rememberThread(targetThreadId);
+      const isNewThread = !threadId;
+      if (isNewThread) {
+        markThreadStarting(targetThreadId);
+      }
 
       try {
         await startAgentTurn({
@@ -98,7 +109,15 @@ export function useAgentPanelHandlers(input: {
         setPendingTurn((current) =>
           current?.turnId === turnId ? { ...current, started: true } : current,
         );
-        if (!threadId && latestSendRef.current === turnId) {
+        if (isNewThread) {
+          // A panel that reopened mid-start read "not found": read it again.
+          dispatch(
+            agentThreadApi.util.invalidateTags([
+              { type: 'AgentThread', id: targetThreadId },
+            ]),
+          );
+        }
+        if (isNewThread && latestSendRef.current === turnId) {
           selectThread(targetThreadId);
         }
       } catch (startError) {
@@ -115,11 +134,16 @@ export function useAgentPanelHandlers(input: {
         setError(
           readAgentRequestErrorMessage(startError, 'Failed to send message'),
         );
+      } finally {
+        if (isNewThread) {
+          clearThreadStarting(targetThreadId);
+        }
       }
     },
     [
       activePromptContext,
       directoryId,
+      dispatch,
       isWorking,
       rememberThread,
       scope,

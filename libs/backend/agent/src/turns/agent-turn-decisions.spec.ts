@@ -37,6 +37,23 @@ describe('isAgentTurnStale', () => {
     );
   });
 
+  it('gives a queued turn with an accepted task far longer', () => {
+    const waiting = makeAgentTurnRecord({
+      createdAt: msAgo(10 * 60_000),
+      enqueuedAt: msAgo(10 * 60_000),
+    });
+    expect(isAgentTurnStale(waiting, NOW, AGENT_TURN_SWEEP_STALE_THRESHOLDS)).toBe(
+      false,
+    );
+    expect(
+      isAgentTurnStale(
+        { ...waiting, createdAt: msAgo(31 * 60_000) },
+        NOW,
+        AGENT_TURN_SWEEP_STALE_THRESHOLDS,
+      ),
+    ).toBe(true);
+  });
+
   it('measures a running turn from its heartbeat', () => {
     const turn = makeAgentTurnRecord({
       status: 'running',

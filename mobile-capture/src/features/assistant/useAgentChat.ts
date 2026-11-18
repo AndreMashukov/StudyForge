@@ -6,13 +6,14 @@ import type {
   AgentScope,
   AgentTurn,
   GetAgentThreadResponse,
+  IAgentThread,
 } from '@shared-types';
 import { isAgentTurnTerminal } from '@shared-types';
 import {
   getAgentThreadFromFirestore,
-  listAgentThreadMessages,
   listAgentThreadsFromFirestore,
 } from '@studyforge/client-data/agentThreadFirestore';
+import { createAgentThreadMessageSync } from '@studyforge/client-data/agentThreadMessageSync';
 import {
   getAgentTurnFromFirestore,
   subscribeAgentThread,
@@ -125,26 +126,31 @@ export function useAgentChat(
     },
   });
 
-  // Live thread doc; messages are refetched when a turn writes one.
+  // Live thread doc; messages are re-read from the server when a turn writes one.
   useEffect(() => {
     if (!userId || !threadId) return;
     const key = queryKeys.agentThread(userId, threadId);
+    let latestThread: IAgentThread | null = null;
+    const messageSync = createAgentThreadMessageSync({
+      userId,
+      threadId,
+      onMessages: (messages) => {
+        // Apply to the latest cached thread, never to a thread read earlier.
+        client.setQueryData<GetAgentThreadResponse | null>(key, (current) => {
+          const thread = current?.thread ?? latestThread;
+          return thread ? { thread, messages } : current;
+        });
+      },
+    });
     let listening = true;
     const unsubscribe = subscribeAgentThread(userId, threadId, {
       onThread: (thread, meta) => {
         if (!listening || meta.fromCache || !thread) return;
-        const previous = client.getQueryData<GetAgentThreadResponse | null>(key);
-        if (previous) {
-          client.setQueryData<GetAgentThreadResponse>(key, { ...previous, thread });
-        }
-        if (previous && previous.thread.lastMessageAt === thread.lastMessageAt) {
-          return;
-        }
-        void listAgentThreadMessages(userId, threadId)
-          .then((messages) => {
-            if (listening) client.setQueryData<GetAgentThreadResponse>(key, { thread, messages });
-          })
-          .catch(() => undefined);
+        latestThread = thread;
+        client.setQueryData<GetAgentThreadResponse | null>(key, (current) =>
+          current ? { ...current, thread } : current,
+        );
+        messageSync.onThread(thread);
       },
       onError: (snapshotError) => {
         if (listening) setError(snapshotError.message);
@@ -153,6 +159,7 @@ export function useAgentChat(
     return () => {
       listening = false;
       unsubscribe();
+      messageSync.dispose();
     };
   }, [client, foregroundRevision, threadId, userId]);
 

@@ -26,6 +26,7 @@ import {
   type AgentToolOutcome,
 } from './runner/agent-chat-fallback';
 import {
+  AgentRequestAbortedError,
   readAgentTurnAbortReason,
   type AgentTurnAbortReason,
 } from './runner/agent-request-abort';
@@ -414,6 +415,34 @@ async function waitForRunToSettle(
   });
 }
 
+/**
+ * Rejects as soon as the turn is stopped or hits its deadline, so slow
+ * preparation (directory tree, memory embeddings, knowledge search) cannot
+ * hold the turn. The underlying work is not cancelled, only no longer awaited.
+ */
+function untilAborted<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) {
+    return promise;
+  }
+  if (signal.aborted) {
+    return Promise.reject(new AgentRequestAbortedError());
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => reject(new AgentRequestAbortedError());
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
 function buildAbortedOutcomeReply(input: {
   reason: AgentTurnAbortReason;
   streamedReply: string;
@@ -472,11 +501,33 @@ export async function executeAgentTurn(
     options.onEvent(event);
   };
 
-  const directoryIds = await resolveDirectoryIds({
-    userId,
-    scope: request.scope,
-    directoryId: request.directoryId,
+  const abortedBeforeGraph = (): IAgentTurnOutcome => ({
+    ...buildAbortedOutcomeReply({
+      reason: readAgentTurnAbortReason(signal) ?? 'cancel',
+      streamedReply,
+      executedActions: input.seed?.executedActions ?? [],
+    }),
+    executedActions: [...(input.seed?.executedActions ?? [])],
+    proposedDeletes: [...(input.seed?.proposedDeletes ?? [])],
+    referencedItems: [...(input.seed?.referencedItems ?? [])],
   });
+
+  let directoryIds: string[];
+  try {
+    directoryIds = await untilAborted(
+      resolveDirectoryIds({
+        userId,
+        scope: request.scope,
+        directoryId: request.directoryId,
+      }),
+      signal,
+    );
+  } catch (error) {
+    if (error instanceof AgentRequestAbortedError) {
+      return abortedBeforeGraph();
+    }
+    throw error;
+  }
   const calendar = resolveAgentCalendarDates(request.clientLocalDate);
 
   const runtimeContext: AgentToolRuntimeContext = {
@@ -502,13 +553,7 @@ export async function executeAgentTurn(
     seedRuntimeContextFromTurn(runtimeContext, input.seed);
   }
 
-  const [
-    memorySnippets,
-    recentMessages,
-    currentDocumentBodyBlock,
-    currentRuleBodyBlock,
-    platformKnowledgeMatches,
-  ] = await Promise.all([
+  const preparation = Promise.all([
     AgentMemoryService.retrieveRelevantMemories(userId, request.message),
     // One extra so the current turn's own user message can be dropped.
     AgentThreadStore.listRecentMessages(
@@ -523,6 +568,22 @@ export async function executeAgentTurn(
       query: request.message,
     }),
   ]);
+  let prepared: Awaited<typeof preparation>;
+  try {
+    prepared = await untilAborted(preparation, signal);
+  } catch (error) {
+    if (error instanceof AgentRequestAbortedError) {
+      return abortedBeforeGraph();
+    }
+    throw error;
+  }
+  const [
+    memorySnippets,
+    recentMessages,
+    currentDocumentBodyBlock,
+    currentRuleBodyBlock,
+    platformKnowledgeMatches,
+  ] = prepared;
 
   const tools = createAgentToolDefinitions(runtimeContext);
   const platformKnowledgeBlock =
@@ -564,6 +625,10 @@ export async function executeAgentTurn(
     process.env['LANGSMITH_EVAL_EMIT_RETRIEVED_TEXTS'] === 'true'
       ? platformKnowledgeMatches.map((entry) => entry.text)
       : undefined;
+
+  if (signal?.aborted) {
+    return abortedBeforeGraph();
+  }
 
   let reply = '';
   let runError: unknown = null;

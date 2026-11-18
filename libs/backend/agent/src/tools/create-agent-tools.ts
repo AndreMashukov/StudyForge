@@ -873,16 +873,18 @@ export function createAgentToolDefinitions(
                 : undefined,
           },
         );
-        await AgentKnowledgeLifecycle.indexDirectory(
-          context.userId,
-          directory.id,
-        );
+        // Record the action as soon as the write lands, so a Stop during
+        // indexing still reports the directory that now exists.
         pushAction(context, {
           kind: 'create_directory',
           summary: `Created directory "${directory.name}" at ${directory.path}`,
           entityType: 'directory',
           entityId: directory.id,
         });
+        await AgentKnowledgeLifecycle.indexDirectory(
+          context.userId,
+          directory.id,
+        );
         return directory;
       },
     },
@@ -1285,13 +1287,13 @@ export function createAgentToolDefinitions(
           applicableTo,
           isDefault: parseOptionalBoolean(args.isDefault) ?? false,
         });
-        await AgentKnowledgeLifecycle.indexRule(context.userId, rule.id);
         pushAction(context, {
           kind: 'create_rule',
           summary: `Created rule "${rule.name}"`,
           entityType: 'rule',
           entityId: rule.id,
         });
+        await AgentKnowledgeLifecycle.indexRule(context.userId, rule.id);
         return rule;
       },
     },
@@ -1358,13 +1360,13 @@ export function createAgentToolDefinitions(
           isDefault: parseOptionalBoolean(args.isDefault) ?? false,
           directoryId,
         });
-        await AgentKnowledgeLifecycle.indexRule(context.userId, rule.id);
         pushAction(context, {
           kind: 'create_rule_from_blueprint',
           summary: `Created rule "${rule.name}" from blueprint`,
           entityType: 'rule',
           entityId: rule.id,
         });
+        await AgentKnowledgeLifecycle.indexRule(context.userId, rule.id);
         return rule;
       },
     },
@@ -1448,13 +1450,13 @@ export function createAgentToolDefinitions(
         }
 
         const rule = await updateRule(context.userId, updateRequest);
-        await AgentKnowledgeLifecycle.indexRule(context.userId, rule.id);
         pushAction(context, {
           kind: 'update_rule',
           summary: `Updated rule "${rule.name}"`,
           entityType: 'rule',
           entityId: rule.id,
         });
+        await AgentKnowledgeLifecycle.indexRule(context.userId, rule.id);
         return rule;
       },
     },
@@ -1548,7 +1550,7 @@ export function createAgentToolDefinitions(
           targetType: 'rule',
           targetId: ruleId,
           label: rule.name,
-          reason: typeof args.reason === 'string' ? args.reason : undefined,
+          ...(typeof args.reason === 'string' ? { reason: args.reason } : {}),
         });
         return { proposed: true };
       },
@@ -1578,7 +1580,7 @@ export function createAgentToolDefinitions(
           targetType: 'directory',
           targetId: directoryId,
           label: directory.name,
-          reason: typeof args.reason === 'string' ? args.reason : undefined,
+          ...(typeof args.reason === 'string' ? { reason: args.reason } : {}),
         });
         return { proposed: true };
       },
@@ -1613,7 +1615,9 @@ export function createAgentToolDefinitions(
             targetType: 'document',
             targetId: documentId,
             label: document.title,
-            reason: typeof args.reason === 'string' ? args.reason : undefined,
+            ...(typeof args.reason === 'string'
+              ? { reason: args.reason }
+              : {}),
           });
         }
         return { proposed: true, count: documentIds.length };

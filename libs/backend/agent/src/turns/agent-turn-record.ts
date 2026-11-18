@@ -82,6 +82,8 @@ export const agentTurnRecordSchema = z.object({
   evalRetrievedTexts: z.array(z.string()).optional(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
+  /** Set once Cloud Tasks accepted the worker task. */
+  enqueuedAt: timestampSchema.optional(),
   startedAt: timestampSchema.optional(),
   heartbeatAt: timestampSchema.optional(),
   completedAt: timestampSchema.optional(),

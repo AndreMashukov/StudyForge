@@ -101,13 +101,24 @@ export async function startAgentTurn(
   const turnRef = FirestorePaths.agentThreadTurn(userId, threadId, turnId);
   const threadRef = FirestorePaths.agentThread(userId, threadId);
 
-  const existing = parseAgentTurnRecord((await turnRef.get()).data());
-  if (existing) {
+  const userMessageRef = FirestorePaths.agentThreadMessages(
+    userId,
+    threadId,
+  ).doc(buildAgentUserMessageId(turnId));
+
+  // The turn doc expires after 7 days, but its user message does not, so the
+  // message also marks the (threadId, turnId) pair as used.
+  const [existingSnap, existingMessageSnap] = await turnRef.firestore.getAll(
+    turnRef,
+    userMessageRef,
+  );
+  const existing = parseAgentTurnRecord(existingSnap.data());
+  if (existing || existingMessageSnap.exists) {
     return {
       success: true,
       threadId,
       turnId,
-      status: existing.status,
+      status: existing?.status ?? 'completed',
       alreadyStarted: true,
     };
   }
@@ -120,11 +131,12 @@ export async function startAgentTurn(
   try {
     result = await turnRef.firestore.runTransaction(
       async (transaction): Promise<StartTransactionResult> => {
-        const [threadSnap, turnSnap] = await transaction.getAll(
+        const [threadSnap, turnSnap, userMessageSnap] = await transaction.getAll(
           threadRef,
           turnRef,
+          userMessageRef,
         );
-        if (turnSnap.exists) {
+        if (turnSnap.exists || userMessageSnap.exists) {
           return { type: 'race', turn: parseAgentTurnRecord(turnSnap.data()) };
         }
 
@@ -178,7 +190,7 @@ export async function startAgentTurn(
         }
 
         const nowTimestamp = Timestamp.fromDate(now);
-        const userMessageId = buildAgentUserMessageId(turnId);
+        const userMessageId = userMessageRef.id;
 
         transaction.set(
           threadRef,
@@ -204,9 +216,7 @@ export async function startAgentTurn(
         );
 
         transaction.set(
-          FirestorePaths.agentThreadMessages(userId, threadId).doc(
-            userMessageId,
-          ),
+          userMessageRef,
           buildAgentThreadMessageData({
             role: 'user',
             content: input.message,
@@ -274,7 +284,7 @@ export async function startAgentTurn(
       success: true,
       threadId,
       turnId,
-      status: result.turn?.status ?? 'queued',
+      status: result.turn?.status ?? 'completed',
       alreadyStarted: true,
     };
   }
@@ -295,10 +305,13 @@ export async function startAgentTurn(
       turnId,
       error: error instanceof Error ? error.message : String(error),
     });
-    await finalizeAgentTurn({
+    // A rejected enqueue does not prove Cloud Tasks dropped the task: only
+    // fail the turn if no worker has claimed it.
+    const finalized = await finalizeAgentTurn({
       userId,
       threadId,
       turnId,
+      guard: (turn) => turn.status === 'queued',
       state: {
         status: 'failed',
         incomplete: false,
@@ -310,11 +323,34 @@ export async function startAgentTurn(
       },
       settlement: 'refund',
     });
-    throw new HttpsError(
-      'unavailable',
-      'Could not start the agent. Please try again.',
-    );
+    if (finalized.didTransition) {
+      throw new HttpsError(
+        'unavailable',
+        'Could not start the agent. Please try again.',
+      );
+    }
+    // A worker already took the turn; report it as started.
+    return {
+      success: true,
+      threadId,
+      turnId,
+      status: finalized.turn?.status ?? 'running',
+      alreadyStarted: false,
+    };
   }
+
+  // Mark the task accepted, so the sweep can tell a turn waiting for a
+  // dispatch slot from one whose task was never created.
+  await turnRef
+    .update({ enqueuedAt: FieldValue.serverTimestamp() })
+    .catch((error: unknown) => {
+      logger.warn('Failed to record agent turn enqueue', {
+        userId,
+        threadId,
+        turnId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
 
   return { success: true, threadId, turnId, status: 'queued', alreadyStarted: false };
 }
@@ -337,16 +373,17 @@ export async function cancelAgentTurn(
   }
 
   if (decision.type === 'finalize') {
-    const wasQueued = turn.status === 'queued';
     const finalized = await finalizeAgentTurn({
       userId,
       threadId,
       turnId,
-      state: buildStaleTurnState(turn, 'cancelled'),
-      // Only if nothing changed since the read (a worker may have just claimed it).
+      // Re-decide on the transaction's snapshot: a worker may have claimed the
+      // turn or sent a heartbeat since the read above.
       guard: (current) =>
-        current.status === turn.status && current.leaseId === turn.leaseId,
-      settlement: wasQueued ? 'refund' : 'settle',
+        decideAgentTurnCancel(current, Date.now()).type === 'finalize',
+      state: (current) => buildStaleTurnState(current, 'cancelled'),
+      settlement: (current) =>
+        current.status === 'queued' ? 'refund' : 'settle',
     });
     if (finalized.didTransition) {
       return { success: true, status: 'cancelled' };

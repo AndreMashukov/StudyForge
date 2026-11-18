@@ -20,18 +20,31 @@ export const MAX_AGENT_TURN_ATTEMPTS = 1;
 export const AGENT_TURN_SWEEP_QUEUED_STALE_MS = 5 * 60_000;
 export const AGENT_TURN_SWEEP_RUNNING_STALE_MS = 3 * 60_000;
 
+/**
+ * A queued turn whose task Cloud Tasks accepted can legitimately wait for a
+ * dispatch slot when the queue is busy, so it gets a much longer allowance
+ * than one whose task was never confirmed.
+ */
+export const AGENT_TURN_SWEEP_ENQUEUED_STALE_MS = 30 * 60_000;
+export const AGENT_TURN_CLIENT_ENQUEUED_STALE_MS = 10 * 60_000;
+
 export interface IAgentTurnStaleThresholds {
+  /** Queued, and the task was never confirmed as accepted. */
   queuedMs: number;
+  /** Queued, with an accepted task waiting for dispatch. */
+  enqueuedMs: number;
   runningMs: number;
 }
 
 export const AGENT_TURN_CLIENT_STALE_THRESHOLDS: IAgentTurnStaleThresholds = {
   queuedMs: AGENT_TURN_QUEUED_STALE_MS,
+  enqueuedMs: AGENT_TURN_CLIENT_ENQUEUED_STALE_MS,
   runningMs: AGENT_TURN_HEARTBEAT_STALE_MS,
 };
 
 export const AGENT_TURN_SWEEP_STALE_THRESHOLDS: IAgentTurnStaleThresholds = {
   queuedMs: AGENT_TURN_SWEEP_QUEUED_STALE_MS,
+  enqueuedMs: AGENT_TURN_SWEEP_ENQUEUED_STALE_MS,
   runningMs: AGENT_TURN_SWEEP_RUNNING_STALE_MS,
 };
 
@@ -45,7 +58,10 @@ export function isAgentTurnStale(
     return false;
   }
   if (turn.status === 'queued') {
-    return nowMs - turn.createdAt.toMillis() > thresholds.queuedMs;
+    const allowanceMs = turn.enqueuedAt
+      ? thresholds.enqueuedMs
+      : thresholds.queuedMs;
+    return nowMs - turn.createdAt.toMillis() > allowanceMs;
   }
   return nowMs - agentTurnLastActivityMs(turn) > thresholds.runningMs;
 }

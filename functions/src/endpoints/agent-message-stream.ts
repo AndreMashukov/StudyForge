@@ -8,6 +8,7 @@ import {
 } from '@shared-types';
 import { validateExternalAuthFromRequest } from '@study-forge/backend-core/lib/api-key-auth';
 import { verifyAppCheckHeader } from '@study-forge/backend-core/lib/app-check-verification';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { startAgentTurn, tailAgentTurnAsSse } from '@study-forge/backend-agent';
 
@@ -110,6 +111,20 @@ export const agentMessageStream = onRequest(
       res.status(401).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unauthorized',
+      });
+      return;
+    }
+
+    // Same gate as the startAgentTurn callable: verified email or an exemption.
+    try {
+      await validateVerifiedAuth({ auth: { uid: userId } });
+    } catch (error) {
+      res.status(403).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Verify your email before opening your StudyForge workspace.',
       });
       return;
     }
