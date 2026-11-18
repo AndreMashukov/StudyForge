@@ -16,7 +16,7 @@ facts.ts  ── deterministic ──►  facts.json  ──►  plan.ts ──�
    ├ changed files since last successful release    ├ LLM proposal (Together · MiniMax M3.1 Flash,
    ├ web? nx affected `web` / firebase.json hosting │   @anthropic-ai/sdk → /v1/messages, no tools)
    ├ rules/indexes? file changed                    ├ validateProposal(): allowlists, known names
-   ├ per-function import closure (esbuild metafile) │   invalid → errors fed back once → still invalid = FAIL
+   ├ per-function import closure (esbuild metafile) │   invalid → errors fed back (3 tries) → still invalid = FAIL
    │   ignoring type-only edits                     └ mergePlan(): deterministic floor ∪ LLM additions
    ├ deployed functions, secrets (gcloud)
    └ Migration ledger + script phase tags

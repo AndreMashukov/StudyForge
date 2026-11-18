@@ -1,10 +1,18 @@
 /**
  * Release planner call: Together AI's Anthropic-compatible Messages API via @anthropic-ai/sdk.
  * One request with the facts + diff, no tools. The reply must be a JSON proposal that passes
- * validateProposal(); on failure the errors are fed back once. If that also fails, the release fails.
+ * validateProposal(); on failure the errors are fed back (up to LLM_MAX_ATTEMPTS). If every try fails, the release fails.
  */
 import Anthropic from '@anthropic-ai/sdk';
-import { LLM_BASE_URL, LLM_IAM_ALLOWLIST, LLM_MAX_ATTEMPTS, LLM_MAX_WARNINGS, LLM_MODEL, LLM_TIMEOUT_MS } from './config';
+import {
+  LLM_BASE_URL,
+  LLM_IAM_ALLOWLIST,
+  LLM_MAX_ATTEMPTS,
+  LLM_MAX_TOKENS,
+  LLM_MAX_WARNINGS,
+  LLM_MODEL,
+  LLM_TIMEOUT_MS,
+} from './config';
 import { validateProposal } from './plan-core';
 import type { IReleaseFacts, LlmProposal } from './schema';
 
@@ -28,7 +36,7 @@ Rules:
 - extraFunctions: only exported functions NOT already in the floor whose behaviour changes in ways an import graph cannot see (e.g. a Firestore document shape or path they read changed elsewhere, a Pub/Sub message contract changed by a publisher). Usually empty.
 - iamGrants: only when the diff creates a new caller relationship (a function now enqueues to a task queue, publishes to a topic, or invokes another function as a service account). Allowed role → resourceType pairs: ${Object.entries(LLM_IAM_ALLOWLIST)
   .map(([role, type]) => `${role} → ${type}`)
-  .join(', ')}. Members: "allUsers" (run.invoker only) or a serviceAccount: in this project. Never propose project-level roles; put those in warnings instead. Usually empty.
+  .join(', ')}. Members: "allUsers" (run.invoker only) or "serviceAccount:<full email>" where the email is copied exactly from functions.runtimeServiceAccounts. Never write a placeholder or partial member; if you cannot name the exact member, write a warning instead of a grant. A function running as the same runtime service account as an existing caller of the same kind (e.g. another function already enqueues to a task queue) already has the permission at project level — propose nothing. Never propose project-level roles; put those in warnings instead. Usually empty.
 - migrations: choose from "eligibleMigrations" only. Pick a script when this release needs it (it was added/changed in this diff, or its header says it backs the code being shipped). Do not pick unrelated scripts. Every pick runs unattended against production with --write.
 - warnings: at most ${LLM_MAX_WARNINGS}, most important first, one sentence each. Only risks specific to deploying THIS diff to production that a human must act on or watch: a new Firestore query that seems to need a composite index missing from firestore.indexes.json, project-level IAM the code now needs, a renamed function (the old one keeps running), a risky data or contract change, a behaviour change users will notice. Empty is normal and preferred when nothing stands out.
   Do NOT warn about: setup or instructions found in docs/READMEs/scripts in the diff (the operator has done it), how this pipeline works, facts already shown in the plan (force-all, file counts, skipped steps, omitted diffs), or generic advice ("monitor the rollout", "review before merging").
@@ -58,6 +66,7 @@ function factsForPrompt(facts: IReleaseFacts): string {
         deployed: entry.deployed,
       })),
       deletedFunctions: facts.functions.deletedFunctions,
+      runtimeServiceAccounts: facts.functions.runtimeServiceAccounts,
     },
     eligibleMigrations: facts.migrations.pending
       .filter((entry) => entry.phase !== null)
@@ -106,14 +115,16 @@ export async function proposeWithLlm(facts: IReleaseFacts, apiKey: string): Prom
 
   for (let attempt = 1; attempt <= LLM_MAX_ATTEMPTS; attempt += 1) {
     let text: string;
+    let stopReason: string | null;
     try {
       const message = await client.messages.create({
         model: LLM_MODEL,
-        max_tokens: 8_000,
+        max_tokens: LLM_MAX_TOKENS,
         system: SYSTEM_PROMPT,
         messages,
       });
       text = replyText(message);
+      stopReason = message.stop_reason;
     } catch (error) {
       failures.push(`attempt ${attempt}: request failed: ${error instanceof Error ? error.message : String(error)}`);
       continue;
@@ -125,7 +136,9 @@ export async function proposeWithLlm(facts: IReleaseFacts, apiKey: string): Prom
       if (result.ok) return { proposal: result.proposal, model: LLM_MODEL, attempts: attempt };
       validationErrors = result.errors;
     } catch (error) {
-      validationErrors = [error instanceof Error ? error.message : String(error)];
+      // Say why there was nothing to parse — a reply cut off at max_tokens reads the same as prose otherwise.
+      const detail = `stop_reason=${stopReason ?? 'unknown'}, ${text.length} chars`;
+      validationErrors = [`${error instanceof Error ? error.message : String(error)} (${detail})`];
     }
 
     failures.push(`attempt ${attempt}: invalid plan: ${validationErrors.join('; ')}`);

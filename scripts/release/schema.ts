@@ -52,6 +52,8 @@ export interface IReleaseFacts {
     typeOnlyChanges: string[];
     deletedFunctions: string[];
     missingSecrets: string[];
+    /** Service accounts the deployed functions run as — the only valid serviceAccount members the LLM can name for callers. */
+    runtimeServiceAccounts: string[];
   };
   migrations: {
     ledgerSeeded: boolean | null;

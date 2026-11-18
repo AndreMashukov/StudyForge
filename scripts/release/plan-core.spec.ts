@@ -25,6 +25,7 @@ function facts(overrides: Partial<IReleaseFacts> = {}): IReleaseFacts {
       typeOnlyChanges: [],
       deletedFunctions: [],
       missingSecrets: [],
+      runtimeServiceAccounts: ['123456-compute@developer.gserviceaccount.com'],
     },
     migrations: {
       ledgerSeeded: true,

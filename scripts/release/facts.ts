@@ -72,10 +72,19 @@ function closureFor(name: string, index: IIndexModules, closures: IClosures): { 
   return { module: null, files: all };
 }
 
-function deployedFunctions(): Set<string> {
-  const output = runOrThrow('gcloud', ['functions', 'list', `--regions=${REGION}`, `--project=${PROJECT_ID}`, '--format=json(name)']);
-  const parsed = z.array(z.object({ name: z.string() })).parse(JSON.parse(output || '[]'));
-  return new Set(parsed.map((entry) => entry.name.split('/').pop() ?? entry.name));
+/** Deployed function name → the service account it runs as (null when the API omits it). */
+function deployedFunctions(): Map<string, string | null> {
+  const output = runOrThrow('gcloud', [
+    'functions',
+    'list',
+    `--regions=${REGION}`,
+    `--project=${PROJECT_ID}`,
+    '--format=json(name,serviceConfig.serviceAccountEmail)',
+  ]);
+  const parsed = z
+    .array(z.object({ name: z.string(), serviceConfig: z.object({ serviceAccountEmail: z.string().optional() }).optional() }))
+    .parse(JSON.parse(output || '[]'));
+  return new Map(parsed.map((entry) => [entry.name.split('/').pop() ?? entry.name, entry.serviceConfig?.serviceAccountEmail ?? null]));
 }
 
 function existingSecrets(): Set<string> {
@@ -156,7 +165,10 @@ async function main(): Promise<void> {
   }
 
   const exportNames = new Set(exports.map((entry) => entry.name));
-  const deletedFunctions = deployed ? [...deployed].filter((name) => !exportNames.has(name)).sort() : [];
+  const deletedFunctions = deployed ? [...deployed.keys()].filter((name) => !exportNames.has(name)).sort() : [];
+  const runtimeServiceAccounts = deployed
+    ? [...new Set([...deployed.values()].filter((email): email is string => email !== null))].sort()
+    : [];
   const referencedSecrets = new Set(exports.flatMap((entry) => entry.secrets));
   const missingSecrets = secrets ? [...referencedSecrets].filter((name) => !secrets.has(name)).sort() : [];
 
@@ -198,6 +210,7 @@ async function main(): Promise<void> {
       typeOnlyChanges,
       deletedFunctions,
       missingSecrets,
+      runtimeServiceAccounts,
     },
     migrations: { ledgerSeeded, pending },
     diff: diffExcerpt(baseSha, headSha, changed),

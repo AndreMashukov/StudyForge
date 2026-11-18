@@ -9,8 +9,10 @@ export const REGION = 'asia-east1';
 export const LLM_BASE_URL = process.env.RELEASE_LLM_BASE_URL || 'https://api.together.xyz';
 export const LLM_MODEL = process.env.RELEASE_LLM_MODEL || 'MiniMaxAI/MiniMax-M3.1-Flash';
 export const LLM_TIMEOUT_MS = 90_000;
-/** One initial attempt plus one retry (network failure or invalid plan). */
-export const LLM_MAX_ATTEMPTS = 2;
+/** One initial attempt plus two retries (network failure, unparseable reply or invalid plan). */
+export const LLM_MAX_ATTEMPTS = 3;
+/** MiniMax reasons before answering; a large diff can spend 8k tokens on thinking alone. */
+export const LLM_MAX_TOKENS = 16_000;
 /** Extra warnings are dropped, not rejected — they're informational and shouldn't fail a release. */
 export const LLM_MAX_WARNINGS = 5;
 
