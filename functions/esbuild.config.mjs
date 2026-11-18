@@ -1,30 +1,8 @@
 import * as esbuild from 'esbuild';
 import { resolve } from 'node:path';
+import { externalPackages } from './esbuild.externals.mjs';
 
 const workspaceRoot = resolve(import.meta.dirname, '..');
-
-const externalPackages = [
-  'firebase-admin',
-  'firebase-functions',
-  'google-auth-library',
-  '@google/genai',
-  '@google/adk',
-  'cheerio',
-  'dompurify',
-  'fast-xml-parser',
-  'firebase',
-  'html-validate',
-  'jsdom',
-  'jszip',
-  'mammoth',
-  'mermaid',
-  'node-fetch',
-  'papaparse',
-  'pdf-parse',
-  'sanitize-html',
-  'turndown',
-  'zod',
-];
 
 async function build() {
   await esbuild.build({

@@ -186,3 +186,5 @@ CLAUDE.local.md
 .vercel
 
 mobile-capture/android
+# Release pipeline working files
+.release/

@@ -240,6 +240,24 @@ _Avoid_: plan payment (alone), Stripe plan (when meaning the StudyForge setup)
 Optional overage billing after included monthly credits are exhausted, billed separately from the subscription with a monthly cap.
 _Avoid_: PAYG (in user-facing copy), usage billing (when meaning overage only)
 
+## Release
+
+**Release plan**:
+The checked set of actions for one push to production: which deploy targets ship, which functions are deployed, and which **Release operations** run. An LLM proposes it from deterministic change facts. Code rejects unknown names and adds back any function the import graph marks as affected.
+_Avoid_: deploy script, AI deploy, pipeline decision
+
+**Release operation**:
+A named, allowlisted step beyond shipping code, such as deploying Firestore indexes, granting a function's IAM, or running a migration script. A **Release plan** can only pick from the allowlist and never contains free-form commands.
+_Avoid_: post-deploy hook, custom step
+
+**Migration ledger**:
+The production record of which migration scripts have been applied, one entry per script. A script with an entry is never picked by a **Release plan** again. Scripts that existed before the ledger are seeded as applied.
+_Avoid_: migration history, applied list
+
+**Release phase**:
+The point in a release where a migration script runs, declared by the script itself. It is either before functions deploy (the new code needs the migrated data) or after (the new code handles both shapes). A script that declares no phase never runs automatically.
+_Avoid_: migration order, pre/post hook
+
 ## Relationships
 
 - A **Directory** contains **Documents** and **Artifacts**
