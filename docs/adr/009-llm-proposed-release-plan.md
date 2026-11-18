@@ -21,8 +21,8 @@ Code validates the proposal against allowlists and merges it with the determinis
 
 - **LLM decides everything from the diff**: rejected. A hallucinated "web only" would silently skip a functions deploy.
 - **Claude Agent SDK with read-only tools**: rejected in favour of a single Messages call. It is cheaper and simpler, and the deterministic facts carry what the model would otherwise read.
-- **Approval gate before `--write` migrations**: rejected. Releases are fully unattended. Safety comes from the Migration ledger (a script runs at most once), from phase tags in the scripts, and from the mandatory dry-run before `--write`.
-- **Deterministic fallback when the LLM fails**: rejected. If the planner fails or returns an invalid plan twice, the release fails and nothing deploys.
+- **Approval gate before `--write` migrations**: rejected. Releases are fully unattended. Safety comes from the Migration ledger, which records a script only after `--write` succeeds, from phase tags in the scripts, and from the mandatory dry-run before `--write`. If `--write` or the ledger write fails, the next release runs the script again, so every migration must be idempotent (`scripts/migrations/README.md`).
+- **Deterministic fallback when the LLM fails**: rejected. If the planner fails or returns an invalid plan on every attempt (errors are fed back between attempts), the release fails and nothing deploys.
 - **Long-lived service account key**: rejected for Workload Identity Federation. The deploy SA trusts only `refs/heads/main`, and a separate read-only SA serves planning and PR previews.
 
 ## Consequences

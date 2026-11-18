@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseIndexModules, remappedExports, runtimeChanged } from './function-graph';
+import { indexSetupSource, parseIndexModules, remappedExports, runtimeChanged } from './function-graph';
 import { extractJson } from './llm';
 import { extractHeader, parsePhase } from './migrations';
 
@@ -38,6 +38,39 @@ export * from './endpoints/legacy';
     const after = parseIndexModules(`export { a } from './z';\nexport { b } from './y';\nexport { c } from './y';`);
     expect(remappedExports(before, after)).toEqual(['a']);
   });
+
+  it('detects an export that now re-exports a different binding from the same module', () => {
+    const before = parseIndexModules(`export { handlerA as generateQuiz, other } from './x';`);
+    const after = parseIndexModules(`export { handlerB as generateQuiz, other } from './x';`);
+    expect(remappedExports(before, after)).toEqual(['generateQuiz']);
+  });
+});
+
+describe('indexSetupSource', () => {
+  const head = (setup: string) => `import './global-options';
+import { applyLangSmithProcessDefaults } from './tracing';
+${setup}
+import { onRequest } from 'firebase-functions/v2/https';
+export const healthCheck = onRequest({}, async () => {});
+export { generateQuiz } from './endpoints/quizzes';
+`;
+
+  it('changes when top-level setup code changes', async () => {
+    const before = indexSetupSource(head('applyLangSmithProcessDefaults();'));
+    const after = indexSetupSource(head(''));
+    expect(await runtimeChanged('functions/src/index.ts', before, after)).toBe(true);
+  });
+
+  it('ignores edits to exports only', async () => {
+    const before = indexSetupSource(head('applyLangSmithProcessDefaults();'));
+    const after = indexSetupSource(
+      `${head('applyLangSmithProcessDefaults();')}export { startAgentTurn } from './endpoints/agent-turns';\n`.replace(
+        'async () => {}',
+        'async () => { console.log(1); }',
+      ),
+    );
+    expect(await runtimeChanged('functions/src/index.ts', before, after)).toBe(false);
+  });
 });
 
 describe('migration headers', () => {
@@ -52,6 +85,9 @@ describe('migration headers', () => {
 
   it('treats unknown or missing phases as untagged', () => {
     expect(parsePhase('/** @release-phase whenever */')).toBeNull();
+    expect(parsePhase('/** @release-phase post-functions2 */')).toBeNull();
+    expect(parsePhase('/** @release-phase pre-functions-later */')).toBeNull();
+    expect(parsePhase('/** @release-phase post-functions*/')).toBe('post-functions');
     expect(parsePhase('/** no tag here */')).toBeNull();
     // A tag outside the header does not count.
     expect(parsePhase(extractHeader('/** header */\n// @release-phase pre-functions'))).toBeNull();

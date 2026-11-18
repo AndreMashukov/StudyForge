@@ -22,6 +22,7 @@ import { hasFlag, requireArg, runOrThrow } from './exec';
 import {
   buildClosures,
   discoverExports,
+  indexSetupSource,
   parseIndexModules,
   remappedExports,
   runtimeChanged,
@@ -137,6 +138,10 @@ async function main(): Promise<void> {
   }
   for (const file of closures.preamble) {
     if (runtimeChangedFiles.has(file)) forceAllReasons.push(`${file} changed (imported by index.ts before every function)`);
+  }
+  // Setup code in index.ts itself (imports, top-level calls) runs before every function too.
+  if (baseIndexSource !== null && (await runtimeChanged(FUNCTIONS_ENTRY, indexSetupSource(baseIndexSource), indexSetupSource(headIndexSource)))) {
+    forceAllReasons.push(`${FUNCTIONS_ENTRY} setup code changed (runs before every function)`);
   }
   if (
     changedSet.has('firebase.json') &&

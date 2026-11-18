@@ -26,6 +26,8 @@ const FUNCTIONS_SRC = 'functions/src';
 export interface IIndexModules {
   /** exported name → module specifier relative to functions/src */
   reExports: Map<string, string>;
+  /** exported name → the binding it re-exports (`x` in `export { x as name }`) */
+  reExportBindings: Map<string, string>;
   /** names declared directly in index.ts (`export const x = …`) */
   inlineExports: string[];
   /** non-export import statements: run for every function before any endpoint module */
@@ -37,6 +39,7 @@ export interface IIndexModules {
 export function parseIndexModules(source: string): IIndexModules {
   const file = ts.createSourceFile('index.ts', source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
   const reExports = new Map<string, string>();
+  const reExportBindings = new Map<string, string>();
   const inlineExports: string[] = [];
   const preambleImports: string[] = [];
   const starModules: string[] = [];
@@ -55,6 +58,7 @@ export function parseIndexModules(source: string): IIndexModules {
       } else if (ts.isNamedExports(clause)) {
         for (const element of clause.elements) {
           reExports.set(element.name.text, specifier);
+          reExportBindings.set(element.name.text, (element.propertyName ?? element.name).text);
         }
       }
       continue;
@@ -74,15 +78,35 @@ export function parseIndexModules(source: string): IIndexModules {
     }
   }
 
-  return { reExports, inlineExports, preambleImports, starModules };
+  return { reExports, reExportBindings, inlineExports, preambleImports, starModules };
 }
 
-/** Exports whose source module differs between two versions of index.ts. */
+/**
+ * index.ts without its exports: the imports and top-level calls (e.g. applyLangSmithProcessDefaults())
+ * that run before every function. Compare base vs head with runtimeChanged() to catch setup edits
+ * that don't change any imported file.
+ */
+export function indexSetupSource(source: string): string {
+  const file = ts.createSourceFile('index.ts', source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+  return file.statements
+    .filter((statement) => {
+      if (ts.isExportDeclaration(statement) || ts.isExportAssignment(statement)) return false;
+      const exported =
+        ts.canHaveModifiers(statement) &&
+        (ts.getModifiers(statement) ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
+      return !exported;
+    })
+    .map((statement) => statement.getText(file))
+    .join('\n');
+}
+
+/** Exports whose source module or re-exported binding differs between two versions of index.ts. */
 export function remappedExports(before: IIndexModules, after: IIndexModules): string[] {
   const moved: string[] = [];
   for (const [name, specifier] of after.reExports) {
     const previous = before.reExports.get(name);
-    if (previous !== undefined && previous !== specifier) moved.push(name);
+    if (previous === undefined) continue;
+    if (previous !== specifier || before.reExportBindings.get(name) !== after.reExportBindings.get(name)) moved.push(name);
   }
   return moved.sort();
 }
@@ -96,6 +120,8 @@ export interface IDiscoveredExport {
   trigger: TriggerKind;
   eventType: string | null;
   secrets: string[];
+  /** HTTPS functions' `invoker` option (e.g. ['private']); null when unset. Callables are always public. */
+  invoker: string[] | null;
 }
 
 const DISCOVERY_MARKER = '__RELEASE_DISCOVERY__';
@@ -106,6 +132,7 @@ const discoveredSchema = z.array(
     triggerKeys: z.array(z.string()),
     eventType: z.string().nullable(),
     secrets: z.array(z.string()),
+    invoker: z.array(z.string()).nullable(),
   }),
 );
 
@@ -120,6 +147,7 @@ for (const [name, value] of Object.entries(mod)) {
     triggerKeys: Object.keys(endpoint).filter((key) => key.endsWith('Trigger')),
     eventType: (endpoint.eventTrigger && endpoint.eventTrigger.eventType) || null,
     secrets: (endpoint.secretEnvironmentVariables || []).map((secret) => secret.key),
+    invoker: (endpoint.httpsTrigger && endpoint.httpsTrigger.invoker) || null,
   });
 }
 process.stdout.write('\\n${DISCOVERY_MARKER}' + JSON.stringify(out) + '\\n');
@@ -160,6 +188,7 @@ export function discoverExports(): IDiscoveredExport[] {
       trigger: triggerKind(entry.triggerKeys),
       eventType: entry.eventType,
       secrets: [...new Set(entry.secrets)].sort(),
+      invoker: entry.invoker,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

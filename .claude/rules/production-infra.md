@@ -52,7 +52,7 @@ The `admin` app deploys separately to Vercel:
 | `Failed to authenticate` / `Premature close` on deploy | Keep Node pinned to `22.22.0` — see `skills/firebase-hosting` |
 | `google-github-actions/auth` fails | `GCP_WIF_PROVIDER` / `GCP_RELEASE_*SA` variables unset, or the run is not on `refs/heads/main` |
 | Release blocked: ledger not seeded | Run `tsx scripts/release/seed-migration-ledger.ts --write` once |
-| Release planner LLM failed | Together API down or invalid plan twice — the release aborts by design; re-run the workflow |
+| Release planner LLM failed | Together API down or an invalid plan on every attempt — the release aborts by design; re-run the workflow |
 | CORS 404 on callable functions | Emulator/deploy `--project` does not match `NX_PUBLIC_FIREBASE_PROJECT_ID` |
 | Build succeeds but app shows demo config | `NX_PUBLIC_*` secrets missing in the build step env block |
 

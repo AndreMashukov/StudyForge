@@ -94,6 +94,9 @@ jobs:
       - uses: nrwl/nx-set-shas@v4
         with:
           main-branch-name: main
+          # Never silently fall back to HEAD~1 — that would skip changes from earlier failed releases.
+          # With no successful Release run on record, dispatch with deploy_all=true instead.
+          error-on-no-successful-workflow: true
 
       - run: yarn install --frozen-lockfile --ignore-engines
 
@@ -203,6 +206,17 @@ jobs:
           service_account: ${{ vars.GCP_RELEASE_SA }}
 
       - uses: google-github-actions/setup-gcloud@v2
+
+      # A re-run of an older run would deploy its older commit over a newer release. Fail (not skip:
+      # a skipped run counts as successful and would move the diff base past undeployed changes).
+      - name: Refuse a superseded revision
+        run: |
+          git fetch --quiet --depth=1 origin main
+          tip="$(git rev-parse FETCH_HEAD)"
+          if [ "$tip" != "$GITHUB_SHA" ]; then
+            echo "::error::main is at ${tip}, this run is for ${GITHUB_SHA}. The run for the newer commit deploys these changes too."
+            exit 1
+          fi
 
       # Strict order; any failure stops every later step. No automatic rollback.
       - name: 1. Rules and indexes (indexes not awaited)

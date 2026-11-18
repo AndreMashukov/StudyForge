@@ -2,10 +2,11 @@
  * Pure Release plan logic: validate an LLM proposal against the facts, then merge it with
  * the deterministic floor. Nothing here touches the network or the filesystem.
  */
-import { LLM_IAM_ALLOWLIST, LLM_MAX_WARNINGS } from './config';
+import { LLM_IAM_ALLOWLIST, LLM_MAX_WARNINGS, PROJECT_NUMBER } from './config';
 import {
   llmProposalSchema,
   type FunctionSource,
+  type IFunctionExport,
   type IPlannedFunction,
   type IPlannedIamGrant,
   type IPlannedMigration,
@@ -14,7 +15,13 @@ import {
   type LlmProposal,
 } from './schema';
 
-const PUBLIC_INVOKER_TRIGGERS = new Set(['callable', 'https']);
+/** Callables are always public; HTTPS functions are public unless their `invoker` option says otherwise. */
+function isPublicEndpoint(entry: IFunctionExport): boolean {
+  if (entry.trigger === 'callable') return true;
+  if (entry.trigger !== 'https') return false;
+  return entry.invoker === null || entry.invoker.includes('public');
+}
+
 export const TASK_QUEUE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-]{0,99}$/;
 export const TOPIC_PATTERN = /^[A-Za-z][A-Za-z0-9._~%+-]{2,254}$/;
 
@@ -22,13 +29,15 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Members an LLM grant may target: this project's service accounts and Google service agents. */
-export function isAllowedMember(member: string, role: string, project: string): boolean {
-  if (member === 'allUsers') return role === 'roles/run.invoker';
+/**
+ * Members an LLM grant may target: this project's service accounts and Google service agents.
+ * Never allUsers — public invoker grants come only from the deterministic rule in mergePlan().
+ */
+export function isAllowedMember(member: string, project: string, projectNumber: string): boolean {
   const projectSa = new RegExp(`^serviceAccount:[a-z][a-z0-9-]{4,28}[a-z0-9]@${escapeRegExp(project)}\\.iam\\.gserviceaccount\\.com$`);
   const appEngineSa = new RegExp(`^serviceAccount:${escapeRegExp(project)}@appspot\\.gserviceaccount\\.com$`);
-  const computeSa = /^serviceAccount:\d+-compute@developer\.gserviceaccount\.com$/;
-  const serviceAgent = /^serviceAccount:service-\d+@gcp-sa-[a-z-]+\.iam\.gserviceaccount\.com$/;
+  const computeSa = new RegExp(`^serviceAccount:${escapeRegExp(projectNumber)}-compute@developer\\.gserviceaccount\\.com$`);
+  const serviceAgent = new RegExp(`^serviceAccount:service-${escapeRegExp(projectNumber)}@gcp-sa-[a-z-]+\\.iam\\.gserviceaccount\\.com$`);
   return [projectSa, appEngineSa, computeSa, serviceAgent].some((pattern) => pattern.test(member));
 }
 
@@ -68,7 +77,9 @@ export function validateProposal(raw: unknown, facts: IReleaseFacts): ProposalVa
     if (grant.resourceType === 'pubsubTopic' && !TOPIC_PATTERN.test(grant.resource)) {
       errors.push(`iamGrants: "${grant.resource}" is not a valid Pub/Sub topic id`);
     }
-    if (!isAllowedMember(grant.member, grant.role, facts.project)) {
+    if (grant.member === 'allUsers') {
+      errors.push(`iamGrants: "allUsers" is not allowed — public access is decided by code, not the planner`);
+    } else if (!isAllowedMember(grant.member, facts.project, PROJECT_NUMBER)) {
       errors.push(`iamGrants: member "${grant.member}" is not allowed for ${grant.role}`);
     }
   }
@@ -122,7 +133,7 @@ export function mergePlan(facts: IReleaseFacts, proposal: LlmProposal | null, mo
   const iamGrants: IPlannedIamGrant[] = [];
   for (const planned of plannedFunctions) {
     const entry = exportsByName.get(planned.name);
-    if (entry && entry.deployed === false && PUBLIC_INVOKER_TRIGGERS.has(entry.trigger)) {
+    if (entry && entry.deployed === false && isPublicEndpoint(entry)) {
       iamGrants.push({
         role: 'roles/run.invoker',
         resourceType: 'function',

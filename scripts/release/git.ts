@@ -1,11 +1,13 @@
 import { DIFF_EXCLUDE, DIFF_MAX_CHARS_PER_FILE, DIFF_MAX_CHARS_TOTAL } from './config';
 import { run, runOrThrow } from './exec';
 
-/** Files changed between two commits. Renames are reported as delete + add so both paths are seen. */
+/**
+ * Files changed between two commits. Renames are reported as delete + add so both paths are seen.
+ * -z keeps paths literal (no quoting of non-ASCII or special characters, no trimming).
+ */
 export function changedFiles(base: string, head: string): string[] {
-  return runOrThrow('git', ['diff', '--name-only', '--no-renames', `${base}...${head}`])
-    .split('\n')
-    .map((line) => line.trim())
+  return runOrThrow('git', ['diff', '--name-only', '--no-renames', '-z', `${base}...${head}`])
+    .split('\0')
     .filter(Boolean)
     .sort();
 }
@@ -34,7 +36,13 @@ export function diffExcerpt(base: string, head: string, files: string[]): IDiffE
       omittedFiles.push(file);
       continue;
     }
-    let patch = run('git', ['diff', '--no-renames', '--unified=3', `${base}...${head}`, '--', file]).stdout;
+    const result = run('git', ['diff', '--no-renames', '--unified=3', `${base}...${head}`, '--', file]);
+    if (result.status !== 0) {
+      // Never pass an empty or partial patch off as the file's diff.
+      omittedFiles.push(file);
+      continue;
+    }
+    let patch = result.stdout;
     if (patch.length > DIFF_MAX_CHARS_PER_FILE) {
       patch = `${patch.slice(0, DIFF_MAX_CHARS_PER_FILE)}\n… [truncated ${patch.length - DIFF_MAX_CHARS_PER_FILE} chars]\n`;
       truncatedFiles.push(file);

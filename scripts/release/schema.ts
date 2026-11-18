@@ -18,6 +18,8 @@ export interface IFunctionExport {
   /** Module specifier in functions/src/index.ts, or 'index' for inline exports, or null if unmapped. */
   module: string | null;
   secrets: string[];
+  /** HTTPS functions' `invoker` option (e.g. ['private']); null when unset. Callables are always public. */
+  invoker: string[] | null;
   /** null when the deployed list could not be read (offline preview). */
   deployed: boolean | null;
 }

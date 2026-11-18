@@ -12,7 +12,8 @@
 # Then prints the repository variables to set.
 set -euo pipefail
 
-PROJECT_ID="${PROJECT_ID:-study-forge-202604}"
+# Fixed, not overridable: the workflow, seed and planner all target this project (scripts/release/config.ts).
+PROJECT_ID="study-forge-202604"
 REPO="${REPO:-AndreMashukov/StudyForge}"
 POOL="github-actions"
 PROVIDER="github"

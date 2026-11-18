@@ -8,12 +8,15 @@
  *   tsx scripts/release/seed-migration-ledger.ts           # dry-run: list what would be seeded
  *   tsx scripts/release/seed-migration-ledger.ts --write   # seed
  */
-import { PROJECT_ID } from './config';
+import { MIGRATIONS_DIR, PROJECT_ID } from './config';
 import { hasFlag, runOrThrow } from './exec';
 import { listMigrationScripts, seedLedger } from './migrations';
 
 async function main(): Promise<void> {
   const write = hasFlag('write');
+  // Seed exactly what HEAD contains: an uncommitted script must not be recorded as applied under HEAD.
+  const dirty = runOrThrow('git', ['status', '--porcelain', '--', MIGRATIONS_DIR]).trim();
+  if (dirty) throw new Error(`${MIGRATIONS_DIR} has uncommitted changes — commit or remove them first:\n${dirty}`);
   const scripts = listMigrationScripts();
   const sha = runOrThrow('git', ['rev-parse', 'HEAD']).trim();
   const seeded = await seedLedger(scripts, sha, write);

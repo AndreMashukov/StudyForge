@@ -4,6 +4,8 @@
 
 export const PROJECT_ID = process.env.RELEASE_FIREBASE_PROJECT || 'study-forge-202604';
 export const REGION = 'asia-east1';
+/** Numeric project id — pins the compute SA and Google service agents an LLM grant may name. */
+export const PROJECT_NUMBER = process.env.RELEASE_PROJECT_NUMBER || '853327102927';
 
 /** Together AI serves the Anthropic Messages API at {baseURL}/v1/messages. */
 export const LLM_BASE_URL = process.env.RELEASE_LLM_BASE_URL || 'https://api.together.xyz';

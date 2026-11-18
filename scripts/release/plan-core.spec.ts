@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { PROJECT_NUMBER } from './config';
 import { isAllowedMember, mergePlan, validateProposal } from './plan-core';
 import type { IFunctionExport, IReleaseFacts } from './schema';
 
 const PROJECT = 'study-forge-202604';
 
 function fn(name: string, overrides: Partial<IFunctionExport> = {}): IFunctionExport {
-  return { name, trigger: 'callable', eventType: null, module: './endpoints/x', secrets: [], deployed: true, ...overrides };
+  return { name, trigger: 'callable', eventType: null, module: './endpoints/x', secrets: [], invoker: null, deployed: true, ...overrides };
 }
 
 function facts(overrides: Partial<IReleaseFacts> = {}): IReleaseFacts {
@@ -25,7 +26,7 @@ function facts(overrides: Partial<IReleaseFacts> = {}): IReleaseFacts {
       typeOnlyChanges: [],
       deletedFunctions: [],
       missingSecrets: [],
-      runtimeServiceAccounts: ['123456-compute@developer.gserviceaccount.com'],
+      runtimeServiceAccounts: [`${PROJECT_NUMBER}-compute@developer.gserviceaccount.com`],
     },
     migrations: {
       ledgerSeeded: true,
@@ -83,6 +84,18 @@ describe('validateProposal', () => {
     expect(result.ok).toBe(false);
   });
 
+  it('rejects public access proposed by the LLM', () => {
+    const result = validateProposal(
+      {
+        ...emptyProposal,
+        iamGrants: [{ role: 'roles/run.invoker', resourceType: 'function', resource: 'healthCheck', member: 'allUsers', reason: 'x' }],
+      },
+      facts(),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.join('\n')).toContain('"allUsers" is not allowed');
+  });
+
   it('rejects a role paired with the wrong resource type', () => {
     const result = validateProposal(
       {
@@ -97,17 +110,23 @@ describe('validateProposal', () => {
 });
 
 describe('isAllowedMember', () => {
-  it('allows allUsers only for run.invoker', () => {
-    expect(isAllowedMember('allUsers', 'roles/run.invoker', PROJECT)).toBe(true);
-    expect(isAllowedMember('allUsers', 'roles/pubsub.publisher', PROJECT)).toBe(false);
+  const NUMBER = '853327102927';
+
+  it('never allows allUsers', () => {
+    expect(isAllowedMember('allUsers', PROJECT, NUMBER)).toBe(false);
   });
 
   it('allows this project service accounts and Google service agents only', () => {
-    expect(isAllowedMember(`serviceAccount:worker-sa@${PROJECT}.iam.gserviceaccount.com`, 'roles/cloudtasks.enqueuer', PROJECT)).toBe(true);
-    expect(isAllowedMember('serviceAccount:123456-compute@developer.gserviceaccount.com', 'roles/run.invoker', PROJECT)).toBe(true);
-    expect(isAllowedMember('serviceAccount:service-123@gcp-sa-pubsub.iam.gserviceaccount.com', 'roles/run.invoker', PROJECT)).toBe(true);
-    expect(isAllowedMember('serviceAccount:evil@other-project.iam.gserviceaccount.com', 'roles/run.invoker', PROJECT)).toBe(false);
-    expect(isAllowedMember('user:someone@example.com', 'roles/run.invoker', PROJECT)).toBe(false);
+    expect(isAllowedMember(`serviceAccount:worker-sa@${PROJECT}.iam.gserviceaccount.com`, PROJECT, NUMBER)).toBe(true);
+    expect(isAllowedMember(`serviceAccount:${NUMBER}-compute@developer.gserviceaccount.com`, PROJECT, NUMBER)).toBe(true);
+    expect(isAllowedMember(`serviceAccount:service-${NUMBER}@gcp-sa-pubsub.iam.gserviceaccount.com`, PROJECT, NUMBER)).toBe(true);
+    expect(isAllowedMember('serviceAccount:evil@other-project.iam.gserviceaccount.com', PROJECT, NUMBER)).toBe(false);
+    expect(isAllowedMember('user:someone@example.com', PROJECT, NUMBER)).toBe(false);
+  });
+
+  it('rejects compute accounts and service agents of other projects', () => {
+    expect(isAllowedMember('serviceAccount:111111111111-compute@developer.gserviceaccount.com', PROJECT, NUMBER)).toBe(false);
+    expect(isAllowedMember('serviceAccount:service-111111111111@gcp-sa-pubsub.iam.gserviceaccount.com', PROJECT, NUMBER)).toBe(false);
   });
 });
 
@@ -119,6 +138,27 @@ describe('mergePlan', () => {
       expect.objectContaining({ role: 'roles/run.invoker', resource: 'newEndpoint', member: 'allUsers', source: 'deterministic' }),
     ]);
     expect(plan.blockers).toEqual([]);
+  });
+
+  it('does not make a new HTTPS function public when its invoker option is private', () => {
+    const base = facts();
+    const plan = mergePlan(
+      {
+        ...base,
+        functions: {
+          ...base.functions,
+          exports: [
+            fn('privateHook', { trigger: 'https', invoker: ['private'], deployed: false }),
+            fn('publicHook', { trigger: 'https', invoker: ['public'], deployed: false }),
+          ],
+          graphAffected: [],
+        },
+      },
+      emptyProposal,
+      'model',
+    );
+    expect(plan.functions.map((entry) => entry.name)).toEqual(['privateHook', 'publicHook']);
+    expect(plan.iamGrants.map((grant) => grant.resource)).toEqual(['publicHook']);
   });
 
   it('cannot drop graph-affected functions: the LLM can only add', () => {

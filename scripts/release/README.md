@@ -27,8 +27,8 @@ facts.ts  ── deterministic ──►  facts.json  ──►  plan.ts ──�
 | Deploy web / rules / indexes | Code |
 | Functions: import-graph hits, new exports, force-all | Code (the floor; the LLM can't remove from it) |
 | Extra functions the graph can't see | LLM (must be real exports) |
-| Public `run.invoker` for new callable/HTTPS functions | Code |
-| Other IAM | LLM, limited to `run.invoker`→function, `cloudtasks.enqueuer`→task queue, `pubsub.publisher`→topic, granted to this project's SAs or Google service agents |
+| Public `run.invoker` for new callable/HTTPS functions (not for HTTPS functions whose `invoker` option is non-public) | Code |
+| Other IAM | LLM, limited to `run.invoker`→function, `cloudtasks.enqueuer`→task queue, `pubsub.publisher`→topic, granted to this project's SAs or its Google service agents. Never `allUsers`. |
 | Which migrations run | LLM, only from pending scripts that carry a `@release-phase` tag |
 | Migration phase | The script's own tag |
 | Deleting functions or indexes, project-level IAM | Nobody. Listed as **manual action needed**. |
@@ -37,7 +37,7 @@ facts.ts  ── deterministic ──►  facts.json  ──►  plan.ts ──�
 
 ## Deploy order
 
-Each step runs only if the previous one succeeded. There's no automatic rollback; re-running the workflow is safe.
+Each step runs only if the previous one succeeded. There's no automatic rollback. Re-running the latest run is safe; re-running an older run fails before deploying, because the run for the newer commit covers its changes.
 
 1. Rules and indexes. Index builds aren't awaited, and indexes are never deleted.
 2. `pre-functions` migrations: dry-run, then `--write`, then the ledger entry.
@@ -53,7 +53,9 @@ Each step runs only if the previous one succeeded. There's no automatic rollback
 3. `TOGETHER_API_KEY=… yarn release:smoke-llm`. This confirms `MiniMaxAI/MiniMax-M3.1-Flash` answers on Together's `/v1/messages`. If it doesn't, set the `RELEASE_LLM_BASE_URL` env in the workflow to a LiteLLM proxy (see Together's docs).
 4. `firebase functions:artifacts:setpolicy --project study-forge-202604 --location asia-east1 --days 7`
 5. `gcloud auth application-default login && yarn release:seed-ledger --write`
-6. Run **Release** manually with `deploy_all=true`. With no earlier successful run there's no base to diff from, so ship everything once.
+6. Run **Release** manually with `deploy_all=true`. With no earlier successful run there's no base to diff from, so ship everything once. (A push-triggered plan with no successful run on record fails rather than guessing a base.)
+
+The seed refuses to run twice, and refuses while `scripts/migrations/` has uncommitted changes.
 
 ## Local use
 

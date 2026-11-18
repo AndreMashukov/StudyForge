@@ -37,7 +37,8 @@ export function extractHeader(source: string): string {
 }
 
 export function parsePhase(header: string): MigrationPhase | null {
-  const match = header.match(/@release-phase\s+([a-z-]+)/);
+  // The whole token must be a phase: `post-functions2` is untagged, not `post-functions`.
+  const match = header.match(/@release-phase\s+([a-z-]+)(?=\s|\*\/|$)/);
   if (!match) return null;
   return isPhase(match[1]) ? match[1] : null;
 }
@@ -95,6 +96,10 @@ export async function isApplied(script: string): Promise<boolean> {
 export async function seedLedger(scripts: string[], commitSha: string, write: boolean): Promise<string[]> {
   const db = await firestore();
   const admin = await import('firebase-admin');
+  // A second seed would mark migrations added since the first one as applied without running them.
+  if ((await db.doc(LEDGER_META_DOC).get()).exists) {
+    throw new Error(`The Migration ledger is already seeded (${LEDGER_META_DOC}); refusing to seed again.`);
+  }
   const existing = new Set((await db.collection(LEDGER_COLLECTION).get()).docs.map((doc) => doc.id));
   const toSeed = scripts.filter((script) => !existing.has(script));
   if (!write) return toSeed;
@@ -111,11 +116,12 @@ export async function seedLedger(scripts: string[], commitSha: string, write: bo
       appliedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   }
-  batch.set(
-    db.doc(LEDGER_META_DOC),
-    { seededAt: admin.firestore.FieldValue.serverTimestamp(), seededScripts: scripts, commitSha },
-    { merge: true },
-  );
+  // create(): if another seed won the race, the whole batch fails and nothing is marked applied.
+  batch.create(db.doc(LEDGER_META_DOC), {
+    seededAt: admin.firestore.FieldValue.serverTimestamp(),
+    seededScripts: scripts,
+    commitSha,
+  });
   await batch.commit();
   return toSeed;
 }
