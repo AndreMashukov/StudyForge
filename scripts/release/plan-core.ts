@@ -2,7 +2,7 @@
  * Pure Release plan logic: validate an LLM proposal against the facts, then merge it with
  * the deterministic floor. Nothing here touches the network or the filesystem.
  */
-import { LLM_IAM_ALLOWLIST } from './config';
+import { LLM_IAM_ALLOWLIST, LLM_MAX_WARNINGS } from './config';
 import {
   llmProposalSchema,
   type FunctionSource,
@@ -168,7 +168,7 @@ export function mergePlan(facts: IReleaseFacts, proposal: LlmProposal | null, mo
     }
   }
 
-  const warnings = [...(proposal?.warnings ?? [])];
+  const warnings = (proposal?.warnings ?? []).slice(0, LLM_MAX_WARNINGS);
   if (facts.rules.firestoreIndexes) {
     warnings.push('Firestore indexes deploy without waiting for builds; queries that need a new index fail with FAILED_PRECONDITION until it is READY.');
   }

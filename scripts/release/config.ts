@@ -11,6 +11,8 @@ export const LLM_MODEL = process.env.RELEASE_LLM_MODEL || 'MiniMaxAI/MiniMax-M3.
 export const LLM_TIMEOUT_MS = 90_000;
 /** One initial attempt plus one retry (network failure or invalid plan). */
 export const LLM_MAX_ATTEMPTS = 2;
+/** Extra warnings are dropped, not rejected — they're informational and shouldn't fail a release. */
+export const LLM_MAX_WARNINGS = 5;
 
 export const FUNCTIONS_ENTRY = 'functions/src/index.ts';
 export const FUNCTIONS_BUNDLE = 'functions/lib/src/index.js';

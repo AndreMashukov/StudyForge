@@ -165,6 +165,13 @@ describe('mergePlan', () => {
     expect(plan.blockers).toHaveLength(2);
   });
 
+  it('keeps only the first 5 LLM warnings instead of failing the plan', () => {
+    const warnings = Array.from({ length: 8 }, (_, i) => `warning ${i + 1}`);
+    expect(validateProposal({ ...emptyProposal, warnings }, facts()).ok).toBe(true);
+    const plan = mergePlan(facts(), { ...emptyProposal, warnings }, 'model');
+    expect(plan.warnings).toEqual(warnings.slice(0, 5));
+  });
+
   it('reports deleted functions as manual actions instead of deleting them', () => {
     const base = facts();
     const plan = mergePlan({ ...base, functions: { ...base.functions, deletedFunctions: ['oldFn'] } }, emptyProposal, 'model');

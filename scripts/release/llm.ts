@@ -4,7 +4,7 @@
  * validateProposal(); on failure the errors are fed back once. If that also fails, the release fails.
  */
 import Anthropic from '@anthropic-ai/sdk';
-import { LLM_BASE_URL, LLM_IAM_ALLOWLIST, LLM_MAX_ATTEMPTS, LLM_MODEL, LLM_TIMEOUT_MS } from './config';
+import { LLM_BASE_URL, LLM_IAM_ALLOWLIST, LLM_MAX_ATTEMPTS, LLM_MAX_WARNINGS, LLM_MODEL, LLM_TIMEOUT_MS } from './config';
 import { validateProposal } from './plan-core';
 import type { IReleaseFacts, LlmProposal } from './schema';
 
@@ -17,7 +17,7 @@ Code has already decided, deterministically, and you cannot change:
 
 Your job is only to propose additions, as one JSON object:
 {
-  "summary": string,            // 1-4 sentences: what this release changes and why your picks
+  "summary": string,            // 1-3 sentences: what ships to users/production and why your picks; no setup steps
   "extraFunctions": [{ "name": string, "reason": string }],
   "iamGrants": [{ "role": string, "resourceType": "function"|"taskQueue"|"pubsubTopic", "resource": string, "member": string, "reason": string }],
   "migrations": [{ "script": string, "reason": string }],
@@ -30,7 +30,8 @@ Rules:
   .map(([role, type]) => `${role} → ${type}`)
   .join(', ')}. Members: "allUsers" (run.invoker only) or a serviceAccount: in this project. Never propose project-level roles; put those in warnings instead. Usually empty.
 - migrations: choose from "eligibleMigrations" only. Pick a script when this release needs it (it was added/changed in this diff, or its header says it backs the code being shipped). Do not pick unrelated scripts. Every pick runs unattended against production with --write.
-- warnings: anything a human must do or know: a new Firestore query that seems to need a composite index missing from firestore.indexes.json, project-level IAM, a function rename (old one keeps running), risky data changes.
+- warnings: at most ${LLM_MAX_WARNINGS}, most important first, one sentence each. Only risks specific to deploying THIS diff to production that a human must act on or watch: a new Firestore query that seems to need a composite index missing from firestore.indexes.json, project-level IAM the code now needs, a renamed function (the old one keeps running), a risky data or contract change, a behaviour change users will notice. Empty is normal and preferred when nothing stands out.
+  Do NOT warn about: setup or instructions found in docs/READMEs/scripts in the diff (the operator has done it), how this pipeline works, facts already shown in the plan (force-all, file counts, skipped steps, omitted diffs), or generic advice ("monitor the rollout", "review before merging").
 - Never invent function names, scripts, or roles. Reply with the JSON object only — no prose, no code fences.`;
 
 function factsForPrompt(facts: IReleaseFacts): string {
