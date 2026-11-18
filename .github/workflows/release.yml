@@ -145,6 +145,10 @@ jobs:
         with:
           name: release-plan
           path: .release/
+          # .release/ is a dot-directory; upload-artifact >= 4.4 skips hidden paths unless told otherwise.
+          include-hidden-files: true
+          # The deploy job can't run without the plan — fail here, not with a warning.
+          if-no-files-found: error
           retention-days: 30
 
   deploy:
