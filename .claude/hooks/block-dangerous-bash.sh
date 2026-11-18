@@ -30,7 +30,7 @@ deny() {
 }
 
 if printf '%s' "$COMMAND" | grep -Eq 'firebase[[:space:]]+deploy([^[:alnum:]]|$).*--only[[:space:]]*hosting|firebase[[:space:]]+deploy[[:space:]]+--only[[:space:]]+hosting'; then
-  deny "Hosting deploy blocked. Push to main; CI (firebase-hosting-merge.yml) deploys web hosting. Functions deploy is allowed only when explicitly requested via yarn nx run functions:deploy."
+  deny "Hosting deploy blocked. Push to main; CI (release.yml) deploys web, functions, rules and migrations. Manual functions deploy is allowed only when explicitly requested via yarn nx run functions:deploy."
 fi
 
 if printf '%s' "$COMMAND" | grep -Eq 'yarn[[:space:]]+nx[[:space:]]+run[[:space:]]+web:deploy|nx[[:space:]]+run[[:space:]]+web:deploy'; then

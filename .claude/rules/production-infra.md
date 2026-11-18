@@ -8,20 +8,24 @@ paths:
 
 # Production Infrastructure
 
-## Firebase Hosting Deploy
+## Release pipeline (web + functions + rules + migrations)
 
-Production deploys via GitHub Actions on push to `main`:
+Production deploys via GitHub Actions on push to `main` — see `scripts/release/README.md` and ADR 009:
 
-- Workflow: `.github/workflows/firebase-hosting-merge.yml`
-- Action: `FirebaseExtended/action-hosting-deploy@v0`
+- Workflow: `.github/workflows/release.yml` (PRs get a plan-only preview comment)
+- An LLM proposes the **Release plan**; code validates it; it runs unattended
+- Auth: keyless Workload Identity Federation (no service account JSON)
 - Build output: `dist/web` (NX `web:build --configuration=production`)
 - Firebase project: `study-forge-202604`
 
 ## Required GitHub Secrets
 
-| Secret | Purpose |
+| Secret / variable | Purpose |
 |--------|---------|
-| `FIREBASE_SERVICE_ACCOUNT_STUDY_FORGE_202604` | Firebase Admin SDK JSON for deploy auth |
+| `TOGETHER_API_KEY` (secret) | Release planner LLM (Together AI, MiniMax M3.1 Flash) |
+| `GCP_WIF_PROVIDER` (variable) | Workload Identity Federation provider — from `scripts/release/setup-release-identity.sh` |
+| `GCP_RELEASE_SA` (variable) | Deploy service account (main only) |
+| `GCP_RELEASE_PREVIEW_SA` (variable) | Read-only planner service account (PR previews + plan job) |
 | `NX_PUBLIC_FIREBASE_API_KEY` | Client Firebase config |
 | `NX_PUBLIC_FIREBASE_APP_ID` | Client Firebase config |
 | `NX_PUBLIC_FIREBASE_AUTH_DOMAIN` | Client Firebase config |
@@ -45,8 +49,10 @@ The `admin` app deploys separately to Vercel:
 
 | Error | Fix |
 |-------|-----|
-| `Failed to authenticate` / `Premature close` on deploy | Pin Node to `22.22.0` and `firebaseToolsVersion: '15.21.0'` — see `skills/firebase-hosting` |
-| `Input required: firebaseServiceAccount` | Secret name mismatch — must be `FIREBASE_SERVICE_ACCOUNT_STUDY_FORGE_202604` |
+| `Failed to authenticate` / `Premature close` on deploy | Keep Node pinned to `22.22.0` — see `skills/firebase-hosting` |
+| `google-github-actions/auth` fails | `GCP_WIF_PROVIDER` / `GCP_RELEASE_*SA` variables unset, or the run is not on `refs/heads/main` |
+| Release blocked: ledger not seeded | Run `tsx scripts/release/seed-migration-ledger.ts --write` once |
+| Release planner LLM failed | Together API down or invalid plan twice — the release aborts by design; re-run the workflow |
 | CORS 404 on callable functions | Emulator/deploy `--project` does not match `NX_PUBLIC_FIREBASE_PROJECT_ID` |
 | Build succeeds but app shows demo config | `NX_PUBLIC_*` secrets missing in the build step env block |
 

@@ -1,0 +1,23 @@
+/** Packages left as runtime `require`s (resolved from functions/node_modules). Shared with scripts/release. */
+export const externalPackages = [
+  'firebase-admin',
+  'firebase-functions',
+  'google-auth-library',
+  '@google/genai',
+  '@google/adk',
+  'cheerio',
+  'dompurify',
+  'fast-xml-parser',
+  'firebase',
+  'html-validate',
+  'jsdom',
+  'jszip',
+  'mammoth',
+  'mermaid',
+  'node-fetch',
+  'papaparse',
+  'pdf-parse',
+  'sanitize-html',
+  'turndown',
+  'zod',
+];

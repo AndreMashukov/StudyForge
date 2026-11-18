@@ -8,10 +8,10 @@ alwaysApply: false
 
 ## Web — Firebase Hosting
 
-- Workflow: `.github/workflows/firebase-hosting-merge.yml`
+- Workflow: `.github/workflows/release.yml` — LLM-proposed, code-validated Release plan (web, functions, rules, migrations); see `scripts/release/README.md`
 - Build: `dist/web` via `yarn nx build web --configuration=production`
 - Firebase project: `study-forge-202604`
-- Deploy secret: `FIREBASE_SERVICE_ACCOUNT_STUDY_FORGE_202604`
+- Auth: Workload Identity Federation (`GCP_WIF_PROVIDER`, `GCP_RELEASE_SA`, `GCP_RELEASE_PREVIEW_SA` variables) + `TOGETHER_API_KEY` secret
 
 ## Admin — Vercel
 
@@ -22,7 +22,7 @@ alwaysApply: false
 
 | Error | Fix |
 |-------|-----|
-| `Input required: firebaseServiceAccount` | Secret must be `FIREBASE_SERVICE_ACCOUNT_STUDY_FORGE_202604` |
+| WIF auth step fails | Release variables unset or run not on `main` |
 | CORS 404 on callables | Emulator `--project` ≠ `NX_PUBLIC_FIREBASE_PROJECT_ID` |
 | Demo Firebase config in prod | Missing `NX_PUBLIC_*` secrets in CI build step |
 

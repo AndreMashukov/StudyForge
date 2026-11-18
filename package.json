@@ -6,6 +6,7 @@
   "author": "AndreyAffhausen <andrey@affhausen.com>",
   "license": "MIT",
   "devDependencies": {
+    "@anthropic-ai/sdk": "^1.10.0",
     "@babel/core": "^7.14.5",
     "@babel/preset-react": "^7.14.5",
     "@crxjs/vite-plugin": "^2.4.0",
@@ -82,6 +83,10 @@
     "migrate:generation-routes": "tsx scripts/migrations/migrate-generation-routes.ts",
     "migrate:escalation-route": "tsx scripts/migrations/backfill-escalation-route.ts",
     "migrate:drop-legacy-llm-setup-routes": "tsx scripts/migrations/drop-legacy-llm-setup-routes.ts",
+    "release:test": "vitest run --config vitest.release.config.ts",
+    "release:typecheck": "tsc -p scripts/release/tsconfig.json",
+    "release:seed-ledger": "tsx scripts/release/seed-migration-ledger.ts",
+    "release:smoke-llm": "tsx scripts/release/smoke-llm.ts",
     "test:firestore-rules": "firebase emulators:exec --only firestore --project demo-study-forge-rules-test --config firebase.firestore-rules-test.json \"npx vitest run --config vitest.firestore-rules.config.ts\""
   },
   "dependencies": {
