@@ -24,8 +24,10 @@ POOL_ID="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POO
 
 echo "Project ${PROJECT_ID} (${PROJECT_NUMBER}), repo ${REPO}"
 
+# cloudbilling: firebase deploy checks the Blaze plan before a functions deploy; with a service
+# account the call is billed to this project, so the API must be enabled here.
 gcloud services enable iamcredentials.googleapis.com sts.googleapis.com cloudresourcemanager.googleapis.com \
-  --project "$PROJECT_ID"
+  cloudbilling.googleapis.com --project "$PROJECT_ID"
 
 if ! gcloud iam workload-identity-pools describe "$POOL" --location=global --project "$PROJECT_ID" >/dev/null 2>&1; then
   gcloud iam workload-identity-pools create "$POOL" --location=global --project "$PROJECT_ID" \
