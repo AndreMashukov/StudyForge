@@ -5,12 +5,10 @@ let sharedCheckpointer: FirestoreCheckpointSaver | null = null;
 export {
   FirestoreCheckpointSaver,
   deleteAgentTurnCheckpoints,
-  claimAgentTurnCompletion,
   CheckpointOverflowUnavailableError,
   CheckpointSerializationTooLargeError,
   applyOverflowChannelValues,
 } from './firestore-checkpoint-saver';
-export type { IAgentTurnCompletion } from './firestore-checkpoint-saver';
 export {
   buildAgentTurnKey,
   agentCheckpointCollection,

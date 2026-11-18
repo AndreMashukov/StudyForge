@@ -1,10 +1,10 @@
 import {
   getDoc,
   getDocs,
+  getDocsFromServer,
   limit,
   orderBy,
   query,
-  Timestamp,
 } from 'firebase/firestore';
 import type {
   AgentThreadSummary,
@@ -14,11 +14,17 @@ import type {
 } from '@shared-types';
 import {
   agentActionResultSchema,
+  agentMessageTurnStatusSchema,
   agentPromptContextSchema,
   agentProposedDeleteSchema,
   agentReferencedItemSchema,
 } from '@shared-types';
-import type { z } from 'zod';
+import {
+  optionalString,
+  optionalTimestampToIso,
+  parseList,
+  timestampToIso,
+} from './agentFirestoreValues';
 import {
   agentThreadMessagesCollection,
   agentThreadRef,
@@ -29,32 +35,13 @@ const THREAD_LIST_DEFAULT_LIMIT = 50;
 const THREAD_MESSAGES_MAX_RETURNED = 200;
 const FALLBACK_THREAD_TITLE = 'Conversation';
 
-function timestampToIso(value: unknown, fallback: string): string {
-  if (value instanceof Timestamp) {
-    return value.toDate().toISOString();
-  }
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString();
-  }
-  if (typeof value === 'string' && value.trim().length > 0) {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
-  }
-  return fallback;
-}
-
-function optionalString(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim().length > 0
-    ? value.trim()
-    : undefined;
-}
-
-function mapThread(
+export function mapAgentThread(
   id: string,
   data: Record<string, unknown> | undefined,
   userId: string,
   fallbackIso: string,
 ): IAgentThread {
+  const activeTurnId = optionalString(data?.activeTurnId);
   return {
     id,
     userId: optionalString(data?.userId) ?? userId,
@@ -71,6 +58,14 @@ function mapThread(
         timestampToIso(data?.createdAt, fallbackIso),
       ),
     ),
+    ...(activeTurnId
+      ? {
+          activeTurnId,
+          activeTurnStartedAt: optionalTimestampToIso(
+            data?.activeTurnStartedAt,
+          ),
+        }
+      : {}),
   };
 }
 
@@ -84,17 +79,13 @@ function toThreadSummary(thread: IAgentThread): AgentThreadSummary {
     createdAt: thread.createdAt,
     updatedAt: thread.updatedAt,
     lastMessageAt: thread.lastMessageAt,
+    ...(thread.activeTurnId
+      ? {
+          activeTurnId: thread.activeTurnId,
+          activeTurnStartedAt: thread.activeTurnStartedAt,
+        }
+      : {}),
   };
-}
-
-function parseList<T>(value: unknown, schema: z.ZodType<T>): T[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  return value.flatMap((entry) => {
-    const parsed = schema.safeParse(entry);
-    return parsed.success ? [parsed.data] : [];
-  });
 }
 
 export function mapAgentThreadMessage(
@@ -104,6 +95,8 @@ export function mapAgentThreadMessage(
   fallbackIso: string,
 ): IAgentThreadMessage {
   const promptContext = agentPromptContextSchema.safeParse(data.promptContext);
+  const turnStatus = agentMessageTurnStatusSchema.safeParse(data.turnStatus);
+  const turnId = optionalString(data.turnId);
   return {
     id,
     threadId,
@@ -114,7 +107,43 @@ export function mapAgentThreadMessage(
     executedActions: parseList(data.executedActions, agentActionResultSchema),
     proposedDeletes: parseList(data.proposedDeletes, agentProposedDeleteSchema),
     referencedItems: parseList(data.referencedItems, agentReferencedItemSchema),
+    ...(turnId ? { turnId } : {}),
+    ...(turnStatus.success ? { turnStatus: turnStatus.data } : {}),
   };
+}
+
+/**
+ * Most recent messages of a thread, oldest first. Reads newest-first so a long
+ * thread returns its latest turns, not its first ones.
+ */
+export async function listAgentThreadMessages(
+  userId: string,
+  threadId: string,
+  options: {
+    maxMessages?: number;
+    /** Skip the local cache (it can hold an older transcript after a reconnect). */
+    fromServer?: boolean;
+  } = {},
+): Promise<IAgentThreadMessage[]> {
+  const messagesQuery = query(
+    agentThreadMessagesCollection(userId, threadId),
+    orderBy('createdAt', 'desc'),
+    limit(options.maxMessages ?? THREAD_MESSAGES_MAX_RETURNED),
+  );
+  const messagesSnap = options.fromServer
+    ? await getDocsFromServer(messagesQuery)
+    : await getDocs(messagesQuery);
+  const fallbackIso = new Date().toISOString();
+  return messagesSnap.docs
+    .map((messageDoc) =>
+      mapAgentThreadMessage(
+        messageDoc.id,
+        threadId,
+        messageDoc.data(),
+        fallbackIso,
+      ),
+    )
+    .reverse();
 }
 
 export async function getAgentThreadFromFirestore(
@@ -127,30 +156,14 @@ export async function getAgentThreadFromFirestore(
   }
 
   const fallbackIso = new Date().toISOString();
-  const thread = mapThread(
+  const thread = mapAgentThread(
     threadSnap.id,
     threadSnap.data(),
     userId,
     fallbackIso,
   );
 
-  const messagesSnap = await getDocs(
-    query(
-      agentThreadMessagesCollection(userId, threadId),
-      orderBy('createdAt', 'asc'),
-      limit(THREAD_MESSAGES_MAX_RETURNED),
-    ),
-  );
-
-  const messages = messagesSnap.docs.map((messageDoc) =>
-    mapAgentThreadMessage(
-      messageDoc.id,
-      threadId,
-      messageDoc.data(),
-      fallbackIso,
-    ),
-  );
-
+  const messages = await listAgentThreadMessages(userId, threadId);
   return { thread, messages };
 }
 
@@ -169,7 +182,7 @@ export async function listAgentThreadsFromFirestore(
   const fallbackIso = new Date().toISOString();
   return snapshot.docs.map((threadDoc) =>
     toThreadSummary(
-      mapThread(threadDoc.id, threadDoc.data(), userId, fallbackIso),
+      mapAgentThread(threadDoc.id, threadDoc.data(), userId, fallbackIso),
     ),
   );
 }

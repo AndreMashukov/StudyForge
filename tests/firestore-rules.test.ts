@@ -380,6 +380,83 @@ describe('firestore.rules client write hardening', () => {
     });
   });
 
+  describe('agent threads and turns', () => {
+    const threadId = 'thread-0001';
+    const turnId = 'turn-0001';
+    const threadPath = `users/${OWNER_UID}/agentThreads/${threadId}`;
+    const turnPath = `${threadPath}/turns/${turnId}`;
+    const verified = { email_verified: true };
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const firestore = context.firestore();
+        await setDoc(doc(firestore, threadPath), {
+          userId: OWNER_UID,
+          scope: 'workspace',
+          activeTurnId: turnId,
+        });
+        await setDoc(doc(firestore, `${threadPath}/messages/user-${turnId}`), {
+          role: 'user',
+          content: 'Hello',
+        });
+        await setDoc(doc(firestore, turnPath), {
+          status: 'running',
+          reply: 'Partial',
+        });
+        await setDoc(
+          doc(firestore, `users/${OWNER_UID}/agentCheckpoints/${threadId}:${turnId}`),
+          { turnKey: `${threadId}:${turnId}` },
+        );
+      });
+    });
+
+    it('lets the verified owner read the thread, its messages and one turn', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID, verified);
+      await assertSucceeds(getDoc(doc(owner.firestore(), threadPath)));
+      await assertSucceeds(
+        getDoc(doc(owner.firestore(), `${threadPath}/messages/user-${turnId}`)),
+      );
+      await assertSucceeds(getDoc(doc(owner.firestore(), turnPath)));
+    });
+
+    it('denies listing turns and every client write', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID, verified);
+      await assertFails(
+        getDocs(query(collection(owner.firestore(), `${threadPath}/turns`), limit(5))),
+      );
+      await assertFails(
+        updateDoc(doc(owner.firestore(), turnPath), { cancelRequested: true }),
+      );
+      await assertFails(
+        setDoc(doc(owner.firestore(), `${threadPath}/turns/turn-0002`), {
+          status: 'queued',
+        }),
+      );
+      await assertFails(updateDoc(doc(owner.firestore(), threadPath), { activeTurnId: null }));
+      await assertFails(
+        setDoc(doc(owner.firestore(), `${threadPath}/messages/assistant-${turnId}`), {
+          role: 'assistant',
+          content: 'forged',
+        }),
+      );
+    });
+
+    it('denies other users, unverified owners and checkpoint reads', async () => {
+      const other = testEnv.authenticatedContext(OTHER_UID, verified);
+      await assertFails(getDoc(doc(other.firestore(), turnPath)));
+
+      const unverified = testEnv.authenticatedContext(OWNER_UID);
+      await assertFails(getDoc(doc(unverified.firestore(), turnPath)));
+
+      const owner = testEnv.authenticatedContext(OWNER_UID, verified);
+      await assertFails(
+        getDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/agentCheckpoints/${threadId}:${turnId}`),
+        ),
+      );
+    });
+  });
+
   describe('adminSettings', () => {
     beforeEach(async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {

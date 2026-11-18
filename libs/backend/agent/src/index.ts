@@ -1,4 +1,10 @@
-export { DirectoryAgentService } from './directory-agent-service';
+export { executeAgentTurn } from './directory-agent-service';
+export type {
+  IAgentTurnOutcome,
+  IExecuteAgentTurnInput,
+  AgentTurnProgressEvent,
+} from './directory-agent-service';
+export * from './turns';
 export { WorkspaceAgentRunner } from './langgraph/workspace-agent-runner';
 export { buildWorkspaceAgentGraph } from './langgraph/build-workspace-agent-graph';
 export { getFirestoreCheckpointer } from './checkpointer';

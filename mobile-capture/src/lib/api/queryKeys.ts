@@ -12,5 +12,7 @@ export const queryKeys = {
   agentThreads: (userId: string) => ['agentThreads', userId] as const,
   agentThread: (userId: string, threadId: string) =>
     ['agentThread', userId, threadId] as const,
+  agentTurn: (userId: string, threadId: string, turnId: string) =>
+    ['agentTurn', userId, threadId, turnId] as const,
   missedFlashcards: (userId: string) => ['missedFlashcards', userId] as const,
 };

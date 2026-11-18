@@ -118,6 +118,22 @@ export function agentThreadMessagesCollection(
   );
 }
 
+export function agentThreadTurnRef(
+  userId: string,
+  threadId: string,
+  turnId: string,
+) {
+  return doc(
+    getClientDb(),
+    'users',
+    userId,
+    'agentThreads',
+    threadId,
+    'turns',
+    turnId,
+  );
+}
+
 export function billingRef(userId: string) {
   return doc(getClientDb(), 'users', userId, 'billing', 'state');
 }

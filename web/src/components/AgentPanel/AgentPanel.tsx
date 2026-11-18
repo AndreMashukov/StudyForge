@@ -1,61 +1,34 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { Bot, ChevronDown, Send } from 'lucide-react';
-import type {
-  AgentActionKind,
-  AgentMessageStreamEvent,
-  AgentProposedDelete,
-  AgentPromptContext,
-  IAgentThreadMessage,
-} from '@shared-types';
-import { baseApi } from '../../store/api/baseApi';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Bot, ChevronDown, Send, Square } from 'lucide-react';
+import type { AgentProposedDelete } from '@shared-types';
 import { Button } from '../ui/Button';
 import { Textarea } from '../ui/Textarea';
 import { Spinner } from '../ui/Spinner';
-import { MarkdownRenderer } from '../MarkdownRenderer';
-import { stripAgentThinkingContent } from '../../utils/stripAgentThinkingContent';
-import { formatLocalIsoDate } from '../../utils/dateUtils';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAppDispatch, useAppSelector } from '../../hooks/redux';
+import { useAppSelector } from '../../hooks/redux';
 import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
-import { streamAgentMessage } from '../../services/agentStreamClient';
-import {
-  agentThreadApi,
-  useGetAgentThreadQuery,
-  useListAgentThreadsQuery,
-} from '../../store/api/AgentThread';
-import { AgentDeleteProposalCard } from './AgentDeleteProposalCard';
+import { useListAgentThreadsQuery } from '../../store/api/AgentThread';
+import { AgentChatMessage } from './AgentChatMessage';
 import { AgentContextPill, AgentRestoreContextPill } from './AgentContextPill';
 import { AgentThreadHistoryMenu } from './AgentThreadHistoryMenu';
-import { IAgentChatMessage, IAgentPanel } from './IAgentPanel';
+import { IAgentPanel } from './IAgentPanel';
+import { isAgentThreadMissingError } from './agentPanelErrors';
 import {
-  clearStreamBackup,
-  consumeStreamBackup,
-  readActiveThreadId,
-  threadMatchesPanelContext,
-  writeActiveThreadId as writeStoredActiveThreadId,
-  writeStreamBackup,
-} from './agentThreadStorage';
+  useAgentConversation,
+  type IAgentPendingTurn,
+} from './hooks/useAgentConversation';
+import { useAgentPanelEffects } from './hooks/useAgentPanelEffects';
+import { useAgentPanelHandlers } from './hooks/useAgentPanelHandlers';
+import { useAgentPanelThread } from './hooks/useAgentPanelThread';
+import { useIsMobileOverlay } from './hooks/useIsMobileOverlay';
 import {
   useAgentLocationContext,
   type AgentLocationContextKind,
 } from './useAgentLocationContext';
 
 const MAX_MESSAGE_LENGTH = 10_000;
-const RULE_CACHE_ACTION_KINDS = new Set<AgentActionKind>([
-  'create_rule',
-  'create_rule_from_blueprint',
-  'update_rule',
-  'attach_rule',
-  'detach_rule',
-]);
 /** Matches TopAppBar `h-12` and Sidebar `top-12`. */
 const APP_BAR_HEIGHT_PX = 48;
 /** Matches Page / Sidebar expanded & collapsed widths. */
@@ -86,86 +59,18 @@ const EMPTY_STATE_PROMPTS: Record<AgentLocationContextKind, string[]> = {
   ],
 };
 
-function createMessageId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function buildIncompleteAgentChatReply(
-  actions?: Array<{ summary: string }>,
+function deleteProposalKey(
+  entryId: string,
+  proposal: Pick<AgentProposedDelete, 'targetType' | 'targetId'>,
 ): string {
-  const lines = (actions ?? [])
-    .map((action) => action.summary.trim())
-    .filter((summary) => summary.length > 0);
-
-  if (lines.length === 0) {
-    return 'The agent ran out of time before it could finish a reply. Try a smaller request, or send another message to continue.';
-  }
-
-  return [
-    'I started this work, but the chat request hit the time limit before I could finish a written reply.',
-    '',
-    'Already started:',
-    ...lines.map((line) => `- ${line}`),
-    '',
-    'Open these items in your library. Generation may still be running. Send another message if you want me to continue.',
-  ].join('\n');
+  return `${entryId}:${proposal.targetType}:${proposal.targetId}`;
 }
 
-function toPanelMessage(message: IAgentThreadMessage): IAgentChatMessage {
-  return {
-    id: message.id,
-    role: message.role,
-    content: message.content,
-    executedActions: message.executedActions,
-    proposedDeletes: message.proposedDeletes,
-  };
-}
-
-function isAgentThreadMissingError(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null) {
-    return false;
-  }
-  if (!('status' in error) || !('data' in error)) {
-    return false;
-  }
-  if (typeof error.data !== 'object' || error.data === null) {
-    return false;
-  }
-
-  const message =
-    'message' in error.data && typeof error.data.message === 'string'
-      ? error.data.message
-      : '';
-  const code =
-    'code' in error.data && typeof error.data.code === 'string'
-      ? error.data.code
-      : '';
-
-  if (error.status === 'CUSTOM_ERROR') {
-    return code === 'NOT_FOUND' || message === 'Thread not found';
-  }
-
-  return (
-    error.status === 'functions/not-found' &&
-    message === 'Agent thread not found'
-  );
-}
-
-function promptContextDirectoryId(
-  promptContext: AgentPromptContext | undefined,
-): string | undefined {
-  if (!promptContext) {
-    return undefined;
-  }
-  if (promptContext.type === 'directory') {
-    return promptContext.directoryId;
-  }
-  if (promptContext.type === 'document') {
-    return promptContext.directoryId;
-  }
-  return undefined;
-}
-
+/**
+ * Agent chat panel. Replies are durable agent turns (ADR 010): they run on
+ * the server, so collapsing the panel, changing page or closing the tab never
+ * stops one, and reopening re-attaches to it. Only Stop cancels.
+ */
 export const AgentPanel: React.FC<IAgentPanel> = ({
   scope = 'workspace',
   directoryId,
@@ -174,50 +79,91 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
   variant = 'embedded',
   className,
 }) => {
-  const dispatch = useAppDispatch();
   const { user } = useAuth();
   const userId = user?.uid;
-  const [messages, setMessages] = useState<IAgentChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [threadId, setThreadId] = useState<string | undefined>();
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [contextDismissed, setContextDismissed] = useState(false);
+  const [pendingTurn, setPendingTurn] = useState<IAgentPendingTurn | null>(
+    null,
+  );
+  const [confirmedDeleteKeys, setConfirmedDeleteKeys] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const suppressQueryHydrateRef = useRef(false);
-  const appliedBackupThreadRef = useRef<string | null>(null);
   const sidebarIsOpen = useAppSelector(selectSidebarIsOpen);
   const { isAppFullscreen } = useAppFullscreen();
   const isOverlay = variant === 'overlay';
+  const isMobile = useIsMobileOverlay(isOverlay);
   const locationContext = useAgentLocationContext();
 
-  const {
-    data: threadData,
-    error: threadError,
-    isLoading: isThreadLoading,
-  } = useGetAgentThreadQuery({ threadId: threadId ?? '' }, { skip: !threadId });
+  const { threadId, selectThread, rememberThread } = useAgentPanelThread({
+    userId,
+    scope,
+    directoryId,
+  });
   const { data: threadListData, isLoading: isThreadListLoading } =
     useListAgentThreadsQuery({});
+  const {
+    entries,
+    threadData,
+    threadError,
+    isThreadLoading,
+    turn,
+    isWorking,
+  } = useAgentConversation({ threadId, pendingTurn });
 
-  const persistActiveThreadId = useCallback(
-    (nextThreadId: string | undefined) => {
-      writeStoredActiveThreadId(userId, nextThreadId, scope, directoryId);
+  const activePromptContext = contextDismissed
+    ? undefined
+    : locationContext?.promptContext;
+  const suggestionKind: AgentLocationContextKind =
+    activePromptContext?.type ?? 'workspace';
+
+  const clearPendingTurn = useCallback((turnId: string) => {
+    setPendingTurn((current) => (current?.turnId === turnId ? null : current));
+  }, []);
+
+  useAgentPanelEffects({
+    scope,
+    directoryId,
+    threadId,
+    threadData,
+    threadError,
+    turn,
+    entries,
+    pendingTurn,
+    scrollRef,
+    selectThread,
+    clearPendingTurn,
+    onMutated,
+  });
+
+  const { handleSend, handleStop, handleNewChat, handleSelectThread, isStopping } =
+    useAgentPanelHandlers({
+      scope,
+      directoryId,
+      threadId,
+      activePromptContext,
+      turn,
+      isWorking,
+      selectThread,
+      rememberThread,
+      setPendingTurn,
+      setInput,
+      setError,
+    });
+
+  const handleDeleteProposalConfirmed = useCallback(
+    (entryId: string, proposal: AgentProposedDelete) => {
+      setConfirmedDeleteKeys((current) => {
+        const next = new Set(current);
+        next.add(deleteProposalKey(entryId, proposal));
+        return next;
+      });
+      onMutated?.();
     },
-    [directoryId, scope, userId],
+    [onMutated],
   );
-
-  useEffect(() => {
-    if (!userId) {
-      setThreadId(undefined);
-      setMessages([]);
-      return;
-    }
-
-    setThreadId(readActiveThreadId(userId, scope, directoryId));
-    setMessages([]);
-  }, [directoryId, scope, userId]);
 
   const visibleThreads = useMemo(() => {
     const threads = threadListData?.threads ?? [];
@@ -229,24 +175,6 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     }
     return threads.filter((thread) => thread.scope === 'workspace');
   }, [directoryId, scope, threadListData?.threads]);
-
-  const activePromptContext = contextDismissed
-    ? undefined
-    : locationContext?.promptContext;
-  const suggestionKind: AgentLocationContextKind =
-    activePromptContext?.type ?? 'workspace';
-
-  useEffect(() => {
-    if (!isOverlay) {
-      return;
-    }
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, [isOverlay]);
 
   const pageWideStyle = useMemo(() => {
     if (!isOverlay) {
@@ -265,416 +193,12 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     };
   }, [isAppFullscreen, isMobile, isOverlay, sidebarIsOpen]);
 
-  useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages, loading]);
-
-  useEffect(() => {
-    if (suppressQueryHydrateRef.current || loading) {
-      return;
-    }
-    if (!threadId) {
-      return;
-    }
-    if (threadData?.thread.id !== threadId) {
-      return;
-    }
-
-    if (!threadMatchesPanelContext(threadData.thread, scope, directoryId)) {
-      persistActiveThreadId(undefined);
-      setThreadId(undefined);
-      setMessages([]);
-      return;
-    }
-
-    if (appliedBackupThreadRef.current !== threadId) {
-      const backup = consumeStreamBackup(threadId);
-      if (backup) {
-        appliedBackupThreadRef.current = threadId;
-        setMessages(backup);
-        return;
-      }
-    }
-
-    if (appliedBackupThreadRef.current === threadId) {
-      return;
-    }
-
-    setMessages(threadData.messages.map(toPanelMessage));
-  }, [
-    directoryId,
-    loading,
-    persistActiveThreadId,
-    scope,
-    threadData,
-    threadId,
-  ]);
-
-  useEffect(() => {
-    if (!threadId || !threadError || !isAgentThreadMissingError(threadError)) {
-      return;
-    }
-    persistActiveThreadId(undefined);
-    setThreadId(undefined);
-    setMessages([]);
-  }, [persistActiveThreadId, threadError, threadId]);
-
-  useEffect(() => {
-    writeStreamBackup(threadId, messages);
-  }, [messages, threadId]);
-
-  useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-    };
-  }, []);
-
-  const handleDeleteProposalConfirmed = useCallback(
-    (proposal: AgentProposedDelete) => {
-      setMessages((current) =>
-        current.map((message) => {
-          if (!message.proposedDeletes?.length) {
-            return message;
-          }
-
-          const nextProposals = message.proposedDeletes.filter(
-            (entry) =>
-              !(
-                entry.targetType === proposal.targetType &&
-                entry.targetId === proposal.targetId
-              ),
-          );
-
-          if (nextProposals.length === message.proposedDeletes.length) {
-            return message;
-          }
-
-          return {
-            ...message,
-            proposedDeletes:
-              nextProposals.length > 0 ? nextProposals : undefined,
-          };
-        }),
-      );
-      onMutated?.();
-    },
-    [onMutated],
-  );
-
-  const sendMessage = useCallback(
-    async (rawMessage: string) => {
-      const trimmed = rawMessage.trim();
-      if (!trimmed || loading) {
-        return;
-      }
-
-      setError(null);
-      setLoading(true);
-      suppressQueryHydrateRef.current = true;
-
-      const userMessage: IAgentChatMessage = {
-        id: createMessageId(),
-        role: 'user',
-        content: trimmed,
-      };
-      const assistantId = createMessageId();
-      const assistantPlaceholder: IAgentChatMessage = {
-        id: assistantId,
-        role: 'assistant',
-        content: '',
-        isStreaming: true,
-        executedActions: [],
-        proposedDeletes: [],
-        statusMessage: 'Planning...',
-      };
-
-      setMessages((current) => [...current, userMessage, assistantPlaceholder]);
-      setInput('');
-
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      let didMutate = false;
-      const hintDirectoryId =
-        promptContextDirectoryId(activePromptContext) ?? directoryId;
-
-      let activeThreadId = threadId;
-      const turnId = crypto.randomUUID();
-      let receivedThreadEvent = Boolean(threadId);
-      let streamFinished = false;
-
-      const handleStreamEvent = (event: AgentMessageStreamEvent) => {
-        if (event.type === 'thread') {
-          receivedThreadEvent = true;
-          activeThreadId = event.threadId;
-          setThreadId(event.threadId);
-          persistActiveThreadId(event.threadId);
-        }
-
-        if (event.type === 'status') {
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === assistantId
-                ? { ...message, statusMessage: event.message }
-                : message,
-            ),
-          );
-        }
-
-        if (event.type === 'delta') {
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === assistantId
-                ? {
-                    ...message,
-                    content: stripAgentThinkingContent(
-                      `${message.content}${event.text}`,
-                    ),
-                    statusMessage: undefined,
-                  }
-                : message,
-            ),
-          );
-        }
-
-        if (event.type === 'action') {
-          didMutate = true;
-          if (RULE_CACHE_ACTION_KINDS.has(event.action.kind)) {
-            dispatch(baseApi.util.invalidateTags(['Rules', 'DirectoryRules']));
-          }
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === assistantId
-                ? {
-                    ...message,
-                    executedActions: [
-                      ...(message.executedActions ?? []),
-                      event.action,
-                    ],
-                  }
-                : message,
-            ),
-          );
-        }
-
-        if (event.type === 'delete_proposal') {
-          didMutate = true;
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === assistantId
-                ? {
-                    ...message,
-                    proposedDeletes: [
-                      ...(message.proposedDeletes ?? []),
-                      event.proposal,
-                    ],
-                  }
-                : message,
-            ),
-          );
-        }
-
-        if (event.type === 'done') {
-          streamFinished = true;
-          activeThreadId = event.response.threadId;
-          setThreadId(event.response.threadId);
-          persistActiveThreadId(event.response.threadId);
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === assistantId
-                ? {
-                    ...message,
-                    content: event.response.reply,
-                    executedActions: event.response.executedActions,
-                    proposedDeletes: event.response.proposedDeletes,
-                    isStreaming: false,
-                    statusMessage: undefined,
-                  }
-                : message,
-            ),
-          );
-        }
-
-        if (event.type === 'error') {
-          streamFinished = true;
-          setError(event.message);
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === assistantId
-                ? {
-                    ...message,
-                    isStreaming: false,
-                    statusMessage: undefined,
-                  }
-                : message,
-            ),
-          );
-        }
-      };
-
-      const runAgentStream = async (resume: boolean) => {
-        await streamAgentMessage(
-          {
-            scope,
-            directoryId: hintDirectoryId,
-            message: trimmed,
-            threadId: activeThreadId,
-            turnId,
-            resume,
-            promptContext: activePromptContext,
-            clientLocalDate: formatLocalIsoDate(),
-          },
-          {
-            signal: controller.signal,
-            onEvent: handleStreamEvent,
-          },
-        );
-      };
-
-      try {
-        let retried = false;
-        try {
-          await runAgentStream(false);
-        } catch (initialError) {
-          if (controller.signal.aborted) {
-            throw initialError;
-          }
-          if (receivedThreadEvent) {
-            retried = true;
-            await runAgentStream(true);
-          } else {
-            throw initialError;
-          }
-        }
-
-        if (activeThreadId) {
-          persistActiveThreadId(activeThreadId);
-          dispatch(
-            agentThreadApi.util.invalidateTags([
-              { type: 'AgentThread', id: activeThreadId },
-              { type: 'AgentThread', id: 'LIST' },
-            ]),
-          );
-        }
-        clearStreamBackup();
-
-        if (!streamFinished && !controller.signal.aborted) {
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === assistantId
-                ? {
-                    ...message,
-                    isStreaming: false,
-                    statusMessage: undefined,
-                    content:
-                      message.content.trim().length > 0
-                        ? message.content
-                        : buildIncompleteAgentChatReply(message.executedActions),
-                  }
-                : message,
-            ),
-          );
-        }
-      } catch (sendError) {
-        if (controller.signal.aborted) {
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === assistantId
-                ? {
-                    ...message,
-                    isStreaming: false,
-                    statusMessage: undefined,
-                    content:
-                      message.content.trim().length > 0
-                        ? message.content
-                        : 'Request cancelled.',
-                  }
-                : message,
-            ),
-          );
-          return;
-        }
-        const message =
-          sendError instanceof Error
-            ? sendError.message
-            : 'Failed to send message';
-        setError(message);
-        setMessages((current) =>
-          current.map((entry) =>
-            entry.id === assistantId
-              ? {
-                  ...entry,
-                  isStreaming: false,
-                  statusMessage: undefined,
-                  content:
-                    entry.content.trim().length > 0
-                      ? entry.content
-                      : buildIncompleteAgentChatReply(entry.executedActions),
-                }
-              : entry,
-          ),
-        );
-      } finally {
-        setLoading(false);
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === assistantId && message.isStreaming
-              ? { ...message, isStreaming: false }
-              : message,
-          ),
-        );
-        if (didMutate) {
-          onMutated?.();
-        }
-      }
-    },
-    [
-      activePromptContext,
-      directoryId,
-      dispatch,
-      loading,
-      onMutated,
-      persistActiveThreadId,
-      scope,
-      threadId,
-    ],
-  );
-
-  const handleNewChat = useCallback(() => {
-    if (loading) {
-      return;
-    }
-    abortRef.current?.abort();
-    suppressQueryHydrateRef.current = false;
-    appliedBackupThreadRef.current = null;
-    setThreadId(undefined);
-    persistActiveThreadId(undefined);
-    clearStreamBackup();
-    setMessages([]);
-    setError(null);
-  }, [loading, persistActiveThreadId]);
-
-  const handleSelectThread = useCallback(
-    (nextThreadId: string) => {
-      if (loading || nextThreadId === threadId) {
-        return;
-      }
-      abortRef.current?.abort();
-      suppressQueryHydrateRef.current = false;
-      appliedBackupThreadRef.current = null;
-      setThreadId(nextThreadId);
-      persistActiveThreadId(nextThreadId);
-      clearStreamBackup();
-      setMessages([]);
-      setError(null);
-    },
-    [loading, persistActiveThreadId, threadId],
-  );
+  const canStop =
+    Boolean(turn) && isWorking && !turn?.cancelRequested && !isStopping;
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    void sendMessage(input);
+    void handleSend(input);
   };
 
   return (
@@ -699,11 +223,11 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
             threads={visibleThreads}
             activeThreadId={threadId}
             isLoading={isThreadListLoading}
-            disabled={loading}
+            disabled={false}
             onSelectThread={handleSelectThread}
             onNewChat={handleNewChat}
           />
-          {loading ? <Spinner size="xs" /> : null}
+          {isWorking ? <Spinner size="xs" /> : null}
           {onClose ? (
             <Button
               type="button"
@@ -722,7 +246,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {threadId &&
-        messages.length === 0 &&
+        entries.length === 0 &&
         !isAgentThreadMissingError(threadError) &&
         (isThreadLoading || threadData?.thread.id === threadId) ? (
           <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
@@ -733,7 +257,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
           <div className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
             Failed to load conversation.
           </div>
-        ) : messages.length === 0 ? (
+        ) : entries.length === 0 ? (
           <div className="space-y-3">
             <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
               Ask about your workspace, create content, or run StudyForge
@@ -745,7 +269,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
                   key={prompt}
                   type="button"
                   className="rounded-full border border-border px-3 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-                  onClick={() => void sendMessage(prompt)}
+                  onClick={() => void handleSend(prompt)}
                 >
                   {prompt}
                 </button>
@@ -754,95 +278,21 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
           </div>
         ) : (
           <div className="space-y-4">
-            {messages.map((message) => {
-              const isStreamingEmpty =
-                message.role === 'assistant' &&
-                message.isStreaming &&
-                !message.content;
-
-              if (isStreamingEmpty) {
-                return (
-                  <div key={message.id} className="flex justify-start">
-                    <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-                      <Spinner size="xs" />
-                      {message.statusMessage ?? 'Planning...'}
-                    </div>
-                  </div>
-                );
-              }
-
-              return (
-                <div
-                  key={message.id}
-                  className={cn(
-                    'flex',
-                    message.role === 'user' ? 'justify-end' : 'justify-start',
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'max-w-[88%] rounded-lg border px-3 py-2 text-sm leading-relaxed',
-                      message.role === 'user'
-                        ? 'border-primary/30 bg-primary/15 text-foreground'
-                        : 'border-border bg-background text-foreground',
-                    )}
-                  >
-                    {message.role === 'assistant' &&
-                    message.isStreaming &&
-                    message.statusMessage ? (
-                      <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                        <Spinner size="xs" />
-                        <span>{message.statusMessage}</span>
-                      </div>
-                    ) : null}
-
-                    {message.role === 'assistant' ? (
-                      message.content.trim().length > 0 ? (
-                        <MarkdownRenderer
-                          content={stripAgentThinkingContent(message.content)}
-                          className="[&_p:last-child]:!mb-0 [&_ul:last-child]:!mb-0 [&_ol:last-child]:!mb-0 [&_blockquote:last-child]:!mb-0 [&_>div:last-child]:!mb-0"
-                        />
-                      ) : message.isStreaming ? null : (
-                        <p className="text-muted-foreground">
-                          No response text.
-                        </p>
-                      )
-                    ) : (
-                      <p className="whitespace-pre-wrap">{message.content}</p>
-                    )}
-
-                    {message.executedActions &&
-                    message.executedActions.length > 0 ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {message.executedActions.map((action, index) => (
-                          <span
-                            key={`${message.id}-action-${index}`}
-                            className="rounded-full border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground"
-                          >
-                            {action.summary}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {message.proposedDeletes &&
-                    message.proposedDeletes.length > 0 ? (
-                      <div className="mt-3 space-y-2">
-                        {message.proposedDeletes.map((proposal) => (
-                          <AgentDeleteProposalCard
-                            key={`${proposal.targetType}-${proposal.targetId}`}
-                            proposal={proposal}
-                            onConfirmed={() =>
-                              handleDeleteProposalConfirmed(proposal)
-                            }
-                          />
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
+            {entries.map((entry) => (
+              <AgentChatMessage
+                key={entry.id}
+                entry={entry}
+                proposedDeletes={entry.proposedDeletes.filter(
+                  (proposal) =>
+                    !confirmedDeleteKeys.has(
+                      deleteProposalKey(entry.id, proposal),
+                    ),
+                )}
+                onDeleteConfirmed={(proposal) =>
+                  handleDeleteProposalConfirmed(entry.id, proposal)
+                }
+              />
+            ))}
             <div ref={scrollRef} />
           </div>
         )}
@@ -864,7 +314,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
           rows={3}
           maxLength={MAX_MESSAGE_LENGTH}
           showCharCount
-          disabled={loading}
+          disabled={isWorking}
         />
         <div className="mt-2 flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
@@ -872,29 +322,40 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
               <AgentContextPill
                 locationContext={locationContext}
                 onRemove={() => setContextDismissed(true)}
-                disabled={loading}
+                disabled={isWorking}
               />
             ) : null}
             {locationContext && contextDismissed ? (
               <AgentRestoreContextPill
                 onRestore={() => setContextDismissed(false)}
-                disabled={loading}
+                disabled={isWorking}
               />
             ) : null}
           </div>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={loading || !input.trim()}
-            className="gap-2"
-          >
-            {loading ? (
-              <Spinner size="xs" variant="on-primary" />
-            ) : (
+          {isWorking ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!canStop}
+              className="gap-2"
+              onClick={() => void handleStop()}
+              aria-label="Stop the agent"
+            >
+              <Square size={14} />
+              {turn?.cancelRequested || isStopping ? 'Stopping...' : 'Stop'}
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!input.trim()}
+              className="gap-2"
+            >
               <Send size={14} />
-            )}
-            Send
-          </Button>
+              Send
+            </Button>
+          )}
         </div>
       </form>
     </section>

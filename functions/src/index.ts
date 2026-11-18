@@ -32,6 +32,8 @@ export { generateQuiz } from './endpoints/quizzes';
 export { processGenerationJob } from './tasks/process-generation-job';
 
 export { sweepStaleGenerationsSchedule } from './tasks/sweep-stale-generations';
+export { runAgentTurnTask } from './tasks/run-agent-turn-task';
+export { sweepStaleAgentTurnsSchedule } from './tasks/sweep-stale-agent-turns';
 
 export { generateDiagramQuiz } from './endpoints/diagram-quizzes';
 
@@ -74,6 +76,10 @@ export { generateSlideDeck } from './endpoints/slide-decks';
 export { api } from './endpoints/external-api';
 
 export { agentMessageStream } from './endpoints/agent-message-stream';
+export {
+  startAgentTurnEndpoint as startAgentTurn,
+  cancelAgentTurnEndpoint as cancelAgentTurn,
+} from './endpoints/agent-turns';
 
 export {
   createApiKey,

@@ -1,8 +1,9 @@
-import { randomUUID } from 'node:crypto';
 import type {
-  AgentMessageInput,
+  AgentActionResult,
   AgentMessageStreamEvent,
   AgentPromptContext,
+  AgentProposedDelete,
+  AgentReferencedItem,
   AgentScope,
   DirectoryTreeNode,
   IAgentThreadMessage,
@@ -13,19 +14,22 @@ import { DocumentCrudService } from '@study-forge/backend-documents/document-cru
 import {
   AgentMemoryService,
   AgentThreadStore,
-  buildAgentResponse,
-  deriveAgentThreadPreview,
-  deriveAgentThreadTitle,
 } from './memory/agent-memory-service';
 import { WorkspaceAgentRunner } from './langgraph/workspace-agent-runner';
-import { buildAgentTurnKey, claimAgentTurnCompletion } from './checkpointer';
 import { withExecutedActionContext } from './runner/agent-history';
 import {
   buildIncompleteAgentReply,
   buildReplyFromExecutedActions,
+  buildStoppedAgentReply,
+  FAILED_AGENT_REPLY,
   isGenericEmptyAgentReply,
   type AgentToolOutcome,
 } from './runner/agent-chat-fallback';
+import {
+  AgentRequestAbortedError,
+  readAgentTurnAbortReason,
+  type AgentTurnAbortReason,
+} from './runner/agent-request-abort';
 import {
   shouldBlockUngroundedCreateResponse,
   UNGROUNDED_CREATE_FALLBACK,
@@ -35,6 +39,7 @@ import {
   AgentToolRuntimeContext,
   createAgentToolDefinitions,
   restoreReferencedItemsFromOutcomes,
+  seedRuntimeContextFromTurn,
   toAgentReadableDocumentContent,
 } from './tools/create-agent-tools';
 import { PlatformAgentKnowledgeIndexService } from './knowledge/platform-agent-knowledge-index-service';
@@ -299,361 +304,431 @@ function buildSystemPrompt(input: {
     .join('\n');
 }
 
-export class DirectoryAgentService {
-  static async *streamMessage(
-    userId: string,
-    request: AgentMessageInput,
-    options?: { signal?: AbortSignal },
-  ): AsyncGenerator<AgentMessageStreamEvent> {
-    const directoryIds = await resolveDirectoryIds({
-      userId,
-      scope: request.scope,
-      directoryId: request.directoryId,
-    });
-    const calendar = resolveAgentCalendarDates(request.clientLocalDate);
-
-    const runtimeContext: AgentToolRuntimeContext = {
-      userId,
-      scope: request.scope,
-      directoryId: request.directoryId,
-      directoryIds,
-      promptContext: request.promptContext,
-      clientLocalDate: calendar.today,
-      executedActions: [],
-      proposedDeletes: [],
-      referencedItems: [],
-      seenItems: new Map(),
-      generationBatchCounts: {
-        documents: 0,
-        quizzes: 0,
-        flashcardSets: 0,
-      },
-      abortSignal: options?.signal,
-    };
-
-    const thread = await AgentThreadStore.resolveThread({
-      userId,
-      threadId: request.threadId ?? randomUUID(),
-      scope: request.scope,
-      directoryId: request.directoryId,
-    });
-
-    yield { type: 'thread', threadId: thread.id };
-
-    const turnId = request.turnId ?? randomUUID();
-
-    const [
-      memorySnippets,
-      history,
-      currentDocumentBodyBlock,
-      currentRuleBodyBlock,
-      platformKnowledgeMatches,
-    ] = await Promise.all([
-      request.resume
-        ? Promise.resolve([])
-        : AgentMemoryService.retrieveRelevantMemories(userId, request.message),
-      AgentThreadStore.listRecentMessages(userId, thread.id, 12),
-      loadCurrentDocumentBodyBlock(userId, request.promptContext),
-      loadCurrentRuleBodyBlock(userId, request.promptContext),
-      request.resume
-        ? Promise.resolve([])
-        : PlatformAgentKnowledgeIndexService.searchPlatformKnowledge({
-            userId,
-            query: request.message,
-          }),
-    ]);
-
-    if (!request.resume) {
-      await AgentThreadStore.appendMessage({
-        userId,
-        threadId: thread.id,
-        role: 'user',
-        content: request.message,
-        promptContext: request.promptContext,
-        ...(history.length === 0
-          ? { title: deriveAgentThreadTitle(request.message) }
-          : {}),
-      });
-    }
-
-    const tools = createAgentToolDefinitions(runtimeContext);
-    const platformKnowledgeBlock =
-      platformKnowledgeMatches.length > 0
-        ? [
-            'Platform knowledge (follow these operational policies when planning generation):',
-            ...platformKnowledgeMatches.map(
-              (entry) => `- [${entry.docTitle}] ${entry.text}`,
-            ),
-          ].join('\n')
-        : undefined;
-    const systemPrompt = buildSystemPrompt({
-      scope: request.scope,
-      directoryId: request.directoryId,
-      promptContext: request.promptContext,
-      memorySnippets,
-      currentDocumentBodyBlock,
-      currentRuleBodyBlock,
-      platformKnowledgeBlock,
-      today: calendar.today,
-      yesterday: calendar.yesterday,
-    });
-
-    const pendingEvents: AgentMessageStreamEvent[] = [];
-    let runError: string | null = null;
-    let reply = '';
-    let runComplete = false;
-    let wakePending: (() => void) | undefined;
-
-    const notifyPending = (): void => {
-      const wake = wakePending;
-      wakePending = undefined;
-      wake?.();
-    };
-
-    runtimeContext.onEvent = (event: AgentMessageStreamEvent) => {
-      pendingEvents.push(event);
-      notifyPending();
-    };
-
-    const signal = options?.signal;
-    const onAbort = (): void => {
-      notifyPending();
-    };
-    signal?.addEventListener('abort', onAbort);
-
-    const waitForPendingOrComplete = async (): Promise<void> => {
-      if (runComplete || pendingEvents.length > 0 || signal?.aborted) {
-        return;
-      }
-      await new Promise<void>((resolve) => {
-        wakePending = resolve;
-        if (runComplete || pendingEvents.length > 0 || signal?.aborted) {
-          notifyPending();
-        }
-      });
-    };
-
-    const formattedUserMessage = formatUserMessageForModel(
-      request.message,
-      request.promptContext,
-    );
-    const historyForModel = history
-      .filter(
-        (message) => message.role === 'user' || message.role === 'assistant',
-      )
-      .map((message) => historyMessageForModel(message));
-
-    const runPromise = WorkspaceAgentRunner.run({
-      userId,
-      studyForgeThreadId: thread.id,
-      turnId,
-      resume: request.resume,
-      onResumeToolOutcomes: (outcomes) =>
-        restoreReferencedItemsFromOutcomes(runtimeContext, outcomes),
-      systemPrompt,
-      objective: formattedUserMessage,
-      history: historyForModel,
-      tools,
-      signal: options?.signal,
-      onEvent: (event: AgentMessageStreamEvent) => {
-        if (
-          event.type === 'delta' ||
-          event.type === 'status' ||
-          event.type === 'action'
-        ) {
-          pendingEvents.push(event);
-          notifyPending();
-        }
-      },
-    })
-      .then((result) => {
-        reply = result;
-      })
-      .catch((error: unknown) => {
-        runError =
-          error instanceof Error ? error.message : 'Agent execution failed';
-      })
-      .finally(() => {
-        runComplete = true;
-        notifyPending();
-      });
-
-    try {
-      while ((!runComplete || pendingEvents.length > 0) && !signal?.aborted) {
-        while (pendingEvents.length > 0) {
-          const event = pendingEvents.shift();
-          if (event) {
-            yield event;
-          }
-        }
-
-        if (!runComplete && !signal?.aborted) {
-          await waitForPendingOrComplete();
-        }
-      }
-
-      if (signal?.aborted && !runComplete) {
-        const incompleteReply = buildIncompleteAgentReply(
-          runtimeContext.executedActions,
-        );
-        yield* persistAndYieldDone({
-          userId,
-          threadId: thread.id,
-          turnId,
-          requestMessage: request.message,
-          reply: incompleteReply,
-          executedActions: runtimeContext.executedActions,
-          proposedDeletes: runtimeContext.proposedDeletes,
-          referencedItems: runtimeContext.referencedItems,
-          retrievedTexts:
-            process.env['LANGSMITH_EVAL_EMIT_RETRIEVED_TEXTS'] === 'true'
-              ? platformKnowledgeMatches.map((entry) => entry.text)
-              : undefined,
-        });
-        return;
-      }
-
-      await runPromise;
-
-      if (runError) {
-        if (runtimeContext.executedActions.length > 0) {
-          yield* persistAndYieldDone({
-            userId,
-            threadId: thread.id,
-            turnId,
-            requestMessage: request.message,
-            reply: buildIncompleteAgentReply(runtimeContext.executedActions),
-            executedActions: runtimeContext.executedActions,
-            proposedDeletes: runtimeContext.proposedDeletes,
-            referencedItems: runtimeContext.referencedItems,
-          });
-          return;
-        }
-        yield { type: 'error', message: runError };
-        return;
-      }
-
-      if (
-        isGenericEmptyAgentReply(reply) &&
-        runtimeContext.executedActions.length > 0
-      ) {
-        reply = buildReplyFromExecutedActions(runtimeContext.executedActions);
-      }
-
-      const createOutcomes: AgentToolOutcome[] = runtimeContext.executedActions
-        .filter((action) => action.kind === 'create_document')
-        .map((action) => ({
-          name: 'create_document',
-          ok: true,
-          result: {
-            id: action.entityId,
-            documentId: action.entityId,
-          },
-        }));
-      if (
-        shouldBlockUngroundedCreateResponse({
-          objective: formattedUserMessage,
-          outcomes: createOutcomes,
-        })
-      ) {
-        reply = UNGROUNDED_CREATE_FALLBACK;
-      }
-
-      yield* persistAndYieldDone({
-        userId,
-        threadId: thread.id,
-        turnId,
-        requestMessage: request.message,
-        reply,
-        executedActions: runtimeContext.executedActions,
-        proposedDeletes: runtimeContext.proposedDeletes,
-        referencedItems: runtimeContext.referencedItems,
-        retrievedTexts:
-          process.env['LANGSMITH_EVAL_EMIT_RETRIEVED_TEXTS'] === 'true'
-            ? platformKnowledgeMatches.map((entry) => entry.text)
-            : undefined,
-      });
-    } finally {
-      signal?.removeEventListener('abort', onAbort);
-    }
-  }
+export interface IAgentTurnRequest {
+  scope: AgentScope;
+  directoryId?: string;
+  message: string;
+  promptContext?: AgentPromptContext;
+  clientLocalDate?: string;
 }
 
-async function* persistAndYieldDone(input: {
+/** What earlier attempts of the same turn already did (from the turn doc). */
+export interface IAgentTurnSeed {
+  executedActions: AgentActionResult[];
+  proposedDeletes: AgentProposedDelete[];
+  referencedItems: AgentReferencedItem[];
+}
+
+/** Live progress events a running turn reports to its sink. */
+export type AgentTurnProgressEvent = Extract<
+  AgentMessageStreamEvent,
+  { type: 'status' | 'delta' | 'action' | 'delete_proposal' | 'reference' }
+>;
+
+export type AgentTurnOutcomeKind =
+  | 'completed'
+  | 'incomplete'
+  | 'cancelled'
+  | 'failed';
+
+export interface IAgentTurnOutcome {
+  kind: AgentTurnOutcomeKind;
+  /** Final reply text to store on the assistant message. */
+  reply: string;
+  executedActions: AgentActionResult[];
+  proposedDeletes: AgentProposedDelete[];
+  referencedItems: AgentReferencedItem[];
+  /** Set when the turn stopped early (deadline or error). */
+  errorMessage?: string;
+  errorCode?: 'deadline' | 'internal';
+  /** The underlying error for `failed`, so the caller can decide on a retry. */
+  cause?: unknown;
+  retrievedTexts?: string[];
+}
+
+export interface IExecuteAgentTurnInput {
   userId: string;
   threadId: string;
   turnId: string;
-  requestMessage: string;
-  reply: string;
-  executedActions: AgentToolRuntimeContext['executedActions'];
-  proposedDeletes: AgentToolRuntimeContext['proposedDeletes'];
-  referencedItems: AgentToolRuntimeContext['referencedItems'];
-  retrievedTexts?: string[];
-}): AsyncGenerator<AgentMessageStreamEvent> {
-  for (const action of input.executedActions) {
-    yield { type: 'action', action };
+  request: IAgentTurnRequest;
+  /** Continue from the LangGraph checkpoint of an earlier attempt. */
+  resume: boolean;
+  seed?: IAgentTurnSeed;
+  attempt?: number;
+}
+
+export interface IExecuteAgentTurnOptions {
+  onEvent: (event: AgentTurnProgressEvent) => void;
+  /** Abort with an AgentTurnAbortReason: 'cancel', 'deadline' or 'superseded'. */
+  signal?: AbortSignal;
+}
+
+/** How long to wait for the graph to unwind after an abort before giving up on it. */
+export const AGENT_TURN_ABORT_GRACE_MS = 15_000;
+
+const HISTORY_MESSAGE_LIMIT = 12;
+
+function isAgentTurnProgressEvent(
+  event: AgentMessageStreamEvent,
+): event is AgentTurnProgressEvent {
+  return (
+    event.type === 'status' ||
+    event.type === 'delta' ||
+    event.type === 'action' ||
+    event.type === 'delete_proposal' ||
+    event.type === 'reference'
+  );
+}
+
+/**
+ * Waits for the run to settle. After an abort it waits at most
+ * AGENT_TURN_ABORT_GRACE_MS, so a graph stuck in a tool cannot hold the turn.
+ */
+async function waitForRunToSettle(
+  runPromise: Promise<void>,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (!signal) {
+    await runPromise;
+    return;
   }
 
-  for (const proposal of input.proposedDeletes) {
-    yield { type: 'delete_proposal', proposal };
+  await new Promise<void>((resolve) => {
+    let graceTimer: ReturnType<typeof setTimeout> | undefined;
+    const finish = (): void => {
+      if (graceTimer) {
+        clearTimeout(graceTimer);
+      }
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    };
+    const onAbort = (): void => {
+      graceTimer = setTimeout(finish, AGENT_TURN_ABORT_GRACE_MS);
+    };
+
+    if (signal.aborted) {
+      onAbort();
+    } else {
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
+    void runPromise.then(finish, finish);
+  });
+}
+
+/**
+ * Rejects as soon as the turn is stopped or hits its deadline, so slow
+ * preparation (directory tree, memory embeddings, knowledge search) cannot
+ * hold the turn. The underlying work is not cancelled, only no longer awaited.
+ */
+function untilAborted<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) {
+    return promise;
+  }
+  if (signal.aborted) {
+    return Promise.reject(new AgentRequestAbortedError());
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => reject(new AgentRequestAbortedError());
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
+function buildAbortedOutcomeReply(input: {
+  reason: AgentTurnAbortReason;
+  streamedReply: string;
+  executedActions: AgentActionResult[];
+}): Pick<IAgentTurnOutcome, 'kind' | 'reply' | 'errorMessage' | 'errorCode'> {
+  const partial = input.streamedReply.trim();
+  if (input.reason === 'cancel') {
+    return {
+      kind: 'cancelled',
+      reply:
+        partial.length > 0
+          ? partial
+          : buildStoppedAgentReply(input.executedActions),
+    };
+  }
+  if (input.reason === 'deadline') {
+    return {
+      kind: 'incomplete',
+      reply:
+        partial.length > 0
+          ? partial
+          : buildIncompleteAgentReply(input.executedActions),
+      errorMessage: 'The agent turn hit its time limit',
+      errorCode: 'deadline',
+    };
+  }
+  // Superseded: another attempt owns the turn; this outcome is never stored.
+  return {
+    kind: 'failed',
+    reply: partial,
+    errorMessage: 'Agent turn was superseded by a newer attempt',
+    errorCode: 'internal',
+  };
+}
+
+/**
+ * Runs one agent turn: builds the prompt context, runs the plan-execute graph
+ * and returns the outcome. It reports progress through `onEvent` and persists
+ * nothing; the caller (the turn worker) owns the turn doc and the thread.
+ */
+export async function executeAgentTurn(
+  input: IExecuteAgentTurnInput,
+  options: IExecuteAgentTurnOptions,
+): Promise<IAgentTurnOutcome> {
+  const { userId, threadId, turnId, request } = input;
+  const signal = options.signal;
+  let streamedReply = '';
+
+  const emit = (event: AgentMessageStreamEvent): void => {
+    if (!isAgentTurnProgressEvent(event)) {
+      return;
+    }
+    if (event.type === 'delta') {
+      streamedReply += event.text;
+    }
+    options.onEvent(event);
+  };
+
+  const abortedBeforeGraph = (): IAgentTurnOutcome => ({
+    ...buildAbortedOutcomeReply({
+      reason: readAgentTurnAbortReason(signal) ?? 'cancel',
+      streamedReply,
+      executedActions: input.seed?.executedActions ?? [],
+    }),
+    executedActions: [...(input.seed?.executedActions ?? [])],
+    proposedDeletes: [...(input.seed?.proposedDeletes ?? [])],
+    referencedItems: [...(input.seed?.referencedItems ?? [])],
+  });
+
+  let directoryIds: string[];
+  try {
+    directoryIds = await untilAborted(
+      resolveDirectoryIds({
+        userId,
+        scope: request.scope,
+        directoryId: request.directoryId,
+      }),
+      signal,
+    );
+  } catch (error) {
+    if (error instanceof AgentRequestAbortedError) {
+      return abortedBeforeGraph();
+    }
+    throw error;
+  }
+  const calendar = resolveAgentCalendarDates(request.clientLocalDate);
+
+  const runtimeContext: AgentToolRuntimeContext = {
+    userId,
+    scope: request.scope,
+    directoryId: request.directoryId,
+    directoryIds,
+    promptContext: request.promptContext,
+    clientLocalDate: calendar.today,
+    executedActions: [],
+    proposedDeletes: [],
+    referencedItems: [],
+    seenItems: new Map(),
+    generationBatchCounts: {
+      documents: 0,
+      quizzes: 0,
+      flashcardSets: 0,
+    },
+    abortSignal: signal,
+    onEvent: emit,
+  };
+  if (input.seed) {
+    seedRuntimeContextFromTurn(runtimeContext, input.seed);
   }
 
-  for (const item of input.referencedItems) {
-    yield { type: 'reference', item };
+  const preparation = Promise.all([
+    AgentMemoryService.retrieveRelevantMemories(userId, request.message),
+    // One extra so the current turn's own user message can be dropped.
+    AgentThreadStore.listRecentMessages(
+      userId,
+      threadId,
+      HISTORY_MESSAGE_LIMIT + 1,
+    ),
+    loadCurrentDocumentBodyBlock(userId, request.promptContext),
+    loadCurrentRuleBodyBlock(userId, request.promptContext),
+    PlatformAgentKnowledgeIndexService.searchPlatformKnowledge({
+      userId,
+      query: request.message,
+    }),
+  ]);
+  let prepared: Awaited<typeof preparation>;
+  try {
+    prepared = await untilAborted(preparation, signal);
+  } catch (error) {
+    if (error instanceof AgentRequestAbortedError) {
+      return abortedBeforeGraph();
+    }
+    throw error;
+  }
+  const [
+    memorySnippets,
+    recentMessages,
+    currentDocumentBodyBlock,
+    currentRuleBodyBlock,
+    platformKnowledgeMatches,
+  ] = prepared;
+
+  const tools = createAgentToolDefinitions(runtimeContext);
+  const platformKnowledgeBlock =
+    platformKnowledgeMatches.length > 0
+      ? [
+          'Platform knowledge (follow these operational policies when planning generation):',
+          ...platformKnowledgeMatches.map(
+            (entry) => `- [${entry.docTitle}] ${entry.text}`,
+          ),
+        ].join('\n')
+      : undefined;
+  const systemPrompt = buildSystemPrompt({
+    scope: request.scope,
+    directoryId: request.directoryId,
+    promptContext: request.promptContext,
+    memorySnippets,
+    currentDocumentBodyBlock,
+    currentRuleBodyBlock,
+    platformKnowledgeBlock,
+    today: calendar.today,
+    yesterday: calendar.yesterday,
+  });
+
+  const formattedUserMessage = formatUserMessageForModel(
+    request.message,
+    request.promptContext,
+  );
+  const historyForModel = recentMessages
+    .filter(
+      (message) =>
+        message.turnId !== turnId &&
+        message.turnStatus !== 'failed' &&
+        (message.role === 'user' || message.role === 'assistant'),
+    )
+    .slice(-HISTORY_MESSAGE_LIMIT)
+    .map((message) => historyMessageForModel(message));
+
+  const retrievedTexts =
+    process.env['LANGSMITH_EVAL_EMIT_RETRIEVED_TEXTS'] === 'true'
+      ? platformKnowledgeMatches.map((entry) => entry.text)
+      : undefined;
+
+  if (signal?.aborted) {
+    return abortedBeforeGraph();
   }
 
-  const preview = deriveAgentThreadPreview(input.reply);
-  const claimed = await claimAgentTurnCompletion(
-    input.userId,
-    buildAgentTurnKey(input.threadId, input.turnId),
-    {
-      reply: input.reply,
-      executedActions: input.executedActions,
-      proposedDeletes: input.proposedDeletes,
-      referencedItems: input.referencedItems,
+  let reply = '';
+  let runError: unknown = null;
+  let runSettled = false;
+
+  const runPromise = WorkspaceAgentRunner.run({
+    userId,
+    studyForgeThreadId: threadId,
+    turnId,
+    resume: input.resume,
+    attempt: input.attempt,
+    onResumeToolOutcomes: (outcomes) =>
+      restoreReferencedItemsFromOutcomes(runtimeContext, outcomes),
+    systemPrompt,
+    objective: formattedUserMessage,
+    history: historyForModel,
+    tools,
+    signal,
+    onEvent: emit,
+  }).then(
+    (result) => {
+      reply = result;
+      runSettled = true;
+    },
+    (error: unknown) => {
+      runError = error;
+      runSettled = true;
     },
   );
-  const persistedReply = claimed.completion.reply;
-  const persistedActions = claimed.alreadyCompleted
-    ? claimed.completion.executedActions
-    : input.executedActions;
-  const persistedDeletes = claimed.alreadyCompleted
-    ? claimed.completion.proposedDeletes
-    : input.proposedDeletes;
-  const persistedReferences = claimed.alreadyCompleted
-    ? claimed.completion.referencedItems
-    : input.referencedItems;
 
-  if (!claimed.alreadyCompleted) {
-    await AgentThreadStore.appendMessage({
-      userId: input.userId,
-      threadId: input.threadId,
-      role: 'assistant',
-      content: persistedReply,
-      turnId: input.turnId,
-      executedActions: persistedActions,
-      proposedDeletes: persistedDeletes,
-      referencedItems: persistedReferences,
-      ...(preview ? { preview } : {}),
-    });
+  await waitForRunToSettle(runPromise, signal);
 
-    await AgentMemoryService.captureTurnMemories({
-      userId: input.userId,
-      threadId: input.threadId,
-      userMessage: input.requestMessage,
-      assistantReply: persistedReply,
-    });
+  const lists = {
+    executedActions: [...runtimeContext.executedActions],
+    proposedDeletes: [...runtimeContext.proposedDeletes],
+    referencedItems: [...runtimeContext.referencedItems],
+  };
+  const withRetrieved = retrievedTexts ? { retrievedTexts } : {};
+
+  const abortReason = readAgentTurnAbortReason(signal);
+  const finishedCleanly = runSettled && runError === null;
+  if (abortReason && !finishedCleanly) {
+    return {
+      ...buildAbortedOutcomeReply({
+        reason: abortReason,
+        streamedReply,
+        executedActions: lists.executedActions,
+      }),
+      ...lists,
+      ...withRetrieved,
+    };
   }
 
-  yield {
-    type: 'done',
-    response: buildAgentResponse({
-      reply: persistedReply,
-      threadId: input.threadId,
-      executedActions: persistedActions,
-      proposedDeletes: persistedDeletes,
-      referencedItems: persistedReferences,
-      ...(input.retrievedTexts ? { retrievedTexts: input.retrievedTexts } : {}),
-    }),
-  };
+  if (runError !== null) {
+    const errorMessage =
+      runError instanceof Error ? runError.message : 'Agent execution failed';
+    if (lists.executedActions.length > 0) {
+      return {
+        kind: 'incomplete',
+        reply: buildIncompleteAgentReply(lists.executedActions),
+        errorMessage,
+        errorCode: 'internal',
+        cause: runError,
+        ...lists,
+        ...withRetrieved,
+      };
+    }
+    return {
+      kind: 'failed',
+      reply: FAILED_AGENT_REPLY,
+      errorMessage,
+      errorCode: 'internal',
+      cause: runError,
+      ...lists,
+      ...withRetrieved,
+    };
+  }
+
+  if (isGenericEmptyAgentReply(reply) && lists.executedActions.length > 0) {
+    reply = buildReplyFromExecutedActions(lists.executedActions);
+  }
+
+  const createOutcomes: AgentToolOutcome[] = lists.executedActions
+    .filter((action) => action.kind === 'create_document')
+    .map((action) => ({
+      name: 'create_document',
+      ok: true,
+      result: {
+        id: action.entityId,
+        documentId: action.entityId,
+      },
+    }));
+  if (
+    shouldBlockUngroundedCreateResponse({
+      objective: formattedUserMessage,
+      outcomes: createOutcomes,
+    })
+  ) {
+    reply = UNGROUNDED_CREATE_FALLBACK;
+  }
+
+  return { kind: 'completed', reply, ...lists, ...withRetrieved };
 }

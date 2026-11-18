@@ -51,6 +51,7 @@ export default defineConfig({
     include: [
       'libs/backend/**/*.spec.ts',
       'libs/shared-types/**/*.spec.ts',
+      'libs/client-data/**/*.spec.ts',
       'admin/src/**/*.spec.ts',
     ],
   },

@@ -290,7 +290,7 @@ export function buildIncompleteAgentReply(actions: AgentActionResult[]): string 
   }
 
   return [
-    'I started this work, but the chat request hit the time limit before I could finish a written reply.',
+    'I started this work, but hit the time limit before I could finish a written reply.',
     '',
     'Already started:',
     ...lines.map((line) => `- ${line}`),
@@ -298,3 +298,27 @@ export function buildIncompleteAgentReply(actions: AgentActionResult[]): string 
     'Open these items in your library. Generation may still be running. Send another message if you want me to continue.',
   ].join('\n');
 }
+
+function actionSummaryLines(actions: AgentActionResult[]): string[] {
+  return actions
+    .map((action) => action.summary.trim())
+    .filter((summary) => summary.length > 0);
+}
+
+/** Reply stored when the user stops a turn and no reply text was streamed yet. */
+export function buildStoppedAgentReply(actions: AgentActionResult[]): string {
+  const lines = actionSummaryLines(actions);
+  if (lines.length === 0) {
+    return 'Stopped.';
+  }
+  return [
+    'Stopped. Before you stopped me, I had already started:',
+    ...lines.map((line) => `- ${line}`),
+    '',
+    'Generation may still be running. Open these items in your library.',
+  ].join('\n');
+}
+
+/** Reply stored when a turn fails and nothing was done. */
+export const FAILED_AGENT_REPLY =
+  "Sorry, I couldn't finish that request. Please try again.";

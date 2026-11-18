@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
@@ -75,6 +75,11 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
   const { user } = useAuthUser();
   const treeQuery = useDirectoryTreeQuery();
   const threadsQuery = useAgentThreads(user?.uid, 8);
+  const refetchThreads = threadsQuery.refetch;
+  // Chats may have finished (or started) elsewhere: refresh "Working…" on open.
+  useEffect(() => {
+    if (drawerOpen) void refetchThreads();
+  }, [drawerOpen, refetchThreads]);
   const openNewDirectory = useShellStore((state) => state.openNewDirectory);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const directories = useMemo(
@@ -232,6 +237,7 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
             key={thread.id}
             icon="chat-bubble-outline"
             label={thread.title}
+            trailing={thread.activeTurnId ? 'Working…' : undefined}
             onPress={() =>
               go({
                 pathname: '/chat/[threadId]',

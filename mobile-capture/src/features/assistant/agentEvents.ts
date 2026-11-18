@@ -1,10 +1,9 @@
 import type {
   AgentActionResult,
-  AgentMessageStreamEvent,
   AgentProposedDelete,
   AgentReferencedItem,
-  IAgentThreadMessage,
 } from '@shared-types';
+import type { IAgentConversationEntry } from '@studyforge/client-data/agentConversation';
 import type { ILibraryItemRef } from '../library/itemNavigation';
 
 export interface IChatMessage {
@@ -16,91 +15,43 @@ export interface IChatMessage {
   deletes: AgentProposedDelete[];
   status?: string;
   streaming: boolean;
+  /** How a finished turn ended, when not normally ("Stopped"). */
+  note?: string;
+  /** Live turn with no progress for a while. */
+  stuck?: boolean;
 }
 
-export function emptyAssistantMessage(id: string): IChatMessage {
-  return {
-    id,
-    role: 'assistant',
-    content: '',
-    referencedItems: [],
-    actions: [],
-    deletes: [],
-    streaming: true,
-  };
+const TURN_STATUS_NOTES: Record<string, string> = {
+  cancelled: 'Stopped',
+  failed: "Couldn't finish",
+  incomplete: 'Incomplete',
+};
+
+function liveStatus(entry: IAgentConversationEntry): string | undefined {
+  const live = entry.live;
+  if (!live) return undefined;
+  if (live.cancelRequested) return 'Stopping…';
+  if (live.statusMessage) return live.statusMessage;
+  return live.status === 'queued' ? 'Starting…' : 'Thinking…';
 }
 
-function pushUnique<T>(list: T[], next: T, key: (value: T) => string): T[] {
-  const nextKey = key(next);
-  return list.some((entry) => key(entry) === nextKey) ? list : [...list, next];
-}
-
-const referenceKey = (item: AgentReferencedItem) =>
-  `${item.itemType}:${item.id}`;
-const actionKey = (action: AgentActionResult) =>
-  `${action.kind}:${action.entityId ?? ''}:${action.summary}`;
-const deleteKey = (proposal: AgentProposedDelete) =>
-  `${proposal.targetType}:${proposal.targetId}`;
-
-/**
- * Fold one SSE event into the streaming assistant message. Live `action` and
- * `reference` events are replayed before `done`, so everything dedupes by key, and
- * `done` carries the authoritative final lists.
- */
-export function applyAgentEvent(
-  message: IChatMessage,
-  event: AgentMessageStreamEvent,
+/** One conversation entry (stored message or live turn) as a chat bubble. */
+export function fromConversationEntry(
+  entry: IAgentConversationEntry,
 ): IChatMessage {
-  switch (event.type) {
-    case 'thread':
-      return message;
-    case 'status':
-      return { ...message, status: event.message };
-    case 'delta':
-      return { ...message, content: message.content + event.text };
-    case 'action':
-      return {
-        ...message,
-        actions: pushUnique(message.actions, event.action, actionKey),
-      };
-    case 'delete_proposal':
-      return {
-        ...message,
-        deletes: pushUnique(message.deletes, event.proposal, deleteKey),
-      };
-    case 'reference':
-      return {
-        ...message,
-        referencedItems: pushUnique(
-          message.referencedItems,
-          event.item,
-          referenceKey,
-        ),
-      };
-    case 'done':
-      return {
-        ...message,
-        content: event.response.reply,
-        actions: event.response.executedActions,
-        deletes: event.response.proposedDeletes,
-        referencedItems: event.response.referencedItems,
-        status: undefined,
-        streaming: false,
-      };
-    case 'error':
-      return { ...message, status: undefined, streaming: false };
-  }
-}
-
-export function fromThreadMessage(message: IAgentThreadMessage): IChatMessage {
+  const note = entry.turnStatus ? TURN_STATUS_NOTES[entry.turnStatus] : undefined;
+  const status = liveStatus(entry);
   return {
-    id: message.id,
-    role: message.role,
-    content: message.content,
-    referencedItems: message.referencedItems ?? [],
-    actions: message.executedActions ?? [],
-    deletes: message.proposedDeletes ?? [],
-    streaming: false,
+    id: entry.id,
+    role: entry.role,
+    content: entry.content,
+    referencedItems: entry.referencedItems,
+    actions: entry.executedActions,
+    deletes: entry.live ? [] : entry.proposedDeletes,
+    streaming: Boolean(entry.live),
+    ...(status ? { status } : {}),
+    ...(note ? { note } : {}),
+    ...(entry.live?.stuck ? { stuck: true } : {}),
   };
 }
 

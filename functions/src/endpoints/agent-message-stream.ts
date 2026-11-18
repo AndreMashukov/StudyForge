@@ -1,21 +1,29 @@
+import { randomUUID } from 'node:crypto';
 import { HttpsError, onRequest } from 'firebase-functions/v2/https';
-import { defineSecret } from 'firebase-functions/params';
-import { agentMessageSchema } from '@shared-types';
+import { logger } from 'firebase-functions/v2';
+import {
+  agentClientIdSchema,
+  agentMessageSchema,
+  startAgentTurnRequestSchema,
+} from '@shared-types';
 import { validateExternalAuthFromRequest } from '@study-forge/backend-core/lib/api-key-auth';
 import { verifyAppCheckHeader } from '@study-forge/backend-core/lib/app-check-verification';
-import { DirectoryAgentService } from '@study-forge/backend-agent';
-import {
-  buildProviderCostContext,
-  runWithProviderCostContext,
-} from '@study-forge/backend-core/services/provider-cost';
-import {
-  enforceCallableAgentLoopLimits,
-  settleAgentLoopUsageReservationSafe,
-} from '@study-forge/backend-generation/generation-limits';
-import { langsmithApiKey } from '../langsmith-secret';
+import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
+import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
+import { startAgentTurn, tailAgentTurnAsSse } from '@study-forge/backend-agent';
+
+/**
+ * Legacy SSE bridge (ADR 010). Agent turns now run in the runAgentTurnTask
+ * worker; this endpoint starts the same durable turn and tails its turn doc
+ * as the old SSE events, so app builds already installed keep working. A
+ * client disconnect only ends the tail, never the turn. Remove once bridge
+ * traffic (logged below) is negligible.
+ */
 
 const runningInFunctionsEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
-const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
+
+/** Stay under the 300s timeout; the turn keeps running after the tail ends. */
+const MAX_TAIL_MS = 285_000;
 
 const ALLOWED_AGENT_ORIGINS = [
   'http://localhost:4200',
@@ -26,26 +34,55 @@ const ALLOWED_AGENT_ORIGINS = [
   'https://study-forge-202604.firebaseapp.com',
 ];
 
+type SseResponse = import('express').Response & { flush?: () => void };
+
 function writeSseEvent(
-  res: import('express').Response,
+  res: SseResponse,
   event: { type: string } & Record<string, unknown>,
 ): void {
   res.write(`event: ${event.type}\n`);
   res.write(`data: ${JSON.stringify(event)}\n\n`);
   // Cloud Run / proxies can buffer SSE without an explicit flush.
-  const flushable = res as import('express').Response & { flush?: () => void };
-  if (typeof flushable.flush === 'function') {
-    flushable.flush();
+  if (typeof res.flush === 'function') {
+    res.flush();
   }
+}
+
+function httpStatusForCallableError(error: HttpsError): number {
+  switch (error.code) {
+    case 'resource-exhausted':
+      return 429;
+    case 'unauthenticated':
+      return 401;
+    case 'permission-denied':
+      return 403;
+    case 'invalid-argument':
+      return 400;
+    case 'not-found':
+      return 404;
+    case 'failed-precondition':
+      return 409;
+    case 'unavailable':
+      return 503;
+    default:
+      return 500;
+  }
+}
+
+function clientIdOrUndefined(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = agentClientIdSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
 }
 
 export const agentMessageStream = onRequest(
   {
     cors: ALLOWED_AGENT_ORIGINS,
     timeoutSeconds: 300,
-    memory: '1GiB',
+    memory: '512MiB',
     region: 'asia-east1',
-    secrets: [llmSettingsEncryptionKey, langsmithApiKey],
   },
   async (req, res) => {
     if (req.method !== 'POST') {
@@ -78,6 +115,20 @@ export const agentMessageStream = onRequest(
       return;
     }
 
+    // Same gate as the startAgentTurn callable: verified email or an exemption.
+    try {
+      await validateVerifiedAuth({ auth: { uid: userId } });
+    } catch (error) {
+      res.status(403).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Verify your email before opening your StudyForge workspace.',
+      });
+      return;
+    }
+
     const parsed = agentMessageSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({
@@ -86,45 +137,68 @@ export const agentMessageStream = onRequest(
       });
       return;
     }
+    const body = parsed.data;
 
-    let usageReservationId: string;
-    let loopBudgetCredits = 0;
-    let pricePerCreditCents = 0;
+    let threadId: string;
+    let turnId: string;
     try {
-      const usageKind =
-        parsed.data.scope === 'workspace' ? 'directoryAgent' : 'directoryChat';
-      const loopHold = await enforceCallableAgentLoopLimits(userId, usageKind);
-      usageReservationId = loopHold.usageReservation.id;
-      loopBudgetCredits = loopHold.usageReservation.credits;
-      pricePerCreditCents = loopHold.pricePerCreditCents;
+      if (body.resume) {
+        threadId = body.threadId ?? '';
+        turnId = body.turnId ?? '';
+        const turnSnap = await FirestorePaths.agentThreadTurn(
+          userId,
+          threadId,
+          turnId,
+        ).get();
+        if (!turnSnap.exists) {
+          throw new HttpsError('not-found', 'Agent turn not found');
+        }
+      } else {
+        threadId =
+          clientIdOrUndefined(body.threadId) ??
+          FirestorePaths.agentThreads(userId).doc().id;
+        turnId = clientIdOrUndefined(body.turnId) ?? randomUUID();
+        const startInput = startAgentTurnRequestSchema.safeParse({
+          scope: body.scope,
+          directoryId: body.directoryId,
+          message: body.message,
+          threadId,
+          turnId,
+          promptContext: body.promptContext,
+          clientLocalDate: body.clientLocalDate,
+        });
+        if (!startInput.success) {
+          throw new HttpsError(
+            'invalid-argument',
+            startInput.error.issues.map((issue) => issue.message).join('; '),
+          );
+        }
+        await startAgentTurn(userId, startInput.data);
+      }
     } catch (error) {
       if (error instanceof HttpsError) {
-        const status =
-          error.code === 'resource-exhausted'
-            ? 429
-            : error.code === 'unauthenticated'
-              ? 401
-              : error.code === 'permission-denied'
-                ? 403
-                : error.code === 'invalid-argument'
-                  ? 400
-                  : 500;
-        res.status(status).json({
+        res.status(httpStatusForCallableError(error)).json({
           success: false,
           error: error.message,
           details: error.details,
         });
         return;
       }
-      res.status(500).json({
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to reserve usage credits',
+      logger.error('Agent stream bridge failed to start the turn', {
+        userId,
+        error: error instanceof Error ? error.message : String(error),
       });
+      res.status(500).json({ success: false, error: 'Failed to start the agent' });
       return;
     }
+
+    logger.info('Agent stream bridge request', {
+      userId,
+      threadId,
+      turnId,
+      resume: body.resume === true,
+      userAgent: req.get('user-agent') ?? 'unknown',
+    });
 
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -133,65 +207,36 @@ export const agentMessageStream = onRequest(
     res.setHeader('Content-Encoding', 'identity');
     res.flushHeaders?.();
 
-    let clientDisconnected = false;
-    const streamAbort = new AbortController();
-    // Leave headroom before the 300s Cloud Functions timeout so we can
-    // persist a written reply instead of dropping the SSE stream.
-    const softDeadlineMs = 270_000;
-    const softDeadline = setTimeout(() => {
-      streamAbort.abort();
-    }, softDeadlineMs);
-    req.on('close', () => {
-      clientDisconnected = true;
-      streamAbort.abort();
-    });
+    const clientGone = new AbortController();
+    // `res` close fires when the client disconnects (or the response ends).
+    res.on('close', () => clientGone.abort());
 
-    let usageSettled = false;
-    const settleLoopUsage = async (): Promise<void> => {
-      if (usageSettled) {
-        return;
-      }
-      usageSettled = true;
-      await settleAgentLoopUsageReservationSafe(userId, usageReservationId);
-    };
-    const providerCostContext = buildProviderCostContext({
-      userId,
-      generationKind:
-        parsed.data.scope === 'workspace' ? 'directoryAgent' : 'directoryChat',
-      reservationId: usageReservationId,
-      threadId: parsed.data.threadId,
-      callRole: 'agent_step',
-      loopBudgetCredits,
-      pricePerCreditCents,
-    });
+    writeSseEvent(res, { type: 'thread', threadId });
 
     try {
-      await runWithProviderCostContext(providerCostContext, async () => {
-        for await (const event of DirectoryAgentService.streamMessage(
-          userId,
-          parsed.data,
-          { signal: streamAbort.signal },
-        )) {
-          if (!clientDisconnected && !res.writableEnded) {
+      const end = await tailAgentTurnAsSse({
+        userId,
+        threadId,
+        turnId,
+        signal: clientGone.signal,
+        maxDurationMs: MAX_TAIL_MS,
+        write: (event) => {
+          if (!res.writableEnded) {
             writeSseEvent(res, event);
           }
-          if (event.type === 'done' || event.type === 'error') {
-            await settleLoopUsage();
-            break;
-          }
-        }
+        },
       });
+      if (end === 'missing' && !res.writableEnded) {
+        writeSseEvent(res, { type: 'error', message: 'Agent turn not found' });
+      }
     } catch (error) {
-      if (!clientDisconnected && !res.writableEnded) {
+      if (!res.writableEnded) {
         writeSseEvent(res, {
           type: 'error',
-          message:
-            error instanceof Error ? error.message : 'Agent stream failed',
+          message: error instanceof Error ? error.message : 'Agent stream failed',
         });
       }
     } finally {
-      clearTimeout(softDeadline);
-      await settleLoopUsage();
       if (!res.writableEnded) {
         res.end();
       }

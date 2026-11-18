@@ -49,7 +49,7 @@ flowchart TB
 | Experiment | Prefix | Target | Retrieval source | Retrieval metric |
 | --- | --- | --- | --- | --- |
 | Retrieval only | `workspace-agent-pk-retrieval-v1` | In-process `searchPlatformKnowledge` | Direct Admin SDK search | Code: `retrieval_recall` |
-| Application / RAG | `workspace-agent-pk-rag-v1` | HTTP `agentMessageStream` | Same search inside `DirectoryAgentService` for that turn | LLM: `retrieval_relevance` plus groundedness on those texts |
+| Application / RAG | `workspace-agent-pk-rag-v1` | HTTP `agentMessageStream` | Same search inside `executeAgentTurn` for that turn | LLM: `retrieval_relevance` plus groundedness on those texts |
 
 They are **not** interchangeable:
 

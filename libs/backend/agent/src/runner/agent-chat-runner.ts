@@ -139,6 +139,7 @@ export class AgentChatRunner {
           messages,
           tools: openAiTools,
           stream: true,
+          signal: input.signal,
           onDelta: (text) => {
             if (!emitDeltas) {
               return;

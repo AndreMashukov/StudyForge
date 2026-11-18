@@ -200,6 +200,10 @@ export interface IComposer {
   onSend: (text: string) => void;
   onCapture?: () => void;
   disabled?: boolean;
+  /** A reply is in progress: the send button becomes Stop (when onStop is set). */
+  busy?: boolean;
+  onStop?: () => void;
+  stopDisabled?: boolean;
 }
 
 /** Pill composer: + opens capture for the current directory; send hands the text to the assistant. */
@@ -208,6 +212,9 @@ export function Composer({
   onSend,
   onCapture,
   disabled = false,
+  busy = false,
+  onStop,
+  stopDisabled = false,
 }: IComposer) {
   const [text, setText] = useState('');
   const online = useIsOnline();
@@ -246,27 +253,48 @@ export function Composer({
           accessibilityLabel="Message"
           className="max-h-28 flex-1 px-1.5 py-2.5 font-sans text-base text-foreground"
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Send"
-          accessibilityState={{ disabled: !canSend }}
-          disabled={!canSend}
-          onPress={submit}
-          className={cn(
-            'h-10 w-10 items-center justify-center rounded-full',
-            canSend ? 'bg-primary' : 'bg-card',
-          )}
-        >
-          <MaterialIcons
-            name="arrow-upward"
-            size={20}
-            color={
-              canSend
-                ? mobileUiColors.primaryForeground
-                : mobileUiColors.placeholder
-            }
-          />
-        </Pressable>
+        {busy && onStop ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Stop"
+            accessibilityState={{ disabled: stopDisabled }}
+            disabled={stopDisabled}
+            onPress={onStop}
+            className="h-10 w-10 items-center justify-center rounded-full bg-card"
+          >
+            <MaterialIcons
+              name="stop"
+              size={20}
+              color={
+                stopDisabled
+                  ? mobileUiColors.placeholder
+                  : mobileUiColors.foreground
+              }
+            />
+          </Pressable>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Send"
+            accessibilityState={{ disabled: !canSend }}
+            disabled={!canSend}
+            onPress={submit}
+            className={cn(
+              'h-10 w-10 items-center justify-center rounded-full',
+              canSend ? 'bg-primary' : 'bg-card',
+            )}
+          >
+            <MaterialIcons
+              name="arrow-upward"
+              size={20}
+              color={
+                canSend
+                  ? mobileUiColors.primaryForeground
+                  : mobileUiColors.placeholder
+              }
+            />
+          </Pressable>
+        )}
       </View>
     </SafeAreaView>
   );

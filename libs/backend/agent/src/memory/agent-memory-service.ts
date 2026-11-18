@@ -13,9 +13,17 @@ import type {
   IAgentThread,
   IAgentThreadMessage,
 } from '@shared-types';
-import { agentPromptContextSchema } from '@shared-types';
+import {
+  agentMessageTurnStatusSchema,
+  agentPromptContextSchema,
+} from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { parseReferencedItems } from '../checkpointer/firestore-checkpoint-saver';
+import {
+  serializeAgentActions,
+  serializeAgentDeletes,
+  serializeAgentReferences,
+} from '../turns/agent-turn-record';
 import { AgentEmbeddingService } from '../knowledge/agent-embedding-service';
 import { cosineSimilarity } from '../knowledge/knowledge-chunk-utils';
 
@@ -87,6 +95,15 @@ function mapThread(
         timestampToIso(data?.createdAt, fallbackIso),
       ),
     ),
+    ...(optionalString(data?.activeTurnId)
+      ? {
+          activeTurnId: optionalString(data?.activeTurnId),
+          activeTurnStartedAt: timestampToIso(
+            data?.activeTurnStartedAt,
+            fallbackIso,
+          ),
+        }
+      : {}),
   };
 }
 
@@ -100,6 +117,12 @@ function toThreadSummary(thread: IAgentThread): AgentThreadSummary {
     createdAt: thread.createdAt,
     updatedAt: thread.updatedAt,
     lastMessageAt: thread.lastMessageAt,
+    ...(thread.activeTurnId
+      ? {
+          activeTurnId: thread.activeTurnId,
+          activeTurnStartedAt: thread.activeTurnStartedAt,
+        }
+      : {}),
   };
 }
 
@@ -133,6 +156,43 @@ function parseStoredPromptContext(
 ): AgentPromptContext | undefined {
   const parsed = agentPromptContextSchema.safeParse(value);
   return parsed.success ? parsed.data : undefined;
+}
+
+function parseMessageTurnStatus(
+  value: unknown,
+): IAgentThreadMessage['turnStatus'] {
+  const parsed = agentMessageTurnStatusSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
+
+export interface IAgentThreadMessageWrite {
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: Date;
+  promptContext?: AgentPromptContext;
+  executedActions?: AgentActionResult[];
+  proposedDeletes?: AgentProposedDelete[];
+  referencedItems?: AgentReferencedItem[];
+  turnId?: string;
+  turnStatus?: IAgentThreadMessage['turnStatus'];
+}
+
+/** Firestore fields for a thread message (shared by appendMessage and the turn module). */
+export function buildAgentThreadMessageData(
+  input: IAgentThreadMessageWrite,
+): DocumentData {
+  return {
+    role: input.role,
+    content: input.content,
+    createdAt: Timestamp.fromDate(input.createdAt),
+    ...(input.promptContext ? { promptContext: input.promptContext } : {}),
+    // Firestore rejects `undefined` fields, so optional keys are dropped here.
+    executedActions: serializeAgentActions(input.executedActions ?? []),
+    proposedDeletes: serializeAgentDeletes(input.proposedDeletes ?? []),
+    referencedItems: serializeAgentReferences(input.referencedItems ?? []),
+    ...(input.turnId ? { turnId: input.turnId } : {}),
+    ...(input.turnStatus ? { turnStatus: input.turnStatus } : {}),
+  };
 }
 
 export interface AgentMemorySnippet {
@@ -399,16 +459,18 @@ export class AgentThreadStore {
         : {}),
     };
 
-    await docRef.set({
-      role: input.role,
-      content: input.content,
-      createdAt: Timestamp.fromDate(now),
-      ...(input.promptContext ? { promptContext: input.promptContext } : {}),
-      executedActions: input.executedActions ?? [],
-      proposedDeletes: input.proposedDeletes ?? [],
-      referencedItems: input.referencedItems ?? [],
-      ...(input.turnId ? { turnId: input.turnId } : {}),
-    });
+    await docRef.set(
+      buildAgentThreadMessageData({
+        role: input.role,
+        content: input.content,
+        createdAt: now,
+        promptContext: input.promptContext,
+        executedActions: input.executedActions,
+        proposedDeletes: input.proposedDeletes,
+        referencedItems: input.referencedItems,
+        turnId: input.turnId,
+      }),
+    );
 
     await FirestorePaths.agentThread(input.userId, input.threadId).update({
       updatedAt: Timestamp.fromDate(now),
@@ -435,6 +497,7 @@ export class AgentThreadStore {
       .map((doc) => {
         const data = doc.data();
         const promptContext = parseStoredPromptContext(data.promptContext);
+        const turnStatus = parseMessageTurnStatus(data.turnStatus);
         return {
           id: doc.id,
           threadId,
@@ -451,6 +514,10 @@ export class AgentThreadStore {
           referencedItems: Array.isArray(data.referencedItems)
             ? parseReferencedItems(data.referencedItems)
             : undefined,
+          ...(optionalString(data.turnId)
+            ? { turnId: optionalString(data.turnId) }
+            : {}),
+          ...(turnStatus ? { turnStatus } : {}),
         } satisfies IAgentThreadMessage;
       })
       .reverse();

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { FlatList, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { AgentPromptContext } from '@shared-types';
@@ -56,7 +56,16 @@ export function AssistantChatScreen() {
       : { scope: 'workspace', promptContext };
   }, [directoryId, documentId, label]);
 
-  const chat = useAgentChat(user?.uid, initialThreadId, chatScope);
+  const handleThreadCreated = useCallback(
+    (threadId: string) => {
+      // Drop the first message from the route so a remount never sends it twice.
+      router.setParams({ threadId, message: '' });
+    },
+    [router],
+  );
+  const chat = useAgentChat(user?.uid, initialThreadId, chatScope, {
+    onThreadCreated: handleThreadCreated,
+  });
   const sentInitial = useRef(false);
   const listRef = useRef<FlatList>(null);
 
@@ -118,7 +127,10 @@ export function AssistantChatScreen() {
       <OfflineBanner />
       <Composer
         placeholder={label ? `Ask about ${label}` : 'Ask anything'}
-        disabled={chat.sending || chat.loading || chat.limitReached}
+        disabled={chat.isWorking || chat.loading || chat.limitReached}
+        busy={chat.isWorking}
+        stopDisabled={!chat.canStop}
+        onStop={() => void chat.stop()}
         onCapture={() => openCapture(directoryId ?? null)}
         onSend={(message) => void chat.send(message)}
       />
