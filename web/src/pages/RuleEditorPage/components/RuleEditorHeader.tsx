@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Spinner } from '../../../components/ui/Spinner';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useRuleEditorContext } from '../context/RuleEditorContext';
+import { resolveRuleEditorReturnPath } from '../utils/ruleEditorReturnPath';
 
 export const RuleEditorHeader: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnPath = resolveRuleEditorReturnPath(searchParams.get('directoryId'));
   const { currentTheme } = useTheme();
   const { mode, isSaving, save, deleteRule } = useRuleEditorContext();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -24,7 +27,7 @@ export const RuleEditorHeader: React.FC = () => {
       <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
       <Button
         variant="ghost"
-        onClick={() => navigate('/rules')}
+        onClick={() => navigate(returnPath)}
         className="flex items-center gap-2"
       >
         <ArrowLeft size={18} />

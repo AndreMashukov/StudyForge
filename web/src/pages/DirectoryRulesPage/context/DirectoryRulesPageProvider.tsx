@@ -91,9 +91,13 @@ export const DirectoryRulesPageProvider = ({
 
   const handleEditRule = useCallback(
     (ruleId: string) => {
-      navigate(`/rules/editor/${ruleId}`);
+      if (directoryId) {
+        navigate(`/rules/editor/${ruleId}?directoryId=${encodeURIComponent(directoryId)}`);
+      } else {
+        navigate(`/rules/editor/${ruleId}`);
+      }
     },
-    [navigate]
+    [navigate, directoryId]
   );
 
   const handleToggleCascadeView = useCallback(() => {

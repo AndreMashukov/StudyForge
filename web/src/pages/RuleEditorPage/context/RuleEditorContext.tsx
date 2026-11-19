@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { RuleColor, CreateRuleRequest } from '@shared-types';
 import {
   useGetRuleQuery,
@@ -17,6 +17,7 @@ import {
   AIState,
   IAIResult,
 } from './IRuleEditorContext';
+import { resolveRuleEditorReturnPath } from '../utils/ruleEditorReturnPath';
 
 const RuleEditorContext = createContext<IRuleEditorContext | undefined>(undefined);
 
@@ -37,6 +38,8 @@ const DEFAULT_FORM_DATA: IRuleEditorFormData = {
 export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children }) => {
   const { ruleId } = useParams<{ ruleId?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnPath = resolveRuleEditorReturnPath(searchParams.get('directoryId'));
   const dispatch = useAppDispatch();
   const { showToast } = useToast();
 
@@ -117,11 +120,11 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
       if (mode === 'edit' && ruleId) {
         await updateRule({ ruleId, ...formData }).unwrap();
         showToast(`Rule "${formData.name}" updated successfully`, 'success');
-        navigate('/rules');
+        navigate(returnPath);
       } else {
         await createRule(formData as CreateRuleRequest).unwrap();
         showToast(`Rule "${formData.name}" created successfully`, 'success');
-        navigate('/rules');
+        navigate(returnPath);
       }
     } catch {
       // Error is shown via the global errorToastMiddleware toast
@@ -135,6 +138,7 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
     validate,
     showToast,
     navigate,
+    returnPath,
     updateRule,
     createRule,
     dispatch,
@@ -146,14 +150,14 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
       const result = await deleteRuleMutation({ ruleId }).unwrap();
       if (result.success) {
         showToast('Rule deleted successfully', 'success');
-        navigate('/rules');
+        navigate(returnPath);
       } else {
         showToast(result.error || 'Failed to delete rule', 'error');
       }
     } catch {
       // Error is shown via the global errorToastMiddleware toast
     }
-  }, [ruleId, deleteRuleMutation, showToast, navigate]);
+  }, [ruleId, deleteRuleMutation, showToast, navigate, returnPath]);
 
   const generateWithAI = useCallback(
     async (topic: string, description?: string) => {
