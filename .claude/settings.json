@@ -16,8 +16,6 @@
       "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run shared-types:build)",
       "Bash(NX_DAEMON=false NX_ISOLATE_PLUGINS=false yarn nx run shared-types:lint)",
       "Bash(npx tsx scripts/seed-setup/setup-seed-data.ts)",
-      "Bash(./scripts/setup-worktree.sh)",
-      "Bash(yarn firebase emulators:start --project *)",
       "Bash(gh secret list)",
       "Bash(gh pr *)",
       "Bash(git worktree *)",
