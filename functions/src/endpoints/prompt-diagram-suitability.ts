@@ -5,7 +5,7 @@ import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import {
   evaluateMermaidDiagramCount,
   evaluateMermaidDiagramSuitability,
-} from '@study-forge/backend-llm/llm/jev-decisions-client';
+} from '@study-forge/backend-llm/llm/prompt-diagram-decisions-client';
 
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
 
@@ -51,19 +51,21 @@ const callableOptions = {
 };
 
 /**
- * Uses Jev (OpenRouter Decisions API) to decide whether Mermaid diagrams fit an AI Prompt.
+ * Asks the configured decision model (`promptDiagramDecision` route) whether
+ * Mermaid diagrams fit an AI Prompt.
  */
 export const evaluatePromptDiagramSuitability = onCall(callableOptions, async (request) => {
   try {
     const userId = await validateVerifiedAuth(request);
     const trimmedPrompt = readPrompt(request.data);
 
-    logger.info('Evaluating prompt diagram suitability with Jev', {
+    logger.info('Evaluating prompt diagram suitability', {
       userId,
       promptLength: trimmedPrompt.length,
     });
 
     const result = await evaluateMermaidDiagramSuitability({
+      userId,
       prompt: trimmedPrompt,
     });
 
@@ -78,19 +80,20 @@ export const evaluatePromptDiagramSuitability = onCall(callableOptions, async (r
 });
 
 /**
- * Uses a Jev score question to choose the maximum Mermaid diagram count for a prompt.
+ * Asks the configured decision model for the maximum Mermaid diagram count for a prompt.
  */
 export const evaluatePromptDiagramCount = onCall(callableOptions, async (request) => {
   try {
     const userId = await validateVerifiedAuth(request);
     const trimmedPrompt = readPrompt(request.data);
 
-    logger.info('Evaluating prompt diagram count with Jev', {
+    logger.info('Evaluating prompt diagram count', {
       userId,
       promptLength: trimmedPrompt.length,
     });
 
     const result = await evaluateMermaidDiagramCount({
+      userId,
       prompt: trimmedPrompt,
     });
 

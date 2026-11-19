@@ -6,14 +6,15 @@ import type {
   LlmProviderKind,
   ProviderModelSyncSource,
 } from '@shared-types';
+import { isLlmModality } from '@shared-types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
 function uniqueModalities(modalities: LlmModality[]): LlmModality[] {
-  return (['text', 'vision', 'image', 'embedding'] as const).filter((modality) =>
-    modalities.includes(modality)
+  return (['text', 'vision', 'image', 'embedding', 'decision'] as const).filter(
+    (modality) => modalities.includes(modality)
   );
 }
 
@@ -133,6 +134,11 @@ function parseOpenRouterModalities(architecture: unknown): LlmModality[] {
   const input = inputPart;
   const output = outputPart;
   const result: LlmModality[] = [];
+
+  // Decision models (OpenRouter Decisions API) return typed answers, not text.
+  if (output.includes('decision')) {
+    return ['decision'];
+  }
 
   if (
     output.includes('embed') ||
@@ -358,13 +364,7 @@ export function parseAvailableModels(value: unknown): IProviderAvailableModel[] 
     }
 
     const modalities = Array.isArray(entry.supportedModalities)
-      ? entry.supportedModalities.filter(
-          (modality): modality is LlmModality =>
-            modality === 'text' ||
-            modality === 'vision' ||
-            modality === 'image' ||
-            modality === 'embedding'
-        )
+      ? entry.supportedModalities.filter(isLlmModality)
       : [];
 
     const model = buildModel(
@@ -378,6 +378,22 @@ export function parseAvailableModels(value: unknown): IProviderAvailableModel[] 
   }
 
   return dedupeModels(models);
+}
+
+/**
+ * Keeps previously synced decision models when a sync could not refresh them,
+ * so a failed decision-catalog request never empties that part of the catalog.
+ */
+export function carryOverDecisionModels(
+  nextModels: IProviderAvailableModel[],
+  previousModels: IProviderAvailableModel[]
+): IProviderAvailableModel[] {
+  const knownIds = new Set(nextModels.map((model) => model.id));
+  const carried = previousModels.filter(
+    (model) =>
+      model.supportedModalities.includes('decision') && !knownIds.has(model.id)
+  );
+  return [...nextModels, ...carried];
 }
 
 export function parseModelsSyncSource(

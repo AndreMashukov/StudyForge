@@ -194,7 +194,16 @@ export const DEFAULT_USAGE_CREDIT_COSTS: Record<GenerationKind, number> = {
   slideDeckText: 30,
   directoryAgent: 1,
   agentExecutor: 1,
+  promptDiagramDecision: 0,
 };
+
+/**
+ * Kinds that never reserve usage credits. They keep a (zero-cost) feature policy
+ * so policy maps stay exhaustive, but admins are not shown a setting for them.
+ */
+export const UNMETERED_GENERATION_KINDS: GenerationKind[] = [
+  'promptDiagramDecision',
+];
 
 /** Premium generation kinds disabled on the Free profile. */
 export const FREE_TIER_DISABLED_KINDS: GenerationKind[] = [

@@ -101,8 +101,16 @@ Admin-configurable category of routed LLM work — production (quiz, screenshot 
 _Avoid_: capability (when meaning admin routing), artifact type (when meaning routing), LLM modality (when meaning routing key), GenerationModelMappingKey (deprecated separate enum)
 
 **LLM modality**:
-Required input/output lane for a generation route: `text`, `vision`, or `image`. Validates that the chosen provider connection supports the kind — not a routing key.
+Required input/output lane for a generation route: `text`, `vision`, `image`, `embedding`, or `decision`. Validates that the chosen provider connection supports the kind — not a routing key. `decision` is served only by OpenRouter connections.
 _Avoid_: capability (when meaning the routing lane), model type, routing lane
+
+**Decision model**:
+A model that answers typed questions (yes/no, choice, score) with probabilities instead of generating text, called through the OpenRouter Decisions API rather than chat completions. Uses the `decision` LLM modality.
+_Avoid_: classifier, judge model, Jev (a specific decision model, not the concept)
+
+**Prompt diagram check**:
+The `promptDiagramDecision` generation kind: before an AI Prompt document is generated, a decision model judges whether Mermaid diagrams fit the prompt and how many to allow. Unmetered — it reserves no usage credits.
+_Avoid_: Jev check, diagram suitability model
 
 **LLM setup route** _(legacy)_:
 Deprecated modality-keyed route (`routes.text`, `routes.vision`, `routes.image`). Migration backfill source only — removed from admin UI in Task 14; resolver never reads after backfill.

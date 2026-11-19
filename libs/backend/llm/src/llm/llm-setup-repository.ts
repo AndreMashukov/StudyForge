@@ -14,6 +14,7 @@ import {
   backfillMissingGenerationRoute,
   GENERATION_KIND_METADATA,
   isGenerationWorkflow,
+  isLlmModality,
 } from '@shared-types';
 import {
   createGenerationRouteNotConfiguredError,
@@ -63,10 +64,7 @@ function parseGenerationRoute(value: unknown): IGenerationRoute | null {
   if (
     !connectionId ||
     !model ||
-    (modality !== 'text' &&
-      modality !== 'vision' &&
-      modality !== 'image' &&
-      modality !== 'embedding') ||
+    !isLlmModality(modality) ||
     typeof workflow !== 'string' ||
     !isGenerationWorkflow(workflow)
   ) {

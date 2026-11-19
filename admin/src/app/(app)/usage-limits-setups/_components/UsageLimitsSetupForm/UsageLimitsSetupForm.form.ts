@@ -4,6 +4,7 @@ import {
   ALL_GENERATION_KINDS,
   createDefaultFeaturePolicies,
   GENERATION_KIND_METADATA,
+  UNMETERED_GENERATION_KINDS,
 } from '@shared-types';
 import { z } from 'zod';
 
@@ -127,6 +128,11 @@ export function featurePoliciesToFormValues(
   };
 }
 
+/** Unmetered kinds keep a stored policy but have no setting to show. */
+const METERED_GENERATION_KINDS = ADMIN_CONFIGURABLE_GENERATION_KINDS.filter(
+  (kind) => !UNMETERED_GENERATION_KINDS.includes(kind),
+);
+
 export function getUsageFeatureGroups(): Array<{
   id: 'production' | 'interactive' | 'slideDeck';
   label: string;
@@ -136,21 +142,21 @@ export function getUsageFeatureGroups(): Array<{
     {
       id: 'production',
       label: 'Production generation',
-      kinds: ADMIN_CONFIGURABLE_GENERATION_KINDS.filter(
+      kinds: METERED_GENERATION_KINDS.filter(
         (kind) => GENERATION_KIND_METADATA[kind].group === 'production',
       ),
     },
     {
       id: 'interactive',
       label: 'Interactive',
-      kinds: ADMIN_CONFIGURABLE_GENERATION_KINDS.filter(
+      kinds: METERED_GENERATION_KINDS.filter(
         (kind) => GENERATION_KIND_METADATA[kind].group === 'interactive',
       ),
     },
     {
       id: 'slideDeck',
       label: 'Slide deck',
-      kinds: ADMIN_CONFIGURABLE_GENERATION_KINDS.filter(
+      kinds: METERED_GENERATION_KINDS.filter(
         (kind) => GENERATION_KIND_METADATA[kind].group === 'slideDeck',
       ),
     },

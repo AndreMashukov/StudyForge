@@ -7,7 +7,7 @@ import type {
   LlmProviderKind,
 } from '@shared-types';
 import {
-  ALL_LLM_MODALITIES,
+  normalizeSupportedModalities,
   PRIMARY_GEMINI_CONNECTION_ID,
   PRIMARY_MINIMAX_CONNECTION_ID,
   PRIMARY_OPENROUTER_CONNECTION_ID,
@@ -49,20 +49,6 @@ function parseProviderKind(data: Record<string, unknown>): LlmProviderKind | nul
   return null;
 }
 
-function parseSupportedModalities(value: unknown): LlmModality[] {
-  if (Array.isArray(value)) {
-    const modalities = value.filter(
-      (entry): entry is LlmModality =>
-        entry === 'text' || entry === 'vision' || entry === 'image' || entry === 'embedding'
-    );
-    if (modalities.length > 0) {
-      return modalities;
-    }
-  }
-
-  return [...ALL_LLM_MODALITIES];
-}
-
 async function readCatalogEntry(connectionId: string): Promise<IProviderConnectionCatalogEntry | null> {
   const [connectionSnapshot, secretSnapshot] = await Promise.all([
     getAdminFirestore().collection(CONNECTIONS_COLLECTION).doc(connectionId).get(),
@@ -88,7 +74,10 @@ async function readCatalogEntry(connectionId: string): Promise<IProviderConnecti
     providerKind,
     label: typeof data.label === 'string' ? data.label.trim() : connectionId,
     apiKeyConfigured: secretSnapshot.exists || data.apiKeyConfigured === true,
-    supportedModalities: parseSupportedModalities(data.supportedModalities),
+    supportedModalities: normalizeSupportedModalities(
+      data.supportedModalities,
+      providerKind,
+    ),
     availableModels: parseAvailableModels(data.availableModels),
     modelsSyncedAt: toIsoString(data.modelsSyncedAt),
   };

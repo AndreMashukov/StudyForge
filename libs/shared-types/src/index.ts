@@ -1038,7 +1038,7 @@ export interface GenerateFromPromptRequest {
   directoryId: string; // Directory to place the generated document
   ruleIds?: string[]; // Optional rules for content generation
   ruleResolutionMode?: RuleResolutionMode;
-  /** When true, generation should include Mermaid diagrams (user opted in after Jev suitability). */
+  /** When true, generation should include Mermaid diagrams (user opted in after the prompt diagram check). */
   includeDiagrams?: boolean;
   /** How many Mermaid diagrams to include. Required with includeDiagrams. */
   diagramCount?: number;
@@ -2057,11 +2057,17 @@ export type LlmProviderKind = 'gemini' | 'openrouter' | 'minimax' | 'together';
 /** @deprecated Use LlmProviderKind */
 export type LlmProviderType = LlmProviderKind;
 
-export const PRIMARY_GEMINI_CONNECTION_ID = 'gemini-primary';
-export const PRIMARY_OPENROUTER_CONNECTION_ID = 'openrouter-primary';
-export const PRIMARY_MINIMAX_CONNECTION_ID = 'minimax-primary';
-export const PRIMARY_TOGETHER_CONNECTION_ID = 'together-primary';
+export {
+  PRIMARY_GEMINI_CONNECTION_ID,
+  PRIMARY_MINIMAX_CONNECTION_ID,
+  PRIMARY_OPENROUTER_CONNECTION_ID,
+  PRIMARY_TOGETHER_CONNECTION_ID,
+} from './llm-connection-ids';
 
+/**
+ * Generation modalities every provider kind can serve.
+ * `decision` is OpenRouter-only — see `getProviderSupportedModalities`.
+ */
 export const ALL_LLM_MODALITIES = [
   'text',
   'vision',
@@ -2069,7 +2075,38 @@ export const ALL_LLM_MODALITIES = [
   'embedding',
 ] as const;
 
-export type LlmModality = 'text' | 'vision' | 'image' | 'embedding';
+/** Modalities a provider kind can serve. Only OpenRouter exposes decision models. */
+export function getProviderSupportedModalities(
+  providerKind: LlmProviderKind,
+): LlmModality[] {
+  return providerKind === 'openrouter'
+    ? [...ALL_LLM_MODALITIES, 'decision']
+    : [...ALL_LLM_MODALITIES];
+}
+
+/**
+ * Normalizes a stored `supportedModalities` array for a provider connection.
+ * Unknown or unsupported entries are dropped, an empty result falls back to the
+ * provider defaults, and OpenRouter always includes `decision` so connections
+ * saved before that modality existed keep resolving decision routes.
+ */
+export function normalizeSupportedModalities(
+  value: unknown,
+  providerKind: LlmProviderKind,
+): LlmModality[] {
+  const allowed = getProviderSupportedModalities(providerKind);
+  const stored = Array.isArray(value)
+    ? value.filter(isLlmModality).filter((entry) => allowed.includes(entry))
+    : [];
+
+  if (stored.length === 0) {
+    return allowed;
+  }
+  if (providerKind === 'openrouter' && !stored.includes('decision')) {
+    return [...stored, 'decision'];
+  }
+  return stored;
+}
 
 export type LlmCredentialMode = 'encrypted-firestore';
 
@@ -2277,31 +2314,38 @@ export type LlmCapabilityKey =
   | 'ruleGeneration'
   | 'directoryAgent'
   | 'agentExecutor'
-  | 'agentKnowledgeEmbedding';
+  | 'agentKnowledgeEmbedding'
+  | 'promptDiagramDecision';
 
 // --- LLM setup & user group routing ---
 
 import type {
   GenerationKind,
   GenerationWorkflow,
+  LlmModality,
 } from './generation-kind-metadata';
+import { isLlmModality } from './generation-kind-metadata';
 
 export type {
   GenerationKind,
   GenerationWorkflow,
   IGenerationKindMetadata,
+  LlmModality,
 } from './generation-kind-metadata';
 export {
   ADMIN_CONFIGURABLE_GENERATION_KINDS,
   ALL_GENERATION_KINDS,
+  DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
   GENERATION_KIND_ALIASES,
   GENERATION_KIND_METADATA,
   isGenerationKind,
   isGenerationWorkflow,
+  isLlmModality,
   resolveGenerationKind,
 } from './generation-kind-metadata';
 export {
   backfillMissingGenerationRoute,
+  DEFAULT_PROMPT_DIAGRAM_DECISION_ROUTE,
   type IGenerationRouteBackfill,
 } from './generation-routes-backfill';
 export {
@@ -2707,6 +2751,7 @@ export {
   resolveLivePeriodAllowance,
   resolvePresetQuotaDefaults,
   STANDARD_TIER_STORAGE_LIMIT_BYTES,
+  UNMETERED_GENERATION_KINDS,
   USAGE_LIMITS_PROFILE_PRESETS,
 } from './usage-limits';
 

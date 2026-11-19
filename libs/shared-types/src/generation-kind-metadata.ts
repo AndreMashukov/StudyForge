@@ -1,9 +1,33 @@
-export type LlmModality = 'text' | 'vision' | 'image' | 'embedding';
+export type LlmModality =
+  | 'text'
+  | 'vision'
+  | 'image'
+  | 'embedding'
+  | 'decision';
+
+const LLM_MODALITY_VALUES: readonly LlmModality[] = [
+  'text',
+  'vision',
+  'image',
+  'embedding',
+  'decision',
+];
+
+export function isLlmModality(value: unknown): value is LlmModality {
+  return LLM_MODALITY_VALUES.some((modality) => modality === value);
+}
+
+/**
+ * Default model for the prompt diagram check. Decision models are served by the
+ * OpenRouter Decisions API, not by chat completions.
+ */
+export const DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL = 'typesafe/jev-1.13';
 
 export type GenerationKind =
   | 'quiz'
   | 'flashcards'
   | 'documentFromPrompt'
+  | 'promptDiagramDecision'
   | 'documentFromScreenshot'
   | 'quizFollowup'
   | 'documentQuestion'
@@ -38,6 +62,7 @@ export const ALL_GENERATION_KINDS: GenerationKind[] = [
   'quiz',
   'flashcards',
   'documentFromPrompt',
+  'promptDiagramDecision',
   'documentFromScreenshot',
   'quizFollowup',
   'documentQuestion',
@@ -72,6 +97,16 @@ export const GENERATION_KIND_METADATA: Record<
     requiredModality: 'text',
     supportedWorkflows: ['direct', 'directWithRepair', 'agentic'],
     defaultWorkflow: 'agentic',
+    group: 'production',
+  },
+  promptDiagramDecision: {
+    kind: 'promptDiagramDecision',
+    label: 'Prompt diagram check',
+    description:
+      'Decision model that judges whether Mermaid diagrams fit an AI Prompt and how many to allow. Uses the OpenRouter Decisions API.',
+    requiredModality: 'decision',
+    supportedWorkflows: ['direct'],
+    defaultWorkflow: 'direct',
     group: 'production',
   },
   documentFromScreenshot: {

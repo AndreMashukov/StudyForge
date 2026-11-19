@@ -74,4 +74,48 @@ describe('backfillMissingGenerationRoute', () => {
       ),
     ).toEqual(documentQuestionRoute);
   });
+
+  it('uses the default decision route for a missing promptDiagramDecision', () => {
+    expect(
+      backfillMissingGenerationRoute(
+        'promptDiagramDecision',
+        null,
+        diagramQuizRoute,
+        false,
+      ),
+    ).toEqual({
+      connectionId: 'openrouter-primary',
+      model: 'typesafe/jev-1.13',
+      modality: 'decision',
+      workflow: 'direct',
+    });
+  });
+
+  it('keeps an explicit promptDiagramDecision route', () => {
+    const decisionRoute = {
+      connectionId: 'openrouter-primary',
+      model: 'google/gemini-decision-1',
+      modality: 'decision' as const,
+      workflow: 'direct' as const,
+    };
+    expect(
+      backfillMissingGenerationRoute(
+        'promptDiagramDecision',
+        decisionRoute,
+        diagramQuizRoute,
+        true,
+      ),
+    ).toBe(decisionRoute);
+  });
+
+  it('does not backfill an explicitly provided invalid promptDiagramDecision route', () => {
+    expect(
+      backfillMissingGenerationRoute(
+        'promptDiagramDecision',
+        null,
+        diagramQuizRoute,
+        true,
+      ),
+    ).toBeNull();
+  });
 });

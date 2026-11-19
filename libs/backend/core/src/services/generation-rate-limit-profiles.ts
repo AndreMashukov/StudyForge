@@ -79,6 +79,7 @@ export const GENERATION_RATE_LIMIT_PROFILES: Record<
   slideDeckImage: SLIDE_DECK_IMAGE_PROFILE,
   sourceDocumentEnhancement: PRODUCTION_PROFILE,
   ruleGeneration: PRODUCTION_PROFILE,
+  promptDiagramDecision: INTERACTIVE_PROFILE,
 };
 
 export function getGenerationRateLimitProfile(

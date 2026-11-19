@@ -1,8 +1,10 @@
-import type {
-  GenerationKind,
-  GenerationWorkflow,
-  LlmModality,
+import {
+  DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
+  type GenerationKind,
+  type GenerationWorkflow,
+  type LlmModality,
 } from './generation-kind-metadata';
+import { PRIMARY_OPENROUTER_CONNECTION_ID } from './llm-connection-ids';
 
 export interface IGenerationRouteBackfill {
   connectionId: string;
@@ -12,8 +14,22 @@ export interface IGenerationRouteBackfill {
 }
 
 /**
- * When reading legacy LLM setup documents, `escalation` may be missing.
- * Inherit the diagram quiz connection and model with a direct workflow.
+ * Route used for `promptDiagramDecision` when an LLM setup document predates it.
+ * Matches the model that was hardcoded before the route became configurable.
+ */
+export const DEFAULT_PROMPT_DIAGRAM_DECISION_ROUTE: IGenerationRouteBackfill = {
+  connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
+  model: DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
+  modality: 'decision',
+  workflow: 'direct',
+};
+
+/**
+ * Fills generation routes that legacy LLM setup documents may be missing:
+ * - `escalation` inherits the diagram quiz connection and model (direct workflow).
+ * - `scratchPadQuestion` inherits the document question route.
+ * - `promptDiagramDecision` uses the default decision route.
+ * A field that is present but invalid is never backfilled.
  */
 export function backfillMissingGenerationRoute(
   kind: GenerationKind,
@@ -36,6 +52,9 @@ export function backfillMissingGenerationRoute(
   }
   if (kind === 'scratchPadQuestion' && documentQuestionRoute) {
     return { ...documentQuestionRoute };
+  }
+  if (kind === 'promptDiagramDecision') {
+    return { ...DEFAULT_PROMPT_DIAGRAM_DECISION_ROUTE };
   }
   return null;
 }

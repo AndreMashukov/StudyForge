@@ -1,15 +1,15 @@
 export {
-  diagramCountFromJevScore,
+  buildDecisionsUrl,
+  diagramCountFromScore,
+  DIAGRAM_SUITABILITY_THRESHOLD,
   evaluateMermaidDiagramCount,
   evaluateMermaidDiagramSuitability,
-  JEV_DECISIONS_MODEL,
-  JEV_DIAGRAM_SUITABILITY_THRESHOLD,
-} from './jev-decisions-client';
+} from './prompt-diagram-decisions-client';
 export type {
   IEvaluateMermaidDiagramCountResult,
   IEvaluateMermaidDiagramSuitabilityParams,
   IEvaluateMermaidDiagramSuitabilityResult,
-} from './jev-decisions-client';
+} from './prompt-diagram-decisions-client';
 export { LlmGenerationService } from './llm-generation-service';
 export type { GenerateFlashcardsResult } from './llm-generation-service';
 export {

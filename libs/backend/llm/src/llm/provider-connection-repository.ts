@@ -1,6 +1,6 @@
 import * as admin from 'firebase-admin';
 import type { IEncryptedSecretRecord, LlmModality, LlmProviderKind } from '@shared-types';
-import { ALL_LLM_MODALITIES } from '@shared-types';
+import { normalizeSupportedModalities } from '@shared-types';
 
 const CONNECTIONS_COLLECTION = 'llmProviderConnections';
 const SECRETS_COLLECTION = 'llmProviderConnectionSecrets';
@@ -25,20 +25,6 @@ function parseProviderKind(data: Record<string, unknown>): LlmProviderKind | nul
     return kind;
   }
   return null;
-}
-
-function parseSupportedModalities(value: unknown): LlmModality[] {
-  if (Array.isArray(value)) {
-    const modalities = value.filter(
-      (entry): entry is LlmModality =>
-        entry === 'text' || entry === 'vision' || entry === 'image' || entry === 'embedding'
-    );
-    if (modalities.length > 0) {
-      return modalities;
-    }
-  }
-
-  return [...ALL_LLM_MODALITIES];
 }
 
 export class ProviderConnectionRepository {
@@ -67,7 +53,7 @@ export class ProviderConnectionRepository {
       providerKind,
       label: typeof data.label === 'string' ? data.label.trim() : connectionId,
       apiKeyConfigured: secretSnapshot.exists || data.apiKeyConfigured === true,
-      supportedModalities: parseSupportedModalities(data.supportedModalities),
+      supportedModalities: normalizeSupportedModalities(data.supportedModalities, providerKind),
       baseUrl: typeof data.baseUrl === 'string' ? data.baseUrl.trim() : undefined,
       imageGenerationUrl:
         typeof data.imageGenerationUrl === 'string' ? data.imageGenerationUrl.trim() : undefined,

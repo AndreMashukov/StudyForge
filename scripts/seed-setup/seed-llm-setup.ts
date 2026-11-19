@@ -31,6 +31,7 @@ import * as path from 'path';
 import { config } from 'dotenv';
 import {
   ALL_GENERATION_KINDS,
+  DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
   GENERATION_KIND_METADATA,
 } from '../../libs/shared-types/src/generation-kind-metadata';
 import {
@@ -38,6 +39,7 @@ import {
   PRIMARY_OPENROUTER_CONNECTION_ID,
   USAGE_LIMITS_PROFILE_PRESETS,
   createDefaultFeaturePolicies,
+  getProviderSupportedModalities,
   type IGenerationRoutes,
   type IProviderAvailableModel,
 } from '../../libs/shared-types/src/index';
@@ -90,6 +92,16 @@ const OPENROUTER_CATALOG: IProviderAvailableModel[] = [
     label: 'Multilingual E5 Large (1024-d)',
     supportedModalities: ['embedding'],
   },
+  {
+    id: DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
+    label: 'TypeSafe: Jev 1.13',
+    supportedModalities: ['decision'],
+  },
+  {
+    id: 'google/gemini-decision-1',
+    label: 'Google: Gemini Decision 1',
+    supportedModalities: ['decision'],
+  },
 ];
 
 function getEncryptionKey(): Buffer {
@@ -134,6 +146,17 @@ function buildGenerationRoutes(): IGenerationRoutes {
         connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
         model: EMBEDDING_MODEL,
         modality: 'embedding',
+        workflow: metadata.defaultWorkflow,
+      };
+      continue;
+    }
+
+    // Decision models are only served by the OpenRouter Decisions API.
+    if (metadata.requiredModality === 'decision') {
+      routes[kind] = {
+        connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
+        model: DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
+        modality: 'decision',
         workflow: metadata.defaultWorkflow,
       };
       continue;
@@ -358,7 +381,7 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
       providerKind: 'openrouter',
       label: 'Primary OpenRouter',
       credentialMode: 'encrypted-firestore',
-      supportedModalities: ['text', 'vision', 'image', 'embedding'],
+      supportedModalities: getProviderSupportedModalities('openrouter'),
       baseUrl: OPENROUTER_BASE_URL,
       defaultEmbeddingModel: EMBEDDING_MODEL,
       availableModels: OPENROUTER_CATALOG,

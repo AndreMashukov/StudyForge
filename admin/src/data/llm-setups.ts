@@ -13,9 +13,11 @@ import type {
 import {
   ALL_GENERATION_KINDS,
   backfillMissingGenerationRoute,
+  DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
   GENERATION_KIND_METADATA,
   isGenerationKind,
   isGenerationWorkflow,
+  isLlmModality,
   PRIMARY_OPENROUTER_CONNECTION_ID,
   PRIMARY_TOGETHER_CONNECTION_ID,
 } from '@shared-types';
@@ -59,10 +61,7 @@ function parseGenerationRoute(value: unknown): IGenerationRoute | null {
   if (
     !connectionId ||
     !model ||
-    (modality !== 'text' &&
-      modality !== 'vision' &&
-      modality !== 'image' &&
-      modality !== 'embedding') ||
+    !isLlmModality(modality) ||
     typeof workflow !== 'string' ||
     !isGenerationWorkflow(workflow)
   ) {
@@ -255,6 +254,11 @@ export async function createDefaultGenerationRoutes(): Promise<IGenerationRoutes
       connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
       model:
         openRouter.defaultEmbeddingModel ?? DEFAULT_OPENROUTER_EMBEDDING_MODEL,
+    },
+    // Decision models are only served by the OpenRouter Decisions API.
+    decision: {
+      connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
+      model: DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
     },
   };
 

@@ -17,13 +17,14 @@ import type {
   IUpdateMiniMaxSettingsRequest,
   IUpdateOpenRouterSettingsRequest,
   IUpdateTogetherSettingsRequest,
-  LlmModality,
   LlmProviderKind,
   ProviderModelSyncSource,
 } from '@shared-types';
 import {
   ALL_LLM_MODALITIES,
   buildProviderRateCatalogForSync,
+  getProviderSupportedModalities,
+  normalizeSupportedModalities,
   PRIMARY_GEMINI_CONNECTION_ID,
   PRIMARY_MINIMAX_CONNECTION_ID,
   PRIMARY_OPENROUTER_CONNECTION_ID,
@@ -38,6 +39,7 @@ import {
 } from '../security/llm-settings-encryption';
 import {
   assertModelInCatalog,
+  carryOverDecisionModels,
   normalizeProviderModels,
   parseAvailableModels,
   parseModelsSyncSource,
@@ -165,23 +167,6 @@ function getTogetherSecretRef(): admin.firestore.DocumentReference {
     .doc(TOGETHER_CONNECTION_ID);
 }
 
-function parseSupportedModalities(value: unknown): LlmModality[] {
-  if (Array.isArray(value)) {
-    const modalities = value.filter(
-      (entry): entry is LlmModality =>
-        entry === 'text' ||
-        entry === 'vision' ||
-        entry === 'image' ||
-        entry === 'embedding',
-    );
-    if (modalities.length > 0) {
-      return modalities;
-    }
-  }
-
-  return [...ALL_LLM_MODALITIES];
-}
-
 function getGeminiConnectionRef(): admin.firestore.DocumentReference {
   return getAdminFirestore()
     .collection(OPENROUTER_CONNECTIONS_COLLECTION)
@@ -218,7 +203,7 @@ function buildDefaultOpenRouterConnection(
     label: 'Primary OpenRouter',
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured,
-    supportedModalities: [...ALL_LLM_MODALITIES],
+    supportedModalities: getProviderSupportedModalities('openrouter'),
     baseUrl: DEFAULT_OPENROUTER_BASE_URL,
     defaultModel: DEFAULT_OPENROUTER_MODEL,
     defaultVisionModel: DEFAULT_OPENROUTER_VISION_MODEL,
@@ -341,7 +326,10 @@ export async function readGeminiConnection(): Promise<IGeminiProviderConnection>
       secretSnapshot.exists ||
       data.apiKeyConfigured === true ||
       defaults.apiKeyConfigured,
-    supportedModalities: parseSupportedModalities(data.supportedModalities),
+    supportedModalities: normalizeSupportedModalities(
+      data.supportedModalities,
+      'gemini',
+    ),
     defaultModel:
       typeof data.defaultModel === 'string'
         ? data.defaultModel
@@ -406,7 +394,10 @@ export async function readOpenRouterConnection(): Promise<IOpenRouterProviderCon
       secretSnapshot.exists ||
       data.apiKeyConfigured === true ||
       defaults.apiKeyConfigured,
-    supportedModalities: parseSupportedModalities(data.supportedModalities),
+    supportedModalities: normalizeSupportedModalities(
+      data.supportedModalities,
+      'openrouter',
+    ),
     baseUrl: typeof data.baseUrl === 'string' ? data.baseUrl : defaults.baseUrl,
     defaultModel:
       typeof data.defaultModel === 'string'
@@ -464,7 +455,10 @@ export async function readMiniMaxConnection(): Promise<IMiniMaxProviderConnectio
       secretSnapshot.exists ||
       data.apiKeyConfigured === true ||
       defaults.apiKeyConfigured,
-    supportedModalities: parseSupportedModalities(data.supportedModalities),
+    supportedModalities: normalizeSupportedModalities(
+      data.supportedModalities,
+      'minimax',
+    ),
     baseUrl: typeof data.baseUrl === 'string' ? data.baseUrl : defaults.baseUrl,
     defaultModel:
       typeof data.defaultModel === 'string'
@@ -526,7 +520,10 @@ export async function readTogetherConnection(): Promise<ITogetherProviderConnect
       secretSnapshot.exists ||
       data.apiKeyConfigured === true ||
       defaults.apiKeyConfigured,
-    supportedModalities: parseSupportedModalities(data.supportedModalities),
+    supportedModalities: normalizeSupportedModalities(
+      data.supportedModalities,
+      'together',
+    ),
     baseUrl: typeof data.baseUrl === 'string' ? data.baseUrl : defaults.baseUrl,
     defaultModel:
       typeof data.defaultModel === 'string'
@@ -704,18 +701,12 @@ function catalogSyncMessage(
   return `Validated ${providerLabel} access and uploaded ${catalog.models.length} available models.${ratePart}`;
 }
 
-function mergeOpenRouterModelPayloads(
-  userPayload: unknown,
-  embeddingPayload: unknown,
-): unknown {
-  const userEntries =
-    isRecord(userPayload) && Array.isArray(userPayload.data) ? userPayload.data : [];
-  const embeddingEntries =
-    isRecord(embeddingPayload) && Array.isArray(embeddingPayload.data)
-      ? embeddingPayload.data
-      : [];
-
-  return { data: [...userEntries, ...embeddingEntries] };
+function mergeOpenRouterModelPayloads(...payloads: unknown[]): unknown {
+  return {
+    data: payloads.flatMap((payload): unknown[] =>
+      isRecord(payload) && Array.isArray(payload.data) ? payload.data : [],
+    ),
+  };
 }
 
 function catalogFromPayload(
@@ -838,9 +829,42 @@ async function fetchGeminiModelCatalog(
   return catalogFromPayload('gemini', payload);
 }
 
+/**
+ * Decision models (OpenRouter Decisions API) are listed separately from chat
+ * models. This request is best-effort: it returns null on any failure so it can
+ * never block the rest of the OpenRouter catalog sync.
+ */
+async function fetchOpenRouterDecisionModelsPayload(
+  normalizedBaseUrl: string,
+  headers: Record<string, string>,
+): Promise<unknown> {
+  try {
+    const response = await fetchModelCatalog(
+      `${normalizedBaseUrl}/models?output_modalities=decisions`,
+      { method: 'GET', headers, cache: 'no-store' },
+      'OpenRouter decisions',
+    );
+    if (!response.ok) {
+      console.warn(
+        `OpenRouter decision model catalog request failed with status ${response.status}`,
+      );
+      return null;
+    }
+    const payload: unknown = await response.json().catch(() => null);
+    return isRecord(payload) && Array.isArray(payload.data) ? payload : null;
+  } catch (error) {
+    console.warn(
+      'OpenRouter decision model catalog request failed',
+      error instanceof Error ? error.message : error,
+    );
+    return null;
+  }
+}
+
 async function fetchOpenRouterModelCatalog(
   baseUrl: string,
   apiKey: string,
+  previousModels: IProviderAvailableModel[] = [],
 ): Promise<IFetchedProviderCatalog> {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl, 'OpenRouter');
   const headers = {
@@ -848,18 +872,20 @@ async function fetchOpenRouterModelCatalog(
     'Content-Type': 'application/json',
   };
 
-  const [userModelsResponse, embeddingModelsResponse] = await Promise.all([
-    fetchModelCatalog(
-      `${normalizedBaseUrl}/models/user`,
-      { method: 'GET', headers, cache: 'no-store' },
-      'OpenRouter',
-    ),
-    fetchModelCatalog(
-      `${normalizedBaseUrl}/embeddings/models`,
-      { method: 'GET', headers, cache: 'no-store' },
-      'OpenRouter embeddings',
-    ),
-  ]);
+  const [userModelsResponse, embeddingModelsResponse, decisionPayload] =
+    await Promise.all([
+      fetchModelCatalog(
+        `${normalizedBaseUrl}/models/user`,
+        { method: 'GET', headers, cache: 'no-store' },
+        'OpenRouter',
+      ),
+      fetchModelCatalog(
+        `${normalizedBaseUrl}/embeddings/models`,
+        { method: 'GET', headers, cache: 'no-store' },
+        'OpenRouter embeddings',
+      ),
+      fetchOpenRouterDecisionModelsPayload(normalizedBaseUrl, headers),
+    ]);
 
   const userPayload = (await userModelsResponse.json().catch(() => null)) as unknown;
   const embeddingPayload = (await embeddingModelsResponse
@@ -888,10 +914,20 @@ async function fetchOpenRouterModelCatalog(
     );
   }
 
-  return catalogFromPayload(
+  const catalog = catalogFromPayload(
     'openrouter',
-    mergeOpenRouterModelPayloads(userPayload, embeddingPayload),
+    mergeOpenRouterModelPayloads(userPayload, embeddingPayload, decisionPayload),
   );
+
+  if (decisionPayload === null) {
+    // Decision catalog unavailable: keep the decision models from the last sync.
+    return {
+      ...catalog,
+      models: carryOverDecisionModels(catalog.models, previousModels),
+    };
+  }
+
+  return catalog;
 }
 
 async function fetchMiniMaxModelCatalog(
@@ -1053,7 +1089,7 @@ export async function updateOpenRouterSettings(
     label: currentConnection.label,
     credentialMode: 'encrypted-firestore',
     apiKeyConfigured: currentConnection.apiKeyConfigured || hasNewApiKey,
-    supportedModalities: [...ALL_LLM_MODALITIES],
+    supportedModalities: getProviderSupportedModalities('openrouter'),
     baseUrl: nextBaseUrl,
     defaultModel: nextDefaultModel,
     defaultVisionModel: nextDefaultVisionModel,
@@ -1089,7 +1125,11 @@ export async function updateOpenRouterSettings(
       hasNewApiKey && normalizedApiKey
         ? normalizedApiKey
         : await readStoredOpenRouterApiKey();
-    const catalog = await fetchOpenRouterModelCatalog(nextBaseUrl, apiKey);
+    const catalog = await fetchOpenRouterModelCatalog(
+      nextBaseUrl,
+      apiKey,
+      currentConnection.availableModels,
+    );
     await persistFetchedProviderCatalog(
       getConnectionRef(),
       actorUid,
@@ -1114,6 +1154,7 @@ export async function testStoredOpenRouterConnection(
     const catalog = await fetchOpenRouterModelCatalog(
       connection.baseUrl,
       apiKey,
+      connection.availableModels,
     );
     const validatedAt = new Date().toISOString();
 
