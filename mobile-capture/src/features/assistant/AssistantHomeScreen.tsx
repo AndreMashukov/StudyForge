@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -20,7 +20,7 @@ import {
 import { useHomeSuggestions } from '../home/useHomeSuggestions';
 import { MenuButton } from '../shell/HeaderButtons';
 import { useShellStore } from '../shell/shellStore';
-import { Composer, OfflineBanner } from '../shell/ui';
+import { Composer, KeyboardAwareView, OfflineBanner } from '../shell/ui';
 import { openLibraryItem } from './ChatMessageView';
 import { startChat } from './chatNavigation';
 import { ScopeSheet } from './ScopeSheet';
@@ -51,7 +51,7 @@ export function AssistantHomeScreen() {
   );
 
   return (
-    <View className="flex-1 bg-background">
+    <KeyboardAwareView>
       <Screen className="pt-0">
         <ScreenHeader
           title=""
@@ -145,6 +145,6 @@ export function AssistantHomeScreen() {
           setScopeOpen(false);
         }}
       />
-    </View>
+    </KeyboardAwareView>
   );
 }

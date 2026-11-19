@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { AgentPromptContext } from '@shared-types';
 import {
@@ -12,7 +12,12 @@ import {
 import { useAuthUser } from '../auth/hooks/useAuthUser';
 import { BackOrMenuButton } from '../shell/HeaderButtons';
 import { useShellStore } from '../shell/shellStore';
-import { Composer, Notice, OfflineBanner } from '../shell/ui';
+import {
+  Composer,
+  KeyboardAwareView,
+  Notice,
+  OfflineBanner,
+} from '../shell/ui';
 import { ChatMessageView } from './ChatMessageView';
 import { useAgentChat, type IAgentChatScope } from './useAgentChat';
 
@@ -83,7 +88,7 @@ export function AssistantChatScreen() {
     (directoryId ? 'Directory chat' : 'StudyForge');
 
   return (
-    <View className="flex-1 bg-background">
+    <KeyboardAwareView>
       <Screen className="pt-0">
         <ScreenHeader
           title={title}
@@ -134,6 +139,6 @@ export function AssistantChatScreen() {
         onCapture={() => openCapture(directoryId ?? null)}
         onSend={(message) => void chat.send(message)}
       />
-    </View>
+    </KeyboardAwareView>
   );
 }

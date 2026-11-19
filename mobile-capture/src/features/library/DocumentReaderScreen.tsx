@@ -26,11 +26,13 @@ import { recordRecentlyOpened } from '../../lib/storage/recentlyOpened';
 import { openLibraryItem } from '../assistant/ChatMessageView';
 import { startChat } from '../assistant/chatNavigation';
 import { BackOrMenuButton } from '../shell/HeaderButtons';
+import { usePreferencesStore } from '../preferences/store/preferencesStore';
 import { useShellStore } from '../shell/shellStore';
 import {
   Chip,
   Composer,
   ItemRow,
+  KeyboardAwareView,
   OfflineBanner,
   SectionLabel,
 } from '../shell/ui';
@@ -38,6 +40,7 @@ import { fetchDocumentContent, useLibraryDocument } from './libraryData';
 import { parseDocumentBlocks } from './documentBlocks';
 import { ReaderBlock, openLink } from './ReaderBlock';
 import { ScratchPadCard } from './ScratchPadCard';
+import { TextSizeSheet } from './TextSizeSheet';
 import { placeScratchPads } from './scratchPadPlacement';
 import { useDocumentArtifacts } from './documentArtifacts';
 import { getWebOrigin, itemIcon, itemKindLabel } from './itemNavigation';
@@ -65,6 +68,8 @@ export function DocumentReaderScreen() {
   );
   const [generating, setGenerating] = useState<GenerateKind | null>(null);
   const [generateMessage, setGenerateMessage] = useState<string | null>(null);
+  const [textSizeOpen, setTextSizeOpen] = useState(false);
+  const textScale = usePreferencesStore((state) => state.readerTextScale);
 
   const ready = Boolean(
     document &&
@@ -138,22 +143,29 @@ export function DocumentReaderScreen() {
   };
 
   return (
-    <View className="flex-1 bg-background">
+    <KeyboardAwareView>
       <Screen className="pt-0">
         <ScreenHeader
           title={directoryName ?? ''}
           leading={<BackOrMenuButton />}
           trailing={
             documentId ? (
-              <HeaderIconButton
-                icon="open-in-new"
-                accessibilityLabel="Open in the web app"
-                onPress={() =>
-                  openLink(
-                    `${getWebOrigin()}/document/${encodeURIComponent(documentId)}`,
-                  )
-                }
-              />
+              <>
+                <HeaderIconButton
+                  icon="format-size"
+                  accessibilityLabel="Text size"
+                  onPress={() => setTextSizeOpen(true)}
+                />
+                <HeaderIconButton
+                  icon="open-in-new"
+                  accessibilityLabel="Open in the web app"
+                  onPress={() =>
+                    openLink(
+                      `${getWebOrigin()}/document/${encodeURIComponent(documentId)}`,
+                    )
+                  }
+                />
+              </>
             ) : null
           }
         />
@@ -206,7 +218,11 @@ export function DocumentReaderScreen() {
           {ready && documentId
             ? entries.map((entry, index) =>
                 entry.kind === 'block' ? (
-                  <ReaderBlock key={index} block={entry.block} />
+                  <ReaderBlock
+                    key={index}
+                    block={entry.block}
+                    textScale={textScale}
+                  />
                 ) : (
                   <ScratchPadCard
                     key={`pad-${entry.pad.sectionIndex}`}
@@ -281,6 +297,10 @@ export function DocumentReaderScreen() {
           }
         />
       ) : null}
-    </View>
+      <TextSizeSheet
+        visible={textSizeOpen}
+        onClose={() => setTextSizeOpen(false)}
+      />
+    </KeyboardAwareView>
   );
 }

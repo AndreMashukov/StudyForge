@@ -195,6 +195,22 @@ export function Sheet({ visible, title, onClose, children }: ISheet) {
   );
 }
 
+/**
+ * Screen root that lifts a bottom Composer above the soft keyboard. Android runs
+ * edge-to-edge, so adjustResize no longer shrinks the window and both platforms
+ * need padding applied in JS.
+ */
+export function KeyboardAwareView({ children }: { children: ReactNode }) {
+  return (
+    <KeyboardAvoidingView
+      behavior="padding"
+      style={{ flex: 1, backgroundColor: mobileUiColors.background }}
+    >
+      {children}
+    </KeyboardAvoidingView>
+  );
+}
+
 export interface IComposer {
   placeholder: string;
   onSend: (text: string) => void;

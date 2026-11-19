@@ -31,7 +31,14 @@ function DocumentImage({ url, alt }: { url?: string; alt?: string }) {
   );
 }
 
-export function ReaderBlock({ block }: { block: IDocumentBlock }) {
+export function ReaderBlock({
+  block,
+  textScale = 1,
+}: {
+  block: IDocumentBlock;
+  /** Reader text size multiplier from preferences. */
+  textScale?: number;
+}) {
   if (block.kind === 'image')
     return <DocumentImage url={block.imageUrl} alt={block.alt} />;
   return (
@@ -42,11 +49,13 @@ export function ReaderBlock({ block }: { block: IDocumentBlock }) {
             ? mobileUiColors.mutedForeground
             : mobileUiColors.foreground,
         fontSize:
-          block.kind === 'heading'
+          (block.kind === 'heading'
             ? Math.max(19, 28 - (block.level ?? 1) * 2)
-            : 16,
+            : 16) * textScale,
         fontWeight: block.kind === 'heading' ? '700' : '400',
-        lineHeight: block.kind === 'heading' ? 34 : 25,
+        lineHeight: Math.round(
+          (block.kind === 'heading' ? 34 : 25) * textScale,
+        ),
         marginVertical: 7,
         marginLeft:
           block.kind === 'list' ? Math.min(48, (block.level ?? 0) * 16) : 0,
