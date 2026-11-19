@@ -32,6 +32,8 @@ export default defineConfig({
       'src/services/statistics*.spec.ts',
       'src/store/api/Statistics/*.spec.ts',
       'src/pages/InteractionStatsPage/InteractionStatsPageContainer/DirectoryShareChart/*.spec.ts',
+      'src/pages/SlideDeckPage/**/*.spec.ts',
+      'src/utils/slideDeckImageExport.spec.ts',
     ],
   },
 });
