@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import {
   placeItem,
   removeItem,
@@ -9,15 +9,10 @@ import {
   nextSequenceQuestion,
   completeSequenceQuiz,
   restartSequenceQuizSession,
-  selectSequenceQuizState,
-  selectCurrentSequenceQuestion,
-  openSequenceFollowupChat,
 } from '../../../../store/slices/sequenceQuizPageSlice';
 
 export const useSequenceQuizPageHandlers = () => {
   const dispatch = useDispatch();
-  const quizState = useSelector(selectSequenceQuizState);
-  const currentQuestion = useSelector(selectCurrentSequenceQuestion);
 
   const handlePlaceItem = useCallback(
     (item: string, atIndex?: number) => {
@@ -60,14 +55,6 @@ export const useSequenceQuizPageHandlers = () => {
     dispatch(restartSequenceQuizSession());
   }, [dispatch]);
 
-  const handleGenerateFollowup = useCallback(async () => {
-    if (!currentQuestion || !quizState.isChecked) {
-      return;
-    }
-
-    dispatch(openSequenceFollowupChat({ questionIndex: quizState.currentQuestionIndex }));
-  }, [currentQuestion, dispatch, quizState.currentQuestionIndex, quizState.isChecked]);
-
   return {
     handlePlaceItem,
     handleRemoveItem,
@@ -77,6 +64,5 @@ export const useSequenceQuizPageHandlers = () => {
     handleNextQuestion,
     handleCompleteQuiz,
     handleResetQuiz,
-    handleGenerateFollowup,
   };
 };

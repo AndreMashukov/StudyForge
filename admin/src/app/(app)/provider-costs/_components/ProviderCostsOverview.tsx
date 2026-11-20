@@ -142,6 +142,8 @@ export interface IProviderCostsOverviewProps {
     committedCredits: number;
     costUsdPerCredit?: number;
   }>;
+  /** Generation-kind buckets keyed by display label (retired kinds merged). */
+  generationKindBuckets: Record<string, IProviderCostBucket>;
   rateCatalog: IProviderRateCatalogEntry[];
 }
 
@@ -149,6 +151,7 @@ export function ProviderCostsOverview({
   period,
   periodKey,
   routeSummaries,
+  generationKindBuckets,
   rateCatalog,
 }: IProviderCostsOverviewProps) {
   if (!period) {
@@ -264,9 +267,7 @@ export function ProviderCostsOverview({
                 <tbody>
                   {routeSummaries.map((row) => (
                     <tr key={row.route} className="border-b border-border/60">
-                      <td className="py-2 pr-4 font-mono text-xs">
-                        {row.route}
-                      </td>
+                      <td className="py-2 pr-4">{row.route}</td>
                       <td className="py-2 pr-4">
                         {formatUsd(row.knownCostUsd)}
                       </td>
@@ -290,7 +291,7 @@ export function ProviderCostsOverview({
         <BucketTable title="By model" buckets={period.byModel} />
         <BucketTable
           title="By generation kind"
-          buckets={period.byGenerationKind}
+          buckets={generationKindBuckets}
         />
       </div>
 

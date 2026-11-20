@@ -4,7 +4,6 @@ export interface IQuizGenerationQuestion {
   question: string;
   options: string[];
   correctAnswer: number;
-  explanation: string;
   hint?: string;
   knowledge?: QuestionKnowledgeMetadata;
 }
@@ -18,7 +17,6 @@ export interface IDiagramQuizGenerationQuestion {
   question: string;
   diagrams: string[];
   correctAnswer: number;
-  explanation: string;
   hint?: string;
   diagramLabels?: string[];
   knowledge?: QuestionKnowledgeMetadata;
@@ -32,7 +30,6 @@ export interface IDiagramQuizGenerationResponse {
 export interface ISequenceQuizGenerationQuestion {
   question: string;
   items: string[];
-  explanation: string;
   hint?: string;
   knowledge?: QuestionKnowledgeMetadata;
 }
@@ -57,7 +54,6 @@ export interface IMatchQuizGenerationQuestion {
   question: string;
   prompts: IMatchQuizGenerationPrompt[];
   options: IMatchQuizGenerationOption[];
-  explanation: string;
   hint?: string;
   knowledge?: QuestionKnowledgeMetadata;
 }

@@ -293,7 +293,7 @@ describe('createAgentToolDefinitions rule tools', () => {
       content: 'content',
       color: 'purple',
       tags: [],
-      applicableTo: ['chat'],
+      applicableTo: ['quiz'],
       isDefault: false,
       directoryIds: [],
       createdAt: new Date(),
@@ -348,6 +348,33 @@ describe('createAgentToolDefinitions rule tools', () => {
       applicableTo: ['slide_deck'],
       isDefault: false,
     });
+  });
+
+  it('requires applicableTo', async () => {
+    const tools = createAgentToolDefinitions(createContext());
+    const createRuleTool = tools.find((tool) => tool.name === 'create_rule');
+    expect(createRuleTool?.parameters.required).toContain('applicableTo');
+
+    await expect(
+      executeAgentTool(tools, 'create_rule', {
+        name: 'Slide Rule',
+        content: 'instructions',
+      }),
+    ).rejects.toThrow(/applicableTo is required/);
+    expect(createRule).not.toHaveBeenCalled();
+  });
+
+  it('rejects retired applicability values', async () => {
+    const tools = createAgentToolDefinitions(createContext());
+
+    await expect(
+      executeAgentTool(tools, 'create_rule', {
+        name: 'Chat Rule',
+        content: 'instructions',
+        applicableTo: ['chat'],
+      }),
+    ).rejects.toThrow('Invalid applicability: chat');
+    expect(createRule).not.toHaveBeenCalled();
   });
 });
 

@@ -3,6 +3,7 @@ import { AdminPageHeader } from '@admin/components/layout/AdminPageHeader';
 import { ModelSettingsPanelSkeleton } from '@admin/components/loading';
 import {
   buildRouteSummaries,
+  groupBucketsByGenerationKindLabel,
   listRecentAdminProviderCostPeriodKeys,
   readAdminProviderCostPeriod,
 } from '@admin/data/provider-costs';
@@ -30,12 +31,16 @@ async function ProviderCostsSection({ periodKey }: IProviderCostsSectionProps) {
     readProviderRateCatalog(),
   ]);
   const routeSummaries = period ? buildRouteSummaries(period) : [];
+  const generationKindBuckets = period
+    ? groupBucketsByGenerationKindLabel(period.byGenerationKind)
+    : {};
 
   return (
     <ProviderCostsOverview
       period={period}
       periodKey={periodKey}
       routeSummaries={routeSummaries}
+      generationKindBuckets={generationKindBuckets}
       rateCatalog={rateCatalog}
     />
   );

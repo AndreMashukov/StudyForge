@@ -8,10 +8,7 @@ import {
   RecordQuizAttemptAnswerInput,
   SequenceQuiz,
 } from '@shared-types';
-import {
-  useRecordQuizAttemptMutation,
-  useRecordQuizExplanationRequestMutation,
-} from '../store/api/LearningTelemetry/learningTelemetryApi';
+import { useRecordQuizAttemptMutation } from '../store/api/LearningTelemetry/learningTelemetryApi';
 
 type TrackableQuiz = Quiz | DiagramQuiz | SequenceQuiz | MatchQuiz | null;
 
@@ -22,7 +19,6 @@ interface IUseQuizLearningTelemetryOptions {
   startedAtMs: number | null;
   completedAtMs: number | null;
   answers: RecordQuizAttemptAnswerInput[];
-  followupGenerated: Record<number, boolean>;
 }
 
 interface ILatestTelemetryState {
@@ -41,12 +37,9 @@ export const useQuizLearningTelemetry = ({
   startedAtMs,
   completedAtMs,
   answers,
-  followupGenerated,
 }: IUseQuizLearningTelemetryOptions) => {
   const [recordQuizAttempt] = useRecordQuizAttemptMutation();
-  const [recordQuizExplanationRequest] = useRecordQuizExplanationRequestMutation();
   const recordedAttemptKeysRef = useRef(new Set<string>());
-  const recordedExplanationKeysRef = useRef(new Set<string>());
   const visitKeyRef = useRef<string | null>(null);
   const hasRecordedAttemptRef = useRef(false);
 
@@ -78,28 +71,6 @@ export const useQuizLearningTelemetry = ({
     visitKeyRef.current = `${quizType}:${quiz.id}:${startedAtMs ?? 'pending'}`;
     hasRecordedAttemptRef.current = false;
   }, [quiz?.id, quizType, startedAtMs]);
-
-  useEffect(() => {
-    if (!quiz?.id) return;
-
-    Object.entries(followupGenerated).forEach(([questionIndex, isGenerated]) => {
-      if (!isGenerated) return;
-
-      const parsedQuestionIndex = Number(questionIndex);
-      const eventKey = `${quizType}:${quiz.id}:${parsedQuestionIndex}`;
-      if (recordedExplanationKeysRef.current.has(eventKey)) return;
-
-      recordedExplanationKeysRef.current.add(eventKey);
-      void recordQuizExplanationRequest({
-        quizId: quiz.id,
-        quizType,
-        questionIndex: parsedQuestionIndex,
-        requestedAt: new Date().toISOString(),
-      }).unwrap().catch(() => {
-        recordedExplanationKeysRef.current.delete(eventKey);
-      });
-    });
-  }, [followupGenerated, quiz?.id, quizType, recordQuizExplanationRequest]);
 
   const recordAttempt = useCallback(async (completedAt: number) => {
     const state = latestRef.current;

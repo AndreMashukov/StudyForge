@@ -5,26 +5,20 @@ import { CompactRuleSelector } from '../CompactRuleSelector';
 export interface ICreateArtifactRulesSection {
   directoryId: string;
   ruleApplicability: RuleApplicability;
-  followupRuleApplicability?: RuleApplicability;
   descriptionRuleApplicability?: RuleApplicability;
   ruleIds: string[];
-  followupRuleIds: string[];
   descriptionRuleIds: string[];
   onRuleIdsChange: (ruleIds: string[]) => void;
-  onFollowupRuleIdsChange: (ruleIds: string[]) => void;
   onDescriptionRuleIdsChange: (ruleIds: string[]) => void;
 }
 
 export const CreateArtifactRulesSection: React.FC<ICreateArtifactRulesSection> = ({
   directoryId,
   ruleApplicability,
-  followupRuleApplicability,
   descriptionRuleApplicability,
   ruleIds,
-  followupRuleIds,
   descriptionRuleIds,
   onRuleIdsChange,
-  onFollowupRuleIdsChange,
   onDescriptionRuleIdsChange,
 }) => {
   const [busyByKey, setBusyByKey] = useState<Record<string, boolean>>({});
@@ -54,18 +48,6 @@ export const CreateArtifactRulesSection: React.FC<ICreateArtifactRulesSection> =
         controlsDisabled={controlsDisabled}
         onBusyChange={(busy) => handleBusyChange('generation', busy)}
       />
-
-      {followupRuleApplicability ? (
-        <CompactRuleSelector
-          directoryId={directoryId}
-          operation={followupRuleApplicability}
-          selectedRuleIds={followupRuleIds}
-          onSelectionChange={onFollowupRuleIdsChange}
-          label="Detailed explanation rules"
-          controlsDisabled={controlsDisabled}
-          onBusyChange={(busy) => handleBusyChange('followup', busy)}
-        />
-      ) : null}
 
       {descriptionRuleApplicability ? (
         <CompactRuleSelector

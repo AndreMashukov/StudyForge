@@ -6,7 +6,6 @@ import { useQuizPageContext } from '../context';
 import { QuestionCard } from './QuestionCard';
 import { ScoreCard } from './ScoreCard';
 import { Spinner } from '../../../components/ui/Spinner';
-import { DirectoryChatPanel } from '../../../components/DirectoryChatPanel';
 import {
   selectQuizState,
   selectCurrentQuestion,
@@ -14,10 +13,6 @@ import {
   selectQuizStats,
   selectIsLoading,
   selectError,
-  selectIsGeneratingFollowup,
-  selectFollowupGenerated,
-  selectFollowupError,
-  selectFollowupChatOpen,
 } from '../../../store/slices/quizPageSlice';
 import { buildDirectoryPathWithOptionalName } from '../../../utils/directoryUrl';
 
@@ -32,10 +27,6 @@ export const QuizPageContainer: React.FC = () => {
   const stats = useSelector(selectQuizStats);
   const isLoading = useSelector(selectIsLoading);
   const error = useSelector(selectError);
-  const isGeneratingFollowup = useSelector(selectIsGeneratingFollowup);
-  const followupGenerated = useSelector(selectFollowupGenerated);
-  const followupError = useSelector(selectFollowupError);
-  const followupChatOpen = useSelector(selectFollowupChatOpen);
 
   // Only get handlers and API from context
   const { handlers, quizApi } = useQuizPageContext();
@@ -65,10 +56,6 @@ export const QuizPageContainer: React.FC = () => {
     } else {
       handlers.handleNextQuestion();
     }
-  };
-
-  const handleGenerateFollowup = () => {
-    handlers.handleGenerateFollowup();
   };
 
   const backButton = (
@@ -156,59 +143,17 @@ export const QuizPageContainer: React.FC = () => {
   // Quiz in progress
   const isLastQuestion = quizState.currentQuestionIndex === quizState.questions.length - 1;
 
-  // Check if current question has followup generated
-  const isCurrentFollowupGenerated = followupGenerated[quizState.currentQuestionIndex] || false;
-  const isCurrentFollowupChatOpen = followupChatOpen[quizState.currentQuestionIndex] || false;
-  const directoryId = quizApi.firestoreQuiz?.directoryId || directoryIdForBack;
-  const selectedAnswerText = formState.selectedAnswer !== null
-    ? currentQuestion.options[formState.selectedAnswer]
-    : undefined;
-  const correctAnswerText = currentQuestion.options[currentQuestion.correct];
-  const detailedExplanationSeedKey = `quiz:${quizApi.firestoreQuiz?.id ?? 'active'}:${quizState.currentQuestionIndex}:detailed-explanation`;
-  const detailedExplanationMessage = 'Explain this quiz question in detail. Include why my answer is right or wrong, how to reason toward the correct answer, and the key source details that matter.';
-
   return (
     <div className="mx-auto max-w-4xl space-y-4 px-6 py-4">
       <QuestionCard
         question={currentQuestion}
         selectedAnswer={formState.selectedAnswer}
-        showExplanation={quizState.showExplanation}
+        showFeedback={quizState.showFeedback}
         onAnswerSelect={handleAnswerSelect}
         onNextQuestion={handleNextQuestion}
-        onGenerateFollowup={handleGenerateFollowup}
-        isGeneratingFollowup={isGeneratingFollowup}
-        isFollowupGenerated={isCurrentFollowupGenerated}
         isLastQuestion={isLastQuestion}
         backAction={inlineBackAction}
       />
-
-      {isCurrentFollowupChatOpen && directoryId && (
-        <DirectoryChatPanel
-          directoryId={directoryId}
-          sourceCount={1}
-          compact
-          autoSendSeed
-          seedKey={detailedExplanationSeedKey}
-          seedMessage={detailedExplanationMessage}
-          artifactContext={{
-            type: 'quiz',
-            title: quizApi.firestoreQuiz?.title,
-            question: currentQuestion.question,
-            options: currentQuestion.options,
-            userAnswer: selectedAnswerText,
-            correctAnswer: correctAnswerText,
-            explanation: currentQuestion.explanation,
-            followupRuleIds: quizApi.firestoreQuiz?.followupRuleIds,
-          }}
-        />
-      )}
-
-      {/* Error Display for Followup */}
-      {followupError && (
-        <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-          <p className="text-destructive text-sm">{followupError}</p>
-        </div>
-      )}
     </div>
   );
 };

@@ -104,7 +104,6 @@ Create **5** questions. For each question provide:
 - \`question\`: one short instruction stem the learner reads first (≤ 20 words). It must be a question or a match instruction, for example "Which agent performs each step?" or "Match each description to the correct term." Do not paste prompt texts into this field.
 - \`prompts\`: an array of objects \`{ "id": "p1", "text": "..." }\` in display order (4–6 prompts). Number the ids p1, p2, ... in order.
 - \`options\`: an array of objects \`{ "id": "o1", "text": "...", "correctPromptId": "p1" }\` covering every prompt id exactly once, plus 1–2 distractors with \`correctPromptId: null\`.
-- \`explanation\`: a concise explanation of the correct pairings.
 ${buildQuizHintFieldInstruction('Look for the pairing that only fits one description.')}`;
   }
 
@@ -117,7 +116,7 @@ ${buildQuizHintFieldInstruction('Look for the pairing that only fits one descrip
 - Distractor options must have \`correctPromptId: null\`.
 - Option texts must be short chip labels (≤ 8 words) and unique within a question.
 - Do NOT reveal the answer inside the prompt text.
-- Required fields per question: \`question\`, \`prompts\`, \`options\`, \`explanation\`, \`hint\`, and \`knowledge\`.
+- Required fields per question: \`question\`, \`prompts\`, \`options\`, \`hint\`, and \`knowledge\`.
 - \`question\` must be a single stem (question or match instruction). Do not concatenate prompt texts.`;
   }
 
@@ -129,7 +128,6 @@ ${buildQuizHintFieldInstruction('Look for the pairing that only fits one descrip
 - \`question\` is required and must be a non-empty instruction stem. Do not join prompt texts with \`|\` or commas.
 - \`prompts\` must be a non-empty array of 4–6 objects, each with a non-empty \`id\` and \`text\`.
 - \`options\` must contain one option per prompt id (its \`correctPromptId\`) plus 1–2 distractors with \`correctPromptId: null\`.
-- \`explanation\` is required and must be a non-empty string.
 - \`knowledge\` is required with \`subjectName\`, \`knowledgeDomainName\`, and \`topicTags\` (1-5 short strings).
 ${buildQuizHintJsonRule()}`;
   }
@@ -154,7 +152,6 @@ ${buildQuizHintJsonRule()}`;
         { "id": "o4", "text": "Pipeline Pattern", "correctPromptId": "p4" },
         { "id": "o5", "text": "State Management", "correctPromptId": null }
       ],
-      "explanation": "Why each option pairs with its prompt and why the distractor matches nothing.",
       "knowledge": {
         "subjectName": "Concise subject tested by this matching exercise",
         "knowledgeDomainName": "Broader knowledge domain",
@@ -167,6 +164,6 @@ ${buildQuizHintJsonRule()}`;
   }
 
   private static getFinalInstructions(): string {
-    return `**FINAL CHECK:** Every question has a short \`question\` stem, 4–6 prompt objects, one matching option per prompt plus 1–2 distractors with \`correctPromptId: null\`, unique option texts, a non-empty explanation, and a non-empty hint. Generate the JSON now:`;
+    return `**FINAL CHECK:** Every question has a short \`question\` stem, 4–6 prompt objects, one matching option per prompt plus 1–2 distractors with \`correctPromptId: null\`, unique option texts, and a non-empty hint. Generate the JSON now:`;
   }
 }

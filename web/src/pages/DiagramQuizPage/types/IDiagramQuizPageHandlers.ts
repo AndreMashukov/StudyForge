@@ -6,5 +6,4 @@ export interface IDiagramQuizPageHandlers {
   handlePrevDiagram: () => void;
   handleNextDiagram: () => void;
   handleDiagramDotClick: (index: number) => void;
-  handleGenerateFollowup: () => void;
 }

@@ -220,7 +220,6 @@ async function main() {
             question: `What is the main idea of topic ${i}?`,
             options: ['Option A', 'Option B', 'Option C', 'Option D'],
             correctAnswer: 0,
-            explanation: 'Seeded explanation for virtualization QA.',
           },
         ],
         createdAt: now,

@@ -23,7 +23,6 @@ const quizSchema = z.object({
         question: z.string(),
         options: z.array(z.string()),
         correctAnswer: z.number(),
-        explanation: z.string().optional().default(''),
         hint: z.string().optional(),
       }),
     )

@@ -33,7 +33,6 @@ const answer = {
   correctAnswer: 1,
   isCorrect: false,
   knowledge: {},
-  detailedExplanationRequested: false,
 };
 const attempt = {
   userId: 'u',

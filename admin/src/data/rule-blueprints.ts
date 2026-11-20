@@ -7,11 +7,20 @@ import type {
   IUpdateRuleBlueprintRequest,
   RuleBlueprintStatus,
 } from '@shared-types';
-import { parseRuleBlueprintForm } from '@shared-types';
+import { parseRuleBlueprintForm, RuleApplicability } from '@shared-types';
 import { requireAdminSession } from '../auth/session';
 import { getAdminApp, getAdminFirestore } from '../firebase/admin';
 
 const COLLECTION = 'platformRuleBlueprints';
+
+const RULE_APPLICABILITY_VALUES: ReadonlySet<string> = new Set(
+  Object.values(RuleApplicability),
+);
+
+/** Stored blueprints may still hold retired applicabilities; drop them on read. */
+function isRuleApplicability(value: unknown): value is RuleApplicability {
+  return typeof value === 'string' && RULE_APPLICABILITY_VALUES.has(value);
+}
 
 interface IRuleBlueprintUpdates {
   name?: string;
@@ -58,10 +67,7 @@ function parseBlueprint(
     content,
     color,
     tags: tags.filter((tag): tag is string => typeof tag === 'string'),
-    applicableTo: applicableTo.filter(
-      (value): value is IRuleBlueprint['applicableTo'][number] =>
-        typeof value === 'string',
-    ),
+    applicableTo: applicableTo.filter(isRuleApplicability),
     status,
     version,
     createdAt:

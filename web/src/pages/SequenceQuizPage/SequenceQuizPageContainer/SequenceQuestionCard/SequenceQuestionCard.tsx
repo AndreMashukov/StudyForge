@@ -23,11 +23,10 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useState, useLayoutEffect, ReactNode } from 'react';
 import { useSelector } from 'react-redux';
-import { GripVertical, X, Package, Layers, CheckCircle, XCircle, Sparkles } from 'lucide-react';
+import { GripVertical, X, Package, Layers, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { Card, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
-import { Spinner } from '../../../../components/ui/Spinner';
 import { QuizQuestionHeader } from '../../../../components/QuizQuestionHeader';
 import {
   selectSequenceQuizState,
@@ -42,7 +41,7 @@ interface ISequenceQuestionCardProps {
   placedItems: string[];
   isChecked: boolean;
   isCorrect: boolean | null;
-  showExplanation: boolean;
+  showFeedback: boolean;
   handlers: ISequenceQuizPageHandlers;
   isLastQuestion: boolean;
   backAction?: ReactNode;
@@ -171,7 +170,7 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   placedItems,
   isChecked,
   isCorrect,
-  showExplanation,
+  showFeedback,
   handlers,
   isLastQuestion,
   backAction,
@@ -323,7 +322,6 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
   const currentQuestion = quizState.currentQuestionIndex + 1;
   const totalQuestions = quizState.questions.length;
   const answeredCount = quizState.answers.length;
-  const isFollowupGenerated = !!quizState.followupGenerated[quizState.currentQuestionIndex];
 
   return (
     <Card className="overflow-hidden">
@@ -472,8 +470,8 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
         </div>
       )}
 
-      {/* Explanation */}
-      {showExplanation && (
+      {/* Answer feedback */}
+      {showFeedback && (
         <div
           className={cn(
             'rounded-lg p-4 text-sm space-y-2',
@@ -494,7 +492,6 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
               <><XCircle size={15} /> Incorrect — some items are out of order.</>
             )}
           </p>
-          <p className="text-muted-foreground leading-relaxed">{question.explanation}</p>
 
           {!isCorrect && (
             <div className="pt-2 border-t border-border/40">
@@ -511,35 +508,8 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
               </div>
             </div>
           )}
-          {quizState.followupError && (
-            <p className="text-xs text-destructive">{quizState.followupError}</p>
-          )}
 
-          <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
-            <Button
-              onClick={handlers.handleGenerateFollowup}
-              variant="outline"
-              size="sm"
-              className="border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary disabled:border-border disabled:bg-muted/40 disabled:text-muted-foreground"
-              disabled={isFollowupGenerated || quizState.isGeneratingFollowup}
-            >
-              {quizState.isGeneratingFollowup ? (
-                <>
-                  <Spinner size="xs" className="mr-2" />
-                  Generating...
-                </>
-              ) : isFollowupGenerated ? (
-                <>
-                  <CheckCircle size={14} className="mr-1.5" />
-                  Explanation ready
-                </>
-              ) : (
-                <>
-                  <Sparkles size={14} className="mr-1.5" />
-                  Detailed explanation
-                </>
-              )}
-            </Button>
+          <div className="flex justify-end pt-1">
             <Button
               size="sm"
               onClick={isLastQuestion ? handlers.handleCompleteQuiz : handlers.handleNextQuestion}

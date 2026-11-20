@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import {
   placeOption,
   removeOption,
@@ -9,15 +9,10 @@ import {
   nextMatchQuestion,
   completeMatchQuiz,
   restartMatchQuizSession,
-  selectMatchQuizState,
-  selectCurrentMatchQuestion,
-  openMatchFollowupChat,
 } from '../../../../store/slices/matchQuizPageSlice';
 
 export const useMatchQuizPageHandlers = () => {
   const dispatch = useDispatch();
-  const quizState = useSelector(selectMatchQuizState);
-  const currentQuestion = useSelector(selectCurrentMatchQuestion);
 
   const handlePlaceOption = useCallback(
     (promptId: string, optionId: string) => {
@@ -57,21 +52,6 @@ export const useMatchQuizPageHandlers = () => {
     dispatch(restartMatchQuizSession());
   }, [dispatch]);
 
-  const handleGenerateFollowup = useCallback(() => {
-    if (!currentQuestion || !quizState.isChecked) {
-      return;
-    }
-
-    dispatch(
-      openMatchFollowupChat({ questionIndex: quizState.currentQuestionIndex }),
-    );
-  }, [
-    currentQuestion,
-    dispatch,
-    quizState.currentQuestionIndex,
-    quizState.isChecked,
-  ]);
-
   return {
     handlePlaceOption,
     handleRemoveOption,
@@ -81,6 +61,5 @@ export const useMatchQuizPageHandlers = () => {
     handleNextQuestion,
     handleCompleteQuiz,
     handleResetQuiz,
-    handleGenerateFollowup,
   };
 };

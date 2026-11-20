@@ -1,10 +1,8 @@
 export {
   QuizPromptBuilder,
-  FollowupPromptBuilder,
   DocumentPromptBuilder,
   DocumentQuestionPromptBuilder,
   DocumentRevisePromptBuilder,
-  DirectoryChatPromptBuilder,
   FlashcardPromptBuilder,
   buildFlashcardDescriptionRulesSection,
   buildQuizHintFieldInstruction,

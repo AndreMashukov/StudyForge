@@ -37,7 +37,6 @@ export const QuizStartCard: React.FC<IQuizStartCard> = ({
             <li>• {questions.length} questions total</li>
             <li>• Multiple choice format</li>
             <li>• Instant feedback after each answer</li>
-            <li>• Detailed explanations provided</li>
           </ul>
         </div>
 

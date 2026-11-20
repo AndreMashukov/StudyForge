@@ -15,7 +15,6 @@ interface SequenceQuizJobPayload {
   sequenceQuizName?: string;
   additionalPrompt?: string;
   ruleIds?: string[];
-  followupRuleIds?: string[];
   additionalRuleIds?: string[];
   ruleResolutionMode?: unknown;
 }
@@ -67,9 +66,8 @@ export class SequenceQuizGenerationProcessor {
     validateContentForArtifactGeneration(documentContent);
 
     let enhancedPrompt = requestData.additionalPrompt || '';
-    let followupIdsForSave: string[] = [];
 
-    const hasExplicitRules = Boolean(requestData.ruleIds?.length || requestData.followupRuleIds?.length);
+    const hasExplicitRules = Boolean(requestData.ruleIds?.length);
     const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
       ? requestData.ruleResolutionMode
       : (hasExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
@@ -84,15 +82,6 @@ export class SequenceQuizGenerationProcessor {
     if (quizRulesText) {
       enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
     }
-
-    const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
-      userId: job.userId,
-      directoryId: job.directoryId,
-      operation: RuleApplicability.FOLLOWUP,
-      additionalRuleIds: hasExplicitRules ? (requestData.followupRuleIds || []) : requestData.additionalRuleIds,
-      mode,
-    });
-    followupIdsForSave = resolvedFollowupIds;
 
     const geminiQuiz = await LlmGenerationService.generateSequenceQuiz(
       job.userId,
@@ -114,7 +103,6 @@ export class SequenceQuizGenerationProcessor {
       title: finalTitle,
       questions: geminiQuiz.questions,
       appliedRuleIds: appliedRuleIdsForSave,
-      followupRuleIds: followupIdsForSave,
       generationModel,
       generationModelUsage,
     });

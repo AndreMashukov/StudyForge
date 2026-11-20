@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import type { Rule } from '@shared-types';
 import { db } from '../config/firebase';
+import { toCurrentRuleApplicabilities } from '../utils/ruleApplicabilityUtils';
 import {
   fetchUserDoc,
   orderByCreatedAtDesc,
@@ -19,11 +20,17 @@ import {
 
 const USER_RULES_LIMIT = 100;
 
-export function fetchRuleFromFirestore(
+/** Drops retired applicabilities still stored on older rules. */
+function withCurrentApplicabilities(rule: Rule): Rule {
+  return { ...rule, applicableTo: toCurrentRuleApplicabilities(rule.applicableTo) };
+}
+
+export async function fetchRuleFromFirestore(
   userId: string,
   ruleId: string,
 ): Promise<Rule | null> {
-  return fetchUserDoc<Rule>(userId, 'rules', ruleId);
+  const rule = await fetchUserDoc<Rule>(userId, 'rules', ruleId);
+  return rule ? withCurrentApplicabilities(rule) : null;
 }
 
 export async function fetchRulesFromFirestore(userId: string): Promise<Rule[]> {
@@ -35,7 +42,7 @@ export async function fetchRulesFromFirestore(userId: string): Promise<Rule[]> {
   // stale getDocs snapshot can drop a just-created rule from directory resolution.
   const snapshot = await getDocsFromServer(rulesQuery);
   return snapshot.docs.map((document) =>
-    toFirestoreDoc<Rule>(document.id, document.data()),
+    withCurrentApplicabilities(toFirestoreDoc<Rule>(document.id, document.data())),
   );
 }
 

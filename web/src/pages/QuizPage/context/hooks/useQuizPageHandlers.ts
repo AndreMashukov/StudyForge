@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import {
   loadQuiz,
   startQuiz,
@@ -8,10 +8,6 @@ import {
   completeQuiz,
   resetQuiz,
   skipQuestion,
-  openFollowupChat,
-  selectCurrentQuestion,
-  selectQuizState,
-  selectFormState,
 } from '../../../../store/slices/quizPageSlice';
 import { useQuizForm } from './useQuizForm';
 import { IQuizQuestion } from '../../types/IQuizTypes';
@@ -19,10 +15,7 @@ import { Quiz } from '@shared-types';
 
 export const useQuizPageHandlers = () => {
   const dispatch = useDispatch();
-  const currentQuestion = useSelector(selectCurrentQuestion);
-  const quizState = useSelector(selectQuizState);
-  const formState = useSelector(selectFormState);
-  
+
   // Form handlers
   const formHandlers = useQuizForm();
 
@@ -55,14 +48,6 @@ export const useQuizPageHandlers = () => {
     dispatch(skipQuestion());
   }, [dispatch]);
 
-  const handleGenerateFollowup = useCallback(async () => {
-    if (!currentQuestion || formState.selectedAnswer === null) {
-      return;
-    }
-
-    dispatch(openFollowupChat({ questionIndex: quizState.currentQuestionIndex }));
-  }, [currentQuestion, dispatch, formState.selectedAnswer, quizState.currentQuestionIndex]);
-
   return {
     // Quiz handlers (business logic only, no state)
     handleLoadQuiz,
@@ -72,7 +57,6 @@ export const useQuizPageHandlers = () => {
     handleStartQuiz,
     handleCompleteQuiz,
     handleSkipQuestion,
-    handleGenerateFollowup,
 
     // Form handlers
     handleSubmitAnswer: formHandlers.handleSubmitAnswer,

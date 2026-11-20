@@ -62,7 +62,6 @@ export const generateQuiz = onCall(
         customQuizName: !!requestData.quizName,
         hasAdditionalPrompt: !!requestData.additionalPrompt,
         quizRuleCount: requestData.quizRuleIds?.length || 0,
-        followupRuleCount: requestData.followupRuleIds?.length || 0,
       });
 
       const documentDataList = await DocumentCrudService.loadDocumentsWithContentForGeneration(

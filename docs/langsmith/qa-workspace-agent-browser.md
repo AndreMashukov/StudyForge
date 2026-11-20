@@ -18,7 +18,6 @@ The **workspace agent** is the floating Agent panel (`scope: workspace`). It run
 
 It is **not**:
 
-- **Directory chat**: the chat panel on a directory or artifact page (`DirectoryChatPanel`). Those traces are named `directory-chat`. Do not use them for this playbook.
 - App generators: quiz / flashcard / slide-deck create pages. Use those only when a case says to confirm the agent refused and pointed the user there.
 
 The web app currently opens this panel with workspace scope only (bottom-right Bot button, `aria-label="Open StudyForge agent"`). Opening the panel while you are on a directory or document page still sends **UI context as a hint**. Tools can still search the full library.
@@ -79,7 +78,7 @@ Then send the **next** case in a new chat.
 
 ## LangSmith checks (after the browser session, or if the QA agent has CLI)
 
-Root run name must be `workspace-agent`, not `directory-chat` or `external_provider_text`.
+Root run name must be `workspace-agent`, not `external_provider_text`.
 
 Useful filters: project `study-forge`, name `workspace-agent`, tags `langgraph` and `workspace-agent`.
 
@@ -347,4 +346,4 @@ A human (or a follow-up agent with LangSmith access) should:
 2. Open one full tree and record real input/output field names.
 3. Only then export traces and label a dataset.
 
-If most traces are `directory-chat` or `external_provider_text`, the wrong UI was used. Re-run with the floating Agent button.
+If most traces are `external_provider_text`, the wrong UI was used. Re-run with the floating Agent button.

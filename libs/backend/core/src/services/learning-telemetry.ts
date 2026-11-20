@@ -15,7 +15,6 @@ import {
   QuizTelemetryType,
   RecordQuizAttemptAnswerInput,
   RecordQuizAttemptRequest,
-  RecordQuizExplanationRequest,
   SequenceQuiz,
   SequenceQuizQuestion,
   dedupeQuizAttemptAnswerInputs,
@@ -44,7 +43,6 @@ const QUIZ_STAT_ZEROES = {
   latestScore: 0,
   latestPercentage: 0,
   incorrectAnswerCount: 0,
-  explanationRequestCount: 0,
 };
 
 function statId(...parts: Array<string | number | undefined>): string {
@@ -194,9 +192,6 @@ function buildAttemptAnswers(
     }
 
     const answer = resolveAnswer(question, input);
-    const requestedAt = input.detailedExplanationRequestedAt
-      ? Timestamp.fromDate(parseDate(input.detailedExplanationRequestedAt, 'detailedExplanationRequestedAt'))
-      : undefined;
 
     return {
       questionIndex: input.questionIndex,
@@ -204,8 +199,6 @@ function buildAttemptAnswers(
       ...answer,
       ...(input.timeSpentMs !== undefined ? { timeSpentMs: Math.max(0, input.timeSpentMs) } : {}),
       knowledge: normalizeKnowledge(question, resolved.documentIds),
-      detailedExplanationRequested: Boolean(input.detailedExplanationRequested),
-      ...(requestedAt ? { detailedExplanationRequestedAt: requestedAt } : {}),
     };
   });
 }
@@ -218,7 +211,6 @@ function knowledgeStatPayload(
     answerCount?: number;
     correctCount?: number;
     incorrectCount?: number;
-    explanationRequestCount?: number;
   }
 ): Record<string, unknown> {
   return {
@@ -232,7 +224,6 @@ function knowledgeStatPayload(
     answerCount: FieldValue.increment(increments.answerCount ?? 0),
     correctCount: FieldValue.increment(increments.correctCount ?? 0),
     incorrectCount: FieldValue.increment(increments.incorrectCount ?? 0),
-    explanationRequestCount: FieldValue.increment(increments.explanationRequestCount ?? 0),
     updatedAt: FieldValue.serverTimestamp(),
   };
 }
@@ -254,7 +245,6 @@ function questionStatPayload(
     answerCount?: number;
     correctCount?: number;
     incorrectCount?: number;
-    explanationRequestCount?: number;
   }
 ): Record<string, unknown> {
   return {
@@ -267,7 +257,6 @@ function questionStatPayload(
     answerCount: FieldValue.increment(increments.answerCount ?? 0),
     correctCount: FieldValue.increment(increments.correctCount ?? 0),
     incorrectCount: FieldValue.increment(increments.incorrectCount ?? 0),
-    explanationRequestCount: FieldValue.increment(increments.explanationRequestCount ?? 0),
     updatedAt: FieldValue.serverTimestamp(),
   };
 }
@@ -362,7 +351,6 @@ export async function recordQuizAttempt(
       latestScore: score,
       latestPercentage: percentage,
       incorrectAnswerCount: FieldValue.increment(incorrectAnswerCount),
-      explanationRequestCount: FieldValue.increment(0),
       lastAttemptAt: Timestamp.fromDate(completedAt),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
@@ -405,70 +393,6 @@ export async function recordQuizAttempt(
   return attemptRef.id;
 }
 
-export async function recordQuizExplanationRequest(
-  userId: string,
-  data: RecordQuizExplanationRequest,
-): Promise<string> {
-  if (!data.quizId || !data.quizType || data.questionIndex < 0) {
-    throw new Error('quizId, quizType, and questionIndex are required');
-  }
-
-  const requestedAt = parseDate(data.requestedAt, 'requestedAt');
-  const date = requestedAt.toISOString().slice(0, 10);
-  const resolved = await resolveQuiz(userId, data.quizType, data.quizId);
-  const question = resolved.questions[data.questionIndex];
-  if (!question) {
-    throw new Error(`Question index ${data.questionIndex} is out of range`);
-  }
-
-  const knowledge = normalizeKnowledge(question, resolved.documentIds);
-  const eventRef = FirestorePaths.learningEvents(userId).doc();
-  const quizStatRef = FirestorePaths.quizStat(userId, statId(data.quizType, data.quizId));
-  const questionStatRef = FirestorePaths.questionStat(
-    userId,
-    statId(data.quizType, data.quizId, data.questionIndex)
-  );
-  const knowledgeRef = FirestorePaths.knowledgeStat(userId, knowledgeStatId(date, knowledge));
-
-  const batch = FirestorePaths.learningEvents(userId).firestore.batch();
-  batch.set(eventRef, {
-    id: eventRef.id,
-    userId,
-    eventType: 'detailed_explanation_requested',
-    quizId: data.quizId,
-    quizType: data.quizType,
-    questionIndex: data.questionIndex,
-    knowledge,
-    occurredAt: Timestamp.fromDate(requestedAt),
-    expiresAt: computeExpiresAt(requestedAt, 'learningRaw'),
-  });
-  batch.set(quizStatRef, {
-    userId,
-    quizId: data.quizId,
-    quizType: data.quizType,
-    directoryId: resolved.quiz.directoryId,
-    documentIds: resolved.documentIds,
-    totalQuestions: resolved.questions.length,
-    explanationRequestCount: FieldValue.increment(1),
-    updatedAt: FieldValue.serverTimestamp(),
-  }, { merge: true });
-  batch.set(questionStatRef, questionStatPayload(userId, data.quizId, data.quizType, {
-    questionIndex: data.questionIndex,
-    questionText: questionTextFor(question),
-    selectedAnswer: null,
-    correctAnswer: null,
-    isCorrect: false,
-    knowledge,
-    detailedExplanationRequested: true,
-  }, { explanationRequestCount: 1 }), { merge: true });
-  batch.set(knowledgeRef, knowledgeStatPayload(userId, date, knowledge, {
-    explanationRequestCount: 1,
-  }), { merge: true });
-
-  await batch.commit();
-  return eventRef.id;
-}
-
 export async function getQuizStats(
   userId: string,
   quizType: QuizTelemetryType,
@@ -479,6 +403,7 @@ export async function getQuizStats(
     return null;
   }
 
+  // Pick known fields so retired counters on stored stats are not passed on.
   const data = snap.data() as Partial<QuizStatsSummary>;
   return {
     id: snap.id,
@@ -488,8 +413,17 @@ export async function getQuizStats(
     directoryId: data.directoryId ?? '',
     documentIds: data.documentIds ?? [],
     totalQuestions: data.totalQuestions ?? 0,
-    ...QUIZ_STAT_ZEROES,
-    ...data,
+    attemptCount: data.attemptCount ?? QUIZ_STAT_ZEROES.attemptCount,
+    totalScore: data.totalScore ?? QUIZ_STAT_ZEROES.totalScore,
+    totalPercentage: data.totalPercentage ?? QUIZ_STAT_ZEROES.totalPercentage,
+    totalDurationMs: data.totalDurationMs ?? QUIZ_STAT_ZEROES.totalDurationMs,
+    bestScore: data.bestScore ?? QUIZ_STAT_ZEROES.bestScore,
+    bestPercentage: data.bestPercentage ?? QUIZ_STAT_ZEROES.bestPercentage,
+    latestScore: data.latestScore ?? QUIZ_STAT_ZEROES.latestScore,
+    latestPercentage: data.latestPercentage ?? QUIZ_STAT_ZEROES.latestPercentage,
+    incorrectAnswerCount:
+      data.incorrectAnswerCount ?? QUIZ_STAT_ZEROES.incorrectAnswerCount,
+    ...(data.lastAttemptAt ? { lastAttemptAt: data.lastAttemptAt } : {}),
     updatedAt: data.updatedAt ?? new Date(),
-  } as QuizStatsSummary;
+  };
 }

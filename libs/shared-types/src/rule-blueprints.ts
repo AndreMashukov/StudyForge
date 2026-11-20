@@ -70,8 +70,6 @@ const ruleApplicabilitySchema = z.enum([
   'upload',
   'prompt',
   'quiz',
-  'followup',
-  'chat',
   'flashcard',
   'flashcard_desc',
   'slide_deck',

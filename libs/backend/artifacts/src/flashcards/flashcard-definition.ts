@@ -108,7 +108,6 @@ async function loadFlashcardContext(
     title: pendingTitle,
     enhancedPrompt,
     appliedRuleIds,
-    followupRuleIds: [],
     sourceContent: documentContent,
     extras: {
       descriptionRulesText: descRulesText || '',

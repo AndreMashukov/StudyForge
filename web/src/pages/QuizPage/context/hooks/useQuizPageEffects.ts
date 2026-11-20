@@ -13,10 +13,9 @@ export const useQuizPageEffects = () => {
         questionIndex,
         selectedAnswer: answer.selected >= 0 ? answer.selected : null,
         timeSpentMs: answer.timeSpent,
-        detailedExplanationRequested: Boolean(quizState.followupGenerated[questionIndex]),
       };
     });
-  }, [quizState.answers, quizState.followupGenerated]);
+  }, [quizState.answers]);
 
   useQuizLearningTelemetry({
     quiz: quizState.firestoreQuiz,
@@ -25,7 +24,6 @@ export const useQuizPageEffects = () => {
     startedAtMs: quizState.startTime,
     completedAtMs: quizState.endTime,
     answers: telemetryAnswers,
-    followupGenerated: quizState.followupGenerated,
   });
 
   // Keyboard navigation effect (manages its own dependencies)

@@ -23,7 +23,6 @@ export RULE_FLASHCARD_DESC="$(_rule_id 'Flashcard Description')"
 export RULE_SEQUENCE_QUIZ="$(_rule_id 'Sequence Quiz$')"
 export RULE_DIAGRAM_QUIZ="$(_rule_id 'Diagram Quiz$')"
 export RULE_SLIDE_DECK="$(_rule_id 'Slide Deck$')"
-export RULE_FOLLOWUP="$(_rule_id 'Follow-up$')"
 
 missing=0
 for var in RULE_QUIZ RULE_FLASHCARDS RULE_SEQUENCE_QUIZ RULE_DIAGRAM_QUIZ; do

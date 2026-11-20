@@ -131,14 +131,6 @@
       ]
     },
     {
-      "collectionGroup": "messages",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "role", "order": "ASCENDING" },
-        { "fieldPath": "seedKey", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "generationJobs",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

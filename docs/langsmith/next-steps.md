@@ -107,7 +107,7 @@ Without a reset, the second experiment is not comparable to the first (folders a
 ### Do not
 
 - Reuse `trace_id` lookup in the live target.
-- Mix directory-chat (`scope: "directory"`) into this dataset.
+- Mix directory-scoped agent turns (`scope: "directory"`) into this dataset.
 - Run 17 live turns against the QA production user.
 - Claim a planner fix worked from replay scores.
 
@@ -129,7 +129,7 @@ When you disagree with hosted `score`, correct it in LangSmith and turn on few-s
 
 ## 6. One agent at a time
 
-Keep workspace agent datasets separate from directory-chat and from artifact graphs (quiz, flashcards, slides). Mixing them makes `score` meaningless. After workspace live evals work, copy the same pattern: traces, then dataset, then one code eval, then one judge.
+Keep workspace agent datasets separate from directory-scoped agent turns and from artifact graphs (quiz, flashcards, slides). Mixing them makes `score` meaningless. After workspace live evals work, copy the same pattern: traces, then dataset, then one code eval, then one judge.
 
 ## 7. Prompt/tool changes as experiments, not vibes
 

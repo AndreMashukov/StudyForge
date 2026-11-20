@@ -274,23 +274,14 @@ export const FailureList = ({
                   {selected.questionText}
                 </h3>
                 <FailureAnswerComparison failure={selected} />
-                {(selected.hint || selected.explanation) && (
+                {selected.hint && (
                   <details className="mt-4 text-sm leading-relaxed">
                     <summary className="cursor-pointer text-xs text-muted-foreground">
-                      Hint & explanation
+                      Hint
                     </summary>
-                    {selected.hint && (
-                      <p className="mt-3 whitespace-pre-wrap break-words">
-                        <span className="font-medium">Hint · </span>
-                        {selected.hint}
-                      </p>
-                    )}
-                    {selected.explanation && (
-                      <p className="mt-3 whitespace-pre-wrap break-words">
-                        <span className="font-medium">Explanation · </span>
-                        {selected.explanation}
-                      </p>
-                    )}
+                    <p className="mt-3 whitespace-pre-wrap break-words">
+                      {selected.hint}
+                    </p>
                   </details>
                 )}
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t pt-3">

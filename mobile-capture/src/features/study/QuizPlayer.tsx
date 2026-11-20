@@ -149,9 +149,6 @@ export function QuizPlayer({
               ? 'Correct.'
               : 'Not quite.'}
           </Text>
-          {question.explanation ? (
-            <Text tone="muted">{question.explanation}</Text>
-          ) : null}
           <View className="flex-row gap-2">
             <View className="flex-1">
               <Button

@@ -40,7 +40,6 @@ const EMPTY_FORM_VALUES: CreateArtifactFormSchema = {
   name: '',
   additionalPrompt: '',
   ruleIds: [],
-  followupRuleIds: [],
   descriptionRuleIds: [],
 };
 
@@ -110,7 +109,6 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
   const watchedDocumentIds = watch('documentIds') ?? [];
   const watchedName = watch('name') ?? '';
   const watchedRuleIds = watch('ruleIds') ?? [];
-  const watchedFollowupRuleIds = watch('followupRuleIds') ?? [];
   const watchedDescriptionRuleIds = watch('descriptionRuleIds') ?? [];
 
   const { submit } = useCreateArtifactModalSubmit({
@@ -326,15 +324,10 @@ export const CreateArtifactModal: React.FC<ICreateArtifactModalProps> = ({
               <CreateArtifactRulesSection
                 directoryId={directoryId}
                 ruleApplicability={config.ruleApplicability}
-                followupRuleApplicability={config.followupRuleApplicability}
                 descriptionRuleApplicability={config.descriptionRuleApplicability}
                 ruleIds={watchedRuleIds}
-                followupRuleIds={watchedFollowupRuleIds}
                 descriptionRuleIds={watchedDescriptionRuleIds}
                 onRuleIdsChange={(ruleIds) => setValue('ruleIds', ruleIds)}
-                onFollowupRuleIdsChange={(followupRuleIds) =>
-                  setValue('followupRuleIds', followupRuleIds)
-                }
                 onDescriptionRuleIdsChange={(descriptionRuleIds) =>
                   setValue('descriptionRuleIds', descriptionRuleIds)
                 }

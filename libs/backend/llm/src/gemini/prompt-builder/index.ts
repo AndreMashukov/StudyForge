@@ -6,11 +6,9 @@
  */
 
 export { QuizPromptBuilder } from './quiz-prompt-builder';
-export { FollowupPromptBuilder } from './followup-prompt-builder';
 export { DocumentPromptBuilder } from './document-prompt-builder';
 export { DocumentQuestionPromptBuilder } from './document-question-prompt-builder';
 export { DocumentRevisePromptBuilder } from './document-revise-prompt-builder';
-export { DirectoryChatPromptBuilder } from './directory-chat-prompt-builder';
 export {
   FlashcardPromptBuilder,
   type FlashcardPromptOptions,
@@ -28,7 +26,6 @@ export { MatchQuizPromptBuilder } from './match-quiz-prompt-builder';
 export { ScreenshotPromptBuilder } from './screenshot-prompt-builder';
 
 import { QuizPromptBuilder } from './quiz-prompt-builder';
-import { FollowupPromptBuilder } from './followup-prompt-builder';
 
 // Re-export for backward compatibility
 export class PromptBuilder {
@@ -43,10 +40,4 @@ export class PromptBuilder {
    * @deprecated Use QuizPromptBuilder.buildContentPrompt instead
    */
   static buildContentPrompt = QuizPromptBuilder.buildContentPrompt;
-
-  /**
-   * Build comprehensive followup explanation prompt
-   * @deprecated Use FollowupPromptBuilder.buildFollowupPrompt instead
-   */
-  static buildFollowupPrompt = FollowupPromptBuilder.buildFollowupPrompt;
 }

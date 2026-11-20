@@ -5,7 +5,6 @@ export interface ISequenceQuizQuestion {
   id: number;
   question: string;
   items: string[]; // Correct order
-  explanation: string;
   hint?: string; // Optional tooltip hint
 }
 
@@ -25,7 +24,7 @@ interface SequenceQuizPageState {
   placedItems: string[];
   isChecked: boolean;
   isCorrect: boolean | null;
-  showExplanation: boolean;
+  showFeedback: boolean;
   score: number;
   answers: ISequenceQuizAnswer[];
   isCompleted: boolean;
@@ -34,11 +33,6 @@ interface SequenceQuizPageState {
   endTime: number | null;
   isLoading: boolean;
   error: string | null;
-  followupGenerated: Record<number, boolean>;
-  followupContent: Record<number, string>;
-  followupChatOpen: Record<number, boolean>;
-  isGeneratingFollowup: boolean;
-  followupError: string | null;
 }
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -58,7 +52,7 @@ const initialState: SequenceQuizPageState = {
   placedItems: [],
   isChecked: false,
   isCorrect: null,
-  showExplanation: false,
+  showFeedback: false,
   score: 0,
   answers: [],
   isCompleted: false,
@@ -67,11 +61,6 @@ const initialState: SequenceQuizPageState = {
   endTime: null,
   isLoading: false,
   error: null,
-  followupGenerated: {},
-  followupContent: {},
-  followupChatOpen: {},
-  isGeneratingFollowup: false,
-  followupError: null,
 };
 
 const sequenceQuizPageSlice = createSlice({
@@ -90,7 +79,7 @@ const sequenceQuizPageSlice = createSlice({
       state.placedItems = [];
       state.isChecked = false;
       state.isCorrect = null;
-      state.showExplanation = false;
+      state.showFeedback = false;
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
@@ -98,11 +87,6 @@ const sequenceQuizPageSlice = createSlice({
       state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
-      state.followupGenerated = {};
-      state.followupContent = {};
-      state.followupChatOpen = {};
-      state.isGeneratingFollowup = false;
-      state.followupError = null;
     },
 
     placeItem: (state, action: PayloadAction<{ item: string; atIndex?: number }>) => {
@@ -163,7 +147,7 @@ const sequenceQuizPageSlice = createSlice({
 
       state.isChecked = true;
       state.isCorrect = isCorrect;
-      state.showExplanation = true;
+      state.showFeedback = true;
 
       if (isCorrect) {
         state.score += 1;
@@ -187,9 +171,8 @@ const sequenceQuizPageSlice = createSlice({
         state.placedItems = [];
         state.isChecked = false;
         state.isCorrect = null;
-        state.showExplanation = false;
+        state.showFeedback = false;
         state.questionStartTime = Date.now();
-        state.followupError = null;
       } else {
         state.isCompleted = true;
         state.endTime = Date.now();
@@ -211,7 +194,7 @@ const sequenceQuizPageSlice = createSlice({
       state.placedItems = [];
       state.isChecked = false;
       state.isCorrect = null;
-      state.showExplanation = false;
+      state.showFeedback = false;
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
@@ -219,10 +202,6 @@ const sequenceQuizPageSlice = createSlice({
       state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
-      state.followupGenerated = {};
-      state.followupContent = {};
-      state.isGeneratingFollowup = false;
-      state.followupError = null;
     },
 
     setLoading: (state, action: PayloadAction<boolean>) => {
@@ -232,32 +211,6 @@ const sequenceQuizPageSlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
       state.isLoading = false;
-    },
-
-    setSequenceFollowupGenerating: (state, action: PayloadAction<boolean>) => {
-      state.isGeneratingFollowup = action.payload;
-      state.followupError = null;
-    },
-
-    setSequenceFollowupGenerated: (
-      state,
-      action: PayloadAction<{ questionIndex: number; content: string }>
-    ) => {
-      state.followupGenerated[action.payload.questionIndex] = true;
-      state.followupContent[action.payload.questionIndex] = action.payload.content;
-      state.isGeneratingFollowup = false;
-    },
-
-    setSequenceFollowupError: (state, action: PayloadAction<string | null>) => {
-      state.followupError = action.payload;
-      state.isGeneratingFollowup = false;
-    },
-
-    openSequenceFollowupChat: (state, action: PayloadAction<{ questionIndex: number }>) => {
-      state.followupChatOpen[action.payload.questionIndex] = true;
-      state.followupGenerated[action.payload.questionIndex] = true;
-      state.isGeneratingFollowup = false;
-      state.followupError = null;
     },
   },
 });
@@ -275,10 +228,6 @@ export const {
   restartSequenceQuizSession,
   setLoading,
   setError,
-  setSequenceFollowupGenerating,
-  setSequenceFollowupGenerated,
-  setSequenceFollowupError,
-  openSequenceFollowupChat,
 } = sequenceQuizPageSlice.actions;
 
 export const selectSequenceQuizState = (state: { sequenceQuizPage: SequenceQuizPageState }) =>

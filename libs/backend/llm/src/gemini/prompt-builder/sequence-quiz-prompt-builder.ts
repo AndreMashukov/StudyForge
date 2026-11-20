@@ -101,7 +101,6 @@ ${content.content}
 Create **8 to 12** questions. For each question provide:
 - \`question\`: a clear instruction telling the learner what to arrange (e.g. "Arrange the steps of X in order")
 - \`items\`: an array of strings in the **CORRECT** order (4–10 items)
-- \`explanation\`: a concise explanation of why this order is correct
 ${buildQuizHintFieldInstruction('Think about which step must happen first before anything else can begin.')}`;
   }
 
@@ -112,7 +111,7 @@ ${buildQuizHintFieldInstruction('Think about which step must happen first before
 - Each item must be a **short, self-contained phrase** suitable for a single draggable block (≤ 15 words).
 - Items must be in the **correct order** because array position is the answer.
 - Do NOT number or prefix items (e.g. "1.", "Step 1:").
-- Required fields per question: \`question\`, \`items\`, \`explanation\`, and \`hint\`.`;
+- Required fields per question: \`question\`, \`items\`, and \`hint\`.`;
   }
 
   private static getJsonFormatRules(): string {
@@ -121,7 +120,6 @@ ${buildQuizHintFieldInstruction('Think about which step must happen first before
 - **No backticks** in any string value.
 - **No unescaped double quotes** inside string values.
 - \`items\` must be a non-empty string array with at least 4 elements for every question.
-- \`explanation\` is required and must be a non-empty string.
 - \`knowledge\` is required with \`subjectName\`, \`knowledgeDomainName\`, and \`topicTags\` (1-5 short strings).
 ${buildQuizHintJsonRule()}`;
   }
@@ -134,7 +132,6 @@ ${buildQuizHintJsonRule()}`;
     {
       "question": "Arrange these items in the correct order:",
       "items": ["First item", "Second item", "Third item", "Fourth item"],
-      "explanation": "Why this order is correct and how each step follows from the previous.",
       "knowledge": {
         "subjectName": "Concise subject tested by this sequence",
         "knowledgeDomainName": "Broader knowledge domain",
@@ -147,6 +144,6 @@ ${buildQuizHintJsonRule()}`;
   }
 
   private static getFinalInstructions(): string {
-    return `**FINAL CHECK:** Every question has \`items\` as a JSON string array of length 4–10 (never a single string, never fewer than 4), plus a non-empty explanation, a non-empty hint, and items in the correct order. Generate the JSON now:`;
+    return `**FINAL CHECK:** Every question has \`items\` as a JSON string array of length 4–10 (never a single string, never fewer than 4), plus a non-empty hint and items in the correct order. Generate the JSON now:`;
   }
 }

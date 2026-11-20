@@ -365,8 +365,10 @@ describe('firestore.rules client write hardening', () => {
     });
   });
 
-  describe('directory chat', () => {
+  describe('retired chat transcripts', () => {
     const directoryId = 'dir-1';
+    const threadPath = `users/${OWNER_UID}/directories/${directoryId}/chat/thread`;
+    const messagePath = `${threadPath}/messages/msg-1`;
 
     beforeEach(async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -375,56 +377,36 @@ describe('firestore.rules client write hardening', () => {
           name: 'Study folder',
           level: 0,
         });
-        await setDoc(
-          doc(firestore, `users/${OWNER_UID}/directories/${directoryId}/chat/thread`),
-          { summary: 'Previous chat summary' },
-        );
-        await setDoc(
-          doc(
-            firestore,
-            `users/${OWNER_UID}/directories/${directoryId}/chat/thread/messages/msg-1`,
-          ),
-          { role: 'user', content: 'Hello' },
-        );
+        await setDoc(doc(firestore, threadPath), { summary: 'Previous chat summary' });
+        await setDoc(doc(firestore, messagePath), { role: 'user', content: 'Hello' });
       });
     });
 
-    it('allows owner read and thread update but denies message writes', async () => {
-      const owner = testEnv.authenticatedContext(OWNER_UID);
-      await assertSucceeds(
-        getDoc(
-          doc(owner.firestore(), `users/${OWNER_UID}/directories/${directoryId}/chat/thread`),
-        ),
-      );
-      await assertSucceeds(
-        getDoc(
-          doc(
-            owner.firestore(),
-            `users/${OWNER_UID}/directories/${directoryId}/chat/thread/messages/msg-1`,
-          ),
-        ),
-      );
-      await assertSucceeds(
-        updateDoc(
-          doc(owner.firestore(), `users/${OWNER_UID}/directories/${directoryId}/chat/thread`),
-          { selectedSourceIds: ['doc-1'] },
-        ),
-      );
-      await assertSucceeds(
+    it('denies owner reads and writes on threads and messages', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID, { email_verified: true });
+      const firestore = owner.firestore();
+
+      await assertFails(getDoc(doc(firestore, threadPath)));
+      await assertFails(updateDoc(doc(firestore, threadPath), { selectedSourceIds: ['doc-1'] }));
+      await assertFails(
         setDoc(
-          doc(owner.firestore(), `users/${OWNER_UID}/directories/${directoryId}/chat/new-thread`),
+          doc(firestore, `users/${OWNER_UID}/directories/${directoryId}/chat/new-thread`),
           { selectedDocumentIds: ['doc-1'] },
         ),
       );
+      await assertFails(deleteDoc(doc(firestore, threadPath)));
+
+      await assertFails(getDoc(doc(firestore, messagePath)));
       await assertFails(
-        setDoc(
-          doc(
-            owner.firestore(),
-            `users/${OWNER_UID}/directories/${directoryId}/chat/thread/messages/new-msg`,
-          ),
-          { role: 'user', content: 'blocked' },
-        ),
+        getDocs(query(collection(firestore, `${threadPath}/messages`), limit(10))),
       );
+      await assertFails(
+        setDoc(doc(firestore, `${threadPath}/messages/new-msg`), {
+          role: 'user',
+          content: 'blocked',
+        }),
+      );
+      await assertFails(deleteDoc(doc(firestore, messagePath)));
     });
   });
 

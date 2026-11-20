@@ -5,7 +5,6 @@ import { Card, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { cn } from '../../../../lib/utils';
 import { QuizQuestionHeader } from '../../../../components/QuizQuestionHeader';
-import { Spinner } from '../../../../components/ui/Spinner';
 import {
   selectQuizState,
   selectProgress,
@@ -15,15 +14,12 @@ import { IQuestionCard } from './IQuestionCard';
 export const QuestionCard: React.FC<IQuestionCard> = ({
   question,
   selectedAnswer,
-  showExplanation,
+  showFeedback,
   onAnswerSelect,
   onNextQuestion,
   isLastQuestion,
   className,
   backAction,
-  onGenerateFollowup,
-  isGeneratingFollowup = false,
-  isFollowupGenerated = false,
 }) => {
   const quizState = useSelector(selectQuizState);
   const progress = useSelector(selectProgress);
@@ -82,10 +78,10 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
           </button>
         ))}
 
-        {showExplanation && (
+        {showFeedback && (
           <Card className="mt-6 bg-muted/30 border-border/50">
             <CardContent className="p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 {selectedAnswer === question.correct ? (
                   <Check className="h-4 w-4 text-success" />
                 ) : (
@@ -93,14 +89,11 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
                 )}
                 {selectedAnswer === question.correct ? 'Correct!' : 'Incorrect'}
               </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {question.explanation}
-              </p>
             </CardContent>
           </Card>
         )}
 
-        {showExplanation && (
+        {showFeedback && (
           <div className="space-y-3 mt-6">
             <Button
               onClick={onNextQuestion}
@@ -109,27 +102,6 @@ export const QuestionCard: React.FC<IQuestionCard> = ({
             >
               {isLastQuestion ? 'View Results' : 'Next Question'}
             </Button>
-
-            {onGenerateFollowup && (
-              <Button
-                onClick={onGenerateFollowup}
-                variant="outline"
-                className="w-full"
-                size="lg"
-                disabled={isFollowupGenerated || isGeneratingFollowup}
-              >
-                {isGeneratingFollowup ? (
-                  <>
-                    <Spinner size="xs" className="mr-2" />
-                    Generating Detailed Explanation...
-                  </>
-                ) : isFollowupGenerated ? (
-                  'Detailed Explanation Generated'
-                ) : (
-                  'Generate Detailed Explanation'
-                )}
-              </Button>
-            )}
           </div>
         )}
       </CardContent>

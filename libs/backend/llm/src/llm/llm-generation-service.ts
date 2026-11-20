@@ -5,10 +5,8 @@ import type {
   ScrapedContent,
   IFileContent,
   IGenerationModelUsage,
-  QuizFollowupContext,
   DocumentQuestionContext,
   DocumentReviseContext,
-  DirectoryChatPromptContext,
 } from '@shared-types';
 import {
   DEFAULT_LLM_GENERATION_SETTINGS,
@@ -26,10 +24,8 @@ import {
   QuizPromptBuilder,
   FlashcardPromptBuilder,
   DocumentPromptBuilder,
-  FollowupPromptBuilder,
   DocumentQuestionPromptBuilder,
   DocumentRevisePromptBuilder,
-  DirectoryChatPromptBuilder,
   SlideDeckPromptBuilder,
   SequenceQuizPromptBuilder,
   MatchQuizPromptBuilder,
@@ -734,36 +730,6 @@ export class LlmGenerationService {
     return stripCodeFences(result.text);
   }
 
-  static async generateQuizFollowup(
-    userId: string,
-    context: QuizFollowupContext,
-  ): Promise<string> {
-    const ctx = await resolveTextRoute(userId, 'quizFollowup', 'quizFollowup');
-    const profile =
-      resolveLlmGenerationProfile('quizFollowup') ?? 'explanatoryChat';
-    const runtimeConfig = await buildGenerationConfig(
-      ctx.resolution.route.model,
-      profile,
-    );
-
-    if (!ctx.usesExternalProvider) {
-      return GeminiService.generateQuizFollowup(
-        context,
-        toGeminiContentOptions(runtimeConfig),
-      );
-    }
-
-    const prompt = FollowupPromptBuilder.buildFollowupPrompt(context);
-    const text = await generateExternalProviderText(
-      ctx,
-      prompt,
-      { model: ctx.resolution.route.model },
-      'Quiz followup generated via OpenRouter',
-      { profile },
-    );
-    return GeminiService.sanitizeMarkdownResponse(text);
-  }
-
   static async generateDocumentQuestionAnswer(
     userId: string,
     context: DocumentQuestionContext,
@@ -832,40 +798,6 @@ export class LlmGenerationService {
     return resolveDocumentContentFormat(context.contentFormat) === 'html'
       ? GeminiService.sanitizeHtmlRevisionResponse(text)
       : GeminiService.sanitizeDocumentResponse(text);
-  }
-
-  static async generateDirectoryChatAnswer(
-    userId: string,
-    context: DirectoryChatPromptContext,
-  ): Promise<string> {
-    const ctx = await resolveTextRoute(
-      userId,
-      'directoryChat',
-      'directoryChat',
-    );
-    const profile =
-      resolveLlmGenerationProfile('directoryChat') ?? 'explanatoryChat';
-    const runtimeConfig = await buildGenerationConfig(
-      ctx.resolution.route.model,
-      profile,
-    );
-
-    if (!ctx.usesExternalProvider) {
-      return GeminiService.generateDirectoryChatAnswer(
-        context,
-        toGeminiContentOptions(runtimeConfig),
-      );
-    }
-
-    const prompt = DirectoryChatPromptBuilder.buildPrompt(context);
-    const text = await generateExternalProviderText(
-      ctx,
-      prompt,
-      { model: ctx.resolution.route.model },
-      'Directory chat answer generated via OpenRouter',
-      { profile },
-    );
-    return GeminiService.sanitizeMarkdownResponse(text);
   }
 
   static async generateSlideDeckOutline(
@@ -1310,7 +1242,6 @@ Return ONLY the corrected Mermaid source with no markdown fences or commentary.`
       sourceContent: ScrapedContent;
       questionText: string;
       correctAnswer: number;
-      explanation: string;
       diagrams: [string, string, string, string];
       validationError: string;
       syntaxRules: string;
@@ -1339,7 +1270,6 @@ ${params.validationError}
 
 Question: ${params.questionText}
 Correct answer index: ${params.correctAnswer}
-Explanation summary: ${params.explanation}
 
 Source title: ${params.sourceContent.title}
 Source excerpt (truncated):
@@ -1542,7 +1472,6 @@ Return ONLY valid JSON with this shape:
       "question": "...",
       "diagrams": ["...", "...", "...", "..."],
       "correctAnswer": 0,
-      "explanation": "...",
       "hint": "..."
     }
   ]

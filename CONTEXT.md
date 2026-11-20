@@ -109,8 +109,12 @@ Admin-managed routing profile. Each **generation kind** maps to a **generation r
 _Avoid_: model setting, active provider, preset
 
 **Generation kind**:
-Admin-configurable category of routed LLM work — production (quiz, screenshot document), interactive (directory chat, quiz follow-up), and sub-steps (slide deck images). Maps to provider, model, and workflow. Keys align with `LlmCapabilityKey` except internal-only aliases (e.g. `diagramQuizAgent` inherits `diagramQuiz`). Operation-centric, not output-centric.
+Admin-configurable category of routed LLM work — production (quiz, screenshot document), interactive (workspace agent, directory-scoped agent, document question), and sub-steps (slide deck images). Maps to provider, model, and workflow. Keys align with `LlmCapabilityKey` except internal-only aliases (e.g. `diagramQuizAgent` inherits `diagramQuiz`). Operation-centric, not output-centric.
 _Avoid_: capability (when meaning admin routing), artifact type (when meaning routing), LLM modality (when meaning routing key), GenerationModelMappingKey (deprecated separate enum)
+
+**Retired generation kind**:
+A **generation kind** that no longer exists but still appears on past usage and cost records (for example directory chat and quiz follow-up). Shown as "Retired feature"; its credits and costs still count in totals. Never routable or configurable.
+_Avoid_: legacy kind, deprecated kind, unknown kind
 
 **LLM modality**:
 Required input/output lane for a generation route: `text`, `vision`, `image`, `embedding`, or `decision`. Validates that the chosen provider connection supports the kind — not a routing key. `decision` is served only by OpenRouter connections.
@@ -155,20 +159,16 @@ _Avoid_: model label (when meaning full audit trail)
 ## Rules
 
 **Rule**:
-User-authored markdown instruction that steers AI behavior for a specific operation (quiz generation, scraping, follow-up chat, etc.). Rules attach to directories and/or are selected explicitly at generation time.
+User-authored markdown instruction that steers AI behavior for a specific operation (quiz generation, scraping, flashcard descriptions, etc.). Rules attach to directories and/or are selected explicitly at generation time.
 _Avoid_: prompt template, instruction (alone), policy
 
 **Rule applicability**:
-Which operation types a rule may apply to (e.g. `quiz`, `diagram_quiz`, `followup`). A rule can apply to multiple operations.
-_Avoid_: rule type, rule category
+Which operation types a rule may apply to (e.g. `quiz`, `diagram_quiz`, `flashcard_desc`). A rule can apply to multiple operations. `followup` and `chat` are retired: older rules may still carry them, but nothing applies them.
+_Avoid_: rule type, rule category, follow-up rule, chat rule
 
 **Rule resolution mode**:
 How explicitly selected rules combine with inherited directory rules: `inherit`, `inherit-plus-explicit`, or `explicit-only`.
 _Avoid_: rule merge mode, inheritance setting
-
-**Follow-up rule**:
-Rule used for post-generation help — directory chat and per-question follow-up explanations — not for initial artifact content.
-_Avoid_: chat rule, explanation rule
 
 **Always apply**:
 Rule flag that auto-selects the rule for applicable operations (stored as `isDefault`). Selecting a rule during an operation turns the flag on; deselecting turns it off. Next time that operation opens, always-apply rules are preselected.
@@ -181,8 +181,8 @@ Tool-capable AgentPanel over the user's full library (`scope: workspace`). Runs 
 _Avoid_: global agent (alone), workspace chat, ADK workspace agent
 
 **Directory-scoped agent**:
-Same plan-execute LangGraph as the workspace agent, but tools are limited to one directory tree and its descendants (`scope: directory`).
-_Avoid_: folder agent, scoped workspace agent
+Same plan-execute LangGraph as the workspace agent, but tools are limited to one directory tree and its descendants (`scope: directory`). Opened from inside a directory on mobile.
+_Avoid_: folder agent, scoped workspace agent, directory chat
 
 **Agent turn**:
 One user message and the agent's work to answer it (one run of the plan-execute graph). It runs in the `runAgentTurnTask` Cloud Task, not in the client's request, so closing the panel, leaving the screen or backgrounding the app never stops it. Clients follow it through its **agent turn doc** and re-attach when they come back. Durable chat history stays on the StudyForge agent thread.
@@ -219,18 +219,6 @@ _Avoid_: RAG (alone), personal knowledge base, memory (when meaning note search)
 **Referenced item**:
 A directory, document, or artifact that the workspace agent or directory-scoped agent surfaced through its tools during a turn, shown to the learner as a tappable card. Comes from tool results, never from IDs written in the reply text.
 _Avoid_: citation, **search result** (that is a row returned by **library search**)
-
-**Directory chat**:
-Conversational assistant scoped to a directory and its documents/artifacts. Uses follow-up rules and artifact context. Distinct from the workspace agent and directory-scoped agent panels.
-_Avoid_: folder chat, library chat
-
-**Directory chat thread**:
-Durable Firestore transcript for directory chat: a thread document plus its message subcollection. Distinct from an **agent session** or workspace-agent thread.
-_Avoid_: chat session (when meaning directory chat), ADK thread
-
-**Conversation summary**:
-Rolling text stored on a **directory chat thread** that covers older turns (all but the last 8 messages), truncated for prompt assembly. Writing a summary does not delete messages from the thread.
-_Avoid_: thread summary (alone), chat memory
 
 ## Learning telemetry & statistics
 
@@ -314,6 +302,8 @@ _Avoid_: migration order, pre/post hook
 - **Quiz** — used generically in some API paths; prefer the specific kind (diagram quiz, sequence quiz) when the distinction matters.
 - **Record vs job** — the user-visible Firestore entity (document/artifact) vs the `GenerationJob` tracking async work; don't conflate their status fields.
 - **"Due"** — StudyForge has no spaced-repetition schedule, so nothing is "due". Say "missed" for cards and questions drawn from **statistics failure groups**.
-- **"Assistant"** — in mobile copy, means the **workspace agent** or **directory-scoped agent**, never **directory chat**.
+- **"Assistant"** — in mobile copy, means the **workspace agent** or **directory-scoped agent**.
+- **"Chat"** — means a conversation with the **workspace agent** or **directory-scoped agent**. StudyForge no longer has directory chat; don't name a third conversational surface "chat".
+- **"Explanation"** — quiz, diagram quiz, sequence quiz and match quiz questions have none; the learner sees only whether the answer was right. A flashcard's explanation is part of the card's back, not answer feedback.
 - **"Search"** — alone, means **library search**. The agent looking through **User knowledge** is knowledge search, and what it surfaces are **Referenced items**, not **search results**.
 - **"Turn"** — means an **agent turn** in agent code and docs. The **flashcard study session** definition also says "turn" for one visit to a set; that is unrelated.

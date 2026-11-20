@@ -32,7 +32,6 @@ export const useFetchMatchQuizData = () => {
           : 'Match each item to the correct option.',
       prompts: q.prompts,
       options: q.options,
-      explanation: q.explanation,
       hint: q.hint,
     }));
   }, []);

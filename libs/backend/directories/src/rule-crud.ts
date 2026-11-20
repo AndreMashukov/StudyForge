@@ -5,6 +5,7 @@ import {
   UpdateRuleRequest
 } from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
+import { parseStoredRuleApplicability } from './rule-applicability';
 
 /**
  * Rule CRUD Service
@@ -23,8 +24,9 @@ export async function createRule(
     throw new Error('Rule content cannot exceed 100,000 characters');
   }
 
-  // Validate at least one applicability selected
-  if (!request.applicableTo || request.applicableTo.length === 0) {
+  // Validate at least one current applicability selected
+  const applicableTo = parseStoredRuleApplicability(request.applicableTo);
+  if (applicableTo.length === 0) {
     throw new Error('Rule must be applicable to at least one operation type');
   }
 
@@ -40,7 +42,7 @@ export async function createRule(
     content: request.content,
     color: request.color,
     tags: request.tags || [],
-    applicableTo: request.applicableTo,
+    applicableTo,
     isDefault: request.isDefault || false,
     directoryIds: [], // Empty initially, attached separately
     ...(request.sourceBlueprintId
@@ -77,6 +79,7 @@ export async function getRule(userId: string, ruleId: string): Promise<Rule | nu
   const data = ruleDoc.data();
   return {
     ...data,
+    applicableTo: parseStoredRuleApplicability(data?.applicableTo),
     createdAt: data?.createdAt?.toDate() || new Date(),
     updatedAt: data?.updatedAt?.toDate() || new Date(),
   } as Rule;
@@ -94,6 +97,7 @@ export async function getRules(userId: string): Promise<Rule[]> {
     const data = doc.data();
     return {
       ...data,
+      applicableTo: parseStoredRuleApplicability(data.applicableTo),
       createdAt: data.createdAt?.toDate() || new Date(),
       updatedAt: data.updatedAt?.toDate() || new Date(),
     } as Rule;
@@ -129,6 +133,7 @@ export async function getRulesByIds(
       const data = doc.data();
       rules.push({
         ...data,
+        applicableTo: parseStoredRuleApplicability(data.applicableTo),
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
       } as Rule);
@@ -158,8 +163,12 @@ export async function updateRule(
     throw new Error('Rule content cannot exceed 100,000 characters');
   }
 
-  // Validate at least one applicability if updating applicableTo
-  if (request.applicableTo && request.applicableTo.length === 0) {
+  // Validate at least one current applicability if updating applicableTo
+  const applicableTo =
+    request.applicableTo !== undefined
+      ? parseStoredRuleApplicability(request.applicableTo)
+      : undefined;
+  if (applicableTo && applicableTo.length === 0) {
     throw new Error('Rule must be applicable to at least one operation type');
   }
 
@@ -173,7 +182,7 @@ export async function updateRule(
   if (request.content !== undefined) updateData.content = request.content;
   if (request.color !== undefined) updateData.color = request.color;
   if (request.tags !== undefined) updateData.tags = request.tags;
-  if (request.applicableTo !== undefined) updateData.applicableTo = request.applicableTo;
+  if (applicableTo !== undefined) updateData.applicableTo = applicableTo;
   if (request.isDefault !== undefined) updateData.isDefault = request.isDefault;
 
   await ruleRef.update(updateData);
@@ -184,6 +193,7 @@ export async function updateRule(
   
   return {
     ...data,
+    applicableTo: parseStoredRuleApplicability(data?.applicableTo),
     createdAt: data?.createdAt?.toDate() || new Date(),
     updatedAt: data?.updatedAt?.toDate() || new Date(),
   } as Rule;

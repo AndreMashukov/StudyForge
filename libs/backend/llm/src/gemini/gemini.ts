@@ -4,10 +4,8 @@ import { FinishReason, GoogleGenAI } from '@google/genai';
 import * as functions from 'firebase-functions';
 import {
   ScrapedContent,
-  QuizFollowupContext,
   DocumentQuestionContext,
   DocumentReviseContext,
-  DirectoryChatPromptContext,
   IFileContent,
   QuestionKnowledgeMetadata,
   resolveDocumentContentFormat,
@@ -18,11 +16,9 @@ import {
 import { JsonSanitizer } from './json-sanitizer';
 import {
   QuizPromptBuilder,
-  FollowupPromptBuilder,
   DocumentPromptBuilder,
   DocumentQuestionPromptBuilder,
   DocumentRevisePromptBuilder,
-  DirectoryChatPromptBuilder,
   SlideDeckPromptBuilder,
   DiagramQuizPromptBuilder,
   SequenceQuizPromptBuilder,
@@ -110,7 +106,6 @@ export interface GeminiQuizResponse {
     question: string;
     options: string[];
     correctAnswer: number;
-    explanation: string;
     hint?: string;
     knowledge?: QuestionKnowledgeMetadata;
   }>;
@@ -122,7 +117,6 @@ export interface GeminiDiagramQuizResponse {
     question: string;
     diagrams: string[];
     correctAnswer: number;
-    explanation: string;
     hint?: string;
     diagramLabels?: string[];
     knowledge?: QuestionKnowledgeMetadata;
@@ -134,7 +128,6 @@ export interface GeminiSequenceQuizResponse {
   questions: Array<{
     question: string;
     items: string[];
-    explanation: string;
     hint?: string;
     knowledge?: QuestionKnowledgeMetadata;
   }>;
@@ -150,7 +143,6 @@ export interface GeminiMatchQuizResponse {
       text: string;
       correctPromptId: string | null;
     }>;
-    explanation: string;
     hint?: string;
     knowledge?: QuestionKnowledgeMetadata;
   }>;
@@ -730,130 +722,6 @@ ${markdownContent}
   }
 
   /**
-   * Generate comprehensive followup explanation for quiz question
-   * @param context - Complete context including original document and question details
-   * @returns Generated markdown content with Mermaid diagrams
-   */
-  public static async generateQuizFollowup(
-    context: QuizFollowupContext,
-    runtimeConfig?: IGeminiRuntimeGenerationConfig,
-  ): Promise<string> {
-    try {
-      functions.logger.info(
-        'Generating quiz followup explanation with Gemini AI',
-      );
-
-      const client = this.getClient();
-
-      const prompt = FollowupPromptBuilder.buildFollowupPrompt(context);
-      functions.logger.debug('Sending followup request to Gemini AI', {
-        questionLength: context.question.text.length,
-        documentLength: context.originalDocument.content.length,
-      });
-
-      const response = await trackedGeminiGenerateContent(client, {
-        model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
-        contents: prompt,
-        config: buildGeminiGenerationConfig(runtimeConfig, 'explanatoryChat'),
-      });
-
-      const text = response.text;
-
-      if (!text) {
-        throw new Error(
-          'Empty response from Gemini API for followup generation',
-        );
-      }
-
-      // Validate and potentially fix the followup content format
-      const validatedContent = this.validateAndFixFollowupContent(text);
-
-      functions.logger.info('Quiz followup generated successfully', {
-        length: validatedContent.length,
-        wasFixed: validatedContent !== text,
-      });
-      return validatedContent;
-    } catch (error) {
-      functions.logger.error(
-        'Error generating quiz followup with Gemini AI:',
-        error,
-      );
-
-      const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
-      if (
-        isEmulator &&
-        error instanceof Error &&
-        error.message.includes('User location is not supported')
-      ) {
-        functions.logger.warn(
-          'Geographic restriction detected in local emulator, falling back to mock followup',
-        );
-        return this.generateMockFollowup(context);
-      }
-
-      throw new Error(
-        `Failed to generate followup: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
-      );
-    }
-  }
-
-  private static generateMockFollowup(context: QuizFollowupContext): string {
-    functions.logger.info(
-      'Generating mock followup explanation for development',
-    );
-    return `# Question Analysis
-
-> **Note**: This is mock followup content generated in the local emulator (Gemini API geographic restriction).
-
-## Core Concept Explanation
-
-The question tests understanding of: **${context.question.text.slice(0, 80)}...**
-
-This is a fundamental concept from the document "${context.originalDocument.title}".
-
-## Answer Analysis
-
-- **Your answer**: ${context.question.userAnswer}
-${context.question.correctAnswer ? `- **Correct answer**: ${context.question.correctAnswer}` : ''}
-
-Each option represents a different aspect of the concept being tested.
-
-## Diagram 1: Conceptual Overview
-
-\`\`\`mermaid
-flowchart TD
-  A[Question Concept] --> B[Key Principle]
-  B --> C[Application]
-  C --> D[Outcome]
-\`\`\`
-
-This diagram shows the conceptual flow from question to answer.
-
-## Diagram 2: Detailed Process
-
-\`\`\`mermaid
-flowchart LR
-  Q[Your Answer] -->|Compare| C[Correct Answer]
-  C --> E[Explanation]
-  E --> L[Learning Outcome]
-\`\`\`
-
-This diagram illustrates the learning process.
-
-## Key Takeaways
-
-- Configure the Gemini API key for your region to get real AI-generated explanations
-- The emulator falls back to this mock content when the Gemini API is unavailable
-
-## Connection to Original Document
-
-This question is derived from: **${context.originalDocument.title}**
-`;
-  }
-
-  /**
    * Generate an answer to a user's question about a document
    * @param context - Document content and user question
    * @returns Generated markdown answer
@@ -887,7 +755,7 @@ This question is derived from: **${context.originalDocument.title}**
         throw new Error('Empty response from Gemini API for document question');
       }
 
-      const validatedContent = this.validateAndFixFollowupContent(text);
+      const validatedContent = this.validateAndFixMarkdownAnswerContent(text);
 
       functions.logger.info('Document question answer generated successfully', {
         length: validatedContent.length,
@@ -948,51 +816,6 @@ This question is derived from: **${context.originalDocument.title}**
       functions.logger.error('Error revising document with Gemini AI:', error);
       throw new Error(
         `Failed to revise document: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
-      );
-    }
-  }
-
-  /**
-   * Generate an assistant reply for directory-scoped chat.
-   */
-  public static async generateDirectoryChatAnswer(
-    context: DirectoryChatPromptContext,
-    runtimeConfig?: IGeminiRuntimeGenerationConfig,
-  ): Promise<string> {
-    try {
-      functions.logger.info('Generating directory chat answer with Gemini AI');
-
-      const client = this.getClient();
-      const prompt = DirectoryChatPromptBuilder.buildPrompt(context);
-
-      functions.logger.debug('Sending directory chat prompt to Gemini AI', {
-        userMessageLength: context.userMessage.length,
-        retrievedChunkCount: context.retrievedChunks.length,
-        recentMessageCount: context.recentMessages.length,
-      });
-
-      const response = await trackedGeminiGenerateContent(client, {
-        model: runtimeConfig?.model ?? GEMINI_PRO_MODEL,
-        contents: prompt,
-        config: buildGeminiGenerationConfig(runtimeConfig, 'explanatoryChat'),
-      });
-
-      const text = response.text;
-
-      if (!text) {
-        throw new Error('Empty response from Gemini API for directory chat');
-      }
-
-      return this.validateAndFixFollowupContent(text);
-    } catch (error) {
-      functions.logger.error(
-        'Error generating directory chat answer with Gemini AI:',
-        error,
-      );
-      throw new Error(
-        `Failed to generate directory chat answer: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`,
       );
@@ -1126,7 +949,7 @@ This question is derived from: **${context.originalDocument.title}**
   }
 
   public static sanitizeMarkdownResponse(content: string): string {
-    return this.validateAndFixFollowupContent(content);
+    return this.validateAndFixMarkdownAnswerContent(content);
   }
 
   public static sanitizeDocumentResponse(content: string): string {
@@ -1218,17 +1041,6 @@ This question is derived from: **${context.originalDocument.title}**
       if (question.correctAnswer < 0 || question.correctAnswer > 3) {
         throw new Error(
           `Question ${index + 1} has invalid correctAnswer index`,
-        );
-      }
-
-      // Validate mandatory explanation
-      if (
-        !question.explanation ||
-        typeof question.explanation !== 'string' ||
-        question.explanation.trim().length === 0
-      ) {
-        throw new Error(
-          `Question ${index + 1} is missing required explanation`,
         );
       }
 
@@ -1325,8 +1137,6 @@ This question is derived from: **${context.originalDocument.title}**
             'Check geographic restrictions',
           ],
           correctAnswer: 0,
-          explanation:
-            'The Gemini API needs to be properly configured for your region.',
           hint: 'Check whether this quiz is using real AI output or local fallback data.',
         },
         {
@@ -1338,8 +1148,6 @@ This question is derived from: **${context.originalDocument.title}**
             'Server overload',
           ],
           correctAnswer: 1,
-          explanation:
-            'Mock quizzes appear when there are geographic restrictions or API configuration issues.',
           hint: 'Look for environment or region messages in the function logs.',
         },
       ],
@@ -1466,15 +1274,6 @@ This question is derived from: **${context.originalDocument.title}**
         `Diagram quiz question ${index + 1}: invalid correctAnswer`,
       );
     }
-    if (
-      !row.explanation ||
-      typeof row.explanation !== 'string' ||
-      row.explanation.trim().length === 0
-    ) {
-      throw new Error(
-        `Diagram quiz question ${index + 1}: missing explanation`,
-      );
-    }
     this.validateQuestionHint(row, 'Diagram quiz', index);
   }
 
@@ -1494,15 +1293,12 @@ This question is derived from: **${context.originalDocument.title}**
             d('A-->B\nB-->C'),
           ],
           correctAnswer: 0,
-          explanation:
-            'The first diagram shows a direct edge from A to B. Others add branches or reverse order.',
           hint: 'Trace the only direct arrow from A to B.',
         },
         {
           question: 'Mock question two (development only)?',
           diagrams: [d('X-->Y'), d('Y-->X'), d('X-->Z'), d('Z-->Y')],
           correctAnswer: 0,
-          explanation: 'Mock explanation for local emulator testing.',
           hint: 'Compare which diagram preserves the X then Y direction.',
         },
       ],
@@ -1648,13 +1444,6 @@ This question is derived from: **${context.originalDocument.title}**
         return;
       }
 
-      const explanation =
-        typeof row.explanation === 'string' ? row.explanation.trim() : '';
-      if (!explanation) {
-        dropped.push(`question ${index + 1}: missing explanation`);
-        return;
-      }
-
       const hint = typeof row.hint === 'string' ? row.hint.trim() : '';
       if (!hint) {
         dropped.push(`question ${index + 1}: missing hint`);
@@ -1671,7 +1460,6 @@ This question is derived from: **${context.originalDocument.title}**
       normalizedQuestions.push({
         question: questionText,
         items,
-        explanation,
         hint,
         ...(knowledge ? { knowledge } : {}),
       });
@@ -1736,15 +1524,6 @@ This question is derived from: **${context.originalDocument.title}**
           );
         }
       }
-      if (
-        !row.explanation ||
-        typeof row.explanation !== 'string' ||
-        row.explanation.trim().length === 0
-      ) {
-        throw new Error(
-          `Sequence quiz question ${index + 1}: missing explanation`,
-        );
-      }
       this.validateQuestionHint(row, 'Sequence quiz', index);
     });
   }
@@ -1779,14 +1558,11 @@ This question is derived from: **${context.originalDocument.title}**
             'Test and validate',
             'Deploy and monitor',
           ],
-          explanation:
-            'This is a standard software development lifecycle: define → gather → design → implement → test → deploy.',
           hint: 'Start with the work that clarifies what problem needs solving.',
         },
         {
           question: 'Arrange these items in order (mock question):',
           items: ['Step A', 'Step B', 'Step C', 'Step D'],
-          explanation: 'Mock explanation for local emulator testing.',
           hint: 'The mock labels already imply their order.',
         },
       ],
@@ -2022,13 +1798,6 @@ This question is derived from: **${context.originalDocument.title}**
         return;
       }
 
-      const explanation =
-        typeof row.explanation === 'string' ? row.explanation.trim() : '';
-      if (!explanation) {
-        dropped.push(`question ${index + 1}: missing explanation`);
-        return;
-      }
-
       const hint = typeof row.hint === 'string' ? row.hint.trim() : '';
       if (!hint) {
         dropped.push(`question ${index + 1}: missing hint`);
@@ -2047,7 +1816,6 @@ This question is derived from: **${context.originalDocument.title}**
           questionStem || 'Match each item to the correct option.',
         prompts,
         options,
-        explanation,
         hint,
         ...(knowledge ? { knowledge } : {}),
       });
@@ -2176,15 +1944,6 @@ This question is derived from: **${context.originalDocument.title}**
           );
         }
       }
-      if (
-        !row.explanation ||
-        typeof row.explanation !== 'string' ||
-        row.explanation.trim().length === 0
-      ) {
-        throw new Error(
-          `Match quiz question ${index + 1}: missing explanation`,
-        );
-      }
       this.validateQuestionHint(row, 'Match quiz', index);
     });
   }
@@ -2222,7 +1981,6 @@ This question is derived from: **${context.originalDocument.title}**
             { id: 'o4', text: 'Term Four', correctPromptId: 'p4' },
             { id: 'o5', text: 'Distractor Term', correctPromptId: null },
           ],
-          explanation: 'Mock explanation for local emulator testing.',
           hint: 'Each description only fits one mock term.',
         },
       ],
@@ -2279,11 +2037,11 @@ This question is derived from: **${context.originalDocument.title}**
   }
 
   /**
-   * Validate and fix followup content to ensure proper Mermaid diagram formatting
-   * @param content - Generated followup content to validate and fix
+   * Strip code-block wrappers and normalize Mermaid fences in a markdown answer.
+   * @param content - Generated markdown answer to validate and fix
    * @returns Fixed content
    */
-  private static validateAndFixFollowupContent(content: string): string {
+  private static validateAndFixMarkdownAnswerContent(content: string): string {
     try {
       let processedContent = content;
 
@@ -2293,7 +2051,7 @@ This question is derived from: **${context.originalDocument.title}**
       if (markdownMatch) {
         processedContent = markdownMatch[1];
         functions.logger.info(
-          'Removed markdown code block wrapper from followup content',
+          'Removed markdown code block wrapper from markdown answer',
         );
       }
 
@@ -2304,7 +2062,7 @@ This question is derived from: **${context.originalDocument.title}**
         // Only remove if it wasn't already processed as markdown
         processedContent = genericMatch[1];
         functions.logger.info(
-          'Removed generic code block wrapper from followup content',
+          'Removed generic code block wrapper from markdown answer',
         );
       }
 
@@ -2312,48 +2070,12 @@ This question is derived from: **${context.originalDocument.title}**
         this.normalizeMermaidCodeFences(processedContent);
       if (normalizedContent !== processedContent) {
         processedContent = normalizedContent;
-        functions.logger.info(
-          'Normalized Mermaid code fences in followup content',
-        );
+        functions.logger.info('Normalized Mermaid code fences in markdown answer');
       }
 
-      // Check for required sections
-      const requiredSections = [
-        '# Question Analysis',
-        '## Core Concept Explanation',
-        '## Answer Analysis',
-        '## Diagram 1:',
-        '## Diagram 2:',
-        '## Key Takeaways',
-        '## Connection to Original Document',
-      ];
-
-      const missingSections = requiredSections.filter(
-        (section) => !processedContent.includes(section),
-      );
-
-      if (missingSections.length > 0) {
-        functions.logger.warn(
-          'Missing sections in followup content:',
-          missingSections,
-        );
-      }
-
-      const mermaidBlockCount = this.countMermaidCodeBlocks(processedContent);
-      if (mermaidBlockCount < 2) {
-        functions.logger.warn(
-          'Less than 2 Mermaid code blocks found in followup content. Diagrams may not be properly formatted.',
-        );
-      } else {
-        functions.logger.info(
-          `Found ${mermaidBlockCount} Mermaid diagram(s) in followup content`,
-        );
-      }
-
-      functions.logger.info('Followup content validation passed');
-      return processedContent; // Content is properly formatted
+      return processedContent;
     } catch (error) {
-      functions.logger.error('Error validating followup content:', error);
+      functions.logger.error('Error validating markdown answer:', error);
       return content; // Return original content on error
     }
   }

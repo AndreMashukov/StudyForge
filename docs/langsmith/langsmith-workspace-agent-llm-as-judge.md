@@ -2,7 +2,7 @@
 
 This document records how StudyForge implemented the **hosted** LangSmith LLM-as-judge for the workspace agent, plus the **local** twin in the replay script. It is not a general LangSmith tutorial.
 
-How to run experiments, upload the dataset, and attach code evaluators: [langsmith-workspace-agent-experiments.md](langsmith-workspace-agent-experiments.md). Browser labeling: [qa-workspace-agent-browser.md](qa-workspace-agent-browser.md). Domain terms (workspace agent, artifact, directory chat): [CONTEXT.md](../../CONTEXT.md).
+How to run experiments, upload the dataset, and attach code evaluators: [langsmith-workspace-agent-experiments.md](langsmith-workspace-agent-experiments.md). Browser labeling: [qa-workspace-agent-browser.md](qa-workspace-agent-browser.md). Domain terms (workspace agent, directory-scoped agent, artifact): [CONTEXT.md](../../CONTEXT.md).
 
 ## What it grades
 
@@ -243,5 +243,5 @@ To change only the Together model id, update `model.json` `kwargs.model` and the
 - Do not attach this judge to project `study-forge` (no gold reference on production traces).
 - Do not use `--yes` on replace/delete unless you asked to skip confirmation.
 - Do not treat hosted `score` 1.0 as a live regression of the planner/tools until a live `WorkspaceAgentRunner` target exists.
-- Do not mix `directory-chat` traces into this dataset.
+- Do not mix directory-scoped agent turns (`scope: "directory"`) into this dataset.
 - Do not put API keys in markdown, JSON committed to git, or CLI flags.

@@ -2,7 +2,6 @@ import { baseApi } from '../baseApi';
 import { auth } from '../../../config/firebase';
 import {
   recordQuizAttemptInFirestore,
-  recordQuizExplanationRequestInFirestore,
   getQuizStatsFromFirestore,
 } from '../../../services/learningTelemetryMutations';
 import { recordFlashcardStudySessionInFirestore } from '../../../services/flashcardStudySessionMutations';
@@ -15,8 +14,6 @@ import {
   GetQuizStatsResponse,
   RecordQuizAttemptRequest,
   RecordQuizAttemptResponse,
-  RecordQuizExplanationRequest,
-  RecordQuizExplanationResponse,
   RecordFlashcardStudySessionRequest,
   RecordFlashcardStudySessionResponse,
 } from '@shared-types';
@@ -37,23 +34,6 @@ export const learningTelemetryApi = baseApi.injectEndpoints({
         try {
           const attemptId = await recordQuizAttemptInFirestore(userId, data);
           return { data: { attemptId } };
-        } catch (error) {
-          return mutationError(error);
-        }
-      },
-      invalidatesTags: ['LearningStats', 'Statistics'],
-    }),
-
-    recordQuizExplanationRequest: builder.mutation<
-      RecordQuizExplanationResponse,
-      RecordQuizExplanationRequest
-    >({
-      async queryFn(data) {
-        const userId = auth.currentUser?.uid;
-        if (!userId) return authRequiredError();
-        try {
-          const eventId = await recordQuizExplanationRequestInFirestore(userId, data);
-          return { data: { eventId } };
         } catch (error) {
           return mutationError(error);
         }
@@ -97,7 +77,6 @@ export const learningTelemetryApi = baseApi.injectEndpoints({
 
 export const {
   useRecordQuizAttemptMutation,
-  useRecordQuizExplanationRequestMutation,
   useRecordFlashcardStudySessionMutation,
   useGetQuizStatsQuery,
 } = learningTelemetryApi;

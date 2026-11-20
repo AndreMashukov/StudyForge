@@ -27,7 +27,6 @@ function toBatchQuestion(plan: IDiagramQuizQuestionPlan, index: number) {
     question: plan.question,
     correctAnswer: plan.correctAnswer,
     optionPlans: assertFourStringTuple(plan.optionPlans, `Question ${index} optionPlans`),
-    explanation: plan.explanation,
   };
 }
 

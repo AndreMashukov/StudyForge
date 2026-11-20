@@ -1,5 +1,6 @@
 import {
   ALL_GENERATION_KINDS,
+  isGenerationKind,
   buildUsagePeriodKey,
   buildUsagePeriodResetAt,
   calculateAgentLoopCredits,
@@ -82,6 +83,10 @@ function parseFeaturePolicies(value: unknown): IUsageFeaturePolicies | null {
 
   const policies = {} as IUsageFeaturePolicies;
   for (const [kind, policyValue] of Object.entries(value)) {
+    // Stored setups may still list retired kinds (e.g. `directoryChat`); skip them.
+    if (!isGenerationKind(kind)) {
+      continue;
+    }
     if (!isRecord(policyValue)) {
       return null;
     }
@@ -96,7 +101,7 @@ function parseFeaturePolicies(value: unknown): IUsageFeaturePolicies | null {
       return null;
     }
 
-    policies[kind as GenerationKind] = { enabled, creditCost };
+    policies[kind] = { enabled, creditCost };
   }
 
   for (const kind of ALL_GENERATION_KINDS) {
@@ -251,23 +256,27 @@ async function buildUserUsageSummary(
   const storage = await buildStorageUsageSummary(context);
   const dailySlideDecks = await buildDailySlideDeckUsageSummary(context);
 
-  const featureAvailability = Object.entries(context.setup.featurePolicies).map(
-    ([kind, policy]) => {
-      const affordability = evaluateFeatureAffordability({
-        policy,
-        remainingIncluded: remainingCredits,
-        billing: billingContext,
-      });
+  const featureAvailability = ALL_GENERATION_KINDS.flatMap((kind) => {
+    const policy = context.setup.featurePolicies[kind];
+    if (!policy) {
+      return [];
+    }
+    const affordability = evaluateFeatureAffordability({
+      policy,
+      remainingIncluded: remainingCredits,
+      billing: billingContext,
+    });
 
-      return {
-        kind: kind as GenerationKind,
+    return [
+      {
+        kind,
         enabled: policy.enabled,
         creditCost: policy.creditCost,
         affordable: affordability.affordable,
         usesOverage: affordability.usesOverage,
-      };
-    },
-  );
+      },
+    ];
+  });
 
   return {
     periodKey,
@@ -416,7 +425,7 @@ async function appendUsageEvent(params: {
   userGroupId: string;
   usageLimitsSetupId: string;
   llmSetupId?: string;
-  generationKind: GenerationKind;
+  generationKind: string;
   credits: number;
   includedCredits?: number;
   overageCredits?: number;
@@ -699,7 +708,11 @@ export async function commitUsageReservation(
         typeof reservationData.llmSetupId === 'string'
           ? reservationData.llmSetupId
           : undefined,
-      generationKind: reservationData.generationKind as GenerationKind,
+      // Kept as stored: reservations made before a kind was retired still settle.
+      generationKind:
+        typeof reservationData.generationKind === 'string'
+          ? reservationData.generationKind
+          : '',
       credits,
       includedCredits,
       overageCredits,
@@ -841,7 +854,11 @@ export async function refundUsageReservation(
         typeof reservationData.llmSetupId === 'string'
           ? reservationData.llmSetupId
           : undefined,
-      generationKind: reservationData.generationKind as GenerationKind,
+      // Kept as stored: reservations made before a kind was retired still settle.
+      generationKind:
+        typeof reservationData.generationKind === 'string'
+          ? reservationData.generationKind
+          : '',
       credits,
       includedCredits,
       overageCredits,
@@ -1013,7 +1030,11 @@ export async function settleUsageReservationToCredits(
         typeof reservationData.llmSetupId === 'string'
           ? reservationData.llmSetupId
           : undefined,
-      generationKind: reservationData.generationKind as GenerationKind,
+      // Kept as stored: reservations made before a kind was retired still settle.
+      generationKind:
+        typeof reservationData.generationKind === 'string'
+          ? reservationData.generationKind
+          : '',
       periodKey,
       split,
     };

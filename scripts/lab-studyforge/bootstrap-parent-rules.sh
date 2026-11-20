@@ -94,13 +94,6 @@ create_and_attach_rule \
   '["slide_deck"]' \
   "Generate slide deck outlines for GCP labs. One concept per slide, max 3 bullets, exact resource names. GCP design language: palette blue #4285F4, green #34A853, yellow #FBBC04, red #EA4335, grey #F1F3F4 backgrounds. Flat vector style with GCP product icons (Compute Engine, VPC, Load Balancing, Cloud Armor, Logging). When additionalPrompt specifies exactly N slides, produce exactly N in order."
 
-create_and_attach_rule \
-  "GCP Lab — Follow-up" \
-  "indigo" \
-  '["gcp-lab", "followup", "chat"]' \
-  '["followup", "chat"]' \
-  "GCP lab tutor. Reference exact resource names. Explain why each step is needed. For progress-check failures, compare student names to lab spec. Suggest verification commands. Keep answers focused."
-
 echo ""
 echo "Done. Verify:"
 sf GET "/directories/$RULES_PARENT_DIR/rules" | jq '.data.rules | map({id, name})'
