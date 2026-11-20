@@ -16,9 +16,13 @@ import { DirectoryRealtimeBridge } from '../DirectoryRealtimeBridge';
 import { RulesRealtimeBridge } from '../RulesRealtimeBridge';
 import { UsageRealtimeBridge } from '../UsageRealtimeBridge';
 import { GlobalAgentLauncher } from '../GlobalAgentLauncher';
+import { LibrarySearch, LibrarySearchButton } from '../LibrarySearch';
 import { prefetchDirectoryTree } from '../../pages/DocumentsPage/utils/prefetchDirectoryContents';
 import { useAppDispatch } from '../../hooks/redux';
-import { toggleSidebar } from '../../store/slices/uiSlice';
+import {
+  setLibrarySearchOpen,
+  toggleSidebar,
+} from '../../store/slices/uiSlice';
 
 export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -80,6 +84,11 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
         }
         end={
           <div className="flex items-center gap-2">
+            {user ? (
+              <LibrarySearchButton
+                onClick={() => dispatch(setLibrarySearchOpen(true))}
+              />
+            ) : null}
             <ThemeToggle />
           </div>
         }
@@ -90,6 +99,7 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
         <RulesRealtimeBridge />
         <UsageRealtimeBridge />
         <GlobalAgentLauncher />
+        <LibrarySearch />
         {children}
       </main>
     </div>

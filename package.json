@@ -155,6 +155,7 @@
     "mammoth": "^1.10.0",
     "marked": "^13.0.3",
     "mermaid": "^11.13.0",
+    "minisearch": "^7.2.0",
     "nativewind": "^4.2.1",
     "next": "~16.1.6",
     "node-fetch": "^3.3.2",

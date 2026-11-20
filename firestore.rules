@@ -306,6 +306,13 @@ service cloud.firestore {
       match /agentKnowledgeChunks/{chunkId} {
         allow read, write: if false;
       }
+
+      // Library search records — Functions maintain; clients sync in bounded pages.
+      match /searchRecords/{recordId} {
+        allow get: if canAccessWorkspace(userId);
+        allow list: if canAccessWorkspace(userId) && isBoundedList(100);
+        allow write: if false;
+      }
     }
 
     match /providerCostPeriods/{periodKey} {

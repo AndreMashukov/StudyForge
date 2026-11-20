@@ -29,7 +29,6 @@ export const queryPersister = createSyncStoragePersister({
 const ALWAYS_PERSISTED = new Set([
   'directoryTree',
   'directoryItems',
-  'libraryIndex',
   'agentThreads',
 ]);
 const PERSISTED_WHEN_RECENT = new Set([

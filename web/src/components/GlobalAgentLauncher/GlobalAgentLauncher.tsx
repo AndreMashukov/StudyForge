@@ -7,6 +7,11 @@ import { Button } from '../ui/Button';
 import { AgentPanel } from '../AgentPanel/AgentPanel';
 import { useHasOpenModal } from '../ModalVisibility';
 import { cn } from '../../lib/utils';
+import { useAppDispatch, useAppSelector } from '../../hooks/redux';
+import {
+  selectAgentLauncherDraft,
+  setAgentLauncherDraft,
+} from '../../store/slices/uiSlice';
 
 export const GlobalAgentLauncher: React.FC = () => {
   const { user } = useAuth();
@@ -14,10 +19,27 @@ export const GlobalAgentLauncher: React.FC = () => {
   const hasOpenModal = useHasOpenModal();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const dispatch = useAppDispatch();
+  const draft = useAppSelector(selectAgentLauncherDraft);
+  const panelVisible = Boolean(user) && !isAppFullscreen && !hasOpenModal && open;
 
   useEffect(() => {
     setOpen(false);
   }, [location.pathname, location.search]);
+
+  // A draft (e.g. "Ask StudyForge" in library search) opens the panel with it prefilled.
+  useEffect(() => {
+    if (draft !== null) {
+      setOpen(true);
+    }
+  }, [draft]);
+
+  // The panel reads the draft once when it mounts; after that it is spent.
+  useEffect(() => {
+    if (draft !== null && panelVisible) {
+      dispatch(setAgentLauncherDraft(null));
+    }
+  }, [draft, panelVisible, dispatch]);
 
   useEffect(() => {
     if (!open) {
@@ -58,6 +80,7 @@ export const GlobalAgentLauncher: React.FC = () => {
     <AgentPanel
       scope="workspace"
       variant="overlay"
+      initialInput={draft ?? undefined}
       onClose={() => setOpen(false)}
       onMutated={() => {
         // Rule caches are invalidated from AgentPanel action events.

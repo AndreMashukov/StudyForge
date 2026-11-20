@@ -12,6 +12,8 @@ export interface IAgentPanel {
   defaultExpanded?: boolean;
   onClose?: () => void;
   variant?: 'embedded' | 'overlay';
+  /** Text placed in the message box when the panel mounts. Not sent. */
+  initialInput?: string;
   className?: string;
 }
 

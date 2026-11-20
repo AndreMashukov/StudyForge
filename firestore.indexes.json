@@ -335,6 +335,17 @@
       "indexes": []
     },
     {
+      "collectionGroup": "searchRecords",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "searchRecords",
+      "fieldPath": "text",
+      "indexes": []
+    },
+    {
       "collectionGroup": "flashcardStudySessions",
       "fieldPath": "expiresAt",
       "ttl": true,

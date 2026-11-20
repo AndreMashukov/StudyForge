@@ -308,14 +308,6 @@ export const documentsApi = baseApi.injectEndpoints({
       invalidatesTags: ['Document', 'Documents', { type: 'Directory', id: 'LIST' }],
     }),
 
-    searchDocuments: builder.query<ListDocumentsResponse, string>({
-      query: (searchQuery) => ({
-        functionName: 'searchDocuments',
-        data: { query: searchQuery },
-      }),
-      providesTags: ['Document'],
-    }),
-
     getDocumentContent: builder.query<
       { content: string; contentFormat: DocumentContentFormat },
       string
@@ -358,6 +350,4 @@ export const {
   useUpdateDocumentMutation,
   useDeleteDocumentMutation,
   useBulkDeleteDocumentsMutation,
-  useSearchDocumentsQuery,
-  useLazySearchDocumentsQuery,
 } = documentsApi;

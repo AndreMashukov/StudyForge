@@ -30,6 +30,18 @@ _Avoid_: Captures folder, inbox
 On AI Prompt documents, one short open recall question and hidden answer per lesson section (each main `h2`, excluding Glossary and Examples). Stored on the document record, not inside the HTML body. Optional at generation time via the Scratchpad toggle. Each pad can remember prior replaced questions (`avoidedQuestions`) so Generate a different question avoids repeats; Reset clears that list only. Learners use Reveal mode to show the stored answer, or Type mode to submit an answer for a 1 to 10 score and an optional hint when not perfect.
 _Avoid_: inline quiz, document Q&A box
 
+**Library search**:
+The learner-facing way to find things in their library: directories, documents and artifacts by name, and documents by their text. Covers the whole library, or one directory and its descendants when opened from inside it. Distinct from the workspace agent's `search_knowledge` over **User knowledge**.
+_Avoid_: global search, find, content search (when meaning the whole feature)
+
+**Search record**:
+The per-item entry that library search matches against: one for each directory, document and artifact, holding its name and, for a document, its text. Kept in step with the item automatically; never edited by the learner.
+_Avoid_: search index (when meaning one entry), index row, search document
+
+**Search result**:
+One directory, document or artifact returned by library search. A document found by its text shows the matching passage.
+_Avoid_: hit (in product copy), match, referenced item
+
 ## Generated content
 
 **Artifact**:
@@ -206,7 +218,7 @@ _Avoid_: RAG (alone), personal knowledge base, memory (when meaning note search)
 
 **Referenced item**:
 A directory, document, or artifact that the workspace agent or directory-scoped agent surfaced through its tools during a turn, shown to the learner as a tappable card. Comes from tool results, never from IDs written in the reply text.
-_Avoid_: citation, search result (when meaning agent output)
+_Avoid_: citation, **search result** (that is a row returned by **library search**)
 
 **Directory chat**:
 Conversational assistant scoped to a directory and its documents/artifacts. Uses follow-up rules and artifact context. Distinct from the workspace agent and directory-scoped agent panels.
@@ -292,6 +304,7 @@ _Avoid_: migration order, pre/post hook
 - A **Quiz attempt** or **Flashcard study session** feeds **Statistics failure groups**; **Hidden statistics failures** filter what Statistics shows without deleting raw telemetry
 - A **Capture** creates a **Document** in the current **Directory** or the **Default capture directory**
 - An **agent turn** may return **Referenced items** alongside its reply
+- Every **Directory**, **Document** and **Artifact** has one **Search record**; **Library search** returns **Search results** drawn from them
 - An agent thread has many **agent turns** and at most one **active turn**; every turn that ends writes exactly one assistant message
 - **Platform agent knowledge** is retrieved as **Platform knowledge chunks** into the workspace-agent planner prompt; **User knowledge** is searched separately with `search_knowledge`
 
@@ -302,4 +315,5 @@ _Avoid_: migration order, pre/post hook
 - **Record vs job** — the user-visible Firestore entity (document/artifact) vs the `GenerationJob` tracking async work; don't conflate their status fields.
 - **"Due"** — StudyForge has no spaced-repetition schedule, so nothing is "due". Say "missed" for cards and questions drawn from **statistics failure groups**.
 - **"Assistant"** — in mobile copy, means the **workspace agent** or **directory-scoped agent**, never **directory chat**.
+- **"Search"** — alone, means **library search**. The agent looking through **User knowledge** is knowledge search, and what it surfaces are **Referenced items**, not **search results**.
 - **"Turn"** — means an **agent turn** in agent code and docs. The **flashcard study session** definition also says "turn" for one visit to a set; that is unrelated.

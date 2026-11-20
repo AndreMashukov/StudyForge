@@ -15,7 +15,7 @@ let storageInitializing = false;
 let mmkvUnavailable = false;
 const memoryCache = new Map<string, string>();
 
-interface IMmkvInstance {
+export interface IMmkvInstance {
   getString(key: string): string | undefined;
   set(key: string, value: string): void;
   remove(key: string): void;
@@ -35,7 +35,8 @@ function isExpoGo(): boolean {
   return Constants.appOwnership === 'expo';
 }
 
-function loadCreateMmkv():
+/** Null in Expo Go and wherever the native module is missing. */
+export function loadCreateMmkv():
   | ((config: { id: string }) => IMmkvInstance)
   | null {
   if (mmkvUnavailable || isExpoGo()) {

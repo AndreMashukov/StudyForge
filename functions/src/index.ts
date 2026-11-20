@@ -108,6 +108,17 @@ export { processMonthlyOverageInvoicesSchedule } from './tasks/process-monthly-o
 export { indexPlatformAgentKnowledgeDocument } from './triggers/platform-agent-knowledge-index';
 
 export {
+  syncDirectorySearchRecord,
+  syncDocumentSearchRecord,
+  syncQuizSearchRecord,
+  syncFlashcardSetSearchRecord,
+  syncSlideDeckSearchRecord,
+  syncDiagramQuizSearchRecord,
+  syncSequenceQuizSearchRecord,
+  syncMatchQuizSearchRecord,
+} from './triggers/library-search-records';
+
+export {
   accountSnapshotFromBilling,
   accountSnapshotFromUsage,
   accountSnapshotFromUser,

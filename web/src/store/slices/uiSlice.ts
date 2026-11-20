@@ -13,6 +13,9 @@ interface UIState {
     openSections: string[];
     activeSection: string | null;
   };
+  librarySearchOpen: boolean;
+  /** Text waiting to be placed in the Assistant's input when its panel opens. */
+  agentLauncherDraft: string | null;
 }
 
 const initialState: UIState = {
@@ -24,6 +27,8 @@ const initialState: UIState = {
     openSections: [],
     activeSection: null,
   },
+  librarySearchOpen: false,
+  agentLauncherDraft: null,
 };
 
 const uiSlice = createSlice({
@@ -64,6 +69,12 @@ const uiSlice = createSlice({
     setSidebarOpenSections: (state, action: PayloadAction<string[]>) => {
       state.sidebar.openSections = action.payload;
     },
+    setLibrarySearchOpen: (state, action: PayloadAction<boolean>) => {
+      state.librarySearchOpen = action.payload;
+    },
+    setAgentLauncherDraft: (state, action: PayloadAction<string | null>) => {
+      state.agentLauncherDraft = action.payload;
+    },
   },
 });
 
@@ -75,7 +86,9 @@ export const {
   toggleSidebar, 
   setSidebarActiveSection, 
   toggleSidebarSection, 
-  setSidebarOpenSections 
+  setSidebarOpenSections,
+  setLibrarySearchOpen,
+  setAgentLauncherDraft,
 } = uiSlice.actions;
 
 // Selectors
@@ -85,5 +98,7 @@ export const selectToast = (state: { ui: UIState }) => state.ui.toast;
 export const selectSidebarIsOpen = (state: { ui: UIState }) => state.ui.sidebar.isOpen;
 export const selectSidebarOpenSections = (state: { ui: UIState }) => state.ui.sidebar.openSections;
 export const selectSidebarActiveSection = (state: { ui: UIState }) => state.ui.sidebar.activeSection;
+export const selectLibrarySearchOpen = (state: { ui: UIState }) => state.ui.librarySearchOpen;
+export const selectAgentLauncherDraft = (state: { ui: UIState }) => state.ui.agentLauncherDraft;
 
 export default uiSlice.reducer;

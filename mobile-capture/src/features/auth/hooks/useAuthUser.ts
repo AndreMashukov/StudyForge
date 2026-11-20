@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
 import { auth } from '../../../lib/firebase';
+import { clearLibrarySearch } from '../../library/librarySearchClient';
 
 export function useAuthUser() {
   const [user, setUser] = useState<User | null>(auth.currentUser);
@@ -19,6 +20,7 @@ export function useAuthUser() {
   }, []);
 
   const signOutUser = useCallback(async () => {
+    await clearLibrarySearch();
     await signOut(auth);
   }, []);
 

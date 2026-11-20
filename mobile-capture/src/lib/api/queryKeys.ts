@@ -6,7 +6,6 @@ export const queryKeys = {
     ['document', userId, documentId] as const,
   documentContent: (userId: string, documentId: string, version: string) =>
     ['documentContent', userId, documentId, version] as const,
-  libraryIndex: (userId: string) => ['libraryIndex', userId] as const,
   artifact: (userId: string, kind: string, artifactId: string) =>
     ['artifact', userId, kind, artifactId] as const,
   agentThreads: (userId: string) => ['agentThreads', userId] as const,

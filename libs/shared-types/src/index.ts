@@ -46,6 +46,7 @@ export * from './document-contract';
 export * from './line-format-contract';
 export * from './agent';
 export * from './agent-turn';
+export * from './library-search';
 
 export type DocumentContentFormat = 'html' | 'markdown';
 

@@ -317,6 +317,54 @@ describe('firestore.rules client write hardening', () => {
     });
   });
 
+  describe('library search records', () => {
+    const recordPath = `users/${OWNER_UID}/searchRecords/document_doc-1`;
+    const recordsPath = `users/${OWNER_UID}/searchRecords`;
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), recordPath), {
+          itemType: 'document',
+          sourceId: 'doc-1',
+          title: 'Seed document',
+          deleted: false,
+        });
+      });
+    });
+
+    it('allows owner get and bounded list', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID, { email_verified: true });
+      await assertSucceeds(getDoc(doc(owner.firestore(), recordPath)));
+      await assertSucceeds(
+        getDocs(query(collection(owner.firestore(), recordsPath), limit(100))),
+      );
+    });
+
+    it('denies unbounded and oversized list', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID, { email_verified: true });
+      await assertFails(getDocs(collection(owner.firestore(), recordsPath)));
+      await assertFails(
+        getDocs(query(collection(owner.firestore(), recordsPath), limit(101))),
+      );
+    });
+
+    it('denies client writes', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID, { email_verified: true });
+      await assertFails(
+        setDoc(doc(owner.firestore(), recordPath), { title: 'Changed' }),
+      );
+      await assertFails(deleteDoc(doc(owner.firestore(), recordPath)));
+    });
+
+    it('denies another user', async () => {
+      const other = testEnv.authenticatedContext(OTHER_UID, { email_verified: true });
+      await assertFails(getDoc(doc(other.firestore(), recordPath)));
+      await assertFails(
+        getDocs(query(collection(other.firestore(), recordsPath), limit(10))),
+      );
+    });
+  });
+
   describe('directory chat', () => {
     const directoryId = 'dir-1';
 

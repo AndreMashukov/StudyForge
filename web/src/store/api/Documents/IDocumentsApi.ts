@@ -27,9 +27,6 @@ export interface IDocumentsApi {
   uploadAndCreateDocument: (data: UploadDocumentRequest) => DocumentEnhanced;
   updateDocument: (data: UpdateDocumentRequest) => DocumentEnhanced;
   deleteDocument: (data: DeleteDocumentRequest) => { success: boolean };
-  
-  // Search and filter operations
-  searchDocuments: (query: string) => ListDocumentsResponse;
 }
 
 export interface IDocumentListResponse {

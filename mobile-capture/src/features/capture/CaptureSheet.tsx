@@ -26,7 +26,7 @@ import {
   getCallableErrorMessage,
 } from '../../lib/api/studyforgeApi';
 import { OFFLINE_MESSAGE, useIsOnline } from '../../lib/network/online';
-import { directoryPath } from '../library/librarySearch';
+import { directoryPath } from '../library/directoryPath';
 import { DirectoryPicker } from '../shell/DirectoryPicker';
 import { useShellStore } from '../shell/shellStore';
 import { Sheet } from '../shell/ui';

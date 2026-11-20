@@ -44,6 +44,10 @@ export function directoryItemsCollection(userId: string, directoryId: string) {
   );
 }
 
+export function searchRecordsCollection(userId: string) {
+  return collection(getClientDb(), 'users', userId, 'searchRecords');
+}
+
 export function ruleRef(userId: string, ruleId: string) {
   return doc(getClientDb(), 'users', userId, 'rules', ruleId);
 }

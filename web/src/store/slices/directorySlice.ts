@@ -7,9 +7,8 @@ interface DirectoryState {
   expandedDirectoryIds: string[];
   currentPath: string[];
   
-  // Document selection and search
+  // Document selection
   selectedDocumentId: string | null;
-  searchQuery: string;
   
   // UI preferences
   viewMode: 'list' | 'grid';
@@ -29,9 +28,8 @@ const initialState: DirectoryState = {
   expandedDirectoryIds: [],
   currentPath: [],
   
-  // Document selection and search
+  // Document selection
   selectedDocumentId: null,
-  searchQuery: '',
   
   // UI preferences
   viewMode: 'list',
@@ -97,10 +95,6 @@ const directorySlice = createSlice({
       state.selectedDocumentId = action.payload;
     },
     
-    setSearchQuery: (state, action: PayloadAction<string>) => {
-      state.searchQuery = action.payload;
-    },
-    
     // UI preference actions
     setViewMode: (state, action: PayloadAction<'list' | 'grid'>) => {
       state.viewMode = action.payload;
@@ -155,7 +149,6 @@ export const {
   
   // Document actions
   setSelectedDocument,
-  setSearchQuery,
   
   // UI preferences
   setViewMode,
@@ -182,7 +175,6 @@ export const selectIsDirectoryExpanded = (directoryId: string) => (state: RootSt
 
 // Selectors - Document
 export const selectSelectedDocumentId = (state: RootState) => state.directory.selectedDocumentId;
-export const selectSearchQuery = (state: RootState) => state.directory.searchQuery;
 
 // Selectors - UI preferences
 export const selectViewMode = (state: RootState) => state.directory.viewMode;

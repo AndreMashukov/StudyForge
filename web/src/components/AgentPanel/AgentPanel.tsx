@@ -78,10 +78,11 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
   onClose,
   variant = 'embedded',
   className,
+  initialInput,
 }) => {
   const { user } = useAuth();
   const userId = user?.uid;
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(initialInput ?? '');
   const [error, setError] = useState<string | null>(null);
   const [contextDismissed, setContextDismissed] = useState(false);
   const [pendingTurn, setPendingTurn] = useState<IAgentPendingTurn | null>(

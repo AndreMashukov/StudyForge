@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { signOut as firebaseSignOut } from 'firebase/auth';
 import { auth, evictFirestoreLocalCache } from '../config/firebase';
+import { clearLibrarySearch } from '../services/librarySearch';
 
 interface IUseSecureSignOutResult {
   signOut: () => Promise<boolean>;
@@ -18,6 +19,7 @@ export function useSecureSignOut(): IUseSecureSignOutResult {
 
     try {
       await firebaseSignOut(auth);
+      await clearLibrarySearch();
       await evictFirestoreLocalCache();
 
       if (typeof window !== 'undefined') {

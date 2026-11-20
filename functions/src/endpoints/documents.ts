@@ -25,7 +25,6 @@ import {
   CreateDocumentRequest, 
   UpdateDocumentRequest, 
   DocumentSourceType,
-  DocumentStatus,
   GenerateFromPromptRequest,
   GenerateFromScreenshotRequest,
   isPromptDiagramCount,
@@ -888,52 +887,6 @@ export const listDocuments = onCall(
       logger.error('Failed to list documents', { 
         error: error instanceof Error ? error.message : String(error),
         options: request.data,
-      });
-      throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
-    }
-  }
-);
-
-/**
- * Search documents
- */
-export const searchDocuments = onCall(
-  { 
-    region: 'asia-east1',
-    cors: true,
-  },
-  async (request) => {
-    try {
-      const userId = await validateVerifiedAuth(request);
-      const { searchTerm, ...options } = request.data as { 
-        searchTerm: string; 
-        limit?: number;
-        sourceType?: DocumentSourceType;
-        status?: DocumentStatus;
-      };
-
-      if (!searchTerm || typeof searchTerm !== 'string' || searchTerm.trim().length === 0) {
-        throw new HttpsError('invalid-argument', 'Search term is required');
-      }
-
-      logger.info('Searching documents', { 
-        userId,
-        searchTerm: searchTerm.substring(0, 50),
-        options,
-      });
-
-      const documents = await DocumentCrudService.searchDocuments(userId, searchTerm, options);
-
-      return { 
-        success: true, 
-        documents,
-        searchTerm,
-      };
-
-    } catch (error) {
-      logger.error('Failed to search documents', { 
-        error: error instanceof Error ? error.message : String(error),
-        searchTerm: request.data?.searchTerm?.substring(0, 50),
       });
       throw new HttpsError('internal', error instanceof Error ? error.message : 'Unknown error');
     }

@@ -5,10 +5,14 @@ import { AppDrawerContent } from '../../features/shell/AppDrawerContent';
 import { CaptureSheet } from '../../features/capture/CaptureSheet';
 import { NewDirectorySheet } from '../../features/shell/NewDirectorySheet';
 import { useShellStore } from '../../features/shell/shellStore';
+import { useAuthUser } from '../../features/auth/hooks/useAuthUser';
+import { useLibrarySearchSync } from '../../features/library/librarySearchClient';
 
 /** Sidebar shell (decision 2): one drawer around the main stack, plus the app-wide sheets. */
 export default function AppLayout() {
   const router = useRouter();
+  const { user } = useAuthUser();
+  useLibrarySearchSync(user?.uid);
   const newDirectory = useShellStore((state) => state.newDirectory);
   const closeNewDirectory = useShellStore((state) => state.closeNewDirectory);
   return (

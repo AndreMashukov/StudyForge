@@ -109,6 +109,16 @@ export function DirectoryScreen() {
           trailing={
             <>
               <HeaderIconButton
+                icon="search"
+                accessibilityLabel={`Search in ${directory.name}`}
+                onPress={() =>
+                  router.push({
+                    pathname: '/search',
+                    params: { directoryId: directory.id },
+                  })
+                }
+              />
+              <HeaderIconButton
                 icon="add"
                 accessibilityLabel={`Capture into ${directory.name}`}
                 onPress={() => openCapture(directory.id)}
