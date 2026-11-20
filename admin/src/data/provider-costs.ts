@@ -4,7 +4,7 @@ import type {
   IAdminProviderCostPeriod,
   IProviderCostBucket,
 } from '@shared-types';
-import { buildUsagePeriodKey } from '@shared-types';
+import { buildUsagePeriodKey, getGenerationKindLabel } from '@shared-types';
 import { requireAdminSession } from '../auth/session';
 import { getAdminFirestore } from '../firebase/admin';
 
@@ -66,6 +66,21 @@ function mergeBuckets(
     };
   }
   return merged;
+}
+
+/**
+ * Re-keys generation-kind buckets by display label. Kinds that no longer exist
+ * (e.g. retired features on past records) merge into one "Retired feature" row,
+ * so their cost and credits still count.
+ */
+export function groupBucketsByGenerationKindLabel(
+  buckets: Record<string, IProviderCostBucket>,
+): Record<string, IProviderCostBucket> {
+  let grouped: Record<string, IProviderCostBucket> = {};
+  for (const [kind, bucket] of Object.entries(buckets)) {
+    grouped = mergeBuckets(grouped, { [getGenerationKindLabel(kind)]: bucket });
+  }
+  return grouped;
 }
 
 function isUserPeriodDoc(
@@ -160,7 +175,9 @@ export interface IProviderCostRouteSummary {
 export function buildRouteSummaries(
   period: IAdminProviderCostPeriod,
 ): IProviderCostRouteSummary[] {
-  return Object.entries(period.byGenerationKind)
+  return Object.entries(
+    groupBucketsByGenerationKindLabel(period.byGenerationKind),
+  )
     .map(([route, bucket]) => ({
       route,
       knownCostUsd: bucket.knownCostUsd,

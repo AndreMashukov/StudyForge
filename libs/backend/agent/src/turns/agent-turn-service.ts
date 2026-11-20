@@ -81,7 +81,7 @@ export function buildStaleTurnState(
 function usageKindForScope(
   scope: StartAgentTurnInput['scope'],
 ): AgentTurnUsageKind {
-  return scope === 'workspace' ? 'directoryAgent' : 'directoryChat';
+  return scope === 'workspace' ? 'directoryAgent' : 'directoryScopedAgent';
 }
 
 type StartTransactionResult =

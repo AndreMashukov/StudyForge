@@ -75,8 +75,7 @@ export class AgentKnowledgeLifecycle {
         }
         const record = question as Record<string, unknown>;
         const prompt = typeof record.question === 'string' ? record.question : '';
-        const explanation = typeof record.explanation === 'string' ? record.explanation : '';
-        return `Question ${index + 1}: ${prompt}\nExplanation: ${explanation}`;
+        return `Question ${index + 1}: ${prompt}`;
       })
       .filter(Boolean);
 

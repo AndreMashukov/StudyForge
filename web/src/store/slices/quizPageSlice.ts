@@ -8,7 +8,7 @@ interface QuizPageState {
   questions: IQuizQuestion[];
   currentQuestionIndex: number;
   selectedAnswer: number | null;
-  showExplanation: boolean;
+  showFeedback: boolean;
   score: number;
   answers: IQuizAnswer[];
   isCompleted: boolean;
@@ -23,13 +23,7 @@ interface QuizPageState {
   // Form state
   isSubmitting: boolean;
   formErrors: Record<string, string>;
-  
-  // Followup state
-  followupGenerated: Record<number, boolean>;
-  followupContent: Record<number, string>;
-  followupChatOpen: Record<number, boolean>;
-  isGeneratingFollowup: boolean;
-  followupError: string | null;
+
 }
 
 const initialState: QuizPageState = {
@@ -38,7 +32,7 @@ const initialState: QuizPageState = {
   questions: [],
   currentQuestionIndex: 0,
   selectedAnswer: null,
-  showExplanation: false,
+  showFeedback: false,
   score: 0,
   answers: [],
   isCompleted: false,
@@ -53,13 +47,6 @@ const initialState: QuizPageState = {
   // Form state
   isSubmitting: false,
   formErrors: {},
-  
-  // Followup state
-  followupGenerated: {},
-  followupContent: {},
-  followupChatOpen: {},
-  isGeneratingFollowup: false,
-  followupError: null,
 };
 
 const quizPageSlice = createSlice({
@@ -73,7 +60,7 @@ const quizPageSlice = createSlice({
       state.questions = action.payload.questions;
       state.currentQuestionIndex = 0;
       state.selectedAnswer = null;
-      state.showExplanation = false;
+      state.showFeedback = false;
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
@@ -81,11 +68,6 @@ const quizPageSlice = createSlice({
       state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
-      state.followupGenerated = {};
-      state.followupContent = {};
-      state.followupChatOpen = {};
-      state.isGeneratingFollowup = false;
-      state.followupError = null;
     },
     // Quiz lifecycle actions
     startQuiz: (state, action: PayloadAction<{ questions: IQuizQuestion[] }>) => {
@@ -93,7 +75,7 @@ const quizPageSlice = createSlice({
       state.questions = action.payload.questions;
       state.currentQuestionIndex = 0;
       state.selectedAnswer = null;
-      state.showExplanation = false;
+      state.showFeedback = false;
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
@@ -101,18 +83,13 @@ const quizPageSlice = createSlice({
       state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
-      state.followupGenerated = {};
-      state.followupContent = {};
-      state.followupChatOpen = {};
-      state.isGeneratingFollowup = false;
-      state.followupError = null;
     },
     
     selectAnswer: (state, action: PayloadAction<{ answerIndex: number }>) => {
       if (state.selectedAnswer !== null) return; // Prevent changing answer
       
       state.selectedAnswer = action.payload.answerIndex;
-      state.showExplanation = true;
+      state.showFeedback = true;
       
       const currentQuestion = state.questions[state.currentQuestionIndex];
       const isCorrect = action.payload.answerIndex === currentQuestion.correct;
@@ -137,7 +114,7 @@ const quizPageSlice = createSlice({
       if (state.currentQuestionIndex < state.questions.length - 1) {
         state.currentQuestionIndex += 1;
         state.selectedAnswer = null;
-        state.showExplanation = false;
+        state.showFeedback = false;
         state.formErrors = {};
         state.questionStartTime = Date.now();
       } else {
@@ -196,36 +173,8 @@ const quizPageSlice = createSlice({
         };
         
         state.answers.push(answer);
-        state.showExplanation = true;
+        state.showFeedback = true;
       }
-    },
-    
-    // Followup actions
-    setFollowupGenerating: (state, action: PayloadAction<boolean>) => {
-      state.isGeneratingFollowup = action.payload;
-      state.followupError = null;
-    },
-    
-    setFollowupGenerated: (state, action: PayloadAction<{ questionIndex: number; content: string }>) => {
-      state.followupGenerated[action.payload.questionIndex] = true;
-      state.followupContent[action.payload.questionIndex] = action.payload.content;
-      state.isGeneratingFollowup = false;
-    },
-    
-    setFollowupError: (state, action: PayloadAction<string>) => {
-      state.followupError = action.payload;
-      state.isGeneratingFollowup = false;
-    },
-    
-    clearFollowupError: (state) => {
-      state.followupError = null;
-    },
-
-    openFollowupChat: (state, action: PayloadAction<{ questionIndex: number }>) => {
-      state.followupChatOpen[action.payload.questionIndex] = true;
-      state.followupGenerated[action.payload.questionIndex] = true;
-      state.isGeneratingFollowup = false;
-      state.followupError = null;
     },
   },
 });
@@ -245,11 +194,6 @@ export const {
   setFormErrors,
   clearFormErrors,
   skipQuestion,
-  setFollowupGenerating,
-  setFollowupGenerated,
-  setFollowupError,
-  clearFollowupError,
-  openFollowupChat,
 } = quizPageSlice.actions;
 
 // Selectors
@@ -284,12 +228,5 @@ export const selectFormState = (state: { quizPage: QuizPageState }) => ({
   isSubmitting: state.quizPage.isSubmitting,
   errors: state.quizPage.formErrors,
 });
-
-// Followup selectors
-export const selectIsGeneratingFollowup = (state: { quizPage: QuizPageState }) => state.quizPage.isGeneratingFollowup;
-export const selectFollowupGenerated = (state: { quizPage: QuizPageState }) => state.quizPage.followupGenerated;
-export const selectFollowupContent = (state: { quizPage: QuizPageState }) => state.quizPage.followupContent;
-export const selectFollowupError = (state: { quizPage: QuizPageState }) => state.quizPage.followupError;
-export const selectFollowupChatOpen = (state: { quizPage: QuizPageState }) => state.quizPage.followupChatOpen;
 
 export default quizPageSlice.reducer;

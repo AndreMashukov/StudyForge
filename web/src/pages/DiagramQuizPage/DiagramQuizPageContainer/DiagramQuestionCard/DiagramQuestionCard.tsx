@@ -7,7 +7,6 @@ import { cn } from '../../../../lib/utils';
 import { QuizQuestionHeader } from '../../../../components/QuizQuestionHeader';
 import { DiagramSlideViewer } from '../DiagramSlideViewer';
 import { DiagramAnswerBar } from '../DiagramAnswerBar';
-import { Spinner } from '../../../../components/ui/Spinner';
 import {
   selectDiagramQuizState,
   selectDiagramQuizProgress,
@@ -18,7 +17,7 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
   question,
   currentDiagramIndex,
   selectedAnswer,
-  showExplanation,
+  showFeedback,
   onAnswerSelect,
   onNextQuestion,
   onPrevDiagram,
@@ -27,9 +26,6 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
   isLastQuestion,
   className,
   backAction,
-  onGenerateFollowup,
-  isGeneratingFollowup = false,
-  isFollowupGenerated = false,
 }) => {
   const quizState = useSelector(selectDiagramQuizState);
   const progress = useSelector(selectDiagramQuizProgress);
@@ -63,14 +59,14 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
         <DiagramAnswerBar
           selectedAnswer={selectedAnswer}
           correctAnswer={question.correct}
-          showResult={showExplanation}
+          showResult={showFeedback}
           onSelect={onAnswerSelect}
         />
 
-        {showExplanation && (
+        {showFeedback && (
           <Card className="mt-4 border-border/50 bg-muted/30">
             <CardContent className="p-4">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 {selectedAnswer === question.correct ? (
                   <Check className="h-4 w-4 text-success" />
                 ) : (
@@ -78,37 +74,15 @@ export const DiagramQuestionCard: React.FC<IDiagramQuestionCard> = ({
                 )}
                 {selectedAnswer === question.correct ? 'Correct!' : 'Incorrect'}
               </h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{question.explanation}</p>
             </CardContent>
           </Card>
         )}
 
-        {showExplanation && (
+        {showFeedback && (
           <div className="space-y-3 mt-6">
             <Button onClick={onNextQuestion} className="w-full" size="lg">
               {isLastQuestion ? 'View results' : 'Next question'}
             </Button>
-
-            {onGenerateFollowup && (
-              <Button
-                onClick={onGenerateFollowup}
-                variant="outline"
-                className="w-full"
-                size="lg"
-                disabled={isFollowupGenerated || isGeneratingFollowup}
-              >
-                {isGeneratingFollowup ? (
-                  <>
-                    <Spinner size="xs" className="mr-2" />
-                    Generating Detailed Explanation...
-                  </>
-                ) : isFollowupGenerated ? (
-                  'Detailed Explanation Generated'
-                ) : (
-                  'Generate Detailed Explanation'
-                )}
-              </Button>
-            )}
           </div>
         )}
       </CardContent>

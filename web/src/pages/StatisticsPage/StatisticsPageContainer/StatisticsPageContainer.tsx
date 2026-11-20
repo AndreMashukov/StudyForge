@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   BarChart3,
-  Brain,
   Target,
   TrendingUp,
   ListChecks,
@@ -64,11 +63,10 @@ const QuizPerformanceTable = ({ quizzes }: IQuizPerformanceTable) => {
         <div className="overflow-x-auto">
           <div className="min-w-[720px]">
             <div className="border-b bg-muted/30 text-left text-xs uppercase text-muted-foreground">
-              <div className="grid grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] px-4 py-3 font-medium">
+              <div className="grid grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))] px-4 py-3 font-medium">
                 <span>Quiz</span>
                 <span>Accuracy</span>
                 <span>Failed</span>
-                <span>Explanations</span>
                 <span>Last attempt</span>
               </div>
             </div>
@@ -77,7 +75,7 @@ const QuizPerformanceTable = ({ quizzes }: IQuizPerformanceTable) => {
               scrollMode="window"
               estimateSize={88}
               renderItem={(quiz) => (
-                <div className="grid grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] border-b border-border/60 px-4 py-3 text-sm last:border-0">
+                <div className="grid grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))] border-b border-border/60 px-4 py-3 text-sm last:border-0">
                   <div>
                     <Link
                       className="font-medium text-foreground hover:text-primary"
@@ -98,7 +96,6 @@ const QuizPerformanceTable = ({ quizzes }: IQuizPerformanceTable) => {
                     {formatPercentage(quiz.accuracyPercentage)}
                   </div>
                   <div>{formatInteger(quiz.incorrectAnswerCount)}</div>
-                  <div>{formatInteger(quiz.explanationRequestCount)}</div>
                   <div className="text-muted-foreground">
                     {formatDateTime(quiz.lastAttemptAt)}
                   </div>
@@ -196,7 +193,7 @@ export const StatisticsPageContainer: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <MetricCard
             icon={Target}
             label="Accuracy"
@@ -208,12 +205,6 @@ export const StatisticsPageContainer: React.FC = () => {
             label="Failed answers"
             value={formatInteger(detail.quiz.incorrectAnswerCount)}
             detail="Across selected attempts"
-          />
-          <MetricCard
-            icon={Brain}
-            label="Explanations"
-            value={formatInteger(detail.quiz.explanationRequestCount)}
-            detail="Detailed requests"
           />
         </div>
         <Card>

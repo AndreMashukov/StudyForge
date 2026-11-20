@@ -230,7 +230,7 @@ export class LlmSetupRepository {
       !generationRoute &&
       (kind === 'directoryAgent' || kind === 'agentExecutor')
     ) {
-      generationRoute = context.setup.generationRoutes.directoryChat;
+      generationRoute = context.setup.generationRoutes.directoryScopedAgent;
     }
 
     if (!generationRoute) {

@@ -184,19 +184,7 @@ async function normalizeGenerationRoutes(
       throw new Error(`Unknown generation kind: ${kind}`);
     }
 
-    let route = routes[kind];
-    if (
-      !route &&
-      (kind === 'directoryAgent' || kind === 'agentExecutor') &&
-      routes.directoryChat
-    ) {
-      route = {
-        ...routes.directoryChat,
-        modality: 'text',
-      };
-    }
-
-    normalized[kind] = await validateGenerationRoute(kind, route);
+    normalized[kind] = await validateGenerationRoute(kind, routes[kind]);
   }
 
   return normalized;

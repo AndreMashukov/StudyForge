@@ -9,7 +9,7 @@ const SAMPLE_QUESTION = `{
       "question": "What is machine learning?",
       "options": ["A", "B", "C", "D"],
       "correctAnswer": 0,
-      "explanation": "ML learns from experience."
+      "hint": "Think about learning from data."
     }`;
 
 describe('repairQuizJsonEnvelope', () => {
@@ -59,7 +59,7 @@ describe('parseQuizJson', () => {
       "question": "What is supervised learning?",
       "options": ["A", "B", "C", "D"],
       "correctAnswer": 1,
-      "explanation": "Uses labeled data."
+      "hint": "Think about labels."
     }
   ]
 }`;

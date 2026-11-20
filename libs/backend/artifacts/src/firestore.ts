@@ -399,7 +399,6 @@ export class FirestoreService {
     geminiQuiz: GeminiQuizResponse,
     userId: string,
     directoryId: string,
-    followupRuleIds?: string[],
     allDocumentIds?: string[],
     appliedRuleIds?: string[],
   ): Promise<Quiz> {
@@ -426,13 +425,11 @@ export class FirestoreService {
             question: string;
             options: string[];
             correctAnswer: number;
-            explanation?: string;
             hint?: string;
           }): QuizQuestion => ({
             question: q.question,
             options: q.options,
             correctAnswer: q.correctAnswer,
-            explanation: q.explanation,
             ...(q.hint ? { hint: q.hint } : {}),
           }),
         ),
@@ -442,8 +439,6 @@ export class FirestoreService {
         // Add generation metadata
         generationAttempt: generationAttempt,
         documentTitle: document.title,
-        // Store followup rules for later use
-        followupRuleIds: followupRuleIds || [],
       };
 
       const db = this.getDb();
@@ -458,7 +453,6 @@ export class FirestoreService {
         directoryId: quiz.directoryId,
         generationAttempt: quiz.generationAttempt,
         documentTitle: quiz.documentTitle,
-        followupRuleIds: quiz.followupRuleIds || [],
         appliedRuleIds: appliedRuleIds || [],
       };
 
@@ -493,7 +487,6 @@ export class FirestoreService {
     geminiQuiz: DiagramQuizGenerationResponse,
     userId: string,
     directoryId: string,
-    followupRuleIds?: string[],
     allDocumentIds?: string[],
     appliedRuleIds?: string[],
   ): Promise<DiagramQuiz> {
@@ -511,7 +504,6 @@ export class FirestoreService {
             ? { diagramLabels: q.diagramLabels }
             : {}),
           correctAnswer: q.correctAnswer,
-          explanation: q.explanation,
           ...(q.hint ? { hint: q.hint } : {}),
         }),
       );
@@ -526,7 +518,6 @@ export class FirestoreService {
         directoryId,
         documentTitle: document.title,
         generationAttempt,
-        followupRuleIds: followupRuleIds || [],
       };
 
       const db = this.getDb();
@@ -543,7 +534,6 @@ export class FirestoreService {
         directoryId: diagramQuiz.directoryId,
         documentTitle: diagramQuiz.documentTitle,
         generationAttempt: diagramQuiz.generationAttempt,
-        followupRuleIds: diagramQuiz.followupRuleIds || [],
         appliedRuleIds: appliedRuleIds || [],
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
@@ -659,7 +649,6 @@ export class FirestoreService {
     geminiQuiz: SequenceQuizGenerationResponse,
     userId: string,
     directoryId: string,
-    followupRuleIds?: string[],
     allDocumentIds?: string[],
     appliedRuleIds?: string[],
   ): Promise<SequenceQuiz> {
@@ -673,7 +662,6 @@ export class FirestoreService {
         (q) => ({
           question: q.question,
           items: q.items,
-          explanation: q.explanation,
           ...(q.hint ? { hint: q.hint } : {}),
         }),
       );
@@ -690,7 +678,6 @@ export class FirestoreService {
         directoryId,
         documentTitle: document.title,
         generationAttempt,
-        followupRuleIds: followupRuleIds || [],
         appliedRuleIds: appliedRuleIds || [],
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),

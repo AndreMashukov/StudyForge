@@ -286,7 +286,7 @@ When the agent creates a rule from a blueprint:
 
 Do not use `list_rules` or copy content from existing user rules when creating new rules.
 
-Use `create_rule` only when no published blueprint fits and the user explicitly needs a one-off custom rule.
+Use `create_rule` only when no published blueprint fits and the user explicitly needs a one-off custom rule. Always pass `applicableTo`; it has no default.
 
 ### Line-format document rules
 
@@ -314,7 +314,7 @@ Keep document rule blueprints separate and optional. Attach only what the subjec
 | Blueprint | When to use |
 | --- | --- |
 | Doc HTML Format | Default for most study documents (structure, tables, code, Mermaid in HTML) |
-| Mermaid Diagram Standards | Extra diagram quality rules for documents or follow-ups |
+| Mermaid Diagram Standards | Extra diagram quality rules for documents |
 | Web Math Formula Rendering | Only when the subject needs formulas (math, physics, engineering) |
 | Web Graph Rendering | Only when the subject needs Plotly plots (math, data, statistics) |
 | Technical Documentation Generator | Prompt-driven technical study documents with glossary and examples |
@@ -331,8 +331,6 @@ Published blueprints cover these applicability values:
 - `prompt`, `upload`, `scraping` for document generation
 - `quiz` for quiz generation
 - `flashcard`, `flashcard_desc` for flashcard generation
-- `followup` for quiz follow-up explanations
-- `chat` for chat behavior rules
 - `slide_deck`, `diagram_quiz`, `sequence_quiz` for future or app-side artifact rules
 
 The workspace agent should not create slide decks, diagram quizzes, or sequence quizzes directly, but it may still create slide-deck or quiz-format rules from blueprints when the user asks to set up generation behavior for later use in the app. After creating such a rule, attach it to the requested directory and point the user to the matching app generator tab.

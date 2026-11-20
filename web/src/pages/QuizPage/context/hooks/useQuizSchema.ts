@@ -25,7 +25,6 @@ export const quizQuestionSchema = z.object({
     .number()
     .min(0, 'Correct answer index must be non-negative')
     .int('Correct answer must be a valid option index'),
-  explanation: z.string().min(1, 'Explanation is required'),
   hint: z.string().optional(),
 }).refine((data) => {
   return data.correct < data.options.length;

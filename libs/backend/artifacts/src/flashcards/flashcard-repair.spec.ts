@@ -34,7 +34,6 @@ const gateContext = {
   title: 't',
   enhancedPrompt: '',
   appliedRuleIds: [],
-  followupRuleIds: [],
   sourceContent: { title: 't', content: 'c', wordCount: 1 },
 };
 

@@ -24,7 +24,6 @@ export interface ArtifactAgentJobPayload<TArtifactPayload = unknown> {
   title?: string;
   additionalPrompt?: string;
   ruleIds?: string[];
-  followupRuleIds?: string[];
   additionalRuleIds?: string[];
   ruleResolutionMode?: RuleResolutionMode;
   artifactPayload?: TArtifactPayload;
@@ -40,7 +39,6 @@ export interface ArtifactAgentContext {
   title: string;
   enhancedPrompt: string;
   appliedRuleIds: string[];
-  followupRuleIds: string[];
   sourceContent: {
     title: string;
     content: string;

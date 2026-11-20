@@ -75,20 +75,11 @@ export const generateSequenceQuiz = onCall(
       if (requestData.additionalRuleIds != null && !Array.isArray(requestData.additionalRuleIds)) {
         throw new Error("additionalRuleIds must be an array when provided");
       }
-      if (requestData.followupRuleIds != null && !Array.isArray(requestData.followupRuleIds)) {
-        throw new Error("followupRuleIds must be an array when provided");
-      }
       if (
         Array.isArray(requestData.additionalRuleIds) &&
         !requestData.additionalRuleIds.every((id): id is string => typeof id === "string")
       ) {
         throw new Error("Each additionalRuleId must be a string");
-      }
-      if (
-        Array.isArray(requestData.followupRuleIds) &&
-        !requestData.followupRuleIds.every((id): id is string => typeof id === "string")
-      ) {
-        throw new Error("Each followupRuleId must be a string");
       }
 
       const sequenceQuizName = optionalTrimmedString(
@@ -166,7 +157,6 @@ export const generateSequenceQuiz = onCall(
             sequenceQuizName,
             additionalPrompt,
             ruleIds: Array.isArray(requestData.ruleIds) ? requestData.ruleIds : undefined,
-            followupRuleIds: Array.isArray(requestData.followupRuleIds) ? requestData.followupRuleIds : undefined,
             additionalRuleIds: Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds : undefined,
             ruleResolutionMode: requestData.ruleResolutionMode,
           },

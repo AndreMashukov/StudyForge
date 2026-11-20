@@ -7,16 +7,11 @@ import {
   restartDiagramQuizSession,
   setCurrentDiagramIndex,
   selectDiagramQuizState,
-  selectCurrentDiagramQuestion,
-  selectDiagramFormState,
-  openDiagramFollowupChat,
 } from '../../../../store/slices/diagramQuizPageSlice';
 
 export const useDiagramQuizPageHandlers = () => {
   const dispatch = useDispatch();
   const quizState = useSelector(selectDiagramQuizState);
-  const currentQuestion = useSelector(selectCurrentDiagramQuestion);
-  const formState = useSelector(selectDiagramFormState);
 
   const handleAnswerSelect = useCallback(
     (answerIndex: number) => {
@@ -54,14 +49,6 @@ export const useDiagramQuizPageHandlers = () => {
     [dispatch]
   );
 
-  const handleGenerateFollowup = useCallback(async () => {
-    if (!currentQuestion || formState.selectedAnswer === null) {
-      return;
-    }
-
-    dispatch(openDiagramFollowupChat({ questionIndex: quizState.currentQuestionIndex }));
-  }, [currentQuestion, dispatch, formState.selectedAnswer, quizState.currentQuestionIndex]);
-
   return {
     handleAnswerSelect,
     handleNextQuestion,
@@ -70,6 +57,5 @@ export const useDiagramQuizPageHandlers = () => {
     handlePrevDiagram,
     handleNextDiagram,
     handleDiagramDotClick,
-    handleGenerateFollowup,
   };
 };

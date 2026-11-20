@@ -12,7 +12,6 @@ interface IMatchOption {
 export interface IStatisticsQuestionMetadata {
   question?: string;
   hint?: string;
-  explanation?: string;
   options: string[];
   diagrams: string[];
   diagramLabels: string[];
@@ -59,9 +58,6 @@ export function statisticsQuestionMetadata(
       : {}),
     ...('hint' in value && typeof value.hint === 'string'
       ? { hint: value.hint }
-      : {}),
-    ...('explanation' in value && typeof value.explanation === 'string'
-      ? { explanation: value.explanation }
       : {}),
     // Preserve indexes even if an option is malformed; dropping it would relabel later answers.
     options:

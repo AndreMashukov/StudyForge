@@ -82,11 +82,7 @@ export function generationRoutesToFormValues(
   const routes = createEmptyGenerationRouteFormValues();
 
   for (const kind of ADMIN_CONFIGURABLE_GENERATION_KINDS) {
-    const route =
-      generationRoutes[kind] ??
-      (kind === 'directoryAgent' || kind === 'agentExecutor'
-        ? generationRoutes.directoryChat
-        : undefined);
+    const route = generationRoutes[kind];
     if (!route) {
       continue;
     }

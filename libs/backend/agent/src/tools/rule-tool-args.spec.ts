@@ -16,10 +16,19 @@ describe('rule-tool-args', () => {
   });
 
   it('accepts multiple applicability values', () => {
-    expect(parseRuleApplicabilityArray(['chat', 'slide_deck'])).toEqual([
-      RuleApplicability.CHAT,
+    expect(parseRuleApplicabilityArray(['quiz', 'slide_deck'])).toEqual([
+      RuleApplicability.QUIZ,
       RuleApplicability.SLIDE_DECK,
     ]);
+  });
+
+  it('rejects retired applicability values', () => {
+    expect(() => parseRuleApplicabilityArray(['chat'])).toThrow(
+      'Invalid applicability: chat'
+    );
+    expect(() => parseRuleApplicabilityArray(['followup'])).toThrow(
+      'Invalid applicability: followup'
+    );
   });
 
   it('rejects invalid applicability values', () => {

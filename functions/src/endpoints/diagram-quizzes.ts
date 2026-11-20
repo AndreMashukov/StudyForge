@@ -63,8 +63,7 @@ export const generateDiagramQuiz = onCall(
         throw new Error("Maximum 5 documents allowed per diagram quiz");
       }
 
-      const { diagramQuizName, additionalPrompt, quizRuleIds, followupRuleIds } =
-        requestData;
+      const { diagramQuizName, additionalPrompt, quizRuleIds } = requestData;
 
       const documentDataList = await DocumentCrudService.loadDocumentsWithContentForGeneration(
         userId,
@@ -123,7 +122,7 @@ export const generateDiagramQuiz = onCall(
         ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
         : undefined;
       const hasLegacyExplicitRules = Boolean(
-        requestData.ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length
+        requestData.ruleIds?.length || quizRuleIds?.length
       );
       const mode = ruleResolutionMode
         ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
@@ -131,9 +130,6 @@ export const generateDiagramQuiz = onCall(
         ? requestData.ruleIds
         : quizRuleIds?.length
         ? quizRuleIds
-        : requestData.additionalRuleIds;
-      const selectedFollowupRuleIds = hasLegacyExplicitRules
-        ? (followupRuleIds || [])
         : requestData.additionalRuleIds;
 
       try {
@@ -146,7 +142,6 @@ export const generateDiagramQuiz = onCall(
           title: pendingTitle,
           additionalPrompt,
           ruleIds: selectedQuizRuleIds,
-          followupRuleIds: selectedFollowupRuleIds,
           ruleResolutionMode: mode,
           artifactPayload: {
             diagramQuizName,

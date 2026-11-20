@@ -5,12 +5,10 @@ import { throwCallableError } from '@study-forge/backend-core/lib/callable-error
 import {
   GetQuizStatsRequest,
   RecordQuizAttemptRequest,
-  RecordQuizExplanationRequest,
 } from '@shared-types';
 import {
   getQuizStats,
   recordQuizAttempt,
-  recordQuizExplanationRequest,
 } from '@study-forge/backend-core/services/learning-telemetry';
 
 export const recordQuizAttemptEndpoint = onCall(
@@ -34,31 +32,6 @@ export const recordQuizAttemptEndpoint = onCall(
         error: error instanceof Error ? error.message : String(error),
       });
       throwCallableError(error, 'Failed to record quiz attempt');
-    }
-  }
-);
-
-export const recordQuizExplanationRequestEndpoint = onCall(
-  { region: 'asia-east1', cors: true },
-  async (request) => {
-    try {
-      const userId = await validateVerifiedAuth(request);
-      const data = request.data as RecordQuizExplanationRequest;
-
-      if (!data.quizId || !data.quizType || data.questionIndex === undefined) {
-        throw new HttpsError(
-          'invalid-argument',
-          'quizId, quizType, and questionIndex are required'
-        );
-      }
-
-      const eventId = await recordQuizExplanationRequest(userId, data);
-      return { eventId };
-    } catch (error) {
-      logger.error('Error recording quiz explanation request', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throwCallableError(error, 'Failed to record quiz explanation request');
     }
   }
 );

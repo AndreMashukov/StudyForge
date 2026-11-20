@@ -58,9 +58,7 @@ async function loadDiagramQuizContext(
   validateContentForArtifactGeneration(documentContent);
 
   let enhancedPrompt = payload.additionalPrompt || '';
-  const hasLegacyExplicitRules = Boolean(
-    payload.ruleIds?.length || payload.followupRuleIds?.length
-  );
+  const hasLegacyExplicitRules = Boolean(payload.ruleIds?.length);
   const mode = isRuleResolutionMode(payload.ruleResolutionMode)
     ? payload.ruleResolutionMode
     : hasLegacyExplicitRules
@@ -83,16 +81,6 @@ async function loadDiagramQuizContext(
     enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
   }
 
-  const { ruleIds: followupRuleIds } = await resolveEffectiveRules({
-    userId: input.userId,
-    directoryId: input.directoryId,
-    operation: RuleApplicability.FOLLOWUP,
-    additionalRuleIds: hasLegacyExplicitRules
-      ? payload.followupRuleIds
-      : payload.additionalRuleIds,
-    mode,
-  });
-
   const pendingTitle =
     payload.title?.trim() ||
     payload.artifactPayload?.diagramQuizName?.trim() ||
@@ -110,7 +98,6 @@ async function loadDiagramQuizContext(
     title: pendingTitle,
     enhancedPrompt,
     appliedRuleIds,
-    followupRuleIds,
     sourceContent: documentContent,
   };
 }
@@ -163,7 +150,6 @@ export const diagramQuizDefinition: ArtifactAgentDefinition<
       title: result.context.title,
       questions: result.draft.questions,
       appliedRuleIds: result.context.appliedRuleIds,
-      followupRuleIds: result.context.followupRuleIds,
       generationModel,
       agentModel,
       generationModelUsage: diagramAudit.generationModelUsage,

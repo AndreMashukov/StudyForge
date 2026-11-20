@@ -114,16 +114,6 @@ function validateQuestionStructure(
       repairTarget: { questionIndex },
     });
   }
-
-  if (!question.explanation || question.explanation.trim().length === 0) {
-    failures.push({
-      gateId: 'schema',
-      severity: 'blocker',
-      message: `Question ${questionIndex + 1}: missing explanation`,
-      path: `${basePath}.explanation`,
-      repairTarget: { questionIndex },
-    });
-  }
 }
 
 function validatePolicy(draft: IDiagramQuizDraft): ArtifactGateFailure[] {

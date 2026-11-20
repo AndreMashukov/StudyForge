@@ -1,6 +1,6 @@
+import { isGenerationKind } from '@shared-types';
 import type {
   BillingStatus,
-  GenerationKind,
   IUsageDailySlideDeckSummary,
   IUsageFeatureAvailability,
   IUsagePayAsYouGoSummary,
@@ -59,8 +59,14 @@ function parseFeatureAvailability(value: unknown): IUsageFeatureAvailability[] |
       return null;
     }
 
+    // Older summaries can list retired kinds. They gate no current feature, and
+    // the credits they used are already in the summary totals.
+    if (!isGenerationKind(kind)) {
+      continue;
+    }
+
     entries.push({
-      kind: kind as GenerationKind,
+      kind,
       enabled,
       creditCost,
       affordable,

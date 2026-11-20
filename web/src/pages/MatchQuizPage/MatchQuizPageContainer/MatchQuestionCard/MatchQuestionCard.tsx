@@ -19,13 +19,11 @@ import {
   Table2,
   CheckCircle,
   XCircle,
-  Sparkles,
   RotateCcw,
 } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { Card, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
-import { Spinner } from '../../../../components/ui/Spinner';
 import { QuizQuestionHeader } from '../../../../components/QuizQuestionHeader';
 import {
   selectMatchQuizState,
@@ -41,7 +39,7 @@ interface IMatchQuestionCardProps {
   lockedPromptIds: string[];
   isChecked: boolean;
   isCorrect: boolean | null;
-  showExplanation: boolean;
+  showFeedback: boolean;
   handlers: IMatchQuizPageHandlers;
   isLastQuestion: boolean;
   backAction?: ReactNode;
@@ -258,7 +256,7 @@ export const MatchQuestionCard: React.FC<IMatchQuestionCardProps> = ({
   placements,
   lockedPromptIds,
   isCorrect,
-  showExplanation,
+  showFeedback,
   handlers,
   isLastQuestion,
   backAction,
@@ -274,8 +272,6 @@ export const MatchQuestionCard: React.FC<IMatchQuestionCardProps> = ({
   const currentQuestionNumber = quizState.currentQuestionIndex + 1;
   const totalQuestions = quizState.questions.length;
   const answeredCount = quizState.answers.length;
-  const isFollowupGenerated =
-    !!quizState.followupGenerated[quizState.currentQuestionIndex];
 
   const promptIds = question.prompts.map((prompt) => prompt.id);
   const allPlaced = promptIds.every((promptId) => placements[promptId]);
@@ -415,7 +411,7 @@ export const MatchQuestionCard: React.FC<IMatchQuestionCardProps> = ({
         </DndContext>
 
         {/* Actions */}
-        {!isCorrect && !showExplanation && (
+        {!isCorrect && !showFeedback && (
           <div className="flex items-center gap-2 pt-1">
             <Button
               variant="outline"
@@ -432,8 +428,8 @@ export const MatchQuestionCard: React.FC<IMatchQuestionCardProps> = ({
           </div>
         )}
 
-        {/* Explanation */}
-        {showExplanation && (
+        {/* Answer feedback */}
+        {showFeedback && (
           <div
             className={cn(
               'rounded-lg p-4 text-sm space-y-2',
@@ -458,9 +454,6 @@ export const MatchQuestionCard: React.FC<IMatchQuestionCardProps> = ({
                   the bank.
                 </>
               )}
-            </p>
-            <p className="text-muted-foreground leading-relaxed">
-              {question.explanation}
             </p>
 
             {!isCorrect && (
@@ -494,37 +487,8 @@ export const MatchQuestionCard: React.FC<IMatchQuestionCardProps> = ({
                 </div>
               </div>
             )}
-            {quizState.followupError && (
-              <p className="text-xs text-destructive">
-                {quizState.followupError}
-              </p>
-            )}
 
-            <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
-              <Button
-                onClick={handlers.handleGenerateFollowup}
-                variant="outline"
-                size="sm"
-                className="border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary disabled:border-border disabled:bg-muted/40 disabled:text-muted-foreground"
-                disabled={isFollowupGenerated || quizState.isGeneratingFollowup}
-              >
-                {quizState.isGeneratingFollowup ? (
-                  <>
-                    <Spinner size="xs" className="mr-2" />
-                    Generating...
-                  </>
-                ) : isFollowupGenerated ? (
-                  <>
-                    <CheckCircle size={14} className="mr-1.5" />
-                    Explanation ready
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={14} className="mr-1.5" />
-                    Detailed explanation
-                  </>
-                )}
-              </Button>
+            <div className="flex justify-end pt-1">
               <Button
                 size="sm"
                 onClick={

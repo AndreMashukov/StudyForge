@@ -21,7 +21,6 @@ interface MatchQuizJobPayload {
   matchQuizName?: string;
   additionalPrompt?: string;
   ruleIds?: string[];
-  followupRuleIds?: string[];
   additionalRuleIds?: string[];
   ruleResolutionMode?: unknown;
 }
@@ -83,9 +82,7 @@ export class MatchQuizGenerationProcessor {
 
     let enhancedPrompt = requestData.additionalPrompt || '';
 
-    const hasExplicitRules = Boolean(
-      requestData.ruleIds?.length || requestData.followupRuleIds?.length,
-    );
+    const hasExplicitRules = Boolean(requestData.ruleIds?.length);
     const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
       ? requestData.ruleResolutionMode
       : hasExplicitRules
@@ -106,17 +103,6 @@ export class MatchQuizGenerationProcessor {
       enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
     }
 
-    const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
-      userId: job.userId,
-      directoryId: job.directoryId,
-      operation: RuleApplicability.FOLLOWUP,
-      additionalRuleIds: hasExplicitRules
-        ? requestData.followupRuleIds || []
-        : requestData.additionalRuleIds,
-      mode,
-    });
-    const followupIdsForSave = resolvedFollowupIds;
-
     const matchQuiz = await LlmGenerationService.generateMatchQuiz(
       job.userId,
       documentContent,
@@ -136,7 +122,6 @@ export class MatchQuizGenerationProcessor {
       title: finalTitle,
       questions: matchQuiz.questions,
       appliedRuleIds: appliedRuleIdsForSave,
-      followupRuleIds: followupIdsForSave,
       generationModel,
       generationModelUsage,
     });

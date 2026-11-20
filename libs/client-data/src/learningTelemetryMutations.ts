@@ -5,7 +5,6 @@ import {
   runTransaction,
   serverTimestamp,
   Timestamp,
-  writeBatch,
 } from 'firebase/firestore';
 import type {
   DiagramQuiz,
@@ -21,7 +20,6 @@ import type {
   QuizTelemetryType,
   RecordQuizAttemptAnswerInput,
   RecordQuizAttemptRequest,
-  RecordQuizExplanationRequest,
   SequenceQuiz,
   SequenceQuizQuestion,
 } from '@shared-types';
@@ -266,14 +264,6 @@ function buildAttemptAnswers(
     }
 
     const answer = resolveAnswer(question, input);
-    const requestedAt = input.detailedExplanationRequestedAt
-      ? Timestamp.fromDate(
-          parseDate(
-            input.detailedExplanationRequestedAt,
-            'detailedExplanationRequestedAt',
-          ),
-        )
-      : undefined;
 
     return {
       questionIndex: input.questionIndex,
@@ -283,8 +273,6 @@ function buildAttemptAnswers(
         ? { timeSpentMs: Math.max(0, input.timeSpentMs) }
         : {}),
       knowledge: normalizeKnowledge(question, resolved.documentIds),
-      detailedExplanationRequested: Boolean(input.detailedExplanationRequested),
-      ...(requestedAt ? { detailedExplanationRequestedAt: requestedAt } : {}),
     };
   });
 }
@@ -297,7 +285,6 @@ function knowledgeStatPayload(
     answerCount?: number;
     correctCount?: number;
     incorrectCount?: number;
-    explanationRequestCount?: number;
   },
 ): Record<string, unknown> {
   return {
@@ -315,7 +302,6 @@ function knowledgeStatPayload(
     answerCount: increment(increments.answerCount ?? 0),
     correctCount: increment(increments.correctCount ?? 0),
     incorrectCount: increment(increments.incorrectCount ?? 0),
-    explanationRequestCount: increment(increments.explanationRequestCount ?? 0),
     updatedAt: serverTimestamp(),
   };
 }
@@ -340,7 +326,6 @@ function questionStatPayload(
     answerCount?: number;
     correctCount?: number;
     incorrectCount?: number;
-    explanationRequestCount?: number;
   },
 ): Record<string, unknown> {
   return {
@@ -353,7 +338,6 @@ function questionStatPayload(
     answerCount: increment(increments.answerCount ?? 0),
     correctCount: increment(increments.correctCount ?? 0),
     incorrectCount: increment(increments.incorrectCount ?? 0),
-    explanationRequestCount: increment(increments.explanationRequestCount ?? 0),
     updatedAt: serverTimestamp(),
   };
 }
@@ -456,7 +440,6 @@ export async function recordQuizAttemptInFirestore(
         latestScore: score,
         latestPercentage: percentage,
         incorrectAnswerCount: increment(incorrectAnswerCount),
-        explanationRequestCount: increment(0),
         lastAttemptAt: Timestamp.fromDate(completedAt),
         updatedAt: serverTimestamp(),
       },
@@ -535,94 +518,6 @@ export async function recordQuizAttemptInFirestore(
   return attemptRef.id;
 }
 
-export async function recordQuizExplanationRequestInFirestore(
-  userId: string,
-  data: RecordQuizExplanationRequest,
-): Promise<string> {
-  if (!data.quizId || !data.quizType || data.questionIndex < 0) {
-    throw new Error('quizId, quizType, and questionIndex are required');
-  }
-
-  const requestedAt = parseDate(data.requestedAt, 'requestedAt');
-  const date = requestedAt.toISOString().slice(0, 10);
-  const resolved = await resolveQuiz(userId, data.quizType, data.quizId);
-  const question = resolved.questions[data.questionIndex];
-  if (!question) {
-    throw new Error(`Question index ${data.questionIndex} is out of range`);
-  }
-
-  const knowledge = normalizeKnowledge(question, resolved.documentIds);
-  const eventRef = doc(learningEventCollection(userId));
-  const quizStatDocRef = quizStatRef(
-    userId,
-    statId(data.quizType, data.quizId),
-  );
-  const questionStatDocRef = questionStatRef(
-    userId,
-    statId(data.quizType, data.quizId, data.questionIndex),
-  );
-  const knowledgeDocRef = knowledgeStatRef(
-    userId,
-    knowledgeStatId(date, knowledge),
-  );
-
-  const batch = writeBatch(getClientDb());
-  batch.set(eventRef, {
-    id: eventRef.id,
-    userId,
-    eventType: 'detailed_explanation_requested',
-    quizId: data.quizId,
-    quizType: data.quizType,
-    questionIndex: data.questionIndex,
-    knowledge,
-    occurredAt: Timestamp.fromDate(requestedAt),
-    expiresAt: computeExpiresAt(requestedAt, 'learningRaw'),
-  });
-  batch.set(
-    quizStatDocRef,
-    {
-      userId,
-      quizId: data.quizId,
-      quizType: data.quizType,
-      directoryId: resolved.quiz.directoryId,
-      documentIds: resolved.documentIds,
-      totalQuestions: resolved.questions.length,
-      explanationRequestCount: increment(1),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
-  batch.set(
-    questionStatDocRef,
-    questionStatPayload(
-      userId,
-      data.quizId,
-      data.quizType,
-      {
-        questionIndex: data.questionIndex,
-        questionText: questionTextFor(question),
-        selectedAnswer: null,
-        correctAnswer: null,
-        isCorrect: false,
-        knowledge,
-        detailedExplanationRequested: true,
-      },
-      { explanationRequestCount: 1 },
-    ),
-    { merge: true },
-  );
-  batch.set(
-    knowledgeDocRef,
-    knowledgeStatPayload(userId, date, knowledge, {
-      explanationRequestCount: 1,
-    }),
-    { merge: true },
-  );
-
-  await batch.commit();
-  return eventRef.id;
-}
-
 function toStatDate(value: unknown, fallback: Date): Date {
   if (value instanceof Timestamp) {
     return value.toDate();
@@ -672,7 +567,6 @@ export async function getQuizStatsFromFirestore(
     latestScore: readStatNumber(data.latestScore),
     latestPercentage: readStatNumber(data.latestPercentage),
     incorrectAnswerCount: readStatNumber(data.incorrectAnswerCount),
-    explanationRequestCount: readStatNumber(data.explanationRequestCount),
     lastAttemptAt: data.lastAttemptAt
       ? toStatDate(data.lastAttemptAt, now)
       : undefined,

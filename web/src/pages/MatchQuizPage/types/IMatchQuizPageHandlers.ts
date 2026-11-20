@@ -12,5 +12,4 @@ export interface IMatchQuizPageHandlers {
   handleNextQuestion: () => void;
   handleCompleteQuiz: () => void;
   handleResetQuiz: () => void;
-  handleGenerateFollowup: () => void;
 }

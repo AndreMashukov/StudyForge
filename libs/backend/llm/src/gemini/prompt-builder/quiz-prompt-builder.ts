@@ -93,8 +93,7 @@ ${content.content}
 4. Questions should vary in difficulty (some basic recall, some requiring deeper understanding)
 5. Include questions about main ideas, supporting details, conclusions, and implications
 6. Avoid overly specific details that aren't central to the article's main points
-7. **MANDATORY**: Each question MUST include a brief explanation of why the correct answer is right
-8. ${buildQuizHintFieldInstruction('Look for the key concept the question is asking about before choosing.')}
+7. ${buildQuizHintFieldInstruction('Look for the key concept the question is asking about before choosing.')}
 
 **CRITICAL OPTION QUALITY REQUIREMENTS:**
 
@@ -170,7 +169,7 @@ ${randomAnswers.length > 3 ? `- For Question 4, make option ${answerLetters[3]} 
 ${randomAnswers.length > 4 ? `- Continue following the pattern above for all ${randomAnswers.length} questions` : ''}
 
 **IMPLEMENTATION PROCESS:**
-1. **Generate the question content** first (question text, all 4 options, explanation)
+1. **Generate the question content** first (question text and all 4 options)
 2. **Identify which option should be correct** based on the pattern above (e.g., if pattern says "Q1-B", then option B must be correct)
 3. **Ensure the content of that designated option is factually correct** and the other 3 options are plausible but incorrect
 4. **Set the correctAnswer field** to match the pattern (0=A, 1=B, 2=C, 3=D)
@@ -258,7 +257,6 @@ Before finalizing JSON, verify each question meets these requirements:
 - The correctAnswer field should be an integer (0, 1, 2, or 3) indicating the index of the correct option
 - Make sure questions are clear, concise, and grammatically correct
 - **VERIFY** answer distribution follows the rules above before finalizing
-- **MANDATORY**: Every question must have an explanation field
 - **MANDATORY**: Every question must include a knowledge object with subjectName, knowledgeDomainName, and topicTags (1-5 short strings)
 ${buildQuizHintJsonRule()}`;
   }
@@ -280,7 +278,6 @@ ${buildQuizHintJsonRule()}`;
         "Option D providing comparable length with contextually appropriate details"
       ],
       "correctAnswer": 0,
-      "explanation": "Brief explanation of why this answer is correct (MANDATORY)",
       "knowledge": {
         "subjectName": "Concise subject tested by this question",
         "knowledgeDomainName": "Broader knowledge domain",
@@ -301,7 +298,6 @@ ${buildQuizHintJsonRule()}`;
     "The algorithmic complexity bounds require cycle detection for optimal performance"
   ],
   "correctAnswer": 0,
-  "explanation": "The pigeonhole principle states that with n+1 items in n containers, at least one container must contain multiple items",
   "knowledge": {
     "subjectName": "Duplicate detection",
     "knowledgeDomainName": "Algorithms",
@@ -339,12 +335,7 @@ ${buildQuizHintJsonRule()}`;
    - Ensure roughly equal distribution
    - Check for clustering (no more than 2 consecutive same answers)
 
-4. **EXPLANATION QUALITY VERIFICATION:**
-   - Every question has detailed explanation
-   - Explanations clarify why correct answer is right
-   - Explanations help distinguish from incorrect options
-
-5. **HINT QUALITY VERIFICATION:**
+4. **HINT QUALITY VERIFICATION:**
   - Every question has a short hint
   - Hints nudge toward the reasoning path without naming the correct option
 

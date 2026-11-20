@@ -76,34 +76,6 @@ export function matchQuizRef(userId: string, matchQuizId: string) {
   return doc(getClientDb(), 'users', userId, 'matchQuizzes', matchQuizId);
 }
 
-export function directoryChatThreadRef(userId: string, directoryId: string) {
-  return doc(
-    getClientDb(),
-    'users',
-    userId,
-    'directories',
-    directoryId,
-    'chat',
-    'thread',
-  );
-}
-
-export function directoryChatMessagesCollection(
-  userId: string,
-  directoryId: string,
-) {
-  return collection(
-    getClientDb(),
-    'users',
-    userId,
-    'directories',
-    directoryId,
-    'chat',
-    'thread',
-    'messages',
-  );
-}
-
 export function agentThreadRef(userId: string, threadId: string) {
   return doc(getClientDb(), 'users', userId, 'agentThreads', threadId);
 }

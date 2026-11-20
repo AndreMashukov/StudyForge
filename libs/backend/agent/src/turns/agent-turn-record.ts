@@ -23,7 +23,7 @@ const timestampSchema = z.custom<Timestamp>(
 /** Usage kinds an agent turn reserves credits under. */
 export const agentTurnUsageKindSchema = z.enum([
   'directoryAgent',
-  'directoryChat',
+  'directoryScopedAgent',
 ]);
 
 export type AgentTurnUsageKind = z.output<typeof agentTurnUsageKindSchema>;

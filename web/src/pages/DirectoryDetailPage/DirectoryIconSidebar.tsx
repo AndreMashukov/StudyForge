@@ -1,9 +1,9 @@
 import React from 'react';
-import { FileText, Brain, Layers, Presentation, Settings, Network, ListOrdered, Puzzle, MessageSquare } from 'lucide-react';
+import { FileText, Brain, Layers, Presentation, Settings, Network, ListOrdered, Puzzle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/Button';
 
-export type PanelType = 'sources' | 'quizzes' | 'cards' | 'slides' | 'diagramQuizzes' | 'sequenceQuizzes' | 'matchQuizzes' | 'chat' | 'rules';
+export type PanelType = 'sources' | 'quizzes' | 'cards' | 'slides' | 'diagramQuizzes' | 'sequenceQuizzes' | 'matchQuizzes' | 'rules';
 
 interface SidebarButtonProps {
   icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -54,7 +54,6 @@ const CONTENT_ITEMS: { icon: React.ComponentType<{ size?: number; className?: st
   { icon: Network, label: 'Diagrams', panel: 'diagramQuizzes' },
   { icon: ListOrdered, label: 'Sequence', panel: 'sequenceQuizzes' },
   { icon: Puzzle, label: 'Match Quiz', panel: 'matchQuizzes' },
-  { icon: MessageSquare, label: 'Chat', panel: 'chat' },
 ];
 
 const SETTINGS_ITEMS: { icon: React.ComponentType<{ size?: number; className?: string }>; label: string; panel: PanelType }[] = [

@@ -20,7 +20,6 @@ export const diagramQuizQuestionPlanSchema = z.object({
   question: z.string().min(1),
   correctAnswer: z.number().int().min(0).max(3),
   optionPlans: z.array(z.string().min(1)).length(4),
-  explanation: z.string().min(1),
   hint: z.string().min(1),
   knowledge: knowledgeSchema,
 });
@@ -106,7 +105,6 @@ export function mergeQuestionPlansWithDiagramBatches(
       question: plan.question,
       diagrams: [...diagrams],
       correctAnswer: plan.correctAnswer,
-      explanation: plan.explanation,
       hint: plan.hint,
       knowledge: plan.knowledge,
     };

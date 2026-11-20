@@ -7,5 +7,4 @@ export interface ISequenceQuizPageHandlers {
   handleNextQuestion: () => void;
   handleCompleteQuiz: () => void;
   handleResetQuiz: () => void;
-  handleGenerateFollowup: () => void;
 }

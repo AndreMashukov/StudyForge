@@ -33,7 +33,6 @@ import {
 import { setSelectedDirectory } from '../../../store/slices/directorySlice';
 import { buildDirectoryPath } from '../../../utils/directoryUrl';
 import { formatDateWithOptions } from '../../../utils/dateUtils';
-import { DirectoryChatPanel } from '../../../components/DirectoryChatPanel';
 import {
   CreateArtifactModal,
   CreateArtifactModalType,
@@ -461,20 +460,6 @@ export const DocumentViewerPageContainer = () => {
             </Card>
           </div>
         </div>
-
-        {documentApi.data.directoryId && documentId ? (
-          <DirectoryChatPanel
-            directoryId={documentApi.data.directoryId}
-            sourceCount={1}
-            collapsible
-            collapsedVariant="bar"
-            defaultExpanded={false}
-            compact
-            title="Ask about this document"
-            placeholder="Ask a question about this document..."
-            focusedDocumentIds={[documentId]}
-          />
-        ) : null}
       </div>
 
       <CreateArtifactModal

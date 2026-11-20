@@ -13,7 +13,6 @@ import {
   agentReferencedItemSchema,
   agentReferencedItemTypeSchema,
   DocumentSourceType,
-  RuleApplicability,
   RuleColor,
 } from '@shared-types';
 import { directoryService } from '@study-forge/backend-directories/directory';
@@ -1255,11 +1254,13 @@ export function createAgentToolDefinitions(
           tags: { type: 'array', items: { type: 'string' } },
           applicableTo: {
             type: 'array',
+            description:
+              'Generation types the rule applies to. Required: choose at least one.',
             items: { type: 'string', enum: RULE_APPLICABILITY_ENUM },
           },
           isDefault: { type: 'boolean' },
         },
-        required: ['name', 'content'],
+        required: ['name', 'content', 'applicableTo'],
       },
       execute: async (args) => {
         const name = typeof args.name === 'string' ? args.name.trim() : '';
@@ -1268,11 +1269,13 @@ export function createAgentToolDefinitions(
         if (!name || !content) {
           throw new Error('name and content are required');
         }
+        if (args.applicableTo === undefined) {
+          throw new Error(
+            `applicableTo is required: pass at least one of ${RULE_APPLICABILITY_ENUM.join(', ')}`,
+          );
+        }
 
-        const applicableTo =
-          args.applicableTo === undefined
-            ? [RuleApplicability.CHAT]
-            : parseRuleApplicabilityArray(args.applicableTo);
+        const applicableTo = parseRuleApplicabilityArray(args.applicableTo);
 
         const rule = await createRule(context.userId, {
           name,

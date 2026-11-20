@@ -128,7 +128,7 @@ Resolve IDs once per shell session:
 ```bash
 source scripts/lab-studyforge/rule-ids.sh
 # Exports: RULE_QUIZ, RULE_FLASHCARDS, RULE_SEQUENCE_QUIZ, RULE_DIAGRAM_QUIZ,
-#          RULE_FOLLOWUP, RULE_SLIDE_DECK, RULE_STUDY_DOCUMENT, …
+#          RULE_SLIDE_DECK, RULE_STUDY_DOCUMENT, …
 ```
 
 **Critical:** when you pass `ruleIds`, also pass `"ruleResolutionMode": "inherit-plus-explicit"`. If you omit `ruleResolutionMode`, the API defaults to **`explicit-only`** and drops inherited parent rules.
@@ -146,7 +146,7 @@ Manual API calls — same pattern for every artifact type:
 ```bash
 MODE="inherit-plus-explicit"
 
-# Quiz (+ follow-up rule for quiz generation)
+# Quiz
 ./scripts/lab-studyforge/sf-api.sh POST /quizzes/generate \
   "$(jq -nc \
     --argjson ids "[\"$DOC_ID\"]" \
@@ -154,10 +154,9 @@ MODE="inherit-plus-explicit"
     --arg name "$LAB_TITLE Quiz" \
     --arg mode "$MODE" \
     --arg quizRule "$RULE_QUIZ" \
-    --arg followup "$RULE_FOLLOWUP" \
     '{documentIds: $ids, directoryId: $dir, quizName: $name,
       additionalPrompt: "Focus on exact resource names and verification steps from this hands-on lab.",
-      ruleIds: [$quizRule], followupRuleIds: [$followup], ruleResolutionMode: $mode}')"
+      ruleIds: [$quizRule], ruleResolutionMode: $mode}')"
 
 # Flashcards
 ./scripts/lab-studyforge/sf-api.sh POST /flashcard-sets/generate \
@@ -227,9 +226,9 @@ Confirm: 1 document, expected artifacts. Re-run generation used explicit parent 
 
 ## Parent rules (one-time bootstrap)
 
-Eight shared rules live on **`lF9Hgmxxc42NdXKqKadY`**. Lab subdirs inherit them in the directory tree, but **artifact generation must still attach the relevant rule ID(s) on each API call**. Content templates: [parent-rules.md](parent-rules.md).
+Seven shared rules live on **`lF9Hgmxxc42NdXKqKadY`**. Lab subdirs inherit them in the directory tree, but **artifact generation must still attach the relevant rule ID(s) on each API call**. Content templates: [parent-rules.md](parent-rules.md).
 
-Rules: study document, quiz, flashcards, flashcard description, diagram quiz, sequence quiz, slide deck, follow-up.
+Rules: study document, quiz, flashcards, flashcard description, diagram quiz, sequence quiz, slide deck.
 
 | Rule (name suffix) | Env var from `rule-ids.sh` |
 |--------------------|----------------------------|
@@ -240,7 +239,6 @@ Rules: study document, quiz, flashcards, flashcard description, diagram quiz, se
 | Sequence Quiz | `RULE_SEQUENCE_QUIZ` |
 | Diagram Quiz | `RULE_DIAGRAM_QUIZ` |
 | Slide Deck | `RULE_SLIDE_DECK` |
-| Follow-up | `RULE_FOLLOWUP` |
 
 ```bash
 STUDYFORGE_API_KEY=sf-… ./scripts/lab-studyforge/bootstrap-parent-rules.sh

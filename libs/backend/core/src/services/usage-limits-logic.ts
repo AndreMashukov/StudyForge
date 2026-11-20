@@ -4,6 +4,7 @@ import {
   calculateRemainingCredits,
   calculateRemainingOverageCapCents,
   calculateUsageCreditCharge,
+  isGenerationKind,
   type IUsageFeaturePolicy,
 } from '@shared-types';
 
@@ -260,7 +261,11 @@ export function resolveUsageGenerationKind(kind: string): GenerationKind {
     return 'diagramQuiz';
   }
 
-  return kind as GenerationKind;
+  if (isGenerationKind(kind)) {
+    return kind;
+  }
+
+  throw new Error(`Unknown generation kind: ${kind}`);
 }
 
 export function mapJobKindToUsageGenerationKind(

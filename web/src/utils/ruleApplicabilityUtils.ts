@@ -1,12 +1,22 @@
 import { RuleApplicability } from '@shared-types';
 
+const RULE_APPLICABILITY_VALUES: ReadonlySet<string> = new Set(Object.values(RuleApplicability));
+
+export const isRuleApplicability = (value: unknown): value is RuleApplicability =>
+  typeof value === 'string' && RULE_APPLICABILITY_VALUES.has(value);
+
+/**
+ * Keeps only current applicabilities. Stored rules can still hold retired values
+ * (`followup`, `chat`) that nothing applies any more.
+ */
+export const toCurrentRuleApplicabilities = (values: unknown): RuleApplicability[] =>
+  Array.isArray(values) ? values.filter(isRuleApplicability) : [];
+
 export const ruleApplicabilityLabels: Record<RuleApplicability, string> = {
   [RuleApplicability.SCRAPING]: 'Scraping',
   [RuleApplicability.UPLOAD]: 'Upload',
   [RuleApplicability.PROMPT]: 'Prompt',
   [RuleApplicability.QUIZ]: 'Quiz',
-  [RuleApplicability.FOLLOWUP]: 'Followup',
-  [RuleApplicability.CHAT]: 'Chat',
   [RuleApplicability.FLASHCARD]: 'Flashcard',
   [RuleApplicability.FLASHCARD_DESC]: 'Flashcard Description',
   [RuleApplicability.SLIDE_DECK]: 'Slide Deck',

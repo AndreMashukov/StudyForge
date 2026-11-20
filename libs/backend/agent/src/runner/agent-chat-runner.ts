@@ -69,7 +69,7 @@ export interface AgentChatRunnerInput {
   userMessage: string;
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   toolSession: IAgentToolSession;
-  generationKind?: Extract<GenerationKind, 'directoryChat' | 'agentExecutor'>;
+  generationKind?: Extract<GenerationKind, 'directoryScopedAgent' | 'agentExecutor'>;
   maxToolRounds?: number;
   emitDeltas?: boolean;
   onEvent?: (event: AgentMessageStreamEvent) => void;
@@ -85,7 +85,7 @@ export class AgentChatRunner {
   static async run(
     input: AgentChatRunnerInput,
   ): Promise<AgentChatRunnerResult> {
-    const generationKind = input.generationKind ?? 'directoryChat';
+    const generationKind = input.generationKind ?? 'directoryScopedAgent';
     const maxToolRounds = input.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS;
     const emitDeltas = input.emitDeltas ?? true;
 

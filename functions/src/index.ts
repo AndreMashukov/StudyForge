@@ -41,16 +41,12 @@ export { generateSequenceQuiz } from './endpoints/sequence-quizzes';
 
 export { generateMatchQuiz } from './endpoints/match-quizzes';
 
-export { generateQuizFollowup } from './endpoints/quiz-followup';
-
 export { askDocumentQuestion } from './endpoints/document-question';
 export { regenerateScratchPadQuestion } from './endpoints/scratch-pad-question';
 export { clearScratchPadAvoidedQuestions } from './endpoints/scratch-pad-clear';
 export { evaluateScratchPadAnswerCallable } from './endpoints/scratch-pad-evaluate';
 
 export { reviseDocumentWithAI } from './endpoints/document-revise';
-
-export { sendDirectoryChatMessage } from './endpoints/directory-chat';
 
 // Document ingest and generation (not CRUD)
 export {

@@ -6,7 +6,6 @@ export interface IMatchQuizViewQuestion {
   question: string;
   prompts: Array<{ id: string; text: string }>;
   options: MatchQuizOption[];
-  explanation: string;
   hint?: string;
 }
 
@@ -31,7 +30,7 @@ interface IMatchQuizPageState {
   lockedPromptIds: string[];
   isChecked: boolean;
   isCorrect: boolean | null;
-  showExplanation: boolean;
+  showFeedback: boolean;
   score: number;
   answers: IMatchQuizAnswer[];
   isCompleted: boolean;
@@ -40,11 +39,6 @@ interface IMatchQuizPageState {
   endTime: number | null;
   isLoading: boolean;
   error: string | null;
-  followupGenerated: Record<number, boolean>;
-  followupContent: Record<number, string>;
-  followupChatOpen: Record<number, boolean>;
-  isGeneratingFollowup: boolean;
-  followupError: string | null;
 }
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -69,7 +63,7 @@ const initialState: IMatchQuizPageState = {
   lockedPromptIds: [],
   isChecked: false,
   isCorrect: null,
-  showExplanation: false,
+  showFeedback: false,
   score: 0,
   answers: [],
   isCompleted: false,
@@ -78,11 +72,6 @@ const initialState: IMatchQuizPageState = {
   endTime: null,
   isLoading: false,
   error: null,
-  followupGenerated: {},
-  followupContent: {},
-  followupChatOpen: {},
-  isGeneratingFollowup: false,
-  followupError: null,
 };
 
 function emptyBoardFor(question: IMatchQuizViewQuestion | undefined): {
@@ -115,7 +104,7 @@ const matchQuizPageSlice = createSlice({
       Object.assign(state, emptyBoardFor(action.payload.questions[0]));
       state.isChecked = false;
       state.isCorrect = null;
-      state.showExplanation = false;
+      state.showFeedback = false;
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
@@ -123,11 +112,6 @@ const matchQuizPageSlice = createSlice({
       state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
-      state.followupGenerated = {};
-      state.followupContent = {};
-      state.followupChatOpen = {};
-      state.isGeneratingFollowup = false;
-      state.followupError = null;
     },
 
     placeOption: (
@@ -185,12 +169,12 @@ const matchQuizPageSlice = createSlice({
       state.bankOptionIds = bankIdsFor(currentQuestion).filter(
         (id) => !used.has(id),
       );
-      state.showExplanation = false;
+      state.showFeedback = false;
     },
 
     retryAfterCheck: (state) => {
       if (state.isCorrect) return;
-      state.showExplanation = false;
+      state.showFeedback = false;
     },
 
     checkAnswer: (state) => {
@@ -230,7 +214,7 @@ const matchQuizPageSlice = createSlice({
 
       state.isChecked = true;
       state.isCorrect = isFullyCorrect;
-      state.showExplanation = true;
+      state.showFeedback = true;
 
       const alreadyRecorded = state.answers.some(
         (answer) => answer.questionId === currentQuestion.id,
@@ -260,9 +244,8 @@ const matchQuizPageSlice = createSlice({
         Object.assign(state, emptyBoardFor(nextQuestion));
         state.isChecked = false;
         state.isCorrect = null;
-        state.showExplanation = false;
+        state.showFeedback = false;
         state.questionStartTime = Date.now();
-        state.followupError = null;
       } else {
         state.isCompleted = true;
         state.endTime = Date.now();
@@ -283,7 +266,7 @@ const matchQuizPageSlice = createSlice({
       Object.assign(state, emptyBoardFor(state.questions[0]));
       state.isChecked = false;
       state.isCorrect = null;
-      state.showExplanation = false;
+      state.showFeedback = false;
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
@@ -291,10 +274,6 @@ const matchQuizPageSlice = createSlice({
       state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
-      state.followupGenerated = {};
-      state.followupContent = {};
-      state.isGeneratingFollowup = false;
-      state.followupError = null;
     },
 
     setLoading: (state, action: PayloadAction<boolean>) => {
@@ -304,36 +283,6 @@ const matchQuizPageSlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
       state.isLoading = false;
-    },
-
-    setMatchFollowupGenerating: (state, action: PayloadAction<boolean>) => {
-      state.isGeneratingFollowup = action.payload;
-      state.followupError = null;
-    },
-
-    setMatchFollowupGenerated: (
-      state,
-      action: PayloadAction<{ questionIndex: number; content: string }>,
-    ) => {
-      state.followupGenerated[action.payload.questionIndex] = true;
-      state.followupContent[action.payload.questionIndex] =
-        action.payload.content;
-      state.isGeneratingFollowup = false;
-    },
-
-    setMatchFollowupError: (state, action: PayloadAction<string | null>) => {
-      state.followupError = action.payload;
-      state.isGeneratingFollowup = false;
-    },
-
-    openMatchFollowupChat: (
-      state,
-      action: PayloadAction<{ questionIndex: number }>,
-    ) => {
-      state.followupChatOpen[action.payload.questionIndex] = true;
-      state.followupGenerated[action.payload.questionIndex] = true;
-      state.isGeneratingFollowup = false;
-      state.followupError = null;
     },
   },
 });
@@ -351,10 +300,6 @@ export const {
   restartMatchQuizSession,
   setLoading,
   setError,
-  setMatchFollowupGenerating,
-  setMatchFollowupGenerated,
-  setMatchFollowupError,
-  openMatchFollowupChat,
 } = matchQuizPageSlice.actions;
 
 export const selectMatchQuizState = (state: {

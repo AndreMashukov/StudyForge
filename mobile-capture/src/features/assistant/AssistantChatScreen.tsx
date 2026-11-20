@@ -85,7 +85,7 @@ export function AssistantChatScreen() {
   const title =
     param(params.title) ??
     label ??
-    (directoryId ? 'Directory chat' : 'StudyForge');
+    (directoryId ? 'Assistant' : 'StudyForge');
 
   return (
     <KeyboardAwareView>

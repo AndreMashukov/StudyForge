@@ -34,7 +34,6 @@ function buildState(
       title: 'Test flashcards',
       enhancedPrompt: '',
       appliedRuleIds: [],
-      followupRuleIds: [],
       sourceContent: { title: 'Doc', content: 'content', wordCount: 1 },
     },
     [ARTIFACT_PIPELINE_STATE_KEYS.draft]: baseDraft,

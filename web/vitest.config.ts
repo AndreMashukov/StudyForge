@@ -30,10 +30,12 @@ export default defineConfig({
       'src/pages/HomePage/**/*.spec.ts',
       'src/services/dashboardArtifacts.spec.ts',
       'src/services/statistics*.spec.ts',
+      'src/services/usageFirestore.spec.ts',
       'src/store/api/Statistics/*.spec.ts',
       'src/pages/InteractionStatsPage/InteractionStatsPageContainer/DirectoryShareChart/*.spec.ts',
       'src/pages/SlideDeckPage/**/*.spec.ts',
       'src/utils/slideDeckImageExport.spec.ts',
+      'src/utils/ruleApplicabilityUtils.spec.ts',
     ],
   },
 });

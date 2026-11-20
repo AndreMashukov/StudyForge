@@ -13,10 +13,9 @@ export const useDiagramQuizPageEffects = () => {
         questionIndex,
         selectedAnswer: answer.selected,
         timeSpentMs: answer.timeSpent,
-        detailedExplanationRequested: Boolean(quizState.followupGenerated[questionIndex]),
       };
     });
-  }, [quizState.answers, quizState.followupGenerated]);
+  }, [quizState.answers]);
 
   useQuizLearningTelemetry({
     quiz: quizState.firestoreDiagramQuiz,
@@ -25,6 +24,5 @@ export const useDiagramQuizPageEffects = () => {
     startedAtMs: quizState.startTime,
     completedAtMs: quizState.endTime,
     answers: telemetryAnswers,
-    followupGenerated: quizState.followupGenerated,
   });
 };

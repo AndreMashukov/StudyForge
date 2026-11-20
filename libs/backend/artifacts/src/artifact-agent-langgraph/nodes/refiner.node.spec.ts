@@ -43,7 +43,6 @@ function buildState(options: {
       title: 'Test diagram quiz',
       enhancedPrompt: '',
       appliedRuleIds: [],
-      followupRuleIds: [],
       sourceContent: { title: 'Doc', content: 'content', wordCount: 1 },
     },
     [ARTIFACT_PIPELINE_STATE_KEYS.draft]: draft,

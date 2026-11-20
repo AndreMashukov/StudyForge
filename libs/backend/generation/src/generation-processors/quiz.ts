@@ -65,14 +65,13 @@ export class QuizGenerationProcessor {
     validateContentForArtifactGeneration(documentContent);
 
     let enhancedPrompt = requestData.additionalPrompt || '';
-    let followupIdsForSave: string[] = [];
     let appliedRuleIdsForSave: string[] = [];
 
     const ruleResolutionMode = isRuleResolutionMode(requestData.ruleResolutionMode)
       ? requestData.ruleResolutionMode
       : undefined;
     const hasLegacyExplicitRules = Boolean(
-      requestData.ruleIds?.length || requestData.quizRuleIds?.length || requestData.followupRuleIds?.length
+      requestData.ruleIds?.length || requestData.quizRuleIds?.length
     );
     const mode = ruleResolutionMode
       ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
@@ -81,9 +80,6 @@ export class QuizGenerationProcessor {
       : requestData.quizRuleIds?.length
         ? requestData.quizRuleIds
         : requestData.additionalRuleIds;
-    const selectedFollowupRuleIds = hasLegacyExplicitRules
-      ? (requestData.followupRuleIds || [])
-      : requestData.additionalRuleIds;
 
     const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
       userId: job.userId,
@@ -96,15 +92,6 @@ export class QuizGenerationProcessor {
       enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
     }
     appliedRuleIdsForSave = resolvedAppliedIds;
-
-    const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
-      userId: job.userId,
-      directoryId: job.directoryId,
-      operation: RuleApplicability.FOLLOWUP,
-      additionalRuleIds: selectedFollowupRuleIds,
-      mode,
-    });
-    followupIdsForSave = resolvedFollowupIds;
 
     const geminiQuiz = await LlmGenerationService.generateQuiz(
       job.userId,
@@ -134,7 +121,6 @@ export class QuizGenerationProcessor {
         question: q.question,
         options: q.options,
         correctAnswer: q.correctAnswer,
-        explanation: q.explanation,
         ...(q.hint ? { hint: q.hint } : {}),
         ...(q.knowledge ? { knowledge: q.knowledge } : {}),
       })),
@@ -145,7 +131,6 @@ export class QuizGenerationProcessor {
     });
 
     await FirestorePaths.quiz(job.userId, job.recordId).update({
-      followupRuleIds: followupIdsForSave,
       documentTitle: documentDataList[0].doc.title,
     });
 

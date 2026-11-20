@@ -174,10 +174,9 @@ export interface IUsageLimitEvent {
 
 /** Recommended default credit costs per generation kind. */
 export const DEFAULT_USAGE_CREDIT_COSTS: Record<GenerationKind, number> = {
-  directoryChat: 1,
+  directoryScopedAgent: 1,
   documentQuestion: 1,
   scratchPadQuestion: 1,
-  quizFollowup: 1,
   documentRevise: 3,
   ruleGeneration: 3,
   agentKnowledgeEmbedding: 3,

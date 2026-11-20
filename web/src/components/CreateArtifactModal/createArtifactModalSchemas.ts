@@ -23,7 +23,6 @@ export const createArtifactFormSchema = z.object({
   name: optionalNameSchema.optional(),
   additionalPrompt: optionalPromptSchema.optional(),
   ruleIds: z.array(z.string()).optional(),
-  followupRuleIds: z.array(z.string()).optional(),
   descriptionRuleIds: z.array(z.string()).optional(),
 });
 

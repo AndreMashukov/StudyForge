@@ -8,7 +8,7 @@ interface DiagramQuizPageState {
   currentQuestionIndex: number;
   currentDiagramIndex: number;
   selectedAnswer: number | null;
-  showExplanation: boolean;
+  showFeedback: boolean;
   score: number;
   answers: IDiagramQuizAnswer[];
   isCompleted: boolean;
@@ -19,13 +19,6 @@ interface DiagramQuizPageState {
   error: string | null;
   isSubmitting: boolean;
   formErrors: Record<string, string>;
-
-  // Followup state
-  followupGenerated: Record<number, boolean>;
-  followupContent: Record<number, string>;
-  followupChatOpen: Record<number, boolean>;
-  isGeneratingFollowup: boolean;
-  followupError: string | null;
 }
 
 const initialState: DiagramQuizPageState = {
@@ -34,7 +27,7 @@ const initialState: DiagramQuizPageState = {
   currentQuestionIndex: 0,
   currentDiagramIndex: 0,
   selectedAnswer: null,
-  showExplanation: false,
+  showFeedback: false,
   score: 0,
   answers: [],
   isCompleted: false,
@@ -45,11 +38,6 @@ const initialState: DiagramQuizPageState = {
   error: null,
   isSubmitting: false,
   formErrors: {},
-  followupGenerated: {},
-  followupContent: {},
-  followupChatOpen: {},
-  isGeneratingFollowup: false,
-  followupError: null,
 };
 
 const diagramQuizPageSlice = createSlice({
@@ -66,7 +54,7 @@ const diagramQuizPageSlice = createSlice({
       state.currentQuestionIndex = 0;
       state.currentDiagramIndex = 0;
       state.selectedAnswer = null;
-      state.showExplanation = false;
+      state.showFeedback = false;
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
@@ -74,11 +62,6 @@ const diagramQuizPageSlice = createSlice({
       state.questionStartTime = now;
       state.endTime = null;
       state.error = null;
-      state.followupGenerated = {};
-      state.followupContent = {};
-      state.followupChatOpen = {};
-      state.isGeneratingFollowup = false;
-      state.followupError = null;
     },
     startDiagramQuiz: (state, action: PayloadAction<{ questions: IDiagramQuizQuestion[] }>) => {
       const now = Date.now();
@@ -86,7 +69,7 @@ const diagramQuizPageSlice = createSlice({
       state.currentQuestionIndex = 0;
       state.currentDiagramIndex = 0;
       state.selectedAnswer = null;
-      state.showExplanation = false;
+      state.showFeedback = false;
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
@@ -102,7 +85,7 @@ const diagramQuizPageSlice = createSlice({
       if (state.selectedAnswer !== null) return;
 
       state.selectedAnswer = action.payload.answerIndex;
-      state.showExplanation = true;
+      state.showFeedback = true;
 
       const currentQuestion = state.questions[state.currentQuestionIndex];
       const isCorrect = action.payload.answerIndex === currentQuestion.correct;
@@ -125,7 +108,7 @@ const diagramQuizPageSlice = createSlice({
         state.currentQuestionIndex += 1;
         state.currentDiagramIndex = 0;
         state.selectedAnswer = null;
-        state.showExplanation = false;
+        state.showFeedback = false;
         state.formErrors = {};
         state.questionStartTime = Date.now();
       } else {
@@ -145,7 +128,7 @@ const diagramQuizPageSlice = createSlice({
       state.currentQuestionIndex = 0;
       state.currentDiagramIndex = 0;
       state.selectedAnswer = null;
-      state.showExplanation = false;
+      state.showFeedback = false;
       state.score = 0;
       state.answers = [];
       state.isCompleted = false;
@@ -153,11 +136,6 @@ const diagramQuizPageSlice = createSlice({
       state.questionStartTime = state.startTime;
       state.endTime = null;
       state.error = null;
-      state.followupGenerated = {};
-      state.followupContent = {};
-      state.followupChatOpen = {};
-      state.isGeneratingFollowup = false;
-      state.followupError = null;
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
@@ -165,30 +143,6 @@ const diagramQuizPageSlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
       state.isLoading = false;
-    },
-
-    // Followup actions
-    setDiagramFollowupGenerating: (state, action: PayloadAction<boolean>) => {
-      state.isGeneratingFollowup = action.payload;
-      state.followupError = null;
-    },
-
-    setDiagramFollowupGenerated: (state, action: PayloadAction<{ questionIndex: number; content: string }>) => {
-      state.followupGenerated[action.payload.questionIndex] = true;
-      state.followupContent[action.payload.questionIndex] = action.payload.content;
-      state.isGeneratingFollowup = false;
-    },
-
-    setDiagramFollowupError: (state, action: PayloadAction<string | null>) => {
-      state.followupError = action.payload;
-      state.isGeneratingFollowup = false;
-    },
-
-    openDiagramFollowupChat: (state, action: PayloadAction<{ questionIndex: number }>) => {
-      state.followupChatOpen[action.payload.questionIndex] = true;
-      state.followupGenerated[action.payload.questionIndex] = true;
-      state.isGeneratingFollowup = false;
-      state.followupError = null;
     },
   },
 });
@@ -204,10 +158,6 @@ export const {
   restartDiagramQuizSession,
   setLoading,
   setError,
-  setDiagramFollowupGenerating,
-  setDiagramFollowupGenerated,
-  setDiagramFollowupError,
-  openDiagramFollowupChat,
 } = diagramQuizPageSlice.actions;
 
 export const selectDiagramQuizState = (state: { diagramQuizPage: DiagramQuizPageState }) =>

@@ -11,7 +11,6 @@ export interface IQuizPageHandlers {
   handleStartQuiz: IQuizHandlers['handleStartQuiz'];
   handleCompleteQuiz: IQuizHandlers['handleCompleteQuiz'];
   handleSkipQuestion: IQuizHandlers['handleSkipQuestion'];
-  handleGenerateFollowup: () => Promise<void>;
 
   // Form handlers
   handleSubmitAnswer: IQuizFormHandlers['handleSubmitAnswer'];

@@ -32,14 +32,12 @@ echo "  rules: quiz=$RULE_QUIZ flashcards=$RULE_FLASHCARDS sequence=$RULE_SEQUEN
     --arg prompt "$EXTRA_PROMPT" \
     --arg mode "$MODE" \
     --arg quizRule "$RULE_QUIZ" \
-    --arg followup "$RULE_FOLLOWUP" \
     '{
       documentIds: $ids,
       directoryId: $dir,
       quizName: $name,
       additionalPrompt: $prompt,
       ruleIds: [$quizRule],
-      followupRuleIds: [$followup],
       ruleResolutionMode: $mode
     }')" | jq '{artifact: "quiz", success}'
 

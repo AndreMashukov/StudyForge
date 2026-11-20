@@ -35,7 +35,6 @@ export function useCreateArtifactModalSubmit({
       const trimmedName = formData.name?.trim();
       const trimmedPrompt = formData.additionalPrompt?.trim();
       const ruleIds = formData.ruleIds ?? [];
-      const followupRuleIds = formData.followupRuleIds ?? [];
       const descriptionRuleIds = formData.descriptionRuleIds ?? [];
 
       switch (artifactType) {
@@ -46,7 +45,6 @@ export function useCreateArtifactModalSubmit({
             quizName: trimmedName || undefined,
             additionalPrompt: trimmedPrompt || undefined,
             ruleIds,
-            followupRuleIds,
             ruleResolutionMode: 'explicit-only',
           });
           break;
@@ -79,7 +77,6 @@ export function useCreateArtifactModalSubmit({
             diagramQuizName: trimmedName || undefined,
             additionalPrompt: trimmedPrompt || undefined,
             ruleIds,
-            followupRuleIds,
             ruleResolutionMode: 'explicit-only',
           });
           break;
@@ -90,7 +87,6 @@ export function useCreateArtifactModalSubmit({
             sequenceQuizName: trimmedName || undefined,
             additionalPrompt: trimmedPrompt || undefined,
             ruleIds,
-            followupRuleIds,
             ruleResolutionMode: 'explicit-only',
           });
           break;
@@ -101,7 +97,6 @@ export function useCreateArtifactModalSubmit({
             matchQuizName: trimmedName || undefined,
             additionalPrompt: trimmedPrompt || undefined,
             ruleIds,
-            followupRuleIds,
             ruleResolutionMode: 'explicit-only',
           });
           break;

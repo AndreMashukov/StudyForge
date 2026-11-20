@@ -182,6 +182,13 @@ describe('usage-limits-logic', () => {
     expect(resolveUsageGenerationKind('slideDeck')).toBe('slideDeckText');
     expect(resolveUsageGenerationKind('directoryAgent')).toBe('directoryAgent');
     expect(resolveUsageGenerationKind('agentExecutor')).toBe('agentExecutor');
+    expect(resolveUsageGenerationKind('directoryScopedAgent')).toBe('directoryScopedAgent');
+  });
+
+  it('rejects kinds that are not generation kinds', () => {
+    expect(() => resolveUsageGenerationKind('retiredKind')).toThrow(
+      'Unknown generation kind: retiredKind',
+    );
   });
 
   it('computes remaining credits from reserved and spent totals', () => {

@@ -44,7 +44,6 @@ interface IQuizMetadata {
   questions: Array<{
     question?: string;
     hint?: string;
-    explanation?: string;
     options?: string[];
     diagrams?: string[];
     diagramLabels?: string[];
@@ -57,7 +56,6 @@ interface IQuizMetadata {
 const ATTEMPT_PAGE_SIZE = 50;
 const FLASHCARD_SESSION_PAGE_SIZE = 50;
 const MAX_ATTEMPTS_TO_SCAN = 500;
-const MAX_EVENTS_TO_SCAN = 500;
 const MAX_INTERACTION_SESSIONS_TO_SCAN = 1000;
 
 const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
@@ -74,14 +72,6 @@ function normalizeQuizType(
   value: StatisticsQuizTypeFilter | undefined,
 ): StatisticsQuizTypeFilter {
   return value ?? 'all';
-}
-
-function parseDay(value: string | undefined, endOfDay = false): Date | null {
-  if (!value) return null;
-  const date = new Date(
-    `${value}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`,
-  );
-  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function toDate(value: unknown): Date | null {
@@ -117,13 +107,6 @@ function serializeOverviewAttemptAnswer(
     isCorrect: answer.isCorrect,
     ...(answer.timeSpentMs !== undefined ? { timeSpentMs: answer.timeSpentMs } : {}),
     knowledge: answer.knowledge,
-    detailedExplanationRequested: answer.detailedExplanationRequested,
-    ...(answer.detailedExplanationRequestedAt
-      ? {
-          detailedExplanationRequestedAt:
-            toIso(answer.detailedExplanationRequestedAt),
-        }
-      : {}),
   };
 }
 
@@ -444,33 +427,6 @@ function buildQuestionBreakdown(
     }));
 }
 
-async function getExplanationCountsByQuiz(
-  userId: string,
-  range: StatisticsDateRangeRequest,
-): Promise<Map<string, number>> {
-  let query: Query = FirestorePaths.learningEvents(userId);
-  const start = parseDay(range.startDate);
-  const end = parseDay(range.endDate, true);
-  if (start) query = query.where('occurredAt', '>=', Timestamp.fromDate(start));
-  if (end) query = query.where('occurredAt', '<=', Timestamp.fromDate(end));
-  if (!start && !end) query = query.orderBy('occurredAt', 'desc');
-  query = query.limit(MAX_EVENTS_TO_SCAN);
-
-  const quizType = normalizeQuizType(range.quizType);
-  const snapshot = await query.get();
-  const counts = new Map<string, number>();
-
-  for (const doc of snapshot.docs) {
-    const event = doc.data();
-    if (event.eventType !== 'detailed_explanation_requested') continue;
-    if (quizType !== 'all' && event.quizType !== quizType) continue;
-    const key = `${event.quizType}:${event.quizId}`;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-
-  return counts;
-}
-
 async function getHiddenFailureGroupKeys(userId: string): Promise<Set<string>> {
   const snapshot = await FirestorePaths.statisticsHiddenFailures(userId).get();
   const keys = new Set<string>();
@@ -495,7 +451,6 @@ function isQuestionHidden(
 function computeOverviewMetricsFromAttempts(
   attempts: IStoredAttempt[],
   hiddenKeys: Set<string>,
-  explanationRequestCount: number,
 ): GetStatisticsOverviewResponse['metrics'] {
   const quizIds = new Set<string>();
   let answeredQuestionCount = 0;
@@ -530,7 +485,6 @@ function computeOverviewMetricsFromAttempts(
     answeredQuestionCount,
     correctAnswerCount,
     incorrectAnswerCount,
-    explanationRequestCount,
     accuracyPercentage: accuracy(correctAnswerCount, answeredQuestionCount),
   };
 }
@@ -610,9 +564,6 @@ async function buildGroupedFailures(
       questionIndex: answer.questionIndex,
       questionText: answer.questionText,
       ...(typeof question?.hint === 'string' ? { hint: question.hint } : {}),
-      ...(typeof question?.explanation === 'string'
-        ? { explanation: question.explanation }
-        : {}),
       selectedAnswer: answer.selectedAnswer,
       selectedAnswerLabel: answerLabel(answer.selectedAnswer, question),
       correctAnswer: answer.correctAnswer,
@@ -737,10 +688,8 @@ async function fetchFlashcardStudySessionsPage(
 async function buildQuizPerformance(
   userId: string,
   attempts: IStoredAttempt[],
-  range: StatisticsDateRangeRequest,
   hiddenKeys: Set<string> = new Set(),
 ): Promise<StatisticsQuizPerformanceItem[]> {
-  const explanationCounts = await getExplanationCountsByQuiz(userId, range);
   const quizCache = new Map<string, IQuizMetadata>();
   const documentCache = new Map<string, StatisticsDocumentSummary>();
   const grouped = new Map<
@@ -838,7 +787,6 @@ async function buildQuizPerformance(
       answeredQuestionCount: group.answeredQuestionCount,
       correctAnswerCount: group.correctAnswerCount,
       incorrectAnswerCount: group.incorrectAnswerCount,
-      explanationRequestCount: explanationCounts.get(key) ?? 0,
       accuracyPercentage: accuracy(
         group.correctAnswerCount,
         group.answeredQuestionCount,
@@ -869,18 +817,9 @@ export async function getStatisticsOverview(
   const hiddenKeys = await getHiddenFailureGroupKeys(userId);
   const attempts = await getAttempts(userId, range, scope);
   const flashcardSessions = await fetchFlashcardStudySessionsPage(userId, range);
-  const explanationCounts = await getExplanationCountsByQuiz(userId, range);
-  const explanationRequestCount = Array.from(explanationCounts.values()).reduce(
-    (sum, count) => sum + count,
-    0,
-  );
 
   return {
-    metrics: computeOverviewMetricsFromAttempts(
-      attempts,
-      hiddenKeys,
-      explanationRequestCount,
-    ),
+    metrics: computeOverviewMetricsFromAttempts(attempts, hiddenKeys),
     recentFailures: await buildGroupedFailures(userId, attempts, hiddenKeys),
     attempts: attempts.slice(0, ATTEMPT_PAGE_SIZE).map(serializeOverviewAttempt),
     hasMoreAttempts: attempts.length >= ATTEMPT_PAGE_SIZE,
@@ -902,7 +841,7 @@ export async function getStatisticsQuizPerformance(
   const hiddenKeys = await getHiddenFailureGroupKeys(userId);
   const attempts = await getAttempts(userId, range, scope);
   return {
-    quizzes: await buildQuizPerformance(userId, attempts, range, hiddenKeys),
+    quizzes: await buildQuizPerformance(userId, attempts, hiddenKeys),
     recentFailures: await buildGroupedFailures(userId, attempts, hiddenKeys),
   };
 }
@@ -1003,7 +942,7 @@ export async function getStatisticsQuizDetail(
       attempt.quizId === data.quizId && attempt.quizType === data.quizType,
   );
   const hiddenKeys = await getHiddenFailureGroupKeys(userId);
-  const quizzes = await buildQuizPerformance(userId, attempts, data, hiddenKeys);
+  const quizzes = await buildQuizPerformance(userId, attempts, hiddenKeys);
   const failedQuestions = await buildGroupedFailures(
     userId,
     attempts,

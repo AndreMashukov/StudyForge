@@ -23,7 +23,6 @@ export const CREATE_ARTIFACT_MODAL_CONFIG: Record<
       'e.g., Focus on AWS VPC related paragraphs, make questions more challenging, etc.',
     additionalPromptHelperText: 'Provide specific instructions to customize your quiz generation',
     ruleApplicability: RuleApplicability.QUIZ,
-    followupRuleApplicability: RuleApplicability.FOLLOWUP,
     generateLabels: {
       single: 'Generate quiz',
       plural: (count) => `Generate quiz from ${count} documents`,
@@ -71,7 +70,6 @@ export const CREATE_ARTIFACT_MODAL_CONFIG: Record<
       'e.g. Focus on architecture diagrams, use sequence diagrams only, etc.',
     additionalPromptHelperText: 'Customize how Mermaid diagrams are generated',
     ruleApplicability: RuleApplicability.DIAGRAM_QUIZ,
-    followupRuleApplicability: RuleApplicability.FOLLOWUP,
     generateLabels: {
       single: 'Generate diagram quiz',
       plural: (count) => `Generate diagram quiz from ${count} documents`,
@@ -87,7 +85,6 @@ export const CREATE_ARTIFACT_MODAL_CONFIG: Record<
     additionalPromptHelperText:
       'Specialise how sequences are generated. Without rules, Gemini infers meaningful orderings from the source content.',
     ruleApplicability: RuleApplicability.SEQUENCE_QUIZ,
-    followupRuleApplicability: RuleApplicability.FOLLOWUP,
     generateLabels: {
       single: 'Generate sequence quiz',
       plural: (count) => `Generate sequence quiz from ${count} documents`,
@@ -103,7 +100,6 @@ export const CREATE_ARTIFACT_MODAL_CONFIG: Record<
     additionalPromptHelperText:
       'Specialise how match pairs are generated. Without rules, the model infers meaningful prompt-to-option pairings from the source content.',
     ruleApplicability: RuleApplicability.QUIZ,
-    followupRuleApplicability: RuleApplicability.FOLLOWUP,
     generateLabels: {
       single: 'Generate match quiz',
       plural: (count) => `Generate match quiz from ${count} documents`,

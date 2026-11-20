@@ -87,7 +87,6 @@ export const diagramQuizRepairStrategy: ArtifactRepairStrategy<IDiagramQuizDraft
             sourceContent: context.sourceContent,
             questionText: question.question,
             correctAnswer: question.correctAnswer,
-            explanation: question.explanation,
             diagrams: assertFourDiagrams(question.diagrams),
             validationError: complexityFailure.message,
             syntaxRules: DiagramQuizPromptBuilder.getDiagramSyntaxRulesExcerpt(),

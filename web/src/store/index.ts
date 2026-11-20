@@ -17,7 +17,6 @@ import flashcardSetPageReducer from './slices/flashcardSetPageSlice';
 import rulesReducer from './slices/rulesSlice';
 import directoryReducer from './slices/directorySlice';
 import artifactGenerationReducer from './slices/artifactGenerationSlice';
-import directoryChatReducer from './slices/directoryChatSlice';
 
 export const store = configureStore({
   reducer: {
@@ -35,7 +34,6 @@ export const store = configureStore({
     rules: rulesReducer,
     directory: directoryReducer,
     artifactGeneration: artifactGenerationReducer,
-    directoryChat: directoryChatReducer,
     [baseApi.reducerPath]: baseApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>

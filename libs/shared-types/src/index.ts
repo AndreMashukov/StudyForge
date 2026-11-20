@@ -249,8 +249,6 @@ export interface Quiz {
   generationAttempt?: number; // Track multiple generations per document
   documentTitle?: string; // Cache for performance
 
-  // Rule tracking for followup generation
-  followupRuleIds?: string[]; // Rules to use when generating followup explanations
   appliedRuleIds?: string[]; // Rules applied during initial generation
   generationStatus?: GenerationStatus;
   generationError?: string;
@@ -265,7 +263,6 @@ export interface QuizQuestion {
   question: string;
   options: string[]; // 4 options
   correctAnswer: number; // index of correct option
-  explanation: string; // Mandatory explanation for the correct answer
   hint?: string; // Optional hint shown via tooltip on lightbulb icon
   knowledge?: QuestionKnowledgeMetadata;
 }
@@ -274,7 +271,6 @@ export interface QuizQuestion {
 export interface SequenceQuizQuestion {
   question: string;
   items: string[]; // Items in CORRECT order (shuffled at display time on the client)
-  explanation: string;
   hint?: string; // Optional hint shown via tooltip on lightbulb icon
   knowledge?: QuestionKnowledgeMetadata;
 }
@@ -291,7 +287,6 @@ export interface SequenceQuiz {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   generationAttempt?: number;
-  followupRuleIds?: string[];
   appliedRuleIds?: string[];
   generationStatus?: GenerationStatus;
   generationError?: string;
@@ -308,7 +303,6 @@ export interface GenerateSequenceQuizRequest {
   sequenceQuizName?: string;
   additionalPrompt?: string;
   ruleIds?: string[];
-  followupRuleIds?: string[];
   additionalRuleIds?: string[];
   ruleResolutionMode?: RuleResolutionMode;
 }
@@ -344,7 +338,6 @@ export interface MatchQuizQuestion {
   question?: string;
   prompts: MatchQuizPrompt[]; // Fixed left-side rows in display order
   options: MatchQuizOption[]; // Chip bank (shuffled at display time on the client)
-  explanation: string;
   hint?: string; // Optional hint shown via tooltip on lightbulb icon
   knowledge?: QuestionKnowledgeMetadata;
 }
@@ -361,7 +354,6 @@ export interface MatchQuiz {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   generationAttempt?: number;
-  followupRuleIds?: string[];
   appliedRuleIds?: string[];
   generationStatus?: GenerationStatus;
   generationError?: string;
@@ -382,7 +374,6 @@ export interface GenerateMatchQuizRequest {
   matchQuizName?: string;
   additionalPrompt?: string;
   ruleIds?: string[];
-  followupRuleIds?: string[];
   additionalRuleIds?: string[];
   ruleResolutionMode?: RuleResolutionMode;
 }
@@ -406,7 +397,6 @@ export interface DiagramQuizQuestion {
   diagrams: string[]; // exactly 4 Mermaid diagram sources
   diagramLabels?: string[];
   correctAnswer: number; // 0–3
-  explanation: string;
   hint?: string; // Optional hint shown via tooltip on lightbulb icon
   knowledge?: QuestionKnowledgeMetadata;
 }
@@ -423,7 +413,6 @@ export interface DiagramQuiz {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   generationAttempt?: number;
-  followupRuleIds?: string[];
   appliedRuleIds?: string[];
   generationStatus?: GenerationStatus;
   generationError?: string;
@@ -449,7 +438,6 @@ export interface GenerateDiagramQuizRequest {
   additionalPrompt?: string;
   ruleIds?: string[];
   quizRuleIds?: string[];
-  followupRuleIds?: string[];
   additionalRuleIds?: string[];
   ruleResolutionMode?: RuleResolutionMode;
 }
@@ -889,8 +877,6 @@ export interface GenerateQuizRequest {
   ruleIds?: string[];
   /** @deprecated Auto-resolved from directory when omitted */
   quizRuleIds?: string[];
-  /** @deprecated Auto-resolved from directory when omitted */
-  followupRuleIds?: string[];
   additionalRuleIds?: string[];
   ruleResolutionMode?: RuleResolutionMode;
 }
@@ -1140,7 +1126,6 @@ export interface GeminiQuizQuestion {
   question: string;
   options: string[];
   correctAnswer: number;
-  explanation?: string;
   hint?: string;
 }
 
@@ -1216,46 +1201,6 @@ export interface UploadValidationResult {
   };
 }
 
-// Quiz Followup API Types
-export interface GenerateFollowupRequest {
-  documentId: string;
-  questionText: string;
-  userSelectedAnswer: string;
-  correctAnswer?: string;
-  questionOptions?: string[];
-  questionType?: 'multiple-choice' | 'diagram' | 'sequence';
-  sequenceItems?: string[];
-  userSequence?: string[];
-  correctSequence?: string[];
-  quizTitle?: string;
-  followupRuleIds?: string[]; // Optional rule IDs for followup generation
-}
-
-export interface GenerateFollowupResponse {
-  content: string;
-}
-
-export interface QuizFollowupContext {
-  originalDocument: {
-    title: string;
-    content: string;
-  };
-  question: {
-    text: string;
-    options: string[];
-    userAnswer: string;
-    correctAnswer?: string;
-    questionType?: 'multiple-choice' | 'diagram' | 'sequence';
-    sequenceItems?: string[];
-    userSequence?: string[];
-    correctSequence?: string[];
-  };
-  quiz: {
-    title: string;
-  };
-  customInstructions?: string; // Optional custom rules/instructions to inject
-}
-
 // Document Question API Types
 export interface AskDocumentQuestionRequest {
   documentId: string;
@@ -1298,111 +1243,6 @@ export interface DocumentReviseContext {
   contentFormat?: DocumentContentFormat;
 }
 
-// Directory Chat API Types
-export type DirectoryChatRole = 'user' | 'assistant';
-
-export interface DirectoryChatMessage {
-  id: string;
-  role: DirectoryChatRole;
-  content: string;
-  createdAt: string;
-  seedKey?: string;
-}
-
-export interface DirectoryChatArtifactContext {
-  type:
-    | 'quiz'
-    | 'diagramQuiz'
-    | 'sequenceQuiz'
-    | 'matchQuiz'
-    | 'slideDeck'
-    | 'flashcardSet'
-    | 'document';
-  title?: string;
-  question?: string;
-  options?: string[];
-  userAnswer?: string;
-  correctAnswer?: string;
-  explanation?: string;
-  sequenceItems?: string[];
-  userSequence?: string[];
-  correctSequence?: string[];
-  /** Prompt texts for match-quiz context, in row order. */
-  matchPrompts?: string[];
-  /** User placements as prompt text to option text, in row order. */
-  userMatches?: string[];
-  /** Correct placements as prompt text to option text, in row order. */
-  correctMatches?: string[];
-  slideTitle?: string;
-  slideContent?: string;
-  speakerNotes?: string;
-  followupRuleIds?: string[];
-}
-
-export interface RetrievedDirectoryChatChunk {
-  documentId: string;
-  documentTitle: string;
-  text: string;
-}
-
-export interface DirectoryChatPromptContext {
-  directoryName: string;
-  userMessage: string;
-  chatRules?: string;
-  conversationSummary?: string;
-  recentMessages: DirectoryChatMessage[];
-  retrievedChunks: RetrievedDirectoryChatChunk[];
-  artifactContext?: DirectoryChatArtifactContext;
-}
-
-export interface DirectoryChatSourceSummary {
-  id: string;
-  title: string;
-}
-
-export interface GetDirectoryChatRequest {
-  directoryId: string;
-}
-
-export interface GetDirectoryChatResponse {
-  directoryId: string;
-  documentCount: number;
-  selectedDocumentIds: string[];
-  sources: DirectoryChatSourceSummary[];
-  messages: DirectoryChatMessage[];
-  summary?: string;
-}
-
-export interface SendDirectoryChatMessageRequest {
-  directoryId: string;
-  message: string;
-  seedKey?: string;
-  artifactContext?: DirectoryChatArtifactContext;
-}
-
-export interface SendDirectoryChatMessageResponse {
-  directoryId: string;
-  documentCount: number;
-  selectedDocumentIds: string[];
-  sources: DirectoryChatSourceSummary[];
-  userMessage: DirectoryChatMessage;
-  assistantMessage?: DirectoryChatMessage;
-  messages: DirectoryChatMessage[];
-  summary?: string;
-}
-
-export interface UpdateDirectoryChatSourcesRequest {
-  directoryId: string;
-  selectedDocumentIds: string[];
-}
-
-export interface UpdateDirectoryChatSourcesResponse {
-  directoryId: string;
-  documentCount: number;
-  selectedDocumentIds: string[];
-  sources: DirectoryChatSourceSummary[];
-}
-
 // Auth Types
 export interface User {
   uid: string;
@@ -1422,8 +1262,6 @@ export enum RuleApplicability {
   UPLOAD = 'upload',
   PROMPT = 'prompt',
   QUIZ = 'quiz',
-  FOLLOWUP = 'followup',
-  CHAT = 'chat',
   FLASHCARD = 'flashcard',
   FLASHCARD_DESC = 'flashcard_desc',
   SLIDE_DECK = 'slide_deck',
@@ -1627,15 +1465,12 @@ export type QuizAnswerValue = string | string[] | number | number[] | null;
 
 export type LearningTelemetryEventType =
   | 'quiz_attempt_completed'
-  | 'question_answered'
-  | 'detailed_explanation_requested';
+  | 'question_answered';
 
 export interface RecordQuizAttemptAnswerInput {
   questionIndex: number;
   selectedAnswer: QuizAnswerValue;
   timeSpentMs?: number;
-  detailedExplanationRequested?: boolean;
-  detailedExplanationRequestedAt?: string;
 }
 
 export interface RecordQuizAttemptRequest {
@@ -1651,17 +1486,6 @@ export interface RecordQuizAttemptResponse {
   attemptId: string;
 }
 
-export interface RecordQuizExplanationRequest {
-  quizId: string;
-  quizType: QuizTelemetryType;
-  questionIndex: number;
-  requestedAt?: string;
-}
-
-export interface RecordQuizExplanationResponse {
-  eventId: string;
-}
-
 export interface QuizAttemptAnswer {
   questionIndex: number;
   questionText: string;
@@ -1670,8 +1494,6 @@ export interface QuizAttemptAnswer {
   isCorrect: boolean;
   timeSpentMs?: number;
   knowledge: QuestionKnowledgeMetadata;
-  detailedExplanationRequested: boolean;
-  detailedExplanationRequestedAt?: Date | { toDate(): Date };
 }
 
 export interface QuizAttempt {
@@ -1710,7 +1532,6 @@ export interface QuizStatsSummary {
   latestScore: number;
   latestPercentage: number;
   incorrectAnswerCount: number;
-  explanationRequestCount: number;
   lastAttemptAt?: Date | { toDate(): Date };
   updatedAt: Date | { toDate(): Date };
 }
@@ -1726,7 +1547,6 @@ export interface QuestionStatsSummary {
   answerCount: number;
   correctCount: number;
   incorrectCount: number;
-  explanationRequestCount: number;
   updatedAt: Date | { toDate(): Date };
 }
 
@@ -1742,7 +1562,6 @@ export interface KnowledgeStatsSummary {
   answerCount: number;
   correctCount: number;
   incorrectCount: number;
-  explanationRequestCount: number;
   updatedAt: Date | { toDate(): Date };
 }
 
@@ -1791,7 +1610,6 @@ export interface StatisticsOverviewMetrics {
   answeredQuestionCount: number;
   correctAnswerCount: number;
   incorrectAnswerCount: number;
-  explanationRequestCount: number;
   accuracyPercentage: number;
 }
 
@@ -1812,7 +1630,6 @@ export interface StatisticsRecentFailure {
   questionIndex: number;
   questionText: string;
   hint?: string;
-  explanation?: string;
   selectedAnswer: QuizAnswerValue;
   selectedAnswerLabel: string;
   correctAnswer: QuizAnswerValue;
@@ -1846,8 +1663,6 @@ export interface StatisticsOverviewAttemptAnswer {
   isCorrect: boolean;
   timeSpentMs?: number;
   knowledge: QuestionKnowledgeMetadata;
-  detailedExplanationRequested: boolean;
-  detailedExplanationRequestedAt?: string;
 }
 
 /** Serializable quiz attempt row for Statistics overview pagination in Redux. */
@@ -1984,7 +1799,6 @@ export interface StatisticsQuizPerformanceItem {
   answeredQuestionCount: number;
   correctAnswerCount: number;
   incorrectAnswerCount: number;
-  explanationRequestCount: number;
   accuracyPercentage: number;
   bestPercentage: number;
   latestPercentage: number;
@@ -2299,11 +2113,10 @@ export type LlmCapabilityKey =
   | 'flashcards'
   | 'documentFromPrompt'
   | 'documentFromScreenshot'
-  | 'quizFollowup'
   | 'documentQuestion'
   | 'scratchPadQuestion'
   | 'documentRevise'
-  | 'directoryChat'
+  | 'directoryScopedAgent'
   | 'diagramQuiz'
   | 'diagramQuizAgent'
   | 'escalation'
@@ -2339,7 +2152,9 @@ export {
   DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
   GENERATION_KIND_ALIASES,
   GENERATION_KIND_METADATA,
+  getGenerationKindLabel,
   isGenerationKind,
+  RETIRED_GENERATION_KIND_LABEL,
   isGenerationWorkflow,
   isLlmModality,
   resolveGenerationKind,
@@ -2469,12 +2284,10 @@ export const LLM_GENERATION_PROFILE_METADATA: ILlmGenerationProfileMetadata[] =
     {
       id: 'explanatoryChat',
       label: 'Explanatory chat',
-      description: 'Follow-ups, document Q&A, and directory chat answers.',
+      description: 'Document Q&A and scratch pad answers.',
       flows: [
-        'quizFollowup',
         'documentQuestion',
         'scratchPadQuestion',
-        'directoryChat',
       ],
     },
     {

@@ -60,7 +60,6 @@ export interface PendingQuizParams {
   documentTitle: string;
   title: string;
   userId: string;
-  followupRuleIds?: string[];
   documentColor?: string;
   documentColors?: string[];
 }
@@ -76,7 +75,6 @@ export async function createPendingQuiz(params: PendingQuizParams): Promise<stri
     title: params.title,
     questions: [],
     directoryId: params.directoryId,
-    followupRuleIds: params.followupRuleIds || [],
     appliedRuleIds: [],
     ...(params.documentColor ? { documentColor: params.documentColor } : {}),
     ...(params.documentColors ? { documentColors: params.documentColors } : {}),
@@ -368,7 +366,6 @@ export interface PendingDiagramQuizParams {
   documentTitle: string;
   title: string;
   userId: string;
-  followupRuleIds?: string[];
   documentColor?: string;
   documentColors?: string[];
 }
@@ -384,7 +381,6 @@ export async function createPendingDiagramQuiz(params: PendingDiagramQuizParams)
     title: params.title,
     questions: [],
     directoryId: params.directoryId,
-    followupRuleIds: params.followupRuleIds || [],
     appliedRuleIds: [],
     ...(params.documentColor ? { documentColor: params.documentColor } : {}),
     ...(params.documentColors ? { documentColors: params.documentColors } : {}),
@@ -406,7 +402,6 @@ export async function completePendingDiagramQuiz(
     title: string;
     questions: object[];
     appliedRuleIds?: string[];
-    followupRuleIds?: string[];
     generationAttempt?: number;
     generationModel?: string;
     generationModelUsage?: IGenerationModelUsage[];
@@ -423,7 +418,6 @@ export async function completePendingDiagramQuiz(
     title: updates.title,
     questions: updates.questions,
     appliedRuleIds: updates.appliedRuleIds || [],
-    ...(updates.followupRuleIds !== undefined ? { followupRuleIds: updates.followupRuleIds } : {}),
     generationAttempt: updates.generationAttempt || 1,
     ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
     ...(updates.generationModelUsage?.length
@@ -477,7 +471,6 @@ export interface PendingSequenceQuizParams {
   documentTitle: string;
   title: string;
   userId: string;
-  followupRuleIds?: string[];
   documentColor?: string;
   documentColors?: string[];
 }
@@ -493,7 +486,6 @@ export async function createPendingSequenceQuiz(params: PendingSequenceQuizParam
     title: params.title,
     questions: [],
     directoryId: params.directoryId,
-    followupRuleIds: params.followupRuleIds || [],
     appliedRuleIds: [],
     ...(params.documentColor ? { documentColor: params.documentColor } : {}),
     ...(params.documentColors ? { documentColors: params.documentColors } : {}),
@@ -515,7 +507,6 @@ export async function completePendingSequenceQuiz(
     title: string;
     questions: object[];
     appliedRuleIds?: string[];
-    followupRuleIds?: string[];
     generationAttempt?: number;
     generationModel?: string;
     generationModelUsage?: IGenerationModelUsage[];
@@ -530,7 +521,6 @@ export async function completePendingSequenceQuiz(
     title: updates.title,
     questions: updates.questions,
     appliedRuleIds: updates.appliedRuleIds || [],
-    ...(updates.followupRuleIds !== undefined ? { followupRuleIds: updates.followupRuleIds } : {}),
     generationAttempt: updates.generationAttempt || 1,
     ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
     ...(updates.generationModelUsage?.length
@@ -574,7 +564,6 @@ export interface PendingMatchQuizParams {
   documentTitle: string;
   title: string;
   userId: string;
-  followupRuleIds?: string[];
   documentColor?: string;
   documentColors?: string[];
 }
@@ -590,7 +579,6 @@ export async function createPendingMatchQuiz(params: PendingMatchQuizParams): Pr
     title: params.title,
     questions: [],
     directoryId: params.directoryId,
-    followupRuleIds: params.followupRuleIds || [],
     appliedRuleIds: [],
     ...(params.documentColor ? { documentColor: params.documentColor } : {}),
     ...(params.documentColors ? { documentColors: params.documentColors } : {}),
@@ -612,7 +600,6 @@ export async function completePendingMatchQuiz(
     title: string;
     questions: object[];
     appliedRuleIds?: string[];
-    followupRuleIds?: string[];
     generationAttempt?: number;
     generationModel?: string;
     generationModelUsage?: IGenerationModelUsage[];
@@ -627,7 +614,6 @@ export async function completePendingMatchQuiz(
     title: updates.title,
     questions: updates.questions,
     appliedRuleIds: updates.appliedRuleIds || [],
-    ...(updates.followupRuleIds !== undefined ? { followupRuleIds: updates.followupRuleIds } : {}),
     generationAttempt: updates.generationAttempt || 1,
     ...(updates.generationModel ? { generationModel: updates.generationModel } : {}),
     ...(updates.generationModelUsage?.length

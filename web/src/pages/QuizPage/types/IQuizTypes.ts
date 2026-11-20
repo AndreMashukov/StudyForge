@@ -7,7 +7,6 @@ export type { Quiz, QuizQuestion } from '@shared-types';
 export interface IQuizQuestion extends QuizQuestion {
   id: number; // Add numeric ID for UI state management
   correct: number; // Add correct property for UI consistency (maps to correctAnswer)
-  // explanation is now mandatory from shared types
 }
 
 // User's answer to a question
@@ -28,7 +27,7 @@ export interface IQuizState {
   // Quiz session state
   currentQuestionIndex: number;
   selectedAnswer: number | null;
-  showExplanation: boolean;
+  showFeedback: boolean;
   score: number;
   answers: IQuizAnswer[];
   isCompleted: boolean;
@@ -52,7 +51,7 @@ export type QuizAction =
   | { type: 'LOAD_QUIZ'; payload: { quiz: Quiz } }
   | { type: 'START_QUIZ'; payload: { questions: IQuizQuestion[] } }
   | { type: 'SELECT_ANSWER'; payload: { answerIndex: number } }
-  | { type: 'SHOW_EXPLANATION' }
+  | { type: 'SHOW_FEEDBACK' }
   | { type: 'NEXT_QUESTION' }
   | { type: 'COMPLETE_QUIZ' }
   | { type: 'RESET_QUIZ' }

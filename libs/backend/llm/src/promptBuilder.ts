@@ -54,41 +54,6 @@ export class PromptBuilder {
   }
 
   /**
-   * Inject rules specifically for quiz generation
-   * Handles both quiz rules and followup rules
-   */
-  static async injectQuizRules(
-    basePrompt: string,
-    quizRuleIds: string[],
-    followupRuleIds: string[],
-    userId: string
-  ): Promise<{ quizPrompt: string; followupPrompt: string }> {
-    logger.info('Injecting quiz rules', {
-      quizRuleCount: quizRuleIds?.length || 0,
-      followupRuleCount: followupRuleIds?.length || 0,
-      userId,
-    });
-
-    // Inject quiz rules into quiz generation prompt
-    const quizPrompt = await this.injectRules(basePrompt, quizRuleIds, userId);
-
-    // Create followup prompt template (used when generating followups during quiz)
-    const followupBasePrompt = `Generate a detailed followup explanation for the quiz question above. 
-Focus on helping the user understand the concept thoroughly.`;
-    
-    const followupPrompt = await this.injectRules(
-      followupBasePrompt,
-      followupRuleIds,
-      userId
-    );
-
-    return {
-      quizPrompt,
-      followupPrompt,
-    };
-  }
-
-  /**
    * Validate that required rules are present for an operation
    */
   static validateRules(ruleIds: string[], operation: string, minRequired = 1): boolean {

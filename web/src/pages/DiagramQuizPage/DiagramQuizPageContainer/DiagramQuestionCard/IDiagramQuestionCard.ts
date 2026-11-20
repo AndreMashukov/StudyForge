@@ -5,7 +5,7 @@ export interface IDiagramQuestionCard {
   question: IDiagramQuizQuestion;
   currentDiagramIndex: number;
   selectedAnswer: number | null;
-  showExplanation: boolean;
+  showFeedback: boolean;
   onAnswerSelect: (index: number) => void;
   onNextQuestion: () => void;
   onPrevDiagram: () => void;
@@ -14,7 +14,4 @@ export interface IDiagramQuestionCard {
   isLastQuestion: boolean;
   className?: string;
   backAction?: ReactNode;
-  onGenerateFollowup?: () => void;
-  isGeneratingFollowup?: boolean;
-  isFollowupGenerated?: boolean;
 }

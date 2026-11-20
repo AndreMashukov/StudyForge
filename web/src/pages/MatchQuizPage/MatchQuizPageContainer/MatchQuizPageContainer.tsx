@@ -7,7 +7,6 @@ import { ScoreCard } from '../../QuizPage/QuizPageContainer/ScoreCard';
 import { MatchQuestionCard } from './MatchQuestionCard/MatchQuestionCard';
 import { Spinner } from '../../../components/ui/Spinner';
 import { Button } from '../../../components/ui/Button';
-import { DirectoryChatPanel } from '../../../components/DirectoryChatPanel';
 import {
   selectMatchQuizState,
   selectCurrentMatchQuestion,
@@ -150,25 +149,6 @@ export const MatchQuizPageContainer: React.FC = () => {
 
   const isLastQuestion =
     quizState.currentQuestionIndex === quizState.questions.length - 1;
-  const questionIndex = quizState.currentQuestionIndex;
-  const directoryId =
-    matchQuizApi.firestoreMatchQuiz?.directoryId || directoryIdForBack;
-  const detailedExplanationSeedKey = `matchQuiz:${matchQuizApi.firestoreMatchQuiz?.id ?? 'active'}:${questionIndex}:detailed-explanation`;
-  const detailedExplanationMessage =
-    'Explain this match quiz in detail. Include why my matches are right or wrong, how to reason about each pairing, and the source details that support it.';
-
-  const userMatchLabels = currentQuestion.prompts.map((prompt) => {
-    const option = currentQuestion.options.find(
-      (candidate) => candidate.id === quizState.placements[prompt.id],
-    );
-    return `${prompt.text} ${option ? option.text : ''}`.trim();
-  });
-  const correctMatchLabels = currentQuestion.prompts.map((prompt) => {
-    const option = currentQuestion.options.find(
-      (candidate) => candidate.correctPromptId === prompt.id,
-    );
-    return `${prompt.text} ${option ? option.text : ''}`.trim();
-  });
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 px-6 py-4">
@@ -179,31 +159,11 @@ export const MatchQuizPageContainer: React.FC = () => {
         lockedPromptIds={quizState.lockedPromptIds}
         isChecked={quizState.isChecked}
         isCorrect={quizState.isCorrect}
-        showExplanation={quizState.showExplanation}
+        showFeedback={quizState.showFeedback}
         handlers={handlers}
         isLastQuestion={isLastQuestion}
         backAction={inlineBackAction}
       />
-
-      {quizState.followupChatOpen[questionIndex] && directoryId && (
-        <DirectoryChatPanel
-          directoryId={directoryId}
-          sourceCount={1}
-          compact
-          autoSendSeed
-          seedKey={detailedExplanationSeedKey}
-          seedMessage={detailedExplanationMessage}
-          artifactContext={{
-            type: 'matchQuiz',
-            title: matchQuizApi.firestoreMatchQuiz?.title,
-            explanation: currentQuestion.explanation,
-            matchPrompts: currentQuestion.prompts.map((p) => p.text),
-            userMatches: userMatchLabels,
-            correctMatches: correctMatchLabels,
-            followupRuleIds: matchQuizApi.firestoreMatchQuiz?.followupRuleIds,
-          }}
-        />
-      )}
     </div>
   );
 };

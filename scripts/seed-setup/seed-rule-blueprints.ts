@@ -76,9 +76,9 @@ const BLUEPRINT_SEEDS: IBlueprintSeedSpec[] = [
     sourceRuleId: '0VsALrGmkxKkMVpzpeyc',
     name: 'Mermaid Diagram Standards',
     description:
-      'Standards for clear, accessible Mermaid diagrams in documents and follow-ups.',
+      'Standards for clear, accessible Mermaid diagrams in documents.',
     tags: ['mermaid', 'diagram', 'document'],
-    applicableTo: [RuleApplicability.PROMPT, RuleApplicability.FOLLOWUP],
+    applicableTo: [RuleApplicability.PROMPT],
     color: RuleColor.GREEN,
   },
   {
@@ -139,26 +139,6 @@ const BLUEPRINT_SEEDS: IBlueprintSeedSpec[] = [
     tags: ['flashcard_desc', 'interactive', 'html'],
     applicableTo: [RuleApplicability.FLASHCARD_DESC],
     color: RuleColor.INDIGO,
-  },
-  {
-    platformId: 'bp-followup-summary',
-    sourceRuleId: 'QhlSQpQ1Jkv3GJt6Ga90',
-    name: 'Follow-up Summary',
-    description:
-      'Concise follow-up explanations with a short recap of core concepts.',
-    tags: ['followup', 'summary'],
-    applicableTo: [RuleApplicability.FOLLOWUP],
-    color: RuleColor.GRAY,
-  },
-  {
-    platformId: 'bp-chat-code-explanation',
-    sourceRuleId: 'zW9i4FQTJZXWCf15nkMz',
-    name: 'Chat Code Explanation',
-    description:
-      'Explain code snippets clearly in chat, with comparisons when helpful.',
-    tags: ['chat', 'code'],
-    applicableTo: [RuleApplicability.CHAT],
-    color: RuleColor.PURPLE,
   },
   {
     platformId: 'bp-technical-doc-prompt',

@@ -94,13 +94,10 @@ service cloud.firestore {
         }
 
         match /chat/{threadId} {
-          allow read: if canAccessWorkspace(userId);
-          allow create, update: if canAccessWorkspace(userId);
-          allow delete: if false;
+          allow read, write: if false;
 
           match /messages/{messageId} {
-            allow read: if canAccessWorkspace(userId);
-            allow write: if false;
+            allow read, write: if false;
           }
         }
 

@@ -124,7 +124,7 @@ ${content.author ? `**AUTHOR:** ${content.author}` : ''}
 ${content.content}
 
 **TASK:**
-Create **5 to 8** questions. For each question, output **exactly 4** Mermaid diagrams in array \`diagrams\` (indices 0–3 = A–D), a **correctAnswer** index (0–3), a clear **explanation** of why the correct diagram is right and how the others mislead, and:
+Create **5 to 8** questions. For each question, output **exactly 4** Mermaid diagrams in array \`diagrams\` (indices 0–3 = A–D), a **correctAnswer** index (0–3), and:
 ${buildQuizHintFieldInstruction('Compare the arrow direction, labels, and missing links before choosing.')}`;
   }
 
@@ -145,7 +145,6 @@ For question N, option at index matching the letter above must be the factually 
 - **No unescaped double quotes** inside string values.
 - \`diagrams\` must be a string array of length **4** for every question — each string is full Mermaid source.
 - \`correctAnswer\` is integer 0, 1, 2, or 3.
-- \`explanation\` is required (non-empty string).
 - \`knowledge\` is required with \`subjectName\`, \`knowledgeDomainName\`, and \`topicTags\` (1-5 short strings).
 ${buildQuizHintJsonRule()}`;
   }
@@ -164,7 +163,6 @@ ${buildQuizHintJsonRule()}`;
         "flowchart TD\\n  A-->B\\n  B-->D"
       ],
       "correctAnswer": 0,
-      "explanation": "Why option A is correct and others are wrong.",
       "knowledge": {
         "subjectName": "Concise subject tested by this question",
         "knowledgeDomainName": "Broader knowledge domain",
@@ -181,7 +179,6 @@ ${buildQuizHintJsonRule()}`;
         "flowchart BT\\n  subgraph topFrame[\\"Top Frame\\"]\\n    A(op: -)\\n  end\\n  subgraph bottomFrame[\\"Bottom Frame\\"]\\n    B(op: -)\\n  end\\n  topFrame --> bottomFrame"
       ],
       "correctAnswer": 1,
-      "explanation": "Note: subgraph IDs use camelCase (topFrame) with display labels in quotes.",
       "knowledge": {
         "subjectName": "Stack state diagrams",
         "knowledgeDomainName": "Programming concepts",
@@ -194,7 +191,7 @@ ${buildQuizHintJsonRule()}`;
   }
 
   private static getFinalInstructions(): string {
-    return `**FINAL CHECK:** Every question has exactly 4 diagrams, valid Mermaid, a non-empty explanation, and a non-empty hint. Generate the JSON now:`;
+    return `**FINAL CHECK:** Every question has exactly 4 diagrams, valid Mermaid, and a non-empty hint. Generate the JSON now:`;
   }
 
   /**
@@ -234,7 +231,6 @@ Generate the JSON now:`;
       question: string;
       correctAnswer: number;
       optionPlans: [string, string, string, string];
-      explanation: string;
     }>;
     strict?: boolean;
   }): string {
@@ -251,8 +247,7 @@ Generate the JSON now:`;
   Prompt: ${item.question}
   Correct answer index: ${item.correctAnswer}
   Option plans:
-${optionLines}
-  Explanation summary: ${item.explanation}`;
+${optionLines}`;
       })
       .join('\n\n');
 
@@ -284,7 +279,6 @@ For each question provide:
 - \`question\`: the stem shown to the learner
 - \`correctAnswer\`: integer 0–3 (which option will be correct)
 - \`optionPlans\`: array of exactly 4 short strings describing what each diagram option should depict
-- \`explanation\`: why the correct option is right and others mislead
 - \`hint\`: short non-spoiler clue
 - \`knowledge\`: subjectName, knowledgeDomainName, topicTags (1–5 strings)
 
@@ -314,7 +308,7 @@ ${content.content}
 - **No unescaped double quotes** inside string values.
 - \`optionPlans\` must be a string array of length **4**.
 - \`correctAnswer\` is integer 0, 1, 2, or 3.
-- \`explanation\` and \`hint\` are required non-empty strings.
+- \`hint\` is a required non-empty string.
 - \`knowledge\` is required with \`subjectName\`, \`knowledgeDomainName\`, and \`topicTags\`.
 ${buildQuizHintJsonRule()}`;
   }
@@ -333,7 +327,6 @@ ${buildQuizHintJsonRule()}`;
         "Same A-B-C scaffold with B incorrectly routing to D label",
         "Same A-B-C scaffold with swapped B and C labels"
       ],
-      "explanation": "Why option A is correct and others are wrong.",
       "knowledge": {
         "subjectName": "Concise subject tested by this question",
         "knowledgeDomainName": "Broader knowledge domain",

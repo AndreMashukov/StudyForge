@@ -25,8 +25,7 @@ async function seed() {
         {
           question: 'What is machine learning?',
           options: ['A', 'B', 'C', 'D'],
-          correctAnswer: 0,
-          explanation: 'Test explanation'
+          correctAnswer: 0
         }
       ],
       createdAt: admin.firestore.FieldValue.serverTimestamp(),

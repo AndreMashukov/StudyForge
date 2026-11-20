@@ -85,7 +85,6 @@ export const baseApi = createApi({
     'DocumentQuizzes',
     'Document',
     'Directory',
-    'DirectoryChat',
     'Documents',
     'Rules',
     'DirectoryRules',

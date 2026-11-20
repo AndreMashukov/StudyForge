@@ -316,8 +316,7 @@ export const api = onRequest(
           return;
         }
 
-        const { quizName, additionalPrompt, quizRuleIds, followupRuleIds } =
-          requestData;
+        const { quizName, additionalPrompt, quizRuleIds } = requestData;
 
         // Fetch all documents and their content in parallel
         const documentDataList = await Promise.all(
@@ -394,7 +393,6 @@ export const api = onRequest(
             undefined,
             async () => {
           let enhancedPrompt = additionalPrompt || "";
-          let followupIdsForSave: string[] = [];
           let appliedRuleIdsForSave: string[] = [];
           const ruleResolutionMode = isRuleResolutionMode(
             (requestData as unknown as { ruleResolutionMode?: unknown }).ruleResolutionMode
@@ -402,7 +400,7 @@ export const api = onRequest(
             ? (requestData as unknown as { ruleResolutionMode: 'inherit' | 'inherit-plus-explicit' | 'explicit-only' }).ruleResolutionMode
             : undefined;
           const hasLegacyExplicitRules = Boolean(
-            requestData.ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length
+            requestData.ruleIds?.length || quizRuleIds?.length
           );
           const mode = ruleResolutionMode
             ?? (hasLegacyExplicitRules ? 'explicit-only' : 'inherit-plus-explicit');
@@ -410,9 +408,6 @@ export const api = onRequest(
             ? requestData.ruleIds
             : quizRuleIds?.length
             ? quizRuleIds
-            : requestData.additionalRuleIds;
-          const selectedFollowupRuleIds = hasLegacyExplicitRules
-            ? (followupRuleIds || [])
             : requestData.additionalRuleIds;
 
           const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
@@ -426,14 +421,6 @@ export const api = onRequest(
             enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
           }
           appliedRuleIdsForSave = resolvedAppliedIds;
-          const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
-            userId,
-            directoryId: resolvedDirectoryId,
-            operation: RuleApplicability.FOLLOWUP,
-            additionalRuleIds: selectedFollowupRuleIds,
-            mode,
-          });
-          followupIdsForSave = resolvedFollowupIds;
 
           const geminiQuiz = await LlmGenerationService.generateQuiz(
             userId,
@@ -459,11 +446,10 @@ export const api = onRequest(
 
           await completePendingQuiz(userId, pendingQuizId, {
             title: geminiQuiz.title,
-            questions: geminiQuiz.questions.map((q: { question: string; options: string[]; correctAnswer: number; explanation?: string; hint?: string }) => ({
+            questions: geminiQuiz.questions.map((q: { question: string; options: string[]; correctAnswer: number; hint?: string }) => ({
               question: q.question,
               options: q.options,
               correctAnswer: q.correctAnswer,
-              explanation: q.explanation,
               ...(q.hint ? { hint: q.hint } : {}),
             })),
             appliedRuleIds: appliedRuleIdsForSave,
@@ -472,7 +458,6 @@ export const api = onRequest(
             generationModelUsage: quizGenerationModelUsage,
           });
           await FirestorePaths.quiz(userId, pendingQuizId).update({
-            followupRuleIds: followupIdsForSave,
             documentTitle: documentDataList[0].doc.title,
           });
           const savedQuiz = await FirestorePaths.quiz(userId, pendingQuizId).get();
@@ -518,7 +503,6 @@ export const api = onRequest(
         const additionalPrompt = typeof requestData.additionalPrompt === "string" ? requestData.additionalPrompt.trim() : undefined;
         const ruleIds = Array.isArray(requestData.ruleIds) ? requestData.ruleIds as string[] : undefined;
         const quizRuleIds = Array.isArray(requestData.quizRuleIds) ? requestData.quizRuleIds as string[] : undefined;
-        const followupRuleIds = Array.isArray(requestData.followupRuleIds) ? requestData.followupRuleIds as string[] : undefined;
         const additionalRuleIds = Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds as string[] : undefined;
 
         const documentDataList = await Promise.all(
@@ -578,21 +562,17 @@ export const api = onRequest(
             undefined,
             async () => {
           let enhancedPrompt = additionalPrompt || "";
-          let followupIdsForSave: string[] = [];
           let appliedRuleIdsForSave: string[] = [];
           const ruleResolutionMode = isRuleResolutionMode(requestData.ruleResolutionMode)
             ? requestData.ruleResolutionMode
             : undefined;
-          const hasLegacyExplicitRules = Boolean(ruleIds?.length || quizRuleIds?.length || followupRuleIds?.length);
+          const hasLegacyExplicitRules = Boolean(ruleIds?.length || quizRuleIds?.length);
           const mode = ruleResolutionMode
             ?? (hasLegacyExplicitRules ? "explicit-only" : "inherit-plus-explicit");
           const selectedQuizRuleIds = ruleIds?.length
             ? ruleIds
             : quizRuleIds?.length
             ? quizRuleIds
-            : additionalRuleIds;
-          const selectedFollowupRuleIds = hasLegacyExplicitRules
-            ? (followupRuleIds || [])
             : additionalRuleIds;
 
           const { text: quizRulesText, ruleIds: resolvedAppliedIds } = await resolveEffectiveRules({
@@ -604,14 +584,6 @@ export const api = onRequest(
           });
           if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
           appliedRuleIdsForSave = resolvedAppliedIds;
-          const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
-            userId,
-            directoryId: resolvedDirectoryId,
-            operation: RuleApplicability.FOLLOWUP,
-            additionalRuleIds: selectedFollowupRuleIds,
-            mode,
-          });
-          followupIdsForSave = resolvedFollowupIds;
 
           const geminiQuiz = await LlmGenerationService.generateDiagramQuiz(userId, documentContent, enhancedPrompt);
 
@@ -638,11 +610,9 @@ export const api = onRequest(
               diagrams: q.diagrams,
               ...(q.diagramLabels?.length ? { diagramLabels: q.diagramLabels } : {}),
               correctAnswer: q.correctAnswer,
-              explanation: q.explanation,
               ...(q.hint ? { hint: q.hint } : {}),
             })),
             appliedRuleIds: appliedRuleIdsForSave,
-            followupRuleIds: followupIdsForSave,
             generationAttempt,
             generationModel: diagramQuizGenerationModel,
             generationModelUsage: diagramQuizGenerationModelUsage,
@@ -686,7 +656,6 @@ export const api = onRequest(
         const sequenceQuizName = typeof requestData.sequenceQuizName === "string" ? requestData.sequenceQuizName.trim() : undefined;
         const additionalPrompt = typeof requestData.additionalPrompt === "string" ? requestData.additionalPrompt.trim() : undefined;
         const ruleIds = Array.isArray(requestData.ruleIds) ? requestData.ruleIds as string[] : undefined;
-        const followupRuleIds = Array.isArray(requestData.followupRuleIds) ? requestData.followupRuleIds as string[] : undefined;
         const additionalRuleIds = Array.isArray(requestData.additionalRuleIds) ? requestData.additionalRuleIds as string[] : undefined;
 
         const documentDataList = await Promise.all(
@@ -746,8 +715,7 @@ export const api = onRequest(
             undefined,
             async () => {
           let enhancedPrompt = additionalPrompt || "";
-          let followupIdsForSave: string[] = [];
-          const hasExplicitRules = Boolean(ruleIds?.length || followupRuleIds?.length);
+          const hasExplicitRules = Boolean(ruleIds?.length);
           const mode = isRuleResolutionMode(requestData.ruleResolutionMode)
             ? requestData.ruleResolutionMode
             : (hasExplicitRules ? "explicit-only" : "inherit-plus-explicit");
@@ -760,14 +728,6 @@ export const api = onRequest(
             mode,
           });
           if (quizRulesText) enhancedPrompt = `${quizRulesText}\n\n${enhancedPrompt}`;
-          const { ruleIds: resolvedFollowupIds } = await resolveEffectiveRules({
-            userId,
-            directoryId: resolvedDirectoryId,
-            operation: RuleApplicability.FOLLOWUP,
-            additionalRuleIds: hasExplicitRules ? (followupRuleIds || []) : additionalRuleIds,
-            mode,
-          });
-          followupIdsForSave = resolvedFollowupIds;
 
           const geminiQuiz = await LlmGenerationService.generateSequenceQuiz(
             userId, documentContent, enhancedPrompt || undefined
@@ -794,11 +754,9 @@ export const api = onRequest(
             questions: geminiQuiz.questions.map((q) => ({
               question: q.question,
               items: q.items,
-              explanation: q.explanation,
               ...(q.hint ? { hint: q.hint } : {}),
             })),
             appliedRuleIds: appliedRuleIdsForSave,
-            followupRuleIds: followupIdsForSave,
             generationAttempt,
             generationModel: sequenceQuizGenerationModel,
             generationModelUsage: sequenceQuizGenerationModelUsage,

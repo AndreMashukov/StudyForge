@@ -11,6 +11,7 @@ import {
   attachRuleToDirectory,
   createRule,
 } from './rule-crud';
+import { parseStoredRuleApplicability } from './rule-applicability';
 
 const PUBLISHED_STATUS: RuleBlueprintStatus = 'published';
 const DEFAULT_SEARCH_LIMIT = 20;
@@ -24,7 +25,6 @@ function parseBlueprint(
   const content = typeof data.content === 'string' ? data.content : '';
   const color = data.color;
   const status = data.status;
-  const applicableTo = Array.isArray(data.applicableTo) ? data.applicableTo : [];
   const tags = Array.isArray(data.tags) ? data.tags : [];
   const version = typeof data.version === 'number' ? data.version : 1;
 
@@ -44,10 +44,7 @@ function parseBlueprint(
     content,
     color,
     tags: tags.filter((tag): tag is string => typeof tag === 'string'),
-    applicableTo: applicableTo.filter(
-      (value): value is IRuleBlueprint['applicableTo'][number] =>
-        typeof value === 'string',
-    ),
+    applicableTo: parseStoredRuleApplicability(data.applicableTo),
     status,
     version,
     createdAt:

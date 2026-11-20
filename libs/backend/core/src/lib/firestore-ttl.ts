@@ -5,7 +5,6 @@ export const TTL_RETENTION_DAYS = {
   generationJob: 30,
   interactionSession: 180,
   learningRaw: 180,
-  directoryChat: 90,
   agentCheckpoint: 7,
   agentTurn: 7,
 } as const;

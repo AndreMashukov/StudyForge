@@ -16,9 +16,8 @@ export async function resolveTextGenerationModelLabel(
     | 'sequenceQuiz'
     | 'slideDeckText'
     | 'sourceDocumentEnhancement'
-    | 'quizFollowup'
     | 'documentQuestion'
-    | 'directoryChat'
+    | 'directoryScopedAgent'
     | 'ruleGeneration'
   >
 ): Promise<string> {

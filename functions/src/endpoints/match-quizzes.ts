@@ -83,26 +83,12 @@ export const generateMatchQuiz = onCall(
         throw new Error('additionalRuleIds must be an array when provided');
       }
       if (
-        requestData.followupRuleIds != null &&
-        !Array.isArray(requestData.followupRuleIds)
-      ) {
-        throw new Error('followupRuleIds must be an array when provided');
-      }
-      if (
         Array.isArray(requestData.additionalRuleIds) &&
         !requestData.additionalRuleIds.every(
           (id): id is string => typeof id === 'string',
         )
       ) {
         throw new Error('Each additionalRuleId must be a string');
-      }
-      if (
-        Array.isArray(requestData.followupRuleIds) &&
-        !requestData.followupRuleIds.every(
-          (id): id is string => typeof id === 'string',
-        )
-      ) {
-        throw new Error('Each followupRuleId must be a string');
       }
       if (requestData.ruleIds != null && !Array.isArray(requestData.ruleIds)) {
         throw new Error('ruleIds must be an array when provided');
@@ -208,9 +194,6 @@ export const generateMatchQuiz = onCall(
             additionalPrompt,
             ruleIds: Array.isArray(requestData.ruleIds)
               ? requestData.ruleIds
-              : undefined,
-            followupRuleIds: Array.isArray(requestData.followupRuleIds)
-              ? requestData.followupRuleIds
               : undefined,
             additionalRuleIds: Array.isArray(requestData.additionalRuleIds)
               ? requestData.additionalRuleIds

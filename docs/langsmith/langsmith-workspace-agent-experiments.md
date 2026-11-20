@@ -2,7 +2,7 @@
 
 This guide is for StudyForge. It covers the **Workspace Agent: Final Response** dataset, hosted code evaluators, the hosted LLM-as-judge, and the local replay experiment runner.
 
-Collect new browser traces with [qa-workspace-agent-browser.md](qa-workspace-agent-browser.md) before you change labels. Domain terms (workspace agent, directory chat, artifact) match [CONTEXT.md](../CONTEXT.md).
+Collect new browser traces with [qa-workspace-agent-browser.md](qa-workspace-agent-browser.md) before you change labels. Domain terms (workspace agent, directory-scoped agent, artifact) match [CONTEXT.md](../CONTEXT.md).
 
 ## What an experiment is
 
@@ -319,7 +319,6 @@ When reading scores:
 | Hosted evaluators never fire | Target did not return `finalReply`; or rules attached to a different dataset |
 | All `criteria_match` 0 with HTTP 400/403 | Wrong Together model id, or the model is not allowed on this key |
 | Canned fallback in production | Planner hit step limits and returned `type: plan`; empty-reply path should now list tool results |
-| Traces named `directory-chat` | Wrong UI (directory chat panel, not the floating Agent button) |
 
 ## What not to do
 
@@ -327,4 +326,4 @@ When reading scores:
 - Do not pass secrets on the CLI.
 - Do not use `--yes` on evaluator replace or delete unless you asked for that skip.
 - Do not treat replay scores as a live regression test of the current agent. Use `run-final-response-live.ts` for that.
-- Do not mix `directory-chat` traces into this dataset.
+- Do not mix directory-scoped agent turns (`scope: "directory"`) into this dataset.

@@ -15,7 +15,6 @@ export interface ICreateArtifactFormValues {
   name: string;
   additionalPrompt: string;
   ruleIds: string[];
-  followupRuleIds: string[];
   descriptionRuleIds: string[];
 }
 
@@ -27,7 +26,6 @@ export interface ICreateArtifactModalConfig {
   additionalPromptPlaceholder: string;
   additionalPromptHelperText: string;
   ruleApplicability: RuleApplicability;
-  followupRuleApplicability?: RuleApplicability;
   descriptionRuleApplicability?: RuleApplicability;
   generateLabels: {
     single: string;

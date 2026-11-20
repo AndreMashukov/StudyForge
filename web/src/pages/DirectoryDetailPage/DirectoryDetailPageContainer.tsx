@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { setSelectedDirectory } from '../../store/slices/directorySlice';
 import {
@@ -55,12 +55,6 @@ import { MatchQuizzesPanel } from './MatchQuizzesPanel';
 import { DirectoryRulesPageProvider } from '../DirectoryRulesPage/context/DirectoryRulesPageProvider';
 import { DirectoryRulesPageContainer } from '../DirectoryRulesPage/DirectoryRulesPageContainer';
 import { TooltipProvider } from '../../components/ui/Tooltip';
-import { DirectoryChatPanel } from '../../components/DirectoryChatPanel';
-import { cn } from '../../lib/utils';
-import {
-  clearPendingDirectoryChatSeedIfMatches,
-  selectPendingDirectoryChatSeed,
-} from '../../store/slices/directoryChatSlice';
 import {
   CreateArtifactModal,
   CreateArtifactModalType,
@@ -88,7 +82,6 @@ export const DirectoryDetailPageContainer = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
-  const pendingChatSeed = useSelector(selectPendingDirectoryChatSeed);
 
   const getTabFromParams = (): PanelType => parseDirectoryTab(searchParams.get('tab'));
 
@@ -245,13 +238,6 @@ export const DirectoryDetailPageContainer = () => {
     [directoryId, location.state, navigate, titleDirectory],
   );
 
-  const handleDirectoryChatSeedConsumed = useCallback(
-    (consumedSeedKey: string) => {
-      dispatch(clearPendingDirectoryChatSeedIfMatches(consumedSeedKey));
-    },
-    [dispatch],
-  );
-
   const handleArtifactGenerationStarted = useCallback(
     (directoryTab: string) => {
       setCreateArtifactModal(null);
@@ -316,23 +302,13 @@ export const DirectoryDetailPageContainer = () => {
   const diagramQuizzesTruncated = diagramQuizzes.length >= ARTIFACT_PAGE_LIMIT;
   const sequenceQuizzesTruncated = sequenceQuizzes.length >= ARTIFACT_PAGE_LIMIT;
   const matchQuizzesTruncated = matchQuizzes.length >= ARTIFACT_PAGE_LIMIT;
-  const isChatPanel = activePanel === 'chat';
-  const matchingChatSeed =
-    pendingChatSeed && pendingChatSeed.directoryId === directoryId
-      ? pendingChatSeed
-      : undefined;
 
   return (
     <TooltipProvider>
     <Page showSidebar>
-      <div
-        className={cn(
-          'mx-auto flex w-full max-w-5xl flex-col p-4 md:p-6',
-          isChatPanel ? 'min-h-0 flex-1 gap-4' : 'space-y-6',
-        )}
-      >
+      <div className="mx-auto flex w-full max-w-5xl flex-col space-y-6 p-4 md:p-6">
         {/* Header: compact Back + Breadcrumb, title/actions, subfolder pills */}
-        <div className={cn('flex flex-col gap-2', isChatPanel && 'shrink-0')}>
+        <div className="flex flex-col gap-2">
           {/* Back + breadcrumb on one row */}
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <button
@@ -477,18 +453,11 @@ export const DirectoryDetailPageContainer = () => {
         </div>
 
         {/* Main layout: Icon Sidebar + Content Panel */}
-        <div
-          className={cn(
-            'flex gap-4',
-            isChatPanel && 'min-h-0 flex-1 overflow-hidden',
-          )}
-        >
-          <div
-            className={cn(isChatPanel && 'min-h-0 shrink-0 overflow-y-auto')}
-          >
+        <div className="flex gap-4">
+          <div>
             <DirectoryIconSidebar activePanel={activePanel} onPanelChange={handlePanelChange} />
           </div>
-          <div className={cn('min-w-0 flex-1', isChatPanel && 'min-h-0')}>
+          <div className="min-w-0 flex-1">
             {activePanel === 'sources' && (
               <SourcesPanel
                 documents={documents}
@@ -557,18 +526,6 @@ export const DirectoryDetailPageContainer = () => {
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
                 ruleNamesMap={ruleNamesMap}
                 onCreate={() => handleOpenCreateArtifact('matchQuizzes')}
-              />
-            )}
-            {activePanel === 'chat' && (
-              <DirectoryChatPanel
-                directoryId={directoryId}
-                sourceCount={documents.length}
-                fillAvailable
-                autoSendSeed={Boolean(matchingChatSeed)}
-                seedKey={matchingChatSeed?.seedKey}
-                seedMessage={matchingChatSeed?.seedMessage}
-                artifactContext={matchingChatSeed?.artifactContext}
-                onSeedConsumed={handleDirectoryChatSeedConsumed}
               />
             )}
             {activePanel === 'rules' && (

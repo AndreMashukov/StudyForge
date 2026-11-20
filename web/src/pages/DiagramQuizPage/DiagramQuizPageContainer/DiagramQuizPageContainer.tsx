@@ -6,7 +6,6 @@ import { useDiagramQuizPageContext } from '../context/hooks/useDiagramQuizPageCo
 import { ScoreCard } from '../../QuizPage/QuizPageContainer/ScoreCard';
 import { DiagramQuestionCard } from './DiagramQuestionCard';
 import { Spinner } from '../../../components/ui/Spinner';
-import { DirectoryChatPanel } from '../../../components/DirectoryChatPanel';
 import {
   selectDiagramQuizState,
   selectCurrentDiagramQuestion,
@@ -126,15 +125,6 @@ export const DiagramQuizPageContainer: React.FC = () => {
   }
 
   const isLastQuestion = quizState.currentQuestionIndex === quizState.questions.length - 1;
-  const questionIndex = quizState.currentQuestionIndex;
-  const directoryId = diagramQuizApi.firestoreDiagramQuiz?.directoryId || directoryIdForBack;
-  const diagramLabels = ['Diagram A', 'Diagram B', 'Diagram C', 'Diagram D'];
-  const selectedAnswerText = formState.selectedAnswer !== null
-    ? diagramLabels[formState.selectedAnswer] || `Diagram ${formState.selectedAnswer + 1}`
-    : undefined;
-  const correctAnswerText = diagramLabels[currentQuestion.correct] || `Diagram ${currentQuestion.correct + 1}`;
-  const detailedExplanationSeedKey = `diagramQuiz:${diagramQuizApi.firestoreDiagramQuiz?.id ?? 'active'}:${questionIndex}:detailed-explanation`;
-  const detailedExplanationMessage = 'Explain this diagram quiz question in detail. Include why my selected diagram is right or wrong, how to inspect the diagram, and the source details that support the correct answer.';
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 px-6 py-4">
@@ -142,39 +132,15 @@ export const DiagramQuizPageContainer: React.FC = () => {
         question={currentQuestion}
         currentDiagramIndex={quizState.currentDiagramIndex}
         selectedAnswer={formState.selectedAnswer}
-        showExplanation={quizState.showExplanation}
+        showFeedback={quizState.showFeedback}
         onAnswerSelect={handleAnswerSelect}
         onNextQuestion={handleNextQuestion}
         onPrevDiagram={handlers.handlePrevDiagram}
         onNextDiagram={handlers.handleNextDiagram}
         onDiagramDotClick={handlers.handleDiagramDotClick}
         isLastQuestion={isLastQuestion}
-        onGenerateFollowup={handlers.handleGenerateFollowup}
-        isGeneratingFollowup={quizState.isGeneratingFollowup}
-        isFollowupGenerated={!!quizState.followupGenerated[questionIndex]}
         backAction={inlineBackAction}
       />
-
-      {quizState.followupChatOpen[questionIndex] && directoryId && (
-        <DirectoryChatPanel
-          directoryId={directoryId}
-          sourceCount={1}
-          compact
-          autoSendSeed
-          seedKey={detailedExplanationSeedKey}
-          seedMessage={detailedExplanationMessage}
-          artifactContext={{
-            type: 'diagramQuiz',
-            title: diagramQuizApi.firestoreDiagramQuiz?.title,
-            question: currentQuestion.question,
-            options: diagramLabels,
-            userAnswer: selectedAnswerText,
-            correctAnswer: correctAnswerText,
-            explanation: currentQuestion.explanation,
-            followupRuleIds: diagramQuizApi.firestoreDiagramQuiz?.followupRuleIds,
-          }}
-        />
-      )}
     </div>
   );
 };

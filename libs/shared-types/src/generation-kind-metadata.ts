@@ -29,11 +29,10 @@ export type GenerationKind =
   | 'documentFromPrompt'
   | 'promptDiagramDecision'
   | 'documentFromScreenshot'
-  | 'quizFollowup'
   | 'documentQuestion'
   | 'scratchPadQuestion'
   | 'documentRevise'
-  | 'directoryChat'
+  | 'directoryScopedAgent'
   | 'diagramQuiz'
   | 'escalation'
   | 'sequenceQuiz'
@@ -64,11 +63,10 @@ export const ALL_GENERATION_KINDS: GenerationKind[] = [
   'documentFromPrompt',
   'promptDiagramDecision',
   'documentFromScreenshot',
-  'quizFollowup',
   'documentQuestion',
   'scratchPadQuestion',
   'documentRevise',
-  'directoryChat',
+  'directoryScopedAgent',
   'diagramQuiz',
   'escalation',
   'sequenceQuiz',
@@ -211,8 +209,8 @@ export const GENERATION_KIND_METADATA: Record<
     defaultWorkflow: 'direct',
     group: 'production',
   },
-  directoryChat: {
-    kind: 'directoryChat',
+  directoryScopedAgent: {
+    kind: 'directoryScopedAgent',
     label: 'Directory-scoped agent',
     description:
       'LangGraph plan-execute agent for directory-scoped AgentPanel chat (one directory tree).',
@@ -244,15 +242,6 @@ export const GENERATION_KIND_METADATA: Record<
     kind: 'documentRevise',
     label: 'Document revise',
     description: 'AI-assisted revision of an existing document.',
-    requiredModality: 'text',
-    supportedWorkflows: ['direct'],
-    defaultWorkflow: 'direct',
-    group: 'interactive',
-  },
-  quizFollowup: {
-    kind: 'quizFollowup',
-    label: 'Quiz follow-up',
-    description: 'Per-question follow-up explanations.',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',
@@ -311,6 +300,19 @@ export function resolveGenerationKind(kind: string): GenerationKind {
 
 export function isGenerationKind(value: string): value is GenerationKind {
   return value in GENERATION_KIND_METADATA;
+}
+
+/** Label for a kind that no longer exists but still appears on past usage and cost records. */
+export const RETIRED_GENERATION_KIND_LABEL = 'Retired feature';
+
+/**
+ * Display label for a generation kind read from stored records. Removed kinds
+ * (e.g. `directoryChat`, `quizFollowup`) return {@link RETIRED_GENERATION_KIND_LABEL}.
+ */
+export function getGenerationKindLabel(value: string): string {
+  return isGenerationKind(value)
+    ? GENERATION_KIND_METADATA[value].label
+    : RETIRED_GENERATION_KIND_LABEL;
 }
 
 export function isGenerationWorkflow(
