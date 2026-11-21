@@ -26,6 +26,7 @@ import type {
 import {
   dedupeQuizAttemptAnswerInputs,
   isAnsweredQuizInput,
+  isMatchAnswerCorrect,
 } from '@shared-types';
 import { getClientDb } from './clientDb';
 import { computeExpiresAt } from './firestoreTtl';
@@ -241,7 +242,8 @@ function resolveAnswer(
     return {
       selectedAnswer,
       correctAnswer,
-      isCorrect: arraysEqual(selectedAnswer, correctAnswer),
+      // Identical-text chips are interchangeable (see match-quiz-grading).
+      isCorrect: isMatchAnswerCorrect(question, selectedAnswer),
     };
   }
 

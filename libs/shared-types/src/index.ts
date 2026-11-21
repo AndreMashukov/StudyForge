@@ -47,6 +47,7 @@ export * from './line-format-contract';
 export * from './agent';
 export * from './agent-turn';
 export * from './library-search';
+export * from './match-quiz-grading';
 
 export type DocumentContentFormat = 'html' | 'markdown';
 

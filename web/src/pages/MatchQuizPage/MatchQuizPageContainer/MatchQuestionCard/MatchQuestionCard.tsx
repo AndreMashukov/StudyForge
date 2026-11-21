@@ -21,6 +21,7 @@ import {
   XCircle,
   RotateCcw,
 } from 'lucide-react';
+import { isMatchPlacementCorrect } from '@shared-types';
 import { cn } from '../../../../lib/utils';
 import { Card, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
@@ -54,16 +55,6 @@ const BANK_ZONE = 'bank-zone';
 
 function optionById(question: IMatchQuizViewQuestion, optionId: string) {
   return question.options.find((option) => option.id === optionId) ?? null;
-}
-
-function correctOptionIdFor(
-  question: IMatchQuizViewQuestion,
-  promptId: string,
-): string | null {
-  const option = question.options.find(
-    (candidate) => candidate.correctPromptId === promptId,
-  );
-  return option ? option.id : null;
 }
 
 interface IDraggableChipProps {
@@ -180,7 +171,7 @@ const PromptRow: React.FC<IMatchPromptRowProps> = ({
     ? optionById(question, placedOptionId)
     : null;
   const isRowCorrect =
-    isLocked && placedOptionId === correctOptionIdFor(question, promptId);
+    isLocked && isMatchPlacementCorrect(question, promptId, placedOptionId);
 
   return (
     <div

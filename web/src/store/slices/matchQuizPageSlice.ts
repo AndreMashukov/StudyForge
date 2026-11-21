@@ -1,5 +1,9 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { MatchQuiz, MatchQuizOption } from '@shared-types';
+import {
+  isMatchPlacementCorrect,
+  MatchQuiz,
+  MatchQuizOption,
+} from '@shared-types';
 
 export interface IMatchQuizViewQuestion {
   id: number;
@@ -195,13 +199,15 @@ const matchQuizPageSlice = createSlice({
         );
         return option ? option.id : '';
       });
-      const isFullyCorrect = placedOptionIds.every(
-        (optionId, i) => optionId === correctOptionIds[i],
+      // Identical-text chips are interchangeable (see match-quiz-grading).
+      const placementCorrect = prompts.map((prompt, index) =>
+        isMatchPlacementCorrect(currentQuestion, prompt.id, placedOptionIds[index]),
       );
+      const isFullyCorrect = placementCorrect.every(Boolean);
 
       const nextLocked = [...state.lockedPromptIds];
       prompts.forEach((prompt, index) => {
-        if (placedOptionIds[index] === correctOptionIds[index]) {
+        if (placementCorrect[index]) {
           if (!nextLocked.includes(prompt.id)) {
             nextLocked.push(prompt.id);
           }

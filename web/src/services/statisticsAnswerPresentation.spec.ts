@@ -55,6 +55,29 @@ describe('Progress answer presentation', () => {
       'Personal tenant → Organisation auth user; Organisation user → Personal tenant record',
     );
   });
+  it('treats options with identical text as interchangeable when marking pairs correct', () => {
+    const shared = statisticsQuestionMetadata({
+      prompts: [
+        { id: 'p1', text: 'Explicit routing' },
+        { id: 'p2', text: 'Checkpoint history' },
+      ],
+      options: [
+        { id: 'o1', text: 'LangGraph' },
+        { id: 'o2', text: 'LangGraph' },
+        { id: 'o3', text: 'Claude Agent SDK' },
+      ],
+    });
+    expect(
+      statisticsMatchPairs(['o2', 'o1'], ['o1', 'o2'], shared).map(
+        (pair) => pair.isCorrect,
+      ),
+    ).toEqual([true, true]);
+    expect(
+      statisticsMatchPairs(['o3', 'o1'], ['o1', 'o2'], shared).map(
+        (pair) => pair.isCorrect,
+      ),
+    ).toEqual([false, true]);
+  });
   it('distinguishes unplaced matches from deleted option content and handles missing question metadata', () => {
     const pairs = statisticsMatchPairs(['', 'deleted'], ['o1', 'o2'], match);
     expect(pairs.map((pair) => pair.selectedText)).toEqual([

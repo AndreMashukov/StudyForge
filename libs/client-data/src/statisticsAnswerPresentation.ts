@@ -3,6 +3,7 @@ import type {
   QuizTelemetryType,
   IStatisticsMatchPair,
 } from '@shared-types';
+import { isSameMatchOptionText } from '@shared-types';
 
 interface IMatchOption {
   id: string;
@@ -118,6 +119,19 @@ function matchText(id: unknown, question: IStatisticsQuestionMetadata): string {
   );
 }
 
+/** Identical-text chips are interchangeable (see match-quiz-grading). */
+function isMatchPairCorrect(
+  selectedId: unknown,
+  correctId: unknown,
+  question: IStatisticsQuestionMetadata,
+): boolean {
+  if (!selectedId || !correctId) return false;
+  if (selectedId === correctId) return true;
+  const byId = (id: unknown) =>
+    question.matchOptions.find((option) => option.id === id);
+  return isSameMatchOptionText(byId(selectedId), byId(correctId));
+}
+
 export function statisticsMatchPairs(
   selected: QuizAnswerValue,
   correct: QuizAnswerValue,
@@ -130,10 +144,6 @@ export function statisticsMatchPairs(
     prompt: prompt.text,
     selectedText: matchText(selectedIds[index], question),
     correctText: matchText(correctIds[index], question),
-    isCorrect: Boolean(
-      selectedIds[index] &&
-        correctIds[index] &&
-        selectedIds[index] === correctIds[index],
-    ),
+    isCorrect: isMatchPairCorrect(selectedIds[index], correctIds[index], question),
   }));
 }

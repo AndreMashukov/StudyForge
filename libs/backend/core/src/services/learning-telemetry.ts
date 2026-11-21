@@ -18,6 +18,7 @@ import {
   SequenceQuiz,
   SequenceQuizQuestion,
   dedupeQuizAttemptAnswerInputs,
+  isMatchAnswerCorrect,
 } from '@shared-types';
 
 type StoredQuiz = Quiz | DiagramQuiz | SequenceQuiz | MatchQuiz;
@@ -169,7 +170,8 @@ function resolveAnswer(
     return {
       selectedAnswer,
       correctAnswer,
-      isCorrect: arraysEqual(selectedAnswer, correctAnswer),
+      // Identical-text chips are interchangeable (see match-quiz-grading).
+      isCorrect: isMatchAnswerCorrect(question, selectedAnswer),
     };
   }
 
