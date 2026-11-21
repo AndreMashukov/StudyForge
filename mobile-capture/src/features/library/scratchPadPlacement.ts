@@ -2,7 +2,8 @@ import type { IDocumentBlock } from './documentBlocks';
 import type { IMobileScratchPad } from './libraryData';
 
 export type IReaderEntry =
-  | { kind: 'block'; block: IDocumentBlock }
+  /** `blockIndex` is the block's position in the document; narration parts refer to it. */
+  | { kind: 'block'; block: IDocumentBlock; blockIndex: number }
   | { kind: 'scratchPad'; pad: IMobileScratchPad };
 
 function blockText(block: IDocumentBlock): string {
@@ -21,7 +22,13 @@ export function placeScratchPads(
   blocks: IDocumentBlock[],
   pads: IMobileScratchPad[] | undefined,
 ): IReaderEntry[] {
-  if (!pads?.length) return blocks.map((block) => ({ kind: 'block', block }));
+  if (!pads?.length) {
+    return blocks.map((block, blockIndex) => ({
+      kind: 'block',
+      block,
+      blockIndex,
+    }));
+  }
   const byHeading = new Map(
     pads.map((pad) => [pad.heading.trim().toLocaleLowerCase(), pad]),
   );
@@ -37,13 +44,13 @@ export function placeScratchPads(
     }
   };
 
-  for (const block of blocks) {
+  for (const [blockIndex, block] of blocks.entries()) {
     const isSection = block.kind === 'heading' && (block.level ?? 1) <= 2;
     if (isSection) {
       flush();
       pending = byHeading.get(blockText(block)) ?? null;
     }
-    entries.push({ kind: 'block', block });
+    entries.push({ kind: 'block', block, blockIndex });
   }
   flush();
   for (const pad of [...pads].sort((a, b) => a.sectionIndex - b.sectionIndex)) {

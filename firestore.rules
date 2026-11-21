@@ -45,6 +45,12 @@ service cloud.firestore {
           == resource.data.get('completedAt', null);
     }
 
+    // Narratable check result (ADR 013) — written only by Functions.
+    function narratabilityUnchanged() {
+      return request.resource.data.get('narratability', null)
+        == resource.data.get('narratability', null);
+    }
+
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list, create, update, delete: if false;
@@ -54,7 +60,8 @@ service cloud.firestore {
         allow get: if canAccessWorkspace(userId);
         allow list: if canAccessWorkspace(userId) && isBoundedList(100);
         allow create: if false;
-        allow update: if canAccessWorkspace(userId) && generationFieldsUnchanged();
+        allow update: if canAccessWorkspace(userId) && generationFieldsUnchanged()
+          && narratabilityUnchanged();
         allow delete: if canAccessWorkspace(userId);
 
         match /{nestedPath=**} {
@@ -302,6 +309,12 @@ service cloud.firestore {
 
       match /agentKnowledgeChunks/{chunkId} {
         allow read, write: if false;
+      }
+
+      // Document narrations (ADR 013) — Functions write; the owner follows one at a time.
+      match /narrations/{documentId} {
+        allow get: if canAccessWorkspace(userId);
+        allow list, write: if false;
       }
 
       // Library search records — Functions maintain; clients sync in bounded pages.

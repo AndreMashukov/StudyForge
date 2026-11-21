@@ -194,6 +194,9 @@ export const DEFAULT_USAGE_CREDIT_COSTS: Record<GenerationKind, number> = {
   directoryAgent: 1,
   agentExecutor: 1,
   promptDiagramDecision: 0,
+  documentNarratableDecision: 0,
+  /** Per 1,000 characters of spoken text (`NARRATION_CHARS_PER_CREDIT_UNIT`), not per narration. */
+  documentNarration: 1,
 };
 
 /**
@@ -202,6 +205,7 @@ export const DEFAULT_USAGE_CREDIT_COSTS: Record<GenerationKind, number> = {
  */
 export const UNMETERED_GENERATION_KINDS: GenerationKind[] = [
   'promptDiagramDecision',
+  'documentNarratableDecision',
 ];
 
 /** Premium generation kinds disabled on the Free profile. */
@@ -211,6 +215,7 @@ export const FREE_TIER_DISABLED_KINDS: GenerationKind[] = [
   'slideDeckImage',
   'flashcards',
   'diagramQuiz',
+  'documentNarration',
 ];
 
 /** 100 MB */

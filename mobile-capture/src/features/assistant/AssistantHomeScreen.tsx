@@ -101,6 +101,9 @@ export function AssistantHomeScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 8 }}
+              // A ScrollView grows by default; inside this column it would fill the
+              // free height and stretch every card to match.
+              style={{ flexGrow: 0 }}
               className="-mx-container px-container"
             >
               {suggestions.map((suggestion) => (

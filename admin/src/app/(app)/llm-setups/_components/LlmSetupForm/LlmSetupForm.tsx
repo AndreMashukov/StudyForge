@@ -3,13 +3,20 @@
 import type { IProviderConnectionCatalogEntry } from '@shared-types';
 import {
   ADMIN_CONFIGURABLE_GENERATION_KINDS,
+  DEFAULT_DOCUMENT_NARRATION_VOICE,
   GENERATION_KIND_METADATA,
 } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useForm, useWatch, type Control, type Path, type UseFormSetValue } from 'react-hook-form';
+import {
+  useForm,
+  useWatch,
+  type Control,
+  type Path,
+  type UseFormSetValue,
+} from 'react-hook-form';
 import {
   isAdminUnauthorizedResponse,
   redirectToAdminLogin,
@@ -19,9 +26,19 @@ import {
   filterModelsForModality,
   isModelInCatalogForModality,
 } from '@admin/domain/provider-model-catalog/ui';
-import { Card, CardContent, CardHeader, CardTitle } from '@admin/components/ui/Card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@admin/components/ui/Card';
 import { Input } from '@admin/components/ui/Input';
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from '@study-forge/ui';
+import {
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@study-forge/ui';
 import { Select } from '@admin/components/ui/Select';
 import { ConnectionModelSelect } from '@admin/components/connections/ConnectionModelSelect';
 import {
@@ -32,6 +49,7 @@ import {
   getWorkflowHelpText,
   formatWorkflowOptionLabel,
   type IAdminConfigurableGenerationKind,
+  isSpeechGenerationKind,
   isWorkflowOptionDisabled,
   llmSetupFormSchema,
   parseWorkflowValue,
@@ -49,7 +67,7 @@ export interface ILlmSetupFormProps {
 
 function defaultModelForConnection(
   connection: IProviderConnectionCatalogEntry | undefined,
-  modality: import('@shared-types').LlmModality
+  modality: import('@shared-types').LlmModality,
 ): string {
   if (!connection) {
     return '';
@@ -61,7 +79,7 @@ function defaultModelForConnection(
 
 function generationRouteField(
   kind: IAdminConfigurableGenerationKind,
-  field: 'connectionId' | 'model' | 'workflow'
+  field: 'connectionId' | 'model' | 'workflow' | 'voice',
 ): Path<ILlmSetupFormValues> {
   return `generationRoutes.${kind}.${field}`;
 }
@@ -80,7 +98,7 @@ function GenerationKindRow({
   const metadata = GENERATION_KIND_METADATA[kind];
   const filteredConnections = filterConnectionsForModality(
     connections,
-    metadata.requiredModality
+    metadata.requiredModality,
   );
   const workflowOptions = getSupportedWorkflowOptions(kind);
   const workflowHelpText = getWorkflowHelpText(kind);
@@ -88,10 +106,11 @@ function GenerationKindRow({
   const modelField = generationRouteField(kind, 'model');
   const workflowField = generationRouteField(kind, 'workflow');
 
-  const connectionId = (useWatch({ control, name: connectionField }) ?? '') as string;
+  const connectionId = (useWatch({ control, name: connectionField }) ??
+    '') as string;
   const modelValue = (useWatch({ control, name: modelField }) ?? '') as string;
   const selectedConnection = connections.find(
-    (connection) => connection.id === connectionId
+    (connection) => connection.id === connectionId,
   );
 
   return (
@@ -99,7 +118,9 @@ function GenerationKindRow({
       <td className="px-3 py-3 align-top">
         <div className="font-medium">{metadata.label}</div>
         <p className="text-xs text-muted-foreground">{metadata.description}</p>
-        <p className="mt-1 text-xs text-muted-foreground">Modality: {metadata.requiredModality}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Modality: {metadata.requiredModality}
+        </p>
       </td>
       <td className="px-3 py-3 align-top">
         <Select
@@ -107,13 +128,16 @@ function GenerationKindRow({
           name={connectionField}
           onValueChange={(nextConnectionId) => {
             const nextConnection = connections.find(
-              (connection) => connection.id === nextConnectionId
+              (connection) => connection.id === nextConnectionId,
             );
             const nextModel = defaultModelForConnection(
               nextConnection,
-              metadata.requiredModality
+              metadata.requiredModality,
             );
-            setValue(modelField, nextModel, { shouldDirty: true, shouldValidate: true });
+            setValue(modelField, nextModel, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
           }}
         >
           <SelectTrigger aria-label={`${metadata.label} provider connection`}>
@@ -124,7 +148,9 @@ function GenerationKindRow({
               <SelectItem key={connection.id} value={connection.id}>
                 {connection.label} ({connection.providerKind})
                 {!connection.apiKeyConfigured ? ' — missing credentials' : ''}
-                {connection.availableModels.length === 0 ? ' — models not synced' : ''}
+                {connection.availableModels.length === 0
+                  ? ' — models not synced'
+                  : ''}
               </SelectItem>
             ))}
           </SelectContent>
@@ -163,7 +189,25 @@ function GenerationKindRow({
           </SelectContent>
         </Select>
         {workflowHelpText ? (
-          <p className="mt-1 text-xs text-muted-foreground">{workflowHelpText}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {workflowHelpText}
+          </p>
+        ) : null}
+        {isSpeechGenerationKind(kind) ? (
+          <div className="mt-3">
+            <Label htmlFor={`${kind}-voice`}>Voice</Label>
+            <Input
+              id={`${kind}-voice`}
+              control={control}
+              name={generationRouteField(kind, 'voice')}
+              placeholder={DEFAULT_DOCUMENT_NARRATION_VOICE}
+              aria-label={`${metadata.label} voice`}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Prebuilt voice name, for example Kore or Puck. Changing it makes
+              the next edit of each document regenerate its whole narration.
+            </p>
+          </div>
         ) : null}
       </td>
     </tr>
@@ -172,13 +216,13 @@ function GenerationKindRow({
 
 function hasInvalidCatalogSelections(
   values: ILlmSetupFormValues,
-  providerConnections: IProviderConnectionCatalogEntry[]
+  providerConnections: IProviderConnectionCatalogEntry[],
 ): string | null {
   for (const kind of ADMIN_CONFIGURABLE_GENERATION_KINDS) {
     const route = values.generationRoutes[kind];
     const metadata = GENERATION_KIND_METADATA[kind];
     const connection = providerConnections.find(
-      (entry) => entry.id === route.connectionId
+      (entry) => entry.id === route.connectionId,
     );
 
     if (!connection) {
@@ -193,7 +237,7 @@ function hasInvalidCatalogSelections(
       !isModelInCatalogForModality(
         connection.availableModels,
         route.model,
-        metadata.requiredModality
+        metadata.requiredModality,
       )
     ) {
       return `${metadata.label}: model "${route.model}" is not in the ${connection.label} catalog for ${metadata.requiredModality}.`;
@@ -224,7 +268,10 @@ export function LlmSetupForm({
     setIsSubmitting(true);
     setNotice(null);
 
-    const catalogError = hasInvalidCatalogSelections(values, providerConnections);
+    const catalogError = hasInvalidCatalogSelections(
+      values,
+      providerConnections,
+    );
     if (catalogError) {
       setNotice(catalogError);
       setIsSubmitting(false);
@@ -238,7 +285,10 @@ export function LlmSetupForm({
         generationRoutes: toGenerationRoutes(values),
       };
 
-      const { response, payload: result } = await saveLlmSetup(setupId, payload);
+      const { response, payload: result } = await saveLlmSetup(
+        setupId,
+        payload,
+      );
 
       if (isAdminUnauthorizedResponse(response)) {
         redirectToAdminLogin(router, pathname);
@@ -265,7 +315,7 @@ export function LlmSetupForm({
     }
 
     const confirmed = window.confirm(
-      'Delete this LLM setup? This is blocked if any user groups still reference it.'
+      'Delete this LLM setup? This is blocked if any user groups still reference it.',
     );
     if (!confirmed) {
       return;
@@ -330,10 +380,18 @@ export function LlmSetupForm({
                 <table className="w-full text-left text-sm">
                   <thead className="border-b border-border bg-muted/50">
                     <tr>
-                      <th className="px-3 py-2 font-medium" scope="col">Generation kind</th>
-                      <th className="px-3 py-2 font-medium" scope="col">Provider connection</th>
-                      <th className="px-3 py-2 font-medium" scope="col">Model</th>
-                      <th className="px-3 py-2 font-medium" scope="col">Workflow</th>
+                      <th className="px-3 py-2 font-medium" scope="col">
+                        Generation kind
+                      </th>
+                      <th className="px-3 py-2 font-medium" scope="col">
+                        Provider connection
+                      </th>
+                      <th className="px-3 py-2 font-medium" scope="col">
+                        Model
+                      </th>
+                      <th className="px-3 py-2 font-medium" scope="col">
+                        Workflow
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -358,7 +416,11 @@ export function LlmSetupForm({
             <Button type="submit" disabled={isSubmitting || isDeleting}>
               {isSubmitting ? 'Saving…' : 'Save setup'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => router.push('/llm-setups')}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push('/llm-setups')}
+            >
               Cancel
             </Button>
             {setupId ? (

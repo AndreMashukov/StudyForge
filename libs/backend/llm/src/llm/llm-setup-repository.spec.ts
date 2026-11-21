@@ -1,7 +1,17 @@
 import { createCipheriv, createHash, randomBytes } from 'crypto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import {
   ALL_GENERATION_KINDS,
+  DEFAULT_DOCUMENT_NARRATION_MODEL,
+  DEFAULT_DOCUMENT_NARRATION_VOICE,
   DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
   GENERATION_KIND_METADATA,
   type GenerationKind,
@@ -35,7 +45,10 @@ function encryptedSecret(value: string): Record<string, unknown> {
   const key = createHash('sha256').update(ENCRYPTION_KEY).digest();
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
-  const ciphertext = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+  const ciphertext = Buffer.concat([
+    cipher.update(value, 'utf8'),
+    cipher.final(),
+  ]);
   return {
     version: 1,
     algorithm: 'aes-256-gcm',
@@ -45,20 +58,31 @@ function encryptedSecret(value: string): Record<string, unknown> {
   };
 }
 
+/** Kinds added after the legacy setup document below was saved. */
+const KINDS_NEWER_THAN_LEGACY_SETUP: GenerationKind[] = [
+  'promptDiagramDecision',
+  'scratchPadQuestion',
+  'documentNarratableDecision',
+  'documentNarration',
+];
+
 /**
- * A setup document saved before `promptDiagramDecision` and `scratchPadQuestion`
- * existed, with a stray key from a removed kind — the shape production has.
+ * A setup document saved before `promptDiagramDecision`, `scratchPadQuestion`
+ * and the narration kinds existed, with a stray key from a removed kind — the
+ * shape production has.
  */
 function legacyGenerationRoutes(): Record<string, unknown> {
   const routes: Record<string, unknown> = {};
   for (const kind of ALL_GENERATION_KINDS) {
-    if (kind === 'promptDiagramDecision' || kind === 'scratchPadQuestion') {
+    if (KINDS_NEWER_THAN_LEGACY_SETUP.includes(kind)) {
       continue;
     }
     const metadata = GENERATION_KIND_METADATA[kind];
     routes[kind] = {
       connectionId:
-        metadata.requiredModality === 'embedding' ? 'openrouter-primary' : 'together-primary',
+        metadata.requiredModality === 'embedding'
+          ? 'openrouter-primary'
+          : 'together-primary',
       model: `${kind}-model`,
       modality: metadata.requiredModality,
       workflow: metadata.defaultWorkflow,
@@ -96,8 +120,25 @@ function seedStore(generationRoutes: Record<string, unknown>): void {
     apiKeyConfigured: true,
     supportedModalities: ['text', 'vision', 'image', 'embedding'],
   });
-  store.set('llmProviderConnectionSecrets/openrouter-primary', encryptedSecret('or-key'));
-  store.set('llmProviderConnectionSecrets/together-primary', encryptedSecret('tg-key'));
+  // Saved before the speech modality existed.
+  store.set('llmProviderConnections/gemini-primary', {
+    providerKind: 'gemini',
+    label: 'Primary Gemini',
+    apiKeyConfigured: true,
+    supportedModalities: ['text', 'vision', 'image', 'embedding'],
+  });
+  store.set(
+    'llmProviderConnectionSecrets/gemini-primary',
+    encryptedSecret('gm-key'),
+  );
+  store.set(
+    'llmProviderConnectionSecrets/openrouter-primary',
+    encryptedSecret('or-key'),
+  );
+  store.set(
+    'llmProviderConnectionSecrets/together-primary',
+    encryptedSecret('tg-key'),
+  );
 }
 
 describe('LlmSetupRepository with a legacy setup document', () => {
@@ -125,7 +166,9 @@ describe('LlmSetupRepository with a legacy setup document', () => {
       try {
         await LlmSetupRepository.resolveGenerationRoute(USER_ID, kind);
       } catch (error) {
-        failures.push(`${kind}: ${error instanceof Error ? error.message : String(error)}`);
+        failures.push(
+          `${kind}: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
     expect(failures).toEqual([]);
@@ -146,6 +189,47 @@ describe('LlmSetupRepository with a legacy setup document', () => {
       model: DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
       openRouterBaseUrl: 'https://openrouter.ai/api/v1',
     });
+  });
+
+  it('backfills the narration kinds to the default decision and Gemini speech routes', async () => {
+    const decision = await LlmSetupRepository.resolveGenerationRoute(
+      USER_ID,
+      'documentNarratableDecision',
+    );
+    expect(decision.modality).toBe('decision');
+    expect(decision.route.connectionId).toBe('openrouter-primary');
+
+    const narration = await LlmSetupRepository.resolveGenerationRoute(
+      USER_ID,
+      'documentNarration',
+    );
+    expect(narration.modality).toBe('speech');
+    expect(narration.voice).toBe(DEFAULT_DOCUMENT_NARRATION_VOICE);
+    expect(narration.providerApiKey).toBe('gm-key');
+    expect(narration.route).toMatchObject({
+      connectionId: 'gemini-primary',
+      providerType: 'gemini',
+      model: DEFAULT_DOCUMENT_NARRATION_MODEL,
+    });
+  });
+
+  it('keeps the voice an admin set on the narration route', async () => {
+    seedStore({
+      ...legacyGenerationRoutes(),
+      documentNarration: {
+        connectionId: 'gemini-primary',
+        model: 'gemini-tts-x',
+        modality: 'speech',
+        workflow: 'direct',
+        voice: ' Puck ',
+      },
+    });
+    const narration = await LlmSetupRepository.resolveGenerationRoute(
+      USER_ID,
+      'documentNarration',
+    );
+    expect(narration.voice).toBe('Puck');
+    expect(narration.route.model).toBe('gemini-tts-x');
   });
 
   it('uses the model an admin configured for promptDiagramDecision', async () => {
@@ -179,13 +263,19 @@ describe('LlmSetupRepository with a legacy setup document', () => {
     });
 
     await expect(
-      LlmSetupRepository.resolveGenerationRoute(USER_ID, 'promptDiagramDecision'),
+      LlmSetupRepository.resolveGenerationRoute(
+        USER_ID,
+        'promptDiagramDecision',
+      ),
     ).rejects.toThrow();
   });
 
   it('leaves the other routes untouched', async () => {
     const kind: GenerationKind = 'quiz';
-    const resolution = await LlmSetupRepository.resolveGenerationRoute(USER_ID, kind);
+    const resolution = await LlmSetupRepository.resolveGenerationRoute(
+      USER_ID,
+      kind,
+    );
 
     expect(resolution.route).toMatchObject({
       connectionId: 'together-primary',

@@ -3,6 +3,7 @@
   "compilerOptions": {
     "jsx": "react-native",
     "jsxImportSource": "nativewind",
+    "lib": ["es2022", "dom"],
     "strict": true,
     "noEmit": true,
     "moduleResolution": "bundler",

@@ -33,6 +33,10 @@ export { processGenerationJob } from './tasks/process-generation-job';
 
 export { sweepStaleGenerationsSchedule } from './tasks/sweep-stale-generations';
 export { runAgentTurnTask } from './tasks/run-agent-turn-task';
+export {
+  generateDocumentNarrationTask,
+  sweepStaleNarrationRunsSchedule,
+} from './tasks/generate-document-narration-task';
 export { sweepStaleAgentTurnsSchedule } from './tasks/sweep-stale-agent-turns';
 
 export { generateDiagramQuiz } from './endpoints/diagram-quizzes';
@@ -47,6 +51,15 @@ export { clearScratchPadAvoidedQuestions } from './endpoints/scratch-pad-clear';
 export { evaluateScratchPadAnswerCallable } from './endpoints/scratch-pad-evaluate';
 
 export { reviseDocumentWithAI } from './endpoints/document-revise';
+
+// Document narration (ADR 013)
+export {
+  evaluateDocumentNarratability,
+  quoteDocumentNarrationEndpoint as quoteDocumentNarration,
+  startDocumentNarrationEndpoint as startDocumentNarration,
+  removeDocumentNarrationEndpoint as removeDocumentNarration,
+} from './endpoints/document-narration';
+export { syncDocumentNarratability } from './triggers/document-narratability';
 
 // Document ingest and generation (not CRUD)
 export {

@@ -1,9 +1,6 @@
 'use client';
 
-import {
-  GENERATION_KIND_METADATA,
-  type GenerationKind,
-} from '@shared-types';
+import { GENERATION_KIND_METADATA, type GenerationKind } from '@shared-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Label } from '@study-forge/ui';
 import { usePathname, useRouter } from 'next/navigation';
@@ -17,7 +14,12 @@ import {
   deleteUsageLimitsSetup,
   saveUsageLimitsSetup,
 } from '@admin/mutations/usage-limits-setups';
-import { Card, CardContent, CardHeader, CardTitle } from '@admin/components/ui/Card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@admin/components/ui/Card';
 import { Checkbox } from '@admin/components/ui/Checkbox';
 import {
   Form,
@@ -46,7 +48,7 @@ export interface IUsageLimitsSetupFormProps {
 
 function featurePolicyField(
   kind: GenerationKind,
-  field: 'enabled' | 'creditCost'
+  field: 'enabled' | 'creditCost',
 ): Path<IUsageLimitsSetupFormValues> {
   return `featurePolicies.${kind}.${field}`;
 }
@@ -91,12 +93,20 @@ function FeaturePolicyRow({
           min={0}
           step={1}
         />
+        {kind === 'documentNarration' ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Credits per 1,000 characters of spoken text, not per narration.
+          </p>
+        ) : null}
       </td>
     </tr>
   );
 }
 
-export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSetupFormProps) {
+export function UsageLimitsSetupForm({
+  setupId,
+  defaultValues,
+}: IUsageLimitsSetupFormProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [notice, setNotice] = useState<string | null>(null);
@@ -117,7 +127,9 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
         name: values.name.trim(),
         description: values.description?.trim() || undefined,
         monthlyCreditAllowance: values.monthlyCreditAllowance,
-        storageLimitBytes: storageLimitMegabytesToBytes(values.storageLimitMegabytes),
+        storageLimitBytes: storageLimitMegabytesToBytes(
+          values.storageLimitMegabytes,
+        ),
         dailySlideDeckLimit: values.dailySlideDeckLimit,
         isPublicPlan: values.isPublicPlan,
         isFreePlan: values.isFreePlan,
@@ -127,7 +139,10 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
         featurePolicies: toFeaturePolicies(values),
       };
 
-      const { response, payload: result } = await saveUsageLimitsSetup(setupId, payload);
+      const { response, payload: result } = await saveUsageLimitsSetup(
+        setupId,
+        payload,
+      );
 
       if (isAdminUnauthorizedResponse(response)) {
         redirectToAdminLogin(router, pathname);
@@ -154,7 +169,7 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
     }
 
     const confirmed = window.confirm(
-      'Delete this usage limits setup? This is blocked if any user groups still reference it.'
+      'Delete this usage limits setup? This is blocked if any user groups still reference it.',
     );
     if (!confirmed) {
       return;
@@ -164,7 +179,8 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
     setNotice(null);
 
     try {
-      const { response, payload: result } = await deleteUsageLimitsSetup(setupId);
+      const { response, payload: result } =
+        await deleteUsageLimitsSetup(setupId);
 
       if (isAdminUnauthorizedResponse(response)) {
         redirectToAdminLogin(router, pathname);
@@ -190,257 +206,287 @@ export function UsageLimitsSetupForm({ setupId, defaultValues }: IUsageLimitsSet
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{setupId ? 'Edit usage limits setup' : 'Create usage limits setup'}</CardTitle>
+        <CardTitle>
+          {setupId ? 'Edit usage limits setup' : 'Create usage limits setup'}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-        <form className="space-y-8" onSubmit={handleSubmit}>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" control={form.control} name="name" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="monthlyCreditAllowance">Monthly credit allowance</Label>
-              <Input
-                id="monthlyCreditAllowance"
+          <form className="space-y-8" onSubmit={handleSubmit}>
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input id="name" control={form.control} name="name" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="monthlyCreditAllowance">
+                  Monthly credit allowance
+                </Label>
+                <Input
+                  id="monthlyCreditAllowance"
+                  control={form.control}
+                  name="monthlyCreditAllowance"
+                  type="number"
+                  min={0}
+                  step={1}
+                />
+              </div>
+              <FormField
                 control={form.control}
-                name="monthlyCreditAllowance"
-                type="number"
-                min={0}
-                step={1}
+                name="storageLimitMegabytes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Storage limit (MB)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={
+                          typeof field.value === 'number' ? field.value : ''
+                        }
+                        onBlur={field.onBlur}
+                        onChange={(event) => {
+                          if (event.currentTarget.value === '') {
+                            field.onChange(undefined);
+                            return;
+                          }
+                          field.onChange(event.currentTarget.valueAsNumber);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="dailySlideDeckLimit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Daily slide deck limit</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={
+                          typeof field.value === 'number' ? field.value : ''
+                        }
+                        onBlur={field.onBlur}
+                        onChange={(event) => {
+                          if (event.currentTarget.value === '') {
+                            field.onChange(undefined);
+                            return;
+                          }
+                          field.onChange(event.currentTarget.valueAsNumber);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-            <FormField
-              control={form.control}
-              name="storageLimitMegabytes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Storage limit (MB)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={typeof field.value === 'number' ? field.value : ''}
-                      onBlur={field.onBlur}
-                      onChange={(event) => {
-                        if (event.currentTarget.value === '') {
-                          field.onChange(undefined);
-                          return;
-                        }
-                        field.onChange(event.currentTarget.valueAsNumber);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="dailySlideDeckLimit"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Daily slide deck limit</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={typeof field.value === 'number' ? field.value : ''}
-                      onBlur={field.onBlur}
-                      onChange={(event) => {
-                        if (event.currentTarget.value === '') {
-                          field.onChange(undefined);
-                          return;
-                        }
-                        field.onChange(event.currentTarget.valueAsNumber);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Input id="description" control={form.control} name="description" />
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="isPublicPlan"
-              render={({ field }) => (
-                <FormItem className="rounded-lg border border-border p-4">
-                  <div className="flex items-start gap-3">
-                    <FormControl>
-                      <Checkbox
-                        className="mt-0.5"
-                        checked={Boolean(field.value)}
-                        onBlur={field.onBlur}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div>
-                      <FormLabel>Show as public plan</FormLabel>
-                      <FormDescription>
-                        Visible on the web usage page.
-                      </FormDescription>
-                    </div>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="isFreePlan"
-              render={({ field }) => (
-                <FormItem className="rounded-lg border border-border p-4">
-                  <div className="flex items-start gap-3">
-                    <FormControl>
-                      <Checkbox
-                        className="mt-0.5"
-                        checked={Boolean(field.value)}
-                        onBlur={field.onBlur}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div>
-                      <FormLabel>Free plan fallback</FormLabel>
-                      <FormDescription>
-                        Used for registration and canceled subscriptions.
-                      </FormDescription>
-                    </div>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="monthlyPriceCents"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Monthly price (cents)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={typeof field.value === 'number' ? field.value : ''}
-                      onBlur={field.onBlur}
-                      onChange={(event) => {
-                        if (event.currentTarget.value === '') {
-                          field.onChange(undefined);
-                          return;
-                        }
-                        field.onChange(event.currentTarget.valueAsNumber);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="stripePriceId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Stripe price ID</FormLabel>
-                  <FormControl>
-                    <Input
-                      value={typeof field.value === 'string' ? field.value : ''}
-                      onBlur={field.onBlur}
-                      onChange={(event) => field.onChange(event.currentTarget.value)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="displayOrder"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Display order</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={typeof field.value === 'number' ? field.value : ''}
-                      onBlur={field.onBlur}
-                      onChange={(event) => {
-                        if (event.currentTarget.value === '') {
-                          field.onChange(undefined);
-                          return;
-                        }
-                        field.onChange(event.currentTarget.valueAsNumber);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {groups.map((group) => (
-            <div key={group.id} className="space-y-3">
-              <h3 className="text-sm font-medium">{group.label}</h3>
-              <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full text-left text-sm">
-                  <thead className="border-b border-border bg-muted/50">
-                    <tr>
-                      <th className="px-3 py-3 font-medium" scope="col">
-                        Feature
-                      </th>
-                      <th className="px-3 py-3 font-medium" scope="col">
-                        Access
-                      </th>
-                      <th className="px-3 py-3 font-medium" scope="col">
-                        Credit cost
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.kinds.map((kind) => (
-                      <FeaturePolicyRow key={kind} kind={kind} control={form.control} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                control={form.control}
+                name="description"
+              />
             </div>
-          ))}
 
-          {notice ? <p className="text-sm text-destructive">{notice}</p> : null}
+            <div className="grid gap-6 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="isPublicPlan"
+                render={({ field }) => (
+                  <FormItem className="rounded-lg border border-border p-4">
+                    <div className="flex items-start gap-3">
+                      <FormControl>
+                        <Checkbox
+                          className="mt-0.5"
+                          checked={Boolean(field.value)}
+                          onBlur={field.onBlur}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div>
+                        <FormLabel>Show as public plan</FormLabel>
+                        <FormDescription>
+                          Visible on the web usage page.
+                        </FormDescription>
+                      </div>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="isFreePlan"
+                render={({ field }) => (
+                  <FormItem className="rounded-lg border border-border p-4">
+                    <div className="flex items-start gap-3">
+                      <FormControl>
+                        <Checkbox
+                          className="mt-0.5"
+                          checked={Boolean(field.value)}
+                          onBlur={field.onBlur}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div>
+                        <FormLabel>Free plan fallback</FormLabel>
+                        <FormDescription>
+                          Used for registration and canceled subscriptions.
+                        </FormDescription>
+                      </div>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="monthlyPriceCents"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Monthly price (cents)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={
+                          typeof field.value === 'number' ? field.value : ''
+                        }
+                        onBlur={field.onBlur}
+                        onChange={(event) => {
+                          if (event.currentTarget.value === '') {
+                            field.onChange(undefined);
+                            return;
+                          }
+                          field.onChange(event.currentTarget.valueAsNumber);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="stripePriceId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Stripe price ID</FormLabel>
+                    <FormControl>
+                      <Input
+                        value={
+                          typeof field.value === 'string' ? field.value : ''
+                        }
+                        onBlur={field.onBlur}
+                        onChange={(event) =>
+                          field.onChange(event.currentTarget.value)
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="displayOrder"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Display order</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={
+                          typeof field.value === 'number' ? field.value : ''
+                        }
+                        onBlur={field.onBlur}
+                        onChange={(event) => {
+                          if (event.currentTarget.value === '') {
+                            field.onChange(undefined);
+                            return;
+                          }
+                          field.onChange(event.currentTarget.valueAsNumber);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-          <div className="flex flex-wrap gap-3">
-            <Button type="submit" disabled={isSubmitting || isDeleting}>
-              {isSubmitting ? 'Saving…' : 'Save setup'}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => router.push('/usage-limits-setups')}>
-              Cancel
-            </Button>
-            {setupId ? (
+            {groups.map((group) => (
+              <div key={group.id} className="space-y-3">
+                <h3 className="text-sm font-medium">{group.label}</h3>
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-border bg-muted/50">
+                      <tr>
+                        <th className="px-3 py-3 font-medium" scope="col">
+                          Feature
+                        </th>
+                        <th className="px-3 py-3 font-medium" scope="col">
+                          Access
+                        </th>
+                        <th className="px-3 py-3 font-medium" scope="col">
+                          Credit cost
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.kinds.map((kind) => (
+                        <FeaturePolicyRow
+                          key={kind}
+                          kind={kind}
+                          control={form.control}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+
+            {notice ? (
+              <p className="text-sm text-destructive">{notice}</p>
+            ) : null}
+
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit" disabled={isSubmitting || isDeleting}>
+                {isSubmitting ? 'Saving…' : 'Save setup'}
+              </Button>
               <Button
                 type="button"
-                variant="destructive"
-                disabled={isSubmitting || isDeleting}
-                onClick={handleDelete}
+                variant="outline"
+                onClick={() => router.push('/usage-limits-setups')}
               >
-                {isDeleting ? 'Deleting…' : 'Delete setup'}
+                Cancel
               </Button>
-            ) : null}
-          </div>
-        </form>
+              {setupId ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={isSubmitting || isDeleting}
+                  onClick={handleDelete}
+                >
+                  {isDeleting ? 'Deleting…' : 'Delete setup'}
+                </Button>
+              ) : null}
+            </div>
+          </form>
         </Form>
       </CardContent>
     </Card>
