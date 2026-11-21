@@ -89,6 +89,51 @@ export function pcmDurationMs(audio: IPcmAudio): number {
   return Math.round((audio.samples.length / audio.sampleRate) * 1000);
 }
 
+/** Layer III bitrates in kbps by bitrate index: MPEG-1, then MPEG-2/2.5. */
+const MP3_BITRATES_V1 = [
+  0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320,
+];
+const MP3_BITRATES_V2 = [
+  0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160,
+];
+const MP3_RATES_V1 = [44_100, 48_000, 32_000];
+
+/**
+ * How long an MP3 stream plays: its frames times the samples per frame. The
+ * encoder pads the start and end of each stream to whole frames, so this is a
+ * little longer than the PCM it was made from, and it is what a decoder plays
+ * when parts are joined. Stored durations use it, so positions in the joined
+ * audio map to the right part. Counts Layer III frames and stops at anything
+ * that is not one.
+ */
+export function mp3DurationMs(bytes: Uint8Array): number {
+  let offset = 0;
+  let samples = 0;
+  let sampleRate = 0;
+  while (offset + 4 <= bytes.length) {
+    const b1 = bytes[offset + 1];
+    const b2 = bytes[offset + 2];
+    if (bytes[offset] !== 0xff || (b1 & 0xe0) !== 0xe0) break;
+    const version = (b1 >> 3) & 0b11; // 3: MPEG-1, 2: MPEG-2, 0: MPEG-2.5
+    const layer = (b1 >> 1) & 0b11; // 1: Layer III
+    const bitrateIndex = b2 >> 4;
+    const rateIndex = (b2 >> 2) & 0b11;
+    const padding = (b2 >> 1) & 1;
+    if (version === 1 || layer !== 1 || rateIndex === 3) break;
+    const mpeg1 = version === 3;
+    const kbps = (mpeg1 ? MP3_BITRATES_V1 : MP3_BITRATES_V2)[bitrateIndex];
+    if (!kbps) break;
+    const divisor = version === 3 ? 1 : version === 2 ? 2 : 4;
+    sampleRate = MP3_RATES_V1[rateIndex] / divisor;
+    const frameSamples = mpeg1 ? 1152 : 576;
+    const frameBytes =
+      Math.floor(((frameSamples / 8) * kbps * 1000) / sampleRate) + padding;
+    samples += frameSamples;
+    offset += frameBytes;
+  }
+  return sampleRate ? Math.round((samples / sampleRate) * 1000) : 0;
+}
+
 /** Encodes mono PCM as constant-bitrate MP3. */
 export function encodeMp3(audio: IPcmAudio, kbps: number): Uint8Array {
   if (!MP3_SAMPLE_RATES.includes(audio.sampleRate)) {

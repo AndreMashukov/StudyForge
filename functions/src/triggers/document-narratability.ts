@@ -2,10 +2,7 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions/v2';
 import { judgeDocumentNarratability } from '@study-forge/backend-documents/narration/narratability-service';
-import {
-  narrationContentFieldsChanged,
-  readNarrationDocumentFields,
-} from '@study-forge/backend-documents/narration/narration-source';
+import { narrationContentFieldsChanged } from '@study-forge/backend-documents/narration/narration-source';
 import { removeNarration } from '@study-forge/backend-documents/narration/narration-store';
 
 const llmSettingsEncryptionKey = defineSecret('LLM_SETTINGS_ENCRYPTION_KEY');
@@ -41,7 +38,7 @@ export const syncDocumentNarratability = onDocumentWritten(
       await judgeDocumentNarratability({
         userId,
         documentId,
-        document: readNarrationDocumentFields(after),
+        documentData: after,
       });
     } catch (error) {
       logger.error('Document narratability sync failed', {

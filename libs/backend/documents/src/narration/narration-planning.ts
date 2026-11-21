@@ -13,10 +13,17 @@ export interface IKeyedNarrationPart extends INarrationPartPlan {
   key: string;
 }
 
-/** Identifies the spoken text a narratable check or a narration was made from. */
+/**
+ * Identifies what a narratable check or a narration was made from: the spoken
+ * text, and the prose and non-prose amounts the check screens on, so an edit
+ * to unspoken content (a longer code block) also makes a stored check stale.
+ */
 export function narrationContentHash(script: INarrationScript): string {
   const hash = createHash('sha256');
   hash.update(`v${NARRATION_SCHEMA_VERSION}\n`);
+  hash.update(
+    `${script.stats.proseChars}\u0000${script.stats.nonProseChars}\n`,
+  );
   for (const segment of script.segments) {
     hash.update(`${segment.blockIndex}\u0000${segment.text}\u0001`);
   }

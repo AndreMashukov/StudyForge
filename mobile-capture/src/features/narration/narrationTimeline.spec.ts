@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { NarrationPart } from '@shared-types';
 import {
+  firstUnheardOffsetMs,
   hasNewPlayableParts,
+  isNarrationComplete,
+  mapPositionMs,
   joinedDurationMs,
   narrationTotalMs,
   partDurationMs,
@@ -71,5 +74,73 @@ describe('narration timeline', () => {
         part(2, 'ready', 1),
       ]),
     ).toBe(true);
+  });
+
+  it('carries on at the first part not heard, even when it comes earlier', () => {
+    const heard = playableParts([
+      part(0, 'ready', 60_000),
+      part(2, 'ready', 30_000),
+    ]);
+    const next = playableParts([
+      part(0, 'ready', 60_000),
+      part(1, 'ready', 40_000),
+      part(2, 'ready', 30_000),
+      part(3, 'ready', 10_000),
+    ]);
+    expect(firstUnheardOffsetMs(heard, next)).toBe(60_000);
+    expect(firstUnheardOffsetMs(next, next)).toBeNull();
+    expect(
+      firstUnheardOffsetMs(playableParts([part(0, 'ready', 60_000)]), heard),
+    ).toBe(60_000);
+  });
+
+  it('maps a position to the same place when parts are added before it', () => {
+    const before = playableParts([
+      part(0, 'ready', 60_000),
+      part(2, 'ready', 30_000),
+    ]);
+    const after = playableParts([
+      part(0, 'ready', 60_000),
+      part(1, 'ready', 40_000),
+      part(2, 'ready', 30_000),
+    ]);
+    // 10 s into part 0 stays there; 10 s into part 2 moves past the new part 1.
+    expect(mapPositionMs(before, after, 10_000)).toBe(10_000);
+    expect(mapPositionMs(before, after, 70_000)).toBe(110_000);
+    // At the end of the old file: the first part not yet in it.
+    expect(mapPositionMs(before, after, 90_000)).toBe(60_000);
+    // A part that is gone: the start of the next one after it.
+    expect(
+      mapPositionMs(
+        after,
+        playableParts([part(0, 'ready', 60_000), part(2, 'ready', 30_000)]),
+        70_000,
+      ),
+    ).toBe(60_000);
+  });
+
+  it('is complete only when every part that will play is in the file', () => {
+    const joined = playableParts([part(0, 'ready', 1), part(2, 'ready', 1)]);
+    expect(
+      isNarrationComplete(joined, [
+        part(0, 'ready', 1),
+        part(1, 'failed'),
+        part(2, 'ready', 1),
+      ]),
+    ).toBe(true);
+    expect(
+      isNarrationComplete(joined, [
+        part(0, 'ready', 1),
+        part(1, 'pending'),
+        part(2, 'ready', 1),
+      ]),
+    ).toBe(false);
+    expect(
+      isNarrationComplete(joined, [
+        part(0, 'ready', 1),
+        part(1, 'ready', 1),
+        part(2, 'ready', 1),
+      ]),
+    ).toBe(false);
   });
 });

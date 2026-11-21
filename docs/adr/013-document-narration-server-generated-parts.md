@@ -33,7 +33,9 @@ The phone's built-in voices can read text for free. A speech model sounds much b
 ## Consequences
 
 - The speech model returns uncompressed audio, so Functions compress each part before storing it (MP3, 48 kbps mono, about 0.36 MB per minute).
-- Each generation run is recorded on its own (`narrationRuns/{runId}`, server only), so what it reserved survives the narration being removed. A run is settled exactly once, and a scheduled sweep settles runs whose worker died, so credits and storage are never held for good.
+- Each generation run is recorded on its own (`narrationRuns/{runId}`, server only), so what it reserved survives the narration being removed. A run is settled exactly once, and a scheduled sweep settles runs whose worker died, so credits and storage are never held for good. A run records each file before uploading it, and settling deletes the ones the narration does not refer to. It is charged at the price fixed when it started.
+- Audio that leaves a narration (an edit, a removal, a re-narration) is queued for deletion (`narrationAudioDeletions`, server only) in the same write that drops it. Its storage is given back only once the file is gone, and the sweep retries what failed.
+- One narratable check runs at a time for the same content (`narratabilityChecks`, server only). A result is stored only if the document has not changed since it was read.
 - Parts are separate speech requests, so tone and pace can differ slightly where they join. Cuts fall on paragraph ends to hide this.
 - The narratable check runs for every user, including those on a plan where narration is off, because the locked Listen control needs the flag.
 - Changing the voice or model does not touch stored narrations. Part identity includes both, so the next edit to a document regenerates its whole narration in the new voice.

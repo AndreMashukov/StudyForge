@@ -75,17 +75,27 @@ export class NarrationDocumentNotFoundError extends Error {
   }
 }
 
-/** Reads the document record only. */
-export async function readNarrationDocument(
+/** The document record as stored. */
+export async function readNarrationDocumentData(
   userId: string,
   documentId: string,
-): Promise<INarrationDocumentFields> {
+): Promise<Record<string, unknown>> {
   const snapshot = await FirestorePaths.document(userId, documentId).get();
   const data = snapshot.data();
   if (!snapshot.exists || !data) {
     throw new NarrationDocumentNotFoundError(documentId);
   }
-  return readNarrationDocumentFields(data);
+  return data;
+}
+
+/** Reads the document record only. */
+export async function readNarrationDocument(
+  userId: string,
+  documentId: string,
+): Promise<INarrationDocumentFields> {
+  return readNarrationDocumentFields(
+    await readNarrationDocumentData(userId, documentId),
+  );
 }
 
 /** Builds the spoken text and part plan from a document's stored body. */

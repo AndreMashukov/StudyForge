@@ -6,8 +6,10 @@ import {
   type NarrationPart,
   type NarrationRecord,
 } from '@shared-types';
-import { adjustUserStorageUsage } from '@study-forge/backend-core/services/usage-limits-service';
-import { DocumentService } from '../document-storage';
+import {
+  processNarrationAudioDeletionSoon,
+  queueNarrationAudioDeletion,
+} from './narration-audio-deletions';
 
 /**
  * Server-only field stored next to the client-visible narration record. What a
@@ -95,39 +97,14 @@ export function storedPartBytes(parts: NarrationPart[]): number {
   return [...files.values()].reduce((sum, bytes) => sum + bytes, 0);
 }
 
-/** Deletes the audio of these parts and gives their storage back. */
-export async function deleteNarrationPartAudio(
-  userId: string,
-  parts: NarrationPart[],
-): Promise<void> {
-  const bucket = DocumentService.getBucket();
-  const withAudio = parts.filter((part) => part.storagePath);
-  const paths = [...new Set(withAudio.map((part) => part.storagePath ?? ''))];
-  await Promise.all(
-    paths.map((storagePath) =>
-      bucket
-        .file(storagePath)
-        .delete({ ignoreNotFound: true })
-        .catch((error: unknown) => {
-          logger.warn('Narration part audio delete failed', {
-            userId,
-            storagePath,
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }),
-    ),
-  );
-  const bytes = storedPartBytes(withAudio);
-  if (bytes > 0) {
-    await adjustUserStorageUsage({ userId, deltaBytes: -bytes });
-  }
-}
-
 /**
- * Removes a document's narration: the record, every audio file under its
- * prefix, and the storage it used. A run still in progress notices the record
- * is gone, discards what it produces and settles its run; a run whose worker
- * died is settled by the stale-run sweep.
+ * Removes a document's narration: the record, and in the same transaction a
+ * deletion entry for its audio files and the storage they use (see
+ * `narration-audio-deletions`), which is then processed. Only the record's own
+ * files are deleted, never the whole prefix, so a narration started right
+ * after this cannot lose its new files. A run still in progress notices the
+ * record is gone and its settlement deletes the files it uploaded; a run whose
+ * worker died is settled by the stale-run sweep.
  */
 export async function removeNarration(
   userId: string,
@@ -137,26 +114,30 @@ export async function removeNarration(
   const removed = await getFirestore().runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) return null;
+    const record = parseStoredNarrationRecord(snapshot.data());
     transaction.delete(ref);
-    return parseStoredNarrationRecord(snapshot.data());
+    const deletionId = record
+      ? queueNarrationAudioDeletion(
+          transaction,
+          userId,
+          documentId,
+          record.parts,
+        )
+      : null;
+    return { record, deletionId };
   });
-
-  const bucket = DocumentService.getBucket();
-  await bucket
-    .deleteFiles({ prefix: narrationStoragePrefix(userId, documentId) })
-    .catch((error: unknown) => {
-      logger.warn('Narration audio prefix delete failed', {
-        userId,
-        documentId,
-        message: error instanceof Error ? error.message : String(error),
-      });
-    });
-
   if (!removed) return false;
-  const bytes = storedPartBytes(removed.parts);
-  if (bytes > 0) {
-    await adjustUserStorageUsage({ userId, deltaBytes: -bytes });
+  if (!removed.record) {
+    logger.warn('Removed a narration record that could not be read', {
+      userId,
+      documentId,
+    });
   }
-  logger.info('Narration removed', { userId, documentId, freedBytes: bytes });
+  await processNarrationAudioDeletionSoon(removed.deletionId);
+  logger.info('Narration removed', {
+    userId,
+    documentId,
+    freedBytes: storedPartBytes(removed.record?.parts ?? []),
+  });
   return true;
 }

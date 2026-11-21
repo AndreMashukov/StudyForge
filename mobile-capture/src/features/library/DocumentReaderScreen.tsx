@@ -119,6 +119,28 @@ export function DocumentReaderScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const blockOffsets = useRef(new Map<number, number>());
   const lastManualScroll = useRef(0);
+  const followResumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Bumped when the pause after a manual scroll ends, so following picks up again.
+  const [followResumes, setFollowResumes] = useState(0);
+
+  const clearFollowResumeTimer = () => {
+    if (followResumeTimer.current) clearTimeout(followResumeTimer.current);
+    followResumeTimer.current = null;
+  };
+
+  const pauseFollowing = () => {
+    lastManualScroll.current = Date.now();
+    clearFollowResumeTimer();
+    followResumeTimer.current = setTimeout(() => {
+      followResumeTimer.current = null;
+      setFollowResumes((count) => count + 1);
+    }, FOLLOW_PAUSE_AFTER_SCROLL_MS);
+  };
+
+  useEffect(() => {
+    lastManualScroll.current = 0;
+    return clearFollowResumeTimer;
+  }, [documentId]);
 
   useEffect(() => {
     if (!activePart || player.status === 'idle' || player.status === 'ended')
@@ -129,7 +151,7 @@ export function DocumentReaderScreen() {
     if (y !== undefined) {
       scrollRef.current?.scrollTo({ y: Math.max(0, y - 96), animated: true });
     }
-  }, [activePart?.index, activePart?.blockStart, player.status]);
+  }, [activePart?.index, activePart?.blockStart, player.status, followResumes]);
 
   const entries = useMemo(
     () =>
@@ -216,9 +238,7 @@ export function DocumentReaderScreen() {
           ref={scrollRef}
           className="flex-1"
           contentContainerStyle={{ paddingVertical: 12, paddingBottom: 32 }}
-          onScrollBeginDrag={() => {
-            lastManualScroll.current = Date.now();
-          }}
+          onScrollBeginDrag={pauseFollowing}
         >
           {document ? (
             <Heading level={1} className="mb-2">

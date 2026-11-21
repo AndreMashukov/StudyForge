@@ -234,6 +234,10 @@ function AndroidKeyboardPadding({ children }: { children: ReactNode }) {
     const hide = Keyboard.addListener('keyboardDidHide', () =>
       setKeyboardHeight(0),
     );
+    // An event between the first render and subscribing would be missed.
+    setKeyboardHeight(
+      Keyboard.isVisible() ? (Keyboard.metrics()?.height ?? 0) : 0,
+    );
     return () => {
       show.remove();
       hide.remove();

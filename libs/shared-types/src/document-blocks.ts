@@ -44,6 +44,8 @@ export type DocumentBlockFormat = 'html' | 'markdown';
 
 const INTERACTIVE_CLASS_RE = /\b(mermaid|diagram|interactive)\b/i;
 const MERMAID_CODE_CLASS_RE = /\b(language-mermaid|mermaid)\b/i;
+/** Blocks inside a quote or list item that keep their own kind. */
+const CONTAINED_BLOCK_TAGS = new Set(['pre', 'table', 'blockquote']);
 const INLINE_PLACEHOLDER_TEXT =
   '[Interactive content is available in the original document.]';
 
@@ -109,6 +111,37 @@ export function parseDocumentBlocks(
       blocks.push({ kind, spans, ...extra });
     }
   };
+  /**
+   * A quote or list item: its text is one block, but code, tables, nested
+   * lists and quotes inside it stay blocks of their own, so they keep their
+   * kind (code is not read out as prose). Text on either side of such a
+   * block becomes a separate block of the container's kind.
+   */
+  const addContainer = (
+    kind: 'quote' | 'list',
+    children: IHtmlNode[],
+    depth: number,
+    extra: Partial<IDocumentBlock>,
+  ) => {
+    let inline: IHtmlNode[] = [];
+    const flush = () => {
+      if (inline.length) add(kind, inline, extra);
+      inline = [];
+    };
+    for (const child of children) {
+      const name = isElement(child) ? child.name.toLowerCase() : '';
+      if (name === 'ul' || name === 'ol') {
+        flush();
+        walk(isElement(child) ? child.children : [], depth + 1);
+      } else if (CONTAINED_BLOCK_TAGS.has(name)) {
+        flush();
+        walk([child], depth);
+      } else {
+        inline.push(child);
+      }
+    }
+    flush();
+  };
   const walk = (nodes: IHtmlNode[], depth = 0) => {
     for (const node of nodes) {
       if (node.type === 'text') {
@@ -159,19 +192,11 @@ export function parseDocumentBlocks(
           add('paragraph', node.children);
         }
       } else if (tag === 'blockquote') {
-        add('quote', node.children);
+        addContainer('quote', node.children, depth, {});
       } else if (tag === 'pre') {
         add('code', node.children);
       } else if (tag === 'li') {
-        const inline = node.children.filter(
-          (child) => !isElement(child) || !['ul', 'ol'].includes(child.name),
-        );
-        add('list', inline, { level: depth });
-        for (const child of node.children) {
-          if (isElement(child) && ['ul', 'ol'].includes(child.name)) {
-            walk(child.children, depth + 1);
-          }
-        }
+        addContainer('list', node.children, depth, { level: depth });
       } else if (tag === 'ul' || tag === 'ol') {
         walk(node.children, depth);
       } else if (tag === 'img') {

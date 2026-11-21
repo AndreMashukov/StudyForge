@@ -94,7 +94,7 @@ describe('narrationPartKey', () => {
 });
 
 describe('narrationContentHash', () => {
-  it('follows the spoken text only', () => {
+  it('follows the spoken text, not its spacing', () => {
     const script = (body: string) =>
       buildNarrationScript('T', parseDocumentBlocks(`<p>${body}</p>`, 'html'));
     expect(narrationContentHash(script('One two.'))).toBe(
@@ -102,6 +102,21 @@ describe('narrationContentHash', () => {
     );
     expect(narrationContentHash(script('One two.'))).not.toBe(
       narrationContentHash(script('One three.')),
+    );
+  });
+
+  it('changes when unspoken content the check screens on changes', () => {
+    const script = (code: string) =>
+      buildNarrationScript(
+        'T',
+        parseDocumentBlocks(
+          `<p>Intro.</p><pre><code>${code}</code></pre>`,
+          'html',
+        ),
+      );
+    // Same spoken text ("Code example."), different amount of code.
+    expect(narrationContentHash(script('x = 1'))).not.toBe(
+      narrationContentHash(script('x = 1\n'.repeat(400))),
     );
   });
 });

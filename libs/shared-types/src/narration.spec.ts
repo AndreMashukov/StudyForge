@@ -60,6 +60,33 @@ describe('buildNarrationScript', () => {
     const blocks = parseDocumentBlocks('<p>Look <svg></svg> here.</p>', 'html');
     const script = buildNarrationScript('', blocks);
     expect(script.segments[0].text).toBe('Look here.');
+    // Not read, but counted against the prose share.
+    expect(script.stats.nonProseChars).toBeGreaterThan(0);
+    expect(script.stats.proseRatio).toBeLessThan(1);
+  });
+
+  it('keeps code and tables inside quotes and list items out of the prose', () => {
+    const blocks = parseDocumentBlocks(
+      '<blockquote>Explanation.<pre><code>x = 1</code></pre>After.</blockquote><ul><li>Step one<table><tr><td>a</td><td>b</td></tr></table><ul><li>Nested</li></ul></li></ul>',
+      'html',
+    );
+    expect(blocks.map((block) => [block.kind, block.level ?? null])).toEqual([
+      ['quote', null],
+      ['code', null],
+      ['quote', null],
+      ['list', 0],
+      ['table', null],
+      ['list', 1],
+    ]);
+    const script = buildNarrationScript('', blocks);
+    expect(script.segments.map((segment) => segment.text)).toEqual([
+      'Explanation.',
+      'Code example.',
+      'After.',
+      'Step one.',
+      'Table.',
+      'Nested.',
+    ]);
   });
 
   it('measures prose against code and tables', () => {

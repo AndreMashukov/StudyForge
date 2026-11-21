@@ -38,12 +38,15 @@ const callableOptions = {
   memory: '512MiB' as const,
 };
 
+/** What a `@shared-types` request schema offers; kept structural so any Zod major fits. */
+interface IRequestSchema<T> {
+  safeParse: (
+    value: unknown,
+  ) => { success: true; data: T } | { success: false };
+}
+
 function parseRequest<T>(
-  schema: {
-    safeParse: (
-      value: unknown,
-    ) => { success: true; data: T } | { success: false };
-  },
+  schema: IRequestSchema<T>,
   request: CallableRequest<unknown>,
 ): T {
   const parsed = schema.safeParse(request.data);
@@ -92,12 +95,22 @@ export const evaluateDocumentNarratability = onCall(
         documentNarrationRequestSchema,
         request,
       );
-      const result = await judgeDocumentNarratability({ userId, documentId });
+      const result = await judgeDocumentNarratability({
+        userId,
+        documentId,
+        // Only a check that asks the model counts; a stored result is free.
+        beforeDecision: () =>
+          enforceCallableGenerationRateLimit(
+            userId,
+            'documentNarratableDecision',
+          ),
+      });
       return {
         success: true,
         ...(result.narratability
           ? { narratability: result.narratability }
           : {}),
+        ...(result.pending ? { pending: true } : {}),
       };
     } catch (error) {
       throw toHttpsError(error, 'Narratable check failed');

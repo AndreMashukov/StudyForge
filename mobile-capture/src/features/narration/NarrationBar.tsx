@@ -94,6 +94,23 @@ export function NarrationBar({ narration, player, online }: INarrationBar) {
       </Text>
     );
   }
+  // Offline, `unknown` only means the check has not run; online, it failed.
+  if (check === 'unknown' && online) {
+    return (
+      <View className="mb-3">
+        <Text variant="caption" tone="muted">
+          Could not check whether this document can be read aloud.
+        </Text>
+        <Button
+          label="Try again"
+          variant="secondary"
+          size="sm"
+          className="mt-2"
+          onPress={narration.retryCheck}
+        />
+      </View>
+    );
+  }
   if (check !== 'narratable') return null;
 
   const parts = record?.parts ?? [];
@@ -244,10 +261,15 @@ export function NarrationBar({ narration, player, online }: INarrationBar) {
           Checking narration…
         </Text>
       ) : null}
-      {!hasAudio && !generating && !canGenerate && narration.quoteFailed ? (
-        <View>
+      {!generating &&
+      !canGenerate &&
+      narration.quoteFailed &&
+      (!hasAudio || readyCount < parts.length) ? (
+        <View className={hasAudio ? 'mt-2' : undefined}>
           <Text variant="caption" tone="muted">
-            Narration is not available right now.
+            {hasAudio
+              ? 'The price of the missing parts could not be checked.'
+              : 'Narration is not available right now.'}
           </Text>
           <Button
             label="Try again"

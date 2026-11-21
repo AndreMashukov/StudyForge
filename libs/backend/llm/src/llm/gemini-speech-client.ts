@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { FinishReason, GoogleGenAI } from '@google/genai';
 import { DEFAULT_DOCUMENT_NARRATION_VOICE } from '@shared-types';
 import { LlmGenerationRouteResolver } from './llm-generation-route-resolver';
 import { decodeSpeechAudio, type IPcmAudio } from './speech-audio';
@@ -67,16 +67,24 @@ export async function synthesizeSpeech(
     },
   );
 
-  const inline = (response.candidates?.[0]?.content?.parts ?? [])
+  const candidate = response.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+  // Audio cut short (MAX_TOKENS, SAFETY, …) would be stored as a whole part.
+  if (
+    finishReason !== undefined &&
+    finishReason !== FinishReason.STOP &&
+    finishReason !== FinishReason.FINISH_REASON_UNSPECIFIED
+  ) {
+    throw new Error(`Speech model did not finish (${finishReason})`);
+  }
+  const inline = (candidate?.content?.parts ?? [])
     .map((part) => part.inlineData)
     .filter(
       (data): data is { data: string; mimeType?: string } =>
         typeof data?.data === 'string',
     );
   if (!inline.length) {
-    const reason =
-      response.candidates?.[0]?.finishReason ?? 'no audio returned';
-    throw new Error(`Speech model returned no audio (${reason})`);
+    throw new Error('Speech model returned no audio');
   }
 
   const decoded = inline.map((data) =>

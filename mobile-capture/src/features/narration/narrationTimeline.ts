@@ -60,3 +60,70 @@ export function partIndexAtPosition(
   }
   return included[included.length - 1].index;
 }
+
+/**
+ * True when the loaded file already has every part that will ever play: no
+ * part is waiting to be narrated and none became ready since it was joined.
+ * Only then can the player loop the file on its own.
+ */
+export function isNarrationComplete(
+  included: NarrationPart[],
+  parts: NarrationPart[],
+): boolean {
+  const known = new Set(included.map((part) => part.key));
+  return parts.every((part) => part.status === 'failed' || known.has(part.key));
+}
+
+/**
+ * The same place in another joined file: the same part, the same distance
+ * into it. Parts that became ready earlier in the document shift everything
+ * after them, so a position cannot be reused as it is. A position past the end
+ * of `from` maps to the first part not in it; a part `to` no longer has maps
+ * to the start of the next part after it.
+ */
+export function mapPositionMs(
+  from: NarrationPart[],
+  to: NarrationPart[],
+  positionMs: number,
+): number {
+  let remaining = Math.max(0, positionMs);
+  let current: NarrationPart | null = null;
+  for (const part of from) {
+    const duration = partDurationMs(part);
+    if (remaining < duration) {
+      current = part;
+      break;
+    }
+    remaining -= duration;
+  }
+  if (!current) return firstUnheardOffsetMs(from, to) ?? 0;
+
+  let offset = 0;
+  for (const part of to) {
+    if (part.key === current.key) {
+      return offset + Math.min(remaining, partDurationMs(part));
+    }
+    if (part.index > current.index) return offset;
+    offset += partDurationMs(part);
+  }
+  return offset;
+}
+
+/**
+ * Where to carry on after the file of `heard` played to its end and a longer
+ * file of `next` replaced it: the start of the first part the listener has not
+ * heard, in the new layout. Parts can become ready out of order, so this is
+ * not simply the length of what was heard. Null when nothing is new.
+ */
+export function firstUnheardOffsetMs(
+  heard: NarrationPart[],
+  next: NarrationPart[],
+): number | null {
+  const known = new Set(heard.map((part) => part.key));
+  let offset = 0;
+  for (const part of next) {
+    if (!known.has(part.key)) return offset;
+    offset += partDurationMs(part);
+  }
+  return null;
+}

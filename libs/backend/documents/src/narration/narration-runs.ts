@@ -33,6 +33,12 @@ export interface INarrationRun {
    * update never committed leaves no file behind.
    */
   uploadedPaths: string[];
+  /**
+   * Credits per narration unit, fixed when the run was confirmed, so a price
+   * change while it runs does not change what it is charged. Runs started
+   * before this was recorded have none and settle at the current price.
+   */
+  creditCostPerUnit?: number;
   status: 'open';
   startedAt: string;
 }
@@ -63,6 +69,7 @@ export function parseNarrationRun(data: unknown): INarrationRun | null {
   const status = read('status');
   const startedAt = read('startedAt');
   const reservationId = read('reservationId');
+  const creditCostPerUnit = read('creditCostPerUnit');
   if (
     typeof userId !== 'string' ||
     typeof documentId !== 'string' ||
@@ -79,6 +86,10 @@ export function parseNarrationRun(data: unknown): INarrationRun | null {
     generatedCharCount: readNumber(read('generatedCharCount')),
     storedBytes: readNumber(read('storedBytes')),
     uploadedPaths: readStrings(read('uploadedPaths')),
+    ...(typeof creditCostPerUnit === 'number' &&
+    Number.isFinite(creditCostPerUnit)
+      ? { creditCostPerUnit: Math.max(0, creditCostPerUnit) }
+      : {}),
     status,
     startedAt,
   };
@@ -134,12 +145,50 @@ export function narrationRunTallyUpdate(charCount: number, sizeBytes: number) {
 }
 
 async function creditsToCommit(run: INarrationRun): Promise<number> {
-  const context = await resolveUserUsageLimitsContext(run.userId);
-  const costPerUnit = Math.max(
-    0,
-    context.setup.featurePolicies.documentNarration?.creditCost ?? 0,
-  );
+  let costPerUnit = run.creditCostPerUnit;
+  if (costPerUnit === undefined) {
+    const context = await resolveUserUsageLimitsContext(run.userId);
+    costPerUnit = Math.max(
+      0,
+      context.setup.featurePolicies.documentNarration?.creditCost ?? 0,
+    );
+  }
   return narrationCreditUnits(run.generatedCharCount) * costPerUnit;
+}
+
+export type StaleRunTake =
+  | { kind: 'taken'; run: INarrationRun }
+  /** Claimed or refreshed since it was found stale: its worker is alive. */
+  | { kind: 'active' }
+  /** Already settled (its document is gone). */
+  | { kind: 'missing' };
+
+/**
+ * Takes a run found stale for abandonment. The staleness is checked again and
+ * the run is marked claimed in one transaction, so a worker that claims it in
+ * the meantime either refreshed it (and it is left alone) or now finds it
+ * claimed and stops.
+ */
+export async function takeStaleNarrationRun(
+  runId: string,
+  now = Date.now(),
+): Promise<StaleRunTake> {
+  const ref = narrationRunRef(runId);
+  return getFirestore().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const run = snapshot.exists ? parseNarrationRun(snapshot.data()) : null;
+    if (!run) return { kind: 'missing' };
+    const started = Date.parse(run.startedAt);
+    if (Number.isFinite(started) && now - started <= NARRATION_RUN_STALE_MS) {
+      return { kind: 'active' };
+    }
+    const nowIso = new Date(now).toISOString();
+    transaction.update(ref, {
+      claimedAt: snapshot.get('claimedAt') ?? nowIso,
+      abandonedAt: nowIso,
+    });
+    return { kind: 'taken', run };
+  });
 }
 
 /**

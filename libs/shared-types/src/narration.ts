@@ -166,6 +166,10 @@ export function buildNarrationScript(
 
   blocks.forEach((block, blockIndex) => {
     if (PROSE_KINDS.has(block.kind)) {
+      // Embedded content inside prose is not read, but it weighs against the prose share.
+      nonProseChars +=
+        block.spans.filter((span) => span.placeholder).length *
+        NON_TEXT_BLOCK_WEIGHT;
       const text = blockProseText(block);
       if (!text) return;
       flushMarker();
@@ -468,6 +472,11 @@ export const evaluateDocumentNarratabilityResponseSchema = z.object({
   success: z.literal(true),
   /** Missing when the check could not be answered; try again later. */
   narratability: documentNarratabilitySchema.optional(),
+  /**
+   * True when another request is already checking this content: the result
+   * arrives on the document record, so this is not a failure.
+   */
+  pending: z.boolean().optional(),
 });
 export type EvaluateDocumentNarratabilityResponse = z.output<
   typeof evaluateDocumentNarratabilityResponseSchema

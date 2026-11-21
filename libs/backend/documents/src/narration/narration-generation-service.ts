@@ -31,6 +31,7 @@ import {
 } from '@study-forge/backend-llm/llm/gemini-speech-client';
 import {
   encodeMp3,
+  mp3DurationMs,
   pcmDurationMs,
 } from '@study-forge/backend-llm/llm/speech-audio';
 import { DocumentService } from '../document-storage';
@@ -51,6 +52,7 @@ import {
   narrationRunTallyUpdate,
   parseNarrationRun,
   settleNarrationRun,
+  takeStaleNarrationRun,
   trackNarrationRunUpload,
 } from './narration-runs';
 import {
@@ -60,8 +62,12 @@ import {
   type INarrationSource,
 } from './narration-source';
 import {
+  processNarrationAudioDeletionSoon,
+  queueNarrationAudioDeletion,
+  sweepNarrationAudioDeletions,
+} from './narration-audio-deletions';
+import {
   cleanNarrationPart,
-  deleteNarrationPartAudio,
   narrationPartStoragePath,
   narrationRecordRef,
   parseStoredNarrationRecord,
@@ -157,16 +163,21 @@ async function releaseNarrationFromRun(
   });
 }
 
-/**
- * Ends a run whose worker is gone (or never started): frees the narration,
- * then settles what the run reserved. Safe to call more than once.
- */
-export async function abandonNarrationRun(params: {
+export interface IAbandonNarrationRunParams {
   userId: string;
   documentId: string;
   runId: string;
   errorMessage: string;
-}): Promise<void> {
+}
+
+/**
+ * Ends a run whose worker is gone (or never started): frees the narration,
+ * settles what the run reserved, then applies any document edit that waited
+ * for the run (a replacement run is left alone). Safe to call more than once.
+ */
+export async function abandonNarrationRun(
+  params: IAbandonNarrationRunParams,
+): Promise<void> {
   await releaseNarrationFromRun(
     params.userId,
     params.documentId,
@@ -174,6 +185,21 @@ export async function abandonNarrationRun(params: {
     params.errorMessage,
   );
   await settleNarrationRun(params.runId);
+  await reconcileAfterRun(params.userId, params.documentId);
+}
+
+/**
+ * Abandons a run found stale, unless its worker claimed it meanwhile. Returns
+ * false when the run is alive after all.
+ */
+async function abandonStaleNarrationRun(
+  params: IAbandonNarrationRunParams,
+): Promise<boolean> {
+  const take = await takeStaleNarrationRun(params.runId);
+  if (take.kind === 'active') return false;
+  // A missing run was settled already; the narration may still name it.
+  await abandonNarrationRun(params);
+  return true;
 }
 
 interface IPreparedNarration {
@@ -218,13 +244,13 @@ async function prepareNarration(
 
   let record = await readNarrationRecord(userId, documentId);
   if (record?.runId && isRunStale(record)) {
-    await abandonNarrationRun({
+    const abandoned = await abandonStaleNarrationRun({
       userId,
       documentId,
       runId: record.runId,
       errorMessage: 'Generation stopped; try again',
     });
-    record = await readNarrationRecord(userId, documentId);
+    if (abandoned) record = await readNarrationRecord(userId, documentId);
   }
   if (record?.runId) return unavailable('generating');
 
@@ -269,16 +295,70 @@ export interface IStartDocumentNarrationResult {
   credits: number;
 }
 
+export interface IStartDocumentNarrationParams {
+  /** The authenticated learner; never taken from the request body. */
+  userId: string;
+  documentId: string;
+  /** The price the learner confirmed. */
+  expectedCredits: number;
+}
+
+/** What the start transaction found when it re-planned against the record. */
+type StartTransactionOutcome =
+  | { kind: 'started'; obsoleteDeletionId: string | null }
+  | { kind: 'alreadyRunning' }
+  | { kind: 'nothingToGenerate' }
+  /** The work grew past what was reserved; the new price is shown instead. */
+  | { kind: 'priceChanged'; credits: number };
+
+interface IHeldReservations {
+  userId: string;
+  reservationId?: string;
+  reservedStorageBytes: number;
+}
+
+/**
+ * Gives back what a start held when no run was created. Each hold is released
+ * on its own, so a failed credit refund still frees the storage. A failure is
+ * logged with what it held, for follow-up.
+ */
+async function releaseHeldReservations(held: IHeldReservations): Promise<void> {
+  const [credits, storage] = await Promise.allSettled([
+    held.reservationId
+      ? refundUsageReservation(held.userId, held.reservationId)
+      : Promise.resolve(),
+    releaseUserStorageReservation({
+      userId: held.userId,
+      reservedBytes: held.reservedStorageBytes,
+    }),
+  ]);
+  for (const [hold, result] of [
+    ['credits', credits],
+    ['storage', storage],
+  ] as const) {
+    if (result.status === 'rejected') {
+      logger.error('Narration start could not give back a hold', {
+        userId: held.userId,
+        hold,
+        reservationId: held.reservationId,
+        reservedStorageBytes: held.reservedStorageBytes,
+        message:
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason),
+      });
+    }
+  }
+}
+
 /**
  * Reserves credits and storage for the missing parts, records the plan and
  * the run, and queues the run. Refused when the price differs from what the
- * learner saw.
+ * learner saw, at the quote, at the reservation, or when re-planned.
  */
-export async function startDocumentNarration(params: {
-  userId: string;
-  documentId: string;
-  expectedCredits: number;
-}): Promise<IStartDocumentNarrationResult> {
+export async function startDocumentNarration(
+  params: IStartDocumentNarrationParams,
+): Promise<IStartDocumentNarrationResult> {
   const { userId, documentId } = params;
   const prepared = await prepareNarration(userId, documentId);
   if (isQuote(prepared)) {
@@ -289,7 +369,7 @@ export async function startDocumentNarration(params: {
       prepared.unavailableReason ?? 'notNarratable',
     );
   }
-  const { work, quote, route, source } = prepared;
+  const { work, quote, route, source, creditCostPerUnit } = prepared;
   if (quote.credits !== params.expectedCredits) {
     throw new NarrationPriceChangedError(quote.credits);
   }
@@ -297,9 +377,11 @@ export async function startDocumentNarration(params: {
     return { status: 'nothingToGenerate', credits: 0 };
   }
 
-  const reservedStorageBytes = estimateStorageBytes(work.chargedCharCount);
-  await reserveUserStorageBytes(userId, reservedStorageBytes);
-  let reservationId: string | undefined;
+  const held: IHeldReservations = {
+    userId,
+    reservedStorageBytes: estimateStorageBytes(work.chargedCharCount),
+  };
+  await reserveUserStorageBytes(userId, held.reservedStorageBytes);
   try {
     if (quote.credits > 0) {
       const reservation = await reserveUsageCredits({
@@ -307,77 +389,94 @@ export async function startDocumentNarration(params: {
         generationKind: 'documentNarration',
         quantity: work.creditUnits,
       });
-      reservationId = reservation.id;
+      held.reservationId = reservation.id;
+      // The price can change between the quote and the hold.
+      if (reservation.credits !== params.expectedCredits) {
+        throw new NarrationPriceChangedError(reservation.credits);
+      }
     }
   } catch (error) {
-    await releaseUserStorageReservation({
-      userId,
-      reservedBytes: reservedStorageBytes,
-    });
+    await releaseHeldReservations(held);
     throw error;
   }
 
   const runId = randomUUID();
   const now = new Date().toISOString();
   const recordRef = narrationRecordRef(userId, documentId);
-  const releaseReservations = async () => {
-    if (reservationId) await refundUsageReservation(userId, reservationId);
-    await releaseUserStorageReservation({
-      userId,
-      reservedBytes: reservedStorageBytes,
-    });
-  };
-  let outcome: { started: boolean; obsolete: NarrationPart[] };
+  let outcome: StartTransactionOutcome;
   try {
-    outcome = await getFirestore().runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(recordRef);
-      const current = snapshot.exists
-        ? parseStoredNarrationRecord(snapshot.data())
-        : null;
-      if (current?.runId)
-        return { started: false, obsolete: [] as NarrationPart[] };
-      // Re-plan against the record as it is now, so a part finished meanwhile is not redone.
-      const fresh = planNarrationWork(
-        keyNarrationParts(source.plan, route.voice, route.model),
-        current,
-        route,
-      );
-      transaction.set(recordRef, {
-        documentId,
-        schemaVersion: NARRATION_SCHEMA_VERSION,
-        model: route.model,
-        voice: route.voice,
-        contentHash: source.contentHash,
-        status: 'generating',
-        parts: fresh.parts.map(cleanNarrationPart),
-        runId,
-        runStartedAt: now,
-        updatedAt: now,
-      });
-      transaction.set(narrationRunRef(runId), {
-        userId,
-        documentId,
-        ...(reservationId ? { reservationId } : {}),
-        reservedStorageBytes,
-        generatedCharCount: 0,
-        storedBytes: 0,
-        status: 'open',
-        startedAt: now,
-      });
-      return { started: true, obsolete: fresh.obsolete };
-    });
+    outcome = await getFirestore().runTransaction(
+      async (transaction): Promise<StartTransactionOutcome> => {
+        const snapshot = await transaction.get(recordRef);
+        const current = snapshot.exists
+          ? parseStoredNarrationRecord(snapshot.data())
+          : null;
+        if (current?.runId) return { kind: 'alreadyRunning' };
+        // Re-plan against the record as it is now, so a part finished meanwhile is not redone.
+        const fresh = planNarrationWork(
+          keyNarrationParts(source.plan, route.voice, route.model),
+          current,
+          route,
+        );
+        if (!fresh.toGenerate.length) return { kind: 'nothingToGenerate' };
+        // A part removed meanwhile adds work the holds do not cover.
+        if (
+          fresh.creditUnits > work.creditUnits ||
+          estimateStorageBytes(fresh.chargedCharCount) >
+            held.reservedStorageBytes
+        ) {
+          return {
+            kind: 'priceChanged',
+            credits: fresh.creditUnits * creditCostPerUnit,
+          };
+        }
+        transaction.set(recordRef, {
+          documentId,
+          schemaVersion: NARRATION_SCHEMA_VERSION,
+          model: route.model,
+          voice: route.voice,
+          contentHash: source.contentHash,
+          status: 'generating',
+          parts: fresh.parts.map(cleanNarrationPart),
+          runId,
+          runStartedAt: now,
+          updatedAt: now,
+        });
+        transaction.set(narrationRunRef(runId), {
+          userId,
+          documentId,
+          ...(held.reservationId ? { reservationId: held.reservationId } : {}),
+          reservedStorageBytes: held.reservedStorageBytes,
+          creditCostPerUnit,
+          generatedCharCount: 0,
+          storedBytes: 0,
+          status: 'open',
+          startedAt: now,
+        });
+        return {
+          kind: 'started',
+          // Audio of parts the plan no longer has goes in the same write.
+          obsoleteDeletionId: queueNarrationAudioDeletion(
+            transaction,
+            userId,
+            documentId,
+            fresh.obsolete,
+          ),
+        };
+      },
+    );
   } catch (error) {
     // No run exists yet, so nothing else would give these back.
-    await releaseReservations();
+    await releaseHeldReservations(held);
     throw error;
   }
 
-  if (!outcome.started) {
-    await releaseReservations();
-    return { status: 'alreadyRunning', credits: 0 };
-  }
-  if (outcome.obsolete.length) {
-    await deleteNarrationPartAudio(userId, outcome.obsolete);
+  if (outcome.kind !== 'started') {
+    await releaseHeldReservations(held);
+    if (outcome.kind === 'priceChanged') {
+      throw new NarrationPriceChangedError(outcome.credits);
+    }
+    return { status: outcome.kind, credits: 0 };
   }
 
   const payload: INarrationRunTaskPayload = { userId, documentId, runId };
@@ -399,6 +498,8 @@ export async function startDocumentNarration(params: {
     });
     throw error;
   }
+  // After the run is queued, so a failed delete never keeps it from starting.
+  await processNarrationAudioDeletionSoon(outcome.obsoleteDeletionId);
 
   logger.info('Narration run started', {
     userId,
@@ -501,7 +602,12 @@ async function synthesizePartAudio(
       contentType: NARRATION_AUDIO_CONTENT_TYPE,
       metadata: { cacheControl: 'private, max-age=31536000, immutable' },
     });
-  return { durationMs: pcmDurationMs(pcm), sizeBytes: mp3.length };
+  // What the encoded file plays, padding included, so positions in the joined
+  // audio map to the right part.
+  return {
+    durationMs: mp3DurationMs(mp3) || pcmDurationMs(pcm),
+    sizeBytes: mp3.length,
+  };
 }
 
 function logPartFailure(
@@ -625,23 +731,40 @@ export async function runNarrationTask(
         recordId: documentId,
       });
       let owned = true;
+      // A worker that fails stops new parts from being taken, but the parts
+      // other workers are generating finish before the run is released.
+      let workerError: unknown = null;
       await runWithProviderCostContext(costContext, async () => {
         const worker = async () => {
           for (;;) {
-            if (!owned || Date.now() - startedAt > RUN_SOFT_DEADLINE_MS) return;
-            const part = queue.shift();
-            if (!part) return;
             if (
-              !(await updatePart(payload, part.key, { status: 'generating' }))
+              !owned ||
+              workerError !== null ||
+              Date.now() - startedAt > RUN_SOFT_DEADLINE_MS
             ) {
-              owned = false;
               return;
             }
-            if (!(await generatePart(payload, route, part))) owned = false;
+            const part = queue.shift();
+            if (!part) return;
+            try {
+              if (
+                !(await updatePart(payload, part.key, {
+                  status: 'generating',
+                }))
+              ) {
+                owned = false;
+                return;
+              }
+              if (!(await generatePart(payload, route, part))) owned = false;
+            } catch (error) {
+              workerError ??= error;
+              return;
+            }
           }
         };
         await Promise.all(Array.from({ length: PART_CONCURRENCY }, worker));
       });
+      if (workerError !== null) throw workerError;
     } else {
       logger.info('Narration run superseded before it started', payload);
     }
@@ -701,12 +824,12 @@ export async function sweepStaleNarrationRuns(): Promise<number> {
   let settled = 0;
   for (const runId of runIds) {
     try {
-      const snapshot = await narrationRunRef(runId).get();
-      const run = snapshot.exists ? parseNarrationRun(snapshot.data()) : null;
-      if (!run) continue;
+      // Re-checked in a transaction: a worker may have claimed it since it was listed.
+      const take = await takeStaleNarrationRun(runId);
+      if (take.kind !== 'taken') continue;
       await abandonNarrationRun({
-        userId: run.userId,
-        documentId: run.documentId,
+        userId: take.run.userId,
+        documentId: take.run.documentId,
         runId,
         errorMessage: 'Generation stopped; try again',
       });
@@ -726,5 +849,9 @@ export async function sweepStaleNarrationRuns(): Promise<number> {
     }
   }
   if (settled) logger.warn('Stale narration runs settled', { settled });
+  const deletions = await sweepNarrationAudioDeletions();
+  if (deletions) {
+    logger.warn('Pending narration audio deletions finished', { deletions });
+  }
   return settled;
 }

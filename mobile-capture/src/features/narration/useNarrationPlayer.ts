@@ -12,8 +12,11 @@ import {
 } from '../../lib/storage/narrationStorage';
 import { combinedNarrationUri } from './narrationAudioCache';
 import {
+  firstUnheardOffsetMs,
   hasNewPlayableParts,
+  isNarrationComplete,
   joinedDurationMs,
+  mapPositionMs,
   narrationTotalMs,
   partIndexAtPosition,
   playableParts,
@@ -46,7 +49,8 @@ const POSITION_SAVE_INTERVAL_MS = 10_000;
 const RECOVER_MIN_INTERVAL_MS = 5_000;
 /** A local file that has not loaded by then has failed; the player gives no error for it. */
 const LOAD_TIMEOUT_MS = 15_000;
-const LOAD_FAILED_MESSAGE = 'The narration could not be played. Tap play to try again.';
+const LOAD_FAILED_MESSAGE =
+  'The narration could not be played. Tap play to try again.';
 
 /**
  * Plays a narration (ADR 013) as one audio file: the ready parts joined in
@@ -86,6 +90,8 @@ export function useNarrationPlayer(params: {
   const sourceReadyRef = useRef(false);
   const lastRecoverRef = useRef(0);
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The player loops the file itself; only when the file has the whole narration. */
+  const nativeLoopRef = useRef(false);
 
   partsRef.current = parts;
   rateRef.current = rate;
@@ -105,6 +111,34 @@ export function useNarrationPlayer(params: {
     [documentId],
   );
 
+  const clearLoadTimer = useCallback(() => {
+    if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
+    loadTimerRef.current = null;
+  }, []);
+
+  /** Forgets everything about the loaded narration; the saved position is kept. */
+  const clearDocumentState = useCallback(() => {
+    loadTokenRef.current += 1;
+    clearLoadTimer();
+    playerRef.current?.pause();
+    includedRef.current = [];
+    positionRef.current = 0;
+    pendingSeekMsRef.current = null;
+    sourceReadyRef.current = false;
+    savedPositionRef.current = null;
+    setLoadedTotalMs(null);
+    setCurrentPartIndex(null);
+    setPositionMs(0);
+    setError(null);
+    setStatus('idle');
+  }, [clearLoadTimer]);
+
+  // A reader that shows another document starts from that document's own state.
+  // Declared before the saved-position load, so that load is not cleared.
+  useEffect(() => {
+    clearDocumentState();
+  }, [documentId, clearDocumentState]);
+
   useEffect(() => {
     savedPositionRef.current = null;
     if (!documentId) return;
@@ -117,9 +151,13 @@ export function useNarrationPlayer(params: {
     };
   }, [documentId]);
 
-  const clearLoadTimer = useCallback(() => {
-    if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
-    loadTimerRef.current = null;
+  /** Sets the player's own loop, which only a complete file may use. */
+  const applyLoop = useCallback((player: AudioPlayer) => {
+    const nativeLoop =
+      loopRef.current &&
+      isNarrationComplete(includedRef.current, partsRef.current);
+    nativeLoopRef.current = nativeLoop;
+    player.loop = nativeLoop;
   }, []);
 
   /** Loads the joined audio of `included` and plays it from `startMs`. */
@@ -138,7 +176,7 @@ export function useNarrationPlayer(params: {
         setLoadedTotalMs(joinedDurationMs(included));
         pendingSeekMsRef.current = startMs > 0 ? startMs : null;
         player.replace({ uri });
-        player.loop = loopRef.current;
+        applyLoop(player);
         player.setPlaybackRate(rateRef.current, 'high');
         player.play();
         // A source that fails before it loads sends no status that says so.
@@ -160,7 +198,7 @@ export function useNarrationPlayer(params: {
         setStatus('error');
       }
     },
-    [documentId, clearLoadTimer],
+    [documentId, clearLoadTimer, applyLoop],
   );
 
   const finishPlayback = useCallback(() => {
@@ -171,12 +209,22 @@ export function useNarrationPlayer(params: {
     ) {
       // More of the narration was generated while this played: carry on into it.
       extendingRef.current = true;
-      void loadJoined(
-        playableParts(partsRef.current),
-        joinedDurationMs(included),
-      ).finally(() => {
-        extendingRef.current = false;
-      });
+      const next = playableParts(partsRef.current);
+      void loadJoined(next, firstUnheardOffsetMs(included, next) ?? 0).finally(
+        () => {
+          extendingRef.current = false;
+        },
+      );
+      return;
+    }
+    if (loopRef.current) {
+      // Looping a narration that is still being prepared: start the file over.
+      positionRef.current = 0;
+      setPositionMs(0);
+      const player = playerRef.current;
+      if (player) {
+        void player.seekTo(0).then(() => player.play());
+      }
       return;
     }
     positionRef.current = 0;
@@ -221,7 +269,8 @@ export function useNarrationPlayer(params: {
       pendingSeekMsRef.current = null;
       void playerRef.current?.seekTo(seekMs / 1000);
     }
-    if (update.didJustFinish && !loopRef.current) {
+    // With the player's own loop on, the file simply starts over.
+    if (update.didJustFinish && !nativeLoopRef.current) {
       finishPlayback();
       return;
     }
@@ -273,16 +322,19 @@ export function useNarrationPlayer(params: {
       loaded &&
       !ended &&
       !failed &&
+      // A file that never finished loading (paused while it loaded) is loaded again.
+      sourceReadyRef.current &&
       !hasNewPlayableParts(includedRef.current, ready)
     ) {
       player.play();
       return;
     }
-    // Start over after the end; otherwise continue from where listening stopped.
+    // Start over after the end; otherwise continue from where listening
+    // stopped, at the same place in the new file even if parts were added before it.
     const resumeFrom = ended
       ? 0
       : loaded
-        ? positionRef.current
+        ? mapPositionMs(includedRef.current, ready, positionRef.current)
         : (savedPositionRef.current ?? 0);
     lastRecoverRef.current = Date.now();
     await loadJoined(
@@ -292,9 +344,15 @@ export function useNarrationPlayer(params: {
   }, [ensurePlayer, loadJoined, title]);
 
   const pause = useCallback(() => {
+    // A load still in progress must not start playing after the pause.
+    loadTokenRef.current += 1;
+    clearLoadTimer();
     playerRef.current?.pause();
+    if (statusRef.current === 'loading' && !sourceReadyRef.current) {
+      setStatus(includedRef.current.length ? 'paused' : 'idle');
+    }
     savePosition(true);
-  }, [savePosition]);
+  }, [savePosition, clearLoadTimer]);
 
   const skipBy = useCallback((deltaMs: number) => {
     const player = playerRef.current;
@@ -310,25 +368,19 @@ export function useNarrationPlayer(params: {
   }, []);
 
   const reset = useCallback(() => {
-    loadTokenRef.current += 1;
-    clearLoadTimer();
-    playerRef.current?.pause();
-    includedRef.current = [];
-    positionRef.current = 0;
-    savedPositionRef.current = null;
-    setLoadedTotalMs(null);
-    setCurrentPartIndex(null);
-    setPositionMs(0);
-    setStatus('idle');
-  }, [clearLoadTimer]);
+    clearDocumentState();
+    if (documentId) saveNarrationPosition(documentId, 0);
+  }, [clearDocumentState, documentId]);
 
   useEffect(() => {
     if (playerRef.current) playerRef.current.setPlaybackRate(rate, 'high');
   }, [rate]);
 
+  // Loop is the player's own once the file has every part; until then it is
+  // handled at the end of the file, where new parts are joined in.
   useEffect(() => {
-    if (playerRef.current) playerRef.current.loop = loop;
-  }, [loop]);
+    if (playerRef.current) applyLoop(playerRef.current);
+  }, [loop, parts, applyLoop]);
 
   // Leaving the reader stops playback and releases the player.
   useEffect(

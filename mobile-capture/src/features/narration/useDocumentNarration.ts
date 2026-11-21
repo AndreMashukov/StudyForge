@@ -25,6 +25,8 @@ export interface IDocumentNarration {
   /** The price could not be fetched; the learner can try again. */
   quoteFailed: boolean;
   retryQuote: () => void;
+  /** Runs the narratable check again after it failed. */
+  retryCheck: () => void;
   starting: boolean;
   removing: boolean;
   message: string | null;
@@ -52,21 +54,9 @@ export function useDocumentNarration(
   const [removing, setRemoving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const evaluatedRef = useRef<string | null>(null);
+  const [checkAttempt, setCheckAttempt] = useState(0);
 
   const narratability = document?.narratability;
-
-  // Documents judged before narration existed (or whose check failed) are judged on open.
-  useEffect(() => {
-    if (!documentId || !documentReady || !online || narratability) return;
-    if (evaluatedRef.current === documentId) return;
-    evaluatedRef.current = documentId;
-    setChecking(true);
-    setCheckFailed(false);
-    evaluateDocumentNarratability(documentId)
-      .then((result) => setCheckFailed(!result.narratability))
-      .catch(() => setCheckFailed(true))
-      .finally(() => setChecking(false));
-  }, [documentId, documentReady, online, narratability]);
 
   const narratable = narratability?.status === 'narratable';
   const generating = record?.status === 'generating';
@@ -93,6 +83,34 @@ export function useDocumentNarration(
       return (await quoteDocumentNarration(documentId)).quote;
     },
   });
+
+  // Judged on open: documents with no result (judged before narration
+  // existed, or whose check failed), and documents whose stored result no
+  // longer matches their content, which the price lookup reports as unjudged.
+  const stale = quoteQuery.data?.unavailableReason === 'unjudged';
+  const checkKey = `${documentId ?? ''}:${narratability?.contentHash ?? ''}`;
+  useEffect(() => {
+    if (!documentId || !documentReady || !online) return;
+    if (narratability && !stale) return;
+    if (evaluatedRef.current === checkKey) return;
+    evaluatedRef.current = checkKey;
+    setChecking(true);
+    setCheckFailed(false);
+    evaluateDocumentNarratability(documentId)
+      .then((result) =>
+        setCheckFailed(!result.narratability && !result.pending),
+      )
+      .catch(() => setCheckFailed(true))
+      .finally(() => setChecking(false));
+  }, [
+    documentId,
+    documentReady,
+    online,
+    narratability,
+    stale,
+    checkKey,
+    checkAttempt,
+  ]);
 
   // Keep the device cache to the parts the narration still has.
   useEffect(() => {
@@ -157,17 +175,18 @@ export function useDocumentNarration(
     }
   };
 
-  const check: IDocumentNarration['check'] = narratability
-    ? narratability.status === 'narratable'
-      ? 'narratable'
-      : narratability.reason === 'tooLong'
-        ? 'tooLong'
-        : 'notNarratable'
-    : checking
-      ? 'checking'
-      : checkFailed || !online
-        ? 'unknown'
-        : 'checking';
+  const check: IDocumentNarration['check'] =
+    narratability && !stale
+      ? narratability.status === 'narratable'
+        ? 'narratable'
+        : narratability.reason === 'tooLong'
+          ? 'tooLong'
+          : 'notNarratable'
+      : checking
+        ? 'checking'
+        : checkFailed || !online
+          ? 'unknown'
+          : 'checking';
 
   return {
     check,
@@ -177,6 +196,11 @@ export function useDocumentNarration(
     quoteFailed: quoteQuery.isError,
     retryQuote: () => {
       void quoteQuery.refetch();
+    },
+    retryCheck: () => {
+      evaluatedRef.current = null;
+      setCheckFailed(false);
+      setCheckAttempt((attempt) => attempt + 1);
     },
     starting,
     removing,

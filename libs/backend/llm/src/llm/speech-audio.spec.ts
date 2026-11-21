@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { decodeSpeechAudio, encodeMp3, pcmDurationMs } from './speech-audio';
+import {
+  decodeSpeechAudio,
+  encodeMp3,
+  mp3DurationMs,
+  pcmDurationMs,
+} from './speech-audio';
 
 function sine(sampleRate: number, seconds: number): Int16Array {
   const samples = new Int16Array(Math.round(sampleRate * seconds));
@@ -76,5 +81,47 @@ describe('encodeMp3', () => {
     const expectedBytes = (48_000 / 8) * 2;
     expect(mp3.length).toBeGreaterThan(expectedBytes * 0.8);
     expect(mp3.length).toBeLessThan(expectedBytes * 1.3);
+  });
+});
+
+function tone(seconds: number, sampleRate: number) {
+  return { samples: sine(sampleRate, seconds), sampleRate };
+}
+
+describe('mp3DurationMs', () => {
+  it('measures what a decoder plays: whole frames, a little over the PCM', () => {
+    const pcm = tone(2.5, 24_000);
+    const mp3 = encodeMp3(pcm, 48);
+    const encoded = mp3DurationMs(mp3);
+    expect(encoded).toBeGreaterThan(pcmDurationMs(pcm));
+    // Padding is at most a couple of frames (576 samples each at 24 kHz).
+    expect(encoded - pcmDurationMs(pcm)).toBeLessThan(150);
+    // A whole number of 24 ms frames.
+    expect((encoded * 24_000) / 1000 / 576).toBeCloseTo(
+      Math.round((encoded * 24_000) / 1000 / 576),
+      1,
+    );
+  });
+
+  it('adds up across joined parts, as the joined file plays', () => {
+    const first = encodeMp3(tone(1.3, 24_000), 48);
+    const second = encodeMp3(tone(0.7, 24_000), 48);
+    const joined = new Uint8Array(first.length + second.length);
+    joined.set(first, 0);
+    joined.set(second, first.length);
+    expect(mp3DurationMs(joined)).toBe(
+      mp3DurationMs(first) + mp3DurationMs(second),
+    );
+  });
+
+  it('reads MPEG-1 streams too', () => {
+    const pcm = tone(1, 44_100);
+    const encoded = mp3DurationMs(encodeMp3(pcm, 64));
+    expect(encoded).toBeGreaterThanOrEqual(1000);
+    expect(encoded).toBeLessThan(1150);
+  });
+
+  it('is zero for bytes that are not MP3', () => {
+    expect(mp3DurationMs(new Uint8Array([1, 2, 3, 4, 5]))).toBe(0);
   });
 });

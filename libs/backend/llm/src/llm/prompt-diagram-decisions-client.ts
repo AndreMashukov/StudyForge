@@ -114,8 +114,11 @@ export async function resolveDecisionsTarget(
 export async function postDecision(
   target: IDecisionsTarget,
   body: { state: string; questions: Record<string, unknown> },
+  /** Abort the request after this long; it then counts as not answered. */
+  timeoutMs?: number,
 ): Promise<Record<string, unknown>> {
   const response = await fetch(target.url, {
+    ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
     method: 'POST',
     headers: {
       Authorization: `Bearer ${target.apiKey}`,
