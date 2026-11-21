@@ -12,10 +12,20 @@ import type {
   GenerateFlashcardsRequest,
   GenerateFromScreenshotRequest,
   GenerateQuizRequest,
+  EvaluateDocumentNarratabilityResponse,
+  QuoteDocumentNarrationResponse,
+  RemoveDocumentNarrationResponse,
+  StartDocumentNarrationRequest,
+  StartDocumentNarrationResponse,
 } from '@shared-types';
 import {
   cancelAgentTurnResponseSchema,
+  evaluateDocumentNarratabilityResponseSchema,
+  NARRATION_PRICE_CHANGED_CODE,
+  quoteDocumentNarrationResponseSchema,
+  removeDocumentNarrationResponseSchema,
   startAgentTurnResponseSchema,
+  startDocumentNarrationResponseSchema,
 } from '@shared-types';
 import { functions, waitForAppCheckReady } from '../firebase';
 import { fetchDirectoryTreeFromFirestore } from './directoryTreeFirestore';
@@ -47,6 +57,34 @@ async function callFunction<TRequest, TResponse>(
   );
   const result = await callable(data);
   return parseCallableResponse(schema, result.data);
+}
+
+/**
+ * Like `callFunction`, for response schemas from `@shared-types`, which use a
+ * different Zod major version than this app.
+ */
+async function callSharedFunction<TResponse>(
+  functionName: string,
+  data: unknown,
+  schema: {
+    safeParse: (
+      value: unknown,
+    ) => { success: true; data: TResponse } | { success: false };
+  },
+  timeoutMs?: number,
+): Promise<TResponse> {
+  await waitForAppCheckReady();
+  const callable = httpsCallable(
+    functions,
+    functionName,
+    timeoutMs ? { timeout: timeoutMs } : undefined,
+  );
+  const result = await callable(data);
+  const parsed = schema.safeParse(result.data);
+  if (!parsed.success) {
+    throw new Error(`Invalid ${functionName} response`);
+  }
+  return parsed.data;
 }
 
 function isRecordWithMessage(
@@ -138,7 +176,7 @@ export async function evaluateScratchPadAnswer(
 export async function startAgentTurn(
   request: StartAgentTurnRequest,
 ): Promise<StartAgentTurnResponse> {
-  return callFunction(
+  return callSharedFunction(
     'startAgentTurn',
     request,
     startAgentTurnResponseSchema,
@@ -150,7 +188,7 @@ export async function startAgentTurn(
 export async function cancelAgentTurn(
   request: CancelAgentTurnRequest,
 ): Promise<CancelAgentTurnResponse> {
-  return callFunction(
+  return callSharedFunction(
     'cancelAgentTurn',
     request,
     cancelAgentTurnResponseSchema,
@@ -187,4 +225,63 @@ export function getCallableErrorMessage(error: unknown): string {
     return error.message;
   }
   return 'An unknown error occurred.';
+}
+
+// Document narration (ADR 013)
+
+export async function evaluateDocumentNarratability(
+  documentId: string,
+): Promise<EvaluateDocumentNarratabilityResponse> {
+  return callSharedFunction(
+    'evaluateDocumentNarratability',
+    { documentId },
+    evaluateDocumentNarratabilityResponseSchema,
+    60_000,
+  );
+}
+
+export async function quoteDocumentNarration(
+  documentId: string,
+): Promise<QuoteDocumentNarrationResponse> {
+  return callSharedFunction(
+    'quoteDocumentNarration',
+    { documentId },
+    quoteDocumentNarrationResponseSchema,
+    60_000,
+  );
+}
+
+export async function startDocumentNarration(
+  request: StartDocumentNarrationRequest,
+): Promise<StartDocumentNarrationResponse> {
+  return callSharedFunction(
+    'startDocumentNarration',
+    request,
+    startDocumentNarrationResponseSchema,
+    60_000,
+  );
+}
+
+export async function removeDocumentNarration(
+  documentId: string,
+): Promise<RemoveDocumentNarrationResponse> {
+  return callSharedFunction(
+    'removeDocumentNarration',
+    { documentId },
+    removeDocumentNarrationResponseSchema,
+    60_000,
+  );
+}
+
+/** True when the start was refused because the shown price no longer applies. */
+export function isNarrationPriceChangedError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('details' in error))
+    return false;
+  const details = error.details;
+  return (
+    typeof details === 'object' &&
+    details !== null &&
+    'code' in details &&
+    details.code === NARRATION_PRICE_CHANGED_CODE
+  );
 }

@@ -13,6 +13,7 @@ export interface GenerationRouteResolution {
   kind: GenerationKind;
   workflow: SetupGenerationRouteResolution['workflow'];
   modality: SetupGenerationRouteResolution['modality'];
+  voice?: string;
 }
 
 export interface LlmGenerationRouteOptions {

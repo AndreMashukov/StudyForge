@@ -3096,6 +3096,11 @@ expo-asset@~55.0.17:
     "@expo/image-utils" "^0.8.14"
     expo-constants "~55.0.16"
 
+expo-audio@~55.0.18:
+  version "55.0.18"
+  resolved "https://registry.yarnpkg.com/expo-audio/-/expo-audio-55.0.18.tgz#246c71656e67a97852d533995022180e22441afe"
+  integrity sha512-izDr80hhHXkfIZn0TXdCheUhWEVRV205a6j0gdhgJ9se36C9Yo+REyaqFrEI1La4p95vPXvaH7UkAx/EGRKNHQ==
+
 expo-camera@~55.0.18:
   version "55.0.20"
   resolved "https://registry.yarnpkg.com/expo-camera/-/expo-camera-55.0.20.tgz#c15ec173c321f5d08f2cb6d5db8ed8175eeca29e"
@@ -3161,6 +3166,11 @@ expo-file-system@~55.0.23:
   version "55.0.23"
   resolved "https://registry.yarnpkg.com/expo-file-system/-/expo-file-system-55.0.23.tgz#52fc512c0388e7b02c63629c7922128fd1f9f4d2"
   integrity sha512-XNV/NaPc7Tvd2JIsWkPW8s2vfJUI/Oe4UMX9TmOGpc6cn5BckDw/nn2Qre9lq4btT4FWHJw4SAOHmATShLC0og==
+
+expo-file-system@~55.0.26:
+  version "55.0.26"
+  resolved "https://registry.yarnpkg.com/expo-file-system/-/expo-file-system-55.0.26.tgz#8e24ba4963d3079a0fc8a30cb84f0d76fb5b2681"
+  integrity sha512-KBOQWqxumCxJBN29Lu13QpccwAhcjsgDYCJSVVjfGydaK/UbEkH/1rT/WZmdfoZ4G8mUJlfRbWfnJtfHUXxsdw==
 
 expo-font@~55.0.8:
   version "55.0.8"

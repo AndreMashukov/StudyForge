@@ -47,6 +47,8 @@ export * from './line-format-contract';
 export * from './agent';
 export * from './agent-turn';
 export * from './library-search';
+export * from './document-blocks';
+export * from './narration';
 export * from './match-quiz-grading';
 
 export type DocumentContentFormat = 'html' | 'markdown';
@@ -1882,7 +1884,8 @@ export {
 
 /**
  * Generation modalities every provider kind can serve.
- * `decision` is OpenRouter-only — see `getProviderSupportedModalities`.
+ * `decision` is OpenRouter-only and `speech` is Gemini-only — see
+ * `getProviderSupportedModalities`.
  */
 export const ALL_LLM_MODALITIES = [
   'text',
@@ -1891,20 +1894,33 @@ export const ALL_LLM_MODALITIES = [
   'embedding',
 ] as const;
 
-/** Modalities a provider kind can serve. Only OpenRouter exposes decision models. */
+/** Modality only one provider kind serves, keyed by that provider kind. */
+const PROVIDER_EXCLUSIVE_MODALITIES: Partial<
+  Record<LlmProviderKind, LlmModality>
+> = {
+  openrouter: 'decision',
+  gemini: 'speech',
+};
+
+/**
+ * Modalities a provider kind can serve. Only OpenRouter exposes decision
+ * models, and only Gemini exposes speech models.
+ */
 export function getProviderSupportedModalities(
   providerKind: LlmProviderKind,
 ): LlmModality[] {
-  return providerKind === 'openrouter'
-    ? [...ALL_LLM_MODALITIES, 'decision']
+  const exclusive = PROVIDER_EXCLUSIVE_MODALITIES[providerKind];
+  return exclusive
+    ? [...ALL_LLM_MODALITIES, exclusive]
     : [...ALL_LLM_MODALITIES];
 }
 
 /**
  * Normalizes a stored `supportedModalities` array for a provider connection.
  * Unknown or unsupported entries are dropped, an empty result falls back to the
- * provider defaults, and OpenRouter always includes `decision` so connections
- * saved before that modality existed keep resolving decision routes.
+ * provider defaults, and a provider's exclusive modality (`decision` on
+ * OpenRouter, `speech` on Gemini) is always included, so connections saved
+ * before that modality existed keep resolving its routes.
  */
 export function normalizeSupportedModalities(
   value: unknown,
@@ -1918,8 +1934,9 @@ export function normalizeSupportedModalities(
   if (stored.length === 0) {
     return allowed;
   }
-  if (providerKind === 'openrouter' && !stored.includes('decision')) {
-    return [...stored, 'decision'];
+  const exclusive = PROVIDER_EXCLUSIVE_MODALITIES[providerKind];
+  if (exclusive && !stored.includes(exclusive)) {
+    return [...stored, exclusive];
   }
   return stored;
 }
@@ -2150,6 +2167,8 @@ export type {
 export {
   ADMIN_CONFIGURABLE_GENERATION_KINDS,
   ALL_GENERATION_KINDS,
+  DEFAULT_DOCUMENT_NARRATION_MODEL,
+  DEFAULT_DOCUMENT_NARRATION_VOICE,
   DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
   GENERATION_KIND_ALIASES,
   GENERATION_KIND_METADATA,
@@ -2162,6 +2181,8 @@ export {
 } from './generation-kind-metadata';
 export {
   backfillMissingGenerationRoute,
+  DEFAULT_DOCUMENT_NARRATABLE_DECISION_ROUTE,
+  DEFAULT_DOCUMENT_NARRATION_ROUTE,
   DEFAULT_PROMPT_DIAGRAM_DECISION_ROUTE,
   type IGenerationRouteBackfill,
 } from './generation-routes-backfill';
@@ -2210,6 +2231,8 @@ export interface ILlmModalityRoute {
 export interface IGenerationRoute extends ILlmModalityRoute {
   modality: LlmModality;
   workflow: GenerationWorkflow;
+  /** Prebuilt voice name. Only `speech` routes (document narration) use it. */
+  voice?: string;
 }
 
 export type IGenerationRoutes = Record<GenerationKind, IGenerationRoute>;

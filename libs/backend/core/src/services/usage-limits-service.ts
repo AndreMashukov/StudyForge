@@ -595,22 +595,36 @@ export async function reserveUsageCredits(params: {
     },
   );
 
-  await appendUsageEvent({
-    userId: params.userId,
-    type: reservation.overageCredits > 0 ? 'overage_reserve' : 'reserve',
-    userGroupId: context.userGroupId,
-    usageLimitsSetupId: context.setup.id,
-    llmSetupId: context.llmSetupId,
-    generationKind,
-    credits: reservation.credits,
-    includedCredits: reservation.includedCredits,
-    overageCredits: reservation.overageCredits,
-    overageAmountCents: reservation.overageAmountCents,
-    periodKey: reservation.periodKey,
-    reservationId: reservation.id,
-  });
-
-  await syncUsageSummaryDocument(params.userId);
+  // The hold is committed. The event log and summary are secondary: if they
+  // fail, the caller must still get the reservation id, or it could never
+  // settle or refund the hold.
+  try {
+    await appendUsageEvent({
+      userId: params.userId,
+      type: reservation.overageCredits > 0 ? 'overage_reserve' : 'reserve',
+      userGroupId: context.userGroupId,
+      usageLimitsSetupId: context.setup.id,
+      llmSetupId: context.llmSetupId,
+      generationKind,
+      credits: reservation.credits,
+      includedCredits: reservation.includedCredits,
+      overageCredits: reservation.overageCredits,
+      overageAmountCents: reservation.overageAmountCents,
+      periodKey: reservation.periodKey,
+      reservationId: reservation.id,
+    });
+    await syncUsageSummaryDocument(params.userId);
+  } catch (error) {
+    functions.logger.error(
+      'Usage reservation bookkeeping failed after commit',
+      {
+        userId: params.userId,
+        reservationId: reservation.id,
+        generationKind,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    );
+  }
 
   return reservation;
 }

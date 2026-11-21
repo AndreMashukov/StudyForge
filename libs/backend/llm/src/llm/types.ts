@@ -27,7 +27,9 @@ export type LlmCapability =
   | 'directoryAgent'
   | 'agentExecutor'
   | 'agentKnowledgeEmbedding'
-  | 'promptDiagramDecision';
+  | 'promptDiagramDecision'
+  | 'documentNarratableDecision'
+  | 'documentNarration';
 
 export interface LlmTextConfig {
   model: string;

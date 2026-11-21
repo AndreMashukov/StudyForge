@@ -33,7 +33,7 @@ export interface ISlideDeckGenerationReservations {
   dailySlideDeckReservation: IDailySlideDeckReservation;
 }
 
-function toCallableUsageLimitError(error: UsageLimitError): HttpsError {
+export function toCallableUsageLimitError(error: UsageLimitError): HttpsError {
   return new HttpsError('resource-exhausted', error.message, {
     code: error.code,
     generationKind: error.details?.generationKind,

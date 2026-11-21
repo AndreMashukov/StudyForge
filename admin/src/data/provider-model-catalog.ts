@@ -13,15 +13,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function uniqueModalities(modalities: LlmModality[]): LlmModality[] {
-  return (['text', 'vision', 'image', 'embedding', 'decision'] as const).filter(
-    (modality) => modalities.includes(modality)
-  );
+  return (
+    ['text', 'vision', 'image', 'embedding', 'decision', 'speech'] as const
+  ).filter((modality) => modalities.includes(modality));
 }
 
 function buildModel(
   id: string,
   label: string,
-  modalities: LlmModality[]
+  modalities: LlmModality[],
 ): IProviderAvailableModel | null {
   const normalizedId = id.trim();
   if (!normalizedId) {
@@ -41,7 +41,9 @@ function buildModel(
   };
 }
 
-function dedupeModels(models: IProviderAvailableModel[]): IProviderAvailableModel[] {
+function dedupeModels(
+  models: IProviderAvailableModel[],
+): IProviderAvailableModel[] {
   const byId = new Map<string, IProviderAvailableModel>();
 
   for (const model of models) {
@@ -61,7 +63,9 @@ function dedupeModels(models: IProviderAvailableModel[]): IProviderAvailableMode
     });
   }
 
-  return Array.from(byId.values()).sort((a, b) => a.label.localeCompare(b.label));
+  return Array.from(byId.values()).sort((a, b) =>
+    a.label.localeCompare(b.label),
+  );
 }
 
 function includesAny(haystack: string, needles: string[]): boolean {
@@ -82,7 +86,9 @@ function normalizeGeminiModels(payload: unknown): IProviderAvailableModel[] {
     }
 
     const rawName = entry.name.trim();
-    const id = rawName.startsWith('models/') ? rawName.slice('models/'.length) : rawName;
+    const id = rawName.startsWith('models/')
+      ? rawName.slice('models/'.length)
+      : rawName;
     const label =
       typeof entry.displayName === 'string' && entry.displayName.trim()
         ? entry.displayName.trim()
@@ -90,7 +96,7 @@ function normalizeGeminiModels(payload: unknown): IProviderAvailableModel[] {
 
     const methods = Array.isArray(entry.supportedGenerationMethods)
       ? entry.supportedGenerationMethods.filter(
-          (method): method is string => typeof method === 'string'
+          (method): method is string => typeof method === 'string',
         )
       : [];
 
@@ -103,6 +109,15 @@ function normalizeGeminiModels(payload: unknown): IProviderAvailableModel[] {
     }
 
     const modalities: LlmModality[] = [];
+    // Gemini text-to-speech models (e.g. gemini-3.8-flash-tts) only speak.
+    if (/(^|[-/])tts([-.]|$)/.test(lowerId)) {
+      const speechModel = buildModel(id, label, ['speech']);
+      if (speechModel) {
+        models.push(speechModel);
+      }
+      continue;
+    }
+
     const isImageModel =
       includesAny(lowerId, ['imagen', 'image']) || methods.includes('predict');
 
@@ -176,7 +191,9 @@ function inferOpenRouterEmbeddingModalities(modelId: string): LlmModality[] {
   return [];
 }
 
-function normalizeOpenRouterModels(payload: unknown): IProviderAvailableModel[] {
+function normalizeOpenRouterModels(
+  payload: unknown,
+): IProviderAvailableModel[] {
   if (!isRecord(payload) || !Array.isArray(payload.data)) {
     return [];
   }
@@ -190,13 +207,14 @@ function normalizeOpenRouterModels(payload: unknown): IProviderAvailableModel[] 
 
     const id = entry.id.trim();
     const label =
-      typeof entry.name === 'string' && entry.name.trim() ? entry.name.trim() : id;
+      typeof entry.name === 'string' && entry.name.trim()
+        ? entry.name.trim()
+        : id;
     let modalities = parseOpenRouterModalities(entry.architecture);
 
     if (modalities.length === 0) {
       const inferredEmbedding = inferOpenRouterEmbeddingModalities(id);
-      modalities =
-        inferredEmbedding.length > 0 ? inferredEmbedding : ['text'];
+      modalities = inferredEmbedding.length > 0 ? inferredEmbedding : ['text'];
     }
 
     const model = buildModel(id, label, modalities);
@@ -222,7 +240,7 @@ function extractModelEntries(payload: unknown): unknown[] {
 
 function normalizeOpenAiStyleModels(
   payload: unknown,
-  providerKind: 'minimax' | 'together'
+  providerKind: 'minimax' | 'together',
 ): IProviderAvailableModel[] {
   const entries = extractModelEntries(payload);
   if (entries.length === 0) {
@@ -288,7 +306,13 @@ function normalizeOpenAiStyleModels(
     const isImage =
       type === 'image' ||
       type.includes('image') ||
-      includesAny(lowerId, ['flux', 'image', 'sdxl', 'stable-diffusion', 'imagen']);
+      includesAny(lowerId, [
+        'flux',
+        'image',
+        'sdxl',
+        'stable-diffusion',
+        'imagen',
+      ]);
 
     if (isImage) {
       modalities.push('image');
@@ -333,7 +357,7 @@ function normalizeOpenAiStyleModels(
 
 export function normalizeProviderModels(
   providerKind: LlmProviderKind,
-  payload: unknown
+  payload: unknown,
 ): IProviderAvailableModel[] {
   switch (providerKind) {
     case 'gemini':
@@ -351,7 +375,9 @@ export function normalizeProviderModels(
   }
 }
 
-export function parseAvailableModels(value: unknown): IProviderAvailableModel[] {
+export function parseAvailableModels(
+  value: unknown,
+): IProviderAvailableModel[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -370,7 +396,7 @@ export function parseAvailableModels(value: unknown): IProviderAvailableModel[] 
     const model = buildModel(
       entry.id,
       typeof entry.label === 'string' ? entry.label : entry.id,
-      modalities
+      modalities,
     );
     if (model) {
       models.push(model);
@@ -386,18 +412,18 @@ export function parseAvailableModels(value: unknown): IProviderAvailableModel[] 
  */
 export function carryOverDecisionModels(
   nextModels: IProviderAvailableModel[],
-  previousModels: IProviderAvailableModel[]
+  previousModels: IProviderAvailableModel[],
 ): IProviderAvailableModel[] {
   const knownIds = new Set(nextModels.map((model) => model.id));
   const carried = previousModels.filter(
     (model) =>
-      model.supportedModalities.includes('decision') && !knownIds.has(model.id)
+      model.supportedModalities.includes('decision') && !knownIds.has(model.id),
   );
   return [...nextModels, ...carried];
 }
 
 export function parseModelsSyncSource(
-  value: unknown
+  value: unknown,
 ): ProviderModelSyncSource | undefined {
   if (value === 'provider-test' || value === 'provider-save') {
     return value;
@@ -407,7 +433,7 @@ export function parseModelsSyncSource(
 
 export function filterModelsForModality(
   models: IProviderAvailableModel[],
-  modality: LlmModality
+  modality: LlmModality,
 ): IProviderAvailableModel[] {
   return models.filter((model) => model.supportedModalities.includes(modality));
 }
@@ -415,7 +441,7 @@ export function filterModelsForModality(
 export function isModelInCatalogForModality(
   models: IProviderAvailableModel[],
   modelId: string,
-  modality: LlmModality
+  modality: LlmModality,
 ): boolean {
   const normalized = modelId.trim();
   if (!normalized) {
@@ -423,7 +449,7 @@ export function isModelInCatalogForModality(
   }
 
   return filterModelsForModality(models, modality).some(
-    (model) => model.id === normalized
+    (model) => model.id === normalized,
   );
 }
 
@@ -432,17 +458,17 @@ export function assertModelInCatalog(
   modelId: string,
   modality: LlmModality,
   label: string,
-  connectionLabel: string
+  connectionLabel: string,
 ): void {
   if (models.length === 0) {
     throw new Error(
-      `${label}: ${connectionLabel} has no uploaded model catalog. Test or save the provider connection to sync models.`
+      `${label}: ${connectionLabel} has no uploaded model catalog. Test or save the provider connection to sync models.`,
     );
   }
 
   if (!isModelInCatalogForModality(models, modelId, modality)) {
     throw new Error(
-      `${label}: model "${modelId}" is not in the ${connectionLabel} catalog for ${modality}.`
+      `${label}: model "${modelId}" is not in the ${connectionLabel} catalog for ${modality}.`,
     );
   }
 }

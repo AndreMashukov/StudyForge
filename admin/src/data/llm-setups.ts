@@ -13,6 +13,8 @@ import type {
 import {
   ALL_GENERATION_KINDS,
   backfillMissingGenerationRoute,
+  DEFAULT_DOCUMENT_NARRATION_ROUTE,
+  DEFAULT_DOCUMENT_NARRATION_VOICE,
   DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
   GENERATION_KIND_METADATA,
   isGenerationKind,
@@ -68,11 +70,14 @@ function parseGenerationRoute(value: unknown): IGenerationRoute | null {
     return null;
   }
 
+  const voice = typeof value.voice === 'string' ? value.voice.trim() : '';
+
   return {
     connectionId,
     model,
     modality,
     workflow,
+    ...(voice ? { voice } : {}),
   };
 }
 
@@ -166,11 +171,27 @@ async function validateGenerationRoute(
     label,
   );
 
+  if (metadata.requiredModality !== 'speech') {
+    return {
+      connectionId,
+      model,
+      modality: metadata.requiredModality,
+      workflow: route.workflow,
+    };
+  }
+
+  const voice = route.voice?.trim() || DEFAULT_DOCUMENT_NARRATION_VOICE;
+  if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(voice)) {
+    throw new Error(
+      `${label}: voice must be a prebuilt voice name such as Kore.`,
+    );
+  }
   return {
     connectionId,
     model,
     modality: metadata.requiredModality,
     workflow: route.workflow,
+    voice,
   };
 }
 
@@ -248,6 +269,11 @@ export async function createDefaultGenerationRoutes(): Promise<IGenerationRoutes
       connectionId: PRIMARY_OPENROUTER_CONNECTION_ID,
       model: DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
     },
+    // Speech models are only served by Gemini (document narration).
+    speech: {
+      connectionId: DEFAULT_DOCUMENT_NARRATION_ROUTE.connectionId,
+      model: DEFAULT_DOCUMENT_NARRATION_ROUTE.model,
+    },
   };
 
   const generationRoutes = {} as IGenerationRoutes;
@@ -260,6 +286,9 @@ export async function createDefaultGenerationRoutes(): Promise<IGenerationRoutes
       model: source.model,
       modality: metadata.requiredModality,
       workflow: metadata.defaultWorkflow,
+      ...(metadata.requiredModality === 'speech'
+        ? { voice: DEFAULT_DOCUMENT_NARRATION_VOICE }
+        : {}),
     };
   }
 

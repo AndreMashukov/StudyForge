@@ -33,7 +33,10 @@ async function seedDocument(
   data: Record<string, unknown> = { title: 'Seed document' },
 ): Promise<void> {
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(doc(context.firestore(), `users/${userId}/documents/${documentId}`), data);
+    await setDoc(
+      doc(context.firestore(), `users/${userId}/documents/${documentId}`),
+      data,
+    );
   });
 }
 
@@ -65,21 +68,27 @@ describe('firestore.rules client write hardening', () => {
     it('allows owner get', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
       await assertSucceeds(
-        getDoc(doc(owner.firestore(), `users/${OWNER_UID}/documents/${documentId}`)),
+        getDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/documents/${documentId}`),
+        ),
       );
     });
 
     it('denies other-user get', async () => {
       const other = testEnv.authenticatedContext(OTHER_UID);
       await assertFails(
-        getDoc(doc(other.firestore(), `users/${OWNER_UID}/documents/${documentId}`)),
+        getDoc(
+          doc(other.firestore(), `users/${OWNER_UID}/documents/${documentId}`),
+        ),
       );
     });
 
     it('denies unauthenticated get', async () => {
       const anon = testEnv.unauthenticatedContext();
       await assertFails(
-        getDoc(doc(anon.firestore(), `users/${OWNER_UID}/documents/${documentId}`)),
+        getDoc(
+          doc(anon.firestore(), `users/${OWNER_UID}/documents/${documentId}`),
+        ),
       );
     });
 
@@ -94,7 +103,9 @@ describe('firestore.rules client write hardening', () => {
 
     it('denies owner list without limit', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
-      const docsQuery = query(collection(owner.firestore(), `users/${OWNER_UID}/documents`));
+      const docsQuery = query(
+        collection(owner.firestore(), `users/${OWNER_UID}/documents`),
+      );
       await assertFails(getDocs(docsQuery));
     });
 
@@ -109,33 +120,78 @@ describe('firestore.rules client write hardening', () => {
 
     it('denies client create but allows owner update and delete', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
-      const docRef = doc(owner.firestore(), `users/${OWNER_UID}/documents/new-doc`);
+      const docRef = doc(
+        owner.firestore(),
+        `users/${OWNER_UID}/documents/new-doc`,
+      );
 
       await assertFails(setDoc(docRef, { title: 'blocked create' }));
       await assertSucceeds(
-        updateDoc(doc(owner.firestore(), `users/${OWNER_UID}/documents/${documentId}`), {
-          title: 'Updated title',
-        }),
+        updateDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/documents/${documentId}`),
+          {
+            title: 'Updated title',
+          },
+        ),
       );
       await assertSucceeds(
-        deleteDoc(doc(owner.firestore(), `users/${OWNER_UID}/documents/${documentId}`)),
+        deleteDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/documents/${documentId}`),
+        ),
       );
     });
 
     it('denies client updates to generationStatus', async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
-        await setDoc(doc(context.firestore(), `users/${OWNER_UID}/documents/doc-gen`), {
-          title: 'Generated doc',
-          generationStatus: 'completed',
-        });
+        await setDoc(
+          doc(context.firestore(), `users/${OWNER_UID}/documents/doc-gen`),
+          {
+            title: 'Generated doc',
+            generationStatus: 'completed',
+          },
+        );
       });
 
       const owner = testEnv.authenticatedContext(OWNER_UID);
       await assertFails(
-        updateDoc(doc(owner.firestore(), `users/${OWNER_UID}/documents/doc-gen`), {
-          generationStatus: 'failed',
+        updateDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/documents/doc-gen`),
+          {
+            generationStatus: 'failed',
+          },
+        ),
+      );
+    });
+
+    it('denies client writes to the narratable check result but keeps other edits', async () => {
+      const narratability = {
+        status: 'narratable',
+        spokenCharCount: 1200,
+        contentHash: 'hash-1',
+        schemaVersion: 1,
+        checkedAt: '2026-11-21T00:00:00.000Z',
+      };
+      await seedDocument(OWNER_UID, 'doc-narrated', {
+        title: 'Narrated',
+        narratability,
+      });
+
+      const owner = testEnv.authenticatedContext(OWNER_UID, {
+        email_verified: true,
+      });
+      const docRef = doc(
+        owner.firestore(),
+        `users/${OWNER_UID}/documents/doc-narrated`,
+      );
+      await assertFails(
+        updateDoc(docRef, {
+          narratability: { ...narratability, status: 'notNarratable' },
         }),
       );
+      await assertFails(
+        updateDoc(docRef, { 'narratability.contentHash': 'forged' }),
+      );
+      await assertSucceeds(updateDoc(docRef, { title: 'Renamed' }));
     });
 
     it('denies owner access to unknown nested subcollections', async () => {
@@ -175,10 +231,13 @@ describe('firestore.rules client write hardening', () => {
 
     beforeEach(async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
-        await setDoc(doc(context.firestore(), `users/${OWNER_UID}/rules/${ruleId}`), {
-          name: 'Seed rule',
-          content: 'Always explain concepts clearly.',
-        });
+        await setDoc(
+          doc(context.firestore(), `users/${OWNER_UID}/rules/${ruleId}`),
+          {
+            name: 'Seed rule',
+            content: 'Always explain concepts clearly.',
+          },
+        );
       });
     });
 
@@ -200,9 +259,12 @@ describe('firestore.rules client write hardening', () => {
         }),
       );
       await assertSucceeds(
-        updateDoc(doc(owner.firestore(), `users/${OWNER_UID}/rules/${ruleId}`), {
-          name: 'Updated rule',
-        }),
+        updateDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/rules/${ruleId}`),
+          {
+            name: 'Updated rule',
+          },
+        ),
       );
       await assertSucceeds(
         deleteDoc(doc(owner.firestore(), `users/${OWNER_UID}/rules/${ruleId}`)),
@@ -215,9 +277,12 @@ describe('firestore.rules client write hardening', () => {
 
     beforeEach(async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
-        await setDoc(doc(context.firestore(), `users/${OWNER_UID}/quizzes/${quizId}`), {
-          title: 'Seed quiz',
-        });
+        await setDoc(
+          doc(context.firestore(), `users/${OWNER_UID}/quizzes/${quizId}`),
+          {
+            title: 'Seed quiz',
+          },
+        );
       });
     });
 
@@ -247,23 +312,31 @@ describe('firestore.rules client write hardening', () => {
         }),
       );
       await assertSucceeds(
-        deleteDoc(doc(owner.firestore(), `users/${OWNER_UID}/quizzes/${quizId}`)),
+        deleteDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/quizzes/${quizId}`),
+        ),
       );
     });
 
     it('denies client updates to generationStatus', async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
-        await setDoc(doc(context.firestore(), `users/${OWNER_UID}/quizzes/quiz-gen`), {
-          title: 'Generated quiz',
-          generationStatus: 'completed',
-        });
+        await setDoc(
+          doc(context.firestore(), `users/${OWNER_UID}/quizzes/quiz-gen`),
+          {
+            title: 'Generated quiz',
+            generationStatus: 'completed',
+          },
+        );
       });
 
       const owner = testEnv.authenticatedContext(OWNER_UID);
       await assertFails(
-        updateDoc(doc(owner.firestore(), `users/${OWNER_UID}/quizzes/quiz-gen`), {
-          generationStatus: 'failed',
-        }),
+        updateDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/quizzes/quiz-gen`),
+          {
+            generationStatus: 'failed',
+          },
+        ),
       );
     });
   });
@@ -272,48 +345,124 @@ describe('firestore.rules client write hardening', () => {
     beforeEach(async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         const firestore = context.firestore();
-        await setDoc(doc(firestore, `users/${OWNER_UID}/generationJobs/job-1`), {
-          status: 'completed',
-        });
-        await setDoc(doc(firestore, `users/${OWNER_UID}/interactionStats/stat-1`), {
-          totalSeconds: 120,
-        });
-        await setDoc(doc(firestore, `users/${OWNER_UID}/learningEvents/event-1`), {
-          type: 'quiz_answer',
-        });
+        await setDoc(
+          doc(firestore, `users/${OWNER_UID}/generationJobs/job-1`),
+          {
+            status: 'completed',
+          },
+        );
+        await setDoc(
+          doc(firestore, `users/${OWNER_UID}/interactionStats/stat-1`),
+          {
+            totalSeconds: 120,
+          },
+        );
+        await setDoc(
+          doc(firestore, `users/${OWNER_UID}/learningEvents/event-1`),
+          {
+            type: 'quiz_answer',
+          },
+        );
       });
     });
 
     it('denies owner read, list, and write on generationJobs', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
       await assertFails(
-        getDoc(doc(owner.firestore(), `users/${OWNER_UID}/generationJobs/job-1`)),
-      );
-      await assertFails(
-        getDocs(
-          query(collection(owner.firestore(), `users/${OWNER_UID}/generationJobs`), limit(1)),
+        getDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/generationJobs/job-1`),
         ),
       );
       await assertFails(
-        setDoc(doc(owner.firestore(), `users/${OWNER_UID}/generationJobs/new-job`), {
-          status: 'pending',
-        }),
+        getDocs(
+          query(
+            collection(owner.firestore(), `users/${OWNER_UID}/generationJobs`),
+            limit(1),
+          ),
+        ),
+      );
+      await assertFails(
+        setDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/generationJobs/new-job`),
+          {
+            status: 'pending',
+          },
+        ),
       );
     });
 
     it('allows owner read and create on interactionStats and learningEvents', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
       await assertSucceeds(
-        getDoc(doc(owner.firestore(), `users/${OWNER_UID}/interactionStats/stat-1`)),
+        getDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/interactionStats/stat-1`),
+        ),
       );
       await assertSucceeds(
-        getDoc(doc(owner.firestore(), `users/${OWNER_UID}/learningEvents/event-1`)),
+        getDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/learningEvents/event-1`),
+        ),
       );
       await assertSucceeds(
-        setDoc(doc(owner.firestore(), `users/${OWNER_UID}/learningEvents/event-2`), {
-          type: 'quiz_answer',
+        setDoc(
+          doc(owner.firestore(), `users/${OWNER_UID}/learningEvents/event-2`),
+          {
+            type: 'quiz_answer',
+          },
+        ),
+      );
+    });
+  });
+
+  describe('document narrations', () => {
+    const narrationPath = `users/${OWNER_UID}/narrations/doc-1`;
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), narrationPath), {
+          documentId: 'doc-1',
+          status: 'ready',
+          parts: [],
+        });
+      });
+    });
+
+    it('allows the owner to read one narration', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID, {
+        email_verified: true,
+      });
+      await assertSucceeds(getDoc(doc(owner.firestore(), narrationPath)));
+    });
+
+    it('denies listing and client writes', async () => {
+      const owner = testEnv.authenticatedContext(OWNER_UID, {
+        email_verified: true,
+      });
+      await assertFails(
+        getDocs(
+          query(
+            collection(owner.firestore(), `users/${OWNER_UID}/narrations`),
+            limit(10),
+          ),
+        ),
+      );
+      await assertFails(
+        setDoc(doc(owner.firestore(), narrationPath), {
+          status: 'ready',
+          parts: [],
         }),
       );
+      await assertFails(
+        updateDoc(doc(owner.firestore(), narrationPath), { status: 'failed' }),
+      );
+      await assertFails(deleteDoc(doc(owner.firestore(), narrationPath)));
+    });
+
+    it('denies another user', async () => {
+      const other = testEnv.authenticatedContext(OTHER_UID, {
+        email_verified: true,
+      });
+      await assertFails(getDoc(doc(other.firestore(), narrationPath)));
     });
   });
 
@@ -333,7 +482,9 @@ describe('firestore.rules client write hardening', () => {
     });
 
     it('allows owner get and bounded list', async () => {
-      const owner = testEnv.authenticatedContext(OWNER_UID, { email_verified: true });
+      const owner = testEnv.authenticatedContext(OWNER_UID, {
+        email_verified: true,
+      });
       await assertSucceeds(getDoc(doc(owner.firestore(), recordPath)));
       await assertSucceeds(
         getDocs(query(collection(owner.firestore(), recordsPath), limit(100))),
@@ -341,7 +492,9 @@ describe('firestore.rules client write hardening', () => {
     });
 
     it('denies unbounded and oversized list', async () => {
-      const owner = testEnv.authenticatedContext(OWNER_UID, { email_verified: true });
+      const owner = testEnv.authenticatedContext(OWNER_UID, {
+        email_verified: true,
+      });
       await assertFails(getDocs(collection(owner.firestore(), recordsPath)));
       await assertFails(
         getDocs(query(collection(owner.firestore(), recordsPath), limit(101))),
@@ -349,7 +502,9 @@ describe('firestore.rules client write hardening', () => {
     });
 
     it('denies client writes', async () => {
-      const owner = testEnv.authenticatedContext(OWNER_UID, { email_verified: true });
+      const owner = testEnv.authenticatedContext(OWNER_UID, {
+        email_verified: true,
+      });
       await assertFails(
         setDoc(doc(owner.firestore(), recordPath), { title: 'Changed' }),
       );
@@ -357,7 +512,9 @@ describe('firestore.rules client write hardening', () => {
     });
 
     it('denies another user', async () => {
-      const other = testEnv.authenticatedContext(OTHER_UID, { email_verified: true });
+      const other = testEnv.authenticatedContext(OTHER_UID, {
+        email_verified: true,
+      });
       await assertFails(getDoc(doc(other.firestore(), recordPath)));
       await assertFails(
         getDocs(query(collection(other.firestore(), recordsPath), limit(10))),
@@ -373,24 +530,39 @@ describe('firestore.rules client write hardening', () => {
     beforeEach(async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         const firestore = context.firestore();
-        await setDoc(doc(firestore, `users/${OWNER_UID}/directories/${directoryId}`), {
-          name: 'Study folder',
-          level: 0,
+        await setDoc(
+          doc(firestore, `users/${OWNER_UID}/directories/${directoryId}`),
+          {
+            name: 'Study folder',
+            level: 0,
+          },
+        );
+        await setDoc(doc(firestore, threadPath), {
+          summary: 'Previous chat summary',
         });
-        await setDoc(doc(firestore, threadPath), { summary: 'Previous chat summary' });
-        await setDoc(doc(firestore, messagePath), { role: 'user', content: 'Hello' });
+        await setDoc(doc(firestore, messagePath), {
+          role: 'user',
+          content: 'Hello',
+        });
       });
     });
 
     it('denies owner reads and writes on threads and messages', async () => {
-      const owner = testEnv.authenticatedContext(OWNER_UID, { email_verified: true });
+      const owner = testEnv.authenticatedContext(OWNER_UID, {
+        email_verified: true,
+      });
       const firestore = owner.firestore();
 
       await assertFails(getDoc(doc(firestore, threadPath)));
-      await assertFails(updateDoc(doc(firestore, threadPath), { selectedSourceIds: ['doc-1'] }));
+      await assertFails(
+        updateDoc(doc(firestore, threadPath), { selectedSourceIds: ['doc-1'] }),
+      );
       await assertFails(
         setDoc(
-          doc(firestore, `users/${OWNER_UID}/directories/${directoryId}/chat/new-thread`),
+          doc(
+            firestore,
+            `users/${OWNER_UID}/directories/${directoryId}/chat/new-thread`,
+          ),
           { selectedDocumentIds: ['doc-1'] },
         ),
       );
@@ -398,7 +570,9 @@ describe('firestore.rules client write hardening', () => {
 
       await assertFails(getDoc(doc(firestore, messagePath)));
       await assertFails(
-        getDocs(query(collection(firestore, `${threadPath}/messages`), limit(10))),
+        getDocs(
+          query(collection(firestore, `${threadPath}/messages`), limit(10)),
+        ),
       );
       await assertFails(
         setDoc(doc(firestore, `${threadPath}/messages/new-msg`), {
@@ -434,7 +608,10 @@ describe('firestore.rules client write hardening', () => {
           reply: 'Partial',
         });
         await setDoc(
-          doc(firestore, `users/${OWNER_UID}/agentCheckpoints/${threadId}:${turnId}`),
+          doc(
+            firestore,
+            `users/${OWNER_UID}/agentCheckpoints/${threadId}:${turnId}`,
+          ),
           { turnKey: `${threadId}:${turnId}` },
         );
       });
@@ -452,7 +629,9 @@ describe('firestore.rules client write hardening', () => {
     it('denies listing turns and every client write', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID, verified);
       await assertFails(
-        getDocs(query(collection(owner.firestore(), `${threadPath}/turns`), limit(5))),
+        getDocs(
+          query(collection(owner.firestore(), `${threadPath}/turns`), limit(5)),
+        ),
       );
       await assertFails(
         updateDoc(doc(owner.firestore(), turnPath), { cancelRequested: true }),
@@ -462,12 +641,17 @@ describe('firestore.rules client write hardening', () => {
           status: 'queued',
         }),
       );
-      await assertFails(updateDoc(doc(owner.firestore(), threadPath), { activeTurnId: null }));
       await assertFails(
-        setDoc(doc(owner.firestore(), `${threadPath}/messages/assistant-${turnId}`), {
-          role: 'assistant',
-          content: 'forged',
-        }),
+        updateDoc(doc(owner.firestore(), threadPath), { activeTurnId: null }),
+      );
+      await assertFails(
+        setDoc(
+          doc(owner.firestore(), `${threadPath}/messages/assistant-${turnId}`),
+          {
+            role: 'assistant',
+            content: 'forged',
+          },
+        ),
       );
     });
 
@@ -481,7 +665,10 @@ describe('firestore.rules client write hardening', () => {
       const owner = testEnv.authenticatedContext(OWNER_UID, verified);
       await assertFails(
         getDoc(
-          doc(owner.firestore(), `users/${OWNER_UID}/agentCheckpoints/${threadId}:${turnId}`),
+          doc(
+            owner.firestore(),
+            `users/${OWNER_UID}/agentCheckpoints/${threadId}:${turnId}`,
+          ),
         ),
       );
     });
@@ -578,7 +765,10 @@ describe('firestore.rules client write hardening', () => {
           type: 'FollowUpAsk',
           userId: OWNER_UID,
           write_id: 'w-follow-1',
-          payload: { askCommandId: 'ask-for-follow', query: 'What about plans?' },
+          payload: {
+            askCommandId: 'ask-for-follow',
+            query: 'What about plans?',
+          },
         }),
       );
     });
@@ -623,7 +813,10 @@ describe('firestore.rules client write hardening', () => {
       await assertSucceeds(
         getDocs(
           query(
-            collection(owner.firestore(), 'supportAskResults/ask-read/messages'),
+            collection(
+              owner.firestore(),
+              'supportAskResults/ask-read/messages',
+            ),
             limit(10),
           ),
         ),
@@ -677,12 +870,15 @@ describe('firestore.rules client write hardening', () => {
     it('denies CreateTicket with askCommandId', async () => {
       const owner = testEnv.authenticatedContext(OWNER_UID);
       await assertSucceeds(
-        setDoc(doc(owner.firestore(), 'supportCommands/ask-for-escalate-deny'), {
-          type: 'AskHowItWorks',
-          userId: OWNER_UID,
-          write_id: 'w-ask-esc',
-          payload: { query: 'Credits?' },
-        }),
+        setDoc(
+          doc(owner.firestore(), 'supportCommands/ask-for-escalate-deny'),
+          {
+            type: 'AskHowItWorks',
+            userId: OWNER_UID,
+            write_id: 'w-ask-esc',
+            payload: { query: 'Credits?' },
+          },
+        ),
       );
       await assertFails(
         setDoc(doc(owner.firestore(), 'supportCommands/escalate-deny'), {

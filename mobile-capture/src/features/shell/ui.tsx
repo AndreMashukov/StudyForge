@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -201,6 +202,9 @@ export function Sheet({ visible, title, onClose, children }: ISheet) {
  * need padding applied in JS.
  */
 export function KeyboardAwareView({ children }: { children: ReactNode }) {
+  if (Platform.OS === 'android') {
+    return <AndroidKeyboardPadding>{children}</AndroidKeyboardPadding>;
+  }
   return (
     <KeyboardAvoidingView
       behavior="padding"
@@ -208,6 +212,47 @@ export function KeyboardAwareView({ children }: { children: ReactNode }) {
     >
       {children}
     </KeyboardAvoidingView>
+  );
+}
+
+/**
+ * Android: pads the bottom by the keyboard height while it is open, and by
+ * nothing when it closes. React Native's KeyboardAvoidingView works the padding
+ * out from the position the keyboard event reports; edge-to-edge reports a
+ * wrong one on hide, so a screen that mounted while the keyboard was closing
+ * (Home right after signing in) kept about 200px of phantom padding under the
+ * composer.
+ */
+function AndroidKeyboardPadding({ children }: { children: ReactNode }) {
+  const [keyboardHeight, setKeyboardHeight] = useState(() =>
+    Keyboard.isVisible() ? (Keyboard.metrics()?.height ?? 0) : 0,
+  );
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (event) =>
+      setKeyboardHeight(event.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener('keyboardDidHide', () =>
+      setKeyboardHeight(0),
+    );
+    // An event between the first render and subscribing would be missed.
+    setKeyboardHeight(
+      Keyboard.isVisible() ? (Keyboard.metrics()?.height ?? 0) : 0,
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: mobileUiColors.background,
+        paddingBottom: keyboardHeight,
+      }}
+    >
+      {children}
+    </View>
   );
 }
 
