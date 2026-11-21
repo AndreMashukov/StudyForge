@@ -22,6 +22,9 @@ export interface IDocumentNarration {
   record: NarrationRecord | null | undefined;
   quote: NarrationQuote | undefined;
   quoteLoading: boolean;
+  /** The price could not be fetched; the learner can try again. */
+  quoteFailed: boolean;
+  retryQuote: () => void;
   starting: boolean;
   removing: boolean;
   message: string | null;
@@ -171,6 +174,10 @@ export function useDocumentNarration(
     record,
     quote: quoteQuery.data,
     quoteLoading: quoteQuery.isLoading,
+    quoteFailed: quoteQuery.isError,
+    retryQuote: () => {
+      void quoteQuery.refetch();
+    },
     starting,
     removing,
     message,

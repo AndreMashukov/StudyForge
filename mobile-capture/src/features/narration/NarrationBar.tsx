@@ -249,6 +249,21 @@ export function NarrationBar({ narration, player, online }: INarrationBar) {
           Checking narration…
         </Text>
       ) : null}
+      {!hasAudio && !generating && !canGenerate && narration.quoteFailed ? (
+        <View>
+          <Text variant="caption" tone="muted">
+            Narration is not available right now.
+          </Text>
+          <Button
+            label="Try again"
+            variant="secondary"
+            size="sm"
+            className="mt-2"
+            disabled={!online}
+            onPress={narration.retryQuote}
+          />
+        </View>
+      ) : null}
       {narration.message ? (
         <Text variant="caption" tone="destructive" className="mt-2">
           {narration.message}
