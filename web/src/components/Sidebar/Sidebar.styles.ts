@@ -18,6 +18,10 @@ export const sidebarStyles = {
   accountMenu: 'z-[1300] w-56 border-border/60',
   tooltip: 'z-[1300]',
   mobileOverlay: 'z-[1199] bg-black/50',
+  // The shared container sets duration-300 with the default transition-property
+  // (all), so z-index would animate and the sidebar would stay bright while the
+  // modal backdrop fades in. Switch it instantly.
+  belowModal: 'transition-none',
   mobileContent:
     'fixed bottom-0 left-0 top-12 z-[1200] w-[280px] max-w-[85vw] outline-none',
   mobileSidebar: 'relative left-auto top-auto h-full w-full max-w-full',
