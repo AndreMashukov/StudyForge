@@ -5,6 +5,7 @@ import {
   normalizeGenerationErrorMessage,
 } from '../../utils/llmRoutingErrors';
 import { showToast } from '../slices/uiSlice';
+import { isGenerationStartDeadlineExceeded } from '../api/utils/generationStartEndpoints';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -53,10 +54,20 @@ export const errorToastMiddleware: Middleware = (api) => (next) => (action) => {
         data?: { message?: string; code?: string; details?: { code?: string } };
       };
 
+      const endpointName = getRejectedEndpointName(action);
+
       if (
-        getRejectedEndpointName(action) === 'getAgentThread' &&
+        endpointName === 'getAgentThread' &&
         isExpectedAgentThreadNotFound(payload)
       ) {
+        return next(action);
+      }
+
+      // The job keeps running server-side; its outcome shows on the pending record.
+      if (isGenerationStartDeadlineExceeded(endpointName, payload?.status)) {
+        console.info(
+          `Generation start timed out client-side (${endpointName}); suppressing deadline-exceeded toast`,
+        );
         return next(action);
       }
 
