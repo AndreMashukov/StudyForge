@@ -203,11 +203,6 @@ export function NarrationBar({ narration, player, online }: INarrationBar) {
               onPress={() => setRemoveOpen(true)}
             />
           </View>
-          {player.status === 'waiting' ? (
-            <Text variant="caption" tone="muted" className="mt-2">
-              Waiting for the next part to be narrated…
-            </Text>
-          ) : null}
           {player.error ? (
             <Text variant="caption" tone="destructive" className="mt-2">
               {player.error}

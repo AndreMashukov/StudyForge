@@ -1,9 +1,10 @@
 import { NARRATION_CHARS_PER_SECOND, type NarrationPart } from '@shared-types';
 
 /**
- * One timeline over all narration parts, so the player can show a single
- * progress bar and skip across parts. Parts without audio yet use an estimate
- * from their length.
+ * The narration plays as ONE audio file: the ready parts joined in order. That
+ * is what keeps it playing with the app in the background or the phone locked,
+ * because nothing has to switch audio at a part boundary. These helpers map a
+ * position in that joined audio back to the part being read.
  */
 
 export function partDurationMs(part: NarrationPart): number {
@@ -16,111 +17,46 @@ export function isPartPlayable(part: NarrationPart): boolean {
   return part.status === 'ready' && Boolean(part.storagePath);
 }
 
-/** Parts the learner will hear or wait for; failed parts are skipped. */
-function timelineParts(parts: NarrationPart[]): NarrationPart[] {
-  return [...parts]
-    .sort((a, b) => a.index - b.index)
-    .filter((part) => part.status !== 'failed');
+/** The parts that go into the joined audio: ready ones, in document order. */
+export function playableParts(parts: NarrationPart[]): NarrationPart[] {
+  return parts.filter(isPartPlayable).sort((a, b) => a.index - b.index);
 }
 
-export function narrationTotalMs(parts: NarrationPart[]): number {
-  return timelineParts(parts).reduce(
-    (sum, part) => sum + partDurationMs(part),
-    0,
-  );
+/** Length of the joined audio of these parts. */
+export function joinedDurationMs(included: NarrationPart[]): number {
+  return included.reduce((sum, part) => sum + partDurationMs(part), 0);
 }
-
-/** Position on the whole timeline of a point inside one part. */
-export function timelinePositionMs(
-  parts: NarrationPart[],
-  partIndex: number,
-  offsetMs: number,
-): number {
-  let total = 0;
-  for (const part of timelineParts(parts)) {
-    if (part.index === partIndex) return total + Math.max(0, offsetMs);
-    total += partDurationMs(part);
-  }
-  return total;
-}
-
-export interface ITimelinePoint {
-  partIndex: number;
-  offsetMs: number;
-}
-
-/** The part and offset at a timeline position, clamped to the narration. */
-export function locateTimelinePosition(
-  parts: NarrationPart[],
-  positionMs: number,
-): ITimelinePoint | null {
-  const ordered = timelineParts(parts);
-  if (!ordered.length) return null;
-  let remaining = Math.max(0, positionMs);
-  for (const part of ordered) {
-    const duration = partDurationMs(part);
-    if (remaining < duration)
-      return { partIndex: part.index, offsetMs: remaining };
-    remaining -= duration;
-  }
-  const last = ordered[ordered.length - 1];
-  return { partIndex: last.index, offsetMs: partDurationMs(last) };
-}
-
-export type NextPartStep =
-  /** Play this part. `skippedFailed` asks for the skip chime first. */
-  | { kind: 'play'; partIndex: number; skippedFailed: boolean }
-  /** The next part is still being generated. */
-  | { kind: 'wait'; partIndex: number; skippedFailed: boolean }
-  | { kind: 'end' };
 
 /**
- * What follows a part: the next part in order, skipping failed ones. At the
- * end, a looping narration starts over from its first part.
+ * Length shown before the audio is loaded: every part that is or will be
+ * narrated (failed parts are skipped), with an estimate for those not ready.
  */
-export function nextPartStep(
-  parts: NarrationPart[],
-  afterIndex: number,
-  loop: boolean,
-): NextPartStep {
-  const ordered = [...parts].sort((a, b) => a.index - b.index);
-  const scan = (
-    candidates: NarrationPart[],
-    skippedBefore: boolean,
-  ): NextPartStep | null => {
-    let skippedFailed = skippedBefore;
-    for (const part of candidates) {
-      if (part.status === 'failed') {
-        skippedFailed = true;
-        continue;
-      }
-      return isPartPlayable(part)
-        ? { kind: 'play', partIndex: part.index, skippedFailed }
-        : { kind: 'wait', partIndex: part.index, skippedFailed };
-    }
-    return null;
-  };
-
-  const after = ordered.filter((part) => part.index > afterIndex);
-  const forward = scan(after, false);
-  if (forward) return forward;
-  if (!loop) return { kind: 'end' };
-  const skippedAtEnd = after.some((part) => part.status === 'failed');
-  return scan(ordered, skippedAtEnd) ?? { kind: 'end' };
+export function narrationTotalMs(parts: NarrationPart[]): number {
+  return parts
+    .filter((part) => part.status !== 'failed')
+    .reduce((sum, part) => sum + partDurationMs(part), 0);
 }
 
-/** The first part to play when listening starts. */
-export function firstPartStep(parts: NarrationPart[]): NextPartStep {
-  return nextPartStep(parts, -1, false);
+/** True when the parts that are ready now differ from those in a loaded file. */
+export function hasNewPlayableParts(
+  included: NarrationPart[],
+  parts: NarrationPart[],
+): boolean {
+  const known = new Set(included.map((part) => part.key));
+  return playableParts(parts).some((part) => !known.has(part.key));
 }
 
-/** The narration part reading a block, for following along in the reader. */
-export function partIndexForBlock(
-  parts: NarrationPart[],
-  blockIndex: number,
+/** The part being read at a position in the joined audio, or null when empty. */
+export function partIndexAtPosition(
+  included: NarrationPart[],
+  positionMs: number,
 ): number | null {
-  const part = parts.find(
-    (entry) => blockIndex >= entry.blockStart && blockIndex <= entry.blockEnd,
-  );
-  return part ? part.index : null;
+  if (!included.length) return null;
+  let remaining = Math.max(0, positionMs);
+  for (const part of included) {
+    const duration = partDurationMs(part);
+    if (remaining < duration) return part.index;
+    remaining -= duration;
+  }
+  return included[included.length - 1].index;
 }

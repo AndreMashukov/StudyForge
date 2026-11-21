@@ -9,21 +9,14 @@ import type { NarrationPart, NarrationPlaybackRate } from '@shared-types';
 import {
   loadNarrationPosition,
   saveNarrationPosition,
-  type INarrationPosition,
 } from '../../lib/storage/narrationStorage';
+import { combinedNarrationUri } from './narrationAudioCache';
 import {
-  cachedNarrationPartUri,
-  narrationChimeUri,
-} from './narrationAudioCache';
-import {
-  firstPartStep,
-  isPartPlayable,
-  locateTimelinePosition,
+  hasNewPlayableParts,
+  joinedDurationMs,
   narrationTotalMs,
-  nextPartStep,
-  partDurationMs,
-  timelinePositionMs,
-  type NextPartStep,
+  partIndexAtPosition,
+  playableParts,
 } from './narrationTimeline';
 
 export type NarrationPlayerStatus =
@@ -31,7 +24,6 @@ export type NarrationPlayerStatus =
   | 'loading'
   | 'playing'
   | 'paused'
-  | 'waiting'
   | 'ended'
   | 'error';
 
@@ -50,11 +42,15 @@ export interface INarrationPlayer {
 }
 
 const POSITION_SAVE_INTERVAL_MS = 10_000;
+/** After a playback failure the player reloads itself, but not more often than this. */
+const RECOVER_MIN_INTERVAL_MS = 5_000;
 
 /**
- * Plays a narration's parts as one recording (ADR 013). Lives as long as the
- * reader screen: leaving the reader stops playback. Keeps playing with the
- * phone locked and shows lock-screen controls.
+ * Plays a narration (ADR 013) as one audio file: the ready parts joined in
+ * order. With one source there is no part boundary for the app to handle, so
+ * it keeps playing with the app in the background or the phone locked, and
+ * loop is the player's own. Lives as long as the reader screen: leaving the
+ * reader stops playback. Shows lock-screen controls.
  */
 export function useNarrationPlayer(params: {
   documentId: string | undefined;
@@ -67,36 +63,40 @@ export function useNarrationPlayer(params: {
   const [status, setStatus] = useState<NarrationPlayerStatus>('idle');
   const [currentPartIndex, setCurrentPartIndex] = useState<number | null>(null);
   const [positionMs, setPositionMs] = useState(0);
+  const [loadedTotalMs, setLoadedTotalMs] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const playerRef = useRef<AudioPlayer | null>(null);
   const partsRef = useRef(parts);
   const rateRef = useRef(rate);
   const loopRef = useRef(loop);
-  const currentRef = useRef<number | null>(null);
-  const modeRef = useRef<'part' | 'chime'>('part');
-  const afterChimeRef = useRef<number | null>(null);
-  const waitingForRef = useRef<number | null>(null);
+  const statusRef = useRef(status);
+  /** The parts joined into the file that is loaded now. */
+  const includedRef = useRef<NarrationPart[]>([]);
+  const positionRef = useRef(0);
   const pendingSeekMsRef = useRef<number | null>(null);
   const loadTokenRef = useRef(0);
-  const savedPositionRef = useRef<INarrationPosition | null>(null);
+  const savedPositionRef = useRef<number | null>(null);
   const lastSaveRef = useRef(0);
-  const offsetRef = useRef(0);
+  const extendingRef = useRef(false);
+  /** The loaded source has reached a playable state; a later idle means it failed. */
+  const sourceReadyRef = useRef(false);
+  const lastRecoverRef = useRef(0);
 
   partsRef.current = parts;
+  rateRef.current = rate;
   loopRef.current = loop;
+  statusRef.current = status;
 
   const savePosition = useCallback(
     (force = false) => {
-      const partIndex = currentRef.current;
-      if (!documentId || partIndex === null) return;
+      if (!documentId || !includedRef.current.length) return;
       const now = Date.now();
       if (!force && now - lastSaveRef.current < POSITION_SAVE_INTERVAL_MS)
         return;
       lastSaveRef.current = now;
-      const position = { partIndex, offsetMs: offsetRef.current };
-      savedPositionRef.current = position;
-      saveNarrationPosition(documentId, position);
+      savedPositionRef.current = positionRef.current;
+      saveNarrationPosition(documentId, positionRef.current);
     },
     [documentId],
   );
@@ -113,23 +113,22 @@ export function useNarrationPlayer(params: {
     };
   }, [documentId]);
 
-  const loadPart = useCallback(
-    async (partIndex: number, offsetMs: number) => {
+  /** Loads the joined audio of `included` and plays it from `startMs`. */
+  const loadJoined = useCallback(
+    async (included: NarrationPart[], startMs: number) => {
       const player = playerRef.current;
-      const part = partsRef.current.find((entry) => entry.index === partIndex);
-      if (!player || !documentId || !part || !isPartPlayable(part)) return;
+      if (!player || !documentId) return;
       const token = ++loadTokenRef.current;
-      modeRef.current = 'part';
-      waitingForRef.current = null;
-      currentRef.current = partIndex;
-      offsetRef.current = offsetMs;
-      setCurrentPartIndex(partIndex);
+      sourceReadyRef.current = false;
       setStatus('loading');
       try {
-        const uri = await cachedNarrationPartUri(documentId, part);
+        const uri = await combinedNarrationUri(documentId, included);
         if (token !== loadTokenRef.current) return;
-        pendingSeekMsRef.current = offsetMs > 0 ? offsetMs : null;
+        includedRef.current = included;
+        setLoadedTotalMs(joinedDurationMs(included));
+        pendingSeekMsRef.current = startMs > 0 ? startMs : null;
         player.replace({ uri });
+        player.loop = loopRef.current;
         player.setPlaybackRate(rateRef.current, 'high');
         player.play();
       } catch (loadError) {
@@ -145,97 +144,84 @@ export function useNarrationPlayer(params: {
     [documentId],
   );
 
-  const playChimeThen = useCallback((partIndex: number) => {
-    const player = playerRef.current;
-    if (!player) return;
-    loadTokenRef.current += 1;
-    modeRef.current = 'chime';
-    afterChimeRef.current = partIndex;
-    player.replace({ uri: narrationChimeUri() });
-    player.setPlaybackRate(1);
-    player.play();
-  }, []);
+  const finishPlayback = useCallback(() => {
+    const included = includedRef.current;
+    if (
+      !extendingRef.current &&
+      hasNewPlayableParts(included, partsRef.current)
+    ) {
+      // More of the narration was generated while this played: carry on into it.
+      extendingRef.current = true;
+      void loadJoined(
+        playableParts(partsRef.current),
+        joinedDurationMs(included),
+      ).finally(() => {
+        extendingRef.current = false;
+      });
+      return;
+    }
+    positionRef.current = 0;
+    setPositionMs(0);
+    setCurrentPartIndex(null);
+    setStatus('ended');
+    if (documentId) {
+      savedPositionRef.current = null;
+      saveNarrationPosition(documentId, 0);
+    }
+  }, [documentId, loadJoined]);
 
-  const followStep = useCallback(
-    (step: NextPartStep) => {
-      if (step.kind === 'end') {
-        currentRef.current = null;
-        offsetRef.current = 0;
-        setCurrentPartIndex(null);
-        setPositionMs(0);
-        setStatus('ended');
-        if (documentId) {
-          savedPositionRef.current = null;
-          saveNarrationPosition(documentId, { partIndex: 0, offsetMs: 0 });
-        }
-        return;
-      }
-      if (step.kind === 'wait') {
-        waitingForRef.current = step.partIndex;
-        currentRef.current = step.partIndex;
-        offsetRef.current = 0;
-        setCurrentPartIndex(step.partIndex);
-        setStatus('waiting');
-        return;
-      }
-      if (step.skippedFailed) {
-        playChimeThen(step.partIndex);
-        return;
-      }
-      void loadPart(step.partIndex, 0);
-    },
-    [documentId, loadPart, playChimeThen],
-  );
+  /**
+   * The audio player gives no error to JavaScript. A source that had loaded and
+   * then drops back to idle has failed (for example the decoder gave up), so
+   * reload the audio where it stopped instead of leaving a dead player.
+   */
+  const recoverFromFailure = useCallback(() => {
+    const now = Date.now();
+    if (now - lastRecoverRef.current < RECOVER_MIN_INTERVAL_MS) {
+      setError('Playback stopped. Tap play to try again.');
+      setStatus('error');
+      return;
+    }
+    lastRecoverRef.current = now;
+    void loadJoined(playableParts(partsRef.current), positionRef.current);
+  }, [loadJoined]);
 
-  const handleStatus = useCallback(
-    (update: AudioStatus) => {
-      const player = playerRef.current;
-      if (!player) return;
-      if (modeRef.current === 'chime') {
-        if (update.didJustFinish && afterChimeRef.current !== null) {
-          const next = afterChimeRef.current;
-          afterChimeRef.current = null;
-          void loadPart(next, 0);
-        }
-        return;
-      }
-      const partIndex = currentRef.current;
-      if (partIndex === null) return;
-      if (update.isLoaded && pendingSeekMsRef.current !== null) {
-        const seekMs = pendingSeekMsRef.current;
-        pendingSeekMsRef.current = null;
-        void player.seekTo(seekMs / 1000);
-      }
-      offsetRef.current = update.currentTime * 1000;
-      setPositionMs(
-        timelinePositionMs(partsRef.current, partIndex, offsetRef.current),
+  const handleStatus = (update: AudioStatus) => {
+    if (!includedRef.current.length) return;
+    if (update.playbackState === 'idle' && sourceReadyRef.current) {
+      sourceReadyRef.current = false;
+      recoverFromFailure();
+      return;
+    }
+    if (update.isLoaded) sourceReadyRef.current = true;
+    if (update.isLoaded && pendingSeekMsRef.current !== null) {
+      const seekMs = pendingSeekMsRef.current;
+      pendingSeekMsRef.current = null;
+      void playerRef.current?.seekTo(seekMs / 1000);
+    }
+    if (update.didJustFinish && !loopRef.current) {
+      finishPlayback();
+      return;
+    }
+    positionRef.current = update.currentTime * 1000;
+    setPositionMs(positionRef.current);
+    setCurrentPartIndex(
+      partIndexAtPosition(includedRef.current, positionRef.current),
+    );
+    if (update.isLoaded) {
+      setStatus(
+        update.playing ? 'playing' : update.isBuffering ? 'loading' : 'paused',
       );
-      if (update.didJustFinish) {
-        savePosition(true);
-        followStep(nextPartStep(partsRef.current, partIndex, loopRef.current));
-        return;
-      }
-      if (update.isLoaded) {
-        setStatus(
-          update.playing
-            ? 'playing'
-            : update.isBuffering
-              ? 'loading'
-              : 'paused',
-        );
-        if (update.playing) savePosition();
-      }
-    },
-    [followStep, loadPart, savePosition],
-  );
-
+      if (update.playing) savePosition();
+    }
+  };
+  // Through a ref, so the player's listener always sees the latest closure.
   const handleStatusRef = useRef(handleStatus);
   handleStatusRef.current = handleStatus;
 
   const ensurePlayer = useCallback((): AudioPlayer => {
     if (playerRef.current) return playerRef.current;
     const player = createAudioPlayer(null, { updateInterval: 500 });
-    // Through a ref, so the listener always sees the latest parts and settings.
     player.addListener('playbackStatusUpdate', (update) =>
       handleStatusRef.current(update),
     );
@@ -248,92 +234,78 @@ export function useNarrationPlayer(params: {
     return player;
   }, []);
 
-  const play = useCallback(() => {
+  const play = useCallback(async () => {
     const player = ensurePlayer();
     setError(null);
     player.setActiveForLockScreen(true, {
       title,
       artist: 'StudyForge narration',
     });
-    if (status === 'paused' && currentRef.current !== null) {
+    const ready = playableParts(partsRef.current);
+    if (!ready.length) return;
+
+    const loaded = includedRef.current.length > 0;
+    const ended = statusRef.current === 'ended';
+    const failed = statusRef.current === 'error';
+    if (
+      loaded &&
+      !ended &&
+      !failed &&
+      !hasNewPlayableParts(includedRef.current, ready)
+    ) {
       player.play();
       return;
     }
-    const saved = savedPositionRef.current;
-    const savedPart = saved
-      ? partsRef.current.find((part) => part.index === saved.partIndex)
-      : undefined;
-    if (
-      saved &&
-      savedPart &&
-      isPartPlayable(savedPart) &&
-      saved.offsetMs < partDurationMs(savedPart)
-    ) {
-      void loadPart(saved.partIndex, saved.offsetMs);
-      return;
-    }
-    followStep(firstPartStep(partsRef.current));
-  }, [ensurePlayer, followStep, loadPart, status, title]);
+    // Start over after the end; otherwise continue from where listening stopped.
+    const resumeFrom = ended
+      ? 0
+      : loaded
+        ? positionRef.current
+        : (savedPositionRef.current ?? 0);
+    lastRecoverRef.current = Date.now();
+    await loadJoined(
+      ready,
+      resumeFrom < joinedDurationMs(ready) ? resumeFrom : 0,
+    );
+  }, [ensurePlayer, loadJoined, title]);
 
   const pause = useCallback(() => {
     playerRef.current?.pause();
     savePosition(true);
   }, [savePosition]);
 
-  const skipBy = useCallback(
-    (deltaMs: number) => {
-      const partIndex = currentRef.current;
-      const player = playerRef.current;
-      if (partIndex === null || !player) return;
-      const target = locateTimelinePosition(
-        partsRef.current,
-        timelinePositionMs(partsRef.current, partIndex, offsetRef.current) +
-          deltaMs,
-      );
-      if (!target) return;
-      const part = partsRef.current.find(
-        (entry) => entry.index === target.partIndex,
-      );
-      if (!part || !isPartPlayable(part)) return;
-      if (target.partIndex === partIndex) {
-        offsetRef.current = target.offsetMs;
-        void player.seekTo(target.offsetMs / 1000);
-      } else {
-        void loadPart(target.partIndex, target.offsetMs);
-      }
-    },
-    [loadPart],
-  );
+  const skipBy = useCallback((deltaMs: number) => {
+    const player = playerRef.current;
+    if (!player || !includedRef.current.length) return;
+    const total = joinedDurationMs(includedRef.current);
+    const target = Math.min(
+      Math.max(0, positionRef.current + deltaMs),
+      Math.max(0, total - 500),
+    );
+    positionRef.current = target;
+    setPositionMs(target);
+    void player.seekTo(target / 1000);
+  }, []);
 
   const reset = useCallback(() => {
     loadTokenRef.current += 1;
     playerRef.current?.pause();
-    currentRef.current = null;
-    waitingForRef.current = null;
+    includedRef.current = [];
+    positionRef.current = 0;
     savedPositionRef.current = null;
+    setLoadedTotalMs(null);
     setCurrentPartIndex(null);
     setPositionMs(0);
     setStatus('idle');
   }, []);
 
-  // A part the player was waiting for has become ready (or failed).
   useEffect(() => {
-    const waitingFor = waitingForRef.current;
-    if (waitingFor === null) return;
-    const part = parts.find((entry) => entry.index === waitingFor);
-    if (!part) return;
-    if (isPartPlayable(part)) {
-      void loadPart(waitingFor, 0);
-    } else if (part.status === 'failed') {
-      followStep(nextPartStep(parts, waitingFor, loopRef.current));
-    }
-  }, [parts, loadPart, followStep]);
+    if (playerRef.current) playerRef.current.setPlaybackRate(rate, 'high');
+  }, [rate]);
 
   useEffect(() => {
-    rateRef.current = rate;
-    if (modeRef.current === 'part')
-      playerRef.current?.setPlaybackRate(rate, 'high');
-  }, [rate]);
+    if (playerRef.current) playerRef.current.loop = loop;
+  }, [loop]);
 
   // Leaving the reader stops playback and releases the player.
   useEffect(
@@ -354,9 +326,12 @@ export function useNarrationPlayer(params: {
     status,
     currentPartIndex,
     positionMs,
-    totalMs: narrationTotalMs(parts),
+    totalMs:
+      loadedTotalMs !== null && status !== 'idle'
+        ? loadedTotalMs
+        : narrationTotalMs(parts),
     error,
-    play,
+    play: () => void play(),
     pause,
     skipBy,
     reset,
