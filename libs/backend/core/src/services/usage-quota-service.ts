@@ -34,6 +34,11 @@ export interface IUserUsageLimitsContext {
   setup: IUsageLimitsSetup;
 }
 
+/** The per-user stored-bytes counter, for callers that adjust it inside their own transaction. */
+export function storageUsageDocRef(userId: string) {
+  return storageUsageRef(userId);
+}
+
 function storageUsageRef(userId: string) {
   return getFirestore()
     .collection(USERS_COLLECTION)
@@ -61,7 +66,9 @@ function dailySlideDeckReservationRef(userId: string, reservationId: string) {
 export async function getUserStorageUsedBytes(userId: string): Promise<number> {
   const snapshot = await storageUsageRef(userId).get();
   const usedBytes = snapshot.data()?.usedBytes;
-  return typeof usedBytes === 'number' && Number.isFinite(usedBytes) ? Math.max(0, usedBytes) : 0;
+  return typeof usedBytes === 'number' && Number.isFinite(usedBytes)
+    ? Math.max(0, usedBytes)
+    : 0;
 }
 
 export async function buildStorageUsageSummary(
@@ -118,7 +125,9 @@ export async function reserveUserStorageBytes(
     return;
   }
 
-  const { resolveUserUsageLimitsContext } = await import('./usage-limits-service');
+  const { resolveUserUsageLimitsContext } = await import(
+    './usage-limits-service'
+  );
   const context = await resolveUserUsageLimitsContext(userId);
   await reserveStorageBytesForContext(context, requestedBytes);
 }
@@ -135,7 +144,9 @@ async function reserveStorageBytesForContext(
     const ref = storageUsageRef(context.userId);
     const snapshot = await transaction.get(ref);
     const usedBytes =
-      typeof snapshot.data()?.usedBytes === 'number' ? snapshot.data()?.usedBytes : 0;
+      typeof snapshot.data()?.usedBytes === 'number'
+        ? snapshot.data()?.usedBytes
+        : 0;
     const decision = evaluateStorageQuotaDecision({
       limitBytes: context.setup.storageLimitBytes,
       usedBytes,
@@ -171,7 +182,9 @@ export async function settleUserStorageReservation(params: {
       ? params.reservedBytes
       : 0;
   const actual =
-    Number.isFinite(params.actualBytes) && params.actualBytes > 0 ? params.actualBytes : 0;
+    Number.isFinite(params.actualBytes) && params.actualBytes > 0
+      ? params.actualBytes
+      : 0;
   const deltaBytes = actual - reserved;
   if (deltaBytes === 0) {
     return;
@@ -206,7 +219,9 @@ export async function adjustUserStorageUsage(params: {
     const ref = storageUsageRef(params.userId);
     const snapshot = await transaction.get(ref);
     const currentUsed =
-      typeof snapshot.data()?.usedBytes === 'number' ? snapshot.data()?.usedBytes : 0;
+      typeof snapshot.data()?.usedBytes === 'number'
+        ? snapshot.data()?.usedBytes
+        : 0;
     const nextUsed = Math.max(0, currentUsed + params.deltaBytes);
 
     transaction.set(
@@ -225,56 +240,61 @@ export async function reserveDailySlideDeckSlot(
 ): Promise<IDailySlideDeckReservation> {
   const dayKey = buildUsageDayKey();
   const reservationId = getFirestore().collection(USERS_COLLECTION).doc().id;
-  const reservationRef = dailySlideDeckReservationRef(context.userId, reservationId);
+  const reservationRef = dailySlideDeckReservationRef(
+    context.userId,
+    reservationId,
+  );
   const dayRef = dailyUsageRef(context.userId, dayKey);
 
-  const reservation = await getFirestore().runTransaction(async (transaction) => {
-    const daySnapshot = await transaction.get(dayRef);
-    const state = readDailySlideDeckState(daySnapshot.data() ?? {});
-    const decision = evaluateDailySlideDeckQuotaDecision({
-      limit: context.setup.dailySlideDeckLimit,
-      dayKey,
-      state,
-    });
-
-    if (decision.allowed === false) {
-      throw new UsageLimitError(decision.message, decision.code, {
-        resetAt: decision.resetAt,
-        dailySlideDecksUsed: decision.used,
-        dailySlideDeckLimit: decision.limit,
-        dailySlideDecksRemaining: decision.remaining,
-      });
-    }
-
-    const now = new Date().toISOString();
-    transaction.set(
-      dayRef,
-      {
+  const reservation = await getFirestore().runTransaction(
+    async (transaction) => {
+      const daySnapshot = await transaction.get(dayRef);
+      const state = readDailySlideDeckState(daySnapshot.data() ?? {});
+      const decision = evaluateDailySlideDeckQuotaDecision({
+        limit: context.setup.dailySlideDeckLimit,
         dayKey,
-        reservedSlideDecks: state.reservedSlideDecks + 1,
-        completedSlideDecks: state.completedSlideDecks,
-        refundedSlideDecks: state.refundedSlideDecks,
-        updatedAt: now,
-      },
-      { merge: true },
-    );
+        state,
+      });
 
-    transaction.set(reservationRef, {
-      id: reservationId,
-      userId: context.userId,
-      dayKey,
-      status: 'pending',
-      createdAt: now,
-    });
+      if (decision.allowed === false) {
+        throw new UsageLimitError(decision.message, decision.code, {
+          resetAt: decision.resetAt,
+          dailySlideDecksUsed: decision.used,
+          dailySlideDeckLimit: decision.limit,
+          dailySlideDecksRemaining: decision.remaining,
+        });
+      }
 
-    return {
-      id: reservationId,
-      userId: context.userId,
-      dayKey,
-      status: 'pending' as const,
-      createdAt: now,
-    };
-  });
+      const now = new Date().toISOString();
+      transaction.set(
+        dayRef,
+        {
+          dayKey,
+          reservedSlideDecks: state.reservedSlideDecks + 1,
+          completedSlideDecks: state.completedSlideDecks,
+          refundedSlideDecks: state.refundedSlideDecks,
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+
+      transaction.set(reservationRef, {
+        id: reservationId,
+        userId: context.userId,
+        dayKey,
+        status: 'pending',
+        createdAt: now,
+      });
+
+      return {
+        id: reservationId,
+        userId: context.userId,
+        dayKey,
+        status: 'pending' as const,
+        createdAt: now,
+      };
+    },
+  );
 
   return reservation;
 }
@@ -284,12 +304,18 @@ async function settleDailySlideDeckReservation(params: {
   reservationId: string;
   nextStatus: 'committed' | 'refunded';
 }): Promise<void> {
-  const reservationRef = dailySlideDeckReservationRef(params.userId, params.reservationId);
+  const reservationRef = dailySlideDeckReservationRef(
+    params.userId,
+    params.reservationId,
+  );
 
   await getFirestore().runTransaction(async (transaction) => {
     const reservationSnapshot = await transaction.get(reservationRef);
     if (!reservationSnapshot.exists) {
-      throw new UsageLimitError('Daily slide deck reservation not found.', 'RESERVATION_NOT_FOUND');
+      throw new UsageLimitError(
+        'Daily slide deck reservation not found.',
+        'RESERVATION_NOT_FOUND',
+      );
     }
 
     const reservationData = reservationSnapshot.data() ?? {};
@@ -299,10 +325,16 @@ async function settleDailySlideDeckReservation(params: {
     }
 
     if (status !== 'pending') {
-      throw new UsageLimitError('Daily slide deck reservation is invalid.', 'RESERVATION_NOT_FOUND');
+      throw new UsageLimitError(
+        'Daily slide deck reservation is invalid.',
+        'RESERVATION_NOT_FOUND',
+      );
     }
 
-    const dayKey = typeof reservationData.dayKey === 'string' ? reservationData.dayKey : buildUsageDayKey();
+    const dayKey =
+      typeof reservationData.dayKey === 'string'
+        ? reservationData.dayKey
+        : buildUsageDayKey();
     const dayRef = dailyUsageRef(params.userId, dayKey);
     const daySnapshot = await transaction.get(dayRef);
     const state = readDailySlideDeckState(daySnapshot.data() ?? {});
@@ -393,7 +425,10 @@ export async function refundDailySlideDeckReservationSafe(
   }
 }
 
-export async function setUserStorageUsedBytes(userId: string, usedBytes: number): Promise<void> {
+export async function setUserStorageUsedBytes(
+  userId: string,
+  usedBytes: number,
+): Promise<void> {
   await storageUsageRef(userId).set(
     {
       usedBytes: Math.max(0, usedBytes),
@@ -403,7 +438,10 @@ export async function setUserStorageUsedBytes(userId: string, usedBytes: number)
   );
 }
 
-export async function incrementBlockedCount(userId: string, dayKey: string): Promise<void> {
+export async function incrementBlockedCount(
+  userId: string,
+  dayKey: string,
+): Promise<void> {
   await dailyUsageRef(userId, dayKey).set(
     {
       blockedCount: FieldValue.increment(1),

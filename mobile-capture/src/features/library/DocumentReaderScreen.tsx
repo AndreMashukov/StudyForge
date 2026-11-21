@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -44,6 +44,12 @@ import { TextSizeSheet } from './TextSizeSheet';
 import { placeScratchPads } from './scratchPadPlacement';
 import { useDocumentArtifacts } from './documentArtifacts';
 import { getWebOrigin, itemIcon, itemKindLabel } from './itemNavigation';
+import { NarrationBar } from '../narration/NarrationBar';
+import { useDocumentNarration } from '../narration/useDocumentNarration';
+import { useNarrationPlayer } from '../narration/useNarrationPlayer';
+
+/** After the learner scrolls by hand, the reader stops following the narration for this long. */
+const FOLLOW_PAUSE_AFTER_SCROLL_MS = 8_000;
 
 type GenerateKind = 'quiz' | 'flashcards';
 
@@ -88,6 +94,43 @@ export function DocumentReaderScreen() {
       return fetchDocumentContent(user.uid, document);
     },
   });
+  const narration = useDocumentNarration(
+    user?.uid,
+    document,
+    ready && Boolean(contentQuery.data),
+    online,
+  );
+  const narrationRate = usePreferencesStore((state) => state.narrationRate);
+  const narrationLoop = usePreferencesStore((state) => state.narrationLoop);
+  const narrationParts = useMemo(
+    () => narration.record?.parts ?? [],
+    [narration.record],
+  );
+  const player = useNarrationPlayer({
+    documentId,
+    title: document?.title ?? '',
+    parts: narrationParts,
+    rate: narrationRate,
+    loop: narrationLoop,
+  });
+  const activePart = narrationParts.find(
+    (part) => part.index === player.currentPartIndex,
+  );
+  const scrollRef = useRef<ScrollView>(null);
+  const blockOffsets = useRef(new Map<number, number>());
+  const lastManualScroll = useRef(0);
+
+  useEffect(() => {
+    if (!activePart || player.status === 'idle' || player.status === 'ended')
+      return;
+    if (Date.now() - lastManualScroll.current < FOLLOW_PAUSE_AFTER_SCROLL_MS)
+      return;
+    const y = blockOffsets.current.get(activePart.blockStart);
+    if (y !== undefined) {
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - 96), animated: true });
+    }
+  }, [activePart?.index, activePart?.blockStart, player.status]);
+
   const entries = useMemo(
     () =>
       placeScratchPads(
@@ -170,13 +213,24 @@ export function DocumentReaderScreen() {
           }
         />
         <ScrollView
+          ref={scrollRef}
           className="flex-1"
           contentContainerStyle={{ paddingVertical: 12, paddingBottom: 32 }}
+          onScrollBeginDrag={() => {
+            lastManualScroll.current = Date.now();
+          }}
         >
           {document ? (
             <Heading level={1} className="mb-2">
               {document.title}
             </Heading>
+          ) : null}
+          {document && ready && contentQuery.data ? (
+            <NarrationBar
+              narration={narration}
+              player={player}
+              online={online}
+            />
           ) : null}
           {documentQuery.isLoading && !document ? (
             <Text tone="muted">Loading document…</Text>
@@ -218,11 +272,27 @@ export function DocumentReaderScreen() {
           {ready && documentId
             ? entries.map((entry, index) =>
                 entry.kind === 'block' ? (
-                  <ReaderBlock
+                  <View
                     key={index}
-                    block={entry.block}
-                    textScale={textScale}
-                  />
+                    onLayout={(event) => {
+                      blockOffsets.current.set(
+                        entry.blockIndex,
+                        event.nativeEvent.layout.y,
+                      );
+                    }}
+                  >
+                    <ReaderBlock
+                      block={entry.block}
+                      textScale={textScale}
+                      highlighted={Boolean(
+                        activePart &&
+                          player.status !== 'idle' &&
+                          player.status !== 'ended' &&
+                          entry.blockIndex >= activePart.blockStart &&
+                          entry.blockIndex <= activePart.blockEnd,
+                      )}
+                    />
+                  </View>
                 ) : (
                   <ScratchPadCard
                     key={`pad-${entry.pad.sectionIndex}`}

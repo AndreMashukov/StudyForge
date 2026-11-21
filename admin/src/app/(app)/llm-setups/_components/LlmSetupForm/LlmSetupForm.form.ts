@@ -16,6 +16,8 @@ const generationRouteFormEntrySchema = z.object({
   connectionId: z.string().trim().min(1, 'Provider connection is required'),
   model: z.string().trim().min(1, 'Model is required'),
   workflow: z.enum(['direct', 'directWithRepair', 'agentic']),
+  /** Prebuilt voice; only speech routes (document narration) show and save it. */
+  voice: z.string().trim().max(64).optional(),
 });
 
 const generationRoutesShape = Object.fromEntries(
@@ -37,11 +39,21 @@ export type IAdminConfigurableGenerationKind = GenerationKind;
 
 export function createEmptyGenerationRouteFormValues(): Record<
   IAdminConfigurableGenerationKind,
-  { connectionId: string; model: string; workflow: GenerationWorkflow }
+  {
+    connectionId: string;
+    model: string;
+    workflow: GenerationWorkflow;
+    voice?: string;
+  }
 > {
   const routes = {} as Record<
     IAdminConfigurableGenerationKind,
-    { connectionId: string; model: string; workflow: GenerationWorkflow }
+    {
+      connectionId: string;
+      model: string;
+      workflow: GenerationWorkflow;
+      voice?: string;
+    }
   >;
 
   for (const kind of ADMIN_CONFIGURABLE_GENERATION_KINDS) {
@@ -63,11 +75,13 @@ export function toGenerationRoutes(
   for (const kind of ADMIN_CONFIGURABLE_GENERATION_KINDS) {
     const entry = values.generationRoutes[kind];
     const metadata = GENERATION_KIND_METADATA[kind];
+    const voice = entry.voice?.trim();
     routes[kind] = {
       connectionId: entry.connectionId.trim(),
       model: entry.model.trim(),
       modality: metadata.requiredModality,
       workflow: entry.workflow,
+      ...(metadata.requiredModality === 'speech' && voice ? { voice } : {}),
     };
   }
 
@@ -90,6 +104,7 @@ export function generationRoutesToFormValues(
       connectionId: route.connectionId,
       model: route.model,
       workflow: route.workflow,
+      ...(route.voice ? { voice: route.voice } : {}),
     };
   }
 
@@ -195,6 +210,11 @@ export function formatWorkflowOptionLabel(
   }
 
   return 'agentic — ADK repair/critic pipeline';
+}
+
+/** Speech routes carry a voice setting. */
+export function isSpeechGenerationKind(kind: GenerationKind): boolean {
+  return GENERATION_KIND_METADATA[kind].requiredModality === 'speech';
 }
 
 export function getWorkflowHelpText(kind: GenerationKind): string | null {

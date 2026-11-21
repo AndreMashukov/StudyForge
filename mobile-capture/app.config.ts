@@ -5,7 +5,10 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
 const workspaceRoot = path.resolve(__dirname, '..');
 
 dotenv.config({ path: path.join(workspaceRoot, '.env') });
-dotenv.config({ path: path.join(workspaceRoot, '.env.mobile'), override: true });
+dotenv.config({
+  path: path.join(workspaceRoot, '.env.mobile'),
+  override: true,
+});
 dotenv.config({ path: path.join(workspaceRoot, '.env.dev'), override: true });
 // Personal overrides last — must win over .env.dev / .env.mobile
 dotenv.config({ path: path.join(workspaceRoot, '.env.local'), override: true });
@@ -76,15 +79,28 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-camera',
       {
-        cameraPermission: 'Allow StudyForge to capture documents with your camera.',
+        cameraPermission:
+          'Allow StudyForge to capture documents with your camera.',
       },
     ],
     'expo-ocr-kit',
+    // Narration keeps playing with the phone locked (ADR 013): adds the iOS audio
+    // background mode and the Android media playback foreground service.
+    [
+      'expo-audio',
+      {
+        enableBackgroundPlayback: true,
+        microphonePermission: false,
+        recordAudioAndroid: false,
+      },
+    ],
     [
       'expo-image-picker',
       {
-        photosPermission: 'Allow StudyForge to read photos you choose to add to your library.',
-        cameraPermission: 'Allow StudyForge to capture documents with your camera.',
+        photosPermission:
+          'Allow StudyForge to read photos you choose to add to your library.',
+        cameraPermission:
+          'Allow StudyForge to capture documents with your camera.',
       },
     ],
   ],

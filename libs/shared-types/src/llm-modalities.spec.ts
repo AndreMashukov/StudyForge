@@ -6,8 +6,15 @@ import {
 } from './index';
 
 describe('isLlmModality', () => {
-  it('accepts every modality including decision', () => {
-    for (const modality of ['text', 'vision', 'image', 'embedding', 'decision']) {
+  it('accepts every modality including decision and speech', () => {
+    for (const modality of [
+      'text',
+      'vision',
+      'image',
+      'embedding',
+      'decision',
+      'speech',
+    ]) {
       expect(isLlmModality(modality)).toBe(true);
     }
   });
@@ -20,9 +27,19 @@ describe('isLlmModality', () => {
 });
 
 describe('getProviderSupportedModalities', () => {
-  it('gives decision to OpenRouter only', () => {
+  it('gives decision to OpenRouter only and speech to Gemini only', () => {
     expect(getProviderSupportedModalities('openrouter')).toContain('decision');
-    for (const kind of ['gemini', 'minimax', 'together'] as const) {
+    expect(getProviderSupportedModalities('openrouter')).not.toContain(
+      'speech',
+    );
+    expect(getProviderSupportedModalities('gemini')).toEqual([
+      'text',
+      'vision',
+      'image',
+      'embedding',
+      'speech',
+    ]);
+    for (const kind of ['minimax', 'together'] as const) {
       expect(getProviderSupportedModalities(kind)).toEqual([
         'text',
         'vision',
@@ -61,9 +78,18 @@ describe('normalizeSupportedModalities', () => {
       'vision',
       'image',
       'embedding',
+      'speech',
     ]);
     expect(normalizeSupportedModalities([], 'openrouter')).toContain(
       'decision',
     );
+  });
+
+  it('adds speech to a Gemini connection saved before it existed', () => {
+    expect(normalizeSupportedModalities(['text', 'image'], 'gemini')).toEqual([
+      'text',
+      'image',
+      'speech',
+    ]);
   });
 });

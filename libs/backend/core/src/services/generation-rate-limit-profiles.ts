@@ -79,6 +79,8 @@ export const GENERATION_RATE_LIMIT_PROFILES: Record<
   sourceDocumentEnhancement: PRODUCTION_PROFILE,
   ruleGeneration: PRODUCTION_PROFILE,
   promptDiagramDecision: INTERACTIVE_PROFILE,
+  documentNarratableDecision: INTERACTIVE_PROFILE,
+  documentNarration: PRODUCTION_PROFILE,
 };
 
 export function getGenerationRateLimitProfile(

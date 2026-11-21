@@ -3,7 +3,8 @@ export type LlmModality =
   | 'vision'
   | 'image'
   | 'embedding'
-  | 'decision';
+  | 'decision'
+  | 'speech';
 
 const LLM_MODALITY_VALUES: readonly LlmModality[] = [
   'text',
@@ -11,6 +12,7 @@ const LLM_MODALITY_VALUES: readonly LlmModality[] = [
   'image',
   'embedding',
   'decision',
+  'speech',
 ];
 
 export function isLlmModality(value: unknown): value is LlmModality {
@@ -23,11 +25,19 @@ export function isLlmModality(value: unknown): value is LlmModality {
  */
 export const DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL = 'typesafe/jev-1.13';
 
+/** Default speech model for document narration (Gemini text-to-speech). */
+export const DEFAULT_DOCUMENT_NARRATION_MODEL = 'gemini-3.8-flash-lite-tts';
+
+/** Default prebuilt voice for document narration. */
+export const DEFAULT_DOCUMENT_NARRATION_VOICE = 'Kore';
+
 export type GenerationKind =
   | 'quiz'
   | 'flashcards'
   | 'documentFromPrompt'
   | 'promptDiagramDecision'
+  | 'documentNarratableDecision'
+  | 'documentNarration'
   | 'documentFromScreenshot'
   | 'documentQuestion'
   | 'scratchPadQuestion'
@@ -62,6 +72,8 @@ export const ALL_GENERATION_KINDS: GenerationKind[] = [
   'flashcards',
   'documentFromPrompt',
   'promptDiagramDecision',
+  'documentNarratableDecision',
+  'documentNarration',
   'documentFromScreenshot',
   'documentQuestion',
   'scratchPadQuestion',
@@ -103,6 +115,26 @@ export const GENERATION_KIND_METADATA: Record<
     description:
       'Decision model that judges whether Mermaid diagrams fit an AI Prompt and how many to allow. Uses the OpenRouter Decisions API.',
     requiredModality: 'decision',
+    supportedWorkflows: ['direct'],
+    defaultWorkflow: 'direct',
+    group: 'production',
+  },
+  documentNarratableDecision: {
+    kind: 'documentNarratableDecision',
+    label: 'Narratable check',
+    description:
+      'Decision model that judges whether a document is English prose that makes sense read aloud. Uses the OpenRouter Decisions API. Unmetered.',
+    requiredModality: 'decision',
+    supportedWorkflows: ['direct'],
+    defaultWorkflow: 'direct',
+    group: 'production',
+  },
+  documentNarration: {
+    kind: 'documentNarration',
+    label: 'Document narration',
+    description:
+      'Speech model that reads a narratable document aloud, one narration part per request. Charged per 1,000 characters of spoken text.',
+    requiredModality: 'speech',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',
     group: 'production',
@@ -194,7 +226,8 @@ export const GENERATION_KIND_METADATA: Record<
   sourceDocumentEnhancement: {
     kind: 'sourceDocumentEnhancement',
     label: 'Source document enhancement',
-    description: 'Faithful conversion of uploaded, pasted, or scraped source material to HTML.',
+    description:
+      'Faithful conversion of uploaded, pasted, or scraped source material to HTML.',
     requiredModality: 'text',
     supportedWorkflows: ['direct'],
     defaultWorkflow: 'direct',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Image, Linking, Text as NativeText } from 'react-native';
 import { Text, mobileUiColors } from '@studyforge/mobile-ui';
 import type { IDocumentBlock } from './documentBlocks';
@@ -31,13 +31,16 @@ function DocumentImage({ url, alt }: { url?: string; alt?: string }) {
   );
 }
 
-export function ReaderBlock({
+function ReaderBlockView({
   block,
   textScale = 1,
+  highlighted = false,
 }: {
   block: IDocumentBlock;
   /** Reader text size multiplier from preferences. */
   textScale?: number;
+  /** The narration is reading this block. */
+  highlighted?: boolean;
 }) {
   if (block.kind === 'image')
     return <DocumentImage url={block.imageUrl} alt={block.alt} />;
@@ -59,9 +62,17 @@ export function ReaderBlock({
         marginVertical: 7,
         marginLeft:
           block.kind === 'list' ? Math.min(48, (block.level ?? 0) * 16) : 0,
-        padding: block.kind === 'code' || block.kind === 'quote' ? 12 : 0,
+        padding:
+          block.kind === 'code' || block.kind === 'quote'
+            ? 12
+            : highlighted
+              ? 4
+              : 0,
+        borderRadius: highlighted ? 8 : 0,
         backgroundColor:
-          block.kind === 'code' ? mobileUiColors.muted : 'transparent',
+          block.kind === 'code' || highlighted
+            ? mobileUiColors.muted
+            : 'transparent',
         fontFamily: block.kind === 'code' ? 'monospace' : undefined,
       }}
     >
@@ -84,3 +95,6 @@ export function ReaderBlock({
     </NativeText>
   );
 }
+
+/** Memoized: the reader re-renders twice a second while narration plays. */
+export const ReaderBlock = memo(ReaderBlockView);

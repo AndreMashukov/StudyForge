@@ -25,7 +25,7 @@ const DIAGRAM_COUNT_CRITERIA = [
   'Five diagrams. The topic is a large system with five distinct structures. Do not choose this for a short or single-concept request.',
 ] as const;
 
-const noulAnswerSchema = z.object({
+export const noulAnswerSchema = z.object({
   type: z.literal('noul'),
   noul: z.number().min(0).max(1),
 });
@@ -57,7 +57,7 @@ export interface IEvaluateMermaidDiagramCountResult {
   maxDiagrams: number;
 }
 
-interface IDecisionsTarget {
+export interface IDecisionsTarget {
   url: string;
   model: string;
   apiKey: string;
@@ -83,19 +83,25 @@ export function diagramCountFromScore(score: number): number {
   return index + PROMPT_DIAGRAM_COUNT_MIN;
 }
 
-async function resolveDecisionsTarget(userId: string): Promise<IDecisionsTarget> {
+/** Resolves the OpenRouter Decisions API endpoint for a decision generation kind. */
+export async function resolveDecisionsTarget(
+  userId: string,
+  kind:
+    | 'promptDiagramDecision'
+    | 'documentNarratableDecision' = 'promptDiagramDecision',
+): Promise<IDecisionsTarget> {
   const { route, providerApiKey } = await LlmGenerationRouteResolver.resolve(
-    'promptDiagramDecision',
+    kind,
     { userId },
   );
 
   if (route.providerType !== 'openrouter') {
     throw new Error(
-      `Prompt diagram check needs an OpenRouter connection, but the route uses ${route.providerType}`,
+      `${kind} needs an OpenRouter connection, but the route uses ${route.providerType}`,
     );
   }
   if (!providerApiKey) {
-    throw new Error('OpenRouter credentials are missing for the prompt diagram check');
+    throw new Error(`OpenRouter credentials are missing for ${kind}`);
   }
 
   return {
@@ -105,7 +111,7 @@ async function resolveDecisionsTarget(userId: string): Promise<IDecisionsTarget>
   };
 }
 
-async function postDecision(
+export async function postDecision(
   target: IDecisionsTarget,
   body: { state: string; questions: Record<string, unknown> },
 ): Promise<Record<string, unknown>> {
@@ -135,7 +141,7 @@ async function postDecision(
 }
 
 /** A refusal or a missing answer is "not answered", never a negative verdict. */
-function readAnswer<T>(
+export function readAnswer<T>(
   answers: Record<string, unknown>,
   key: string,
   schema: z.ZodType<T>,
@@ -165,8 +171,7 @@ export async function evaluateMermaidDiagramSuitability(
         instructions:
           'Would Mermaid diagrams help explain this learning document request?',
         criteria: {
-          true:
-            'The topic involves steps, flows, sequences, architecture, state transitions, or relationships that a diagram can clarify.',
+          true: 'The topic involves steps, flows, sequences, architecture, state transitions, or relationships that a diagram can clarify.',
           false:
             'The topic is mainly definitions, narrative, lists of facts, or does not benefit from a visual structure.',
         },

@@ -44,6 +44,8 @@ export interface SetupGenerationRouteResolution {
   kind: GenerationKind;
   workflow: GenerationWorkflow;
   modality: LlmModality;
+  /** Prebuilt voice for `speech` routes. */
+  voice?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -71,11 +73,14 @@ function parseGenerationRoute(value: unknown): IGenerationRoute | null {
     return null;
   }
 
+  const voice = typeof value.voice === 'string' ? value.voice.trim() : '';
+
   return {
     connectionId,
     model,
     modality,
     workflow,
+    ...(voice ? { voice } : {}),
   };
 }
 
@@ -302,6 +307,7 @@ export class LlmSetupRepository {
       kind,
       workflow: generationRoute.workflow,
       modality: generationRoute.modality,
+      ...(generationRoute.voice ? { voice: generationRoute.voice } : {}),
     };
   }
 }

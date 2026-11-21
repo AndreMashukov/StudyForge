@@ -22,19 +22,18 @@
  *   GCLOUD_PROJECT — defaults to study-forge-202604
  */
 import * as admin from 'firebase-admin';
-import {
-  createCipheriv,
-  createHash,
-  randomBytes,
-} from 'node:crypto';
+import { createCipheriv, createHash, randomBytes } from 'node:crypto';
 import * as path from 'path';
 import { config } from 'dotenv';
 import {
   ALL_GENERATION_KINDS,
+  DEFAULT_DOCUMENT_NARRATION_MODEL,
   DEFAULT_PROMPT_DIAGRAM_DECISION_MODEL,
   GENERATION_KIND_METADATA,
 } from '../../libs/shared-types/src/generation-kind-metadata';
 import {
+  DEFAULT_DOCUMENT_NARRATION_ROUTE,
+  PRIMARY_GEMINI_CONNECTION_ID,
   PRIMARY_MINIMAX_CONNECTION_ID,
   PRIMARY_OPENROUTER_CONNECTION_ID,
   USAGE_LIMITS_PROFILE_PRESETS,
@@ -108,7 +107,7 @@ function getEncryptionKey(): Buffer {
   const secret = process.env.LLM_SETTINGS_ENCRYPTION_KEY?.trim();
   if (!secret) {
     throw new Error(
-      'LLM_SETTINGS_ENCRYPTION_KEY is required. Copy from functions/.env.example or functions/.secret.local.'
+      'LLM_SETTINGS_ENCRYPTION_KEY is required. Copy from functions/.env.example or functions/.secret.local.',
     );
   }
   return createHash('sha256').update(secret).digest();
@@ -123,7 +122,10 @@ function encryptSecret(value: string): Record<string, unknown> {
   const key = getEncryptionKey();
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
-  const ciphertext = Buffer.concat([cipher.update(normalized, 'utf8'), cipher.final()]);
+  const ciphertext = Buffer.concat([
+    cipher.update(normalized, 'utf8'),
+    cipher.final(),
+  ]);
   const authTag = cipher.getAuthTag();
 
   return {
@@ -148,6 +150,12 @@ function buildGenerationRoutes(): IGenerationRoutes {
         modality: 'embedding',
         workflow: metadata.defaultWorkflow,
       };
+      continue;
+    }
+
+    // Speech models are only served by Gemini (document narration, ADR 013).
+    if (metadata.requiredModality === 'speech') {
+      routes[kind] = { ...DEFAULT_DOCUMENT_NARRATION_ROUTE };
       continue;
     }
 
@@ -190,7 +198,9 @@ async function ensureProviderSecretFromProduction(input: {
   appName: string;
   label: string;
 }): Promise<boolean> {
-  const secretRef = input.db.collection(SECRETS_COLLECTION).doc(input.connectionId);
+  const secretRef = input.db
+    .collection(SECRETS_COLLECTION)
+    .doc(input.connectionId);
   if ((await secretRef.get()).exists) {
     return true;
   }
@@ -199,7 +209,9 @@ async function ensureProviderSecretFromProduction(input: {
     return false;
   }
 
-  console.log(`   ${input.label} secret missing locally — trying production copy …`);
+  console.log(
+    `   ${input.label} secret missing locally — trying production copy …`,
+  );
   const savedEmulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
   delete process.env.FIRESTORE_EMULATOR_HOST;
 
@@ -209,7 +221,10 @@ async function ensureProviderSecretFromProduction(input: {
   }
 
   try {
-    const prodApp = admin.initializeApp({ projectId: PROJECT_ID }, input.appName);
+    const prodApp = admin.initializeApp(
+      { projectId: PROJECT_ID },
+      input.appName,
+    );
     const prodDb = prodApp.firestore();
     const [connectionSnap, secretSnap] = await Promise.all([
       prodDb.collection(CONNECTIONS_COLLECTION).doc(input.connectionId).get(),
@@ -228,20 +243,25 @@ async function ensureProviderSecretFromProduction(input: {
     }
 
     const now = new Date().toISOString();
-    await input.db.collection(CONNECTIONS_COLLECTION).doc(input.connectionId).set(
-      {
-        ...connectionSnap.data(),
-        updatedAt: now,
-        updatedBy: 'seed-llm-setup',
-      },
-      { merge: true },
-    );
+    await input.db
+      .collection(CONNECTIONS_COLLECTION)
+      .doc(input.connectionId)
+      .set(
+        {
+          ...connectionSnap.data(),
+          updatedAt: now,
+          updatedBy: 'seed-llm-setup',
+        },
+        { merge: true },
+      );
     await secretRef.set({
       ...secretSnap.data(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedBy: 'seed-llm-setup',
     });
-    console.log(`   ✅ Copied ${input.label} connection + secret from production`);
+    console.log(
+      `   ✅ Copied ${input.label} connection + secret from production`,
+    );
     return true;
   } catch (error) {
     console.warn(
@@ -266,7 +286,9 @@ async function ensureProviderSecret(input: {
   apiKey: string | undefined;
   label: string;
 }): Promise<void> {
-  const secretRef = input.db.collection(SECRETS_COLLECTION).doc(input.connectionId);
+  const secretRef = input.db
+    .collection(SECRETS_COLLECTION)
+    .doc(input.connectionId);
   const existingSecret = await secretRef.get();
   if (existingSecret.exists) {
     console.log(`\n[LLM] ${input.label} secret already exists — skip`);
@@ -275,7 +297,7 @@ async function ensureProviderSecret(input: {
 
   if (!input.apiKey) {
     throw new Error(
-      `${input.label} API key is required to seed ${input.connectionId}. Set it in .env.local or functions/.env.local.`
+      `${input.label} API key is required to seed ${input.connectionId}. Set it in .env.local or functions/.env.local.`,
     );
   }
 
@@ -286,14 +308,69 @@ async function ensureProviderSecret(input: {
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedBy: 'seed-llm-setup',
   });
-  await input.db.collection(CONNECTIONS_COLLECTION).doc(input.connectionId).set(
-    { apiKeyConfigured: true },
-    { merge: true },
-  );
+  await input.db
+    .collection(CONNECTIONS_COLLECTION)
+    .doc(input.connectionId)
+    .set({ apiKeyConfigured: true }, { merge: true });
   console.log(`   ✅ ${input.connectionId} secret stored`);
 }
 
-export async function seedLlmSetup(options?: { userId?: string }): Promise<void> {
+/**
+ * Gemini connection for document narration. Optional locally: without
+ * GEMINI_API_KEY (and no existing secret) narration reports itself unavailable.
+ */
+async function seedGeminiSpeechConnection(
+  db: admin.firestore.Firestore,
+  now: string,
+): Promise<void> {
+  console.log('\n[LLM] Gemini provider connection (narration speech) …');
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const secretRef = db
+    .collection(SECRETS_COLLECTION)
+    .doc(PRIMARY_GEMINI_CONNECTION_ID);
+  const hasSecret = (await secretRef.get()).exists;
+  await db
+    .collection(CONNECTIONS_COLLECTION)
+    .doc(PRIMARY_GEMINI_CONNECTION_ID)
+    .set(
+      {
+        providerKind: 'gemini',
+        label: 'Primary Gemini',
+        credentialMode: 'encrypted-firestore',
+        supportedModalities: getProviderSupportedModalities('gemini'),
+        availableModels: [
+          {
+            id: DEFAULT_DOCUMENT_NARRATION_MODEL,
+            label: 'Gemini 3.8 Flash-Lite TTS',
+            supportedModalities: ['speech'],
+          },
+        ],
+        modelsSyncedAt: now,
+        modelsSyncSource: 'provider-save',
+        apiKeyConfigured: hasSecret || Boolean(apiKey),
+        updatedAt: now,
+        updatedBy: 'seed-llm-setup',
+      },
+      { merge: true },
+    );
+  if (!hasSecret && apiKey) {
+    await ensureProviderSecret({
+      db,
+      connectionId: PRIMARY_GEMINI_CONNECTION_ID,
+      apiKey,
+      label: 'Gemini',
+    });
+  } else if (!hasSecret) {
+    console.warn(
+      '   ⚠️ GEMINI_API_KEY not set — narration audio will not generate locally',
+    );
+  }
+  console.log(`   ✅ Connection ${PRIMARY_GEMINI_CONNECTION_ID}`);
+}
+
+export async function seedLlmSetup(options?: {
+  userId?: string;
+}): Promise<void> {
   process.env.FIREBASE_AUTH_EMULATOR_HOST =
     process.env.FIREBASE_AUTH_EMULATOR_HOST || 'localhost:9099';
   process.env.FIRESTORE_EMULATOR_HOST =
@@ -310,8 +387,12 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
   const openRouterApiKey = resolveOpenRouterApiKey();
 
   console.log('\n[LLM] MiniMax provider connection …');
-  const connectionRef = db.collection(CONNECTIONS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID);
-  const secretRef = db.collection(SECRETS_COLLECTION).doc(PRIMARY_MINIMAX_CONNECTION_ID);
+  const connectionRef = db
+    .collection(CONNECTIONS_COLLECTION)
+    .doc(PRIMARY_MINIMAX_CONNECTION_ID);
+  const secretRef = db
+    .collection(SECRETS_COLLECTION)
+    .doc(PRIMARY_MINIMAX_CONNECTION_ID);
   let existingSecret = await secretRef.get();
 
   if (!existingSecret.exists && !minimaxApiKey) {
@@ -403,6 +484,8 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
     label: 'OpenRouter',
   });
 
+  await seedGeminiSpeechConnection(db, now);
+
   console.log('\n[LLM] LLM setup (MiniMax M3 + OpenRouter e5 embeddings) …');
   const generationRoutes = buildGenerationRoutes();
   await db.collection(LLM_SETUPS_COLLECTION).doc(SETUP_ID).set({
@@ -422,14 +505,19 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
   const standardPreset =
     USAGE_LIMITS_PROFILE_PRESETS.find((preset) => preset.id === 'standard') ??
     USAGE_LIMITS_PROFILE_PRESETS[1];
-  await db.collection(USAGE_LIMITS_SETUPS_COLLECTION).doc(STANDARD_USAGE_SETUP_ID).set({
-    name: standardPreset.name,
-    description: standardPreset.description,
-    monthlyCreditAllowance: standardPreset.monthlyCreditAllowance,
-    featurePolicies: createDefaultFeaturePolicies({ disabledKinds: standardPreset.disabledKinds }),
-    updatedAt: now,
-    updatedBy: 'seed-llm-setup',
-  });
+  await db
+    .collection(USAGE_LIMITS_SETUPS_COLLECTION)
+    .doc(STANDARD_USAGE_SETUP_ID)
+    .set({
+      name: standardPreset.name,
+      description: standardPreset.description,
+      monthlyCreditAllowance: standardPreset.monthlyCreditAllowance,
+      featurePolicies: createDefaultFeaturePolicies({
+        disabledKinds: standardPreset.disabledKinds,
+      }),
+      updatedAt: now,
+      updatedBy: 'seed-llm-setup',
+    });
   console.log(`   ✅ Usage limits setup ${STANDARD_USAGE_SETUP_ID}`);
 
   console.log('\n[LLM] User group …');
@@ -440,13 +528,15 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
     updatedAt: now,
     updatedBy: 'seed-llm-setup',
   });
-  console.log(`   ✅ User group ${GROUP_ID} → ${SETUP_ID} / ${STANDARD_USAGE_SETUP_ID}`);
+  console.log(
+    `   ✅ User group ${GROUP_ID} → ${SETUP_ID} / ${STANDARD_USAGE_SETUP_ID}`,
+  );
 
   console.log('\n[LLM] Assign test user to group …');
-  await db.collection('users').doc(userId).set(
-    { userGroupId: GROUP_ID },
-    { merge: true },
-  );
+  await db
+    .collection('users')
+    .doc(userId)
+    .set({ userGroupId: GROUP_ID }, { merge: true });
   console.log(`   ✅ users/${userId}.userGroupId = ${GROUP_ID}`);
 
   console.log(
@@ -456,12 +546,17 @@ export async function seedLlmSetup(options?: { userId?: string }): Promise<void>
 
 async function main(): Promise<void> {
   await seedLlmSetup();
-  console.log('   Restart the Functions emulator if it was running before seeding secrets.');
+  console.log(
+    '   Restart the Functions emulator if it was running before seeding secrets.',
+  );
 }
 
 if (require.main === module) {
   main().catch((err) => {
-    console.error('\n❌ LLM setup seed failed:', err instanceof Error ? err.message : err);
+    console.error(
+      '\n❌ LLM setup seed failed:',
+      err instanceof Error ? err.message : err,
+    );
     process.exit(1);
   });
 }
