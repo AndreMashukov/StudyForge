@@ -1,3 +1,4 @@
+import { Tag, X } from 'lucide-react';
 import { Rule, RuleApplicability, RuleColor } from '@shared-types';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { Button } from '../../../../components/ui/Button';
@@ -129,9 +130,7 @@ export const RuleCard = ({
                   className="text-xs"
                   style={{ color: colors.mutedForeground }}
                 >
-                  <span role="img" aria-label="tags">
-                    🏷️
-                  </span>
+                  <Tag className="h-3.5 w-3.5" aria-hidden="true" />
                 </span>
                 {rule.tags.map((tag) => (
                   <span
@@ -163,8 +162,9 @@ export const RuleCard = ({
               size="sm"
               onClick={onRemove}
               style={{ color: colors.destructive }}
+              aria-label={`Remove ${rule.name}`}
             >
-              ×
+              <X className="h-4 w-4" aria-hidden="true" />
             </Button>
           )}
         </div>

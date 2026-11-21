@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Check } from "lucide-react";
 import { z } from "zod";
 import { IEditDirectoryDialog } from "./IEditDirectoryDialog";
 import { createDirectorySchema } from "../CreateDirectoryDialog/createDirectorySchema";
@@ -151,7 +152,7 @@ export const EditDirectoryDialog = ({
                       title={color.name}
                     >
                       {formData.color === color.value && (
-                        <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>✓</span>
+                        <span className="absolute inset-0 flex items-center justify-center text-white" style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.5))' }}><Check className="h-3 w-3" strokeWidth={3} aria-hidden="true" /></span>
                       )}
                     </button>
                   ))}

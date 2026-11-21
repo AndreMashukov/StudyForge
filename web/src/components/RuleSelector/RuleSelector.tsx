@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
+import { ClipboardList, Inbox } from "lucide-react";
 import { Badge } from "../ui/Badge";
 import { Checkbox } from "../ui/Checkbox";
 import {
@@ -96,15 +97,17 @@ export const RuleSelector = ({
     <div className={cn("border rounded-lg", compact ? "p-3" : "p-4")}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium flex items-center gap-2">
-          <span role="img" aria-label="rules">📋</span> {title} ({selectedRuleIds.length})
+          <ClipboardList className="h-4 w-4 shrink-0" aria-hidden="true" />
+          {title} ({selectedRuleIds.length})
         </h3>
       </div>
 
       {isLoading && !data ? (
         <RuleListSkeleton count={compact ? 2 : 3} />
       ) : rules.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-4">
-          <span role="img" aria-label="info">📭</span> No rules available for this operation
+        <p className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+          <Inbox className="h-4 w-4 shrink-0" aria-hidden="true" />
+          No rules available for this operation
         </p>
       ) : (
         <VirtualizedList

@@ -36,6 +36,8 @@ import {
   Layers,
   Presentation,
   Loader2,
+  Globe,
+  Upload,
 } from 'lucide-react';
 import {
   DocumentEnhanced,
@@ -216,7 +218,17 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
           <div className="space-y-3">
             <div className="text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md text-xs">
-                {document.sourceType === 'url' ? '🌐 URL' : '📁 Upload'}
+                {document.sourceType === 'url' ? (
+                  <>
+                    <Globe className="h-3 w-3" aria-hidden="true" />
+                    URL
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-3 w-3" aria-hidden="true" />
+                    Upload
+                  </>
+                )}
               </span>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">

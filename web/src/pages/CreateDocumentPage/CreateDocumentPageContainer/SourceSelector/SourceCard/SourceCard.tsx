@@ -1,4 +1,5 @@
 import React from 'react';
+import { Check } from 'lucide-react';
 import { Button } from '../../../../../components/ui/Button';
 import { ISourceCard } from '../../../types/ISourceTypes';
 import { sourceCardStyles } from './SourceCard.styles';
@@ -41,7 +42,7 @@ export const SourceCard = ({ sourceCard, isSelected, onSelect }: ISourceCardProp
       aria-disabled={isDisabled}
     >
       <div className={sourceCardStyles.icon}>
-        {sourceCard.icon}
+        <sourceCard.icon className="h-10 w-10" aria-hidden="true" />
       </div>
       
       <div className={sourceCardStyles.content}>
@@ -61,7 +62,14 @@ export const SourceCard = ({ sourceCard, isSelected, onSelect }: ISourceCardProp
             className={sourceCardStyles.button}
             tabIndex={-1} // Prevent double tabbing
           >
-            {isSelected ? '✓ Selected' : 'Select'}
+            {isSelected ? (
+              <>
+                <Check className="h-4 w-4" aria-hidden="true" />
+                Selected
+              </>
+            ) : (
+              'Select'
+            )}
           </Button>
         ) : (
           <span className={sourceCardStyles.comingSoon}>

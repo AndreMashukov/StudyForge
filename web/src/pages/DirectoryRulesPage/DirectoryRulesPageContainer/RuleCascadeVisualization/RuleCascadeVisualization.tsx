@@ -1,3 +1,4 @@
+import { ArrowDown, Folder, GitBranch } from 'lucide-react';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { useDirectoryRulesPage } from '../../context/DirectoryRulesPageContext';
 import { useGetDirectoryAncestorsQuery } from '../../../../store/api/Directory/DirectoryApi';
@@ -47,9 +48,7 @@ export const RuleCascadeVisualization = () => {
         className="text-xl font-semibold mb-4 flex items-center gap-2"
         style={{ color: currentTheme.colors.foreground }}
       >
-        <span role="img" aria-label="tree">
-          🌳
-        </span>{' '}
+        <GitBranch className="h-5 w-5 shrink-0" aria-hidden="true" />
         Rule Inheritance Chain
       </h2>
 
@@ -78,9 +77,7 @@ export const RuleCascadeVisualization = () => {
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span role="img" aria-label="folder">
-                      📁
-                    </span>
+                    <Folder className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span 
                       className="font-medium"
                       style={{ color: currentTheme.colors.foreground }}
@@ -139,7 +136,7 @@ export const RuleCascadeVisualization = () => {
                     className="text-sm flex items-center gap-2"
                     style={{ color: currentTheme.colors.mutedForeground }}
                   >
-                    <span>↓</span>
+                    <ArrowDown className="h-4 w-4" aria-hidden="true" />
                     <span>cascades to</span>
                   </div>
                 </div>

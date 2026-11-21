@@ -5,7 +5,7 @@ import { Textarea } from '../../../components/ui/Textarea';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { Checkbox } from '../../../components/ui/Checkbox';
-import { X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useRuleEditorForm } from '../context/hooks/useRuleEditorForm';
 import { RuleMarkdownPreview } from './RuleMarkdownPreview';
@@ -105,6 +105,7 @@ export const RuleFormSection: React.FC = () => {
               key={operation}
               variant="outline"
               size="sm"
+              className="gap-1.5"
               onClick={() => toggleApplicability(operation)}
               style={
                 formData.applicableTo.includes(operation)
@@ -112,7 +113,9 @@ export const RuleFormSection: React.FC = () => {
                   : { backgroundColor: colors.secondary, color: colors.secondaryForeground, borderColor: colors.border }
               }
             >
-              {formData.applicableTo.includes(operation) && '✓ '}
+              {formData.applicableTo.includes(operation) && (
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
               {operation}
             </Button>
           ))}

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, Plus, Filter } from "lucide-react";
+import { Search, Plus, Filter, Tag } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -231,7 +231,7 @@ export const AttachRuleModal = ({
 
                   {rule.tags.length > 0 && (
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-muted-foreground" role="img" aria-label="tags">🏷️</span>
+                      <Tag className="h-3.5 w-3.5 text-muted-foreground" aria-label="Tags" />
                       {rule.tags.map((tag) => (
                         <Badge key={tag} variant="outline" className="text-xs">
                           {tag}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Star, MoreVertical, Plus } from "lucide-react";
+import { ClipboardList, Folder, MoreVertical, Plus, Star, Tag } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -132,7 +132,10 @@ export const DirectorySettingsModal = ({
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle><span role="img" aria-label="folder">📁</span> Directory Settings: {directory.name}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Folder className="h-5 w-5 shrink-0" aria-hidden="true" />
+            Directory Settings: {directory.name}
+          </DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
             Path: {directory.path}
           </p>
@@ -152,8 +155,9 @@ export const DirectorySettingsModal = ({
           {/* Rules Section */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">
-                <span role="img" aria-label="rules">📋</span> Rules ({rulesData?.rules.length || 0} attached)
+              <h3 className="flex items-center gap-2 text-sm font-medium">
+                <ClipboardList className="h-4 w-4 shrink-0" aria-hidden="true" />
+                Rules ({rulesData?.rules.length || 0} attached)
               </h3>
               <Button
                 size="sm"
@@ -245,7 +249,7 @@ export const DirectorySettingsModal = ({
                     {/* Tags */}
                     {rule.tags.length > 0 && (
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-muted-foreground" role="img" aria-label="tags">🏷️</span>
+                        <Tag className="h-3.5 w-3.5 text-muted-foreground" aria-label="Tags" />
                         {rule.tags.map((tag) => (
                           <Badge key={tag} variant="outline" className="text-xs">
                             {tag}

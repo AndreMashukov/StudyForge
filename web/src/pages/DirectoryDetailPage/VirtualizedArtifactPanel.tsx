@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { AlertTriangle, LucideIcon } from 'lucide-react';
+import { AlertTriangle, LucideIcon, Plus } from 'lucide-react';
 import { ArtifactSummary, ArtifactSummaryType } from '@shared-types';
 import { Button } from '../../components/ui/Button';
 import { SortableDirectoryList } from './SortableDirectoryList';
@@ -105,7 +105,8 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
             <h2 className="truncate text-lg font-semibold">
               {title} ({visibleCount})
             </h2>
-            <Button size="sm" type="button" onClick={onCreate}>
+            <Button size="sm" type="button" onClick={onCreate} className="gap-1.5">
+              <Plus className="h-4 w-4" aria-hidden="true" />
               {createLabel}
             </Button>
           </div>

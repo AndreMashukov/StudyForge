@@ -26,7 +26,7 @@ export const sourceListPanelStyles = {
     'text-lg bg-muted shrink-0',
   ].join(' '),
 
-  sourceIconActive: 'bg-primary/15',
+  sourceIconActive: 'bg-primary/15 text-primary',
 
   sourceInfo: 'flex-1 min-w-0',
   sourceName: 'text-[13px] font-medium leading-tight',

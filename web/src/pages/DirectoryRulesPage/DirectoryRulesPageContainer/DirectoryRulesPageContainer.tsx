@@ -1,3 +1,4 @@
+import { ArrowLeft, ClipboardList, Folder, FolderInput, Plus } from 'lucide-react';
 import { Page } from '../../../components/Page';
 import { Button } from '../../../components/ui/Button';
 import { useDirectoryRulesPage } from '../context/DirectoryRulesPageContext';
@@ -108,7 +109,7 @@ export const DirectoryRulesPageContainer = ({
                 className="flex items-center gap-2 mb-2 hover:underline"
                 style={{ color: currentTheme.colors.primary }}
               >
-                <span>←</span>
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                 <span>Back</span>
               </button>
             )}
@@ -127,7 +128,10 @@ export const DirectoryRulesPageContainer = ({
             <Button variant="outline" onClick={handleToggleCascadeView}>
               {isCascadeViewOpen ? 'Hide' : 'Show'} Inheritance Chain
             </Button>
-            <Button onClick={handleAssignRule}>+ Assign Rule</Button>
+            <Button onClick={handleAssignRule} className="gap-1.5">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Assign Rule
+            </Button>
           </div>
         </div>
 
@@ -158,9 +162,7 @@ export const DirectoryRulesPageContainer = ({
                 className="flex min-h-10 items-center gap-2 text-xl font-semibold"
                 style={{ color: currentTheme.colors.foreground }}
               >
-                <span role="img" aria-label="clipboard">
-                  📋
-                </span>{' '}
+                <ClipboardList className="h-5 w-5 shrink-0" aria-hidden="true" />
                 Rules Assigned to This Directory ({directRules.length})
               </h2>
             )}
@@ -213,9 +215,7 @@ export const DirectoryRulesPageContainer = ({
               className="text-xl font-semibold mb-4 flex items-center gap-2"
               style={{ color: currentTheme.colors.foreground }}
             >
-              <span role="img" aria-label="outbox">
-                📤
-              </span>{' '}
+              <FolderInput className="h-5 w-5 shrink-0" aria-hidden="true" />
               Inherited from Parent Directories
             </h2>
 
@@ -233,9 +233,7 @@ export const DirectoryRulesPageContainer = ({
                       className="text-sm font-medium mb-3 flex items-center gap-2"
                       style={{ color: currentTheme.colors.mutedForeground }}
                     >
-                      <span role="img" aria-label="folder">
-                        📁
-                      </span>{' '}
+                      <Folder className="h-4 w-4 shrink-0" aria-hidden="true" />
                       From: {/* TODO: Get directory name from ID */}
                       <span className="text-xs">(Inherited)</span>
                     </div>

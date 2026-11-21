@@ -24,7 +24,7 @@ export const sourceCardStyles = {
     "hover:bg-card"
   ].join(" "),
   
-  icon: "text-4xl mb-4 text-center",
+  icon: "mb-4 flex justify-center",
   
   content: "flex-1 space-y-3",
   
@@ -34,7 +34,7 @@ export const sourceCardStyles = {
   
   footer: "mt-auto pt-4",
   
-  button: "w-full transition-all duration-200",
+  button: "w-full gap-1.5 transition-all duration-200",
   
   comingSoon: "text-xs text-muted-foreground font-medium text-center block w-full",
 } as const;

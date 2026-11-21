@@ -1,4 +1,5 @@
 import React from 'react';
+import { ClipboardPaste, FileText, Globe, PenLine } from 'lucide-react';
 import './animations.css';
 import { useDispatch, useSelector } from 'react-redux';
 import { SourceCard } from './SourceCard';
@@ -10,7 +11,7 @@ import type { RootState } from '../../../../store';
 const sourceCards: ISourceCard[] = [
   {
     id: 'file',
-    icon: '📄',
+    icon: FileText,
     title: 'File Upload',
     description: 'Upload MD or text file',
     status: 'active',
@@ -18,7 +19,7 @@ const sourceCards: ISourceCard[] = [
   },
   {
     id: 'pasteText',
-    icon: '📋',
+    icon: ClipboardPaste,
     title: 'Paste Text',
     description: 'Paste existing text or notes',
     status: 'active',
@@ -26,7 +27,7 @@ const sourceCards: ISourceCard[] = [
   },
   {
     id: 'website',
-    icon: '🌐',
+    icon: Globe,
     title: 'Website URL',
     description: 'From any URL or link',
     status: 'active',
@@ -34,7 +35,7 @@ const sourceCards: ISourceCard[] = [
   },
   {
     id: 'textPrompt',
-    icon: '📝',
+    icon: PenLine,
     title: 'Text Prompt',
     description: 'Create from description',
     status: 'active',

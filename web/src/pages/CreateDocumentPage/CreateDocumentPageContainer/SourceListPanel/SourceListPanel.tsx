@@ -1,4 +1,5 @@
 import React from 'react';
+import { ClipboardPaste, FileText, Globe, Sparkles } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { cn } from '../../../../lib/utils';
 import { setSelectedSource, selectSelectedSource } from '../../../../store/slices/createDocumentPageSlice';
@@ -10,28 +11,28 @@ import type { RootState } from '../../../../store';
 const sources: ISourceListItem[] = [
   {
     id: 'file',
-    icon: '📄',
+    icon: FileText,
     title: 'File Upload',
     description: 'Upload files',
     status: 'active',
   },
   {
     id: 'pasteText',
-    icon: '📋',
+    icon: ClipboardPaste,
     title: 'Paste Text',
     description: 'Paste existing text',
     status: 'active',
   },
   {
     id: 'website',
-    icon: '🌐',
+    icon: Globe,
     title: 'Website URL',
     description: 'Scrape web pages, YouTube, or other URLs',
     status: 'active',
   },
   {
     id: 'textPrompt',
-    icon: '✨',
+    icon: Sparkles,
     title: 'AI Prompt',
     description: 'Generate from description',
     status: 'active',
@@ -79,7 +80,7 @@ export const SourceListPanel = () => {
               sourceListPanelStyles.sourceIcon,
               isActive && sourceListPanelStyles.sourceIconActive,
             )}>
-              {source.icon}
+              <source.icon className="h-5 w-5" aria-hidden="true" />
             </div>
             <div className={sourceListPanelStyles.sourceInfo}>
               <div className={sourceListPanelStyles.sourceName}>

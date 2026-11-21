@@ -1,10 +1,12 @@
+import type { LucideIcon } from 'lucide-react';
+
 export type SourceType = 'website' | 'file' | 'pasteText' | 'textPrompt';
 
 export type SourceStatus = 'active' | 'coming-soon' | 'disabled';
 
 export interface ISourceCard {
   id: SourceType;
-  icon: string;
+  icon: LucideIcon;
   title: string;
   description: string;
   status: SourceStatus;
@@ -13,7 +15,7 @@ export interface ISourceCard {
 
 export interface ISourceListItem {
   id: SourceType;
-  icon: string;
+  icon: LucideIcon;
   title: string;
   description: string;
   status: SourceStatus;

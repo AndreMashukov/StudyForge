@@ -13,7 +13,7 @@ import { Label } from "../ui/Label";
 import { Textarea } from "../ui/Textarea";
 import { Checkbox } from "../ui/Checkbox";
 import { Badge } from "../ui/Badge";
-import { X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import {
   useGetRuleQuery,
   useCreateRuleMutation,
@@ -266,13 +266,15 @@ export const RuleFormModal = ({
                     type="button"
                     onClick={() => toggleApplicability(operation)}
                     className={cn(
-                      "px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                      "inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                       formData.applicableTo.includes(operation)
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                     )}
                   >
-                    {formData.applicableTo.includes(operation) && "✓ "}
+                    {formData.applicableTo.includes(operation) && (
+                      <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
                     {operation}
                   </button>
                 ))}

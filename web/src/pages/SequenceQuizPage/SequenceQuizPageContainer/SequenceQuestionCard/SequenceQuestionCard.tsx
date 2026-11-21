@@ -23,7 +23,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useState, useLayoutEffect, ReactNode } from 'react';
 import { useSelector } from 'react-redux';
-import { GripVertical, X, Package, Layers, CheckCircle, XCircle } from 'lucide-react';
+import { GripVertical, X, Package, Layers, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { Card, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
@@ -512,9 +512,17 @@ export const SequenceQuestionCard: React.FC<ISequenceQuestionCardProps> = ({
           <div className="flex justify-end pt-1">
             <Button
               size="sm"
+              className="gap-1.5"
               onClick={isLastQuestion ? handlers.handleCompleteQuiz : handlers.handleNextQuestion}
             >
-              {isLastQuestion ? 'View results' : 'Next question →'}
+              {isLastQuestion ? (
+                'View results'
+              ) : (
+                <>
+                  Next question
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </>
+              )}
             </Button>
           </div>
         </div>

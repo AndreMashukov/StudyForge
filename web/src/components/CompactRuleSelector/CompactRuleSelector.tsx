@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { RotateCcw, Tag } from "lucide-react";
+import { ChevronDown, RotateCcw, Tag } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { Checkbox } from "../ui/Checkbox";
@@ -143,7 +143,7 @@ export const CompactRuleSelector = ({
       <details className="group border rounded-md">
         <summary className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors">
           <span className="text-sm font-medium">{summaryText}</span>
-          <span className="transition-transform group-open:rotate-180">▼</span>
+          <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" />
         </summary>
 
         <div className="p-3 pt-0">
