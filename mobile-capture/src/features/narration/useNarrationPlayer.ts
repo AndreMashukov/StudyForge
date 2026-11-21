@@ -44,6 +44,9 @@ export interface INarrationPlayer {
 const POSITION_SAVE_INTERVAL_MS = 10_000;
 /** After a playback failure the player reloads itself, but not more often than this. */
 const RECOVER_MIN_INTERVAL_MS = 5_000;
+/** A local file that has not loaded by then has failed; the player gives no error for it. */
+const LOAD_TIMEOUT_MS = 15_000;
+const LOAD_FAILED_MESSAGE = 'The narration could not be played. Tap play to try again.';
 
 /**
  * Plays a narration (ADR 013) as one audio file: the ready parts joined in
@@ -82,6 +85,7 @@ export function useNarrationPlayer(params: {
   /** The loaded source has reached a playable state; a later idle means it failed. */
   const sourceReadyRef = useRef(false);
   const lastRecoverRef = useRef(0);
+  const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   partsRef.current = parts;
   rateRef.current = rate;
@@ -113,6 +117,11 @@ export function useNarrationPlayer(params: {
     };
   }, [documentId]);
 
+  const clearLoadTimer = useCallback(() => {
+    if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
+    loadTimerRef.current = null;
+  }, []);
+
   /** Loads the joined audio of `included` and plays it from `startMs`. */
   const loadJoined = useCallback(
     async (included: NarrationPart[], startMs: number) => {
@@ -120,6 +129,7 @@ export function useNarrationPlayer(params: {
       if (!player || !documentId) return;
       const token = ++loadTokenRef.current;
       sourceReadyRef.current = false;
+      clearLoadTimer();
       setStatus('loading');
       try {
         const uri = await combinedNarrationUri(documentId, included);
@@ -131,6 +141,15 @@ export function useNarrationPlayer(params: {
         player.loop = loopRef.current;
         player.setPlaybackRate(rateRef.current, 'high');
         player.play();
+        // A source that fails before it loads sends no status that says so.
+        loadTimerRef.current = setTimeout(() => {
+          loadTimerRef.current = null;
+          if (token !== loadTokenRef.current || sourceReadyRef.current) return;
+          loadTokenRef.current += 1;
+          playerRef.current?.pause();
+          setError(LOAD_FAILED_MESSAGE);
+          setStatus('error');
+        }, LOAD_TIMEOUT_MS);
       } catch (loadError) {
         if (token !== loadTokenRef.current) return;
         setError(
@@ -141,7 +160,7 @@ export function useNarrationPlayer(params: {
         setStatus('error');
       }
     },
-    [documentId],
+    [documentId, clearLoadTimer],
   );
 
   const finishPlayback = useCallback(() => {
@@ -193,7 +212,10 @@ export function useNarrationPlayer(params: {
       recoverFromFailure();
       return;
     }
-    if (update.isLoaded) sourceReadyRef.current = true;
+    if (update.isLoaded) {
+      sourceReadyRef.current = true;
+      clearLoadTimer();
+    }
     if (update.isLoaded && pendingSeekMsRef.current !== null) {
       const seekMs = pendingSeekMsRef.current;
       pendingSeekMsRef.current = null;
@@ -289,6 +311,7 @@ export function useNarrationPlayer(params: {
 
   const reset = useCallback(() => {
     loadTokenRef.current += 1;
+    clearLoadTimer();
     playerRef.current?.pause();
     includedRef.current = [];
     positionRef.current = 0;
@@ -297,7 +320,7 @@ export function useNarrationPlayer(params: {
     setCurrentPartIndex(null);
     setPositionMs(0);
     setStatus('idle');
-  }, []);
+  }, [clearLoadTimer]);
 
   useEffect(() => {
     if (playerRef.current) playerRef.current.setPlaybackRate(rate, 'high');
@@ -311,6 +334,7 @@ export function useNarrationPlayer(params: {
   useEffect(
     () => () => {
       savePosition(true);
+      clearLoadTimer();
       const player = playerRef.current;
       playerRef.current = null;
       if (player) {
@@ -319,7 +343,7 @@ export function useNarrationPlayer(params: {
         player.remove();
       }
     },
-    [savePosition],
+    [savePosition, clearLoadTimer],
   );
 
   return {

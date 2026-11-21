@@ -51,6 +51,7 @@ import {
   narrationRunTallyUpdate,
   parseNarrationRun,
   settleNarrationRun,
+  trackNarrationRunUpload,
 } from './narration-runs';
 import {
   isDocumentReadyForNarration,
@@ -76,6 +77,8 @@ import {
 const PART_CONCURRENCY = 3;
 /** Attempts per part before it is marked failed. */
 const PART_ATTEMPTS = 2;
+/** Attempts to publish an uploaded part as ready before it is marked failed. */
+const PUBLISH_ATTEMPTS = 3;
 /** Longest wait for one speech request. */
 const SPEECH_REQUEST_TIMEOUT_MS = 90_000;
 /**
@@ -453,6 +456,8 @@ async function updatePart(
       : null;
     if (!record || record.runId !== payload.runId) return false;
     const target = record.parts.find((part) => part.key === key);
+    // A ready update that committed but reported an error is never undone.
+    if (target?.status === 'ready' && patch.status !== 'ready') return true;
     const parts = record.parts.map((part) =>
       part.key === key ? cleanNarrationPart({ ...part, ...patch }) : part,
     );
@@ -467,7 +472,61 @@ async function updatePart(
   });
 }
 
-/** Generates one part. Returns false when the run no longer owns the narration. */
+interface IUploadedPartAudio {
+  durationMs: number;
+  sizeBytes: number;
+}
+
+/**
+ * Narrates one part and uploads its audio. The file is recorded on the run
+ * first, so settling the run deletes it if it is never published.
+ */
+async function synthesizePartAudio(
+  payload: INarrationRunTaskPayload,
+  route: ISpeechRoute,
+  part: IKeyedNarrationPart,
+  storagePath: string,
+): Promise<IUploadedPartAudio> {
+  const pcm = await synthesizeSpeech(
+    route,
+    part.text,
+    SPEECH_REQUEST_TIMEOUT_MS,
+  );
+  const mp3 = encodeMp3(pcm, NARRATION_AUDIO_BITRATE_KBPS);
+  await trackNarrationRunUpload(payload.runId, storagePath);
+  await DocumentService.getBucket()
+    .file(storagePath)
+    .save(Buffer.from(mp3), {
+      resumable: false,
+      contentType: NARRATION_AUDIO_CONTENT_TYPE,
+      metadata: { cacheControl: 'private, max-age=31536000, immutable' },
+    });
+  return { durationMs: pcmDurationMs(pcm), sizeBytes: mp3.length };
+}
+
+function logPartFailure(
+  payload: INarrationRunTaskPayload,
+  part: IKeyedNarrationPart,
+  step: 'synthesize' | 'publish',
+  attempt: number,
+  error: unknown,
+): void {
+  logger.warn('Narration part attempt failed', {
+    userId: payload.userId,
+    documentId: payload.documentId,
+    partIndex: part.index,
+    step,
+    attempt,
+    message: error instanceof Error ? error.message : String(error),
+  });
+}
+
+/**
+ * Generates one part: narrates and uploads it, then publishes it as ready.
+ * Publishing is retried on its own, without narrating again. A file that is
+ * never published is deleted when the run settles. Returns false when the run
+ * no longer owns the narration.
+ */
 async function generatePart(
   payload: INarrationRunTaskPayload,
   route: ISpeechRoute,
@@ -480,41 +539,38 @@ async function generatePart(
     `${part.key}-${payload.runId.slice(0, 8)}`,
   );
   let lastError: unknown;
-  for (let attempt = 1; attempt <= PART_ATTEMPTS; attempt += 1) {
+  let audio: IUploadedPartAudio | null = null;
+  for (let attempt = 1; attempt <= PART_ATTEMPTS && !audio; attempt += 1) {
     try {
-      const pcm = await synthesizeSpeech(
-        route,
-        part.text,
-        SPEECH_REQUEST_TIMEOUT_MS,
-      );
-      const mp3 = encodeMp3(pcm, NARRATION_AUDIO_BITRATE_KBPS);
-      const file = DocumentService.getBucket().file(storagePath);
-      await file.save(Buffer.from(mp3), {
-        resumable: false,
-        contentType: NARRATION_AUDIO_CONTENT_TYPE,
-        metadata: { cacheControl: 'private, max-age=31536000, immutable' },
-      });
-      const owned = await updatePart(payload, part.key, {
-        status: 'ready',
-        storagePath,
-        durationMs: pcmDurationMs(pcm),
-        sizeBytes: mp3.length,
-        errorMessage: undefined,
-      });
-      if (!owned) {
-        // The narration was removed or taken over while this part was generating.
-        await file.delete({ ignoreNotFound: true }).catch(() => undefined);
-      }
-      return owned;
+      audio = await synthesizePartAudio(payload, route, part, storagePath);
     } catch (error) {
       lastError = error;
-      logger.warn('Narration part attempt failed', {
-        userId: payload.userId,
-        documentId: payload.documentId,
-        partIndex: part.index,
-        attempt,
-        message: error instanceof Error ? error.message : String(error),
-      });
+      logPartFailure(payload, part, 'synthesize', attempt, error);
+    }
+  }
+
+  if (audio) {
+    for (let attempt = 1; attempt <= PUBLISH_ATTEMPTS; attempt += 1) {
+      try {
+        const owned = await updatePart(payload, part.key, {
+          status: 'ready',
+          storagePath,
+          durationMs: audio.durationMs,
+          sizeBytes: audio.sizeBytes,
+          errorMessage: undefined,
+        });
+        if (!owned) {
+          // The narration was removed or taken over while this part was generating.
+          await DocumentService.getBucket()
+            .file(storagePath)
+            .delete({ ignoreNotFound: true })
+            .catch(() => undefined);
+        }
+        return owned;
+      } catch (error) {
+        lastError = error;
+        logPartFailure(payload, part, 'publish', attempt, error);
+      }
     }
   }
   return updatePart(payload, part.key, {

@@ -12,7 +12,28 @@ import {
   narrationPartKey,
   planNarrationWork,
   remapNarrationParts,
+  unpublishedNarrationUploads,
 } from './narration-planning';
+
+describe('unpublishedNarrationUploads', () => {
+  it('keeps every upload a part refers to and returns the rest once', () => {
+    const parts = [
+      { storagePath: 'n/a-run1.mp3' },
+      { storagePath: undefined },
+      { storagePath: 'n/b-run0.mp3' },
+    ];
+    expect(
+      unpublishedNarrationUploads(
+        ['n/a-run1.mp3', 'n/c-run1.mp3', 'n/c-run1.mp3'],
+        parts,
+      ),
+    ).toEqual(['n/c-run1.mp3']);
+  });
+
+  it('returns every upload when the narration was removed', () => {
+    expect(unpublishedNarrationUploads(['n/a.mp3'], [])).toEqual(['n/a.mp3']);
+  });
+});
 
 const route = { voice: 'Kore', model: 'tts-1' };
 const sentence =

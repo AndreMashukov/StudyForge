@@ -126,6 +126,7 @@
     "dotenv": "^17.2.2",
     "eslint-config-next": "^16.1.6",
     "expo": "~55.0.0",
+    "expo-audio": "~55.0.18",
     "expo-camera": "~55.0.18",
     "expo-clipboard": "~55.0.13",
     "expo-constants": "~55.0.16",

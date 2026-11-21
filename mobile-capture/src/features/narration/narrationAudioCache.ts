@@ -10,6 +10,8 @@ import { storage } from '../../lib/firebase';
  */
 
 const COMBINED_PREFIX = 'combined-';
+/** A part's download in progress; it takes the part's cache name once complete. */
+const PARTIAL_SUFFIX = '.mp3.part';
 
 function narrationDirectory(documentId: string): Directory {
   const directory = new Directory(Paths.cache, 'narration', documentId);
@@ -18,19 +20,33 @@ function narrationDirectory(documentId: string): Directory {
   return directory;
 }
 
-/** A local file for a part's audio, downloading it the first time. */
+/**
+ * A local file for a part's audio, downloading it the first time. On Android
+ * a failed download can leave a partial file at its destination, so it
+ * downloads to a temporary name and only a finished download takes the cache
+ * name: a file under the cache name is always complete.
+ */
 export async function cachedNarrationPartUri(
   documentId: string,
   part: NarrationPart,
 ): Promise<string> {
   if (!part.storagePath) throw new Error('This part has no audio yet.');
-  const file = new File(narrationDirectory(documentId), `${part.key}.mp3`);
+  const directory = narrationDirectory(documentId);
+  const file = new File(directory, `${part.key}.mp3`);
   if (file.exists && (file.size ?? 0) > 0) return file.uri;
   const url = await getDownloadURL(ref(storage, part.storagePath));
-  const downloaded = await File.downloadFileAsync(url, file, {
-    idempotent: true,
-  });
-  return downloaded.uri;
+  const temporary = new File(directory, `${part.key}${PARTIAL_SUFFIX}`);
+  try {
+    const downloaded = await File.downloadFileAsync(url, temporary, {
+      idempotent: true,
+    });
+    if (file.exists) file.delete();
+    downloaded.move(file);
+  } catch (error) {
+    if (temporary.exists) temporary.delete();
+    throw error;
+  }
+  return file.uri;
 }
 
 /** A short stable name for a list of part keys. */
@@ -70,7 +86,12 @@ export async function combinedNarrationUri(
     joined.set(chunk, offset);
     offset += chunk.length;
   }
-  combined.write(joined);
+  // Written under a temporary name first, so an interrupted write never leaves
+  // a short file under the name that is reused.
+  const temporary = new File(directory, `${name}.part`);
+  if (temporary.exists) temporary.delete();
+  temporary.write(joined);
+  temporary.move(combined);
 
   // Older joined files are no longer needed; a player still holding one keeps reading it.
   for (const entry of directory.list()) {

@@ -165,3 +165,16 @@ export function remapNarrationParts(
   const dropped = stored.filter((part) => !plannedKeys.has(part.key));
   return { kept, dropped };
 }
+
+/**
+ * The audio files a run uploaded that no part of the narration refers to:
+ * the part's ready update never committed, or the narration moved on. Only a
+ * file the record does not refer to may be deleted.
+ */
+export function unpublishedNarrationUploads(
+  uploadedPaths: string[],
+  parts: Pick<NarrationPart, 'storagePath'>[],
+): string[] {
+  const referenced = new Set(parts.map((part) => part.storagePath));
+  return [...new Set(uploadedPaths)].filter((path) => !referenced.has(path));
+}

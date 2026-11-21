@@ -6,6 +6,9 @@ import {
   settleUsageReservationToCredits,
 } from '@study-forge/backend-core/services/usage-limits-service';
 import { storageUsageDocRef } from '@study-forge/backend-core/services/usage-quota-service';
+import { DocumentService } from '../document-storage';
+import { unpublishedNarrationUploads } from './narration-planning';
+import { readNarrationRecord } from './narration-store';
 
 /**
  * One generation run of a narration, kept apart from the narration record so
@@ -24,6 +27,12 @@ export interface INarrationRun {
   /** Spoken characters and audio bytes of the parts this run stored. */
   generatedCharCount: number;
   storedBytes: number;
+  /**
+   * Every audio file the run uploaded, recorded before the upload. Settling
+   * deletes the ones the narration does not refer to, so a part whose ready
+   * update never committed leaves no file behind.
+   */
+  uploadedPaths: string[];
   status: 'open';
   startedAt: string;
 }
@@ -37,6 +46,12 @@ export function narrationRunRef(runId: string) {
 
 function readNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function readStrings(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
+    : [];
 }
 
 export function parseNarrationRun(data: unknown): INarrationRun | null {
@@ -63,9 +78,51 @@ export function parseNarrationRun(data: unknown): INarrationRun | null {
     reservedStorageBytes: readNumber(read('reservedStorageBytes')),
     generatedCharCount: readNumber(read('generatedCharCount')),
     storedBytes: readNumber(read('storedBytes')),
+    uploadedPaths: readStrings(read('uploadedPaths')),
     status,
     startedAt,
   };
+}
+
+/** Records an audio file on its run before it is uploaded. */
+export async function trackNarrationRunUpload(
+  runId: string,
+  storagePath: string,
+): Promise<void> {
+  await narrationRunRef(runId).update({
+    uploadedPaths: FieldValue.arrayUnion(storagePath),
+  });
+}
+
+/**
+ * Deletes the run's uploads the narration does not refer to. The record is
+ * read after the run released the narration, so a ready update that committed
+ * is seen and its file kept. Throws when a delete fails, leaving the run open
+ * for the sweep to try again.
+ */
+async function deleteUnpublishedUploads(
+  runId: string,
+  run: INarrationRun,
+): Promise<void> {
+  if (!run.uploadedPaths.length) return;
+  const record = await readNarrationRecord(run.userId, run.documentId);
+  const unpublished = unpublishedNarrationUploads(
+    run.uploadedPaths,
+    record?.parts ?? [],
+  );
+  if (!unpublished.length) return;
+  const bucket = DocumentService.getBucket();
+  await Promise.all(
+    unpublished.map((path) =>
+      bucket.file(path).delete({ ignoreNotFound: true }),
+    ),
+  );
+  logger.warn('Unpublished narration audio deleted', {
+    runId,
+    userId: run.userId,
+    documentId: run.documentId,
+    files: unpublished.length,
+  });
 }
 
 /** Adds a stored part to the run's tallies; for use inside the part's transaction. */
@@ -96,6 +153,8 @@ export async function settleNarrationRun(runId: string): Promise<void> {
   const snapshot = await ref.get();
   const run = snapshot.exists ? parseNarrationRun(snapshot.data()) : null;
   if (!run) return;
+
+  await deleteUnpublishedUploads(runId, run);
 
   if (run.reservationId) {
     // The reservation caps the commit at what was reserved.
