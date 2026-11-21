@@ -28,6 +28,7 @@ import {
 } from '../../store/slices/uiSlice';
 import { useAuth } from '../../contexts/AuthContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { CHROME_BELOW_MODAL_CLASS, useHasOpenModal } from '../ModalVisibility';
 import { useGetUsageSummaryQuery } from '../../store/api/Usage/usageApi';
 import { formatUsagePlanLabel } from '../../utils/usagePlanLabel';
 import { useSupportAppEntryUrl } from '../../hooks/useSupportAppEntryUrl';
@@ -63,6 +64,7 @@ export const Sidebar = ({ className }: ISidebar) => {
   const supportAppUrl = useSupportAppEntryUrl();
   const isOpen = useSelector(selectSidebarIsOpen);
   const isMobile = useIsMobile();
+  const hasOpenModal = useHasOpenModal();
   const accountTriggerRef = React.useRef<HTMLButtonElement>(null);
   const firstAccountItemRef = React.useRef<HTMLButtonElement>(null);
   const { data: usageSummary } = useGetUsageSummaryQuery(undefined, {
@@ -245,6 +247,11 @@ export const Sidebar = ({ className }: ISidebar) => {
         isOpen ? sidebarClassNames.expanded : sidebarClassNames.collapsed,
         sidebarStyles.container,
         isMobile && sidebarStyles.mobileSidebar,
+        // The mobile drawer is itself a modal, so only the desktop sidebar drops.
+        !isMobile && hasOpenModal && [
+          CHROME_BELOW_MODAL_CLASS,
+          sidebarStyles.belowModal,
+        ],
         className,
       )}
       header={

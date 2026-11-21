@@ -16,6 +16,7 @@ import { DirectoryRealtimeBridge } from '../DirectoryRealtimeBridge';
 import { RulesRealtimeBridge } from '../RulesRealtimeBridge';
 import { UsageRealtimeBridge } from '../UsageRealtimeBridge';
 import { GlobalAgentLauncher } from '../GlobalAgentLauncher';
+import { CHROME_BELOW_MODAL_CLASS, useHasOpenModal } from '../ModalVisibility';
 import { LibrarySearch, LibrarySearchButton } from '../LibrarySearch';
 import { prefetchDirectoryTree } from '../../pages/DocumentsPage/utils/prefetchDirectoryContents';
 import { useAppDispatch } from '../../hooks/redux';
@@ -27,6 +28,7 @@ import {
 export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
   const { user, loading } = useAuth();
   const { isAppFullscreen } = useAppFullscreen();
+  const hasOpenModal = useHasOpenModal();
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -67,6 +69,7 @@ export const MainLayout: React.FC<IMainLayout> = ({ children }) => {
     <div className="flex h-screen min-h-0 flex-col overflow-hidden overscroll-none bg-background text-foreground">
       <TopAppBar
         hidden={isAppFullscreen}
+        className={hasOpenModal ? CHROME_BELOW_MODAL_CLASS : undefined}
         start={
           <TopAppBarMenuButton
             id="sidebar-toggle"
