@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { librarySearchItemTypeSchema } from '@shared-types';
+import {
+  librarySearchItemTypeSchema,
+  type LibrarySearchItemType,
+} from '@shared-types';
 import {
   createMemoryLibrarySearchStore,
   type ILibrarySearchStore,
@@ -11,9 +14,15 @@ import { loadCreateMmkv, type IMmkvInstance } from './appStorage';
 const META_KEY = 'meta';
 const RECORD_PREFIX = 'r:';
 
+// The shared schema is from a different Zod major version, so it is checked
+// through its own `safeParse` rather than nested in this app's schema.
+const itemTypeSchema = z.custom<LibrarySearchItemType>(
+  (value) => librarySearchItemTypeSchema.safeParse(value).success,
+);
+
 const recordSchema = z.object({
   id: z.string(),
-  itemType: librarySearchItemTypeSchema,
+  itemType: itemTypeSchema,
   sourceId: z.string(),
   directoryId: z.string().nullable(),
   title: z.string(),

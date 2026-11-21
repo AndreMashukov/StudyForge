@@ -176,7 +176,7 @@ export async function evaluateScratchPadAnswer(
 export async function startAgentTurn(
   request: StartAgentTurnRequest,
 ): Promise<StartAgentTurnResponse> {
-  return callFunction(
+  return callSharedFunction(
     'startAgentTurn',
     request,
     startAgentTurnResponseSchema,
@@ -188,7 +188,7 @@ export async function startAgentTurn(
 export async function cancelAgentTurn(
   request: CancelAgentTurnRequest,
 ): Promise<CancelAgentTurnResponse> {
-  return callFunction(
+  return callSharedFunction(
     'cancelAgentTurn',
     request,
     cancelAgentTurnResponseSchema,
