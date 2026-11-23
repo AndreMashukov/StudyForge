@@ -10,8 +10,10 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getUserUsageSummary } from './usage-limits-service';
 import {
+  applyStarterRetry,
   decideOnboardingInit,
   decideStarterDocumentClaim,
+  decideStarterFailure,
   serializeUserOnboarding,
   type StarterDocumentClaimDecision,
 } from './user-onboarding-logic';
@@ -141,7 +143,7 @@ export async function bootstrapUserProfile(params: {
           version: USER_ONBOARDING_VERSION,
           status: 'pending',
           createdAt: now,
-          starter: { turnsUsed: 0, documentsUsed: 0, documentIds: [] },
+          starter: { turnsUsed: 0, documentsUsed: 0, documentIds: [], retriesUsed: 0 },
         }
       : undefined;
 
@@ -213,14 +215,12 @@ export async function updateUserOnboarding<T>(
       parseUserOnboarding(snapshot.data()?.onboarding),
     );
     if (next) {
-      transaction.set(
-        userRef,
-        {
-          onboarding: serializeUserOnboarding(next),
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      );
+      // update() replaces the whole onboarding map, so fields cleared in
+      // `next` (such as starter.failedAt) are removed, not merged back.
+      transaction.update(userRef, {
+        onboarding: serializeUserOnboarding(next),
+        updatedAt: new Date().toISOString(),
+      });
     }
     return result;
   });
@@ -276,12 +276,14 @@ export async function claimStarterCourseDocument(
     if (!decision.allowed || !onboarding) {
       return { next: null, result: decision };
     }
+    // Starting a document ends a pending retry offer.
     return {
       next: {
         ...onboarding,
         starter: {
           ...onboarding.starter,
           documentsUsed: onboarding.starter.documentsUsed + 1,
+          failedAt: undefined,
         },
       },
       result: decision,
@@ -400,6 +402,29 @@ export async function completeStarterCourse(
         },
       },
       result: undefined,
+    };
+  });
+}
+
+/**
+ * Every starter document failed. Grants the one free retry (slots back, a
+ * retry offer on the welcome screen), or closes the course when the retry was
+ * already used. Returns what happened.
+ */
+export async function handleStarterCourseFailure(
+  userId: string,
+): Promise<'retry' | 'close' | 'none'> {
+  const nowIso = new Date().toISOString();
+  return updateUserOnboarding(userId, (onboarding) => {
+    if (!onboarding || onboarding.status !== 'started') {
+      return { next: null, result: 'none' as const };
+    }
+    if (decideStarterFailure(onboarding) === 'retry') {
+      return { next: applyStarterRetry(onboarding, nowIso), result: 'retry' as const };
+    }
+    return {
+      next: { ...onboarding, status: 'completed', completedAt: nowIso },
+      result: 'close' as const,
     };
   });
 }

@@ -10,6 +10,8 @@ export interface IStarterCoursePromptInput {
   courseDirectoryId?: string;
   /** Free documents still available. */
   documentsRemaining: number;
+  /** Every earlier starter document failed to generate. */
+  isRetry?: boolean;
 }
 
 const OVERRIDE_NOTE =
@@ -32,7 +34,9 @@ function buildBuildLines(input: IStarterCoursePromptInput): string[] {
   const lines = [
     'STARTER COURSE MODE, STEP 2 OF 2: BUILD.',
     OVERRIDE_NOTE,
-    "The user's latest message answers the questions you asked about the subject they chose. A skipped question means: use beginner-friendly defaults.",
+    input.isRetry
+      ? 'RETRY: every document you started for this course failed to generate, and the user asked to try again (still free). Recreate the documents from the same plan, using the answers earlier in Recent conversation.'
+      : "The user's latest message answers the questions you asked about the subject they chose. A skipped question means: use beginner-friendly defaults.",
     '- Do not ask any more questions. Build the course now, without asking for approval and without quoting credits (it is free).',
   ];
   if (input.courseDirectoryId) {

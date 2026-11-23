@@ -261,7 +261,8 @@ export async function startAgentTurn(
         );
 
         if (isStarterTurn && txOnboarding && isFreeStarterTurn(starter)) {
-          transaction.set(
+          // update() replaces the whole onboarding map (no stale merged fields).
+          transaction.update(
             userRef,
             {
               onboarding: serializeUserOnboarding(
@@ -275,7 +276,6 @@ export async function startAgentTurn(
               ),
               updatedAt: now.toISOString(),
             },
-            { merge: true },
           );
         }
 

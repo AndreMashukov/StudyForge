@@ -8,6 +8,7 @@ import {
 import { useStartAgentTurnMutation } from '../../../../store/api/AgentThread/AgentThreadApi';
 import { readAgentRequestErrorMessage } from '../../../../components/AgentPanel/agentPanelErrors';
 import { formatLocalIsoDate } from '../../../../utils/dateUtils';
+import { STARTER_COURSE_RETRY_MESSAGE } from '@shared-types';
 import type { IWelcomePageHandlers } from '../../types/IWelcomePageContext';
 import { normalizeWelcomeSubject } from '../../utils/welcomePageView';
 
@@ -17,7 +18,9 @@ export function useWelcomePageHandlers(): IWelcomePageHandlers {
   const [subject, setSubject] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [startedThreadId, setStartedThreadId] = useState<string | undefined>();
+  const [retryRequested, setRetryRequested] = useState(false);
   const [startAgentTurn, { isLoading: isStarting }] = useStartAgentTurnMutation();
+  const [startRetryTurn, { isLoading: isRetrying }] = useStartAgentTurnMutation();
   const [skipOnboarding, { isLoading: isSkipping }] = useSkipOnboardingMutation();
 
   const handleSubjectChange = useCallback((value: string) => {
@@ -69,6 +72,36 @@ export function useWelcomePageHandlers(): IWelcomePageHandlers {
       .catch(() => setError('Could not skip right now. Please try again.'));
   }, [navigate, skipOnboarding]);
 
+  const handleRetryCourse = useCallback(
+    (threadId: string) => {
+      if (isRetrying || retryRequested) {
+        return;
+      }
+      setError(null);
+      void startRetryTurn({
+        scope: 'workspace',
+        message: STARTER_COURSE_RETRY_MESSAGE,
+        threadId,
+        turnId: crypto.randomUUID(),
+        clientLocalDate: formatLocalIsoDate(),
+      })
+        .unwrap()
+        .then(() => {
+          setRetryRequested(true);
+          dispatch(authApi.util.invalidateTags(['UserProfile']));
+        })
+        .catch((retryError: unknown) => {
+          setError(
+            readAgentRequestErrorMessage(
+              retryError,
+              'Could not try again right now. Please try again in a moment.',
+            ),
+          );
+        });
+    },
+    [dispatch, isRetrying, retryRequested, startRetryTurn],
+  );
+
   // The agent created something: refresh the profile so the course folder link appears.
   const handleAgentMutated = useCallback(() => {
     dispatch(authApi.util.invalidateTags(['UserProfile']));
@@ -78,11 +111,14 @@ export function useWelcomePageHandlers(): IWelcomePageHandlers {
     subject,
     isStarting,
     isSkipping,
+    isRetrying,
+    retryRequested,
     error,
     startedThreadId,
     handleSubjectChange,
     handleStartCourse,
     handleSkip,
+    handleRetryCourse,
     handleAgentMutated,
   };
 }

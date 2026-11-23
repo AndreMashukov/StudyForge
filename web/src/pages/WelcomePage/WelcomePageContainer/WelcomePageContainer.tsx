@@ -7,7 +7,8 @@ import { SubjectPicker } from '../SubjectPicker';
 import { StarterCourseBuild } from '../StarterCourseBuild';
 
 export const WelcomePageContainer: React.FC = () => {
-  const { data, handlers, view, coursePath, samplePath } = useWelcomePageContext();
+  const { data, handlers, view, coursePath, samplePath, retryAvailable } =
+    useWelcomePageContext();
 
   if (view.type === 'loading' || view.type === 'leave') {
     return (
@@ -28,6 +29,10 @@ export const WelcomePageContainer: React.FC = () => {
           coursePath={coursePath}
           samplePath={samplePath}
           onAgentMutated={handlers.handleAgentMutated}
+          retryAvailable={retryAvailable && !handlers.retryRequested}
+          isRetrying={handlers.isRetrying}
+          error={handlers.error}
+          onRetry={() => handlers.handleRetryCourse(view.threadId)}
         />
       ) : (
         <SubjectPicker

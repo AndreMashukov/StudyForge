@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { isStarterRetryAvailable } from '@shared-types';
 import { buildDirectoryPathWithOptionalName } from '../../../../utils/directoryUrl';
 import type {
   IWelcomePageData,
@@ -12,7 +13,12 @@ import {
 export function useWelcomePageView(
   data: IWelcomePageData,
   handlers: Pick<IWelcomePageHandlers, 'startedThreadId'>,
-): { view: WelcomePageView; coursePath: string | null; samplePath: string | null } {
+): {
+  view: WelcomePageView;
+  coursePath: string | null;
+  samplePath: string | null;
+  retryAvailable: boolean;
+} {
   const { onboarding, isLoading } = data;
   const { startedThreadId } = handlers;
   return useMemo(() => {
@@ -26,6 +32,7 @@ export function useWelcomePageView(
       }),
       coursePath: courseId ? buildDirectoryPathWithOptionalName(courseId) : null,
       samplePath: sampleId ? buildDirectoryPathWithOptionalName(sampleId) : null,
+      retryAvailable: isStarterRetryAvailable(onboarding),
     };
   }, [isLoading, onboarding, startedThreadId]);
 }

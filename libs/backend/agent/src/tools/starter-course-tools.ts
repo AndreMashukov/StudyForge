@@ -19,6 +19,8 @@ export interface IStarterCourseRuntime {
   directoryId?: string;
   /** Free documents still available. */
   documentsRemaining: number;
+  /** Every earlier starter document failed; this turn recreates them. */
+  isRetry?: boolean;
 }
 
 export type StarterCoursePhase = 'ask' | 'build';
