@@ -21,9 +21,6 @@ import {
 } from './generation-limits';
 import type { GenerationJob } from './generation-jobs';
 
-/** Questions in the automatic starter-course quiz. */
-export const STARTER_COURSE_QUIZ_QUESTION_COUNT = 8;
-
 function toStarterDocumentState(value: unknown): StarterDocumentState {
   return value === 'completed' || value === 'failed' ? value : 'pending';
 }
@@ -126,7 +123,7 @@ export async function maybeStartStarterCourseQuiz(
   }
 
   const subject = onboarding.subject?.trim();
-  const title = subject ? `${subject} quiz` : `${first.title} quiz`;
+  const title = subject ? `${subject} - starter quiz` : `${first.title} quiz`;
   const documentIds = sourceDocuments.map((document) => document.id);
 
   const reservation = await enforceCallableGenerationLimits(
@@ -156,10 +153,11 @@ export async function maybeStartStarterCourseQuiz(
       recordId: quizId,
       kind: 'quiz',
       usageReservationId: reservation.id,
+      // The quiz processor reads the name from quizName; the question
+      // count comes from the quiz rules.
       payload: {
         documentIds,
-        title,
-        questionCount: STARTER_COURSE_QUIZ_QUESTION_COUNT,
+        quizName: title,
       },
     });
     await completeStarterCourse(job.userId, quizId);
