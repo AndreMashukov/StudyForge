@@ -3,6 +3,7 @@ import {
   agentActionResultSchema,
   agentPromptContextSchema,
   agentProposedDeleteSchema,
+  agentQuestionSchema,
   agentReferencedItemSchema,
   agentScopeSchema,
 } from './agent';
@@ -115,6 +116,8 @@ export const agentTurnSchema = z.object({
   executedActions: z.array(agentActionResultSchema).default([]),
   proposedDeletes: z.array(agentProposedDeleteSchema).default([]),
   referencedItems: z.array(agentReferencedItemSchema).default([]),
+  /** Clarifying questions the finished turn asks the user (set at completion). */
+  questions: z.array(agentQuestionSchema).default([]),
   userMessageId: z.string().trim().min(1),
   assistantMessageId: z.string().trim().min(1).nullable().optional(),
   error: agentTurnErrorSchema.nullable().optional(),

@@ -1,5 +1,6 @@
 import type { RunnableConfig } from '@langchain/core/runnables';
-import type { AgentMessageStreamEvent } from '@shared-types';
+import type { AgentQuestion, AgentMessageStreamEvent } from '@shared-types';
+import { normalizeAgentQuestions } from '@shared-types';
 import {
   UNGROUNDED_CREATE_FALLBACK,
   buildGroundedToolReply,
@@ -84,10 +85,12 @@ async function completeWithReply(input: {
   state: WorkspaceAgentState;
   reply: string;
   streamed: boolean;
+  questions?: AgentQuestion[];
 }): Promise<PlannerNodeResult> {
   logNodeExitOk(NODE_NAME, input.state);
   return {
     [WORKSPACE_AGENT_STATE_KEYS.finalReply]: input.reply,
+    [WORKSPACE_AGENT_STATE_KEYS.questions]: input.questions ?? [],
     [WORKSPACE_AGENT_STATE_KEYS.streamedFinalReply]: input.streamed,
     [WORKSPACE_AGENT_STATE_KEYS.plannerIntent]: 'complete',
     [WORKSPACE_AGENT_STATE_KEYS.agentOutcome]: 'succeeded',
@@ -171,6 +174,7 @@ export async function plannerNode(
           state,
           reply: emitted.reply,
           streamed: emitted.streamed,
+          questions: normalizeAgentQuestions(finalOutput.questions),
         });
       }
 
@@ -230,6 +234,7 @@ export async function plannerNode(
         state,
         reply: emitted.reply,
         streamed: emitted.streamed,
+        questions: normalizeAgentQuestions(plannerOutput.questions),
       });
     }
 

@@ -121,12 +121,65 @@ export const agentReferencedItemSchema = z.object({
   directoryId: z.string().trim().min(1).optional(),
 });
 
+/** Limits for clarifying questions the agent asks at the end of a turn. */
+export const AGENT_QUESTION_LIMITS = {
+  maxQuestions: 4,
+  minOptions: 2,
+  maxOptions: 4,
+  maxQuestionChars: 300,
+  maxHeaderChars: 24,
+  maxOptionLabelChars: 80,
+  maxOptionDescriptionChars: 200,
+} as const;
+
+export const agentQuestionOptionSchema = z.object({
+  label: z
+    .string()
+    .trim()
+    .min(1)
+    .max(AGENT_QUESTION_LIMITS.maxOptionLabelChars),
+  description: z
+    .string()
+    .trim()
+    .max(AGENT_QUESTION_LIMITS.maxOptionDescriptionChars)
+    .optional(),
+  /** The option the agent suggests. At most one per question. */
+  recommended: z.boolean().optional(),
+});
+
+/**
+ * A clarifying question the agent asks instead of guessing. The turn ends with
+ * the question; the user's answer arrives as their next message.
+ */
+export const agentQuestionSchema = z.object({
+  id: z.string().trim().min(1).max(40),
+  /** Short chip label, e.g. "Folder" or "Format". */
+  header: z
+    .string()
+    .trim()
+    .max(AGENT_QUESTION_LIMITS.maxHeaderChars)
+    .optional(),
+  question: z
+    .string()
+    .trim()
+    .min(1)
+    .max(AGENT_QUESTION_LIMITS.maxQuestionChars),
+  options: z
+    .array(agentQuestionOptionSchema)
+    .min(AGENT_QUESTION_LIMITS.minOptions)
+    .max(AGENT_QUESTION_LIMITS.maxOptions),
+  /** Whether the user may type their own answer instead of picking an option. */
+  allowOther: z.boolean().default(true),
+});
+
 export const agentMessageResponseSchema = z.object({
   reply: z.string(),
   threadId: z.string().trim().min(1),
   executedActions: z.array(agentActionResultSchema),
   proposedDeletes: z.array(agentProposedDeleteSchema),
   referencedItems: z.array(agentReferencedItemSchema).default([]),
+  /** Clarifying questions awaiting the user's answer (asked one at a time). */
+  questions: z.array(agentQuestionSchema).default([]),
   retrievedTexts: z.array(z.string()).optional(),
 });
 
@@ -142,6 +195,8 @@ export type AgentReferencedItemType = z.output<
   typeof agentReferencedItemTypeSchema
 >;
 export type AgentReferencedItem = z.output<typeof agentReferencedItemSchema>;
+export type AgentQuestionOption = z.output<typeof agentQuestionOptionSchema>;
+export type AgentQuestion = z.output<typeof agentQuestionSchema>;
 export type AgentMessageResponse = z.output<typeof agentMessageResponseSchema>;
 
 export const agentMessageStreamEventSchema = z.discriminatedUnion('type', [
@@ -270,6 +325,8 @@ export interface IAgentThreadMessage {
   executedActions?: AgentActionResult[];
   proposedDeletes?: AgentProposedDelete[];
   referencedItems?: AgentReferencedItem[];
+  /** Assistant messages only: clarifying questions for the user to answer. */
+  questions?: AgentQuestion[];
   /** Turn that wrote this message (both roles). */
   turnId?: string;
   /** Assistant messages only: how the turn ended. */

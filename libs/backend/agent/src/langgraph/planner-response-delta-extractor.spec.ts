@@ -14,6 +14,15 @@ describe('createPlannerResponseDeltaExtractor', () => {
     expect(extractor.emittedText()).toBe('Hello world');
   });
 
+  it('streams only the lead-in when the response carries questions', () => {
+    const extractor = createPlannerResponseDeltaExtractor();
+    const pieces = extractor.push(
+      '{"type":"response","questions":[{"question":"Which?","response":"x","options":[{"label":"response"}]}],"response":"Lead in"}',
+    );
+    expect(pieces.join('')).toBe('Lead in');
+    expect(extractor.emittedText()).toBe('Lead in');
+  });
+
   it('does not emit plan JSON', () => {
     const extractor = createPlannerResponseDeltaExtractor();
     expect(

@@ -42,7 +42,14 @@ function toTerminalState(outcome: IAgentTurnOutcome): IAgentTurnTerminalState {
   };
   switch (outcome.kind) {
     case 'completed':
-      return { status: 'completed', incomplete: false, reply: outcome.reply, error: null, ...lists };
+      return {
+        status: 'completed',
+        incomplete: false,
+        reply: outcome.reply,
+        error: null,
+        ...lists,
+        ...(outcome.questions?.length ? { questions: outcome.questions } : {}),
+      };
     case 'incomplete':
       return {
         status: 'completed',
@@ -57,12 +64,19 @@ function toTerminalState(outcome: IAgentTurnOutcome): IAgentTurnTerminalState {
         ...lists,
       };
     case 'cancelled':
-      return { status: 'cancelled', incomplete: false, reply: outcome.reply, error: null, ...lists };
+      return {
+        status: 'cancelled',
+        incomplete: false,
+        reply: outcome.reply,
+        error: null,
+        ...lists,
+      };
     case 'failed':
       return {
         status: 'failed',
         incomplete: false,
-        reply: outcome.reply.trim().length > 0 ? outcome.reply : FAILED_AGENT_REPLY,
+        reply:
+          outcome.reply.trim().length > 0 ? outcome.reply : FAILED_AGENT_REPLY,
         error: {
           code: 'internal',
           message: outcome.errorMessage ?? 'Agent execution failed',
@@ -72,7 +86,10 @@ function toTerminalState(outcome: IAgentTurnOutcome): IAgentTurnTerminalState {
   }
 }
 
-function failedOutcome(turn: AgentTurnRecord, error: unknown): IAgentTurnOutcome {
+function failedOutcome(
+  turn: AgentTurnRecord,
+  error: unknown,
+): IAgentTurnOutcome {
   return {
     kind: 'failed',
     reply: FAILED_AGENT_REPLY,

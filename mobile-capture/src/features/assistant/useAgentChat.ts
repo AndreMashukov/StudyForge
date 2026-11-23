@@ -20,6 +20,7 @@ import {
   subscribeAgentTurn,
 } from '@studyforge/client-data/agentTurnFirestore';
 import {
+  findOpenAgentQuestions,
   isAgentTurnActive,
   mergeAgentConversation,
 } from '@studyforge/client-data/agentConversation';
@@ -83,7 +84,10 @@ function useNowWhile(active: boolean): number {
   useEffect(() => {
     if (!active) return;
     setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), STUCK_CHECK_INTERVAL_MS);
+    const timer = setInterval(
+      () => setNow(Date.now()),
+      STUCK_CHECK_INTERVAL_MS,
+    );
     return () => clearInterval(timer);
   }, [active]);
   return now;
@@ -170,12 +174,17 @@ export function useAgentChat(
     (pending?.started ? pending.turnId : undefined) ??
     threadData?.thread.activeTurnId;
 
-  const turnKey = queryKeys.agentTurn(userId ?? '', threadId ?? '', followTurnId ?? '');
+  const turnKey = queryKeys.agentTurn(
+    userId ?? '',
+    threadId ?? '',
+    followTurnId ?? '',
+  );
   const turnQuery = useQuery({
     queryKey: turnKey,
     enabled: Boolean(userId && threadId && followTurnId),
     queryFn: () => {
-      if (!userId || !threadId || !followTurnId) throw new Error('Turn unavailable');
+      if (!userId || !threadId || !followTurnId)
+        throw new Error('Turn unavailable');
       return getAgentTurnFromFirestore(userId, threadId, followTurnId);
     },
   });
@@ -201,7 +210,9 @@ export function useAgentChat(
   }, [client, followTurnId, foregroundRevision, threadId, userId]);
 
   const turn =
-    turnQuery.data && turnQuery.data.id === followTurnId ? turnQuery.data : null;
+    turnQuery.data && turnQuery.data.id === followTurnId
+      ? turnQuery.data
+      : null;
   const turnActive = isAgentTurnActive(turn);
   const nowMs = useNowWhile(turnActive);
 
@@ -210,7 +221,8 @@ export function useAgentChat(
     if (
       pendingTurn &&
       threadData?.messages.some(
-        (message) => message.turnId === pendingTurn.turnId && message.role === 'assistant',
+        (message) =>
+          message.turnId === pendingTurn.turnId && message.role === 'assistant',
       )
     ) {
       setPendingTurn((current) =>
@@ -220,14 +232,17 @@ export function useAgentChat(
   }, [pendingTurn, threadData?.messages]);
 
   // A finished turn changed the drawer's chat order and preview.
-  const finishedTurnId = turn && isAgentTurnTerminal(turn.status) ? turn.id : null;
+  const finishedTurnId =
+    turn && isAgentTurnTerminal(turn.status) ? turn.id : null;
   useEffect(() => {
     if (finishedTurnId && userId) {
-      void client.invalidateQueries({ queryKey: queryKeys.agentThreads(userId) });
+      void client.invalidateQueries({
+        queryKey: queryKeys.agentThreads(userId),
+      });
     }
   }, [client, finishedTurnId, userId]);
 
-  const messages = useMemo<IChatMessage[]>(
+  const entries = useMemo(
     () =>
       mergeAgentConversation({
         messages: threadData?.messages ?? [],
@@ -241,8 +256,17 @@ export function useAgentChat(
             }
           : null,
         nowMs,
-      }).map(fromConversationEntry),
+      }),
     [nowMs, pending, threadData?.messages, turn],
+  );
+  const messages = useMemo<IChatMessage[]>(
+    () => entries.map(fromConversationEntry),
+    [entries],
+  );
+  /** Clarifying questions on the latest reply, answered one at a time. */
+  const openQuestions = useMemo(
+    () => findOpenAgentQuestions(entries),
+    [entries],
   );
 
   const isWorking = Boolean(pending && !turn) || turnActive;
@@ -299,7 +323,9 @@ export function useAgentChat(
         if (started) {
           markStarted();
         } else {
-          setPendingTurn((current) => (current?.turnId === turnId ? null : current));
+          setPendingTurn((current) =>
+            current?.turnId === turnId ? null : current,
+          );
           if (isLimitError(sendError)) {
             setLimitReached(true);
             setError(LIMIT_MESSAGE);
@@ -309,7 +335,9 @@ export function useAgentChat(
         }
       } finally {
         setSending(false);
-        void client.invalidateQueries({ queryKey: queryKeys.agentThreads(userId) });
+        void client.invalidateQueries({
+          queryKey: queryKeys.agentThreads(userId),
+        });
       }
     },
     [
@@ -339,6 +367,7 @@ export function useAgentChat(
   return {
     threadId,
     messages,
+    openQuestions,
     loading: Boolean(threadId) && threadQuery.isLoading && !pending,
     sending,
     isWorking,

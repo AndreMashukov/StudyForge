@@ -2,6 +2,7 @@ import type { IAgentConversationEntry } from '../../services/agentConversation';
 import type {
   AgentMessageResponse,
   AgentProposedDelete,
+  AgentQuestion,
   AgentScope,
 } from '@shared-types';
 
@@ -27,6 +28,16 @@ export interface IAgentChatMessage {
 export interface IAgentDeleteProposalCard {
   proposal: AgentProposedDelete;
   onConfirmed: () => void;
+}
+
+export interface IAgentQuestionCard {
+  /** The questions from the latest assistant reply, answered one at a time. */
+  questions: AgentQuestion[];
+  disabled?: boolean;
+  /** Called once with the message holding every answer. */
+  onSubmit: (message: string) => void;
+  /** Hides the card; the user can still reply in the composer. */
+  onDismiss: () => void;
 }
 
 export type IAgentMessageResponse = AgentMessageResponse;

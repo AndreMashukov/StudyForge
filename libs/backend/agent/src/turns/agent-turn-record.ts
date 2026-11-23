@@ -3,12 +3,14 @@ import { z } from 'zod';
 import type {
   AgentActionResult,
   AgentProposedDelete,
+  AgentQuestion,
   AgentReferencedItem,
 } from '@shared-types';
 import {
   agentActionResultSchema,
   agentPromptContextSchema,
   agentProposedDeleteSchema,
+  agentQuestionSchema,
   agentReferencedItemSchema,
   agentScopeSchema,
   agentTurnErrorSchema,
@@ -71,6 +73,7 @@ export const agentTurnRecordSchema = z.object({
   executedActions: lenientArray(agentActionResultSchema),
   proposedDeletes: lenientArray(agentProposedDeleteSchema),
   referencedItems: lenientArray(agentReferencedItemSchema),
+  questions: lenientArray(agentQuestionSchema),
   userMessageId: z.string().trim().min(1),
   assistantMessageId: z.string().trim().min(1).nullable().optional(),
   error: agentTurnErrorSchema.nullable().optional(),
@@ -129,6 +132,33 @@ export function serializeAgentDeletes(
     label: proposal.label,
     ...(proposal.reason ? { reason: proposal.reason } : {}),
   }));
+}
+
+export function serializeAgentQuestions(
+  questions: AgentQuestion[],
+): DocumentData[] {
+  return questions.map((question) => ({
+    id: question.id,
+    ...(question.header ? { header: question.header } : {}),
+    question: question.question,
+    options: question.options.map((option) => ({
+      label: option.label,
+      ...(option.description ? { description: option.description } : {}),
+      ...(option.recommended ? { recommended: true } : {}),
+    })),
+    allowOther: question.allowOther,
+  }));
+}
+
+/** Reads stored questions, dropping malformed entries. */
+export function parseAgentQuestions(value: unknown): AgentQuestion[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((entry) => {
+    const parsed = agentQuestionSchema.safeParse(entry);
+    return parsed.success ? [parsed.data] : [];
+  });
 }
 
 export function serializeAgentReferences(

@@ -41,14 +41,21 @@ export function diffAgentTurnToStreamEvents(
   const events: AgentMessageStreamEvent[] = [];
   const terminal = isAgentTurnTerminal(turn.status);
 
-  if (!terminal && turn.statusMessage && turn.statusMessage !== cursor.sentStatus) {
+  if (
+    !terminal &&
+    turn.statusMessage &&
+    turn.statusMessage !== cursor.sentStatus
+  ) {
     cursor.sentStatus = turn.statusMessage;
     events.push({ type: 'status', message: turn.statusMessage });
   }
 
   if (!terminal && turn.reply.length > cursor.sentReply.length) {
     if (turn.reply.startsWith(cursor.sentReply)) {
-      events.push({ type: 'delta', text: turn.reply.slice(cursor.sentReply.length) });
+      events.push({
+        type: 'delta',
+        text: turn.reply.slice(cursor.sentReply.length),
+      });
       cursor.sentReply = turn.reply;
     }
   }
@@ -84,6 +91,7 @@ export function diffAgentTurnToStreamEvents(
         executedActions: turn.executedActions,
         proposedDeletes: turn.proposedDeletes,
         referencedItems: turn.referencedItems,
+        questions: turn.questions,
         ...(turn.evalRetrievedTexts
           ? { retrievedTexts: turn.evalRetrievedTexts }
           : {}),

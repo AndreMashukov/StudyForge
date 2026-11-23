@@ -41,7 +41,10 @@ describe('diffAgentTurnToStreamEvents', () => {
     );
     const reset = diffAgentTurnToStreamEvents(
       cursor,
-      makeAgentTurnRecord({ status: 'running', reply: 'Second try, longer text' }),
+      makeAgentTurnRecord({
+        status: 'running',
+        reply: 'Second try, longer text',
+      }),
     );
     expect(reset.events).toEqual([]);
   });
@@ -51,9 +54,15 @@ describe('diffAgentTurnToStreamEvents', () => {
     const turn = makeAgentTurnRecord({
       status: 'running',
       executedActions: [
-        { kind: 'create_directory', summary: 'Created /Research', entityId: 'dir-1' },
+        {
+          kind: 'create_directory',
+          summary: 'Created /Research',
+          entityId: 'dir-1',
+        },
       ],
-      referencedItems: [{ itemType: 'directory', id: 'dir-1', title: 'Research' }],
+      referencedItems: [
+        { itemType: 'directory', id: 'dir-1', title: 'Research' },
+      ],
     });
     expect(diffAgentTurnToStreamEvents(cursor, turn).events).toHaveLength(2);
     expect(diffAgentTurnToStreamEvents(cursor, turn).events).toEqual([]);
@@ -83,6 +92,7 @@ describe('diffAgentTurnToStreamEvents', () => {
           executedActions: [],
           proposedDeletes: [],
           referencedItems: [],
+          questions: [],
           retrievedTexts: ['policy'],
         },
       },

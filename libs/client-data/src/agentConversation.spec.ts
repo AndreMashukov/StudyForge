@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentTurn, IAgentThreadMessage } from '@shared-types';
 import {
+  findOpenAgentQuestions,
   isAgentTurnStuck,
   mergeAgentConversation,
   nextRevealLength,
@@ -25,6 +26,7 @@ function makeTurn(overrides: Partial<AgentTurn> = {}): AgentTurn {
     executedActions: [],
     proposedDeletes: [],
     referencedItems: [],
+    questions: [],
     userMessageId: 'user-turn-0001',
     assistantMessageId: null,
     error: null,
@@ -136,11 +138,97 @@ describe('mergeAgentConversation', () => {
   });
 });
 
+describe('findOpenAgentQuestions', () => {
+  const question = {
+    id: 'q1',
+    question: 'Which folder?',
+    options: [{ label: 'AWS', recommended: true }, { label: 'GCP' }],
+    allowOther: true,
+  };
+
+  it('opens questions from a finished turn before its message is stored', () => {
+    const entries = mergeAgentConversation({
+      messages: [userMessage],
+      turn: makeTurn({
+        status: 'completed',
+        reply: 'One question.',
+        questions: [question],
+      }),
+      pendingUser: null,
+      nowMs: NOW,
+    });
+    expect(findOpenAgentQuestions(entries)).toEqual({
+      entryId: 'assistant-turn-0001',
+      questions: [question],
+    });
+  });
+
+  it('opens questions from the stored assistant message', () => {
+    const entries = mergeAgentConversation({
+      messages: [
+        userMessage,
+        {
+          id: 'assistant-turn-0001',
+          threadId: 'thread-0001',
+          role: 'assistant',
+          content: 'One question.',
+          createdAt: isoAgo(5_000),
+          turnId: 'turn-0001',
+          turnStatus: 'completed',
+          questions: [question],
+        },
+      ],
+      turn: null,
+      pendingUser: null,
+      nowMs: NOW,
+    });
+    expect(findOpenAgentQuestions(entries)?.questions).toEqual([question]);
+  });
+
+  it('hides questions while the turn is still running', () => {
+    const entries = mergeAgentConversation({
+      messages: [userMessage],
+      turn: makeTurn({ status: 'running', questions: [question] }),
+      pendingUser: null,
+      nowMs: NOW,
+    });
+    expect(findOpenAgentQuestions(entries)).toBeNull();
+  });
+
+  it('closes questions once the user sends another message', () => {
+    const entries = mergeAgentConversation({
+      messages: [userMessage],
+      turn: makeTurn({
+        status: 'completed',
+        reply: 'One question.',
+        questions: [question],
+      }),
+      pendingUser: {
+        turnId: 'turn-0002',
+        content: 'Which folder?\n→ AWS',
+        createdAt: isoAgo(0),
+      },
+      nowMs: NOW,
+    });
+    expect(findOpenAgentQuestions(entries)).toBeNull();
+  });
+
+  it('ignores replies without questions', () => {
+    const entries = mergeAgentConversation({
+      messages: [userMessage],
+      turn: makeTurn({ status: 'completed', reply: 'Done.' }),
+      pendingUser: null,
+      nowMs: NOW,
+    });
+    expect(findOpenAgentQuestions(entries)).toBeNull();
+  });
+});
+
 describe('isAgentTurnStuck', () => {
   it('flags a running turn with no heartbeat for over 90s', () => {
-    expect(isAgentTurnStuck(makeTurn({ heartbeatAt: isoAgo(91_000) }), NOW)).toBe(
-      true,
-    );
+    expect(
+      isAgentTurnStuck(makeTurn({ heartbeatAt: isoAgo(91_000) }), NOW),
+    ).toBe(true);
     expect(isAgentTurnStuck(makeTurn(), NOW)).toBe(false);
   });
 
@@ -166,10 +254,18 @@ describe('isAgentTurnStuck', () => {
 describe('nextRevealLength', () => {
   it('reveals proportionally and catches up within one flush interval', () => {
     expect(
-      nextRevealLength({ displayedLength: 0, targetLength: 800, elapsedMs: 16 }),
+      nextRevealLength({
+        displayedLength: 0,
+        targetLength: 800,
+        elapsedMs: 16,
+      }),
     ).toBe(16);
     expect(
-      nextRevealLength({ displayedLength: 0, targetLength: 800, elapsedMs: 800 }),
+      nextRevealLength({
+        displayedLength: 0,
+        targetLength: 800,
+        elapsedMs: 800,
+      }),
     ).toBe(800);
   });
 
