@@ -5,7 +5,7 @@ import {
   resolveWelcomePageView,
 } from './welcomePageView';
 
-const starter = { turnsUsed: 0, documentsUsed: 0, documentIds: [] };
+const starter = { turnsUsed: 0, documentsUsed: 0, documentIds: [], retriesUsed: 0 };
 
 function onboarding(overrides: Partial<UserOnboarding>): UserOnboarding {
   return { version: 1, status: 'pending', starter, ...overrides };

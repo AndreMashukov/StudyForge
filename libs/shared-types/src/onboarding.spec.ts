@@ -17,7 +17,7 @@ describe('parseUserOnboarding', () => {
     expect(onboarding).toEqual({
       version: USER_ONBOARDING_VERSION,
       status: 'pending',
-      starter: { turnsUsed: 0, documentsUsed: 0, documentIds: [] },
+      starter: { turnsUsed: 0, documentsUsed: 0, documentIds: [], retriesUsed: 0 },
     });
     expect(isOnboardingPending(onboarding)).toBe(true);
   });

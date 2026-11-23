@@ -6,7 +6,7 @@ import {
   WELCOME_PATH,
 } from './onboardingRedirect';
 
-const starter = { turnsUsed: 0, documentsUsed: 0, documentIds: [] };
+const starter = { turnsUsed: 0, documentsUsed: 0, documentIds: [], retriesUsed: 0 };
 const pending: UserOnboarding = { version: 1, status: 'pending', starter };
 const skipped: UserOnboarding = { version: 1, status: 'skipped', starter };
 

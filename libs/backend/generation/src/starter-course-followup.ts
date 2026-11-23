@@ -9,7 +9,9 @@ import {
   claimStarterCourseQuiz,
   completeStarterCourse,
   getUserOnboarding,
+  handleStarterCourseFailure,
 } from '@study-forge/backend-core/services/user-onboarding-service';
+import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
 import {
   createPendingQuiz,
   failPendingQuiz,
@@ -68,6 +70,33 @@ async function readStarterDocuments(
 }
 
 /**
+ * Every starter document failed. The first time, the free slots are given
+ * back and the welcome screen offers a free retry; the failed placeholders are
+ * removed so the course folder is clean for it. After that, the course closes.
+ */
+async function handleAllStarterDocumentsFailed(
+  userId: string,
+  documentIds: string[],
+): Promise<void> {
+  const outcome = await handleStarterCourseFailure(userId);
+  logger.warn('Every starter course document failed', { userId, outcome });
+  if (outcome !== 'retry') {
+    return;
+  }
+  for (const documentId of documentIds) {
+    await DocumentCrudService.deleteDocument(userId, documentId).catch(
+      (error: unknown) => {
+        logger.warn('Could not remove a failed starter document', {
+          userId,
+          documentId,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      },
+    );
+  }
+}
+
+/**
  * After a starter-course document finishes (or fails), queues the free
  * starter quiz once every starter document is done and at least one
  * succeeded. The quiz needs finished documents, so the agent cannot create it
@@ -100,7 +129,7 @@ export async function maybeStartStarterCourseQuiz(
   const decision = decideStarterQuiz({ onboarding, documentStates: states });
   if (decision.type !== 'create') {
     if (decision.type === 'skip' && decision.reason === 'no_documents') {
-      await completeStarterCourse(job.userId, undefined);
+      await handleAllStarterDocumentsFailed(job.userId, onboarding.starter.documentIds);
     }
     return;
   }

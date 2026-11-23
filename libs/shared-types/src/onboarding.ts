@@ -17,6 +17,8 @@ export const STARTER_COURSE_LIMITS = {
   maxDocuments: 2,
   /** Quizzes created automatically once the documents are ready. */
   maxQuizzes: 1,
+  /** Free second attempts when every starter document failed. */
+  maxRetries: 1,
   /** Longest subject kept on the account. */
   maxSubjectChars: 200,
 } as const;
@@ -46,6 +48,10 @@ export const starterCourseStateSchema = z.object({
   documentIds: z.array(z.string().trim().min(1)).default([]),
   quizClaimedAt: z.string().optional(),
   quizId: z.string().trim().min(1).optional(),
+  /** Free retries granted after every starter document failed. */
+  retriesUsed: z.number().int().nonnegative().default(0),
+  /** Set while a free retry is waiting: every document failed and the slots were given back. */
+  failedAt: z.string().optional(),
 });
 
 export type StarterCourseState = z.output<typeof starterCourseStateSchema>;
@@ -66,6 +72,7 @@ export const userOnboardingSchema = z.object({
     turnsUsed: 0,
     documentsUsed: 0,
     documentIds: [],
+    retriesUsed: 0,
   }),
 });
 
@@ -86,6 +93,17 @@ export function isOnboardingPending(
 ): boolean {
   return onboarding?.status === 'pending';
 }
+
+/** True when the starter documents all failed and a free retry is waiting. */
+export function isStarterRetryAvailable(
+  onboarding: UserOnboarding | undefined,
+): boolean {
+  return onboarding?.status === 'started' && Boolean(onboarding.starter.failedAt);
+}
+
+/** The message the welcome screen sends to retry the course documents. */
+export const STARTER_COURSE_RETRY_MESSAGE =
+  'The documents could not be generated. Please create them again.';
 
 /** Subject chips offered on the welcome screen. */
 export const STARTER_COURSE_SUBJECT_SUGGESTIONS = [

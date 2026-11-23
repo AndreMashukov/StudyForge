@@ -11,7 +11,10 @@ export const WelcomePageProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const data = useFetchWelcomePageData();
   const handlers = useWelcomePageHandlers();
-  const { view, coursePath, samplePath } = useWelcomePageView(data, handlers);
+  const { view, coursePath, samplePath, retryAvailable } = useWelcomePageView(
+    data,
+    handlers,
+  );
   useWelcomePageEffects(view);
 
   const contextValue: IWelcomePageContext = {
@@ -20,6 +23,7 @@ export const WelcomePageProvider: React.FC<{ children: React.ReactNode }> = ({
     view,
     coursePath,
     samplePath,
+    retryAvailable,
   };
 
   return (

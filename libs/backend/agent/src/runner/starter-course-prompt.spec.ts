@@ -39,4 +39,16 @@ describe('buildStarterCoursePromptBlock', () => {
     expect(block).toContain('create_document exactly 1 time ');
     expect(block).not.toContain('parentId "root"');
   });
+
+  it('recreates failed documents on a retry', () => {
+    const block = buildStarterCoursePromptBlock({
+      phase: 'build',
+      courseDirectoryId: 'course-dir',
+      documentsRemaining: 2,
+      isRetry: true,
+    });
+    expect(block).toContain('RETRY: every document you started');
+    expect(block).toContain('course folder already exists (id: course-dir)');
+    expect(block).toContain('create_document exactly 2 times');
+  });
 });

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { UserOnboarding } from '@shared-types';
 import { STARTER_COURSE_LIMITS } from '@shared-types';
 import {
+  applyStarterRetry,
   applyStarterTurn,
+  decideStarterFailure,
   decideOnboardingInit,
   decideStarterDocumentClaim,
   decideStarterQuiz,
@@ -18,7 +20,7 @@ function onboarding(overrides: Partial<UserOnboarding> = {}): UserOnboarding {
   return {
     version: 1,
     status: 'pending',
-    starter: { turnsUsed: 0, documentsUsed: 0, documentIds: [] },
+    starter: { turnsUsed: 0, documentsUsed: 0, documentIds: [], retriesUsed: 0 },
     ...overrides,
   };
 }
@@ -31,6 +33,7 @@ function started(starter: Partial<UserOnboarding['starter']> = {}): UserOnboardi
       turnsUsed: 1,
       documentsUsed: 0,
       documentIds: [],
+      retriesUsed: 0,
       ...starter,
     },
   });
@@ -231,6 +234,44 @@ describe('decideStarterQuiz', () => {
   });
 });
 
+describe('starter failure retry', () => {
+  it('grants one free retry, then closes the course', () => {
+    expect(decideStarterFailure(started())).toBe('retry');
+    expect(
+      decideStarterFailure(
+        started({ retriesUsed: STARTER_COURSE_LIMITS.maxRetries }),
+      ),
+    ).toBe('close');
+  });
+
+  it('gives the document slots back and keeps a free turn', () => {
+    const next = applyStarterRetry(
+      started({
+        turnsUsed: STARTER_COURSE_LIMITS.maxTurns,
+        documentsUsed: 2,
+        documentIds: ['doc-1', 'doc-2'],
+        directoryId: 'course-dir',
+      }),
+      '2026-11-23T12:00:00.000Z',
+    );
+    expect(next.starter).toMatchObject({
+      documentsUsed: 0,
+      documentIds: [],
+      retriesUsed: 1,
+      failedAt: '2026-11-23T12:00:00.000Z',
+      directoryId: 'course-dir',
+      turnsUsed: STARTER_COURSE_LIMITS.maxTurns - 1,
+    });
+    expect(
+      decideStarterTurn({
+        onboarding: next,
+        threadId: 'thread-1',
+        intent: undefined,
+      }),
+    ).toEqual({ type: 'continue' });
+  });
+});
+
 describe('normalizeStarterSubject', () => {
   it('collapses whitespace and caps the length', () => {
     expect(normalizeStarterSubject(' a  b ')).toBe('a b');
@@ -245,7 +286,7 @@ describe('serializeUserOnboarding', () => {
     expect(serializeUserOnboarding(onboarding())).toEqual({
       version: 1,
       status: 'pending',
-      starter: { turnsUsed: 0, documentsUsed: 0, documentIds: [] },
+      starter: { turnsUsed: 0, documentsUsed: 0, documentIds: [], retriesUsed: 0 },
     });
   });
 });

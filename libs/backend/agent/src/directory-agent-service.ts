@@ -77,6 +77,7 @@ async function loadStarterCourseRuntime(
       0,
       STARTER_COURSE_LIMITS.maxDocuments - (starter?.documentsUsed ?? 0),
     ),
+    ...(starter?.failedAt ? { isRetry: true } : {}),
   };
 }
 
@@ -676,6 +677,7 @@ export async function executeAgentTurn(
           sampleDirectoryId: starterCourse.sampleDirectoryId,
           courseDirectoryId: starterCourse.directoryId,
           documentsRemaining: starterCourse.documentsRemaining,
+          isRetry: starterCourse.isRetry,
         })
       : undefined,
     today: calendar.today,

@@ -154,6 +154,44 @@ export function decideStarterQuiz(params: {
   return { type: 'create', documentIds: completed };
 }
 
+export type StarterFailureDecision = 'retry' | 'close';
+
+/**
+ * Every starter document failed: give the free slots back once, so the user
+ * can try again for free; after that, close the course.
+ */
+export function decideStarterFailure(
+  onboarding: UserOnboarding,
+): StarterFailureDecision {
+  return onboarding.starter.retriesUsed < STARTER_COURSE_LIMITS.maxRetries
+    ? 'retry'
+    : 'close';
+}
+
+/**
+ * The onboarding state after a free retry is granted: document slots are
+ * returned, and the starter thread keeps a free turn for the retry.
+ */
+export function applyStarterRetry(
+  onboarding: UserOnboarding,
+  nowIso: string,
+): UserOnboarding {
+  return {
+    ...onboarding,
+    starter: {
+      ...onboarding.starter,
+      documentsUsed: 0,
+      documentIds: [],
+      retriesUsed: onboarding.starter.retriesUsed + 1,
+      failedAt: nowIso,
+      turnsUsed: Math.min(
+        onboarding.starter.turnsUsed,
+        STARTER_COURSE_LIMITS.maxTurns - 1,
+      ),
+    },
+  };
+}
+
 /** Trims and shortens the subject before it is stored on the account. */
 export function normalizeStarterSubject(subject: string): string {
   const trimmed = subject.trim().replace(/\s+/g, ' ');
@@ -220,6 +258,8 @@ export function serializeUserOnboarding(
       documentIds: starter.documentIds,
       quizClaimedAt: starter.quizClaimedAt,
       quizId: starter.quizId,
+      retriesUsed: starter.retriesUsed,
+      failedAt: starter.failedAt,
     }),
   });
 }
