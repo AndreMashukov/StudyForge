@@ -16,6 +16,7 @@ import {
   settleAgentLoopUsageReservation,
   UsageLimitError,
   type IUsageReservation,
+  type IUsageWaiver,
 } from '@study-forge/backend-core/services/usage-limits-service';
 import {
   refundDailySlideDeckReservation,
@@ -118,12 +119,18 @@ export async function reserveExternalDailySlideDeckSlot(
 export async function enforceCallableGenerationLimits(
   userId: string,
   generationKind: GenerationKind | string,
-  quantity?: number
+  quantity?: number,
+  options?: { waiver?: IUsageWaiver },
 ): Promise<IUsageReservation> {
   await enforceCallableGenerationRateLimit(userId, generationKind);
 
   try {
-    return await reserveUsageCredits({ userId, generationKind, quantity });
+    return await reserveUsageCredits({
+      userId,
+      generationKind,
+      quantity,
+      ...(options?.waiver ? { waiver: options.waiver } : {}),
+    });
   } catch (error) {
     if (error instanceof UsageLimitError) {
       throw toCallableUsageLimitError(error);
@@ -135,11 +142,14 @@ export async function enforceCallableGenerationLimits(
 export interface IAgentLoopUsageHold {
   usageReservation: IUsageReservation;
   pricePerCreditCents: number;
+  /** Credit cap for the agent loop's provider cost. */
+  loopBudgetCredits: number;
 }
 
 export async function enforceCallableAgentLoopLimits(
   userId: string,
   generationKind: GenerationKind | string,
+  options?: { waiver?: IUsageWaiver },
 ): Promise<IAgentLoopUsageHold> {
   await enforceCallableGenerationRateLimit(userId, generationKind);
 
@@ -149,10 +159,15 @@ export async function enforceCallableAgentLoopLimits(
       userId,
       generationKind,
       maxCredits: AGENT_LOOP_CREDIT_CAP,
+      ...(options?.waiver ? { waiver: options.waiver } : {}),
     });
     return {
       usageReservation,
       pricePerCreditCents: billingConfig.pricePerCreditCents,
+      // A free hold reserves 0 credits, but the loop still has a cost cap.
+      loopBudgetCredits: usageReservation.waiver
+        ? AGENT_LOOP_CREDIT_CAP
+        : usageReservation.credits,
     };
   } catch (error) {
     if (error instanceof UsageLimitError) {

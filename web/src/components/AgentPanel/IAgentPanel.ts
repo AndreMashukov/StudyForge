@@ -15,6 +15,11 @@ export interface IAgentPanel {
   variant?: 'embedded' | 'overlay';
   /** Text placed in the message box when the panel mounts. Not sent. */
   initialInput?: string;
+  /**
+   * Shows only this conversation (for example the onboarding starter
+   * course): no history menu, no new chat, nothing remembered.
+   */
+  pinnedThreadId?: string;
   className?: string;
 }
 

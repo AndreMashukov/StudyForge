@@ -12,6 +12,7 @@ import {
   selectAgentLauncherDraft,
   setAgentLauncherDraft,
 } from '../../store/slices/uiSlice';
+import { WELCOME_PATH } from '../../utils/onboardingRedirect';
 
 export const GlobalAgentLauncher: React.FC = () => {
   const { user } = useAuth();
@@ -56,7 +57,8 @@ export const GlobalAgentLauncher: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open]);
 
-  if (!user || isAppFullscreen || hasOpenModal) {
+  // The welcome screen has its own agent conversation.
+  if (!user || isAppFullscreen || hasOpenModal || location.pathname === WELCOME_PATH) {
     return null;
   }
 

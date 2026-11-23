@@ -51,6 +51,11 @@ export const agentTurnErrorSchema = z.object({
   message: z.string(),
 });
 
+/** Why a turn was started, when it is not an ordinary chat message. */
+export const agentTurnIntentSchema = z.enum(['starter_course']);
+
+export type AgentTurnIntent = z.output<typeof agentTurnIntentSchema>;
+
 const clientLocalDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'clientLocalDate must be YYYY-MM-DD');
@@ -66,6 +71,11 @@ export const startAgentTurnRequestSchema = z
     turnId: agentClientIdSchema,
     promptContext: agentPromptContextSchema.optional(),
     clientLocalDate: clientLocalDateSchema.optional(),
+    /**
+     * Starts the free onboarding starter course; the message is the subject.
+     * The server decides whether the account may use it.
+     */
+    intent: agentTurnIntentSchema.optional(),
   })
   .superRefine((value, ctx) => {
     if (value.scope === 'directory' && !value.directoryId) {
@@ -73,6 +83,16 @@ export const startAgentTurnRequestSchema = z
         code: 'custom',
         message: 'directoryId is required for directory scope',
         path: ['directoryId'],
+      });
+    }
+    if (
+      value.intent === 'starter_course' &&
+      (value.scope !== 'workspace' || value.directoryId || value.promptContext)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'The starter course runs in workspace scope with nothing open',
+        path: ['intent'],
       });
     }
   });

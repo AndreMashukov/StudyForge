@@ -11,6 +11,12 @@ function validateUserId(userId: string): void {
 }
 
 export const FirestorePaths = {
+  /** users/{uid}: the profile, including onboarding state. */
+  user: (userId: string) => {
+    validateUserId(userId);
+    return db().collection('users').doc(userId);
+  },
+
   documents: (userId: string) => {
     validateUserId(userId);
     return db().collection('users').doc(userId).collection('documents');

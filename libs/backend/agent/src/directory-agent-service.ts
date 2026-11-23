@@ -45,8 +45,32 @@ import {
 } from './tools/create-agent-tools';
 import { PlatformAgentKnowledgeIndexService } from './knowledge/platform-agent-knowledge-index-service';
 import { resolveAgentCalendarDates } from './tools/quiz-statistics-tools';
+import type { IStarterCourseRuntime } from './tools/starter-course-tools';
+import { buildStarterCoursePromptBlock } from './runner/starter-course-prompt';
+import { getUserOnboarding } from '@study-forge/backend-core/services/user-onboarding-service';
+import { STARTER_COURSE_LIMITS } from '@shared-types';
 
 const MAX_DIRECTORY_IDS = 200;
+
+/** The account's starter-course state for a starter turn on this thread. */
+async function loadStarterCourseRuntime(
+  userId: string,
+  threadId: string,
+): Promise<IStarterCourseRuntime> {
+  const onboarding = await getUserOnboarding(userId);
+  const starter = onboarding?.starter;
+  return {
+    threadId,
+    ...(onboarding?.sampleDirectoryId
+      ? { sampleDirectoryId: onboarding.sampleDirectoryId }
+      : {}),
+    ...(starter?.directoryId ? { directoryId: starter.directoryId } : {}),
+    documentsRemaining: Math.max(
+      0,
+      STARTER_COURSE_LIMITS.maxDocuments - (starter?.documentsUsed ?? 0),
+    ),
+  };
+}
 
 function describePromptContext(
   promptContext?: AgentPromptContext,
@@ -271,6 +295,7 @@ function buildSystemPrompt(input: {
   currentDocumentBodyBlock?: string;
   currentRuleBodyBlock?: string;
   platformKnowledgeBlock?: string;
+  starterCourseBlock?: string;
   today: string;
   yesterday: string;
 }): string {
@@ -321,6 +346,7 @@ function buildSystemPrompt(input: {
     input.currentRuleBodyBlock,
     input.platformKnowledgeBlock,
     memoryBlock,
+    input.starterCourseBlock,
   ]
     .filter(Boolean)
     .join('\n');
@@ -332,6 +358,8 @@ export interface IAgentTurnRequest {
   message: string;
   promptContext?: AgentPromptContext;
   clientLocalDate?: string;
+  /** A free onboarding starter-course turn (decided by startAgentTurn). */
+  starterCourse?: boolean;
 }
 
 /** What earlier attempts of the same turn already did (from the turn doc). */
@@ -556,6 +584,9 @@ export async function executeAgentTurn(
     throw error;
   }
   const calendar = resolveAgentCalendarDates(request.clientLocalDate);
+  const starterCourse = request.starterCourse
+    ? await loadStarterCourseRuntime(userId, threadId)
+    : undefined;
 
   const runtimeContext: AgentToolRuntimeContext = {
     userId,
@@ -575,6 +606,7 @@ export async function executeAgentTurn(
     },
     abortSignal: signal,
     onEvent: emit,
+    ...(starterCourse ? { starterCourse } : {}),
   };
   if (input.seed) {
     seedRuntimeContextFromTurn(runtimeContext, input.seed);
@@ -630,6 +662,13 @@ export async function executeAgentTurn(
     currentDocumentBodyBlock,
     currentRuleBodyBlock,
     platformKnowledgeBlock,
+    starterCourseBlock: starterCourse
+      ? buildStarterCoursePromptBlock({
+          sampleDirectoryId: starterCourse.sampleDirectoryId,
+          courseDirectoryId: starterCourse.directoryId,
+          documentsRemaining: starterCourse.documentsRemaining,
+        })
+      : undefined,
     today: calendar.today,
     yesterday: calendar.yesterday,
   });

@@ -66,6 +66,19 @@ import {
 } from './rule-tool-args';
 import { createQuizStatisticsToolDefinitions } from './quiz-statistics-tools';
 import { throwIfAgentRequestAborted } from '../runner/agent-request-abort';
+import {
+  claimStarterCourseDocument,
+  recordStarterCourseDirectory,
+  recordStarterCourseDocument,
+  releaseStarterCourseDocument,
+} from '@study-forge/backend-core/services/user-onboarding-service';
+import {
+  attachStarterCourseRules,
+  readShortCooldownSeconds,
+  STARTER_COURSE_HIDDEN_TOOLS,
+  waitForCooldown,
+  type IStarterCourseRuntime,
+} from './starter-course-tools';
 
 /** Soft cap so tool results stay within model context. */
 export const AGENT_DOCUMENT_CONTENT_MAX_CHARS = 60_000;
@@ -86,6 +99,8 @@ export interface AgentToolRuntimeContext {
   generationBatchCounts: IAgentGenerationPlanCounts;
   onEvent?: (event: AgentMessageStreamEvent) => void;
   abortSignal?: AbortSignal;
+  /** Set on free onboarding starter-course turns. */
+  starterCourse?: IStarterCourseRuntime;
 }
 
 export interface AgentToolDefinition {
@@ -517,10 +532,68 @@ function pendingTitleFromPrompt(prompt: string, title?: string): string {
   return prompt.length > 50 ? `${prompt.substring(0, 50)}…` : prompt;
 }
 
+/**
+ * Reserves one documentFromPrompt generation. Starter-course documents are
+ * free (one claimed slot each). A short generation cooldown is waited out
+ * once instead of failing the tool call; the rate limit itself still applies.
+ */
+async function reserveDocumentGeneration(
+  context: AgentToolRuntimeContext,
+): Promise<{ reservationId: string; starterClaimed: boolean }> {
+  const starter = context.starterCourse;
+  let starterClaimed = false;
+  if (starter) {
+    const claim = await claimStarterCourseDocument(
+      context.userId,
+      starter.threadId,
+    );
+    if (claim.allowed === false) {
+      throw new Error(claim.message);
+    }
+    starterClaimed = true;
+  }
+
+  const reserve = () =>
+    enforceCallableGenerationLimits(
+      context.userId,
+      'documentFromPrompt',
+      undefined,
+      starter ? { waiver: { reason: 'starter_course' } } : undefined,
+    );
+
+  try {
+    try {
+      const reservation = await reserve();
+      return { reservationId: reservation.id, starterClaimed };
+    } catch (error) {
+      const waitSeconds = readShortCooldownSeconds(error);
+      if (waitSeconds === undefined) {
+        throw error;
+      }
+      context.onEvent?.({
+        type: 'status',
+        message: `Waiting ${waitSeconds}s before starting the next document...`,
+      });
+      await waitForCooldown(waitSeconds, context.abortSignal);
+      throwIfAgentRequestAborted(context.abortSignal);
+      const reservation = await reserve();
+      return { reservationId: reservation.id, starterClaimed };
+    }
+  } catch (error) {
+    if (starter && starterClaimed) {
+      await releaseStarterCourseDocument(
+        context.userId,
+        starter.threadId,
+      ).catch(() => undefined);
+    }
+    throw error;
+  }
+}
+
 export function createAgentToolDefinitions(
   context: AgentToolRuntimeContext,
 ): AgentToolDefinition[] {
-  return [
+  const definitions: AgentToolDefinition[] = [
     {
       name: 'search_knowledge',
       description:
@@ -921,6 +994,18 @@ export function createAgentToolDefinitions(
           entityType: 'directory',
           entityId: directory.id,
         });
+        const starter = context.starterCourse;
+        if (starter && !starter.directoryId) {
+          const recorded = await recordStarterCourseDirectory(
+            context.userId,
+            starter.threadId,
+            directory.id,
+          );
+          if (recorded) {
+            starter.directoryId = directory.id;
+            await attachStarterCourseRules(context.userId, directory.id);
+          }
+        }
         await AgentKnowledgeLifecycle.indexDirectory(
           context.userId,
           directory.id,
@@ -945,12 +1030,18 @@ export function createAgentToolDefinitions(
         const prompt = resolveCreateDocumentPrompt(args);
         const titleArg =
           typeof args.title === 'string' ? args.title.trim() : '';
+        const starter = context.starterCourse;
         const directoryId =
-          typeof args.directoryId === 'string'
-            ? args.directoryId
-            : await resolveDefaultDirectoryId(context);
+          typeof args.directoryId === 'string' && args.directoryId.trim()
+            ? args.directoryId.trim()
+            : (starter?.directoryId ?? (await resolveDefaultDirectoryId(context)));
         if (!prompt || !directoryId) {
           throw new Error('prompt and directoryId are required');
+        }
+        if (starter && directoryId === starter.sampleDirectoryId) {
+          throw new Error(
+            'Do not add the starter course to the sample folder. Create the course folder first, then pass its id.',
+          );
         }
         if (prompt.length < MIN_CREATE_DOCUMENT_PROMPT_CHARS) {
           throw new Error(
@@ -967,10 +1058,8 @@ export function createAgentToolDefinitions(
           message: `Starting document "${title}"...`,
         });
         throwIfAgentRequestAborted(context.abortSignal);
-        const usageReservation = await enforceCallableGenerationLimits(
-          context.userId,
-          'documentFromPrompt',
-        );
+        const { reservationId: usageReservationId, starterClaimed } =
+          await reserveDocumentGeneration(context);
         let pendingDocId: string | undefined;
         try {
           throwIfAgentRequestAborted(context.abortSignal);
@@ -992,7 +1081,7 @@ export function createAgentToolDefinitions(
             directoryId,
             recordId: pendingDocId,
             kind: 'documentFromPrompt',
-            usageReservationId: usageReservation.id,
+            usageReservationId,
             payload: {
               sourceKind: 'prompt',
               prompt,
@@ -1009,6 +1098,13 @@ export function createAgentToolDefinitions(
             jobId,
           });
           context.generationBatchCounts.documents += 1;
+          if (starter && starterClaimed) {
+            await recordStarterCourseDocument(context.userId, pendingDocId);
+            starter.documentsRemaining = Math.max(
+              0,
+              starter.documentsRemaining - 1,
+            );
+          }
           return {
             id: pendingDocId,
             documentId: pendingDocId,
@@ -1027,7 +1123,13 @@ export function createAgentToolDefinitions(
               message,
             ).catch(() => undefined);
           }
-          await refundUsageReservationSafe(context.userId, usageReservation.id);
+          await refundUsageReservationSafe(context.userId, usageReservationId);
+          if (starter && starterClaimed) {
+            await releaseStarterCourseDocument(
+              context.userId,
+              starter.threadId,
+            ).catch(() => undefined);
+          }
           throw error;
         }
       },
@@ -1666,6 +1768,9 @@ export function createAgentToolDefinitions(
       },
     },
   ];
+  return context.starterCourse
+    ? definitions.filter((tool) => !STARTER_COURSE_HIDDEN_TOOLS.has(tool.name))
+    : definitions;
 }
 
 export function toolDefinitionsToOpenAiTools(

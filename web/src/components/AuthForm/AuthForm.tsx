@@ -20,6 +20,7 @@ import { Label } from '../ui/Label';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { authFormStyles } from './AuthForm.styles';
 import { BrandMark } from '../BrandMark';
+import { resolvePostSignInPath } from '../../utils/onboardingRedirect';
 import { ClusterLoader } from '../ClusterLoader';
 
 const workspaceArtifacts = [
@@ -292,11 +293,11 @@ export const AuthForm = () => {
         return;
       }
 
-      await bootstrapUserProfile().unwrap();
+      const bootstrappedProfile = await bootstrapUserProfile().unwrap();
       if (cancelled) {
         return;
       }
-      navigate(redirectPath, { replace: true });
+      navigate(resolvePostSignInPath(bootstrappedProfile, redirectPath), { replace: true });
     };
 
     openWorkspace().catch((error: unknown) => {

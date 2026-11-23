@@ -2,6 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Spinner } from '../components/ui/Spinner';
 import { useGetCurrentUserProfileQuery } from '../store/api/Auth/authApi';
+import { shouldRedirectToWelcome, WELCOME_PATH } from './onboardingRedirect';
 
 interface IProtectedRoute {
   children: React.ReactNode;
@@ -34,6 +35,12 @@ export const ProtectedRoute = ({ children }: IProtectedRoute) => {
 
   if (!user.emailVerified && profile?.emailVerificationExempt !== true) {
     return <Navigate to="/auth?mode=verify" state={{ from: location }} replace />;
+  }
+
+  // New accounts start on the welcome screen. The profile loads in the
+  // background, so existing accounts are never held up by this check.
+  if (shouldRedirectToWelcome(profile, location.pathname)) {
+    return <Navigate to={WELCOME_PATH} replace />;
   }
 
   return children as React.ReactElement;

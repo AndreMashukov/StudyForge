@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import type { IScratchPad } from './scratch-pad';
+import type { UserOnboarding } from './onboarding';
 
 // ─── Document color provenance ───────────────────────────────────────────────
 /** Vivid palette used for document accent colors; neutral grays are excluded so
@@ -47,6 +48,7 @@ export * from './line-format-contract';
 export * from './agent';
 export * from './agent-turn';
 export * from './agent-questions';
+export * from './onboarding';
 export * from './library-search';
 export * from './document-blocks';
 export * from './narration';
@@ -2507,6 +2509,8 @@ export interface IUserProfile {
   updatedAt?: string;
   userGroupId?: string;
   emailVerificationExempt?: boolean;
+  /** First-run onboarding; absent on accounts created before it existed. */
+  onboarding?: UserOnboarding;
 }
 
 export interface ICreateLlmSetupRequest {

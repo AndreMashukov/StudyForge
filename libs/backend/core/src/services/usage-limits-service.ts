@@ -10,6 +10,7 @@ import {
   resolveLivePeriodAllowance,
   type GenerationKind,
   type IUsageFeaturePolicies,
+  type IUsageFeaturePolicy,
   type IUsageLimitsSetup,
   type IUsagePeriodSummary,
   type IUserUsageSummary,
@@ -27,6 +28,7 @@ import {
 import {
   evaluateFeatureAffordability,
   evaluateUsageLimitDecision,
+  evaluateWaivedUsageDecision,
   mapJobKindToUsageGenerationKind,
   resolveMaxAffordableQuantity,
   resolveUsageGenerationKind,
@@ -70,6 +72,13 @@ export interface IUsageReservation {
   periodKey: string;
   status: 'pending' | 'committed' | 'refunded';
   createdAt: string;
+  /** Set when the action is free (credits are 0) and why. */
+  waiver?: IUsageWaiver;
+}
+
+/** A free action that still respects feature gates (rate limits are applied by callers). */
+export interface IUsageWaiver {
+  reason: 'starter_course';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -451,11 +460,59 @@ async function appendUsageEvent(params: {
   });
 }
 
+/**
+ * A zero-credit reservation for a free action. It is still refused when the
+ * feature is off on the plan, and it settles like any other reservation (with
+ * 0 credits), so callers need no special path.
+ */
+async function reserveWaivedUsage(params: {
+  userId: string;
+  generationKind: GenerationKind;
+  policy: IUsageFeaturePolicy;
+  context: Awaited<ReturnType<typeof resolveUserUsageContext>>;
+  waiver: IUsageWaiver;
+}): Promise<IUsageReservation> {
+  const { context, generationKind } = params;
+  const decision = evaluateWaivedUsageDecision(params.policy);
+  if (decision.allowed === false) {
+    throw new UsageLimitError(decision.message, decision.code, {
+      generationKind,
+    });
+  }
+
+  const periodKey = buildUsagePeriodKey();
+  const reservationId = getFirestore().collection(USERS_COLLECTION).doc().id;
+  const now = new Date().toISOString();
+  const reservation: IUsageReservation = {
+    id: reservationId,
+    userId: params.userId,
+    userGroupId: context.userGroupId,
+    usageLimitsSetupId: context.setup.id,
+    llmSetupId: context.llmSetupId,
+    generationKind,
+    credits: 0,
+    includedCredits: 0,
+    overageCredits: 0,
+    overageAmountCents: 0,
+    periodKey,
+    status: 'pending',
+    createdAt: now,
+    waiver: params.waiver,
+  };
+  await usageReservationRef(params.userId, reservationId).set({
+    ...reservation,
+    waiver: { reason: params.waiver.reason, credits: decision.creditsWaived },
+  });
+  return reservation;
+}
+
 export async function reserveUsageCredits(params: {
   userId: string;
   generationKind: GenerationKind | string;
   quantity?: number;
   maxCredits?: number;
+  /** Make this action free; feature gates still apply. */
+  waiver?: IUsageWaiver;
 }): Promise<IUsageReservation> {
   const generationKind = resolveUsageGenerationKind(params.generationKind);
   const context = await resolveUserUsageContext(params.userId);
@@ -466,6 +523,16 @@ export async function reserveUsageCredits(params: {
       'FEATURE_DISABLED',
       { generationKind },
     );
+  }
+
+  if (params.waiver) {
+    return reserveWaivedUsage({
+      userId: params.userId,
+      generationKind,
+      policy,
+      context,
+      waiver: params.waiver,
+    });
   }
 
   const periodKey = buildUsagePeriodKey();

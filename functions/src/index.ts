@@ -96,7 +96,10 @@ export {
   bulkRevokeApiKeys,
 } from './endpoints/api-keys';
 
-export { bootstrapUserProfileEndpoint as bootstrapUserProfile } from './endpoints/auth';
+export {
+  bootstrapUserProfileEndpoint as bootstrapUserProfile,
+  skipOnboardingEndpoint as skipOnboarding,
+} from './endpoints/auth';
 
 export {
   getUsageSummary,

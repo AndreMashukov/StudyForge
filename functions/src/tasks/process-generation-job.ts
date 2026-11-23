@@ -11,6 +11,7 @@ import {
   shouldRetryGenerationJob,
 } from '@study-forge/backend-generation/generation-job-retry';
 import { STALE_PENDING_SWEEP_MESSAGE } from '@study-forge/backend-generation/generation-stale';
+import { maybeStartStarterCourseQuizSafe } from '@study-forge/backend-generation/starter-course-followup';
 import { GenerationJob, GenerationJobsService } from '@study-forge/backend-generation/generation-jobs';
 import { ArtifactAgentGenerationProcessor } from '@study-forge/backend-generation/generation-processors/artifact-agent';
 import { DocumentFromPromptGenerationProcessor } from '@study-forge/backend-generation/generation-processors/document-from-prompt';
@@ -72,6 +73,7 @@ async function markFailedThenSettle(
       error: settleError instanceof Error ? settleError.message : String(settleError),
     });
   });
+  await maybeStartStarterCourseQuizSafe(job, 'failed');
 }
 
 async function markCompletedThenSettle(job: GenerationJob): Promise<void> {
@@ -97,6 +99,7 @@ async function markCompletedThenSettle(job: GenerationJob): Promise<void> {
       error: settleError instanceof Error ? settleError.message : String(settleError),
     });
   });
+  await maybeStartStarterCourseQuizSafe(job, 'completed');
 }
 
 async function processJobWithProviderCostContext(job: GenerationJob): Promise<void> {

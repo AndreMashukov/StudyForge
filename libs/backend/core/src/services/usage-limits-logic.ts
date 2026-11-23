@@ -132,6 +132,31 @@ export function evaluateUsageLimitDecision(params: {
   };
 }
 
+export type WaivedUsageDecision =
+  | { allowed: true; creditsWaived: number }
+  | { allowed: false; code: 'FEATURE_DISABLED'; message: string };
+
+/**
+ * A free (waived) action: no credit checks, but a feature the plan turns off
+ * stays off.
+ */
+export function evaluateWaivedUsageDecision(
+  policy: IUsageFeaturePolicy,
+  quantity?: number,
+): WaivedUsageDecision {
+  if (!policy.enabled) {
+    return {
+      allowed: false,
+      code: 'FEATURE_DISABLED',
+      message: 'This feature is not available on your current plan.',
+    };
+  }
+  return {
+    allowed: true,
+    creditsWaived: calculateUsageCreditCharge(policy, quantity),
+  };
+}
+
 export function resolveMaxAffordableQuantity(params: {
   policy: IUsageFeaturePolicy;
   period: IUsagePeriodState;

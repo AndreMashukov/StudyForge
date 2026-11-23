@@ -81,6 +81,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
   variant = 'embedded',
   className,
   initialInput,
+  pinnedThreadId,
 }) => {
   const { user } = useAuth();
   const userId = user?.uid;
@@ -107,6 +108,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     userId,
     scope,
     directoryId,
+    pinnedThreadId,
   });
   const { data: threadListData, isLoading: isThreadListLoading } =
     useListAgentThreadsQuery({});
@@ -233,14 +235,16 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
           <h2 className="truncate text-base font-semibold">Agent</h2>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <AgentThreadHistoryMenu
-            threads={visibleThreads}
-            activeThreadId={threadId}
-            isLoading={isThreadListLoading}
-            disabled={false}
-            onSelectThread={handleSelectThread}
-            onNewChat={handleNewChat}
-          />
+          {pinnedThreadId ? null : (
+            <AgentThreadHistoryMenu
+              threads={visibleThreads}
+              activeThreadId={threadId}
+              isLoading={isThreadListLoading}
+              disabled={false}
+              onSelectThread={handleSelectThread}
+              onNewChat={handleNewChat}
+            />
+          )}
           {isWorking ? <Spinner size="xs" /> : null}
           {onClose ? (
             <Button

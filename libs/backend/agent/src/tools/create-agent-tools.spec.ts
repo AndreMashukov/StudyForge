@@ -27,6 +27,19 @@ vi.mock('@study-forge/backend-documents/document-crud', () => ({
   },
 }));
 
+vi.mock('@study-forge/backend-core/services/user-onboarding-service', () => ({
+  claimStarterCourseDocument: vi.fn(),
+  recordStarterCourseDirectory: vi.fn(),
+  recordStarterCourseDocument: vi.fn(),
+  releaseStarterCourseDocument: vi.fn(),
+}));
+
+vi.mock('./starter-course-tools', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./starter-course-tools')>()),
+  attachStarterCourseRules: vi.fn(),
+  waitForCooldown: vi.fn(),
+}));
+
 vi.mock('@study-forge/backend-generation/generation-enqueue', () => ({
   enqueueGenerationJob: vi.fn(),
 }));
@@ -134,6 +147,17 @@ import {
   type AgentToolRuntimeContext,
 } from './create-agent-tools';
 import { AgentRequestAbortedError } from '../runner/agent-request-abort';
+import { HttpsError } from 'firebase-functions/v2/https';
+import {
+  claimStarterCourseDocument,
+  recordStarterCourseDirectory,
+  recordStarterCourseDocument,
+  releaseStarterCourseDocument,
+} from '@study-forge/backend-core/services/user-onboarding-service';
+import {
+  attachStarterCourseRules,
+  waitForCooldown,
+} from './starter-course-tools';
 
 function createContext(
   overrides: Partial<AgentToolRuntimeContext> = {},
@@ -1325,5 +1349,183 @@ describe('seedRuntimeContextFromTurn', () => {
       { itemType: 'document', id: 'doc-a', title: 'Doc A' },
     ]);
     expect(context.seenItems.has('document:doc-a')).toBe(true);
+  });
+});
+
+describe('starter course tools', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(enforceCallableGenerationLimits).mockResolvedValue(
+      createTestUsageReservation({
+        id: 'reservation-free',
+        generationKind: 'documentFromPrompt',
+        credits: 0,
+        includedCredits: 0,
+      }),
+    );
+    vi.mocked(DocumentCrudService.createPendingDocument).mockResolvedValue(
+      'doc-starter',
+    );
+    vi.mocked(enqueueGenerationJob).mockResolvedValue('job-starter');
+    vi.mocked(claimStarterCourseDocument).mockResolvedValue({ allowed: true });
+  });
+
+  function starterContext(
+    starter: Partial<NonNullable<AgentToolRuntimeContext['starterCourse']>> = {},
+  ): AgentToolRuntimeContext {
+    return createContext({
+      directoryIds: ['sample-dir'],
+      starterCourse: {
+        threadId: 'thread-starter',
+        sampleDirectoryId: 'sample-dir',
+        directoryId: 'course-dir',
+        documentsRemaining: 2,
+        ...starter,
+      },
+    });
+  }
+
+  const prompt = 'A beginner overview of Spanish greetings and pronunciation.';
+
+  it('hides quiz and flashcard tools', () => {
+    const names = createAgentToolDefinitions(starterContext()).map(
+      (tool) => tool.name,
+    );
+    expect(names).not.toContain('generate_quiz');
+    expect(names).not.toContain('generate_flashcards');
+    expect(names).toContain('create_document');
+  });
+
+  it('creates a free document in the course folder by default', async () => {
+    const context = starterContext();
+    await executeAgentTool(createAgentToolDefinitions(context), 'create_document', {
+      title: 'Spanish basics',
+      prompt,
+    });
+
+    expect(claimStarterCourseDocument).toHaveBeenCalledWith(
+      'user-1',
+      'thread-starter',
+    );
+    expect(enforceCallableGenerationLimits).toHaveBeenCalledWith(
+      'user-1',
+      'documentFromPrompt',
+      undefined,
+      { waiver: { reason: 'starter_course' } },
+    );
+    expect(enqueueGenerationJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        directoryId: 'course-dir',
+        usageReservationId: 'reservation-free',
+      }),
+    );
+    expect(recordStarterCourseDocument).toHaveBeenCalledWith(
+      'user-1',
+      'doc-starter',
+    );
+    expect(context.starterCourse?.documentsRemaining).toBe(1);
+  });
+
+  it('refuses the sample folder', async () => {
+    await expect(
+      executeAgentTool(
+        createAgentToolDefinitions(starterContext()),
+        'create_document',
+        { prompt, directoryId: 'sample-dir' },
+      ),
+    ).rejects.toThrow('sample folder');
+    expect(claimStarterCourseDocument).not.toHaveBeenCalled();
+  });
+
+  it('refuses a document beyond the free allowance', async () => {
+    vi.mocked(claimStarterCourseDocument).mockResolvedValue({
+      allowed: false,
+      message: 'The starter course already has its 2 free documents.',
+    });
+    await expect(
+      executeAgentTool(
+        createAgentToolDefinitions(starterContext()),
+        'create_document',
+        { prompt },
+      ),
+    ).rejects.toThrow('2 free documents');
+    expect(enforceCallableGenerationLimits).not.toHaveBeenCalled();
+  });
+
+  it('gives the slot back when the document cannot be queued', async () => {
+    vi.mocked(enqueueGenerationJob).mockRejectedValue(new Error('queue down'));
+    vi.mocked(DocumentCrudService.failPendingDocument).mockResolvedValue(undefined);
+    vi.mocked(releaseStarterCourseDocument).mockResolvedValue(undefined);
+    await expect(
+      executeAgentTool(
+        createAgentToolDefinitions(starterContext()),
+        'create_document',
+        { prompt },
+      ),
+    ).rejects.toThrow('queue down');
+    expect(releaseStarterCourseDocument).toHaveBeenCalledWith(
+      'user-1',
+      'thread-starter',
+    );
+    expect(recordStarterCourseDocument).not.toHaveBeenCalled();
+  });
+
+  it('waits out a short cooldown once, then retries', async () => {
+    vi.mocked(enforceCallableGenerationLimits)
+      .mockRejectedValueOnce(
+        new HttpsError('resource-exhausted', 'Slow down', {
+          retryAfterSeconds: 8,
+        }),
+      )
+      .mockResolvedValueOnce(
+        createTestUsageReservation({
+          id: 'reservation-retry',
+          generationKind: 'documentFromPrompt',
+          credits: 0,
+          includedCredits: 0,
+        }),
+      );
+    await executeAgentTool(
+      createAgentToolDefinitions(starterContext()),
+      'create_document',
+      { prompt },
+    );
+    expect(waitForCooldown).toHaveBeenCalledWith(8, undefined);
+    expect(enforceCallableGenerationLimits).toHaveBeenCalledTimes(2);
+    expect(enqueueGenerationJob).toHaveBeenCalledWith(
+      expect.objectContaining({ usageReservationId: 'reservation-retry' }),
+    );
+  });
+
+  it('records the course folder and attaches the formatting rules', async () => {
+    vi.mocked(directoryService.createDirectory).mockResolvedValue({
+      id: 'course-dir',
+      userId: 'user-1',
+      name: 'Spanish',
+      parentId: null,
+      path: '/Spanish',
+      level: 0,
+      documentCount: 0,
+      childCount: 0,
+      quizCount: 0,
+      flashcardSetCount: 0,
+      slideDeckCount: 0,
+      ruleIds: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(recordStarterCourseDirectory).mockResolvedValue(true);
+    const context = starterContext({ directoryId: undefined });
+    await executeAgentTool(createAgentToolDefinitions(context), 'create_directory', {
+      name: 'Spanish',
+      parentId: 'root',
+    });
+    expect(recordStarterCourseDirectory).toHaveBeenCalledWith(
+      'user-1',
+      'thread-starter',
+      'course-dir',
+    );
+    expect(attachStarterCourseRules).toHaveBeenCalledWith('user-1', 'course-dir');
+    expect(context.starterCourse?.directoryId).toBe('course-dir');
   });
 });

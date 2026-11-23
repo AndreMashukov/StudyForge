@@ -8,6 +8,7 @@ import {
 import {
   evaluateFeatureAffordability,
   evaluateUsageLimitDecision,
+  evaluateWaivedUsageDecision,
   resolveMaxAffordableQuantity,
   splitReservationForCommit,
   resolveUsageGenerationKind,
@@ -317,5 +318,19 @@ describe('splitReservationForCommit', () => {
     });
     expect(split.commitCredits).toBe(10);
     expect(split.unusedIncludedCredits).toBe(0);
+  });
+});
+
+describe('evaluateWaivedUsageDecision', () => {
+  it('is free when the feature is on', () => {
+    expect(
+      evaluateWaivedUsageDecision({ enabled: true, creditCost: 20 }),
+    ).toEqual({ allowed: true, creditsWaived: 20 });
+  });
+
+  it('still refuses a feature the plan turns off', () => {
+    expect(
+      evaluateWaivedUsageDecision({ enabled: false, creditCost: 10 }),
+    ).toMatchObject({ allowed: false, code: 'FEATURE_DISABLED' });
   });
 });

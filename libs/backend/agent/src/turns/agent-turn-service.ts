@@ -11,7 +11,15 @@ import type {
 import {
   AGENT_TURN_IN_PROGRESS_CODE,
   buildAgentUserMessageId,
+  parseUserOnboarding,
+  STARTER_COURSE_UNAVAILABLE_CODE,
 } from '@shared-types';
+import {
+  applyStarterTurn,
+  decideStarterTurn,
+  serializeUserOnboarding,
+  type StarterTurnDecision,
+} from '@study-forge/backend-core/services/user-onboarding-logic';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import {
   enforceCallableAgentLoopLimits,
@@ -78,6 +86,12 @@ export function buildStaleTurnState(
   };
 }
 
+function isFreeStarterTurn(
+  decision: StarterTurnDecision,
+): decision is { type: 'begin' } | { type: 'continue' } {
+  return decision.type === 'begin' || decision.type === 'continue';
+}
+
 function usageKindForScope(
   scope: StartAgentTurnInput['scope'],
 ): AgentTurnUsageKind {
@@ -108,10 +122,9 @@ export async function startAgentTurn(
 
   // The turn doc expires after 7 days, but its user message does not, so the
   // message also marks the (threadId, turnId) pair as used.
-  const [existingSnap, existingMessageSnap] = await turnRef.firestore.getAll(
-    turnRef,
-    userMessageRef,
-  );
+  const userRef = FirestorePaths.user(userId);
+  const [existingSnap, existingMessageSnap, userSnap] =
+    await turnRef.firestore.getAll(turnRef, userMessageRef, userRef);
   const existing = parseAgentTurnRecord(existingSnap.data());
   if (existing || existingMessageSnap.exists) {
     return {
@@ -123,21 +136,53 @@ export async function startAgentTurn(
     };
   }
 
+  // The free onboarding starter course: the server decides, the client only
+  // states the intent.
+  const starter = decideStarterTurn({
+    onboarding: parseUserOnboarding(userSnap.get('onboarding')),
+    threadId,
+    intent: input.intent,
+  });
+  if (starter.type === 'reject') {
+    throw new HttpsError('failed-precondition', starter.message, {
+      code: STARTER_COURSE_UNAVAILABLE_CODE,
+    });
+  }
+  const isStarterTurn = isFreeStarterTurn(starter);
+
   const usageKind = usageKindForScope(input.scope);
-  const hold = await enforceCallableAgentLoopLimits(userId, usageKind);
+  const hold = await enforceCallableAgentLoopLimits(
+    userId,
+    usageKind,
+    isStarterTurn ? { waiver: { reason: 'starter_course' } } : undefined,
+  );
   const reservationId = hold.usageReservation.id;
 
   let result: StartTransactionResult;
   try {
     result = await turnRef.firestore.runTransaction(
       async (transaction): Promise<StartTransactionResult> => {
-        const [threadSnap, turnSnap, userMessageSnap] = await transaction.getAll(
-          threadRef,
-          turnRef,
-          userMessageRef,
-        );
+        const [threadSnap, turnSnap, userMessageSnap, txUserSnap] =
+          await transaction.getAll(threadRef, turnRef, userMessageRef, userRef);
         if (turnSnap.exists || userMessageSnap.exists) {
           return { type: 'race', turn: parseAgentTurnRecord(turnSnap.data()) };
+        }
+
+        // Re-check the free allowance inside the transaction, so two turns
+        // racing for the last free slot cannot both get it.
+        const txOnboarding = parseUserOnboarding(txUserSnap.get('onboarding'));
+        if (isStarterTurn) {
+          const confirmed = decideStarterTurn({
+            onboarding: txOnboarding,
+            threadId,
+            intent: input.intent,
+          });
+          if (confirmed.type !== starter.type || !txOnboarding) {
+            throw new HttpsError(
+              'aborted',
+              'Your starter course changed while starting. Please try again.',
+            );
+          }
         }
 
         const activeTurnIdValue: unknown = threadSnap.get('activeTurnId');
@@ -215,6 +260,25 @@ export async function startAgentTurn(
           { merge: true },
         );
 
+        if (isStarterTurn && txOnboarding && isFreeStarterTurn(starter)) {
+          transaction.set(
+            userRef,
+            {
+              onboarding: serializeUserOnboarding(
+                applyStarterTurn({
+                  onboarding: txOnboarding,
+                  decision: starter.type,
+                  threadId,
+                  subject: input.message,
+                  nowIso: now.toISOString(),
+                }),
+              ),
+              updatedAt: now.toISOString(),
+            },
+            { merge: true },
+          );
+        }
+
         transaction.set(
           userMessageRef,
           buildAgentThreadMessageData({
@@ -256,10 +320,11 @@ export async function startAgentTurn(
               : {}),
             ...(input.directoryId ? { directoryId: input.directoryId } : {}),
           },
+          ...(isStarterTurn ? { starterCourse: true } : {}),
           usage: {
             usageKind,
             reservationId,
-            loopBudgetCredits: hold.usageReservation.credits,
+            loopBudgetCredits: hold.loopBudgetCredits,
             pricePerCreditCents: hold.pricePerCreditCents,
             periodKey: hold.usageReservation.periodKey,
           },

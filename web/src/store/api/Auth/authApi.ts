@@ -1,7 +1,9 @@
 import type {
   ApiResponse,
   IBootstrapUserProfileResponse,
+  ISkipOnboardingResponse,
   IUserProfile,
+  UserOnboarding,
 } from '@shared-types';
 import { auth } from '../../../config/firebase';
 import { fetchUserProfileFromFirestore } from '../../../services/userProfileFirestore';
@@ -42,10 +44,23 @@ export const authApi = baseApi.injectEndpoints({
       },
       invalidatesTags: ['UserProfile'],
     }),
+    skipOnboarding: builder.mutation<UserOnboarding, void>({
+      query: () => ({
+        functionName: 'skipOnboarding',
+      }),
+      transformResponse: (response: ApiResponse<ISkipOnboardingResponse>) => {
+        if (!response.success || !response.data?.onboarding) {
+          throw new Error('Failed to skip onboarding');
+        }
+        return response.data.onboarding;
+      },
+      invalidatesTags: ['UserProfile'],
+    }),
   }),
 });
 
 export const {
   useBootstrapUserProfileMutation,
   useGetCurrentUserProfileQuery,
+  useSkipOnboardingMutation,
 } = authApi;

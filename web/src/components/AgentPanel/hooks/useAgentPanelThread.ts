@@ -17,28 +17,43 @@ export function useAgentPanelThread(input: {
   userId: string | undefined;
   scope: AgentScope;
   directoryId?: string;
+  /** Shows only this thread; switching and remembering threads is off. */
+  pinnedThreadId?: string;
 }): IUseAgentPanelThread {
-  const { userId, scope, directoryId } = input;
+  const { userId, scope, directoryId, pinnedThreadId } = input;
   const [threadId, setThreadId] = useState<string | undefined>();
 
   useEffect(() => {
+    if (pinnedThreadId) {
+      return;
+    }
     setThreadId(userId ? readActiveThreadId(userId, scope, directoryId) : undefined);
-  }, [directoryId, scope, userId]);
+  }, [directoryId, pinnedThreadId, scope, userId]);
 
   const rememberThread = useCallback(
     (nextThreadId: string | undefined) => {
+      if (pinnedThreadId) {
+        return;
+      }
       writeActiveThreadId(userId, nextThreadId, scope, directoryId);
     },
-    [directoryId, scope, userId],
+    [directoryId, pinnedThreadId, scope, userId],
   );
 
   const selectThread = useCallback(
     (nextThreadId: string | undefined) => {
+      if (pinnedThreadId) {
+        return;
+      }
       setThreadId(nextThreadId);
       rememberThread(nextThreadId);
     },
-    [rememberThread],
+    [pinnedThreadId, rememberThread],
   );
 
-  return { threadId, selectThread, rememberThread };
+  return {
+    threadId: pinnedThreadId ?? threadId,
+    selectThread,
+    rememberThread,
+  };
 }

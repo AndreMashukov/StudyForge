@@ -82,6 +82,8 @@ export const agentTurnRecordSchema = z.object({
   leaseId: z.string().trim().min(1).nullable().optional(),
   request: agentTurnRequestRecordSchema,
   usage: agentTurnUsageRecordSchema,
+  /** A free onboarding starter-course turn. */
+  starterCourse: z.boolean().default(false),
   evalRetrievedTexts: z.array(z.string()).optional(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,

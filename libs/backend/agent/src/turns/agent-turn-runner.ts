@@ -195,6 +195,7 @@ export async function runAgentTurnTask(
               message: turn.request.message,
               promptContext: turn.request.promptContext,
               clientLocalDate: turn.request.clientLocalDate,
+              ...(turn.starterCourse ? { starterCourse: true } : {}),
             },
             resume: isRetry,
             seed: isRetry

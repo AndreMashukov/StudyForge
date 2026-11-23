@@ -1,8 +1,9 @@
 import type { IUserProfile } from '@shared-types';
+import { parseUserOnboarding } from '@shared-types';
 import { doc, getDoc, type DocumentData } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
-function parseUserProfile(uid: string, raw: DocumentData): IUserProfile {
+export function parseUserProfile(uid: string, raw: DocumentData): IUserProfile {
   return {
     uid,
     email: typeof raw.email === 'string' ? raw.email : undefined,
@@ -11,6 +12,7 @@ function parseUserProfile(uid: string, raw: DocumentData): IUserProfile {
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : undefined,
     userGroupId: typeof raw.userGroupId === 'string' ? raw.userGroupId : undefined,
     emailVerificationExempt: raw.emailVerificationExempt === true,
+    onboarding: parseUserOnboarding(raw.onboarding),
   };
 }
 
