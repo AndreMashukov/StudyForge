@@ -1377,6 +1377,7 @@ describe('starter course tools', () => {
       directoryIds: ['sample-dir'],
       starterCourse: {
         threadId: 'thread-starter',
+        phase: 'build',
         sampleDirectoryId: 'sample-dir',
         directoryId: 'course-dir',
         documentsRemaining: 2,
@@ -1386,6 +1387,15 @@ describe('starter course tools', () => {
   }
 
   const prompt = 'A beginner overview of Spanish greetings and pronunciation.';
+
+  it('offers no folder or document tools while asking questions', () => {
+    const names = createAgentToolDefinitions(
+      starterContext({ phase: 'ask' }),
+    ).map((tool) => tool.name);
+    expect(names).not.toContain('create_document');
+    expect(names).not.toContain('create_directory');
+    expect(names).toContain('list_directories');
+  });
 
   it('hides quiz and flashcard tools', () => {
     const names = createAgentToolDefinitions(starterContext()).map(

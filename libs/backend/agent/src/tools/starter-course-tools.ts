@@ -8,12 +8,35 @@ import {
 /** What a starter-course turn knows about the account's free course. */
 export interface IStarterCourseRuntime {
   threadId: string;
+  /**
+   * `ask`: the first starter turn, which only asks clarifying questions.
+   * `build`: later turns, which create the folder and documents.
+   */
+  phase: StarterCoursePhase;
   /** The instant sample folder; the course must not go there. */
   sampleDirectoryId?: string;
   /** The course folder, once the agent created it. */
   directoryId?: string;
   /** Free documents still available. */
   documentsRemaining: number;
+}
+
+export type StarterCoursePhase = 'ask' | 'build';
+
+/**
+ * The first starter turn asks questions; the course is built after the user
+ * answers. A course that already has a folder or documents is past asking.
+ */
+export function resolveStarterCoursePhase(starter: {
+  turnsUsed: number;
+  documentsUsed: number;
+  directoryId?: string;
+}): StarterCoursePhase {
+  return starter.turnsUsed <= 1 &&
+    starter.documentsUsed === 0 &&
+    !starter.directoryId
+    ? 'ask'
+    : 'build';
 }
 
 /**
@@ -24,6 +47,23 @@ export const STARTER_COURSE_HIDDEN_TOOLS: ReadonlySet<string> = new Set([
   'generate_quiz',
   'generate_flashcards',
 ]);
+
+/** Also hidden while asking, so nothing is generated before the answers. */
+export const STARTER_COURSE_ASK_HIDDEN_TOOLS: ReadonlySet<string> = new Set([
+  ...STARTER_COURSE_HIDDEN_TOOLS,
+  'create_directory',
+  'create_document',
+]);
+
+/** Whether a tool is available in a starter turn of the given phase. */
+export function isStarterCourseToolAvailable(
+  toolName: string,
+  phase: StarterCoursePhase,
+): boolean {
+  const hidden =
+    phase === 'ask' ? STARTER_COURSE_ASK_HIDDEN_TOOLS : STARTER_COURSE_HIDDEN_TOOLS;
+  return !hidden.has(toolName);
+}
 
 /** Published blueprints copied onto the course folder when they exist. */
 export const STARTER_COURSE_BLUEPRINT_IDS = [

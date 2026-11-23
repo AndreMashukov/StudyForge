@@ -45,7 +45,10 @@ import {
 } from './tools/create-agent-tools';
 import { PlatformAgentKnowledgeIndexService } from './knowledge/platform-agent-knowledge-index-service';
 import { resolveAgentCalendarDates } from './tools/quiz-statistics-tools';
-import type { IStarterCourseRuntime } from './tools/starter-course-tools';
+import {
+  resolveStarterCoursePhase,
+  type IStarterCourseRuntime,
+} from './tools/starter-course-tools';
 import { buildStarterCoursePromptBlock } from './runner/starter-course-prompt';
 import { getUserOnboarding } from '@study-forge/backend-core/services/user-onboarding-service';
 import { STARTER_COURSE_LIMITS } from '@shared-types';
@@ -61,6 +64,11 @@ async function loadStarterCourseRuntime(
   const starter = onboarding?.starter;
   return {
     threadId,
+    phase: resolveStarterCoursePhase({
+      turnsUsed: starter?.turnsUsed ?? 1,
+      documentsUsed: starter?.documentsUsed ?? 0,
+      directoryId: starter?.directoryId,
+    }),
     ...(onboarding?.sampleDirectoryId
       ? { sampleDirectoryId: onboarding.sampleDirectoryId }
       : {}),
@@ -664,6 +672,7 @@ export async function executeAgentTurn(
     platformKnowledgeBlock,
     starterCourseBlock: starterCourse
       ? buildStarterCoursePromptBlock({
+          phase: starterCourse.phase,
           sampleDirectoryId: starterCourse.sampleDirectoryId,
           courseDirectoryId: starterCourse.directoryId,
           documentsRemaining: starterCourse.documentsRemaining,

@@ -74,8 +74,8 @@ import {
 } from '@study-forge/backend-core/services/user-onboarding-service';
 import {
   attachStarterCourseRules,
+  isStarterCourseToolAvailable,
   readShortCooldownSeconds,
-  STARTER_COURSE_HIDDEN_TOOLS,
   waitForCooldown,
   type IStarterCourseRuntime,
 } from './starter-course-tools';
@@ -1768,8 +1768,11 @@ export function createAgentToolDefinitions(
       },
     },
   ];
-  return context.starterCourse
-    ? definitions.filter((tool) => !STARTER_COURSE_HIDDEN_TOOLS.has(tool.name))
+  const starter = context.starterCourse;
+  return starter
+    ? definitions.filter((tool) =>
+        isStarterCourseToolAvailable(tool.name, starter.phase),
+      )
     : definitions;
 }
 

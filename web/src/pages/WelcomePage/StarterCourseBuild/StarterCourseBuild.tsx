@@ -19,8 +19,8 @@ export const StarterCourseBuild: React.FC<IStarterCourseBuild> = ({
           {subject ? `Building your ${subject} course` : 'Building your course'}
         </h1>
         <p className="text-sm text-muted-foreground">
-          The agent may ask a quick question first. The documents keep
-          generating if you leave this page.
+          Answer a few quick questions so the course fits you. Once it starts,
+          the documents keep generating even if you leave this page.
         </p>
       </div>
       <AgentPanel
