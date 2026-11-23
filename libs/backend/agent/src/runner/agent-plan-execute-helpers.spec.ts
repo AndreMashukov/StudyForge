@@ -112,6 +112,23 @@ describe('create_document grounding', () => {
     ).toBe(true);
   });
 
+  it('lets a create request ask clarifying questions before creating', () => {
+    expect(
+      shouldBlockUngroundedCreateResponse({
+        objective: createObjective,
+        outcomes: [],
+        questionCount: 1,
+      }),
+    ).toBe(false);
+    expect(
+      shouldBlockUngroundedCreateResponse({
+        objective: createObjective,
+        outcomes: [],
+        questionCount: 0,
+      }),
+    ).toBe(true);
+  });
+
   it('does not treat a propose-first study plan as a create-document request', () => {
     const studyPlanObjective =
       'In this dir I want you to create a study plan for learning Python - intermediate level (I already know the basics), each doc should contain explanation of several not trivial subjects with, code snippets, mermaid diagrams and table with comparison between javascript and python (modern python), you can attach existing rules to the dir (or create new rules if needed), so first before start suggest a study plan so that I can validate it';

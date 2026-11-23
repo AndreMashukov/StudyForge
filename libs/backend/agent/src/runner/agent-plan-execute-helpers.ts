@@ -129,10 +129,21 @@ export function isCreateDocumentObjective(objective: string): boolean {
   );
 }
 
+/**
+ * Blocks a reply to a create-document request when create_document never
+ * succeeded, so the agent cannot claim a document exists. A reply that asks
+ * clarifying questions claims nothing, so it is never blocked: the user answers
+ * first and the document is created on the next turn.
+ */
 export function shouldBlockUngroundedCreateResponse(input: {
   objective: string;
   outcomes: AgentToolOutcome[];
+  /** Clarifying questions the reply asks (after normalization). */
+  questionCount?: number;
 }): boolean {
+  if ((input.questionCount ?? 0) > 0) {
+    return false;
+  }
   return (
     isCreateDocumentObjective(input.objective) &&
     !hasSuccessfulCreateDocument(input.outcomes)

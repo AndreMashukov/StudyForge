@@ -756,10 +756,10 @@ export async function executeAgentTurn(
     shouldBlockUngroundedCreateResponse({
       objective: formattedUserMessage,
       outcomes: createOutcomes,
+      questionCount: questions.length,
     })
   ) {
     reply = UNGROUNDED_CREATE_FALLBACK;
-    questions = [];
   }
 
   return {

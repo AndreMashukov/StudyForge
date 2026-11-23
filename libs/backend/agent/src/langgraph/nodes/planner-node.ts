@@ -157,16 +157,20 @@ export async function plannerNode(
         });
       throwIfAgentRequestAborted(runtime.abortSignal);
 
-      const reply =
-        finalOutput.type === 'response' && !blocked
-          ? finalOutput.response
-          : blocked
-            ? UNGROUNDED_CREATE_FALLBACK
-            : buildFallbackFinalReply(state);
+      const finalQuestions =
+        finalOutput.type === 'response'
+          ? normalizeAgentQuestions(finalOutput.questions)
+          : [];
+      // Questions claim nothing was created, so they pass the create guard.
+      const replyBlocked = shouldBlockUngroundedCreateResponse({
+        objective,
+        outcomes: allToolOutcomes,
+        questionCount: finalQuestions.length,
+      });
 
-      if (!blocked && finalOutput.type === 'response') {
+      if (!replyBlocked && finalOutput.type === 'response') {
         const emitted = emitPlannerReplyDeltas({
-          parsedReply: reply,
+          parsedReply: finalOutput.response,
           streamedUserReply,
           onEvent: runtime.onEvent,
         });
@@ -174,10 +178,13 @@ export async function plannerNode(
           state,
           reply: emitted.reply,
           streamed: emitted.streamed,
-          questions: normalizeAgentQuestions(finalOutput.questions),
+          questions: finalQuestions,
         });
       }
 
+      const reply = replyBlocked
+        ? UNGROUNDED_CREATE_FALLBACK
+        : buildFallbackFinalReply(state);
       return completeWithReply({ state, reply, streamed: false });
     }
 
@@ -217,7 +224,15 @@ export async function plannerNode(
     throwIfAgentRequestAborted(runtime.abortSignal);
 
     if (plannerOutput.type === 'response') {
-      if (blocked) {
+      const questions = normalizeAgentQuestions(plannerOutput.questions);
+      // Asking first is fine: only a reply that claims a document exists
+      // without create_document succeeding is replaced by a forced create.
+      const replyBlocked = shouldBlockUngroundedCreateResponse({
+        objective,
+        outcomes: allToolOutcomes,
+        questionCount: questions.length,
+      });
+      if (replyBlocked) {
         logNodeExitOk(NODE_NAME, state);
         return {
           [WORKSPACE_AGENT_STATE_KEYS.planSteps]: [FORCED_CREATE_DOCUMENT_STEP],
@@ -234,7 +249,7 @@ export async function plannerNode(
         state,
         reply: emitted.reply,
         streamed: emitted.streamed,
-        questions: normalizeAgentQuestions(plannerOutput.questions),
+        questions,
       });
     }
 
