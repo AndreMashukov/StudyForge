@@ -19,9 +19,12 @@ export const markdownStyles = {
   em: "italic",
   
   // Lists
-  ul: "list-disc list-inside space-y-1 mb-4 text-muted-foreground break-words",
-  ol: "list-decimal list-inside space-y-1 mb-4 text-muted-foreground break-words",
-  li: "text-muted-foreground break-words max-w-full",
+  // Markers sit outside the text. With `list-inside`, a loose list (blank
+  // lines between items) wraps each item in a <p>, which drops the text onto
+  // the line below its number or bullet.
+  ul: "list-disc pl-6 space-y-1 mb-4 text-muted-foreground break-words",
+  ol: "list-decimal pl-6 space-y-1 mb-4 text-muted-foreground break-words",
+  li: "pl-1 text-muted-foreground break-words max-w-full [&>p]:mb-2 [&>p:last-child]:mb-0",
   
   // Links
   a: "text-primary hover:text-primary/80 underline underline-offset-4 transition-colors",
