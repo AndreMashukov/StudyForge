@@ -301,7 +301,7 @@ function buildSystemPrompt(input: {
     'A written description does not create a document. You must call create_document; if that tool did not run, the document does not exist.',
     'When listing a folder, only include items returned by list_documents. Do not add items from earlier chat claims.',
     'When you create directories or rules, state the full path from tool results (for example /Python/Screenshots).',
-    'In workspace scope, omit parentId on create_directory to create at the workspace root; pass parentId to nest under an existing directory.',
+    'create_directory without parentId creates inside the folder the user is viewing (UI context), or at the workspace root when nothing is open. Pass parentId "root" only when the user asks for a top-level folder; pass a directory id to nest somewhere else.',
     'When the user asks where something is or whether work completed, verify with list_directories / list_rules / list_documents and answer from those results.',
     'When the user asks about quiz performance, scores, accuracy, right vs wrong answers, or knowledge gaps from quizzes, use get_quiz_statistics and get_quiz_answer_details. Those tools cover quizzes, diagram quizzes, and sequence quizzes.',
     `Today is ${input.today}. Yesterday is ${input.yesterday}. These are the user local calendar dates.`,

@@ -129,6 +129,7 @@ import {
   seedRuntimeContextFromTurn,
   createAgentToolDefinitions,
   executeAgentTool,
+  resolveCreateDirectoryParentId,
   toAgentReadableDocumentContent,
   type AgentToolRuntimeContext,
 } from './create-agent-tools';
@@ -383,7 +384,7 @@ describe('createAgentToolDefinitions create_directory', () => {
     vi.clearAllMocks();
   });
 
-  it('creates at workspace root when parentId is omitted', async () => {
+  it('creates at workspace root when parentId is omitted and nothing is open', async () => {
     vi.mocked(directoryService.createDirectory).mockResolvedValue({
       id: 'python-1',
       userId: 'user-1',
@@ -497,6 +498,106 @@ describe('createAgentToolDefinitions create_directory', () => {
       parentId: 'python-1',
       description: undefined,
     });
+  });
+});
+
+describe('resolveCreateDirectoryParentId', () => {
+  const viewingHealwith = {
+    type: 'directory' as const,
+    directoryId: 'healwith-1',
+    path: '/Healwith',
+  };
+
+  it('nests inside the folder the user is viewing in workspace scope', () => {
+    const context = createContext({ promptContext: viewingHealwith });
+    expect(resolveCreateDirectoryParentId(context, { name: 'Locks' })).toBe(
+      'healwith-1',
+    );
+  });
+
+  it("nests inside the open document's folder", () => {
+    const context = createContext({
+      promptContext: {
+        type: 'document',
+        documentId: 'doc-1',
+        directoryId: 'healwith-1',
+      },
+    });
+    expect(resolveCreateDirectoryParentId(context, { name: 'Locks' })).toBe(
+      'healwith-1',
+    );
+  });
+
+  it('goes to the top level when nothing with a folder is open', () => {
+    expect(
+      resolveCreateDirectoryParentId(createContext(), { name: 'Locks' }),
+    ).toBeUndefined();
+    expect(
+      resolveCreateDirectoryParentId(
+        createContext({
+          promptContext: { type: 'document', documentId: 'doc-1' },
+        }),
+        { name: 'Locks' },
+      ),
+    ).toBeUndefined();
+    expect(
+      resolveCreateDirectoryParentId(
+        createContext({ promptContext: { type: 'rule', ruleId: 'rule-1' } }),
+        { name: 'Locks' },
+      ),
+    ).toBeUndefined();
+  });
+
+  it('goes to the top level for an explicit root, even while viewing a folder', () => {
+    const context = createContext({ promptContext: viewingHealwith });
+    expect(
+      resolveCreateDirectoryParentId(context, {
+        name: 'Locks',
+        parentId: 'root',
+      }),
+    ).toBeUndefined();
+    expect(
+      resolveCreateDirectoryParentId(context, {
+        name: 'Locks',
+        parentId: ' / ',
+      }),
+    ).toBeUndefined();
+  });
+
+  it('uses an explicit parentId over the viewed folder', () => {
+    const context = createContext({ promptContext: viewingHealwith });
+    expect(
+      resolveCreateDirectoryParentId(context, {
+        name: 'Locks',
+        parentId: 'aws-1',
+      }),
+    ).toBe('aws-1');
+  });
+
+  it('refuses a top-level folder in directory scope', () => {
+    const context = createContext({
+      scope: 'directory',
+      directoryId: 'python-1',
+      directoryIds: ['python-1'],
+    });
+    expect(() =>
+      resolveCreateDirectoryParentId(context, {
+        name: 'Locks',
+        parentId: 'root',
+      }),
+    ).toThrow('Directory scope cannot create a top-level directory');
+  });
+
+  it('stays in the active directory in directory scope, whatever the UI shows', () => {
+    const context = createContext({
+      scope: 'directory',
+      directoryId: 'python-1',
+      directoryIds: ['python-1'],
+      promptContext: viewingHealwith,
+    });
+    expect(resolveCreateDirectoryParentId(context, { name: 'Locks' })).toBe(
+      'python-1',
+    );
   });
 });
 

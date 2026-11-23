@@ -427,14 +427,55 @@ export function toAgentReadableDocumentContent(
  * Workspace creates default to root. Directory-scoped chats nest under the
  * active directory. Never silently pick the first alphabetized root folder.
  */
-function resolveCreateDirectoryParentId(
+/** `parentId` value that asks for a top-level directory in workspace scope. */
+export const CREATE_DIRECTORY_ROOT_PARENT = 'root';
+
+function isRootParentArg(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return normalized === CREATE_DIRECTORY_ROOT_PARENT || normalized === '/';
+}
+
+/** The directory the user is looking at: the open folder, or the open document's folder. */
+function resolveViewedDirectoryId(
+  context: AgentToolRuntimeContext,
+): string | undefined {
+  const promptContext = context.promptContext;
+  if (promptContext?.type === 'directory') {
+    return promptContext.directoryId;
+  }
+  if (promptContext?.type === 'document' && promptContext.directoryId) {
+    return promptContext.directoryId;
+  }
+  return undefined;
+}
+
+/**
+ * Where create_directory puts a new folder:
+ * - an explicit parentId wins;
+ * - `root` (or `/`) means top level, workspace scope only;
+ * - otherwise the folder the user is viewing, like "New folder" in a file
+ *   manager; top level only when nothing is open.
+ * Directory scope always stays inside the active directory.
+ */
+export function resolveCreateDirectoryParentId(
   context: AgentToolRuntimeContext,
   args: Record<string, unknown>,
 ): string | undefined {
-  if (typeof args.parentId === 'string' && args.parentId.trim().length > 0) {
-    const parentId = args.parentId.trim();
-    assertDirectoryInScope(context, parentId);
-    return parentId;
+  const rawParentId =
+    typeof args.parentId === 'string' ? args.parentId.trim() : '';
+
+  if (rawParentId.length > 0 && isRootParentArg(rawParentId)) {
+    if (context.scope === 'directory') {
+      throw new Error(
+        'Directory scope cannot create a top-level directory; omit parentId to create inside the active directory',
+      );
+    }
+    return undefined;
+  }
+
+  if (rawParentId.length > 0) {
+    assertDirectoryInScope(context, rawParentId);
+    return rawParentId;
   }
 
   if (context.scope === 'directory') {
@@ -447,7 +488,7 @@ function resolveCreateDirectoryParentId(
     return context.directoryIds[0];
   }
 
-  return undefined;
+  return resolveViewedDirectoryId(context);
 }
 
 function sanitizeDirectoryName(name: string): string {
@@ -840,7 +881,7 @@ export function createAgentToolDefinitions(
     {
       name: 'create_directory',
       description:
-        'Create a directory. In workspace scope, omit parentId to create at the workspace root; pass parentId to nest under an existing directory. In directory scope, omit parentId to create under the active directory. Directory names cannot contain / \\ : * ? " < > |; slashes in topics like AI/ML are converted to hyphens automatically.',
+        'Create a directory. Omit parentId to create inside the folder the user is viewing (the open folder, or the open document\'s folder); with nothing open it goes at the workspace root. Pass parentId "root" only when the user asks for a top-level folder, or another directory id to nest under that directory. In directory scope it always stays inside the active directory. Directory names cannot contain / \\ : * ? " < > |; slashes in topics like AI/ML are converted to hyphens automatically.',
       parameters: {
         type: 'object',
         properties: {
@@ -1618,9 +1659,7 @@ export function createAgentToolDefinitions(
             targetType: 'document',
             targetId: documentId,
             label: document.title,
-            ...(typeof args.reason === 'string'
-              ? { reason: args.reason }
-              : {}),
+            ...(typeof args.reason === 'string' ? { reason: args.reason } : {}),
           });
         }
         return { proposed: true, count: documentIds.length };
