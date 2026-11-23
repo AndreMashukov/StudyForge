@@ -3,6 +3,7 @@ import type { AgentTurn, IAgentThread } from '@shared-types';
 import {
   agentActionResultSchema,
   agentProposedDeleteSchema,
+  agentQuestionSchema,
   agentReferencedItemSchema,
   agentTurnSchema,
 } from '@shared-types';
@@ -40,6 +41,7 @@ export function mapAgentTurn(
     executedActions: parseList(data.executedActions, agentActionResultSchema),
     proposedDeletes: parseList(data.proposedDeletes, agentProposedDeleteSchema),
     referencedItems: parseList(data.referencedItems, agentReferencedItemSchema),
+    questions: parseList(data.questions, agentQuestionSchema),
     createdAt: timestampToIso(data.createdAt, fallbackIso),
     updatedAt: timestampToIso(data.updatedAt, fallbackIso),
     startedAt: optionalTimestampToIso(data.startedAt),

@@ -21,6 +21,7 @@ export function makeAgentTurnRecord(
     executedActions: [],
     proposedDeletes: [],
     referencedItems: [],
+    questions: [],
     userMessageId: 'user-turn-0001',
     assistantMessageId: null,
     error: null,

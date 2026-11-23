@@ -14,6 +14,7 @@ export const WORKSPACE_AGENT_STATE_KEYS = {
   replanCycle: 'replanCycle',
   plannerIntent: 'plannerIntent',
   finalReply: 'finalReply',
+  questions: 'questions',
   streamedFinalReply: 'streamedFinalReply',
   agentOutcome: 'agentOutcome',
   failureMessage: 'failureMessage',

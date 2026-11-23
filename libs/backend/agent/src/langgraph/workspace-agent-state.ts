@@ -1,4 +1,5 @@
 import { Annotation } from '@langchain/langgraph';
+import type { AgentQuestion } from '@shared-types';
 import {
   mergeCappedHistory,
   mergeCappedPastSteps,
@@ -32,12 +33,10 @@ export const WorkspaceAgentStateAnnotation = Annotation.Root({
     reducer: (current, update) => mergeCappedPastSteps(current, update),
     default: () => [],
   }),
-  [WORKSPACE_AGENT_STATE_KEYS.allToolOutcomes]: Annotation<AgentToolOutcome[]>(
-    {
-      reducer: (current, update) => mergeCappedToolOutcomes(current, update),
-      default: () => [],
-    },
-  ),
+  [WORKSPACE_AGENT_STATE_KEYS.allToolOutcomes]: Annotation<AgentToolOutcome[]>({
+    reducer: (current, update) => mergeCappedToolOutcomes(current, update),
+    default: () => [],
+  }),
   [WORKSPACE_AGENT_STATE_KEYS.executedStepCount]: Annotation<number>({
     reducer: (_current, update) => update,
     default: () => 0,
@@ -50,15 +49,18 @@ export const WorkspaceAgentStateAnnotation = Annotation.Root({
     WorkspaceAgentPlannerIntent | undefined
   >(),
   [WORKSPACE_AGENT_STATE_KEYS.finalReply]: Annotation<string | undefined>(),
+  /** Clarifying questions that end the turn with the final reply. */
+  [WORKSPACE_AGENT_STATE_KEYS.questions]: Annotation<AgentQuestion[]>({
+    reducer: (_current, update) => update,
+    default: () => [],
+  }),
   [WORKSPACE_AGENT_STATE_KEYS.streamedFinalReply]: Annotation<
     boolean | undefined
   >(),
   [WORKSPACE_AGENT_STATE_KEYS.agentOutcome]: Annotation<
     WorkspaceAgentOutcome | undefined
   >(),
-  [WORKSPACE_AGENT_STATE_KEYS.failureMessage]: Annotation<
-    string | undefined
-  >(),
+  [WORKSPACE_AGENT_STATE_KEYS.failureMessage]: Annotation<string | undefined>(),
 });
 
 export type WorkspaceAgentState = typeof WorkspaceAgentStateAnnotation.State;

@@ -3,6 +3,7 @@ import type {
   AgentMessageStreamEvent,
   AgentPromptContext,
   AgentProposedDelete,
+  AgentQuestion,
   AgentReferencedItem,
   AgentScope,
   DirectoryTreeNode,
@@ -87,6 +88,27 @@ function formatUserMessageForModel(
   return `[UI context: user was viewing ${description}]\n${content}`;
 }
 
+/** Lets the planner see what it asked, so the next user message reads as answers. */
+function withAskedQuestionsContext(
+  content: string,
+  questions: AgentQuestion[] | undefined,
+): string {
+  if (!questions || questions.length === 0) {
+    return content;
+  }
+  const asked = questions
+    .map(
+      (question) =>
+        `- ${question.question} Options: ${question.options
+          .map((option) =>
+            option.recommended ? `${option.label} (recommended)` : option.label,
+          )
+          .join(', ')}`,
+    )
+    .join('\n');
+  return `${content}\n\n[Asked the user:\n${asked}]`;
+}
+
 function historyMessageForModel(message: IAgentThreadMessage): {
   role: 'user' | 'assistant';
   content: string;
@@ -94,9 +116,9 @@ function historyMessageForModel(message: IAgentThreadMessage): {
   if (message.role === 'assistant') {
     return {
       role: 'assistant',
-      content: withExecutedActionContext(
-        message.content,
-        message.executedActions,
+      content: withAskedQuestionsContext(
+        withExecutedActionContext(message.content, message.executedActions),
+        message.questions,
       ),
     };
   }
@@ -338,6 +360,8 @@ export interface IAgentTurnOutcome {
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
   referencedItems: AgentReferencedItem[];
+  /** Clarifying questions a completed turn asks the user. */
+  questions?: AgentQuestion[];
   /** Set when the turn stopped early (deadline or error). */
   errorMessage?: string;
   errorCode?: 'deadline' | 'internal';
@@ -420,7 +444,10 @@ async function waitForRunToSettle(
  * preparation (directory tree, memory embeddings, knowledge search) cannot
  * hold the turn. The underlying work is not cancelled, only no longer awaited.
  */
-function untilAborted<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+function untilAborted<T>(
+  promise: Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
   if (!signal) {
     return promise;
   }
@@ -631,6 +658,7 @@ export async function executeAgentTurn(
   }
 
   let reply = '';
+  let questions: AgentQuestion[] = [];
   let runError: unknown = null;
   let runSettled = false;
 
@@ -648,6 +676,9 @@ export async function executeAgentTurn(
     tools,
     signal,
     onEvent: emit,
+    onQuestions: (asked) => {
+      questions = asked;
+    },
   }).then(
     (result) => {
       reply = result;
@@ -725,10 +756,17 @@ export async function executeAgentTurn(
     shouldBlockUngroundedCreateResponse({
       objective: formattedUserMessage,
       outcomes: createOutcomes,
+      questionCount: questions.length,
     })
   ) {
     reply = UNGROUNDED_CREATE_FALLBACK;
   }
 
-  return { kind: 'completed', reply, ...lists, ...withRetrieved };
+  return {
+    kind: 'completed',
+    reply,
+    ...lists,
+    ...(questions.length > 0 ? { questions } : {}),
+    ...withRetrieved,
+  };
 }

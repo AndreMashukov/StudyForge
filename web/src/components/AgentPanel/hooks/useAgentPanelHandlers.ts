@@ -7,10 +7,7 @@ import {
   useStartAgentTurnMutation,
 } from '../../../store/api/AgentThread';
 import { useAppDispatch } from '../../../hooks/redux';
-import {
-  clearThreadStarting,
-  markThreadStarting,
-} from '../agentThreadStarts';
+import { clearThreadStarting, markThreadStarting } from '../agentThreadStarts';
 import { formatLocalIsoDate } from '../../../utils/dateUtils';
 import { readAgentRequestErrorMessage } from '../agentPanelErrors';
 import type { IAgentPendingTurn } from './useAgentConversation';
@@ -28,7 +25,10 @@ function promptContextDirectoryId(
 }
 
 export interface IUseAgentPanelHandlers {
-  handleSend: (rawMessage: string) => Promise<void>;
+  handleSend: (
+    rawMessage: string,
+    options?: { fromQuestionCard?: boolean },
+  ) => Promise<void>;
   handleStop: () => Promise<void>;
   handleNewChat: () => void;
   handleSelectThread: (threadId: string) => void;
@@ -69,7 +69,17 @@ export function useAgentPanelHandlers(input: {
   const latestSendRef = useRef<string | null>(null);
 
   const handleSend = useCallback(
-    async (rawMessage: string) => {
+    async (
+      rawMessage: string,
+      options?: {
+        /**
+         * Answers from the question card: leave the composer draft alone. On
+         * failure the card reappears with the questions, so nothing is lost.
+         */
+        fromQuestionCard?: boolean;
+      },
+    ) => {
+      const keepInput = options?.fromQuestionCard === true;
       const trimmed = rawMessage.trim();
       if (!trimmed || isWorking) {
         return;
@@ -79,7 +89,9 @@ export function useAgentPanelHandlers(input: {
       const turnId = crypto.randomUUID();
       latestSendRef.current = turnId;
       setError(null);
-      setInput('');
+      if (!keepInput) {
+        setInput('');
+      }
       setPendingTurn({
         threadId: targetThreadId,
         turnId,
@@ -130,7 +142,9 @@ export function useAgentPanelHandlers(input: {
         if (!threadId) {
           rememberThread(undefined);
         }
-        setInput(trimmed);
+        if (!keepInput) {
+          setInput(trimmed);
+        }
         setError(
           readAgentRequestErrorMessage(startError, 'Failed to send message'),
         );
@@ -163,7 +177,9 @@ export function useAgentPanelHandlers(input: {
     try {
       await cancelAgentTurn({ threadId, turnId: turn.id }).unwrap();
     } catch (stopError) {
-      setError(readAgentRequestErrorMessage(stopError, 'Failed to stop the agent'));
+      setError(
+        readAgentRequestErrorMessage(stopError, 'Failed to stop the agent'),
+      );
     }
   }, [cancelAgentTurn, setError, threadId, turn]);
 

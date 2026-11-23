@@ -11,6 +11,8 @@ import { selectSidebarIsOpen } from '../../store/slices/uiSlice';
 import { useAppFullscreen } from '../../contexts/FullscreenContext';
 import { useListAgentThreadsQuery } from '../../store/api/AgentThread';
 import { AgentChatMessage } from './AgentChatMessage';
+import { AgentQuestionCard } from './AgentQuestionCard';
+import { findOpenAgentQuestions } from '../../services/agentConversation';
 import { AgentContextPill, AgentRestoreContextPill } from './AgentContextPill';
 import { AgentThreadHistoryMenu } from './AgentThreadHistoryMenu';
 import { IAgentPanel } from './IAgentPanel';
@@ -88,6 +90,9 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
   const [pendingTurn, setPendingTurn] = useState<IAgentPendingTurn | null>(
     null,
   );
+  const [dismissedQuestionsId, setDismissedQuestionsId] = useState<
+    string | null
+  >(null);
   const [confirmedDeleteKeys, setConfirmedDeleteKeys] = useState<
     ReadonlySet<string>
   >(() => new Set());
@@ -105,14 +110,8 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
   });
   const { data: threadListData, isLoading: isThreadListLoading } =
     useListAgentThreadsQuery({});
-  const {
-    entries,
-    threadData,
-    threadError,
-    isThreadLoading,
-    turn,
-    isWorking,
-  } = useAgentConversation({ threadId, pendingTurn });
+  const { entries, threadData, threadError, isThreadLoading, turn, isWorking } =
+    useAgentConversation({ threadId, pendingTurn });
 
   const activePromptContext = contextDismissed
     ? undefined
@@ -139,20 +138,25 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     onMutated,
   });
 
-  const { handleSend, handleStop, handleNewChat, handleSelectThread, isStopping } =
-    useAgentPanelHandlers({
-      scope,
-      directoryId,
-      threadId,
-      activePromptContext,
-      turn,
-      isWorking,
-      selectThread,
-      rememberThread,
-      setPendingTurn,
-      setInput,
-      setError,
-    });
+  const {
+    handleSend,
+    handleStop,
+    handleNewChat,
+    handleSelectThread,
+    isStopping,
+  } = useAgentPanelHandlers({
+    scope,
+    directoryId,
+    threadId,
+    activePromptContext,
+    turn,
+    isWorking,
+    selectThread,
+    rememberThread,
+    setPendingTurn,
+    setInput,
+    setError,
+  });
 
   const handleDeleteProposalConfirmed = useCallback(
     (entryId: string, proposal: AgentProposedDelete) => {
@@ -193,6 +197,15 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
       bottom: PAGE_WIDE_GAP_PX,
     };
   }, [isAppFullscreen, isMobile, isOverlay, sidebarIsOpen]);
+
+  const openQuestions = useMemo(
+    () => findOpenAgentQuestions(entries),
+    [entries],
+  );
+  const visibleQuestions =
+    openQuestions && openQuestions.entryId !== dismissedQuestionsId
+      ? openQuestions
+      : null;
 
   const canStop =
     Boolean(turn) && isWorking && !turn?.cancelRequested && !isStopping;
@@ -305,60 +318,78 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
         </div>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="border-t border-border p-3">
-        <Textarea
-          value={input}
-          onChange={(event) =>
-            setInput(event.target.value.slice(0, MAX_MESSAGE_LENGTH))
-          }
-          placeholder="Ask the agent..."
-          rows={3}
-          maxLength={MAX_MESSAGE_LENGTH}
-          showCharCount
-          disabled={isWorking}
-        />
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            {locationContext && !contextDismissed ? (
-              <AgentContextPill
-                locationContext={locationContext}
-                onRemove={() => setContextDismissed(true)}
-                disabled={isWorking}
-              />
-            ) : null}
-            {locationContext && contextDismissed ? (
-              <AgentRestoreContextPill
-                onRestore={() => setContextDismissed(false)}
-                disabled={isWorking}
-              />
-            ) : null}
+      <div className="border-t border-border">
+        {visibleQuestions ? (
+          <AgentQuestionCard
+            key={visibleQuestions.entryId}
+            questions={visibleQuestions.questions}
+            disabled={isWorking}
+            onSubmit={(message) =>
+              void handleSend(message, { fromQuestionCard: true })
+            }
+            onDismiss={() => setDismissedQuestionsId(visibleQuestions.entryId)}
+          />
+        ) : null}
+
+        <form onSubmit={handleSubmit} className="p-3">
+          <Textarea
+            value={input}
+            onChange={(event) =>
+              setInput(event.target.value.slice(0, MAX_MESSAGE_LENGTH))
+            }
+            placeholder={
+              visibleQuestions
+                ? 'Or reply in your own words...'
+                : 'Ask the agent...'
+            }
+            rows={3}
+            maxLength={MAX_MESSAGE_LENGTH}
+            showCharCount
+            disabled={isWorking}
+          />
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              {locationContext && !contextDismissed ? (
+                <AgentContextPill
+                  locationContext={locationContext}
+                  onRemove={() => setContextDismissed(true)}
+                  disabled={isWorking}
+                />
+              ) : null}
+              {locationContext && contextDismissed ? (
+                <AgentRestoreContextPill
+                  onRestore={() => setContextDismissed(false)}
+                  disabled={isWorking}
+                />
+              ) : null}
+            </div>
+            {isWorking ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!canStop}
+                className="gap-2"
+                onClick={() => void handleStop()}
+                aria-label="Stop the agent"
+              >
+                <Square size={14} />
+                {turn?.cancelRequested || isStopping ? 'Stopping...' : 'Stop'}
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!input.trim()}
+                className="gap-2"
+              >
+                <Send size={14} />
+                Send
+              </Button>
+            )}
           </div>
-          {isWorking ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={!canStop}
-              className="gap-2"
-              onClick={() => void handleStop()}
-              aria-label="Stop the agent"
-            >
-              <Square size={14} />
-              {turn?.cancelRequested || isStopping ? 'Stopping...' : 'Stop'}
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="sm"
-              disabled={!input.trim()}
-              className="gap-2"
-            >
-              <Send size={14} />
-              Send
-            </Button>
-          )}
-        </div>
-      </form>
+        </form>
+      </div>
     </section>
   );
 };

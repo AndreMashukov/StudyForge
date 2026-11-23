@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { JsonSanitizer } from '@study-forge/backend-llm/llm';
+import { AGENT_QUESTION_LIMITS } from '@shared-types';
 import type { IAgentToolCatalogEntry } from '../tools/agent-tool-session';
 import type { AgentToolOutcome } from './agent-chat-fallback';
 
@@ -22,6 +23,8 @@ export const agentPlanOutputSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('response'),
     response: z.string().trim().min(1),
+    /** Raw clarifying questions; validated with normalizeAgentQuestions. */
+    questions: z.array(z.unknown()).optional(),
   }),
 ]);
 
@@ -126,10 +129,21 @@ export function isCreateDocumentObjective(objective: string): boolean {
   );
 }
 
+/**
+ * Blocks a reply to a create-document request when create_document never
+ * succeeded, so the agent cannot claim a document exists. A reply that asks
+ * clarifying questions claims nothing, so it is never blocked: the user answers
+ * first and the document is created on the next turn.
+ */
 export function shouldBlockUngroundedCreateResponse(input: {
   objective: string;
   outcomes: AgentToolOutcome[];
+  /** Clarifying questions the reply asks (after normalization). */
+  questionCount?: number;
 }): boolean {
+  if ((input.questionCount ?? 0) > 0) {
+    return false;
+  }
   return (
     isCreateDocumentObjective(input.objective) &&
     !hasSuccessfulCreateDocument(input.outcomes)
@@ -208,6 +222,7 @@ export function buildPlannerPrompt(input: {
     'Use one of these shapes:',
     '{"type":"plan","steps":["step one","step two"]}',
     '{"type":"response","response":"final user-facing reply"}',
+    '{"type":"response","response":"one short sentence before the questions","questions":[{"id":"folder","header":"Folder","question":"Which folder should I use?","options":[{"label":"AWS","description":"Your existing AWS notes","recommended":true},{"label":"New folder","description":"Start a separate folder"}]}]}',
     'Rules:',
     '- Steps must be plain language, not tool JSON.',
     '- Each step should be achievable with the available tools in one focused pass.',
@@ -224,6 +239,9 @@ export function buildPlannerPrompt(input: {
     '- list_directories already includes document counts. After listing directories, return type=response with that listing unless the user asked for every document title in every folder.',
     '- After completed steps, prefer type=response that summarizes TOOL RESULTS you already have. Do not keep planning one list_documents call per remaining folder.',
     '- If remaining work will not finish, still return type=response with what you already listed. Do not return another plan.',
+    '- Ask clarifying questions only when the request is genuinely ambiguous and a wrong guess would waste work (which folder, which document, what format or size). Do not ask when the answer is in Recent conversation, the prompt context, or can be found with a tool; do not ask for confirmation of a clear request.',
+    `- To ask, return type=response with a "questions" array (1-${AGENT_QUESTION_LIMITS.maxQuestions} questions, each with ${AGENT_QUESTION_LIMITS.minOptions}-${AGENT_QUESTION_LIMITS.maxOptions} short options). The UI shows them one at a time, so order them by importance. Mark exactly one option per question "recommended": true when you have a sensible default, and put it first. Keep "header" to one or two words. Do not repeat the questions or options in "response"; it is one short lead-in sentence.`,
+    '- Never ask questions and run tools in the same turn: questions end the turn, and the user answers in their next message.',
     `- At most ${MAX_PLAN_STEPS} steps.`,
     'Available tools:',
     formatToolCatalog(input.tools),

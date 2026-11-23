@@ -17,6 +17,7 @@ import {
   agentMessageTurnStatusSchema,
   agentPromptContextSchema,
   agentProposedDeleteSchema,
+  agentQuestionSchema,
   agentReferencedItemSchema,
 } from '@shared-types';
 import {
@@ -97,6 +98,7 @@ export function mapAgentThreadMessage(
   const promptContext = agentPromptContextSchema.safeParse(data.promptContext);
   const turnStatus = agentMessageTurnStatusSchema.safeParse(data.turnStatus);
   const turnId = optionalString(data.turnId);
+  const questions = parseList(data.questions, agentQuestionSchema);
   return {
     id,
     threadId,
@@ -107,6 +109,7 @@ export function mapAgentThreadMessage(
     executedActions: parseList(data.executedActions, agentActionResultSchema),
     proposedDeletes: parseList(data.proposedDeletes, agentProposedDeleteSchema),
     referencedItems: parseList(data.referencedItems, agentReferencedItemSchema),
+    ...(questions && questions.length > 0 ? { questions } : {}),
     ...(turnId ? { turnId } : {}),
     ...(turnStatus.success ? { turnStatus: turnStatus.data } : {}),
   };

@@ -46,6 +46,7 @@ export * from './document-contract';
 export * from './line-format-contract';
 export * from './agent';
 export * from './agent-turn';
+export * from './agent-questions';
 export * from './library-search';
 export * from './document-blocks';
 export * from './narration';
@@ -1653,7 +1654,8 @@ export interface StatisticsAttemptCursor {
   attemptId: string;
 }
 
-export interface StatisticsAttemptsPageRequest extends StatisticsDateRangeRequest {
+export interface StatisticsAttemptsPageRequest
+  extends StatisticsDateRangeRequest {
   cursor?: StatisticsAttemptCursor;
   pageSize?: number;
 }
@@ -1769,7 +1771,8 @@ export interface StatisticsFlashcardSessionCursor {
   sessionId: string;
 }
 
-export interface StatisticsFlashcardFailuresPageRequest extends StatisticsDateRangeRequest {
+export interface StatisticsFlashcardFailuresPageRequest
+  extends StatisticsDateRangeRequest {
   cursor?: StatisticsFlashcardSessionCursor;
   pageSize?: number;
 }
@@ -2309,10 +2312,7 @@ export const LLM_GENERATION_PROFILE_METADATA: ILlmGenerationProfileMetadata[] =
       id: 'explanatoryChat',
       label: 'Explanatory chat',
       description: 'Document Q&A and scratch pad answers.',
-      flows: [
-        'documentQuestion',
-        'scratchPadQuestion',
-      ],
+      flows: ['documentQuestion', 'scratchPadQuestion'],
     },
     {
       id: 'longformContent',

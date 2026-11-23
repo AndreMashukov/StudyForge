@@ -46,6 +46,26 @@ describe('parseAgentPlanOutput', () => {
     });
   });
 
+  it('keeps clarifying questions on a response', () => {
+    const parsed = parseAgentPlanOutput(
+      JSON.stringify({
+        type: 'response',
+        response: 'Quick question first.',
+        questions: [
+          {
+            question: 'Which folder?',
+            options: [{ label: 'AWS', recommended: true }, { label: 'GCP' }],
+          },
+        ],
+      }),
+    );
+
+    expect(parsed?.type).toBe('response');
+    expect(
+      parsed?.type === 'response' ? parsed.questions : undefined,
+    ).toHaveLength(1);
+  });
+
   it('returns null for invalid payloads', () => {
     expect(parseAgentPlanOutput('not json')).toBeNull();
     expect(parseAgentPlanOutput('{"type":"plan","steps":[]}')).toBeNull();
@@ -88,6 +108,23 @@ describe('create_document grounding', () => {
             result: [{ id: 'drBg2dRZYhMUrdHtmFEo', title: 'Existing recap' }],
           },
         ],
+      }),
+    ).toBe(true);
+  });
+
+  it('lets a create request ask clarifying questions before creating', () => {
+    expect(
+      shouldBlockUngroundedCreateResponse({
+        objective: createObjective,
+        outcomes: [],
+        questionCount: 1,
+      }),
+    ).toBe(false);
+    expect(
+      shouldBlockUngroundedCreateResponse({
+        objective: createObjective,
+        outcomes: [],
+        questionCount: 0,
       }),
     ).toBe(true);
   });

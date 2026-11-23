@@ -3,6 +3,7 @@ import type {
   AgentMessageTurnStatus,
   AgentPromptContext,
   AgentProposedDelete,
+  AgentQuestion,
   AgentReferencedItem,
   AgentTurn,
   AgentTurnStatus,
@@ -34,6 +35,8 @@ export interface IAgentConversationEntry {
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
   referencedItems: AgentReferencedItem[];
+  /** Clarifying questions this finished assistant reply asks. */
+  questions?: AgentQuestion[];
   turnId?: string;
   turnStatus?: AgentMessageTurnStatus;
   /** Set while the turn is still queued or running. */
@@ -67,7 +70,9 @@ export function isAgentTurnStuck(
   return nowMs - lastActivity > AGENT_TURN_HEARTBEAT_STALE_MS;
 }
 
-export function agentTurnMessageStatus(turn: AgentTurn): AgentMessageTurnStatus {
+export function agentTurnMessageStatus(
+  turn: AgentTurn,
+): AgentMessageTurnStatus {
   if (turn.status === 'completed') {
     return turn.incomplete ? 'incomplete' : 'completed';
   }
@@ -86,6 +91,7 @@ function fromThreadMessage(
     executedActions: message.executedActions ?? [],
     proposedDeletes: message.proposedDeletes ?? [],
     referencedItems: message.referencedItems ?? [],
+    ...(message.questions?.length ? { questions: message.questions } : {}),
     ...(message.turnId ? { turnId: message.turnId } : {}),
     ...(message.turnStatus ? { turnStatus: message.turnStatus } : {}),
   };
@@ -101,6 +107,9 @@ function fromTurn(turn: AgentTurn, nowMs: number): IAgentConversationEntry {
     executedActions: turn.executedActions,
     proposedDeletes: turn.proposedDeletes,
     referencedItems: turn.referencedItems,
+    ...(terminal && turn.questions.length > 0
+      ? { questions: turn.questions }
+      : {}),
     turnId: turn.id,
     ...(terminal
       ? { turnStatus: agentTurnMessageStatus(turn) }
@@ -113,6 +122,38 @@ function fromTurn(turn: AgentTurn, nowMs: number): IAgentConversationEntry {
           },
         }),
   };
+}
+
+/** Questions the user can still answer, and the assistant entry that asked them. */
+export interface IOpenAgentQuestions {
+  entryId: string;
+  questions: AgentQuestion[];
+}
+
+/**
+ * Questions are open only on the newest entry: a finished assistant reply that
+ * asked them. Any later message (an answer or anything else typed) closes them.
+ */
+export function findOpenAgentQuestions(
+  entries: ReadonlyArray<IAgentConversationEntry>,
+): IOpenAgentQuestions | null {
+  // A message the user just sent closes the questions, whatever its position.
+  if (entries.some((entry) => entry.pending)) {
+    return null;
+  }
+  const last = entries[entries.length - 1];
+  if (
+    !last ||
+    last.role !== 'assistant' ||
+    last.live ||
+    last.pending ||
+    last.turnStatus !== 'completed' ||
+    !last.questions ||
+    last.questions.length === 0
+  ) {
+    return null;
+  }
+  return { entryId: last.id, questions: last.questions };
 }
 
 /**
@@ -137,7 +178,9 @@ export function mergeAgentConversation(input: {
       role: 'user',
       content: pending.content,
       createdAt: pending.createdAt,
-      ...(pending.promptContext ? { promptContext: pending.promptContext } : {}),
+      ...(pending.promptContext
+        ? { promptContext: pending.promptContext }
+        : {}),
       executedActions: [],
       proposedDeletes: [],
       referencedItems: [],

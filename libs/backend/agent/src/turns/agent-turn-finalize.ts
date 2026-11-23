@@ -4,6 +4,7 @@ import type {
   AgentActionResult,
   AgentMessageTurnStatus,
   AgentProposedDelete,
+  AgentQuestion,
   AgentReferencedItem,
   AgentTurnError,
   AgentTurnStatus,
@@ -27,6 +28,7 @@ import {
   parseAgentTurnRecord,
   serializeAgentActions,
   serializeAgentDeletes,
+  serializeAgentQuestions,
   serializeAgentReferences,
   type AgentTurnRecord,
 } from './agent-turn-record';
@@ -44,6 +46,8 @@ export interface IAgentTurnTerminalState {
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
   referencedItems: AgentReferencedItem[];
+  /** Clarifying questions a completed turn asks the user. */
+  questions?: AgentQuestion[];
   error: AgentTurnError | null;
   evalRetrievedTexts?: string[];
 }
@@ -89,6 +93,7 @@ export function applyAgentTurnTerminalWrites(
       executedActions: state.executedActions,
       proposedDeletes: state.proposedDeletes,
       referencedItems: state.referencedItems,
+      questions: state.questions,
       turnId,
       turnStatus: messageStatus,
     }),
@@ -115,6 +120,7 @@ export function applyAgentTurnTerminalWrites(
     executedActions: serializeAgentActions(state.executedActions),
     proposedDeletes: serializeAgentDeletes(state.proposedDeletes),
     referencedItems: serializeAgentReferences(state.referencedItems),
+    questions: serializeAgentQuestions(state.questions ?? []),
     assistantMessageId,
     error: state.error,
     statusMessage: null,

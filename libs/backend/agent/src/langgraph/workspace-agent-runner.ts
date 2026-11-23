@@ -1,6 +1,6 @@
 import { GraphRecursionError } from '@langchain/langgraph';
 import { MemorySaver } from '@langchain/langgraph-checkpoint';
-import type { AgentMessageStreamEvent } from '@shared-types';
+import type { AgentMessageStreamEvent, AgentQuestion } from '@shared-types';
 import type { AgentToolDefinition } from '../tools/create-agent-tools';
 import { createAgentToolSession } from '../tools/agent-tool-session';
 import { EMPTY_AGENT_REPLY } from '../runner/agent-chat-fallback';
@@ -46,6 +46,8 @@ export interface IWorkspaceAgentRunnerInput {
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   tools: AgentToolDefinition[];
   onEvent?: (event: AgentMessageStreamEvent) => void;
+  /** Receives the clarifying questions the finished turn asks, if any. */
+  onQuestions?: (questions: AgentQuestion[]) => void;
   /** On resume, receives tool outcomes already in the checkpoint before the graph continues. */
   onResumeToolOutcomes?: (outcomes: unknown[]) => void;
   signal?: AbortSignal;
@@ -118,6 +120,7 @@ export class WorkspaceAgentRunner {
         [WORKSPACE_AGENT_STATE_KEYS.allToolOutcomes]: [],
         [WORKSPACE_AGENT_STATE_KEYS.executedStepCount]: 0,
         [WORKSPACE_AGENT_STATE_KEYS.replanCycle]: 0,
+        [WORKSPACE_AGENT_STATE_KEYS.questions]: [],
       } satisfies Partial<WorkspaceAgentState>;
 
       let finalState: WorkspaceAgentState;
@@ -174,6 +177,11 @@ export class WorkspaceAgentRunner {
 
       if (!streamedFinal && reply.length > 0) {
         input.onEvent?.({ type: 'delta', text: reply });
+      }
+
+      const questions = finalState[WORKSPACE_AGENT_STATE_KEYS.questions] ?? [];
+      if (questions.length > 0) {
+        input.onQuestions?.(questions);
       }
 
       return reply;

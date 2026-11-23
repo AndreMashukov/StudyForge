@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { AgentPromptContext } from '@shared-types';
@@ -18,6 +18,7 @@ import {
   Notice,
   OfflineBanner,
 } from '../shell/ui';
+import { AgentQuestionSheet } from './AgentQuestionSheet';
 import { ChatMessageView } from './ChatMessageView';
 import { useAgentChat, type IAgentChatScope } from './useAgentChat';
 
@@ -73,6 +74,13 @@ export function AssistantChatScreen() {
   });
   const sentInitial = useRef(false);
   const listRef = useRef<FlatList>(null);
+  const [dismissedQuestionsId, setDismissedQuestionsId] = useState<
+    string | null
+  >(null);
+  const openQuestions =
+    chat.openQuestions && chat.openQuestions.entryId !== dismissedQuestionsId
+      ? chat.openQuestions
+      : null;
 
   useEffect(() => {
     const first = param(params.message);
@@ -83,9 +91,7 @@ export function AssistantChatScreen() {
   }, [chat, initialThreadId, params.message]);
 
   const title =
-    param(params.title) ??
-    label ??
-    (directoryId ? 'Assistant' : 'StudyForge');
+    param(params.title) ?? label ?? (directoryId ? 'Assistant' : 'StudyForge');
 
   return (
     <KeyboardAwareView>
@@ -130,8 +136,23 @@ export function AssistantChatScreen() {
         )}
       </Screen>
       <OfflineBanner />
+      {openQuestions ? (
+        <AgentQuestionSheet
+          key={openQuestions.entryId}
+          questions={openQuestions.questions}
+          disabled={chat.isWorking || chat.limitReached}
+          onSubmit={(message) => void chat.send(message)}
+          onDismiss={() => setDismissedQuestionsId(openQuestions.entryId)}
+        />
+      ) : null}
       <Composer
-        placeholder={label ? `Ask about ${label}` : 'Ask anything'}
+        placeholder={
+          openQuestions
+            ? 'Or reply in your own words'
+            : label
+              ? `Ask about ${label}`
+              : 'Ask anything'
+        }
         disabled={chat.isWorking || chat.loading || chat.limitReached}
         busy={chat.isWorking}
         stopDisabled={!chat.canStop}

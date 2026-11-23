@@ -6,6 +6,7 @@ import type {
   AgentMessageStreamEvent,
   AgentPromptContext,
   AgentProposedDelete,
+  AgentQuestion,
   AgentReferencedItem,
   AgentScope,
   AgentThreadSummary,
@@ -20,8 +21,10 @@ import {
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { parseReferencedItems } from '../checkpointer/firestore-checkpoint-saver';
 import {
+  parseAgentQuestions,
   serializeAgentActions,
   serializeAgentDeletes,
+  serializeAgentQuestions,
   serializeAgentReferences,
 } from '../turns/agent-turn-record';
 import { AgentEmbeddingService } from '../knowledge/agent-embedding-service';
@@ -173,6 +176,7 @@ export interface IAgentThreadMessageWrite {
   executedActions?: AgentActionResult[];
   proposedDeletes?: AgentProposedDelete[];
   referencedItems?: AgentReferencedItem[];
+  questions?: AgentQuestion[];
   turnId?: string;
   turnStatus?: IAgentThreadMessage['turnStatus'];
 }
@@ -190,6 +194,9 @@ export function buildAgentThreadMessageData(
     executedActions: serializeAgentActions(input.executedActions ?? []),
     proposedDeletes: serializeAgentDeletes(input.proposedDeletes ?? []),
     referencedItems: serializeAgentReferences(input.referencedItems ?? []),
+    ...(input.questions?.length
+      ? { questions: serializeAgentQuestions(input.questions) }
+      : {}),
     ...(input.turnId ? { turnId: input.turnId } : {}),
     ...(input.turnStatus ? { turnStatus: input.turnStatus } : {}),
   };
@@ -498,6 +505,7 @@ export class AgentThreadStore {
         const data = doc.data();
         const promptContext = parseStoredPromptContext(data.promptContext);
         const turnStatus = parseMessageTurnStatus(data.turnStatus);
+        const questions = parseAgentQuestions(data.questions);
         return {
           id: doc.id,
           threadId,
@@ -514,6 +522,7 @@ export class AgentThreadStore {
           referencedItems: Array.isArray(data.referencedItems)
             ? parseReferencedItems(data.referencedItems)
             : undefined,
+          ...(questions.length > 0 ? { questions } : {}),
           ...(optionalString(data.turnId)
             ? { turnId: optionalString(data.turnId) }
             : {}),
@@ -534,6 +543,7 @@ export function buildAgentResponse(input: {
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
   referencedItems?: AgentReferencedItem[];
+  questions?: AgentQuestion[];
   retrievedTexts?: string[];
 }): AgentMessageResponse {
   return {
@@ -542,6 +552,7 @@ export function buildAgentResponse(input: {
     executedActions: input.executedActions,
     proposedDeletes: input.proposedDeletes,
     referencedItems: input.referencedItems ?? [],
+    questions: input.questions ?? [],
     ...(input.retrievedTexts !== undefined
       ? { retrievedTexts: input.retrievedTexts }
       : {}),
