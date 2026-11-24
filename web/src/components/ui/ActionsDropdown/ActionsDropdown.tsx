@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { cn } from "../../../lib/utils";
 import { IActionsDropdown, IActionsDropdownItem } from './IActionsDropdown';
@@ -12,10 +12,16 @@ export const ActionsDropdown = ({
   disabled = false,
   className 
 }: IActionsDropdown) => {
+  const [open, setOpen] = useState(false);
+
   const handleItemClick = (item: IActionsDropdownItem) => {
-    if (!item.disabled) {
-      item.onClick();
+    if (item.disabled) {
+      return;
     }
+    // Popover stays open on an inside click. Close it before the item
+    // opens a modal, or the menu stays painted above the dialog.
+    setOpen(false);
+    item.onClick();
   };
 
   const defaultTrigger = (
@@ -29,7 +35,7 @@ export const ActionsDropdown = ({
   );
 
   return (
-    <Popover.Root>
+    <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild disabled={disabled}>
         {trigger || defaultTrigger}
       </Popover.Trigger>
@@ -42,6 +48,7 @@ export const ActionsDropdown = ({
           collisionPadding={10}
           role="menu"
           aria-orientation="vertical"
+          onCloseAutoFocus={(event) => event.preventDefault()}
         >
           {items.map((item) => (
             <div
