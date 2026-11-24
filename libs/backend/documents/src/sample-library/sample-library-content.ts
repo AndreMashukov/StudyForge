@@ -2,13 +2,14 @@ import type { QuizQuestion } from '@shared-types';
 
 /**
  * The sample folder every new account gets instantly, with no AI generation.
- * It is subject-neutral so it is useful whatever the user wants to study, and
- * it is labelled as a sample that is safe to delete.
+ * It is a short guided tour of StudyForge itself, so it is useful whatever the
+ * user wants to study, and it is labelled as safe to delete. Keep the labels
+ * in these documents in step with the web app's buttons and menus.
  */
 export const SAMPLE_LIBRARY_DIRECTORY = {
-  name: 'Sample course - How to study effectively',
+  name: 'Start here - Tour of StudyForge',
   description:
-    'A short sample course that shows what StudyForge creates. It is safe to delete.',
+    'Three short guides and a quiz that show how StudyForge works. It is safe to delete.',
 } as const;
 
 export const SAMPLE_LIBRARY_TAG = 'sample';
@@ -22,47 +23,93 @@ export interface ISampleLibraryDocument {
 
 export const SAMPLE_LIBRARY_DOCUMENTS: readonly ISampleLibraryDocument[] = [
   {
-    title: 'Active recall and spaced repetition',
-    description: 'Two study techniques with the strongest evidence behind them.',
-    html: `<h1>Active recall and spaced repetition</h1>
-<p>Most people study by re-reading notes and highlighting. It feels productive, but it builds familiarity rather than memory. Two techniques consistently do better in research: <strong>active recall</strong> and <strong>spaced repetition</strong>.</p>
-<h2>Active recall</h2>
-<p>Active recall means pulling information out of your memory instead of putting it back in. Every time you retrieve a fact, the memory of it gets stronger and easier to reach next time.</p>
+    title: '1. How StudyForge works',
+    description: 'The idea in one page: sources in, study materials out.',
+    html: `<h1>How StudyForge works</h1>
+<p>Welcome! This folder is a short tour. Read the three guides in order, then take the quiz in this folder to try the quiz player. When you are done, you can delete the whole folder.</p>
+<h2>The idea in one sentence</h2>
+<p>You bring the material you want to learn, StudyForge turns it into study materials, and you practise until it sticks.</p>
+<h2>The building blocks</h2>
 <ul>
-<li>Close the book and write down everything you remember about a topic.</li>
-<li>Answer quiz questions before you look at the explanation.</li>
-<li>Explain the idea out loud, as if teaching a friend.</li>
+<li><strong>Folders</strong> organise your <strong>Library</strong>. Make one folder per subject or course, and subfolders for topics.</li>
+<li><strong>Sources</strong> are the documents in a folder: your notes, a PDF, a web page, a YouTube video or a document the AI writes for you.</li>
+<li><strong>Study materials</strong> are generated from sources: quizzes, flashcards, slide decks, diagram quizzes, sequence quizzes and match quizzes.</li>
+<li><strong>Rules</strong> are instructions attached to a folder, such as "write for a complete beginner" or "always include worked examples". Every generation in that folder follows them.</li>
+<li><strong>The agent</strong> is an assistant that can do all of this for you from a plain-language request.</li>
 </ul>
-<h2>Spaced repetition</h2>
-<p>Forgetting starts within hours of learning something new. Reviewing just before you would forget resets the clock, and each review lets you wait a little longer before the next one.</p>
+<h2>Finding your way around</h2>
+<p>The sidebar on the left takes you to the main areas:</p>
 <ul>
-<li>Review new material after one day, then after three days, then after a week.</li>
-<li>Spend more time on what you got wrong and less on what you already know.</li>
-<li>Keep sessions short and regular rather than long and rare.</li>
+<li><strong>Dashboard</strong>: your starting point.</li>
+<li><strong>Library</strong>: all your folders and documents.</li>
+<li><strong>Progress</strong>: how your quizzes are going and which questions to revisit.</li>
+<li><strong>Rules</strong>: create and manage your rules.</li>
+<li><strong>Usage &amp; plan</strong>: your monthly credits and what your plan includes.</li>
 </ul>
-<h2>Putting them together</h2>
-<p>Quizzes and flashcards combine both ideas: each question makes you recall an answer, and returning to them over several days spaces the practice. In StudyForge you can generate a quiz from any document and come back to it later.</p>`,
+<h2>A typical study loop</h2>
+<ol>
+<li>Create a folder for the subject.</li>
+<li>Add sources to it.</li>
+<li>Generate a quiz or other study material from those sources.</li>
+<li>Study, then check <strong>Progress</strong> and revisit what you missed.</li>
+</ol>
+<p>The next guide shows how to add sources and generate study materials.</p>`,
   },
   {
-    title: 'Planning a study session',
-    description: 'A simple routine for focused, productive study sessions.',
-    html: `<h1>Planning a study session</h1>
-<p>A good study session has a clear goal, a fixed length and a short review at the end. Planning takes two minutes and saves far more time than it costs.</p>
-<h2>Before you start</h2>
+    title: '2. Add sources and create study materials',
+    description: 'Upload, paste, link or generate a source, then turn it into a quiz.',
+    html: `<h1>Add sources and create study materials</h1>
+<p>Everything in StudyForge starts from a source. This guide shows how to add one and how to turn it into study materials.</p>
+<h2>Create a folder</h2>
+<p>Open the <strong>Library</strong> and create a folder for your subject. Inside a folder, <strong>New subfolder</strong> adds a topic below it. Each subfolder's menu lets you edit, move or delete it, or manage its rules.</p>
+<h2>Add a source</h2>
+<p>Open a folder and click <strong>Add source</strong>. Choose how the content comes in:</p>
 <ul>
-<li><strong>Pick one goal.</strong> For example, "understand how photosynthesis produces glucose", not "study biology".</li>
-<li><strong>Set a time box.</strong> Twenty-five to fifty minutes works well for most people.</li>
-<li><strong>Remove distractions.</strong> Put your phone in another room and close unrelated tabs.</li>
+<li><strong>File Upload</strong>: upload files such as PDFs or notes.</li>
+<li><strong>Paste Text</strong>: paste text you already have.</li>
+<li><strong>Website URL</strong>: import a web page, a YouTube video or another link.</li>
+<li><strong>AI Prompt</strong>: describe what you want to learn and the AI writes a document for you.</li>
 </ul>
-<h2>During the session</h2>
-<p>Alternate between learning and testing yourself. Read or watch a short section, then close it and recall the key points. If you get stuck, note the question and keep going instead of losing momentum.</p>
-<h2>After the session</h2>
+<h2>Generate study materials</h2>
+<p>There are three ways to start, and they all open the same form:</p>
+<ol>
+<li>In a folder, use the <strong>Generate</strong> menu on a source and pick a kind, for example <strong>Quiz</strong>.</li>
+<li>In a folder, open a tab in the left rail (Quizzes, Cards, Slides and so on) and click the create button, for example <strong>Create quiz</strong>.</li>
+<li>While reading a document, open <strong>Actions</strong> at the top and choose, for example, <strong>Create Quiz</strong>.</li>
+</ol>
+<p>In the form you can name the result, choose one or more <strong>Source documents</strong>, pick <strong>Generation rules</strong> and add your own instructions. The form shows what it costs in credits before you confirm. Generation runs in the background, so you can keep working while it finishes.</p>
+<h2>What you can create</h2>
 <ul>
-<li>Write a three-sentence summary of what you learned.</li>
-<li>List the questions you could not answer; they are tomorrow's starting point.</li>
-<li>Schedule your next review, using spaced repetition.</li>
+<li><strong>Quiz</strong>: multiple-choice questions with hints.</li>
+<li><strong>Flashcards</strong>: cards you mark as learned or failed, then retake the failed ones.</li>
+<li><strong>Slide deck</strong>: a presentation of the source.</li>
+<li><strong>Diagram, sequence and match quizzes</strong>: label a diagram, put steps in order, or match pairs.</li>
 </ul>
-<p>Small, consistent sessions beat occasional marathons. A plan you can repeat every day is worth more than a perfect plan you follow once.</p>`,
+<p>Some kinds depend on your plan. <strong>Usage &amp; plan</strong> shows what yours includes and how many credits you have left this month.</p>`,
+  },
+  {
+    title: '3. Study, track progress and ask the agent',
+    description: 'Practise inside documents, take quizzes, use Progress and the agent.',
+    html: `<h1>Study, track progress and ask the agent</h1>
+<p>Reading is not the same as learning. StudyForge is built around testing yourself, because pulling an answer out of memory is what makes it stick.</p>
+<h2>Practise while you read</h2>
+<p>Documents have a <strong>Scratchpad</strong> under their sections. It asks you a question about that section. Use <strong>Reveal</strong> to think of the answer and then show it, or <strong>Type</strong> to write your answer and click <strong>Check</strong>. If you are stuck, use the hint, or ask for a different question.</p>
+<p>At the top of a document, <strong>Show TOC</strong> opens the table of contents, and <strong>Export</strong> downloads the document as Markdown or PDF.</p>
+<h2>Take a quiz</h2>
+<p>Open a quiz and click <strong>Start Quiz</strong>. Each question has a hint if you need it, and you see straight away whether you were right. At the end you get your score, accuracy and time, and you can review your answers or take the quiz again. Try it now with the quiz in this folder.</p>
+<h2>Check your progress</h2>
+<p><strong>Progress</strong> in the sidebar shows your answer accuracy and lists the questions you got wrong. Revisit those first: practising what you missed is the fastest way to improve. Once you know a question, remove it from the list.</p>
+<h2>Ask the agent</h2>
+<p>The round button at the bottom right opens the agent. Ask it in plain language, for example:</p>
+<ul>
+<li>"Create a study folder on the French Revolution with a summary document."</li>
+<li>"Summarize this document."</li>
+<li>"Create a quiz from this document."</li>
+</ul>
+<p>It can create folders and documents, generate quizzes and flashcards, find things in your library and set up rules. It may ask a few questions first so the result fits you. It never deletes anything without asking you to confirm.</p>
+<h2>Shape the output with rules</h2>
+<p>To make everything in a folder follow the same instructions, create a rule on the <strong>Rules</strong> page, then open the folder's rules and click <strong>Assign Rule</strong>. Rules on a folder also apply to its subfolders.</p>
+<p>You are ready. Take the quiz in this folder, then start on your own subject.</p>`,
   },
 ];
 
@@ -70,62 +117,73 @@ export const SAMPLE_LIBRARY_QUIZ: {
   title: string;
   questions: QuizQuestion[];
 } = {
-  title: 'Quiz: How to study effectively',
+  title: 'Quiz: Tour of StudyForge',
   questions: [
     {
-      question: 'What does active recall mean?',
+      question: 'In StudyForge, what is a source?',
       options: [
-        'Re-reading your notes several times',
-        'Pulling information out of memory without looking',
-        'Highlighting the most important sentences',
-        'Listening to a lecture again',
+        'A quiz you have already taken',
+        'A document in a folder that study materials are generated from',
+        'A rule that controls how the AI writes',
+        'Your monthly credit allowance',
       ],
       correctAnswer: 1,
-      hint: 'It is about retrieving, not reviewing.',
+      hint: 'Study materials are generated from these.',
     },
     {
-      question: 'Why does spaced repetition work?',
+      question: 'You found a useful YouTube video. How do you add it to a folder?',
       options: [
-        'Reviewing just before you forget strengthens the memory',
-        'It lets you study everything in one long session',
-        'It avoids testing yourself',
-        'It only works for languages',
+        'Add source, then Website URL',
+        'Add source, then Paste Text',
+        'Create quiz, then Source documents',
+        'Rules, then Create Rule',
       ],
       correctAnswer: 0,
-      hint: 'Think about the forgetting curve.',
+      hint: 'A video has a link.',
     },
     {
-      question: 'Which goal is best for a single study session?',
+      question: 'Where can you start creating a quiz while reading a document?',
       options: [
-        'Study biology',
-        'Finish the whole textbook',
-        'Understand how photosynthesis produces glucose',
-        'Read for as long as possible',
+        'Show TOC',
+        'Export',
+        'The Actions menu at the top of the document',
+        'The Scratchpad',
       ],
       correctAnswer: 2,
-      hint: 'A good goal is specific and achievable in one sitting.',
+      hint: 'Look at the buttons next to Export.',
     },
     {
-      question: 'What should you do when you get stuck during a session?',
+      question: 'You want every document in a folder written for complete beginners. What should you use?',
       options: [
-        'Stop the session for the day',
-        'Note the question and keep going',
-        'Start the topic again from the beginning',
-        'Switch to a different subject',
+        'A rule assigned to the folder',
+        'A new subfolder',
+        'The Export menu',
+        'The Progress page',
+      ],
+      correctAnswer: 0,
+      hint: 'It applies to every generation in the folder and its subfolders.',
+    },
+    {
+      question: 'Where do you see the questions you got wrong?',
+      options: [
+        'Usage & plan',
+        'Progress',
+        'Settings',
+        'The Library',
       ],
       correctAnswer: 1,
-      hint: 'Keep your momentum.',
+      hint: 'It is in the sidebar and tracks how your quizzes are going.',
     },
     {
-      question: 'Which review schedule follows spaced repetition?',
+      question: 'What does the agent do before deleting anything?',
       options: [
-        'Ten reviews on the same evening',
-        'One review a month before the exam',
-        'After one day, then three days, then a week',
-        'Only when you feel you have forgotten',
+        'Nothing, it deletes straight away',
+        'It moves the items to a Trash folder',
+        'It asks you to confirm',
+        'It exports them as PDF first',
       ],
       correctAnswer: 2,
-      hint: 'The gaps get longer each time.',
+      hint: 'You stay in control of deletes.',
     },
   ],
 };

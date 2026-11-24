@@ -101,10 +101,10 @@ export const StarterCourseBuild: React.FC<IStarterCourseBuild> = ({
             While you wait
           </div>
           <p className="mb-3 text-sm text-muted-foreground">
-            Try the sample course: two short documents and a quiz.
+            Take the quick tour of StudyForge: three short guides and a quiz.
           </p>
           <Button asChild variant="outline" className="w-full">
-            <Link to={samplePath}>Explore the sample course</Link>
+            <Link to={samplePath}>Take the tour</Link>
           </Button>
         </div>
       ) : null}
