@@ -17,7 +17,7 @@ export const StarterCourseBuild: React.FC<IStarterCourseBuild> = ({
   error,
   onRetry,
 }) => (
-  <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 py-4 lg:flex-row">
+  <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 py-4 lg:flex-row">
     <div className="flex min-w-0 flex-1 flex-col">
       <div className="mb-4 space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
@@ -33,11 +33,11 @@ export const StarterCourseBuild: React.FC<IStarterCourseBuild> = ({
         scope="workspace"
         pinnedThreadId={threadId}
         onMutated={onAgentMutated}
-        className="h-[min(640px,70dvh)]"
+        className="h-[min(820px,78dvh)]"
       />
     </div>
 
-    <aside className="flex w-full flex-col gap-3 lg:w-72" aria-label="Your course">
+    <aside className="flex w-full flex-col gap-3 lg:w-64 lg:shrink-0 xl:w-72" aria-label="Your course">
       {retryAvailable ? (
         <div
           role="alert"
