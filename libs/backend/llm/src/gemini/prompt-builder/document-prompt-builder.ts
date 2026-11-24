@@ -39,7 +39,8 @@ ${userPrompt}`;
 - NEVER use 4-space indentation for Mermaid code — indented blocks are not rendered as diagrams.
 - Use only supported Mermaid types: flowchart/graph, sequenceDiagram, classDiagram, erDiagram, or stateDiagram.
 - Keep diagrams compact; avoid bare /, \\, or @ inside square-bracket node labels.
-- When styling a node with a background color (e.g., \`style Node fill:#000\`), ALWAYS also set \`color:\` explicitly to ensure text remains visible (e.g., \`style Node fill:#000,color:#ffffff\` for dark backgrounds; \`style Node fill:#ccffcc,color:#000000\` for light backgrounds).`;
+- When styling a flowchart node with a background color (e.g., \`style Node fill:#000\`), ALWAYS also set \`color:\` explicitly to ensure text remains visible (e.g., \`style Node fill:#000,color:#ffffff\` for dark backgrounds; \`style Node fill:#ccffcc,color:#000000\` for light backgrounds).
+- Never use \`style\`, \`classDef\`, \`class\`, or \`linkStyle\` inside sequenceDiagram. Those lines are flowchart syntax and Mermaid rejects them.`;
 
     return [personaSection, rulesSection, userSection, sealedOutputContract]
       .filter(Boolean)

@@ -50,8 +50,9 @@ export const DOC_HTML_FORMAT_CONTENT = `## 1. Pure HTML Format
 * Keep diagrams compact and readable.
 * Do not use markdown fences (\`\`\`mermaid); always use the HTML pre/code form above.
 * Prefer diagrams in Core Concepts or Examples sections.
-* Color diagram nodes and subgraphs differently with style or classDef so roles and stages are visually distinct.
-* When setting a fill color, ALWAYS also set color: so label text contrasts with the background (dark fill → light text; light fill → dark text). Example: \`style A fill:#1e3a5f,color:#ffffff\` or \`style B fill:#dbeafe,color:#0f172a\`.
+* Color flowchart nodes and subgraphs differently with style or classDef so roles and stages are visually distinct.
+* When setting a fill color, ALWAYS also set color: so label text contrasts with the background (dark fill uses light text, light fill uses dark text). Example: \`style A fill:#1e3a5f,color:#ffffff\` or \`style B fill:#dbeafe,color:#0f172a\`.
+* Never use style, classDef, class, or linkStyle inside sequenceDiagram. Those lines are flowchart syntax and Mermaid rejects them.
 * Add relevant emojis to diagram element labels for clarity and engagement (for example \`A["🖥️ Client"]\`, \`B["⚙️ API"]\`, \`C["🗄️ Database"]\`).
 
 ## Mermaid Invalid Characters (required)
