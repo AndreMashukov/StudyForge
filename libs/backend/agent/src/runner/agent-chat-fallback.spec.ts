@@ -107,7 +107,7 @@ describe('buildReplyFromExecutedActions', () => {
       },
       {
         kind: 'create_rule',
-        summary: 'Created rule "Python Intermediate Study Doc Format"',
+        summary: 'Created prompt "Python Intermediate Study Doc Format"',
         entityId: 'rule-1',
       },
       {

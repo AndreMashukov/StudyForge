@@ -93,7 +93,7 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
 
       onClose();
     } catch (error) {
-      console.error('Failed to assign rules:', error);
+      console.error('Failed to assign prompts:', error);
     }
   };
 
@@ -104,7 +104,7 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="h-full max-w-4xl gap-0 p-0 sm:h-[min(720px,calc(100dvh-2rem))]">
         <DialogHeader className="border-b border-border px-4 py-4 pr-12 text-left sm:px-6">
-          <DialogTitle>Assign rules</DialogTitle>
+          <DialogTitle>Assign prompts</DialogTitle>
           <DialogDescription className="flex min-w-0 items-center gap-1.5">
             <Folder className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span className="truncate">{state.directory?.name || ''}</span>
@@ -122,10 +122,10 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
                 />
                 <Input
                   type="search"
-                  placeholder="Search rules"
+                  placeholder="Search prompts"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  aria-label="Search rules by name or tags"
+                  aria-label="Search prompts by name or tags"
                   className="pl-9"
                 />
               </div>
@@ -212,11 +212,11 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
           </aside>
 
           {/* Rule list column */}
-          <section className="flex min-h-0 flex-1 flex-col" aria-label="Rules">
+          <section className="flex min-h-0 flex-1 flex-col" aria-label="Prompts">
             <p className="shrink-0 px-4 pb-2 pt-3 text-xs text-muted-foreground sm:px-6">
               {isLoading
-                ? 'Loading rules…'
-                : `${filteredRules.length} rule${filteredRules.length !== 1 ? 's' : ''}`}
+                ? 'Loading prompts…'
+                : `${filteredRules.length} prompt${filteredRules.length !== 1 ? 's' : ''}`}
             </p>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2 sm:px-4">
               {isLoading ? (
@@ -225,7 +225,7 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
                 </div>
               ) : filteredRules.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  No rules found matching your criteria.
+                  No prompts found matching your criteria.
                 </div>
               ) : (
                 <ul className="space-y-1">

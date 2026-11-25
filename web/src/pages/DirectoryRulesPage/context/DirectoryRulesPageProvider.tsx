@@ -66,7 +66,7 @@ export const DirectoryRulesPageProvider = ({
 
   const loading = directoryLoading || rulesLoading;
   const error = directoryError || rulesError 
-    ? 'Failed to load directory rules' 
+    ? 'Failed to load directory prompts' 
     : null;
 
   const handleAssignRule = useCallback(() => {
@@ -83,7 +83,7 @@ export const DirectoryRulesPageProvider = ({
           directoryId,
         }).unwrap();
       } catch (error) {
-        console.error('Failed to remove rule from directory:', error);
+        console.error('Failed to remove prompt from directory:', error);
       }
     },
     [directoryId, detachRuleFromDirectory]

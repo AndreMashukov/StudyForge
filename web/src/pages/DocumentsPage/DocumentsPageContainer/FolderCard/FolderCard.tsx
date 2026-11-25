@@ -85,7 +85,7 @@ export const FolderCard = ({
               disabled={!onManageRules}
             >
               <FileCode size={14} className="mr-2" />
-              Manage Rules
+              Manage Prompts
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onMove?.()}

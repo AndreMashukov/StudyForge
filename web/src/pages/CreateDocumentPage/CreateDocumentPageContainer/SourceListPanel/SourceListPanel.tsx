@@ -104,7 +104,7 @@ export const SourceListPanel = () => {
         <div className={sourceListPanelStyles.tipsContent}>
           <p>Upload, paste, or import URLs to convert existing content.</p>
           <p>Use AI Prompt when you want a new learning document from a description.</p>
-          <p>Rules apply to AI Prompt generation only.</p>
+          <p>Prompts apply to AI Prompt documents only.</p>
         </div>
       </div>
     </div>

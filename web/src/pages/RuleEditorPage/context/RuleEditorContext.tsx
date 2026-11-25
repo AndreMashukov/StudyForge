@@ -115,15 +115,15 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
 
     // Call-site overlay: keep updateRule/createRule off the RTK allowlist so
     // always-apply toggles in create flows stay non-blocking.
-    dispatch(setLoading({ isLoading: true, message: 'Saving rule…' }));
+    dispatch(setLoading({ isLoading: true, message: 'Saving prompt…' }));
     try {
       if (mode === 'edit' && ruleId) {
         await updateRule({ ruleId, ...formData }).unwrap();
-        showToast(`Rule "${formData.name}" updated successfully`, 'success');
+        showToast(`Prompt "${formData.name}" updated successfully`, 'success');
         navigate(returnPath);
       } else {
         await createRule(formData as CreateRuleRequest).unwrap();
-        showToast(`Rule "${formData.name}" created successfully`, 'success');
+        showToast(`Prompt "${formData.name}" created successfully`, 'success');
         navigate(returnPath);
       }
     } catch {
@@ -149,10 +149,10 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
     try {
       const result = await deleteRuleMutation({ ruleId }).unwrap();
       if (result.success) {
-        showToast('Rule deleted successfully', 'success');
+        showToast('Prompt deleted successfully', 'success');
         navigate(returnPath);
       } else {
-        showToast(result.error || 'Failed to delete rule', 'error');
+        showToast(result.error || 'Failed to delete prompt', 'error');
       }
     } catch {
       // Error is shown via the global errorToastMiddleware toast
@@ -177,7 +177,7 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
         setAiResult(result);
         setAiState('done');
       } catch {
-        setAiError('Failed to generate rule with AI. Please try again.');
+        setAiError('Failed to generate prompt with AI. Please try again.');
         setAiState('error');
       }
     },

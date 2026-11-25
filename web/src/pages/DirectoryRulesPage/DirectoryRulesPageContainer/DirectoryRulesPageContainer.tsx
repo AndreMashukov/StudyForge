@@ -38,7 +38,7 @@ export const DirectoryRulesPageContainer = ({
           className="mt-4 font-medium"
           style={{ color: currentTheme.colors.mutedForeground }}
         >
-          Loading directory rules...
+          Loading directory prompts...
         </p>
       </div>
     </div>
@@ -121,7 +121,7 @@ export const DirectoryRulesPageContainer = ({
               }
               style={{ color: currentTheme.colors.foreground }}
             >
-              Directory Rules: {directory.name}
+              Directory Prompts: {directory.name}
             </h1>
           </div>
           <div className="flex gap-2 shrink-0">
@@ -130,7 +130,7 @@ export const DirectoryRulesPageContainer = ({
             </Button>
             <Button onClick={handleAssignRule} className="gap-1.5">
               <Plus className="h-4 w-4" aria-hidden="true" />
-              Assign Rule
+              Assign Prompt
             </Button>
           </div>
         </div>
@@ -163,7 +163,7 @@ export const DirectoryRulesPageContainer = ({
                 style={{ color: currentTheme.colors.foreground }}
               >
                 <ClipboardList className="h-5 w-5 shrink-0" aria-hidden="true" />
-                Rules Assigned to This Directory ({directRules.length})
+                Prompts Assigned to This Directory ({directRules.length})
               </h2>
             )}
           </div>
@@ -173,8 +173,8 @@ export const DirectoryRulesPageContainer = ({
               className="text-center py-8"
               style={{ color: currentTheme.colors.mutedForeground }}
             >
-              <p className="mb-4">No rules directly assigned to this directory.</p>
-              <Button onClick={handleAssignRule}>Assign Your First Rule</Button>
+              <p className="mb-4">No prompts directly assigned to this directory.</p>
+              <Button onClick={handleAssignRule}>Assign Your First Prompt</Button>
             </div>
           ) : (
             <VirtualizedList

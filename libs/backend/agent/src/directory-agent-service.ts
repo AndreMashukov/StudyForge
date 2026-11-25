@@ -331,6 +331,7 @@ function buildSystemPrompt(input: {
     '- Never invent code samples, expressions, or quotes that are not present in the retrieved source content.',
     'Use tools to inspect knowledge, list content, create/update resources, and enqueue generation jobs.',
     'After using tools, always reply with a clear final answer for the user. Never end a turn with only tool calls and no text.',
+    'Naming: the app shows rules to users as "prompts". In replies, call them prompts (for example "I created the prompt Biology format" or "attached 2 prompts"). When the user says "prompt" about saved instructions, they mean a rule. Tool names, tool arguments and IDs keep "rule".',
     'Never invent document, directory, or rule IDs. Only cite IDs returned by tools.',
     'A written description does not create a document. You must call create_document; if that tool did not run, the document does not exist.',
     'When listing a folder, only include items returned by list_documents. Do not add items from earlier chat claims.',

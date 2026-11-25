@@ -28,6 +28,7 @@ import { useToast } from "../Toast";
 import { IDirectorySettingsModal } from "./IDirectorySettingsModal";
 import { Rule, RuleApplicability } from "@shared-types";
 import { cn } from "../../lib/utils";
+import { getRuleApplicabilityLabel } from "../../utils/ruleApplicabilityUtils";
 
 export const DirectorySettingsModal = ({
   directory,
@@ -58,7 +59,7 @@ export const DirectorySettingsModal = ({
         ruleId,
         directoryId: directory.id,
       }).unwrap();
-      showToast(`Rule "${ruleName}" detached from "${directory.name}"`, "success");
+      showToast(`Prompt "${ruleName}" detached from "${directory.name}"`, "success");
     } catch {
       // Error is shown via the global errorToastMiddleware toast
     }
@@ -71,7 +72,7 @@ export const DirectorySettingsModal = ({
         isDefault: !rule.isDefault,
       }).unwrap();
       showToast(
-        `Rule "${rule.name}" ${!rule.isDefault ? "set to always apply" : "no longer always applies"}`,
+        `Prompt "${rule.name}" ${!rule.isDefault ? "set to always apply" : "no longer always applies"}`,
         "success"
       );
     } catch {
@@ -102,7 +103,7 @@ export const DirectorySettingsModal = ({
         variant="outline"
         className={cn("text-xs", badgeColors[op])}
       >
-        {op}
+        {getRuleApplicabilityLabel(op)}
       </Badge>
     ));
   };
@@ -157,7 +158,7 @@ export const DirectorySettingsModal = ({
             <div className="flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-sm font-medium">
                 <ClipboardList className="h-4 w-4 shrink-0" aria-hidden="true" />
-                Rules ({rulesData?.rules.length || 0} attached)
+                Prompts ({rulesData?.rules.length || 0} attached)
               </h3>
               <Button
                 size="sm"
@@ -165,13 +166,13 @@ export const DirectorySettingsModal = ({
                 onClick={() => setAttachModalOpen(true)}
               >
                 <Plus size={16} className="mr-1" />
-                Attach Rule
+                Attach Prompt
               </Button>
             </div>
 
             {/* Rules List */}
             {isLoading ? (
-              <div className="text-sm text-muted-foreground">Loading rules...</div>
+              <div className="text-sm text-muted-foreground">Loading prompts...</div>
             ) : rulesData?.rules && rulesData.rules.length > 0 ? (
               <div className="space-y-3">
                 {rulesData.rules.map((rule) => (
@@ -214,7 +215,7 @@ export const DirectorySettingsModal = ({
                           <DropdownMenuItem
                             onClick={() => handleEditRule(rule.id)}
                           >
-                            Edit Rule
+                            Edit Prompt
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleToggleDefault(rule)}
@@ -262,9 +263,9 @@ export const DirectorySettingsModal = ({
               </div>
             ) : (
               <div className="text-sm text-muted-foreground text-center py-8 border border-dashed border-border rounded-lg">
-                No rules attached to this directory yet.
+                No prompts attached to this directory yet.
                 <br />
-                Click "Attach Rule" to add rules.
+                Click "Attach Prompt" to add prompts.
               </div>
             )}
           </div>

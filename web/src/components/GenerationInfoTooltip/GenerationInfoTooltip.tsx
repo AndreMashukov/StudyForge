@@ -37,7 +37,7 @@ export const GenerationInfoTooltip: React.FC<IGenerationInfoTooltip> = ({
             {modelLabel}
           </p>
           <div className="mt-2">
-            <p className="text-sm text-muted-foreground">Rules used</p>
+            <p className="text-sm text-muted-foreground">Prompts used</p>
             {hasRules ? (
               <ul className="mt-1 space-y-0.5 text-sm">
                 {ruleNames.map((name) => (
@@ -45,7 +45,7 @@ export const GenerationInfoTooltip: React.FC<IGenerationInfoTooltip> = ({
                 ))}
               </ul>
             ) : (
-              <p className="mt-1 text-sm text-muted-foreground">No rules were recorded.</p>
+              <p className="mt-1 text-sm text-muted-foreground">No prompts were recorded.</p>
             )}
           </div>
         </TooltipContent>

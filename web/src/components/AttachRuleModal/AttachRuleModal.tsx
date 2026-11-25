@@ -20,6 +20,7 @@ import { VirtualizedList } from "../VirtualizedList";
 import { IAttachRuleModal } from "./IAttachRuleModal";
 import { RuleApplicability } from "@shared-types";
 import { cn } from "../../lib/utils";
+import { getRuleApplicabilityLabel } from "../../utils/ruleApplicabilityUtils";
 
 export const AttachRuleModal = ({
   directory,
@@ -77,7 +78,7 @@ export const AttachRuleModal = ({
       }
       const count = selectedRuleIds.length;
       showToast(
-        `Successfully attached ${count} rule${count > 1 ? "s" : ""} to "${directory.name}"`,
+        `Successfully attached ${count} prompt${count > 1 ? "s" : ""} to "${directory.name}"`,
         "success"
       );
       setSelectedRuleIds([]);
@@ -106,7 +107,7 @@ export const AttachRuleModal = ({
         variant="outline"
         className={cn("text-xs", badgeColors[op])}
       >
-        {op}
+        {getRuleApplicabilityLabel(op)}
       </Badge>
     ));
   };
@@ -138,9 +139,9 @@ export const AttachRuleModal = ({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Attach Rules to {directory.name}</DialogTitle>
+          <DialogTitle>Attach Prompts to {directory.name}</DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Select rules to attach to this directory
+            Select prompts to attach to this directory
           </p>
         </DialogHeader>
 
@@ -153,7 +154,7 @@ export const AttachRuleModal = ({
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
               <Input
-                placeholder="Search rules by name or tags..."
+                placeholder="Search prompts by name or tags..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -174,9 +175,9 @@ export const AttachRuleModal = ({
           {/* Create New Rule Button */}
           <div className="border border-dashed border-border rounded-lg p-4 flex items-center justify-between">
             <div>
-              <p className="font-medium">Can't find the right rule?</p>
+              <p className="font-medium">Can't find the right prompt?</p>
               <p className="text-sm text-muted-foreground">
-                Create a new rule and attach it to this directory
+                Create a new prompt and attach it to this directory
               </p>
             </div>
             <Button variant="outline" onClick={onCreateNew}>
@@ -188,7 +189,7 @@ export const AttachRuleModal = ({
           {/* Rules List */}
           {isLoading ? (
             <div className="text-sm text-muted-foreground text-center py-8">
-              Loading rules...
+              Loading prompts...
             </div>
           ) : availableRules.length > 0 ? (
             <VirtualizedList
@@ -245,8 +246,8 @@ export const AttachRuleModal = ({
           ) : (
             <div className="text-sm text-muted-foreground text-center py-8 border border-dashed border-border rounded-lg">
               {searchQuery || filterApplicability
-                ? "No rules match your search criteria"
-                : "No rules available to attach"}
+                ? "No prompts match your search criteria"
+                : "No prompts available to attach"}
             </div>
           )}
 
@@ -254,7 +255,7 @@ export const AttachRuleModal = ({
           {selectedRuleIds.length > 0 && (
             <div className="border-t border-border pt-4">
               <p className="text-sm font-medium">
-                {selectedRuleIds.length} rule(s) selected
+                {selectedRuleIds.length} prompt(s) selected
               </p>
             </div>
           )}

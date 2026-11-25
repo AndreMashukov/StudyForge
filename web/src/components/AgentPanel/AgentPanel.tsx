@@ -55,9 +55,9 @@ const EMPTY_STATE_PROMPTS: Record<AgentLocationContextKind, string[]> = {
     'Explain the key concepts in this document',
   ],
   rule: [
-    'Summarize this rule',
-    'Improve this rule for clarity',
-    'Where is this rule applied?',
+    'Summarize this prompt',
+    'Improve this prompt for clarity',
+    'Where is this prompt applied?',
   ],
 };
 

@@ -57,7 +57,7 @@ export const RuleSelectorSheet = ({
       >
         {/* Header */}
         <div className="sticky top-0 bg-background border-b px-4 py-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Select Rules</h2>
+          <h2 className="text-lg font-semibold">Select Prompts</h2>
           <button
             onClick={handleClose}
             disabled={isBusy}

@@ -56,14 +56,14 @@ export function useBulkDetachDirectoryRules({
       <BulkActionConfirmDialog
         open={flow.confirmOpen}
         onOpenChange={(open) => !open && flow.closeConfirm()}
-        title={`Unassign ${selection.selectedCount} rule${selection.selectedCount === 1 ? '' : 's'}?`}
+        title={`Unassign ${selection.selectedCount} prompt${selection.selectedCount === 1 ? '' : 's'}?`}
         description={
           <p>
-            Selected rules will be removed from this directory. The rules themselves
+            Selected prompts will be removed from this directory. The prompts themselves
             will not be deleted.
           </p>
         }
-        confirmLabel={`Unassign ${selection.selectedCount} rule${selection.selectedCount === 1 ? '' : 's'}`}
+        confirmLabel={`Unassign ${selection.selectedCount} prompt${selection.selectedCount === 1 ? '' : 's'}`}
         mode="simple"
         isLoading={isLoading}
         error={flow.error}

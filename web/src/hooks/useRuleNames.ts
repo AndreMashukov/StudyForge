@@ -9,6 +9,6 @@ export const useRuleNames = (ruleIds?: string[]) => {
     if (!ruleIds || ruleIds.length === 0) return [];
 
     const ruleNamesById = new Map(rules.map((rule) => [rule.id, rule.name]));
-    return ruleIds.map((ruleId) => ruleNamesById.get(ruleId) ?? 'Unknown rule');
+    return ruleIds.map((ruleId) => ruleNamesById.get(ruleId) ?? 'Unknown prompt');
   }, [ruleIds, rules]);
 };

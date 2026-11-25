@@ -44,7 +44,7 @@ export const CreateArtifactRulesSection: React.FC<ICreateArtifactRulesSection> =
         operation={ruleApplicability}
         selectedRuleIds={ruleIds}
         onSelectionChange={onRuleIdsChange}
-        label="Generation rules"
+        label="Generation prompts"
         controlsDisabled={controlsDisabled}
         onBusyChange={(busy) => handleBusyChange('generation', busy)}
       />
@@ -55,7 +55,7 @@ export const CreateArtifactRulesSection: React.FC<ICreateArtifactRulesSection> =
           operation={descriptionRuleApplicability}
           selectedRuleIds={descriptionRuleIds}
           onSelectionChange={onDescriptionRuleIdsChange}
-          label="Description rules"
+          label="Description prompts"
           controlsDisabled={controlsDisabled}
           onBusyChange={(busy) => handleBusyChange('description', busy)}
         />

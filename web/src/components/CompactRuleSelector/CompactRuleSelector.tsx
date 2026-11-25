@@ -22,7 +22,7 @@ export const CompactRuleSelector = ({
   operation,
   selectedRuleIds,
   onSelectionChange,
-  label = "Rules",
+  label = "Prompts",
   showResetButton = true,
   controlsDisabled = false,
   onBusyChange,
@@ -111,11 +111,11 @@ export const CompactRuleSelector = ({
   );
 
   const summaryText = isLoading && !data
-    ? "Loading rules…"
+    ? "Loading prompts…"
     : rules.length === 0
-      ? "No rules available"
+      ? "No prompts available"
       : selectedRules.length === rules.length
-        ? "All rules selected"
+        ? "All prompts selected"
         : `${rules.length - selectedRules.length} more available`;
 
   return (
@@ -151,7 +151,7 @@ export const CompactRuleSelector = ({
             <RuleListSkeleton count={1} />
           ) : rules.length === 0 ? (
             <p className="text-xs text-muted-foreground py-2">
-              No rules available for this directory
+              No prompts available for this directory
             </p>
           ) : (
             <VirtualizedList

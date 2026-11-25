@@ -21,13 +21,13 @@ export async function createRule(
 ): Promise<Rule> {
   // Validate content length
   if (request.content.length > 100000) {
-    throw new Error('Rule content cannot exceed 100,000 characters');
+    throw new Error('Prompt content cannot exceed 100,000 characters');
   }
 
   // Validate at least one current applicability selected
   const applicableTo = parseStoredRuleApplicability(request.applicableTo);
   if (applicableTo.length === 0) {
-    throw new Error('Rule must be applicable to at least one operation type');
+    throw new Error('Prompt must be applicable to at least one operation type');
   }
 
   const ruleRef = FirestorePaths.rules(userId).doc();
@@ -155,12 +155,12 @@ export async function updateRule(
   const ruleDoc = await ruleRef.get();
   
   if (!ruleDoc.exists) {
-    throw new Error('Rule not found');
+    throw new Error('Prompt not found');
   }
 
   // Validate content length if content is being updated
   if (request.content && request.content.length > 100000) {
-    throw new Error('Rule content cannot exceed 100,000 characters');
+    throw new Error('Prompt content cannot exceed 100,000 characters');
   }
 
   // Validate at least one current applicability if updating applicableTo
@@ -169,7 +169,7 @@ export async function updateRule(
       ? parseStoredRuleApplicability(request.applicableTo)
       : undefined;
   if (applicableTo && applicableTo.length === 0) {
-    throw new Error('Rule must be applicable to at least one operation type');
+    throw new Error('Prompt must be applicable to at least one operation type');
   }
 
   const updateData: Partial<Record<string, unknown>> = {
@@ -213,7 +213,7 @@ export async function deleteRule(
   const ruleDoc = await ruleRef.get();
 
   if (!ruleDoc.exists) {
-    throw new Error('Rule not found');
+    throw new Error('Prompt not found');
   }
 
   const rule = ruleDoc.data() as Rule;
@@ -269,7 +269,7 @@ export async function attachRuleToDirectory(
   ]);
 
   if (!ruleDoc.exists) {
-    throw new Error('Rule not found');
+    throw new Error('Prompt not found');
   }
 
   if (!dirDoc.exists) {
@@ -310,7 +310,7 @@ export async function detachRuleFromDirectory(
   ]);
 
   if (!ruleDoc.exists) {
-    throw new Error('Rule not found');
+    throw new Error('Prompt not found');
   }
 
   if (!dirDoc.exists) {

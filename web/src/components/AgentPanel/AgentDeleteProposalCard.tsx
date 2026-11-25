@@ -7,6 +7,13 @@ import { useDeleteQuizMutation } from '../../store/api/Quiz/QuizApi';
 import { useDeleteRuleMutation } from '../../store/api/Rules/rulesApi';
 import { IAgentDeleteProposalCard } from './IAgentPanel';
 
+const DELETE_TARGET_LABELS: Record<IAgentDeleteProposalCard['proposal']['targetType'], string> = {
+  directory: 'folder',
+  document: 'document',
+  quiz: 'quiz',
+  rule: 'prompt',
+};
+
 export const AgentDeleteProposalCard: React.FC<IAgentDeleteProposalCard> = ({
   proposal,
   onConfirmed,
@@ -50,7 +57,7 @@ export const AgentDeleteProposalCard: React.FC<IAgentDeleteProposalCard> = ({
       <div className="mb-2 flex items-center gap-2 font-medium text-destructive">
         <Trash2 size={14} aria-hidden="true" />
         <span>
-          Delete {proposal.targetType}: {proposal.label}
+          Delete {DELETE_TARGET_LABELS[proposal.targetType]}: {proposal.label}
         </span>
       </div>
       {proposal.reason ? (

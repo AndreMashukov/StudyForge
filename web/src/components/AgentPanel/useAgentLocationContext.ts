@@ -233,8 +233,8 @@ export function useAgentLocationContext(): IAgentLocationContext | null {
         return null;
       }
 
-      const label = rule?.name?.trim() || 'Rule';
-      const tooltipPath = `Rule / ${label}`;
+      const label = rule?.name?.trim() || 'Prompt';
+      const tooltipPath = `Prompt / ${label}`;
 
       return {
         kind: 'rule' as const,
