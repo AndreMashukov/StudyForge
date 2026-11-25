@@ -444,7 +444,7 @@ export const DirectoryDetailPageContainer = () => {
                                 }
                               >
                                 <Shield size={14} className="mr-2" />
-                                Manage rules
+                                Manage prompts
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"

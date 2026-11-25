@@ -180,10 +180,15 @@ _Avoid_: model label (when meaning full audit trail)
 
 **Rule**:
 User-authored markdown instruction that steers AI behavior for a specific operation (quiz generation, scraping, flashcard descriptions, etc.). Rules attach to directories and/or are selected explicitly at generation time.
-_Avoid_: prompt template, instruction (alone), policy
+**Product copy: Prompt.** Learners see rules as "prompts" in the web app, the mobile app and workspace agent replies. Code, types, Firestore (`rules`), URLs (`/rules`), agent tool names, the External API and the admin app (**rule blueprints**) keep "rule". See [ADR 014](docs/adr/014-rules-called-prompts-in-ui.md).
+_Avoid_: prompt template, instruction (alone), policy; "rule" in learner-facing copy
+
+**Additional instructions**:
+One-off free text typed into the Create Artifact modal for a single generation. Not saved, not attached to a directory, and not a **rule** (so not a "prompt" in product copy).
+_Avoid_: additional prompt, custom prompt
 
 **Rule applicability**:
-Which operation types a rule may apply to (e.g. `quiz`, `diagram_quiz`, `flashcard_desc`). A rule can apply to multiple operations. `followup` and `chat` are retired: older rules may still carry them, but nothing applies them.
+Which operation types a rule may apply to (e.g. `quiz`, `diagram_quiz`, `flashcard_desc`). A rule can apply to multiple operations. The `prompt` applicability (AI Prompt document generation) is labelled **AI Document** in product copy, so a learner never reads "prompt applies to Prompt". `followup` and `chat` are retired: older rules may still carry them, but nothing applies them.
 _Avoid_: rule type, rule category, follow-up rule, chat rule
 
 **Rule resolution mode**:
@@ -327,5 +332,6 @@ _Avoid_: migration order, pre/post hook
 - **"Assistant"** — in mobile copy, means the **workspace agent** or **directory-scoped agent**.
 - **"Chat"** — means a conversation with the **workspace agent** or **directory-scoped agent**. StudyForge no longer has directory chat; don't name a third conversational surface "chat".
 - **"Explanation"** — quiz, diagram quiz, sequence quiz and match quiz questions have none; the learner sees only whether the answer was right. A flashcard's explanation is part of the card's back, not answer feedback.
+- **"Prompt"** — in learner-facing copy, means a **rule**. In code and the domain model it also appears in **AI Prompt** documents (`documentFromPrompt`, the Create Document source) and in LLM prompts; those are not rules. **Additional instructions** are not rules either.
 - **"Search"** — alone, means **library search**. The agent looking through **User knowledge** is knowledge search, and what it surfaces are **Referenced items**, not **search results**.
 - **"Turn"** — means an **agent turn** in agent code and docs. The **flashcard study session** definition also says "turn" for one visit to a set; that is unrelated.

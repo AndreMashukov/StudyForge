@@ -258,7 +258,7 @@ describe('createAgentToolDefinitions rule tools', () => {
       'dir-1',
     );
     expect(context.executedActions[0]?.summary).toBe(
-      'Attached rule to /Python',
+      'Attached prompt to /Python',
     );
   });
 

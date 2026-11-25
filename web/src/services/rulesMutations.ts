@@ -24,10 +24,10 @@ export async function createRuleInFirestore(
   request: CreateRuleRequest,
 ): Promise<Rule> {
   if (request.content.length > 100000) {
-    throw new Error('Rule content cannot exceed 100,000 characters');
+    throw new Error('Prompt content cannot exceed 100,000 characters');
   }
   if (!request.applicableTo || request.applicableTo.length === 0) {
-    throw new Error('Rule must be applicable to at least one operation type');
+    throw new Error('Prompt must be applicable to at least one operation type');
   }
 
   const ruleDocRef = doc(collection(db, 'users', userId, 'rules'));
@@ -67,14 +67,14 @@ export async function updateRuleInFirestore(
 ): Promise<Rule> {
   const existing = await fetchRuleFromFirestore(userId, request.ruleId);
   if (!existing) {
-    throw new Error('Rule not found');
+    throw new Error('Prompt not found');
   }
 
   if (request.content && request.content.length > 100000) {
-    throw new Error('Rule content cannot exceed 100,000 characters');
+    throw new Error('Prompt content cannot exceed 100,000 characters');
   }
   if (request.applicableTo && request.applicableTo.length === 0) {
-    throw new Error('Rule must be applicable to at least one operation type');
+    throw new Error('Prompt must be applicable to at least one operation type');
   }
 
   const updateData: Record<string, unknown> = {
@@ -92,7 +92,7 @@ export async function updateRuleInFirestore(
 
   const updated = await fetchRuleFromFirestore(userId, request.ruleId);
   if (!updated) {
-    throw new Error('Rule not found after update');
+    throw new Error('Prompt not found after update');
   }
   return updated;
 }
@@ -105,7 +105,7 @@ export async function deleteRuleInFirestore(
 ): Promise<DeleteRuleResponse> {
   const existing = await fetchRuleFromFirestore(userId, ruleId);
   if (!existing) {
-    throw new Error('Rule not found');
+    throw new Error('Prompt not found');
   }
 
   const directoryIds = existing.directoryIds ?? [];
@@ -158,7 +158,7 @@ export async function attachRuleToDirectoryInFirestore(
   ]);
 
   if (!ruleSnap.exists()) {
-    throw new Error('Rule not found');
+    throw new Error('Prompt not found');
   }
   if (!dirSnap.exists()) {
     throw new Error('Directory not found');
@@ -191,7 +191,7 @@ export async function detachRuleFromDirectoryInFirestore(
   ]);
 
   if (!ruleSnap.exists()) {
-    throw new Error('Rule not found');
+    throw new Error('Prompt not found');
   }
   if (!dirSnap.exists()) {
     throw new Error('Directory not found');

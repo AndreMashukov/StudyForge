@@ -55,7 +55,7 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
         onDelete={onDeleteDocument}
         onMove={onMoveDocument}
         appliedRuleNames={document.appliedRuleIds?.map(
-          (id) => ruleNamesMap?.get(id) ?? 'Unknown rule',
+          (id) => ruleNamesMap?.get(id) ?? 'Unknown prompt',
         )}
         generationModel={document.generationModel}
         selected={selection.isSelected(document.id)}

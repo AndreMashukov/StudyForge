@@ -21,9 +21,9 @@ export const useRulesPageHandlers = () => {
     try {
       const result = await deleteRule({ ruleId }).unwrap();
       if (result.success) {
-        showToast('Rule deleted successfully', 'success');
+        showToast('Prompt deleted successfully', 'success');
       } else {
-        showToast(result.error || 'Failed to delete rule', 'error');
+        showToast(result.error || 'Failed to delete prompt', 'error');
       }
     } catch {
       // Error is shown via the global errorToastMiddleware toast

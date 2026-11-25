@@ -62,7 +62,7 @@ export const RuleCard = ({
               <BulkSelectCheckbox
                 checked={selected}
                 onCheckedChange={onSelectChange}
-                label={`Select rule ${rule.name}`}
+                label={`Select prompt ${rule.name}`}
                 className="mt-1"
               />
             )}
@@ -162,7 +162,7 @@ export const RuleCard = ({
               <BulkSelectCheckbox
                 checked={selected}
                 onCheckedChange={onSelectChange}
-                label={`Select rule ${rule.name}`}
+                label={`Select prompt ${rule.name}`}
               />
             )}
             <div

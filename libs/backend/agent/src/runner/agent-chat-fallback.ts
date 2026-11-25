@@ -54,7 +54,7 @@ function summarizeListDirectories(result: unknown): string {
 
 function summarizeListRules(result: unknown): string {
   if (!Array.isArray(result)) {
-    return 'Listed rules.';
+    return 'Listed prompts.';
   }
   const names = result
     .map((entry) =>
@@ -64,14 +64,14 @@ function summarizeListRules(result: unknown): string {
     )
     .filter((value): value is string => Boolean(value));
   if (names.length === 0) {
-    return 'Listed rules: none found.';
+    return 'Listed prompts: none found.';
   }
   const preview = names.slice(0, 12);
   const more =
     names.length > preview.length
       ? ` (+${names.length - preview.length} more)`
       : '';
-  return `Listed ${names.length} rules: ${preview.join(', ')}${more}`;
+  return `Listed ${names.length} prompts: ${preview.join(', ')}${more}`;
 }
 
 function summarizeListDocuments(result: unknown): string {
@@ -109,10 +109,10 @@ function summarizeCreateDirectory(result: unknown): string {
 
 function summarizeCreateRule(result: unknown): string {
   if (!isRecord(result)) {
-    return 'Created a rule.';
+    return 'Created a prompt.';
   }
-  const name = asString(result.name) ?? 'rule';
-  return `Created rule "${name}"`;
+  const name = asString(result.name) ?? 'prompt';
+  return `Created prompt "${name}"`;
 }
 
 function summarizeCreateDocument(result: unknown): string {
@@ -125,26 +125,26 @@ function summarizeCreateDocument(result: unknown): string {
 
 function summarizeAttachRule(result: unknown): string {
   if (!isRecord(result)) {
-    return 'Attached rule to directory.';
+    return 'Attached prompt to directory.';
   }
   const directoryId = asString(result.directoryId);
   const ruleId = asString(result.ruleId);
   if (directoryId && ruleId) {
-    return `Attached rule ${ruleId} to directory ${directoryId}`;
+    return `Attached prompt ${ruleId} to directory ${directoryId}`;
   }
-  return 'Attached rule to directory.';
+  return 'Attached prompt to directory.';
 }
 
 function summarizeDetachRule(result: unknown): string {
   if (!isRecord(result)) {
-    return 'Detached rule from directory.';
+    return 'Detached prompt from directory.';
   }
   const directoryId = asString(result.directoryId);
   const ruleId = asString(result.ruleId);
   if (directoryId && ruleId) {
-    return `Detached rule ${ruleId} from directory ${directoryId}`;
+    return `Detached prompt ${ruleId} from directory ${directoryId}`;
   }
-  return 'Detached rule from directory.';
+  return 'Detached prompt from directory.';
 }
 
 function asNumber(value: unknown): number | undefined {
@@ -216,8 +216,8 @@ function summarizeToolOutcome(outcome: AgentToolOutcome): string {
       return summarizeCreateRule(outcome.result);
     case 'update_rule':
       return isRecord(outcome.result) && asString(outcome.result.name)
-        ? `Updated rule "${asString(outcome.result.name)}"`
-        : 'Updated a rule.';
+        ? `Updated prompt "${asString(outcome.result.name)}"`
+        : 'Updated a prompt.';
     case 'create_document':
       return summarizeCreateDocument(outcome.result);
     case 'attach_rule_to_directory':
@@ -230,8 +230,8 @@ function summarizeToolOutcome(outcome: AgentToolOutcome): string {
         : 'Searched knowledge.';
     case 'search_rule_blueprints':
       return Array.isArray(outcome.result)
-        ? `Found ${outcome.result.length} rule blueprints.`
-        : 'Searched rule blueprints.';
+        ? `Found ${outcome.result.length} prompt templates.`
+        : 'Searched prompt templates.';
     case 'generate_quiz':
       return 'Started quiz generation.';
     case 'propose_delete_rule':

@@ -15,7 +15,7 @@ export const toCurrentRuleApplicabilities = (values: unknown): RuleApplicability
 export const ruleApplicabilityLabels: Record<RuleApplicability, string> = {
   [RuleApplicability.SCRAPING]: 'Scraping',
   [RuleApplicability.UPLOAD]: 'Upload',
-  [RuleApplicability.PROMPT]: 'Prompt',
+  [RuleApplicability.PROMPT]: 'AI Document',
   [RuleApplicability.QUIZ]: 'Quiz',
   [RuleApplicability.FLASHCARD]: 'Flashcard',
   [RuleApplicability.FLASHCARD_DESC]: 'Flashcard Description',

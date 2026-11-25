@@ -105,7 +105,7 @@ export const RulesPageContainer = () => {
               className="text-sm"
               style={{ color: currentTheme.colors.mutedForeground }}
             >
-              Loading rules...
+              Loading prompts...
             </p>
           </div>
         </div>
@@ -129,7 +129,7 @@ export const RulesPageContainer = () => {
               className="font-medium mb-2"
               style={{ color: currentTheme.colors.destructive }}
             >
-              Failed to load rules
+              Failed to load prompts
             </p>
             <p
               className="text-sm mb-4"
@@ -161,18 +161,18 @@ export const RulesPageContainer = () => {
               className="text-3xl font-bold font-heading"
               style={{ color: currentTheme.colors.foreground }}
             >
-              Rules
+              Prompts
             </h1>
             <p
               className="text-sm mt-1"
               style={{ color: currentTheme.colors.mutedForeground }}
             >
-              Create and manage AI behavior rules for your documents
+              Create and manage AI behavior prompts for your documents
             </p>
           </div>
           <Button onClick={handlers.handleCreateRule}>
             <Plus size={16} className="mr-2" />
-            Create Rule
+            Create Prompt
           </Button>
         </div>
 
@@ -186,7 +186,7 @@ export const RulesPageContainer = () => {
                 style={{ color: currentTheme.colors.mutedForeground }}
               />
               <Input
-                placeholder="Search rules by name, description, tags, or type..."
+                placeholder="Search prompts by name, description, tags, or type..."
                 value={searchQuery}
                 onChange={(e) => handlers.handleSearchChange(e.target.value)}
                 className="pl-9"
@@ -199,7 +199,7 @@ export const RulesPageContainer = () => {
                   <Button
                     variant="outline"
                     className="min-w-[132px] justify-between gap-2 px-3"
-                    aria-label="Filter rules by type"
+                    aria-label="Filter prompts by type"
                   >
                     <span className="flex min-w-0 items-center gap-2">
                       <Filter size={16} className="flex-shrink-0" />
@@ -218,7 +218,7 @@ export const RulesPageContainer = () => {
                 >
                   <div className="flex items-center justify-between px-2 py-1.5">
                     <span className="text-xs font-medium uppercase text-muted-foreground">
-                      Rule Type
+                      Prompt Type
                     </span>
                     {hasRuleTypeFilter && (
                       <button
@@ -256,7 +256,7 @@ export const RulesPageContainer = () => {
                   size="sm"
                   onClick={() => handlers.handleViewModeChange('grid')}
                   className="px-3"
-                  aria-label="Show rules in grid view"
+                  aria-label="Show prompts in grid view"
                 >
                   <Grid3x3 size={16} />
                 </Button>
@@ -265,7 +265,7 @@ export const RulesPageContainer = () => {
                   size="sm"
                   onClick={() => handlers.handleViewModeChange('list')}
                   className="px-3"
-                  aria-label="Show rules in list view"
+                  aria-label="Show prompts in list view"
                 >
                   <List size={16} />
                 </Button>
@@ -319,19 +319,19 @@ export const RulesPageContainer = () => {
                 className="text-lg font-semibold mb-2"
                 style={{ color: currentTheme.colors.foreground }}
               >
-                No rules yet
+                No prompts yet
               </h3>
               <p
                 className="text-sm mb-6"
                 style={{ color: currentTheme.colors.mutedForeground }}
               >
-                Create your first rule to start customizing AI behavior for your
-                documents. Rules help guide content generation, quizzes, and
+                Create your first prompt to start customizing AI behavior for your
+                documents. Prompts help guide content generation, quizzes, and
                 more.
               </p>
               <Button onClick={handlers.handleCreateRule}>
                 <Plus size={16} className="mr-2" />
-                Create Your First Rule
+                Create Your First Prompt
               </Button>
             </div>
           </div>
@@ -356,13 +356,13 @@ export const RulesPageContainer = () => {
                 className="text-lg font-semibold mb-2"
                 style={{ color: currentTheme.colors.foreground }}
               >
-                No rules found
+                No prompts found
               </h3>
               <p
                 className="text-sm mb-6"
                 style={{ color: currentTheme.colors.mutedForeground }}
               >
-                No rules match your search criteria. Try adjusting your search
+                No prompts match your search criteria. Try adjusting your search
                 or filters.
               </p>
               <Button variant="outline" onClick={handleClearSearchAndFilters}>
@@ -391,7 +391,7 @@ export const RulesPageContainer = () => {
                   style={{ color: currentTheme.colors.mutedForeground }}
                 >
                   {filteredRules.length}{' '}
-                  {filteredRules.length === 1 ? 'rule' : 'rules'} found
+                  {filteredRules.length === 1 ? 'prompt' : 'prompts'} found
                 </p>
               )}
             </div>
@@ -449,14 +449,14 @@ export const RulesPageContainer = () => {
       <BulkActionConfirmDialog
         open={bulkFlow.confirmOpen}
         onOpenChange={(open) => !open && bulkFlow.closeConfirm()}
-        title={`Delete ${selection.selectedCount} rule${selection.selectedCount === 1 ? '' : 's'}?`}
+        title={`Delete ${selection.selectedCount} prompt${selection.selectedCount === 1 ? '' : 's'}?`}
         description={
           <p>
-            This permanently deletes the selected rules and cannot be undone.
-            Rules assigned to directories will be detached.
+            This permanently deletes the selected prompts and cannot be undone.
+            Prompts assigned to directories will be detached.
           </p>
         }
-        confirmLabel={`Delete ${selection.selectedCount} rule${selection.selectedCount === 1 ? '' : 's'}`}
+        confirmLabel={`Delete ${selection.selectedCount} prompt${selection.selectedCount === 1 ? '' : 's'}`}
         mode="destructive"
         isLoading={isBulkDeleting}
         error={bulkFlow.error}
@@ -474,7 +474,7 @@ export const RulesPageContainer = () => {
       <BulkActionResultDialog
         open={bulkFlow.resultOpen}
         onOpenChange={(open) => !open && bulkFlow.closeResult()}
-        title="Rule delete results"
+        title="Prompt delete results"
         succeeded={bulkFlow.result?.succeeded ?? 0}
         failed={bulkFlow.result?.failed ?? 0}
         results={bulkFlow.result?.results ?? []}

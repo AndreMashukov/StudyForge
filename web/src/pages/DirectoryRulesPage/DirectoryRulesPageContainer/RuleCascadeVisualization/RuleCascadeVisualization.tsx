@@ -49,7 +49,7 @@ export const RuleCascadeVisualization = () => {
         style={{ color: currentTheme.colors.foreground }}
       >
         <GitBranch className="h-5 w-5 shrink-0" aria-hidden="true" />
-        Rule Inheritance Chain
+        Prompt Inheritance Chain
       </h2>
 
       <div className="space-y-4">
@@ -101,7 +101,7 @@ export const RuleCascadeVisualization = () => {
                     className="text-sm"
                     style={{ color: currentTheme.colors.mutedForeground }}
                   >
-                    {item.ruleCount} rule{item.ruleCount !== 1 ? 's' : ''}
+                    {item.ruleCount} prompt{item.ruleCount !== 1 ? 's' : ''}
                     {!isCurrent && inheritedCount > 0 && (
                       <span className="ml-2">
                         ({inheritedCount} inherited)
@@ -155,7 +155,7 @@ export const RuleCascadeVisualization = () => {
           className="text-sm font-medium"
           style={{ color: currentTheme.colors.foreground }}
         >
-          Total Effective Rules: {totalRules}
+          Total Effective Prompts: {totalRules}
         </div>
         <div 
           className="text-xs mt-1"

@@ -79,7 +79,7 @@ export const generateRuleWithAI = onCall(
     } catch (error) {
       logger.error('Error in generateRuleWithAI:', error);
       if (error instanceof HttpsError) throw error;
-      throw new HttpsError('internal', 'An unexpected error occurred while generating the rule.');
+      throw new HttpsError('internal', 'An unexpected error occurred while generating the prompt.');
     }
   }
 );

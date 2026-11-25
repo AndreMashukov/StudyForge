@@ -70,7 +70,7 @@ export const rulesApi = baseApi.injectEndpoints({
           return { data: rules };
         } catch (error) {
           return firestoreReadError(
-            getFirestoreErrorMessage(error, 'Failed to load rules from Firestore'),
+            getFirestoreErrorMessage(error, 'Failed to load prompts from Firestore'),
           );
         }
       },
@@ -85,11 +85,11 @@ export const rulesApi = baseApi.injectEndpoints({
 
         try {
           const rule = await fetchRuleFromFirestore(userId, ruleId);
-          if (!rule) return notFoundError('Rule not found');
+          if (!rule) return notFoundError('Prompt not found');
           return { data: rule };
         } catch (error) {
           return firestoreReadError(
-            getFirestoreErrorMessage(error, 'Failed to load rule from Firestore'),
+            getFirestoreErrorMessage(error, 'Failed to load prompt from Firestore'),
           );
         }
       },
@@ -190,7 +190,7 @@ export const rulesApi = baseApi.injectEndpoints({
             runItem: async (ruleId) => {
               const response = await deleteRuleInFirestore(userId, ruleId);
               if (!response.success) {
-                throw new Error(response.error ?? 'Failed to delete rule');
+                throw new Error(response.error ?? 'Failed to delete prompt');
               }
             },
           });
@@ -239,7 +239,7 @@ export const rulesApi = baseApi.injectEndpoints({
           return { data: resolved };
         } catch (error) {
           return firestoreReadError(
-            getFirestoreErrorMessage(error, 'Failed to load directory rules from Firestore'),
+            getFirestoreErrorMessage(error, 'Failed to load directory prompts from Firestore'),
           );
         }
       },
@@ -270,7 +270,7 @@ export const rulesApi = baseApi.injectEndpoints({
           return { data: resolved };
         } catch (error) {
           return firestoreReadError(
-            getFirestoreErrorMessage(error, 'Failed to load applicable rules from Firestore'),
+            getFirestoreErrorMessage(error, 'Failed to load applicable prompts from Firestore'),
           );
         }
       },
@@ -304,7 +304,7 @@ export const rulesApi = baseApi.injectEndpoints({
           return { data: tags };
         } catch (error) {
           return firestoreReadError(
-            getFirestoreErrorMessage(error, 'Failed to load rule tags from Firestore'),
+            getFirestoreErrorMessage(error, 'Failed to load prompt tags from Firestore'),
           );
         }
       },

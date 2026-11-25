@@ -10,10 +10,10 @@ export const AIAssistantPanel: React.FC = () => {
   return (
     <MarkdownAIAssistantPanel
       title="AI Assistant"
-      idleDescription="Describe a topic and let AI generate a rule for you."
+      idleDescription="Describe a topic and let AI generate a prompt for you."
       instructionPlaceholder="e.g., Code review best practices for Python"
       generateLabel="Generate with AI"
-      generatingLabel="Generating rule with AI..."
+      generatingLabel="Generating prompt with AI..."
       applyLabel="Apply to Form"
       instructionMaxLength={AI_REVISION_INSTRUCTION_MAX}
       aiState={aiState}

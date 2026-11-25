@@ -16,7 +16,7 @@ export const RuleSelector = ({
   operation,
   selectedRuleIds,
   onSelectionChange,
-  title = "Rules",
+  title = "Prompts",
   compact = false,
   controlsDisabled = false,
   onBusyChange,
@@ -107,7 +107,7 @@ export const RuleSelector = ({
       ) : rules.length === 0 ? (
         <p className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
           <Inbox className="h-4 w-4 shrink-0" aria-hidden="true" />
-          No rules available for this operation
+          No prompts available for this operation
         </p>
       ) : (
         <VirtualizedList

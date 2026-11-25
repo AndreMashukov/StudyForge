@@ -31,11 +31,11 @@ export const RuleEditorHeader: React.FC = () => {
         className="flex items-center gap-2"
       >
         <ArrowLeft size={18} />
-        <span>Back to Rules</span>
+        <span>Back to Prompts</span>
       </Button>
 
       <h1 className="text-lg font-semibold text-foreground">
-        {mode === 'create' ? 'Create Rule' : 'Edit Rule'}
+        {mode === 'create' ? 'Create Prompt' : 'Edit Prompt'}
       </h1>
 
       <div className="flex items-center gap-3">
@@ -84,7 +84,7 @@ export const RuleEditorHeader: React.FC = () => {
           }}
         >
           {isSaving && <Spinner size="xs" className="mr-2" />}
-          {mode === 'create' ? 'Create Rule' : 'Save Changes'}
+          {mode === 'create' ? 'Create Prompt' : 'Save Changes'}
         </Button>
       </div>
     </div>

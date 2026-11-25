@@ -322,7 +322,7 @@ export const TextPromptForm = ({ onSubmit }: ITextPromptFormProps) => {
             operation={RuleApplicability.PROMPT}
             selectedRuleIds={selectedRuleIds}
             onSelectionChange={handleRuleSelectionChange}
-            label="Content Generation Rules"
+            label="Content Generation Prompts"
           />
         </div>
       )}

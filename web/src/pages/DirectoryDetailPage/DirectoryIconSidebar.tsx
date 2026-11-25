@@ -57,7 +57,7 @@ const CONTENT_ITEMS: { icon: React.ComponentType<{ size?: number; className?: st
 ];
 
 const SETTINGS_ITEMS: { icon: React.ComponentType<{ size?: number; className?: string }>; label: string; panel: PanelType }[] = [
-  { icon: Settings, label: 'Rules', panel: 'rules' },
+  { icon: Settings, label: 'Prompts', panel: 'rules' },
 ];
 
 export const DirectoryIconSidebar: React.FC<DirectoryIconSidebarProps> = ({

@@ -14,7 +14,7 @@ const RuleEditorContent: React.FC = () => {
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
           <Spinner size="lg" variant="muted" className="mx-auto" />
-          <p className="mt-4 font-medium text-muted-foreground">Loading rule...</p>
+          <p className="mt-4 font-medium text-muted-foreground">Loading prompt...</p>
         </div>
       </div>
     );

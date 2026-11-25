@@ -11,6 +11,7 @@ import { useRuleEditorForm } from '../context/hooks/useRuleEditorForm';
 import { RuleMarkdownPreview } from './RuleMarkdownPreview';
 import { RuleApplicability, RuleColor } from '@shared-types';
 import { cn } from '../../../lib/utils';
+import { getRuleApplicabilityLabel } from '../../../utils/ruleApplicabilityUtils';
 
 const colorOptions: { value: RuleColor; label: string; class: string }[] = [
   { value: RuleColor.RED, label: 'Red', class: 'bg-red-500' },
@@ -64,7 +65,7 @@ export const RuleFormSection: React.FC = () => {
       {/* Rule Name */}
       <div className="space-y-2">
         <Label htmlFor="rule-name">
-          Rule Name <span style={{ color: colors.destructive }}>*</span>
+          Prompt Name <span style={{ color: colors.destructive }}>*</span>
         </Label>
         <Input
           id="rule-name"
@@ -116,7 +117,7 @@ export const RuleFormSection: React.FC = () => {
               {formData.applicableTo.includes(operation) && (
                 <Check className="h-3.5 w-3.5" aria-hidden="true" />
               )}
-              {operation}
+              {getRuleApplicabilityLabel(operation)}
             </Button>
           ))}
         </div>
@@ -191,7 +192,7 @@ export const RuleFormSection: React.FC = () => {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label htmlFor="rule-content">
-            Rule Content <span style={{ color: colors.destructive }}>*</span>
+            Prompt Content <span style={{ color: colors.destructive }}>*</span>
           </Label>
           <Button
             variant="ghost"

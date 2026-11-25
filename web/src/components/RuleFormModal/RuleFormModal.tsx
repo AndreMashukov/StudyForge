@@ -27,6 +27,7 @@ import { cn } from "../../lib/utils";
 import { z } from "zod";
 import { useAppDispatch } from "../../hooks/redux";
 import { setLoading } from "../../store/slices/uiSlice";
+import { getRuleApplicabilityLabel } from "../../utils/ruleApplicabilityUtils";
 
 // Zod validation schema
 const ruleFormSchema = z.object({
@@ -134,18 +135,18 @@ export const RuleFormModal = ({
 
     // Call-site overlay: keep updateRule/createRule off the RTK allowlist so
     // always-apply toggles in create flows stay non-blocking.
-    dispatch(setLoading({ isLoading: true, message: "Saving rule…" }));
+    dispatch(setLoading({ isLoading: true, message: "Saving prompt…" }));
     try {
       if (isEditMode && ruleId) {
         const updatedRule = await updateRule({
           ruleId,
           ...formData,
         }).unwrap();
-        showToast(`Rule "${formData.name}" updated successfully`, "success");
+        showToast(`Prompt "${formData.name}" updated successfully`, "success");
         onSuccess?.(updatedRule);
       } else {
         const newRule = await createRule(formData as CreateRuleRequest).unwrap();
-        showToast(`Rule "${formData.name}" created successfully`, "success");
+        showToast(`Prompt "${formData.name}" created successfully`, "success");
         onSuccess?.(newRule);
       }
       onClose();
@@ -205,7 +206,7 @@ export const RuleFormModal = ({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Edit Rule" : "Create New Rule"}
+            {isEditMode ? "Edit Prompt" : "Create New Prompt"}
           </DialogTitle>
         </DialogHeader>
 
@@ -219,7 +220,7 @@ export const RuleFormModal = ({
             {/* Rule Name */}
             <div className="space-y-2">
               <Label htmlFor="name">
-                Rule Name <span className="text-destructive">*</span>
+                Prompt Name <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="name"
@@ -275,7 +276,7 @@ export const RuleFormModal = ({
                     {formData.applicableTo.includes(operation) && (
                       <Check className="h-3.5 w-3.5" aria-hidden="true" />
                     )}
-                    {operation}
+                    {getRuleApplicabilityLabel(operation)}
                   </button>
                 ))}
               </div>
@@ -349,7 +350,7 @@ export const RuleFormModal = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="content">
-                  Rule Content <span className="text-destructive">*</span>
+                  Prompt Content <span className="text-destructive">*</span>
                 </Label>
                 <button
                   type="button"
@@ -415,8 +416,8 @@ export const RuleFormModal = ({
               {isCreating || isUpdating
                 ? "Saving..."
                 : isEditMode
-                ? "Update Rule"
-                : "Create Rule"}
+                ? "Update Prompt"
+                : "Create Prompt"}
             </Button>
           </DialogFooter>
         </form>

@@ -71,7 +71,7 @@ export const VirtualizedArtifactPanel = <TType extends ArtifactSummaryType>({
         }
         deleteAriaLabel={`Delete ${artifact.title}`}
         appliedRuleNames={artifact.appliedRuleIds?.map(
-          (id) => ruleNamesMap?.get(id) ?? 'Unknown rule',
+          (id) => ruleNamesMap?.get(id) ?? 'Unknown prompt',
         )}
         completedAt={artifact.completedAt}
         generationModel={artifact.generationModel}

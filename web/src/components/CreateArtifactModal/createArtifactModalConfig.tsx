@@ -83,7 +83,7 @@ export const CREATE_ARTIFACT_MODAL_CONFIG: Record<
     additionalPromptPlaceholder:
       'e.g. Focus on sentence construction, decompose algorithm steps, use historical events, etc.',
     additionalPromptHelperText:
-      'Specialise how sequences are generated. Without rules, Gemini infers meaningful orderings from the source content.',
+      'Specialise how sequences are generated. Without prompts, Gemini infers meaningful orderings from the source content.',
     ruleApplicability: RuleApplicability.SEQUENCE_QUIZ,
     generateLabels: {
       single: 'Generate sequence quiz',
@@ -98,7 +98,7 @@ export const CREATE_ARTIFACT_MODAL_CONFIG: Record<
     additionalPromptPlaceholder:
       'e.g. Focus on key terminology, match concepts to definitions, use historically paired figures, etc.',
     additionalPromptHelperText:
-      'Specialise how match pairs are generated. Without rules, the model infers meaningful prompt-to-option pairings from the source content.',
+      'Specialise how match pairs are generated. Without prompts, the model infers meaningful prompt-to-option pairings from the source content.',
     ruleApplicability: RuleApplicability.QUIZ,
     generateLabels: {
       single: 'Generate match quiz',

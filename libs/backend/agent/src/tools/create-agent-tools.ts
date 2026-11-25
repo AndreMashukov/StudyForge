@@ -1435,7 +1435,7 @@ export function createAgentToolDefinitions(
         });
         pushAction(context, {
           kind: 'create_rule',
-          summary: `Created rule "${rule.name}"`,
+          summary: `Created prompt "${rule.name}"`,
           entityType: 'rule',
           entityId: rule.id,
         });
@@ -1508,7 +1508,7 @@ export function createAgentToolDefinitions(
         });
         pushAction(context, {
           kind: 'create_rule_from_blueprint',
-          summary: `Created rule "${rule.name}" from blueprint`,
+          summary: `Created prompt "${rule.name}" from a template`,
           entityType: 'rule',
           entityId: rule.id,
         });
@@ -1598,7 +1598,7 @@ export function createAgentToolDefinitions(
         const rule = await updateRule(context.userId, updateRequest);
         pushAction(context, {
           kind: 'update_rule',
-          summary: `Updated rule "${rule.name}"`,
+          summary: `Updated prompt "${rule.name}"`,
           entityType: 'rule',
           entityId: rule.id,
         });
@@ -1633,7 +1633,7 @@ export function createAgentToolDefinitions(
         const directoryLabel = directory?.path ?? directoryId;
         pushAction(context, {
           kind: 'attach_rule',
-          summary: `Attached rule to ${directoryLabel}`,
+          summary: `Attached prompt to ${directoryLabel}`,
           entityType: 'rule',
           entityId: ruleId,
         });
@@ -1662,7 +1662,7 @@ export function createAgentToolDefinitions(
         await detachRuleFromDirectory(context.userId, ruleId, directoryId);
         pushAction(context, {
           kind: 'detach_rule',
-          summary: 'Detached rule from directory',
+          summary: 'Detached prompt from directory',
           entityType: 'rule',
           entityId: ruleId,
         });

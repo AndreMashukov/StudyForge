@@ -33,7 +33,7 @@ const getApplicabilityLabel = (applicability: RuleApplicability): string => {
   const labels: Record<RuleApplicability, string> = {
     [RuleApplicability.SCRAPING]: 'Scraping',
     [RuleApplicability.UPLOAD]: 'Upload',
-    [RuleApplicability.PROMPT]: 'Prompt',
+    [RuleApplicability.PROMPT]: 'AI Document',
     [RuleApplicability.QUIZ]: 'Quiz',
     [RuleApplicability.FLASHCARD]: 'Flashcard',
     [RuleApplicability.FLASHCARD_DESC]: 'Flashcard Description',
@@ -82,7 +82,7 @@ export const RuleCard = ({
             <BulkSelectCheckbox
               checked={selected}
               onCheckedChange={onSelectChange}
-              label={`Select rule ${rule.name}`}
+              label={`Select prompt ${rule.name}`}
               className="mt-1"
             />
           )}

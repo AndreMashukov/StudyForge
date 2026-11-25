@@ -40,7 +40,7 @@ export const studyNavigationItems: ISidebarNavigationItem[] = [
 ];
 
 export const toolNavigationItems: ISidebarNavigationItem[] = [
-  { id: 'rules', title: 'Rules', path: '/rules', icon: Sparkles },
+  { id: 'rules', title: 'Prompts', path: '/rules', icon: Sparkles },
 ];
 
 export const usageNavigationItem: ISidebarNavigationItem = {
