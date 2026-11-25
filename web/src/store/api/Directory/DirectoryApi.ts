@@ -16,6 +16,10 @@ import {
   IBulkOperationResponse,
   ReorderDirectoryItemsRequest,
   ReorderDirectoryItemsResponse,
+  ReorderDirectoriesRequest,
+  ReorderDirectoriesResponse,
+  ResetDirectoryOrderRequest,
+  sortFoldersForDisplay,
 } from '@shared-types';
 import { auth } from '../../../config/firebase';
 import {
@@ -39,6 +43,11 @@ import {
   getDirectoryByPathFromFirestore,
 } from '../../../services/directoryMutations';
 import { reorderDirectoryItems } from '../../../services/directoryItemIndexMutations';
+import {
+  reorderDirectoriesInFirestore,
+  resetDirectoryOrderInFirestore,
+} from '../../../services/directoryOrder';
+import { applyFolderOrderToTree } from '../../../utils/directoryTreeUtils';
 import { moveDocumentInFirestore } from '../../../services/documentMutations';
 import { executeBulkOperation } from '../../../services/bulkOperation';
 import {
@@ -47,9 +56,7 @@ import {
   notFoundError,
 } from '../../../services/firestoreReadUtils';
 import { resolveDirectoryRulesClient } from '../../../services/directoryRulesResolution';
-import {
-  fetchQuizFromFirestore,
-} from '../../../services/quizFirestore';
+import { fetchQuizFromFirestore } from '../../../services/quizFirestore';
 import {
   fetchFlashcardSetFromFirestore,
   fetchSlideDeckFromFirestore,
@@ -76,7 +83,11 @@ function mutationError(error: unknown) {
   return customError(error instanceof Error ? error.message : 'Unknown error');
 }
 
-function buildRootDirectory(userId: string, subdirCount: number, docCount: number): Directory {
+function buildRootDirectory(
+  userId: string,
+  subdirCount: number,
+  docCount: number,
+): Directory {
   return {
     id: 'root',
     userId,
@@ -96,7 +107,9 @@ function buildRootDirectory(userId: string, subdirCount: number, docCount: numbe
   };
 }
 
-async function fetchRootDirectoryContents(userId: string): Promise<GetDirectoryContentsResponse> {
+async function fetchRootDirectoryContents(
+  userId: string,
+): Promise<GetDirectoryContentsResponse> {
   const subdirSnap = await getDocs(
     query(
       collection(db, 'users', userId, 'directories'),
@@ -113,15 +126,21 @@ async function fetchRootDirectoryContents(userId: string): Promise<GetDirectoryC
     ),
   );
 
-  const subdirectories = subdirSnap.docs.map((docSnap) =>
-    toFirestoreDoc<Directory>(docSnap.id, docSnap.data()),
+  const subdirectories = sortFoldersForDisplay(
+    subdirSnap.docs.map((docSnap) =>
+      toFirestoreDoc<Directory>(docSnap.id, docSnap.data()),
+    ),
   );
   const documents = docsSnap.docs.map((docSnap) =>
     toFirestoreDoc<DocumentEnhanced>(docSnap.id, docSnap.data()),
   );
 
   return {
-    directory: buildRootDirectory(userId, subdirectories.length, documents.length),
+    directory: buildRootDirectory(
+      userId,
+      subdirectories.length,
+      documents.length,
+    ),
     subdirectories,
     documents,
     totalCount: subdirectories.length + documents.length,
@@ -193,7 +212,10 @@ export const directoryApi = baseApi.injectEndpoints({
         if (!userId) return authRequiredError();
 
         try {
-          const directory = await fetchDirectoryFromFirestore(userId, directoryId);
+          const directory = await fetchDirectoryFromFirestore(
+            userId,
+            directoryId,
+          );
           if (!directory) return notFoundError('Directory not found');
           return { data: directory };
         } catch (error) {
@@ -255,7 +277,9 @@ export const directoryApi = baseApi.injectEndpoints({
             items: directoryIds,
             getItemId: (id) => id,
             runItem: (directoryId) =>
-              deleteDirectoryInFirestore(userId, directoryId).then(() => undefined),
+              deleteDirectoryInFirestore(userId, directoryId).then(
+                () => undefined,
+              ),
           });
           return { data: result };
         } catch (error) {
@@ -324,10 +348,16 @@ export const directoryApi = baseApi.injectEndpoints({
         if (!userId) return authRequiredError();
 
         try {
-          const data = await fetchDirectoryContentsFromFirestore(userId, directoryId);
+          const data = await fetchDirectoryContentsFromFirestore(
+            userId,
+            directoryId,
+          );
           return { data };
         } catch (error) {
-          if (error instanceof Error && error.message === 'Directory not found') {
+          if (
+            error instanceof Error &&
+            error.message === 'Directory not found'
+          ) {
             return notFoundError('Directory not found');
           }
           return mutationError(error);
@@ -348,24 +378,42 @@ export const directoryApi = baseApi.injectEndpoints({
         if (!userId) return authRequiredError();
 
         try {
-          const base = await fetchDirectoryContentsFromFirestore(userId, directoryId);
+          const base = await fetchDirectoryContentsFromFirestore(
+            userId,
+            directoryId,
+          );
           const limitCount = Math.min(artifactLimit ?? 20, 100);
 
-          const quizzes: GetDirectoryContentsWithArtifactsResponse['quizzes'] = [];
-          const flashcardSets: GetDirectoryContentsWithArtifactsResponse['flashcardSets'] = [];
-          const slideDecks: GetDirectoryContentsWithArtifactsResponse['slideDecks'] = [];
-          const diagramQuizzes: GetDirectoryContentsWithArtifactsResponse['diagramQuizzes'] = [];
-          const sequenceQuizzes: GetDirectoryContentsWithArtifactsResponse['sequenceQuizzes'] = [];
-          const matchQuizzes: GetDirectoryContentsWithArtifactsResponse['matchQuizzes'] = [];
-          let resolvedRules: GetDirectoryContentsWithArtifactsResponse['resolvedRules'] = {
-            rules: [],
-            inheritanceMap: {},
-          };
+          const quizzes: GetDirectoryContentsWithArtifactsResponse['quizzes'] =
+            [];
+          const flashcardSets: GetDirectoryContentsWithArtifactsResponse['flashcardSets'] =
+            [];
+          const slideDecks: GetDirectoryContentsWithArtifactsResponse['slideDecks'] =
+            [];
+          const diagramQuizzes: GetDirectoryContentsWithArtifactsResponse['diagramQuizzes'] =
+            [];
+          const sequenceQuizzes: GetDirectoryContentsWithArtifactsResponse['sequenceQuizzes'] =
+            [];
+          const matchQuizzes: GetDirectoryContentsWithArtifactsResponse['matchQuizzes'] =
+            [];
+          let resolvedRules: GetDirectoryContentsWithArtifactsResponse['resolvedRules'] =
+            {
+              rules: [],
+              inheritanceMap: {},
+            };
 
           if (directoryId) {
-            const items = await fetchDirectoryItemsFromFirestore(userId, directoryId);
+            const items = await fetchDirectoryItemsFromFirestore(
+              userId,
+              directoryId,
+            );
             const selectedByType: Record<
-              'quiz' | 'flashcard' | 'slideDeck' | 'diagramQuiz' | 'sequenceQuiz' | 'matchQuiz',
+              | 'quiz'
+              | 'flashcard'
+              | 'slideDeck'
+              | 'diagramQuiz'
+              | 'sequenceQuiz'
+              | 'matchQuiz',
               typeof items
             > = {
               quiz: [],
@@ -378,12 +426,12 @@ export const directoryApi = baseApi.injectEndpoints({
 
             for (const item of items) {
               if (
-                item.itemType !== 'quiz'
-                && item.itemType !== 'flashcard'
-                && item.itemType !== 'slideDeck'
-                && item.itemType !== 'diagramQuiz'
-                && item.itemType !== 'sequenceQuiz'
-                && item.itemType !== 'matchQuiz'
+                item.itemType !== 'quiz' &&
+                item.itemType !== 'flashcard' &&
+                item.itemType !== 'slideDeck' &&
+                item.itemType !== 'diagramQuiz' &&
+                item.itemType !== 'sequenceQuiz' &&
+                item.itemType !== 'matchQuiz'
               ) {
                 continue;
               }
@@ -402,30 +450,58 @@ export const directoryApi = baseApi.injectEndpoints({
               ...selectedByType.matchQuiz,
             ];
 
-            const fetchArtifact = async (item: (typeof artifactItems)[number]) => {
+            const fetchArtifact = async (
+              item: (typeof artifactItems)[number],
+            ) => {
               switch (item.itemType) {
                 case 'quiz': {
-                  const quiz = await fetchQuizFromFirestore(userId, item.sourceId);
+                  const quiz = await fetchQuizFromFirestore(
+                    userId,
+                    item.sourceId,
+                  );
                   return quiz ? { type: 'quiz' as const, value: quiz } : null;
                 }
                 case 'flashcard': {
-                  const set = await fetchFlashcardSetFromFirestore(userId, item.sourceId);
-                  return set ? { type: 'flashcard' as const, value: set } : null;
+                  const set = await fetchFlashcardSetFromFirestore(
+                    userId,
+                    item.sourceId,
+                  );
+                  return set
+                    ? { type: 'flashcard' as const, value: set }
+                    : null;
                 }
                 case 'slideDeck': {
-                  const deck = await fetchSlideDeckFromFirestore(userId, item.sourceId);
-                  return deck ? { type: 'slideDeck' as const, value: deck } : null;
+                  const deck = await fetchSlideDeckFromFirestore(
+                    userId,
+                    item.sourceId,
+                  );
+                  return deck
+                    ? { type: 'slideDeck' as const, value: deck }
+                    : null;
                 }
                 case 'diagramQuiz': {
-                  const dq = await fetchDiagramQuizFromFirestore(userId, item.sourceId);
-                  return dq ? { type: 'diagramQuiz' as const, value: dq } : null;
+                  const dq = await fetchDiagramQuizFromFirestore(
+                    userId,
+                    item.sourceId,
+                  );
+                  return dq
+                    ? { type: 'diagramQuiz' as const, value: dq }
+                    : null;
                 }
                 case 'sequenceQuiz': {
-                  const sq = await fetchSequenceQuizFromFirestore(userId, item.sourceId);
-                  return sq ? { type: 'sequenceQuiz' as const, value: sq } : null;
+                  const sq = await fetchSequenceQuizFromFirestore(
+                    userId,
+                    item.sourceId,
+                  );
+                  return sq
+                    ? { type: 'sequenceQuiz' as const, value: sq }
+                    : null;
                 }
                 case 'matchQuiz': {
-                  const mq = await fetchMatchQuizFromFirestore(userId, item.sourceId);
+                  const mq = await fetchMatchQuizFromFirestore(
+                    userId,
+                    item.sourceId,
+                  );
                   return mq ? { type: 'matchQuiz' as const, value: mq } : null;
                 }
                 default:
@@ -442,28 +518,37 @@ export const directoryApi = baseApi.injectEndpoints({
                   if (quizzes.length < limitCount) quizzes.push(entry.value);
                   break;
                 case 'flashcard':
-                  if (flashcardSets.length < limitCount) flashcardSets.push(entry.value);
+                  if (flashcardSets.length < limitCount)
+                    flashcardSets.push(entry.value);
                   break;
                 case 'slideDeck':
-                  if (slideDecks.length < limitCount) slideDecks.push(entry.value);
+                  if (slideDecks.length < limitCount)
+                    slideDecks.push(entry.value);
                   break;
                 case 'diagramQuiz':
-                  if (diagramQuizzes.length < limitCount) diagramQuizzes.push(entry.value);
+                  if (diagramQuizzes.length < limitCount)
+                    diagramQuizzes.push(entry.value);
                   break;
                 case 'sequenceQuiz':
-                  if (sequenceQuizzes.length < limitCount) sequenceQuizzes.push(entry.value);
+                  if (sequenceQuizzes.length < limitCount)
+                    sequenceQuizzes.push(entry.value);
                   break;
                 case 'matchQuiz':
-                  if (matchQuizzes.length < limitCount) matchQuizzes.push(entry.value);
+                  if (matchQuizzes.length < limitCount)
+                    matchQuizzes.push(entry.value);
                   break;
                 default:
                   break;
               }
             }
 
-            resolvedRules = await resolveDirectoryRulesClient(userId, directoryId, {
-              includeAncestors: true,
-            });
+            resolvedRules = await resolveDirectoryRulesClient(
+              userId,
+              directoryId,
+              {
+                includeAncestors: true,
+              },
+            );
           }
 
           return {
@@ -479,7 +564,10 @@ export const directoryApi = baseApi.injectEndpoints({
             },
           };
         } catch (error) {
-          if (error instanceof Error && error.message === 'Directory not found') {
+          if (
+            error instanceof Error &&
+            error.message === 'Directory not found'
+          ) {
             return notFoundError('Directory not found');
           }
           return mutationError(error);
@@ -583,35 +671,37 @@ export const directoryApi = baseApi.injectEndpoints({
       keepUnusedDataFor: 300,
     }),
 
-    getDirectoryAncestors: builder.query<GetDirectoryAncestorsResponse, string>({
-      async queryFn(directoryId, api) {
-        const userId = auth.currentUser?.uid;
-        if (!userId) return authRequiredError();
+    getDirectoryAncestors: builder.query<GetDirectoryAncestorsResponse, string>(
+      {
+        async queryFn(directoryId, api) {
+          const userId = auth.currentUser?.uid;
+          if (!userId) return authRequiredError();
 
-        const state = api.getState() as RootState;
-        const cachedTree =
-          directoryApi.endpoints.getDirectoryTree.select()(state).data;
-        if (cachedTree) {
-          const derived = deriveAncestorsFromTree(cachedTree, directoryId);
-          if (derived) {
-            return { data: derived };
+          const state = api.getState() as RootState;
+          const cachedTree =
+            directoryApi.endpoints.getDirectoryTree.select()(state).data;
+          if (cachedTree) {
+            const derived = deriveAncestorsFromTree(cachedTree, directoryId);
+            if (derived) {
+              return { data: derived };
+            }
           }
-        }
 
-        try {
-          const tree = await fetchDirectoryTreeFromFirestore(userId);
-          const derived = deriveAncestorsFromTree(tree, directoryId);
-          if (!derived) return notFoundError('Directory not found');
-          return { data: derived };
-        } catch (error) {
-          return mutationError(error);
-        }
+          try {
+            const tree = await fetchDirectoryTreeFromFirestore(userId);
+            const derived = deriveAncestorsFromTree(tree, directoryId);
+            if (!derived) return notFoundError('Directory not found');
+            return { data: derived };
+          } catch (error) {
+            return mutationError(error);
+          }
+        },
+        providesTags: (_result, _error, directoryId) => [
+          { type: 'Directory', id: `ANCESTORS_${directoryId}` },
+        ],
+        keepUnusedDataFor: 300,
       },
-      providesTags: (_result, _error, directoryId) => [
-        { type: 'Directory', id: `ANCESTORS_${directoryId}` },
-      ],
-      keepUnusedDataFor: 300,
-    }),
+    ),
 
     moveDirectory: builder.mutation<
       MoveDirectoryResponse,
@@ -702,6 +792,76 @@ export const directoryApi = baseApi.injectEndpoints({
         }
       },
     }),
+
+    reorderDirectories: builder.mutation<
+      ReorderDirectoriesResponse,
+      ReorderDirectoriesRequest
+    >({
+      async queryFn(data) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          return { data: await reorderDirectoriesInFirestore(userId, data) };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
+      async onQueryStarted(
+        { parentId, orderedDirectoryIds },
+        { dispatch, queryFulfilled },
+      ) {
+        const positions = new Map(
+          orderedDirectoryIds.map((directoryId, index) => [directoryId, index]),
+        );
+        const patch = dispatch(
+          directoryApi.util.updateQueryData(
+            'getDirectoryTree',
+            undefined,
+            (draft) => {
+              applyFolderOrderToTree(draft.tree, parentId, (directoryId) =>
+                positions.get(directoryId),
+              );
+            },
+          ),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+    }),
+
+    resetDirectoryOrder: builder.mutation<
+      ReorderDirectoriesResponse,
+      ResetDirectoryOrderRequest
+    >({
+      async queryFn(data) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          return { data: await resetDirectoryOrderInFirestore(userId, data) };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
+      async onQueryStarted({ parentId }, { dispatch, queryFulfilled }) {
+        const patch = dispatch(
+          directoryApi.util.updateQueryData(
+            'getDirectoryTree',
+            undefined,
+            (draft) => {
+              applyFolderOrderToTree(draft.tree, parentId, () => undefined);
+            },
+          ),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+    }),
   }),
 });
 
@@ -720,4 +880,6 @@ export const {
   useGetDirectoryByPathQuery,
   useMoveDocumentMutation,
   useReorderDirectoryItemsMutation,
+  useReorderDirectoriesMutation,
+  useResetDirectoryOrderMutation,
 } = directoryApi;

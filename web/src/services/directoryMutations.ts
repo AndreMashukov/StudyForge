@@ -1,5 +1,6 @@
 import {
   deleteDoc,
+  deleteField,
   getDocs,
   increment,
   limit,
@@ -418,6 +419,8 @@ export async function moveDirectoryInFirestore(
     parentId: request.targetParentId ?? null,
     path: newPath,
     level: newLevel,
+    // Its position belonged to the old parent; it joins the new one at the end.
+    sortOrder: deleteField(),
     updatedAt: serverTimestamp(),
   });
 

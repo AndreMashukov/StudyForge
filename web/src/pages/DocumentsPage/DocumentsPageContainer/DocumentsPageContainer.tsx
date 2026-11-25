@@ -23,6 +23,8 @@ import { CreateDirectoryDialog } from './CreateDirectoryDialog';
 import { EditDirectoryDialog } from './EditDirectoryDialog';
 import { DeleteDirectoryDialog } from './DeleteDirectoryDialog';
 import { MoveDirectoryDialog } from './MoveDirectoryDialog';
+import { SortableFolderGrid } from './SortableFolderGrid';
+import { useFolderOrderHandlers } from '../context/hooks/useFolderOrderHandlers';
 import { documentsPageStyles } from './DocumentsPageContainer.styles';
 import {
   Plus,
@@ -38,11 +40,13 @@ import {
   Loader2,
   Globe,
   Upload,
+  ArrowDownAZ,
 } from 'lucide-react';
 import {
   DocumentEnhanced,
   Directory,
   getDocumentFallbackColor,
+  hasManualFolderOrder,
 } from '@shared-types';
 import { formatDate } from '../../../utils/dateUtils';
 import {
@@ -155,6 +159,8 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
     [directoryContents?.documents],
   );
   const isRoot = !selectedDirectoryId;
+  const folderOrder = useFolderOrderHandlers(selectedDirectoryId || null);
+  const showSortFoldersAZ = hasManualFolderOrder(subdirectories);
   const gridColumns = useGridColumns({ default: 1, sm: 2, lg: 3 });
   const isLoadingDocuments = isLoadingContents && !directoryContents;
   const showRootLoadingIndicator =
@@ -491,27 +497,35 @@ export const DocumentsPageContainer = (): React.JSX.Element => {
                 {/* Folders Section */}
                 {subdirectories.length > 0 && (
                   <div className="px-4 md:px-6 space-y-3">
-                    {!isRoot && (
-                      <h2 className="text-lg font-semibold">Folders</h2>
-                    )}
-                    {isRoot ? (
-                      <div className={documentsPageStyles.documentsGrid}>
-                        {subdirectories.map((dir: Directory) => (
-                          <React.Fragment key={dir.id}>
-                            {renderFolderCard(dir)}
-                          </React.Fragment>
-                        ))}
+                    {(!isRoot || showSortFoldersAZ) && (
+                      <div className="flex items-center justify-between gap-2">
+                        {!isRoot ? (
+                          <h2 className="text-lg font-semibold">Folders</h2>
+                        ) : (
+                          <span />
+                        )}
+                        {showSortFoldersAZ && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={folderOrder.handleResetFolderOrder}
+                            disabled={folderOrder.isResettingFolderOrder}
+                          >
+                            <ArrowDownAZ size={16} aria-hidden="true" />
+                            Sort A–Z
+                          </Button>
+                        )}
                       </div>
-                    ) : (
-                      <VirtualizedGrid
-                        items={subdirectories}
-                        columns={gridColumns}
-                        scrollMode="window"
-                        estimateRowSize={140}
-                        gap={16}
-                        renderItem={renderFolderCard}
-                      />
                     )}
+                    <SortableFolderGrid
+                      folders={subdirectories}
+                      renderFolder={renderFolderCard}
+                      onReorder={folderOrder.handleReorderFolders}
+                      disabled={isMobile}
+                      className={documentsPageStyles.documentsGrid}
+                    />
                   </div>
                 )}
 

@@ -17,6 +17,7 @@ import { getRecentlyOpened } from '../../lib/storage/recentlyOpened';
 import { itemHref, itemIcon } from '../library/itemNavigation';
 import { isAgentReferencedItemType } from '../library/libraryTypes';
 import { useShellStore } from './shellStore';
+import { compareFolderOrder } from '@shared-types';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -96,8 +97,7 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
           : null;
       map.set(parent, [...(map.get(parent) ?? []), directory]);
     }
-    for (const list of map.values())
-      list.sort((a, b) => a.name.localeCompare(b.name));
+    for (const list of map.values()) list.sort(compareFolderOrder);
     return map;
   }, [directories]);
   const recent = useMemo(

@@ -106,6 +106,7 @@ export function subdirectoryToDirectoryItem(
     color: typeof raw.color === 'string' ? raw.color : undefined,
     icon: typeof raw.icon === 'string' ? raw.icon : undefined,
     sortName: name.toLowerCase(),
+    sortOrder: typeof raw.sortOrder === 'number' ? raw.sortOrder : undefined,
   });
 }
 

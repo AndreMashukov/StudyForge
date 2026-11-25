@@ -23,6 +23,7 @@ import { getCallableErrorMessage } from '../../lib/api/studyforgeApi';
 import { flattenTree, getBreadcrumbs, sortItems } from './libraryUtils';
 import { useDirectoryItems, useLiveDirectoryTree } from './libraryData';
 import { LibraryItemRow } from './libraryRows';
+import { compareFolderOrder } from '@shared-types';
 
 type Segment = 'documents' | 'artifacts' | 'chats';
 
@@ -59,7 +60,7 @@ export function DirectoryScreen() {
     () =>
       directories
         .filter((entry) => entry.parentId === directoryId)
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        .sort(compareFolderOrder),
     [directories, directoryId],
   );
   const items = useMemo(
