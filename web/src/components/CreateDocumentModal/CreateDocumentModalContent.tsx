@@ -16,8 +16,12 @@ import type { RootState } from '../../store';
 
 export const CreateDocumentModalContent: React.FC = () => {
   const { isReady = false } = useCreateDocumentPageContext();
-  const selectedSource = useSelector((state: RootState) => selectSelectedSource(state));
-  const error = useSelector((state: RootState) => selectCreateDocumentPageError(state));
+  const selectedSource = useSelector((state: RootState) =>
+    selectSelectedSource(state),
+  );
+  const error = useSelector((state: RootState) =>
+    selectCreateDocumentPageError(state),
+  );
   const isFormVisible = Boolean(selectedSource);
 
   return (
@@ -32,32 +36,37 @@ export const CreateDocumentModalContent: React.FC = () => {
         </div>
       ) : null}
 
-      <div
-        className={cn(
-          createDocumentPageStyles.splitLayout,
-          'min-h-0 flex-1 overflow-y-auto p-4',
-        )}
-      >
-        <SourceListPanel />
+      {/* Scroll on a wrapper: a grid that is its own scroll container does not
+          grow its row to fit, so a tall form spilled out of the card. */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div
+          className={cn(createDocumentPageStyles.splitLayout, 'items-start')}
+        >
+          <SourceListPanel />
 
-        <div className={createDocumentPageStyles.formPanel}>
-          {!isReady ? (
-            <div className="flex h-full min-h-[280px] items-center justify-center">
-              <Spinner size="md" />
-            </div>
-          ) : isFormVisible ? (
-            <FormRenderer />
-          ) : (
-            <div className={createDocumentPageStyles.emptyState}>
-              <FileText className="mb-4 h-12 w-12 text-muted-foreground" aria-hidden />
-              <h3 className={createDocumentPageStyles.emptyStateTitle}>
-                Select a source type
-              </h3>
-              <p className={createDocumentPageStyles.emptyStateDesc}>
-                Choose a source type from the panel on the left to start creating your document.
-              </p>
-            </div>
-          )}
+          <div className={createDocumentPageStyles.formPanel}>
+            {!isReady ? (
+              <div className="flex h-full min-h-[280px] items-center justify-center">
+                <Spinner size="md" />
+              </div>
+            ) : isFormVisible ? (
+              <FormRenderer />
+            ) : (
+              <div className={createDocumentPageStyles.emptyState}>
+                <FileText
+                  className="mb-4 h-12 w-12 text-muted-foreground"
+                  aria-hidden
+                />
+                <h3 className={createDocumentPageStyles.emptyStateTitle}>
+                  Select a source type
+                </h3>
+                <p className={createDocumentPageStyles.emptyStateDesc}>
+                  Choose a source type from the panel on the left to start
+                  creating your document.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
