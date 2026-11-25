@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '../../components/ui/DropdownMenu';
 import {
+  ArrowDownAZ,
   ArrowLeft,
   ChevronDown,
   ChevronRight,
@@ -34,12 +35,15 @@ import {
   Trash2,
   Shield,
 } from 'lucide-react';
-import { DocumentEnhanced, Directory, ArtifactSummary } from '@shared-types';
+import { DocumentEnhanced, Directory, ArtifactSummary, hasManualFolderOrder } from '@shared-types';
 import { ICON_MAP } from '../DocumentsPage/DocumentsPageContainer/folderConstants';
 import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/CreateDirectoryDialog';
 import { EditDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/EditDirectoryDialog';
 import { DeleteDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/DeleteDirectoryDialog';
 import { MoveDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/MoveDirectoryDialog';
+import { SortableFolderGrid } from '../DocumentsPage/DocumentsPageContainer/SortableFolderGrid';
+import { useFolderOrderHandlers } from '../DocumentsPage/context/hooks/useFolderOrderHandlers';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { DeleteDocumentDialog } from './DeleteDocumentDialog';
 import { MoveDocumentDialog } from './MoveDocumentDialog';
 import { DeleteArtifactDialog, ArtifactToDelete } from './DeleteArtifactDialog';
@@ -102,6 +106,8 @@ export const DirectoryDetailPageContainer = () => {
   const [createArtifactModal, setCreateArtifactModal] = useState<ICreateArtifactModalOpenState | null>(null);
   const [createDocumentModalOpen, setCreateDocumentModalOpen] = useState(false);
   const [subfolderPillsOpen, setSubfolderPillsOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const subfolderOrder = useFolderOrderHandlers(directoryId ?? null);
 
   const handleOpenCreateArtifact = useCallback(
     (artifactType: CreateArtifactModalType, preselectedDocumentIds?: string[]) => {
@@ -379,73 +385,93 @@ export const DirectoryDetailPageContainer = () => {
                 {subfolderPillsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </Button>
               {subfolderPillsOpen && (
-                <div className="flex flex-wrap gap-2 min-w-0">
-              {subdirectories.map((sub: Directory) => {
-                const IconComponent = ICON_MAP[sub.icon || 'Folder'] || Folder;
-                return (
-                  <div
-                    key={sub.id}
-                    className="group/pill inline-flex items-center gap-0.5 rounded-full border border-border text-sm hover:bg-muted/50 transition-colors"
-                  >
-                    <Link
-                      to={buildDirectoryPath(sub)}
-                      state={buildChildDirectoryNavigationState(dir, location.state)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1"
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <SortableFolderGrid
+                    folders={subdirectories}
+                    onReorder={subfolderOrder.handleReorderFolders}
+                    disabled={isMobile}
+                    className="contents"
+                    tileClassName="rounded-full"
+                    renderFolder={(sub: Directory) => {
+                      const IconComponent = ICON_MAP[sub.icon || 'Folder'] || Folder;
+                      return (
+                        <div
+                          className="group/pill inline-flex items-center gap-0.5 rounded-full border border-border text-sm hover:bg-muted/50 transition-colors"
+                        >
+                          <Link
+                            to={buildDirectoryPath(sub)}
+                            draggable={false}
+                            state={buildChildDirectoryNavigationState(dir, location.state)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1"
+                          >
+                            <IconComponent
+                              size={14}
+                              color={sub.color || undefined}
+                              className={sub.color ? 'shrink-0' : 'text-primary shrink-0'}
+                            />
+                            {sub.name}
+                          </Link>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 rounded-full text-muted-foreground hover:text-foreground"
+                                onClick={(e) => e.stopPropagation()}
+                                aria-label={`Actions for ${sub.name}`}
+                              >
+                                <MoreVertical size={14} />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => setEditDialog({ directory: sub })}
+                              >
+                                <Pencil size={14} className="mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setMoveDirectoryDialog({ directory: sub })}
+                              >
+                                <FolderInput size={14} className="mr-2" />
+                                Move to...
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  navigate(
+                                    buildDirectoryPathWithOptionalName(sub.id, sub.name, 'rules'),
+                                  )
+                                }
+                              >
+                                <Shield size={14} className="mr-2" />
+                                Manage rules
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteDialog({ directory: sub })}
+                              >
+                                <Trash2 size={14} className="mr-2" />
+                                Delete folder
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      );
+                    }}
+                  />
+                  {hasManualFolderOrder(subdirectories) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+                      onClick={subfolderOrder.handleResetFolderOrder}
+                      disabled={subfolderOrder.isResettingFolderOrder}
                     >
-                      <IconComponent
-                        size={14}
-                        color={sub.color || undefined}
-                        className={sub.color ? 'shrink-0' : 'text-primary shrink-0'}
-                      />
-                      {sub.name}
-                    </Link>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 rounded-full text-muted-foreground hover:text-foreground"
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label={`Actions for ${sub.name}`}
-                        >
-                          <MoreVertical size={14} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => setEditDialog({ directory: sub })}
-                        >
-                          <Pencil size={14} className="mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setMoveDirectoryDialog({ directory: sub })}
-                        >
-                          <FolderInput size={14} className="mr-2" />
-                          Move to...
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            navigate(
-                              buildDirectoryPathWithOptionalName(sub.id, sub.name, 'rules'),
-                            )
-                          }
-                        >
-                          <Shield size={14} className="mr-2" />
-                          Manage rules
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setDeleteDialog({ directory: sub })}
-                        >
-                          <Trash2 size={14} className="mr-2" />
-                          Delete folder
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                );
-              })}
+                      <ArrowDownAZ size={16} aria-hidden="true" />
+                      Sort A–Z
+                    </Button>
+                  )}
                 </div>
               )}
             </div>

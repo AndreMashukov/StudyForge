@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Directory, DirectoryTreeNode } from '@shared-types';
 import {
+  applyFolderOrderToFolders,
   applyFolderOrderToTree,
   buildDirectoryTreeFromDirectories,
 } from './directoryTreeUtils';
@@ -73,5 +74,20 @@ describe('applyFolderOrderToTree', () => {
     applyFolderOrderToTree(tree, null, () => undefined);
     expect(names(tree)).toEqual(['Ant', 'Zoo']);
     expect(tree[0].directory.sortOrder).toBeUndefined();
+  });
+});
+
+describe('applyFolderOrderToFolders', () => {
+  it('sets positions on sibling folders and re-sorts them', () => {
+    const folders = [folder('a', 'Ant', 'p'), folder('z', 'Zoo', 'p')];
+    const positions = new Map([
+      ['z', 0],
+      ['a', 1],
+    ]);
+    applyFolderOrderToFolders(folders, (id) => positions.get(id));
+    expect(folders.map((f) => f.name)).toEqual(['Zoo', 'Ant']);
+    applyFolderOrderToFolders(folders, () => undefined);
+    expect(folders.map((f) => f.name)).toEqual(['Ant', 'Zoo']);
+    expect(folders[0].sortOrder).toBeUndefined();
   });
 });

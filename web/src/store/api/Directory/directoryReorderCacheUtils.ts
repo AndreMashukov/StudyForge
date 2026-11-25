@@ -9,6 +9,7 @@ import {
 import type { AppDispatch, RootState } from '../../index';
 import { baseApi } from '../baseApi';
 import { directoryApi } from './DirectoryApi';
+import { applyFolderOrderToFolders } from '../../../utils/directoryTreeUtils';
 
 interface DirectoryContentsQueryArgs {
   directoryId: string | null;
@@ -113,6 +114,40 @@ export function patchReorderInAllDirectoryContentsCaches(
       );
     },
     directoryId,
+  );
+  return patches;
+}
+
+/**
+ * Applies a new subfolder order to every cached contents view of `parentId`
+ * (the subfolder pills on the folder page). Top level (null) has no such view.
+ */
+export function patchSubfolderOrderInContentsCaches(
+  dispatch: AppDispatch,
+  getState: () => RootState,
+  parentId: string | null,
+  orderFor: (directoryId: string) => number | undefined,
+): Array<{ undo: () => void }> {
+  if (!parentId) {
+    return [];
+  }
+  const patches: Array<{ undo: () => void }> = [];
+  forEachDirectoryContentsCache(
+    getState(),
+    (args) => {
+      patches.push(
+        dispatch(
+          directoryApi.util.updateQueryData(
+            'getDirectoryContentsWithArtifactSummaries',
+            args,
+            (draft) => {
+              applyFolderOrderToFolders(draft.subdirectories, orderFor);
+            },
+          ),
+        ),
+      );
+    },
+    parentId,
   );
   return patches;
 }

@@ -65,7 +65,10 @@ import {
   fetchMatchQuizFromFirestore,
 } from '../../../services/artifactFirestore';
 import { upsertSubdirectoryInDirectoryCaches } from '../../../hooks/directoryRealtimeCacheUtils';
-import { patchReorderInAllDirectoryContentsCaches } from './directoryReorderCacheUtils';
+import {
+  patchReorderInAllDirectoryContentsCaches,
+  patchSubfolderOrderInContentsCaches,
+} from './directoryReorderCacheUtils';
 import type { RootState } from '../../index';
 import {
   collection,
@@ -808,26 +811,33 @@ export const directoryApi = baseApi.injectEndpoints({
       },
       async onQueryStarted(
         { parentId, orderedDirectoryIds },
-        { dispatch, queryFulfilled },
+        { dispatch, getState, queryFulfilled },
       ) {
         const positions = new Map(
           orderedDirectoryIds.map((directoryId, index) => [directoryId, index]),
         );
-        const patch = dispatch(
-          directoryApi.util.updateQueryData(
-            'getDirectoryTree',
-            undefined,
-            (draft) => {
-              applyFolderOrderToTree(draft.tree, parentId, (directoryId) =>
-                positions.get(directoryId),
-              );
-            },
+        const orderFor = (directoryId: string) => positions.get(directoryId);
+        const patches = [
+          dispatch(
+            directoryApi.util.updateQueryData(
+              'getDirectoryTree',
+              undefined,
+              (draft) => {
+                applyFolderOrderToTree(draft.tree, parentId, orderFor);
+              },
+            ),
           ),
-        );
+          ...patchSubfolderOrderInContentsCaches(
+            dispatch,
+            getState as () => RootState,
+            parentId,
+            orderFor,
+          ),
+        ];
         try {
           await queryFulfilled;
         } catch {
-          patch.undo();
+          patches.forEach((patch) => patch.undo());
         }
       },
     }),
@@ -845,20 +855,32 @@ export const directoryApi = baseApi.injectEndpoints({
           return mutationError(error);
         }
       },
-      async onQueryStarted({ parentId }, { dispatch, queryFulfilled }) {
-        const patch = dispatch(
-          directoryApi.util.updateQueryData(
-            'getDirectoryTree',
-            undefined,
-            (draft) => {
-              applyFolderOrderToTree(draft.tree, parentId, () => undefined);
-            },
+      async onQueryStarted(
+        { parentId },
+        { dispatch, getState, queryFulfilled },
+      ) {
+        const orderFor = () => undefined;
+        const patches = [
+          dispatch(
+            directoryApi.util.updateQueryData(
+              'getDirectoryTree',
+              undefined,
+              (draft) => {
+                applyFolderOrderToTree(draft.tree, parentId, orderFor);
+              },
+            ),
           ),
-        );
+          ...patchSubfolderOrderInContentsCaches(
+            dispatch,
+            getState as () => RootState,
+            parentId,
+            orderFor,
+          ),
+        ];
         try {
           await queryFulfilled;
         } catch {
-          patch.undo();
+          patches.forEach((patch) => patch.undo());
         }
       },
     }),
