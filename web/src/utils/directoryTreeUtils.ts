@@ -166,3 +166,23 @@ export function applyFolderOrderToTree(
     compareFolderOrder(left.directory, right.directory),
   );
 }
+
+/**
+ * Sets each sibling folder's `sortOrder` and re-sorts the list in place, for
+ * flat folder lists such as the subfolders in a folder's contents. Mutates the
+ * array, for use inside an Immer draft.
+ */
+export function applyFolderOrderToFolders(
+  folders: Directory[],
+  orderFor: (directoryId: string) => number | undefined,
+): void {
+  for (const folder of folders) {
+    const order = orderFor(folder.id);
+    if (order === undefined) {
+      delete folder.sortOrder;
+    } else {
+      folder.sortOrder = order;
+    }
+  }
+  folders.sort(compareFolderOrder);
+}

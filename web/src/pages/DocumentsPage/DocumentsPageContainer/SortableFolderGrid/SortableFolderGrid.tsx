@@ -26,6 +26,7 @@ interface ISortableFolderTile {
   name: string;
   children: React.ReactNode;
   suppressClickRef: React.MutableRefObject<boolean>;
+  className: string;
 }
 
 const SortableFolderTile: React.FC<ISortableFolderTile> = ({
@@ -33,6 +34,7 @@ const SortableFolderTile: React.FC<ISortableFolderTile> = ({
   name,
   children,
   suppressClickRef,
+  className,
 }) => {
   const {
     attributes,
@@ -69,7 +71,8 @@ const SortableFolderTile: React.FC<ISortableFolderTile> = ({
       aria-roledescription="sortable folder"
       aria-label={`Reorder folder ${name}`}
       className={cn(
-        'rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        className,
+        'outline-none focus-visible:ring-2 focus-visible:ring-ring',
         'cursor-grab active:cursor-grabbing',
         isDragging && 'opacity-40',
       )}
@@ -96,6 +99,7 @@ export const SortableFolderGrid: React.FC<ISortableFolderGrid> = ({
   onReorder,
   disabled = false,
   className,
+  tileClassName = 'rounded-lg',
 }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const suppressClickRef = useRef(false);
@@ -174,6 +178,7 @@ export const SortableFolderGrid: React.FC<ISortableFolderGrid> = ({
               id={folder.id}
               name={folder.name}
               suppressClickRef={suppressClickRef}
+              className={tileClassName}
             >
               {renderFolder(folder)}
             </SortableFolderTile>
@@ -182,7 +187,12 @@ export const SortableFolderGrid: React.FC<ISortableFolderGrid> = ({
       </SortableContext>
       <DragOverlay dropAnimation={null}>
         {activeFolder ? (
-          <div className="cursor-grabbing rounded-lg opacity-95 shadow-lg">
+          <div
+            className={cn(
+              tileClassName,
+              'cursor-grabbing bg-background opacity-95 shadow-lg',
+            )}
+          >
             {renderFolder(activeFolder)}
           </div>
         ) : null}

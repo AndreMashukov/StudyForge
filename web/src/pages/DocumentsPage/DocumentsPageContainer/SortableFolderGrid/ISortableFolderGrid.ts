@@ -9,4 +9,6 @@ export interface ISortableFolderGrid {
   /** Plain grid without drag and drop (phone-width screens). */
   disabled?: boolean;
   className?: string;
+  /** Shape of each draggable tile's focus ring and overlay (default `rounded-lg`). */
+  tileClassName?: string;
 }
