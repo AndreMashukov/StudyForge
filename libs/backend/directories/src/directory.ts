@@ -27,6 +27,7 @@ import {
   Rule,
 } from '@shared-types';
 import { resolveRulesForDirectory } from './rule-resolution';
+import { sortFoldersForDisplay } from '@shared-types';
 import { recalculateStatsForDirectoryMove } from '@study-forge/backend-core/services/interaction-tracking';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { DocumentService } from '@study-forge/backend-documents/document-storage';
@@ -38,6 +39,17 @@ import {
   syncIndexSafely,
   syncSubdirectoryDirectoryIndex,
 } from './directory-item-index';
+
+/** Orders each level of the tree by manual position, then A–Z. */
+function sortTreeNodes(nodes: DirectoryTreeNode[]): DirectoryTreeNode[] {
+  const byDirectory = new Map(nodes.map((node) => [node.directory, node]));
+  return sortFoldersForDisplay(nodes.map((node) => node.directory)).flatMap(
+    (directory) => {
+      const node = byDirectory.get(directory);
+      return node ? [{ ...node, children: sortTreeNodes(node.children) }] : [];
+    },
+  );
+}
 
 export class DirectoryService {
   /**
@@ -510,12 +522,14 @@ export class DirectoryService {
       .orderBy('name', 'asc')
       .get();
 
-    const subdirectories: Directory[] = subdirSnapshot.docs.map(
-      (doc) =>
-        ({
-          id: doc.id,
-          ...doc.data(),
-        }) as Directory,
+    const subdirectories: Directory[] = sortFoldersForDisplay(
+      subdirSnapshot.docs.map(
+        (doc) =>
+          ({
+            id: doc.id,
+            ...doc.data(),
+          }) as Directory,
+      ),
     );
 
     // Get documents in this directory
@@ -847,6 +861,8 @@ export class DirectoryService {
       parentId: request.targetParentId || null,
       path: newPath,
       level: newLevel,
+      // Its position belonged to the old parent; it joins the new one at the end.
+      sortOrder: FieldValue.delete(),
       updatedAt: new Date(),
     });
 
@@ -1006,7 +1022,7 @@ export class DirectoryService {
       }
     });
 
-    return rootNodes;
+    return sortTreeNodes(rootNodes);
   }
 
   /**

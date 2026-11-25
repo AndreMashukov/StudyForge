@@ -9,6 +9,7 @@ export * from './statisticsHiddenMutations';
 export * from './statisticsAnswerPresentation';
 export * from './directoryItemIndexMutations';
 export * from './directoryCreate';
+export * from './directoryOrder';
 export * from './agentSse';
 export * from './agentThreadFirestore';
 export * from './agentTurnFirestore';

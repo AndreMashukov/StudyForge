@@ -48,6 +48,7 @@ export * from './line-format-contract';
 export * from './agent';
 export * from './agent-turn';
 export * from './agent-questions';
+export * from './directory-order';
 export * from './onboarding';
 export * from './library-search';
 export * from './document-blocks';
@@ -619,6 +620,8 @@ export interface Directory {
   /** Present for directories created after match quizzes; treat missing as 0 */
   matchQuizCount?: number;
   ruleIds: string[];
+  /** Manual position among sibling folders (lower = earlier); missing = A–Z after ordered ones. */
+  sortOrder?: number;
   createdAt: Date | { toDate(): Date };
   updatedAt: Date | { toDate(): Date };
 }

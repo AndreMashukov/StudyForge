@@ -7,6 +7,7 @@ import {
   DocumentStatus,
   DocumentSourceType,
   type GetDirectoryContentsWithArtifactSummariesResponse,
+  compareFolderOrder,
   directoryItemTypeToArtifactSummaryType,
 } from '@shared-types';
 
@@ -53,9 +54,10 @@ function compareSubdirectoryName(
   left: DirectoryItemSummary,
   right: DirectoryItemSummary,
 ): number {
-  const leftName = left.sortName ?? left.title.toLowerCase();
-  const rightName = right.sortName ?? right.title.toLowerCase();
-  return leftName.localeCompare(rightName);
+  return compareFolderOrder(
+    { name: left.sortName ?? left.title, sortOrder: left.sortOrder },
+    { name: right.sortName ?? right.title, sortOrder: right.sortOrder },
+  );
 }
 
 function itemToSubdirectory(
@@ -71,6 +73,7 @@ function itemToSubdirectory(
     level: 0,
     color: item.color,
     icon: item.icon,
+    sortOrder: item.sortOrder,
     documentCount: 0,
     childCount: 0,
     quizCount: 0,

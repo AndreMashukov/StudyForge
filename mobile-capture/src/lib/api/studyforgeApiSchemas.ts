@@ -62,6 +62,8 @@ export const directorySchema = z.object({
   diagramQuizCount: z.number().optional(),
   sequenceQuizCount: z.number().optional(),
   ruleIds: z.array(z.string()),
+  /** Manual position among sibling folders (set by drag and drop on the web). */
+  sortOrder: z.number().optional(),
   createdAt: firestoreDateSchema,
   updatedAt: firestoreDateSchema,
 });

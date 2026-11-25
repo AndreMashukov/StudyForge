@@ -30,6 +30,7 @@ import type {
 } from '@shared-types';
 import { cn } from '../../../lib/utils';
 import { useReorderDirectoryItemsMutation } from '../../../store/api/Directory/DirectoryApi';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 
 interface IReorderableItem {
   id: string;
@@ -145,6 +146,7 @@ export function SortableDirectoryList<T extends IReorderableItem>({
 }: ISortableDirectoryListProps<T>): React.JSX.Element {
   const [activeId, setActiveId] = useState<string | null>(null);
   const suppressClickRef = useRef(false);
+  const isMobile = useIsMobile();
   const [reorderDirectoryItems] = useReorderDirectoryItemsMutation();
 
   const { pinned, sortable } = useMemo(() => splitPendingItems(items), [items]);
@@ -199,6 +201,19 @@ export function SortableDirectoryList<T extends IReorderableItem>({
   const handleDragCancel = useCallback(() => {
     setActiveId(null);
   }, []);
+
+  // On phone-width screens a swipe to scroll would grab an item, so the list
+  // is not draggable there.
+  if (isMobile) {
+    return (
+      <div className="flex flex-col" style={{ gap }}>
+        {leadingContent}
+        {[...pinned, ...sortable].map((item) => (
+          <div key={item.id}>{renderItem(item)}</div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col" style={{ gap }}>

@@ -13,6 +13,7 @@ import type {
   DirectoryTreeNode,
   DocumentEnhanced,
 } from '@shared-types';
+import { compareFolderOrder } from '@shared-types';
 import { findTreeNode } from '../utils/directoryTreeUtils';
 
 /** Converts Firestore Timestamps to ISO strings so Redux stays serializable. */
@@ -201,9 +202,7 @@ function insertDirectoryIntoTree(
 }
 
 function compareDirectoryName(left: Directory, right: Directory): number {
-  return left.name.localeCompare(right.name, undefined, {
-    sensitivity: 'base',
-  });
+  return compareFolderOrder(left, right);
 }
 
 /** Callable responses often serialize Timestamps as `{}`; keep Redux serializable ISO strings. */

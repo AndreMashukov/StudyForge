@@ -25,6 +25,7 @@ import {
   type ILibraryItemRef,
 } from './itemNavigation';
 import { isAgentReferencedItemType } from './libraryTypes';
+import { compareFolderOrder } from '@shared-types';
 
 export function LibraryRootScreen() {
   const router = useRouter();
@@ -38,7 +39,7 @@ export function LibraryRootScreen() {
     () =>
       flattenTree(treeQuery.data?.tree ?? [])
         .filter((directory) => !directory.parentId)
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        .sort(compareFolderOrder),
     [treeQuery.data],
   );
   const recent = useMemo(
