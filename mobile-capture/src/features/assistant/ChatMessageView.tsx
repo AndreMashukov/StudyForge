@@ -77,8 +77,13 @@ export function ChatMessageView({ message }: { message: IChatMessage }) {
 
   if (message.role === 'user') {
     return (
-      <View className="max-w-[82%] self-end rounded-3xl bg-card px-4 py-2.5">
-        <Text>{message.content}</Text>
+      <View className="max-w-[82%] gap-1 self-end rounded-3xl bg-card px-4 py-2.5">
+        {message.agentPromptName ? (
+          <Text className="font-sans-medium" tone="muted" variant="caption">
+            /{message.agentPromptName}
+          </Text>
+        ) : null}
+        {message.content ? <Text>{message.content}</Text> : null}
       </View>
     );
   }

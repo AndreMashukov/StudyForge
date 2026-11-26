@@ -323,11 +323,13 @@ export function DirectoryScreen() {
       </Screen>
       <OfflineBanner />
       <Composer
+        agentPrompts
         placeholder={`Ask about ${directory.name}`}
         onCapture={() => openCapture(directory.id)}
-        onSend={(message) =>
+        onSend={(message, agentPrompt) =>
           startChat(router, {
             message,
+            agentPrompt,
             directoryId: directory.id,
             label: directory.name,
           })

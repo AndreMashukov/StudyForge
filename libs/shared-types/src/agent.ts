@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { AgentPromptRun } from './agent-prompt';
 
 export const agentScopeSchema = z.enum(['workspace', 'directory']);
 
@@ -347,6 +348,8 @@ export interface IAgentThreadMessage {
   referencedItems?: AgentReferencedItem[];
   /** Assistant messages only: clarifying questions for the user to answer. */
   questions?: AgentQuestion[];
+  /** User messages only: the agent prompt this message ran ("/" menu). `content` is then the extra text typed after it. */
+  agentPrompt?: AgentPromptRun;
   /** Turn that wrote this message (both roles). */
   turnId?: string;
   /** Assistant messages only: how the turn ended. */

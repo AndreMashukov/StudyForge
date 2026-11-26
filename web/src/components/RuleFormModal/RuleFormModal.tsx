@@ -21,7 +21,14 @@ import {
 import { RuleFormSkeleton } from "../LoadingSkeletons";
 import { useToast } from "../Toast";
 import { IRuleFormModal } from "./IRuleFormModal";
-import { RuleApplicability, RuleColor, CreateRuleRequest } from "@shared-types";
+import {
+  AGENT_PROMPT_EDITOR_HINT,
+  isAgentPromptApplicability,
+  RuleApplicability,
+  RuleColor,
+  CreateRuleRequest,
+  toggleRuleApplicabilityValue,
+} from "@shared-types";
 import { cn } from "../../lib/utils";
 import { z } from "zod";
 import { useAppDispatch } from "../../hooks/redux";
@@ -175,9 +182,7 @@ export const RuleFormModal = ({
   const toggleApplicability = (operation: RuleApplicability) => {
     setFormData((prev) => ({
       ...prev,
-      applicableTo: prev.applicableTo.includes(operation)
-        ? prev.applicableTo.filter((op) => op !== operation)
-        : [...prev.applicableTo, operation],
+      applicableTo: toggleRuleApplicabilityValue(prev.applicableTo, operation),
     }));
   };
 
@@ -275,6 +280,11 @@ export const RuleFormModal = ({
                   </button>
                 ))}
               </div>
+              {isAgentPromptApplicability(formData.applicableTo) ? (
+                <p className="text-sm text-muted-foreground">
+                  {AGENT_PROMPT_EDITOR_HINT}
+                </p>
+              ) : null}
               {errors.applicableTo && (
                 <p className="text-sm text-destructive">{errors.applicableTo}</p>
               )}

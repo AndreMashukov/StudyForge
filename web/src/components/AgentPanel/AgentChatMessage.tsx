@@ -7,6 +7,7 @@ import { stripAgentThinkingContent } from '../../utils/stripAgentThinkingContent
 import { AgentDeleteProposalCard } from './AgentDeleteProposalCard';
 import type { IAgentChatMessage } from './IAgentPanel';
 import { useSmoothedText } from './hooks/useSmoothedText';
+import { AgentPromptChip } from './AgentPromptChip';
 
 const TURN_STATUS_LABELS: Record<string, string> = {
   cancelled: 'Stopped',
@@ -87,7 +88,21 @@ export const AgentChatMessage: React.FC<IAgentChatMessage> = ({
             <p className="text-muted-foreground">No response text.</p>
           )
         ) : (
-          <p className="whitespace-pre-wrap">{entry.content}</p>
+          <>
+            {entry.agentPromptName ? (
+              <AgentPromptChip name={entry.agentPromptName} />
+            ) : null}
+            {entry.content.trim().length > 0 ? (
+              <p
+                className={cn(
+                  'whitespace-pre-wrap',
+                  entry.agentPromptName ? 'mt-1' : undefined,
+                )}
+              >
+                {entry.content}
+              </p>
+            ) : null}
+          </>
         )}
 
         {isAssistant && entry.live?.stuck ? (

@@ -127,13 +127,15 @@ export function AssistantHomeScreen() {
       </Screen>
       <OfflineBanner />
       <Composer
+        agentPrompts
         placeholder={
           scopeName ? `Ask about ${scopeName}` : 'Ask about your library'
         }
         onCapture={() => openCapture(scopeId)}
-        onSend={(message) =>
+        onSend={(message, agentPrompt) =>
           startChat(router, {
             message,
+            agentPrompt,
             directoryId: scopeId,
             label: scopeName ?? undefined,
           })

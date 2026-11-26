@@ -8,7 +8,13 @@ import { Check, X } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useRuleEditorForm } from '../context/hooks/useRuleEditorForm';
 import { RuleMarkdownPreview } from './RuleMarkdownPreview';
-import { RuleApplicability, RuleColor } from '@shared-types';
+import {
+  AGENT_PROMPT_EDITOR_HINT,
+  isAgentPromptApplicability,
+  RuleApplicability,
+  RuleColor,
+  toggleRuleApplicabilityValue,
+} from '@shared-types';
 import { cn } from '../../../lib/utils';
 import { getRuleApplicabilityLabel } from '../../../utils/ruleApplicabilityUtils';
 
@@ -47,10 +53,10 @@ export const RuleFormSection: React.FC = () => {
   };
 
   const toggleApplicability = (operation: RuleApplicability) => {
-    const updated = formData.applicableTo.includes(operation)
-      ? formData.applicableTo.filter((op) => op !== operation)
-      : [...formData.applicableTo, operation];
-    updateField('applicableTo', updated);
+    updateField(
+      'applicableTo',
+      toggleRuleApplicabilityValue(formData.applicableTo, operation),
+    );
   };
 
   const inputStyle = {
@@ -120,6 +126,11 @@ export const RuleFormSection: React.FC = () => {
             </Button>
           ))}
         </div>
+        {isAgentPromptApplicability(formData.applicableTo) ? (
+          <p className="text-sm" style={{ color: colors.mutedForeground }}>
+            {AGENT_PROMPT_EDITOR_HINT}
+          </p>
+        ) : null}
         {formErrors.applicableTo && (
           <p className="text-sm" style={{ color: colors.destructive }}>{formErrors.applicableTo}</p>
         )}

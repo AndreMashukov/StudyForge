@@ -7,6 +7,7 @@ import {
   agentReferencedItemSchema,
   agentScopeSchema,
 } from './agent';
+import { agentPromptRefSchema } from './agent-prompt';
 
 /**
  * Agent turn: one user message plus the agent's work to answer it. It runs in a
@@ -64,7 +65,8 @@ export const startAgentTurnRequestSchema = z
   .object({
     scope: agentScopeSchema.default('workspace'),
     directoryId: z.string().trim().min(1).optional(),
-    message: z.string().trim().min(1, 'Message is required').max(10_000),
+    /** With `agentPrompt`, the extra text typed after it (may be empty). */
+    message: z.string().trim().max(10_000).default(''),
     /** Existing thread id, or a new client-generated id for a new chat. */
     threadId: agentClientIdSchema,
     /** Client-generated; together with threadId it is the idempotency key. */
@@ -76,8 +78,24 @@ export const startAgentTurnRequestSchema = z
      * The server decides whether the account may use it.
      */
     intent: agentTurnIntentSchema.optional(),
+    /** Runs a saved agent prompt picked in the "/" menu (ADR 017). */
+    agentPrompt: agentPromptRefSchema.optional(),
   })
   .superRefine((value, ctx) => {
+    if (!value.agentPrompt && value.message.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Message is required',
+        path: ['message'],
+      });
+    }
+    if (value.agentPrompt && value.intent) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'A saved prompt cannot start the starter course',
+        path: ['agentPrompt'],
+      });
+    }
     if (value.scope === 'directory' && !value.directoryId) {
       ctx.addIssue({
         code: 'custom',

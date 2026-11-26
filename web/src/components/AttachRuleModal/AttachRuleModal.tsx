@@ -18,7 +18,7 @@ import {
 import { useToast } from "../Toast";
 import { VirtualizedList } from "../VirtualizedList";
 import { IAttachRuleModal } from "./IAttachRuleModal";
-import { RuleApplicability } from "@shared-types";
+import { isAgentPromptApplicability, RuleApplicability } from "@shared-types";
 import { cn } from "../../lib/utils";
 import { getRuleApplicabilityLabel } from "../../utils/ruleApplicabilityUtils";
 
@@ -48,6 +48,8 @@ export const AttachRuleModal = ({
     return allRules.filter(
       (rule) =>
         !rule.directoryIds.includes(directory.id) &&
+        // Agent prompts are global and never attach to folders (ADR 017).
+        !isAgentPromptApplicability(rule.applicableTo) &&
         (filterApplicability
           ? rule.applicableTo.includes(filterApplicability)
           : true) &&
@@ -99,6 +101,7 @@ export const AttachRuleModal = ({
       [RuleApplicability.SLIDE_DECK]: "bg-cyan-500/10 text-cyan-500",
       [RuleApplicability.DIAGRAM_QUIZ]: "bg-violet-500/10 text-violet-500",
       [RuleApplicability.SEQUENCE_QUIZ]: "bg-amber-500/10 text-amber-500",
+      [RuleApplicability.AGENT]: "bg-primary/10 text-primary",
     };
 
     return applicableTo.map((op) => (

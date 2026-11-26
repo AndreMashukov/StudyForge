@@ -188,7 +188,7 @@ User-authored markdown instruction that steers AI behavior for a specific operat
 _Avoid_: prompt template, instruction (alone), policy; "rule" in learner-facing copy
 
 **Agent prompt**:
-A **rule** whose applicability is `agent`: a saved request for the **workspace agent** (for example "recap the quizzes I took today, with a poem and a diagram for each"), run by typing "/" in the agent composer and picking it; text typed after it adds detail for that run. Global: never attached to a directory, so **always apply** does not concern it. Exclusive: a rule that applies to `agent` applies to nothing else. Other rules steer an operation; an agent prompt is the request itself, and it runs with the same safeguards and cost as the same text typed by hand. The learner can ask the agent to save the current request as one.
+A **rule** whose applicability is `agent`: a saved request for the **workspace agent** (for example "recap the quizzes I took today, with a poem and a diagram for each"), run by typing "/" in the agent composer and picking it; text typed after it adds detail for that run. Global: never attached to a directory, so **always apply** does not concern it. Exclusive: a rule that applies to `agent` applies to nothing else. Other rules steer an operation; an agent prompt is the request itself, and it runs with the same safeguards and cost as the same text typed by hand. The learner can ask the agent to save the current request as one. See [ADR 017](docs/adr/017-agent-prompts-are-rules.md).
 _Avoid_: skill, slash command (when meaning the saved rule), macro
 
 **Suggested agent prompt**:
@@ -200,7 +200,7 @@ One-off free text typed into the Create Artifact modal for a single generation. 
 _Avoid_: additional prompt, custom prompt
 
 **Rule applicability**:
-Which operation types a rule may apply to (e.g. `quiz`, `diagram_quiz`, `flashcard_desc`). A rule can apply to multiple operations. The `prompt` applicability (AI Prompt document generation) is labelled **AI Document** in product copy, so a learner never reads "prompt applies to Prompt". `followup` and `chat` are retired: older rules may still carry them, but nothing applies them.
+Which operation types a rule may apply to (e.g. `quiz`, `diagram_quiz`, `flashcard_desc`). A rule can apply to multiple operations. The `prompt` applicability (AI Prompt document generation) is labelled **AI Document** in product copy, so a learner never reads "prompt applies to Prompt". The `agent` applicability ("Workspace agent" in product copy) makes the rule an **agent prompt** and is exclusive. `followup` and `chat` are retired: older rules may still carry them, but nothing applies them.
 _Avoid_: rule type, rule category, follow-up rule, chat rule
 
 **Rule resolution mode**:

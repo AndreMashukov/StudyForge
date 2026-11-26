@@ -45,7 +45,10 @@ import { GenerationJobsService } from '@study-forge/backend-generation/generatio
 import { enqueueGenerationJobTask } from '@study-forge/backend-generation/generation-task-queue';
 import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/artifact-definition';
 import type { IFlashcardJobPayload } from '@study-forge/backend-artifacts/flashcards';
-import { getDocumentFallbackColor } from '@shared-types';
+import {
+  getDocumentFallbackColor,
+  isAgentPromptApplicability,
+} from '@shared-types';
 import {
   assertGenerationBatchAllowed,
   AGENT_GENERATION_LIMITS,
@@ -1386,7 +1389,7 @@ export function createAgentToolDefinitions(
     {
       name: 'create_rule',
       description:
-        'Create a reusable rule from scratch. Prefer create_rule_from_blueprint when a published blueprint matches the request.',
+        'Create a reusable rule from scratch. Prefer create_rule_from_blueprint when a published blueprint matches the request. With applicableTo ["agent"] it saves an agent prompt: a request the user runs later by typing "/" in the agent chat (global, never attached to folders, at most 10,000 characters, and "agent" cannot be combined with other values).',
       parameters: {
         type: 'object',
         properties: {
@@ -1398,7 +1401,7 @@ export function createAgentToolDefinitions(
           applicableTo: {
             type: 'array',
             description:
-              'Generation types the rule applies to. Required: choose at least one.',
+              'Generation types the rule applies to. Required: choose at least one. Use ["agent"] alone for an agent prompt.',
             items: { type: 'string', enum: RULE_APPLICABILITY_ENUM },
           },
         },
@@ -1433,7 +1436,9 @@ export function createAgentToolDefinitions(
         });
         pushAction(context, {
           kind: 'create_rule',
-          summary: `Created prompt "${rule.name}"`,
+          summary: isAgentPromptApplicability(rule.applicableTo)
+            ? `Saved prompt "${rule.name}" (type / to run it)`
+            : `Created prompt "${rule.name}"`,
           entityType: 'rule',
           entityId: rule.id,
         });

@@ -5,6 +5,7 @@ import type {
   AgentMessageResponse,
   AgentMessageStreamEvent,
   AgentPromptContext,
+  AgentPromptRun,
   AgentProposedDelete,
   AgentQuestion,
   AgentReferencedItem,
@@ -17,6 +18,7 @@ import type {
 import {
   agentMessageTurnStatusSchema,
   agentPromptContextSchema,
+  agentPromptRunSchema,
 } from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { parseReferencedItems } from '../checkpointer/firestore-checkpoint-saver';
@@ -177,6 +179,7 @@ export interface IAgentThreadMessageWrite {
   content: string;
   createdAt: Date;
   promptContext?: AgentPromptContext;
+  agentPrompt?: AgentPromptRun;
   executedActions?: AgentActionResult[];
   proposedDeletes?: AgentProposedDelete[];
   referencedItems?: AgentReferencedItem[];
@@ -194,6 +197,7 @@ export function buildAgentThreadMessageData(
     content: input.content,
     createdAt: Timestamp.fromDate(input.createdAt),
     ...(input.promptContext ? { promptContext: input.promptContext } : {}),
+    ...(input.agentPrompt ? { agentPrompt: input.agentPrompt } : {}),
     // Firestore rejects `undefined` fields, so optional keys are dropped here.
     executedActions: serializeAgentActions(input.executedActions ?? []),
     proposedDeletes: serializeAgentDeletes(input.proposedDeletes ?? []),
@@ -508,6 +512,7 @@ export class AgentThreadStore {
       .map((doc) => {
         const data = doc.data();
         const promptContext = parseStoredPromptContext(data.promptContext);
+        const agentPrompt = agentPromptRunSchema.safeParse(data.agentPrompt);
         const turnStatus = parseMessageTurnStatus(data.turnStatus);
         const questions = parseAgentQuestions(data.questions);
         return {
@@ -517,6 +522,7 @@ export class AgentThreadStore {
           content: typeof data.content === 'string' ? data.content : '',
           createdAt: timestampToIso(data.createdAt, fallbackIso),
           ...(promptContext ? { promptContext } : {}),
+          ...(agentPrompt.success ? { agentPrompt: agentPrompt.data } : {}),
           executedActions: Array.isArray(data.executedActions)
             ? data.executedActions
             : undefined,

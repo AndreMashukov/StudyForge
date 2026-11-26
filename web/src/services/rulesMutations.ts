@@ -9,7 +9,11 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { planAlwaysApplyChange } from '@shared-types';
+import {
+  agentPromptAttachError,
+  planAlwaysApplyChange,
+  validateAgentPromptRule,
+} from '@shared-types';
 import type {
   CreateRuleRequest,
   DeleteRuleResponse,
@@ -32,6 +36,13 @@ export async function createRuleInFirestore(
   if (!request.applicableTo || request.applicableTo.length === 0) {
     throw new Error('Prompt must be applicable to at least one operation type');
   }
+  const agentPromptError = validateAgentPromptRule({
+    applicableTo: request.applicableTo,
+    content: request.content,
+  });
+  if (agentPromptError) {
+    throw new Error(agentPromptError);
+  }
 
   const ruleDocRef = doc(collection(db, 'users', userId, 'rules'));
   const now = new Date();
@@ -48,6 +59,17 @@ export async function createRuleInFirestore(
     directoryIds: [],
     alwaysApplyDirectoryIds: [],
     alwaysApplyOffDirectoryIds: [],
+    ...(request.sourceBlueprintId
+      ? {
+          sourceBlueprintId: request.sourceBlueprintId,
+          ...(request.sourceBlueprintVersion !== undefined
+            ? { sourceBlueprintVersion: request.sourceBlueprintVersion }
+            : {}),
+          ...(request.sourceBlueprintName
+            ? { sourceBlueprintName: request.sourceBlueprintName }
+            : {}),
+        }
+      : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -79,6 +101,14 @@ export async function updateRuleInFirestore(
   }
   if (request.applicableTo && request.applicableTo.length === 0) {
     throw new Error('Prompt must be applicable to at least one operation type');
+  }
+  const agentPromptError = validateAgentPromptRule({
+    applicableTo: request.applicableTo ?? existing.applicableTo,
+    content: request.content ?? existing.content,
+    directoryIds: existing.directoryIds ?? [],
+  });
+  if (agentPromptError) {
+    throw new Error(agentPromptError);
   }
 
   const updateData: Record<string, unknown> = {
@@ -165,6 +195,15 @@ export async function attachRuleToDirectoryInFirestore(
   }
   if (!dirSnap.exists()) {
     throw new Error('Directory not found');
+  }
+  const storedApplicableTo: unknown = ruleSnap.get('applicableTo');
+  const attachError = agentPromptAttachError(
+    Array.isArray(storedApplicableTo)
+      ? storedApplicableTo.filter((value): value is string => typeof value === 'string')
+      : [],
+  );
+  if (attachError) {
+    throw new Error(attachError);
   }
 
   // An attached rule applies by default in the folder and below (ADR 016).

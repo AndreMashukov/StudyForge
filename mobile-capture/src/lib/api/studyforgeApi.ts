@@ -4,6 +4,7 @@ import type {
   CancelAgentTurnRequest,
   CancelAgentTurnResponse,
   StartAgentTurnRequest,
+  ISuggestedAgentPrompt,
   StartAgentTurnResponse,
   CreateDocumentFromPastedTextRequest,
   CreateDocumentFromUrlRequest,
@@ -25,6 +26,7 @@ import {
   quoteDocumentNarrationResponseSchema,
   removeDocumentNarrationResponseSchema,
   startAgentTurnResponseSchema,
+  listSuggestedAgentPromptsResponseSchema,
   startDocumentNarrationResponseSchema,
 } from '@shared-types';
 import { functions, waitForAppCheckReady } from '../firebase';
@@ -182,6 +184,19 @@ export async function startAgentTurn(
     startAgentTurnResponseSchema,
     30_000,
   );
+}
+
+/** Suggested agent prompts for the "/" menu (published agent blueprints, ADR 017). */
+export async function listSuggestedAgentPrompts(): Promise<
+  ISuggestedAgentPrompt[]
+> {
+  const response = await callSharedFunction(
+    'listSuggestedAgentPrompts',
+    {},
+    listSuggestedAgentPromptsResponseSchema,
+    30_000,
+  );
+  return response.prompts;
 }
 
 /** Stop for a running agent turn. */

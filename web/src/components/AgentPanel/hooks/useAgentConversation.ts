@@ -22,6 +22,8 @@ export interface IAgentPendingTurn {
   content: string;
   createdAt: string;
   promptContext?: AgentPromptContext;
+  /** The saved agent prompt this message runs, if any. */
+  agentPromptName?: string;
   started: boolean;
 }
 
@@ -85,6 +87,7 @@ export function useAgentConversation(input: {
               content: pending.content,
               createdAt: pending.createdAt,
               promptContext: pending.promptContext,
+              agentPromptName: pending.agentPromptName,
             }
           : null,
         nowMs,

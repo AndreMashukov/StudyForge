@@ -88,6 +88,7 @@ export { agentMessageStream } from './endpoints/agent-message-stream';
 export {
   startAgentTurnEndpoint as startAgentTurn,
   cancelAgentTurnEndpoint as cancelAgentTurn,
+  listSuggestedAgentPromptsEndpoint as listSuggestedAgentPrompts,
 } from './endpoints/agent-turns';
 
 export {

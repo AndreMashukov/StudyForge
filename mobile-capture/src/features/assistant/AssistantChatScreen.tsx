@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import type { AgentPromptContext } from '@shared-types';
+import type { AgentPromptContext, IAgentPromptMenuItem } from '@shared-types';
 import {
   HeaderIconButton,
   LoadingState,
@@ -36,6 +36,9 @@ export function AssistantChatScreen() {
     documentId?: string;
     label?: string;
     title?: string;
+    promptSource?: string;
+    promptId?: string;
+    promptName?: string;
   }>();
   const { user } = useAuthUser();
   const openCapture = useShellStore((state) => state.openCapture);
@@ -66,7 +69,13 @@ export function AssistantChatScreen() {
   const handleThreadCreated = useCallback(
     (threadId: string) => {
       // Drop the first message from the route so a remount never sends it twice.
-      router.setParams({ threadId, message: '' });
+      router.setParams({
+        threadId,
+        message: '',
+        promptSource: '',
+        promptId: '',
+        promptName: '',
+      });
     },
     [router],
   );
@@ -85,11 +94,31 @@ export function AssistantChatScreen() {
 
   useEffect(() => {
     const first = param(params.message);
-    if (!initialThreadId && first && !sentInitial.current) {
+    const promptSource = param(params.promptSource);
+    const promptId = param(params.promptId);
+    const promptName = param(params.promptName);
+    const firstPrompt: IAgentPromptMenuItem | undefined =
+      (promptSource === 'rule' || promptSource === 'blueprint') &&
+      promptId &&
+      promptName
+        ? { source: promptSource, id: promptId, name: promptName }
+        : undefined;
+    if (
+      !initialThreadId &&
+      (first || firstPrompt) &&
+      !sentInitial.current
+    ) {
       sentInitial.current = true;
-      void chat.send(first);
+      void chat.send(first ?? '', firstPrompt);
     }
-  }, [chat, initialThreadId, params.message]);
+  }, [
+    chat,
+    initialThreadId,
+    params.message,
+    params.promptId,
+    params.promptName,
+    params.promptSource,
+  ]);
 
   const title =
     param(params.title) ?? label ?? (directoryId ? 'Assistant' : 'StudyForge');
@@ -147,6 +176,7 @@ export function AssistantChatScreen() {
         />
       ) : null}
       <Composer
+        agentPrompts
         placeholder={
           openQuestions
             ? 'Or reply in your own words'
@@ -159,7 +189,7 @@ export function AssistantChatScreen() {
         stopDisabled={!chat.canStop}
         onStop={() => void chat.stop()}
         onCapture={() => openCapture(directoryId ?? null)}
-        onSend={(message) => void chat.send(message)}
+        onSend={(message, agentPrompt) => void chat.send(message, agentPrompt)}
       />
     </KeyboardAwareView>
   );

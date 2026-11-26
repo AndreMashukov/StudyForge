@@ -25,6 +25,9 @@ import { useAgentPanelEffects } from './hooks/useAgentPanelEffects';
 import { useAgentPanelHandlers } from './hooks/useAgentPanelHandlers';
 import { useAgentPanelThread } from './hooks/useAgentPanelThread';
 import { useIsMobileOverlay } from './hooks/useIsMobileOverlay';
+import { useAgentPromptSlashMenu } from './hooks/useAgentPromptSlashMenu';
+import { AgentPromptMenu } from './AgentPromptMenu';
+import { AgentPromptChip } from './AgentPromptChip';
 import {
   useAgentLocationContext,
   type AgentLocationContextKind,
@@ -99,11 +102,20 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     ReadonlySet<string>
   >(() => new Set());
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const sidebarIsOpen = useAppSelector(selectSidebarIsOpen);
   const { isAppFullscreen } = useAppFullscreen();
   const isOverlay = variant === 'overlay';
   const isMobile = useIsMobileOverlay(isOverlay);
   const locationContext = useAgentLocationContext();
+  // Saved agent prompts ("/" menu, ADR 017); not in the onboarding chat.
+  const slashMenu = useAgentPromptSlashMenu({
+    enabled: !pinnedThreadId,
+    value: input,
+    setValue: setInput,
+    maxLength: MAX_MESSAGE_LENGTH,
+    textareaRef,
+  });
 
   const { threadId, selectThread, rememberThread } = useAgentPanelThread({
     userId,
@@ -159,6 +171,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     rememberThread,
     setPendingTurn,
     setInput,
+    setAgentPrompt: slashMenu.setPicked,
     setError,
   });
 
@@ -216,7 +229,10 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    void handleSend(input);
+    if (slashMenu.isOpen) {
+      return;
+    }
+    void handleSend(input, { agentPrompt: slashMenu.picked ?? undefined });
   };
 
   return (
@@ -338,21 +354,45 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
         ) : null}
 
         <form onSubmit={handleSubmit} className="p-3">
-          <Textarea
-            value={input}
-            onChange={(event) =>
-              setInput(event.target.value.slice(0, MAX_MESSAGE_LENGTH))
-            }
-            placeholder={
-              visibleQuestions
-                ? 'Or reply in your own words...'
-                : 'Ask the agent...'
-            }
-            rows={3}
-            maxLength={MAX_MESSAGE_LENGTH}
-            showCharCount
-            disabled={isWorking}
-          />
+          {slashMenu.picked ? (
+            <div className="mb-2">
+              <AgentPromptChip
+                name={slashMenu.picked.name}
+                onRemove={
+                  isWorking ? undefined : () => slashMenu.setPicked(null)
+                }
+              />
+            </div>
+          ) : null}
+          <div className="relative">
+            {slashMenu.isOpen && !isWorking ? (
+              <AgentPromptMenu menu={slashMenu} />
+            ) : null}
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={slashMenu.handleChange}
+              onSelect={slashMenu.handleSelect}
+              onKeyDown={(event) => {
+                slashMenu.handleKeyDown(event);
+              }}
+              placeholder={
+                visibleQuestions
+                  ? 'Or reply in your own words...'
+                  : slashMenu.picked
+                    ? 'Add details for this run (optional)...'
+                    : pinnedThreadId
+                      ? 'Ask the agent...'
+                      : 'Ask the agent, or type / for saved prompts...'
+              }
+              rows={3}
+              maxLength={MAX_MESSAGE_LENGTH}
+              showCharCount
+              disabled={isWorking}
+              aria-expanded={slashMenu.isOpen}
+              aria-autocomplete="list"
+            />
+          </div>
           <div className="mt-2 flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               {locationContext && !contextDismissed ? (
@@ -386,7 +426,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
               <Button
                 type="submit"
                 size="sm"
-                disabled={!input.trim()}
+                disabled={!input.trim() && !slashMenu.picked}
                 className="gap-2"
               >
                 <Send size={14} />

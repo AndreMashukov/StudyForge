@@ -12,7 +12,13 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Heading, Text, cn, mobileUiColors } from '@studyforge/mobile-ui';
+import type { IAgentPromptMenuItem } from '@shared-types';
 import { OFFLINE_MESSAGE, useIsOnline } from '../../lib/network/online';
+import {
+  AgentPromptChipView,
+  AgentPromptMenuView,
+  useAgentPromptMenu,
+} from '../assistant/agentPromptMenu';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -258,7 +264,10 @@ function AndroidKeyboardPadding({ children }: { children: ReactNode }) {
 
 export interface IComposer {
   placeholder: string;
-  onSend: (text: string) => void;
+  /** `agentPrompt`: a saved prompt picked in the "/" menu; `text` is then optional extra detail. */
+  onSend: (text: string, agentPrompt?: IAgentPromptMenuItem) => void;
+  /** Typing "/" lists saved agent prompts (ADR 017). */
+  agentPrompts?: boolean;
   onCapture?: () => void;
   disabled?: boolean;
   /** A reply is in progress: the send button becomes Stop (when onStop is set). */
@@ -276,17 +285,39 @@ export function Composer({
   busy = false,
   onStop,
   stopDisabled = false,
+  agentPrompts = false,
 }: IComposer) {
   const [text, setText] = useState('');
+  const [picked, setPicked] = useState<IAgentPromptMenuItem | null>(null);
   const online = useIsOnline();
-  const canSend = online && !disabled && text.trim().length > 0;
+  const promptMenu = useAgentPromptMenu({
+    enabled: agentPrompts && online && !disabled,
+    text,
+    picked,
+  });
+  const canSend =
+    online && !disabled && (text.trim().length > 0 || Boolean(picked));
   const submit = () => {
-    if (!canSend) return;
-    onSend(text.trim());
+    if (!canSend || promptMenu.open) return;
+    onSend(text.trim(), picked ?? undefined);
     setText('');
+    setPicked(null);
+  };
+  const handlePick = (item: IAgentPromptMenuItem) => {
+    setText(promptMenu.textWithoutTrigger);
+    setPicked(item);
   };
   return (
     <SafeAreaView edges={['bottom']} className="bg-background px-3 pb-2 pt-1.5">
+      {promptMenu.open ? (
+        <AgentPromptMenuView menu={promptMenu} onPick={handlePick} />
+      ) : null}
+      {picked ? (
+        <AgentPromptChipView
+          name={picked.name}
+          onRemove={disabled ? undefined : () => setPicked(null)}
+        />
+      ) : null}
       <View className="min-h-[52px] flex-row items-center gap-1 rounded-[28px] border border-border bg-background px-1.5">
         {onCapture ? (
           <Pressable
@@ -305,7 +336,13 @@ export function Composer({
         <TextInput
           value={text}
           onChangeText={setText}
-          placeholder={online ? placeholder : OFFLINE_MESSAGE}
+          placeholder={
+            !online
+              ? OFFLINE_MESSAGE
+              : picked
+                ? 'Add details (optional)'
+                : placeholder
+          }
           placeholderTextColor={mobileUiColors.placeholder}
           editable={online && !disabled}
           onSubmitEditing={submit}
