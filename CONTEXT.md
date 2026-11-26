@@ -187,6 +187,10 @@ User-authored markdown instruction that steers AI behavior for a specific operat
 **Product copy: Prompt.** Learners see rules as "prompts" in the web app, the mobile app and workspace agent replies. Code, types, Firestore (`rules`), URLs (`/rules`), agent tool names, the External API and the admin app (**rule blueprints**) keep "rule". See [ADR 014](docs/adr/014-rules-called-prompts-in-ui.md).
 _Avoid_: prompt template, instruction (alone), policy; "rule" in learner-facing copy
 
+**Agent prompt**:
+A **rule** whose applicability is `agent`: a saved request for the **workspace agent** (for example "recap the quizzes I took today, with a poem and a diagram for each"), run by typing "/" and its name in the agent composer. Global: never attached to a directory, so **always apply** does not concern it. Exclusive: a rule that applies to `agent` applies to nothing else. Other rules steer an operation; an agent prompt is the request itself.
+_Avoid_: skill, slash command (when meaning the saved rule), macro
+
 **Additional instructions**:
 One-off free text typed into the Create Artifact modal for a single generation. Not saved, not attached to a directory, and not a **rule** (so not a "prompt" in product copy).
 _Avoid_: additional prompt, custom prompt
