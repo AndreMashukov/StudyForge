@@ -188,8 +188,12 @@ User-authored markdown instruction that steers AI behavior for a specific operat
 _Avoid_: prompt template, instruction (alone), policy; "rule" in learner-facing copy
 
 **Agent prompt**:
-A **rule** whose applicability is `agent`: a saved request for the **workspace agent** (for example "recap the quizzes I took today, with a poem and a diagram for each"), run by typing "/" and its name in the agent composer. Global: never attached to a directory, so **always apply** does not concern it. Exclusive: a rule that applies to `agent` applies to nothing else. Other rules steer an operation; an agent prompt is the request itself.
+A **rule** whose applicability is `agent`: a saved request for the **workspace agent** (for example "recap the quizzes I took today, with a poem and a diagram for each"), run by typing "/" in the agent composer and picking it; text typed after it adds detail for that run. Global: never attached to a directory, so **always apply** does not concern it. Exclusive: a rule that applies to `agent` applies to nothing else. Other rules steer an operation; an agent prompt is the request itself, and it runs with the same safeguards and cost as the same text typed by hand. The learner can ask the agent to save the current request as one.
 _Avoid_: skill, slash command (when meaning the saved rule), macro
+
+**Suggested agent prompt**:
+A published **rule blueprint** with the `agent` applicability. Every learner sees it in the "/" menu under their own **agent prompts** and can run it without copying; it always runs the currently published text. "Save a copy" makes an editable **agent prompt** that replaces it in that learner's menu.
+_Avoid_: built-in command, system prompt, default prompt
 
 **Additional instructions**:
 One-off free text typed into the Create Artifact modal for a single generation. Not saved, not attached to a directory, and not a **rule** (so not a "prompt" in product copy).
