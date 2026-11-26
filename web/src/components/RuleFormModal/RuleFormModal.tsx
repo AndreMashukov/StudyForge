@@ -11,7 +11,6 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
 import { Textarea } from "../ui/Textarea";
-import { Checkbox } from "../ui/Checkbox";
 import { Badge } from "../ui/Badge";
 import { Check, X } from "lucide-react";
 import {
@@ -41,7 +40,6 @@ const ruleFormSchema = z.object({
   applicableTo: z
     .array(z.nativeEnum(RuleApplicability))
     .min(1, "Select at least one operation"),
-  isDefault: z.boolean(),
 });
 
 type RuleFormData = z.infer<typeof ruleFormSchema>;
@@ -72,7 +70,6 @@ export const RuleFormModal = ({
     color: RuleColor.BLUE,
     tags: [],
     applicableTo: [],
-    isDefault: false,
   });
 
   const [tagInput, setTagInput] = useState("");
@@ -89,7 +86,6 @@ export const RuleFormModal = ({
         color: existingRule.color,
         tags: existingRule.tags,
         applicableTo: existingRule.applicableTo,
-        isDefault: existingRule.isDefault,
       });
     }
   }, [existingRule, isEditMode]);
@@ -104,7 +100,6 @@ export const RuleFormModal = ({
         color: RuleColor.BLUE,
         tags: [],
         applicableTo: [],
-        isDefault: false,
       });
       setErrors({});
       setTagInput("");
@@ -393,15 +388,6 @@ export const RuleFormModal = ({
               </div>
             </div>
 
-            {/* Always apply checkbox */}
-            <Checkbox
-              id="isDefault"
-              checked={formData.isDefault}
-              onChange={(checked) =>
-                setFormData((prev) => ({ ...prev, isDefault: checked }))
-              }
-              label="Always apply"
-            />
 
           </DialogBody>
 

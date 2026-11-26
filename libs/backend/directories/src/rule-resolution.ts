@@ -2,6 +2,7 @@ import {
   Rule,
   RuleApplicability,
   Directory,
+  alwaysApplyRuleIdsIn,
 } from '@shared-types';
 import { getRulesByIds } from './rule-crud';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
@@ -357,9 +358,8 @@ export async function getApplicableRules(
 ): Promise<{ rules: Rule[]; defaultRuleIds: string[] }> {
   const { rules } = await resolveRulesForDirectory(userId, directoryId, operation);
   
-  const defaultRuleIds = rules
-    .filter(rule => rule.isDefault)
-    .map(rule => rule.id);
+  // Always apply is per folder (ADR 015): only rules set for exactly this folder.
+  const defaultRuleIds = alwaysApplyRuleIdsIn(rules, directoryId);
 
   return {
     rules,

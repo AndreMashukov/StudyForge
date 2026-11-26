@@ -365,8 +365,8 @@ async function main() {
       color: rule.color,
       tags: rule.tags,
       applicableTo: rule.applicableTo,
-      isDefault: rule.isDefault,
       directoryIds: [DIR_ID],
+      alwaysApplyDirectoryIds: rule.alwaysApply ? [DIR_ID] : [],
       createdAt: now,
       updatedAt: now,
     };

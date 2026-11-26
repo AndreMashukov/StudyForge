@@ -10,7 +10,8 @@ export interface SeedDocumentRuleDefinition {
   content: string;
   tags: string[];
   applicableTo: Array<'prompt' | 'upload' | 'scraping'>;
-  isDefault: boolean;
+  /** Always apply in the seed folder (ADR 015). */
+  alwaysApply: boolean;
   color: string;
 }
 
@@ -204,7 +205,7 @@ export const SEED_DOCUMENT_RULES: SeedDocumentRuleDefinition[] = [
     content: DOC_HTML_FORMAT_CONTENT,
     tags: ['document', 'html', 'format', 'mermaid'],
     applicableTo: ['prompt', 'upload', 'scraping'],
-    isDefault: true,
+    alwaysApply: true,
     color: 'blue',
   },
   {
@@ -215,7 +216,7 @@ export const SEED_DOCUMENT_RULES: SeedDocumentRuleDefinition[] = [
     content: WEB_GRAPH_RENDERING_CONTENT,
     tags: ['document', 'html', 'plotly', 'graphs'],
     applicableTo: ['prompt', 'upload', 'scraping'],
-    isDefault: true,
+    alwaysApply: true,
     color: 'indigo',
   },
   {
@@ -226,7 +227,7 @@ export const SEED_DOCUMENT_RULES: SeedDocumentRuleDefinition[] = [
     content: WEB_MATH_FORMULA_RENDERING_CONTENT,
     tags: ['document', 'html', 'math', 'latex', 'katex'],
     applicableTo: ['prompt', 'upload', 'scraping'],
-    isDefault: true,
+    alwaysApply: true,
     color: 'purple',
   },
 ];

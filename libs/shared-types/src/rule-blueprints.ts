@@ -190,6 +190,7 @@ export interface ICreateRuleFromBlueprintRequest {
   color?: RuleColor;
   tags?: string[];
   applicableTo?: RuleApplicability[];
-  isDefault?: boolean;
   directoryId?: string;
+  /** With `directoryId`: also always apply the new rule in that folder. */
+  alwaysApply?: boolean;
 }

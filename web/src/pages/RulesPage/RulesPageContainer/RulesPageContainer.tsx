@@ -42,7 +42,6 @@ const defaultFilters = {
   tags: [],
   applicableTo: [],
   colors: [],
-  showDefaultOnly: false,
 };
 
 export const RulesPageContainer = () => {

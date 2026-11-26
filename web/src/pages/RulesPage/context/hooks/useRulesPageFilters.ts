@@ -10,7 +10,6 @@ export const useRulesPageFilters = (rules: Rule[] | undefined) => {
     tags: [],
     applicableTo: [],
     colors: [],
-    showDefaultOnly: false,
   });
 
   const filteredRules = useMemo(() => {
@@ -56,11 +55,6 @@ export const useRulesPageFilters = (rules: Rule[] | undefined) => {
       // Color filter
       if (filters.colors.length > 0) {
         if (!filters.colors.includes(rule.color)) return false;
-      }
-
-      // Always-apply only filter
-      if (filters.showDefaultOnly && !rule.isDefault) {
-        return false;
       }
 
       return true;

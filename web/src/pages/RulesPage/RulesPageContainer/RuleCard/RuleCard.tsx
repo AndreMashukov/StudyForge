@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../../components/ui/DropdownMenu';
 import { BulkSelectCheckbox } from '../../../../components/BulkSelectCheckbox';
-import { MoreVertical, Edit, Trash2, Star, FolderOpen } from 'lucide-react';
+import { MoreVertical, Edit, Trash2, FolderOpen } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { getRuleApplicabilityLabel } from '../../../../utils/ruleApplicabilityUtils';
 
@@ -78,9 +78,6 @@ export const RuleCard = ({
                 <h3 className="font-semibold text-foreground truncate">
                   {rule.name}
                 </h3>
-                {rule.isDefault && (
-                  <Star size={14} className="text-yellow-500 flex-shrink-0" />
-                )}
               </div>
 
               {/* Description */}
@@ -174,9 +171,6 @@ export const RuleCard = ({
             <h3 className="font-semibold text-foreground truncate">
               {rule.name}
             </h3>
-            {rule.isDefault && (
-              <Star size={14} className="text-yellow-500 flex-shrink-0" />
-            )}
           </div>
 
           <DropdownMenu>

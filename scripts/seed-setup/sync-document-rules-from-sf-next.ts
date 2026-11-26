@@ -56,7 +56,8 @@ async function upsertRule(
     description: string;
     content: string;
     applicableTo: string[];
-    isDefault: boolean;
+    /** Always apply in every folder in directoryIds (ADR 015). */
+    alwaysApply: boolean;
     tags: string[];
     color: string;
     directoryIds?: string[];
@@ -66,6 +67,7 @@ async function upsertRule(
   const existing = await ref.get();
   const now = admin.firestore.Timestamp.now();
   const previous = existing.exists ? existing.data() : undefined;
+  const directoryIds: string[] = data.directoryIds ?? previous?.directoryIds ?? [];
 
   await ref.set(
     {
@@ -77,8 +79,10 @@ async function upsertRule(
       color: data.color,
       tags: data.tags,
       applicableTo: data.applicableTo,
-      isDefault: data.isDefault,
-      directoryIds: data.directoryIds ?? previous?.directoryIds ?? [],
+      directoryIds,
+      alwaysApplyDirectoryIds: data.alwaysApply
+        ? directoryIds
+        : (previous?.alwaysApplyDirectoryIds ?? []),
       createdAt: previous?.createdAt ?? now,
       updatedAt: now,
     },
@@ -97,7 +101,7 @@ async function syncEmulator(db: admin.firestore.Firestore): Promise<void> {
       description: rule.description,
       content: rule.content,
       applicableTo: rule.applicableTo,
-      isDefault: rule.isDefault,
+      alwaysApply: rule.alwaysApply,
       tags: rule.tags,
       color: rule.color,
       directoryIds: ['e2estudymaterials'],
@@ -124,7 +128,7 @@ async function syncProduction(db: admin.firestore.Firestore): Promise<void> {
       'HTML-first document format: structure, tables, code samples, and Mermaid diagrams for StudyForge learning docs.',
     content: DOC_HTML_FORMAT_CONTENT,
     applicableTo: ['prompt', 'upload', 'scraping'],
-    isDefault: true,
+    alwaysApply: true,
     tags: ['document', 'html', 'format', 'mermaid'],
     color: 'blue',
   });
@@ -135,7 +139,7 @@ async function syncProduction(db: admin.firestore.Firestore): Promise<void> {
       'HTML technical documentation structure (Glossary → Core Concepts → Examples → Summary). Prefer Doc HTML Format for purity constraints.',
     content: TECHNICAL_DOCUMENTATION_GENERATOR_HTML_CONTENT,
     applicableTo: ['prompt'],
-    isDefault: false,
+    alwaysApply: false,
     tags: ['document', 'html', 'technical'],
     color: 'blue',
   });
@@ -146,7 +150,7 @@ async function syncProduction(db: admin.firestore.Firestore): Promise<void> {
       'Structures math study materials with KaTeX-ready LaTeX, defined variables, and step-by-step examples.',
     content: MATH_STUDY_DOCUMENT_FORMATTING_CONTENT,
     applicableTo: ['prompt'],
-    isDefault: false,
+    alwaysApply: false,
     tags: ['document', 'math', 'latex', 'katex'],
     color: 'purple',
   });
@@ -157,7 +161,7 @@ async function syncProduction(db: admin.firestore.Firestore): Promise<void> {
       'Guidelines for embedding interactive 2D/3D Plotly graphs in HTML documents.',
     content: WEB_GRAPH_RENDERING_CONTENT,
     applicableTo: ['prompt', 'upload', 'scraping'],
-    isDefault: true,
+    alwaysApply: true,
     tags: ['document', 'html', 'plotly', 'graphs'],
     color: 'indigo',
   });
@@ -168,7 +172,7 @@ async function syncProduction(db: admin.firestore.Firestore): Promise<void> {
       'Guidelines for rendering mathematical formulas with LaTeX delimiters (KaTeX viewer).',
     content: WEB_MATH_FORMULA_RENDERING_CONTENT,
     applicableTo: ['prompt', 'upload', 'scraping'],
-    isDefault: true,
+    alwaysApply: true,
     tags: ['document', 'html', 'math', 'latex', 'katex'],
     color: 'purple',
   });

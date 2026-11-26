@@ -8,7 +8,6 @@ export interface IRuleEditorFormData {
   color: RuleColor;
   tags: string[];
   applicableTo: RuleApplicability[];
-  isDefault: boolean;
 }
 
 export interface IAIResult {

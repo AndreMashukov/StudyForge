@@ -256,9 +256,22 @@ describe('createAgentToolDefinitions rule tools', () => {
       'user-1',
       'rule-1',
       'dir-1',
+      { alwaysApply: false },
     );
     expect(context.executedActions[0]?.summary).toBe(
       'Attached prompt to /Python',
+    );
+
+    await executeAgentTool(tools, 'attach_rule_to_directory', {
+      directoryId: 'dir-1',
+      ruleId: 'rule-1',
+      alwaysApply: true,
+    });
+    expect(attachRuleToDirectory).toHaveBeenLastCalledWith(
+      'user-1',
+      'rule-1',
+      'dir-1',
+      { alwaysApply: true },
     );
   });
 
@@ -287,7 +300,6 @@ describe('createAgentToolDefinitions rule tools', () => {
       color: 'purple',
       tags: [],
       applicableTo: ['slide_deck'],
-      isDefault: false,
       directoryIds: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -319,7 +331,6 @@ describe('createAgentToolDefinitions rule tools', () => {
       color: 'purple',
       tags: [],
       applicableTo: ['quiz'],
-      isDefault: false,
       directoryIds: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -351,7 +362,6 @@ describe('createAgentToolDefinitions rule tools', () => {
       color: 'purple',
       tags: [],
       applicableTo: ['slide_deck'],
-      isDefault: false,
       directoryIds: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -371,7 +381,6 @@ describe('createAgentToolDefinitions rule tools', () => {
       color: 'purple',
       tags: [],
       applicableTo: ['slide_deck'],
-      isDefault: false,
     });
   });
 

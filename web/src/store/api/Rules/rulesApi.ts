@@ -16,6 +16,7 @@ import {
   attachRuleToDirectoryInFirestore,
   detachRuleFromDirectoryInFirestore,
   formatRulesForPromptClient,
+  setRuleAlwaysApplyInFirestore,
 } from '../../../services/rulesMutations';
 import { executeBulkOperation } from '../../../services/bulkOperation';
 import {
@@ -25,6 +26,7 @@ import {
 } from '../../../services/firestoreReadUtils';
 import {
   Rule,
+  SetRuleAlwaysApplyRequest,
   CreateRuleRequest,
   UpdateRuleRequest,
   DeleteRuleRequest,
@@ -118,6 +120,25 @@ export const rulesApi = baseApi.injectEndpoints({
         try {
           const rule = await updateRuleInFirestore(userId, data);
           return { data: rule };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
+      invalidatesTags: (_result, _error, arg) => [
+        { type: 'Rules', id: arg.ruleId },
+        'Rules',
+        'DirectoryRules',
+      ],
+    }),
+
+    /** Always apply for one rule in one folder (ADR 015). */
+    setRuleAlwaysApply: builder.mutation<void, SetRuleAlwaysApplyRequest>({
+      async queryFn(data) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          await setRuleAlwaysApplyInFirestore(userId, data);
+          return { data: undefined };
         } catch (error) {
           return mutationError(error);
         }
@@ -339,6 +360,7 @@ export const {
   useGetRuleQuery,
   useCreateRuleMutation,
   useUpdateRuleMutation,
+  useSetRuleAlwaysApplyMutation,
   useDeleteRuleMutation,
   useAttachRuleToDirectoryMutation,
   useDetachRuleFromDirectoryMutation,

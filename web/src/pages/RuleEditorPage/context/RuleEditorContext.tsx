@@ -32,7 +32,6 @@ const DEFAULT_FORM_DATA: IRuleEditorFormData = {
   color: RuleColor.BLUE,
   tags: [],
   applicableTo: [],
-  isDefault: false,
 };
 
 export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children }) => {
@@ -70,7 +69,6 @@ export const RuleEditorProvider: React.FC<RuleEditorProviderProps> = ({ children
         color: existingRule.color,
         tags: [...existingRule.tags],
         applicableTo: [...existingRule.applicableTo],
-        isDefault: existingRule.isDefault,
       });
     }
   }, [existingRule, mode]);

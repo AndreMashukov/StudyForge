@@ -12,11 +12,14 @@ export interface IDirectoryRulesPageContext {
     error: string | null;
     isAssignModalOpen: boolean;
     isCascadeViewOpen: boolean;
+    isAlwaysApplyUpdating: boolean;
   };
   handlers: {
     handleAssignRule: () => void;
     handleRemoveRule: (ruleId: string) => void;
     handleEditRule: (ruleId: string) => void;
+    /** Turns always apply on or off for this rule in this folder only. */
+    handleToggleAlwaysApply: (rule: Rule) => void;
     handleToggleCascadeView: () => void;
     handleCloseAssignModal: () => void;
   };

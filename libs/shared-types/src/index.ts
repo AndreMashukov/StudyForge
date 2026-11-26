@@ -50,6 +50,7 @@ export * from './agent-turn';
 export * from './agent-questions';
 export * from './directory-order';
 export * from './directory-item-order';
+export * from './rule-always-apply';
 export * from './onboarding';
 export * from './library-search';
 export * from './document-blocks';
@@ -1300,8 +1301,13 @@ export interface Rule {
   color: RuleColor;
   tags: string[];
   applicableTo: RuleApplicability[];
-  isDefault: boolean; // Always apply — auto-selected for applicable operations
   directoryIds: string[]; // Directories this rule is attached to
+  /**
+   * Always apply, per folder (ADR 015): folders where this rule starts ticked
+   * in the prompt pickers. Exact folders only, not inherited by subfolders.
+   * Missing on rules created before ADR 015 (treat as none).
+   */
+  alwaysApplyDirectoryIds?: string[];
   sourceBlueprintId?: string;
   sourceBlueprintVersion?: number;
   sourceBlueprintName?: string;
@@ -1317,7 +1323,6 @@ export interface CreateRuleRequest {
   color: RuleColor;
   tags: string[];
   applicableTo: RuleApplicability[];
-  isDefault?: boolean;
   sourceBlueprintId?: string;
   sourceBlueprintVersion?: number;
   sourceBlueprintName?: string;
@@ -1331,7 +1336,6 @@ export interface UpdateRuleRequest {
   color?: RuleColor;
   tags?: string[];
   applicableTo?: RuleApplicability[];
-  isDefault?: boolean;
 }
 
 export interface DeleteRuleRequest {
