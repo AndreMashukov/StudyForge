@@ -1,8 +1,10 @@
 import { FieldValue } from 'firebase-admin/firestore';
-import { 
-  Rule, 
-  CreateRuleRequest, 
-  UpdateRuleRequest
+import {
+  Rule,
+  CreateRuleRequest,
+  UpdateRuleRequest,
+  agentPromptAttachError,
+  validateAgentPromptRule,
 } from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { parseStoredRuleApplicability } from './rule-applicability';
@@ -28,6 +30,13 @@ export async function createRule(
   const applicableTo = parseStoredRuleApplicability(request.applicableTo);
   if (applicableTo.length === 0) {
     throw new Error('Prompt must be applicable to at least one operation type');
+  }
+  const agentPromptError = validateAgentPromptRule({
+    applicableTo,
+    content: request.content,
+  });
+  if (agentPromptError) {
+    throw new Error(agentPromptError);
   }
 
   const ruleRef = FirestorePaths.rules(userId).doc();
@@ -173,6 +182,18 @@ export async function updateRule(
   if (applicableTo && applicableTo.length === 0) {
     throw new Error('Prompt must be applicable to at least one operation type');
   }
+  const stored = ruleDoc.data() ?? {};
+  const agentPromptError = validateAgentPromptRule({
+    applicableTo:
+      applicableTo ?? parseStoredRuleApplicability(stored.applicableTo),
+    content:
+      request.content ??
+      (typeof stored.content === 'string' ? stored.content : ''),
+    directoryIds: Array.isArray(stored.directoryIds) ? stored.directoryIds : [],
+  });
+  if (agentPromptError) {
+    throw new Error(agentPromptError);
+  }
 
   const updateData: Partial<Record<string, unknown>> = {
     updatedAt: FieldValue.serverTimestamp(),
@@ -276,6 +297,13 @@ export async function attachRuleToDirectory(
 
   if (!dirDoc.exists) {
     throw new Error('Directory not found');
+  }
+
+  const attachError = agentPromptAttachError(
+    parseStoredRuleApplicability(ruleDoc.data()?.applicableTo),
+  );
+  if (attachError) {
+    throw new Error(attachError);
   }
 
   // An attached rule applies by default in the folder and its subfolders

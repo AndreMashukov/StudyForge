@@ -7,6 +7,7 @@ import type {
   AgentThreadSummary,
   AgentTurn,
   GetAgentThreadResponse,
+  IAgentPromptMenuItem,
   IAgentThread,
 } from '@shared-types';
 import { isAgentTurnTerminal } from '@shared-types';
@@ -48,11 +49,20 @@ interface IPendingTurn {
   content: string;
   createdAt: string;
   promptContext?: AgentPromptContext;
+  /** Name of the saved agent prompt this message runs. */
+  agentPromptName?: string;
   /** startAgentTurn returned; the turn doc exists. */
   started: boolean;
 }
 
 const STUCK_CHECK_INTERVAL_MS = 5_000;
+
+/** The device's calendar date (YYYY-MM-DD), so "today" means the learner's day. */
+function localIsoDate(date = new Date()): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
 
 function newId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -297,6 +307,7 @@ export function useAgentChat(
               content: pending.content,
               createdAt: pending.createdAt,
               promptContext: pending.promptContext,
+              agentPromptName: pending.agentPromptName,
             }
           : null,
         nowMs,
@@ -316,9 +327,9 @@ export function useAgentChat(
   const isWorking = Boolean(pending && !turn) || turnActive;
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, agentPrompt?: IAgentPromptMenuItem) => {
       const message = text.trim();
-      if (!message || isWorking || !userId) return;
+      if ((!message && !agentPrompt) || isWorking || !userId) return;
       const targetThreadId = threadId ?? newId('thread');
       const turnId = newId('turn');
       setError(null);
@@ -329,6 +340,7 @@ export function useAgentChat(
         content: message,
         createdAt: new Date().toISOString(),
         promptContext: chatScope.promptContext,
+        ...(agentPrompt ? { agentPromptName: agentPrompt.name } : {}),
         started: false,
       });
       if (!threadId) {
@@ -355,6 +367,10 @@ export function useAgentChat(
           threadId: targetThreadId,
           turnId,
           message,
+          clientLocalDate: localIsoDate(),
+          ...(agentPrompt
+            ? { agentPrompt: { source: agentPrompt.source, id: agentPrompt.id } }
+            : {}),
         });
         markStarted();
       } catch (sendError) {

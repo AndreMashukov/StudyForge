@@ -1,15 +1,24 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Rule } from '@shared-types';
 import { RulesPageFilters } from '../../types/IRulesPageContext';
-import { getRuleApplicabilityLabel } from '../../../../utils/ruleApplicabilityUtils';
+import { useSearchParams } from 'react-router-dom';
+import {
+  getRuleApplicabilityLabel,
+  isRuleApplicability,
+} from '../../../../utils/ruleApplicabilityUtils';
 
 export const useRulesPageFilters = (rules: Rule[] | undefined) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filters, setFilters] = useState<RulesPageFilters>({
-    tags: [],
-    applicableTo: [],
-    colors: [],
+  const [searchParams] = useSearchParams();
+  // `/rules?type=agent` (the "/" menu's Manage prompts link) opens filtered.
+  const [filters, setFilters] = useState<RulesPageFilters>(() => {
+    const type = searchParams.get('type');
+    return {
+      tags: [],
+      applicableTo: type && isRuleApplicability(type) ? [type] : [],
+      colors: [],
+    };
   });
 
   const filteredRules = useMemo(() => {

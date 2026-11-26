@@ -5,8 +5,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
+  AGENT_PROMPT_CONTENT_MAX,
+  isAgentPromptApplicability,
   RuleApplicability,
   RuleColor,
+  toggleRuleApplicabilityValue,
   parseRuleBlueprintForm,
   ruleBlueprintFormSchema,
   type ICreateRuleBlueprintRequest,
@@ -323,23 +326,31 @@ export function RuleBlueprintForm({
                           <input
                             type="checkbox"
                             checked={checked}
-                            onChange={(event) => {
-                              if (event.target.checked) {
-                                field.onChange([...selectedApplicability, option]);
-                                return;
-                              }
+                            onChange={() => {
+                              // `agent` is exclusive (ADR 017).
                               field.onChange(
-                                selectedApplicability.filter(
-                                  (value) => value !== option,
+                                toggleRuleApplicabilityValue(
+                                  selectedApplicability,
+                                  option,
                                 ),
                               );
                             }}
                           />
-                          {option}
+                          {option === RuleApplicability.AGENT
+                            ? 'agent (Workspace agent prompt)'
+                            : option}
                         </label>
                       );
                     })}
                   </div>
+                  {isAgentPromptApplicability(selectedApplicability) ? (
+                    <p className="text-sm text-muted-foreground">
+                      Published, this is a suggested agent prompt: every learner
+                      sees it in the assistant&apos;s &quot;/&quot; menu and runs
+                      the current text. At most{' '}
+                      {AGENT_PROMPT_CONTENT_MAX.toLocaleString('en-US')} characters.
+                    </p>
+                  ) : null}
                   <FormMessage />
                 </FormItem>
               )}

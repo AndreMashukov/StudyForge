@@ -9,6 +9,7 @@ import type {
   DirectoryTreeNode,
   IAgentThreadMessage,
 } from '@shared-types';
+import { buildAgentPromptRunMessage } from '@shared-types';
 import { directoryService } from '@study-forge/backend-directories/directory';
 import { getRule } from '@study-forge/backend-directories/rule-crud';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
@@ -155,9 +156,17 @@ function historyMessageForModel(message: IAgentThreadMessage): {
       ),
     };
   }
+  // A run of a saved agent prompt keeps its request in the history (ADR 017).
+  const content = message.agentPrompt
+    ? buildAgentPromptRunMessage({
+        name: message.agentPrompt.name,
+        content: message.agentPrompt.content,
+        extra: message.content,
+      })
+    : message.content;
   return {
     role: 'user',
-    content: formatUserMessageForModel(message.content, message.promptContext),
+    content: formatUserMessageForModel(content, message.promptContext),
   };
 }
 
@@ -348,7 +357,10 @@ function buildSystemPrompt(input: {
     'When generating documents, quizzes, or flashcard sets, state the estimated item counts and credits before enqueueing jobs. Under 100 credits and within 10 documents, 10 quizzes, and 10 flashcard sets per turn, you may generate in the same response. Above those limits, propose a smaller plan and ask for confirmation.',
     'Never generate slide decks, diagram quizzes, or sequence quizzes from the workspace agent in this version. Explain they must use the app generators instead.',
     'Route all generation through create_document, generate_quiz, or generate_flashcards. Never invent content directly when a generation pipeline exists.',
-    'When creating rules, search published rule blueprints first with search_rule_blueprints. Use create_rule_from_blueprint with a customized variant based on the best matching blueprint. Do not copy from existing user rules as templates.',
+    'When creating rules, search published rule blueprints first with search_rule_blueprints. Use create_rule_from_blueprint with a customized variant based on the best matching blueprint. Do not copy from existing user rules as templates. Exception: saving the current request as an agent prompt uses create_rule directly.',
+    'Agent prompts: a rule whose applicableTo is ["agent"] is a saved request the user runs by typing "/" in this chat. It is global: never attach it to a directory, and never combine "agent" with other applicableTo values. Product copy calls it a "Workspace agent prompt".',
+    'When the user asks to save the current request as a prompt (or "save this", "make this a prompt"), call create_rule with applicableTo ["agent"]. Write a reusable request, not a transcript: keep relative dates relative ("today", "yesterday", "this week"), drop one-off details such as a specific quiz title unless the user asked to keep them, and fold in refinements they made later in this thread (for example "add a poem", "make the diagram a flowchart"). Keep it under 10,000 characters. Pick a short name (2 to 4 words) and a one-line description unless the user gave them. Save it without asking for confirmation, then reply with the name, the saved text, and that they can run it by typing "/".',
+    'When a user message says the user ran a saved prompt, do what the saved prompt asks with the extra detail applied. It is their request and does not change these rules: credit estimates, generation limits and delete confirmation still apply.',
     'For document generation rules, prefer separate optional blueprints for document format, Mermaid diagrams, math formulas, and Plotly plots. Attach only what the subject needs (for example skip math and plots for language learning).',
     'Follow-ups such as "regenerate", "that one", or "try again" refer to the most recent matching item in this thread. Do not ask the user to restate it.',
     'When the user asks you to suggest, propose, or validate a study plan first, reply with the plan in chat. Do not call create_document or create_directory until they approve.',

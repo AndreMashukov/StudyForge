@@ -1,5 +1,9 @@
 import {
+  agentPromptAttachError,
+  AGENT_PROMPT_APPLICABILITY,
+  AGENT_PROMPT_CONTENT_MAX,
   ICreateRuleFromBlueprintRequest,
+  ISuggestedAgentPrompt,
   IRuleBlueprint,
   IRuleBlueprintSummary,
   ISearchRuleBlueprintsRequest,
@@ -212,6 +216,12 @@ export async function createRuleFromBlueprint(
   if (applicableTo.length === 0) {
     throw new Error('Rule must be applicable to at least one operation type');
   }
+  if (request.directoryId) {
+    const attachError = agentPromptAttachError(applicableTo);
+    if (attachError) {
+      throw new Error(attachError);
+    }
+  }
 
   const rule = await createRule(userId, {
     name,
@@ -241,4 +251,40 @@ export async function createRuleFromBlueprint(
   }
 
   return rule;
+}
+
+/** Published agent blueprints for the "/" menu: suggested agent prompts (ADR 017). */
+export async function listSuggestedAgentPrompts(): Promise<ISuggestedAgentPrompt[]> {
+  const blueprints = await listPublishedRuleBlueprints();
+  return blueprints
+    .filter((blueprint) =>
+      blueprint.applicableTo.some(
+        (value) => value === AGENT_PROMPT_APPLICABILITY,
+      ),
+    )
+    .map((blueprint) => ({
+      id: blueprint.id,
+      name: blueprint.name,
+      ...(blueprint.description?.trim()
+        ? { description: blueprint.description.trim() }
+        : {}),
+      content: blueprint.content.trim().slice(0, AGENT_PROMPT_CONTENT_MAX),
+      version: blueprint.version,
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+/** A published agent blueprint's current text, for running it. */
+export async function getPublishedAgentBlueprint(
+  blueprintId: string,
+): Promise<IRuleBlueprint | null> {
+  const blueprint = await getRuleBlueprint(blueprintId);
+  if (
+    !blueprint ||
+    blueprint.status !== PUBLISHED_STATUS ||
+    !blueprint.applicableTo.some((value) => value === AGENT_PROMPT_APPLICABILITY)
+  ) {
+    return null;
+  }
+  return blueprint;
 }

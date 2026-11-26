@@ -1,5 +1,10 @@
 import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
-import type { AgentPromptContext, AgentScope, AgentTurn } from '@shared-types';
+import type {
+  AgentPromptContext,
+  AgentScope,
+  AgentTurn,
+  IAgentPromptMenuItem,
+} from '@shared-types';
 import { isAgentTurnTerminal } from '@shared-types';
 import {
   agentThreadApi,
@@ -27,7 +32,7 @@ function promptContextDirectoryId(
 export interface IUseAgentPanelHandlers {
   handleSend: (
     rawMessage: string,
-    options?: { fromQuestionCard?: boolean },
+    options?: { fromQuestionCard?: boolean; agentPrompt?: IAgentPromptMenuItem },
   ) => Promise<void>;
   handleStop: () => Promise<void>;
   handleNewChat: () => void;
@@ -46,6 +51,8 @@ export function useAgentPanelHandlers(input: {
   rememberThread: (threadId: string | undefined) => void;
   setPendingTurn: Dispatch<SetStateAction<IAgentPendingTurn | null>>;
   setInput: (value: string) => void;
+  /** Clears or restores the saved agent prompt picked in the "/" menu. */
+  setAgentPrompt: (value: IAgentPromptMenuItem | null) => void;
   setError: (value: string | null) => void;
 }): IUseAgentPanelHandlers {
   const {
@@ -59,6 +66,7 @@ export function useAgentPanelHandlers(input: {
     rememberThread,
     setPendingTurn,
     setInput,
+    setAgentPrompt,
     setError,
   } = input;
   const dispatch = useAppDispatch();
@@ -77,11 +85,14 @@ export function useAgentPanelHandlers(input: {
          * failure the card reappears with the questions, so nothing is lost.
          */
         fromQuestionCard?: boolean;
+        /** A saved agent prompt to run; `rawMessage` is then optional extra detail. */
+        agentPrompt?: IAgentPromptMenuItem;
       },
     ) => {
       const keepInput = options?.fromQuestionCard === true;
+      const agentPrompt = keepInput ? undefined : options?.agentPrompt;
       const trimmed = rawMessage.trim();
-      if (!trimmed || isWorking) {
+      if ((!trimmed && !agentPrompt) || isWorking) {
         return;
       }
 
@@ -91,6 +102,7 @@ export function useAgentPanelHandlers(input: {
       setError(null);
       if (!keepInput) {
         setInput('');
+        setAgentPrompt(null);
       }
       setPendingTurn({
         threadId: targetThreadId,
@@ -98,6 +110,7 @@ export function useAgentPanelHandlers(input: {
         content: trimmed,
         createdAt: new Date().toISOString(),
         promptContext: activePromptContext,
+        ...(agentPrompt ? { agentPromptName: agentPrompt.name } : {}),
         started: false,
       });
       // Remember the thread first, so closing the panel mid-start still finds it.
@@ -117,6 +130,9 @@ export function useAgentPanelHandlers(input: {
           turnId,
           promptContext: activePromptContext,
           clientLocalDate: formatLocalIsoDate(),
+          ...(agentPrompt
+            ? { agentPrompt: { source: agentPrompt.source, id: agentPrompt.id } }
+            : {}),
         }).unwrap();
         setPendingTurn((current) =>
           current?.turnId === turnId ? { ...current, started: true } : current,
@@ -144,6 +160,7 @@ export function useAgentPanelHandlers(input: {
         }
         if (!keepInput) {
           setInput(trimmed);
+          setAgentPrompt(agentPrompt ?? null);
         }
         setError(
           readAgentRequestErrorMessage(startError, 'Failed to send message'),
@@ -163,6 +180,7 @@ export function useAgentPanelHandlers(input: {
       scope,
       selectThread,
       setError,
+      setAgentPrompt,
       setInput,
       setPendingTurn,
       startAgentTurn,

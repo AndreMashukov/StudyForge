@@ -18,6 +18,7 @@ import {
   agentActionResultSchema,
   agentMessageTurnStatusSchema,
   agentPromptContextSchema,
+  agentPromptRunSchema,
   agentProposedDeleteSchema,
   agentQuestionSchema,
   agentReferencedItemSchema,
@@ -104,6 +105,7 @@ export function mapAgentThreadMessage(
   fallbackIso: string,
 ): IAgentThreadMessage {
   const promptContext = agentPromptContextSchema.safeParse(data.promptContext);
+  const agentPrompt = agentPromptRunSchema.safeParse(data.agentPrompt);
   const turnStatus = agentMessageTurnStatusSchema.safeParse(data.turnStatus);
   const turnId = optionalString(data.turnId);
   const questions = parseList(data.questions, agentQuestionSchema);
@@ -114,6 +116,7 @@ export function mapAgentThreadMessage(
     content: typeof data.content === 'string' ? data.content : '',
     createdAt: timestampToIso(data.createdAt, fallbackIso),
     ...(promptContext.success ? { promptContext: promptContext.data } : {}),
+    ...(agentPrompt.success ? { agentPrompt: agentPrompt.data } : {}),
     executedActions: parseList(data.executedActions, agentActionResultSchema),
     proposedDeletes: parseList(data.proposedDeletes, agentProposedDeleteSchema),
     referencedItems: parseList(data.referencedItems, agentReferencedItemSchema),

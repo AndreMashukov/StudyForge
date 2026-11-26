@@ -3,11 +3,13 @@ import { logger } from 'firebase-functions/v2';
 import {
   cancelAgentTurnRequestSchema,
   CancelAgentTurnResponse,
+  ListSuggestedAgentPromptsResponse,
   startAgentTurnRequestSchema,
   StartAgentTurnResponse,
 } from '@shared-types';
 import { validateVerifiedAuth } from '@study-forge/backend-core/lib/auth';
 import { cancelAgentTurn, startAgentTurn } from '@study-forge/backend-agent';
+import { listSuggestedAgentPrompts } from '@study-forge/backend-directories/rule-blueprints';
 
 /** Starts a durable agent turn; the reply arrives through the turn doc. */
 export const startAgentTurnEndpoint = onCall(
@@ -58,6 +60,27 @@ export const cancelAgentTurnEndpoint = onCall(
         error: error instanceof Error ? error.message : String(error),
       });
       throw new HttpsError('internal', 'Failed to stop the agent');
+    }
+  },
+);
+
+/** Published agent blueprints for the "/" menu (suggested agent prompts, ADR 017). */
+export const listSuggestedAgentPromptsEndpoint = onCall(
+  {
+    region: 'asia-east1',
+    cors: true,
+    timeoutSeconds: 30,
+  },
+  async (request): Promise<ListSuggestedAgentPromptsResponse> => {
+    try {
+      await validateVerifiedAuth(request);
+      return { success: true, prompts: await listSuggestedAgentPrompts() };
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      logger.error('Failed to list suggested agent prompts', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new HttpsError('internal', 'Failed to load suggested prompts');
     }
   },
 );

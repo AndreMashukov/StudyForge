@@ -46,6 +46,7 @@ export {
 export * from './document-contract';
 export * from './line-format-contract';
 export * from './agent';
+export * from './agent-prompt';
 export * from './agent-turn';
 export * from './agent-questions';
 export * from './directory-order';
@@ -1278,6 +1279,8 @@ export enum RuleApplicability {
   SLIDE_DECK = 'slide_deck',
   DIAGRAM_QUIZ = 'diagram_quiz',
   SEQUENCE_QUIZ = 'sequence_quiz',
+  /** Agent prompt (ADR 017): a saved request run from the agent's "/" menu. Exclusive and never attached to folders. */
+  AGENT = 'agent',
 }
 
 export enum RuleColor {

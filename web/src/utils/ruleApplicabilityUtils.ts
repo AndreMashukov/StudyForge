@@ -22,6 +22,7 @@ export const ruleApplicabilityLabels: Record<RuleApplicability, string> = {
   [RuleApplicability.SLIDE_DECK]: 'Slide Deck',
   [RuleApplicability.DIAGRAM_QUIZ]: 'Diagram Quiz',
   [RuleApplicability.SEQUENCE_QUIZ]: 'Sequence Quiz',
+  [RuleApplicability.AGENT]: 'Workspace agent',
 };
 
 export const getRuleApplicabilityLabel = (applicability: RuleApplicability): string => {

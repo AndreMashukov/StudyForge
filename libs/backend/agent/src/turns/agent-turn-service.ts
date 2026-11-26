@@ -10,7 +10,9 @@ import type {
 } from '@shared-types';
 import {
   AGENT_TURN_IN_PROGRESS_CODE,
+  buildAgentPromptRunMessage,
   buildAgentUserMessageId,
+  formatAgentPromptShortForm,
   parseUserOnboarding,
   resolveAgentThreadHomeDirectoryId,
   STARTER_COURSE_UNAVAILABLE_CODE,
@@ -54,6 +56,7 @@ import {
   type AgentTurnUsageKind,
 } from './agent-turn-record';
 import { enqueueAgentTurnTask } from './agent-turn-task-queue';
+import { loadAgentPromptRun } from './agent-prompt-loader';
 
 const STALE_TURN_MESSAGE =
   'The agent stopped responding before it finished this reply.';
@@ -150,6 +153,23 @@ export async function startAgentTurn(
     });
   }
   const isStarterTurn = isFreeStarterTurn(starter);
+
+  // A saved agent prompt from the "/" menu (ADR 017): the server loads its
+  // current text, and the agent gets it as the user's request. The chat shows
+  // the short form; `input.message` is the extra text typed after the prompt.
+  const agentPromptRun = input.agentPrompt
+    ? await loadAgentPromptRun(userId, input.agentPrompt)
+    : undefined;
+  const agentMessage = agentPromptRun
+    ? buildAgentPromptRunMessage({
+        name: agentPromptRun.name,
+        content: agentPromptRun.content,
+        extra: input.message,
+      })
+    : input.message;
+  const displayMessage = agentPromptRun
+    ? formatAgentPromptShortForm(agentPromptRun.name, input.message)
+    : input.message;
 
   const usageKind = usageKindForScope(input.scope);
   const hold = await enforceCallableAgentLoopLimits(
@@ -254,7 +274,7 @@ export async function startAgentTurn(
                     ? { directoryId: input.directoryId }
                     : {}),
                   ...(homeDirectoryId ? { homeDirectoryId } : {}),
-                  title: deriveAgentThreadTitle(input.message),
+                  title: deriveAgentThreadTitle(displayMessage),
                   createdAt: nowTimestamp,
                 }),
             updatedAt: nowTimestamp,
@@ -291,6 +311,7 @@ export async function startAgentTurn(
             content: input.message,
             createdAt: now,
             promptContext: input.promptContext,
+            ...(agentPromptRun ? { agentPrompt: agentPromptRun } : {}),
             turnId,
           }),
         );
@@ -316,7 +337,7 @@ export async function startAgentTurn(
           attempt: 0,
           leaseId: null,
           request: {
-            message: input.message,
+            message: agentMessage,
             ...(input.promptContext
               ? { promptContext: input.promptContext }
               : {}),

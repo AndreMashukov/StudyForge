@@ -10,6 +10,8 @@ export interface IChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  /** User messages that ran a saved agent prompt. */
+  agentPromptName?: string;
   referencedItems: AgentReferencedItem[];
   actions: AgentActionResult[];
   deletes: AgentProposedDelete[];
@@ -45,6 +47,7 @@ export function fromConversationEntry(
     id: entry.id,
     role: entry.role,
     content: entry.content,
+    ...(entry.agentPromptName ? { agentPromptName: entry.agentPromptName } : {}),
     referencedItems: entry.referencedItems,
     actions: entry.executedActions,
     deletes: entry.live ? [] : entry.proposedDeletes,

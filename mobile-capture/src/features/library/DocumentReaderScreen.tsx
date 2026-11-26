@@ -375,11 +375,13 @@ export function DocumentReaderScreen() {
       <OfflineBanner />
       {document ? (
         <Composer
+          agentPrompts
           placeholder="Ask about this document"
           onCapture={() => openCapture(document.directoryId)}
-          onSend={(message) =>
+          onSend={(message, agentPrompt) =>
             startChat(router, {
               message,
+              agentPrompt,
               directoryId: document.directoryId,
               documentId: document.id,
               label: document.title,

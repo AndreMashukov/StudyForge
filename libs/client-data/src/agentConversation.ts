@@ -32,6 +32,8 @@ export interface IAgentConversationEntry {
   content: string;
   createdAt: string;
   promptContext?: AgentPromptContext;
+  /** User messages that ran a saved agent prompt: its name; `content` is the extra text. */
+  agentPromptName?: string;
   executedActions: AgentActionResult[];
   proposedDeletes: AgentProposedDelete[];
   referencedItems: AgentReferencedItem[];
@@ -50,6 +52,7 @@ export interface IAgentPendingUserMessage {
   content: string;
   createdAt: string;
   promptContext?: AgentPromptContext;
+  agentPromptName?: string;
 }
 
 export function isAgentTurnActive(turn: AgentTurn | null | undefined): boolean {
@@ -88,6 +91,9 @@ function fromThreadMessage(
     content: message.content,
     createdAt: message.createdAt,
     ...(message.promptContext ? { promptContext: message.promptContext } : {}),
+    ...(message.agentPrompt
+      ? { agentPromptName: message.agentPrompt.name }
+      : {}),
     executedActions: message.executedActions ?? [],
     proposedDeletes: message.proposedDeletes ?? [],
     referencedItems: message.referencedItems ?? [],
@@ -180,6 +186,9 @@ export function mergeAgentConversation(input: {
       createdAt: pending.createdAt,
       ...(pending.promptContext
         ? { promptContext: pending.promptContext }
+        : {}),
+      ...(pending.agentPromptName
+        ? { agentPromptName: pending.agentPromptName }
         : {}),
       executedActions: [],
       proposedDeletes: [],

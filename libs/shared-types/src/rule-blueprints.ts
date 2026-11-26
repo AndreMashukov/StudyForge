@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { RuleApplicability, RuleColor } from './index';
+import { validateAgentPromptRule } from './agent-prompt';
 
 export type RuleBlueprintStatus = 'draft' | 'published' | 'archived';
 
@@ -75,6 +76,7 @@ const ruleApplicabilitySchema = z.enum([
   'slide_deck',
   'diagram_quiz',
   'sequence_quiz',
+  'agent',
 ]);
 
 function isRuleColor(value: string): value is RuleColor {
@@ -85,7 +87,7 @@ function isRuleApplicability(value: string): value is RuleApplicability {
   return ruleApplicabilitySchema.safeParse(value).success;
 }
 
-export const ruleBlueprintFormSchema = z.object({
+const ruleBlueprintFormFields = z.object({
   name: z.string().trim().min(1, 'Name is required').max(100),
   description: z.string().trim().max(500).optional(),
   content: z.string().trim().min(1, 'Content is required').max(100_000),
@@ -96,7 +98,29 @@ export const ruleBlueprintFormSchema = z.object({
     .min(1, 'Select at least one applicability'),
 });
 
-export const updateRuleBlueprintFormSchema = ruleBlueprintFormSchema.partial();
+/** Agent blueprints (suggested agent prompts, ADR 017) are exclusive and short. */
+function refineAgentBlueprint(
+  value: { applicableTo?: string[]; content?: string },
+  ctx: z.RefinementCtx,
+): void {
+  if (!value.applicableTo) {
+    return;
+  }
+  const error = validateAgentPromptRule({
+    applicableTo: value.applicableTo,
+    content: value.content ?? '',
+  });
+  if (error) {
+    ctx.addIssue({ code: 'custom', message: error, path: ['applicableTo'] });
+  }
+}
+
+export const ruleBlueprintFormSchema =
+  ruleBlueprintFormFields.superRefine(refineAgentBlueprint);
+
+export const updateRuleBlueprintFormSchema = ruleBlueprintFormFields
+  .partial()
+  .superRefine(refineAgentBlueprint);
 
 export type IRuleBlueprintFormValues = z.infer<typeof ruleBlueprintFormSchema>;
 

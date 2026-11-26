@@ -25,6 +25,8 @@ import type {
   ListAgentThreadsRequest,
   ListAgentThreadsResponse,
   StartAgentTurnRequest,
+  ISuggestedAgentPrompt,
+  ListSuggestedAgentPromptsResponse,
   StartAgentTurnResponse,
 } from '@shared-types';
 import type {
@@ -236,6 +238,18 @@ export const agentThreadApi = baseApi.injectEndpoints({
       invalidatesTags: [{ type: 'AgentThread', id: 'LIST' }],
     }),
 
+    /** Suggested agent prompts for the "/" menu (published agent blueprints, ADR 017). */
+    listSuggestedAgentPrompts: builder.query<ISuggestedAgentPrompt[], void>({
+      query: () => ({
+        functionName: 'listSuggestedAgentPrompts',
+        data: {},
+        timeout: 30000,
+      }),
+      transformResponse: (response: ListSuggestedAgentPromptsResponse) =>
+        response.prompts ?? [],
+      keepUnusedDataFor: 600,
+    }),
+
     cancelAgentTurn: builder.mutation<CancelAgentTurnResponse, CancelAgentTurnRequest>({
       query: (data) => ({
         functionName: 'cancelAgentTurn',
@@ -253,4 +267,5 @@ export const {
   useGetAgentTurnQuery,
   useStartAgentTurnMutation,
   useCancelAgentTurnMutation,
+  useListSuggestedAgentPromptsQuery,
 } = agentThreadApi;

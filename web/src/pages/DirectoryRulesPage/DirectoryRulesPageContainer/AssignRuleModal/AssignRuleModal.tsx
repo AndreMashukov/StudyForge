@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, Folder, Search, SlidersHorizontal } from 'lucide-react';
+import { isAgentPromptApplicability } from '@shared-types';
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,10 @@ export const AssignRuleModal = ({ onClose }: AssignRuleModalProps) => {
   const filteredRules = useMemo(() => {
     const query = searchQuery.toLowerCase();
     return allRules.filter((rule) => {
+      // Agent prompts are global and never attach to folders (ADR 017).
+      if (isAgentPromptApplicability(rule.applicableTo)) {
+        return false;
+      }
       const matchesSearch =
         !query ||
         rule.name.toLowerCase().includes(query) ||
